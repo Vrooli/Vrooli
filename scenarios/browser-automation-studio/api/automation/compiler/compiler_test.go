@@ -50,14 +50,14 @@ func TestCompileWorkflowSequential(t *testing.T) {
 				},
 				Position: &basbase.NodePosition{X: 0, Y: 0},
 			},
-				{
-					Id: "node-2",
-					Action: &basactions.ActionDefinition{
-						Type:   basactions.ActionType_ACTION_TYPE_WAIT,
-						Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{WaitFor: &basactions.WaitParams_DurationMs{DurationMs: 1000}}},
-					},
-					Position: &basbase.NodePosition{X: 200, Y: 0},
+			{
+				Id: "node-2",
+				Action: &basactions.ActionDefinition{
+					Type:   basactions.ActionType_ACTION_TYPE_WAIT,
+					Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{WaitFor: &basactions.WaitParams_DurationMs{DurationMs: 1000}}},
 				},
+				Position: &basbase.NodePosition{X: 200, Y: 0},
+			},
 			{
 				Id: "node-3",
 				Action: &basactions.ActionDefinition{
@@ -104,13 +104,13 @@ func TestCompileWorkflowDetectsCycles(t *testing.T) {
 	workflow := makeTestWorkflow(
 		uuid.New(),
 		"cycle",
-			[]*basworkflows.WorkflowNodeV2{
-				{Id: "a", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}},
-				{Id: "b", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_WAIT, Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{WaitFor: &basactions.WaitParams_DurationMs{DurationMs: 1000}}}}},
-			},
-			[]*basworkflows.WorkflowEdgeV2{
-				{Id: "ab", Source: "a", Target: "b"},
-				{Id: "ba", Source: "b", Target: "a"},
+		[]*basworkflows.WorkflowNodeV2{
+			{Id: "a", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}},
+			{Id: "b", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_WAIT, Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{WaitFor: &basactions.WaitParams_DurationMs{DurationMs: 1000}}}}},
+		},
+		[]*basworkflows.WorkflowEdgeV2{
+			{Id: "ab", Source: "a", Target: "b"},
+			{Id: "ba", Source: "b", Target: "a"},
 		},
 	)
 
@@ -214,9 +214,9 @@ func TestCompileWorkflow_EmptyNodes(t *testing.T) {
 func TestCompileWorkflow_AllSupportedActionTypes(t *testing.T) {
 	// Test all proto-supported action types
 	testCases := []struct {
-		name       string
-		action     *basactions.ActionDefinition
-		expected   StepType
+		name     string
+		action   *basactions.ActionDefinition
+		expected StepType
 	}{
 		{
 			name: "navigate",
@@ -327,19 +327,19 @@ func TestCompileWorkflow_AllSupportedActionTypes(t *testing.T) {
 		},
 	}
 
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				workflow := makeTestWorkflow(
-					uuid.New(),
-					"test-"+tc.name,
-					[]*basworkflows.WorkflowNodeV2{
-						{
-							Id: "node-1",
-							Action: tc.action,
-						},
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			workflow := makeTestWorkflow(
+				uuid.New(),
+				"test-"+tc.name,
+				[]*basworkflows.WorkflowNodeV2{
+					{
+						Id:     "node-1",
+						Action: tc.action,
 					},
-					[]*basworkflows.WorkflowEdgeV2{},
-				)
+				},
+				[]*basworkflows.WorkflowEdgeV2{},
+			)
 
 			plan, err := CompileWorkflow(workflow)
 			require.NoError(t, err, "action type %s should be supported", tc.name)
@@ -369,6 +369,22 @@ func TestCompileWorkflow_EmptyStepTypeError(t *testing.T) {
 	_, err := CompileWorkflow(workflow)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing action.type")
+}
+
+func TestCompileWorkflow_MissingActionRejected(t *testing.T) {
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"missing-action",
+		[]*basworkflows.WorkflowNodeV2{
+			{Id: "node-1"},
+		},
+		[]*basworkflows.WorkflowEdgeV2{},
+	)
+
+	_, err := CompileWorkflow(workflow)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "missing action")
+	require.Contains(t, err.Error(), "no longer accepted")
 }
 
 func TestCompileWorkflow_WhitespaceOnlyStepTypeError(t *testing.T) {

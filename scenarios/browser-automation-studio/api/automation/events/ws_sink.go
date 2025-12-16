@@ -206,22 +206,6 @@ func (q *executionQueue) run() {
 
 func (q *executionQueue) emit(event contracts.EventEnvelope) {
 	if protoMap, ok := eventToProtoMap(event); ok {
-		if event.Payload != nil {
-			protoMap["legacy_payload"] = event.Payload
-		}
-		// Add unified timeline_entry for step events to enable shared Record/Execute UX
-		if isStepEvent(event.Kind) {
-			timelineEntry := eventToTimelineEntry(event, q.executionID)
-			if timelineEntry != nil {
-				jsonData, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(timelineEntry)
-				if err == nil {
-					var timelineEntryMap map[string]any
-					if json.Unmarshal(jsonData, &timelineEntryMap) == nil {
-						protoMap["timeline_entry"] = timelineEntryMap
-					}
-				}
-			}
-		}
 		q.hub.BroadcastEnvelope(protoMap)
 		return
 	}
@@ -271,34 +255,6 @@ func (s *WSHubSink) isClosed(executionID uuid.UUID) bool {
 	return ok
 }
 
-// isStepEvent returns true if the event kind is a step event (started/completed/failed).
-func isStepEvent(kind contracts.EventKind) bool {
-	return kind == contracts.EventKindStepStarted ||
-		kind == contracts.EventKindStepCompleted ||
-		kind == contracts.EventKindStepFailed
-}
-
-// eventToTimelineEntry converts an event envelope to a unified TimelineEntry.
-// Returns nil if the event doesn't have a step outcome or conversion fails.
-func eventToTimelineEntry(ev contracts.EventEnvelope, executionID uuid.UUID) *bastimeline.TimelineEntry {
-	var outcome *contracts.StepOutcome
-
-	// Extract outcome from payload
-	if asMap, ok := ev.Payload.(map[string]any); ok {
-		if out, ok := asMap["outcome"].(contracts.StepOutcome); ok {
-			outcome = &out
-		}
-	} else if out, ok := ev.Payload.(contracts.StepOutcome); ok {
-		outcome = &out
-	}
-
-	if outcome == nil {
-		return nil
-	}
-
-	return StepOutcomeToTimelineEntry(*outcome, executionID)
-}
-
 func eventToProtoMap(ev contracts.EventEnvelope) (map[string]any, bool) {
 	pb, err := convertEventToProto(ev)
 	if err != nil || pb == nil {
@@ -311,12 +267,6 @@ func eventToProtoMap(ev contracts.EventEnvelope) (map[string]any, bool) {
 	var out map[string]any
 	if err := json.Unmarshal(data, &out); err != nil {
 		return nil, false
-	}
-	if ev.Drops.Dropped > 0 || ev.Drops.OldestDropped > 0 {
-		out["drops"] = map[string]any{
-			"dropped":        ev.Drops.Dropped,
-			"oldest_dropped": ev.Drops.OldestDropped,
-		}
 	}
 	return out, true
 }
@@ -350,7 +300,7 @@ func convertEventToProto(ev contracts.EventEnvelope) (*bastimeline.TimelineStrea
 	case contracts.EventKindStepStarted,
 		contracts.EventKindStepCompleted,
 		contracts.EventKindStepFailed:
-		timelineEntry := eventToTimelineEntry(ev, ev.ExecutionID)
+		timelineEntry := buildTimelineEntryFromEnvelope(ev)
 		if timelineEntry == nil {
 			return nil, fmt.Errorf("unable to build timeline entry for event kind %s", ev.Kind)
 		}
@@ -432,12 +382,21 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.Tim
 	if outcome != nil {
 		entry.Telemetry = buildTelemetryFromOutcome(outcome)
 	}
+	if entry.Telemetry == nil {
+		entry.Telemetry = &basdomain.ActionTelemetry{}
+	}
 
 	// Build EventContext with execution origin
-	success := ev.Kind != contracts.EventKindStepFailed
 	entry.Context = &basbase.EventContext{
-		Origin:  &basbase.EventContext_ExecutionId{ExecutionId: ev.ExecutionID.String()},
-		Success: &success,
+		Origin: &basbase.EventContext_ExecutionId{ExecutionId: ev.ExecutionID.String()},
+	}
+	switch ev.Kind {
+	case contracts.EventKindStepCompleted:
+		success := true
+		entry.Context.Success = &success
+	case contracts.EventKindStepFailed:
+		success := false
+		entry.Context.Success = &success
 	}
 
 	// Add error to context if present
@@ -513,7 +472,6 @@ func buildTelemetryFromOutcome(outcome *contracts.StepOutcome) *basdomain.Action
 
 	return tel
 }
-
 
 func mapExecutionStatus(kind contracts.EventKind, payload any) basbase.ExecutionStatus {
 	if status := extractString(payload, "status"); status != "" {

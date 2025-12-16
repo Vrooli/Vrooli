@@ -265,6 +265,9 @@ export const ActionTypeName: Record<ActionType, string> = {
   [ActionType.GESTURE]: 'gesture',
   [ActionType.NETWORK_MOCK]: 'network_mock',
   [ActionType.ROTATE]: 'rotate',
+  [ActionType.SET_VARIABLE]: 'set_variable',
+  [ActionType.LOOP]: 'loop',
+  [ActionType.CONDITIONAL]: 'conditional',
 };
 
 /**

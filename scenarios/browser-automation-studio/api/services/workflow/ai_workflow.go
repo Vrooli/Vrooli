@@ -32,28 +32,29 @@ func (s *WorkflowService) generateWorkflowDefinitionFromPrompt(ctx context.Conte
 		jsonBlob = strings.TrimSpace(raw)
 	}
 
-	// Preferred: protojson WorkflowDefinitionV2.
+	// Preferred: strict protojson WorkflowDefinitionV2.
 	var pb basworkflows.WorkflowDefinitionV2
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal([]byte(jsonBlob), &pb); err == nil {
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal([]byte(jsonBlob), &pb); err == nil {
+		if err := validateFlowDefinitionV2OnWrite(&pb); err != nil {
+			return nil, &AIWorkflowError{Reason: fmt.Sprintf("AI returned invalid v2 workflow definition: %s", err.Error())}
+		}
 		return &pb, nil
 	}
 
-	// Fallback: interpret as legacy nodes/edges and convert to V2.
+	// Fallback: interpret as legacy nodes/edges and convert to V2 via the write compat boundary.
 	var payload map[string]any
 	if err := json.Unmarshal([]byte(jsonBlob), &payload); err != nil {
 		return nil, &AIWorkflowError{Reason: "AI did not return valid JSON workflow definition"}
 	}
 
-	nodes := ToInterfaceSlice(payload["nodes"])
-	edges := ToInterfaceSlice(payload["edges"])
-	if flow, ok := payload["flow_definition"].(map[string]any); ok && (len(nodes) == 0 && len(edges) == 0) {
-		nodes = ToInterfaceSlice(flow["nodes"])
-		edges = ToInterfaceSlice(flow["edges"])
+	flowDef := payload
+	if nested, ok := payload["flow_definition"].(map[string]any); ok && nested != nil {
+		flowDef = nested
 	}
 
-	v2, err := V1NodesEdgesToV2Definition(nodes, edges, payload)
+	v2, err := BuildFlowDefinitionV2ForWrite(flowDef, nil, nil)
 	if err != nil {
-		return nil, &AIWorkflowError{Reason: fmt.Sprintf("AI workflow conversion failed: %s", err.Error())}
+		return nil, &AIWorkflowError{Reason: fmt.Sprintf("AI returned invalid workflow definition: %s", err.Error())}
 	}
 	return v2, nil
 }

@@ -9,6 +9,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // flow_utils.go holds small helpers for graph traversal and value coercion.
@@ -469,23 +472,80 @@ func toFloat(v any) (float64, bool) {
 // recursively so nested params get interpolated. Supports dot/index paths
 // (e.g., ${user.name}, ${items.0}).
 func (e *SimpleExecutor) interpolateInstruction(instr contracts.CompiledInstruction, state *flowState) contracts.CompiledInstruction {
-	if state == nil || len(state.vars) == 0 || instr.Params == nil {
+	if state == nil || len(state.vars) == 0 {
 		return instr
 	}
-	if params, ok := interpolateValue(instr.Params, state).(map[string]any); ok {
-		instr.Params = params
+	if instr.Params != nil {
+		if params, ok := interpolateValue(instr.Params, state).(map[string]any); ok {
+			instr.Params = params
+		}
+	}
+	if instr.Context != nil {
+		if ctx, ok := interpolateValue(instr.Context, state).(map[string]any); ok {
+			instr.Context = ctx
+		}
+	}
+	if instr.Action != nil {
+		if updated := interpolateActionDefinition(instr.Action, state); updated != nil {
+			instr.Action = updated
+		}
 	}
 	return instr
 }
 
 func (e *SimpleExecutor) interpolatePlanStep(step contracts.PlanStep, state *flowState) contracts.PlanStep {
-	if state == nil || len(state.vars) == 0 || step.Params == nil {
+	if state == nil || len(state.vars) == 0 {
 		return step
 	}
-	if params, ok := interpolateValue(step.Params, state).(map[string]any); ok {
-		step.Params = params
+	if step.Params != nil {
+		if params, ok := interpolateValue(step.Params, state).(map[string]any); ok {
+			step.Params = params
+		}
+	}
+	if step.Context != nil {
+		if ctx, ok := interpolateValue(step.Context, state).(map[string]any); ok {
+			step.Context = ctx
+		}
+	}
+	if step.Action != nil {
+		if updated := interpolateActionDefinition(step.Action, state); updated != nil {
+			step.Action = updated
+		}
 	}
 	return step
+}
+
+func interpolateActionDefinition(action *basactions.ActionDefinition, state *flowState) *basactions.ActionDefinition {
+	if action == nil || state == nil || len(state.vars) == 0 {
+		return action
+	}
+
+	raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(action)
+	if err != nil {
+		return action
+	}
+
+	var doc any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return action
+	}
+
+	updated := interpolateValue(doc, state)
+	updatedMap, ok := updated.(map[string]any)
+	if !ok || updatedMap == nil {
+		return action
+	}
+	updatedBytes, err := json.Marshal(updatedMap)
+	if err != nil {
+		return action
+	}
+
+	var out basactions.ActionDefinition
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(updatedBytes, &out); err != nil {
+		return action
+	}
+
+	return proto.Clone(&out).(*basactions.ActionDefinition)
 }
 
 // interpolateValue performs variable substitution recursively on any value.
@@ -964,11 +1024,17 @@ func maxGraphIndex(graph *contracts.PlanGraph) int {
 }
 
 func planStepToInstruction(step contracts.PlanStep) contracts.CompiledInstruction {
+	instrType := step.Type
+	instrParams := step.Params
+	if step.Action != nil && step.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
+		instrType = ""
+		instrParams = nil
+	}
 	return contracts.CompiledInstruction{
 		Index:       step.Index,
 		NodeID:      step.NodeID,
-		Type:        step.Type,
-		Params:      step.Params,
+		Type:        instrType,
+		Params:      instrParams,
 		PreloadHTML: step.Preload,
 		Context:     step.Context,
 		Metadata:    step.Metadata,
@@ -977,11 +1043,17 @@ func planStepToInstruction(step contracts.PlanStep) contracts.CompiledInstructio
 }
 
 func planStepToInstructionStep(instr contracts.CompiledInstruction) contracts.PlanStep {
+	stepType := instr.Type
+	stepParams := instr.Params
+	if instr.Action != nil && instr.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
+		stepType = ""
+		stepParams = nil
+	}
 	return contracts.PlanStep{
 		Index:    instr.Index,
 		NodeID:   instr.NodeID,
-		Type:     instr.Type,
-		Params:   instr.Params,
+		Type:     stepType,
+		Params:   stepParams,
 		Metadata: instr.Metadata,
 		Context:  instr.Context,
 		Preload:  instr.PreloadHTML,
@@ -1009,7 +1081,8 @@ func (e *SimpleExecutor) nextNodeID(step contracts.PlanStep, outcome contracts.S
 }
 
 func conditionalBranchTarget(step contracts.PlanStep, outcome contracts.StepOutcome) string {
-	if !strings.EqualFold(step.Type, "conditional") || outcome.Condition == nil {
+	isConditional := strings.EqualFold(step.Type, "conditional") || (step.Action != nil && step.Action.Type == basactions.ActionType_ACTION_TYPE_CONDITIONAL)
+	if !isConditional || outcome.Condition == nil {
 		return ""
 	}
 

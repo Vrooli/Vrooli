@@ -7,14 +7,16 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/google/uuid"
-	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -76,7 +78,7 @@ func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
 	// Convert proto flow definition to internal flowDefinition struct
 	// We use protojson.Marshal to properly serialize proto messages to JSON
 	var raw flowDefinition
-	data, err := protojson.Marshal(flowDef)
+	data, err := (protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}).Marshal(flowDef)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal workflow definition: %w", err)
 	}
@@ -132,12 +134,6 @@ func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName strin
 		return nil, err
 	}
 
-	// Inline subflow nodes before processing loops
-	steps, err = inlineSubflows(steps, workflowID, workflowName)
-	if err != nil {
-		return nil, err
-	}
-
 	for idx := range steps {
 		if steps[idx].Type != StepLoop {
 			continue
@@ -184,113 +180,6 @@ func applySpecialEdges(plan *ExecutionPlan, special map[string][]EdgeRef) {
 	}
 }
 
-// inlineSubflows replaces subflow nodes with their expanded workflow definitions.
-// The Python resolver (resolve-workflow.py) converts @fixture/ references into
-// workflowDefinition objects. This function flattens those nested definitions
-// into the parent execution plan while preserving edge connections.
-func inlineSubflows(steps []ExecutionStep, workflowID uuid.UUID, workflowName string) ([]ExecutionStep, error) {
-	result := make([]ExecutionStep, 0, len(steps))
-
-	// Track subflow node ID -> first nested step ID for edge redirection
-	subflowRedirects := make(map[string]string)
-
-	log.Printf("[SUBFLOW_DEBUG] inlineSubflows called with %d steps", len(steps))
-
-	for _, step := range steps {
-		if step.Type != StepSubflow {
-			result = append(result, step)
-			continue
-		}
-
-		log.Printf("[SUBFLOW_DEBUG] Found subflow node: %s", step.NodeID)
-		log.Printf("[SUBFLOW_DEBUG] step.Params keys: %v", func() []string {
-			keys := make([]string, 0, len(step.Params))
-			for k := range step.Params {
-				keys = append(keys, k)
-			}
-			return keys
-		}())
-
-		// Extract workflowDefinition from params
-		workflowDef, ok := step.Params["workflowDefinition"].(map[string]any)
-		if !ok {
-			log.Printf("[SUBFLOW_DEBUG] NO workflowDefinition in params (or wrong type)! Type: %T", step.Params["workflowDefinition"])
-			// Subflow without workflowDefinition - skip it (Python resolver did not inline it)
-			// This happens when resolve-workflow.py is not used or when testing pre-resolved workflows
-			continue
-		}
-
-		log.Printf("[SUBFLOW_DEBUG] workflowDefinition found with %d top-level keys", len(workflowDef))
-
-		// Parse the nested workflow definition
-		defData, err := json.Marshal(workflowDef)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal subflow definition for node %s: %w", step.NodeID, err)
-		}
-
-		var nestedFlow flowDefinition
-		if err := json.Unmarshal(defData, &nestedFlow); err != nil {
-			return nil, fmt.Errorf("failed to parse subflow definition for node %s: %w", step.NodeID, err)
-		}
-
-		log.Printf("[SUBFLOW_DEBUG] Parsed nestedFlow with %d nodes", len(nestedFlow.Nodes))
-
-		// Compile the nested workflow into steps
-		nestedPlan, err := compileFlow(
-			flowFragment{definition: nestedFlow},
-			workflowID,
-			fmt.Sprintf("%s::%s", workflowName, step.NodeID),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to compile subflow %s: %w", step.NodeID, err)
-		}
-
-		log.Printf("[SUBFLOW_DEBUG] Compiled nestedPlan with %d steps", len(nestedPlan.Steps))
-
-		// Inline the nested steps, preserving the subflow node's outgoing edges
-		// by transferring them to the last step of the nested plan
-		if len(nestedPlan.Steps) == 0 {
-			// Empty subflow - skip it
-			continue
-		}
-
-		// Track redirect: edges pointing to this subflow should point to first nested step
-		firstNestedID := nestedPlan.Steps[0].NodeID
-		subflowRedirects[step.NodeID] = firstNestedID
-		log.Printf("[SUBFLOW_DEBUG] Registered redirect: %s -> %s", step.NodeID, firstNestedID)
-
-		// Add all nested steps except the last one
-		for i := 0; i < len(nestedPlan.Steps)-1; i++ {
-			result = append(result, nestedPlan.Steps[i])
-		}
-
-		// Add the last nested step and transfer the subflow's outgoing edges to it
-		lastStep := nestedPlan.Steps[len(nestedPlan.Steps)-1]
-		lastStep.OutgoingEdges = append(lastStep.OutgoingEdges, step.OutgoingEdges...)
-		result = append(result, lastStep)
-	}
-
-	// Redirect incoming edges: update all OutgoingEdges that point to subflow nodes
-	// to instead point to the first step of the inlined subflow
-	for i := range result {
-		for j := range result[i].OutgoingEdges {
-			oldTarget := result[i].OutgoingEdges[j].TargetNode
-			if newTarget, ok := subflowRedirects[oldTarget]; ok {
-				log.Printf("[SUBFLOW_DEBUG] Redirecting edge from %s: %s -> %s",
-					result[i].NodeID, oldTarget, newTarget)
-				result[i].OutgoingEdges[j].TargetNode = newTarget
-			}
-		}
-	}
-
-	// Reindex all steps to maintain sequential order
-	for i := range result {
-		result[i].Index = i
-	}
-
-	return result, nil
-}
-
 // flowDefinition mirrors the React Flow payload persisted with workflows.
 type flowDefinition struct {
 	Nodes    []rawNode      `json:"nodes"`
@@ -303,15 +192,14 @@ type flowFragment struct {
 	specialEdges map[string][]EdgeRef
 }
 
-// rawNode supports both V1 (legacy) and V2 (proto-native) workflow formats.
-// V1 format: has Type and Data fields
-// V2 format: has Action field with nested type and params
+// rawNode mirrors protojson WorkflowNodeV2.
+// V2 format: has Action field with nested type and params.
 type rawNode struct {
-	ID       string         `json:"id"`
-	Type     string         `json:"type,omitempty"`              // V1 format
-	Data     map[string]any `json:"data,omitempty"`              // V1 format
-	Action   map[string]any `json:"action,omitempty"`            // V2 format
-	Position map[string]any `json:"position,omitempty"`
+	ID           string         `json:"id"`
+	Type         string         `json:"type,omitempty"`   // legacy (rejected)
+	Data         map[string]any `json:"data,omitempty"`   // legacy (rejected)
+	Action       map[string]any `json:"action,omitempty"` // V2 format
+	Position     map[string]any `json:"position,omitempty"`
 	ExecSettings map[string]any `json:"execution_settings,omitempty"` // V2 format
 }
 
@@ -322,16 +210,15 @@ func (n rawNode) isV2Format() bool {
 
 // getStepType extracts the step type from either V1 or V2 format
 func (n rawNode) getStepType() (string, error) {
-	if n.isV2Format() {
-		// V2 format: action.type contains "ACTION_TYPE_CLICK" etc.
-		actionType, ok := n.Action["type"].(string)
-		if !ok || actionType == "" {
-			return "", fmt.Errorf("V2 node %s missing action.type", n.ID)
-		}
-		return v2ActionTypeToStepType(actionType), nil
+	if !n.isV2Format() {
+		return "", fmt.Errorf("legacy workflow node %s missing action; v1 node.type/node.data is no longer accepted", n.ID)
 	}
-	// V1 format: type field contains "click" etc.
-	return n.Type, nil
+	// V2 format: action.type contains "ACTION_TYPE_CLICK" etc.
+	actionType, ok := n.Action["type"].(string)
+	if !ok || actionType == "" {
+		return "", fmt.Errorf("V2 node %s missing action.type", n.ID)
+	}
+	return v2ActionTypeToStepType(actionType), nil
 }
 
 // getParams extracts params from either V1 or V2 format
@@ -339,7 +226,7 @@ func (n rawNode) getParams() map[string]any {
 	if n.isV2Format() {
 		return extractV2Params(n.Action)
 	}
-	return n.Data
+	return nil
 }
 
 // v2ActionTypeToStepType converts V2 action type enum to V1 step type string
@@ -395,12 +282,18 @@ func v2ActionTypeToStepType(actionType string) string {
 		return "networkMock"
 	case "ACTION_TYPE_ROTATE":
 		return "rotate"
+	case "ACTION_TYPE_SET_VARIABLE":
+		return "setVariable"
+	case "ACTION_TYPE_LOOP":
+		return "loop"
+	case "ACTION_TYPE_CONDITIONAL":
+		return "conditional"
 	default:
 		return "custom"
 	}
 }
 
-// extractV2Params extracts params from V2 action structure and normalizes to V1 param names
+// extractV2Params extracts params from V2 action structure.
 func extractV2Params(action map[string]any) map[string]any {
 	params := make(map[string]any)
 
@@ -418,29 +311,13 @@ func extractV2Params(action map[string]any) map[string]any {
 		"focus", "blur", "subflow", "extract", "upload_file", "download",
 		"frame_switch", "tab_switch", "cookie_storage", "shortcut",
 		"drag_drop", "gesture", "network_mock", "rotate",
+		"set_variable", "loop", "conditional",
 	}
 
 	for _, field := range actionFields {
 		if actionParams, ok := action[field].(map[string]any); ok {
 			for k, v := range actionParams {
-				// Convert snake_case to camelCase for executor compatibility
-				camelKey := snakeToCamel(k)
-				// Normalize proto enum strings into the legacy executor values.
-				if camelKey == "waitUntil" {
-					if s, ok := v.(string); ok {
-						switch strings.TrimSpace(s) {
-						case "NAVIGATE_WAIT_EVENT_LOAD":
-							v = "load"
-						case "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED":
-							v = "domcontentloaded"
-						case "NAVIGATE_WAIT_EVENT_NETWORKIDLE":
-							v = "networkidle"
-						case "NAVIGATE_WAIT_EVENT_COMMIT":
-							v = "commit"
-						}
-					}
-				}
-				params[camelKey] = v
+				params[k] = v
 			}
 			break // Only one action field should be populated
 		}
@@ -461,16 +338,16 @@ func snakeToCamel(s string) string {
 }
 
 type rawEdge struct {
-	ID           string         `json:"id"`
-	Source       string         `json:"source"`
-	Target       string         `json:"target"`
-	SourceHandle string         `json:"sourceHandle,omitempty"`   // V1 format (camelCase)
-	TargetHandle string         `json:"targetHandle,omitempty"`   // V1 format (camelCase)
-	SourceHandleV2 string       `json:"source_handle,omitempty"`  // V2 format (snake_case)
-	TargetHandleV2 string       `json:"target_handle,omitempty"`  // V2 format (snake_case)
-	Data         map[string]any `json:"data,omitempty"`
-	Type         string         `json:"type,omitempty"`           // V2 format edge type
-	Label        string         `json:"label,omitempty"`          // V2 format edge label
+	ID             string         `json:"id"`
+	Source         string         `json:"source"`
+	Target         string         `json:"target"`
+	SourceHandle   string         `json:"sourceHandle,omitempty"`  // protojson (json_name, legacy)
+	TargetHandle   string         `json:"targetHandle,omitempty"`  // protojson (json_name, legacy)
+	SourceHandleV2 string         `json:"source_handle,omitempty"` // protojson (proto_name)
+	TargetHandleV2 string         `json:"target_handle,omitempty"` // protojson (proto_name)
+	Data           map[string]any `json:"data,omitempty"`
+	Type           string         `json:"type,omitempty"`  // V2 format edge type
+	Label          string         `json:"label,omitempty"` // V2 format edge label
 }
 
 // getSourceHandle returns the source handle from either V1 or V2 format
@@ -845,14 +722,6 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 			Params:      copyMap(node.getParams()),
 		}
 
-		// Merge V2 execution_settings into params for executor compatibility
-		if node.ExecSettings != nil {
-			for k, v := range node.ExecSettings {
-				camelKey := snakeToCamel(k)
-				step.Params[camelKey] = v
-			}
-		}
-
 		if pos := toPosition(node.Position); pos != nil {
 			step.SourcePosition = pos
 		}
@@ -861,13 +730,6 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 		if stepType == StepNavigate {
 			if err := resolveNavigateURL(&step); err != nil {
 				return nil, fmt.Errorf("failed to resolve navigate URL for node %s: %w", nodeID, err)
-			}
-		}
-
-		// Normalize assert node params (assertMode -> mode)
-		if stepType == StepAssert {
-			if err := normalizeAssertParams(&step); err != nil {
-				return nil, fmt.Errorf("failed to normalize assert params for node %s: %w", nodeID, err)
 			}
 		}
 
@@ -1116,9 +978,13 @@ var selectorManifestErr error
 // loadSelectorManifest loads the selector manifest from ui/src/consts/selectors.manifest.json
 func loadSelectorManifest() error {
 	selectorManifestOnce.Do(func() {
+		scenarioDir := paths.ResolveScenarioDir(nil)
+
 		// Try multiple paths to find the manifest, depending on working directory
 		// (working directory could be scenario root or api/ subdirectory)
 		manifestPaths := []string{
+			filepath.Join(scenarioDir, "ui", "src", "consts", "selectors.manifest.json"),
+			filepath.Join(scenarioDir, "ui", "src", "constants", "selectors.manifest.json"),
 			"ui/src/consts/selectors.manifest.json",       // When running from scenario root (legacy)
 			"ui/src/constants/selectors.manifest.json",    // When running from scenario root (current)
 			"../ui/src/consts/selectors.manifest.json",    // When running from api/ subdirectory
@@ -1153,22 +1019,6 @@ func loadSelectorManifest() error {
 	return selectorManifestErr
 }
 
-// normalizeAssertParams normalizes assert node parameters from workflow format to playwright-driver format
-// Specifically: assertMode -> mode
-func normalizeAssertParams(step *ExecutionStep) error {
-	if step == nil || step.Type != StepAssert || step.Params == nil {
-		return nil
-	}
-
-	// Map assertMode to mode (playwright-driver expects "mode")
-	if assertMode, ok := step.Params["assertMode"].(string); ok && assertMode != "" {
-		step.Params["mode"] = assertMode
-		// Keep assertMode for backward compatibility, but mode takes precedence
-	}
-
-	return nil
-}
-
 // resolveSelectors resolves @selector/ references in step parameters to actual CSS selectors
 func resolveSelectors(step *ExecutionStep) error {
 	log.Printf("[SELECTOR_RESOLVE] resolveSelectors called for step type=%s nodeID=%s", step.Type, step.NodeID)
@@ -1179,7 +1029,19 @@ func resolveSelectors(step *ExecutionStep) error {
 	// Check if there are any @selector/ references before loading manifest
 	// This avoids unnecessary file I/O and allows workflows with pre-resolved selectors to work
 	hasSelectorsRefs := false
-	selectorParams := []string{"selector", "successSelector", "failureSelector", "sourceSelector", "targetSelector"}
+	selectorParams := []string{
+		"selector",
+		"successSelector",
+		"failureSelector",
+		"sourceSelector",
+		"targetSelector",
+		"waitForSelector",
+		"success_selector",
+		"failure_selector",
+		"source_selector",
+		"target_selector",
+		"wait_for_selector",
+	}
 
 	for _, paramName := range selectorParams {
 		if selectorRef, ok := step.Params[paramName].(string); ok {
@@ -1191,19 +1053,6 @@ func resolveSelectors(step *ExecutionStep) error {
 		}
 	}
 	log.Printf("[SELECTOR_RESOLVE] hasSelectorsRefs=%v (will %s manifest loading)", hasSelectorsRefs, map[bool]string{true: "proceed with", false: "skip"}[hasSelectorsRefs])
-
-	if !hasSelectorsRefs {
-		if resilience, ok := step.Params["resilience"].(map[string]interface{}); ok {
-			if successSelector, ok := resilience["successSelector"].(string); ok && strings.HasPrefix(successSelector, "@selector/") {
-				hasSelectorsRefs = true
-			}
-			if !hasSelectorsRefs {
-				if failureSelector, ok := resilience["failureSelector"].(string); ok && strings.HasPrefix(failureSelector, "@selector/") {
-					hasSelectorsRefs = true
-				}
-			}
-		}
-	}
 
 	// Only load manifest if we found @selector/ references
 	if !hasSelectorsRefs {

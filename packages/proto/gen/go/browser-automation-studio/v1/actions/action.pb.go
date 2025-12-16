@@ -138,6 +138,15 @@ const (
 	// Params: RotateParams (orientation, angle)
 	// Example: Rotate to landscape mode
 	ActionType_ACTION_TYPE_ROTATE ActionType = 25
+	// Set or update a workflow variable (executor-scoped; does not require browser interaction).
+	// Params: SetVariableParams
+	ActionType_ACTION_TYPE_SET_VARIABLE ActionType = 26
+	// Loop control-flow node (executor-scoped; loop body is defined by graph edges/handles).
+	// Params: LoopParams
+	ActionType_ACTION_TYPE_LOOP ActionType = 27
+	// Conditional control-flow node (executor-scoped; branches via outgoing edge conditions).
+	// Params: ConditionalParams
+	ActionType_ACTION_TYPE_CONDITIONAL ActionType = 28
 )
 
 // Enum value maps for ActionType.
@@ -169,6 +178,9 @@ var (
 		23: "ACTION_TYPE_GESTURE",
 		24: "ACTION_TYPE_NETWORK_MOCK",
 		25: "ACTION_TYPE_ROTATE",
+		26: "ACTION_TYPE_SET_VARIABLE",
+		27: "ACTION_TYPE_LOOP",
+		28: "ACTION_TYPE_CONDITIONAL",
 	}
 	ActionType_value = map[string]int32{
 		"ACTION_TYPE_UNSPECIFIED":    0,
@@ -197,6 +209,9 @@ var (
 		"ACTION_TYPE_GESTURE":        23,
 		"ACTION_TYPE_NETWORK_MOCK":   24,
 		"ACTION_TYPE_ROTATE":         25,
+		"ACTION_TYPE_SET_VARIABLE":   26,
+		"ACTION_TYPE_LOOP":           27,
+		"ACTION_TYPE_CONDITIONAL":    28,
 	}
 )
 
@@ -1301,6 +1316,464 @@ func (x CookieSameSite) Number() protoreflect.EnumNumber {
 // Deprecated: Use CookieSameSite.Descriptor instead.
 func (CookieSameSite) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{17}
+}
+
+type SetVariableSourceType int32
+
+const (
+	SetVariableSourceType_SET_VARIABLE_SOURCE_TYPE_UNSPECIFIED SetVariableSourceType = 0
+	SetVariableSourceType_SET_VARIABLE_SOURCE_TYPE_STATIC      SetVariableSourceType = 1
+	SetVariableSourceType_SET_VARIABLE_SOURCE_TYPE_EXPRESSION  SetVariableSourceType = 2
+	SetVariableSourceType_SET_VARIABLE_SOURCE_TYPE_EXTRACT     SetVariableSourceType = 3
+)
+
+// Enum value maps for SetVariableSourceType.
+var (
+	SetVariableSourceType_name = map[int32]string{
+		0: "SET_VARIABLE_SOURCE_TYPE_UNSPECIFIED",
+		1: "SET_VARIABLE_SOURCE_TYPE_STATIC",
+		2: "SET_VARIABLE_SOURCE_TYPE_EXPRESSION",
+		3: "SET_VARIABLE_SOURCE_TYPE_EXTRACT",
+	}
+	SetVariableSourceType_value = map[string]int32{
+		"SET_VARIABLE_SOURCE_TYPE_UNSPECIFIED": 0,
+		"SET_VARIABLE_SOURCE_TYPE_STATIC":      1,
+		"SET_VARIABLE_SOURCE_TYPE_EXPRESSION":  2,
+		"SET_VARIABLE_SOURCE_TYPE_EXTRACT":     3,
+	}
+)
+
+func (x SetVariableSourceType) Enum() *SetVariableSourceType {
+	p := new(SetVariableSourceType)
+	*p = x
+	return p
+}
+
+func (x SetVariableSourceType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SetVariableSourceType) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_actions_action_proto_enumTypes[18].Descriptor()
+}
+
+func (SetVariableSourceType) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_actions_action_proto_enumTypes[18]
+}
+
+func (x SetVariableSourceType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SetVariableSourceType.Descriptor instead.
+func (SetVariableSourceType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{18}
+}
+
+type SetVariableValueType int32
+
+const (
+	SetVariableValueType_SET_VARIABLE_VALUE_TYPE_UNSPECIFIED SetVariableValueType = 0
+	SetVariableValueType_SET_VARIABLE_VALUE_TYPE_TEXT        SetVariableValueType = 1
+	SetVariableValueType_SET_VARIABLE_VALUE_TYPE_NUMBER      SetVariableValueType = 2
+	SetVariableValueType_SET_VARIABLE_VALUE_TYPE_BOOLEAN     SetVariableValueType = 3
+	SetVariableValueType_SET_VARIABLE_VALUE_TYPE_JSON        SetVariableValueType = 4
+)
+
+// Enum value maps for SetVariableValueType.
+var (
+	SetVariableValueType_name = map[int32]string{
+		0: "SET_VARIABLE_VALUE_TYPE_UNSPECIFIED",
+		1: "SET_VARIABLE_VALUE_TYPE_TEXT",
+		2: "SET_VARIABLE_VALUE_TYPE_NUMBER",
+		3: "SET_VARIABLE_VALUE_TYPE_BOOLEAN",
+		4: "SET_VARIABLE_VALUE_TYPE_JSON",
+	}
+	SetVariableValueType_value = map[string]int32{
+		"SET_VARIABLE_VALUE_TYPE_UNSPECIFIED": 0,
+		"SET_VARIABLE_VALUE_TYPE_TEXT":        1,
+		"SET_VARIABLE_VALUE_TYPE_NUMBER":      2,
+		"SET_VARIABLE_VALUE_TYPE_BOOLEAN":     3,
+		"SET_VARIABLE_VALUE_TYPE_JSON":        4,
+	}
+)
+
+func (x SetVariableValueType) Enum() *SetVariableValueType {
+	p := new(SetVariableValueType)
+	*p = x
+	return p
+}
+
+func (x SetVariableValueType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SetVariableValueType) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_actions_action_proto_enumTypes[19].Descriptor()
+}
+
+func (SetVariableValueType) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_actions_action_proto_enumTypes[19]
+}
+
+func (x SetVariableValueType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SetVariableValueType.Descriptor instead.
+func (SetVariableValueType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{19}
+}
+
+type SetVariableExtractType int32
+
+const (
+	SetVariableExtractType_SET_VARIABLE_EXTRACT_TYPE_UNSPECIFIED SetVariableExtractType = 0
+	SetVariableExtractType_SET_VARIABLE_EXTRACT_TYPE_TEXT        SetVariableExtractType = 1
+	SetVariableExtractType_SET_VARIABLE_EXTRACT_TYPE_ATTRIBUTE   SetVariableExtractType = 2
+	SetVariableExtractType_SET_VARIABLE_EXTRACT_TYPE_VALUE       SetVariableExtractType = 3
+	SetVariableExtractType_SET_VARIABLE_EXTRACT_TYPE_HTML        SetVariableExtractType = 4
+)
+
+// Enum value maps for SetVariableExtractType.
+var (
+	SetVariableExtractType_name = map[int32]string{
+		0: "SET_VARIABLE_EXTRACT_TYPE_UNSPECIFIED",
+		1: "SET_VARIABLE_EXTRACT_TYPE_TEXT",
+		2: "SET_VARIABLE_EXTRACT_TYPE_ATTRIBUTE",
+		3: "SET_VARIABLE_EXTRACT_TYPE_VALUE",
+		4: "SET_VARIABLE_EXTRACT_TYPE_HTML",
+	}
+	SetVariableExtractType_value = map[string]int32{
+		"SET_VARIABLE_EXTRACT_TYPE_UNSPECIFIED": 0,
+		"SET_VARIABLE_EXTRACT_TYPE_TEXT":        1,
+		"SET_VARIABLE_EXTRACT_TYPE_ATTRIBUTE":   2,
+		"SET_VARIABLE_EXTRACT_TYPE_VALUE":       3,
+		"SET_VARIABLE_EXTRACT_TYPE_HTML":        4,
+	}
+)
+
+func (x SetVariableExtractType) Enum() *SetVariableExtractType {
+	p := new(SetVariableExtractType)
+	*p = x
+	return p
+}
+
+func (x SetVariableExtractType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SetVariableExtractType) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_actions_action_proto_enumTypes[20].Descriptor()
+}
+
+func (SetVariableExtractType) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_actions_action_proto_enumTypes[20]
+}
+
+func (x SetVariableExtractType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SetVariableExtractType.Descriptor instead.
+func (SetVariableExtractType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{20}
+}
+
+type LoopType int32
+
+const (
+	LoopType_LOOP_TYPE_UNSPECIFIED LoopType = 0
+	LoopType_LOOP_TYPE_FOREACH     LoopType = 1
+	LoopType_LOOP_TYPE_REPEAT      LoopType = 2
+	LoopType_LOOP_TYPE_WHILE       LoopType = 3
+)
+
+// Enum value maps for LoopType.
+var (
+	LoopType_name = map[int32]string{
+		0: "LOOP_TYPE_UNSPECIFIED",
+		1: "LOOP_TYPE_FOREACH",
+		2: "LOOP_TYPE_REPEAT",
+		3: "LOOP_TYPE_WHILE",
+	}
+	LoopType_value = map[string]int32{
+		"LOOP_TYPE_UNSPECIFIED": 0,
+		"LOOP_TYPE_FOREACH":     1,
+		"LOOP_TYPE_REPEAT":      2,
+		"LOOP_TYPE_WHILE":       3,
+	}
+)
+
+func (x LoopType) Enum() *LoopType {
+	p := new(LoopType)
+	*p = x
+	return p
+}
+
+func (x LoopType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LoopType) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_actions_action_proto_enumTypes[21].Descriptor()
+}
+
+func (LoopType) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_actions_action_proto_enumTypes[21]
+}
+
+func (x LoopType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LoopType.Descriptor instead.
+func (LoopType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{21}
+}
+
+type LoopConditionType int32
+
+const (
+	LoopConditionType_LOOP_CONDITION_TYPE_UNSPECIFIED LoopConditionType = 0
+	LoopConditionType_LOOP_CONDITION_TYPE_VARIABLE    LoopConditionType = 1
+	LoopConditionType_LOOP_CONDITION_TYPE_EXPRESSION  LoopConditionType = 2
+)
+
+// Enum value maps for LoopConditionType.
+var (
+	LoopConditionType_name = map[int32]string{
+		0: "LOOP_CONDITION_TYPE_UNSPECIFIED",
+		1: "LOOP_CONDITION_TYPE_VARIABLE",
+		2: "LOOP_CONDITION_TYPE_EXPRESSION",
+	}
+	LoopConditionType_value = map[string]int32{
+		"LOOP_CONDITION_TYPE_UNSPECIFIED": 0,
+		"LOOP_CONDITION_TYPE_VARIABLE":    1,
+		"LOOP_CONDITION_TYPE_EXPRESSION":  2,
+	}
+)
+
+func (x LoopConditionType) Enum() *LoopConditionType {
+	p := new(LoopConditionType)
+	*p = x
+	return p
+}
+
+func (x LoopConditionType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LoopConditionType) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_actions_action_proto_enumTypes[22].Descriptor()
+}
+
+func (LoopConditionType) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_actions_action_proto_enumTypes[22]
+}
+
+func (x LoopConditionType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LoopConditionType.Descriptor instead.
+func (LoopConditionType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{22}
+}
+
+type LoopConditionOperator int32
+
+const (
+	LoopConditionOperator_LOOP_CONDITION_OPERATOR_UNSPECIFIED LoopConditionOperator = 0
+	LoopConditionOperator_LOOP_CONDITION_OPERATOR_TRUTHY      LoopConditionOperator = 1
+	LoopConditionOperator_LOOP_CONDITION_OPERATOR_EQUALS      LoopConditionOperator = 2
+	LoopConditionOperator_LOOP_CONDITION_OPERATOR_NOT_EQUALS  LoopConditionOperator = 3
+	LoopConditionOperator_LOOP_CONDITION_OPERATOR_CONTAINS    LoopConditionOperator = 4
+	LoopConditionOperator_LOOP_CONDITION_OPERATOR_STARTS_WITH LoopConditionOperator = 5
+	LoopConditionOperator_LOOP_CONDITION_OPERATOR_ENDS_WITH   LoopConditionOperator = 6
+	LoopConditionOperator_LOOP_CONDITION_OPERATOR_GT          LoopConditionOperator = 7
+	LoopConditionOperator_LOOP_CONDITION_OPERATOR_GTE         LoopConditionOperator = 8
+	LoopConditionOperator_LOOP_CONDITION_OPERATOR_LT          LoopConditionOperator = 9
+	LoopConditionOperator_LOOP_CONDITION_OPERATOR_LTE         LoopConditionOperator = 10
+)
+
+// Enum value maps for LoopConditionOperator.
+var (
+	LoopConditionOperator_name = map[int32]string{
+		0:  "LOOP_CONDITION_OPERATOR_UNSPECIFIED",
+		1:  "LOOP_CONDITION_OPERATOR_TRUTHY",
+		2:  "LOOP_CONDITION_OPERATOR_EQUALS",
+		3:  "LOOP_CONDITION_OPERATOR_NOT_EQUALS",
+		4:  "LOOP_CONDITION_OPERATOR_CONTAINS",
+		5:  "LOOP_CONDITION_OPERATOR_STARTS_WITH",
+		6:  "LOOP_CONDITION_OPERATOR_ENDS_WITH",
+		7:  "LOOP_CONDITION_OPERATOR_GT",
+		8:  "LOOP_CONDITION_OPERATOR_GTE",
+		9:  "LOOP_CONDITION_OPERATOR_LT",
+		10: "LOOP_CONDITION_OPERATOR_LTE",
+	}
+	LoopConditionOperator_value = map[string]int32{
+		"LOOP_CONDITION_OPERATOR_UNSPECIFIED": 0,
+		"LOOP_CONDITION_OPERATOR_TRUTHY":      1,
+		"LOOP_CONDITION_OPERATOR_EQUALS":      2,
+		"LOOP_CONDITION_OPERATOR_NOT_EQUALS":  3,
+		"LOOP_CONDITION_OPERATOR_CONTAINS":    4,
+		"LOOP_CONDITION_OPERATOR_STARTS_WITH": 5,
+		"LOOP_CONDITION_OPERATOR_ENDS_WITH":   6,
+		"LOOP_CONDITION_OPERATOR_GT":          7,
+		"LOOP_CONDITION_OPERATOR_GTE":         8,
+		"LOOP_CONDITION_OPERATOR_LT":          9,
+		"LOOP_CONDITION_OPERATOR_LTE":         10,
+	}
+)
+
+func (x LoopConditionOperator) Enum() *LoopConditionOperator {
+	p := new(LoopConditionOperator)
+	*p = x
+	return p
+}
+
+func (x LoopConditionOperator) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LoopConditionOperator) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_actions_action_proto_enumTypes[23].Descriptor()
+}
+
+func (LoopConditionOperator) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_actions_action_proto_enumTypes[23]
+}
+
+func (x LoopConditionOperator) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LoopConditionOperator.Descriptor instead.
+func (LoopConditionOperator) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{23}
+}
+
+type ConditionalType int32
+
+const (
+	ConditionalType_CONDITIONAL_TYPE_UNSPECIFIED ConditionalType = 0
+	ConditionalType_CONDITIONAL_TYPE_EXPRESSION  ConditionalType = 1
+	ConditionalType_CONDITIONAL_TYPE_ELEMENT     ConditionalType = 2
+	ConditionalType_CONDITIONAL_TYPE_VARIABLE    ConditionalType = 3
+)
+
+// Enum value maps for ConditionalType.
+var (
+	ConditionalType_name = map[int32]string{
+		0: "CONDITIONAL_TYPE_UNSPECIFIED",
+		1: "CONDITIONAL_TYPE_EXPRESSION",
+		2: "CONDITIONAL_TYPE_ELEMENT",
+		3: "CONDITIONAL_TYPE_VARIABLE",
+	}
+	ConditionalType_value = map[string]int32{
+		"CONDITIONAL_TYPE_UNSPECIFIED": 0,
+		"CONDITIONAL_TYPE_EXPRESSION":  1,
+		"CONDITIONAL_TYPE_ELEMENT":     2,
+		"CONDITIONAL_TYPE_VARIABLE":    3,
+	}
+)
+
+func (x ConditionalType) Enum() *ConditionalType {
+	p := new(ConditionalType)
+	*p = x
+	return p
+}
+
+func (x ConditionalType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ConditionalType) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_actions_action_proto_enumTypes[24].Descriptor()
+}
+
+func (ConditionalType) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_actions_action_proto_enumTypes[24]
+}
+
+func (x ConditionalType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ConditionalType.Descriptor instead.
+func (ConditionalType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{24}
+}
+
+type ConditionalOperator int32
+
+const (
+	ConditionalOperator_CONDITIONAL_OPERATOR_UNSPECIFIED ConditionalOperator = 0
+	ConditionalOperator_CONDITIONAL_OPERATOR_EQUALS      ConditionalOperator = 1
+	ConditionalOperator_CONDITIONAL_OPERATOR_NOT_EQUALS  ConditionalOperator = 2
+	ConditionalOperator_CONDITIONAL_OPERATOR_CONTAINS    ConditionalOperator = 3
+	ConditionalOperator_CONDITIONAL_OPERATOR_STARTS_WITH ConditionalOperator = 4
+	ConditionalOperator_CONDITIONAL_OPERATOR_ENDS_WITH   ConditionalOperator = 5
+	ConditionalOperator_CONDITIONAL_OPERATOR_GT          ConditionalOperator = 6
+	ConditionalOperator_CONDITIONAL_OPERATOR_GTE         ConditionalOperator = 7
+	ConditionalOperator_CONDITIONAL_OPERATOR_LT          ConditionalOperator = 8
+	ConditionalOperator_CONDITIONAL_OPERATOR_LTE         ConditionalOperator = 9
+)
+
+// Enum value maps for ConditionalOperator.
+var (
+	ConditionalOperator_name = map[int32]string{
+		0: "CONDITIONAL_OPERATOR_UNSPECIFIED",
+		1: "CONDITIONAL_OPERATOR_EQUALS",
+		2: "CONDITIONAL_OPERATOR_NOT_EQUALS",
+		3: "CONDITIONAL_OPERATOR_CONTAINS",
+		4: "CONDITIONAL_OPERATOR_STARTS_WITH",
+		5: "CONDITIONAL_OPERATOR_ENDS_WITH",
+		6: "CONDITIONAL_OPERATOR_GT",
+		7: "CONDITIONAL_OPERATOR_GTE",
+		8: "CONDITIONAL_OPERATOR_LT",
+		9: "CONDITIONAL_OPERATOR_LTE",
+	}
+	ConditionalOperator_value = map[string]int32{
+		"CONDITIONAL_OPERATOR_UNSPECIFIED": 0,
+		"CONDITIONAL_OPERATOR_EQUALS":      1,
+		"CONDITIONAL_OPERATOR_NOT_EQUALS":  2,
+		"CONDITIONAL_OPERATOR_CONTAINS":    3,
+		"CONDITIONAL_OPERATOR_STARTS_WITH": 4,
+		"CONDITIONAL_OPERATOR_ENDS_WITH":   5,
+		"CONDITIONAL_OPERATOR_GT":          6,
+		"CONDITIONAL_OPERATOR_GTE":         7,
+		"CONDITIONAL_OPERATOR_LT":          8,
+		"CONDITIONAL_OPERATOR_LTE":         9,
+	}
+)
+
+func (x ConditionalOperator) Enum() *ConditionalOperator {
+	p := new(ConditionalOperator)
+	*p = x
+	return p
+}
+
+func (x ConditionalOperator) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ConditionalOperator) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_actions_action_proto_enumTypes[25].Descriptor()
+}
+
+func (ConditionalOperator) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_actions_action_proto_enumTypes[25]
+}
+
+func (x ConditionalOperator) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ConditionalOperator.Descriptor instead.
+func (ConditionalOperator) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{25}
 }
 
 // NavigateParams configures page navigation.
@@ -3549,6 +4022,446 @@ func (x *RotateParams) GetAngle() int32 {
 	return 0
 }
 
+type SetVariableParams struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Variable name/key in the workflow store namespace.
+	// @constraint Required, minimum 1 character
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Source used to derive the value.
+	SourceType *SetVariableSourceType `protobuf:"varint,2,opt,name=source_type,json=sourceType,proto3,enum=browser_automation_studio.v1.SetVariableSourceType,oneof" json:"source_type,omitempty"`
+	// Optional hint for UI + legacy value coercion.
+	ValueType *SetVariableValueType `protobuf:"varint,3,opt,name=value_type,json=valueType,proto3,enum=browser_automation_studio.v1.SetVariableValueType,oneof" json:"value_type,omitempty"`
+	// Static value to set when source_type=STATIC.
+	Value *v1.JsonValue `protobuf:"bytes,4,opt,name=value,proto3,oneof" json:"value,omitempty"`
+	// JavaScript expression evaluated in the page context when source_type=EXPRESSION.
+	// Expected to return a value that will be stored under `name`.
+	Expression *string `protobuf:"bytes,5,opt,name=expression,proto3,oneof" json:"expression,omitempty"`
+	// Selector used when source_type=EXTRACT.
+	Selector *string `protobuf:"bytes,6,opt,name=selector,proto3,oneof" json:"selector,omitempty"`
+	// Extraction strategy when source_type=EXTRACT.
+	ExtractType *SetVariableExtractType `protobuf:"varint,7,opt,name=extract_type,json=extractType,proto3,enum=browser_automation_studio.v1.SetVariableExtractType,oneof" json:"extract_type,omitempty"`
+	// Attribute name when extract_type=ATTRIBUTE.
+	Attribute *string `protobuf:"bytes,8,opt,name=attribute,proto3,oneof" json:"attribute,omitempty"`
+	// Timeout for expression/extract operations.
+	// @unit milliseconds
+	TimeoutMs *int32 `protobuf:"varint,9,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	// When true, extraction may capture multiple matches (implementation-defined).
+	AllMatches *bool `protobuf:"varint,10,opt,name=all_matches,json=allMatches,proto3,oneof" json:"all_matches,omitempty"`
+	// Optional URL context for extractor tooling (not required at runtime).
+	Url           *string `protobuf:"bytes,11,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetVariableParams) Reset() {
+	*x = SetVariableParams{}
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetVariableParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetVariableParams) ProtoMessage() {}
+
+func (x *SetVariableParams) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetVariableParams.ProtoReflect.Descriptor instead.
+func (*SetVariableParams) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *SetVariableParams) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SetVariableParams) GetSourceType() SetVariableSourceType {
+	if x != nil && x.SourceType != nil {
+		return *x.SourceType
+	}
+	return SetVariableSourceType_SET_VARIABLE_SOURCE_TYPE_UNSPECIFIED
+}
+
+func (x *SetVariableParams) GetValueType() SetVariableValueType {
+	if x != nil && x.ValueType != nil {
+		return *x.ValueType
+	}
+	return SetVariableValueType_SET_VARIABLE_VALUE_TYPE_UNSPECIFIED
+}
+
+func (x *SetVariableParams) GetValue() *v1.JsonValue {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *SetVariableParams) GetExpression() string {
+	if x != nil && x.Expression != nil {
+		return *x.Expression
+	}
+	return ""
+}
+
+func (x *SetVariableParams) GetSelector() string {
+	if x != nil && x.Selector != nil {
+		return *x.Selector
+	}
+	return ""
+}
+
+func (x *SetVariableParams) GetExtractType() SetVariableExtractType {
+	if x != nil && x.ExtractType != nil {
+		return *x.ExtractType
+	}
+	return SetVariableExtractType_SET_VARIABLE_EXTRACT_TYPE_UNSPECIFIED
+}
+
+func (x *SetVariableParams) GetAttribute() string {
+	if x != nil && x.Attribute != nil {
+		return *x.Attribute
+	}
+	return ""
+}
+
+func (x *SetVariableParams) GetTimeoutMs() int32 {
+	if x != nil && x.TimeoutMs != nil {
+		return *x.TimeoutMs
+	}
+	return 0
+}
+
+func (x *SetVariableParams) GetAllMatches() bool {
+	if x != nil && x.AllMatches != nil {
+		return *x.AllMatches
+	}
+	return false
+}
+
+func (x *SetVariableParams) GetUrl() string {
+	if x != nil && x.Url != nil {
+		return *x.Url
+	}
+	return ""
+}
+
+type LoopCondition struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          LoopConditionType      `protobuf:"varint,1,opt,name=type,proto3,enum=browser_automation_studio.v1.LoopConditionType" json:"type,omitempty"`
+	Variable      *string                `protobuf:"bytes,2,opt,name=variable,proto3,oneof" json:"variable,omitempty"`
+	Operator      *LoopConditionOperator `protobuf:"varint,3,opt,name=operator,proto3,enum=browser_automation_studio.v1.LoopConditionOperator,oneof" json:"operator,omitempty"`
+	Value         *v1.JsonValue          `protobuf:"bytes,4,opt,name=value,proto3,oneof" json:"value,omitempty"`
+	Expression    *string                `protobuf:"bytes,5,opt,name=expression,proto3,oneof" json:"expression,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoopCondition) Reset() {
+	*x = LoopCondition{}
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoopCondition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoopCondition) ProtoMessage() {}
+
+func (x *LoopCondition) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoopCondition.ProtoReflect.Descriptor instead.
+func (*LoopCondition) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *LoopCondition) GetType() LoopConditionType {
+	if x != nil {
+		return x.Type
+	}
+	return LoopConditionType_LOOP_CONDITION_TYPE_UNSPECIFIED
+}
+
+func (x *LoopCondition) GetVariable() string {
+	if x != nil && x.Variable != nil {
+		return *x.Variable
+	}
+	return ""
+}
+
+func (x *LoopCondition) GetOperator() LoopConditionOperator {
+	if x != nil && x.Operator != nil {
+		return *x.Operator
+	}
+	return LoopConditionOperator_LOOP_CONDITION_OPERATOR_UNSPECIFIED
+}
+
+func (x *LoopCondition) GetValue() *v1.JsonValue {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *LoopCondition) GetExpression() string {
+	if x != nil && x.Expression != nil {
+		return *x.Expression
+	}
+	return ""
+}
+
+type LoopParams struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	LoopType LoopType               `protobuf:"varint,1,opt,name=loop_type,json=loopType,proto3,enum=browser_automation_studio.v1.LoopType" json:"loop_type,omitempty"`
+	// FOREACH: variable name containing an array value.
+	ArraySource *string `protobuf:"bytes,2,opt,name=array_source,json=arraySource,proto3,oneof" json:"array_source,omitempty"`
+	// REPEAT: fixed iteration count.
+	Count *int32 `protobuf:"varint,3,opt,name=count,proto3,oneof" json:"count,omitempty"`
+	// Safety budget.
+	MaxIterations *int32 `protobuf:"varint,4,opt,name=max_iterations,json=maxIterations,proto3,oneof" json:"max_iterations,omitempty"`
+	// Variable names to set during FOREACH.
+	ItemVariable  *string `protobuf:"bytes,5,opt,name=item_variable,json=itemVariable,proto3,oneof" json:"item_variable,omitempty"`
+	IndexVariable *string `protobuf:"bytes,6,opt,name=index_variable,json=indexVariable,proto3,oneof" json:"index_variable,omitempty"`
+	// WHILE: condition evaluated before each iteration.
+	Condition *LoopCondition `protobuf:"bytes,7,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
+	// Optional time budgets for loop execution.
+	// @unit milliseconds
+	IterationTimeoutMs *int32 `protobuf:"varint,8,opt,name=iteration_timeout_ms,json=iterationTimeoutMs,proto3,oneof" json:"iteration_timeout_ms,omitempty"`
+	// @unit milliseconds
+	TotalTimeoutMs *int32 `protobuf:"varint,9,opt,name=total_timeout_ms,json=totalTimeoutMs,proto3,oneof" json:"total_timeout_ms,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *LoopParams) Reset() {
+	*x = LoopParams{}
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoopParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoopParams) ProtoMessage() {}
+
+func (x *LoopParams) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoopParams.ProtoReflect.Descriptor instead.
+func (*LoopParams) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *LoopParams) GetLoopType() LoopType {
+	if x != nil {
+		return x.LoopType
+	}
+	return LoopType_LOOP_TYPE_UNSPECIFIED
+}
+
+func (x *LoopParams) GetArraySource() string {
+	if x != nil && x.ArraySource != nil {
+		return *x.ArraySource
+	}
+	return ""
+}
+
+func (x *LoopParams) GetCount() int32 {
+	if x != nil && x.Count != nil {
+		return *x.Count
+	}
+	return 0
+}
+
+func (x *LoopParams) GetMaxIterations() int32 {
+	if x != nil && x.MaxIterations != nil {
+		return *x.MaxIterations
+	}
+	return 0
+}
+
+func (x *LoopParams) GetItemVariable() string {
+	if x != nil && x.ItemVariable != nil {
+		return *x.ItemVariable
+	}
+	return ""
+}
+
+func (x *LoopParams) GetIndexVariable() string {
+	if x != nil && x.IndexVariable != nil {
+		return *x.IndexVariable
+	}
+	return ""
+}
+
+func (x *LoopParams) GetCondition() *LoopCondition {
+	if x != nil {
+		return x.Condition
+	}
+	return nil
+}
+
+func (x *LoopParams) GetIterationTimeoutMs() int32 {
+	if x != nil && x.IterationTimeoutMs != nil {
+		return *x.IterationTimeoutMs
+	}
+	return 0
+}
+
+func (x *LoopParams) GetTotalTimeoutMs() int32 {
+	if x != nil && x.TotalTimeoutMs != nil {
+		return *x.TotalTimeoutMs
+	}
+	return 0
+}
+
+type ConditionalParams struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ConditionType ConditionalType        `protobuf:"varint,1,opt,name=condition_type,json=conditionType,proto3,enum=browser_automation_studio.v1.ConditionalType" json:"condition_type,omitempty"`
+	Expression    *string                `protobuf:"bytes,2,opt,name=expression,proto3,oneof" json:"expression,omitempty"`
+	Selector      *string                `protobuf:"bytes,3,opt,name=selector,proto3,oneof" json:"selector,omitempty"`
+	Variable      *string                `protobuf:"bytes,4,opt,name=variable,proto3,oneof" json:"variable,omitempty"`
+	Operator      *ConditionalOperator   `protobuf:"varint,5,opt,name=operator,proto3,enum=browser_automation_studio.v1.ConditionalOperator,oneof" json:"operator,omitempty"`
+	Value         *v1.JsonValue          `protobuf:"bytes,6,opt,name=value,proto3,oneof" json:"value,omitempty"`
+	Negate        *bool                  `protobuf:"varint,7,opt,name=negate,proto3,oneof" json:"negate,omitempty"`
+	// @unit milliseconds
+	TimeoutMs *int32 `protobuf:"varint,8,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	// @unit milliseconds
+	PollIntervalMs *int32 `protobuf:"varint,9,opt,name=poll_interval_ms,json=pollIntervalMs,proto3,oneof" json:"poll_interval_ms,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ConditionalParams) Reset() {
+	*x = ConditionalParams{}
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConditionalParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConditionalParams) ProtoMessage() {}
+
+func (x *ConditionalParams) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConditionalParams.ProtoReflect.Descriptor instead.
+func (*ConditionalParams) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *ConditionalParams) GetConditionType() ConditionalType {
+	if x != nil {
+		return x.ConditionType
+	}
+	return ConditionalType_CONDITIONAL_TYPE_UNSPECIFIED
+}
+
+func (x *ConditionalParams) GetExpression() string {
+	if x != nil && x.Expression != nil {
+		return *x.Expression
+	}
+	return ""
+}
+
+func (x *ConditionalParams) GetSelector() string {
+	if x != nil && x.Selector != nil {
+		return *x.Selector
+	}
+	return ""
+}
+
+func (x *ConditionalParams) GetVariable() string {
+	if x != nil && x.Variable != nil {
+		return *x.Variable
+	}
+	return ""
+}
+
+func (x *ConditionalParams) GetOperator() ConditionalOperator {
+	if x != nil && x.Operator != nil {
+		return *x.Operator
+	}
+	return ConditionalOperator_CONDITIONAL_OPERATOR_UNSPECIFIED
+}
+
+func (x *ConditionalParams) GetValue() *v1.JsonValue {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *ConditionalParams) GetNegate() bool {
+	if x != nil && x.Negate != nil {
+		return *x.Negate
+	}
+	return false
+}
+
+func (x *ConditionalParams) GetTimeoutMs() int32 {
+	if x != nil && x.TimeoutMs != nil {
+		return *x.TimeoutMs
+	}
+	return 0
+}
+
+func (x *ConditionalParams) GetPollIntervalMs() int32 {
+	if x != nil && x.PollIntervalMs != nil {
+		return *x.PollIntervalMs
+	}
+	return 0
+}
+
 // ActionMetadata captures optional rich context captured during action execution.
 // This data is captured identically during BOTH recording and execution, enabling:
 //   - Selector fallbacks: If primary selector fails, try alternatives
@@ -3583,7 +4496,7 @@ type ActionMetadata struct {
 
 func (x *ActionMetadata) Reset() {
 	*x = ActionMetadata{}
-	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[26]
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3595,7 +4508,7 @@ func (x *ActionMetadata) String() string {
 func (*ActionMetadata) ProtoMessage() {}
 
 func (x *ActionMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[26]
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3608,7 +4521,7 @@ func (x *ActionMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionMetadata.ProtoReflect.Descriptor instead.
 func (*ActionMetadata) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{26}
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ActionMetadata) GetLabel() string {
@@ -3715,6 +4628,9 @@ type ActionDefinition struct {
 	//	*ActionDefinition_Gesture
 	//	*ActionDefinition_NetworkMock
 	//	*ActionDefinition_Rotate
+	//	*ActionDefinition_SetVariable
+	//	*ActionDefinition_Loop
+	//	*ActionDefinition_Conditional
 	Params isActionDefinition_Params `protobuf_oneof:"params"`
 	// Optional rich metadata - preserved from recording, useful for debugging/fallbacks.
 	Metadata      *ActionMetadata `protobuf:"bytes,50,opt,name=metadata,proto3" json:"metadata,omitempty"`
@@ -3724,7 +4640,7 @@ type ActionDefinition struct {
 
 func (x *ActionDefinition) Reset() {
 	*x = ActionDefinition{}
-	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[27]
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3736,7 +4652,7 @@ func (x *ActionDefinition) String() string {
 func (*ActionDefinition) ProtoMessage() {}
 
 func (x *ActionDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[27]
+	mi := &file_browser_automation_studio_v1_actions_action_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3749,7 +4665,7 @@ func (x *ActionDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionDefinition.ProtoReflect.Descriptor instead.
 func (*ActionDefinition) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{27}
+	return file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ActionDefinition) GetType() ActionType {
@@ -3991,6 +4907,33 @@ func (x *ActionDefinition) GetRotate() *RotateParams {
 	return nil
 }
 
+func (x *ActionDefinition) GetSetVariable() *SetVariableParams {
+	if x != nil {
+		if x, ok := x.Params.(*ActionDefinition_SetVariable); ok {
+			return x.SetVariable
+		}
+	}
+	return nil
+}
+
+func (x *ActionDefinition) GetLoop() *LoopParams {
+	if x != nil {
+		if x, ok := x.Params.(*ActionDefinition_Loop); ok {
+			return x.Loop
+		}
+	}
+	return nil
+}
+
+func (x *ActionDefinition) GetConditional() *ConditionalParams {
+	if x != nil {
+		if x, ok := x.Params.(*ActionDefinition_Conditional); ok {
+			return x.Conditional
+		}
+	}
+	return nil
+}
+
 func (x *ActionDefinition) GetMetadata() *ActionMetadata {
 	if x != nil {
 		return x.Metadata
@@ -4102,6 +5045,18 @@ type ActionDefinition_Rotate struct {
 	Rotate *RotateParams `protobuf:"bytes,34,opt,name=rotate,proto3,oneof"` // Required when type = ACTION_TYPE_ROTATE
 }
 
+type ActionDefinition_SetVariable struct {
+	SetVariable *SetVariableParams `protobuf:"bytes,35,opt,name=set_variable,json=setVariable,proto3,oneof"` // Required when type = ACTION_TYPE_SET_VARIABLE
+}
+
+type ActionDefinition_Loop struct {
+	Loop *LoopParams `protobuf:"bytes,36,opt,name=loop,proto3,oneof"` // Required when type = ACTION_TYPE_LOOP
+}
+
+type ActionDefinition_Conditional struct {
+	Conditional *ConditionalParams `protobuf:"bytes,37,opt,name=conditional,proto3,oneof"` // Required when type = ACTION_TYPE_CONDITIONAL
+}
+
 func (*ActionDefinition_Navigate) isActionDefinition_Params() {}
 
 func (*ActionDefinition_Click) isActionDefinition_Params() {}
@@ -4151,6 +5106,12 @@ func (*ActionDefinition_Gesture) isActionDefinition_Params() {}
 func (*ActionDefinition_NetworkMock) isActionDefinition_Params() {}
 
 func (*ActionDefinition_Rotate) isActionDefinition_Params() {}
+
+func (*ActionDefinition_SetVariable) isActionDefinition_Params() {}
+
+func (*ActionDefinition_Loop) isActionDefinition_Params() {}
+
+func (*ActionDefinition_Conditional) isActionDefinition_Params() {}
 
 var File_browser_automation_studio_v1_actions_action_proto protoreflect.FileDescriptor
 
@@ -4444,7 +5405,90 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\vorientation\x18\x01 \x01(\x0e2/.browser_automation_studio.v1.DeviceOrientationB\b\xbaH\x05\x82\x01\x02\x10\x01R\vorientation\x12*\n" +
 	"\x05angle\x18\x02 \x01(\x05B\x0f\xbaH\f\x1a\n" +
 	"0\x000Z0\xb4\x010\x8e\x02H\x00R\x05angle\x88\x01\x01B\b\n" +
-	"\x06_angle\"\x8b\x04\n" +
+	"\x06_angle\"\xc7\x05\n" +
+	"\x11SetVariableParams\x12\x1b\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12Y\n" +
+	"\vsource_type\x18\x02 \x01(\x0e23.browser_automation_studio.v1.SetVariableSourceTypeH\x00R\n" +
+	"sourceType\x88\x01\x01\x12V\n" +
+	"\n" +
+	"value_type\x18\x03 \x01(\x0e22.browser_automation_studio.v1.SetVariableValueTypeH\x01R\tvalueType\x88\x01\x01\x12/\n" +
+	"\x05value\x18\x04 \x01(\v2\x14.common.v1.JsonValueH\x02R\x05value\x88\x01\x01\x12#\n" +
+	"\n" +
+	"expression\x18\x05 \x01(\tH\x03R\n" +
+	"expression\x88\x01\x01\x12\x1f\n" +
+	"\bselector\x18\x06 \x01(\tH\x04R\bselector\x88\x01\x01\x12\\\n" +
+	"\fextract_type\x18\a \x01(\x0e24.browser_automation_studio.v1.SetVariableExtractTypeH\x05R\vextractType\x88\x01\x01\x12!\n" +
+	"\tattribute\x18\b \x01(\tH\x06R\tattribute\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"timeout_ms\x18\t \x01(\x05H\aR\ttimeoutMs\x88\x01\x01\x12$\n" +
+	"\vall_matches\x18\n" +
+	" \x01(\bH\bR\n" +
+	"allMatches\x88\x01\x01\x12\x15\n" +
+	"\x03url\x18\v \x01(\tH\tR\x03url\x88\x01\x01B\x0e\n" +
+	"\f_source_typeB\r\n" +
+	"\v_value_typeB\b\n" +
+	"\x06_valueB\r\n" +
+	"\v_expressionB\v\n" +
+	"\t_selectorB\x0f\n" +
+	"\r_extract_typeB\f\n" +
+	"\n" +
+	"_attributeB\r\n" +
+	"\v_timeout_msB\x0e\n" +
+	"\f_all_matchesB\x06\n" +
+	"\x04_url\"\xe8\x02\n" +
+	"\rLoopCondition\x12M\n" +
+	"\x04type\x18\x01 \x01(\x0e2/.browser_automation_studio.v1.LoopConditionTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04type\x12\x1f\n" +
+	"\bvariable\x18\x02 \x01(\tH\x00R\bvariable\x88\x01\x01\x12^\n" +
+	"\boperator\x18\x03 \x01(\x0e23.browser_automation_studio.v1.LoopConditionOperatorB\b\xbaH\x05\x82\x01\x02\x10\x01H\x01R\boperator\x88\x01\x01\x12/\n" +
+	"\x05value\x18\x04 \x01(\v2\x14.common.v1.JsonValueH\x02R\x05value\x88\x01\x01\x12#\n" +
+	"\n" +
+	"expression\x18\x05 \x01(\tH\x03R\n" +
+	"expression\x88\x01\x01B\v\n" +
+	"\t_variableB\v\n" +
+	"\t_operatorB\b\n" +
+	"\x06_valueB\r\n" +
+	"\v_expression\"\xe5\x04\n" +
+	"\n" +
+	"LoopParams\x12M\n" +
+	"\tloop_type\x18\x01 \x01(\x0e2&.browser_automation_studio.v1.LoopTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\bloopType\x12&\n" +
+	"\farray_source\x18\x02 \x01(\tH\x00R\varraySource\x88\x01\x01\x12\x19\n" +
+	"\x05count\x18\x03 \x01(\x05H\x01R\x05count\x88\x01\x01\x12*\n" +
+	"\x0emax_iterations\x18\x04 \x01(\x05H\x02R\rmaxIterations\x88\x01\x01\x12(\n" +
+	"\ritem_variable\x18\x05 \x01(\tH\x03R\fitemVariable\x88\x01\x01\x12*\n" +
+	"\x0eindex_variable\x18\x06 \x01(\tH\x04R\rindexVariable\x88\x01\x01\x12N\n" +
+	"\tcondition\x18\a \x01(\v2+.browser_automation_studio.v1.LoopConditionH\x05R\tcondition\x88\x01\x01\x125\n" +
+	"\x14iteration_timeout_ms\x18\b \x01(\x05H\x06R\x12iterationTimeoutMs\x88\x01\x01\x12-\n" +
+	"\x10total_timeout_ms\x18\t \x01(\x05H\aR\x0etotalTimeoutMs\x88\x01\x01B\x0f\n" +
+	"\r_array_sourceB\b\n" +
+	"\x06_countB\x11\n" +
+	"\x0f_max_iterationsB\x10\n" +
+	"\x0e_item_variableB\x11\n" +
+	"\x0f_index_variableB\f\n" +
+	"\n" +
+	"_conditionB\x17\n" +
+	"\x15_iteration_timeout_msB\x13\n" +
+	"\x11_total_timeout_ms\"\xc8\x04\n" +
+	"\x11ConditionalParams\x12^\n" +
+	"\x0econdition_type\x18\x01 \x01(\x0e2-.browser_automation_studio.v1.ConditionalTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\rconditionType\x12#\n" +
+	"\n" +
+	"expression\x18\x02 \x01(\tH\x00R\n" +
+	"expression\x88\x01\x01\x12\x1f\n" +
+	"\bselector\x18\x03 \x01(\tH\x01R\bselector\x88\x01\x01\x12\x1f\n" +
+	"\bvariable\x18\x04 \x01(\tH\x02R\bvariable\x88\x01\x01\x12\\\n" +
+	"\boperator\x18\x05 \x01(\x0e21.browser_automation_studio.v1.ConditionalOperatorB\b\xbaH\x05\x82\x01\x02\x10\x01H\x03R\boperator\x88\x01\x01\x12/\n" +
+	"\x05value\x18\x06 \x01(\v2\x14.common.v1.JsonValueH\x04R\x05value\x88\x01\x01\x12\x1b\n" +
+	"\x06negate\x18\a \x01(\bH\x05R\x06negate\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"timeout_ms\x18\b \x01(\x05H\x06R\ttimeoutMs\x88\x01\x01\x12-\n" +
+	"\x10poll_interval_ms\x18\t \x01(\x05H\aR\x0epollIntervalMs\x88\x01\x01B\r\n" +
+	"\v_expressionB\v\n" +
+	"\t_selectorB\v\n" +
+	"\t_variableB\v\n" +
+	"\t_operatorB\b\n" +
+	"\x06_valueB\t\n" +
+	"\a_negateB\r\n" +
+	"\v_timeout_msB\x13\n" +
+	"\x11_poll_interval_ms\"\x8b\x04\n" +
 	"\x0eActionMetadata\x12\x19\n" +
 	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12`\n" +
 	"\x13selector_candidates\x18\x02 \x03(\v2/.browser_automation_studio.v1.SelectorCandidateR\x12selectorCandidates\x12Y\n" +
@@ -4459,7 +5503,7 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\x11_element_snapshotB\r\n" +
 	"\v_confidenceB\x0e\n" +
 	"\f_captured_atB\x18\n" +
-	"\x16_captured_bounding_box\"\xf6\x0f\n" +
+	"\x16_captured_bounding_box\"\xe1\x11\n" +
 	"\x10ActionDefinition\x12<\n" +
 	"\x04type\x18\x01 \x01(\x0e2(.browser_automation_studio.v1.ActionTypeR\x04type\x12J\n" +
 	"\bnavigate\x18\n" +
@@ -4491,9 +5535,12 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\tdrag_drop\x18\x1f \x01(\v2,.browser_automation_studio.v1.DragDropParamsH\x00R\bdragDrop\x12G\n" +
 	"\agesture\x18  \x01(\v2+.browser_automation_studio.v1.GestureParamsH\x00R\agesture\x12T\n" +
 	"\fnetwork_mock\x18! \x01(\v2/.browser_automation_studio.v1.NetworkMockParamsH\x00R\vnetworkMock\x12D\n" +
-	"\x06rotate\x18\" \x01(\v2*.browser_automation_studio.v1.RotateParamsH\x00R\x06rotate\x12H\n" +
+	"\x06rotate\x18\" \x01(\v2*.browser_automation_studio.v1.RotateParamsH\x00R\x06rotate\x12T\n" +
+	"\fset_variable\x18# \x01(\v2/.browser_automation_studio.v1.SetVariableParamsH\x00R\vsetVariable\x12>\n" +
+	"\x04loop\x18$ \x01(\v2(.browser_automation_studio.v1.LoopParamsH\x00R\x04loop\x12S\n" +
+	"\vconditional\x18% \x01(\v2/.browser_automation_studio.v1.ConditionalParamsH\x00R\vconditional\x12H\n" +
 	"\bmetadata\x182 \x01(\v2,.browser_automation_studio.v1.ActionMetadataR\bmetadataB\b\n" +
-	"\x06params*\xaa\x05\n" +
+	"\x06params*\xfb\x05\n" +
 	"\n" +
 	"ActionType\x12\x1b\n" +
 	"\x17ACTION_TYPE_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -4522,7 +5569,10 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\x15ACTION_TYPE_DRAG_DROP\x10\x16\x12\x17\n" +
 	"\x13ACTION_TYPE_GESTURE\x10\x17\x12\x1c\n" +
 	"\x18ACTION_TYPE_NETWORK_MOCK\x10\x18\x12\x16\n" +
-	"\x12ACTION_TYPE_ROTATE\x10\x19*s\n" +
+	"\x12ACTION_TYPE_ROTATE\x10\x19\x12\x1c\n" +
+	"\x18ACTION_TYPE_SET_VARIABLE\x10\x1a\x12\x14\n" +
+	"\x10ACTION_TYPE_LOOP\x10\x1b\x12\x1b\n" +
+	"\x17ACTION_TYPE_CONDITIONAL\x10\x1c*s\n" +
 	"\vMouseButton\x12\x1c\n" +
 	"\x18MOUSE_BUTTON_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11MOUSE_BUTTON_LEFT\x10\x01\x12\x16\n" +
@@ -4616,7 +5666,62 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\x1cCOOKIE_SAME_SITE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17COOKIE_SAME_SITE_STRICT\x10\x01\x12\x18\n" +
 	"\x14COOKIE_SAME_SITE_LAX\x10\x02\x12\x19\n" +
-	"\x15COOKIE_SAME_SITE_NONE\x10\x03B]Z[github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions;actionsb\x06proto3"
+	"\x15COOKIE_SAME_SITE_NONE\x10\x03*\xb5\x01\n" +
+	"\x15SetVariableSourceType\x12(\n" +
+	"$SET_VARIABLE_SOURCE_TYPE_UNSPECIFIED\x10\x00\x12#\n" +
+	"\x1fSET_VARIABLE_SOURCE_TYPE_STATIC\x10\x01\x12'\n" +
+	"#SET_VARIABLE_SOURCE_TYPE_EXPRESSION\x10\x02\x12$\n" +
+	" SET_VARIABLE_SOURCE_TYPE_EXTRACT\x10\x03*\xcc\x01\n" +
+	"\x14SetVariableValueType\x12'\n" +
+	"#SET_VARIABLE_VALUE_TYPE_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cSET_VARIABLE_VALUE_TYPE_TEXT\x10\x01\x12\"\n" +
+	"\x1eSET_VARIABLE_VALUE_TYPE_NUMBER\x10\x02\x12#\n" +
+	"\x1fSET_VARIABLE_VALUE_TYPE_BOOLEAN\x10\x03\x12 \n" +
+	"\x1cSET_VARIABLE_VALUE_TYPE_JSON\x10\x04*\xd9\x01\n" +
+	"\x16SetVariableExtractType\x12)\n" +
+	"%SET_VARIABLE_EXTRACT_TYPE_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eSET_VARIABLE_EXTRACT_TYPE_TEXT\x10\x01\x12'\n" +
+	"#SET_VARIABLE_EXTRACT_TYPE_ATTRIBUTE\x10\x02\x12#\n" +
+	"\x1fSET_VARIABLE_EXTRACT_TYPE_VALUE\x10\x03\x12\"\n" +
+	"\x1eSET_VARIABLE_EXTRACT_TYPE_HTML\x10\x04*g\n" +
+	"\bLoopType\x12\x19\n" +
+	"\x15LOOP_TYPE_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11LOOP_TYPE_FOREACH\x10\x01\x12\x14\n" +
+	"\x10LOOP_TYPE_REPEAT\x10\x02\x12\x13\n" +
+	"\x0fLOOP_TYPE_WHILE\x10\x03*~\n" +
+	"\x11LoopConditionType\x12#\n" +
+	"\x1fLOOP_CONDITION_TYPE_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cLOOP_CONDITION_TYPE_VARIABLE\x10\x01\x12\"\n" +
+	"\x1eLOOP_CONDITION_TYPE_EXPRESSION\x10\x02*\xa8\x03\n" +
+	"\x15LoopConditionOperator\x12'\n" +
+	"#LOOP_CONDITION_OPERATOR_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eLOOP_CONDITION_OPERATOR_TRUTHY\x10\x01\x12\"\n" +
+	"\x1eLOOP_CONDITION_OPERATOR_EQUALS\x10\x02\x12&\n" +
+	"\"LOOP_CONDITION_OPERATOR_NOT_EQUALS\x10\x03\x12$\n" +
+	" LOOP_CONDITION_OPERATOR_CONTAINS\x10\x04\x12'\n" +
+	"#LOOP_CONDITION_OPERATOR_STARTS_WITH\x10\x05\x12%\n" +
+	"!LOOP_CONDITION_OPERATOR_ENDS_WITH\x10\x06\x12\x1e\n" +
+	"\x1aLOOP_CONDITION_OPERATOR_GT\x10\a\x12\x1f\n" +
+	"\x1bLOOP_CONDITION_OPERATOR_GTE\x10\b\x12\x1e\n" +
+	"\x1aLOOP_CONDITION_OPERATOR_LT\x10\t\x12\x1f\n" +
+	"\x1bLOOP_CONDITION_OPERATOR_LTE\x10\n" +
+	"*\x91\x01\n" +
+	"\x0fConditionalType\x12 \n" +
+	"\x1cCONDITIONAL_TYPE_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bCONDITIONAL_TYPE_EXPRESSION\x10\x01\x12\x1c\n" +
+	"\x18CONDITIONAL_TYPE_ELEMENT\x10\x02\x12\x1d\n" +
+	"\x19CONDITIONAL_TYPE_VARIABLE\x10\x03*\xe4\x02\n" +
+	"\x13ConditionalOperator\x12$\n" +
+	" CONDITIONAL_OPERATOR_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bCONDITIONAL_OPERATOR_EQUALS\x10\x01\x12#\n" +
+	"\x1fCONDITIONAL_OPERATOR_NOT_EQUALS\x10\x02\x12!\n" +
+	"\x1dCONDITIONAL_OPERATOR_CONTAINS\x10\x03\x12$\n" +
+	" CONDITIONAL_OPERATOR_STARTS_WITH\x10\x04\x12\"\n" +
+	"\x1eCONDITIONAL_OPERATOR_ENDS_WITH\x10\x05\x12\x1b\n" +
+	"\x17CONDITIONAL_OPERATOR_GT\x10\x06\x12\x1c\n" +
+	"\x18CONDITIONAL_OPERATOR_GTE\x10\a\x12\x1b\n" +
+	"\x17CONDITIONAL_OPERATOR_LT\x10\b\x12\x1c\n" +
+	"\x18CONDITIONAL_OPERATOR_LTE\x10\tB]Z[github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions;actionsb\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_actions_action_proto_rawDescOnce sync.Once
@@ -4630,8 +5735,8 @@ func file_browser_automation_studio_v1_actions_action_proto_rawDescGZIP() []byte
 	return file_browser_automation_studio_v1_actions_action_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_actions_action_proto_enumTypes = make([]protoimpl.EnumInfo, 18)
-var file_browser_automation_studio_v1_actions_action_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_browser_automation_studio_v1_actions_action_proto_enumTypes = make([]protoimpl.EnumInfo, 26)
+var file_browser_automation_studio_v1_actions_action_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_browser_automation_studio_v1_actions_action_proto_goTypes = []any{
 	(ActionType)(0),                  // 0: browser_automation_studio.v1.ActionType
 	(MouseButton)(0),                 // 1: browser_automation_studio.v1.MouseButton
@@ -4651,43 +5756,55 @@ var file_browser_automation_studio_v1_actions_action_proto_goTypes = []any{
 	(NetworkMockOperation)(0),        // 15: browser_automation_studio.v1.NetworkMockOperation
 	(DeviceOrientation)(0),           // 16: browser_automation_studio.v1.DeviceOrientation
 	(CookieSameSite)(0),              // 17: browser_automation_studio.v1.CookieSameSite
-	(*NavigateParams)(nil),           // 18: browser_automation_studio.v1.NavigateParams
-	(*ClickParams)(nil),              // 19: browser_automation_studio.v1.ClickParams
-	(*InputParams)(nil),              // 20: browser_automation_studio.v1.InputParams
-	(*WaitParams)(nil),               // 21: browser_automation_studio.v1.WaitParams
-	(*AssertParams)(nil),             // 22: browser_automation_studio.v1.AssertParams
-	(*ScrollParams)(nil),             // 23: browser_automation_studio.v1.ScrollParams
-	(*SelectParams)(nil),             // 24: browser_automation_studio.v1.SelectParams
-	(*EvaluateParams)(nil),           // 25: browser_automation_studio.v1.EvaluateParams
-	(*KeyboardParams)(nil),           // 26: browser_automation_studio.v1.KeyboardParams
-	(*HoverParams)(nil),              // 27: browser_automation_studio.v1.HoverParams
-	(*ScreenshotParams)(nil),         // 28: browser_automation_studio.v1.ScreenshotParams
-	(*FocusParams)(nil),              // 29: browser_automation_studio.v1.FocusParams
-	(*BlurParams)(nil),               // 30: browser_automation_studio.v1.BlurParams
-	(*SubflowParams)(nil),            // 31: browser_automation_studio.v1.SubflowParams
-	(*ExtractParams)(nil),            // 32: browser_automation_studio.v1.ExtractParams
-	(*UploadFileParams)(nil),         // 33: browser_automation_studio.v1.UploadFileParams
-	(*DownloadParams)(nil),           // 34: browser_automation_studio.v1.DownloadParams
-	(*FrameSwitchParams)(nil),        // 35: browser_automation_studio.v1.FrameSwitchParams
-	(*TabSwitchParams)(nil),          // 36: browser_automation_studio.v1.TabSwitchParams
-	(*CookieOptions)(nil),            // 37: browser_automation_studio.v1.CookieOptions
-	(*CookieStorageParams)(nil),      // 38: browser_automation_studio.v1.CookieStorageParams
-	(*ShortcutParams)(nil),           // 39: browser_automation_studio.v1.ShortcutParams
-	(*DragDropParams)(nil),           // 40: browser_automation_studio.v1.DragDropParams
-	(*GestureParams)(nil),            // 41: browser_automation_studio.v1.GestureParams
-	(*NetworkMockParams)(nil),        // 42: browser_automation_studio.v1.NetworkMockParams
-	(*RotateParams)(nil),             // 43: browser_automation_studio.v1.RotateParams
-	(*ActionMetadata)(nil),           // 44: browser_automation_studio.v1.ActionMetadata
-	(*ActionDefinition)(nil),         // 45: browser_automation_studio.v1.ActionDefinition
-	nil,                              // 46: browser_automation_studio.v1.EvaluateParams.ArgsEntry
-	nil,                              // 47: browser_automation_studio.v1.SubflowParams.ArgsEntry
-	nil,                              // 48: browser_automation_studio.v1.NetworkMockParams.HeadersEntry
-	(base.AssertionMode)(0),          // 49: browser_automation_studio.v1.AssertionMode
-	(*v1.JsonValue)(nil),             // 50: common.v1.JsonValue
-	(*domain.SelectorCandidate)(nil), // 51: browser_automation_studio.v1.SelectorCandidate
-	(*domain.ElementMeta)(nil),       // 52: browser_automation_studio.v1.ElementMeta
-	(*timestamppb.Timestamp)(nil),    // 53: google.protobuf.Timestamp
-	(*base.BoundingBox)(nil),         // 54: browser_automation_studio.v1.BoundingBox
+	(SetVariableSourceType)(0),       // 18: browser_automation_studio.v1.SetVariableSourceType
+	(SetVariableValueType)(0),        // 19: browser_automation_studio.v1.SetVariableValueType
+	(SetVariableExtractType)(0),      // 20: browser_automation_studio.v1.SetVariableExtractType
+	(LoopType)(0),                    // 21: browser_automation_studio.v1.LoopType
+	(LoopConditionType)(0),           // 22: browser_automation_studio.v1.LoopConditionType
+	(LoopConditionOperator)(0),       // 23: browser_automation_studio.v1.LoopConditionOperator
+	(ConditionalType)(0),             // 24: browser_automation_studio.v1.ConditionalType
+	(ConditionalOperator)(0),         // 25: browser_automation_studio.v1.ConditionalOperator
+	(*NavigateParams)(nil),           // 26: browser_automation_studio.v1.NavigateParams
+	(*ClickParams)(nil),              // 27: browser_automation_studio.v1.ClickParams
+	(*InputParams)(nil),              // 28: browser_automation_studio.v1.InputParams
+	(*WaitParams)(nil),               // 29: browser_automation_studio.v1.WaitParams
+	(*AssertParams)(nil),             // 30: browser_automation_studio.v1.AssertParams
+	(*ScrollParams)(nil),             // 31: browser_automation_studio.v1.ScrollParams
+	(*SelectParams)(nil),             // 32: browser_automation_studio.v1.SelectParams
+	(*EvaluateParams)(nil),           // 33: browser_automation_studio.v1.EvaluateParams
+	(*KeyboardParams)(nil),           // 34: browser_automation_studio.v1.KeyboardParams
+	(*HoverParams)(nil),              // 35: browser_automation_studio.v1.HoverParams
+	(*ScreenshotParams)(nil),         // 36: browser_automation_studio.v1.ScreenshotParams
+	(*FocusParams)(nil),              // 37: browser_automation_studio.v1.FocusParams
+	(*BlurParams)(nil),               // 38: browser_automation_studio.v1.BlurParams
+	(*SubflowParams)(nil),            // 39: browser_automation_studio.v1.SubflowParams
+	(*ExtractParams)(nil),            // 40: browser_automation_studio.v1.ExtractParams
+	(*UploadFileParams)(nil),         // 41: browser_automation_studio.v1.UploadFileParams
+	(*DownloadParams)(nil),           // 42: browser_automation_studio.v1.DownloadParams
+	(*FrameSwitchParams)(nil),        // 43: browser_automation_studio.v1.FrameSwitchParams
+	(*TabSwitchParams)(nil),          // 44: browser_automation_studio.v1.TabSwitchParams
+	(*CookieOptions)(nil),            // 45: browser_automation_studio.v1.CookieOptions
+	(*CookieStorageParams)(nil),      // 46: browser_automation_studio.v1.CookieStorageParams
+	(*ShortcutParams)(nil),           // 47: browser_automation_studio.v1.ShortcutParams
+	(*DragDropParams)(nil),           // 48: browser_automation_studio.v1.DragDropParams
+	(*GestureParams)(nil),            // 49: browser_automation_studio.v1.GestureParams
+	(*NetworkMockParams)(nil),        // 50: browser_automation_studio.v1.NetworkMockParams
+	(*RotateParams)(nil),             // 51: browser_automation_studio.v1.RotateParams
+	(*SetVariableParams)(nil),        // 52: browser_automation_studio.v1.SetVariableParams
+	(*LoopCondition)(nil),            // 53: browser_automation_studio.v1.LoopCondition
+	(*LoopParams)(nil),               // 54: browser_automation_studio.v1.LoopParams
+	(*ConditionalParams)(nil),        // 55: browser_automation_studio.v1.ConditionalParams
+	(*ActionMetadata)(nil),           // 56: browser_automation_studio.v1.ActionMetadata
+	(*ActionDefinition)(nil),         // 57: browser_automation_studio.v1.ActionDefinition
+	nil,                              // 58: browser_automation_studio.v1.EvaluateParams.ArgsEntry
+	nil,                              // 59: browser_automation_studio.v1.SubflowParams.ArgsEntry
+	nil,                              // 60: browser_automation_studio.v1.NetworkMockParams.HeadersEntry
+	(base.AssertionMode)(0),          // 61: browser_automation_studio.v1.AssertionMode
+	(*v1.JsonValue)(nil),             // 62: common.v1.JsonValue
+	(*domain.SelectorCandidate)(nil), // 63: browser_automation_studio.v1.SelectorCandidate
+	(*domain.ElementMeta)(nil),       // 64: browser_automation_studio.v1.ElementMeta
+	(*timestamppb.Timestamp)(nil),    // 65: google.protobuf.Timestamp
+	(*base.BoundingBox)(nil),         // 66: browser_automation_studio.v1.BoundingBox
 }
 var file_browser_automation_studio_v1_actions_action_proto_depIdxs = []int32{
 	2,  // 0: browser_automation_studio.v1.NavigateParams.wait_until:type_name -> browser_automation_studio.v1.NavigateWaitEvent
@@ -4695,63 +5812,78 @@ var file_browser_automation_studio_v1_actions_action_proto_depIdxs = []int32{
 	1,  // 2: browser_automation_studio.v1.ClickParams.button:type_name -> browser_automation_studio.v1.MouseButton
 	7,  // 3: browser_automation_studio.v1.ClickParams.modifiers:type_name -> browser_automation_studio.v1.KeyboardModifier
 	4,  // 4: browser_automation_studio.v1.WaitParams.state:type_name -> browser_automation_studio.v1.WaitState
-	49, // 5: browser_automation_studio.v1.AssertParams.mode:type_name -> browser_automation_studio.v1.AssertionMode
-	50, // 6: browser_automation_studio.v1.AssertParams.expected:type_name -> common.v1.JsonValue
+	61, // 5: browser_automation_studio.v1.AssertParams.mode:type_name -> browser_automation_studio.v1.AssertionMode
+	62, // 6: browser_automation_studio.v1.AssertParams.expected:type_name -> common.v1.JsonValue
 	5,  // 7: browser_automation_studio.v1.ScrollParams.behavior:type_name -> browser_automation_studio.v1.ScrollBehavior
-	46, // 8: browser_automation_studio.v1.EvaluateParams.args:type_name -> browser_automation_studio.v1.EvaluateParams.ArgsEntry
+	58, // 8: browser_automation_studio.v1.EvaluateParams.args:type_name -> browser_automation_studio.v1.EvaluateParams.ArgsEntry
 	7,  // 9: browser_automation_studio.v1.KeyboardParams.modifiers:type_name -> browser_automation_studio.v1.KeyboardModifier
 	6,  // 10: browser_automation_studio.v1.KeyboardParams.action:type_name -> browser_automation_studio.v1.KeyAction
-	47, // 11: browser_automation_studio.v1.SubflowParams.args:type_name -> browser_automation_studio.v1.SubflowParams.ArgsEntry
+	59, // 11: browser_automation_studio.v1.SubflowParams.args:type_name -> browser_automation_studio.v1.SubflowParams.ArgsEntry
 	8,  // 12: browser_automation_studio.v1.ExtractParams.extract_type:type_name -> browser_automation_studio.v1.ExtractType
 	9,  // 13: browser_automation_studio.v1.FrameSwitchParams.action:type_name -> browser_automation_studio.v1.FrameSwitchAction
 	10, // 14: browser_automation_studio.v1.TabSwitchParams.action:type_name -> browser_automation_studio.v1.TabSwitchAction
 	17, // 15: browser_automation_studio.v1.CookieOptions.same_site:type_name -> browser_automation_studio.v1.CookieSameSite
 	11, // 16: browser_automation_studio.v1.CookieStorageParams.operation:type_name -> browser_automation_studio.v1.CookieOperation
 	12, // 17: browser_automation_studio.v1.CookieStorageParams.storage_type:type_name -> browser_automation_studio.v1.StorageType
-	37, // 18: browser_automation_studio.v1.CookieStorageParams.cookie_options:type_name -> browser_automation_studio.v1.CookieOptions
+	45, // 18: browser_automation_studio.v1.CookieStorageParams.cookie_options:type_name -> browser_automation_studio.v1.CookieOptions
 	13, // 19: browser_automation_studio.v1.GestureParams.gesture_type:type_name -> browser_automation_studio.v1.GestureType
 	14, // 20: browser_automation_studio.v1.GestureParams.direction:type_name -> browser_automation_studio.v1.SwipeDirection
 	15, // 21: browser_automation_studio.v1.NetworkMockParams.operation:type_name -> browser_automation_studio.v1.NetworkMockOperation
-	48, // 22: browser_automation_studio.v1.NetworkMockParams.headers:type_name -> browser_automation_studio.v1.NetworkMockParams.HeadersEntry
+	60, // 22: browser_automation_studio.v1.NetworkMockParams.headers:type_name -> browser_automation_studio.v1.NetworkMockParams.HeadersEntry
 	16, // 23: browser_automation_studio.v1.RotateParams.orientation:type_name -> browser_automation_studio.v1.DeviceOrientation
-	51, // 24: browser_automation_studio.v1.ActionMetadata.selector_candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
-	52, // 25: browser_automation_studio.v1.ActionMetadata.element_snapshot:type_name -> browser_automation_studio.v1.ElementMeta
-	53, // 26: browser_automation_studio.v1.ActionMetadata.captured_at:type_name -> google.protobuf.Timestamp
-	54, // 27: browser_automation_studio.v1.ActionMetadata.captured_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	0,  // 28: browser_automation_studio.v1.ActionDefinition.type:type_name -> browser_automation_studio.v1.ActionType
-	18, // 29: browser_automation_studio.v1.ActionDefinition.navigate:type_name -> browser_automation_studio.v1.NavigateParams
-	19, // 30: browser_automation_studio.v1.ActionDefinition.click:type_name -> browser_automation_studio.v1.ClickParams
-	20, // 31: browser_automation_studio.v1.ActionDefinition.input:type_name -> browser_automation_studio.v1.InputParams
-	21, // 32: browser_automation_studio.v1.ActionDefinition.wait:type_name -> browser_automation_studio.v1.WaitParams
-	22, // 33: browser_automation_studio.v1.ActionDefinition.assert:type_name -> browser_automation_studio.v1.AssertParams
-	23, // 34: browser_automation_studio.v1.ActionDefinition.scroll:type_name -> browser_automation_studio.v1.ScrollParams
-	24, // 35: browser_automation_studio.v1.ActionDefinition.select_option:type_name -> browser_automation_studio.v1.SelectParams
-	25, // 36: browser_automation_studio.v1.ActionDefinition.evaluate:type_name -> browser_automation_studio.v1.EvaluateParams
-	26, // 37: browser_automation_studio.v1.ActionDefinition.keyboard:type_name -> browser_automation_studio.v1.KeyboardParams
-	27, // 38: browser_automation_studio.v1.ActionDefinition.hover:type_name -> browser_automation_studio.v1.HoverParams
-	28, // 39: browser_automation_studio.v1.ActionDefinition.screenshot:type_name -> browser_automation_studio.v1.ScreenshotParams
-	29, // 40: browser_automation_studio.v1.ActionDefinition.focus:type_name -> browser_automation_studio.v1.FocusParams
-	30, // 41: browser_automation_studio.v1.ActionDefinition.blur:type_name -> browser_automation_studio.v1.BlurParams
-	31, // 42: browser_automation_studio.v1.ActionDefinition.subflow:type_name -> browser_automation_studio.v1.SubflowParams
-	32, // 43: browser_automation_studio.v1.ActionDefinition.extract:type_name -> browser_automation_studio.v1.ExtractParams
-	33, // 44: browser_automation_studio.v1.ActionDefinition.upload_file:type_name -> browser_automation_studio.v1.UploadFileParams
-	34, // 45: browser_automation_studio.v1.ActionDefinition.download:type_name -> browser_automation_studio.v1.DownloadParams
-	35, // 46: browser_automation_studio.v1.ActionDefinition.frame_switch:type_name -> browser_automation_studio.v1.FrameSwitchParams
-	36, // 47: browser_automation_studio.v1.ActionDefinition.tab_switch:type_name -> browser_automation_studio.v1.TabSwitchParams
-	38, // 48: browser_automation_studio.v1.ActionDefinition.cookie_storage:type_name -> browser_automation_studio.v1.CookieStorageParams
-	39, // 49: browser_automation_studio.v1.ActionDefinition.shortcut:type_name -> browser_automation_studio.v1.ShortcutParams
-	40, // 50: browser_automation_studio.v1.ActionDefinition.drag_drop:type_name -> browser_automation_studio.v1.DragDropParams
-	41, // 51: browser_automation_studio.v1.ActionDefinition.gesture:type_name -> browser_automation_studio.v1.GestureParams
-	42, // 52: browser_automation_studio.v1.ActionDefinition.network_mock:type_name -> browser_automation_studio.v1.NetworkMockParams
-	43, // 53: browser_automation_studio.v1.ActionDefinition.rotate:type_name -> browser_automation_studio.v1.RotateParams
-	44, // 54: browser_automation_studio.v1.ActionDefinition.metadata:type_name -> browser_automation_studio.v1.ActionMetadata
-	50, // 55: browser_automation_studio.v1.EvaluateParams.ArgsEntry.value:type_name -> common.v1.JsonValue
-	50, // 56: browser_automation_studio.v1.SubflowParams.ArgsEntry.value:type_name -> common.v1.JsonValue
-	57, // [57:57] is the sub-list for method output_type
-	57, // [57:57] is the sub-list for method input_type
-	57, // [57:57] is the sub-list for extension type_name
-	57, // [57:57] is the sub-list for extension extendee
-	0,  // [0:57] is the sub-list for field type_name
+	18, // 24: browser_automation_studio.v1.SetVariableParams.source_type:type_name -> browser_automation_studio.v1.SetVariableSourceType
+	19, // 25: browser_automation_studio.v1.SetVariableParams.value_type:type_name -> browser_automation_studio.v1.SetVariableValueType
+	62, // 26: browser_automation_studio.v1.SetVariableParams.value:type_name -> common.v1.JsonValue
+	20, // 27: browser_automation_studio.v1.SetVariableParams.extract_type:type_name -> browser_automation_studio.v1.SetVariableExtractType
+	22, // 28: browser_automation_studio.v1.LoopCondition.type:type_name -> browser_automation_studio.v1.LoopConditionType
+	23, // 29: browser_automation_studio.v1.LoopCondition.operator:type_name -> browser_automation_studio.v1.LoopConditionOperator
+	62, // 30: browser_automation_studio.v1.LoopCondition.value:type_name -> common.v1.JsonValue
+	21, // 31: browser_automation_studio.v1.LoopParams.loop_type:type_name -> browser_automation_studio.v1.LoopType
+	53, // 32: browser_automation_studio.v1.LoopParams.condition:type_name -> browser_automation_studio.v1.LoopCondition
+	24, // 33: browser_automation_studio.v1.ConditionalParams.condition_type:type_name -> browser_automation_studio.v1.ConditionalType
+	25, // 34: browser_automation_studio.v1.ConditionalParams.operator:type_name -> browser_automation_studio.v1.ConditionalOperator
+	62, // 35: browser_automation_studio.v1.ConditionalParams.value:type_name -> common.v1.JsonValue
+	63, // 36: browser_automation_studio.v1.ActionMetadata.selector_candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
+	64, // 37: browser_automation_studio.v1.ActionMetadata.element_snapshot:type_name -> browser_automation_studio.v1.ElementMeta
+	65, // 38: browser_automation_studio.v1.ActionMetadata.captured_at:type_name -> google.protobuf.Timestamp
+	66, // 39: browser_automation_studio.v1.ActionMetadata.captured_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	0,  // 40: browser_automation_studio.v1.ActionDefinition.type:type_name -> browser_automation_studio.v1.ActionType
+	26, // 41: browser_automation_studio.v1.ActionDefinition.navigate:type_name -> browser_automation_studio.v1.NavigateParams
+	27, // 42: browser_automation_studio.v1.ActionDefinition.click:type_name -> browser_automation_studio.v1.ClickParams
+	28, // 43: browser_automation_studio.v1.ActionDefinition.input:type_name -> browser_automation_studio.v1.InputParams
+	29, // 44: browser_automation_studio.v1.ActionDefinition.wait:type_name -> browser_automation_studio.v1.WaitParams
+	30, // 45: browser_automation_studio.v1.ActionDefinition.assert:type_name -> browser_automation_studio.v1.AssertParams
+	31, // 46: browser_automation_studio.v1.ActionDefinition.scroll:type_name -> browser_automation_studio.v1.ScrollParams
+	32, // 47: browser_automation_studio.v1.ActionDefinition.select_option:type_name -> browser_automation_studio.v1.SelectParams
+	33, // 48: browser_automation_studio.v1.ActionDefinition.evaluate:type_name -> browser_automation_studio.v1.EvaluateParams
+	34, // 49: browser_automation_studio.v1.ActionDefinition.keyboard:type_name -> browser_automation_studio.v1.KeyboardParams
+	35, // 50: browser_automation_studio.v1.ActionDefinition.hover:type_name -> browser_automation_studio.v1.HoverParams
+	36, // 51: browser_automation_studio.v1.ActionDefinition.screenshot:type_name -> browser_automation_studio.v1.ScreenshotParams
+	37, // 52: browser_automation_studio.v1.ActionDefinition.focus:type_name -> browser_automation_studio.v1.FocusParams
+	38, // 53: browser_automation_studio.v1.ActionDefinition.blur:type_name -> browser_automation_studio.v1.BlurParams
+	39, // 54: browser_automation_studio.v1.ActionDefinition.subflow:type_name -> browser_automation_studio.v1.SubflowParams
+	40, // 55: browser_automation_studio.v1.ActionDefinition.extract:type_name -> browser_automation_studio.v1.ExtractParams
+	41, // 56: browser_automation_studio.v1.ActionDefinition.upload_file:type_name -> browser_automation_studio.v1.UploadFileParams
+	42, // 57: browser_automation_studio.v1.ActionDefinition.download:type_name -> browser_automation_studio.v1.DownloadParams
+	43, // 58: browser_automation_studio.v1.ActionDefinition.frame_switch:type_name -> browser_automation_studio.v1.FrameSwitchParams
+	44, // 59: browser_automation_studio.v1.ActionDefinition.tab_switch:type_name -> browser_automation_studio.v1.TabSwitchParams
+	46, // 60: browser_automation_studio.v1.ActionDefinition.cookie_storage:type_name -> browser_automation_studio.v1.CookieStorageParams
+	47, // 61: browser_automation_studio.v1.ActionDefinition.shortcut:type_name -> browser_automation_studio.v1.ShortcutParams
+	48, // 62: browser_automation_studio.v1.ActionDefinition.drag_drop:type_name -> browser_automation_studio.v1.DragDropParams
+	49, // 63: browser_automation_studio.v1.ActionDefinition.gesture:type_name -> browser_automation_studio.v1.GestureParams
+	50, // 64: browser_automation_studio.v1.ActionDefinition.network_mock:type_name -> browser_automation_studio.v1.NetworkMockParams
+	51, // 65: browser_automation_studio.v1.ActionDefinition.rotate:type_name -> browser_automation_studio.v1.RotateParams
+	52, // 66: browser_automation_studio.v1.ActionDefinition.set_variable:type_name -> browser_automation_studio.v1.SetVariableParams
+	54, // 67: browser_automation_studio.v1.ActionDefinition.loop:type_name -> browser_automation_studio.v1.LoopParams
+	55, // 68: browser_automation_studio.v1.ActionDefinition.conditional:type_name -> browser_automation_studio.v1.ConditionalParams
+	56, // 69: browser_automation_studio.v1.ActionDefinition.metadata:type_name -> browser_automation_studio.v1.ActionMetadata
+	62, // 70: browser_automation_studio.v1.EvaluateParams.ArgsEntry.value:type_name -> common.v1.JsonValue
+	62, // 71: browser_automation_studio.v1.SubflowParams.ArgsEntry.value:type_name -> common.v1.JsonValue
+	72, // [72:72] is the sub-list for method output_type
+	72, // [72:72] is the sub-list for method input_type
+	72, // [72:72] is the sub-list for extension type_name
+	72, // [72:72] is the sub-list for extension extendee
+	0,  // [0:72] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_actions_action_proto_init() }
@@ -4796,7 +5928,11 @@ func file_browser_automation_studio_v1_actions_action_proto_init() {
 	file_browser_automation_studio_v1_actions_action_proto_msgTypes[24].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_actions_action_proto_msgTypes[25].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_actions_action_proto_msgTypes[26].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_actions_action_proto_msgTypes[27].OneofWrappers = []any{
+	file_browser_automation_studio_v1_actions_action_proto_msgTypes[27].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_actions_action_proto_msgTypes[28].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_actions_action_proto_msgTypes[29].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_actions_action_proto_msgTypes[30].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_actions_action_proto_msgTypes[31].OneofWrappers = []any{
 		(*ActionDefinition_Navigate)(nil),
 		(*ActionDefinition_Click)(nil),
 		(*ActionDefinition_Input)(nil),
@@ -4822,14 +5958,17 @@ func file_browser_automation_studio_v1_actions_action_proto_init() {
 		(*ActionDefinition_Gesture)(nil),
 		(*ActionDefinition_NetworkMock)(nil),
 		(*ActionDefinition_Rotate)(nil),
+		(*ActionDefinition_SetVariable)(nil),
+		(*ActionDefinition_Loop)(nil),
+		(*ActionDefinition_Conditional)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_actions_action_proto_rawDesc), len(file_browser_automation_studio_v1_actions_action_proto_rawDesc)),
-			NumEnums:      18,
-			NumMessages:   31,
+			NumEnums:      26,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

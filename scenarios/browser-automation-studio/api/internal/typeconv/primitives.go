@@ -381,6 +381,12 @@ func StringToActionType(actionType string) basactions.ActionType {
 		return basactions.ActionType_ACTION_TYPE_BLUR
 	case "subflow":
 		return basactions.ActionType_ACTION_TYPE_SUBFLOW
+	case "setvariable", "set_variable":
+		return basactions.ActionType_ACTION_TYPE_SET_VARIABLE
+	case "loop":
+		return basactions.ActionType_ACTION_TYPE_LOOP
+	case "conditional":
+		return basactions.ActionType_ACTION_TYPE_CONDITIONAL
 	default:
 		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
 	}
@@ -418,6 +424,12 @@ func ActionTypeToString(actionType basactions.ActionType) string {
 		return "blur"
 	case basactions.ActionType_ACTION_TYPE_SUBFLOW:
 		return "subflow"
+	case basactions.ActionType_ACTION_TYPE_SET_VARIABLE:
+		return "setVariable"
+	case basactions.ActionType_ACTION_TYPE_LOOP:
+		return "loop"
+	case basactions.ActionType_ACTION_TYPE_CONDITIONAL:
+		return "conditional"
 	default:
 		return "unknown"
 	}

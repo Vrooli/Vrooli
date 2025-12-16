@@ -584,6 +584,10 @@ func TestStringToActionType(t *testing.T) {
 		{"focus", basactions.ActionType_ACTION_TYPE_FOCUS},
 		{"blur", basactions.ActionType_ACTION_TYPE_BLUR},
 		{"subflow", basactions.ActionType_ACTION_TYPE_SUBFLOW},
+		{"setVariable", basactions.ActionType_ACTION_TYPE_SET_VARIABLE},
+		{"set_variable", basactions.ActionType_ACTION_TYPE_SET_VARIABLE},
+		{"loop", basactions.ActionType_ACTION_TYPE_LOOP},
+		{"conditional", basactions.ActionType_ACTION_TYPE_CONDITIONAL},
 
 		// Aliases
 		{"goto", basactions.ActionType_ACTION_TYPE_NAVIGATE},
@@ -633,6 +637,9 @@ func TestActionTypeToString(t *testing.T) {
 		{basactions.ActionType_ACTION_TYPE_FOCUS, "focus"},
 		{basactions.ActionType_ACTION_TYPE_BLUR, "blur"},
 		{basactions.ActionType_ACTION_TYPE_SUBFLOW, "subflow"},
+		{basactions.ActionType_ACTION_TYPE_SET_VARIABLE, "setVariable"},
+		{basactions.ActionType_ACTION_TYPE_LOOP, "loop"},
+		{basactions.ActionType_ACTION_TYPE_CONDITIONAL, "conditional"},
 		{basactions.ActionType_ACTION_TYPE_UNSPECIFIED, "unknown"},
 	}
 
@@ -663,6 +670,9 @@ func TestActionTypeRoundtrip(t *testing.T) {
 		basactions.ActionType_ACTION_TYPE_FOCUS,
 		basactions.ActionType_ACTION_TYPE_BLUR,
 		basactions.ActionType_ACTION_TYPE_SUBFLOW,
+		basactions.ActionType_ACTION_TYPE_SET_VARIABLE,
+		basactions.ActionType_ACTION_TYPE_LOOP,
+		basactions.ActionType_ACTION_TYPE_CONDITIONAL,
 	}
 
 	for _, original := range actionTypes {

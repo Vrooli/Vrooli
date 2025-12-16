@@ -43,6 +43,9 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_GESTURE: _ClassVar[ActionType]
     ACTION_TYPE_NETWORK_MOCK: _ClassVar[ActionType]
     ACTION_TYPE_ROTATE: _ClassVar[ActionType]
+    ACTION_TYPE_SET_VARIABLE: _ClassVar[ActionType]
+    ACTION_TYPE_LOOP: _ClassVar[ActionType]
+    ACTION_TYPE_CONDITIONAL: _ClassVar[ActionType]
 
 class MouseButton(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -171,6 +174,76 @@ class CookieSameSite(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COOKIE_SAME_SITE_STRICT: _ClassVar[CookieSameSite]
     COOKIE_SAME_SITE_LAX: _ClassVar[CookieSameSite]
     COOKIE_SAME_SITE_NONE: _ClassVar[CookieSameSite]
+
+class SetVariableSourceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SET_VARIABLE_SOURCE_TYPE_UNSPECIFIED: _ClassVar[SetVariableSourceType]
+    SET_VARIABLE_SOURCE_TYPE_STATIC: _ClassVar[SetVariableSourceType]
+    SET_VARIABLE_SOURCE_TYPE_EXPRESSION: _ClassVar[SetVariableSourceType]
+    SET_VARIABLE_SOURCE_TYPE_EXTRACT: _ClassVar[SetVariableSourceType]
+
+class SetVariableValueType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SET_VARIABLE_VALUE_TYPE_UNSPECIFIED: _ClassVar[SetVariableValueType]
+    SET_VARIABLE_VALUE_TYPE_TEXT: _ClassVar[SetVariableValueType]
+    SET_VARIABLE_VALUE_TYPE_NUMBER: _ClassVar[SetVariableValueType]
+    SET_VARIABLE_VALUE_TYPE_BOOLEAN: _ClassVar[SetVariableValueType]
+    SET_VARIABLE_VALUE_TYPE_JSON: _ClassVar[SetVariableValueType]
+
+class SetVariableExtractType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SET_VARIABLE_EXTRACT_TYPE_UNSPECIFIED: _ClassVar[SetVariableExtractType]
+    SET_VARIABLE_EXTRACT_TYPE_TEXT: _ClassVar[SetVariableExtractType]
+    SET_VARIABLE_EXTRACT_TYPE_ATTRIBUTE: _ClassVar[SetVariableExtractType]
+    SET_VARIABLE_EXTRACT_TYPE_VALUE: _ClassVar[SetVariableExtractType]
+    SET_VARIABLE_EXTRACT_TYPE_HTML: _ClassVar[SetVariableExtractType]
+
+class LoopType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    LOOP_TYPE_UNSPECIFIED: _ClassVar[LoopType]
+    LOOP_TYPE_FOREACH: _ClassVar[LoopType]
+    LOOP_TYPE_REPEAT: _ClassVar[LoopType]
+    LOOP_TYPE_WHILE: _ClassVar[LoopType]
+
+class LoopConditionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    LOOP_CONDITION_TYPE_UNSPECIFIED: _ClassVar[LoopConditionType]
+    LOOP_CONDITION_TYPE_VARIABLE: _ClassVar[LoopConditionType]
+    LOOP_CONDITION_TYPE_EXPRESSION: _ClassVar[LoopConditionType]
+
+class LoopConditionOperator(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    LOOP_CONDITION_OPERATOR_UNSPECIFIED: _ClassVar[LoopConditionOperator]
+    LOOP_CONDITION_OPERATOR_TRUTHY: _ClassVar[LoopConditionOperator]
+    LOOP_CONDITION_OPERATOR_EQUALS: _ClassVar[LoopConditionOperator]
+    LOOP_CONDITION_OPERATOR_NOT_EQUALS: _ClassVar[LoopConditionOperator]
+    LOOP_CONDITION_OPERATOR_CONTAINS: _ClassVar[LoopConditionOperator]
+    LOOP_CONDITION_OPERATOR_STARTS_WITH: _ClassVar[LoopConditionOperator]
+    LOOP_CONDITION_OPERATOR_ENDS_WITH: _ClassVar[LoopConditionOperator]
+    LOOP_CONDITION_OPERATOR_GT: _ClassVar[LoopConditionOperator]
+    LOOP_CONDITION_OPERATOR_GTE: _ClassVar[LoopConditionOperator]
+    LOOP_CONDITION_OPERATOR_LT: _ClassVar[LoopConditionOperator]
+    LOOP_CONDITION_OPERATOR_LTE: _ClassVar[LoopConditionOperator]
+
+class ConditionalType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CONDITIONAL_TYPE_UNSPECIFIED: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_EXPRESSION: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_ELEMENT: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_VARIABLE: _ClassVar[ConditionalType]
+
+class ConditionalOperator(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CONDITIONAL_OPERATOR_UNSPECIFIED: _ClassVar[ConditionalOperator]
+    CONDITIONAL_OPERATOR_EQUALS: _ClassVar[ConditionalOperator]
+    CONDITIONAL_OPERATOR_NOT_EQUALS: _ClassVar[ConditionalOperator]
+    CONDITIONAL_OPERATOR_CONTAINS: _ClassVar[ConditionalOperator]
+    CONDITIONAL_OPERATOR_STARTS_WITH: _ClassVar[ConditionalOperator]
+    CONDITIONAL_OPERATOR_ENDS_WITH: _ClassVar[ConditionalOperator]
+    CONDITIONAL_OPERATOR_GT: _ClassVar[ConditionalOperator]
+    CONDITIONAL_OPERATOR_GTE: _ClassVar[ConditionalOperator]
+    CONDITIONAL_OPERATOR_LT: _ClassVar[ConditionalOperator]
+    CONDITIONAL_OPERATOR_LTE: _ClassVar[ConditionalOperator]
 ACTION_TYPE_UNSPECIFIED: ActionType
 ACTION_TYPE_NAVIGATE: ActionType
 ACTION_TYPE_CLICK: ActionType
@@ -197,6 +270,9 @@ ACTION_TYPE_DRAG_DROP: ActionType
 ACTION_TYPE_GESTURE: ActionType
 ACTION_TYPE_NETWORK_MOCK: ActionType
 ACTION_TYPE_ROTATE: ActionType
+ACTION_TYPE_SET_VARIABLE: ActionType
+ACTION_TYPE_LOOP: ActionType
+ACTION_TYPE_CONDITIONAL: ActionType
 MOUSE_BUTTON_UNSPECIFIED: MouseButton
 MOUSE_BUTTON_LEFT: MouseButton
 MOUSE_BUTTON_RIGHT: MouseButton
@@ -274,6 +350,52 @@ COOKIE_SAME_SITE_UNSPECIFIED: CookieSameSite
 COOKIE_SAME_SITE_STRICT: CookieSameSite
 COOKIE_SAME_SITE_LAX: CookieSameSite
 COOKIE_SAME_SITE_NONE: CookieSameSite
+SET_VARIABLE_SOURCE_TYPE_UNSPECIFIED: SetVariableSourceType
+SET_VARIABLE_SOURCE_TYPE_STATIC: SetVariableSourceType
+SET_VARIABLE_SOURCE_TYPE_EXPRESSION: SetVariableSourceType
+SET_VARIABLE_SOURCE_TYPE_EXTRACT: SetVariableSourceType
+SET_VARIABLE_VALUE_TYPE_UNSPECIFIED: SetVariableValueType
+SET_VARIABLE_VALUE_TYPE_TEXT: SetVariableValueType
+SET_VARIABLE_VALUE_TYPE_NUMBER: SetVariableValueType
+SET_VARIABLE_VALUE_TYPE_BOOLEAN: SetVariableValueType
+SET_VARIABLE_VALUE_TYPE_JSON: SetVariableValueType
+SET_VARIABLE_EXTRACT_TYPE_UNSPECIFIED: SetVariableExtractType
+SET_VARIABLE_EXTRACT_TYPE_TEXT: SetVariableExtractType
+SET_VARIABLE_EXTRACT_TYPE_ATTRIBUTE: SetVariableExtractType
+SET_VARIABLE_EXTRACT_TYPE_VALUE: SetVariableExtractType
+SET_VARIABLE_EXTRACT_TYPE_HTML: SetVariableExtractType
+LOOP_TYPE_UNSPECIFIED: LoopType
+LOOP_TYPE_FOREACH: LoopType
+LOOP_TYPE_REPEAT: LoopType
+LOOP_TYPE_WHILE: LoopType
+LOOP_CONDITION_TYPE_UNSPECIFIED: LoopConditionType
+LOOP_CONDITION_TYPE_VARIABLE: LoopConditionType
+LOOP_CONDITION_TYPE_EXPRESSION: LoopConditionType
+LOOP_CONDITION_OPERATOR_UNSPECIFIED: LoopConditionOperator
+LOOP_CONDITION_OPERATOR_TRUTHY: LoopConditionOperator
+LOOP_CONDITION_OPERATOR_EQUALS: LoopConditionOperator
+LOOP_CONDITION_OPERATOR_NOT_EQUALS: LoopConditionOperator
+LOOP_CONDITION_OPERATOR_CONTAINS: LoopConditionOperator
+LOOP_CONDITION_OPERATOR_STARTS_WITH: LoopConditionOperator
+LOOP_CONDITION_OPERATOR_ENDS_WITH: LoopConditionOperator
+LOOP_CONDITION_OPERATOR_GT: LoopConditionOperator
+LOOP_CONDITION_OPERATOR_GTE: LoopConditionOperator
+LOOP_CONDITION_OPERATOR_LT: LoopConditionOperator
+LOOP_CONDITION_OPERATOR_LTE: LoopConditionOperator
+CONDITIONAL_TYPE_UNSPECIFIED: ConditionalType
+CONDITIONAL_TYPE_EXPRESSION: ConditionalType
+CONDITIONAL_TYPE_ELEMENT: ConditionalType
+CONDITIONAL_TYPE_VARIABLE: ConditionalType
+CONDITIONAL_OPERATOR_UNSPECIFIED: ConditionalOperator
+CONDITIONAL_OPERATOR_EQUALS: ConditionalOperator
+CONDITIONAL_OPERATOR_NOT_EQUALS: ConditionalOperator
+CONDITIONAL_OPERATOR_CONTAINS: ConditionalOperator
+CONDITIONAL_OPERATOR_STARTS_WITH: ConditionalOperator
+CONDITIONAL_OPERATOR_ENDS_WITH: ConditionalOperator
+CONDITIONAL_OPERATOR_GT: ConditionalOperator
+CONDITIONAL_OPERATOR_GTE: ConditionalOperator
+CONDITIONAL_OPERATOR_LT: ConditionalOperator
+CONDITIONAL_OPERATOR_LTE: ConditionalOperator
 
 class NavigateParams(_message.Message):
     __slots__ = ()
@@ -644,6 +766,90 @@ class RotateParams(_message.Message):
     angle: int
     def __init__(self, orientation: _Optional[_Union[DeviceOrientation, str]] = ..., angle: _Optional[int] = ...) -> None: ...
 
+class SetVariableParams(_message.Message):
+    __slots__ = ()
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    VALUE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    EXPRESSION_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    EXTRACT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTE_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    ALL_MATCHES_FIELD_NUMBER: _ClassVar[int]
+    URL_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    source_type: SetVariableSourceType
+    value_type: SetVariableValueType
+    value: _types_pb2.JsonValue
+    expression: str
+    selector: str
+    extract_type: SetVariableExtractType
+    attribute: str
+    timeout_ms: int
+    all_matches: bool
+    url: str
+    def __init__(self, name: _Optional[str] = ..., source_type: _Optional[_Union[SetVariableSourceType, str]] = ..., value_type: _Optional[_Union[SetVariableValueType, str]] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., expression: _Optional[str] = ..., selector: _Optional[str] = ..., extract_type: _Optional[_Union[SetVariableExtractType, str]] = ..., attribute: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., all_matches: _Optional[bool] = ..., url: _Optional[str] = ...) -> None: ...
+
+class LoopCondition(_message.Message):
+    __slots__ = ()
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    VARIABLE_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    EXPRESSION_FIELD_NUMBER: _ClassVar[int]
+    type: LoopConditionType
+    variable: str
+    operator: LoopConditionOperator
+    value: _types_pb2.JsonValue
+    expression: str
+    def __init__(self, type: _Optional[_Union[LoopConditionType, str]] = ..., variable: _Optional[str] = ..., operator: _Optional[_Union[LoopConditionOperator, str]] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., expression: _Optional[str] = ...) -> None: ...
+
+class LoopParams(_message.Message):
+    __slots__ = ()
+    LOOP_TYPE_FIELD_NUMBER: _ClassVar[int]
+    ARRAY_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    MAX_ITERATIONS_FIELD_NUMBER: _ClassVar[int]
+    ITEM_VARIABLE_FIELD_NUMBER: _ClassVar[int]
+    INDEX_VARIABLE_FIELD_NUMBER: _ClassVar[int]
+    CONDITION_FIELD_NUMBER: _ClassVar[int]
+    ITERATION_TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    loop_type: LoopType
+    array_source: str
+    count: int
+    max_iterations: int
+    item_variable: str
+    index_variable: str
+    condition: LoopCondition
+    iteration_timeout_ms: int
+    total_timeout_ms: int
+    def __init__(self, loop_type: _Optional[_Union[LoopType, str]] = ..., array_source: _Optional[str] = ..., count: _Optional[int] = ..., max_iterations: _Optional[int] = ..., item_variable: _Optional[str] = ..., index_variable: _Optional[str] = ..., condition: _Optional[_Union[LoopCondition, _Mapping]] = ..., iteration_timeout_ms: _Optional[int] = ..., total_timeout_ms: _Optional[int] = ...) -> None: ...
+
+class ConditionalParams(_message.Message):
+    __slots__ = ()
+    CONDITION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    EXPRESSION_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    VARIABLE_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    NEGATE_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    POLL_INTERVAL_MS_FIELD_NUMBER: _ClassVar[int]
+    condition_type: ConditionalType
+    expression: str
+    selector: str
+    variable: str
+    operator: ConditionalOperator
+    value: _types_pb2.JsonValue
+    negate: bool
+    timeout_ms: int
+    poll_interval_ms: int
+    def __init__(self, condition_type: _Optional[_Union[ConditionalType, str]] = ..., expression: _Optional[str] = ..., selector: _Optional[str] = ..., variable: _Optional[str] = ..., operator: _Optional[_Union[ConditionalOperator, str]] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., negate: _Optional[bool] = ..., timeout_ms: _Optional[int] = ..., poll_interval_ms: _Optional[int] = ...) -> None: ...
+
 class ActionMetadata(_message.Message):
     __slots__ = ()
     LABEL_FIELD_NUMBER: _ClassVar[int]
@@ -688,6 +894,9 @@ class ActionDefinition(_message.Message):
     GESTURE_FIELD_NUMBER: _ClassVar[int]
     NETWORK_MOCK_FIELD_NUMBER: _ClassVar[int]
     ROTATE_FIELD_NUMBER: _ClassVar[int]
+    SET_VARIABLE_FIELD_NUMBER: _ClassVar[int]
+    LOOP_FIELD_NUMBER: _ClassVar[int]
+    CONDITIONAL_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     type: ActionType
     navigate: NavigateParams
@@ -714,5 +923,8 @@ class ActionDefinition(_message.Message):
     gesture: GestureParams
     network_mock: NetworkMockParams
     rotate: RotateParams
+    set_variable: SetVariableParams
+    loop: LoopParams
+    conditional: ConditionalParams
     metadata: ActionMetadata
-    def __init__(self, type: _Optional[_Union[ActionType, str]] = ..., navigate: _Optional[_Union[NavigateParams, _Mapping]] = ..., click: _Optional[_Union[ClickParams, _Mapping]] = ..., input: _Optional[_Union[InputParams, _Mapping]] = ..., wait: _Optional[_Union[WaitParams, _Mapping]] = ..., scroll: _Optional[_Union[ScrollParams, _Mapping]] = ..., select_option: _Optional[_Union[SelectParams, _Mapping]] = ..., evaluate: _Optional[_Union[EvaluateParams, _Mapping]] = ..., keyboard: _Optional[_Union[KeyboardParams, _Mapping]] = ..., hover: _Optional[_Union[HoverParams, _Mapping]] = ..., screenshot: _Optional[_Union[ScreenshotParams, _Mapping]] = ..., focus: _Optional[_Union[FocusParams, _Mapping]] = ..., blur: _Optional[_Union[BlurParams, _Mapping]] = ..., subflow: _Optional[_Union[SubflowParams, _Mapping]] = ..., extract: _Optional[_Union[ExtractParams, _Mapping]] = ..., upload_file: _Optional[_Union[UploadFileParams, _Mapping]] = ..., download: _Optional[_Union[DownloadParams, _Mapping]] = ..., frame_switch: _Optional[_Union[FrameSwitchParams, _Mapping]] = ..., tab_switch: _Optional[_Union[TabSwitchParams, _Mapping]] = ..., cookie_storage: _Optional[_Union[CookieStorageParams, _Mapping]] = ..., shortcut: _Optional[_Union[ShortcutParams, _Mapping]] = ..., drag_drop: _Optional[_Union[DragDropParams, _Mapping]] = ..., gesture: _Optional[_Union[GestureParams, _Mapping]] = ..., network_mock: _Optional[_Union[NetworkMockParams, _Mapping]] = ..., rotate: _Optional[_Union[RotateParams, _Mapping]] = ..., metadata: _Optional[_Union[ActionMetadata, _Mapping]] = ..., **kwargs) -> None: ...
+    def __init__(self, type: _Optional[_Union[ActionType, str]] = ..., navigate: _Optional[_Union[NavigateParams, _Mapping]] = ..., click: _Optional[_Union[ClickParams, _Mapping]] = ..., input: _Optional[_Union[InputParams, _Mapping]] = ..., wait: _Optional[_Union[WaitParams, _Mapping]] = ..., scroll: _Optional[_Union[ScrollParams, _Mapping]] = ..., select_option: _Optional[_Union[SelectParams, _Mapping]] = ..., evaluate: _Optional[_Union[EvaluateParams, _Mapping]] = ..., keyboard: _Optional[_Union[KeyboardParams, _Mapping]] = ..., hover: _Optional[_Union[HoverParams, _Mapping]] = ..., screenshot: _Optional[_Union[ScreenshotParams, _Mapping]] = ..., focus: _Optional[_Union[FocusParams, _Mapping]] = ..., blur: _Optional[_Union[BlurParams, _Mapping]] = ..., subflow: _Optional[_Union[SubflowParams, _Mapping]] = ..., extract: _Optional[_Union[ExtractParams, _Mapping]] = ..., upload_file: _Optional[_Union[UploadFileParams, _Mapping]] = ..., download: _Optional[_Union[DownloadParams, _Mapping]] = ..., frame_switch: _Optional[_Union[FrameSwitchParams, _Mapping]] = ..., tab_switch: _Optional[_Union[TabSwitchParams, _Mapping]] = ..., cookie_storage: _Optional[_Union[CookieStorageParams, _Mapping]] = ..., shortcut: _Optional[_Union[ShortcutParams, _Mapping]] = ..., drag_drop: _Optional[_Union[DragDropParams, _Mapping]] = ..., gesture: _Optional[_Union[GestureParams, _Mapping]] = ..., network_mock: _Optional[_Union[NetworkMockParams, _Mapping]] = ..., rotate: _Optional[_Union[RotateParams, _Mapping]] = ..., set_variable: _Optional[_Union[SetVariableParams, _Mapping]] = ..., loop: _Optional[_Union[LoopParams, _Mapping]] = ..., conditional: _Optional[_Union[ConditionalParams, _Mapping]] = ..., metadata: _Optional[_Union[ActionMetadata, _Mapping]] = ..., **kwargs) -> None: ...

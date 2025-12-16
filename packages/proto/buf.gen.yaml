@@ -3,6 +3,8 @@ inputs:
   - directory: schemas
   # Include protovalidate to generate its TypeScript types
   - module: buf.build/bufbuild/protovalidate
+  # Include googleapis to generate TypeScript types for google/api annotations imports.
+  - module: buf.build/googleapis/googleapis
 plugins:
   - remote: buf.build/protocolbuffers/go
     out: gen/go

@@ -18,8 +18,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/performance"
-	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/services/recording"
+	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -906,26 +906,16 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 	}
 	projectID := *req.ProjectID
 
-	nodes, _ := flowDefinition["nodes"].([]map[string]interface{})
-	edges, _ := flowDefinition["edges"].([]map[string]interface{})
-	nodesAny := make([]any, 0, len(nodes))
-	for _, n := range nodes {
-		nodesAny = append(nodesAny, n)
-	}
-	edgesAny := make([]any, 0, len(edges))
-	for _, e := range edges {
-		edgesAny = append(edgesAny, e)
-	}
-	v2, err := workflowservice.V1NodesEdgesToV2Definition(nodesAny, edgesAny, map[string]any{"flow_definition": flowDefinition})
+	v2, err := workflowservice.BuildFlowDefinitionV2ForWrite(flowDefinition, nil, nil)
 	if err != nil {
 		h.respondError(w, ErrInvalidWorkflowPayload.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
 
 	createResp, err := h.workflowCatalog.CreateWorkflow(ctx, &basapi.CreateWorkflowRequest{
-		ProjectId:     projectID.String(),
-		Name:          req.Name,
-		FolderPath:    "/",
+		ProjectId:      projectID.String(),
+		Name:           req.Name,
+		FolderPath:     "/",
 		FlowDefinition: v2,
 	})
 	if err != nil || createResp == nil || createResp.Workflow == nil {
@@ -940,7 +930,7 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 		WorkflowID:  uuid.MustParse(createResp.Workflow.Id),
 		ProjectID:   projectID,
 		Name:        createResp.Workflow.Name,
-		NodeCount:   len(nodes),
+		NodeCount:   len(workflowservice.ToInterfaceSlice(flowDefinition["nodes"])),
 		ActionCount: len(actions),
 	}
 	if pb, err := protoconv.GenerateWorkflowToProto(respPayload); err == nil && pb != nil {

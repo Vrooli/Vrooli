@@ -3,9 +3,9 @@ package handlers
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"net/http"
 	"os"
-	"io/fs"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -32,12 +32,12 @@ const (
 )
 
 type ProjectEntry struct {
-	ID        string                 `json:"id"`
-	ProjectID string                 `json:"project_id"`
-	Path      string                 `json:"path"`
-	Kind      ProjectEntryKind       `json:"kind"`
-	WorkflowID *string               `json:"workflow_id,omitempty"`
-	Metadata  map[string]any         `json:"metadata,omitempty"`
+	ID         string           `json:"id"`
+	ProjectID  string           `json:"project_id"`
+	Path       string           `json:"path"`
+	Kind       ProjectEntryKind `json:"kind"`
+	WorkflowID *string          `json:"workflow_id,omitempty"`
+	Metadata   map[string]any   `json:"metadata,omitempty"`
 }
 
 type MkdirProjectPathRequest struct {
@@ -407,18 +407,9 @@ func (h *Handler) WriteProjectWorkflowFile(w http.ResponseWriter, r *http.Reques
 	}
 
 	flow := req.Workflow.FlowDefinition
-	nodesAny, _ := flow["nodes"]
-	edgesAny, _ := flow["edges"]
-	nodes := workflowservice.ToInterfaceSlice(nodesAny)
-	edges := workflowservice.ToInterfaceSlice(edgesAny)
-	payload := map[string]any{
-		"flow_definition": flow,
-		"metadata":        req.Workflow.Metadata,
-		"settings":        req.Workflow.Settings,
-	}
-	def, convErr := workflowservice.V1NodesEdgesToV2Definition(nodes, edges, payload)
-	if convErr != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": convErr.Error()}))
+	def, defErr := workflowservice.BuildFlowDefinitionV2ForWrite(flow, req.Workflow.Metadata, req.Workflow.Settings)
+	if defErr != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": defErr.Error()}))
 		return
 	}
 
@@ -431,15 +422,15 @@ func (h *Handler) WriteProjectWorkflowFile(w http.ResponseWriter, r *http.Reques
 	now := timestamppb.New(time.Now().UTC())
 	workflowID := uuid.New()
 	summary := &basapi.WorkflowSummary{
-		Id:          workflowID.String(),
-		ProjectId:   projectID.String(),
-		Name:        name,
-		FolderPath:  folderPath,
-		Description: strings.TrimSpace(req.Workflow.Description),
-		Tags:        append([]string(nil), req.Workflow.Tags...),
-		Version:     1,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		Id:             workflowID.String(),
+		ProjectId:      projectID.String(),
+		Name:           name,
+		FolderPath:     folderPath,
+		Description:    strings.TrimSpace(req.Workflow.Description),
+		Tags:           append([]string(nil), req.Workflow.Tags...),
+		Version:        1,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 		FlowDefinition: def,
 	}
 

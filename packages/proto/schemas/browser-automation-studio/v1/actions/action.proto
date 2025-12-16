@@ -178,6 +178,18 @@ enum ActionType {
   // Params: RotateParams (orientation, angle)
   // Example: Rotate to landscape mode
   ACTION_TYPE_ROTATE = 25;
+
+  // Set or update a workflow variable (executor-scoped; does not require browser interaction).
+  // Params: SetVariableParams
+  ACTION_TYPE_SET_VARIABLE = 26;
+
+  // Loop control-flow node (executor-scoped; loop body is defined by graph edges/handles).
+  // Params: LoopParams
+  ACTION_TYPE_LOOP = 27;
+
+  // Conditional control-flow node (executor-scoped; branches via outgoing edge conditions).
+  // Params: ConditionalParams
+  ACTION_TYPE_CONDITIONAL = 28;
 }
 
 // =============================================================================
@@ -984,6 +996,164 @@ message RotateParams {
 }
 
 // =============================================================================
+// CONTROL FLOW (Executor-Scoped Actions)
+// =============================================================================
+//
+// These action types represent workflow control semantics that are executed by
+// the BAS executor rather than the Playwright driver. They are still modeled as
+// ActionDefinition variants so workflows, recordings, and executions share a
+// single canonical type system.
+
+enum SetVariableSourceType {
+  SET_VARIABLE_SOURCE_TYPE_UNSPECIFIED = 0;
+  SET_VARIABLE_SOURCE_TYPE_STATIC = 1;
+  SET_VARIABLE_SOURCE_TYPE_EXPRESSION = 2;
+  SET_VARIABLE_SOURCE_TYPE_EXTRACT = 3;
+}
+
+enum SetVariableValueType {
+  SET_VARIABLE_VALUE_TYPE_UNSPECIFIED = 0;
+  SET_VARIABLE_VALUE_TYPE_TEXT = 1;
+  SET_VARIABLE_VALUE_TYPE_NUMBER = 2;
+  SET_VARIABLE_VALUE_TYPE_BOOLEAN = 3;
+  SET_VARIABLE_VALUE_TYPE_JSON = 4;
+}
+
+enum SetVariableExtractType {
+  SET_VARIABLE_EXTRACT_TYPE_UNSPECIFIED = 0;
+  SET_VARIABLE_EXTRACT_TYPE_TEXT = 1;
+  SET_VARIABLE_EXTRACT_TYPE_ATTRIBUTE = 2;
+  SET_VARIABLE_EXTRACT_TYPE_VALUE = 3;
+  SET_VARIABLE_EXTRACT_TYPE_HTML = 4;
+}
+
+message SetVariableParams {
+  // Variable name/key in the workflow store namespace.
+  // @constraint Required, minimum 1 character
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Source used to derive the value.
+  optional SetVariableSourceType source_type = 2;
+  // Optional hint for UI + legacy value coercion.
+  optional SetVariableValueType value_type = 3;
+
+  // Static value to set when source_type=STATIC.
+  optional common.v1.JsonValue value = 4;
+
+  // JavaScript expression evaluated in the page context when source_type=EXPRESSION.
+  // Expected to return a value that will be stored under `name`.
+  optional string expression = 5;
+
+  // Selector used when source_type=EXTRACT.
+  optional string selector = 6;
+  // Extraction strategy when source_type=EXTRACT.
+  optional SetVariableExtractType extract_type = 7;
+  // Attribute name when extract_type=ATTRIBUTE.
+  optional string attribute = 8;
+  // Timeout for expression/extract operations.
+  // @unit milliseconds
+  optional int32 timeout_ms = 9;
+  // When true, extraction may capture multiple matches (implementation-defined).
+  optional bool all_matches = 10;
+  // Optional URL context for extractor tooling (not required at runtime).
+  optional string url = 11;
+}
+
+enum LoopType {
+  LOOP_TYPE_UNSPECIFIED = 0;
+  LOOP_TYPE_FOREACH = 1;
+  LOOP_TYPE_REPEAT = 2;
+  LOOP_TYPE_WHILE = 3;
+}
+
+enum LoopConditionType {
+  LOOP_CONDITION_TYPE_UNSPECIFIED = 0;
+  LOOP_CONDITION_TYPE_VARIABLE = 1;
+  LOOP_CONDITION_TYPE_EXPRESSION = 2;
+}
+
+enum LoopConditionOperator {
+  LOOP_CONDITION_OPERATOR_UNSPECIFIED = 0;
+  LOOP_CONDITION_OPERATOR_TRUTHY = 1;
+  LOOP_CONDITION_OPERATOR_EQUALS = 2;
+  LOOP_CONDITION_OPERATOR_NOT_EQUALS = 3;
+  LOOP_CONDITION_OPERATOR_CONTAINS = 4;
+  LOOP_CONDITION_OPERATOR_STARTS_WITH = 5;
+  LOOP_CONDITION_OPERATOR_ENDS_WITH = 6;
+  LOOP_CONDITION_OPERATOR_GT = 7;
+  LOOP_CONDITION_OPERATOR_GTE = 8;
+  LOOP_CONDITION_OPERATOR_LT = 9;
+  LOOP_CONDITION_OPERATOR_LTE = 10;
+}
+
+message LoopCondition {
+  LoopConditionType type = 1 [(buf.validate.field).enum.defined_only = true];
+  optional string variable = 2;
+  optional LoopConditionOperator operator = 3 [(buf.validate.field).enum.defined_only = true];
+  optional common.v1.JsonValue value = 4;
+  optional string expression = 5;
+}
+
+message LoopParams {
+  LoopType loop_type = 1 [(buf.validate.field).enum.defined_only = true];
+
+  // FOREACH: variable name containing an array value.
+  optional string array_source = 2;
+  // REPEAT: fixed iteration count.
+  optional int32 count = 3;
+
+  // Safety budget.
+  optional int32 max_iterations = 4;
+
+  // Variable names to set during FOREACH.
+  optional string item_variable = 5;
+  optional string index_variable = 6;
+
+  // WHILE: condition evaluated before each iteration.
+  optional LoopCondition condition = 7;
+
+  // Optional time budgets for loop execution.
+  // @unit milliseconds
+  optional int32 iteration_timeout_ms = 8;
+  // @unit milliseconds
+  optional int32 total_timeout_ms = 9;
+}
+
+enum ConditionalType {
+  CONDITIONAL_TYPE_UNSPECIFIED = 0;
+  CONDITIONAL_TYPE_EXPRESSION = 1;
+  CONDITIONAL_TYPE_ELEMENT = 2;
+  CONDITIONAL_TYPE_VARIABLE = 3;
+}
+
+enum ConditionalOperator {
+  CONDITIONAL_OPERATOR_UNSPECIFIED = 0;
+  CONDITIONAL_OPERATOR_EQUALS = 1;
+  CONDITIONAL_OPERATOR_NOT_EQUALS = 2;
+  CONDITIONAL_OPERATOR_CONTAINS = 3;
+  CONDITIONAL_OPERATOR_STARTS_WITH = 4;
+  CONDITIONAL_OPERATOR_ENDS_WITH = 5;
+  CONDITIONAL_OPERATOR_GT = 6;
+  CONDITIONAL_OPERATOR_GTE = 7;
+  CONDITIONAL_OPERATOR_LT = 8;
+  CONDITIONAL_OPERATOR_LTE = 9;
+}
+
+message ConditionalParams {
+  ConditionalType condition_type = 1 [(buf.validate.field).enum.defined_only = true];
+  optional string expression = 2;
+  optional string selector = 3;
+  optional string variable = 4;
+  optional ConditionalOperator operator = 5 [(buf.validate.field).enum.defined_only = true];
+  optional common.v1.JsonValue value = 6;
+  optional bool negate = 7;
+  // @unit milliseconds
+  optional int32 timeout_ms = 8;
+  // @unit milliseconds
+  optional int32 poll_interval_ms = 9;
+}
+
+// =============================================================================
 // ACTION METADATA
 // =============================================================================
 
@@ -1080,6 +1250,9 @@ message ActionDefinition {
     GestureParams gesture = 32;          // Required when type = ACTION_TYPE_GESTURE
     NetworkMockParams network_mock = 33; // Required when type = ACTION_TYPE_NETWORK_MOCK
     RotateParams rotate = 34;            // Required when type = ACTION_TYPE_ROTATE
+    SetVariableParams set_variable = 35; // Required when type = ACTION_TYPE_SET_VARIABLE
+    LoopParams loop = 36;                // Required when type = ACTION_TYPE_LOOP
+    ConditionalParams conditional = 37;  // Required when type = ACTION_TYPE_CONDITIONAL
   }
 
   // Optional rich metadata - preserved from recording, useful for debugging/fallbacks.

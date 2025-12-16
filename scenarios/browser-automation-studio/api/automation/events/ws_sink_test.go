@@ -138,16 +138,12 @@ func TestWSHubSinkPublishesAdaptedEvent(t *testing.T) {
 	if context["execution_id"] != execID.String() {
 		t.Fatalf("unexpected context.execution_id: %+v", context["execution_id"])
 	}
-	legacy, ok := payload["legacy_payload"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected legacy_payload map, got %T", payload["legacy_payload"])
-	}
-	if val, exists := legacy["foo"]; !exists || val != "bar" {
-		t.Fatalf("expected legacy payload data foo=bar, got %+v", legacy)
+	if _, exists := payload["legacy_payload"]; exists {
+		t.Fatalf("expected legacy_payload to be absent")
 	}
 }
 
-func TestWSHubSinkStepEnvelopeShapeMatchesLegacyExpectations(t *testing.T) {
+func TestWSHubSinkStepEnvelopeIsProtoOnly(t *testing.T) {
 	hub := &stubHub{}
 	sink := NewWSHubSink(hub, logrus.New(), contracts.DefaultEventBufferLimits)
 
@@ -195,19 +191,28 @@ func TestWSHubSinkStepEnvelopeShapeMatchesLegacyExpectations(t *testing.T) {
 		t.Fatalf("expected proto-shaped map payload, got %T", updates[0])
 	}
 
-	legacy, ok := payload["legacy_payload"].(map[string]any)
+	if _, exists := payload["legacy_payload"]; exists {
+		t.Fatalf("expected legacy_payload to be absent")
+	}
+
+	entry, ok := payload["entry"].(map[string]any)
 	if !ok {
-		t.Fatalf("expected legacy_payload map, got %T", payload["legacy_payload"])
+		t.Fatalf("expected entry payload map, got %T", payload["entry"])
 	}
-	out, ok := legacy["outcome"].(contracts.StepOutcome)
+
+	aggregates, ok := entry["aggregates"].(map[string]any)
 	if !ok {
-		t.Fatalf("expected outcome in legacy payload, got %T", legacy["outcome"])
+		t.Fatalf("expected entry.aggregates map, got %T", entry["aggregates"])
 	}
-	if out.SchemaVersion != contracts.StepOutcomeSchemaVersion || out.PayloadVersion != contracts.PayloadVersion {
-		t.Fatalf("expected outcome schema/payload versions to be preserved, got %s/%s", out.SchemaVersion, out.PayloadVersion)
+	if aggregates["status"] != "STEP_STATUS_COMPLETED" {
+		t.Fatalf("expected completed status, got %+v", aggregates["status"])
 	}
-	if out.StepIndex != stepIndex || out.NodeID != "node-1" || !out.Success {
-		t.Fatalf("unexpected outcome content: %+v", out)
+	context, ok := entry["context"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected entry.context map, got %T", entry["context"])
+	}
+	if context["success"] != true {
+		t.Fatalf("expected success=true, got %+v", context["success"])
 	}
 }
 
