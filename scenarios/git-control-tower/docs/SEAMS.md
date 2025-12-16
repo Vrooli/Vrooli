@@ -206,6 +206,58 @@ Request handling utilities in `http_handler.go` provide:
 
 These reduce cognitive load by ensuring consistent response patterns across all handlers.
 
+## Tertiary Seam: AuditLogger Interface
+
+**Location**: `api/audit_logger.go`
+
+The `AuditLogger` interface abstracts audit logging operations:
+
+- `Log` - Record an audit entry for mutating operations
+- `Query` - Retrieve audit entries matching a request
+- `IsConfigured` - Check if audit logging is available
+
+### Production Implementation: PostgresAuditLogger
+
+The `PostgresAuditLogger` writes audit entries to the `git_audit_log` PostgreSQL table:
+
+```go
+srv := &Server{
+    audit: NewPostgresAuditLogger(db),
+}
+```
+
+### Test Implementation: FakeAuditLogger
+
+**Location**: `api/audit_logger_fake_test.go`
+
+The `FakeAuditLogger` simulates audit logging in memory:
+
+```go
+fakeAudit := NewFakeAuditLogger()
+// ... perform operations ...
+if fakeAudit.HasOperation(AuditOpCommit) {
+    // Verify commit was logged
+}
+if fakeAudit.CountOperation(AuditOpStage) != 2 {
+    // Verify stage count
+}
+```
+
+Features:
+- In-memory entry storage
+- Operation filtering via Query
+- Test helpers: `HasOperation()`, `CountOperation()`, `LastEntry()`
+- Configurable state via `WithUnconfigured()`
+
+### Graceful Degradation: NoOpAuditLogger
+
+When database is unavailable, `NoOpAuditLogger` silently succeeds without storing:
+
+```go
+logger := &NoOpAuditLogger{}
+logger.Log(ctx, entry) // No-op, returns nil
+```
+
 ---
 
 *Last updated: 2025-12-16*

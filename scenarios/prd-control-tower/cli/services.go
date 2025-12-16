@@ -78,6 +78,16 @@ func (s *PRDService) Validate(req ValidateRequest) ([]byte, error) {
 	return s.api.Request(http.MethodPost, "/api/v1/drafts/validate", nil, req)
 }
 
+// ValidateStandards returns detailed PRD validation with violations in standards format.
+func (s *PRDService) ValidateStandards(entityType, entityName string, useCache bool) ([]byte, error) {
+	path := fmt.Sprintf("/api/v1/quality/%s/%s/standards", url.PathEscape(entityType), url.PathEscape(entityName))
+	params := url.Values{}
+	if !useCache {
+		params.Set("use_cache", "false")
+	}
+	return s.api.Get(path, params)
+}
+
 type AIService struct {
 	api *cliutil.APIClient
 }

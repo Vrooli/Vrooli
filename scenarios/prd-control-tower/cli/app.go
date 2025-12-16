@@ -73,8 +73,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	prds := cliapp.CommandGroup{
 		Title: "PRDs",
 		Commands: []cliapp.Command{
-			{Name: "validate", NeedsAPI: true, Description: "Validate a PRD for a scenario/resource", Run: a.cmdValidate},
-			{Name: "generate-prd", NeedsAPI: true, Description: "AI-generate a full PRD (optionally publish into a scenario)", Run: a.cmdGeneratePRD},
+			{Name: "prd", NeedsAPI: true, Description: "PRD management (generate, validate, fix)", Run: a.cmdPRD},
 		},
 	}
 	config := cliapp.CommandGroup{

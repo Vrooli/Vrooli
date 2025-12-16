@@ -30,7 +30,7 @@ func TestListDraftsHitsExpectedEndpoint(t *testing.T) {
 	}
 }
 
-func TestGeneratePRDCallsAIGenerateDraftEndpoint(t *testing.T) {
+func TestPRDGenerateCallsAIGenerateDraftEndpoint(t *testing.T) {
 	app := newTestApp(t)
 
 	seen := false
@@ -68,15 +68,15 @@ func TestGeneratePRDCallsAIGenerateDraftEndpoint(t *testing.T) {
 	t.Cleanup(server.Close)
 	t.Setenv("PRD_CONTROL_TOWER_API_BASE", server.URL)
 
-	if err := app.Run([]string{"generate-prd", "demo-scenario", "--context", "some context", "--json"}); err != nil {
-		t.Fatalf("generate-prd failed: %v", err)
+	if err := app.Run([]string{"prd", "generate", "demo-scenario", "--context", "some context", "--json"}); err != nil {
+		t.Fatalf("prd generate failed: %v", err)
 	}
 	if !seen {
 		t.Fatalf("expected server to receive generate request")
 	}
 }
 
-func TestGeneratePRDWithTemplatePublishes(t *testing.T) {
+func TestPRDGenerateWithTemplatePublishes(t *testing.T) {
 	app := newTestApp(t)
 
 	step := 0
@@ -122,15 +122,15 @@ func TestGeneratePRDWithTemplatePublishes(t *testing.T) {
 	t.Cleanup(server.Close)
 	t.Setenv("PRD_CONTROL_TOWER_API_BASE", server.URL)
 
-	if err := app.Run([]string{"generate-prd", "demo", "--context", "ctx", "--template", "my-template", "--json"}); err != nil {
-		t.Fatalf("generate-prd with template failed: %v", err)
+	if err := app.Run([]string{"prd", "generate", "demo", "--context", "ctx", "--template", "my-template", "--json"}); err != nil {
+		t.Fatalf("prd generate with template failed: %v", err)
 	}
 	if step != 2 {
 		t.Fatalf("expected 2 requests, got %d", step)
 	}
 }
 
-func TestGeneratePRDWithPublishFlagPublishes(t *testing.T) {
+func TestPRDGenerateWithPublishFlagPublishes(t *testing.T) {
 	app := newTestApp(t)
 
 	step := 0
@@ -161,10 +161,36 @@ func TestGeneratePRDWithPublishFlagPublishes(t *testing.T) {
 	t.Cleanup(server.Close)
 	t.Setenv("PRD_CONTROL_TOWER_API_BASE", server.URL)
 
-	if err := app.Run([]string{"generate-prd", "demo", "--context", "ctx", "--publish", "--json"}); err != nil {
-		t.Fatalf("generate-prd with publish failed: %v", err)
+	if err := app.Run([]string{"prd", "generate", "demo", "--context", "ctx", "--publish", "--json"}); err != nil {
+		t.Fatalf("prd generate with publish failed: %v", err)
 	}
 	if step != 2 {
 		t.Fatalf("expected 2 requests, got %d", step)
+	}
+}
+
+func TestPRDValidateCallsQualityStandardsEndpoint(t *testing.T) {
+	app := newTestApp(t)
+
+	seen := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+			return
+		}
+		if r.URL.Path != "/api/v1/quality/scenario/demo/standards" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		seen = true
+		fmt.Fprint(w, `{"entity_type":"scenario","entity_name":"demo","status":"healthy","violations":[],"generated_at":"2024-01-01T00:00:00Z"}`)
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("PRD_CONTROL_TOWER_API_BASE", server.URL)
+
+	if err := app.Run([]string{"prd", "validate", "demo", "--json"}); err != nil {
+		t.Fatalf("prd validate failed: %v", err)
+	}
+	if !seen {
+		t.Fatalf("expected server to receive validate request")
 	}
 }

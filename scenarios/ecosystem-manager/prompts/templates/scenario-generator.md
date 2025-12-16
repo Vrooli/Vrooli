@@ -58,9 +58,9 @@ Make sure you *do*:
 Make sure you *do not:*
 - Reference requirements
 
-2. Generate the PRD.md file: 
+2. Generate the PRD.md file:
 ```bash
-prd-control-tower generate-prd {{TARGET}} --context-file /tmp/prd_context_{{TARGET}}.md --publish --json
+prd-control-tower prd generate {{TARGET}} --context-file /tmp/prd_context_{{TARGET}}.md --publish --json
 ```
 
 ## `.vrooli/` Setup Checklist
