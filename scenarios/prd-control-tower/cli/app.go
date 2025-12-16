@@ -76,13 +76,19 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "prd", NeedsAPI: true, Description: "PRD management (generate, validate, fix)", Run: a.cmdPRD},
 		},
 	}
+	requirements := cliapp.CommandGroup{
+		Title: "Requirements",
+		Commands: []cliapp.Command{
+			{Name: "requirements", NeedsAPI: true, Description: "Requirements management (generate, validate)", Run: a.cmdRequirements},
+		},
+	}
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
 			a.core.ConfigureCommand(nil, nil),
 		},
 	}
-	return []cliapp.CommandGroup{health, drafts, prds, config}
+	return []cliapp.CommandGroup{health, drafts, prds, requirements, config}
 }
 
 func (a *App) Run(args []string) error {

@@ -10,18 +10,20 @@ import (
 )
 
 type Services struct {
-	Health *HealthService
-	Drafts *DraftService
-	AI     *AIService
-	PRD    *PRDService
+	Health       *HealthService
+	Drafts       *DraftService
+	AI           *AIService
+	PRD          *PRDService
+	Requirements *RequirementsService
 }
 
 func NewServices(api *cliutil.APIClient) *Services {
 	return &Services{
-		Health: &HealthService{api: api},
-		Drafts: &DraftService{api: api},
-		AI:     &AIService{api: api},
-		PRD:    &PRDService{api: api},
+		Health:       &HealthService{api: api},
+		Drafts:       &DraftService{api: api},
+		AI:           &AIService{api: api},
+		PRD:          &PRDService{api: api},
+		Requirements: &RequirementsService{api: api},
 	}
 }
 
@@ -102,4 +104,25 @@ func (s *AIService) GenerateDraft(req AIGenerateDraftRequest) ([]byte, AIGenerat
 		return body, AIGenerateDraftResponse{}, fmt.Errorf("parse response: %w", err)
 	}
 	return body, parsed, nil
+}
+
+type RequirementsService struct {
+	api *cliutil.APIClient
+}
+
+func (s *RequirementsService) Generate(req RequirementsGenerateRequest) ([]byte, error) {
+	return s.api.Request(http.MethodPost, "/api/v1/requirements/generate", nil, req)
+}
+
+func (s *RequirementsService) Fix(req RequirementsFixRequest) ([]byte, error) {
+	return s.api.Request(http.MethodPost, "/api/v1/requirements/fix", nil, req)
+}
+
+func (s *RequirementsService) Validate(entityType, entityName string, useCache bool) ([]byte, error) {
+	path := fmt.Sprintf("/api/v1/requirements/%s/%s/validate", url.PathEscape(entityType), url.PathEscape(entityName))
+	params := url.Values{}
+	if !useCache {
+		params.Set("use_cache", "false")
+	}
+	return s.api.Get(path, params)
 }

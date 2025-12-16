@@ -39,8 +39,20 @@ func validatePRDReferences(entityType, entityName string, requirements []Require
 	sections := extractPRDSections(prdText)
 	checkboxes := extractPRDCheckboxes(prdText)
 
+	// Extract operational targets and build a set of valid target IDs
+	targets, _ := extractOperationalTargets(entityType, entityName)
+	validTargetIDs := make(map[string]bool)
+	for _, t := range targets {
+		validTargetIDs[t.ID] = true
+	}
+
 	for _, req := range requirements {
 		if req.PRDRef == "" {
+			continue
+		}
+
+		// Strategy 0: If prd_ref matches a known operational target ID, it's valid
+		if validTargetIDs[req.PRDRef] {
 			continue
 		}
 

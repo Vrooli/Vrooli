@@ -144,6 +144,11 @@ func main() {
 	apiV1.HandleFunc("/quality/scan", handleQualityScan).Methods("POST")
 	apiV1.HandleFunc("/quality/summary", handleQualitySummary).Methods("GET")
 
+	// Requirements generation endpoints
+	apiV1.HandleFunc("/requirements/generate", handleRequirementsGenerate).Methods("POST")
+	apiV1.HandleFunc("/requirements/fix", handleRequirementsFix).Methods("POST")
+	apiV1.HandleFunc("/requirements/{type}/{name}/validate", handleRequirementsValidate).Methods("GET")
+
 	// Issue tracker integration endpoints
 	apiV1.HandleFunc("/issues/status", handleGetScenarioIssuesStatus).Methods("GET")
 	apiV1.HandleFunc("/issues/report", handleSubmitIssueReport).Methods("POST")

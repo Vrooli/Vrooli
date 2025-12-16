@@ -194,3 +194,116 @@ func TestPRDValidateCallsQualityStandardsEndpoint(t *testing.T) {
 		t.Fatalf("expected server to receive validate request")
 	}
 }
+
+func TestRequirementsGenerateCallsGenerateEndpoint(t *testing.T) {
+	app := newTestApp(t)
+
+	seen := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+			return
+		}
+		if r.URL.Path != "/api/v1/requirements/generate" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Method != "POST" {
+			t.Fatalf("expected POST, got %s", r.Method)
+		}
+		var payload map[string]interface{}
+		body := new(bytes.Buffer)
+		_, _ = body.ReadFrom(r.Body)
+		_ = r.Body.Close()
+		if err := json.Unmarshal(body.Bytes(), &payload); err != nil {
+			t.Fatalf("parse request: %v", err)
+		}
+		if payload["entity_type"] != "scenario" {
+			t.Fatalf("expected entity_type=scenario, got %v", payload["entity_type"])
+		}
+		if payload["entity_name"] != "demo" {
+			t.Fatalf("expected entity_name=demo, got %v", payload["entity_name"])
+		}
+		seen = true
+		fmt.Fprint(w, `{"entity_type":"scenario","entity_name":"demo","success":true,"message":"Generated 5 requirements","requirement_count":5,"p0_count":3,"p1_count":2,"p2_count":0,"files_created":["/tmp/requirements/index.json"],"model":"test","generated_at":"2024-01-01T00:00:00Z"}`)
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("PRD_CONTROL_TOWER_API_BASE", server.URL)
+
+	if err := app.Run([]string{"requirements", "generate", "demo", "--json"}); err != nil {
+		t.Fatalf("requirements generate failed: %v", err)
+	}
+	if !seen {
+		t.Fatalf("expected server to receive generate request")
+	}
+}
+
+func TestRequirementsValidateCallsValidateEndpoint(t *testing.T) {
+	app := newTestApp(t)
+
+	seen := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+			return
+		}
+		if r.URL.Path != "/api/v1/requirements/scenario/demo/validate" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Method != "GET" {
+			t.Fatalf("expected GET, got %s", r.Method)
+		}
+		seen = true
+		fmt.Fprint(w, `{"entity_type":"scenario","entity_name":"demo","status":"healthy","message":"All requirements linked","requirement_count":5,"target_count":5,"linked_count":5,"violations":[],"generated_at":"2024-01-01T00:00:00Z"}`)
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("PRD_CONTROL_TOWER_API_BASE", server.URL)
+
+	if err := app.Run([]string{"requirements", "validate", "demo", "--json"}); err != nil {
+		t.Fatalf("requirements validate failed: %v", err)
+	}
+	if !seen {
+		t.Fatalf("expected server to receive validate request")
+	}
+}
+
+func TestRequirementsFixCallsFixEndpoint(t *testing.T) {
+	app := newTestApp(t)
+
+	seen := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+			return
+		}
+		if r.URL.Path != "/api/v1/requirements/fix" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Method != "POST" {
+			t.Fatalf("expected POST, got %s", r.Method)
+		}
+		var payload map[string]interface{}
+		body := new(bytes.Buffer)
+		_, _ = body.ReadFrom(r.Body)
+		_ = r.Body.Close()
+		if err := json.Unmarshal(body.Bytes(), &payload); err != nil {
+			t.Fatalf("parse request: %v", err)
+		}
+		if payload["entity_type"] != "scenario" {
+			t.Fatalf("expected entity_type=scenario, got %v", payload["entity_type"])
+		}
+		if payload["entity_name"] != "demo" {
+			t.Fatalf("expected entity_name=demo, got %v", payload["entity_name"])
+		}
+		seen = true
+		fmt.Fprint(w, `{"entity_type":"scenario","entity_name":"demo","success":true,"message":"Fixed 2 targets","targets_fixed":2,"requirements_added":3,"total_requirements":8,"remaining_violations":0,"files_modified":["/tmp/requirements/index.json"],"model":"test","fixed_at":"2024-01-01T00:00:00Z"}`)
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("PRD_CONTROL_TOWER_API_BASE", server.URL)
+
+	if err := app.Run([]string{"requirements", "fix", "demo", "--json"}); err != nil {
+		t.Fatalf("requirements fix failed: %v", err)
+	}
+	if !seen {
+		t.Fatalf("expected server to receive fix request")
+	}
+}

@@ -366,7 +366,16 @@ func generateAIContentHTTP(baseURL string, draft Draft, section string, context 
 	return openRouterChatCompletion(baseURL, prompt, modelOverride, maxTokens)
 }
 
+// openRouterChatCompletionWithTimeout calls OpenRouter with a custom timeout in seconds
+func openRouterChatCompletionWithTimeout(baseURL string, prompt string, modelOverride string, maxTokens int, timeoutSeconds int) (string, string, error) {
+	return openRouterChatCompletionInternal(baseURL, prompt, modelOverride, maxTokens, time.Duration(timeoutSeconds)*time.Second)
+}
+
 func openRouterChatCompletion(baseURL string, prompt string, modelOverride string, maxTokens int) (string, string, error) {
+	return openRouterChatCompletionInternal(baseURL, prompt, modelOverride, maxTokens, 180*time.Second)
+}
+
+func openRouterChatCompletionInternal(baseURL string, prompt string, modelOverride string, maxTokens int, timeout time.Duration) (string, string, error) {
 	// Determine which model to use
 	model := "anthropic/claude-3.5-sonnet"
 	if modelOverride != "" && modelOverride != "default" {
@@ -419,9 +428,9 @@ func openRouterChatCompletion(baseURL string, prompt string, modelOverride strin
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	// Set timeout for AI generation requests (3 minutes for large PRD generation)
+	// Set timeout for AI generation requests
 	client := &http.Client{
-		Timeout: 180 * time.Second,
+		Timeout: timeout,
 	}
 	resp, err := client.Do(req)
 	if err != nil {
