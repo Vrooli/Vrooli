@@ -53,11 +53,11 @@ prd-control-tower list-drafts
 # Validate PRD
 prd-control-tower validate <scenario-name>
 
-# Create draft (interactive)
-prd-control-tower create-draft
+# AI-generate a full PRD draft (and save it)
+prd-control-tower generate-prd <scenario-name> --context-file notes.md
 
-# Publish draft
-prd-control-tower publish <draft-id>
+# AI-generate + publish into a scenario created from a template
+prd-control-tower generate-prd <scenario-name> --context-file notes.md --template <template-name> --run-hooks
 ```
 
 ## 📋 Features
@@ -108,6 +108,7 @@ prd-control-tower publish <draft-id>
 - `POST /api/v1/drafts` - Create draft
 - `PUT /api/v1/drafts/{id}` - Update draft
 - `POST /api/v1/drafts/{id}/publish` - Publish to PRD.md
+- `POST /api/v1/drafts/ai/generate` - AI generate PRD draft (creates draft if needed)
 - `POST /api/v1/drafts/{id}/ai/generate-section` - AI assistance
 
 ### Ports
@@ -125,9 +126,6 @@ make test
 ./test/phases/test-dependencies.sh   # Dependency checks
 ./test/phases/test-integration.sh    # API integration tests
 ./test/phases/test-unit.sh           # Go unit tests
-
-# CLI tests (bats)
-bats cli/prd-control-tower.bats      # 18 CLI command tests
 
 # Go unit tests
 cd api && go test -v -cover ./...    # Unit tests with coverage
