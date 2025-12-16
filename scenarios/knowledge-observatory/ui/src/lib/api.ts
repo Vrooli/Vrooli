@@ -52,27 +52,35 @@ export async function searchKnowledge(request: SearchRequest): Promise<SearchRes
     throw new Error(error.error || `Search failed: ${res.status}`);
   }
 
-  return res.json() as Promise<SearchResponse>;
+  const data = (await res.json().catch(() => null)) as any;
+  const results = Array.isArray(data?.results) ? data.results : [];
+  return {
+    ...data,
+    results: results.map((result: any) => ({
+      ...result,
+      metadata: result?.metadata && typeof result.metadata === "object" ? result.metadata : {},
+    })),
+  } as SearchResponse;
 }
 
 export interface QualityMetrics {
-  coherence: number;
-  freshness: number;
-  redundancy: number;
-  coverage: number;
+  coherence?: number;
+  freshness?: number;
+  redundancy?: number;
+  coverage?: number;
 }
 
 export interface CollectionHealth {
   name: string;
-  size: number;
-  metrics: QualityMetrics;
+  size?: number;
+  metrics?: QualityMetrics;
 }
 
 export interface HealthResponse {
-  total_entries: number;
+  total_entries?: number;
   collections: CollectionHealth[];
   overall_health: string;
-  overall_metrics: QualityMetrics;
+  overall_metrics?: QualityMetrics;
   timestamp: string;
 }
 

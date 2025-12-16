@@ -250,20 +250,20 @@ func TestCalculateQualityMetrics(t *testing.T) {
 
 		metrics := calculateQualityMetrics(vectors, timestamps)
 
-		if metrics.Coherence < 0 || metrics.Coherence > 1 {
-			t.Errorf("coherence out of range [0,1]: %f", metrics.Coherence)
+		if metrics.Coherence == nil || *metrics.Coherence < 0 || *metrics.Coherence > 1 {
+			t.Errorf("coherence out of range [0,1]: %v", metrics.Coherence)
 		}
 
-		if metrics.Freshness < 0 || metrics.Freshness > 1 {
-			t.Errorf("freshness out of range [0,1]: %f", metrics.Freshness)
+		if metrics.Freshness == nil || *metrics.Freshness < 0 || *metrics.Freshness > 1 {
+			t.Errorf("freshness out of range [0,1]: %v", metrics.Freshness)
 		}
 
-		if metrics.Redundancy < 0 || metrics.Redundancy > 1 {
-			t.Errorf("redundancy out of range [0,1]: %f", metrics.Redundancy)
+		if metrics.Redundancy == nil || *metrics.Redundancy < 0 || *metrics.Redundancy > 1 {
+			t.Errorf("redundancy out of range [0,1]: %v", metrics.Redundancy)
 		}
 
-		if metrics.Coverage < 0 || metrics.Coverage > 1 {
-			t.Errorf("coverage out of range [0,1]: %f", metrics.Coverage)
+		if metrics.Coverage == nil || *metrics.Coverage < 0 || *metrics.Coverage > 1 {
+			t.Errorf("coverage out of range [0,1]: %v", metrics.Coverage)
 		}
 	})
 }
@@ -302,18 +302,18 @@ func TestHandleHealthEndpoint(t *testing.T) {
 			t.Error("expected valid timestamp")
 		}
 
-		// Verify metrics are in valid range
-		metrics := response.OverallMetrics
-		if metrics.Coherence < 0 || metrics.Coherence > 1 {
-			t.Errorf("coherence out of range [0,1]: %f", metrics.Coherence)
-		}
-
-		if metrics.Freshness < 0 || metrics.Freshness > 1 {
-			t.Errorf("freshness out of range [0,1]: %f", metrics.Freshness)
-		}
-
-		if metrics.Redundancy < 0 || metrics.Redundancy > 1 {
-			t.Errorf("redundancy out of range [0,1]: %f", metrics.Redundancy)
+		// Metrics are optional; when present they must be in range.
+		if response.OverallMetrics != nil {
+			metrics := response.OverallMetrics
+			if metrics.Coherence != nil && (*metrics.Coherence < 0 || *metrics.Coherence > 1) {
+				t.Errorf("coherence out of range [0,1]: %f", *metrics.Coherence)
+			}
+			if metrics.Freshness != nil && (*metrics.Freshness < 0 || *metrics.Freshness > 1) {
+				t.Errorf("freshness out of range [0,1]: %f", *metrics.Freshness)
+			}
+			if metrics.Redundancy != nil && (*metrics.Redundancy < 0 || *metrics.Redundancy > 1) {
+				t.Errorf("redundancy out of range [0,1]: %f", *metrics.Redundancy)
+			}
 		}
 	})
 }
@@ -321,27 +321,32 @@ func TestHandleHealthEndpoint(t *testing.T) {
 // TestFormatHealthStatus validates health status formatting
 func TestFormatHealthStatus(t *testing.T) {
 	tests := []struct {
-		score    float64
+		score    *float64
 		expected string
 	}{
-		{0.9, "excellent"},
-		{0.8, "excellent"},
-		{0.7, "good"},
-		{0.6, "good"},
-		{0.5, "fair"},
-		{0.4, "fair"},
-		{0.3, "poor"},
-		{0.1, "poor"},
+		{nil, "unknown"},
+		{floatPtr(0.9), "excellent"},
+		{floatPtr(0.8), "excellent"},
+		{floatPtr(0.7), "good"},
+		{floatPtr(0.6), "good"},
+		{floatPtr(0.5), "fair"},
+		{floatPtr(0.4), "fair"},
+		{floatPtr(0.3), "poor"},
+		{floatPtr(0.1), "poor"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
 			status := formatHealthStatus(tt.score)
 			if status != tt.expected {
-				t.Errorf("score %f: expected %s, got %s", tt.score, tt.expected, status)
+				t.Errorf("score %v: expected %s, got %s", tt.score, tt.expected, status)
 			}
 		})
 	}
+}
+
+func floatPtr(value float64) *float64 {
+	return &value
 }
 
 // BenchmarkCosineSimilarity benchmarks similarity calculation [REQ:KO-QM-005]

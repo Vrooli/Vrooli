@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/url"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -17,25 +21,25 @@ const (
 
 // QualityMetrics represents aggregated knowledge health scores
 type QualityMetrics struct {
-	Coherence  float64 `json:"coherence"`
-	Freshness  float64 `json:"freshness"`
-	Redundancy float64 `json:"redundancy"`
-	Coverage   float64 `json:"coverage"`
+	Coherence  *float64 `json:"coherence,omitempty"`
+	Freshness  *float64 `json:"freshness,omitempty"`
+	Redundancy *float64 `json:"redundancy,omitempty"`
+	Coverage   *float64 `json:"coverage,omitempty"`
 }
 
 // CollectionHealth represents health metrics for a single collection
 type CollectionHealth struct {
 	Name    string         `json:"name"`
-	Size    int            `json:"size"`
-	Metrics QualityMetrics `json:"metrics"`
+	Size    *int           `json:"size,omitempty"`
+	Metrics *QualityMetrics `json:"metrics,omitempty"`
 }
 
 // HealthResponse represents the full health check response [REQ:KO-QM-004]
 type HealthResponse struct {
-	TotalEntries   int                `json:"total_entries"`
+	TotalEntries   *int               `json:"total_entries,omitempty"`
 	Collections    []CollectionHealth `json:"collections"`
 	OverallHealth  string             `json:"overall_health"`
-	OverallMetrics QualityMetrics     `json:"overall_metrics"`
+	OverallMetrics *QualityMetrics    `json:"overall_metrics,omitempty"`
 	Timestamp      time.Time          `json:"timestamp"`
 }
 
@@ -151,21 +155,75 @@ func cosineSimilarity(a, b []float64) float64 {
 
 // getCollectionHealth calculates health metrics for a collection
 func (s *Server) getCollectionHealth(ctx context.Context, collection string) (*CollectionHealth, error) {
-	// For now, return basic metrics
-	// In production, this would query Qdrant for actual vectors and metadata
+	// For now, return basic metrics.
+	// We can fetch the real vector count from Qdrant, but quality metrics are still placeholders.
+
+	var size *int
+	if base := strings.TrimSpace(s.qdrantURL()); base != "" {
+		if count, err := s.getCollectionPointCount(ctx, base, collection); err == nil {
+			size = &count
+		} else {
+			s.log("failed to retrieve collection point count", map[string]interface{}{
+				"collection": collection,
+				"error":      err.Error(),
+			})
+		}
+	}
 
 	health := &CollectionHealth{
 		Name: collection,
-		Size: 0, // Would be populated from Qdrant
-		Metrics: QualityMetrics{
-			Coherence:  0.75, // Placeholder - would calculate from actual vectors
-			Freshness:  0.80, // Placeholder - would calculate from timestamps
-			Redundancy: 0.05, // Placeholder - would detect duplicates
-			Coverage:   0.70, // Placeholder - would analyze topic coverage
-		},
+		Size: size,
+		// Metrics are intentionally omitted unless computed from real underlying data.
+		Metrics: nil,
 	}
 
 	return health, nil
+}
+
+type qdrantCountRequest struct {
+	Exact bool `json:"exact"`
+}
+
+type qdrantCountResponse struct {
+	Result struct {
+		Count int `json:"count"`
+	} `json:"result"`
+}
+
+func (s *Server) getCollectionPointCount(ctx context.Context, qdrantBase string, collection string) (int, error) {
+	baseURL, err := url.Parse(strings.TrimRight(qdrantBase, "/"))
+	if err != nil {
+		return 0, fmt.Errorf("invalid qdrant url: %w", err)
+	}
+	baseURL.Path = fmt.Sprintf("%s/collections/%s/points/count", strings.TrimRight(baseURL.Path, "/"), collection)
+
+	body, err := json.Marshal(qdrantCountRequest{Exact: true})
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal count request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", baseURL.String(), bytes.NewReader(body))
+	if err != nil {
+		return 0, fmt.Errorf("failed to create count request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("qdrant count request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("qdrant count returned status %d", resp.StatusCode)
+	}
+
+	var decoded qdrantCountResponse
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return 0, fmt.Errorf("failed to decode count response: %w", err)
+	}
+	return decoded.Result.Count, nil
 }
 
 // handleHealthEndpoint returns knowledge system health [REQ:KO-QM-004]
@@ -182,6 +240,7 @@ func (s *Server) handleHealthEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	collectionHealths := make([]CollectionHealth, 0, len(collections))
 	var totalEntries int
+	totalEntriesKnown := true
 
 	// Calculate health for each collection
 	for _, coll := range collections {
@@ -195,14 +254,23 @@ func (s *Server) handleHealthEndpoint(w http.ResponseWriter, r *http.Request) {
 		}
 
 		collectionHealths = append(collectionHealths, *health)
-		totalEntries += health.Size
+		if health.Size == nil {
+			totalEntriesKnown = false
+		} else {
+			totalEntries += *health.Size
+		}
 	}
 
 	overallMetrics := averageCollectionMetrics(collectionHealths)
 	healthScore := knowledgeHealthScore(overallMetrics)
 
+	var totalEntriesPtr *int
+	if totalEntriesKnown {
+		totalEntriesPtr = &totalEntries
+	}
+
 	response := HealthResponse{
-		TotalEntries:   totalEntries,
+		TotalEntries:   totalEntriesPtr,
 		Collections:    collectionHealths,
 		OverallHealth:  formatHealthStatus(healthScore),
 		OverallMetrics: overallMetrics,
@@ -215,30 +283,54 @@ func (s *Server) handleHealthEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func averageCollectionMetrics(collectionHealths []CollectionHealth) QualityMetrics {
+func averageCollectionMetrics(collectionHealths []CollectionHealth) *QualityMetrics {
 	if len(collectionHealths) == 0 {
-		return QualityMetrics{}
+		return nil
 	}
 
-	var sum QualityMetrics
+	var (
+		sumCoherence, sumFreshness, sumRedundancy, sumCoverage float64
+		count                                                 int
+	)
+
 	for _, health := range collectionHealths {
-		sum.Coherence += health.Metrics.Coherence
-		sum.Freshness += health.Metrics.Freshness
-		sum.Redundancy += health.Metrics.Redundancy
-		sum.Coverage += health.Metrics.Coverage
+		if health.Metrics == nil ||
+			health.Metrics.Coherence == nil ||
+			health.Metrics.Freshness == nil ||
+			health.Metrics.Redundancy == nil ||
+			health.Metrics.Coverage == nil {
+			continue
+		}
+		sumCoherence += *health.Metrics.Coherence
+		sumFreshness += *health.Metrics.Freshness
+		sumRedundancy += *health.Metrics.Redundancy
+		sumCoverage += *health.Metrics.Coverage
+		count++
 	}
 
-	count := float64(len(collectionHealths))
-	return QualityMetrics{
-		Coherence:  sum.Coherence / count,
-		Freshness:  sum.Freshness / count,
-		Redundancy: sum.Redundancy / count,
-		Coverage:   sum.Coverage / count,
+	if count == 0 {
+		return nil
+	}
+
+	c := float64(count)
+	coherence := sumCoherence / c
+	freshness := sumFreshness / c
+	redundancy := sumRedundancy / c
+	coverage := sumCoverage / c
+	return &QualityMetrics{
+		Coherence:  &coherence,
+		Freshness:  &freshness,
+		Redundancy: &redundancy,
+		Coverage:   &coverage,
 	}
 }
 
-func knowledgeHealthScore(metrics QualityMetrics) float64 {
-	return (metrics.Coherence + metrics.Freshness + metrics.Coverage - metrics.Redundancy) / 3.0
+func knowledgeHealthScore(metrics *QualityMetrics) *float64 {
+	if metrics == nil || metrics.Coherence == nil || metrics.Freshness == nil || metrics.Coverage == nil || metrics.Redundancy == nil {
+		return nil
+	}
+	score := (*metrics.Coherence + *metrics.Freshness + *metrics.Coverage - *metrics.Redundancy) / 3.0
+	return &score
 }
 
 // calculateQualityMetrics is a helper for testing [REQ:KO-QM-001,KO-QM-002,KO-QM-003]
@@ -247,25 +339,29 @@ func calculateQualityMetrics(vectors [][]float64, timestamps []time.Time) Qualit
 	freshness := calculateFreshness(timestamps)
 	redundancy := detectRedundancy(vectors, redundancySimilarityThreshold)
 
-	// Coverage would require domain analysis - placeholder for now
+	// Coverage would require domain analysis.
+	// In tests we keep a deterministic score to validate the metric wiring and ranges.
 	coverage := defaultCoverageScore
 
 	return QualityMetrics{
-		Coherence:  coherence,
-		Freshness:  freshness,
-		Redundancy: redundancy,
-		Coverage:   coverage,
+		Coherence:  &coherence,
+		Freshness:  &freshness,
+		Redundancy: &redundancy,
+		Coverage:   &coverage,
 	}
 }
 
 // formatHealthStatus converts numeric score to status string
-func formatHealthStatus(score float64) string {
+func formatHealthStatus(score *float64) string {
+	if score == nil {
+		return "unknown"
+	}
 	switch {
-	case score >= 0.8:
+	case *score >= 0.8:
 		return "excellent"
-	case score >= 0.6:
+	case *score >= 0.6:
 		return "good"
-	case score >= 0.4:
+	case *score >= 0.4:
 		return "fair"
 	default:
 		return "poor"

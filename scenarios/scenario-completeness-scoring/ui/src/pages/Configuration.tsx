@@ -17,6 +17,11 @@ interface ConfigurationProps {
   scenarioContext?: string;
 }
 
+function formatPresetLabel(name: string): string {
+  if (name === "default") return "enable everything";
+  return name.replace(/-/g, " ");
+}
+
 // [REQ:SCS-UI-002] Configuration UI with toggles and presets
 export function Configuration({ onClose, scenarioContext }: ConfigurationProps) {
   const queryClient = useQueryClient();
@@ -106,7 +111,7 @@ export function Configuration({ onClose, scenarioContext }: ConfigurationProps) 
                   data-testid={`preset-${preset.name}`}
                 >
                   <span className="font-medium text-slate-200 capitalize">
-                    {preset.name.replace(/-/g, " ")}
+                    {formatPresetLabel(preset.name)}
                   </span>
                   <span className="text-xs text-slate-400 mt-1">
                     {preset.description}

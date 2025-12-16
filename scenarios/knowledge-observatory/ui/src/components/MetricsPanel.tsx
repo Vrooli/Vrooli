@@ -82,29 +82,29 @@ export function MetricsPanel() {
         </Button>
       </div>
 
+      {!metrics && (
+        <div className="p-4 border border-green-900/50 bg-green-950/10 rounded text-sm text-green-600">
+          Quality metrics are unavailable (not computed yet). Vector counts below are live when Qdrant is reachable.
+        </div>
+      )}
+
       {/* Metrics Grid */}
-      <div className="grid grid-cols-2 gap-4">
-        <MetricCard
-          label="Coherence"
-          value={metrics.coherence}
-          description="Topical consistency across knowledge"
-        />
-        <MetricCard
-          label="Freshness"
-          value={metrics.freshness}
-          description="Recency of knowledge entries"
-        />
-        <MetricCard
-          label="Coverage"
-          value={metrics.coverage}
-          description="Domain topic distribution"
-        />
-        <MetricCard
-          label="Redundancy"
-          value={metrics.redundancy}
-          description="Duplicate detection (lower is better)"
-        />
-      </div>
+      {metrics && (
+        <div className="grid grid-cols-2 gap-4">
+          {typeof metrics.coherence === "number" && (
+            <MetricCard label="Coherence" value={metrics.coherence} description="Topical consistency across knowledge" />
+          )}
+          {typeof metrics.freshness === "number" && (
+            <MetricCard label="Freshness" value={metrics.freshness} description="Recency of knowledge entries" />
+          )}
+          {typeof metrics.coverage === "number" && (
+            <MetricCard label="Coverage" value={metrics.coverage} description="Domain topic distribution" />
+          )}
+          {typeof metrics.redundancy === "number" && (
+            <MetricCard label="Redundancy" value={metrics.redundancy} description="Duplicate detection (lower is better)" />
+          )}
+        </div>
+      )}
 
       {/* Collections Breakdown */}
       {data.collections && data.collections.length > 0 && (
@@ -118,26 +118,38 @@ export function MetricsPanel() {
               <div key={collection.name} className="border border-green-900/30 bg-black/40 rounded p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-semibold text-green-300">{collection.name}</span>
-                  <span className="text-xs text-green-600">{collection.size} entries</span>
+                  <span className="text-xs text-green-600">
+                    {typeof collection.size === "number" ? `${collection.size} vectors` : "Vectors: unknown"}
+                  </span>
                 </div>
-                <div className="grid grid-cols-4 gap-2 text-xs">
-                  <div>
-                    <span className="text-green-700">Coherence:</span>
-                    <span className="text-green-400 ml-1">{(collection.metrics.coherence * 100).toFixed(0)}%</span>
+                {collection.metrics && (
+                  <div className="grid grid-cols-4 gap-2 text-xs">
+                    {typeof collection.metrics.coherence === "number" && (
+                      <div>
+                        <span className="text-green-700">Coherence:</span>
+                        <span className="text-green-400 ml-1">{(collection.metrics.coherence * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
+                    {typeof collection.metrics.freshness === "number" && (
+                      <div>
+                        <span className="text-green-700">Freshness:</span>
+                        <span className="text-green-400 ml-1">{(collection.metrics.freshness * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
+                    {typeof collection.metrics.coverage === "number" && (
+                      <div>
+                        <span className="text-green-700">Coverage:</span>
+                        <span className="text-green-400 ml-1">{(collection.metrics.coverage * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
+                    {typeof collection.metrics.redundancy === "number" && (
+                      <div>
+                        <span className="text-green-700">Redundancy:</span>
+                        <span className="text-green-400 ml-1">{(collection.metrics.redundancy * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <span className="text-green-700">Freshness:</span>
-                    <span className="text-green-400 ml-1">{(collection.metrics.freshness * 100).toFixed(0)}%</span>
-                  </div>
-                  <div>
-                    <span className="text-green-700">Coverage:</span>
-                    <span className="text-green-400 ml-1">{(collection.metrics.coverage * 100).toFixed(0)}%</span>
-                  </div>
-                  <div>
-                    <span className="text-green-700">Redundancy:</span>
-                    <span className="text-green-400 ml-1">{(collection.metrics.redundancy * 100).toFixed(0)}%</span>
-                  </div>
-                </div>
+                )}
               </div>
             ))}
           </div>
@@ -147,8 +159,10 @@ export function MetricsPanel() {
       {/* Summary Stats */}
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div className="border border-green-900/50 bg-black/40 p-3 rounded">
-          <p className="text-xs text-green-600 uppercase tracking-wider mb-1">Total Entries</p>
-          <p className="text-xl font-bold text-green-400">{data.total_entries.toLocaleString()}</p>
+          <p className="text-xs text-green-600 uppercase tracking-wider mb-1">Total Vectors</p>
+          <p className="text-xl font-bold text-green-400">
+            {typeof data.total_entries === "number" ? data.total_entries.toLocaleString() : "Unknown"}
+          </p>
         </div>
         <div className="border border-green-900/50 bg-black/40 p-3 rounded">
           <p className="text-xs text-green-600 uppercase tracking-wider mb-1">Last Updated</p>

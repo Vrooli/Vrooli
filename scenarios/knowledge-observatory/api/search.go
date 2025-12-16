@@ -174,7 +174,7 @@ func (s *Server) generateEmbedding(ctx context.Context, text string) ([]float64,
 
 func sortAndLimitResults(results []SearchResult, limit int) []SearchResult {
 	if len(results) == 0 {
-		return results
+		return []SearchResult{}
 	}
 
 	sort.SliceStable(results, func(i, j int) bool {

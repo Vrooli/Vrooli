@@ -37,7 +37,7 @@ func GetPreset(name string) *Preset {
 func DefaultPreset() Preset {
 	return Preset{
 		Name:        PresetDefault,
-		Description: "Full scoring with all components and penalties enabled",
+		Description: "Enable everything: all scoring components, sub-metrics, penalties, and circuit breaker",
 		Config:      DefaultConfig(),
 	}
 }
