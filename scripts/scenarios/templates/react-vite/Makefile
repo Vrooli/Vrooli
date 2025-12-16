@@ -164,7 +164,7 @@ install-deps: ## Install dependencies
 		cd api && go mod download; \
 	fi
 	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm install; \
+		cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); \
 	fi
 	@echo "$(GREEN)✓ Dependencies installed$(RESET)"
 

@@ -83,12 +83,12 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o {{SCENARIO_ID}}-api ./cmd/server",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o {{SCENARIO_ID}}-api .",
           "description": "Compile Go API server"
         },
         {
           "name": "install-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
         },
         {

@@ -37,7 +37,7 @@ Immediately replace placeholder tokens (scenario name, description, maintainer i
 cd scenarios/<your-scenario>
 
 # Install dependencies (Go 1.22+ + pnpm must be available)
-pnpm install --dir ui
+corepack pnpm install --dir ui --ignore-workspace
 
 # Build API + UI + CLI via lifecycle
 vrooli scenario run <your-scenario> --setup

@@ -1,0 +1,66 @@
+{
+  "name": "landing-page-react-vite",
+  "displayName": "Landing Page (React + Vite)",
+  "description": "Landing page business template with React/Vite UI + Go API, admin portal, A/B variants, metrics, and Stripe-ready seams.",
+  "stack": [
+    "react",
+    "vite",
+    "typescript",
+    "go",
+    "cli"
+  ],
+  "requiredVars": {
+    "SCENARIO_ID": {
+      "flag": "id",
+      "description": "Scenario slug used for folder names and binaries"
+    },
+    "SCENARIO_DISPLAY_NAME": {
+      "flag": "display-name",
+      "description": "Human-friendly name shown in dashboards and UI shells"
+    },
+    "SCENARIO_DESCRIPTION": {
+      "flag": "description",
+      "description": "One-sentence summary that appears in service.json and status output"
+    }
+  },
+  "optionalVars": {
+    "SCENARIO_CATEGORY": {
+      "flag": "category",
+      "description": "Service category used in service.json",
+      "default": "business_tools"
+    },
+    "DATABASE_NAME": {
+      "flag": "database",
+      "description": "Default Postgres schema name",
+      "default": "{{SCENARIO_ID}}"
+    },
+    "AUTHOR": {
+      "flag": "author",
+      "description": "Initial progress log author",
+      "default": "Generator Agent"
+    },
+    "DATE": {
+      "flag": "date",
+      "description": "Initial progress log date",
+      "default": "{{CURRENT_DATE}}"
+    }
+  },
+  "docs": {
+    "generatorGuide": "docs/scenarios/getting-started.md",
+    "requirementsGuide": "docs/testing/guides/requirement-tracking-quick-start.md",
+    "templateGuide": "scripts/scenarios/templates/landing-page-react-vite/README.md"
+  },
+  "postHooks": [
+    {
+      "description": "Install UI dependencies (corepack pnpm install --ignore-workspace)",
+      "cmd": "corepack pnpm install --ignore-workspace",
+      "cwd": "ui"
+    },
+    {
+      "description": "Sync Go modules (go mod tidy)",
+      "cmd": "GOWORK=off go mod tidy",
+      "cwd": "api"
+    }
+  ]
+}
+
