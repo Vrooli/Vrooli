@@ -139,6 +139,11 @@
           "name": "initialize-database",
           "run": "if [ -f initialization/postgres/schema.sql ]; then psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-vrooli} -d ${POSTGRES_DB:-vrooli} -f initialization/postgres/schema.sql &> /dev/null || echo '⚠️  Schema initialization skipped (psql connection failed)'; else echo '⚠️  No schema.sql found (ok for scaffold)'; fi",
           "description": "Initialize database schema (best-effort; safe to skip in scaffold)"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"✅ Setup complete\" && echo \"API: http://localhost:${API_PORT}/health\" && echo \"UI:  http://localhost:${UI_PORT}/\"",
+          "description": "Show API/UI URLs after setup"
         }
       ]
     },
@@ -149,7 +154,10 @@
           "name": "start-api",
           "run": "cd api && ./git-control-tower-api",
           "background": true,
-          "description": "Start Go API server"
+          "description": "Start Go API server",
+          "condition": {
+            "file_exists": "api/git-control-tower-api"
+          }
         },
         {
           "name": "start-ui",
@@ -159,6 +167,11 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}/health\" && echo \"UI:  http://localhost:${UI_PORT}/\"",
+          "description": "Show API/UI URLs"
         }
       ]
     },
@@ -166,9 +179,17 @@
       "description": "Execute phased test suite",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "cd test && ./run-tests.sh",
-          "description": "Run structure/unit/integration/business/performance phases"
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Ensure CLI is available for integration checks",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute git-control-tower --preset comprehensive",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

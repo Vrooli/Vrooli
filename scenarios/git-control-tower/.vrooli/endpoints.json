@@ -14,7 +14,8 @@
         "properties": {
           "status": "string",
           "readiness": "boolean",
-          "dependencies": "object"
+          "dependencies": "object",
+          "errors": "object"
         }
       },
       "examples": [

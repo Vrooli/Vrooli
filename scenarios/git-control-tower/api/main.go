@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"os/exec"
 	"strings"
 	"syscall"
 	"time"
@@ -46,11 +47,7 @@ func NewServer() (*Server, error) {
 
 	db, err := sql.Open("postgres", cfg.DatabaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, fmt.Errorf("failed to initialize database handle: %w", err)
 	}
 
 	srv := &Server{
@@ -108,27 +105,18 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-	dbStatus := "connected"
-
-	if err := s.db.PingContext(r.Context()); err != nil {
-		status = "unhealthy"
-		dbStatus = "disconnected"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "Git Control Tower API",
-		"version":   "1.0.0",
-		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{
-			"database": dbStatus,
-		},
-	}
+	checks := NewHealthChecks(HealthCheckDeps{
+		DB:      s.db,
+		GitPath: "git",
+		RepoDir: resolveRepoDir(),
+	})
+	result := checks.Run(r.Context())
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if !result.Readiness {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}
+	json.NewEncoder(w).Encode(result)
 }
 
 // loggingMiddleware prints simple request logs
@@ -205,4 +193,16 @@ func main() {
 	if err := server.Start(); err != nil {
 		log.Fatalf("server stopped with error: %v", err)
 	}
+}
+
+func resolveRepoDir() string {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		return root
+	}
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	out, err := cmd.Output()
+	if err == nil {
+		return strings.TrimSpace(string(out))
+	}
+	return ""
 }

@@ -11,8 +11,22 @@
       "title": "Health check endpoint",
       "description": "Validates database connectivity, git binary availability, repository access with structured JSON response",
       "status": "pending",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/health_checks_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates structured health response and repository detection logic"
+        },
+        {
+          "type": "test",
+          "ref": "cli/git-control-tower.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Runs CLI status against /health when API is available"
+        }
+      ]
     }
   ]
 }
-

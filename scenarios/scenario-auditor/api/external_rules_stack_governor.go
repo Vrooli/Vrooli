@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -143,6 +144,10 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 	}
 
 	now := time.Now().Format(time.RFC3339)
+	scenarioDir := ""
+	if parsed.RepoRoot != "" {
+		scenarioDir = filepath.Join(parsed.RepoRoot, "scenarios", cleaned)
+	}
 	var violations []StandardsViolation
 	for _, res := range parsed.Results {
 		if len(requested) > 0 {
@@ -157,6 +162,11 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 		for _, f := range res.Findings {
 			severity := mapGovernorLevelToSeverity(f.Level)
 			filePath, recommendation := pickViolationDetails(f.Evidence)
+			if scenarioDir != "" && filePath != "" && !pathWithinDir(filePath, scenarioDir) {
+				// Defensive guard: older stack-governor binaries may return repo-wide findings even when
+				// a scenario name is supplied. Avoid attributing cross-scenario findings to the target.
+				continue
+			}
 			if recommendation == "" {
 				recommendation = "Review the rule output and apply the suggested remediation."
 			}
@@ -182,6 +192,28 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 	}
 
 	return violations, nil
+}
+
+func pathWithinDir(path, dir string) bool {
+	path = strings.TrimSpace(path)
+	dir = strings.TrimSpace(dir)
+	if path == "" || dir == "" {
+		return false
+	}
+	cleanPath := filepath.Clean(path)
+	cleanDir := filepath.Clean(dir)
+	rel, err := filepath.Rel(cleanDir, cleanPath)
+	if err != nil {
+		return false
+	}
+	rel = filepath.Clean(rel)
+	if rel == "." {
+		return true
+	}
+	if rel == ".." {
+		return false
+	}
+	return !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func mapGovernorLevelToSeverity(level string) string {
