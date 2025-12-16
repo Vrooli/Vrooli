@@ -1,0 +1,8 @@
+schema_version: "1.0.0"
+title: "Autoheal scope (manual/E2E placeholder)"
+description: "Planned validation that mini-Vrooli deployments write a scoped autoheal config."
+requirements:
+  - STC-P0-010
+steps:
+  - id: verify_scope_file
+    description: "Confirm `/root/Vrooli/.vrooli/cloud/autoheal-scope.json` exists and references the deployed scenario/resources."

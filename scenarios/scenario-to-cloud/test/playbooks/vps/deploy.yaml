@@ -1,0 +1,11 @@
+schema_version: "1.0.0"
+title: "VPS deploy/start (manual/E2E placeholder)"
+description: "Planned E2E playbook for deploying and starting a scenario with Caddy+TLS and fixed ports."
+requirements:
+  - STC-P0-005
+  - STC-P0-011
+steps:
+  - id: deploy_plan
+    description: "Run `scenario-to-cloud vps-deploy-plan manifest.json` and review commands."
+  - id: deploy_apply
+    description: "Run `scenario-to-cloud vps-deploy-apply manifest.json` and confirm https://<domain>/health returns 200."

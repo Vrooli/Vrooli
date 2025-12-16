@@ -4,8 +4,20 @@ set -euo pipefail
 INSTALL_DIR="${INSTALL_DIR:-${HOME}/.vrooli/bin}"
 CLI_WRAPPER="${INSTALL_DIR}/scenario-to-cloud"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+needs_install=false
 if [[ ! -x "${CLI_WRAPPER}" ]]; then
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  needs_install=true
+else
+  bin_mtime="$(stat -c %Y "${CLI_WRAPPER}")"
+  src_mtime="$(find "${SCRIPT_DIR}" -maxdepth 1 -type f \( -name '*.go' -o -name 'go.mod' -o -name 'go.sum' -o -name 'install.sh' -o -name 'install.ps1' \) -printf '%T@\\n' | sort -n | tail -n 1 | cut -d. -f1)"
+  if [[ -n "${src_mtime}" ]] && [[ "${src_mtime}" -gt "${bin_mtime}" ]]; then
+    needs_install=true
+  fi
+fi
+
+if [[ "${needs_install}" == "true" ]]; then
   "${SCRIPT_DIR}/install.sh"
 fi
 

@@ -1,0 +1,10 @@
+schema_version: "1.0.0"
+title: "Caddy + Let's Encrypt (manual/E2E placeholder)"
+description: "Planned validation for Caddy installation, configuration, and certificate issuance."
+requirements:
+  - STC-P0-011
+steps:
+  - id: verify_caddy
+    description: "Confirm `caddy version` succeeds and `systemctl status caddy` is healthy."
+  - id: verify_https
+    description: "Confirm HTTPS works without -k and routes to the scenario UI health endpoint."

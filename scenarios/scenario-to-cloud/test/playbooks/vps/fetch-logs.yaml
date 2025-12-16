@@ -1,0 +1,10 @@
+schema_version: "1.0.0"
+title: "VPS inspect/logs (manual/E2E placeholder)"
+description: "Planned validation for fetching scenario status and bounded logs over SSH."
+requirements:
+  - STC-P0-006
+steps:
+  - id: inspect_plan
+    description: "Run `scenario-to-cloud vps-inspect-plan manifest.json` and review commands."
+  - id: inspect_apply
+    description: "Run `scenario-to-cloud vps-inspect-apply manifest.json` and confirm JSON+logs output."
