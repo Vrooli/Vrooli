@@ -4,14 +4,20 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	defaultSearchLimit     = 10
+	maxSearchLimit         = 100
+	defaultSearchThreshold = 0.3
 )
 
 // SearchRequest defines the input schema for semantic search
@@ -50,10 +56,10 @@ type OllamaEmbeddingResponse struct {
 
 // QdrantSearchRequest represents a vector search request to Qdrant
 type QdrantSearchRequest struct {
-	Vector      []float64 `json:"vector"`
-	Limit       int       `json:"limit"`
-	WithPayload bool      `json:"with_payload"`
-	ScoreThreshold *float64 `json:"score_threshold,omitempty"`
+	Vector         []float64 `json:"vector"`
+	Limit          int       `json:"limit"`
+	WithPayload    bool      `json:"with_payload"`
+	ScoreThreshold *float64  `json:"score_threshold,omitempty"`
 }
 
 // QdrantSearchResponse represents Qdrant's search response
@@ -68,6 +74,24 @@ type QdrantSearchResult struct {
 	Payload map[string]interface{} `json:"payload"`
 }
 
+func validateAndNormalizeSearchRequest(req *SearchRequest) error {
+	req.Query = strings.TrimSpace(req.Query)
+	if req.Query == "" {
+		return errors.New("Query parameter is required")
+	}
+
+	if req.Limit <= 0 {
+		req.Limit = defaultSearchLimit
+	}
+	if req.Limit > maxSearchLimit {
+		req.Limit = maxSearchLimit
+	}
+	if req.Threshold <= 0 {
+		req.Threshold = defaultSearchThreshold
+	}
+	return nil
+}
+
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
@@ -77,21 +101,9 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate query
-	if strings.TrimSpace(req.Query) == "" {
-		s.respondError(w, http.StatusBadRequest, "Query parameter is required")
+	if err := validateAndNormalizeSearchRequest(&req); err != nil {
+		s.respondError(w, http.StatusBadRequest, err.Error())
 		return
-	}
-
-	// Set defaults
-	if req.Limit <= 0 {
-		req.Limit = 10
-	}
-	if req.Limit > 100 {
-		req.Limit = 100
-	}
-	if req.Threshold <= 0 {
-		req.Threshold = 0.3 // Default similarity threshold
 	}
 
 	// Generate embedding via Ollama [REQ:KO-SS-002]
@@ -122,13 +134,10 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 
 // generateEmbedding creates a vector embedding using Ollama [REQ:KO-SS-002]
 func (s *Server) generateEmbedding(ctx context.Context, text string) ([]float64, error) {
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434"
-	}
+	ollamaURL := s.ollamaURL()
 
 	reqBody := OllamaEmbeddingRequest{
-		Model:  "nomic-embed-text",
+		Model:  s.ollamaEmbeddingModel(),
 		Prompt: text,
 	}
 
@@ -163,6 +172,30 @@ func (s *Server) generateEmbedding(ctx context.Context, text string) ([]float64,
 	return embResp.Embedding, nil
 }
 
+func sortAndLimitResults(results []SearchResult, limit int) []SearchResult {
+	if len(results) == 0 {
+		return results
+	}
+
+	sort.SliceStable(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+
+	if limit <= 0 || len(results) <= limit {
+		return results
+	}
+	return results[:limit]
+}
+
+func containsString(values []string, needle string) bool {
+	for _, v := range values {
+		if v == needle {
+			return true
+		}
+	}
+	return false
+}
+
 // searchQdrant executes vector similarity search [REQ:KO-SS-003]
 func (s *Server) searchQdrant(ctx context.Context, collection string, vector []float64, limit int, threshold float64) ([]SearchResult, error) {
 	// Get collections to search
@@ -173,14 +206,7 @@ func (s *Server) searchQdrant(ctx context.Context, collection string, vector []f
 
 	// If collection specified, validate it exists
 	if collection != "" {
-		found := false
-		for _, c := range collections {
-			if c == collection {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !containsString(collections, collection) {
 			return nil, fmt.Errorf("collection %s not found", collection)
 		}
 		collections = []string{collection}
@@ -200,46 +226,64 @@ func (s *Server) searchQdrant(ctx context.Context, collection string, vector []f
 		allResults = append(allResults, results...)
 	}
 
-	// Sort by score (highest first) and limit
-	// TODO: Implement proper sorting and limiting across all collections
-	if len(allResults) > limit {
-		allResults = allResults[:limit]
-	}
-
-	return allResults, nil
+	return sortAndLimitResults(allResults, limit), nil
 }
 
 // getCollections retrieves list of Qdrant collections
 func (s *Server) getCollections(ctx context.Context) ([]string, error) {
-	cmd := exec.CommandContext(ctx, "resource-qdrant", "collections")
-	output, err := cmd.Output()
+	output, err := s.execResourceQdrant(ctx, "collections")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list collections: %w", err)
 	}
 
+	return parseCollectionsOutput(output), nil
+}
+
+func parseCollectionsOutput(output []byte) []string {
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	var collections []string
+	collections := make([]string, 0, len(lines))
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line != "" && !strings.Contains(line, "Collections:") {
-			collections = append(collections, line)
+		if line == "" || strings.Contains(line, "Collections:") {
+			continue
 		}
+		collections = append(collections, line)
 	}
+	return collections
+}
 
-	return collections, nil
+func extractContentFromPayload(payload map[string]interface{}) string {
+	if payload == nil {
+		return ""
+	}
+	if c, ok := payload["content"].(string); ok {
+		return c
+	}
+	if c, ok := payload["text"].(string); ok {
+		return c
+	}
+	return ""
+}
+
+func stringifyQdrantID(id interface{}) string {
+	switch v := id.(type) {
+	case string:
+		return v
+	case float64:
+		return strconv.FormatFloat(v, 'f', 0, 64)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 // searchSingleCollection searches a specific Qdrant collection
 func (s *Server) searchSingleCollection(ctx context.Context, collection string, vector []float64, limit int, threshold float64) ([]SearchResult, error) {
-	qdrantURL := os.Getenv("QDRANT_URL")
-	if qdrantURL == "" {
-		qdrantURL = "http://localhost:6333"
-	}
+	qdrantURL := s.qdrantURL()
 
 	searchReq := QdrantSearchRequest{
-		Vector:      vector,
-		Limit:       limit,
-		WithPayload: true,
+		Vector:         vector,
+		Limit:          limit,
+		WithPayload:    true,
 		ScoreThreshold: &threshold,
 	}
 
@@ -248,8 +292,8 @@ func (s *Server) searchSingleCollection(ctx context.Context, collection string, 
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/collections/%s/points/search", qdrantURL, collection)
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	searchURL := fmt.Sprintf("%s/collections/%s/points/search", qdrantURL, collection)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", searchURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -274,39 +318,14 @@ func (s *Server) searchSingleCollection(ctx context.Context, collection string, 
 
 	// Convert Qdrant results to our format
 	var results []SearchResult
-	for _, r := range qdrantResp.Result {
-		// Extract content from payload
-		content := ""
-		if c, ok := r.Payload["content"].(string); ok {
-			content = c
-		} else if c, ok := r.Payload["text"].(string); ok {
-			content = c
-		}
-
-		// Convert ID to string
-		idStr := ""
-		switch v := r.ID.(type) {
-		case string:
-			idStr = v
-		case float64:
-			idStr = strconv.FormatFloat(v, 'f', 0, 64)
-		default:
-			idStr = fmt.Sprintf("%v", v)
-		}
-
+	for _, point := range qdrantResp.Result {
 		results = append(results, SearchResult{
-			ID:       idStr,
-			Score:    r.Score,
-			Content:  content,
-			Metadata: r.Payload,
+			ID:       stringifyQdrantID(point.ID),
+			Score:    point.Score,
+			Content:  extractContentFromPayload(point.Payload),
+			Metadata: point.Payload,
 		})
 	}
 
 	return results, nil
-}
-
-func (s *Server) respondError(w http.ResponseWriter, code int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }

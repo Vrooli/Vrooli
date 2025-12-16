@@ -13,7 +13,7 @@ export default defineConfig({
       emitStdout: true,
       verbose: true,
       conciseMode: true,
-    })],
+    }) as unknown as any],
     coverage: {
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],

@@ -440,3 +440,29 @@ func TestSearchEndpointIntegration(t *testing.T) {
 		// 5. Verify response time < 500ms [REQ:KO-SS-004]
 	})
 }
+
+func TestSortAndLimitResults(t *testing.T) {
+	results := []SearchResult{
+		{ID: "a", Score: 0.4},
+		{ID: "b", Score: 0.9},
+		{ID: "c", Score: 0.7},
+	}
+
+	got := sortAndLimitResults(results, 2)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(got))
+	}
+	if got[0].ID != "b" || got[1].ID != "c" {
+		t.Fatalf("unexpected order after sort/limit: %v", []string{got[0].ID, got[1].ID})
+	}
+
+	// Ensure stable behavior for equal scores.
+	results = []SearchResult{
+		{ID: "first", Score: 0.5},
+		{ID: "second", Score: 0.5},
+	}
+	got = sortAndLimitResults(results, 10)
+	if got[0].ID != "first" || got[1].ID != "second" {
+		t.Fatalf("expected stable ordering for equal scores, got %v", []string{got[0].ID, got[1].ID})
+	}
+}

@@ -8,6 +8,13 @@ import (
 	"time"
 )
 
+const (
+	maxPairSamplesPerVector       = 100
+	freshnessHalfLife             = 30 * 24 * time.Hour
+	redundancySimilarityThreshold = 0.95
+	defaultCoverageScore          = 0.70
+)
+
 // QualityMetrics represents aggregated knowledge health scores
 type QualityMetrics struct {
 	Coherence  float64 `json:"coherence"`
@@ -32,6 +39,21 @@ type HealthResponse struct {
 	Timestamp      time.Time          `json:"timestamp"`
 }
 
+func forEachSampledVectorPair(vectors [][]float64, maxPairsPerVector int, fn func(a, b []float64)) {
+	if maxPairsPerVector <= 0 {
+		maxPairsPerVector = maxPairSamplesPerVector
+	}
+	for i := 0; i < len(vectors); i++ {
+		maxJ := len(vectors)
+		if i+maxPairsPerVector+1 < maxJ {
+			maxJ = i + maxPairsPerVector + 1
+		}
+		for j := i + 1; j < maxJ; j++ {
+			fn(vectors[i], vectors[j])
+		}
+	}
+}
+
 // calculateCoherence computes semantic coherence score [REQ:KO-QM-001]
 // Higher coherence = more topically consistent knowledge
 func calculateCoherence(vectors [][]float64) float64 {
@@ -39,28 +61,21 @@ func calculateCoherence(vectors [][]float64) float64 {
 		return 1.0 // Single vector is perfectly coherent
 	}
 
-	// Calculate mean pairwise cosine similarity
 	var totalSimilarity float64
 	var pairCount int
 
-	for i := 0; i < len(vectors); i++ {
-		for j := i + 1; j < len(vectors) && j < i+100; j++ { // Sample up to 100 pairs per vector
-			similarity := cosineSimilarity(vectors[i], vectors[j])
-			totalSimilarity += similarity
-			pairCount++
-		}
-	}
-
+	forEachSampledVectorPair(vectors, maxPairSamplesPerVector, func(a, b []float64) {
+		totalSimilarity += cosineSimilarity(a, b)
+		pairCount++
+	})
 	if pairCount == 0 {
 		return 0.5
 	}
 
 	avgSimilarity := totalSimilarity / float64(pairCount)
 
-	// Normalize to 0-1 range (cosine similarity is already -1 to 1, shift to 0-1)
-	coherence := (avgSimilarity + 1.0) / 2.0
-
-	return coherence
+	// Normalize to 0-1 range (cosine similarity is -1..1).
+	return (avgSimilarity + 1.0) / 2.0
 }
 
 // calculateFreshness computes time-based freshness score [REQ:KO-QM-002]
@@ -73,15 +88,12 @@ func calculateFreshness(timestamps []time.Time) float64 {
 	now := time.Now()
 	var totalScore float64
 
+	// Exponential decay: score = e^(-age/halfLife)
+	// halfLife of 30 days means score drops to 0.5 after 30 days.
+	decayRate := math.Log(2) / float64(freshnessHalfLife)
 	for _, ts := range timestamps {
 		age := now.Sub(ts)
-
-		// Exponential decay: score = e^(-age/halfLife)
-		// halfLife of 30 days means score drops to 0.5 after 30 days
-		halfLife := 30 * 24 * time.Hour
-		decayRate := math.Log(2) / float64(halfLife)
 		score := math.Exp(-float64(age) * decayRate)
-
 		totalScore += score
 	}
 
@@ -99,16 +111,13 @@ func detectRedundancy(vectors [][]float64, threshold float64) float64 {
 	duplicateCount := 0
 	totalPairs := 0
 
-	for i := 0; i < len(vectors); i++ {
-		for j := i + 1; j < len(vectors) && j < i+100; j++ { // Sample pairs
-			similarity := cosineSimilarity(vectors[i], vectors[j])
-			if similarity > threshold { // Default threshold is 0.95
-				duplicateCount++
-			}
-			totalPairs++
+	forEachSampledVectorPair(vectors, maxPairSamplesPerVector, func(a, b []float64) {
+		similarity := cosineSimilarity(a, b)
+		if similarity > threshold {
+			duplicateCount++
 		}
-	}
-
+		totalPairs++
+	})
 	if totalPairs == 0 {
 		return 0.0
 	}
@@ -171,9 +180,8 @@ func (s *Server) handleHealthEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var collectionHealths []CollectionHealth
+	collectionHealths := make([]CollectionHealth, 0, len(collections))
 	var totalEntries int
-	var overallCoherence, overallFreshness, overallRedundancy, overallCoverage float64
 
 	// Calculate health for each collection
 	for _, coll := range collections {
@@ -188,43 +196,15 @@ func (s *Server) handleHealthEndpoint(w http.ResponseWriter, r *http.Request) {
 
 		collectionHealths = append(collectionHealths, *health)
 		totalEntries += health.Size
-		overallCoherence += health.Metrics.Coherence
-		overallFreshness += health.Metrics.Freshness
-		overallRedundancy += health.Metrics.Redundancy
-		overallCoverage += health.Metrics.Coverage
 	}
 
-	// Calculate average metrics
-	count := float64(len(collectionHealths))
-	if count == 0 {
-		count = 1 // Avoid division by zero
-	}
-
-	overallMetrics := QualityMetrics{
-		Coherence:  overallCoherence / count,
-		Freshness:  overallFreshness / count,
-		Redundancy: overallRedundancy / count,
-		Coverage:   overallCoverage / count,
-	}
-
-	// Determine overall health status
-	avgScore := (overallMetrics.Coherence + overallMetrics.Freshness + overallMetrics.Coverage - overallMetrics.Redundancy) / 3.0
-	var healthStatus string
-	switch {
-	case avgScore >= 0.8:
-		healthStatus = "excellent"
-	case avgScore >= 0.6:
-		healthStatus = "good"
-	case avgScore >= 0.4:
-		healthStatus = "fair"
-	default:
-		healthStatus = "poor"
-	}
+	overallMetrics := averageCollectionMetrics(collectionHealths)
+	healthScore := knowledgeHealthScore(overallMetrics)
 
 	response := HealthResponse{
 		TotalEntries:   totalEntries,
 		Collections:    collectionHealths,
-		OverallHealth:  healthStatus,
+		OverallHealth:  formatHealthStatus(healthScore),
 		OverallMetrics: overallMetrics,
 		Timestamp:      time.Now(),
 	}
@@ -235,14 +215,40 @@ func (s *Server) handleHealthEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func averageCollectionMetrics(collectionHealths []CollectionHealth) QualityMetrics {
+	if len(collectionHealths) == 0 {
+		return QualityMetrics{}
+	}
+
+	var sum QualityMetrics
+	for _, health := range collectionHealths {
+		sum.Coherence += health.Metrics.Coherence
+		sum.Freshness += health.Metrics.Freshness
+		sum.Redundancy += health.Metrics.Redundancy
+		sum.Coverage += health.Metrics.Coverage
+	}
+
+	count := float64(len(collectionHealths))
+	return QualityMetrics{
+		Coherence:  sum.Coherence / count,
+		Freshness:  sum.Freshness / count,
+		Redundancy: sum.Redundancy / count,
+		Coverage:   sum.Coverage / count,
+	}
+}
+
+func knowledgeHealthScore(metrics QualityMetrics) float64 {
+	return (metrics.Coherence + metrics.Freshness + metrics.Coverage - metrics.Redundancy) / 3.0
+}
+
 // calculateQualityMetrics is a helper for testing [REQ:KO-QM-001,KO-QM-002,KO-QM-003]
 func calculateQualityMetrics(vectors [][]float64, timestamps []time.Time) QualityMetrics {
 	coherence := calculateCoherence(vectors)
 	freshness := calculateFreshness(timestamps)
-	redundancy := detectRedundancy(vectors, 0.95)
+	redundancy := detectRedundancy(vectors, redundancySimilarityThreshold)
 
 	// Coverage would require domain analysis - placeholder for now
-	coverage := 0.70
+	coverage := defaultCoverageScore
 
 	return QualityMetrics{
 		Coherence:  coherence,
