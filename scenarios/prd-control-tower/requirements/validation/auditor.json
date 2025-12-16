@@ -10,7 +10,7 @@
     {
       "id": "PCT-VALIDATE-CALL",
       "category": "validation.api",
-      "prd_ref": "Functional Requirements > Must Have > Integration with scenario-auditor",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Validation service calls scenario-auditor API for PRD structure checks",
       "description": "Verifies POST /api/v1/drafts/{id}/validate calls scenario-auditor with draft content and returns violations.",
       "status": "complete",
@@ -34,7 +34,7 @@
     {
       "id": "PCT-VALIDATE-CACHE",
       "category": "validation.caching",
-      "prd_ref": "Audit Service > caching to avoid repeated checks",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
       "title": "Validation results cache in PostgreSQL with timestamp",
       "description": "Ensures validation results persist to database and are reused until draft content changes.",
       "status": "complete",
@@ -51,7 +51,7 @@
     {
       "id": "PCT-VALIDATE-DISPLAY",
       "category": "validation.ui",
-      "prd_ref": "Draft Management > Validate structure against standards",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Draft workspace displays violations with severity and recommendations",
       "description": "Confirms StructureChecklist component renders missing sections and violation counts from validation API.",
       "status": "complete",

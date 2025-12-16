@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+
+if ! command -v go >/dev/null 2>&1; then
+  echo "❌ Go toolchain is required to run the dev CLI wrapper." >&2
+  echo "   Install the CLI with: bash ${SCRIPT_DIR}/install.sh" >&2
+  exit 1
+fi
+
+cd "${SCRIPT_DIR}"
+exec go run . "$@"
+

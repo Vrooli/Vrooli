@@ -8,7 +8,7 @@
     {
       "id": "PCT-DRAFT-CREATE",
       "category": "drafts.api",
-      "prd_ref": "API Endpoints > POST /api/v1/drafts",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Create new draft from template or existing PRD",
       "description": "Verifies POST /api/v1/drafts creates draft in database and filesystem with proper metadata.",
       "status": "complete",
@@ -39,7 +39,7 @@
     {
       "id": "PCT-DRAFT-SAVE",
       "category": "drafts.api",
-      "prd_ref": "API Endpoints > PUT /api/v1/drafts/{id}",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Draft content persists to database and filesystem atomically",
       "description": "Ensures PUT /api/v1/drafts/{id} updates both database record and draft file with proper error handling.",
       "status": "complete",
@@ -70,7 +70,7 @@
     {
       "id": "PCT-DRAFT-DELETE",
       "category": "drafts.api",
-      "prd_ref": "API Endpoints > DELETE /api/v1/drafts/{id}",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Draft deletion removes database record and filesystem entry",
       "description": "Validates DELETE /api/v1/drafts/{id} cleans up both database and filesystem with confirmation.",
       "status": "complete",
@@ -94,7 +94,7 @@
     {
       "id": "PCT-DRAFT-PUBLISH",
       "category": "drafts.api",
-      "prd_ref": "Functional Requirements > Must Have > Publishing action that replaces PRD.md and clears draft",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Publishing atomically updates PRD.md and clears draft",
       "description": "Confirms POST /api/v1/drafts/{id}/publish writes PRD.md with backup and removes draft safely.",
       "status": "complete",
@@ -118,7 +118,7 @@
     {
       "id": "PCT-DRAFT-EDIT",
       "category": "drafts.ui",
-      "prd_ref": "Draft Management > Edit with markdown editor",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Draft editor supports split-pane editing with live preview",
       "description": "Confirms DraftEditorPane renders edit/split/preview modes with textarea and markdown rendering.",
       "status": "complete",

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/gorilla/mux"
 )
@@ -163,7 +164,7 @@ func loadScenarioTemplateManifest(name string) (*TemplateManifest, error) {
 		manifest.Name = name
 	}
 	if manifest.DisplayName == "" {
-		manifest.DisplayName = strings.Title(strings.ReplaceAll(name, "-", " "))
+		manifest.DisplayName = titleFromSlug(name)
 	}
 
 	for key, value := range raw.RequiredVars {
@@ -187,6 +188,20 @@ func loadScenarioTemplateManifest(name string) (*TemplateManifest, error) {
 	}
 
 	return manifest, nil
+}
+
+func titleFromSlug(slug string) string {
+	slug = strings.ReplaceAll(strings.TrimSpace(slug), "-", " ")
+	words := strings.Fields(slug)
+	for i, word := range words {
+		lowered := []rune(strings.ToLower(word))
+		if len(lowered) == 0 {
+			continue
+		}
+		lowered[0] = unicode.ToUpper(lowered[0])
+		words[i] = string(lowered)
+	}
+	return strings.Join(words, " ")
 }
 
 func manifestToResponse(manifest *TemplateManifest) ScenarioTemplateResponse {

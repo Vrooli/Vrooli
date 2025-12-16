@@ -8,7 +8,7 @@
     {
       "id": "PCT-BACKLOG-INTAKE",
       "category": "backlog.ui",
-      "prd_ref": "User Story > Easy-to-use idea backlog",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "title": "Backlog accepts freeform text input and parses it into entries",
       "description": "Verifies BacklogIntakeCard accepts multiline text and creates backlog entries with proper metadata.",
       "status": "in_progress",
@@ -39,7 +39,7 @@
     {
       "id": "PCT-BACKLOG-PREVIEW",
       "category": "backlog.ui",
-      "prd_ref": "User Story > Easy-to-use idea backlog",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "title": "Backlog entries display in table with preview panel",
       "description": "Ensures BacklogEntriesTable renders entries and BacklogPreviewPanel shows details on selection.",
       "status": "in_progress",
@@ -63,7 +63,7 @@
     {
       "id": "PCT-BACKLOG-CONVERT",
       "category": "backlog.workflow",
-      "prd_ref": "User Story > Easy-to-use idea backlog > convert to drafts",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "title": "Backlog entries convert to drafts with one-click action",
       "description": "Confirms convert-to-draft action creates new draft from backlog entry content and marks entry as converted.",
       "status": "in_progress",

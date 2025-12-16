@@ -8,7 +8,7 @@
     {
       "id": "PCT-AI-GENERATE",
       "category": "ai.api",
-      "prd_ref": "Functional Requirements > Must Have > AI-assisted section generation via resource-openrouter",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "title": "AI generates PRD sections from prompts",
       "description": "Verifies POST /api/v1/drafts/{id}/ai/generate-section calls resource-openrouter with context and returns generated markdown.",
       "status": "complete",
@@ -29,7 +29,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/05-ai/e2e/ai-section-generation.json",
+          "ref": "bas/cases/05-ai/e2e/ai-section-generation.json",
           "phase": "business",
           "status": "implemented",
           "notes": "E2E validation of AI section generation availability"
@@ -39,7 +39,7 @@
     {
       "id": "PCT-AI-CONTEXT",
       "category": "ai.prompts",
-      "prd_ref": "AI Service > prompt templating",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "title": "AI prompts include existing PRD, violations, and template context",
       "description": "Ensures buildPrompt includes draft content, structure violations, and missing sections in context.",
       "status": "complete",
@@ -53,7 +53,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/05-ai/e2e/ai-section-generation.json",
+          "ref": "bas/cases/05-ai/e2e/ai-section-generation.json",
           "phase": "business",
           "status": "implemented",
           "notes": "E2E validation of AI context integration"
@@ -63,7 +63,7 @@
     {
       "id": "PCT-AI-REWRITE",
       "category": "ai.ui",
-      "prd_ref": "Session 25 > Draft workspace upgrades > AI assistant controls",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "title": "AI assistant rewrites selections for template compliance",
       "description": "Confirms AIAssistantDialog accepts section selection, generates revision, and allows insert/replace operations.",
       "status": "complete",

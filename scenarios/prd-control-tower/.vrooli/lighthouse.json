@@ -3,6 +3,7 @@
     "description": "Lighthouse testing configuration",
     "last_updated": "2025-11-13T22:26:36Z"
   },
+  "version": "1.0.0",
   "enabled": true,
   "pages": [
     {

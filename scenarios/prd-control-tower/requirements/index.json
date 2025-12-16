@@ -28,7 +28,7 @@
     {
       "id": "PCT-FUNC-001",
       "category": "foundation",
-      "prd_ref": "Functional Requirements > Must Have > Catalog view listing all scenarios/resources with PRD status",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "title": "Catalog view with comprehensive PRD status indicators",
       "description": "Tracks the complete experience for browsing all scenarios/resources with accurate status badges (Has PRD, Draft pending, Violations, Missing). Child implementation requirements cover enumeration, filtering, and status display.",
       "status": "complete",
@@ -48,7 +48,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/01-catalog/e2e/catalog-view-and-navigate.json",
+          "ref": "bas/cases/01-catalog/e2e/catalog-view-and-navigate.json",
           "phase": "business",
           "status": "implemented",
           "notes": "End-to-end validation of catalog view and navigation workflow"
@@ -58,7 +58,7 @@
     {
       "id": "PCT-FUNC-002",
       "category": "foundation",
-      "prd_ref": "Functional Requirements > Must Have > Draft lifecycle (create, edit, save, delete, publish)",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Complete draft lifecycle management",
       "description": "Tracks draft CRUD operations with atomic file persistence, database synchronization, and publishing workflow. Child implementation requirements cover API endpoints and UI components.",
       "status": "complete",
@@ -79,7 +79,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/02-drafts/e2e/draft-create-edit-publish.json",
+          "ref": "bas/cases/02-drafts/e2e/draft-create-edit-publish.json",
           "phase": "business",
           "status": "implemented",
           "notes": "End-to-end validation of complete draft lifecycle"
@@ -89,7 +89,7 @@
     {
       "id": "PCT-FUNC-003",
       "category": "backlog",
-      "prd_ref": "User Story > Easy-to-use idea backlog",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "title": "Idea backlog with freeform text intake and conversion",
       "description": "Captures backlog intake workflows where users paste freeform notes and convert them to drafts or save to backlog for later triage.",
       "status": "complete",
@@ -108,7 +108,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/03-backlog/e2e/backlog-intake-and-convert.json",
+          "ref": "bas/cases/03-backlog/e2e/backlog-intake-and-convert.json",
           "phase": "business",
           "status": "implemented",
           "notes": "End-to-end validation of backlog intake and conversion workflow"
@@ -118,7 +118,7 @@
     {
       "id": "PCT-FUNC-004",
       "category": "requirements",
-      "prd_ref": "Session 25 > Requirements registry ingestion",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "title": "Requirements registry parsing and operational target linkage",
       "description": "Validates that modular requirements/ folders are ingested correctly, operational targets are extracted from PRD checklists, and linkage is surfaced in the draft workspace.",
       "status": "complete",
@@ -137,7 +137,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/04-requirements/e2e/requirements-view-and-linkage.json",
+          "ref": "bas/cases/04-requirements/e2e/requirements-view-and-linkage.json",
           "phase": "business",
           "status": "implemented",
           "notes": "End-to-end validation of requirements registry and target linkage"
@@ -147,7 +147,7 @@
     {
       "id": "PCT-FUNC-005",
       "category": "ai",
-      "prd_ref": "Functional Requirements > Must Have > AI-assisted section generation via resource-openrouter",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "title": "AI-powered PRD content generation",
       "description": "Enables AI-assisted section generation and rewriting via resource-openrouter integration with context-aware prompts.",
       "status": "complete",
@@ -173,7 +173,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/05-ai/e2e/ai-section-generation.json",
+          "ref": "bas/cases/05-ai/e2e/ai-section-generation.json",
           "phase": "business",
           "status": "implemented",
           "notes": "End-to-end validation of AI section generation feature"
@@ -183,7 +183,7 @@
     {
       "id": "PCT-FUNC-006",
       "category": "validation",
-      "prd_ref": "Functional Requirements > Must Have > Integration with scenario-auditor for PRD structure validation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "PRD structure validation via scenario-auditor",
       "description": "Integrates with scenario-auditor to validate PRD structure compliance and surface violations with actionable feedback.",
       "status": "complete",

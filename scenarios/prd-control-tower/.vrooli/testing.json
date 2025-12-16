@@ -21,6 +21,10 @@
       "node": {}
     }
   },
+  "playbooks": {
+    "enabled": false,
+    "_note": "Playbooks depend on the shared browser-automation-studio runtime; keep disabled by default so prd-control-tower tests don't fail when BAS is unavailable."
+  },
   "business": {
     "checks": {
       "endpoints": {

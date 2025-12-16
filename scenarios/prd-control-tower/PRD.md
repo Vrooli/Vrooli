@@ -2,7 +2,55 @@
 
 > **Status**: P0 Complete ✅ | **Version**: 1.0.0 | **Last Updated**: 2025-11-14
 >
-> See [CHANGELOG.md](./CHANGELOG.md) for detailed implementation history.
+> See `docs/PROGRESS.md` for detailed implementation history.
+
+> **Template Version**: 2.0
+> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
+> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
+
+## 🎯 Overview
+- **Purpose**: Central command center to create, validate, and publish PRDs across all scenarios/resources.
+- **Primary users/verticals**: Vrooli operators, agents (generators/improvers), scenario owners.
+- **Deployment surfaces**: UI (catalog + editor), API (catalog/drafts/targets/requirements), CLI (`prd-control-tower`).
+- **Value promise**: Faster, standardized PRDs that unlock more reliable scenario generation and compounding reuse.
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [x] OT-P0-001 | Ecosystem PRD catalog | List scenarios/resources with PRD/draft/violation status. `[req:PCT-FUNC-001,PCT-CATALOG-ENUMERATE,PCT-CATALOG-VIEW-PRD,PCT-CATALOG-STATUS,PCT-CATALOG-FILTER]`
+- [x] OT-P0-002 | Draft lifecycle + publish | Create/edit/save/validate/publish PRD drafts safely with atomic writes. `[req:PCT-FUNC-002,PCT-DRAFT-CREATE,PCT-DRAFT-SAVE,PCT-DRAFT-DELETE,PCT-DRAFT-PUBLISH,PCT-DRAFT-EDIT,PCT-VALIDATE-CALL,PCT-VALIDATE-DISPLAY]`
+- [x] OT-P0-003 | Requirements + targets coverage | Parse requirements registries and show operational-target linkage gaps. `[req:PCT-FUNC-004,PCT-REQ-PARSE,PCT-REQ-TARGETS,PCT-REQ-LINKAGE]`
+
+### 🟠 P1 – Should have post-launch
+- [x] OT-P1-001 | Backlog intake + convert | Capture freeform ideas and convert them into PRD drafts. `[req:PCT-FUNC-003,PCT-BACKLOG-INTAKE,PCT-BACKLOG-PREVIEW,PCT-BACKLOG-CONVERT]`
+- [x] OT-P1-002 | AI assistance | Generate/rewrite PRD content with model choice and safe apply via diff. `[req:PCT-FUNC-005,PCT-AI-GENERATE,PCT-AI-CONTEXT,PCT-AI-REWRITE]`
+
+### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | Cached validation results | Reuse scenario-auditor validation results until content changes. `[req:PCT-VALIDATE-CACHE]`
+
+## 🧱 Tech Direction Snapshot
+- Preferred stacks / frameworks: Go API, React + TypeScript UI (Vite), Bash wrapper for dev CLI.
+- Data + storage expectations: Postgres for metadata/cache, filesystem for drafts and published PRDs.
+- Integration strategy: API-first; UI and CLI are thin clients; scenario-auditor for standards; optional OpenRouter for AI.
+- Non-goals / guardrails: No direct scenario execution; always use lifecycle; AI is optional and must be reviewable before apply.
+
+## 🤝 Dependencies & Launch Plan
+- Required resources: PostgreSQL.
+- Scenario dependencies: `scenario-auditor` (standards/validation); optional `resource-openrouter`/OpenRouter.
+- Operational risks: Draft publishing safety, validation availability, AI latency/cost; mitigate with atomic writes, caching, and explicit diffs.
+- Launch sequencing: ensure template-compliant PRDs → ensure target/requirement linkage → enable generation/publish workflows.
+
+## 🎨 UX & Branding
+- Look & feel: Operator dashboard; fast scanning; clear severity/status; diff-first flows.
+- Accessibility: Keyboard navigation, readable contrast, predictable focus management.
+- Voice & messaging: Direct and action-oriented; warn on destructive actions; show clear next steps.
+- Branding hooks: Keep consistent with Vrooli UI primitives; avoid bespoke theming in v1.
+
+## 📎 Appendix
+- Key endpoints: `/api/v1/catalog`, `/api/v1/drafts`, `/api/v1/drafts/{id}/validate`, `/api/v1/drafts/{id}/ai/generate-section`, `/api/v1/drafts/{id}/publish`, `/api/v1/drafts/ai/generate`
+- Storage: `data/prd-drafts/{scenario|resource}/` + PostgreSQL (`drafts`, `audit_results`)
+- CLI: `prd-control-tower generate-prd <name> --context-file ... --publish --json`
 
 ## 🎯 Capability Definition
 

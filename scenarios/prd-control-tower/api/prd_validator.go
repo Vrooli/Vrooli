@@ -85,12 +85,10 @@ func validateSinglePRDRef(req RequirementRecord, prdLower string, sections []str
 
 	// Strategy 2: Look for checkbox item match
 	foundInCheckboxes := false
-	matchingCheckboxes := []string{}
 	for _, checkbox := range checkboxes {
 		checkboxLower := strings.ToLower(checkbox)
 		if strings.Contains(checkboxLower, lastPartLower) || strings.Contains(lastPartLower, checkboxLower) {
 			foundInCheckboxes = true
-			matchingCheckboxes = append(matchingCheckboxes, checkbox)
 		}
 	}
 
