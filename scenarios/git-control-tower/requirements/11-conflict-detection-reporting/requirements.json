@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "OT-P1-003 Conflict detection & reporting",
+    "last_updated": "2025-12-16"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P1-003",
+      "category": "operational_target.p1",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Conflict detection & reporting",
+      "description": "Detect active merge conflicts and potential conflicts (local changes + behind remote)",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}
+

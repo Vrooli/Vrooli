@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "OT-P0-006 Push/pull status",
+    "last_updated": "2025-12-16"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P0-006",
+      "category": "operational_target.p0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Push/pull status",
+      "description": "Check if push needed with safety checks for behind-remote scenarios",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}
+

@@ -1,7 +1,7 @@
 # Scenario Makefile
 #
-# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
-# NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
+# This Makefile ensures the scenario is always run through the Vrooli lifecycle system.
+# NEVER run services directly (e.g. `./api/binary`). ALWAYS use these commands.
 #
 # Usage:
 #   make       - Show help
@@ -9,17 +9,14 @@
 #   make stop  - Stop this scenario
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
-#   make clean - Clean build artifacts
 
-.PHONY: help start stop run dev test logs status clean build install-deps fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run dev stop status logs test
 
-# Default target
 .DEFAULT_GOAL := help
 
-# Get scenario name from current directory
 SCENARIO_NAME := $(notdir $(CURDIR))
 
-# Standard colors (STRICT: only these are allowed)
+# Colors for output
 GREEN := \033[1;32m
 YELLOW := \033[1;33m
 BLUE := \033[1;34m
@@ -27,7 +24,7 @@ RED := \033[1;31m
 RESET := \033[0m
 
 help: ## Show this help message
-	@echo "$(BLUE)🏗️  $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo "$(BLUE)📦 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
 	@echo "  make <command>"
@@ -39,111 +36,27 @@ help: ## Show this help message
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
 	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
-start: ## Start this scenario (via Vrooli lifecycle)
+start: ## Start the scenario services
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME)...$(RESET)"
 	@vrooli scenario start $(SCENARIO_NAME)
 
-stop: ## Stop this scenario
+run: start ## Alias for `start`
+
+dev: start ## Alias for `start` (dev lifecycle handled by `.vrooli/service.json`)
+
+stop: ## Stop the scenario services
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME)...$(RESET)"
 	@vrooli scenario stop $(SCENARIO_NAME)
 
-run: start ## Alias for start
-
-dev: ## Start in development mode
-	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
-	@vrooli scenario develop $(SCENARIO_NAME)
-
-test: ## Run all tests
-	@echo "$(BLUE)🧪 Running tests for $(SCENARIO_NAME)...$(RESET)"
-	@bash test/phases/test-structure.sh
-	@bash test/phases/test-dependencies.sh
-	@bash test/phases/test-integration.sh
-
-logs: ## Show scenario logs
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
-	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
-
-status: ## Check scenario status
+status: ## Show scenario status
 	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 
-clean: ## Clean build artifacts
-	@echo "$(YELLOW)🧹 Cleaning build artifacts...$(RESET)"
-	@rm -rf build/ dist/ *.log
-	@rm -f api/git-control-tower-api
-	@rm -rf ui/dist ui/build
-	@echo "$(GREEN)✓ Cleaned$(RESET)"
+logs: ## Show recent logs
+	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
+	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
-build: ## Build the scenario
-	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
-	@if [ -f api/go.mod ]; then \
-		cd api && go build -o git-control-tower-api main.go; \
-		echo "$(GREEN)✓ Built api/git-control-tower-api$(RESET)"; \
-	fi
+test: ## Run scenario test lifecycle
+	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME)...$(RESET)"
+	@vrooli scenario test $(SCENARIO_NAME)
 
-install-deps: ## Install dependencies
-	@echo "$(BLUE)📦 Installing dependencies...$(RESET)"
-	@if [ -f api/go.mod ]; then \
-		cd api && go mod download; \
-	fi
-	@if [ -f ui/package.json ]; then \
-		cd ui && npm install; \
-	fi
-	@echo "$(GREEN)✓ Dependencies installed$(RESET)"
-
-fmt: fmt-go fmt-ui ## Format all code (Go + UI)
-
-fmt-go: ## Format Go code
-	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd api && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd api && gofmt -w .; \
-		fi; \
-		echo "$(GREEN)✓ Go code formatted$(RESET)"; \
-	fi
-
-fmt-ui: ## Format UI code
-	@if [ -d ui/src ]; then \
-		echo "$(BLUE)🎨 Formatting UI code...$(RESET)"; \
-		if command -v prettier >/dev/null 2>&1; then \
-			cd ui && prettier --write "src/**/*.{js,ts,tsx}" >/dev/null 2>&1 || true; \
-			echo "$(GREEN)✓ UI code formatted$(RESET)"; \
-		else \
-			echo "$(YELLOW)⚠️  Prettier not installed; skipped UI formatting$(RESET)"; \
-		fi; \
-	else \
-		echo "$(BLUE)ℹ️  No UI sources detected$(RESET)"; \
-	fi
-
-lint: lint-go lint-ui ## Lint all code (Go + UI)
-
-lint-go: ## Lint Go code
-	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run; \
-		elif command -v go >/dev/null 2>&1; then \
-			cd api && go vet ./...; \
-		fi; \
-		echo "$(GREEN)✓ Go code linted$(RESET)"; \
-	fi
-
-lint-ui: ## Lint UI code
-	@if [ -d ui/src ]; then \
-		echo "$(BLUE)🔍 Linting UI code...$(RESET)"; \
-		if command -v eslint >/dev/null 2>&1; then \
-			cd ui && eslint "src/**/*.{js,ts,tsx}"; \
-		else \
-			echo "$(YELLOW)⚠️  ESLint not installed; skipped UI linting$(RESET)"; \
-		fi; \
-	else \
-		echo "$(BLUE)ℹ️  No UI sources detected$(RESET)"; \
-	fi
-
-check: ## Format, lint, and test
-	@echo "$(BLUE)✅ Running full check...$(RESET)"
-	@$(MAKE) fmt
-	@$(MAKE) lint
-	@$(MAKE) test

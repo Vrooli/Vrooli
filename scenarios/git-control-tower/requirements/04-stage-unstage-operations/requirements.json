@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "OT-P0-004 Stage/unstage operations",
+    "last_updated": "2025-12-16"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P0-004",
+      "category": "operational_target.p0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Stage/unstage operations",
+      "description": "Stage/unstage specific files or by scope (scenario/resource) via POST endpoints",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}
+

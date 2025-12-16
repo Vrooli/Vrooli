@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "OT-P2-002 Worktree management",
+    "last_updated": "2025-12-16"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P2-002",
+      "category": "operational_target.p2",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Worktree management",
+      "description": "List, create, and manage git worktrees via API",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}
+

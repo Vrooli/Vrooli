@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "OT-P0-001 Health check endpoint",
+    "last_updated": "2025-12-16"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P0-001",
+      "category": "operational_target.p0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Health check endpoint",
+      "description": "Validates database connectivity, git binary availability, repository access with structured JSON response",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}
+

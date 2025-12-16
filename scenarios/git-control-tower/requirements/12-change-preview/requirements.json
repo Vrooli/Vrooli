@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "OT-P1-004 Change preview",
+    "last_updated": "2025-12-16"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P1-004",
+      "category": "operational_target.p1",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Change preview",
+      "description": "Preview commit impact with LOC analysis, affected scenarios/resources, deployment risk assessment",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}
+

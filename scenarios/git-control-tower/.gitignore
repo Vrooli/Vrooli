@@ -1,4 +1,0 @@
-# Allow tracked iframe bridge symlink for auditor compliance
-!ui/node_modules/
-!ui/node_modules/@vrooli/
-!ui/node_modules/@vrooli/iframe-bridge

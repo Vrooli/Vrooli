@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "OT-P1-002 AI-assisted commit messages",
+    "last_updated": "2025-12-16"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P1-002",
+      "category": "operational_target.p1",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "AI-assisted commit messages",
+      "description": "Generate commit message suggestions using Ollama/OpenRouter with rule-based fallback",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}
+

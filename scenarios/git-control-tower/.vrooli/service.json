@@ -1,20 +1,20 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "2.0.0",
   "service": {
     "name": "git-control-tower",
     "displayName": "Git Control Tower",
-    "description": "Centralized git repository management with structured APIs for agent-accessible version control operations",
+    "description": "Agent-friendly git repository control plane (REST API + CLI + UI)",
     "version": "1.0.0",
-    "tags": [
-      "git",
-      "version-control",
-      "devops",
-      "automation"
-    ],
     "parent": "vrooli",
     "type": "scenario",
     "category": "general",
+    "tags": [
+      "git",
+      "version-control",
+      "devtools",
+      "automation"
+    ],
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -43,8 +43,8 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 35700,
-      "description": "Git Control Tower UI (mirrors API endpoints for iframe embedding)",
+      "port": 36400,
+      "description": "Git Control Tower UI port",
       "range": "35000-39999"
     }
   },
@@ -56,38 +56,36 @@
         "api": "/health",
         "ui": "/health"
       },
+      "startup_grace_period": 10000,
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
           "timeout": 5000,
-          "interval": 30000
+          "interval": 30000,
+          "critical": true
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 3000,
-          "interval": 45000
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
         },
         {
           "name": "postgres_connection",
           "type": "postgres",
-          "target": "vrooli_git_control_tower",
+          "target": "vrooli",
           "critical": true,
           "timeout": 3000,
           "interval": 60000
         }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
+      ]
     },
     "setup": {
-      "description": "Initialize Git Control Tower with database and git access",
+      "description": "Initialize Git Control Tower (build + install + schema)",
       "condition": {
         "checks": [
           {
@@ -114,7 +112,7 @@
         {
           "name": "install-cli",
           "run": "bash cli/install.sh",
-          "description": "Install Git Control Tower CLI globally",
+          "description": "Install CLI command globally",
           "condition": {
             "file_exists": "cli/install.sh"
           }
@@ -126,7 +124,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace)",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -134,23 +132,13 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "cd ui && pnpm run build",
           "description": "Build production UI bundle"
         },
         {
-          "name": "create-data-directories",
-          "run": "mkdir -p data/temp data/logs",
-          "description": "Create data storage directories"
-        },
-        {
           "name": "initialize-database",
-          "run": "if command -v psql &> /dev/null; then psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-vrooli} -d ${POSTGRES_DB:-vrooli} -f initialization/postgres/schema.sql 2>/dev/null || echo '\u26a0\ufe0f  Database schema initialization skipped (psql connection failed - run schema manually via docker exec)'; else echo '\u26a0\ufe0f  Database initialization skipped (psql not available - run: docker exec vrooli-postgres-main psql -U vrooli -d vrooli -f /path/to/schema.sql)'; fi",
-          "description": "Run schema in shared vrooli database (optional if using containerized DB)"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 Git Control Tower initialized\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  UI: http://localhost:${UI_PORT:-$API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
-          "description": "Display service access URLs"
+          "run": "if [ -f initialization/postgres/schema.sql ]; then psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-vrooli} -d ${POSTGRES_DB:-vrooli} -f initialization/postgres/schema.sql &> /dev/null || echo '⚠️  Schema initialization skipped (psql connection failed)'; else echo '⚠️  No schema.sql found (ok for scaffold)'; fi",
+          "description": "Initialize database schema (best-effort; safe to skip in scaffold)"
         }
       ]
     },
@@ -159,36 +147,28 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && GIT_CONTROL_TOWER_EXTERNAL_UI_SERVER=true ./git-control-tower-api",
-          "description": "Start Go API server in background",
+          "run": "cd api && ./git-control-tower-api",
           "background": true,
-          "condition": {
-            "file_exists": "api/git-control-tower-api"
-          }
+          "description": "Start Go API server"
         },
         {
           "name": "start-ui",
-          "run": "cd ui && PORT=${UI_PORT} UI_PORT=${UI_PORT} node server.cjs",
-          "description": "Serve production UI bundle",
+          "run": "cd ui && node server.js",
           "background": true,
+          "description": "Serve production UI bundle",
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 Git Control Tower running\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  UI: http://localhost:${UI_PORT:-$API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
-          "description": "Display running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for git-control-tower",
+      "description": "Execute phased test suite",
       "steps": [
         {
-          "name": "run-phased-tests",
-          "run": "test-genie execute git-control-tower --preset comprehensive",
-          "description": "Execute phased scenario test suite"
+          "name": "run-tests",
+          "run": "cd test && ./run-tests.sh",
+          "description": "Run structure/unit/integration/business/performance phases"
         }
       ]
     },
@@ -202,25 +182,25 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "description": "Metadata storage for commit history, audit logs, draft queue"
+        "description": "Audit logs and metadata storage (uses shared vrooli database)"
       },
       "redis": {
         "type": "redis",
         "enabled": false,
         "required": false,
-        "description": "Diff snapshot caching and fsnotify invalidation"
+        "description": "Optional caching for diff/status operations"
       },
       "ollama": {
         "type": "ollama",
         "enabled": false,
         "required": false,
-        "description": "AI-assisted commit message generation and change analysis"
+        "description": "AI-assisted commit message suggestions"
       },
       "resource-openrouter": {
         "type": "resource-openrouter",
         "enabled": false,
         "required": false,
-        "description": "AI fallback for commit message generation"
+        "description": "AI fallback for commit message suggestions"
       }
     }
   }

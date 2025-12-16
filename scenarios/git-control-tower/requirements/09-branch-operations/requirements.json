@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "OT-P1-001 Branch operations",
+    "last_updated": "2025-12-16"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P1-001",
+      "category": "operational_target.p1",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Branch operations",
+      "description": "List, create, and switch branches with uncommitted change detection",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}
+

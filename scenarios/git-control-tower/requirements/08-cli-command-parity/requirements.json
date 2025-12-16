@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "OT-P0-008 CLI command parity",
+    "last_updated": "2025-12-16"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P0-008",
+      "category": "operational_target.p0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "title": "CLI command parity",
+      "description": "CLI wrapper commands matching all API functionality (status, diff, stage, unstage, commit, health)",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}
+
