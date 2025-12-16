@@ -4,9 +4,9 @@ This document describes the intentional boundaries (seams) in the git-control-to
 
 ## Overview
 
-The git-control-tower API provides structured access to git operations. The primary architectural challenge is **isolating git side effects** so that:
+The git-control-tower API provides structured access to git operations. The primary architectural challenge is **isolating side effects** so that:
 
-1. Unit tests can run without touching the filesystem or executing real git commands
+1. Unit tests can run without touching the filesystem, executing real git commands, or requiring a database
 2. Integration tests can verify real git behavior in isolated temp directories
 3. Domain logic (parsing, validation, business rules) can be tested independently
 
@@ -19,6 +19,7 @@ The `GitRunner` interface is the primary seam for all git operations. It abstrac
 - `StatusPorcelainV2` - Get repository status
 - `Diff` - Get file diffs
 - `Stage` / `Unstage` - Staging area operations
+- `Commit` - Create commits with message
 - `RevParse` - Repository validation
 - `LookPath` - Git binary availability check
 - `ResolveRepoRoot` - Determine repository root directory (environment or git detection)
@@ -69,7 +70,8 @@ Each service function accepts a `*Deps` struct containing its dependencies:
 | `GetRepoStatus` | `RepoStatusDeps` | GitRunner, RepoDir |
 | `GetDiff` | `DiffDeps` | GitRunner, RepoDir |
 | `StageFiles` / `UnstageFiles` | `StagingDeps` | GitRunner, RepoDir |
-| `HealthChecks.Run` | `HealthCheckDeps` | DB, GitRunner, RepoDir |
+| `CreateCommit` | `CommitDeps` | GitRunner, RepoDir |
+| `HealthChecks.Run` | `HealthCheckDeps` | DBChecker, GitRunner, RepoDir |
 
 This pattern enables:
 - Explicit dependency injection
@@ -146,6 +148,45 @@ When modifying the API, verify:
 - [ ] Integration tests skip gracefully when git unavailable
 - [ ] Parser functions remain pure (no side effects)
 
+## Secondary Seam: DBChecker Interface
+
+**Location**: `api/db_checker.go`
+
+The `DBChecker` interface abstracts database health checks:
+
+- `Ping` - Check if database is reachable
+- `IsConfigured` - Check if database handle exists
+
+### Production Implementation: SQLDBChecker
+
+The `SQLDBChecker` struct wraps a `*sql.DB` and delegates to its `PingContext` method:
+
+```go
+checks := NewHealthChecks(HealthCheckDeps{
+    DB:      NewSQLDBChecker(db),
+    Git:     git,
+    RepoDir: repoDir,
+})
+```
+
+### Test Implementation: FakeDBChecker
+
+**Location**: `api/db_checker_fake_test.go`
+
+The `FakeDBChecker` simulates database connectivity:
+
+```go
+fakeDB := NewFakeDBChecker()                    // Connected by default
+fakeDB := NewFakeDBChecker().WithUnconfigured() // No database
+fakeDB := NewFakeDBChecker().WithDisconnected() // Unreachable
+fakeDB := NewFakeDBChecker().WithPingError(err) // Specific error
+```
+
+Features:
+- Simulates database configuration state
+- Error injection via `PingError`
+- Call tracking via `PingCalls`
+
 ## HTTP Response Seam
 
 **Location**: `api/http_response.go`, `api/http_handler.go`
@@ -164,14 +205,6 @@ Request handling utilities in `http_handler.go` provide:
 - `ValidateStagingRequest` - Staging operation validation
 
 These reduce cognitive load by ensuring consistent response patterns across all handlers.
-
-## Future Seam Considerations
-
-### Database Operations
-
-Currently `HealthChecks` accepts `*sql.DB` directly. Consider:
-- Creating a `DBChecker` interface for testability
-- Allowing mock database health checks
 
 ---
 

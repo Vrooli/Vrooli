@@ -32,6 +32,10 @@ type GitRunner interface {
 	// Unstage removes the specified paths from the git index (git reset HEAD).
 	Unstage(ctx context.Context, repoDir string, paths []string) error
 
+	// Commit creates a new commit with the given message.
+	// Returns the commit hash (short OID) on success.
+	Commit(ctx context.Context, repoDir string, message string) (string, error)
+
 	// RevParse runs git rev-parse with the given arguments.
 	// Used for repository validation (e.g., --is-inside-work-tree).
 	RevParse(ctx context.Context, repoDir string, args ...string) ([]byte, error)
@@ -136,6 +140,30 @@ func (r *ExecGitRunner) Unstage(ctx context.Context, repoDir string, paths []str
 		return fmt.Errorf("git reset failed: %w", err)
 	}
 	return nil
+}
+
+func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message string) (string, error) {
+	// Create the commit
+	args := []string{"-C", repoDir, "commit", "-m", message}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return "", fmt.Errorf("git commit failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return "", fmt.Errorf("git commit failed: %w", err)
+	}
+
+	// Get the commit hash using rev-parse HEAD
+	hashCmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "rev-parse", "--short", "HEAD")
+	hashOut, err := hashCmd.Output()
+	if err != nil {
+		// Commit succeeded but couldn't get hash - return empty string
+		return "", nil
+	}
+
+	return strings.TrimSpace(string(hashOut)), nil
 }
 
 func (r *ExecGitRunner) RevParse(ctx context.Context, repoDir string, args ...string) ([]byte, error) {

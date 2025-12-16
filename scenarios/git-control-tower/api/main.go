@@ -69,6 +69,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/diff", s.handleDiff).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/stage", s.handleStage).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/unstage", s.handleUnstage).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/commit", s.handleCommit).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -113,7 +114,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	repoDir := s.git.ResolveRepoRoot(r.Context())
 
 	checks := NewHealthChecks(HealthCheckDeps{
-		DB:      s.db,
+		DB:      NewSQLDBChecker(s.db),
 		Git:     s.git,
 		RepoDir: repoDir,
 	})
@@ -235,6 +236,39 @@ func (s *Server) handleUnstage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := UnstageFiles(ctx, StagingDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	if !result.Success {
+		resp.UnprocessableEntity(result)
+		return
+	}
+	resp.OK(result)
+}
+
+// [REQ:GCT-OT-P0-005] Commit composition API
+func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	var req CommitRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	result, err := CreateCommit(ctx, CommitDeps{
 		Git:     s.git,
 		RepoDir: repoDir,
 	}, req)

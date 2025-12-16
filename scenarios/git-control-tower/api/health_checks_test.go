@@ -137,3 +137,123 @@ func TestHealthChecks_Run_Healthy(t *testing.T) {
 		t.Fatalf("expected repository=accessible, got %q", result.Dependencies["repository"].Status)
 	}
 }
+
+// --- Database seam tests (FakeDBChecker) ---
+
+func TestHealthChecks_Run_AllHealthy(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+	fakeDB := NewFakeDBChecker()
+
+	h := NewHealthChecks(HealthCheckDeps{
+		DB:      fakeDB,
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	})
+
+	result := h.Run(context.Background())
+	if !result.Readiness {
+		t.Fatalf("expected readiness=true, got false; errors=%v", result.Errors)
+	}
+	if result.Status != "healthy" {
+		t.Fatalf("expected status=healthy, got %q", result.Status)
+	}
+	if result.Dependencies["database"].Status != "connected" {
+		t.Fatalf("expected database=connected, got %q", result.Dependencies["database"].Status)
+	}
+	if fakeDB.PingCalls != 1 {
+		t.Fatalf("expected 1 ping call, got %d", fakeDB.PingCalls)
+	}
+}
+
+func TestHealthChecks_CheckDatabase_Unconfigured(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+	fakeDB := NewFakeDBChecker().WithUnconfigured()
+
+	h := NewHealthChecks(HealthCheckDeps{
+		DB:      fakeDB,
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	})
+	deps := map[string]HealthDependency{}
+	errs := map[string]string{}
+
+	ok := h.checkDatabase(context.Background(), deps, errs)
+	if ok {
+		t.Fatalf("expected database check to fail for unconfigured")
+	}
+	if deps["database"].Status != "unconfigured" {
+		t.Fatalf("expected status=unconfigured, got %q", deps["database"].Status)
+	}
+}
+
+func TestHealthChecks_CheckDatabase_Disconnected(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+	fakeDB := NewFakeDBChecker().WithDisconnected()
+
+	h := NewHealthChecks(HealthCheckDeps{
+		DB:      fakeDB,
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	})
+	deps := map[string]HealthDependency{}
+	errs := map[string]string{}
+
+	ok := h.checkDatabase(context.Background(), deps, errs)
+	if ok {
+		t.Fatalf("expected database check to fail for disconnected")
+	}
+	if deps["database"].Status != "disconnected" {
+		t.Fatalf("expected status=disconnected, got %q", deps["database"].Status)
+	}
+	if errs["database"] == "" {
+		t.Fatalf("expected error message for disconnected database")
+	}
+}
+
+func TestHealthChecks_CheckDatabase_PingError(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+	fakeDB := NewFakeDBChecker().WithPingError(fmt.Errorf("connection timeout"))
+
+	h := NewHealthChecks(HealthCheckDeps{
+		DB:      fakeDB,
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	})
+	deps := map[string]HealthDependency{}
+	errs := map[string]string{}
+
+	ok := h.checkDatabase(context.Background(), deps, errs)
+	if ok {
+		t.Fatalf("expected database check to fail for ping error")
+	}
+	if deps["database"].Status != "disconnected" {
+		t.Fatalf("expected status=disconnected, got %q", deps["database"].Status)
+	}
+	if errs["database"] != "connection timeout" {
+		t.Fatalf("expected error='connection timeout', got %q", errs["database"])
+	}
+}
+
+func TestHealthChecks_CheckDatabase_Connected(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+	fakeDB := NewFakeDBChecker()
+
+	h := NewHealthChecks(HealthCheckDeps{
+		DB:      fakeDB,
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	})
+	deps := map[string]HealthDependency{}
+	errs := map[string]string{}
+
+	ok := h.checkDatabase(context.Background(), deps, errs)
+	if !ok {
+		t.Fatalf("expected database check to pass, got errs=%v", errs)
+	}
+	if deps["database"].Status != "connected" {
+		t.Fatalf("expected status=connected, got %q", deps["database"].Status)
+	}
+	if !deps["database"].Connected {
+		t.Fatalf("expected Connected=true")
+	}
+}

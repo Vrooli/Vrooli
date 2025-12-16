@@ -2,15 +2,15 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"strings"
 	"time"
 )
 
 // HealthCheckDeps contains dependencies for health checks.
 // SEAM: Uses GitRunner interface for git operations, enabling testing without real git.
+// SEAM: Uses DBChecker interface for database operations, enabling testing without real database.
 type HealthCheckDeps struct {
-	DB      *sql.DB
+	DB      DBChecker
 	Git     GitRunner
 	RepoDir string
 }
@@ -77,12 +77,12 @@ func (h *HealthChecks) Run(ctx context.Context) HealthCheckResult {
 }
 
 func (h *HealthChecks) checkDatabase(ctx context.Context, deps map[string]HealthDependency, errs map[string]string) bool {
-	if h.deps.DB == nil {
+	if h.deps.DB == nil || !h.deps.DB.IsConfigured() {
 		deps["database"] = HealthDependency{Connected: false, Status: "unconfigured"}
 		errs["database"] = "database handle not initialized"
 		return false
 	}
-	if err := h.deps.DB.PingContext(ctx); err != nil {
+	if err := h.deps.DB.Ping(ctx); err != nil {
 		deps["database"] = HealthDependency{Connected: false, Status: "disconnected"}
 		errs["database"] = err.Error()
 		return false

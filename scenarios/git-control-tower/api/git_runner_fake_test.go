@@ -35,8 +35,13 @@ type FakeGitRunner struct {
 	DiffError     error
 	StageError    error
 	UnstageError  error
+	CommitError   error
 	RevParseError error
 	LookPathError error
+
+	// Commit tracking
+	LastCommitMessage string
+	CommitCount       int
 
 	// Call tracking for verification
 	Calls []FakeGitCall
@@ -213,6 +218,30 @@ func (f *FakeGitRunner) Unstage(ctx context.Context, repoDir string, paths []str
 	}
 
 	return nil
+}
+
+// Commit simulates creating a commit.
+func (f *FakeGitRunner) Commit(ctx context.Context, repoDir string, message string) (string, error) {
+	f.recordCall("Commit", repoDir, message)
+
+	if f.CommitError != nil {
+		return "", f.CommitError
+	}
+
+	// Check if there are staged files
+	if len(f.Staged) == 0 {
+		return "", fmt.Errorf("nothing to commit")
+	}
+
+	// Clear staged files (they're now committed)
+	f.Staged = make(map[string]string)
+
+	// Track commit
+	f.LastCommitMessage = message
+	f.CommitCount++
+
+	// Return a fake commit hash
+	return fmt.Sprintf("fake%03d", f.CommitCount), nil
 }
 
 // RevParse simulates git rev-parse operations.
