@@ -158,9 +158,6 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 				playbooks.WithScenarioStarter(func(ctx context.Context, scenario string) error {
 					return StartScenario(ctx, scenario, logWriter)
 				}),
-				playbooks.WithUIBaseURLResolver(func(ctx context.Context, scenarioName string) (string, error) {
-					return ResolveScenarioBaseURL(ctx, logWriter, scenarioName)
-				}),
 			)
 			return runner.Run(ctx), nil
 		},

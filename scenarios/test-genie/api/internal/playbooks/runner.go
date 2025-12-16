@@ -76,15 +76,13 @@ type Runner struct {
 	traceWriter      artifacts.TraceWriter
 
 	// Hooks for scenario management (injected for testing)
-	resolvePort      func(ctx context.Context, scenario, portName string) (string, error)
-	startScenario    func(ctx context.Context, scenario string) error
-	resolveUIBaseURL func(ctx context.Context, scenario string) (string, error)
+	resolvePort   func(ctx context.Context, scenario, portName string) (string, error)
+	startScenario func(ctx context.Context, scenario string) error
 
 	logWriter io.Writer
 
 	// Runtime state
-	requiredScenarios []string         // Scenarios detected in navigate nodes with destinationType=scenario
-	seedState         map[string]any   // Cached seed state for passing to BAS as initial_params
+	seedState map[string]any // Cached seed state for passing to BAS as initial_params
 }
 
 // Option configures a Runner.
@@ -182,13 +180,6 @@ func WithScenarioStarter(f func(ctx context.Context, scenario string) error) Opt
 	}
 }
 
-// WithUIBaseURLResolver sets a custom UI base URL resolver (for testing).
-func WithUIBaseURLResolver(f func(ctx context.Context, scenario string) (string, error)) Option {
-	return func(r *Runner) {
-		r.resolveUIBaseURL = f
-	}
-}
-
 // WithPlaybooksConfig sets the playbooks configuration from testing.json.
 func WithPlaybooksConfig(cfg *config.Config) Option {
 	return func(r *Runner) {
@@ -233,11 +224,6 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		}
 	}
 
-	// Log dry-run mode if active
-	if r.playbooksConfig.Execution.DryRun {
-		shared.LogStep(r.logWriter, "[dry-run] validating workflows without execution")
-	}
-
 	// Note: We don't check for a local ui/ directory because playbooks can target
 	// any scenario using destinationType: "scenario" in navigate nodes. The presence
 	// of playbooks in the registry is the gate, not whether this scenario has a UI.
@@ -259,11 +245,6 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			Success:      true,
 			Observations: []Observation{NewInfoObservation("no workflows registered under bas/")},
 		}
-	}
-
-	// Preflight validation: check that fixtures and selectors exist before resolution
-	if preflightResult := r.runPreflightValidation(reg); preflightResult != nil {
-		return preflightResult
 	}
 
 	// Initialize trace writer if not injected
@@ -295,24 +276,10 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	}
 	_ = r.traceWriter.Write(artifacts.TraceBASHealthEvent(true, ""))
 
-	// Ensure required scenarios are running (detected during preflight validation)
-	// Skip in dry-run mode since we won't actually navigate to them
-	if len(r.requiredScenarios) > 0 && !r.playbooksConfig.Execution.DryRun {
-		if err := r.ensureRequiredScenarios(ctx); err != nil {
-			return &RunResult{
-				Success:       false,
-				Error:         err,
-				FailureClass:  FailureClassMissingDependency,
-				Remediation:   fmt.Sprintf("Start the required scenario(s): %s", strings.Join(r.requiredScenarios, ", ")),
-				TracePath:     r.traceWriter.Path(),
-				ArtifactPaths: ArtifactPaths{Trace: r.traceWriter.Path()},
-			}
-		}
-	}
-
-	// Apply seeds - skip in dry-run mode since seeds can have side effects
+	// Apply seeds (optional). Seeds are responsible for writing coverage/runtime/seed-state.json,
+	// which is then passed to BAS via execution parameters as initial_params.
 	var cleanup func()
-	if !r.playbooksConfig.Execution.DryRun && r.playbooksConfig.Seeds.Enabled {
+	if r.playbooksConfig.Seeds.Enabled {
 		seedCtx, cancel := context.WithTimeout(ctx, r.playbooksConfig.Seeds.SeedTimeout())
 		defer cancel()
 
@@ -331,7 +298,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			}
 		}
 
-		// Load seed state for passing to BAS as initial_params (Phase 4 namespace support)
+		// Load seed state for passing to BAS as initial_params.
 		if seedState, err := r.loadSeedState(); err != nil {
 			shared.LogWarn(r.logWriter, "failed to load seed state: %v (continuing with empty params)", err)
 		} else if len(seedState) > 0 {
@@ -343,18 +310,6 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	}
 	if cleanup != nil {
 		defer cleanup()
-	}
-
-	// Resolve UI base URL
-	uiBaseURL := ""
-	if r.resolveUIBaseURL != nil {
-		uiBaseURL, _ = r.resolveUIBaseURL(ctx, r.config.ScenarioName)
-	}
-
-	// Strict preflight: resolve workflows with seeds + selector expansion, then ask BAS
-	// to validate the resolved definitions in strict mode before executing anything.
-	if validationResult := r.runResolvedValidation(ctx, reg, uiBaseURL); validationResult != nil {
-		return validationResult
 	}
 
 	// Execute workflows
@@ -379,7 +334,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		default:
 		}
 
-		result := r.executeWorkflow(ctx, entry, uiBaseURL)
+		result := r.executeWorkflow(ctx, entry)
 		results = append(results, result)
 		summary.WorkflowsExecuted++
 
@@ -478,7 +433,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 }
 
 // executeWorkflow executes a single playbook workflow.
-func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL string) Result {
+func (r *Runner) executeWorkflow(ctx context.Context, entry Entry) Result {
 	// Trace workflow start
 	_ = r.traceWriter.Write(artifacts.TraceWorkflowStartEvent(entry.File))
 
@@ -496,72 +451,24 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 		return Result{Entry: entry, Err: execErr}
 	}
 
-	// Substitute placeholders for the current scenario
-	if uiBaseURL != "" {
-		workflow.SubstitutePlaceholders(definition, uiBaseURL)
-	}
-
-	// Resolve scenario URLs for navigate nodes targeting other scenarios
-	// This transforms destinationType=scenario to destinationType=url with resolved URLs
-	if r.resolveUIBaseURL != nil {
-		if err := workflow.ResolveScenarioURLs(ctx, definition, r.resolveUIBaseURL); err != nil {
-			execErr := NewResolveError(entry.File, fmt.Errorf("scenario URL resolution failed: %w", err))
-			_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, "", execErr, 0))
-			return Result{Entry: entry, Err: execErr}
-		}
-	}
-
-	// Apply execution defaults from config (viewport, step timeout) before cleaning
-	applyExecutionDefaults(definition, r.playbooksConfig.Execution)
-
-	// Clean definition for BAS
-	cleanDef := workflow.CleanDefinition(definition)
-
-	// Validate resolved workflow before execution (catches unresolved tokens)
-	validationResult, err := r.basClient.ValidateResolved(ctx, cleanDef)
-	if err != nil {
-		// Validation request failed - fatal by default, unless ignore_validation_errors is set
-		if r.playbooksConfig.Execution.IgnoreValidationErrors {
-			shared.LogWarn(r.logWriter, "validation request failed for %s (continuing due to ignore_validation_errors): %v", entry.File, err)
-		} else {
-			execErr := NewResolveError(entry.File, fmt.Errorf("validation request failed: %w (set ignore_validation_errors: true in testing.json to bypass)", err))
-			_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, "", execErr, 0))
-			return Result{Entry: entry, Err: execErr}
-		}
-	} else if !validationResult.Valid {
-		// Collect error messages
-		var errMsgs []string
-		for _, issue := range validationResult.Errors {
-			errMsgs = append(errMsgs, issue.Message)
-		}
-		execErr := NewResolveError(entry.File, fmt.Errorf("resolved workflow validation failed: %s", strings.Join(errMsgs, "; ")))
+	projectRoot := r.basProjectRoot()
+	if strings.TrimSpace(projectRoot) == "" {
+		execErr := NewResolveError(entry.File, fmt.Errorf("bas/ directory not found for project_root"))
 		_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, "", execErr, 0))
 		return Result{Entry: entry, Err: execErr}
 	}
 
-	// Dry-run mode: validate without executing
-	if r.playbooksConfig.Execution.DryRun {
-		shared.LogStep(r.logWriter, "[dry-run] workflow %s validated successfully (skipping execution)", entry.File)
-		_ = r.traceWriter.Write(artifacts.TraceWorkflowCompleteEvent(entry.File, "dry-run", 0, ""))
-		return Result{
-			Entry:   entry,
-			Outcome: &Outcome{ExecutionID: "dry-run", Stats: " (dry-run: validated only)"},
-		}
+	// Execute workflow "as-authored" (no placeholder substitution or scenario URL rewriting in test-genie).
+	execName := strings.TrimSpace(entry.File)
+	execDescription := strings.TrimSpace(entry.Description)
+	if execDescription == "" {
+		execDescription = execName
 	}
-
-	// Execute workflow with namespace-aware parameters (Phase 4 support)
-	var executionID string
-	if len(r.seedState) > 0 {
-		// Use new execution path with initial_params for seed state
-		execParams := &execution.ExecutionParams{
-			ProjectRoot:   r.basProjectRoot(),
-			InitialParams: r.seedState,
-		}
-		executionID, err = r.basClient.ExecuteWorkflowWithParams(ctx, cleanDef, entry.Description, execParams)
-	} else {
-		// Legacy path for workflows without seeds
-		executionID, err = r.basClient.ExecuteWorkflow(ctx, cleanDef, entry.Description)
+	execParams := &execution.ExecutionParams{
+		ProjectRoot:   projectRoot,
+		InitialParams: r.seedState,
 	}
+	executionID, err := r.basClient.ExecuteWorkflowWithParams(ctx, definition, execName, execDescription, execParams)
 	if err != nil {
 		execErr := NewExecuteError(entry.File, err)
 		_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, "", execErr, 0))
@@ -694,249 +601,6 @@ func (r *Runner) ensureBAS(ctx context.Context) error {
 	return nil
 }
 
-// ensureRequiredScenarios ensures all scenarios referenced via destinationType=scenario are running.
-// For each required scenario, it attempts to start the scenario (idempotent) and verify its UI port.
-func (r *Runner) ensureRequiredScenarios(ctx context.Context) error {
-	var failed []string
-
-	for _, scenario := range r.requiredScenarios {
-		shared.LogStep(r.logWriter, "ensuring scenario %s is running", scenario)
-
-		// Start scenario if we have a starter hook
-		if r.startScenario != nil {
-			if err := r.startScenario(ctx, scenario); err != nil {
-				shared.LogWarn(r.logWriter, "failed to start scenario %s: %v", scenario, err)
-				failed = append(failed, fmt.Sprintf("%s (start failed: %v)", scenario, err))
-				continue
-			}
-		}
-
-		// Verify UI port is available
-		if r.resolvePort != nil {
-			uiPort, err := r.resolvePort(ctx, scenario, "UI_PORT")
-			if err != nil || uiPort == "" {
-				shared.LogWarn(r.logWriter, "scenario %s UI port unavailable: %v", scenario, err)
-				failed = append(failed, fmt.Sprintf("%s (UI_PORT unavailable)", scenario))
-				continue
-			}
-			shared.LogStep(r.logWriter, "scenario %s available at port %s", scenario, uiPort)
-		}
-	}
-
-	if len(failed) > 0 {
-		return fmt.Errorf("required scenarios unavailable: %s", strings.Join(failed, "; "))
-	}
-
-	return nil
-}
-
-// runResolvedValidation resolves each workflow (fixtures, selectors, seeds, placeholders)
-// then asks BAS to validate the resolved definition in strict mode. This catches
-// unresolved tokens, missing waitType, schema issues, etc. before execution.
-func (r *Runner) runResolvedValidation(ctx context.Context, reg Registry, uiBaseURL string) *RunResult {
-	if r.basClient == nil {
-		return &RunResult{
-			Success:      false,
-			Error:        fmt.Errorf("BAS client not initialized for validation"),
-			FailureClass: FailureClassSystem,
-			Remediation:  "Ensure BAS is running before playbook validation.",
-			TracePath:    r.traceWriter.Path(),
-		}
-	}
-
-	for _, entry := range reg.Playbooks {
-		workflowPath := entry.File
-		if !filepath.IsAbs(workflowPath) {
-			workflowPath = filepath.Join(r.config.ScenarioDir, filepath.FromSlash(workflowPath))
-		}
-
-		definition, err := r.workflowResolver.Resolve(ctx, workflowPath)
-		if err != nil {
-			execErr := NewResolveError(entry.File, fmt.Errorf("workflow resolution failed: %w", err))
-			return &RunResult{
-				Success:      false,
-				Error:        execErr,
-				FailureClass: FailureClassExecution,
-				Remediation:  "Fix the workflow definition before execution.",
-				TracePath:    r.traceWriter.Path(),
-			}
-		}
-
-		// Substitute placeholders and scenario URLs to mirror execution-time behavior.
-		if uiBaseURL != "" {
-			workflow.SubstitutePlaceholders(definition, uiBaseURL)
-		}
-		if r.resolveUIBaseURL != nil {
-			if err := workflow.ResolveScenarioURLs(ctx, definition, r.resolveUIBaseURL); err != nil {
-				execErr := NewResolveError(entry.File, fmt.Errorf("scenario URL resolution failed: %w", err))
-				return &RunResult{
-					Success:      false,
-					Error:        execErr,
-					FailureClass: FailureClassExecution,
-					Remediation:  "Ensure destinationType=scenario nodes can be resolved to URLs.",
-					TracePath:    r.traceWriter.Path(),
-				}
-			}
-		}
-
-		// Apply execution defaults from config (viewport, step timeout) before cleaning
-		applyExecutionDefaults(definition, r.playbooksConfig.Execution)
-
-		cleanDef := workflow.CleanDefinition(definition)
-		validationResult, err := r.basClient.ValidateResolved(ctx, cleanDef)
-		if err != nil {
-			execErr := NewResolveError(entry.File, fmt.Errorf("validation request failed: %w", err))
-			return &RunResult{
-				Success:      false,
-				Error:        execErr,
-				FailureClass: FailureClassExecution,
-				Remediation:  "Fix the workflow definition before execution.",
-				TracePath:    r.traceWriter.Path(),
-			}
-		}
-		if validationResult != nil && !validationResult.Valid {
-			var errMsgs []string
-			for _, issue := range validationResult.Errors {
-				msg := issue.Message
-				if issue.Pointer != "" {
-					msg = fmt.Sprintf("%s at %s", msg, issue.Pointer)
-				}
-				errMsgs = append(errMsgs, msg)
-			}
-			execErr := NewResolveError(entry.File, fmt.Errorf("resolved workflow validation failed: %s", strings.Join(errMsgs, "; ")))
-			return &RunResult{
-				Success:          false,
-				Error:            execErr,
-				FailureClass:     FailureClassExecution,
-				Remediation:      "Fix the workflow definition before execution.",
-				DiagnosticOutput: execErr.Error(),
-				TracePath:        r.traceWriter.Path(),
-			}
-		}
-	}
-
-	return nil
-}
-
-// runPreflightValidation checks that all referenced fixtures and selectors exist
-// before attempting resolution. This catches issues early with clear error messages.
-// Returns nil if validation passes, or a RunResult with errors if it fails.
-func (r *Runner) runPreflightValidation(reg Registry) *RunResult {
-	validator := workflow.NewPreflightValidator(r.config.ScenarioDir)
-
-	// Collect workflow paths
-	var workflowPaths []string
-	for _, entry := range reg.Playbooks {
-		workflowPath := entry.File
-		if !filepath.IsAbs(workflowPath) {
-			workflowPath = filepath.Join(r.config.ScenarioDir, filepath.FromSlash(workflowPath))
-		}
-		workflowPaths = append(workflowPaths, workflowPath)
-	}
-
-	result, err := validator.ValidateAll(workflowPaths)
-	if err != nil {
-		shared.LogWarn(r.logWriter, "preflight validation failed: %v", err)
-		return &RunResult{
-			Success:      false,
-			Error:        fmt.Errorf("preflight validation failed: %w", err),
-			FailureClass: FailureClassMisconfiguration,
-			Remediation:  "Fix the workflow files before running playbooks.",
-		}
-	}
-
-	if !result.Valid {
-		// Build diagnostic message from errors
-		var diagnostics []string
-		for _, issue := range result.Errors {
-			msg := issue.Message
-			if issue.Hint != "" {
-				msg += " (" + issue.Hint + ")"
-			}
-			diagnostics = append(diagnostics, msg)
-		}
-
-		shared.LogWarn(r.logWriter, "preflight validation found %d error(s):", len(result.Errors))
-		for _, d := range diagnostics {
-			shared.LogWarn(r.logWriter, "  - %s", d)
-		}
-
-		return &RunResult{
-			Success:          false,
-			Error:            fmt.Errorf("preflight validation failed: %d error(s)", len(result.Errors)),
-			FailureClass:     FailureClassMisconfiguration,
-			Remediation:      "Fix missing fixtures/selectors before running playbooks.",
-			DiagnosticOutput: fmt.Sprintf("Preflight Validation Errors:\n%s", formatPreflightDiagnostics(result)),
-			Observations:     convertPreflightToObservations(result),
-		}
-	}
-
-	// Log preflight success with token counts
-	if result.TokenCounts.Selectors > 0 || result.TokenCounts.Subflows > 0 || result.TokenCounts.ParamsTokens > 0 {
-		shared.LogStep(r.logWriter, "preflight validation passed: %d selectors, %d subflows, %d params tokens",
-			result.TokenCounts.Selectors, result.TokenCounts.Subflows, result.TokenCounts.ParamsTokens)
-	}
-
-	// Log required scenarios
-	if len(result.RequiredScenarios) > 0 {
-		shared.LogStep(r.logWriter, "playbooks require scenarios: %s", strings.Join(result.RequiredScenarios, ", "))
-		// Store required scenarios for later health check
-		r.requiredScenarios = result.RequiredScenarios
-	}
-
-	// Add warnings as observations (don't fail on warnings)
-	if len(result.Warnings) > 0 {
-		for _, w := range result.Warnings {
-			shared.LogWarn(r.logWriter, "preflight warning: %s", w.Message)
-		}
-	}
-
-	return nil
-}
-
-// formatPreflightDiagnostics formats preflight issues for diagnostic output.
-func formatPreflightDiagnostics(result *workflow.PreflightResult) string {
-	var lines []string
-
-	for _, issue := range result.Errors {
-		line := fmt.Sprintf("[%s] %s", issue.Code, issue.Message)
-		if issue.NodeID != "" {
-			line += fmt.Sprintf(" (node: %s)", issue.NodeID)
-		}
-		if issue.Pointer != "" {
-			line += fmt.Sprintf(" at %s", issue.Pointer)
-		}
-		if issue.Hint != "" {
-			line += fmt.Sprintf("\n    Hint: %s", issue.Hint)
-		}
-		lines = append(lines, line)
-	}
-
-	for _, issue := range result.Warnings {
-		line := fmt.Sprintf("[WARNING] %s", issue.Message)
-		if issue.Hint != "" {
-			line += fmt.Sprintf("\n    Hint: %s", issue.Hint)
-		}
-		lines = append(lines, line)
-	}
-
-	return strings.Join(lines, "\n\n")
-}
-
-// convertPreflightToObservations converts preflight issues to observations.
-func convertPreflightToObservations(result *workflow.PreflightResult) []Observation {
-	var obs []Observation
-
-	for _, issue := range result.Errors {
-		obs = append(obs, NewErrorObservation(issue.Message))
-	}
-	for _, issue := range result.Warnings {
-		obs = append(obs, NewWarningObservation(issue.Message))
-	}
-
-	return obs
-}
-
 // loadSeedState loads the seed state JSON file produced by seed scripts.
 // This allows test-genie to pass seed values to BAS as initial_params for
 // the new namespace-aware variable interpolation system.
@@ -966,41 +630,4 @@ func (r *Runner) basProjectRoot() string {
 		return basDir
 	}
 	return ""
-}
-
-// applyExecutionDefaults injects execution defaults (viewport, step timeout)
-// into the workflow definition when they are not already specified. This ensures
-// operator-controlled settings from testing.json flow into BAS without editing
-// every workflow JSON.
-func applyExecutionDefaults(definition map[string]any, execCfg config.ExecutionConfig) {
-	if execCfg.DefaultStepTimeoutMs <= 0 && execCfg.Viewport.Width <= 0 && execCfg.Viewport.Height <= 0 {
-		return
-	}
-
-	target := definition
-	if inner, ok := definition["flow_definition"].(map[string]any); ok {
-		target = inner
-	}
-
-	settings, ok := target["settings"].(map[string]any)
-	if !ok {
-		settings = make(map[string]any)
-		target["settings"] = settings
-	}
-
-	if _, ok := settings["defaultStepTimeoutMs"]; !ok && execCfg.DefaultStepTimeoutMs > 0 {
-		settings["defaultStepTimeoutMs"] = execCfg.DefaultStepTimeoutMs
-	}
-
-	viewport, ok := settings["executionViewport"].(map[string]any)
-	if !ok {
-		viewport = make(map[string]any)
-		settings["executionViewport"] = viewport
-	}
-	if _, ok := viewport["width"]; !ok && execCfg.Viewport.Width > 0 {
-		viewport["width"] = execCfg.Viewport.Width
-	}
-	if _, ok := viewport["height"]; !ok && execCfg.Viewport.Height > 0 {
-		viewport["height"] = execCfg.Viewport.Height
-	}
 }

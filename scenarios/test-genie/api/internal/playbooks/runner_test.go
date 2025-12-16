@@ -90,7 +90,11 @@ func (m *mockBASClient) ValidateResolved(ctx context.Context, definition map[str
 	return &execution.ValidationResult{Valid: true}, nil
 }
 
-func (m *mockBASClient) ExecuteWorkflow(ctx context.Context, definition map[string]any, name string) (string, error) {
+func (m *mockBASClient) ExecuteWorkflow(ctx context.Context, definition map[string]any, name, description string) (string, error) {
+	return m.executeID, m.executeErr
+}
+
+func (m *mockBASClient) ExecuteWorkflowWithParams(ctx context.Context, definition map[string]any, name, description string, params *execution.ExecutionParams) (string, error) {
 	return m.executeID, m.executeErr
 }
 
@@ -212,45 +216,6 @@ func TestEnsureBASUsesConfiguredEndpoint(t *testing.T) {
 	}
 	if runner.basClient == nil {
 		t.Fatal("expected basClient to be initialized")
-	}
-}
-
-func TestApplyExecutionDefaults(t *testing.T) {
-	definition := map[string]any{
-		"flow_definition": map[string]any{
-			"nodes": []any{},
-			"settings": map[string]any{
-				"defaultStepTimeoutMs": 1111,
-				"executionViewport": map[string]any{
-					"height": 720,
-				},
-			},
-		},
-	}
-
-	execCfg := config.ExecutionConfig{
-		DefaultStepTimeoutMs: 2222,
-		Viewport: config.ViewportConfig{
-			Width:  1440,
-			Height: 900,
-		},
-	}
-
-	applyExecutionDefaults(definition, execCfg)
-
-	inner := definition["flow_definition"].(map[string]any)
-	settings := inner["settings"].(map[string]any)
-
-	if settings["defaultStepTimeoutMs"].(int) != 1111 {
-		t.Fatalf("expected existing defaultStepTimeoutMs to remain, got %v", settings["defaultStepTimeoutMs"])
-	}
-
-	viewport := settings["executionViewport"].(map[string]any)
-	if viewport["width"].(int) != 1440 {
-		t.Fatalf("expected width to be set from config, got %v", viewport["width"])
-	}
-	if viewport["height"].(int) != 720 {
-		t.Fatalf("expected existing height to remain, got %v", viewport["height"])
 	}
 }
 
@@ -667,13 +632,12 @@ func TestRunnerWorkflowResolverError(t *testing.T) {
 	}
 }
 
-// TestRunnerPreflightMissingFile tests that preflight validation fails when workflow file doesn't exist.
 func TestRunnerPreflightMissingFile(t *testing.T) {
 	tempDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
-	// Don't create the workflow file - it should fail at preflight
+	// Don't create the workflow file - resolver should fail and the run should stop.
 
 	runner := New(Config{ScenarioDir: tempDir},
 		WithRegistryLoader(&mockRegistryLoader{
@@ -688,12 +652,12 @@ func TestRunnerPreflightMissingFile(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure for missing workflow file")
 	}
-	if result.FailureClass != FailureClassMisconfiguration {
-		t.Errorf("expected misconfiguration failure, got %v", result.FailureClass)
+	if result.FailureClass != FailureClassExecution {
+		t.Errorf("expected execution failure, got %v", result.FailureClass)
 	}
 	errStr := result.Error.Error()
-	if !strings.Contains(errStr, "preflight") {
-		t.Errorf("expected preflight error, got: %v", result.Error)
+	if !strings.Contains(errStr, "workflow") && !strings.Contains(errStr, "resolve") {
+		t.Errorf("expected resolve error, got: %v", result.Error)
 	}
 }
 

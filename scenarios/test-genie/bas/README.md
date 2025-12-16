@@ -1,31 +1,39 @@
 # Scenario Playbooks
 
-Store automation workflows here. Keep it short:
+Store BAS workflows here. Keep it short.
 
-- `capabilities/<operational-target>/<surface>/` mirrors the PRD targets (rename folders as needed).
-- `journeys/` contains multi-surface flows (new user onboarding, AI happy path, etc.).
-- `__subflows/` hosts fixtures referenced via `@fixture/<slug>`.
-- `__seeds/` includes a seed entrypoint (`seed.go` preferred; `seed.sh` allowed) that writes `coverage/runtime/seed-state.json`.
+## Separation Of Concerns (Important)
 
-Each workflow JSON must include:
+- **`bas/cases/**`**: the Playbooks phase test cases that test-genie executes.
+- **Everything else under `bas/`** (`actions/`, `flows/`, etc.): reusable workflows/subflows that cases can reference, and that you can run outside test-genie for automations.
+
+test-genie does **not** rewrite workflows. BAS resolves scenario navigation, tokens, and subflow paths at runtime. test-genie’s job is orchestration: provision isolated DB/Redis, run seeds once, restart the scenario against those resources, then execute the `bas/cases/**` workflows.
+
+## Workflow Contract
+
+Workflows should be runnable by BAS as-is. The Playbooks phase provides BAS:
+
+- `project_root`: absolute path to the scenario’s `bas/` directory (for resolving `workflowPath` relative to `bas/`)
+- `initial_params`: the contents of `coverage/runtime/seed-state.json` (seeded data)
+
+Each case workflow should include `metadata.description` for humans and for registry generation:
 
 ```json
 {
   "metadata": {
     "description": "What the workflow validates",
-    "requirement": "REQ-ID",
     "version": 1
   }
 }
 ```
 
-Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, run from the scenario directory:
+After adding or moving a case under `bas/cases/`, regenerate the registry from the scenario directory:
 
 ```bash
 test-genie registry build
 ```
 
-This regenerates `bas/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on.
+This regenerates `bas/registry.json` (tracked), which test-genie uses to determine which `bas/cases/**` files to execute.
 
 ## Playbooks isolation quickstart
 

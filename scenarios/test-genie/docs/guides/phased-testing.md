@@ -214,9 +214,9 @@ my-scenario-cli --version
 **Requires**: Scenario + BAS running
 
 **Validates**:
-- Declarative browser workflows in `bas/`
-- Fixture/seeds execution
-- Contract correctness with BAS timeline responses
+- Declarative browser workflows in `bas/cases/` (via `bas/registry.json`)
+- Isolation + seeds (temporary DB/Redis + `coverage/runtime/seed-state.json`)
+- Contract correctness with BAS execution + timeline responses
 
 See [Playbooks Phase](../phases/playbooks/README.md) for authoring guidance.
 

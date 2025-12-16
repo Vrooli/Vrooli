@@ -106,7 +106,7 @@ func TestContractExecuteWorkflowMinimal(t *testing.T) {
 		"edges": []any{},
 	}
 
-	executionID, err := client.ExecuteWorkflow(ctx, definition, "contract-test-minimal")
+	executionID, err := client.ExecuteWorkflow(ctx, definition, "contract-test-minimal", "contract-test-minimal")
 	if err != nil {
 		t.Fatalf("ExecuteWorkflow() error = %v", err)
 	}
@@ -153,7 +153,7 @@ func TestContractExecuteAndWait(t *testing.T) {
 		"edges": []any{},
 	}
 
-	executionID, err := client.ExecuteWorkflow(ctx, definition, "contract-test-wait")
+	executionID, err := client.ExecuteWorkflow(ctx, definition, "contract-test-wait", "contract-test-wait")
 	if err != nil {
 		t.Fatalf("ExecuteWorkflow() error = %v", err)
 	}
@@ -206,7 +206,7 @@ func TestContractGetTimeline(t *testing.T) {
 		"edges": []any{},
 	}
 
-	executionID, err := client.ExecuteWorkflow(ctx, definition, "contract-test-timeline")
+	executionID, err := client.ExecuteWorkflow(ctx, definition, "contract-test-timeline", "contract-test-timeline")
 	if err != nil {
 		t.Fatalf("ExecuteWorkflow() error = %v", err)
 	}
@@ -272,7 +272,7 @@ func TestContractStatusFields(t *testing.T) {
 		"edges": []any{},
 	}
 
-	executionID, err := client.ExecuteWorkflow(ctx, definition, "contract-test-status-fields")
+	executionID, err := client.ExecuteWorkflow(ctx, definition, "contract-test-status-fields", "contract-test-status-fields")
 	if err != nil {
 		t.Fatalf("ExecuteWorkflow() error = %v", err)
 	}
@@ -318,7 +318,7 @@ func TestContractInvalidWorkflow(t *testing.T) {
 		"edges": []any{},
 	}
 
-	_, err := client.ExecuteWorkflow(ctx, definition, "contract-test-invalid")
+	_, err := client.ExecuteWorkflow(ctx, definition, "contract-test-invalid", "contract-test-invalid")
 
 	// BAS might accept this (empty workflow completes immediately) or reject it
 	// Either way, document the behavior

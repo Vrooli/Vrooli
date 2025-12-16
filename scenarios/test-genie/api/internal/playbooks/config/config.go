@@ -22,8 +22,6 @@ const (
 	DefaultHealthCheckWaitTimeoutMs = 45000
 	// DefaultWorkflowExecutionTimeoutMs is the default workflow execution timeout.
 	DefaultWorkflowExecutionTimeoutMs = 180000 // 3 minutes
-	// DefaultStepTimeoutMs is the default timeout for individual workflow steps.
-	DefaultStepTimeoutMs = 30000
 	// DefaultSeedTimeoutMs is the default timeout for seed script execution.
 	DefaultSeedTimeoutMs = 30000
 )
@@ -34,7 +32,6 @@ type Config struct {
 	BAS       BASConfig       `json:"bas"`
 	Seeds     SeedsConfig     `json:"seeds"`
 	Artifacts ArtifactsConfig `json:"artifacts"`
-	Execution ExecutionConfig `json:"execution"`
 }
 
 // BASConfig holds Vrooli Ascension connection settings.
@@ -62,21 +59,6 @@ type ArtifactsConfig struct {
 	RetainOnSuccess bool   `json:"retain_on_success"`
 }
 
-// ExecutionConfig holds workflow execution settings.
-type ExecutionConfig struct {
-	StopOnFirstFailure     bool           `json:"stop_on_first_failure"`
-	DefaultStepTimeoutMs   int            `json:"default_step_timeout_ms"`
-	Viewport               ViewportConfig `json:"viewport"`
-	IgnoreValidationErrors bool           `json:"ignore_validation_errors"` // If true, continue execution even when BAS validation fails
-	DryRun                 bool           `json:"dry_run"`                  // If true, validate workflows without executing them
-}
-
-// ViewportConfig holds default browser viewport settings.
-type ViewportConfig struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
-}
-
 // Default returns a Config with default values.
 func Default() *Config {
 	return &Config{
@@ -99,14 +81,6 @@ func Default() *Config {
 			DOMSnapshots:    true,
 			OutputDir:       "coverage/automation",
 			RetainOnSuccess: false,
-		},
-		Execution: ExecutionConfig{
-			StopOnFirstFailure:   false,
-			DefaultStepTimeoutMs: DefaultStepTimeoutMs,
-			Viewport: ViewportConfig{
-				Width:  1440,
-				Height: 900,
-			},
 		},
 	}
 }
@@ -159,17 +133,40 @@ func (c *SeedsConfig) SeedTimeout() time.Duration {
 	return time.Duration(c.TimeoutMs) * time.Millisecond
 }
 
-// StepTimeout returns the default step timeout as a Duration.
-func (c *ExecutionConfig) StepTimeout() time.Duration {
-	if c.DefaultStepTimeoutMs <= 0 {
-		return time.Duration(DefaultStepTimeoutMs) * time.Millisecond
-	}
-	return time.Duration(c.DefaultStepTimeoutMs) * time.Millisecond
-}
-
 // testingJSON represents the structure of .vrooli/testing.json.
 type testingJSON struct {
-	Playbooks *Config `json:"playbooks"`
+	Playbooks *rawConfig `json:"playbooks"`
+}
+
+// rawConfig is the JSON shape for playbooks config that preserves "unset" vs "false"
+// for booleans via pointer fields. Config is the merged runtime config.
+type rawConfig struct {
+	Enabled   *bool           `json:"enabled"`
+	BAS       *rawBASConfig   `json:"bas"`
+	Seeds     *rawSeedsConfig `json:"seeds"`
+	Artifacts *rawArtifacts   `json:"artifacts"`
+}
+
+type rawBASConfig struct {
+	Endpoint                 string `json:"endpoint"`
+	TimeoutMs                int    `json:"timeout_ms"`
+	LaunchTimeoutMs          int    `json:"launch_timeout_ms"`
+	HealthCheckTimeoutMs     int    `json:"health_check_timeout_ms"`
+	HealthCheckWaitTimeoutMs int    `json:"health_check_wait_timeout_ms"`
+	WorkflowExecutionTimeout int    `json:"workflow_execution_timeout_ms"`
+}
+
+type rawSeedsConfig struct {
+	Enabled   *bool `json:"enabled"`
+	Cleanup   *bool `json:"cleanup"`
+	TimeoutMs int   `json:"timeout_ms"`
+}
+
+type rawArtifacts struct {
+	Screenshots     *bool  `json:"screenshots"`
+	DOMSnapshots    *bool  `json:"dom_snapshots"`
+	OutputDir       string `json:"output_dir"`
+	RetainOnSuccess *bool  `json:"retain_on_success"`
 }
 
 // Load reads playbooks configuration from .vrooli/testing.json.
@@ -195,62 +192,63 @@ func Load(scenarioDir string) (*Config, error) {
 		return cfg, nil // No playbooks section, use defaults
 	}
 
-	// Merge loaded config with defaults (loaded values take precedence)
 	loaded := tj.Playbooks
 
-	// Only override if explicitly set (non-zero)
-	if loaded.BAS.Endpoint != "" {
-		cfg.BAS.Endpoint = loaded.BAS.Endpoint
-	}
-	if loaded.BAS.TimeoutMs > 0 {
-		cfg.BAS.TimeoutMs = loaded.BAS.TimeoutMs
-	}
-	if loaded.BAS.LaunchTimeoutMs > 0 {
-		cfg.BAS.LaunchTimeoutMs = loaded.BAS.LaunchTimeoutMs
-	}
-	if loaded.BAS.HealthCheckTimeoutMs > 0 {
-		cfg.BAS.HealthCheckTimeoutMs = loaded.BAS.HealthCheckTimeoutMs
-	}
-	if loaded.BAS.HealthCheckWaitTimeoutMs > 0 {
-		cfg.BAS.HealthCheckWaitTimeoutMs = loaded.BAS.HealthCheckWaitTimeoutMs
-	}
-	if loaded.BAS.WorkflowExecutionTimeout > 0 {
-		cfg.BAS.WorkflowExecutionTimeout = loaded.BAS.WorkflowExecutionTimeout
+	// Top-level enabled flag (only when explicitly set)
+	if loaded.Enabled != nil {
+		cfg.Enabled = *loaded.Enabled
 	}
 
-	// Seeds config - only override if section exists
-	if loaded.Seeds.TimeoutMs > 0 {
-		cfg.Seeds.TimeoutMs = loaded.Seeds.TimeoutMs
+	// BAS config
+	if loaded.BAS != nil {
+		if loaded.BAS.Endpoint != "" {
+			cfg.BAS.Endpoint = loaded.BAS.Endpoint
+		}
+		if loaded.BAS.TimeoutMs > 0 {
+			cfg.BAS.TimeoutMs = loaded.BAS.TimeoutMs
+		}
+		if loaded.BAS.LaunchTimeoutMs > 0 {
+			cfg.BAS.LaunchTimeoutMs = loaded.BAS.LaunchTimeoutMs
+		}
+		if loaded.BAS.HealthCheckTimeoutMs > 0 {
+			cfg.BAS.HealthCheckTimeoutMs = loaded.BAS.HealthCheckTimeoutMs
+		}
+		if loaded.BAS.HealthCheckWaitTimeoutMs > 0 {
+			cfg.BAS.HealthCheckWaitTimeoutMs = loaded.BAS.HealthCheckWaitTimeoutMs
+		}
+		if loaded.BAS.WorkflowExecutionTimeout > 0 {
+			cfg.BAS.WorkflowExecutionTimeout = loaded.BAS.WorkflowExecutionTimeout
+		}
 	}
-	// For booleans, we need to check if they were explicitly set
-	// Since we can't distinguish false from unset in JSON, we'll accept the loaded values
-	cfg.Seeds.Enabled = loaded.Seeds.Enabled
-	cfg.Seeds.Cleanup = loaded.Seeds.Cleanup
 
 	// Artifacts config
-	if loaded.Artifacts.OutputDir != "" {
-		cfg.Artifacts.OutputDir = loaded.Artifacts.OutputDir
-	}
-	cfg.Artifacts.Screenshots = loaded.Artifacts.Screenshots
-	cfg.Artifacts.DOMSnapshots = loaded.Artifacts.DOMSnapshots
-	cfg.Artifacts.RetainOnSuccess = loaded.Artifacts.RetainOnSuccess
-
-	// Execution config
-	if loaded.Execution.DefaultStepTimeoutMs > 0 {
-		cfg.Execution.DefaultStepTimeoutMs = loaded.Execution.DefaultStepTimeoutMs
-	}
-	cfg.Execution.StopOnFirstFailure = loaded.Execution.StopOnFirstFailure
-	cfg.Execution.IgnoreValidationErrors = loaded.Execution.IgnoreValidationErrors
-	cfg.Execution.DryRun = loaded.Execution.DryRun
-	if loaded.Execution.Viewport.Width > 0 {
-		cfg.Execution.Viewport.Width = loaded.Execution.Viewport.Width
-	}
-	if loaded.Execution.Viewport.Height > 0 {
-		cfg.Execution.Viewport.Height = loaded.Execution.Viewport.Height
+	if loaded.Artifacts != nil {
+		if loaded.Artifacts.OutputDir != "" {
+			cfg.Artifacts.OutputDir = loaded.Artifacts.OutputDir
+		}
+		if loaded.Artifacts.Screenshots != nil {
+			cfg.Artifacts.Screenshots = *loaded.Artifacts.Screenshots
+		}
+		if loaded.Artifacts.DOMSnapshots != nil {
+			cfg.Artifacts.DOMSnapshots = *loaded.Artifacts.DOMSnapshots
+		}
+		if loaded.Artifacts.RetainOnSuccess != nil {
+			cfg.Artifacts.RetainOnSuccess = *loaded.Artifacts.RetainOnSuccess
+		}
 	}
 
-	// Top-level enabled flag
-	cfg.Enabled = loaded.Enabled
+	// Seeds config
+	if loaded.Seeds != nil {
+		if loaded.Seeds.TimeoutMs > 0 {
+			cfg.Seeds.TimeoutMs = loaded.Seeds.TimeoutMs
+		}
+		if loaded.Seeds.Enabled != nil {
+			cfg.Seeds.Enabled = *loaded.Seeds.Enabled
+		}
+		if loaded.Seeds.Cleanup != nil {
+			cfg.Seeds.Cleanup = *loaded.Seeds.Cleanup
+		}
+	}
 
 	return cfg, nil
 }

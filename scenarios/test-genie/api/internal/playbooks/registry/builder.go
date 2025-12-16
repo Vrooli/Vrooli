@@ -32,6 +32,9 @@ type BuildResult struct {
 // Build scans the scenario directory and generates a registry.
 func (b *Builder) Build() (*BuildResult, error) {
 	basRoot := filepath.Join(b.scenarioDir, "bas")
+	// Separation of concerns: test-genie executes only bas/cases/** as "test cases".
+	// Other bas/* directories (actions/, flows/, etc.) exist for reusable automation
+	// building blocks and are intentionally not executed by the Playbooks phase.
 	playbooksRoot := filepath.Join(basRoot, "cases")
 	requirementsDir := filepath.Join(b.scenarioDir, "requirements")
 	registryPath := filepath.Join(basRoot, RegistryFileName)
@@ -249,6 +252,9 @@ func (b *Builder) buildEntry(pf playbookFile, validationsByFile map[string][]str
 		return types.Entry{}, fmt.Errorf("failed to compute relative path: %w", err)
 	}
 	relPath = filepath.ToSlash(relPath)
+	if !strings.HasPrefix(relPath, "bas/cases/") {
+		return types.Entry{}, fmt.Errorf("registry entries must live under bas/cases (got %s)", relPath)
+	}
 
 	// Extract fixtures from nodes
 	fixtures := extractFixturesFromWorkflow(doc)

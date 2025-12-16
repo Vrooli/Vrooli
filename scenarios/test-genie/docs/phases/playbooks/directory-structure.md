@@ -2,7 +2,9 @@
 
 > **Canonical layout for `bas/` in any scenario**
 
-This document defines the standard directory structure for playbook-based UI automation. All scenarios using playbooks should follow this layout for consistency and tooling compatibility.
+This document defines the standard directory structure for BAS-based UI automation.
+
+Core rule (separation of concerns): **test-genie only executes workflows under `bas/cases/`**. Everything else under `bas/` is reusable automation building blocks (subflows, journeys, helpers) that should be runnable outside of test-genie as well.
 
 ## Directory Layout
 
@@ -20,10 +22,10 @@ bas/
 │   └── 02-builder/
 │       ├── 01-canvas/
 │       └── 02-toolbar/
-├── flows/                  # Multi-surface user journeys
+├── flows/                  # Optional user journeys (NOT executed by test-genie)
 │   └── 01-new-user/
 │       └── onboarding-happy-path.json
-├── actions/                # Reusable fixtures/subflows
+├── actions/                # Reusable subflows/components (NOT executed by test-genie)
 │   ├── open-demo-project.json
 │   └── load-seed-state.json
 └── seeds/                  # Seed entrypoint
@@ -35,8 +37,8 @@ bas/
 | Directory | Purpose | Prefix Convention |
 |-----------|---------|-------------------|
 | `cases/` | Tests organized by PRD operational targets | `NN-name` (e.g., `01-foundation`) |
-| `flows/` | End-to-end flows spanning multiple features | `NN-name` (e.g., `01-new-user`) |
-| `actions/` | Reusable workflow fragments (fixtures/subflows) | Kebab-case filenames |
+| `flows/` | Optional multi-surface journeys for manual/ops automation | `NN-name` (e.g., `01-new-user`) |
+| `actions/` | Reusable workflow fragments/subflows used by cases and flows | Kebab-case filenames |
 | `seeds/` | Database/state setup entrypoint | `seed.go` preferred |
 
 ### cases/
@@ -60,7 +62,7 @@ cases/
 
 ### flows/
 
-Composite flows that test complete user stories across multiple features:
+Composite flows that represent complete user stories across multiple features. These are **not executed by test-genie**; they exist to keep reusable workflows under `bas/` runnable in non-testing contexts too.
 
 ```
 flows/
@@ -72,7 +74,7 @@ flows/
 
 ### actions/
 
-Reusable workflow fragments referenced via subflow nodes (e.g. `ACTION_TYPE_SUBFLOW` with `workflow_path: "actions/<slug>.json"`). Actions are not executed standalone by the playbooks runner.
+Reusable workflow fragments referenced via subflow nodes (e.g. `workflowPath: "actions/<slug>.json"`). Actions are not executed standalone by the Playbooks phase; only `bas/cases/**` entries are.
 
 ```
 actions/
@@ -94,7 +96,7 @@ seeds/
 
 ### Two-Digit Ordinal Prefixes
 
-**Required** for all folders under `cases/` and `flows/`:
+**Required** for all folders under `cases/` (and recommended for `flows/`):
 
 ```
 01-foundation/    # First capability area
@@ -183,7 +185,7 @@ Actions are referenced via subflow nodes that point to a relative workflow path.
 ### Notes
 
 - Prefer relative paths under `actions/` so playbooks are portable across machines.
-- Actions are not executed standalone by the playbooks runner; only entries listed in `bas/registry.json` run.
+- Actions are not executed standalone by test-genie; only entries in `bas/cases/**` (and therefore `bas/registry.json`) run.
 
 ### Parameter Definition
 
@@ -235,9 +237,10 @@ Three token prefixes are used in workflows:
 
 | Token | Resolution Time | Purpose |
 |-------|-----------------|---------|
-| `actions/<slug>.json` | Resolution | Reference a subflow from `actions/` via `workflowPath` |
-| `@selector/<key>` | Resolution | Reference from `ui/src/consts/selectors.ts` |
-| `@seed/<key>` | Resolution | Literal value from seed-state.json |
+| `actions/<slug>.json` | BAS runtime | Reference a subflow from `actions/` via `workflowPath` (resolved relative to `project_root`) |
+| `${@params/<key>}` | BAS runtime | Seeded data injected by test-genie via `initial_params` |
+| `${@store/<key>}` | BAS runtime | Runtime state managed by BAS during execution |
+| `${@env/<key>}` | BAS runtime | Execution environment configuration provided to BAS |
 | `@store/<key>` | Runtime | Dynamic value stored during execution |
 
 ### @seed vs @store

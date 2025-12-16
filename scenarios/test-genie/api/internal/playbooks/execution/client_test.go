@@ -67,7 +67,7 @@ func TestClientExecuteWorkflow(t *testing.T) {
 
 	client := NewClient(server.URL)
 	definition := map[string]any{"nodes": []any{}, "edges": []any{}}
-	id, err := client.ExecuteWorkflow(context.Background(), definition, "test workflow")
+	id, err := client.ExecuteWorkflow(context.Background(), definition, "test workflow", "test workflow")
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestClientExecuteWorkflowError(t *testing.T) {
 
 	client := NewClient(server.URL)
 	definition := map[string]any{"nodes": []any{}}
-	_, err := client.ExecuteWorkflow(context.Background(), definition, "test")
+	_, err := client.ExecuteWorkflow(context.Background(), definition, "test", "test")
 	if err == nil {
 		t.Fatal("expected error for failed execution")
 	}
@@ -102,7 +102,7 @@ func TestClientExecuteWorkflowMissingID(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL)
-	_, err := client.ExecuteWorkflow(context.Background(), map[string]any{}, "test")
+	_, err := client.ExecuteWorkflow(context.Background(), map[string]any{}, "test", "test")
 	if err == nil {
 		t.Fatal("expected error for missing execution_id")
 	}
@@ -461,7 +461,7 @@ func TestClientExecuteWorkflowInvalidJSON(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL)
-	_, err := client.ExecuteWorkflow(context.Background(), map[string]any{}, "test")
+	_, err := client.ExecuteWorkflow(context.Background(), map[string]any{}, "test", "test")
 	if err == nil {
 		t.Fatal("expected error for invalid JSON response")
 	}

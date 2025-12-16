@@ -96,10 +96,6 @@ func TestLoadWithPlaybooksSection(t *testing.T) {
 			"bas": {
 				"endpoint": "http://custom:9999/api/v1",
 				"timeout_ms": 60000
-			},
-			"execution": {
-				"stop_on_first_failure": true,
-				"default_step_timeout_ms": 15000
 			}
 		}
 	}`
@@ -118,15 +114,49 @@ func TestLoadWithPlaybooksSection(t *testing.T) {
 	if cfg.BAS.TimeoutMs != 60000 {
 		t.Errorf("BAS.TimeoutMs = %d, want 60000", cfg.BAS.TimeoutMs)
 	}
-	if !cfg.Execution.StopOnFirstFailure {
-		t.Error("expected StopOnFirstFailure to be true")
-	}
-	if cfg.Execution.DefaultStepTimeoutMs != 15000 {
-		t.Errorf("DefaultStepTimeoutMs = %d, want 15000", cfg.Execution.DefaultStepTimeoutMs)
-	}
 	// Unset values should use defaults
 	if cfg.BAS.LaunchTimeoutMs != DefaultBASLaunchTimeoutMs {
 		t.Errorf("LaunchTimeoutMs = %d, want default %d", cfg.BAS.LaunchTimeoutMs, DefaultBASLaunchTimeoutMs)
+	}
+}
+
+func TestLoadPlaybooksDoesNotDisableDefaultsWhenUnset(t *testing.T) {
+	tmpDir := t.TempDir()
+	vrooliDir := filepath.Join(tmpDir, ".vrooli")
+	if err := os.MkdirAll(vrooliDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// This intentionally omits most boolean fields. Historically this could
+	// accidentally flip defaults to false when a playbooks section existed.
+	testingJSON := `{
+		"version": "1.0.0",
+		"playbooks": {
+			"bas": {
+				"timeout_ms": 60000
+			}
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(testingJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !cfg.Enabled {
+		t.Error("expected playbooks.Enabled to remain true by default when unset")
+	}
+	if !cfg.Seeds.Enabled {
+		t.Error("expected playbooks.seeds.enabled to remain true by default when unset")
+	}
+	if !cfg.Artifacts.Screenshots {
+		t.Error("expected playbooks.artifacts.screenshots to remain true by default when unset")
+	}
+	if !cfg.Artifacts.DOMSnapshots {
+		t.Error("expected playbooks.artifacts.dom_snapshots to remain true by default when unset")
 	}
 }
 

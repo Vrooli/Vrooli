@@ -56,7 +56,7 @@ func TestBASProtoContract(t *testing.T) {
 			"edges": []any{},
 		}
 
-		executionID, err := client.ExecuteWorkflow(ctx, definition, "proto-contract-test")
+		executionID, err := client.ExecuteWorkflow(ctx, definition, "proto-contract-test", "proto-contract-test")
 		if err != nil {
 			t.Fatalf("ExecuteWorkflow failed: %v", err)
 		}

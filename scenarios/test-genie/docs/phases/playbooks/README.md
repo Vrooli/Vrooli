@@ -7,6 +7,11 @@
 
 The playbooks phase executes Vrooli Ascension (BAS) workflows for end-to-end UI testing. Workflows are declarative JSON files that automate browser interactions.
 
+Core contract:
+- test-genie executes **only** workflows listed in `bas/registry.json` (which is generated from `bas/cases/**`)
+- workflows are executed **as-authored** (no placeholder substitution or scenario URL rewriting in test-genie)
+- test-genie provides BAS `project_root` (absolute path to `bas/`) and `initial_params` (seed-state.json) and handles isolation + cleanup
+
 ## What Gets Tested
 
 ```mermaid
@@ -86,14 +91,14 @@ bas/
 ├── cases/              # Assertive validations (mirrors PRD)
 │   ├── 01-foundation/  # Two-digit prefix for ordering
 │   └── 02-builder/
-├── flows/              # Multi-surface user journeys
-├── actions/            # Reusable fixtures/subflows
+├── flows/              # Optional journeys (not executed by test-genie)
+├── actions/            # Reusable subflows/components (not executed by test-genie)
 └── seeds/              # Seed entrypoint (seed.go preferred, seed.sh allowed)
 ```
 
 Key conventions:
 - **Two-digit prefixes** (`01-`, `02-`) ensure deterministic execution order
-- **`actions/`** contains reusable subflows referenced via `workflowPath` (e.g., `actions/dismiss-tutorial.json`)
+- **`actions/`** contains reusable subflows referenced via `workflowPath` (resolved by BAS relative to `project_root`)
 - **`seeds/`** contains `seed.go` (or `seed.sh`) for test data
 
 See [Directory Structure](directory-structure.md) for complete documentation including fixture metadata, token types, and authoring checklist.
@@ -168,12 +173,6 @@ Configure the playbooks phase in `.vrooli/testing.json`:
       "timeout_ms": 30000,
       "launch_timeout_ms": 60000
     },
-    "execution": {
-      "stop_on_first_failure": false,
-      "default_step_timeout_ms": 30000,
-      "ignore_validation_errors": false,
-      "dry_run": false
-    },
     "artifacts": {
       "screenshots": true,
       "dom_snapshots": true
@@ -187,38 +186,11 @@ Configure the playbooks phase in `.vrooli/testing.json`:
 }
 ```
 
-### Execution Options
+### Retain isolation for debugging
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `ignore_validation_errors` | `false` | When BAS validation request fails (e.g., BAS unavailable), continue with execution instead of failing. **Not recommended for production.** |
-| `dry_run` | `false` | Validate all workflows without executing them. Useful for CI pre-checks or debugging workflow syntax. Skips seed scripts and scenario startup. |
 | `TEST_GENIE_PLAYBOOKS_RETAIN` | `0` | Set to `1` before running Playbooks to retain the temporary Postgres/Redis instances for inspection. Observations will include ready-to-run `psql`/`redis-cli` commands. |
-
-### Dry-Run Mode
-
-Dry-run mode validates workflows through BAS without executing browser automation:
-
-```bash
-# Enable via testing.json or environment
-# In testing.json:
-{
-  "playbooks": {
-    "execution": {
-      "dry_run": true
-    }
-  }
-}
-```
-
-In dry-run mode:
-- Workflows are loaded, resolved, and validated via BAS
-- Seed entrypoint (`seeds/seed.go` or `seed.sh`) runs once before execution; skipped in dry-run
-- Required scenarios (referenced via `destinationType: scenario`) are **not** started
-- Execution is skipped after successful validation
-- Each workflow returns with `(dry-run: validated only)` in its stats
-
-### Retain isolation for debugging
 
 Set `TEST_GENIE_PLAYBOOKS_RETAIN=1` before running the Playbooks phase to keep the temporary Postgres/Redis instances alive after execution. The phase logs will print `psql`/`redis-cli` commands targeting the retained resources. By default, isolation is torn down and the scenario is restarted against its normal resources after Playbooks completes.
 

@@ -70,10 +70,10 @@ type Client interface {
 	// Returns validation issues or nil if the workflow is valid.
 	ValidateResolved(ctx context.Context, definition map[string]any) (*ValidationResult, error)
 	// ExecuteWorkflow starts a workflow execution and returns the execution ID.
-	ExecuteWorkflow(ctx context.Context, definition map[string]any, name string) (string, error)
+	ExecuteWorkflow(ctx context.Context, definition map[string]any, name, description string) (string, error)
 	// ExecuteWorkflowWithParams starts a workflow execution with namespace-aware parameters.
 	// This is the preferred method for callers that support the new variable interpolation system.
-	ExecuteWorkflowWithParams(ctx context.Context, definition map[string]any, name string, params *ExecutionParams) (string, error)
+	ExecuteWorkflowWithParams(ctx context.Context, definition map[string]any, name, description string, params *ExecutionParams) (string, error)
 	// GetStatus retrieves the status of an execution.
 	GetStatus(ctx context.Context, executionID string) (*basexecution.Execution, error)
 	// WaitForCompletion waits for a workflow to complete.
@@ -267,8 +267,8 @@ func (c *HTTPClient) ValidateResolved(ctx context.Context, definition map[string
 
 // ExecuteWorkflow starts a workflow execution and returns the execution ID.
 // This is a convenience wrapper that calls ExecuteWorkflowWithParams with nil params.
-func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]any, name string) (string, error) {
-	return c.ExecuteWorkflowWithParams(ctx, definition, name, nil)
+func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]any, name, description string) (string, error) {
+	return c.ExecuteWorkflowWithParams(ctx, definition, name, description, nil)
 }
 
 // ExecuteWorkflowWithParams starts a workflow execution with namespace-aware parameters.
@@ -276,17 +276,22 @@ func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]
 // Note: We intentionally avoid proto serialization here because BAS uses standard JSON
 // decoding, and proto enum serialization would convert node types like "navigate" to
 // "STEP_TYPE_NAVIGATE" which BAS doesn't recognize.
-func (c *HTTPClient) ExecuteWorkflowWithParams(ctx context.Context, definition map[string]any, name string, params *ExecutionParams) (string, error) {
+func (c *HTTPClient) ExecuteWorkflowWithParams(ctx context.Context, definition map[string]any, name, description string, params *ExecutionParams) (string, error) {
 	// Build plain JSON request matching BAS's ExecuteAdhocWorkflowRequest struct
 	reqBody := map[string]any{
 		"flow_definition": definition,
 	}
 
 	// Add metadata with workflow name if provided
-	if name != "" {
-		reqBody["metadata"] = map[string]any{
-			"name": name,
-		}
+	meta := make(map[string]any)
+	if strings.TrimSpace(name) != "" {
+		meta["name"] = name
+	}
+	if strings.TrimSpace(description) != "" {
+		meta["description"] = description
+	}
+	if len(meta) > 0 {
+		reqBody["metadata"] = meta
 	}
 
 	// Add namespace-aware execution parameters if provided
@@ -301,14 +306,14 @@ func (c *HTTPClient) ExecuteWorkflowWithParams(ctx context.Context, definition m
 		if len(params.InitialStore) > 0 {
 			execParams["initial_store"] = params.InitialStore
 		}
-			if len(params.Env) > 0 {
-				execParams["env"] = params.Env
-			}
-			if len(execParams) > 0 {
-				// Keep this aligned with browser-automation-studio/v1/execution.ExecuteAdhocRequest.
-				reqBody["parameters"] = execParams
-			}
+		if len(params.Env) > 0 {
+			execParams["env"] = params.Env
 		}
+		if len(execParams) > 0 {
+			// Keep this aligned with browser-automation-studio/v1/execution.ExecuteAdhocRequest.
+			reqBody["parameters"] = execParams
+		}
+	}
 
 	body, err := json.Marshal(reqBody)
 	if err != nil {
