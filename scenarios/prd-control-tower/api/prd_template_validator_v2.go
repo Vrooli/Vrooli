@@ -305,6 +305,12 @@ func validateSubsections(parent PRDSectionV2, foundSections map[string]extracted
 func validateSectionContent(section PRDSectionV2, content string, result *PRDValidationResultV2) {
 	trimmedContent := strings.TrimSpace(content)
 	if trimmedContent == "" {
+		// Parent sections that primarily exist to hold structured subsections (e.g. 🎯 Operational Targets)
+		// may legitimately have no direct body content because the parser attributes text to the ### subsections.
+		// Treat these as non-empty when subsections are present/validated elsewhere.
+		if len(section.Subsections) > 0 {
+			return
+		}
 		result.ContentIssues = append(result.ContentIssues, PRDContentIssue{
 			Section:    section.Title,
 			IssueType:  "empty_section",

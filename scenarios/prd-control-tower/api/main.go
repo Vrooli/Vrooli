@@ -31,11 +31,17 @@ const (
 
 // HealthResponse represents the health check response
 type HealthResponse struct {
-	Status       string         `json:"status"`
-	Service      string         `json:"service"`
-	Timestamp    string         `json:"timestamp"`
-	Readiness    bool           `json:"readiness"`
-	Dependencies map[string]any `json:"dependencies"`
+	Status       string                      `json:"status"`
+	Service      string                      `json:"service"`
+	Timestamp    string                      `json:"timestamp"`
+	Readiness    bool                        `json:"readiness"`
+	Dependencies map[string]DependencyStatus `json:"dependencies"`
+}
+
+type DependencyStatus struct {
+	Connected bool   `json:"connected"`
+	Status    string `json:"status,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
 
 func main() {
@@ -256,25 +262,28 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 		Service:      "prd-control-tower-api",
 		Timestamp:    time.Now().Format(time.RFC3339),
 		Readiness:    true,
-		Dependencies: map[string]any{},
+		Dependencies: map[string]DependencyStatus{},
 	}
 
 	// Check database
 	if db != nil {
 		if err := db.Ping(); err != nil {
-			health.Dependencies["database"] = map[string]any{
-				"status": "error",
-				"error":  err.Error(),
+			health.Dependencies["database"] = DependencyStatus{
+				Connected: false,
+				Status:    "error",
+				Error:     err.Error(),
 			}
 			health.Status = "degraded"
 		} else {
-			health.Dependencies["database"] = map[string]any{
-				"status": "healthy",
+			health.Dependencies["database"] = DependencyStatus{
+				Connected: true,
+				Status:    "healthy",
 			}
 		}
 	} else {
-		health.Dependencies["database"] = map[string]any{
-			"status": "not_initialized",
+		health.Dependencies["database"] = DependencyStatus{
+			Connected: false,
+			Status:    "not_initialized",
 		}
 		health.Status = "degraded"
 	}
@@ -282,14 +291,16 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	// Check draft directory (relative to scenario root, one level up from api/)
 	draftDir := "../data/prd-drafts"
 	if _, err := os.Stat(draftDir); os.IsNotExist(err) {
-		health.Dependencies["draft_storage"] = map[string]any{
-			"status": "error",
-			"error":  "Draft directory does not exist",
+		health.Dependencies["draft_storage"] = DependencyStatus{
+			Connected: false,
+			Status:    "missing",
+			Error:     "Draft directory does not exist",
 		}
 		health.Status = "degraded"
 	} else {
-		health.Dependencies["draft_storage"] = map[string]any{
-			"status": "healthy",
+		health.Dependencies["draft_storage"] = DependencyStatus{
+			Connected: true,
+			Status:    "healthy",
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -242,6 +243,82 @@ func TestSyncer_Sync_WriteMetadata(t *testing.T) {
 	}
 }
 
+func TestSyncer_Sync_UpdatesPRDOperationalTargets(t *testing.T) {
+	reader := newMemReader()
+	writer := newMemWriter()
+	syncer := New(reader, writer)
+
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/scenario/requirements/module.json",
+		Requirements: []types.Requirement{
+			{
+				ID:     "REQ-001",
+				Title:  "req 1",
+				Status: types.StatusComplete,
+				PRDRef: "Operational Targets > P0 > OT-P0-001",
+			},
+			{
+				ID:     "REQ-002",
+				Title:  "req 2",
+				Status: types.StatusComplete,
+				PRDRef: "OT-P0-001",
+			},
+		},
+	}
+	index.AddModule(module)
+
+	scenarioRoot := "/test/scenario"
+	prdPath := filepath.Join(scenarioRoot, "PRD.md")
+	reader.files[prdPath] = []byte(`# Product Requirements Document (PRD)
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Something | Outcome
+`)
+
+	evidence := types.NewEvidenceBundle()
+	opts := DefaultOptions()
+	opts.ScenarioRoot = scenarioRoot
+
+	result, err := syncer.Sync(context.Background(), index, evidence, opts)
+	if err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+	if result == nil {
+		t.Fatalf("expected result")
+	}
+
+	updated, ok := writer.files[prdPath]
+	if !ok {
+		t.Fatalf("expected PRD.md to be written")
+	}
+	if !strings.Contains(string(updated), "- [x] OT-P0-001") {
+		t.Fatalf("expected OT-P0-001 to be checked, got:\n%s", string(updated))
+	}
+
+	backupDir := filepath.Join(scenarioRoot, "coverage", "requirements-sync", "prd-backups")
+	if !writer.dirs[backupDir] {
+		t.Fatalf("expected backup dir to be created: %s", backupDir)
+	}
+
+	var backupPath string
+	prefix := filepath.Join(backupDir, "PRD.md.")
+	for path := range writer.files {
+		if strings.HasPrefix(path, prefix) {
+			backupPath = path
+			break
+		}
+	}
+	if backupPath == "" {
+		t.Fatalf("expected PRD backup to be written under %s", backupDir)
+	}
+	if string(writer.files[backupPath]) != string(reader.files[prdPath]) {
+		t.Fatalf("expected backup to match original PRD content")
+	}
+}
+
 func TestDefaultOptions(t *testing.T) {
 	opts := DefaultOptions()
 
@@ -450,6 +527,545 @@ func TestFileWriter_WriteJSON(t *testing.T) {
 }
 
 // Integration test using real filesystem
+// =========================================================================
+// PRD Operational Target Update Tests
+// =========================================================================
+
+func TestDesiredOperationalTargetCheckboxes_AllComplete(t *testing.T) {
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/requirements/module.json",
+		Requirements: []types.Requirement{
+			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "OT-P0-001"},
+			{ID: "REQ-002", Status: types.StatusComplete, PRDRef: "OT-P0-001"},
+		},
+	}
+	index.AddModule(module)
+
+	desired := desiredOperationalTargetCheckboxes(index)
+
+	if len(desired) != 1 {
+		t.Fatalf("expected 1 OT, got %d", len(desired))
+	}
+	if !desired["OT-P0-001"] {
+		t.Errorf("expected OT-P0-001 to be checked (all requirements complete)")
+	}
+}
+
+func TestDesiredOperationalTargetCheckboxes_PartialComplete(t *testing.T) {
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/requirements/module.json",
+		Requirements: []types.Requirement{
+			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "OT-P0-001"},
+			{ID: "REQ-002", Status: types.StatusInProgress, PRDRef: "OT-P0-001"},
+		},
+	}
+	index.AddModule(module)
+
+	desired := desiredOperationalTargetCheckboxes(index)
+
+	if len(desired) != 1 {
+		t.Fatalf("expected 1 OT, got %d", len(desired))
+	}
+	if desired["OT-P0-001"] {
+		t.Errorf("expected OT-P0-001 to be unchecked (not all requirements complete)")
+	}
+}
+
+func TestDesiredOperationalTargetCheckboxes_MultipleTargets(t *testing.T) {
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/requirements/module.json",
+		Requirements: []types.Requirement{
+			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "OT-P0-001"},
+			{ID: "REQ-002", Status: types.StatusComplete, PRDRef: "OT-P1-001"},
+			{ID: "REQ-003", Status: types.StatusPending, PRDRef: "OT-P2-001"},
+		},
+	}
+	index.AddModule(module)
+
+	desired := desiredOperationalTargetCheckboxes(index)
+
+	if len(desired) != 3 {
+		t.Fatalf("expected 3 OTs, got %d", len(desired))
+	}
+	if !desired["OT-P0-001"] {
+		t.Errorf("expected OT-P0-001 to be checked")
+	}
+	if !desired["OT-P1-001"] {
+		t.Errorf("expected OT-P1-001 to be checked")
+	}
+	if desired["OT-P2-001"] {
+		t.Errorf("expected OT-P2-001 to be unchecked")
+	}
+}
+
+func TestDesiredOperationalTargetCheckboxes_CaseInsensitive(t *testing.T) {
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/requirements/module.json",
+		Requirements: []types.Requirement{
+			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "ot-p0-001"}, // lowercase
+			{ID: "REQ-002", Status: types.StatusComplete, PRDRef: "OT-P0-001"}, // uppercase
+		},
+	}
+	index.AddModule(module)
+
+	desired := desiredOperationalTargetCheckboxes(index)
+
+	if len(desired) != 1 {
+		t.Fatalf("expected 1 OT (case-insensitive merge), got %d", len(desired))
+	}
+	if !desired["OT-P0-001"] {
+		t.Errorf("expected OT-P0-001 to be checked")
+	}
+}
+
+func TestDesiredOperationalTargetCheckboxes_ExtractsFromLongerPRDRef(t *testing.T) {
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/requirements/module.json",
+		Requirements: []types.Requirement{
+			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "Operational Targets > P0 > OT-P0-001"},
+			{ID: "REQ-002", Status: types.StatusComplete, PRDRef: "## P1 section: OT-P1-042 description"},
+		},
+	}
+	index.AddModule(module)
+
+	desired := desiredOperationalTargetCheckboxes(index)
+
+	if len(desired) != 2 {
+		t.Fatalf("expected 2 OTs, got %d", len(desired))
+	}
+	if !desired["OT-P0-001"] {
+		t.Errorf("expected OT-P0-001 to be extracted and checked")
+	}
+	if !desired["OT-P1-042"] {
+		t.Errorf("expected OT-P1-042 to be extracted and checked")
+	}
+}
+
+func TestDesiredOperationalTargetCheckboxes_NoOTInPRDRef(t *testing.T) {
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/requirements/module.json",
+		Requirements: []types.Requirement{
+			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "Some other section"},
+			{ID: "REQ-002", Status: types.StatusComplete, PRDRef: ""},
+		},
+	}
+	index.AddModule(module)
+
+	desired := desiredOperationalTargetCheckboxes(index)
+
+	if len(desired) != 0 {
+		t.Errorf("expected 0 OTs (no valid OT patterns), got %d", len(desired))
+	}
+}
+
+func TestDesiredOperationalTargetCheckboxes_NilIndex(t *testing.T) {
+	desired := desiredOperationalTargetCheckboxes(nil)
+
+	if len(desired) != 0 {
+		t.Errorf("expected 0 OTs for nil index, got %d", len(desired))
+	}
+}
+
+func TestDesiredOperationalTargetCheckboxes_EmptyModules(t *testing.T) {
+	index := parsing.NewModuleIndex()
+
+	desired := desiredOperationalTargetCheckboxes(index)
+
+	if len(desired) != 0 {
+		t.Errorf("expected 0 OTs for empty index, got %d", len(desired))
+	}
+}
+
+func TestDesiredOperationalTargetCheckboxes_NilModule(t *testing.T) {
+	index := parsing.NewModuleIndex()
+	index.AddModule(nil)
+
+	desired := desiredOperationalTargetCheckboxes(index)
+
+	if len(desired) != 0 {
+		t.Errorf("expected 0 OTs when module is nil, got %d", len(desired))
+	}
+}
+
+func TestUpdateOperationalTargetChecklistLines_CheckOn(t *testing.T) {
+	content := `## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Something | Outcome
+- [ ] OT-P0-002 | Another | Result
+`
+	desired := map[string]bool{
+		"OT-P0-001": true,
+		"OT-P0-002": false,
+	}
+
+	updated, changed := updateOperationalTargetChecklistLines(content, desired)
+
+	if !changed {
+		t.Fatal("expected changes to be made")
+	}
+	if !strings.Contains(updated, "- [x] OT-P0-001") {
+		t.Errorf("expected OT-P0-001 to be checked")
+	}
+	if !strings.Contains(updated, "- [ ] OT-P0-002") {
+		t.Errorf("expected OT-P0-002 to remain unchecked")
+	}
+}
+
+func TestUpdateOperationalTargetChecklistLines_CheckOff(t *testing.T) {
+	content := `## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [x] OT-P0-001 | Something | Outcome
+- [X] OT-P0-002 | Another | Result
+`
+	desired := map[string]bool{
+		"OT-P0-001": false,
+		"OT-P0-002": false,
+	}
+
+	updated, changed := updateOperationalTargetChecklistLines(content, desired)
+
+	if !changed {
+		t.Fatal("expected changes to be made")
+	}
+	if !strings.Contains(updated, "- [ ] OT-P0-001") {
+		t.Errorf("expected OT-P0-001 to be unchecked")
+	}
+	if !strings.Contains(updated, "- [ ] OT-P0-002") {
+		t.Errorf("expected OT-P0-002 to be unchecked (was uppercase X)")
+	}
+}
+
+func TestUpdateOperationalTargetChecklistLines_NoChangeNeeded(t *testing.T) {
+	content := `## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [x] OT-P0-001 | Something | Outcome
+- [ ] OT-P0-002 | Another | Result
+`
+	desired := map[string]bool{
+		"OT-P0-001": true,  // already checked
+		"OT-P0-002": false, // already unchecked
+	}
+
+	updated, changed := updateOperationalTargetChecklistLines(content, desired)
+
+	if changed {
+		t.Errorf("expected no changes (already in desired state)")
+	}
+	if updated != content {
+		t.Errorf("content should be unchanged")
+	}
+}
+
+func TestUpdateOperationalTargetChecklistLines_PreservesOtherContent(t *testing.T) {
+	content := `# PRD Title
+
+Some intro text.
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Something | Outcome
+
+### 🟠 P1 – Should have
+- [ ] OT-P1-001 | Nice feature
+
+## Other Section
+More content here.
+`
+	desired := map[string]bool{
+		"OT-P0-001": true,
+	}
+
+	updated, changed := updateOperationalTargetChecklistLines(content, desired)
+
+	if !changed {
+		t.Fatal("expected changes")
+	}
+
+	// Verify structure preserved
+	if !strings.Contains(updated, "# PRD Title") {
+		t.Error("title lost")
+	}
+	if !strings.Contains(updated, "Some intro text.") {
+		t.Error("intro lost")
+	}
+	if !strings.Contains(updated, "## Other Section") {
+		t.Error("other section lost")
+	}
+	if !strings.Contains(updated, "- [ ] OT-P1-001") {
+		t.Error("P1 target modified unexpectedly")
+	}
+	if !strings.Contains(updated, "- [x] OT-P0-001") {
+		t.Error("P0 target not updated")
+	}
+}
+
+func TestUpdateOperationalTargetChecklistLines_HandlesVariousFormats(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     string
+		wantLine string
+		check    bool
+	}{
+		{
+			name:     "standard format",
+			line:     "- [ ] OT-P0-001 | Title | Outcome",
+			wantLine: "- [x] OT-P0-001 | Title | Outcome",
+			check:    true,
+		},
+		{
+			name:     "with leading spaces",
+			line:     "  - [ ] OT-P0-001 | Title",
+			wantLine: "  - [x] OT-P0-001 | Title",
+			check:    true,
+		},
+		{
+			// Note: lowercase P is supported (OT-p0-001), but lowercase OT is not.
+			// PRD template uses uppercase OT format consistently.
+			name:     "lowercase priority",
+			line:     "- [ ] OT-p0-001 | Title",
+			wantLine: "- [x] OT-p0-001 | Title",
+			check:    true,
+		},
+		{
+			name:     "extra spaces after bracket",
+			line:     "- [ ]  OT-P0-001 | Title",
+			wantLine: "- [x]  OT-P0-001 | Title",
+			check:    true,
+		},
+		{
+			name:     "P1 target",
+			line:     "- [ ] OT-P1-042 | Enhancement",
+			wantLine: "- [x] OT-P1-042 | Enhancement",
+			check:    true,
+		},
+		{
+			name:     "P2 target",
+			line:     "- [x] OT-P2-013 | Future idea",
+			wantLine: "- [ ] OT-P2-013 | Future idea",
+			check:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Extract OT ID from line for the desired map (case-insensitive)
+			otPattern := regexp.MustCompile(`(?i)OT-P[0-2]-\d{3}`)
+			match := otPattern.FindString(tt.line)
+			if match == "" {
+				t.Fatalf("no OT pattern found in test line")
+			}
+
+			desired := map[string]bool{
+				strings.ToUpper(match): tt.check,
+			}
+
+			updated, changed := updateOperationalTargetChecklistLines(tt.line+"\n", desired)
+
+			if !changed {
+				t.Errorf("expected change to be made")
+			}
+			if !strings.Contains(updated, tt.wantLine) {
+				t.Errorf("expected line:\n%s\ngot:\n%s", tt.wantLine, updated)
+			}
+		})
+	}
+}
+
+func TestUpdateOperationalTargetChecklistLines_EmptyContent(t *testing.T) {
+	updated, changed := updateOperationalTargetChecklistLines("", map[string]bool{"OT-P0-001": true})
+
+	if changed {
+		t.Error("should not change empty content")
+	}
+	if updated != "" {
+		t.Error("should return empty string unchanged")
+	}
+}
+
+func TestUpdateOperationalTargetChecklistLines_EmptyDesired(t *testing.T) {
+	content := "- [ ] OT-P0-001 | Something"
+	updated, changed := updateOperationalTargetChecklistLines(content, nil)
+
+	if changed {
+		t.Error("should not change with nil desired map")
+	}
+	if updated != content {
+		t.Error("content should be unchanged")
+	}
+}
+
+func TestUpdateOperationalTargetChecklistLines_IgnoresUnknownOTs(t *testing.T) {
+	content := `- [ ] OT-P0-001 | Something
+- [ ] OT-P0-002 | Another
+`
+	desired := map[string]bool{
+		"OT-P0-001": true,
+		// OT-P0-002 not in desired map - should be left alone
+	}
+
+	updated, changed := updateOperationalTargetChecklistLines(content, desired)
+
+	if !changed {
+		t.Fatal("expected changes for OT-P0-001")
+	}
+	if !strings.Contains(updated, "- [x] OT-P0-001") {
+		t.Error("OT-P0-001 should be checked")
+	}
+	if !strings.Contains(updated, "- [ ] OT-P0-002") {
+		t.Error("OT-P0-002 should be unchanged (not in desired map)")
+	}
+}
+
+func TestSyncer_Sync_UpdatesPRDOperationalTargets_Uncheck(t *testing.T) {
+	reader := newMemReader()
+	writer := newMemWriter()
+	syncer := New(reader, writer)
+
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/scenario/requirements/module.json",
+		Requirements: []types.Requirement{
+			{ID: "REQ-001", Status: types.StatusInProgress, PRDRef: "OT-P0-001"},
+		},
+	}
+	index.AddModule(module)
+
+	scenarioRoot := "/test/scenario"
+	prdPath := filepath.Join(scenarioRoot, "PRD.md")
+	reader.files[prdPath] = []byte(`## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [x] OT-P0-001 | Something | Outcome
+`)
+
+	evidence := types.NewEvidenceBundle()
+	opts := DefaultOptions()
+	opts.ScenarioRoot = scenarioRoot
+
+	result, err := syncer.Sync(context.Background(), index, evidence, opts)
+	if err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected result")
+	}
+
+	updated, ok := writer.files[prdPath]
+	if !ok {
+		t.Fatal("expected PRD.md to be written")
+	}
+	if !strings.Contains(string(updated), "- [ ] OT-P0-001") {
+		t.Errorf("expected OT-P0-001 to be unchecked, got:\n%s", string(updated))
+	}
+}
+
+func TestSyncer_Sync_PRDNotFound_NoError(t *testing.T) {
+	reader := newMemReader()
+	writer := newMemWriter()
+	syncer := New(reader, writer)
+
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/scenario/requirements/module.json",
+		Requirements: []types.Requirement{
+			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "OT-P0-001"},
+		},
+	}
+	index.AddModule(module)
+
+	scenarioRoot := "/test/scenario"
+	// Note: PRD.md not added to reader
+
+	evidence := types.NewEvidenceBundle()
+	opts := DefaultOptions()
+	opts.ScenarioRoot = scenarioRoot
+
+	result, err := syncer.Sync(context.Background(), index, evidence, opts)
+	if err != nil {
+		t.Fatalf("sync should not error when PRD not found: %v", err)
+	}
+	if len(result.Errors) != 0 {
+		t.Errorf("expected no errors, got: %v", result.Errors)
+	}
+}
+
+func TestSyncer_Sync_NoOTsInRequirements_NoChange(t *testing.T) {
+	reader := newMemReader()
+	writer := newMemWriter()
+	syncer := New(reader, writer)
+
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/scenario/requirements/module.json",
+		Requirements: []types.Requirement{
+			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "Some other ref"},
+		},
+	}
+	index.AddModule(module)
+
+	scenarioRoot := "/test/scenario"
+	prdPath := filepath.Join(scenarioRoot, "PRD.md")
+	prdContent := []byte("- [ ] OT-P0-001 | Something")
+	reader.files[prdPath] = prdContent
+
+	evidence := types.NewEvidenceBundle()
+	opts := DefaultOptions()
+	opts.ScenarioRoot = scenarioRoot
+
+	_, err := syncer.Sync(context.Background(), index, evidence, opts)
+	if err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	// PRD should not be written (no changes)
+	if _, exists := writer.files[prdPath]; exists {
+		t.Error("PRD should not be written when no OTs need updating")
+	}
+}
+
+func TestSyncer_Sync_DryRun_NoWritePRD(t *testing.T) {
+	reader := newMemReader()
+	writer := newMemWriter()
+	syncer := New(reader, writer)
+
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/scenario/requirements/module.json",
+		Requirements: []types.Requirement{
+			{ID: "REQ-001", Status: types.StatusComplete, PRDRef: "OT-P0-001"},
+		},
+	}
+	index.AddModule(module)
+
+	scenarioRoot := "/test/scenario"
+	prdPath := filepath.Join(scenarioRoot, "PRD.md")
+	reader.files[prdPath] = []byte("- [ ] OT-P0-001 | Something")
+
+	evidence := types.NewEvidenceBundle()
+	opts := DefaultOptions()
+	opts.ScenarioRoot = scenarioRoot
+	opts.DryRun = true
+
+	_, err := syncer.Sync(context.Background(), index, evidence, opts)
+	if err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	if len(writer.files) != 0 {
+		t.Errorf("dry run should not write any files, wrote: %d", len(writer.files))
+	}
+}
+
 func TestSyncer_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")

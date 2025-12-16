@@ -624,9 +624,25 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n\n")
 	}
 
-	// Include existing PRD content if requested
-	if includeExisting && draft.Content != "" {
-		prompt.WriteString("Current PRD Content:\n")
+	var publishedPRD string
+	if includeExisting {
+		if root, err := getVrooliRoot(); err == nil {
+			path := filepath.Join(root, draft.EntityType+"s", draft.EntityName, "PRD.md")
+			if data, err := os.ReadFile(path); err == nil {
+				publishedPRD = string(data)
+			}
+		}
+	}
+
+	// Include existing PRD content if requested (prefer published PRD over draft content).
+	if includeExisting && strings.TrimSpace(publishedPRD) != "" {
+		prompt.WriteString("Published PRD Content:\n")
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n")
+		prompt.WriteString(publishedPRD)
+		prompt.WriteString("\n")
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n\n")
+	} else if includeExisting && strings.TrimSpace(draft.Content) != "" {
+		prompt.WriteString("Current Draft Content:\n")
 		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n")
 		prompt.WriteString(draft.Content)
 		prompt.WriteString("\n")
@@ -639,6 +655,55 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 		prompt.WriteString("Task: Generate a complete PRD that matches the Vrooli PRD template exactly.\n\n")
 	} else {
 		prompt.WriteString(fmt.Sprintf("Task: Generate the \"%s\" section for this PRD.\n\n", section))
+	}
+
+	if isFullPRD && includeExisting {
+		source := strings.TrimSpace(publishedPRD)
+		if source == "" {
+			source = strings.TrimSpace(draft.Content)
+		}
+		existingTargets := parseOperationalTargets(source, draft.EntityType, draft.EntityName)
+		if len(existingTargets) > 0 {
+			prompt.WriteString("Existing Operational Targets (CRITICAL):\n")
+			prompt.WriteString("- Preserve the OT IDs exactly (OT-P0-### / OT-P1-### / OT-P2-###)\n")
+			prompt.WriteString("- Do not add or remove operational targets; keep the same set of OT IDs\n")
+			prompt.WriteString("- You may refine the title/description, but keep intent aligned to each existing OT ID\n\n")
+
+			grouped := map[string][]OperationalTarget{"P0": {}, "P1": {}, "P2": {}}
+			for _, t := range existingTargets {
+				crit := strings.ToUpper(strings.TrimSpace(t.Criticality))
+				if crit == "" {
+					crit = "P2"
+				}
+				grouped[crit] = append(grouped[crit], t)
+			}
+			for key := range grouped {
+				sort.Slice(grouped[key], func(i, j int) bool {
+					return grouped[key][i].ID < grouped[key][j].ID
+				})
+			}
+
+			writeGroup := func(header string, crit string) {
+				prompt.WriteString(header + "\n")
+				for _, t := range grouped[crit] {
+					title := strings.TrimSpace(t.Title)
+					desc := strings.TrimSpace(t.Notes)
+					if title == "" {
+						title = "Title"
+					}
+					if desc == "" {
+						desc = "One-line measurable outcome"
+					}
+					prompt.WriteString(fmt.Sprintf("- [ ] %s | %s | %s\n", strings.TrimSpace(t.ID), title, desc))
+				}
+				prompt.WriteString("\n")
+			}
+
+			prompt.WriteString("Use these exact OT IDs:\n\n")
+			writeGroup("### 🔴 P0 – Must ship for viability", "P0")
+			writeGroup("### 🟠 P1 – Should have post-launch", "P1")
+			writeGroup("### 🟢 P2 – Future / expansion", "P2")
+		}
 	}
 
 	// Include additional context if provided
@@ -657,6 +722,11 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 	prompt.WriteString("- Include measurable criteria where applicable\n")
 	prompt.WriteString("- Use markdown formatting\n")
 	prompt.WriteString("- Focus on business value and technical clarity\n")
+	if isFullPRD {
+		prompt.WriteString("- Operational target IDs MUST use the format OT-P0-001 / OT-P1-001 / OT-P2-001 (increment the 3-digit suffix)\n")
+		prompt.WriteString("- If Current PRD Content includes existing OT-P*-NNN IDs, preserve those IDs exactly and keep them stable\n")
+		prompt.WriteString("- Do not include requirement IDs or [req:...] tags in operational target lines\n")
+	}
 	if len(referencePRDs) > 0 {
 		prompt.WriteString("- Use the reference PRD examples above as inspiration for style, structure, and level of detail\n")
 	}
@@ -671,6 +741,7 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 		prompt.WriteString("Deployment surfaces: ...\n")
 		prompt.WriteString("Value proposition: ...\n\n")
 		prompt.WriteString("## 🎯 Operational Targets\n\n")
+		prompt.WriteString("Operational targets are measurable outcomes; checkboxes may auto-update based on validation.\n\n")
 		prompt.WriteString("### 🔴 P0 – Must ship for viability\n")
 		prompt.WriteString("- [ ] OT-P0-001 | Title | One-line measurable outcome\n\n")
 		prompt.WriteString("### 🟠 P1 – Should have post-launch\n")
@@ -695,6 +766,7 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 		prompt.WriteString("- Return ONLY the PRD content (no preamble)\n")
 		prompt.WriteString("- Use the exact headings shown above (including emojis)\n")
 		prompt.WriteString("- Do not wrap the response in code fences\n")
+		prompt.WriteString("- Keep operational target IDs stable (OT-P*-NNN)\n")
 	} else {
 		prompt.WriteString(fmt.Sprintf("Generate only the content for the \"%s\" section. Do not include the section header itself.\n\nIMPORTANT: Return ONLY the section content. Do not include any preamble, introduction, explanations, or phrases like \"Here's the section:\" or \"Here is the content:\". Start directly with the content.", section))
 	}
@@ -736,6 +808,7 @@ func buildFullPRDRepairPrompt(draft Draft, context string, includeExisting bool,
 	prompt.WriteString("Deployment surfaces: ...\n")
 	prompt.WriteString("Value proposition: ...\n\n")
 	prompt.WriteString("## 🎯 Operational Targets\n\n")
+	prompt.WriteString("Operational targets are measurable outcomes; checkboxes may auto-update based on validation.\n\n")
 	prompt.WriteString("### 🔴 P0 – Must ship for viability\n")
 	prompt.WriteString("- [ ] OT-P0-001 | Title | One-line measurable outcome\n\n")
 	prompt.WriteString("### 🟠 P1 – Should have post-launch\n")
@@ -764,6 +837,7 @@ func buildFullPRDRepairPrompt(draft Draft, context string, includeExisting bool,
 	prompt.WriteString("=" + strings.Repeat("=", 70) + "\n\n")
 
 	prompt.WriteString("Rewrite the PRD so it complies. Preserve good content, but ensure required headings are present and there are no unexpected sections.\n")
+	prompt.WriteString("Operational target IDs MUST remain stable (OT-P*-NNN). If any IDs were present in the existing PRD, preserve them exactly.\n")
 	prompt.WriteString("Return ONLY the PRD content. Do not wrap in code fences.\n")
 	return prompt.String()
 }

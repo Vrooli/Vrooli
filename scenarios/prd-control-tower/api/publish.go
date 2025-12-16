@@ -332,6 +332,24 @@ func validateOperationalTargetsLinkage(entityType, entityName, content string) e
 		return nil
 	}
 
+	// If the index exists but contains no imports, treat requirements as not yet seeded and skip.
+	// This avoids blocking initial PRD publishing for freshly scaffolded templates that create an
+	// empty requirements registry by default.
+	hasImports, err := requirementsIndexHasImports(reqsPath)
+	if err != nil {
+		// If we cannot parse the registry, do not bypass validation silently.
+		return fmt.Errorf("failed to inspect requirements registry: %w", err)
+	}
+	if !hasImports {
+		return nil
+	}
+
+	groups, err := loadRequirementsForEntity(entityType, entityName)
+	if err != nil {
+		return fmt.Errorf("failed to load requirements registry: %w", err)
+	}
+	targets, _ = linkTargetsAndRequirements(targets, groups)
+
 	// Find orphaned critical targets (P0/P1 without linked requirements)
 	orphanedCritical := []OperationalTarget{}
 	for _, target := range targets {
@@ -354,6 +372,22 @@ func validateOperationalTargetsLinkage(entityType, entityName, content string) e
 	}
 
 	return nil
+}
+
+type requirementsIndexFile struct {
+	Imports []string `json:"imports"`
+}
+
+func requirementsIndexHasImports(path string) (bool, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	var parsed requirementsIndexFile
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return false, err
+	}
+	return len(parsed.Imports) > 0, nil
 }
 
 // Helper function to copy a file

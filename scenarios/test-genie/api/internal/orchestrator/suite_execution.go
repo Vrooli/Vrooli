@@ -508,9 +508,12 @@ func (o *SuiteOrchestrator) syncRequirementsIfNeeded(
 	if decision.Forced && decision.Reason != "" {
 		log.Printf("forcing requirements sync despite: %s", decision.Reason)
 	}
-	if len(phaseResults) != len(plan.Selected) {
-		log.Printf("requirements sync skipped: recorded %d phase results but expected %d", len(phaseResults), len(plan.Selected))
-		return
+	// Allow partial sync on early abort (fail-fast). The syncer only updates
+	// requirements for phases that actually ran; unaffected requirements keep
+	// their previous status. This ensures PRD checkboxes stay honest even when
+	// the test suite exits early.
+	if len(phaseResults) < len(plan.Selected) {
+		log.Printf("requirements sync proceeding with partial results: recorded %d of %d phases (fail-fast likely)", len(phaseResults), len(plan.Selected))
 	}
 	history := buildCommandHistory(req, plan)
 	input := requirements.SyncInput{

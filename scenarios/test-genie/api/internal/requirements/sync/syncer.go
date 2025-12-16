@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	"test-genie/internal/requirements/parsing"
@@ -206,10 +208,141 @@ func (s *syncer) Sync(ctx context.Context, index *parsing.ModuleIndex, evidence 
 		// Write sync metadata
 		if opts.ScenarioRoot != "" {
 			s.writeSyncMetadata(ctx, opts.ScenarioRoot, result)
+			if err := s.updatePRDOperationalTargets(ctx, index, opts.ScenarioRoot, result.SyncedAt); err != nil {
+				result.Errors = append(result.Errors, err)
+			}
 		}
 	}
 
 	return result, nil
+}
+
+func (s *syncer) updatePRDOperationalTargets(ctx context.Context, index *parsing.ModuleIndex, scenarioRoot string, ts time.Time) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+	if s == nil || s.reader == nil || s.writer == nil {
+		return nil
+	}
+	if index == nil || scenarioRoot == "" {
+		return nil
+	}
+
+	prdPath := filepath.Join(scenarioRoot, "PRD.md")
+	if !s.reader.Exists(prdPath) {
+		return nil
+	}
+
+	desired := desiredOperationalTargetCheckboxes(index)
+	if len(desired) == 0 {
+		return nil
+	}
+
+	raw, err := s.reader.ReadFile(prdPath)
+	if err != nil {
+		return err
+	}
+	original := string(raw)
+	updated, changed := updateOperationalTargetChecklistLines(original, desired)
+	if !changed {
+		return nil
+	}
+
+	backupDir := filepath.Join(scenarioRoot, "coverage", "requirements-sync", "prd-backups")
+	if err := s.writer.MkdirAll(backupDir, 0755); err != nil {
+		return err
+	}
+	backupPath := filepath.Join(backupDir, "PRD.md."+ts.Format("20060102-150405"))
+	if err := s.writer.WriteFile(backupPath, raw, 0644); err != nil {
+		return err
+	}
+	return s.writer.WriteFile(prdPath, []byte(updated), 0644)
+}
+
+func desiredOperationalTargetCheckboxes(index *parsing.ModuleIndex) map[string]bool {
+	if index == nil {
+		return nil
+	}
+	re := regexp.MustCompile(`OT-[Pp][0-2]-\d{3}`)
+	type counts struct {
+		total    int
+		complete int
+	}
+	byOT := make(map[string]*counts)
+
+	for _, module := range index.Modules {
+		if module == nil {
+			continue
+		}
+		for i := range module.Requirements {
+			req := &module.Requirements[i]
+			if req == nil {
+				continue
+			}
+			m := re.FindString(req.PRDRef)
+			if m == "" {
+				continue
+			}
+			ot := strings.ToUpper(m)
+			c := byOT[ot]
+			if c == nil {
+				c = &counts{}
+				byOT[ot] = c
+			}
+			c.total++
+			if req.Status == types.StatusComplete {
+				c.complete++
+			}
+		}
+	}
+
+	desired := make(map[string]bool, len(byOT))
+	for ot, c := range byOT {
+		if c == nil || c.total == 0 {
+			continue
+		}
+		desired[ot] = c.complete == c.total
+	}
+	return desired
+}
+
+func updateOperationalTargetChecklistLines(content string, desired map[string]bool) (string, bool) {
+	if strings.TrimSpace(content) == "" || len(desired) == 0 {
+		return content, false
+	}
+
+	lineRe := regexp.MustCompile(`^(\s*-\s*\[)([ xX])(\]\s*)(OT-[Pp][0-2]-\d{3})(\b.*)$`)
+	lines := strings.Split(content, "\n")
+	changed := false
+
+	for i, line := range lines {
+		m := lineRe.FindStringSubmatch(line)
+		if len(m) != 6 {
+			continue
+		}
+		otKey := strings.ToUpper(m[4])
+		wantChecked, ok := desired[otKey]
+		if !ok {
+			continue
+		}
+		currentChecked := m[2] == "x" || m[2] == "X"
+		if currentChecked == wantChecked {
+			continue
+		}
+		mark := " "
+		if wantChecked {
+			mark = "x"
+		}
+		lines[i] = m[1] + mark + m[3] + m[4] + m[5]
+		changed = true
+	}
+
+	if !changed {
+		return content, false
+	}
+	return strings.Join(lines, "\n"), true
 }
 
 // Preview shows what changes would be made without writing.
