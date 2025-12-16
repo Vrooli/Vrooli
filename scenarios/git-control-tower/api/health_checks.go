@@ -3,45 +3,51 @@ package main
 import (
 	"context"
 	"database/sql"
-	"os/exec"
 	"strings"
 	"time"
 )
 
+// HealthCheckDeps contains dependencies for health checks.
+// SEAM: Uses GitRunner interface for git operations, enabling testing without real git.
 type HealthCheckDeps struct {
 	DB      *sql.DB
-	GitPath string
+	Git     GitRunner
 	RepoDir string
 }
 
+// HealthCheckResult represents the response from the health check endpoint.
 type HealthCheckResult struct {
-	Status       string                     `json:"status"`
-	Service      string                     `json:"service"`
-	Version      string                     `json:"version"`
-	Readiness    bool                       `json:"readiness"`
-	Timestamp    string                     `json:"timestamp"`
+	Status       string                      `json:"status"`
+	Service      string                      `json:"service"`
+	Version      string                      `json:"version"`
+	Readiness    bool                        `json:"readiness"`
+	Timestamp    string                      `json:"timestamp"`
 	Dependencies map[string]HealthDependency `json:"dependencies"`
-	Errors       map[string]string          `json:"errors,omitempty"`
+	Errors       map[string]string           `json:"errors,omitempty"`
 }
 
+// HealthChecks performs dependency health validation.
 type HealthChecks struct {
 	deps HealthCheckDeps
 }
 
+// HealthDependency represents the status of a single dependency.
 type HealthDependency struct {
 	Connected bool   `json:"connected"`
 	Status    string `json:"status,omitempty"`
 }
 
+// NewHealthChecks creates a new HealthChecks instance.
+// If deps.Git is nil, a default ExecGitRunner is used.
 func NewHealthChecks(deps HealthCheckDeps) *HealthChecks {
-	deps.GitPath = strings.TrimSpace(deps.GitPath)
-	if deps.GitPath == "" {
-		deps.GitPath = "git"
+	if deps.Git == nil {
+		deps.Git = &ExecGitRunner{GitPath: "git"}
 	}
 	deps.RepoDir = strings.TrimSpace(deps.RepoDir)
 	return &HealthChecks{deps: deps}
 }
 
+// Run executes all health checks and returns the combined result.
 func (h *HealthChecks) Run(ctx context.Context) HealthCheckResult {
 	dependencies := make(map[string]HealthDependency, 3)
 	errors := make(map[string]string, 3)
@@ -86,7 +92,7 @@ func (h *HealthChecks) checkDatabase(ctx context.Context, deps map[string]Health
 }
 
 func (h *HealthChecks) checkGitBinary(deps map[string]HealthDependency, errs map[string]string) bool {
-	path, err := exec.LookPath(h.deps.GitPath)
+	path, err := h.deps.Git.LookPath()
 	if err != nil || strings.TrimSpace(path) == "" {
 		deps["git"] = HealthDependency{Connected: false, Status: "missing"}
 		if err != nil {
@@ -106,14 +112,11 @@ func (h *HealthChecks) checkRepository(ctx context.Context, deps map[string]Heal
 		errs["repository"] = "could not resolve repository root"
 		return false
 	}
-	cmd := exec.CommandContext(ctx, h.deps.GitPath, "-C", h.deps.RepoDir, "rev-parse", "--is-inside-work-tree")
-	out, err := cmd.CombinedOutput()
+
+	out, err := h.deps.Git.RevParse(ctx, h.deps.RepoDir, "--is-inside-work-tree")
 	if err != nil {
 		deps["repository"] = HealthDependency{Connected: false, Status: "unavailable"}
-		errs["repository"] = strings.TrimSpace(string(out))
-		if errs["repository"] == "" {
-			errs["repository"] = err.Error()
-		}
+		errs["repository"] = err.Error()
 		return false
 	}
 	if strings.TrimSpace(string(out)) != "true" {

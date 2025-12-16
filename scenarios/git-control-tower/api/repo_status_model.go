@@ -40,4 +40,3 @@ type RepoStatusSummary struct {
 	Conflicts int `json:"conflicts"`
 	Ignored   int `json:"ignored,omitempty"`
 }
-

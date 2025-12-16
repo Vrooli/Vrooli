@@ -77,4 +77,3 @@ func scopeKeyForPath(path string) string {
 	}
 	return "other"
 }
-

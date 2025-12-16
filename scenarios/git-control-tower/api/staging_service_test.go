@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 )
 
 // [REQ:GCT-OT-P0-004] Stage/unstage operations
+
+// --- Unit Tests using FakeGitRunner (fast, safe, no real git) ---
 
 func TestStageFiles_RequiresGitRunner(t *testing.T) {
 	ctx := context.Background()
@@ -25,8 +28,9 @@ func TestStageFiles_RequiresGitRunner(t *testing.T) {
 
 func TestStageFiles_RequiresRepoDir(t *testing.T) {
 	ctx := context.Background()
+	fakeGit := NewFakeGitRunner()
 	_, err := StageFiles(ctx, StagingDeps{
-		Git:     &ExecGitRunner{GitPath: "git"},
+		Git:     fakeGit,
 		RepoDir: "",
 	}, StageRequest{Paths: []string{"file.txt"}})
 	if err == nil || !strings.Contains(err.Error(), "repo dir is required") {
@@ -36,9 +40,10 @@ func TestStageFiles_RequiresRepoDir(t *testing.T) {
 
 func TestStageFiles_EmptyPaths(t *testing.T) {
 	ctx := context.Background()
+	fakeGit := NewFakeGitRunner()
 	result, err := StageFiles(ctx, StagingDeps{
-		Git:     &ExecGitRunner{GitPath: "git"},
-		RepoDir: "/tmp",
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
 	}, StageRequest{Paths: []string{}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -48,6 +53,74 @@ func TestStageFiles_EmptyPaths(t *testing.T) {
 	}
 	if len(result.Staged) != 0 {
 		t.Fatalf("expected no staged files")
+	}
+	// Ensure git was NOT called for empty paths
+	if fakeGit.AssertCalled("Stage") {
+		t.Fatalf("git stage should not be called for empty paths")
+	}
+}
+
+func TestStageFiles_WithFakeGit(t *testing.T) {
+	fakeGit := NewFakeGitRunner().
+		AddUntrackedFile("newfile.txt").
+		AddUnstagedFile("modified.txt")
+
+	result, err := StageFiles(context.Background(), StagingDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, StageRequest{
+		Paths: []string{"newfile.txt", "modified.txt"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Success {
+		t.Fatalf("expected success, got errors: %v", result.Errors)
+	}
+	if len(result.Staged) != 2 {
+		t.Fatalf("expected 2 staged files, got %d", len(result.Staged))
+	}
+	if !fakeGit.AssertCalled("Stage") {
+		t.Fatalf("expected Stage to be called")
+	}
+}
+
+func TestStageFiles_PathTraversalBlocked(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+
+	result, err := StageFiles(context.Background(), StagingDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, StageRequest{
+		Paths: []string{"../../../etc/passwd"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Path traversal paths should be filtered out
+	if result.Success && len(result.Staged) > 0 {
+		t.Fatalf("expected path traversal to be blocked, got staged: %v", result.Staged)
+	}
+}
+
+func TestStageFiles_GitError(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+	fakeGit.StageError = fmt.Errorf("simulated git add failure")
+
+	result, err := StageFiles(context.Background(), StagingDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, StageRequest{
+		Paths: []string{"file.txt"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Success {
+		t.Fatalf("expected failure due to git error")
+	}
+	if len(result.Errors) == 0 {
+		t.Fatalf("expected errors to be populated")
 	}
 }
 
@@ -64,14 +137,64 @@ func TestUnstageFiles_RequiresGitRunner(t *testing.T) {
 
 func TestUnstageFiles_RequiresRepoDir(t *testing.T) {
 	ctx := context.Background()
+	fakeGit := NewFakeGitRunner()
 	_, err := UnstageFiles(ctx, StagingDeps{
-		Git:     &ExecGitRunner{GitPath: "git"},
+		Git:     fakeGit,
 		RepoDir: "",
 	}, UnstageRequest{Paths: []string{"file.txt"}})
 	if err == nil || !strings.Contains(err.Error(), "repo dir is required") {
 		t.Fatalf("expected 'repo dir is required' error, got %v", err)
 	}
 }
+
+func TestUnstageFiles_WithFakeGit(t *testing.T) {
+	fakeGit := NewFakeGitRunner().
+		AddStagedFile("staged.txt")
+
+	result, err := UnstageFiles(context.Background(), StagingDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, UnstageRequest{
+		Paths: []string{"staged.txt"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Success {
+		t.Fatalf("expected success, got errors: %v", result.Errors)
+	}
+	if len(result.Unstaged) != 1 {
+		t.Fatalf("expected 1 unstaged file, got %d", len(result.Unstaged))
+	}
+	if !fakeGit.AssertCalled("Unstage") {
+		t.Fatalf("expected Unstage to be called")
+	}
+}
+
+func TestUnstageFiles_GitError(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+	fakeGit.UnstageError = fmt.Errorf("simulated git reset failure")
+
+	result, err := UnstageFiles(context.Background(), StagingDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, UnstageRequest{
+		Paths: []string{"file.txt"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Success {
+		t.Fatalf("expected failure due to git error")
+	}
+	if len(result.Errors) == 0 {
+		t.Fatalf("expected errors to be populated")
+	}
+}
+
+// --- Integration Tests using real git (marked with suffix _Integration) ---
+// These tests require git to be installed and create real repos in temp directories.
+// Keep these as a safety net to verify ExecGitRunner works with the actual git binary.
 
 func TestStageFiles_WithRealRepo(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
@@ -224,17 +347,8 @@ func TestCleanFilePath(t *testing.T) {
 	}
 }
 
+// runGitStaging is an alias for RunGitCommand for backward compatibility.
+// New tests should use RunGitCommand directly.
 func runGitStaging(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	cmd.Env = append(os.Environ(),
-		"GIT_AUTHOR_NAME=Test",
-		"GIT_AUTHOR_EMAIL=test@test.com",
-		"GIT_COMMITTER_NAME=Test",
-		"GIT_COMMITTER_EMAIL=test@test.com",
-	)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("git %v failed: %v (%s)", args, err, string(out))
-	}
+	RunGitCommand(t, dir, args...)
 }

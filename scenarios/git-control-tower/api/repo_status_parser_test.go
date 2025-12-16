@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"os"
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -11,6 +11,119 @@ import (
 )
 
 // [REQ:GCT-OT-P0-002] Repository status API
+
+// --- Unit Tests using FakeGitRunner (fast, safe, no real git) ---
+
+func TestGetRepoStatus_WithFakeGit(t *testing.T) {
+	fakeGit := NewFakeGitRunner().
+		WithBranch("feature/test", "origin/feature/test", 3, 1).
+		AddStagedFile("scenarios/alpha/file.go").
+		AddUnstagedFile("resources/beta/config.yaml").
+		AddUntrackedFile("notes.txt")
+	// Note: Not adding conflicts here as they have complex XY behavior
+
+	status, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify branch info
+	if status.Branch.Head != "feature/test" {
+		t.Fatalf("expected branch head=feature/test, got %q", status.Branch.Head)
+	}
+	if status.Branch.Upstream != "origin/feature/test" {
+		t.Fatalf("expected upstream origin/feature/test, got %q", status.Branch.Upstream)
+	}
+	if status.Branch.Ahead != 3 {
+		t.Fatalf("expected ahead=3, got %d", status.Branch.Ahead)
+	}
+	if status.Branch.Behind != 1 {
+		t.Fatalf("expected behind=1, got %d", status.Branch.Behind)
+	}
+
+	// Verify summary counts
+	if status.Summary.Staged != 1 {
+		t.Fatalf("expected 1 staged file, got %d", status.Summary.Staged)
+	}
+	if status.Summary.Unstaged != 1 {
+		t.Fatalf("expected 1 unstaged file, got %d", status.Summary.Unstaged)
+	}
+	if status.Summary.Untracked != 1 {
+		t.Fatalf("expected 1 untracked file, got %d", status.Summary.Untracked)
+	}
+
+	// Verify git was called
+	if !fakeGit.AssertCalled("StatusPorcelainV2") {
+		t.Fatalf("expected StatusPorcelainV2 to be called")
+	}
+}
+
+func TestGetRepoStatus_WithConflicts(t *testing.T) {
+	fakeGit := NewFakeGitRunner().
+		AddConflictFile("conflicted.txt")
+
+	status, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Conflicts with UU status appear in both staged and unstaged
+	// This is correct git behavior - both index and worktree differ from base
+	if status.Summary.Conflicts != 1 {
+		t.Fatalf("expected 1 conflict file, got %d", status.Summary.Conflicts)
+	}
+	if status.Summary.Staged < 1 {
+		t.Fatalf("expected at least 1 staged (from conflict), got %d", status.Summary.Staged)
+	}
+	if status.Summary.Unstaged < 1 {
+		t.Fatalf("expected at least 1 unstaged (from conflict), got %d", status.Summary.Unstaged)
+	}
+}
+
+func TestGetRepoStatus_GitError(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+	fakeGit.StatusError = fmt.Errorf("simulated git status failure")
+
+	_, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	})
+	if err == nil {
+		t.Fatalf("expected error from git failure")
+	}
+	if !strings.Contains(err.Error(), "simulated git status failure") {
+		t.Fatalf("expected error to contain 'simulated git status failure', got: %v", err)
+	}
+}
+
+func TestGetRepoStatus_RequiresGitRunner(t *testing.T) {
+	_, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:     nil,
+		RepoDir: "/fake/repo",
+	})
+	if err == nil || !strings.Contains(err.Error(), "git runner is required") {
+		t.Fatalf("expected 'git runner is required' error, got %v", err)
+	}
+}
+
+func TestGetRepoStatus_RequiresRepoDir(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+	_, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:     fakeGit,
+		RepoDir: "",
+	})
+	if err == nil || !strings.Contains(err.Error(), "repo dir is required") {
+		t.Fatalf("expected 'repo dir is required' error, got %v", err)
+	}
+}
+
+// --- Parser Tests (pure functions, no git needed) ---
 
 func TestParsePorcelainV2Status_BranchAndFiles(t *testing.T) {
 	out := []byte(strings.Join([]string{
@@ -89,32 +202,20 @@ func TestGetRepoStatus_UsesGitAndDetectsScopes(t *testing.T) {
 	}
 }
 
+// runGit is an alias for RunGitCommand for backward compatibility.
+// New tests should use RunGitCommand directly.
 func runGit(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("git %v failed: %v (%s)", args, err, string(out))
-	}
+	RunGitCommand(t, dir, args...)
 }
 
+// writeFile is an alias for WriteTestFile for backward compatibility.
+// New tests should use WriteTestFile directly.
 func writeFile(t *testing.T, path string, contents string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir failed: %v", err)
-	}
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
-		t.Fatalf("write file failed: %v", err)
-	}
+	WriteTestFile(t, path, contents)
 }
 
+// assertContains is an alias for AssertContains for backward compatibility.
+// New tests should use AssertContains directly.
 func assertContains(t *testing.T, values []string, expected string) {
-	t.Helper()
-	for _, v := range values {
-		if v == expected {
-			return
-		}
-	}
-	t.Fatalf("expected %q in %v", expected, values)
+	AssertContains(t, values, expected)
 }
-

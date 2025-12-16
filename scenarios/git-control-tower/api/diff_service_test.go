@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,91 @@ import (
 )
 
 // [REQ:GCT-OT-P0-003] File diff endpoint
+
+// --- Unit Tests using FakeGitRunner (fast, safe, no real git) ---
+
+func TestGetDiff_WithFakeGit(t *testing.T) {
+	fakeGit := NewFakeGitRunner().
+		AddUnstagedFile("modified.txt")
+
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, DiffRequest{
+		Path:   "modified.txt",
+		Staged: false,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !diff.HasDiff {
+		t.Fatalf("expected HasDiff=true")
+	}
+	if !fakeGit.AssertCalled("Diff") {
+		t.Fatalf("expected Diff to be called")
+	}
+}
+
+func TestGetDiff_WithFakeGit_Staged(t *testing.T) {
+	fakeGit := NewFakeGitRunner().
+		AddStagedFile("staged.txt")
+
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, DiffRequest{
+		Path:   "staged.txt",
+		Staged: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !diff.HasDiff {
+		t.Fatalf("expected HasDiff=true for staged file")
+	}
+	if diff.Staged != true {
+		t.Fatalf("expected Staged=true in response")
+	}
+}
+
+func TestGetDiff_WithFakeGit_NoDiff(t *testing.T) {
+	fakeGit := NewFakeGitRunner() // No files with changes
+
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, DiffRequest{
+		Path:   "clean.txt",
+		Staged: false,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if diff.HasDiff {
+		t.Fatalf("expected HasDiff=false for clean file")
+	}
+}
+
+func TestGetDiff_GitError(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+	fakeGit.DiffError = fmt.Errorf("simulated git diff failure")
+
+	_, err := GetDiff(context.Background(), DiffDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, DiffRequest{
+		Path:   "file.txt",
+		Staged: false,
+	})
+	if err == nil {
+		t.Fatalf("expected error from git failure")
+	}
+	if !strings.Contains(err.Error(), "simulated git diff failure") {
+		t.Fatalf("expected error to contain 'simulated git diff failure', got: %v", err)
+	}
+}
+
+// --- Parser Tests (pure functions, no git needed) ---
 
 func TestParseDiffOutput_EmptyDiff(t *testing.T) {
 	result := ParseDiffOutput("")
@@ -253,17 +339,8 @@ func TestGetDiff_StagedChanges(t *testing.T) {
 	}
 }
 
+// runGitCmd is an alias for RunGitCommand for backward compatibility.
+// New tests should use RunGitCommand directly.
 func runGitCmd(t *testing.T, dir string, args ...string) {
-	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	cmd.Env = append(os.Environ(),
-		"GIT_AUTHOR_NAME=Test",
-		"GIT_AUTHOR_EMAIL=test@test.com",
-		"GIT_COMMITTER_NAME=Test",
-		"GIT_COMMITTER_EMAIL=test@test.com",
-	)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("git %v failed: %v (%s)", args, err, string(out))
-	}
+	RunGitCommand(t, dir, args...)
 }

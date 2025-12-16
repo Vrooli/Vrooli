@@ -3,14 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
-	"os/exec"
 	"strings"
 	"syscall"
 	"time"
@@ -111,150 +109,145 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(r.Context())
+
 	checks := NewHealthChecks(HealthCheckDeps{
 		DB:      s.db,
-		GitPath: "git",
-		RepoDir: resolveRepoDir(),
+		Git:     s.git,
+		RepoDir: repoDir,
 	})
 	result := checks.Run(r.Context())
 
-	w.Header().Set("Content-Type", "application/json")
 	if !result.Readiness {
-		w.WriteHeader(http.StatusServiceUnavailable)
+		resp.ServiceUnavailable(result)
+		return
 	}
-	json.NewEncoder(w).Encode(result)
+	resp.OK(result)
 }
 
 func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
-	repoDir := resolveRepoDir()
-	if strings.TrimSpace(repoDir) == "" {
-		writeJSONError(w, http.StatusBadRequest, "repository root could not be resolved")
-		return
-	}
-
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
 
 	status, err := GetRepoStatus(ctx, RepoStatusDeps{
 		Git:     s.git,
 		RepoDir: repoDir,
 	})
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		resp.InternalError(err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	resp.OK(status)
 }
 
 // [REQ:GCT-OT-P0-003] File diff endpoint
 func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
-	repoDir := resolveRepoDir()
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
 	if strings.TrimSpace(repoDir) == "" {
-		writeJSONError(w, http.StatusBadRequest, "repository root could not be resolved")
+		resp.BadRequest("repository root could not be resolved")
 		return
 	}
 
 	// Parse query parameters
 	query := r.URL.Query()
-	path := query.Get("path")
-	staged := query.Get("staged") == "true"
-	base := query.Get("base")
-
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-
 	diff, err := GetDiff(ctx, DiffDeps{
 		Git:     s.git,
 		RepoDir: repoDir,
 	}, DiffRequest{
-		Path:   path,
-		Staged: staged,
-		Base:   base,
+		Path:   query.Get("path"),
+		Staged: query.Get("staged") == "true",
+		Base:   query.Get("base"),
 	})
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		resp.InternalError(err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(diff)
+	resp.OK(diff)
 }
 
 // [REQ:GCT-OT-P0-004] Stage/unstage operations
 func (s *Server) handleStage(w http.ResponseWriter, r *http.Request) {
-	repoDir := resolveRepoDir()
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
 	if strings.TrimSpace(repoDir) == "" {
-		writeJSONError(w, http.StatusBadRequest, "repository root could not be resolved")
+		resp.BadRequest("repository root could not be resolved")
 		return
 	}
 
 	var req StageRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+	if !ParseJSONBody(w, r, &req) {
 		return
 	}
-
-	if len(req.Paths) == 0 && req.Scope == "" {
-		writeJSONError(w, http.StatusBadRequest, "paths or scope required")
+	if !ValidateStagingRequest(w, req) {
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
 
 	result, err := StageFiles(ctx, StagingDeps{
 		Git:     s.git,
 		RepoDir: repoDir,
 	}, req)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		resp.InternalError(err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	if !result.Success {
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		resp.UnprocessableEntity(result)
+		return
 	}
-	json.NewEncoder(w).Encode(result)
+	resp.OK(result)
 }
 
 func (s *Server) handleUnstage(w http.ResponseWriter, r *http.Request) {
-	repoDir := resolveRepoDir()
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
 	if strings.TrimSpace(repoDir) == "" {
-		writeJSONError(w, http.StatusBadRequest, "repository root could not be resolved")
+		resp.BadRequest("repository root could not be resolved")
 		return
 	}
 
 	var req UnstageRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+	if !ParseJSONBody(w, r, &req) {
 		return
 	}
-
-	if len(req.Paths) == 0 && req.Scope == "" {
-		writeJSONError(w, http.StatusBadRequest, "paths or scope required")
+	if !ValidateStagingRequest(w, req) {
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
 
 	result, err := UnstageFiles(ctx, StagingDeps{
 		Git:     s.git,
 		RepoDir: repoDir,
 	}, req)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		resp.InternalError(err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	if !result.Success {
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		resp.UnprocessableEntity(result)
+		return
 	}
-	json.NewEncoder(w).Encode(result)
+	resp.OK(result)
 }
 
 // loggingMiddleware prints simple request logs
@@ -333,14 +326,3 @@ func main() {
 	}
 }
 
-func resolveRepoDir() string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		return root
-	}
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	out, err := cmd.Output()
-	if err == nil {
-		return strings.TrimSpace(string(out))
-	}
-	return ""
-}

@@ -11,15 +11,15 @@ type DiffRequest struct {
 
 // DiffResponse contains the diff output and metadata
 type DiffResponse struct {
-	RepoDir   string        `json:"repo_dir"`
-	Path      string        `json:"path,omitempty"`
-	Staged    bool          `json:"staged"`
-	Base      string        `json:"base,omitempty"`
-	HasDiff   bool          `json:"has_diff"`
-	Hunks     []DiffHunk    `json:"hunks,omitempty"`
-	Stats     DiffStats     `json:"stats"`
-	Raw       string        `json:"raw,omitempty"`
-	Timestamp time.Time     `json:"timestamp"`
+	RepoDir   string     `json:"repo_dir"`
+	Path      string     `json:"path,omitempty"`
+	Staged    bool       `json:"staged"`
+	Base      string     `json:"base,omitempty"`
+	HasDiff   bool       `json:"has_diff"`
+	Hunks     []DiffHunk `json:"hunks,omitempty"`
+	Stats     DiffStats  `json:"stats"`
+	Raw       string     `json:"raw,omitempty"`
+	Timestamp time.Time  `json:"timestamp"`
 }
 
 // DiffHunk represents a single hunk in a diff
