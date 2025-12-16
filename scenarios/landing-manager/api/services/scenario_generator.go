@@ -316,6 +316,7 @@ func copyTemplatePayload(scenarioRoot, outputDir string) error {
 	}{
 		{src: filepath.Join(scenarioRoot, "api"), dst: filepath.Join(outputDir, "api")},
 		{src: filepath.Join(scenarioRoot, "ui"), dst: filepath.Join(outputDir, "ui")},
+		{src: filepath.Join(scenarioRoot, "cli"), dst: filepath.Join(outputDir, "cli")},
 		{src: filepath.Join(scenarioRoot, "requirements"), dst: filepath.Join(outputDir, "requirements")},
 		{src: filepath.Join(scenarioRoot, "initialization"), dst: filepath.Join(outputDir, "initialization")},
 		{src: filepath.Join(scenarioRoot, ".vrooli"), dst: filepath.Join(outputDir, ".vrooli")},

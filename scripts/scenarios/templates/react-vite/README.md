@@ -23,7 +23,7 @@ Immediately replace placeholder tokens (scenario name, description, maintainer i
 ## What You Get
 - **Clean UI scaffold**: Vite + Tailwind + shadcn-style primitives, pnpm-based scripts, Vitest + Testing Library pre-configured, `.env.example` for API URL.
 - **Go API skeleton**: `go.mod` + `cmd/server` entrypoint ready for feature modules.
-- **CLI installer**: Installs into `~/.vrooli/bin` and updates shell rc files.
+- **CLI installer**: Installs into `~/.vrooli/bin` by default (prints PATH guidance if needed).
 - **Lifecycle-ready service.json**: ports aligned with the platform, only Postgres required by default, lifecycle steps that build API/UI and start dev servers.
 - **Iframe-ready UI**: Automatically initializes `@vrooli/iframe-bridge` so App Monitor and other hosts can embed the scenario without extra work.
 - **Smart API resolution**: UI uses `@vrooli/api-base` to resolve the correct API + WebSocket URLs across localhost/dev/proxy contexts.
@@ -36,7 +36,7 @@ Immediately replace placeholder tokens (scenario name, description, maintainer i
 ```bash
 cd scenarios/<your-scenario>
 
-# Install dependencies (Go + pnpm must be available)
+# Install dependencies (Go 1.22+ + pnpm must be available)
 pnpm install --dir ui
 
 # Build API + UI + CLI via lifecycle
@@ -82,9 +82,9 @@ cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev --
 - All API calls go through `@vrooli/api-base`, which means the UI works no matter where it’s served (localhost dev server, Cloudflare tunnel, proxied iframe, production ingress). Just keep `VITE_API_BASE_URL` pointed at `http://localhost:${API_PORT}/api/v1` during local work.
 
 ## CLI Auto-Detection
-- The CLI writes `~/.{{SCENARIO_ID}}/config.json` on first run. Leave `api_base` blank to let it auto-detect the correct URL from `vrooli scenario port` output.
-- If you point the API at a remote host, run `{{SCENARIO_ID}} configure api_base https://api.example.com/v1` to override detection.
-- The CLI requires the scenario to be running through the lifecycle; otherwise it will warn that it cannot discover the API.
+- Install the CLI on macOS/Linux with `./cli/install.sh` (or Windows with `.\cli\install.ps1`). By default the binary lands in `~/.vrooli/bin`.
+- The CLI stores config in your user config directory (typically `~/.config/vrooli/{{SCENARIO_ID}}/config.json` or `~/.vrooli/config/{{SCENARIO_ID}}/config.json`).
+- Run `{{SCENARIO_ID}} configure api_base http://localhost:<API_PORT>/api/v1` (and optionally `{{SCENARIO_ID}} configure token <token>`) to point at a remote or non-standard API.
 
 ## Customize Safely
 1. **Update PRD.md + requirements/** first. Operational targets drive code + tests.

@@ -26,6 +26,12 @@ make start
 
 See [QUICKSTART.md](docs/QUICKSTART.md) for detailed first-time setup.
 
+## CLI
+
+- Install (macOS/Linux): `./cli/install.sh`
+- Install (Windows): `.\cli\install.ps1`
+- Health check: `<scenario-id> status` (after install)
+
 ## Documentation
 
 | Document | Description |
