@@ -54,6 +54,13 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/manifest/validate", s.handleManifestValidate).Methods("POST")
 	api.HandleFunc("/plan", s.handlePlan).Methods("POST")
 	api.HandleFunc("/bundle/build", s.handleBundleBuild).Methods("POST")
+	api.HandleFunc("/preflight", s.handlePreflight).Methods("POST")
+	api.HandleFunc("/vps/setup/plan", s.handleVPSSetupPlan).Methods("POST")
+	api.HandleFunc("/vps/setup/apply", s.handleVPSSetupApply).Methods("POST")
+	api.HandleFunc("/vps/deploy/plan", s.handleVPSDeployPlan).Methods("POST")
+	api.HandleFunc("/vps/deploy/apply", s.handleVPSDeployApply).Methods("POST")
+	api.HandleFunc("/vps/inspect/plan", s.handleVPSInspectPlan).Methods("POST")
+	api.HandleFunc("/vps/inspect/apply", s.handleVPSInspectApply).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -64,10 +71,12 @@ func (s *Server) Start() error {
 	})
 
 	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%s", s.config.Port),
-		Handler:      handlers.RecoveryHandler()(s.router),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		Addr:        fmt.Sprintf(":%s", s.config.Port),
+		Handler:     handlers.RecoveryHandler()(s.router),
+		ReadTimeout: 30 * time.Second,
+		// P0: some VPS operations (setup/deploy) can take several minutes; keep the server-side
+		// response path alive rather than forcing async during early iterations.
+		WriteTimeout: 35 * time.Minute,
 		IdleTimeout:  120 * time.Second,
 	}
 
@@ -95,11 +104,11 @@ func (s *Server) Start() error {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
-		"status":       "healthy",
-		"service":      "Scenario To Cloud API",
-		"version":      "0.0.1",
-		"readiness":    true,
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
+		"status":    "healthy",
+		"service":   "Scenario To Cloud API",
+		"version":   "0.0.1",
+		"readiness": true,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
 		"dependencies": map[string]interface{}{
 			"database": map[string]bool{"connected": true},
 		},
@@ -206,6 +215,272 @@ func (s *Server) handleBundleBuild(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"artifact":  artifact,
+		"issues":    issues,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handlePreflight(w http.ResponseWriter, r *http.Request) {
+	manifest, err := decodeJSON[CloudManifest](r.Body, 1<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(manifest)
+	if hasBlockingIssues(issues) {
+		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+			Valid:     false,
+			Issues:    issues,
+			Manifest:  normalized,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+	defer cancel()
+
+	resp := RunVPSPreflight(ctx, normalized, NetResolver{}, ExecSSHRunner{})
+	resp.Issues = issues
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) handleVPSSetupPlan(w http.ResponseWriter, r *http.Request) {
+	req, err := decodeJSON[VPSSetupRequest](r.Body, 2<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(req.Manifest)
+	if hasBlockingIssues(issues) {
+		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+			Valid:     false,
+			Issues:    issues,
+			Manifest:  normalized,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	plan, err := BuildVPSSetupPlan(normalized, req.BundlePath)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_setup_request",
+			Message: "Unable to build VPS setup plan",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"plan":      plan,
+		"issues":    issues,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handleVPSSetupApply(w http.ResponseWriter, r *http.Request) {
+	req, err := decodeJSON[VPSSetupRequest](r.Body, 2<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(req.Manifest)
+	if hasBlockingIssues(issues) {
+		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+			Valid:     false,
+			Issues:    issues,
+			Manifest:  normalized,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
+	defer cancel()
+
+	resp := RunVPSSetup(ctx, normalized, req.BundlePath, ExecSSHRunner{}, ExecSCPRunner{})
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"result":    resp,
+		"issues":    issues,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handleVPSDeployPlan(w http.ResponseWriter, r *http.Request) {
+	req, err := decodeJSON[VPSDeployRequest](r.Body, 2<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(req.Manifest)
+	if hasBlockingIssues(issues) {
+		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+			Valid:     false,
+			Issues:    issues,
+			Manifest:  normalized,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	plan, err := BuildVPSDeployPlan(normalized)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_deploy_request",
+			Message: "Unable to build VPS deploy plan",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"plan":      plan,
+		"issues":    issues,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handleVPSDeployApply(w http.ResponseWriter, r *http.Request) {
+	req, err := decodeJSON[VPSDeployRequest](r.Body, 2<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(req.Manifest)
+	if hasBlockingIssues(issues) {
+		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+			Valid:     false,
+			Issues:    issues,
+			Manifest:  normalized,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
+	defer cancel()
+
+	resp := RunVPSDeploy(ctx, normalized, ExecSSHRunner{})
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"result":    resp,
+		"issues":    issues,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handleVPSInspectPlan(w http.ResponseWriter, r *http.Request) {
+	req, err := decodeJSON[VPSInspectRequest](r.Body, 2<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(req.Manifest)
+	if hasBlockingIssues(issues) {
+		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+			Valid:     false,
+			Issues:    issues,
+			Manifest:  normalized,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	opts, err := req.Options.Normalize(normalized)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_inspect_request",
+			Message: "Unable to build VPS inspect plan",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	plan, err := BuildVPSInspectPlan(normalized, opts)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_inspect_request",
+			Message: "Unable to build VPS inspect plan",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"plan":      plan,
+		"issues":    issues,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handleVPSInspectApply(w http.ResponseWriter, r *http.Request) {
+	req, err := decodeJSON[VPSInspectRequest](r.Body, 2<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(req.Manifest)
+	if hasBlockingIssues(issues) {
+		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+			Valid:     false,
+			Issues:    issues,
+			Manifest:  normalized,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	opts, err := req.Options.Normalize(normalized)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_inspect_request",
+			Message: "Unable to run VPS inspect",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+
+	result := RunVPSInspect(ctx, normalized, opts, ExecSSHRunner{})
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"result":    result,
 		"issues":    issues,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})

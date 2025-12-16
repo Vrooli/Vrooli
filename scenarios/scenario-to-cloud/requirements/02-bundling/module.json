@@ -9,7 +9,7 @@
       "category": "bundling",
       "prd_ref": "OT-P0-002",
       "title": "Deterministic mini-Vrooli tarball",
-      "description": "Given a manifest, produce a tarball that includes required scenarios/resources (from analyzer), always includes packages/, always includes vrooli-autoheal, and excludes unrelated content.",
+      "description": "Given a manifest, produce a tarball that includes required scenarios/resources (from analyzer), always includes packages/, always includes vrooli-autoheal, excludes unrelated content, and embeds a trimmed go.work so stripped modules aren’t referenced.",
       "status": "in_progress",
       "tags": [
         "bundling",

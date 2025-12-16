@@ -14,6 +14,27 @@ make start
 - UI: `http://localhost:<UI_PORT>/`
 - API health: `http://localhost:<API_PORT>/health`
 
+## CLI (via Vrooli lifecycle)
+
+```bash
+# Validate manifest
+scenario-to-cloud manifest-validate manifest.json
+
+# Preflight + bundle + VPS setup (upload + extract + setup + autoheal scope)
+scenario-to-cloud preflight manifest.json
+scenario-to-cloud bundle-build manifest.json
+scenario-to-cloud vps-setup-plan manifest.json /path/to/bundle.tar.gz
+scenario-to-cloud vps-setup-apply manifest.json /path/to/bundle.tar.gz
+
+# Deploy/start (Caddy + TLS + fixed ports + health verification)
+scenario-to-cloud vps-deploy-plan manifest.json
+scenario-to-cloud vps-deploy-apply manifest.json
+
+# Inspect (status + logs over SSH)
+scenario-to-cloud vps-inspect-plan manifest.json
+scenario-to-cloud vps-inspect-apply manifest.json
+```
+
 ## Docs
 
 - PRD: `scenarios/scenario-to-cloud/PRD.md`

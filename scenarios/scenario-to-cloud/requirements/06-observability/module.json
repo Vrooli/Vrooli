@@ -10,7 +10,7 @@
       "prd_ref": "OT-P0-006",
       "title": "Remote status and logs retrieval",
       "description": "Provide commands and/or API methods to fetch 'vrooli scenario status' and 'vrooli scenario logs' output from the VPS over SSH.",
-      "status": "planned",
+      "status": "in_progress",
       "tags": [
         "logs",
         "status",
@@ -20,9 +20,16 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "ref": "api/ssh_logs_test.go",
+          "status": "implemented",
+          "ref": "api/vps_inspect_test.go",
           "notes": "Tag tests with [REQ:STC-P0-006]."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "cli/main_test.go",
+          "notes": "CLI can post to /api/v1/vps/inspect/{plan,apply}."
         },
         {
           "type": "playbook",

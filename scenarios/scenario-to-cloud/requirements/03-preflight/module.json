@@ -10,7 +10,7 @@
       "prd_ref": "OT-P0-003",
       "title": "VPS readiness validation",
       "description": "Validate SSH connectivity, Ubuntu version, disk/RAM thresholds, outbound network, ports 80/443 availability, and domain DNS pointing to the VPS.",
-      "status": "planned",
+      "status": "in_progress",
       "tags": [
         "preflight",
         "ssh",
@@ -22,9 +22,16 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/preflight_test.go",
           "notes": "Tag tests with [REQ:STC-P0-003]."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "cli/main_test.go",
+          "notes": "CLI can post a manifest to /api/v1/preflight."
         },
         {
           "type": "playbook",
@@ -41,7 +48,7 @@
       "prd_ref": "OT-P0-003",
       "title": "Preflight errors are actionable",
       "description": "Preflight failures emit a specific reason and next-step hint (e.g. DNS not pointing, ports blocked, SSH auth failed) without leaking secrets.",
-      "status": "planned",
+      "status": "in_progress",
       "tags": [
         "preflight",
         "ux"
@@ -50,7 +57,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/preflight_errors_test.go",
           "notes": "Tag tests with [REQ:STC-P0-009]."
         }

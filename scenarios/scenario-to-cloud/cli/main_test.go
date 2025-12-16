@@ -229,6 +229,361 @@ func TestBundleBuildPostsToBundleBuildEndpoint(t *testing.T) {
 	}
 }
 
+func TestPreflightPostsToPreflightEndpoint(t *testing.T) {
+	// [REQ:STC-P0-003] preflight should be callable via CLI (integration layer)
+	app := newTestApp(t)
+
+	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
+  "version": "1.0.0",
+  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
+  "scenario": { "id": "landing-page-business-suite" },
+  "dependencies": {
+    "scenarios": ["landing-page-business-suite"],
+    "resources": [],
+    "analyzer": { "tool": "scenario-dependency-analyzer" }
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true,
+    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
+  },
+  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
+  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
+}`)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/preflight" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"ok":true,"checks":[],"timestamp":"2025-01-01T00:00:00Z"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"preflight", manifestPath}); err != nil {
+			t.Fatalf("preflight failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "\"ok\": true") {
+		t.Fatalf("expected preflight output, got: %s", output)
+	}
+}
+
+func TestVPSInspectPlanPostsToInspectPlanEndpoint(t *testing.T) {
+	// [REQ:STC-P0-006] inspect plan should be callable via CLI (integration layer)
+	app := newTestApp(t)
+
+	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
+  "version": "1.0.0",
+  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
+  "scenario": { "id": "landing-page-business-suite" },
+  "dependencies": {
+    "scenarios": ["landing-page-business-suite"],
+    "resources": [],
+    "analyzer": { "tool": "scenario-dependency-analyzer" }
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true,
+    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
+  },
+  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
+  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
+}`)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/vps/inspect/plan" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"plan":{"commands":[{"id":"scenario_status"}]},"timestamp":"2025-01-01T00:00:00Z"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"vps-inspect-plan", manifestPath}); err != nil {
+			t.Fatalf("vps-inspect-plan failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "\"scenario_status\"") {
+		t.Fatalf("expected inspect plan output, got: %s", output)
+	}
+}
+
+func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
+	// [REQ:STC-P0-006] inspect apply should be callable via CLI (integration layer)
+	app := newTestApp(t)
+
+	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
+  "version": "1.0.0",
+  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
+  "scenario": { "id": "landing-page-business-suite" },
+  "dependencies": {
+    "scenarios": ["landing-page-business-suite"],
+    "resources": [],
+    "analyzer": { "tool": "scenario-dependency-analyzer" }
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true,
+    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
+  },
+  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
+  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
+}`)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/vps/inspect/apply" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"result":{"ok":true,"steps":[]},"timestamp":"2025-01-01T00:00:00Z"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"vps-inspect-apply", manifestPath}); err != nil {
+			t.Fatalf("vps-inspect-apply failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "\"ok\": true") {
+		t.Fatalf("expected inspect apply output, got: %s", output)
+	}
+}
+
+func TestVPSSetupPlanPostsToSetupPlanEndpoint(t *testing.T) {
+	// [REQ:STC-P0-004] setup plan should be callable via CLI (integration layer)
+	app := newTestApp(t)
+
+	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
+  "version": "1.0.0",
+  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
+  "scenario": { "id": "landing-page-business-suite" },
+  "dependencies": {
+    "scenarios": ["landing-page-business-suite"],
+    "resources": [],
+    "analyzer": { "tool": "scenario-dependency-analyzer" }
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true,
+    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
+  },
+  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
+  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
+}`)
+	bundlePath := writeTempFile(t, "mini-vrooli.tar.gz", "not-a-real-tarball")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/vps/setup/plan" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		if !strings.Contains(string(bodyBytes), "\"bundle_path\"") || !strings.Contains(string(bodyBytes), bundlePath) {
+			t.Fatalf("expected bundle_path in request body, got: %s", string(bodyBytes))
+		}
+		if !strings.Contains(string(bodyBytes), "\"manifest\"") || !strings.Contains(string(bodyBytes), "\"version\"") {
+			t.Fatalf("expected manifest in request body, got: %s", string(bodyBytes))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"plan":{"remote_tar_path":"/root/Vrooli/.vrooli/cloud/bundles/mini-vrooli.tar.gz","commands":[{"id":"mkdir"}]},"timestamp":"2025-01-01T00:00:00Z"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"vps-setup-plan", manifestPath, bundlePath}); err != nil {
+			t.Fatalf("vps-setup-plan failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "\"remote_tar_path\"") {
+		t.Fatalf("expected setup plan output, got: %s", output)
+	}
+}
+
+func TestVPSSetupApplyPostsToSetupApplyEndpoint(t *testing.T) {
+	// [REQ:STC-P0-004] setup apply should be callable via CLI (integration layer)
+	app := newTestApp(t)
+
+	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
+  "version": "1.0.0",
+  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
+  "scenario": { "id": "landing-page-business-suite" },
+  "dependencies": {
+    "scenarios": ["landing-page-business-suite"],
+    "resources": [],
+    "analyzer": { "tool": "scenario-dependency-analyzer" }
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true,
+    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
+  },
+  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
+  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
+}`)
+	bundlePath := writeTempFile(t, "mini-vrooli.tar.gz", "not-a-real-tarball")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/vps/setup/apply" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		if !strings.Contains(string(bodyBytes), "\"bundle_path\"") || !strings.Contains(string(bodyBytes), bundlePath) {
+			t.Fatalf("expected bundle_path in request body, got: %s", string(bodyBytes))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"result":{"ok":true,"steps":[]},"timestamp":"2025-01-01T00:00:00Z"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"vps-setup-apply", manifestPath, bundlePath}); err != nil {
+			t.Fatalf("vps-setup-apply failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "\"ok\": true") {
+		t.Fatalf("expected setup apply output, got: %s", output)
+	}
+}
+
+func TestVPSDeployPlanPostsToDeployPlanEndpoint(t *testing.T) {
+	// [REQ:STC-P0-005] deploy plan should be callable via CLI (integration layer)
+	app := newTestApp(t)
+
+	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
+  "version": "1.0.0",
+  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
+  "scenario": { "id": "landing-page-business-suite" },
+  "dependencies": {
+    "scenarios": ["landing-page-business-suite"],
+    "resources": [],
+    "analyzer": { "tool": "scenario-dependency-analyzer" }
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true,
+    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
+  },
+  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
+  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
+}`)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/vps/deploy/plan" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		if !strings.Contains(string(bodyBytes), "\"manifest\"") {
+			t.Fatalf("expected manifest wrapper in request body, got: %s", string(bodyBytes))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"plan":{"commands":[{"id":"caddy_install"}]},"timestamp":"2025-01-01T00:00:00Z"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"vps-deploy-plan", manifestPath}); err != nil {
+			t.Fatalf("vps-deploy-plan failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "\"caddy_install\"") {
+		t.Fatalf("expected deploy plan output, got: %s", output)
+	}
+}
+
+func TestVPSDeployApplyPostsToDeployApplyEndpoint(t *testing.T) {
+	// [REQ:STC-P0-005] deploy apply should be callable via CLI (integration layer)
+	app := newTestApp(t)
+
+	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
+  "version": "1.0.0",
+  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
+  "scenario": { "id": "landing-page-business-suite" },
+  "dependencies": {
+    "scenarios": ["landing-page-business-suite"],
+    "resources": [],
+    "analyzer": { "tool": "scenario-dependency-analyzer" }
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true,
+    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
+  },
+  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
+  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
+}`)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/vps/deploy/apply" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		if !strings.Contains(string(bodyBytes), "\"manifest\"") {
+			t.Fatalf("expected manifest wrapper in request body, got: %s", string(bodyBytes))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"result":{"ok":true,"steps":[]},"timestamp":"2025-01-01T00:00:00Z"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"vps-deploy-apply", manifestPath}); err != nil {
+			t.Fatalf("vps-deploy-apply failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "\"ok\": true") {
+		t.Fatalf("expected deploy apply output, got: %s", output)
+	}
+}
+
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 	tempHome := t.TempDir()

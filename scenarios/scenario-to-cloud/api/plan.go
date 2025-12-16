@@ -7,9 +7,9 @@ type PlanStep struct {
 }
 
 type PlanResponse struct {
-	Plan      []PlanStep `json:"plan"`
+	Plan      []PlanStep        `json:"plan"`
 	Issues    []ValidationIssue `json:"issues,omitempty"`
-	Timestamp string     `json:"timestamp"`
+	Timestamp string            `json:"timestamp"`
 }
 
 func BuildPlan(manifest CloudManifest) []PlanStep {

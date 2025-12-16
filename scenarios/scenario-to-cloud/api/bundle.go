@@ -54,34 +54,47 @@ func BuildMiniVrooliBundle(repoRoot, outDir string, manifest CloudManifest) (Bun
 		return BundleArtifact{}, err
 	}
 
-	outName := fmt.Sprintf("mini-vrooli_%s_%s.tar.gz", safeFilename(manifest.Scenario.ID), time.Now().UTC().Format("20060102-150405"))
-	outPath := filepath.Join(outDir, outName)
-
 	spec, err := MiniVrooliBundleSpec(repoRoot, manifest)
 	if err != nil {
 		return BundleArtifact{}, err
 	}
 
-	f, err := os.Create(outPath)
+	tmp, err := os.CreateTemp(outDir, "mini-vrooli_*.tar.gz")
 	if err != nil {
 		return BundleArtifact{}, err
 	}
-	defer func() { _ = f.Close() }()
+	tmpPath := tmp.Name()
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+	}()
 
 	hasher := sha256.New()
-	mw := io.MultiWriter(f, hasher)
+	mw := io.MultiWriter(tmp, hasher)
 
 	size, err := writeDeterministicTarGz(mw, repoRoot, spec)
 	if err != nil {
 		return BundleArtifact{}, err
 	}
-	if err := f.Sync(); err != nil {
+	if err := tmp.Sync(); err != nil {
+		return BundleArtifact{}, err
+	}
+	if err := tmp.Close(); err != nil {
+		return BundleArtifact{}, err
+	}
+
+	sum := hex.EncodeToString(hasher.Sum(nil))
+	outName := fmt.Sprintf("mini-vrooli_%s_%s.tar.gz", safeFilename(manifest.Scenario.ID), sum)
+	outPath := filepath.Join(outDir, outName)
+
+	_ = os.Remove(outPath)
+	if err := os.Rename(tmpPath, outPath); err != nil {
 		return BundleArtifact{}, err
 	}
 
 	return BundleArtifact{
 		Path:      outPath,
-		Sha256:    hex.EncodeToString(hasher.Sum(nil)),
+		Sha256:    sum,
 		SizeBytes: size,
 	}, nil
 }
@@ -144,36 +157,166 @@ func MiniVrooliBundleSpec(repoRoot string, manifest CloudManifest) (MiniBundleSp
 
 	sort.Strings(roots)
 
+	excludes := []string{
+		".git/**",
+		"**/.git/**",
+		"node_modules/**",
+		"**/node_modules/**",
+		".pnpm-store/**",
+		"**/.pnpm-store/**",
+		"coverage/**",
+		"**/coverage/**",
+		"logs/**",
+		"**/logs/**",
+		"data/**",
+		"**/data/**",
+		"projects/**",
+		"**/projects/**",
+		"**/.DS_Store",
+		"**/dist/**",
+		"**/.next/**",
+	}
+
 	manifestBytes, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return MiniBundleSpec{}, err
 	}
 
+	goWork, err := buildMiniGoWork(repoRoot, roots, excludes)
+	if err != nil {
+		return MiniBundleSpec{}, err
+	}
+
+	serviceJSON, err := buildMiniServiceJSON(repoRoot, manifest)
+	if err != nil {
+		return MiniBundleSpec{}, err
+	}
+
+	metaBytes, err := json.MarshalIndent(map[string]interface{}{
+		"schema_version": "1.0.0",
+		"scenario_id":    manifest.Scenario.ID,
+		"include_roots":  roots,
+		"excludes":       excludes,
+		"manifest_path": ".vrooli/cloud/manifest.json",
+	}, "", "  ")
+	if err != nil {
+		return MiniBundleSpec{}, err
+	}
+
+	extra := map[string][]byte{
+		".vrooli/cloud/manifest.json":        manifestBytes,
+		".vrooli/cloud/bundle-metadata.json": metaBytes,
+		"go.work":                           []byte(goWork),
+	}
+	if len(serviceJSON) > 0 {
+		extra[".vrooli/service.json"] = serviceJSON
+	}
+
 	return MiniBundleSpec{
 		IncludeRoots: roots,
-		Excludes: []string{
-			".git/**",
-			"**/.git/**",
-			"node_modules/**",
-			"**/node_modules/**",
-			".pnpm-store/**",
-			"**/.pnpm-store/**",
-			"coverage/**",
-			"**/coverage/**",
-			"logs/**",
-			"**/logs/**",
-			"data/**",
-			"**/data/**",
-			"projects/**",
-			"**/projects/**",
-			"**/.DS_Store",
-			"**/dist/**",
-			"**/.next/**",
-		},
-		ExtraFiles: map[string][]byte{
-			".vrooli/cloud/manifest.json": manifestBytes,
-		},
+		Excludes:     excludes,
+		ExtraFiles: extra,
 	}, nil
+}
+
+func buildMiniGoWork(repoRoot string, includeRoots []string, excludes []string) (string, error) {
+	version := "1.24.0"
+	if b, err := os.ReadFile(filepath.Join(repoRoot, "go.work")); err == nil {
+		if v := parseGoWorkVersion(string(b)); v != "" {
+			version = v
+		}
+	} else if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+
+	moduleDirs, err := discoverGoModDirs(repoRoot, includeRoots, excludes)
+	if err != nil {
+		return "", err
+	}
+
+	var out strings.Builder
+	out.WriteString("go " + version + "\n\n")
+	out.WriteString("use (\n")
+	for _, dir := range moduleDirs {
+		out.WriteString("\t./" + dir + "\n")
+	}
+	out.WriteString(")\n")
+	return out.String(), nil
+}
+
+func parseGoWorkVersion(contents string) string {
+	for _, line := range strings.Split(contents, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "//") {
+			continue
+		}
+		if strings.HasPrefix(line, "go ") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "go "))
+		}
+	}
+	return ""
+}
+
+func discoverGoModDirs(repoRoot string, includeRoots []string, excludes []string) ([]string, error) {
+	found := map[string]struct{}{}
+	add := func(rel string) {
+		rel = filepath.ToSlash(filepath.Clean(rel))
+		rel = strings.TrimPrefix(rel, "./")
+		if rel == "" || rel == "." || strings.HasPrefix(rel, "..") {
+			return
+		}
+		found[rel] = struct{}{}
+	}
+
+	for _, root := range includeRoots {
+		root = filepath.Clean(root)
+		absRoot := filepath.Join(repoRoot, root)
+		info, err := os.Lstat(absRoot)
+		if err != nil {
+			return nil, err
+		}
+		if !info.IsDir() {
+			continue
+		}
+
+		err = filepath.WalkDir(absRoot, func(p string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			rel, err := filepath.Rel(repoRoot, p)
+			if err != nil {
+				return err
+			}
+			rel = filepath.ToSlash(rel)
+			if rel == "." {
+				return nil
+			}
+			if isExcluded(rel, excludes) {
+				if d.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if d.Name() != "go.mod" {
+				return nil
+			}
+			add(filepath.Dir(rel))
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	out := make([]string, 0, len(found))
+	for rel := range found {
+		out = append(out, rel)
+	}
+	sort.Strings(out)
+	return out, nil
 }
 
 func writeDeterministicTarGz(w io.Writer, repoRoot string, spec MiniBundleSpec) (int64, error) {
@@ -246,7 +389,14 @@ func writeDeterministicTarGz(w io.Writer, repoRoot string, spec MiniBundleSpec) 
 		}
 	}
 
-	for rel, contents := range spec.ExtraFiles {
+	extraKeys := make([]string, 0, len(spec.ExtraFiles))
+	for rel := range spec.ExtraFiles {
+		extraKeys = append(extraKeys, rel)
+	}
+	sort.Strings(extraKeys)
+
+	for _, rel := range extraKeys {
+		contents := spec.ExtraFiles[rel]
 		rel = filepath.Clean(rel)
 		if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
 			return 0, fmt.Errorf("extra file path must be relative: %q", rel)
@@ -287,6 +437,15 @@ func collectIncludedPaths(repoRoot string, spec MiniBundleSpec) ([]string, error
 	var out []string
 	seen := map[string]struct{}{}
 
+	extraFiles := map[string]struct{}{}
+	for rel := range spec.ExtraFiles {
+		rel = filepath.ToSlash(filepath.Clean(rel))
+		if rel == "." || rel == "" || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+			continue
+		}
+		extraFiles[rel] = struct{}{}
+	}
+
 	addPath := func(rel string) {
 		rel = filepath.Clean(rel)
 		if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) || rel == "." {
@@ -299,21 +458,24 @@ func collectIncludedPaths(repoRoot string, spec MiniBundleSpec) ([]string, error
 		out = append(out, rel)
 	}
 
-	for _, relRoot := range spec.IncludeRoots {
-		relRoot = filepath.Clean(relRoot)
-		absRoot := filepath.Join(repoRoot, relRoot)
+		for _, relRoot := range spec.IncludeRoots {
+			relRoot = filepath.Clean(relRoot)
+			absRoot := filepath.Join(repoRoot, relRoot)
 
-		info, err := os.Lstat(absRoot)
-		if err != nil {
-			return nil, err
-		}
-
-		if !info.IsDir() {
-			if !isExcluded(relRoot, spec.Excludes) {
-				addPath(relRoot)
+			info, err := os.Lstat(absRoot)
+			if err != nil {
+				return nil, err
 			}
-			continue
-		}
+
+			if !info.IsDir() {
+				if _, ok := extraFiles[filepath.ToSlash(relRoot)]; ok {
+					continue
+				}
+				if !isExcluded(relRoot, spec.Excludes) {
+					addPath(relRoot)
+				}
+				continue
+			}
 
 		err = filepath.WalkDir(absRoot, func(p string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
@@ -336,6 +498,9 @@ func collectIncludedPaths(repoRoot string, spec MiniBundleSpec) ([]string, error
 			if d.IsDir() {
 				return nil
 			}
+			if _, ok := extraFiles[rel]; ok {
+				return nil
+			}
 			addPath(rel)
 			return nil
 		})
@@ -346,6 +511,56 @@ func collectIncludedPaths(repoRoot string, spec MiniBundleSpec) ([]string, error
 
 	sort.Strings(out)
 	return out, nil
+}
+
+func buildMiniServiceJSON(repoRoot string, manifest CloudManifest) ([]byte, error) {
+	// Best-effort: if the repo doesn't have a root .vrooli/service.json, don't synthesize one.
+	path := filepath.Join(repoRoot, ".vrooli", "service.json")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var doc map[string]interface{}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		return nil, fmt.Errorf("parse .vrooli/service.json: %w", err)
+	}
+
+	resourcesAny, ok := doc["resources"]
+	if !ok {
+		return json.MarshalIndent(doc, "", "  ")
+	}
+	resources, ok := resourcesAny.(map[string]interface{})
+	if !ok {
+		return json.MarshalIndent(doc, "", "  ")
+	}
+
+	required := map[string]struct{}{}
+	for _, id := range stableUniqueStrings(manifest.Bundle.Resources) {
+		required[id] = struct{}{}
+	}
+
+	for key, val := range resources {
+		m, ok := val.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		_, keep := required[key]
+		m["enabled"] = keep
+		resources[key] = m
+	}
+	for id := range required {
+		if _, ok := resources[id]; ok {
+			continue
+		}
+		resources[id] = map[string]interface{}{"enabled": true}
+	}
+	doc["resources"] = resources
+
+	return json.MarshalIndent(doc, "", "  ")
 }
 
 func isExcluded(path string, patterns []string) bool {

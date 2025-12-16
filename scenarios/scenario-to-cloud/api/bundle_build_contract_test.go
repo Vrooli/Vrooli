@@ -102,6 +102,69 @@ func TestBundleBuildEndpoint_BuildsTarballArtifact(t *testing.T) {
 	if !contains(names, ".vrooli/cloud/manifest.json") {
 		t.Fatalf("expected embedded manifest in tar, got: %v", names)
 	}
+	if !contains(names, ".vrooli/cloud/bundle-metadata.json") {
+		t.Fatalf("expected embedded bundle metadata in tar, got: %v", names)
+	}
+}
+
+func TestBuildMiniVrooliBundle_DeterministicNameAndBytes(t *testing.T) {
+	// [REQ:STC-P0-002] bundle output name and bytes should be deterministic for the same inputs
+	repoRoot := t.TempDir()
+	outDir := filepath.Join(repoRoot, "out")
+
+	mkdirAll(t, repoRoot, ".vrooli")
+	writeFileBytes(t, repoRoot, ".vrooli/service.json", []byte(`{"version":"2.0.0","resources":{"postgres":{"enabled":true},"redis":{"enabled":true}}}`))
+	writeFileBytes(t, repoRoot, "packages/pkg-a/README.md", []byte("pkg-a\n"))
+	writeFileBytes(t, repoRoot, "scenarios/app-a/README.md", []byte("app-a\n"))
+	writeFileBytes(t, repoRoot, "scenarios/vrooli-autoheal/README.md", []byte("autoheal\n"))
+	writeFileBytes(t, repoRoot, "resources/postgres/README.md", []byte("pg\n"))
+
+	manifest := CloudManifest{
+		Version: "1.0.0",
+		Target:  ManifestTarget{Type: "vps", VPS: &ManifestVPS{Host: "203.0.113.10"}},
+		Scenario: ManifestScenario{
+			ID: "app-a",
+		},
+		Dependencies: ManifestDependencies{
+			Scenarios: []string{"app-a"},
+			Resources: []string{"postgres"},
+		},
+		Bundle: ManifestBundle{
+			IncludePackages: true,
+			IncludeAutoheal: true,
+			Scenarios:       []string{"app-a", "vrooli-autoheal"},
+			Resources:       []string{"postgres"},
+		},
+		Ports: ManifestPorts{UI: 3000, API: 3001, WS: 3002},
+		Edge:  ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
+	}
+
+	a1, err := BuildMiniVrooliBundle(repoRoot, outDir, manifest)
+	if err != nil {
+		t.Fatalf("BuildMiniVrooliBundle(1): %v", err)
+	}
+	a2, err := BuildMiniVrooliBundle(repoRoot, outDir, manifest)
+	if err != nil {
+		t.Fatalf("BuildMiniVrooliBundle(2): %v", err)
+	}
+	if a1.Path != a2.Path {
+		t.Fatalf("expected deterministic output path; got %q vs %q", a1.Path, a2.Path)
+	}
+	if a1.Sha256 != a2.Sha256 {
+		t.Fatalf("expected deterministic sha; got %q vs %q", a1.Sha256, a2.Sha256)
+	}
+
+	b1, err := os.ReadFile(a1.Path)
+	if err != nil {
+		t.Fatalf("read bundle: %v", err)
+	}
+	b2, err := os.ReadFile(a2.Path)
+	if err != nil {
+		t.Fatalf("read bundle: %v", err)
+	}
+	if !bytes.Equal(b1, b2) {
+		t.Fatalf("expected deterministic bundle bytes")
+	}
 }
 
 func readTarNames(t *testing.T, path string) []string {

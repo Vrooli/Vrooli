@@ -48,6 +48,13 @@
       ],
       "validation": [
         {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/deploy_plan_test.go",
+          "notes": "Tag tests with [REQ:STC-P0-011]."
+        },
+        {
           "type": "playbook",
           "phase": "playbooks",
           "status": "planned",

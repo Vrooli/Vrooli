@@ -21,4 +21,3 @@ func (a *App) cmdBundleBuild(args []string) error {
 	cliutil.PrintJSON(payload)
 	return nil
 }
-

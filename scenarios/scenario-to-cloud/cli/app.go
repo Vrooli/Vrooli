@@ -70,6 +70,19 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "manifest-validate", NeedsAPI: true, Description: "Validate a cloud manifest JSON file", Run: a.cmdManifestValidate},
 			{Name: "plan", NeedsAPI: true, Description: "Generate a deploy plan from a cloud manifest JSON file", Run: a.cmdPlan},
 			{Name: "bundle-build", NeedsAPI: true, Description: "Build a mini-Vrooli tarball for a cloud manifest JSON file", Run: a.cmdBundleBuild},
+			{Name: "preflight", NeedsAPI: true, Description: "Run VPS preflight checks for a cloud manifest JSON file", Run: a.cmdPreflight},
+			{Name: "vps-setup-plan", NeedsAPI: true, Description: "Generate a VPS install/setup plan (SSH/SCP commands)", Run: a.cmdVPSSetupPlan},
+			{Name: "vps-setup-apply", NeedsAPI: true, Description: "Upload bundle and run Vrooli setup on the VPS", Run: a.cmdVPSSetupApply},
+			{Name: "vps-deploy-plan", NeedsAPI: true, Description: "Generate a VPS deploy/start plan (Caddy/resources/scenario/health)", Run: a.cmdVPSDeployPlan},
+			{Name: "vps-deploy-apply", NeedsAPI: true, Description: "Provision Caddy + start resources + start scenario + verify health", Run: a.cmdVPSDeployApply},
+		},
+	}
+
+	inspect := cliapp.CommandGroup{
+		Title: "Inspect",
+		Commands: []cliapp.Command{
+			{Name: "vps-inspect-plan", NeedsAPI: true, Description: "Generate a VPS inspect plan (remote status + logs)", Run: a.cmdVPSInspectPlan},
+			{Name: "vps-inspect-apply", NeedsAPI: true, Description: "Fetch remote status + logs over SSH via the API", Run: a.cmdVPSInspectApply},
 		},
 	}
 
@@ -80,7 +93,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, deploy, config}
+	return []cliapp.CommandGroup{health, deploy, inspect, config}
 }
 
 func (a *App) Run(args []string) error {
