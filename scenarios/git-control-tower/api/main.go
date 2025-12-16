@@ -30,6 +30,7 @@ type Server struct {
 	db     *sql.DB
 	router *mux.Router
 	git    GitRunner
+	audit  AuditLogger
 }
 
 // NewServer initializes configuration, database, and routes
@@ -49,11 +50,21 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to initialize database handle: %w", err)
 	}
 
+	// Initialize audit logger with graceful degradation
+	var auditLogger AuditLogger
+	if db != nil {
+		auditLogger = NewPostgresAuditLogger(db)
+	}
+	if auditLogger == nil {
+		auditLogger = &NoOpAuditLogger{}
+	}
+
 	srv := &Server{
 		config: cfg,
 		db:     db,
 		router: mux.NewRouter(),
 		git:    &ExecGitRunner{GitPath: "git"},
+		audit:  auditLogger,
 	}
 
 	srv.setupRoutes()
@@ -70,6 +81,11 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/stage", s.handleStage).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/unstage", s.handleUnstage).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/commit", s.handleCommit).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/sync-status", s.handleSyncStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/discard", s.handleDiscard).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/push", s.handlePush).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/pull", s.handlePull).Methods("POST")
+	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -204,6 +220,29 @@ func (s *Server) handleStage(w http.ResponseWriter, r *http.Request) {
 		Git:     s.git,
 		RepoDir: repoDir,
 	}, req)
+
+	// [REQ:GCT-OT-P0-007] Audit logging for stage operation
+	auditEntry := AuditEntry{
+		Operation: AuditOpStage,
+		RepoDir:   repoDir,
+		Paths:     req.Paths,
+		Success:   result != nil && result.Success,
+	}
+	if err != nil {
+		auditEntry.Error = err.Error()
+	} else if result != nil && !result.Success {
+		auditEntry.Error = strings.Join(result.Errors, "; ")
+	}
+	if result != nil {
+		auditEntry.Paths = result.Staged
+	}
+	// Log asynchronously to avoid blocking the response
+	go func() {
+		logCtx, logCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer logCancel()
+		_ = s.audit.Log(logCtx, auditEntry)
+	}()
+
 	if err != nil {
 		resp.InternalError(err.Error())
 		return
@@ -239,6 +278,29 @@ func (s *Server) handleUnstage(w http.ResponseWriter, r *http.Request) {
 		Git:     s.git,
 		RepoDir: repoDir,
 	}, req)
+
+	// [REQ:GCT-OT-P0-007] Audit logging for unstage operation
+	auditEntry := AuditEntry{
+		Operation: AuditOpUnstage,
+		RepoDir:   repoDir,
+		Paths:     req.Paths,
+		Success:   result != nil && result.Success,
+	}
+	if err != nil {
+		auditEntry.Error = err.Error()
+	} else if result != nil && !result.Success {
+		auditEntry.Error = strings.Join(result.Errors, "; ")
+	}
+	if result != nil {
+		auditEntry.Paths = result.Unstaged
+	}
+	// Log asynchronously to avoid blocking the response
+	go func() {
+		logCtx, logCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer logCancel()
+		_ = s.audit.Log(logCtx, auditEntry)
+	}()
+
 	if err != nil {
 		resp.InternalError(err.Error())
 		return
@@ -272,6 +334,33 @@ func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
 		Git:     s.git,
 		RepoDir: repoDir,
 	}, req)
+
+	// [REQ:GCT-OT-P0-007] Audit logging for commit operation
+	auditEntry := AuditEntry{
+		Operation:     AuditOpCommit,
+		RepoDir:       repoDir,
+		CommitMessage: req.Message,
+		Success:       result != nil && result.Success,
+	}
+	if err != nil {
+		auditEntry.Error = err.Error()
+	} else if result != nil {
+		if result.Success {
+			auditEntry.CommitHash = result.Hash
+		} else {
+			auditEntry.Error = result.Error
+			if len(result.ValidationErrors) > 0 {
+				auditEntry.Error = strings.Join(result.ValidationErrors, "; ")
+			}
+		}
+	}
+	// Log asynchronously to avoid blocking the response
+	go func() {
+		logCtx, logCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer logCancel()
+		_ = s.audit.Log(logCtx, auditEntry)
+	}()
+
 	if err != nil {
 		resp.InternalError(err.Error())
 		return
@@ -281,6 +370,252 @@ func (s *Server) handleCommit(w http.ResponseWriter, r *http.Request) {
 		resp.UnprocessableEntity(result)
 		return
 	}
+	resp.OK(result)
+}
+
+// [REQ:GCT-OT-P0-006] Push/pull status
+func (s *Server) handleSyncStatus(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	// Parse query parameters
+	query := r.URL.Query()
+	req := SyncStatusRequest{
+		Fetch:  query.Get("fetch") == "true",
+		Remote: query.Get("remote"),
+	}
+
+	result, err := GetSyncStatus(ctx, SyncStatusDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	resp.OK(result)
+}
+
+// handleDiscard handles POST /api/v1/repo/discard
+func (s *Server) handleDiscard(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	var req DiscardRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	if len(req.Paths) == 0 {
+		resp.BadRequest("paths are required")
+		return
+	}
+
+	result, err := DiscardFiles(ctx, DiscardDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+
+	// Audit logging for discard operation
+	auditEntry := AuditEntry{
+		Operation: AuditOpDiscard,
+		RepoDir:   repoDir,
+		Paths:     req.Paths,
+		Success:   result != nil && result.Success,
+	}
+	if err != nil {
+		auditEntry.Error = err.Error()
+	} else if result != nil && !result.Success {
+		auditEntry.Error = strings.Join(result.Errors, "; ")
+	}
+	if result != nil {
+		auditEntry.Paths = result.Discarded
+	}
+	// Log asynchronously
+	go func() {
+		logCtx, logCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer logCancel()
+		_ = s.audit.Log(logCtx, auditEntry)
+	}()
+
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	if !result.Success {
+		resp.UnprocessableEntity(result)
+		return
+	}
+	resp.OK(result)
+}
+
+// handlePush handles POST /api/v1/repo/push
+func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	var req PushRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	result, err := PushToRemote(ctx, PushPullDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+
+	// Audit logging for push operation
+	auditEntry := AuditEntry{
+		Operation: AuditOpPush,
+		RepoDir:   repoDir,
+		Success:   result != nil && result.Success,
+		Metadata: map[string]interface{}{
+			"remote": result.Remote,
+			"branch": result.Branch,
+		},
+	}
+	if err != nil {
+		auditEntry.Error = err.Error()
+	} else if result != nil && !result.Success {
+		auditEntry.Error = result.Error
+	}
+	// Log asynchronously
+	go func() {
+		logCtx, logCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer logCancel()
+		_ = s.audit.Log(logCtx, auditEntry)
+	}()
+
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	if !result.Success {
+		resp.UnprocessableEntity(result)
+		return
+	}
+	resp.OK(result)
+}
+
+// handlePull handles POST /api/v1/repo/pull
+func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	var req PullRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	result, err := PullFromRemote(ctx, PushPullDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+
+	// Audit logging for pull operation
+	auditEntry := AuditEntry{
+		Operation: AuditOpPull,
+		RepoDir:   repoDir,
+		Success:   result != nil && result.Success,
+		Metadata: map[string]interface{}{
+			"remote":        result.Remote,
+			"branch":        result.Branch,
+			"has_conflicts": result.HasConflicts,
+		},
+	}
+	if err != nil {
+		auditEntry.Error = err.Error()
+	} else if result != nil && !result.Success {
+		auditEntry.Error = result.Error
+	}
+	// Log asynchronously
+	go func() {
+		logCtx, logCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer logCancel()
+		_ = s.audit.Log(logCtx, auditEntry)
+	}()
+
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	if !result.Success {
+		resp.UnprocessableEntity(result)
+		return
+	}
+	resp.OK(result)
+}
+
+// [REQ:GCT-OT-P0-007] Audit log query endpoint
+func (s *Server) handleAuditQuery(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+
+	// Parse query parameters
+	query := r.URL.Query()
+	req := AuditQueryRequest{
+		Operation: AuditOperation(query.Get("operation")),
+		Branch:    query.Get("branch"),
+		Limit:     50, // Default limit
+	}
+
+	// Parse optional parameters
+	if limitStr := query.Get("limit"); limitStr != "" {
+		if _, err := fmt.Sscanf(limitStr, "%d", &req.Limit); err != nil {
+			resp.BadRequest("invalid limit parameter")
+			return
+		}
+		if req.Limit > 1000 {
+			req.Limit = 1000 // Cap at 1000
+		}
+	}
+	if offsetStr := query.Get("offset"); offsetStr != "" {
+		if _, err := fmt.Sscanf(offsetStr, "%d", &req.Offset); err != nil {
+			resp.BadRequest("invalid offset parameter")
+			return
+		}
+	}
+
+	result, err := s.audit.Query(ctx, req)
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
 	resp.OK(result)
 }
 
@@ -359,4 +694,3 @@ func main() {
 		log.Fatalf("server stopped with error: %v", err)
 	}
 }
-

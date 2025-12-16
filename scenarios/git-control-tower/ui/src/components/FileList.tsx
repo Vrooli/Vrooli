@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   Plus,
   Minus,
+  Trash2,
   ChevronDown,
   ChevronRight,
   Loader2
@@ -24,9 +25,13 @@ interface FileListProps {
   onSelectFile: (path: string, staged: boolean) => void;
   onStageFile: (path: string) => void;
   onUnstageFile: (path: string) => void;
+  onDiscardFile: (path: string, untracked: boolean) => void;
   onStageAll: () => void;
   onUnstageAll: () => void;
   isStaging: boolean;
+  isDiscarding: boolean;
+  confirmingDiscard: string | null;
+  onConfirmDiscard: (path: string | null) => void;
 }
 
 interface FileSectionProps {
@@ -42,6 +47,10 @@ interface FileSectionProps {
   actionLabel: string;
   isLoading: boolean;
   defaultExpanded?: boolean;
+  onDiscard?: (path: string) => void;
+  isDiscarding?: boolean;
+  confirmingDiscard?: string | null;
+  onConfirmDiscard?: (path: string | null) => void;
 }
 
 function FileSection({
@@ -56,13 +65,18 @@ function FileSection({
   actionIcon,
   actionLabel,
   isLoading,
-  defaultExpanded = true
+  defaultExpanded = true,
+  onDiscard,
+  isDiscarding,
+  confirmingDiscard,
+  onConfirmDiscard
 }: FileSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   if (files.length === 0) return null;
 
   const isStaged = category === "staged";
+  const canDiscard = category === "unstaged" || category === "untracked";
 
   return (
     <div className="mb-4" data-testid={`file-section-${category}`}>
@@ -89,6 +103,7 @@ function FileSection({
             const isSelected = selectedFile === file && selectedIsStaged === isStaged;
             const fileName = file.split("/").pop() || file;
             const dirPath = file.includes("/") ? file.substring(0, file.lastIndexOf("/")) : "";
+            const isConfirmingThis = confirmingDiscard === file;
 
             return (
               <li
@@ -111,22 +126,74 @@ function FileSection({
                     {fileName}
                   </span>
                 </div>
-                <button
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-700 transition-all"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAction(file);
-                  }}
-                  disabled={isLoading}
-                  title={actionLabel}
-                  data-testid={`file-action-${category}`}
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
-                  ) : (
-                    actionIcon
-                  )}
-                </button>
+
+                {/* Confirmation UI for discard */}
+                {isConfirmingThis && onConfirmDiscard && onDiscard && (
+                  <div
+                    className="flex items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="text-xs text-red-400 mr-1">Discard?</span>
+                    <button
+                      className="px-1.5 py-0.5 text-xs bg-red-600 hover:bg-red-500 text-white rounded transition-colors"
+                      onClick={() => {
+                        onDiscard(file);
+                        onConfirmDiscard(null);
+                      }}
+                      disabled={isDiscarding}
+                      data-testid="confirm-discard-yes"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      className="px-1.5 py-0.5 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
+                      onClick={() => onConfirmDiscard(null)}
+                      data-testid="confirm-discard-no"
+                    >
+                      No
+                    </button>
+                  </div>
+                )}
+
+                {/* Action buttons (hidden during confirmation) */}
+                {!isConfirmingThis && (
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                      className="p-1 rounded hover:bg-slate-700 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAction(file);
+                      }}
+                      disabled={isLoading}
+                      title={actionLabel}
+                      data-testid={`file-action-${category}`}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                      ) : (
+                        actionIcon
+                      )}
+                    </button>
+                    {canDiscard && onConfirmDiscard && (
+                      <button
+                        className="p-1 rounded hover:bg-red-900/50 transition-all"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onConfirmDiscard(file);
+                        }}
+                        disabled={isDiscarding}
+                        title="Discard changes"
+                        data-testid={`file-discard-${category}`}
+                      >
+                        {isDiscarding ? (
+                          <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                        ) : (
+                          <Trash2 className="h-3 w-3 text-red-400" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
               </li>
             );
           })}
@@ -143,9 +210,13 @@ export function FileList({
   onSelectFile,
   onStageFile,
   onUnstageFile,
+  onDiscardFile,
   onStageAll,
   onUnstageAll,
-  isStaging
+  isStaging,
+  isDiscarding,
+  confirmingDiscard,
+  onConfirmDiscard
 }: FileListProps) {
   const hasStaged = (files?.staged?.length ?? 0) > 0;
   const hasUnstaged = (files?.unstaged?.length ?? 0) > 0 || (files?.untracked?.length ?? 0) > 0;
@@ -227,6 +298,10 @@ export function FileList({
             actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
             actionLabel="Stage file"
             isLoading={isStaging}
+            onDiscard={(path) => onDiscardFile(path, false)}
+            isDiscarding={isDiscarding}
+            confirmingDiscard={confirmingDiscard}
+            onConfirmDiscard={onConfirmDiscard}
           />
 
           {/* Untracked Files */}
@@ -243,6 +318,10 @@ export function FileList({
             actionLabel="Stage file"
             isLoading={isStaging}
             defaultExpanded={false}
+            onDiscard={(path) => onDiscardFile(path, true)}
+            isDiscarding={isDiscarding}
+            confirmingDiscard={confirmingDiscard}
+            onConfirmDiscard={onConfirmDiscard}
           />
 
           {/* Empty State */}

@@ -74,6 +74,15 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "diff", NeedsAPI: true, Description: "Show git diff (--path=FILE --staged)", Run: a.cmdDiff},
 			{Name: "stage", NeedsAPI: true, Description: "Stage files (FILE... or --scope=scenario:name)", Run: a.cmdStage},
 			{Name: "unstage", NeedsAPI: true, Description: "Unstage files (FILE... or --scope=scenario:name)", Run: a.cmdUnstage},
+			{Name: "commit", NeedsAPI: true, Description: "Create a commit (-m MESSAGE [--conventional])", Run: a.cmdCommit},
+			{Name: "sync-status", NeedsAPI: true, Description: "Check push/pull status ([--fetch] [--remote=NAME])", Run: a.cmdSyncStatus},
+		},
+	}
+
+	audit := cliapp.CommandGroup{
+		Title: "Audit",
+		Commands: []cliapp.Command{
+			{Name: "audit", NeedsAPI: true, Description: "Query audit logs ([--operation=TYPE] [--limit=N])", Run: a.cmdAudit},
 		},
 	}
 
@@ -84,7 +93,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, repo, config}
+	return []cliapp.CommandGroup{health, repo, audit, config}
 }
 
 func (a *App) apiPath(v1Path string) string {
@@ -364,6 +373,271 @@ func (a *App) cmdUnstage(args []string) error {
 				fmt.Printf("  ! %s\n", e)
 			}
 		}
+		return nil
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// [REQ:GCT-OT-P0-005] Commit composition API
+
+type commitRequest struct {
+	Message              string `json:"message"`
+	ValidateConventional bool   `json:"validate_conventional,omitempty"`
+}
+
+type commitResponse struct {
+	Success          bool     `json:"success"`
+	Hash             string   `json:"hash,omitempty"`
+	Message          string   `json:"message,omitempty"`
+	ValidationErrors []string `json:"validation_errors,omitempty"`
+	Error            string   `json:"error,omitempty"`
+}
+
+func (a *App) cmdCommit(args []string) error {
+	var message string
+	var conventional bool
+
+	for i, arg := range args {
+		switch {
+		case arg == "-m" && i+1 < len(args):
+			message = args[i+1]
+		case strings.HasPrefix(arg, "-m="):
+			message = strings.TrimPrefix(arg, "-m=")
+		case strings.HasPrefix(arg, "--message="):
+			message = strings.TrimPrefix(arg, "--message=")
+		case arg == "--conventional":
+			conventional = true
+		}
+	}
+
+	if message == "" {
+		return fmt.Errorf("usage: commit -m MESSAGE [--conventional]")
+	}
+
+	req := commitRequest{
+		Message:              message,
+		ValidateConventional: conventional,
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/commit"), nil, req)
+	if err != nil {
+		return err
+	}
+
+	var parsed commitResponse
+	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil {
+		if parsed.Success {
+			fmt.Printf("Committed: %s\n", parsed.Hash)
+			fmt.Printf("Message: %s\n", parsed.Message)
+		} else {
+			fmt.Println("Commit failed:")
+			if parsed.Error != "" {
+				fmt.Printf("  Error: %s\n", parsed.Error)
+			}
+			for _, e := range parsed.ValidationErrors {
+				fmt.Printf("  ! %s\n", e)
+			}
+		}
+		return nil
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// [REQ:GCT-OT-P0-006] Push/pull status
+
+type syncStatusResponse struct {
+	Branch                string   `json:"branch"`
+	Upstream              string   `json:"upstream,omitempty"`
+	RemoteURL             string   `json:"remote_url,omitempty"`
+	Ahead                 int      `json:"ahead"`
+	Behind                int      `json:"behind"`
+	HasUpstream           bool     `json:"has_upstream"`
+	CanPush               bool     `json:"can_push"`
+	CanPull               bool     `json:"can_pull"`
+	NeedsPull             bool     `json:"needs_pull"`
+	NeedsPush             bool     `json:"needs_push"`
+	HasUncommittedChanges bool     `json:"has_uncommitted_changes"`
+	SafetyWarnings        []string `json:"safety_warnings,omitempty"`
+	Recommendations       []string `json:"recommendations,omitempty"`
+	Fetched               bool     `json:"fetched"`
+	FetchError            string   `json:"fetch_error,omitempty"`
+}
+
+func (a *App) cmdSyncStatus(args []string) error {
+	var fetch bool
+	var remote string
+
+	for _, arg := range args {
+		switch {
+		case arg == "--fetch":
+			fetch = true
+		case strings.HasPrefix(arg, "--remote="):
+			remote = strings.TrimPrefix(arg, "--remote=")
+		}
+	}
+
+	query := url.Values{}
+	if fetch {
+		query.Set("fetch", "true")
+	}
+	if remote != "" {
+		query.Set("remote", remote)
+	}
+
+	body, err := a.core.APIClient.Get(a.apiPath("/repo/sync-status"), query)
+	if err != nil {
+		return err
+	}
+
+	var resp syncStatusResponse
+	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil && resp.Branch != "" {
+		// Branch info
+		fmt.Printf("Branch: %s\n", resp.Branch)
+		if resp.Upstream != "" {
+			fmt.Printf("Upstream: %s\n", resp.Upstream)
+		}
+		if resp.RemoteURL != "" {
+			fmt.Printf("Remote: %s\n", resp.RemoteURL)
+		}
+
+		// Sync status
+		if resp.HasUpstream {
+			fmt.Printf("Ahead: %d  Behind: %d\n", resp.Ahead, resp.Behind)
+		} else {
+			fmt.Println("No upstream configured")
+		}
+
+		// Action indicators
+		var actions []string
+		if resp.CanPush {
+			actions = append(actions, "can push")
+		}
+		if resp.CanPull {
+			actions = append(actions, "can pull")
+		}
+		if resp.HasUncommittedChanges {
+			actions = append(actions, "has uncommitted changes")
+		}
+		if len(actions) > 0 {
+			fmt.Printf("Status: %s\n", strings.Join(actions, ", "))
+		}
+
+		// Warnings
+		if len(resp.SafetyWarnings) > 0 {
+			fmt.Println("\nWarnings:")
+			for _, w := range resp.SafetyWarnings {
+				fmt.Printf("  ! %s\n", w)
+			}
+		}
+
+		// Recommendations
+		if len(resp.Recommendations) > 0 {
+			fmt.Println("\nRecommendations:")
+			for _, r := range resp.Recommendations {
+				fmt.Printf("  -> %s\n", r)
+			}
+		}
+
+		// Fetch info
+		if resp.Fetched {
+			fmt.Println("\n(fetched fresh data from remote)")
+		}
+		if resp.FetchError != "" {
+			fmt.Printf("\n! Fetch error: %s\n", resp.FetchError)
+		}
+
+		return nil
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// [REQ:GCT-OT-P0-007] Audit log query
+
+type auditEntry struct {
+	ID            int64    `json:"id"`
+	Operation     string   `json:"operation"`
+	RepoDir       string   `json:"repo_dir"`
+	Branch        string   `json:"branch,omitempty"`
+	Paths         []string `json:"paths,omitempty"`
+	CommitHash    string   `json:"commit_hash,omitempty"`
+	CommitMessage string   `json:"commit_message,omitempty"`
+	Success       bool     `json:"success"`
+	Error         string   `json:"error,omitempty"`
+	Timestamp     string   `json:"timestamp"`
+}
+
+type auditResponse struct {
+	Entries []auditEntry `json:"entries"`
+	Total   int          `json:"total"`
+}
+
+func (a *App) cmdAudit(args []string) error {
+	var operation string
+	var limit string
+
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--operation="):
+			operation = strings.TrimPrefix(arg, "--operation=")
+		case strings.HasPrefix(arg, "--limit="):
+			limit = strings.TrimPrefix(arg, "--limit=")
+		}
+	}
+
+	query := url.Values{}
+	if operation != "" {
+		query.Set("operation", operation)
+	}
+	if limit != "" {
+		query.Set("limit", limit)
+	}
+
+	body, err := a.core.APIClient.Get(a.apiPath("/audit"), query)
+	if err != nil {
+		return err
+	}
+
+	var resp auditResponse
+	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil && resp.Entries != nil {
+		if len(resp.Entries) == 0 {
+			fmt.Println("No audit entries found")
+			return nil
+		}
+
+		fmt.Printf("Audit Log (%d of %d entries)\n", len(resp.Entries), resp.Total)
+		fmt.Println(strings.Repeat("-", 60))
+
+		for _, e := range resp.Entries {
+			status := "OK"
+			if !e.Success {
+				status = "FAIL"
+			}
+			fmt.Printf("[%s] %s %s\n", e.Operation, status, e.Timestamp)
+
+			if e.CommitHash != "" {
+				fmt.Printf("  Commit: %s\n", e.CommitHash)
+			}
+			if e.CommitMessage != "" {
+				msg := e.CommitMessage
+				if len(msg) > 50 {
+					msg = msg[:47] + "..."
+				}
+				fmt.Printf("  Message: %s\n", msg)
+			}
+			if len(e.Paths) > 0 {
+				fmt.Printf("  Paths: %s\n", strings.Join(e.Paths, ", "))
+			}
+			if e.Error != "" {
+				fmt.Printf("  Error: %s\n", e.Error)
+			}
+		}
+
 		return nil
 	}
 

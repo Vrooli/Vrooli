@@ -67,9 +67,10 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 // conventionalCommitRegex matches the conventional commit format:
 // type(scope): description  OR  type: description
 // Examples:
-//   feat(auth): add login endpoint
-//   fix: resolve null pointer
-//   docs(readme): update installation steps
+//
+//	feat(auth): add login endpoint
+//	fix: resolve null pointer
+//	docs(readme): update installation steps
 var conventionalCommitRegex = regexp.MustCompile(`^([a-z]+)(\([a-z0-9-]+\))?!?: .+$`)
 
 // ValidateConventionalCommit checks if a message follows conventional commit format.

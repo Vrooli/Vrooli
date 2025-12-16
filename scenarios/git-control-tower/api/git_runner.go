@@ -48,6 +48,26 @@ type GitRunner interface {
 	// Returns the absolute path to the repo root, or empty string if not in a repo.
 	// This centralizes repo resolution so it can be mocked in tests.
 	ResolveRepoRoot(ctx context.Context) string
+
+	// FetchRemote fetches updates from the remote without merging.
+	// Used to get accurate ahead/behind counts.
+	FetchRemote(ctx context.Context, repoDir string, remote string) error
+
+	// GetRemoteURL returns the URL for the specified remote (e.g., "origin").
+	GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error)
+
+	// Discard discards changes in the specified paths.
+	// For tracked files: git checkout -- <paths>
+	// For untracked files: removes them from the working tree
+	Discard(ctx context.Context, repoDir string, paths []string, untracked bool) error
+
+	// Push pushes commits to the remote repository.
+	// Returns an error if the push fails.
+	Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool) error
+
+	// Pull pulls commits from the remote repository.
+	// Returns an error if the pull fails (e.g., conflicts).
+	Pull(ctx context.Context, repoDir string, remote string, branch string) error
 }
 
 // ExecGitRunner implements GitRunner by executing the real git binary.
@@ -203,4 +223,122 @@ func (r *ExecGitRunner) ResolveRepoRoot(ctx context.Context) string {
 	}
 
 	return ""
+}
+
+func (r *ExecGitRunner) FetchRemote(ctx context.Context, repoDir string, remote string) error {
+	if remote == "" {
+		remote = "origin"
+	}
+
+	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "fetch", remote)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git fetch failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git fetch failed: %w", err)
+	}
+	return nil
+}
+
+func (r *ExecGitRunner) GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error) {
+	if remote == "" {
+		remote = "origin"
+	}
+
+	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "remote", "get-url", remote)
+	out, err := cmd.Output()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return "", fmt.Errorf("git remote get-url failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return "", fmt.Errorf("git remote get-url failed: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func (r *ExecGitRunner) Discard(ctx context.Context, repoDir string, paths []string, untracked bool) error {
+	if len(paths) == 0 {
+		return nil
+	}
+
+	if untracked {
+		// For untracked files, use git clean -f
+		args := []string{"-C", repoDir, "clean", "-f", "--"}
+		args = append(args, paths...)
+		cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			exitErr := &exec.ExitError{}
+			if errors.As(err, &exitErr) {
+				return fmt.Errorf("git clean failed: %w (%s)", err, strings.TrimSpace(string(out)))
+			}
+			return fmt.Errorf("git clean failed: %w", err)
+		}
+	} else {
+		// For tracked files, use git checkout -- <paths>
+		args := []string{"-C", repoDir, "checkout", "--"}
+		args = append(args, paths...)
+		cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			exitErr := &exec.ExitError{}
+			if errors.As(err, &exitErr) {
+				return fmt.Errorf("git checkout failed: %w (%s)", err, strings.TrimSpace(string(out)))
+			}
+			return fmt.Errorf("git checkout failed: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (r *ExecGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool) error {
+	if remote == "" {
+		remote = "origin"
+	}
+
+	args := []string{"-C", repoDir, "push"}
+	if setUpstream {
+		args = append(args, "-u")
+	}
+	args = append(args, remote)
+	if branch != "" {
+		args = append(args, branch)
+	}
+
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git push failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git push failed: %w", err)
+	}
+	return nil
+}
+
+func (r *ExecGitRunner) Pull(ctx context.Context, repoDir string, remote string, branch string) error {
+	if remote == "" {
+		remote = "origin"
+	}
+
+	args := []string{"-C", repoDir, "pull", remote}
+	if branch != "" {
+		args = append(args, branch)
+	}
+
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git pull failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git pull failed: %w", err)
+	}
+	return nil
 }

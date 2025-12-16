@@ -45,7 +45,7 @@ var ConventionalCommitTypes = []string{
 	"refactor", // Code change that neither fixes a bug nor adds a feature
 	"perf",     // Performance improvement
 	"test",     // Adding/updating tests
-	"build",   // Changes to build system or dependencies
+	"build",    // Changes to build system or dependencies
 	"ci",       // CI configuration changes
 	"chore",    // Other changes that don't modify src or test files
 	"revert",   // Reverts a previous commit

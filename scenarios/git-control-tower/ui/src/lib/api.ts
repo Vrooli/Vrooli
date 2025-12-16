@@ -104,6 +104,79 @@ export interface UnstageResponse {
   timestamp: string;
 }
 
+export interface CommitRequest {
+  message: string;
+  conventional?: boolean;
+}
+
+export interface CommitResponse {
+  success: boolean;
+  hash?: string;
+  error?: string;
+  validation_errors?: string[];
+  timestamp: string;
+}
+
+export interface DiscardRequest {
+  paths: string[];
+  untracked?: boolean;
+}
+
+export interface DiscardResponse {
+  success: boolean;
+  discarded: string[];
+  failed?: string[];
+  errors?: string[];
+  timestamp: string;
+}
+
+export interface PushRequest {
+  remote?: string;
+  branch?: string;
+  set_upstream?: boolean;
+}
+
+export interface PushResponse {
+  success: boolean;
+  remote: string;
+  branch: string;
+  error?: string;
+  timestamp: string;
+}
+
+export interface PullRequest {
+  remote?: string;
+  branch?: string;
+}
+
+export interface PullResponse {
+  success: boolean;
+  remote: string;
+  branch: string;
+  error?: string;
+  has_conflicts?: boolean;
+  timestamp: string;
+}
+
+export interface SyncStatusResponse {
+  branch: string;
+  upstream?: string;
+  remote_url?: string;
+  ahead: number;
+  behind: number;
+  has_upstream: boolean;
+  can_push: boolean;
+  can_pull: boolean;
+  needs_push: boolean;
+  needs_pull: boolean;
+  has_uncommitted_changes: boolean;
+  safety_warnings?: string[];
+  recommendations?: string[];
+  fetched: boolean;
+  fetch_error?: string;
+  timestamp: string;
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -168,4 +241,56 @@ export async function unstageFiles(request: UnstageRequest): Promise<UnstageResp
     body: JSON.stringify(request)
   });
   return handleResponse<UnstageResponse>(res);
+}
+
+export async function createCommit(request: CommitRequest): Promise<CommitResponse> {
+  const url = buildApiUrl("/repo/commit", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<CommitResponse>(res);
+}
+
+export async function discardFiles(request: DiscardRequest): Promise<DiscardResponse> {
+  const url = buildApiUrl("/repo/discard", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<DiscardResponse>(res);
+}
+
+export async function pushToRemote(request: PushRequest = {}): Promise<PushResponse> {
+  const url = buildApiUrl("/repo/push", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<PushResponse>(res);
+}
+
+export async function pullFromRemote(request: PullRequest = {}): Promise<PullResponse> {
+  const url = buildApiUrl("/repo/pull", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<PullResponse>(res);
+}
+
+export async function fetchSyncStatus(doFetch = false): Promise<SyncStatusResponse> {
+  const params = new URLSearchParams();
+  if (doFetch) params.set("fetch", "true");
+
+  const url = buildApiUrl(`/repo/sync-status?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<SyncStatusResponse>(res);
 }

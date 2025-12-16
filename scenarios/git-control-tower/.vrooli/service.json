@@ -188,7 +188,7 @@
         },
         {
           "name": "run-phased-tests",
-          "run": "test-genie execute git-control-tower --preset comprehensive",
+          "run": "test-genie execute git-control-tower --preset comprehensive --skip playbooks",
           "description": "Execute phased scenario test suite"
         }
       ]

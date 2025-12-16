@@ -29,19 +29,32 @@ type FakeGitRunner struct {
 	IsRepository bool   // Whether this is a valid git repo
 	GitAvailable bool   // Whether git binary is "installed"
 	RepoRoot     string // Configured repository root path
+	RemoteURL    string // Configured remote URL (for GetRemoteURL)
 
 	// Error injection for testing error paths
-	StatusError   error
-	DiffError     error
-	StageError    error
-	UnstageError  error
-	CommitError   error
-	RevParseError error
-	LookPathError error
+	StatusError    error
+	DiffError      error
+	StageError     error
+	UnstageError   error
+	CommitError    error
+	RevParseError  error
+	LookPathError  error
+	FetchError     error
+	RemoteURLError error
+	DiscardError   error
+	PushError      error
+	PullError      error
 
 	// Commit tracking
 	LastCommitMessage string
 	CommitCount       int
+
+	// Fetch tracking
+	FetchCount int
+
+	// Push/Pull tracking
+	PushCount int
+	PullCount int
 
 	// Call tracking for verification
 	Calls []FakeGitCall
@@ -294,6 +307,96 @@ func (f *FakeGitRunner) ResolveRepoRoot(_ context.Context) string {
 	return f.RepoRoot
 }
 
+// FetchRemote simulates fetching from a remote.
+func (f *FakeGitRunner) FetchRemote(ctx context.Context, repoDir string, remote string) error {
+	f.recordCall("FetchRemote", repoDir, remote)
+
+	if f.FetchError != nil {
+		return f.FetchError
+	}
+
+	f.FetchCount++
+	return nil
+}
+
+// GetRemoteURL returns the configured remote URL.
+func (f *FakeGitRunner) GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error) {
+	f.recordCall("GetRemoteURL", repoDir, remote)
+
+	if f.RemoteURLError != nil {
+		return "", f.RemoteURLError
+	}
+
+	if f.RemoteURL == "" {
+		return "", fmt.Errorf("fatal: No such remote '%s'", remote)
+	}
+	return f.RemoteURL, nil
+}
+
+// Discard simulates discarding changes.
+func (f *FakeGitRunner) Discard(ctx context.Context, repoDir string, paths []string, untracked bool) error {
+	f.recordCall("Discard", append([]string{repoDir, fmt.Sprintf("untracked=%v", untracked)}, paths...)...)
+
+	if f.DiscardError != nil {
+		return f.DiscardError
+	}
+
+	if untracked {
+		// Remove from untracked list
+		for _, path := range paths {
+			for i, u := range f.Untracked {
+				if u == path {
+					f.Untracked = append(f.Untracked[:i], f.Untracked[i+1:]...)
+					break
+				}
+			}
+		}
+	} else {
+		// Remove from unstaged (tracked files reverted)
+		for _, path := range paths {
+			delete(f.Unstaged, path)
+		}
+	}
+
+	return nil
+}
+
+// Push simulates pushing to a remote.
+func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool) error {
+	f.recordCall("Push", repoDir, remote, branch, fmt.Sprintf("setUpstream=%v", setUpstream))
+
+	if f.PushError != nil {
+		return f.PushError
+	}
+
+	f.PushCount++
+
+	// Simulate push by updating ahead count
+	if f.Branch.Ahead > 0 {
+		f.Branch.Ahead = 0
+	}
+
+	return nil
+}
+
+// Pull simulates pulling from a remote.
+func (f *FakeGitRunner) Pull(ctx context.Context, repoDir string, remote string, branch string) error {
+	f.recordCall("Pull", repoDir, remote, branch)
+
+	if f.PullError != nil {
+		return f.PullError
+	}
+
+	f.PullCount++
+
+	// Simulate pull by updating behind count
+	if f.Branch.Behind > 0 {
+		f.Branch.Behind = 0
+	}
+
+	return nil
+}
+
 // --- Test helpers ---
 
 // AddStagedFile adds a file to the staged state.
@@ -344,6 +447,12 @@ func (f *FakeGitRunner) WithGitUnavailable() *FakeGitRunner {
 // WithRepoRoot sets the repository root path.
 func (f *FakeGitRunner) WithRepoRoot(root string) *FakeGitRunner {
 	f.RepoRoot = root
+	return f
+}
+
+// WithRemoteURL sets the remote URL.
+func (f *FakeGitRunner) WithRemoteURL(url string) *FakeGitRunner {
+	f.RemoteURL = url
 	return f
 }
 
