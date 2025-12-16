@@ -125,6 +125,7 @@ func main() {
 	// Validation and AI endpoints
 	apiV1.HandleFunc("/drafts/validate", handleValidatePRD).Methods("POST")
 	apiV1.HandleFunc("/drafts/{id}/validate", handleValidateDraft).Methods("POST")
+	apiV1.HandleFunc("/drafts/ai/generate", handleAIGenerateDraft).Methods("POST")
 	apiV1.HandleFunc("/drafts/{id}/ai/generate-section", handleAIGenerateSection).Methods("POST")
 	apiV1.HandleFunc("/drafts/{id}/publish", handlePublishDraft).Methods("POST")
 	apiV1.HandleFunc("/scenario-templates", handleListScenarioTemplates).Methods("GET")

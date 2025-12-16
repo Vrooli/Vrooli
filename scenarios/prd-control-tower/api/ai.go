@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -38,6 +41,37 @@ type AIGenerateResponse struct {
 	Model         string `json:"model"`
 	Success       bool   `json:"success"`
 	Message       string `json:"message,omitempty"`
+}
+
+// AIGenerateDraftRequest represents an AI request that can create/seed a draft without needing an existing draft ID.
+// If save_generated_to_draft is true (default), the generated content is persisted into the draft and draft file.
+type AIGenerateDraftRequest struct {
+	EntityType           string         `json:"entity_type"`
+	EntityName           string         `json:"entity_name"`
+	Content              string         `json:"content,omitempty"`                 // Optional seed content for the draft (e.g., existing PRD text)
+	Owner                string         `json:"owner,omitempty"`                   // Optional owner for metadata
+	Section              string         `json:"section"`                            // Section to generate (e.g., "Executive Summary", "🎯 Full PRD")
+	Context              string         `json:"context"`                            // Additional context for generation (can be requirements, notes, etc.)
+	Action               string         `json:"action"`                             // Quick action type (improve, expand, simplify, grammar, technical, clarify)
+	IncludeExisting      *bool          `json:"include_existing_content,omitempty"` // Default true
+	ReferencePRDs        []ReferencePRD `json:"reference_prds,omitempty"`           // Reference PRD examples
+	Model                string         `json:"model,omitempty"`                    // Override model (e.g., "openrouter/x-ai/grok-code-fast-1")
+	SaveGeneratedToDraft *bool          `json:"save_generated_to_draft,omitempty"`  // Default true
+}
+
+type AIGenerateDraftResponse struct {
+	DraftID        string `json:"draft_id"`
+	EntityType     string `json:"entity_type"`
+	EntityName     string `json:"entity_name"`
+	Section        string `json:"section"`
+	GeneratedText  string `json:"generated_text"`
+	Model          string `json:"model"`
+	SavedToDraft   bool   `json:"saved_to_draft"`
+	Success        bool   `json:"success"`
+	Message        string `json:"message,omitempty"`
+	DraftFilePath  string `json:"draft_file_path,omitempty"`
+	UpdatedAt      string `json:"updated_at,omitempty"`
+	IncludeContent bool   `json:"include_existing_content"`
 }
 
 func handleAIGenerateSection(w http.ResponseWriter, r *http.Request) {
@@ -90,6 +124,217 @@ func handleAIGenerateSection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, response)
+}
+
+// handleAIGenerateDraft creates/updates a draft by entity type/name (if needed), runs AI generation, and returns the created draft_id.
+// This is intended for CLI/agent flows where the caller wants a single API call to obtain a draft ID plus generated content.
+func handleAIGenerateDraft(w http.ResponseWriter, r *http.Request) {
+	// Defensive check for unit tests (middleware protects in production)
+	if db == nil {
+		respondServiceUnavailable(w, "Database not available")
+		return
+	}
+
+	var req AIGenerateDraftRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondInvalidJSON(w, err)
+		return
+	}
+
+	response, status := executeAIGenerateDraft(sqlDB{db: db}, req)
+	respondJSON(w, status, response)
+}
+
+func executeAIGenerateDraft(store dbQueryExecutor, req AIGenerateDraftRequest) (AIGenerateDraftResponse, int) {
+	req.EntityType = strings.TrimSpace(req.EntityType)
+	req.EntityName = strings.TrimSpace(req.EntityName)
+
+	if !isValidEntityType(req.EntityType) {
+		return AIGenerateDraftResponse{
+			Success: false,
+			Message: "Invalid entity type. Must be 'scenario' or 'resource'",
+		}, http.StatusBadRequest
+	}
+	if req.EntityName == "" {
+		return AIGenerateDraftResponse{
+			Success: false,
+			Message: "entity_name is required",
+		}, http.StatusBadRequest
+	}
+	if req.Section == "" && req.Action == "" {
+		return AIGenerateDraftResponse{
+			Success: false,
+			Message: "Section or Action is required",
+		}, http.StatusBadRequest
+	}
+
+	// Defaults
+	includeExisting := true
+	if req.IncludeExisting != nil {
+		includeExisting = *req.IncludeExisting
+	}
+	saveGenerated := true
+	if req.SaveGeneratedToDraft != nil {
+		saveGenerated = *req.SaveGeneratedToDraft
+	}
+
+	draft, err := ensureDraftForAI(store, req.EntityType, req.EntityName, req.Content, req.Owner)
+	if err != nil {
+		return AIGenerateDraftResponse{
+			EntityType: req.EntityType,
+			EntityName: req.EntityName,
+			Section:    req.Section,
+			Success:    false,
+			Message:    fmt.Sprintf("Failed to ensure draft for AI generation: %v", err),
+		}, http.StatusInternalServerError
+	}
+
+	generatedText, model, err := generateAIContent(draft, req.Section, req.Context, req.Action, includeExisting, req.ReferencePRDs, req.Model)
+	if err != nil {
+		return AIGenerateDraftResponse{
+			DraftID:        draft.ID,
+			EntityType:     draft.EntityType,
+			EntityName:     draft.EntityName,
+			Section:        req.Section,
+			Success:        false,
+			Message:        fmt.Sprintf("AI generation failed: %v", err),
+			IncludeContent: includeExisting,
+		}, http.StatusInternalServerError
+	}
+
+	var draftFilePath string
+	var updatedAt string
+	if saveGenerated {
+		now := time.Now()
+		ownerValue := nullString(req.Owner)
+		if _, err := store.Exec(`
+			UPDATE drafts
+			SET content = $1, owner = COALESCE($2, owner), status = $3, updated_at = $4
+			WHERE id = $5
+		`, generatedText, ownerValue, DraftStatusDraft, now, draft.ID); err != nil {
+			return AIGenerateDraftResponse{
+				DraftID:    draft.ID,
+				EntityType: draft.EntityType,
+				EntityName: draft.EntityName,
+				Section:    req.Section,
+				Success:    false,
+				Message:    fmt.Sprintf("Failed to persist AI-generated content to draft: %v", err),
+			}, http.StatusInternalServerError
+		}
+
+		if err := saveDraftToFile(draft.EntityType, draft.EntityName, generatedText); err != nil {
+			return AIGenerateDraftResponse{
+				DraftID:    draft.ID,
+				EntityType: draft.EntityType,
+				EntityName: draft.EntityName,
+				Section:    req.Section,
+				Success:    false,
+				Message:    fmt.Sprintf("Failed to save draft file: %v", err),
+			}, http.StatusInternalServerError
+		}
+
+		draftFilePath = getDraftPath(draft.EntityType, draft.EntityName)
+		updatedAt = now.Format(time.RFC3339)
+	}
+
+	return AIGenerateDraftResponse{
+		DraftID:        draft.ID,
+		EntityType:     draft.EntityType,
+		EntityName:     draft.EntityName,
+		Section:        req.Section,
+		GeneratedText:  strings.TrimSpace(generatedText),
+		Model:          model,
+		SavedToDraft:   saveGenerated,
+		Success:        true,
+		DraftFilePath:  draftFilePath,
+		UpdatedAt:      updatedAt,
+		IncludeContent: includeExisting,
+	}, http.StatusOK
+}
+
+func ensureDraftForAI(store dbQueryExecutor, entityType, entityName, content, owner string) (Draft, error) {
+	var draft Draft
+	var ownerValue sql.NullString
+	var sourceBacklogID sql.NullString
+
+	row := store.QueryRow(`
+		SELECT id, entity_type, entity_name, content, owner, source_backlog_id, created_at, updated_at, status
+		FROM drafts
+		WHERE entity_type = $1 AND entity_name = $2
+	`, entityType, entityName)
+
+	scanErr := row.Scan(
+		&draft.ID,
+		&draft.EntityType,
+		&draft.EntityName,
+		&draft.Content,
+		&ownerValue,
+		&sourceBacklogID,
+		&draft.CreatedAt,
+		&draft.UpdatedAt,
+		&draft.Status,
+	)
+
+	switch {
+	case errors.Is(scanErr, sql.ErrNoRows):
+		now := time.Now()
+		draft = Draft{
+			ID:         uuid.New().String(),
+			EntityType: entityType,
+			EntityName: entityName,
+			Content:    content,
+			Owner:      strings.TrimSpace(owner),
+			CreatedAt:  now,
+			UpdatedAt:  now,
+			Status:     DraftStatusDraft,
+		}
+
+		if _, err := store.Exec(`
+			INSERT INTO drafts (id, entity_type, entity_name, content, owner, source_backlog_id, created_at, updated_at, status)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8)
+		`, draft.ID, entityType, entityName, content, nullString(owner), sql.NullString{}, now, DraftStatusDraft); err != nil {
+			return Draft{}, fmt.Errorf("failed to create draft: %w", err)
+		}
+
+		return draft, nil
+	case scanErr != nil:
+		return Draft{}, fmt.Errorf("failed to query draft: %w", scanErr)
+	default:
+		if ownerValue.Valid {
+			draft.Owner = ownerValue.String
+		}
+		if sourceBacklogID.Valid {
+			draft.SourceBacklogID = &sourceBacklogID.String
+		}
+
+		// Apply seed updates if caller provided them.
+		desiredContent := draft.Content
+		if strings.TrimSpace(content) != "" {
+			desiredContent = content
+		}
+		desiredOwner := draft.Owner
+		if strings.TrimSpace(owner) != "" {
+			desiredOwner = strings.TrimSpace(owner)
+		}
+		desiredStatus := DraftStatusDraft
+
+		if desiredContent != draft.Content || desiredOwner != draft.Owner || desiredStatus != draft.Status {
+			now := time.Now()
+			if _, err := store.Exec(`
+				UPDATE drafts
+				SET content = $1, owner = $2, status = $3, updated_at = $4
+				WHERE id = $5
+			`, desiredContent, nullString(desiredOwner), desiredStatus, now, draft.ID); err != nil {
+				return Draft{}, fmt.Errorf("failed to update draft seed: %w", err)
+			}
+			draft.Content = desiredContent
+			draft.Owner = desiredOwner
+			draft.Status = desiredStatus
+			draft.UpdatedAt = now
+		}
+
+		return draft, nil
+	}
 }
 
 func generateAIContent(draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string) (string, string, error) {
