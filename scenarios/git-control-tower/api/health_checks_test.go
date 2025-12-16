@@ -23,8 +23,8 @@ func TestHealthChecks_Run_UnhealthyWhenRepoMissing(t *testing.T) {
 	if result.Status != "unhealthy" {
 		t.Fatalf("expected status=unhealthy, got %q", result.Status)
 	}
-	if result.Dependencies["repository"] == "" {
-		t.Fatalf("expected repository dependency status to be set")
+	if dep, ok := result.Dependencies["repository"]; !ok || dep.Status == "" {
+		t.Fatalf("expected repository dependency to be set")
 	}
 }
 
@@ -47,15 +47,14 @@ func TestHealthChecks_CheckRepository_WithGitRepo(t *testing.T) {
 		GitPath: "git",
 		RepoDir: repoDir,
 	})
-	deps := map[string]string{}
+	deps := map[string]HealthDependency{}
 	errs := map[string]string{}
 
 	ok := h.checkRepository(ctx, deps, errs)
 	if !ok {
 		t.Fatalf("expected repository check to pass, got deps=%v errs=%v", deps, errs)
 	}
-	if deps["repository"] != "accessible" {
-		t.Fatalf("expected deps[repository]=accessible, got %q", deps["repository"])
+	if deps["repository"].Status != "accessible" || !deps["repository"].Connected {
+		t.Fatalf("expected deps[repository]=accessible+connected, got %+v", deps["repository"])
 	}
 }
-

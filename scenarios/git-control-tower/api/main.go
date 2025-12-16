@@ -31,6 +31,7 @@ type Server struct {
 	config *Config
 	db     *sql.DB
 	router *mux.Router
+	git    GitRunner
 }
 
 // NewServer initializes configuration, database, and routes
@@ -54,6 +55,7 @@ func NewServer() (*Server, error) {
 		config: cfg,
 		db:     db,
 		router: mux.NewRouter(),
+		git:    &ExecGitRunner{GitPath: "git"},
 	}
 
 	srv.setupRoutes()
@@ -65,6 +67,7 @@ func (s *Server) setupRoutes() {
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/status", s.handleRepoStatus).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -117,6 +120,29 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	json.NewEncoder(w).Encode(result)
+}
+
+func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
+	repoDir := resolveRepoDir()
+	if strings.TrimSpace(repoDir) == "" {
+		writeJSONError(w, http.StatusBadRequest, "repository root could not be resolved")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	status, err := GetRepoStatus(ctx, RepoStatusDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	})
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
 }
 
 // loggingMiddleware prints simple request logs

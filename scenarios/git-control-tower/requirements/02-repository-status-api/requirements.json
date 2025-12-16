@@ -5,14 +5,76 @@
   },
   "requirements": [
     {
-      "id": "GCT-OT-P0-002",
+      "id": "GCT-OT-P0-002A",
       "category": "operational_target.p0",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "title": "Repository status API",
-      "description": "Returns current branch, tracking status, staged/unstaged/untracked files, conflicts with scope detection",
+      "title": "Repository status includes branch + tracking",
+      "description": "Returns current branch plus upstream/ahead/behind tracking information",
       "status": "pending",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/repo_status_parser_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Parses porcelain v2 branch metadata"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/02-repository-status-api/api/repo-status.json",
+          "phase": "e2e",
+          "status": "implemented",
+          "notes": "Calls repo status endpoint and asserts branch fields exist"
+        }
+      ]
+    },
+    {
+      "id": "GCT-OT-P0-002B",
+      "category": "operational_target.p0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Repository status includes changed file lists + scopes",
+      "description": "Returns staged/unstaged/untracked files and groups them by Vrooli scope (scenario/resource/package/other)",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/repo_status_parser_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates changed file categorization and scope detection"
+        },
+        {
+          "type": "test",
+          "ref": "cli/git-control-tower.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI runs repo-status against running API"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/02-repository-status-api/api/repo-status.json",
+          "phase": "e2e",
+          "status": "implemented",
+          "notes": "Calls repo status endpoint and asserts file containers exist"
+        }
+      ]
+    },
+    {
+      "id": "GCT-OT-P0-002C",
+      "category": "operational_target.p0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Repository status reports conflicts",
+      "description": "Detects merge conflicts and reports them in the conflicts list",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/repo_status_parser_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates unmerged record parsing into conflicts list"
+        }
+      ]
     }
   ]
 }
-

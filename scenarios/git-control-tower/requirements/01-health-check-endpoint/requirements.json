@@ -21,6 +21,13 @@
         },
         {
           "type": "test",
+          "ref": "bas/cases/01-health-check-endpoint/api/health.json",
+          "phase": "e2e",
+          "status": "implemented",
+          "notes": "Calls /health and asserts readiness schema"
+        },
+        {
+          "type": "test",
           "ref": "cli/git-control-tower.bats",
           "phase": "integration",
           "status": "implemented",

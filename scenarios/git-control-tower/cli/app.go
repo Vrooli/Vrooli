@@ -66,6 +66,13 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	repo := cliapp.CommandGroup{
+		Title: "Repository",
+		Commands: []cliapp.Command{
+			{Name: "repo-status", NeedsAPI: true, Description: "Show repository status (branch + changed files)", Run: a.cmdRepoStatus},
+		},
+	}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -73,7 +80,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, config}
+	return []cliapp.CommandGroup{health, repo, config}
 }
 
 func (a *App) apiPath(v1Path string) string {
@@ -101,7 +108,10 @@ type healthResponse struct {
 	Version    string            `json:"version"`
 	Readiness  bool              `json:"readiness"`
 	Timestamp  string            `json:"timestamp"`
-	Deps       map[string]string `json:"dependencies"`
+	Deps       map[string]struct {
+		Connected bool   `json:"connected"`
+		Status    string `json:"status"`
+	} `json:"dependencies"`
 	Error      string            `json:"error,omitempty"`
 	Message    string            `json:"message,omitempty"`
 	Operations map[string]any    `json:"operations,omitempty"`
@@ -126,9 +136,59 @@ func (a *App) cmdStatus(_ []string) error {
 		if len(parsed.Deps) > 0 {
 			fmt.Println("Dependencies:")
 			for key, value := range parsed.Deps {
-				fmt.Printf("  %s: %s\n", key, value)
+				state := "disconnected"
+				if value.Connected {
+					state = "connected"
+				}
+				if value.Status != "" {
+					fmt.Printf("  %s: %s (%s)\n", key, state, value.Status)
+					continue
+				}
+				fmt.Printf("  %s: %s\n", key, state)
 			}
 		}
+		return nil
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// [REQ:GCT-OT-P0-002] Repository status API
+
+type repoStatusResponse struct {
+	RepoDir string `json:"repo_dir"`
+	Branch  struct {
+		Head     string `json:"head"`
+		Upstream string `json:"upstream"`
+		Ahead    int    `json:"ahead"`
+		Behind   int    `json:"behind"`
+	} `json:"branch"`
+	Summary struct {
+		Staged    int `json:"staged"`
+		Unstaged  int `json:"unstaged"`
+		Untracked int `json:"untracked"`
+		Conflicts int `json:"conflicts"`
+	} `json:"summary"`
+}
+
+func (a *App) cmdRepoStatus(_ []string) error {
+	body, err := a.core.APIClient.Get(a.apiPath("/repo/status"), nil)
+	if err != nil {
+		return err
+	}
+
+	var parsed repoStatusResponse
+	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil && parsed.RepoDir != "" {
+		fmt.Printf("Repo: %s\n", parsed.RepoDir)
+		if parsed.Branch.Head != "" {
+			fmt.Printf("Branch: %s\n", parsed.Branch.Head)
+		}
+		if parsed.Branch.Upstream != "" {
+			fmt.Printf("Upstream: %s (ahead %d, behind %d)\n", parsed.Branch.Upstream, parsed.Branch.Ahead, parsed.Branch.Behind)
+		}
+		fmt.Printf("Changes: staged=%d unstaged=%d untracked=%d conflicts=%d\n",
+			parsed.Summary.Staged, parsed.Summary.Unstaged, parsed.Summary.Untracked, parsed.Summary.Conflicts)
 		return nil
 	}
 

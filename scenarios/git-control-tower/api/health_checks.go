@@ -15,17 +15,22 @@ type HealthCheckDeps struct {
 }
 
 type HealthCheckResult struct {
-	Status       string            `json:"status"`
-	Service      string            `json:"service"`
-	Version      string            `json:"version"`
-	Readiness    bool              `json:"readiness"`
-	Timestamp    string            `json:"timestamp"`
-	Dependencies map[string]string `json:"dependencies"`
-	Errors       map[string]string `json:"errors,omitempty"`
+	Status       string                     `json:"status"`
+	Service      string                     `json:"service"`
+	Version      string                     `json:"version"`
+	Readiness    bool                       `json:"readiness"`
+	Timestamp    string                     `json:"timestamp"`
+	Dependencies map[string]HealthDependency `json:"dependencies"`
+	Errors       map[string]string          `json:"errors,omitempty"`
 }
 
 type HealthChecks struct {
 	deps HealthCheckDeps
+}
+
+type HealthDependency struct {
+	Connected bool   `json:"connected"`
+	Status    string `json:"status,omitempty"`
 }
 
 func NewHealthChecks(deps HealthCheckDeps) *HealthChecks {
@@ -38,7 +43,7 @@ func NewHealthChecks(deps HealthCheckDeps) *HealthChecks {
 }
 
 func (h *HealthChecks) Run(ctx context.Context) HealthCheckResult {
-	dependencies := make(map[string]string, 3)
+	dependencies := make(map[string]HealthDependency, 3)
 	errors := make(map[string]string, 3)
 
 	dbOK := h.checkDatabase(ctx, dependencies, errors)
@@ -53,7 +58,7 @@ func (h *HealthChecks) Run(ctx context.Context) HealthCheckResult {
 
 	result := HealthCheckResult{
 		Status:       status,
-		Service:      "Git Control Tower API",
+		Service:      "git-control-tower-api",
 		Version:      "1.0.0",
 		Readiness:    readiness,
 		Timestamp:    time.Now().UTC().Format(time.RFC3339),
@@ -65,25 +70,25 @@ func (h *HealthChecks) Run(ctx context.Context) HealthCheckResult {
 	return result
 }
 
-func (h *HealthChecks) checkDatabase(ctx context.Context, deps map[string]string, errs map[string]string) bool {
+func (h *HealthChecks) checkDatabase(ctx context.Context, deps map[string]HealthDependency, errs map[string]string) bool {
 	if h.deps.DB == nil {
-		deps["database"] = "unconfigured"
+		deps["database"] = HealthDependency{Connected: false, Status: "unconfigured"}
 		errs["database"] = "database handle not initialized"
 		return false
 	}
 	if err := h.deps.DB.PingContext(ctx); err != nil {
-		deps["database"] = "disconnected"
+		deps["database"] = HealthDependency{Connected: false, Status: "disconnected"}
 		errs["database"] = err.Error()
 		return false
 	}
-	deps["database"] = "connected"
+	deps["database"] = HealthDependency{Connected: true, Status: "connected"}
 	return true
 }
 
-func (h *HealthChecks) checkGitBinary(deps map[string]string, errs map[string]string) bool {
+func (h *HealthChecks) checkGitBinary(deps map[string]HealthDependency, errs map[string]string) bool {
 	path, err := exec.LookPath(h.deps.GitPath)
 	if err != nil || strings.TrimSpace(path) == "" {
-		deps["git"] = "missing"
+		deps["git"] = HealthDependency{Connected: false, Status: "missing"}
 		if err != nil {
 			errs["git"] = err.Error()
 		} else {
@@ -91,20 +96,20 @@ func (h *HealthChecks) checkGitBinary(deps map[string]string, errs map[string]st
 		}
 		return false
 	}
-	deps["git"] = "available"
+	deps["git"] = HealthDependency{Connected: true, Status: "available"}
 	return true
 }
 
-func (h *HealthChecks) checkRepository(ctx context.Context, deps map[string]string, errs map[string]string) bool {
+func (h *HealthChecks) checkRepository(ctx context.Context, deps map[string]HealthDependency, errs map[string]string) bool {
 	if h.deps.RepoDir == "" {
-		deps["repository"] = "unknown"
+		deps["repository"] = HealthDependency{Connected: false, Status: "unknown"}
 		errs["repository"] = "could not resolve repository root"
 		return false
 	}
 	cmd := exec.CommandContext(ctx, h.deps.GitPath, "-C", h.deps.RepoDir, "rev-parse", "--is-inside-work-tree")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		deps["repository"] = "unavailable"
+		deps["repository"] = HealthDependency{Connected: false, Status: "unavailable"}
 		errs["repository"] = strings.TrimSpace(string(out))
 		if errs["repository"] == "" {
 			errs["repository"] = err.Error()
@@ -112,11 +117,10 @@ func (h *HealthChecks) checkRepository(ctx context.Context, deps map[string]stri
 		return false
 	}
 	if strings.TrimSpace(string(out)) != "true" {
-		deps["repository"] = "unavailable"
+		deps["repository"] = HealthDependency{Connected: false, Status: "unavailable"}
 		errs["repository"] = "not inside a git work tree"
 		return false
 	}
-	deps["repository"] = "accessible"
+	deps["repository"] = HealthDependency{Connected: true, Status: "accessible"}
 	return true
 }
-

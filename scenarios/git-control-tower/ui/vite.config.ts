@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'node',
     coverage: {
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],
