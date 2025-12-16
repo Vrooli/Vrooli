@@ -515,6 +515,12 @@ func CheckLifecycleProtection(content []byte, filePath string, scenario string) 
 		return nil
 	}
 
+	// This rule is for long-running services (APIs), not CLIs.
+	normalized := filepath.ToSlash(filePath)
+	if strings.HasPrefix(normalized, "cli/") || strings.Contains(normalized, "/cli/") {
+		return nil
+	}
+
 	// Use AST-based validation for security-critical analysis
 	return checkLifecycleProtectionAST(content, filePath, scenario)
 }

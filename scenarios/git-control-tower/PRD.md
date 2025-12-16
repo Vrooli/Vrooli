@@ -29,7 +29,7 @@
 - [ ] OT-P1-003 | Conflict detection & reporting | Detect active merge conflicts and potential conflicts (local changes + behind remote)
 - [ ] OT-P1-004 | Change preview | Preview commit impact with LOC analysis, affected scenarios/resources, deployment risk assessment
 
-### 🟢 P2 – Future / expansion ideas
+### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Web UI dashboard | Visual diff viewer, interactive staging, branch management, service health monitoring
 - [ ] OT-P2-002 | Worktree management | List, create, and manage git worktrees via API
 - [ ] OT-P2-003 | Stash operations | Save, apply, and drop stashes programmatically
@@ -52,5 +52,5 @@
 - Voice & messaging: Technical and direct; explicit warnings for risky operations; no fluff.
 - Branding hooks: Git semantics (branch, commit, diff) as primary iconography.
 
-## 📎 Appendix (optional)
+## 📎 Appendix
 - `docs/RESEARCH.md` (uniqueness + related scenarios/resources)

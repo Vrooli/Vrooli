@@ -77,6 +77,10 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 }
 
 func (a *App) apiPath(v1Path string) string {
+	return apiPathFromBaseURL(a.core.HTTPClient.BaseURL(), v1Path)
+}
+
+func apiPathFromBaseURL(baseURL string, v1Path string) string {
 	v1Path = strings.TrimSpace(v1Path)
 	if v1Path == "" {
 		return ""
@@ -84,7 +88,7 @@ func (a *App) apiPath(v1Path string) string {
 	if !strings.HasPrefix(v1Path, "/") {
 		v1Path = "/" + v1Path
 	}
-	base := strings.TrimRight(strings.TrimSpace(a.core.HTTPClient.BaseURL()), "/")
+	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if strings.HasSuffix(base, "/api/v1") {
 		return v1Path
 	}

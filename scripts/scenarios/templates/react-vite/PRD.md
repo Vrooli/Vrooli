@@ -21,7 +21,7 @@
 - [ ] OT-P1-001 | [Outcome title] | [One-line description]
 - [ ] OT-P1-002 | [Outcome title] | [One-line description]
 
-### 🟢 P2 – Future / expansion ideas
+### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | [Outcome title] | [One-line description]
 - [ ] OT-P2-002 | [Outcome title] | [One-line description]
 
@@ -43,5 +43,5 @@
 - Voice & messaging: [Product personality or language cues]
 - Branding hooks: [Logos, colors, iconography expectations]
 
-## 📎 Appendix (optional)
+## 📎 Appendix
 [Add references or research links here if needed.]
