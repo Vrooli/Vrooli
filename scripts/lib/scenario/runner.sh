@@ -20,6 +20,8 @@ scenario::run() {
     local prior_allow_value=""
     local had_prior_manage_var=false
     local prior_manage_value=""
+    local had_prior_gowork_var=false
+    local prior_gowork_value=""
 
     if [[ -n "${TEST_ALLOW_SKIP_MISSING_RUNTIME+x}" ]]; then
         had_prior_allow_var=true
@@ -29,6 +31,11 @@ scenario::run() {
     if [[ -n "${TEST_MANAGE_RUNTIME+x}" ]]; then
         had_prior_manage_var=true
         prior_manage_value="${TEST_MANAGE_RUNTIME}"
+    fi
+
+    if [[ -n "${GOWORK+x}" ]]; then
+        had_prior_gowork_var=true
+        prior_gowork_value="${GOWORK}"
     fi
 
     # Get the phase (default to 'develop' if not specified)
@@ -253,6 +260,16 @@ scenario::run() {
         export TEST_MANAGE_RUNTIME="true"
     fi
 
+    # Default to disabling Go workspace mode for scenario lifecycle execution so a broken
+    # repo-wide go.work can't block unrelated scenarios. Opt-in by setting
+    # VROOLI_SCENARIO_GOWORK=on, or by setting GOWORK explicitly.
+    local scenario_gowork_mode="${VROOLI_SCENARIO_GOWORK:-off}"
+    local scenario_did_disable_gowork=false
+    if [[ "$had_prior_gowork_var" == "false" && "$scenario_gowork_mode" != "on" && "$scenario_gowork_mode" != "auto" ]]; then
+        export GOWORK=off
+        scenario_did_disable_gowork=true
+    fi
+
     # Export custom path if provided, so lifecycle.sh can use it
     if [[ -n "$custom_path" ]]; then
         export SCENARIO_CUSTOM_PATH="$scenario_path"
@@ -281,6 +298,14 @@ scenario::run() {
             export TEST_MANAGE_RUNTIME="${prior_manage_value}"
         else
             unset TEST_MANAGE_RUNTIME || true
+        fi
+    fi
+
+    if [[ "$scenario_did_disable_gowork" == "true" ]]; then
+        if [[ "$had_prior_gowork_var" == "true" ]]; then
+            export GOWORK="${prior_gowork_value}"
+        else
+            unset GOWORK || true
         fi
     fi
 

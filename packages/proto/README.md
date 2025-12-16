@@ -81,7 +81,7 @@ parsed = json_format.ParseDict(
 
 ## Workspace usage
 
-- Go: use the repo `go.work` so scenarios can import `github.com/vrooli/vrooli/packages/proto/gen/go/...`. Go package names mirror scenario slugs with underscores, e.g. `browser_automation_studio_v1` and `landing_page_react_vite_v1`.
+- Go: scenarios that import `github.com/vrooli/vrooli/packages/proto/gen/go/...` should add a `replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto` (path adjusted per module) so local proto iteration does not depend on a repo-wide `go.work`. Go package names mirror scenario slugs with underscores, e.g. `browser_automation_studio_v1` and `landing_page_react_vite_v1`.
 - TypeScript/JavaScript: `@vrooli/proto-types` is published from `gen/typescript` (ESM JS lives under `js/`) and linked via the pnpm workspace.
 - Python: generated under `packages/proto/gen/python`; Tier 1 import support is not guaranteed yet (Protovalidate annotations require additional Python packaging), but you can install this directory in editable mode for local experiments.
 

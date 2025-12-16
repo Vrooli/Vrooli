@@ -309,8 +309,6 @@ var SharedDependencyFiles = []string{
 	// Go dependency files
 	"go.mod",
 	"go.sum",
-	"go.work",
-	"go.work.sum",
 	// Node.js dependency files
 	"package.json",
 	"package-lock.json",

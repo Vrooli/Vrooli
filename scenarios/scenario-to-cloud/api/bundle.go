@@ -37,7 +37,9 @@ func FindRepoRootFromCWD() (string, error) {
 func FindRepoRoot(start string) (string, error) {
 	dir := filepath.Clean(start)
 	for i := 0; i < 20; i++ {
-		if fileExists(filepath.Join(dir, "go.work")) && dirExists(filepath.Join(dir, "scenarios")) && dirExists(filepath.Join(dir, "resources")) {
+		// Repo root detection must not depend on a committed `go.work`.
+		// Some deployments intentionally omit `go.work` to avoid workspace-mode coupling.
+		if dirExists(filepath.Join(dir, ".vrooli")) && dirExists(filepath.Join(dir, "scenarios")) && dirExists(filepath.Join(dir, "resources")) {
 			return dir, nil
 		}
 		parent := filepath.Dir(dir)
