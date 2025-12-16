@@ -26,7 +26,7 @@ type Draft struct {
 	EntityName      string    `json:"entity_name"`
 	Content         string    `json:"content"`
 	Owner           string    `json:"owner,omitempty"`
-	SourceBacklogID *string   `json:"source_backlog_id,omitempty"`  // Optional link to originating backlog entry
+	SourceBacklogID *string   `json:"source_backlog_id,omitempty"` // Optional link to originating backlog entry
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	Status          string    `json:"status"`

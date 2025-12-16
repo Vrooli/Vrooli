@@ -23,17 +23,17 @@ import (
 
 // CatalogEntry represents a scenario or resource with its PRD status
 type CatalogEntry struct {
-	Type            string                     `json:"type"`                        // "scenario" or "resource"
-	Name            string                     `json:"name"`                        // Entity name
-	HasPRD          bool                       `json:"has_prd"`                     // Whether PRD.md exists
-	PRDPath         string                     `json:"prd_path"`                    // Absolute path to PRD.md
-	HasDraft        bool                       `json:"has_draft"`                   // Whether a draft exists
-	HasRequirements bool                       `json:"has_requirements"`            // Whether requirements/index.json exists
-	Description     string                     `json:"description"`                 // Brief description (if available)
+	Type            string                     `json:"type"`             // "scenario" or "resource"
+	Name            string                     `json:"name"`             // Entity name
+	HasPRD          bool                       `json:"has_prd"`          // Whether PRD.md exists
+	PRDPath         string                     `json:"prd_path"`         // Absolute path to PRD.md
+	HasDraft        bool                       `json:"has_draft"`        // Whether a draft exists
+	HasRequirements bool                       `json:"has_requirements"` // Whether requirements/index.json exists
+	Description     string                     `json:"description"`      // Brief description (if available)
 	Requirements    *CatalogRequirementSummary `json:"requirements_summary,omitempty"`
-	VisitCount      int                        `json:"visit_count,omitempty"`       // Number of times viewed
-	LastVisitedAt   *time.Time                 `json:"last_visited_at,omitempty"`   // Last time viewed
-	Labels          []string                   `json:"labels,omitempty"`            // User-defined labels
+	VisitCount      int                        `json:"visit_count,omitempty"`     // Number of times viewed
+	LastVisitedAt   *time.Time                 `json:"last_visited_at,omitempty"` // Last time viewed
+	Labels          []string                   `json:"labels,omitempty"`          // User-defined labels
 }
 
 type CatalogRequirementSummary struct {
@@ -622,7 +622,7 @@ func handleRecordVisit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, map[string]string{
-		"status": "success",
+		"status":  "success",
 		"message": "Visit recorded",
 	})
 }
@@ -665,7 +665,7 @@ func handleGetCatalogLabels(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"labels": labels,
-		"total": len(labels),
+		"total":  len(labels),
 	})
 }
 

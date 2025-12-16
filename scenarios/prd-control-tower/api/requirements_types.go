@@ -64,10 +64,10 @@ type OperationalTargetsResponse struct {
 
 type requirementsFile struct {
 	Metadata     map[string]any           `json:"_metadata"`
-	ModuleID     string                   `json:"module_id"`     // For module.json files
-	Title        string                   `json:"title"`         // For module.json files
-	Priority     string                   `json:"priority"`      // For module.json files
-	Description  string                   `json:"description"`   // For module.json files
+	ModuleID     string                   `json:"module_id"`   // For module.json files
+	Title        string                   `json:"title"`       // For module.json files
+	Priority     string                   `json:"priority"`    // For module.json files
+	Description  string                   `json:"description"` // For module.json files
 	Imports      []string                 `json:"imports"`
 	Requirements []RequirementRecordInput `json:"requirements"`
 }

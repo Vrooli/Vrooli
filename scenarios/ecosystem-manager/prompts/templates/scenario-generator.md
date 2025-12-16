@@ -18,7 +18,7 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
    - Related scenarios/resources + external references
 2. **Scenario skeleton** – scaffold via the CLI template (see below) and keep the generated structure untouched except for configuration updates.
 3. **Configuration & metadata** – `.vrooli/` directory populated so `vrooli scenario status {{TARGET}}` succeeds (service.json, endpoints.json, testing/lighthouse configs as required by the template).
-4. **Operational Targets PRD** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` following the structure below.
+4. **Operational Targets PRD** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` generated via `prd-control-tower`.
 5. **Requirements registry** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json` plus numbered operational-target folders (`01-<first-target-name>`, `02-<second-target-name>`, etc.) and a concise `requirements/README.md` explaining the mapping.
 6. **Documentation set** – README.md, docs/PROGRESS.md, docs/PROBLEMS.md, docs/RESEARCH.md initialized with baseline entries and instructions for future agents.
 
@@ -33,41 +33,35 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
 4. Follow the template’s post-generation checklist (dependency installs, go mod tidy, etc.) and note anything you skip.
 5. All files now live at `{{PROJECT_PATH}}/scenarios/{{TARGET}}/`; run the rest of the steps from that directory.
 
-## PRD Structure (Operational Targets Document)
-Capture **what outcomes** we expect – no implementation notes. Follow this canonical layout (emojis included):
+## PRD Generation
+Do not hand-write `PRD.md`. Always generate and publish `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` through `prd-control-tower` by using the guide below:
+
+1. Write a free-form PRD brief: 
+```bash
+cat > /tmp/prd_context_{{TARGET}}.md <<'EOF'
+<your multi-line brief here>
+EOF
 ```
-# Product Requirements Document (PRD)
-  > Metadata block from template (version, canonical reference)
 
-## 🎯 Overview
-  - Purpose, target users/verticals, deployment surfaces
-  - Value proposition in plain language
+No strict format required, but include:
+- Overview: purpose, target users/verticals, deployment surfaces, value proposition
+- P0 operational targets list: Without these targets, the scenario fails (core capability)
+- P1 operational targets list: Important enhancements enabling scale, security, multi-user flows, and other professional and mature features
+- P2 operational targets list: Nice-to-have polish or expansion ideas. Important for making product unique and enticing for potential customers
+- Tech direction snapshot: preferred stacks, storage expectations, integration strategy, non-goals
+- Dependencies & launch plan: required resources, scenario dependencies, operational risks, sequencing
+- UX & branding: desired look/feel, accessibility bar, brand tone
 
-## 🎯 Operational Targets
-### 🔴 P0 – Must ship for viability
-  - [ ] OT-P0-001 | Title | One-line description of the outcome
-### 🟠 P1 – Should have post-launch
-  - [ ] OT-P1-001 | …
-### 🟢 P2 – Future / expansion ideas
-  - [ ] OT-P2-001 | …
-(Keep each checklist item to a single line. Do not embed dependencies or requirement IDs.)
+Make sure you *do*:
+- Use concise narratives and focus on measurable outcomes rather than implementation details.
 
-## 🧱 Tech Direction Snapshot
-  - Preferred stacks, storage expectations, integration strategy, non-goals
+Make sure you *do not:*
+- Reference requirements
 
-## 🤝 Dependencies & Launch Plan
-  - Required resources, scenario dependencies, operational risks, launch sequencing
-
-## 🎨 UX & Branding
-  - Describe the desired look, feel, accessibility bar, and brand tone
+2. Generate the PRD.md file: 
+```bash
+prd-control-tower generate-prd {{TARGET}} --context-file /tmp/prd_context_{{TARGET}}.md --publish --json
 ```
-After generation the PRD becomes read-only (checkboxes may flip automatically based on requirement sync).
-
-### Operational Target Tiers
-- **P0**: Without this outcome the scenario fails (core capability).
-- **P1**: Important enhancements enabling scale, security, multi-user flows, and other professional and mature features
-- **P2**: Nice-to-have polish or expansion ideas. Important for making product unique and enticing for potential customers
-Use concise narratives and focus on measurable outcomes rather than implementation details.
 
 ## `.vrooli/` Setup Checklist
 - `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/service.json` – service metadata, tags, port ranges. Keep ports in the scenario allocation bands.

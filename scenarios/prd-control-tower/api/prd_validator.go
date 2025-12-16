@@ -9,10 +9,10 @@ import (
 
 // PRDValidationIssue represents a problem with a requirement's prd_ref field
 type PRDValidationIssue struct {
-	RequirementID string `json:"requirement_id"`
-	PRDRef        string `json:"prd_ref"`
-	IssueType     string `json:"issue_type"` // "missing_section", "ambiguous_match", "no_checkbox"
-	Message       string `json:"message"`
+	RequirementID string   `json:"requirement_id"`
+	PRDRef        string   `json:"prd_ref"`
+	IssueType     string   `json:"issue_type"` // "missing_section", "ambiguous_match", "no_checkbox"
+	Message       string   `json:"message"`
 	Suggestions   []string `json:"suggestions,omitempty"`
 }
 

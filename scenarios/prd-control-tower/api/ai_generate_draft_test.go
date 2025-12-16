@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -87,7 +88,42 @@ func TestExecuteAIGenerateDraftCreatesDraftAndPersistsGenerated(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"model":"anthropic/claude-3.5-sonnet","choices":[{"message":{"role":"assistant","content":"# Generated PRD\n\nHello"}}]}`))
+		content := `# Product Requirements Document (PRD)
+
+## 🎯 Overview
+Purpose: Provide a safe sandboxed workspace for agents.
+Target users: Vrooli agents and developers.
+Deployment surfaces: local server, CI.
+Value proposition: prevent accidental repo modification.
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Create sandbox | Create isolated workspace quickly
+
+### 🟠 P1 – Should have post-launch
+- [ ] OT-P1-001 | Diff output | Produce stable unified diffs
+
+### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | UI review | Add a diff viewer for approvals
+
+## 🧱 Tech Direction Snapshot
+Preferred stacks: Go CLI/API and Linux overlayfs + bwrap.
+Preferred storage: filesystem + sqlite/postgres for metadata.
+Integration strategy: integrate with agent-manager approval flow.
+Non-goals: adversarial security.
+
+## 🤝 Dependencies & Launch Plan
+Required resources: none.
+Scenario dependencies: agent-manager.
+Operational risks: mount leaks, orphan processes.
+Launch sequencing: implement driver, then diff, then approval.
+
+## 🎨 UX & Branding
+User experience: simple CLI commands, clear errors.
+Visual design: minimal.
+Accessibility: N/A for CLI.`
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"model":"anthropic/claude-3.5-sonnet","choices":[{"message":{"role":"assistant","content":%q}}]}`, content)))
 	}))
 	defer mockServer.Close()
 	t.Setenv("RESOURCE_OPENROUTER_URL", mockServer.URL)
@@ -129,7 +165,7 @@ func TestExecuteAIGenerateDraftCreatesDraftAndPersistsGenerated(t *testing.T) {
 	if resp.DraftFilePath == "" {
 		t.Fatalf("draft_file_path is empty")
 	}
-	if !strings.Contains(resp.GeneratedText, "# Generated PRD") {
+	if !strings.Contains(resp.GeneratedText, "# Product Requirements Document (PRD)") {
 		t.Fatalf("generated_text missing expected content: %q", resp.GeneratedText)
 	}
 
@@ -165,7 +201,31 @@ func TestExecuteAIGenerateDraftNoPersist(t *testing.T) {
 
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"model":"anthropic/claude-3.5-sonnet","choices":[{"message":{"role":"assistant","content":"Generated"}}]}`))
+		content := `# Product Requirements Document (PRD)
+
+## 🎯 Overview
+Purpose: Seed a PRD.
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Title | Outcome
+
+### 🟠 P1 – Should have post-launch
+- [ ] OT-P1-001 | Title | Outcome
+
+### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | Title | Outcome
+
+## 🧱 Tech Direction Snapshot
+Preferred stacks: Go.
+
+## 🤝 Dependencies & Launch Plan
+Required resources: none.
+
+## 🎨 UX & Branding
+Accessibility: N/A.`
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"model":"anthropic/claude-3.5-sonnet","choices":[{"message":{"role":"assistant","content":%q}}]}`, content)))
 	}))
 	defer mockServer.Close()
 	t.Setenv("RESOURCE_OPENROUTER_URL", mockServer.URL)
@@ -209,4 +269,3 @@ func TestExecuteAIGenerateDraftNoPersist(t *testing.T) {
 		t.Fatalf("expected no draft file to be written")
 	}
 }
-

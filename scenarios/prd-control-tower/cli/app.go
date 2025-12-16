@@ -8,7 +8,7 @@ import (
 const (
 	appName        = "prd-control-tower"
 	appVersion     = "1.0.0"
-	defaultAPIBase = ""
+	defaultAPIBase = "http://localhost:18600"
 )
 
 var (
@@ -36,10 +36,16 @@ func NewApp() (*App, error) {
 		SourceRootEnvVars:  env.SourceRootEnvVars,
 		TokenEnvVars:       env.TokenEnvVars,
 		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
-		BuildFingerprint:   buildFingerprint,
-		BuildTimestamp:     buildTimestamp,
-		BuildSourceRoot:    buildSourceRoot,
-		AllowAnonymous:     true,
+		Preflight: func(cmd cliapp.Command, global cliapp.GlobalOptions, app *cliapp.ScenarioApp) error {
+			if !cmd.NeedsAPI {
+				return nil
+			}
+			return ensureScenarioAPIReady(app, global, appName)
+		},
+		BuildFingerprint: buildFingerprint,
+		BuildTimestamp:   buildTimestamp,
+		BuildSourceRoot:  buildSourceRoot,
+		AllowAnonymous:   true,
 	})
 	if err != nil {
 		return nil, err

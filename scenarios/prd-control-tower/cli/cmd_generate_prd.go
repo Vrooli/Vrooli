@@ -25,6 +25,8 @@ func (a *App) cmdGeneratePRD(args []string) error {
 	owner := fs.String("owner", "", "Owner metadata for the created/updated draft")
 
 	templateName := fs.String("template", "", "If set, publish the generated PRD into a scenario created from this template")
+	publish := fs.Bool("publish", false, "Publish the generated PRD to PRD.md for an existing scenario/resource")
+	noBackup := fs.Bool("no-backup", false, "Do not create a backup when publishing")
 	force := fs.Bool("force", false, "Allow overwriting an existing scenario when publishing with --template")
 	runHooks := fs.Bool("run-hooks", false, "Run template hooks when publishing with --template")
 	noSaveDraft := fs.Bool("no-save-draft", false, "Do not persist generated content into the draft (default: persist)")
@@ -123,6 +125,29 @@ func (a *App) cmdGeneratePRD(args []string) error {
 			return fmt.Errorf("publish failed")
 		}
 		_ = pubBody
+		publishParsed = &pubResp
+	} else if *publish {
+		pubReq := PublishRequest{
+			CreateBackup: !*noBackup,
+			DeleteDraft:  true,
+			Template:     nil,
+		}
+		_, pubResp, err := a.services.Drafts.Publish(genResp.DraftID, pubReq)
+		if err != nil {
+			return err
+		}
+		if !pubResp.Success {
+			if *jsonOutput {
+				out := GeneratePRDOutput{Generation: genResp, Publish: &pubResp}
+				data, _ := json.MarshalIndent(out, "", "  ")
+				fmt.Println(string(data))
+				return nil
+			}
+			if strings.TrimSpace(pubResp.Message) != "" {
+				return fmt.Errorf("publish failed: %s", pubResp.Message)
+			}
+			return fmt.Errorf("publish failed")
+		}
 		publishParsed = &pubResp
 	}
 

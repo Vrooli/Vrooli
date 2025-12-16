@@ -7,9 +7,9 @@ import (
 // [REQ:PCT-BACKLOG-INTAKE] Test nullIfEmpty returns nil for empty strings
 func TestNullIfEmpty(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		wantNil  bool
+		name    string
+		input   string
+		wantNil bool
 	}{
 		{
 			name:    "empty string",
@@ -152,4 +152,3 @@ Build another feature without prefix`
 		t.Errorf("Entry 2 EntityType = %q, want %q (should use default)", results[2].EntityType, EntityTypeScenario)
 	}
 }
-

@@ -10,20 +10,20 @@ import (
 
 // Pattern to match requirement IDs in test comments: [REQ:ID] or // REQ:ID or /* REQ:ID */
 var testReqPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`\[REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)\]`),                     // [REQ:BAS-EXEC-TELEMETRY-STREAM]
-	regexp.MustCompile(`//\s*REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)`),                    // // REQ:BAS-EXEC-TELEMETRY-STREAM
-	regexp.MustCompile(`/\*\s*REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)\s*\*/`),             // /* REQ:BAS-EXEC-TELEMETRY-STREAM */
-	regexp.MustCompile(`it\(["'].*?\[REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)\]`),          // it("test [REQ:ID]"
-	regexp.MustCompile(`describe\(["'].*?\[REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)\]`),    // describe("suite [REQ:ID]"
-	regexp.MustCompile(`t\.Run\(["'].*?\[REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)\]`),      // t.Run("test [REQ:ID]"
+	regexp.MustCompile(`\[REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)\]`),                  // [REQ:BAS-EXEC-TELEMETRY-STREAM]
+	regexp.MustCompile(`//\s*REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)`),                 // // REQ:BAS-EXEC-TELEMETRY-STREAM
+	regexp.MustCompile(`/\*\s*REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)\s*\*/`),          // /* REQ:BAS-EXEC-TELEMETRY-STREAM */
+	regexp.MustCompile(`it\(["'].*?\[REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)\]`),       // it("test [REQ:ID]"
+	regexp.MustCompile(`describe\(["'].*?\[REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)\]`), // describe("suite [REQ:ID]"
+	regexp.MustCompile(`t\.Run\(["'].*?\[REQ:([A-Z]+-[A-Z]+-[A-Z0-9]+)\]`),   // t.Run("test [REQ:ID]"
 }
 
 // TestFileReference represents a test file that references a requirement
 type TestFileReference struct {
 	FilePath      string   `json:"file_path"`
 	RequirementID string   `json:"requirement_id"`
-	Lines         []int    `json:"lines"`           // Line numbers where requirement is mentioned
-	TestNames     []string `json:"test_names"`      // Names of test functions/cases
+	Lines         []int    `json:"lines"`      // Line numbers where requirement is mentioned
+	TestNames     []string `json:"test_names"` // Names of test functions/cases
 }
 
 // scanTestFilesForRequirement scans test files in an entity's directory for requirement ID references

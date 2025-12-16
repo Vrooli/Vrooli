@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -25,12 +27,12 @@ type ReferencePRD struct {
 
 // AIGenerateRequest represents an AI generation request
 type AIGenerateRequest struct {
-	Section                string         `json:"section"`                   // Section to generate (e.g., "Executive Summary", "Technical Architecture", "Full PRD")
-	Context                string         `json:"context"`                   // Additional context for generation
-	Action                 string         `json:"action"`                    // Quick action type (improve, expand, simplify, grammar)
-	IncludeExistingContent *bool          `json:"include_existing_content"`  // Whether to include existing PRD content in the prompt (default: true)
-	ReferencePRDs          []ReferencePRD `json:"reference_prds,omitempty"`  // Reference PRD examples
-	Model                  string         `json:"model,omitempty"`           // Override model (e.g., "openrouter/x-ai/grok-code-fast-1")
+	Section                string         `json:"section"`                  // Section to generate (e.g., "Executive Summary", "Technical Architecture", "Full PRD")
+	Context                string         `json:"context"`                  // Additional context for generation
+	Action                 string         `json:"action"`                   // Quick action type (improve, expand, simplify, grammar)
+	IncludeExistingContent *bool          `json:"include_existing_content"` // Whether to include existing PRD content in the prompt (default: true)
+	ReferencePRDs          []ReferencePRD `json:"reference_prds,omitempty"` // Reference PRD examples
+	Model                  string         `json:"model,omitempty"`          // Override model (e.g., "openrouter/x-ai/grok-code-fast-1")
 }
 
 // AIGenerateResponse represents the AI generation result
@@ -48,8 +50,8 @@ type AIGenerateResponse struct {
 type AIGenerateDraftRequest struct {
 	EntityType           string         `json:"entity_type"`
 	EntityName           string         `json:"entity_name"`
-	Content              string         `json:"content,omitempty"`                 // Optional seed content for the draft (e.g., existing PRD text)
-	Owner                string         `json:"owner,omitempty"`                   // Optional owner for metadata
+	Content              string         `json:"content,omitempty"`                  // Optional seed content for the draft (e.g., existing PRD text)
+	Owner                string         `json:"owner,omitempty"`                    // Optional owner for metadata
 	Section              string         `json:"section"`                            // Section to generate (e.g., "Executive Summary", "🎯 Full PRD")
 	Context              string         `json:"context"`                            // Additional context for generation (can be requirements, notes, etc.)
 	Action               string         `json:"action"`                             // Quick action type (improve, expand, simplify, grammar, technical, clarify)
@@ -234,6 +236,9 @@ func executeAIGenerateDraft(store dbQueryExecutor, req AIGenerateDraftRequest) (
 		}
 
 		draftFilePath = getDraftPath(draft.EntityType, draft.EntityName)
+		if abs, err := filepath.Abs(draftFilePath); err == nil {
+			draftFilePath = abs
+		}
 		updatedAt = now.Format(time.RFC3339)
 	}
 
@@ -345,13 +350,23 @@ func generateAIContent(draft Draft, section string, context string, action strin
 		openrouterURL = "https://openrouter.ai/api/v1"
 	}
 
+	if isFullPRDSection(section) && action == "" {
+		return generateCompliantFullPRDHTTP(openrouterURL, draft, context, includeExisting, referencePRDs, modelOverride)
+	}
 	return generateAIContentHTTP(openrouterURL, draft, section, context, action, includeExisting, referencePRDs, modelOverride)
 }
 
 func generateAIContentHTTP(baseURL string, draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string) (string, string, error) {
 	// Construct prompt
 	prompt := buildPrompt(draft, section, context, action, includeExisting, referencePRDs)
+	maxTokens := 4000
+	if isFullPRDSection(section) && action == "" {
+		maxTokens = 6500
+	}
+	return openRouterChatCompletion(baseURL, prompt, modelOverride, maxTokens)
+}
 
+func openRouterChatCompletion(baseURL string, prompt string, modelOverride string, maxTokens int) (string, string, error) {
 	// Determine which model to use
 	model := "anthropic/claude-3.5-sonnet"
 	if modelOverride != "" && modelOverride != "default" {
@@ -372,7 +387,7 @@ func generateAIContentHTTP(baseURL string, draft Draft, section string, context 
 				"content": prompt,
 			},
 		},
-		"max_tokens": 4000,
+		"max_tokens": maxTokens,
 	}
 
 	jsonData, err := json.Marshal(payload)
@@ -478,6 +493,110 @@ func generateAIContentCLI(draft Draft, section string, context string, action st
 	return stdout.String(), "anthropic/claude-3.5-sonnet", nil
 }
 
+func generateCompliantFullPRDHTTP(baseURL string, draft Draft, context string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string) (string, string, error) {
+	const maxAttempts = 3
+	maxTokens := 6500
+
+	prompt := buildPrompt(draft, "🎯 Full PRD", context, "", includeExisting, referencePRDs)
+	text, usedModel, err := openRouterChatCompletion(baseURL, prompt, modelOverride, maxTokens)
+	if err != nil {
+		return "", "", err
+	}
+	text = sanitizeGeneratedMarkdown(text)
+	validation := ValidatePRDTemplateV2(text)
+	if isPRDTemplateCompliant(validation) {
+		return text, usedModel, nil
+	}
+
+	for attempt := 2; attempt <= maxAttempts; attempt++ {
+		repairPrompt := buildFullPRDRepairPrompt(draft, context, includeExisting, referencePRDs, text, validation)
+		next, model2, err := openRouterChatCompletion(baseURL, repairPrompt, modelOverride, maxTokens)
+		if err != nil {
+			return "", "", err
+		}
+		if strings.TrimSpace(model2) != "" {
+			usedModel = model2
+		}
+		text = sanitizeGeneratedMarkdown(next)
+		validation = ValidatePRDTemplateV2(text)
+		if isPRDTemplateCompliant(validation) {
+			return text, usedModel, nil
+		}
+	}
+
+	return text, usedModel, fmt.Errorf("generated PRD did not match required template after %d attempts: %s", maxAttempts, summarizePRDTemplateIssues(validation))
+}
+
+func isFullPRDSection(section string) bool {
+	switch strings.TrimSpace(section) {
+	case "Full PRD", "🎯 Full PRD":
+		return true
+	default:
+		return false
+	}
+}
+
+func sanitizeGeneratedMarkdown(text string) string {
+	text = strings.TrimSpace(text)
+	if strings.HasPrefix(text, "```") {
+		lines := strings.Split(text, "\n")
+		if len(lines) >= 3 && strings.HasPrefix(strings.TrimSpace(lines[0]), "```") && strings.TrimSpace(lines[len(lines)-1]) == "```" {
+			text = strings.TrimSpace(strings.Join(lines[1:len(lines)-1], "\n"))
+		}
+	}
+	return strings.TrimSpace(text)
+}
+
+func isPRDTemplateCompliant(result PRDValidationResultV2) bool {
+	if len(result.Violations) > 0 {
+		return false
+	}
+	if len(result.UnexpectedSections) > 0 {
+		return false
+	}
+	for _, issue := range result.ContentIssues {
+		if issue.Severity == "error" {
+			return false
+		}
+	}
+	return true
+}
+
+func summarizePRDTemplateIssues(result PRDValidationResultV2) string {
+	parts := []string{}
+	if len(result.MissingSections) > 0 {
+		parts = append(parts, fmt.Sprintf("missing sections: %s", strings.Join(result.MissingSections, ", ")))
+	}
+	if len(result.MissingSubsections) > 0 {
+		keys := make([]string, 0, len(result.MissingSubsections))
+		for k := range result.MissingSubsections {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var missing []string
+		for _, key := range keys {
+			missing = append(missing, fmt.Sprintf("%s -> %s", key, strings.Join(result.MissingSubsections[key], ", ")))
+		}
+		parts = append(parts, fmt.Sprintf("missing subsections: %s", strings.Join(missing, "; ")))
+	}
+	if len(result.UnexpectedSections) > 0 {
+		parts = append(parts, fmt.Sprintf("unexpected sections: %s", strings.Join(result.UnexpectedSections, ", ")))
+	}
+	var contentErrs []string
+	for _, issue := range result.ContentIssues {
+		if issue.Severity == "error" {
+			contentErrs = append(contentErrs, fmt.Sprintf("%s: %s", issue.Section, issue.Message))
+		}
+	}
+	if len(contentErrs) > 0 {
+		parts = append(parts, fmt.Sprintf("content errors: %s", strings.Join(contentErrs, "; ")))
+	}
+	if len(parts) == 0 {
+		return "unknown validation mismatch"
+	}
+	return strings.Join(parts, " | ")
+}
+
 func buildPrompt(draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD) string {
 	// If action is specified, use action-based prompt
 	if action != "" {
@@ -515,9 +634,9 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 	}
 
 	// Determine task description based on section
-	isFullPRD := section == "Full PRD" || section == "🎯 Full PRD"
+	isFullPRD := isFullPRDSection(section)
 	if isFullPRD {
-		prompt.WriteString("Task: Generate a complete, comprehensive PRD for this entity.\n\n")
+		prompt.WriteString("Task: Generate a complete PRD that matches the Vrooli PRD template exactly.\n\n")
 	} else {
 		prompt.WriteString(fmt.Sprintf("Task: Generate the \"%s\" section for this PRD.\n\n", section))
 	}
@@ -544,11 +663,108 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 	prompt.WriteString("\n")
 
 	if isFullPRD {
-		prompt.WriteString("Generate a complete PRD including all standard sections (Overview, Operational Targets, Tech Direction, Dependencies, UX & Branding, etc.). Do not include markdown headers for the document title.\n\nIMPORTANT: Return ONLY the PRD content. Do not include any preamble, introduction, explanations, or phrases like \"Here's the generated PRD:\" or \"Here is the content:\". Start directly with the content.")
+		prompt.WriteString("Template (MUST match headings exactly; do not add extra ##/### sections; fill in content under each heading):\n\n")
+		prompt.WriteString("# Product Requirements Document (PRD)\n\n")
+		prompt.WriteString("## 🎯 Overview\n")
+		prompt.WriteString("Purpose: ...\n")
+		prompt.WriteString("Target users: ...\n")
+		prompt.WriteString("Deployment surfaces: ...\n")
+		prompt.WriteString("Value proposition: ...\n\n")
+		prompt.WriteString("## 🎯 Operational Targets\n\n")
+		prompt.WriteString("### 🔴 P0 – Must ship for viability\n")
+		prompt.WriteString("- [ ] OT-P0-001 | Title | One-line measurable outcome\n\n")
+		prompt.WriteString("### 🟠 P1 – Should have post-launch\n")
+		prompt.WriteString("- [ ] OT-P1-001 | Title | One-line measurable outcome\n\n")
+		prompt.WriteString("### 🟢 P2 – Future / expansion\n")
+		prompt.WriteString("- [ ] OT-P2-001 | Title | One-line measurable outcome\n\n")
+		prompt.WriteString("## 🧱 Tech Direction Snapshot\n")
+		prompt.WriteString("Preferred stacks: ...\n")
+		prompt.WriteString("Preferred storage: ...\n")
+		prompt.WriteString("Integration strategy: ...\n")
+		prompt.WriteString("Non-goals: ...\n\n")
+		prompt.WriteString("## 🤝 Dependencies & Launch Plan\n")
+		prompt.WriteString("Required resources: ...\n")
+		prompt.WriteString("Scenario dependencies: ...\n")
+		prompt.WriteString("Operational risks: ...\n")
+		prompt.WriteString("Launch sequencing: ...\n\n")
+		prompt.WriteString("## 🎨 UX & Branding\n")
+		prompt.WriteString("User experience: ...\n")
+		prompt.WriteString("Visual design: ...\n")
+		prompt.WriteString("Accessibility: ...\n\n")
+		prompt.WriteString("IMPORTANT:\n")
+		prompt.WriteString("- Return ONLY the PRD content (no preamble)\n")
+		prompt.WriteString("- Use the exact headings shown above (including emojis)\n")
+		prompt.WriteString("- Do not wrap the response in code fences\n")
 	} else {
 		prompt.WriteString(fmt.Sprintf("Generate only the content for the \"%s\" section. Do not include the section header itself.\n\nIMPORTANT: Return ONLY the section content. Do not include any preamble, introduction, explanations, or phrases like \"Here's the section:\" or \"Here is the content:\". Start directly with the content.", section))
 	}
 
+	return prompt.String()
+}
+
+func buildFullPRDRepairPrompt(draft Draft, context string, includeExisting bool, referencePRDs []ReferencePRD, previous string, validation PRDValidationResultV2) string {
+	var prompt strings.Builder
+	prompt.WriteString("You are fixing a Vrooli PRD so it matches the required template exactly.\n\n")
+	prompt.WriteString(fmt.Sprintf("Entity Type: %s\n", draft.EntityType))
+	prompt.WriteString(fmt.Sprintf("Entity Name: %s\n\n", draft.EntityName))
+
+	if includeExisting && draft.Content != "" {
+		prompt.WriteString("Existing PRD content (optional context):\n")
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n")
+		prompt.WriteString(draft.Content)
+		prompt.WriteString("\n")
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n\n")
+	}
+
+	if strings.TrimSpace(context) != "" {
+		prompt.WriteString("Additional Context:\n")
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n")
+		prompt.WriteString(context)
+		prompt.WriteString("\n")
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n\n")
+	}
+
+	prompt.WriteString("Validation issues to fix:\n")
+	prompt.WriteString(summarizePRDTemplateIssues(validation))
+	prompt.WriteString("\n\n")
+
+	prompt.WriteString("Template (MUST match headings exactly; do not add extra ##/### sections):\n\n")
+	prompt.WriteString("# Product Requirements Document (PRD)\n\n")
+	prompt.WriteString("## 🎯 Overview\n")
+	prompt.WriteString("Purpose: ...\n")
+	prompt.WriteString("Target users: ...\n")
+	prompt.WriteString("Deployment surfaces: ...\n")
+	prompt.WriteString("Value proposition: ...\n\n")
+	prompt.WriteString("## 🎯 Operational Targets\n\n")
+	prompt.WriteString("### 🔴 P0 – Must ship for viability\n")
+	prompt.WriteString("- [ ] OT-P0-001 | Title | One-line measurable outcome\n\n")
+	prompt.WriteString("### 🟠 P1 – Should have post-launch\n")
+	prompt.WriteString("- [ ] OT-P1-001 | Title | One-line measurable outcome\n\n")
+	prompt.WriteString("### 🟢 P2 – Future / expansion\n")
+	prompt.WriteString("- [ ] OT-P2-001 | Title | One-line measurable outcome\n\n")
+	prompt.WriteString("## 🧱 Tech Direction Snapshot\n")
+	prompt.WriteString("Preferred stacks: ...\n")
+	prompt.WriteString("Preferred storage: ...\n")
+	prompt.WriteString("Integration strategy: ...\n")
+	prompt.WriteString("Non-goals: ...\n\n")
+	prompt.WriteString("## 🤝 Dependencies & Launch Plan\n")
+	prompt.WriteString("Required resources: ...\n")
+	prompt.WriteString("Scenario dependencies: ...\n")
+	prompt.WriteString("Operational risks: ...\n")
+	prompt.WriteString("Launch sequencing: ...\n\n")
+	prompt.WriteString("## 🎨 UX & Branding\n")
+	prompt.WriteString("User experience: ...\n")
+	prompt.WriteString("Visual design: ...\n")
+	prompt.WriteString("Accessibility: ...\n\n")
+
+	prompt.WriteString("Draft that failed validation:\n")
+	prompt.WriteString("=" + strings.Repeat("=", 70) + "\n")
+	prompt.WriteString(previous)
+	prompt.WriteString("\n")
+	prompt.WriteString("=" + strings.Repeat("=", 70) + "\n\n")
+
+	prompt.WriteString("Rewrite the PRD so it complies. Preserve good content, but ensure required headings are present and there are no unexpected sections.\n")
+	prompt.WriteString("Return ONLY the PRD content. Do not wrap in code fences.\n")
 	return prompt.String()
 }
 

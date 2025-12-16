@@ -190,9 +190,9 @@ func handleGetDraftTargets(w http.ResponseWriter, r *http.Request) {
 type CreateOperationalTargetRequest struct {
 	Title              string   `json:"title"`
 	Notes              string   `json:"notes"`
-	Category           string   `json:"category"`            // Must Have | Should Have | Nice to Have
-	Criticality        string   `json:"criticality"`         // P0 | P1 | P2
-	Status             string   `json:"status"`              // complete | pending
+	Category           string   `json:"category"`    // Must Have | Should Have | Nice to Have
+	Criticality        string   `json:"criticality"` // P0 | P1 | P2
+	Status             string   `json:"status"`      // complete | pending
 	LinkedRequirements []string `json:"linked_requirement_ids"`
 }
 

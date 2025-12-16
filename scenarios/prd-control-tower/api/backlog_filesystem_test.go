@@ -210,4 +210,3 @@ func TestSyncBacklogFilesystemWithDatabase(t *testing.T) {
 	// - Upserts each entry to database
 	// - Continues on individual file errors
 }
-

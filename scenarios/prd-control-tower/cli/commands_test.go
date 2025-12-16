@@ -13,6 +13,10 @@ import (
 func TestListDraftsHitsExpectedEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+			return
+		}
 		if r.URL.Path != "/api/v1/drafts" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -31,6 +35,10 @@ func TestGeneratePRDCallsAIGenerateDraftEndpoint(t *testing.T) {
 
 	seen := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+			return
+		}
 		if r.URL.Path != "/api/v1/drafts/ai/generate" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -73,6 +81,10 @@ func TestGeneratePRDWithTemplatePublishes(t *testing.T) {
 
 	step := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+			return
+		}
 		switch step {
 		case 0:
 			if r.URL.Path != "/api/v1/drafts/ai/generate" {
@@ -112,6 +124,45 @@ func TestGeneratePRDWithTemplatePublishes(t *testing.T) {
 
 	if err := app.Run([]string{"generate-prd", "demo", "--context", "ctx", "--template", "my-template", "--json"}); err != nil {
 		t.Fatalf("generate-prd with template failed: %v", err)
+	}
+	if step != 2 {
+		t.Fatalf("expected 2 requests, got %d", step)
+	}
+}
+
+func TestGeneratePRDWithPublishFlagPublishes(t *testing.T) {
+	app := newTestApp(t)
+
+	step := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+			return
+		}
+		switch step {
+		case 0:
+			if r.URL.Path != "/api/v1/drafts/ai/generate" {
+				t.Fatalf("unexpected path: %s", r.URL.Path)
+			}
+			step++
+			fmt.Fprint(w, `{"draft_id":"d1","entity_type":"scenario","entity_name":"demo","section":"🎯 Full PRD","generated_text":"# PRD","model":"test","saved_to_draft":true,"success":true}`)
+			return
+		case 1:
+			if r.URL.Path != "/api/v1/drafts/d1/publish" {
+				t.Fatalf("unexpected path: %s", r.URL.Path)
+			}
+			step++
+			fmt.Fprint(w, `{"success":true,"message":"ok","published_to":"/tmp/PRD.md","published_at":"now","draft_removed":true,"created_scenario":false,"scenario_id":"demo","scenario_type":"scenario","scenario_path":"/tmp/demo"}`)
+			return
+		default:
+			t.Fatalf("unexpected extra request: %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("PRD_CONTROL_TOWER_API_BASE", server.URL)
+
+	if err := app.Run([]string{"generate-prd", "demo", "--context", "ctx", "--publish", "--json"}); err != nil {
+		t.Fatalf("generate-prd with publish failed: %v", err)
 	}
 	if step != 2 {
 		t.Fatalf("expected 2 requests, got %d", step)
