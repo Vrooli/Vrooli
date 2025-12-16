@@ -618,7 +618,7 @@ function WhatIfAnalysis({
             <Lightbulb className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-xs text-blue-300/80">
-                Some scoring components can be adjusted via configuration. Use presets like "Skip E2E" if certain collectors are unavailable.
+                Some scoring components can be adjusted via configuration. Disable specific sub-metrics if certain collectors are unavailable.
               </p>
               <button
                 onClick={onOpenConfig}

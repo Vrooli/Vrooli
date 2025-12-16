@@ -158,12 +158,3 @@ func (s *ConfigService) Get() ([]byte, error) {
 func (s *ConfigService) Set(payload map[string]interface{}) ([]byte, error) {
 	return s.api.Request(http.MethodPut, "/api/v1/config", nil, payload)
 }
-
-func (s *ConfigService) Presets() ([]byte, error) {
-	return s.api.Get("/api/v1/config/presets", nil)
-}
-
-func (s *ConfigService) ApplyPreset(name string) ([]byte, error) {
-	path := fmt.Sprintf("/api/v1/config/presets/%s/apply", name)
-	return s.api.Request(http.MethodPost, path, nil, map[string]interface{}{})
-}

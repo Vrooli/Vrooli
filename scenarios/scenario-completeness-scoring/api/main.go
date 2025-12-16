@@ -127,18 +127,15 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/recommendations/{scenario}", h.HandleGetRecommendations).Methods("GET", "OPTIONS")
 
 	// ─────────────────────────────────────────────────────────────────────
-	// Configuration Domain (scoring settings & presets)
-	// [REQ:SCS-CFG-001] [REQ:SCS-CFG-002] [REQ:SCS-CFG-003] [REQ:SCS-CFG-004]
+	// Configuration Domain (global scoring settings)
+	// [REQ:SCS-CFG-001] [REQ:SCS-CFG-004]
 	// ─────────────────────────────────────────────────────────────────────
 	s.router.HandleFunc("/api/v1/config", h.HandleGetConfig).Methods("GET", "OPTIONS")
 	s.router.HandleFunc("/api/v1/config", h.HandleUpdateConfig).Methods("PUT", "OPTIONS")
+	s.router.HandleFunc("/api/v1/config/schema", h.HandleGetConfigSchema).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/config/reset", h.HandleResetConfig).Methods("POST", "OPTIONS")
 	s.router.HandleFunc("/api/v1/config/thresholds", h.HandleGetThresholds).Methods("GET", "OPTIONS")
 	s.router.HandleFunc("/api/v1/config/thresholds/{category}", h.HandleGetCategoryThresholds).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/config/scenarios/{scenario}", h.HandleGetScenarioConfig).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/config/scenarios/{scenario}", h.HandleUpdateScenarioConfig).Methods("PUT", "OPTIONS")
-	s.router.HandleFunc("/api/v1/config/scenarios/{scenario}", h.HandleDeleteScenarioConfig).Methods("DELETE", "OPTIONS")
-	s.router.HandleFunc("/api/v1/config/presets", h.HandleListPresets).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/config/presets/{name}/apply", h.HandleApplyPreset).Methods("POST", "OPTIONS")
 
 	// ─────────────────────────────────────────────────────────────────────
 	// Health Monitoring Domain (collector health & circuit breakers)

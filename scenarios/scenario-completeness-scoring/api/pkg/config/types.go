@@ -58,10 +58,12 @@ type UIComponentConfig struct {
 // PenaltyConfig controls which penalties are applied
 type PenaltyConfig struct {
 	Enabled               bool `json:"enabled"`
+	InsufficientTestCoverage bool `json:"insufficient_test_coverage"`
 	InvalidTestLocation   bool `json:"invalid_test_location"`
 	MonolithicTestFiles   bool `json:"monolithic_test_files"`
 	SingleLayerValidation bool `json:"single_layer_validation"`
 	TargetMappingRatio    bool `json:"target_mapping_ratio"`
+	SuperficialTestImplementation bool `json:"superficial_test_implementation"`
 	ManualValidations     bool `json:"manual_validations"`
 }
 
@@ -79,20 +81,6 @@ type WeightConfig struct {
 	Coverage int `json:"coverage"`
 	Quantity int `json:"quantity"`
 	UI       int `json:"ui"`
-}
-
-// ScenarioOverride represents scenario-specific configuration overrides
-type ScenarioOverride struct {
-	Scenario  string         `json:"scenario"`
-	Preset    string         `json:"preset,omitempty"`
-	Overrides *ScoringConfig `json:"overrides,omitempty"`
-}
-
-// Preset represents a pre-defined configuration
-type Preset struct {
-	Name        string        `json:"name"`
-	Description string        `json:"description"`
-	Config      ScoringConfig `json:"config"`
 }
 
 // DefaultConfig returns the default scoring configuration with all components enabled
@@ -128,10 +116,12 @@ func DefaultConfig() ScoringConfig {
 		},
 		Penalties: PenaltyConfig{
 			Enabled:               true,
+			InsufficientTestCoverage: true,
 			InvalidTestLocation:   true,
 			MonolithicTestFiles:   true,
 			SingleLayerValidation: true,
 			TargetMappingRatio:    true,
+			SuperficialTestImplementation: true,
 			ManualValidations:     true,
 		},
 		CircuitBreaker: CircuitBreakerConfig{

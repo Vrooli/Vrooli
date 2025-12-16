@@ -253,24 +253,52 @@ export interface CircuitBreakersResponse {
   tripped: string[];
 }
 
-export interface PresetInfo {
-  name: string;
-  description: string;
-}
-
-export interface PresetsListResponse {
-  presets: PresetInfo[];
-  total: number;
-}
-
 export interface ScoringConfig {
+  version: string;
   components: {
-    quality: { enabled: boolean };
-    coverage: { enabled: boolean };
-    quantity: { enabled: boolean };
-    ui: { enabled: boolean };
+    quality: {
+      enabled: boolean;
+      requirement_pass_rate: boolean;
+      target_pass_rate: boolean;
+      test_pass_rate: boolean;
+    };
+    coverage: {
+      enabled: boolean;
+      test_coverage_ratio: boolean;
+      requirement_depth: boolean;
+    };
+    quantity: {
+      enabled: boolean;
+      requirements: boolean;
+      targets: boolean;
+      tests: boolean;
+    };
+    ui: {
+      enabled: boolean;
+      template_detection: boolean;
+      component_complexity: boolean;
+      api_integration: boolean;
+      routing: boolean;
+      code_volume: boolean;
+    };
   };
-  weights?: {
+  penalties: {
+    enabled: boolean;
+    insufficient_test_coverage: boolean;
+    invalid_test_location: boolean;
+    monolithic_test_files: boolean;
+    single_layer_validation: boolean;
+    target_mapping_ratio: boolean;
+    superficial_test_implementation: boolean;
+    manual_validations: boolean;
+  };
+  circuit_breaker: {
+    enabled: boolean;
+    fail_threshold: number;
+    retry_interval_seconds: number;
+    auto_disable: boolean;
+  };
+  weights: {
     quality: number;
     coverage: number;
     quantity: number;
@@ -278,15 +306,29 @@ export interface ScoringConfig {
   };
 }
 
-export interface ScenarioConfigResponse {
-  scenario: string;
-  effective: ScoringConfig;
-  override: {
-    scenario: string;
-    enabled: boolean;
-    preset?: string;
-    overrides?: Partial<ScoringConfig>;
-  } | null;
+export interface ConfigResponse {
+  config: ScoringConfig;
+  effective_weights: ScoringConfig["weights"];
+}
+
+export interface ConfigSchema {
+  version: string;
+  sections: Array<{
+    key: string;
+    title: string;
+    description: string;
+    enabled_path?: string;
+    weight_path?: string;
+    fields: Array<{
+      key: string;
+      path: string;
+      type: "boolean" | "integer";
+      title: string;
+      description: string;
+      min?: number;
+      max?: number;
+    }>;
+  }>;
 }
 
 export interface HistorySnapshot {
@@ -454,23 +496,25 @@ export async function resetCircuitBreaker(collector?: string): Promise<{ success
 }
 
 // Configuration
-export async function fetchConfig(): Promise<ScoringConfig> {
-  const res = await apiCall<{ scoring: ScoringConfig }>("/config");
-  return res.scoring as unknown as ScoringConfig;
+export async function fetchConfig(): Promise<ConfigResponse> {
+  return apiCall<ConfigResponse>("/config");
 }
 
-export async function fetchPresets(): Promise<PresetsListResponse> {
-  return apiCall<PresetsListResponse>("/config/presets");
+export async function updateConfig(config: ScoringConfig): Promise<{ success: boolean; message: string; config: ScoringConfig }> {
+  return apiCall<{ success: boolean; message: string; config: ScoringConfig }>("/config", {
+    method: "PUT",
+    body: JSON.stringify(config),
+  });
 }
 
-export async function applyPreset(name: string): Promise<{ success: boolean; message: string }> {
-  return apiCall<{ success: boolean; message: string }>(`/config/presets/${encodeURIComponent(name)}/apply`, {
+export async function resetConfig(): Promise<{ success: boolean; message: string; config: ScoringConfig }> {
+  return apiCall<{ success: boolean; message: string; config: ScoringConfig }>("/config/reset", {
     method: "POST",
   });
 }
 
-export async function fetchScenarioConfig(scenario: string): Promise<ScenarioConfigResponse> {
-  return apiCall<ScenarioConfigResponse>(`/config/scenarios/${encodeURIComponent(scenario)}`);
+export async function fetchConfigSchema(): Promise<{ schema: ConfigSchema }> {
+  return apiCall<{ schema: ConfigSchema }>("/config/schema");
 }
 
 // History & Trends

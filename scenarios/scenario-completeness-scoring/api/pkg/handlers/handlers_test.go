@@ -150,42 +150,6 @@ func TestHandleUpdateConfigInvalidConfig(t *testing.T) {
 	}
 }
 
-// TestHandleApplyPresetNotFound tests that missing preset returns structured error
-// [REQ:SCS-CORE-003] Structured error responses with available presets
-func TestHandleApplyPresetNotFound(t *testing.T) {
-	ctx, _ := setupTestContext(t)
-
-	req := httptest.NewRequest("POST", "/api/v1/config/presets/nonexistent-preset/apply", nil)
-	req = mux.SetURLVars(req, map[string]string{"name": "nonexistent-preset"})
-	rr := httptest.NewRecorder()
-
-	ctx.HandleApplyPreset(rr, req)
-
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("Expected status %d, got %d", http.StatusNotFound, rr.Code)
-	}
-
-	var response map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	errorObj, ok := response["error"].(map[string]interface{})
-	if !ok {
-		t.Fatal("Expected 'error' object in response")
-	}
-
-	if errorObj["code"] != "PRESET_NOT_FOUND" {
-		t.Errorf("Expected error code PRESET_NOT_FOUND, got %v", errorObj["code"])
-	}
-
-	// Should include available presets in next_steps
-	nextSteps, ok := errorObj["next_steps"].([]interface{})
-	if !ok || len(nextSteps) == 0 {
-		t.Error("Expected next_steps with available presets")
-	}
-}
-
 // TestHandleWhatIfEmptyChanges tests that empty changes returns structured error
 // [REQ:SCS-CORE-003] Structured error responses with examples
 func TestHandleWhatIfEmptyChanges(t *testing.T) {
@@ -265,33 +229,6 @@ func TestHandleCompareInsufficientScenarios(t *testing.T) {
 
 	if errorObj["code"] != apierrors.ErrCodeValidationFailed {
 		t.Errorf("Expected error code %s, got %v", apierrors.ErrCodeValidationFailed, errorObj["code"])
-	}
-}
-
-// TestHandleUpdateScenarioConfigInvalidJSON tests scenario config update with invalid JSON
-// [REQ:SCS-CORE-003] Structured error responses
-func TestHandleUpdateScenarioConfigInvalidJSON(t *testing.T) {
-	ctx, _ := setupTestContext(t)
-
-	req := httptest.NewRequest("PUT", "/api/v1/config/scenarios/test-scenario", bytes.NewBufferString("{invalid"))
-	req = mux.SetURLVars(req, map[string]string{"scenario": "test-scenario"})
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	ctx.HandleUpdateScenarioConfig(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, rr.Code)
-	}
-
-	var response map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	_, ok := response["error"].(map[string]interface{})
-	if !ok {
-		t.Fatal("Expected 'error' object in response")
 	}
 }
 
@@ -558,22 +495,6 @@ func TestHandleCompareInvalidScenarioNameInArray(t *testing.T) {
 		if !containsSubstring(msg, "../../../passwd") {
 			t.Errorf("Expected error message to mention invalid scenario name")
 		}
-	}
-}
-
-// TestHandleGetScenarioConfigInvalidName tests validation on config endpoint
-// [REQ:SCS-CORE-003] Input validation across all handlers
-func TestHandleGetScenarioConfigInvalidName(t *testing.T) {
-	ctx, _ := setupTestContext(t)
-
-	req := httptest.NewRequest("GET", "/api/v1/config/scenarios/../bad", nil)
-	req = mux.SetURLVars(req, map[string]string{"scenario": "../bad"})
-	rr := httptest.NewRecorder()
-
-	ctx.HandleGetScenarioConfig(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, rr.Code)
 	}
 }
 

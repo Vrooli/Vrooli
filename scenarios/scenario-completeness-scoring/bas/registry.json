@@ -70,7 +70,7 @@
     },
     {
       "file": "bas/cases/configuration/api/presets.json",
-      "description": "Tests the configuration presets listing and application API endpoints",
+      "description": "Tests the configuration schema, retrieval, and reset API endpoints",
       "order": "04.01.02",
       "requirements": [
         "SCS-CFG-003"
@@ -80,10 +80,10 @@
     },
     {
       "file": "bas/cases/configuration/api/scenario-config.json",
-      "description": "Tests the per-scenario configuration override API endpoints",
+      "description": "Tests updating the global configuration API endpoint",
       "order": "04.01.03",
       "requirements": [
-        "SCS-CFG-002"
+        "SCS-CFG-004"
       ],
       "fixtures": [],
       "reset": "none"
@@ -194,7 +194,7 @@
     },
     {
       "file": "bas/cases/ui-dashboard/e2e/configuration-panel.json",
-      "description": "Tests the configuration UI with presets, health status, and circuit breaker controls",
+      "description": "Tests the configuration UI with section toggles, health status, and circuit breaker controls",
       "order": "08.01.01",
       "requirements": [
         "SCS-UI-002"

@@ -20,10 +20,9 @@
         },
         "assertions": [
           {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.version"},
-          {"type": "json_path_exists", "path": "$.scoring"},
-          {"type": "json_path_exists", "path": "$.scoring.weights"},
-          {"type": "json_path_exists", "path": "$.classifications"}
+          {"type": "json_path_exists", "path": "$.config"},
+          {"type": "json_path_exists", "path": "$.config.weights"},
+          {"type": "json_path_exists", "path": "$.effective_weights"}
         ]
       }
     },

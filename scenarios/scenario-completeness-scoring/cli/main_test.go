@@ -190,22 +190,6 @@ func TestWhatIfCommandSendsPayload(t *testing.T) {
 	}
 }
 
-func TestPresetApplyCommand(t *testing.T) {
-	app := newTestApp(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/config/presets/default/apply" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		fmt.Fprint(w, `{"applied":"default"}`)
-	}))
-	defer server.Close()
-	t.Setenv("SCENARIO_COMPLETENESS_SCORING_API_BASE", server.URL)
-
-	if err := app.Run([]string{"preset", "apply", "default"}); err != nil {
-		t.Fatalf("preset apply failed: %v", err)
-	}
-}
-
 func TestRecommendCommand(t *testing.T) {
 	app := newTestApp(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

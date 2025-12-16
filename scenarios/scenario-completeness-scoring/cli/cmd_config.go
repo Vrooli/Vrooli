@@ -52,31 +52,3 @@ func (a *App) cmdConfigSet(args []string) error {
 	cliutil.PrintJSON(body)
 	return nil
 }
-
-func (a *App) cmdPresets() error {
-	body, err := a.services.Config.Presets()
-	if err != nil {
-		return err
-	}
-	cliutil.PrintJSON(body)
-	return nil
-}
-
-func (a *App) cmdPreset(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: preset apply <name>")
-	}
-	if args[0] != "apply" {
-		return fmt.Errorf("unknown preset subcommand: %s", args[0])
-	}
-	if len(args) < 2 {
-		return fmt.Errorf("usage: preset apply <name>")
-	}
-	name := args[1]
-	body, err := a.services.Config.ApplyPreset(name)
-	if err != nil {
-		return err
-	}
-	cliutil.PrintJSON(body)
-	return nil
-}

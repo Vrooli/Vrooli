@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "name": "Configuration Presets E2E Test",
-    "description": "Tests the configuration presets listing and application API endpoints",
-    "tags": ["e2e", "api", "configuration", "presets"],
+    "name": "Configuration Schema E2E Test",
+    "description": "Tests the configuration schema, retrieval, and reset API endpoints",
+    "tags": ["e2e", "api", "configuration"],
     "requirements": ["SCS-CFG-003"],
     "reset": "none"
   },
@@ -12,16 +12,16 @@
       "id": "1",
       "type": "http_request",
       "data": {
-        "label": "List available presets",
+        "label": "Get configuration schema",
         "method": "GET",
-        "url": "{{API_URL}}/api/v1/config/presets",
+        "url": "{{API_URL}}/api/v1/config/schema",
         "headers": {
           "Content-Type": "application/json"
         },
         "assertions": [
           {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.presets"},
-          {"type": "json_path_gte", "path": "$.total", "expected": 5}
+          {"type": "json_path_exists", "path": "$.schema"},
+          {"type": "json_path_exists", "path": "$.schema.sections"}
         ]
       }
     },
@@ -29,21 +29,39 @@
       "id": "2",
       "type": "http_request",
       "data": {
-        "label": "Apply default preset",
+        "label": "Get configuration",
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/config",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.config"},
+          {"type": "json_path_exists", "path": "$.effective_weights"}
+        ]
+      }
+    },
+    {
+      "id": "3",
+      "type": "http_request",
+      "data": {
+        "label": "Reset configuration",
         "method": "POST",
-        "url": "{{API_URL}}/api/v1/config/presets/default/apply",
+        "url": "{{API_URL}}/api/v1/config/reset",
         "headers": {
           "Content-Type": "application/json"
         },
         "assertions": [
           {"type": "status_code", "expected": 200},
           {"type": "json_path", "path": "$.success", "expected": true},
-          {"type": "json_path", "path": "$.preset", "expected": "default"}
+          {"type": "json_path_exists", "path": "$.config"}
         ]
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
+    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
+    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"}
   ]
 }

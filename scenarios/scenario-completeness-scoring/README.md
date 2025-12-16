@@ -224,7 +224,6 @@ Real-time collector status:
 │  Circuit Breaker: [✓] Auto-disable after 3 failures            │
 │  Weight Redistribution: [✓] Redistribute disabled weights       │
 ├─────────────────────────────────────────────────────────────────┤
-│  Scope: (○) Global  (●) This scenario only                      │
 │  [Save] [Reset to Defaults]                                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -247,10 +246,8 @@ Real-time collector status:
 |--------|----------|---------|
 | GET | `/api/config` | Get global scoring config |
 | PUT | `/api/config` | Update global config |
-| GET | `/api/config/scenarios/{scenario}` | Get scenario-specific overrides |
-| PUT | `/api/config/scenarios/{scenario}` | Set scenario-specific overrides |
-| GET | `/api/config/presets` | List available presets |
-| POST | `/api/config/presets/{name}/apply` | Apply preset globally |
+| GET | `/api/config/schema` | Get schema (field descriptions + paths) |
+| POST | `/api/config/reset` | Reset global config to defaults |
 
 ### Health Endpoints
 

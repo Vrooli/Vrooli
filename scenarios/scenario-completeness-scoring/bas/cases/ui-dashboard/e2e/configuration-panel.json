@@ -42,12 +42,12 @@
       "id": "4",
       "type": "assertion",
       "data": {
-        "label": "Verify presets list",
-        "selector": "[data-testid='presets-list']",
+        "label": "Verify configuration editor",
+        "selector": "[data-testid='config-editor']",
         "assertions": [
           {"type": "visible"}
         ],
-        "notes": "Presets list is displayed"
+        "notes": "Configuration editor is displayed"
       }
     },
     {

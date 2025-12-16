@@ -95,8 +95,6 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		Commands: []cliapp.Command{
 			a.core.ConfigureCommand(nil, nil),
 			{Name: "config", NeedsAPI: true, Description: "Show server scoring configuration", Run: a.cmdConfig},
-			{Name: "presets", NeedsAPI: true, Description: "List configuration presets", Run: func(args []string) error { return a.cmdPresets() }},
-			{Name: "preset", NeedsAPI: true, Description: "Apply a configuration preset", Run: a.cmdPreset},
 		},
 	}
 	return []cliapp.CommandGroup{health, scoring, config}
