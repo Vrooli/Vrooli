@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "name": "File Diff API",
+    "description": "Validates /api/v1/repo/diff returns structured diff output",
+    "tags": ["e2e", "api", "git", "diff"],
+    "requirements": ["GCT-OT-P0-003"],
+    "reset": "none"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "diff-all",
+      "type": "http_request",
+      "data": {
+        "label": "GET /api/v1/repo/diff (all changes)",
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/repo/diff",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.repo_dir"},
+          {"type": "json_path_exists", "path": "$.has_diff"},
+          {"type": "json_path_exists", "path": "$.stats"},
+          {"type": "json_path_exists", "path": "$.stats.additions"},
+          {"type": "json_path_exists", "path": "$.stats.deletions"},
+          {"type": "json_path_exists", "path": "$.stats.files"},
+          {"type": "json_path_exists", "path": "$.timestamp"}
+        ]
+      }
+    },
+    {
+      "id": "diff-staged",
+      "type": "http_request",
+      "data": {
+        "label": "GET /api/v1/repo/diff?staged=true",
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/repo/diff?staged=true",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {"type": "status_code", "expected": 200},
+          {"type": "json_path_exists", "path": "$.repo_dir"},
+          {"type": "json_path_exists", "path": "$.has_diff"},
+          {"type": "json_path_exists", "path": "$.staged"},
+          {"type": "json_path", "path": "$.staged", "expected": true}
+        ]
+      }
+    }
+  ],
+  "edges": []
+}

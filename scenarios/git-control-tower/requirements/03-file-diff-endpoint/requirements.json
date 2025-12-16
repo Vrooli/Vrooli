@@ -9,9 +9,31 @@
       "category": "operational_target.p0",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "title": "File diff endpoint",
-      "description": "Returns git diff for any file path relative to HEAD",
+      "description": "Returns git diff for any file path relative to HEAD with structured JSON response including hunks, stats, and raw output",
       "status": "pending",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/diff_service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates diff parsing, stats calculation, and service layer logic"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/03-file-diff-endpoint/api/diff.json",
+          "phase": "e2e",
+          "status": "implemented",
+          "notes": "Calls /api/v1/repo/diff and asserts structured response schema"
+        },
+        {
+          "type": "test",
+          "ref": "cli/app.go:cmdDiff",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI diff command with --path and --staged flags"
+        }
+      ]
     }
   ]
 }

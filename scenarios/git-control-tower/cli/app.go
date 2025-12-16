@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -70,6 +71,9 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		Title: "Repository",
 		Commands: []cliapp.Command{
 			{Name: "repo-status", NeedsAPI: true, Description: "Show repository status (branch + changed files)", Run: a.cmdRepoStatus},
+			{Name: "diff", NeedsAPI: true, Description: "Show git diff (--path=FILE --staged)", Run: a.cmdDiff},
+			{Name: "stage", NeedsAPI: true, Description: "Stage files (FILE... or --scope=scenario:name)", Run: a.cmdStage},
+			{Name: "unstage", NeedsAPI: true, Description: "Unstage files (FILE... or --scope=scenario:name)", Run: a.cmdUnstage},
 		},
 	}
 
@@ -189,6 +193,177 @@ func (a *App) cmdRepoStatus(_ []string) error {
 		}
 		fmt.Printf("Changes: staged=%d unstaged=%d untracked=%d conflicts=%d\n",
 			parsed.Summary.Staged, parsed.Summary.Unstaged, parsed.Summary.Untracked, parsed.Summary.Conflicts)
+		return nil
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// [REQ:GCT-OT-P0-003] File diff endpoint
+
+type diffResponse struct {
+	RepoDir string `json:"repo_dir"`
+	Path    string `json:"path"`
+	Staged  bool   `json:"staged"`
+	HasDiff bool   `json:"has_diff"`
+	Stats   struct {
+		Additions int `json:"additions"`
+		Deletions int `json:"deletions"`
+		Files     int `json:"files"`
+	} `json:"stats"`
+	Raw string `json:"raw"`
+}
+
+func (a *App) cmdDiff(args []string) error {
+	var path string
+	var staged bool
+
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--path="):
+			path = strings.TrimPrefix(arg, "--path=")
+		case arg == "--staged":
+			staged = true
+		}
+	}
+
+	query := url.Values{}
+	if path != "" {
+		query.Set("path", path)
+	}
+	if staged {
+		query.Set("staged", "true")
+	}
+
+	body, err := a.core.APIClient.Get(a.apiPath("/repo/diff"), query)
+	if err != nil {
+		return err
+	}
+
+	var parsed diffResponse
+	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil && parsed.RepoDir != "" {
+		if !parsed.HasDiff {
+			fmt.Println("No changes")
+			return nil
+		}
+		fmt.Printf("Diff for: %s\n", parsed.Path)
+		if parsed.Staged {
+			fmt.Println("(staged changes)")
+		}
+		fmt.Printf("Stats: +%d -%d (%d files)\n",
+			parsed.Stats.Additions, parsed.Stats.Deletions, parsed.Stats.Files)
+		if parsed.Raw != "" {
+			fmt.Println("---")
+			fmt.Println(parsed.Raw)
+		}
+		return nil
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// [REQ:GCT-OT-P0-004] Stage/unstage operations
+
+type stageRequest struct {
+	Paths []string `json:"paths"`
+	Scope string   `json:"scope,omitempty"`
+}
+
+type stageResponse struct {
+	Success  bool     `json:"success"`
+	Staged   []string `json:"staged"`
+	Unstaged []string `json:"unstaged"`
+	Failed   []string `json:"failed"`
+	Errors   []string `json:"errors"`
+}
+
+func (a *App) cmdStage(args []string) error {
+	var scope string
+	var paths []string
+
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--scope=") {
+			scope = strings.TrimPrefix(arg, "--scope=")
+		} else if !strings.HasPrefix(arg, "-") {
+			paths = append(paths, arg)
+		}
+	}
+
+	if len(paths) == 0 && scope == "" {
+		return fmt.Errorf("usage: stage FILE... or --scope=scenario:name")
+	}
+
+	req := stageRequest{
+		Paths: paths,
+		Scope: scope,
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/stage"), nil, req)
+	if err != nil {
+		return err
+	}
+
+	var parsed stageResponse
+	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil {
+		if parsed.Success {
+			fmt.Printf("Staged %d file(s)\n", len(parsed.Staged))
+			for _, f := range parsed.Staged {
+				fmt.Printf("  + %s\n", f)
+			}
+		} else {
+			fmt.Println("Staging failed:")
+			for _, e := range parsed.Errors {
+				fmt.Printf("  ! %s\n", e)
+			}
+		}
+		return nil
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+func (a *App) cmdUnstage(args []string) error {
+	var scope string
+	var paths []string
+
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--scope=") {
+			scope = strings.TrimPrefix(arg, "--scope=")
+		} else if !strings.HasPrefix(arg, "-") {
+			paths = append(paths, arg)
+		}
+	}
+
+	if len(paths) == 0 && scope == "" {
+		return fmt.Errorf("usage: unstage FILE... or --scope=scenario:name")
+	}
+
+	req := stageRequest{
+		Paths: paths,
+		Scope: scope,
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/unstage"), nil, req)
+	if err != nil {
+		return err
+	}
+
+	var parsed stageResponse
+	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil {
+		if parsed.Success {
+			fmt.Printf("Unstaged %d file(s)\n", len(parsed.Unstaged))
+			for _, f := range parsed.Unstaged {
+				fmt.Printf("  - %s\n", f)
+			}
+		} else {
+			fmt.Println("Unstaging failed:")
+			for _, e := range parsed.Errors {
+				fmt.Printf("  ! %s\n", e)
+			}
+		}
 		return nil
 	}
 

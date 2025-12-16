@@ -265,27 +265,113 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
-  dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
-  },
-  */
-};
+// ============================================================================
+// Git Control Tower Selectors
+// ============================================================================
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  /*
-  Example dynamic selectors:
-  projects: {
-    cardByName: defineDynamicSelector({
-      description: 'Project card filtered by name',
-      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
-      params: { name: { type: 'string' } },
-    }),
+const literalSelectors = {
+  // Root container
+  app: "git-control-tower",
+
+  // Header
+  header: {
+    root: "status-header",
+    branchInfo: "branch-info",
+    commitOid: "commit-oid",
+    fileStats: "file-stats",
+    healthStatus: "health-status",
+    refreshButton: "refresh-button"
   },
-  */
-};
+
+  // File list panel
+  fileList: {
+    root: "file-list-panel",
+    stageAllButton: "stage-all-button",
+    unstageAllButton: "unstage-all-button",
+    emptyState: "empty-state"
+  },
+
+  // Diff viewer panel
+  diffViewer: {
+    root: "diff-viewer-panel",
+    stats: "diff-stats",
+    loading: "diff-loading",
+    error: "diff-error",
+    empty: "diff-empty",
+    noChanges: "diff-no-changes",
+    content: "diff-content",
+    raw: "diff-raw"
+  },
+
+  // Toast/notifications
+  errorToast: "error-toast"
+} as const;
+
+const dynamicSelectorDefinitions = {
+  fileList: {
+    section: defineDynamicSelector({
+      description: "File section by category (staged, unstaged, untracked, conflicts)",
+      testIdPattern: "file-section-${category}",
+      params: {
+        category: {
+          type: "enum",
+          values: ["staged", "unstaged", "untracked", "conflicts"]
+        }
+      }
+    }),
+    sectionToggle: defineDynamicSelector({
+      description: "File section toggle button",
+      testIdPattern: "file-section-toggle-${category}",
+      params: {
+        category: {
+          type: "enum",
+          values: ["staged", "unstaged", "untracked", "conflicts"]
+        }
+      }
+    }),
+    fileItem: defineDynamicSelector({
+      description: "File item by category",
+      testIdPattern: "file-item-${category}",
+      params: {
+        category: {
+          type: "enum",
+          values: ["staged", "unstaged", "untracked", "conflicts"]
+        }
+      }
+    }),
+    fileAction: defineDynamicSelector({
+      description: "File action button (stage/unstage)",
+      testIdPattern: "file-action-${category}",
+      params: {
+        category: {
+          type: "enum",
+          values: ["staged", "unstaged", "untracked", "conflicts"]
+        }
+      }
+    }),
+    fileByPath: defineDynamicSelector({
+      description: "File item by path",
+      selectorPattern: '[data-file-path="${path}"]',
+      params: {
+        path: { type: "string" }
+      }
+    })
+  },
+  diffViewer: {
+    hunk: defineDynamicSelector({
+      description: "Diff hunk by index",
+      testIdPattern: "diff-hunk-${index}",
+      params: {
+        index: { type: "number" }
+      }
+    }),
+    line: defineDynamicSelector({
+      description: "Diff line",
+      testIdPattern: "diff-line",
+      params: {}
+    })
+  }
+} as const;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 

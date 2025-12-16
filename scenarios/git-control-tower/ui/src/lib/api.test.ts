@@ -27,11 +27,11 @@ test("fetchHealth returns parsed JSON on success", async () => {
 test("fetchHealth throws when API returns non-200", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = vi.fn(async () => {
-    return new Response("nope", { status: 503 });
+    return new Response("Service unavailable", { status: 503 });
   }) as unknown as typeof fetch;
 
   try {
-    await expect(fetchHealth()).rejects.toThrow(/API health check failed/);
+    await expect(fetchHealth()).rejects.toThrow(/Service unavailable|Request failed: 503/);
   } finally {
     globalThis.fetch = originalFetch;
   }

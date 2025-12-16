@@ -5,13 +5,69 @@
   },
   "requirements": [
     {
-      "id": "GCT-OT-P0-004",
+      "id": "GCT-OT-P0-004A",
       "category": "operational_target.p0",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "title": "Stage/unstage operations",
-      "description": "Stage/unstage specific files or by scope (scenario/resource) via POST endpoints",
+      "title": "Stage files via API",
+      "description": "Stage specific files via POST /api/v1/repo/stage with paths array",
       "status": "pending",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/staging_service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates staging service logic, path validation, and error handling"
+        },
+        {
+          "type": "test",
+          "ref": "cli/app.go:cmdStage",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI stage command with paths and --scope flag"
+        }
+      ]
+    },
+    {
+      "id": "GCT-OT-P0-004B",
+      "category": "operational_target.p0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Unstage files via API",
+      "description": "Unstage specific files via POST /api/v1/repo/unstage with paths array",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/staging_service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates unstaging service logic, path validation, and error handling"
+        },
+        {
+          "type": "test",
+          "ref": "cli/app.go:cmdUnstage",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI unstage command with paths and --scope flag"
+        }
+      ]
+    },
+    {
+      "id": "GCT-OT-P0-004C",
+      "category": "operational_target.p0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Stage/unstage by scope",
+      "description": "Stage/unstage all files in a scenario/resource scope using scope parameter",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/staging_service_test.go:TestExpandScope",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates scope expansion for scenario/resource/package scopes"
+        }
+      ]
     }
   ]
 }

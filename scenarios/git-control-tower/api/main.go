@@ -68,6 +68,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/status", s.handleRepoStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/diff", s.handleDiff).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/stage", s.handleStage).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/unstage", s.handleUnstage).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -143,6 +146,115 @@ func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(status)
+}
+
+// [REQ:GCT-OT-P0-003] File diff endpoint
+func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
+	repoDir := resolveRepoDir()
+	if strings.TrimSpace(repoDir) == "" {
+		writeJSONError(w, http.StatusBadRequest, "repository root could not be resolved")
+		return
+	}
+
+	// Parse query parameters
+	query := r.URL.Query()
+	path := query.Get("path")
+	staged := query.Get("staged") == "true"
+	base := query.Get("base")
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	diff, err := GetDiff(ctx, DiffDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, DiffRequest{
+		Path:   path,
+		Staged: staged,
+		Base:   base,
+	})
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(diff)
+}
+
+// [REQ:GCT-OT-P0-004] Stage/unstage operations
+func (s *Server) handleStage(w http.ResponseWriter, r *http.Request) {
+	repoDir := resolveRepoDir()
+	if strings.TrimSpace(repoDir) == "" {
+		writeJSONError(w, http.StatusBadRequest, "repository root could not be resolved")
+		return
+	}
+
+	var req StageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+
+	if len(req.Paths) == 0 && req.Scope == "" {
+		writeJSONError(w, http.StatusBadRequest, "paths or scope required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	result, err := StageFiles(ctx, StagingDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if !result.Success {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+	}
+	json.NewEncoder(w).Encode(result)
+}
+
+func (s *Server) handleUnstage(w http.ResponseWriter, r *http.Request) {
+	repoDir := resolveRepoDir()
+	if strings.TrimSpace(repoDir) == "" {
+		writeJSONError(w, http.StatusBadRequest, "repository root could not be resolved")
+		return
+	}
+
+	var req UnstageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+
+	if len(req.Paths) == 0 && req.Scope == "" {
+		writeJSONError(w, http.StatusBadRequest, "paths or scope required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	result, err := UnstageFiles(ctx, StagingDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if !result.Success {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+	}
+	json.NewEncoder(w).Encode(result)
 }
 
 // loggingMiddleware prints simple request logs
