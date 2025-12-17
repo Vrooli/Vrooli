@@ -148,7 +148,53 @@ func ApplyActionRange(actions []RecordedAction, start, end int) []RecordedAction
 	return actions
 }
 
-// mapActionToNode converts a single recorded action to a workflow node.
+// nodeTypeToV2ActionType maps V1 node type strings to V2 ACTION_TYPE_ enum values.
+func nodeTypeToV2ActionType(nodeType string) string {
+	switch nodeType {
+	case "navigate":
+		return "ACTION_TYPE_NAVIGATE"
+	case "click":
+		return "ACTION_TYPE_CLICK"
+	case "type":
+		return "ACTION_TYPE_INPUT"
+	case "wait":
+		return "ACTION_TYPE_WAIT"
+	case "assert":
+		return "ACTION_TYPE_ASSERT"
+	case "scroll":
+		return "ACTION_TYPE_SCROLL"
+	case "select":
+		return "ACTION_TYPE_SELECT"
+	case "evaluate":
+		return "ACTION_TYPE_EVALUATE"
+	case "keyboard":
+		return "ACTION_TYPE_KEYBOARD"
+	case "hover":
+		return "ACTION_TYPE_HOVER"
+	case "screenshot":
+		return "ACTION_TYPE_SCREENSHOT"
+	case "focus":
+		return "ACTION_TYPE_FOCUS"
+	case "blur":
+		return "ACTION_TYPE_BLUR"
+	default:
+		return "ACTION_TYPE_UNSPECIFIED"
+	}
+}
+
+// nodeTypeToV2ParamKey maps V1 node type to the V2 action param key.
+func nodeTypeToV2ParamKey(nodeType string) string {
+	switch nodeType {
+	case "type":
+		return "input" // V2 uses "input" for type actions
+	case "select":
+		return "select_option"
+	default:
+		return nodeType
+	}
+}
+
+// mapActionToNode converts a single recorded action to a workflow node in V2 format.
 // Uses the action registry to look up type-specific configuration.
 func mapActionToNode(action RecordedAction, nodeID string, index int) map[string]interface{} {
 	// Calculate position (vertical layout)
@@ -158,27 +204,122 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 	// Get action configuration from registry
 	cfg := GetActionConfig(action.ActionType)
 
-	// Build node data and config using registry builder
-	data, config := cfg.BuildNode(action)
+	// Build node data using registry builder
+	data, _ := cfg.BuildNode(action)
 
 	// Generate label using registry label generator
-	data["label"] = cfg.GenerateLabel(action)
+	label := cfg.GenerateLabel(action)
+
+	// Build V2 action definition
+	v2ActionType := nodeTypeToV2ActionType(cfg.NodeType)
+	v2ParamKey := nodeTypeToV2ParamKey(cfg.NodeType)
+
+	// Build typed params for the action
+	actionParams := buildV2ActionParams(cfg.NodeType, action, data)
+
+	actionDef := map[string]interface{}{
+		"type": v2ActionType,
+		"metadata": map[string]interface{}{
+			"label": label,
+		},
+	}
+	// Add the typed params under the appropriate key
+	if len(actionParams) > 0 {
+		actionDef[v2ParamKey] = actionParams
+	}
 
 	node := map[string]interface{}{
-		"id":   nodeID,
-		"type": cfg.NodeType,
+		"id":     nodeID,
+		"action": actionDef,
 		"position": map[string]interface{}{
 			"x": posX,
 			"y": posY,
 		},
-		"data": data,
-	}
-
-	if len(config) > 0 {
-		node["config"] = config
 	}
 
 	return node
+}
+
+// buildV2ActionParams builds the typed params for a V2 action.
+func buildV2ActionParams(nodeType string, action RecordedAction, data map[string]interface{}) map[string]interface{} {
+	params := make(map[string]interface{})
+
+	switch nodeType {
+	case "navigate":
+		if url := action.URL; url != "" {
+			params["url"] = url
+		}
+		if waitFor, ok := data["waitForSelector"]; ok {
+			params["wait_for_selector"] = waitFor
+		}
+	case "click":
+		if action.Selector != nil {
+			params["selector"] = action.Selector.Primary
+		}
+		if btn, ok := data["button"]; ok {
+			params["button"] = btn
+		}
+		if count, ok := data["clickCount"]; ok {
+			params["click_count"] = count
+		}
+	case "type":
+		if action.Selector != nil {
+			params["selector"] = action.Selector.Primary
+		}
+		if text, ok := data["text"].(string); ok {
+			params["value"] = text
+		}
+	case "wait":
+		if action.Selector != nil {
+			params["selector"] = action.Selector.Primary
+		}
+		if timeout, ok := data["timeoutMs"]; ok {
+			params["timeout_ms"] = timeout
+		}
+	case "scroll":
+		if action.Selector != nil {
+			params["selector"] = action.Selector.Primary
+		}
+		if y, ok := data["y"]; ok {
+			params["y"] = y
+		}
+	case "select":
+		if action.Selector != nil {
+			params["selector"] = action.Selector.Primary
+		}
+		if val, ok := data["value"]; ok {
+			params["value"] = val
+		}
+	case "hover":
+		if action.Selector != nil {
+			params["selector"] = action.Selector.Primary
+		}
+	case "keyboard":
+		if key, ok := data["key"]; ok {
+			params["key"] = key
+		}
+	case "screenshot":
+		if name, ok := data["name"]; ok {
+			params["name"] = name
+		}
+	case "assert":
+		if action.Selector != nil {
+			params["selector"] = action.Selector.Primary
+		}
+		// Copy all payload data as assert params
+		for k, v := range data {
+			if k != "selector" && k != "label" {
+				params[k] = v
+			}
+		}
+	default:
+		// For unknown types, copy data as params
+		if action.Selector != nil {
+			params["selector"] = action.Selector.Primary
+		}
+	}
+
+	return params
 }
 
 // WaitTemplate describes a wait node to be inserted between actions.
@@ -265,30 +406,35 @@ func describeElement(action RecordedAction) string {
 	return "element"
 }
 
-// createWaitNode generates a workflow wait node from a WaitTemplate.
+// createWaitNode generates a workflow wait node from a WaitTemplate in V2 format.
 func createWaitNode(template *WaitTemplate, nodeID string, posY float64) map[string]interface{} {
-	data := map[string]interface{}{
-		"label":     template.Label,
-		"timeoutMs": template.TimeoutMs,
+	// Build V2 wait params
+	waitParams := map[string]interface{}{
+		"timeout_ms": template.TimeoutMs,
 	}
 
 	if template.WaitType == "selector" && template.Selector != "" {
-		data["selector"] = template.Selector
+		waitParams["selector"] = template.Selector
+		waitParams["state"] = "visible" // Default to waiting for visible state
+	} else if template.WaitType == "timeout" {
+		waitParams["duration_ms"] = template.TimeoutMs
+	}
+
+	// Build V2 action definition
+	actionDef := map[string]interface{}{
+		"type": "ACTION_TYPE_WAIT",
+		"wait": waitParams,
+		"metadata": map[string]interface{}{
+			"label": template.Label,
+		},
 	}
 
 	return map[string]interface{}{
-		"id":   nodeID,
-		"type": "wait",
+		"id":     nodeID,
+		"action": actionDef,
 		"position": map[string]interface{}{
 			"x": 250.0,
 			"y": posY,
-		},
-		"data": data,
-		"config": map[string]any{
-			"custom": map[string]any{
-				"kind":    "wait",
-				"payload": data,
-			},
 		},
 	}
 }

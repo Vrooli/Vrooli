@@ -26,10 +26,12 @@ type SessionProfile struct {
 }
 
 // SessionProfileStore manages persisted session profiles on disk.
+// It also tracks active browser sessions to their associated profiles in-memory.
 type SessionProfileStore struct {
-	root string
-	log  *logrus.Logger
-	mu   sync.Mutex
+	root           string
+	log            *logrus.Logger
+	mu             sync.Mutex
+	activeSessions map[string]string // browserSessionID -> profileID
 }
 
 // NewSessionProfileStore creates a store rooted at the given path, ensuring the directory exists.
@@ -44,8 +46,9 @@ func NewSessionProfileStore(root string, log *logrus.Logger) *SessionProfileStor
 		log.WithError(err).Warn("Failed to ensure session profiles directory exists")
 	}
 	return &SessionProfileStore{
-		root: root,
-		log:  log,
+		root:           root,
+		log:            log,
+		activeSessions: make(map[string]string),
 	}
 }
 
@@ -268,4 +271,49 @@ func (s *SessionProfileStore) normalizeNameLocked(name string) string {
 		count++
 	}
 	return fmt.Sprintf("Session %d", count+1)
+}
+
+// ========================================================================
+// Active Session Tracking (in-memory)
+// ========================================================================
+
+// SetActiveSession associates a browser session with a profile.
+// This is used to track which profile should receive storage state updates
+// when a recording session is closed.
+func (s *SessionProfileStore) SetActiveSession(browserSessionID, profileID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if browserSessionID != "" && profileID != "" {
+		s.activeSessions[browserSessionID] = profileID
+	}
+}
+
+// GetActiveSession returns the profile ID associated with a browser session.
+// Returns empty string if no association exists.
+func (s *SessionProfileStore) GetActiveSession(browserSessionID string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.activeSessions[browserSessionID]
+}
+
+// ClearActiveSession removes the association between a browser session and its profile.
+// Returns the profile ID that was cleared (for logging/persistence).
+func (s *SessionProfileStore) ClearActiveSession(browserSessionID string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	profileID := s.activeSessions[browserSessionID]
+	delete(s.activeSessions, browserSessionID)
+	return profileID
+}
+
+// ClearSessionsForProfile removes all browser session associations for a given profile.
+// Used when deleting a profile to clean up any stale references.
+func (s *SessionProfileStore) ClearSessionsForProfile(profileID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for sessionID, pid := range s.activeSessions {
+		if pid == profileID {
+			delete(s.activeSessions, sessionID)
+		}
+	}
 }

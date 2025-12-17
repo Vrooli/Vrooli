@@ -117,7 +117,7 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		exportCtx, cancelExport := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 		defer cancelExport()
 
-		if err := h.exportService.ExportToFolder(exportCtx, executionID, outputDir, h.storage); err != nil {
+		if err := h.executionService.ExportToFolder(exportCtx, executionID, outputDir, h.storage); err != nil {
 			if errors.Is(err, database.ErrNotFound) {
 				h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))
 				return
@@ -137,7 +137,7 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 	previewCtx, cancelPreview := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancelPreview()
 
-	preview, svcErr := h.exportService.DescribeExecutionExport(previewCtx, executionID)
+	preview, svcErr := h.executionService.DescribeExecutionExport(previewCtx, executionID)
 	if svcErr != nil {
 		if errors.Is(svcErr, database.ErrNotFound) {
 			h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))

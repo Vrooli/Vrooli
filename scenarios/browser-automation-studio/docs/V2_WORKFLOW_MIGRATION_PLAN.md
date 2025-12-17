@@ -678,14 +678,32 @@ Record these at the end of each phase:
 - Notes: executor loop/subflow handling now prefers typed `ActionDefinition` params end-to-end (loop execution runs from `LoopParams`; subflow parsing consumes `SubflowParams` including args; legacy map parsing remains only as fallback)
 - Notes: contract plan compiler now emits action-only instructions/graph steps (deprecated `type/params` are cleared when `action` is present); graph→instruction conversion also clears legacy fields when action is present
 - Notes: entry-probe “wait for selector” is now sent to the driver as a typed `WAIT` action (no legacy `type/params`)
-- Notes: removed `WorkflowNodeV2 → legacy type/params` shaper (`automation/workflow/v2_execution.go` no longer populates deprecated fields)
+- Notes: removed `WorkflowNodeV2 → legacy type/params` shaper (`automation/compiler/v1_execution.go` no longer populates deprecated fields)
 - Notes: added regression tests for action-first context propagation and graph execution (`automation/executor/action_first_test.go`)
 - Validation: `go test ./...` passes in `scenarios/browser-automation-studio/api`
 - Scenario test pass rate and top failures: still fails on standards (HIGH+ missing PRD content/targets) and performance (Lighthouse mobile-dashboard perf < 70); playbooks still failing with `workflow failed: not found` during wait (latest logs in `scenarios/browser-automation-studio/coverage/logs/20251216-001732/`)
 
+### Snapshot: 2025-12-17
+
+- Phase completed: Technical debt cleanup (removed broken `legacydb` test files)
+- `v1 node` count (heuristic): reduced in Go tests (deleted 29 files with V1 patterns)
+- `inline workflowDefinition` count: 0 in Go code (tests that had them are deleted)
+- `legacy_payload` references count: reduced (some were in deleted tests)
+- Notes: **Deleted 29 broken `legacydb` test files** (16,564 lines) that referenced removed database types (`database.Workflow`, `database.Project`, `database.Execution` → now `*Index` types)
+- Notes: These tests broke during the 2025-12-15 "type unification" refactor and were never updated
+- Notes: Tests were behind `//go:build legacydb` tag, not run in CI, and had stale imports
+- Notes: Remaining test coverage: 207 unit tests (non-legacydb) + 64 BAS scenario tests (E2E)
+- Notes: **TECHNICAL DEBT**: Need to add new unit tests for handlers, workflow service, and executor using current V2/proto types
+- Notes: Deleted files freed up V1 removal path by eliminating test dependencies on V1 format
+- Validation: `go test ./...` passes (pre-existing unrelated failure in `services/live-capture`)
+- Files deleted:
+  - `handlers/` (14 files): workflows, recordings, executions, projects, health, pagination, etc.
+  - `services/workflow/` (5 files): execution, files, projects, service, timeline tests
+  - `automation/executor/` (10 files): simple_executor, integration, flow_executor, plan_builder, etc.
+
 ---
 
-## “If We Get Stuck Again” (Triage Framework)
+## "If We Get Stuck Again" (Triage Framework)
 
 When an attempted deletion breaks something, categorize the break:
 

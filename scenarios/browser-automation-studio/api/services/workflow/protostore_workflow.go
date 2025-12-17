@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	autoworkflow "github.com/vrooli/browser-automation-studio/automation/workflow"
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/database"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -176,7 +176,7 @@ func V1NodesEdgesToV2Definition(nodes []any, edges []any, payload map[string]any
 			settings = extractMapAny(flow, "settings")
 		}
 	}
-	return autoworkflow.V1FlowDefinitionToV2(autoworkflow.V1FlowDefinition{
+	return autocompiler.V1FlowDefinitionToV2(autocompiler.V1FlowDefinition{
 		Nodes:    v1NodesFromAny(nodes),
 		Edges:    v1EdgesFromAny(edges),
 		Metadata: meta,
@@ -194,8 +194,8 @@ func extractMapAny(m map[string]any, key string) map[string]any {
 	return nil
 }
 
-func v1NodesFromAny(nodes []any) []autoworkflow.V1Node {
-	out := make([]autoworkflow.V1Node, 0, len(nodes))
+func v1NodesFromAny(nodes []any) []autocompiler.V1Node {
+	out := make([]autocompiler.V1Node, 0, len(nodes))
 	for _, raw := range nodes {
 		nodeMap, ok := raw.(map[string]any)
 		if !ok {
@@ -205,7 +205,7 @@ func v1NodesFromAny(nodes []any) []autoworkflow.V1Node {
 				continue
 			}
 		}
-		n := autoworkflow.V1Node{
+		n := autocompiler.V1Node{
 			ID:   anyToString(nodeMap["id"]),
 			Type: anyToString(nodeMap["type"]),
 		}
@@ -219,8 +219,8 @@ func v1NodesFromAny(nodes []any) []autoworkflow.V1Node {
 	return out
 }
 
-func v1EdgesFromAny(edges []any) []autoworkflow.V1Edge {
-	out := make([]autoworkflow.V1Edge, 0, len(edges))
+func v1EdgesFromAny(edges []any) []autocompiler.V1Edge {
+	out := make([]autocompiler.V1Edge, 0, len(edges))
 	for _, raw := range edges {
 		edgeMap, ok := raw.(map[string]any)
 		if !ok {
@@ -230,7 +230,7 @@ func v1EdgesFromAny(edges []any) []autoworkflow.V1Edge {
 				continue
 			}
 		}
-		out = append(out, autoworkflow.V1Edge{
+		out = append(out, autocompiler.V1Edge{
 			ID:           anyToString(edgeMap["id"]),
 			Source:       anyToString(edgeMap["source"]),
 			Target:       anyToString(edgeMap["target"]),

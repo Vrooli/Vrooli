@@ -168,11 +168,7 @@ func (h *Handler) DeleteRecordingSessionProfile(w http.ResponseWriter, r *http.R
 
 // removeProfileSessions clears any active session mappings for the given profile.
 func (h *Handler) removeProfileSessions(profileID string) {
-	h.activeSessionsMu.Lock()
-	defer h.activeSessionsMu.Unlock()
-	for sessionID, pid := range h.activeSessions {
-		if pid == profileID {
-			delete(h.activeSessions, sessionID)
-		}
+	if h.sessionProfiles != nil {
+		h.sessionProfiles.ClearSessionsForProfile(profileID)
 	}
 }

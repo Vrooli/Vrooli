@@ -151,7 +151,7 @@ func (h *Handler) GetProjectFileTree(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure DB index reflects filesystem edits.
-	_ = h.workflowCatalog.SyncProjectWorkflows(ctx, projectID)
+	_ = h.catalogService.SyncProjectWorkflows(ctx, projectID)
 
 	workflows, err := h.repo.ListWorkflowsByProject(ctx, projectID, 10000, 0)
 	if err != nil && !errors.Is(err, database.ErrNotFound) {
@@ -452,7 +452,7 @@ func (h *Handler) WriteProjectWorkflowFile(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	_ = h.workflowCatalog.SyncProjectWorkflows(ctx, projectID)
+	_ = h.catalogService.SyncProjectWorkflows(ctx, projectID)
 
 	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"path":       relPath,
@@ -517,7 +517,7 @@ func (h *Handler) MoveProjectFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = h.workflowCatalog.SyncProjectWorkflows(ctx, projectID)
+	_ = h.catalogService.SyncProjectWorkflows(ctx, projectID)
 	h.respondSuccess(w, http.StatusOK, map[string]any{"status": "moved"})
 }
 
@@ -563,7 +563,7 @@ func (h *Handler) DeleteProjectFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = h.workflowCatalog.SyncProjectWorkflows(ctx, projectID)
+	_ = h.catalogService.SyncProjectWorkflows(ctx, projectID)
 	h.respondSuccess(w, http.StatusOK, map[string]any{"status": "deleted"})
 }
 
@@ -586,7 +586,7 @@ func (h *Handler) ResyncProjectFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.workflowCatalog.SyncProjectWorkflows(ctx, projectID); err != nil {
+	if err := h.catalogService.SyncProjectWorkflows(ctx, projectID); err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "sync_project_workflows"}))
 		return
 	}

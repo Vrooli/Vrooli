@@ -38,7 +38,7 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
-	resp, err := h.workflowCatalog.ExecuteWorkflowAPI(ctx, &req)
+	resp, err := h.executionService.ExecuteWorkflowAPI(ctx, &req)
 	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "execute_workflow", "error": err.Error()}))
 		return
@@ -122,7 +122,7 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
-	resp, err := h.workflowCatalog.ExecuteAdhocWorkflowAPI(ctx, &req)
+	resp, err := h.executionService.ExecuteAdhocWorkflowAPI(ctx, &req)
 	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "execute_adhoc", "error": err.Error()}))
 		return
@@ -253,7 +253,7 @@ func (h *Handler) ListWorkflowVersions(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	list, err := h.workflowCatalog.ListWorkflowVersionsAPI(ctx, workflowID)
+	list, err := h.catalogService.ListWorkflowVersionsAPI(ctx, workflowID)
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			h.respondError(w, ErrWorkflowNotFound.WithDetails(map[string]string{"workflow_id": workflowID.String()}))
@@ -280,7 +280,7 @@ func (h *Handler) GetWorkflowVersion(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	version, err := h.workflowCatalog.GetWorkflowVersionAPI(ctx, workflowID, int32(versionInt))
+	version, err := h.catalogService.GetWorkflowVersionAPI(ctx, workflowID, int32(versionInt))
 	if err != nil {
 		if errors.Is(err, workflowservice.ErrWorkflowVersionNotFound) {
 			h.respondError(w, ErrWorkflowNotFound.WithDetails(map[string]string{"workflow_id": workflowID.String()}))
@@ -312,7 +312,7 @@ func (h *Handler) RestoreWorkflowVersion(w http.ResponseWriter, r *http.Request)
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
-	resp, err := h.workflowCatalog.RestoreWorkflowVersionAPI(ctx, workflowID, int32(versionInt), body.ChangeDescription)
+	resp, err := h.catalogService.RestoreWorkflowVersionAPI(ctx, workflowID, int32(versionInt), body.ChangeDescription)
 	if err != nil {
 		if errors.Is(err, workflowservice.ErrWorkflowVersionNotFound) {
 			h.respondError(w, ErrWorkflowNotFound.WithDetails(map[string]string{"workflow_id": workflowID.String()}))
@@ -356,7 +356,7 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
-	resp, err := h.workflowCatalog.ModifyWorkflowAPI(ctx, workflowID, prompt, def)
+	resp, err := h.catalogService.ModifyWorkflowAPI(ctx, workflowID, prompt, def)
 	if err != nil {
 		var aiErr *workflowservice.AIWorkflowError
 		if errors.As(err, &aiErr) {

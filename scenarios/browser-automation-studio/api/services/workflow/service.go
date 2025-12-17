@@ -171,15 +171,10 @@ func (s *WorkflowService) newEventSink() autoevents.Sink {
 	return autoevents.NewWSHubSink(nil, s.log, limits)
 }
 
+// eventBufferLimits returns validated event buffer limits sourced from config.
+// Delegates to config.EventBufferLimitsFromConfig() for centralized configuration.
 func eventBufferLimits() autocontracts.EventBufferLimits {
-	limits := autocontracts.EventBufferLimits{
-		PerExecution: config.Load().Events.PerExecutionBuffer,
-		PerAttempt:   config.Load().Events.PerAttemptBuffer,
-	}
-	if limits.Validate() != nil {
-		return autocontracts.DefaultEventBufferLimits
-	}
-	return limits
+	return config.EventBufferLimitsFromConfig()
 }
 
 // cloneJSONMap creates a deep copy of a database.JSONMap using typeconv utilities.

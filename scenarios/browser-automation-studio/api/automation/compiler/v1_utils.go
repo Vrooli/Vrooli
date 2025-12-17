@@ -1,11 +1,11 @@
-package workflow
+package compiler
 
 import (
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
-// Utility wrappers for type conversion used across the workflow package.
+// Utility wrappers for type conversion used across the compiler package.
 // Delegates to internal/typeconv for actual implementation.
 
 // toInt32 delegates to typeconv.ToInt32 for numeric conversion.

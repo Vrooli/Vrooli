@@ -256,11 +256,12 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 
 		// Skip steps that were already completed in a resumed execution.
 		// StartFromStepIndex represents the last completed step, so we skip all steps <= StartFromStepIndex.
+		instrStepType := InstructionStepType(instruction)
 		if req.StartFromStepIndex > 0 && instruction.Index <= req.StartFromStepIndex {
 			logrus.WithFields(logrus.Fields{
 				"execution_id": req.Plan.ExecutionID,
 				"step_index":   instruction.Index,
-				"step_type":    instruction.Type,
+				"step_type":    instrStepType,
 				"node_id":      instruction.NodeID,
 			}).Debug("Skipping already completed step (resume)")
 			continue
@@ -274,12 +275,13 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			session = s
 		}
 		instruction = e.interpolateInstruction(instruction, state)
+		instrStepType = InstructionStepType(instruction) // Refresh after interpolation
 
-		if strings.EqualFold(strings.TrimSpace(instruction.Type), "workflowcall") {
+		if strings.EqualFold(strings.TrimSpace(instrStepType), "workflowcall") {
 			return session, fmt.Errorf("workflowCall nodes are no longer supported; use subflow instead")
 		}
 
-		if isSubflowStep(instruction.Type) {
+		if isSubflowInstruction(instruction) {
 			step := planStepToInstructionStep(instruction)
 			outcome, updatedSession, err := e.executeSubflow(ctx, req, execCtx, eng, spec, session, step, state, reuseMode)
 			session = updatedSession
@@ -292,19 +294,14 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			continue
 		}
 
-		if isSetVariableStep(instruction.Type) {
-			step := contracts.PlanStep{
-				Index:  instruction.Index,
-				NodeID: instruction.NodeID,
-				Type:   instruction.Type,
-				Params: instruction.Params,
-			}
-			outcome, setErr := e.applySetVariable(ctx, req, step.Index, step.Type, step.NodeID, step.Params, state)
+		if isSetVariableInstruction(instruction) {
+			instrParams := InstructionParams(instruction)
+			outcome, setErr := e.applySetVariable(ctx, req, instruction.Index, instrStepType, instruction.NodeID, instrParams, state)
 			if setErr != nil {
 				return session, setErr
 			}
 			if !outcome.Success {
-				return session, fmt.Errorf("set_variable step %d failed", step.Index)
+				return session, fmt.Errorf("set_variable step %d failed", instruction.Index)
 			}
 			continue
 		}
@@ -322,7 +319,7 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 
 		e.emitEvent(stepCtx, req, contracts.EventKindStepStarted, &instruction.Index, &attempt, map[string]any{
 			"node_id":   instruction.NodeID,
-			"step_type": instruction.Type,
+			"step_type": instrStepType,
 		})
 
 		stopHeartbeat := e.startHeartbeat(stepCtx, req, instruction.Index, attempt, startedAt)
@@ -371,7 +368,8 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 
 		// Store extracted data to flowState if storeResult is specified
 		if normalized.Success && normalized.ExtractedData != nil {
-			if storeKey := stringValue(instruction.Params, "storeResult"); storeKey != "" {
+			instrParams := InstructionParams(instruction)
+			if storeKey := stringValue(instrParams, "storeResult"); storeKey != "" {
 				// Store the raw ExtractedData directly - it's not wrapped at this point
 				// (wrapping only happens when creating database artifacts in db_recorder)
 				state.set(storeKey, normalized.ExtractedData)
@@ -431,13 +429,14 @@ func (e *SimpleExecutor) validateSubflowResolver(req Request) error {
 
 	// Check compiled instructions
 	for _, instr := range req.Plan.Instructions {
-		if !strings.EqualFold(strings.TrimSpace(instr.Type), "subflow") {
+		if !isSubflowInstruction(instr) {
 			continue
 		}
 
 		// Check if this subflow references an external workflow (workflowId/workflowPath)
 		// vs inline definition (workflowDefinition).
-		if instr.Params == nil {
+		instrParams := InstructionParams(instr)
+		if instrParams == nil {
 			continue
 		}
 
@@ -445,13 +444,13 @@ func (e *SimpleExecutor) validateSubflowResolver(req Request) error {
 		hasWorkflowPath := false
 		hasInlineDefinition := false
 
-		if wfID, ok := instr.Params["workflowId"]; ok && wfID != nil && wfID != "" {
+		if wfID, ok := instrParams["workflowId"]; ok && wfID != nil && wfID != "" {
 			hasWorkflowID = true
 		}
-		if wfPath, ok := instr.Params["workflowPath"]; ok && wfPath != nil && wfPath != "" {
+		if wfPath, ok := instrParams["workflowPath"]; ok && wfPath != nil && wfPath != "" {
 			hasWorkflowPath = true
 		}
-		if wfDef, ok := instr.Params["workflowDefinition"]; ok && wfDef != nil {
+		if wfDef, ok := instrParams["workflowDefinition"]; ok && wfDef != nil {
 			hasInlineDefinition = true
 		}
 
@@ -475,7 +474,7 @@ func (e *SimpleExecutor) normalizeOutcome(plan contracts.ExecutionPlan, instruct
 	outcome.ExecutionID = uuidOrDefault(outcome.ExecutionID, plan.ExecutionID)
 	outcome.StepIndex = intOrDefault(outcome.StepIndex, instruction.Index)
 	outcome.NodeID = valueOrDefault(outcome.NodeID, instruction.NodeID)
-	outcome.StepType = valueOrDefault(outcome.StepType, instruction.Type)
+	outcome.StepType = valueOrDefault(outcome.StepType, InstructionStepType(instruction))
 	outcome.Attempt = intOrDefault(outcome.Attempt, attempt)
 
 	if outcome.StartedAt.IsZero() {
@@ -628,16 +627,18 @@ func entrySelectorFromPlan(plan contracts.ExecutionPlan) (string, int) {
 			return sorted[i].Index < sorted[j].Index
 		})
 		for _, instr := range sorted {
-			if instr.Type == "navigate" {
+			instrType := InstructionStepType(instr)
+			if instrType == "navigate" {
 				logrus.WithField("execution_id", plan.ExecutionID).Debug("Skipping entry probe - workflow navigates before first selector-bearing instruction")
 				return "", 0
 			}
-			if selector := firstSelectorFromParams(instr.Params); selector != "" {
+			instrParams := InstructionParams(instr)
+			if selector := firstSelectorFromParams(instrParams); selector != "" {
 				timeout := readInt(plan.Metadata, "entrySelectorTimeoutMs", "entryTimeoutMs")
 				logrus.WithFields(logrus.Fields{
 					"execution_id": plan.ExecutionID,
 					"selector":     selector,
-					"instruction":  instr.Type,
+					"instruction":  instrType,
 					"source":       "instructions",
 				}).Debug("Extracted entry selector from first selector-bearing instruction")
 				return selector, timeout
@@ -667,10 +668,10 @@ func firstSelectorFromInstructions(instructions []contracts.CompiledInstruction)
 		// Skip navigation instructions - they don't have meaningful selectors for entry probe
 		// Navigation establishes the page context, so we should wait for the first
 		// interactive element instead
-		if instr.Type == "navigate" {
+		if InstructionStepType(instr) == "navigate" {
 			continue
 		}
-		selector := firstSelectorFromParams(instr.Params)
+		selector := firstSelectorFromParams(InstructionParams(instr))
 		if selector != "" {
 			return selector
 		}
@@ -1014,16 +1015,17 @@ func retryConfigFromInstruction(instruction contracts.CompiledInstruction) retry
 		Delay:         750 * time.Millisecond,
 		BackoffFactor: 1.5,
 	}
-	if instruction.Params == nil {
+	instrParams := InstructionParams(instruction)
+	if instrParams == nil {
 		return cfg
 	}
-	if v, ok := instruction.Params["retryAttempts"].(float64); ok && v > 0 {
+	if v, ok := instrParams["retryAttempts"].(float64); ok && v > 0 {
 		cfg.MaxAttempts = int(v)
 	}
-	if v, ok := instruction.Params["retryDelayMs"].(float64); ok && v > 0 {
+	if v, ok := instrParams["retryDelayMs"].(float64); ok && v > 0 {
 		cfg.Delay = time.Duration(v) * time.Millisecond
 	}
-	if v, ok := instruction.Params["retryBackoffFactor"].(float64); ok && v > 0 {
+	if v, ok := instrParams["retryBackoffFactor"].(float64); ok && v > 0 {
 		cfg.BackoffFactor = v
 	}
 	if cfg.MaxAttempts < 1 {
@@ -1039,7 +1041,8 @@ func retryConfigFromInstruction(instruction contracts.CompiledInstruction) retry
 // timeoutMs is expected to be milliseconds; zero disables executor-side deadline enforcement.
 func instructionTimeout(plan contracts.ExecutionPlan, instruction contracts.CompiledInstruction) time.Duration {
 	ms := 0
-	if v, ok := instruction.Params["timeoutMs"]; ok {
+	instrParams := InstructionParams(instruction)
+	if v, ok := instrParams["timeoutMs"]; ok {
 		switch t := v.(type) {
 		case int:
 			ms = t
@@ -1151,7 +1154,7 @@ func computeDynamicTimeout(plan contracts.ExecutionPlan) time.Duration {
 	// Determine if workflow has subflows (which need more time per step)
 	hasSubflows := false
 	for _, instr := range plan.Instructions {
-		if strings.EqualFold(strings.TrimSpace(instr.Type), "subflow") {
+		if isSubflowInstruction(instr) {
 			hasSubflows = true
 			break
 		}

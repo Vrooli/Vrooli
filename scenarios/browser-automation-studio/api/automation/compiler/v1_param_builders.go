@@ -1,4 +1,4 @@
-package workflow
+package compiler
 
 import (
 	"github.com/vrooli/browser-automation-studio/internal/params"

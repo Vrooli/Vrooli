@@ -96,7 +96,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Check if project with this name or folder path already exists
-	existingProject, err := h.workflowCatalog.GetProjectByName(ctx, req.Name)
+	existingProject, err := h.catalogService.GetProjectByName(ctx, req.Name)
 	if err != nil && !errors.Is(err, database.ErrNotFound) {
 		// Only treat as error if it's not a "not found" result
 		h.log.WithError(err).WithField("name", req.Name).Error("Database error checking project name uniqueness")
@@ -108,7 +108,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	existingByPath, err := h.workflowCatalog.GetProjectByFolderPath(ctx, absPath)
+	existingByPath, err := h.catalogService.GetProjectByFolderPath(ctx, absPath)
 	if err != nil && !errors.Is(err, database.ErrNotFound) {
 		// Only treat as error if it's not a "not found" result
 		h.log.WithError(err).WithField("folder_path", absPath).Error("Database error checking project folder uniqueness")
@@ -125,7 +125,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		FolderPath: absPath,
 	}
 
-	if err := h.workflowCatalog.CreateProject(ctx, project, req.Description); err != nil {
+	if err := h.catalogService.CreateProject(ctx, project, req.Description); err != nil {
 		h.log.WithError(err).Error("Failed to create project")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "create_project"}))
 		return
@@ -145,7 +145,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	pb, err := h.workflowCatalog.HydrateProject(ctx, project)
+	pb, err := h.catalogService.HydrateProject(ctx, project)
 	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
 		return
@@ -287,7 +287,7 @@ func (h *Handler) InspectProjectFolder(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	existing, getErr := h.workflowCatalog.GetProjectByFolderPath(ctx, absPath)
+	existing, getErr := h.catalogService.GetProjectByFolderPath(ctx, absPath)
 	if getErr == nil && existing != nil {
 		resp.AlreadyIndexed = true
 		resp.IndexedProjectID = existing.ID.String()
@@ -332,9 +332,9 @@ func (h *Handler) ImportProject(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Idempotent: if already indexed, return it.
-	existing, getErr := h.workflowCatalog.GetProjectByFolderPath(ctx, absPath)
+	existing, getErr := h.catalogService.GetProjectByFolderPath(ctx, absPath)
 	if getErr == nil && existing != nil {
-		pb, err := h.workflowCatalog.HydrateProject(ctx, existing)
+		pb, err := h.catalogService.HydrateProject(ctx, existing)
 		if err != nil {
 			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
 			return
@@ -369,7 +369,7 @@ func (h *Handler) ImportProject(w http.ResponseWriter, r *http.Request) {
 
 	if meta != nil && strings.TrimSpace(meta.Id) != "" {
 		if parsed, parseErr := uuid.Parse(strings.TrimSpace(meta.Id)); parseErr == nil {
-			if byID, err := h.workflowCatalog.GetProject(ctx, parsed); err == nil && byID != nil && byID.FolderPath != absPath {
+			if byID, err := h.catalogService.GetProject(ctx, parsed); err == nil && byID != nil && byID.FolderPath != absPath {
 				h.log.WithFields(logrus.Fields{
 					"existing_id":   byID.ID.String(),
 					"existing_path": byID.FolderPath,
@@ -382,17 +382,17 @@ func (h *Handler) ImportProject(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := h.workflowCatalog.CreateProject(ctx, project, description); err != nil {
+	if err := h.catalogService.CreateProject(ctx, project, description); err != nil {
 		h.log.WithError(err).Error("Failed to import project")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "create_project"}))
 		return
 	}
 
-	if err := h.workflowCatalog.SyncProjectWorkflows(ctx, project.ID); err != nil {
+	if err := h.catalogService.SyncProjectWorkflows(ctx, project.ID); err != nil {
 		h.log.WithError(err).WithField("project_id", project.ID.String()).Warn("Imported project workflow sync failed")
 	}
 
-	pb, err := h.workflowCatalog.HydrateProject(ctx, project)
+	pb, err := h.catalogService.HydrateProject(ctx, project)
 	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
 		return
@@ -407,7 +407,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 
 	limit, offset := parsePaginationParams(r, 0, 0)
 
-	projects, err := h.workflowCatalog.ListProjects(ctx, limit, offset)
+	projects, err := h.catalogService.ListProjects(ctx, limit, offset)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to list projects")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_projects"}))
@@ -419,7 +419,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 		projectIDs = append(projectIDs, project.ID)
 	}
 
-	statsByProject, err := h.workflowCatalog.GetProjectsStats(ctx, projectIDs)
+	statsByProject, err := h.catalogService.GetProjectsStats(ctx, projectIDs)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get project stats in bulk")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_stats"}))
@@ -428,7 +428,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]proto.Message, 0, len(projects))
 	for _, project := range projects {
-		projectProto, err := h.workflowCatalog.HydrateProject(ctx, project)
+		projectProto, err := h.catalogService.HydrateProject(ctx, project)
 		if err != nil {
 			continue
 		}
@@ -460,7 +460,7 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	project, err := h.workflowCatalog.GetProject(ctx, id)
+	project, err := h.catalogService.GetProject(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to get project")
 		h.respondError(w, ErrProjectNotFound.WithDetails(map[string]string{"project_id": id.String()}))
@@ -468,13 +468,13 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get project stats
-	stats, err := h.workflowCatalog.GetProjectStats(ctx, id)
+	stats, err := h.catalogService.GetProjectStats(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("project_id", id).Warn("Failed to get project stats")
 		stats = &database.ProjectStats{ProjectID: id}
 	}
 
-	projectProto, err := h.workflowCatalog.HydrateProject(ctx, project)
+	projectProto, err := h.catalogService.HydrateProject(ctx, project)
 	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
 		return
@@ -511,14 +511,14 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Get existing project
-	project, err := h.workflowCatalog.GetProject(ctx, id)
+	project, err := h.catalogService.GetProject(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to get project for update")
 		h.respondError(w, ErrProjectNotFound.WithDetails(map[string]string{"project_id": id.String()}))
 		return
 	}
 
-	projectProto, err := h.workflowCatalog.HydrateProject(ctx, project)
+	projectProto, err := h.catalogService.HydrateProject(ctx, project)
 	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
 		return
@@ -542,13 +542,13 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		project.FolderPath = absPath
 	}
 
-	if err := h.workflowCatalog.UpdateProject(ctx, project, description); err != nil {
+	if err := h.catalogService.UpdateProject(ctx, project, description); err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to update project")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "update_project"}))
 		return
 	}
 
-	updatedProto, err := h.workflowCatalog.HydrateProject(ctx, project)
+	updatedProto, err := h.catalogService.HydrateProject(ctx, project)
 	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
 		return
@@ -566,7 +566,7 @@ func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	if err := h.workflowCatalog.DeleteProject(ctx, id); err != nil {
+	if err := h.catalogService.DeleteProject(ctx, id); err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to delete project")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_project"}))
 		return
@@ -592,7 +592,7 @@ func (h *Handler) GetProjectWorkflows(w http.ResponseWriter, r *http.Request) {
 		Limit:     proto.Int32(100),
 		Offset:    proto.Int32(0),
 	}
-	respProto, err := h.workflowCatalog.ListWorkflows(ctx, reqProto)
+	respProto, err := h.catalogService.ListWorkflows(ctx, reqProto)
 	if err != nil {
 		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to list project workflows")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))
@@ -634,7 +634,7 @@ func (h *Handler) BulkDeleteProjectWorkflows(w http.ResponseWriter, r *http.Requ
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
-	if err := h.workflowCatalog.DeleteProjectWorkflows(ctx, projectID, workflowIDs); err != nil {
+	if err := h.catalogService.DeleteProjectWorkflows(ctx, projectID, workflowIDs); err != nil {
 		h.log.WithError(err).WithFields(logrus.Fields{
 			"project_id": projectID,
 			"count":      len(workflowIDs),
@@ -661,7 +661,7 @@ func (h *Handler) ExecuteAllProjectWorkflows(w http.ResponseWriter, r *http.Requ
 	defer cancel()
 
 	// Get all workflows for this project
-	workflows, err := h.workflowCatalog.ListWorkflowsByProject(ctx, projectID, 1000, 0)
+	workflows, err := h.catalogService.ListWorkflowsByProject(ctx, projectID, 1000, 0)
 	if err != nil {
 		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to get project workflows")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	autoworkflow "github.com/vrooli/browser-automation-studio/automation/workflow"
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -45,7 +45,7 @@ func BuildFlowDefinitionV2ForWrite(flow map[string]any, metadata map[string]any,
 	nodes := ToInterfaceSlice(merged["nodes"])
 	edges := ToInterfaceSlice(merged["edges"])
 
-	v2, err := autoworkflow.V1FlowDefinitionToV2(autoworkflow.V1FlowDefinition{
+	v2, err := autocompiler.V1FlowDefinitionToV2(autocompiler.V1FlowDefinition{
 		Nodes:    v1NodesFromAny(nodes),
 		Edges:    v1EdgesFromAny(edges),
 		Metadata: extractMapAny(merged, "metadata"),

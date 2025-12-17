@@ -37,6 +37,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 )
 
 // Config holds all tunable configuration for the browser-automation-studio API.
@@ -266,6 +268,25 @@ type EventsConfig struct {
 	// PerAttemptBuffer limits the number of buffered events per step attempt.
 	// Env: BAS_EVENTS_PER_ATTEMPT_BUFFER (default: 50)
 	PerAttemptBuffer int
+}
+
+// ToEventBufferLimits converts EventsConfig to contracts.EventBufferLimits for use by event sinks.
+// Returns validated limits, falling back to defaults if config values are invalid.
+func (e EventsConfig) ToEventBufferLimits() autocontracts.EventBufferLimits {
+	limits := autocontracts.EventBufferLimits{
+		PerExecution: e.PerExecutionBuffer,
+		PerAttempt:   e.PerAttemptBuffer,
+	}
+	if limits.Validate() != nil {
+		return autocontracts.DefaultEventBufferLimits
+	}
+	return limits
+}
+
+// EventBufferLimitsFromConfig returns validated event buffer limits from the global config.
+// This is the single source of truth for event buffer configuration.
+func EventBufferLimitsFromConfig() autocontracts.EventBufferLimits {
+	return Load().Events.ToEventBufferLimits()
 }
 
 // RecordingConfig controls record mode and recording session settings.

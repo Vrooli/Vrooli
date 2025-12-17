@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -38,9 +37,10 @@ type replayRenderer interface {
 
 // Handler contains all HTTP handlers
 type Handler struct {
-	workflowCatalog   *workflow.WorkflowService
-	executionService  *workflow.WorkflowService
-	exportService     *workflow.WorkflowService
+	// Service interfaces - clearly separated responsibilities
+	catalogService   workflow.CatalogService   // Workflow/project CRUD, versioning, sync
+	executionService workflow.ExecutionService // Execution lifecycle, timeline, export
+
 	workflowValidator *workflowvalidator.Validator
 	repo              database.Repository
 	wsHub             wsHub.HubInterface
@@ -48,11 +48,9 @@ type Handler struct {
 	recordingService  archiveingestion.IngestionServiceInterface
 	recordModeService *livecapture.Service // Live recording session management
 	recordingsRoot    string
-	replayRenderer    replayRenderer
-	sessionProfiles   *archiveingestion.SessionProfileStore
-	activeSessions    map[string]string // sessionID -> profileID
-	activeSessionsMu  sync.Mutex
-	log               *logrus.Logger
+	replayRenderer  replayRenderer
+	sessionProfiles *archiveingestion.SessionProfileStore
+	log             *logrus.Logger
 	upgrader          websocket.Upgrader
 	wsAllowAll        bool
 	wsAllowedOrigins  []string
@@ -80,15 +78,9 @@ func recordingImportTimeout() time.Duration {
 }
 
 // eventBufferLimits returns validated event buffer limits sourced from config.
+// Delegates to config.EventBufferLimitsFromConfig() for centralized configuration.
 func eventBufferLimits() autocontracts.EventBufferLimits {
-	limits := autocontracts.EventBufferLimits{
-		PerExecution: config.Load().Events.PerExecutionBuffer,
-		PerAttempt:   config.Load().Events.PerAttemptBuffer,
-	}
-	if limits.Validate() != nil {
-		return autocontracts.DefaultEventBufferLimits
-	}
-	return limits
+	return config.EventBufferLimitsFromConfig()
 }
 
 // HealthResponse represents the health check response following Vrooli standards
@@ -105,9 +97,10 @@ type HealthResponse struct {
 // HandlerDeps holds all dependencies for the Handler.
 // This struct separates dependency wiring from handler construction.
 type HandlerDeps struct {
-	WorkflowCatalog   *workflow.WorkflowService
-	ExecutionService  *workflow.WorkflowService
-	ExportService     *workflow.WorkflowService
+	// Service interfaces - now using proper interface types
+	CatalogService   workflow.CatalogService   // Workflow/project CRUD, versioning, sync
+	ExecutionService workflow.ExecutionService // Execution lifecycle, timeline, export
+
 	WorkflowValidator *workflowvalidator.Validator
 	Storage           storage.StorageInterface
 	RecordingService  archiveingestion.IngestionServiceInterface
@@ -187,9 +180,9 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 	recordModeSvc := livecapture.NewService(log)
 
 	return HandlerDeps{
-		WorkflowCatalog:   workflowSvc,
+		// WorkflowService implements both CatalogService and ExecutionService interfaces
+		CatalogService:    workflowSvc,
 		ExecutionService:  workflowSvc,
-		ExportService:     workflowSvc,
 		WorkflowValidator: validatorInstance,
 		Storage:           storageClient,
 		RecordingService:  recordingService,
@@ -221,20 +214,18 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	)
 
 	handler := &Handler{
-		workflowCatalog:   deps.WorkflowCatalog,
+		catalogService:    deps.CatalogService,
 		executionService:  deps.ExecutionService,
-		exportService:     deps.ExportService,
 		workflowValidator: deps.WorkflowValidator,
 		repo:              repo,
 		wsHub:             wsHub,
 		storage:           deps.Storage,
 		recordingService:  deps.RecordingService,
 		recordModeService: deps.RecordModeService,
-		recordingsRoot:    deps.RecordingsRoot,
-		replayRenderer:    deps.ReplayRenderer,
-		sessionProfiles:   deps.SessionProfiles,
-		activeSessions:    make(map[string]string),
-		log:               log,
+		recordingsRoot:  deps.RecordingsRoot,
+		replayRenderer:  deps.ReplayRenderer,
+		sessionProfiles: deps.SessionProfiles,
+		log:             log,
 		wsAllowAll:        allowAllOrigins,
 		wsAllowedOrigins:  allowedCopy,
 		upgrader:          websocket.Upgrader{},
@@ -278,8 +269,9 @@ func (h *Handler) isOriginAllowed(r *http.Request) bool {
 }
 
 // GetExecutionService returns the workflow execution service for use by other components
-// such as the scheduler service.
-func (h *Handler) GetExecutionService() *workflow.WorkflowService {
+// such as the scheduler service. Returns ExecutionService interface which satisfies
+// scheduler.WorkflowExecutor.
+func (h *Handler) GetExecutionService() workflow.ExecutionService {
 	return h.executionService
 }
 

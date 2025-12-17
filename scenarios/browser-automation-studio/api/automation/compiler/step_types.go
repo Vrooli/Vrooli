@@ -1,95 +1,78 @@
+// Package compiler provides workflow compilation utilities.
+// This file re-exports action types from the unified automation/actions package
+// for backwards compatibility with existing code.
 package compiler
 
-// StepType represents a supported workflow action.
-type StepType string
+import "github.com/vrooli/browser-automation-studio/automation/actions"
 
+// StepType is an alias to the unified ActionType for backwards compatibility.
+// New code should import from automation/actions directly.
+type StepType = actions.ActionType
+
+// Re-export action type constants for backwards compatibility.
+// New code should import from automation/actions directly.
 const (
-	StepNavigate     StepType = "navigate"
-	StepClick        StepType = "click"
-	StepHover        StepType = "hover"
-	StepDragDrop     StepType = "dragDrop"
-	StepFocus        StepType = "focus"
-	StepBlur         StepType = "blur"
-	StepScroll       StepType = "scroll"
-	StepSelect       StepType = "select"
-	StepRotate       StepType = "rotate"
-	StepGesture      StepType = "gesture"
-	StepUploadFile   StepType = "uploadFile"
-	StepTypeInput    StepType = "type"
-	StepShortcut     StepType = "shortcut"
-	StepKeyboard     StepType = "keyboard"
-	StepWait         StepType = "wait"
-	StepScreenshot   StepType = "screenshot"
-	StepExtract      StepType = "extract"
-	StepEvaluate     StepType = "evaluate"
-	StepAssert       StepType = "assert"
-	StepCustom       StepType = "custom"
-	StepSetVariable  StepType = "setVariable"
-	StepUseVariable  StepType = "useVariable"
-	StepTabSwitch    StepType = "tabSwitch"
-	StepFrameSwitch  StepType = "frameSwitch"
-	StepConditional  StepType = "conditional"
-	StepLoop         StepType = "loop"
-	StepSetCookie    StepType = "setCookie"
-	StepGetCookie    StepType = "getCookie"
-	StepClearCookie  StepType = "clearCookie"
-	StepSetStorage   StepType = "setStorage"
-	StepGetStorage   StepType = "getStorage"
-	StepClearStorage StepType = "clearStorage"
-	StepNetworkMock  StepType = "networkMock"
-	StepSubflow      StepType = "subflow"
+	StepNavigate     = actions.Navigate
+	StepClick        = actions.Click
+	StepHover        = actions.Hover
+	StepDragDrop     = actions.DragDrop
+	StepFocus        = actions.Focus
+	StepBlur         = actions.Blur
+	StepScroll       = actions.Scroll
+	StepSelect       = actions.Select
+	StepRotate       = actions.Rotate
+	StepGesture      = actions.Gesture
+	StepUploadFile   = actions.UploadFile
+	StepTypeInput    = actions.TypeInput
+	StepShortcut     = actions.Shortcut
+	StepKeyboard     = actions.Keyboard
+	StepWait         = actions.Wait
+	StepScreenshot   = actions.Screenshot
+	StepExtract      = actions.Extract
+	StepEvaluate     = actions.Evaluate
+	StepAssert       = actions.Assert
+	StepCustom       = actions.Custom
+	StepSetVariable  = actions.SetVariable
+	StepUseVariable  = actions.UseVariable
+	StepTabSwitch    = actions.TabSwitch
+	StepFrameSwitch  = actions.FrameSwitch
+	StepConditional  = actions.Conditional
+	StepLoop         = actions.Loop
+	StepSetCookie    = actions.SetCookie
+	StepGetCookie    = actions.GetCookie
+	StepClearCookie  = actions.ClearCookie
+	StepSetStorage   = actions.SetStorage
+	StepGetStorage   = actions.GetStorage
+	StepClearStorage = actions.ClearStorage
+	StepNetworkMock  = actions.NetworkMock
+	StepSubflow      = actions.Subflow
 )
 
+// Re-export loop control targets for backwards compatibility.
 const (
-	LoopContinueTarget = "__loop_continue__"
-	LoopBreakTarget    = "__loop_break__"
+	LoopContinueTarget = actions.LoopContinueTarget
+	LoopBreakTarget    = actions.LoopBreakTarget
 )
 
+// Re-export loop handles for backwards compatibility.
 const (
-	loopHandleBody     = "loopbody"
-	loopHandleAfter    = "loopafter"
-	loopHandleBreak    = "loopbreak"
-	loopHandleContinue = "loopcontinue"
+	loopHandleBody     = actions.LoopHandleBody
+	loopHandleAfter    = actions.LoopHandleAfter
+	loopHandleBreak    = actions.LoopHandleBreak
+	loopHandleContinue = actions.LoopHandleContinue
 
-	loopConditionBody     = "loop_body"
-	loopConditionAfter    = "loop_next"
-	loopConditionBreak    = "loop_break"
-	loopConditionContinue = "loop_continue"
+	loopConditionBody     = actions.LoopConditionBody
+	loopConditionAfter    = actions.LoopConditionAfter
+	loopConditionBreak    = actions.LoopConditionBreak
+	loopConditionContinue = actions.LoopConditionContinue
 )
 
-var supportedStepTypes = map[StepType]struct{}{
-	StepNavigate:     {},
-	StepClick:        {},
-	StepHover:        {},
-	StepDragDrop:     {},
-	StepFocus:        {},
-	StepBlur:         {},
-	StepTypeInput:    {},
-	StepShortcut:     {},
-	StepKeyboard:     {},
-	StepScroll:       {},
-	StepSelect:       {},
-	StepRotate:       {},
-	StepGesture:      {},
-	StepUploadFile:   {},
-	StepWait:         {},
-	StepScreenshot:   {},
-	StepExtract:      {},
-	StepEvaluate:     {},
-	StepAssert:       {},
-	StepCustom:       {},
-	StepSetVariable:  {},
-	StepUseVariable:  {},
-	StepTabSwitch:    {},
-	StepFrameSwitch:  {},
-	StepConditional:  {},
-	StepLoop:         {},
-	StepSetCookie:    {},
-	StepGetCookie:    {},
-	StepClearCookie:  {},
-	StepSetStorage:   {},
-	StepGetStorage:   {},
-	StepClearStorage: {},
-	StepNetworkMock:  {},
-	StepSubflow:      {},
-}
+// supportedStepTypes is derived from the unified registry for backwards compatibility.
+// Use actions.Registry directly for new code.
+var supportedStepTypes = func() map[StepType]struct{} {
+	m := make(map[StepType]struct{}, len(actions.Registry))
+	for t := range actions.Registry {
+		m[t] = struct{}{}
+	}
+	return m
+}()

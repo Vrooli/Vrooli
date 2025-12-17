@@ -190,111 +190,20 @@ func jsonValueToAny(v *commonv1.JsonValue) any {
 }
 
 func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary, executionID uuid.UUID, parameters map[string]any) {
-	ctx, cancel := context.WithCancel(context.Background())
-	s.storeExecutionCancel(executionID, cancel)
-	go s.executeWorkflowAsync(ctx, workflow, executionID, parameters)
+	// Normalize legacy flat parameters into the namespaced model.
+	// All legacy parameters go to @store/ namespace for backward compatibility.
+	s.startExecutionRunnerWithNamespaces(workflow, executionID, parameters, nil, nil)
 }
 
 func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.storeExecutionCancel(executionID, cancel)
-	go s.executeWorkflowAsyncWithNamespaces(ctx, workflow, executionID, store, params, env)
+	go s.executeWorkflowAsync(ctx, workflow, executionID, store, params, env)
 }
 
-func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, parameters map[string]any) {
-	defer s.cancelExecutionByID(executionID)
-
-	persistenceCtx := context.Background()
-	execIndex, err := s.repo.GetExecution(persistenceCtx, executionID)
-	if err != nil {
-		return
-	}
-
-	execIndex.Status = database.ExecutionStatusRunning
-	execIndex.UpdatedAt = time.Now().UTC()
-	_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
-	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
-		ExecutionId: execIndex.ID.String(),
-		WorkflowId:  execIndex.WorkflowID.String(),
-		Status:      typeconv.StringToExecutionStatus(execIndex.Status),
-		StartedAt:   timestamppb.New(execIndex.StartedAt),
-		CreatedAt:   timestamppb.New(execIndex.CreatedAt),
-		UpdatedAt:   timestamppb.New(execIndex.UpdatedAt),
-	})
-
-	engineName := autoengine.FromEnv().Resolve("")
-	eventSink := s.newEventSink()
-	_ = eventSink
-
-	plan, _, err := autoexecutor.BuildContractsPlan(ctx, executionID, workflow)
-	if err != nil {
-		execIndex.Status = database.ExecutionStatusFailed
-		execIndex.ErrorMessage = err.Error()
-		now := time.Now().UTC()
-		execIndex.CompletedAt = &now
-		execIndex.UpdatedAt = now
-		_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
-		return
-	}
-
-	req := autoexecutor.Request{
-		Plan:              plan,
-		EngineName:        engineName,
-		EngineFactory:     s.engineFactory,
-		Recorder:          s.artifactRecorder,
-		EventSink:         eventSink,
-		HeartbeatInterval: 2 * time.Second,
-		ReuseMode:         autoengine.ReuseModeReuse,
-		WorkflowResolver:  s,
-		PlanCompiler:      s.planCompiler,
-		MaxSubflowDepth:   5,
-		StartFromStepIndex: -1,
-		InitialStore:      parameters,
-	}
-
-	executor := s.executor
-	if executor == nil {
-		executor = autoexecutor.NewSimpleExecutor(nil)
-	}
-	runErr := executor.Execute(ctx, req)
-
-	status := database.ExecutionStatusCompleted
-	errMsg := ""
-	if runErr != nil {
-		if errors.Is(runErr, context.Canceled) || strings.Contains(strings.ToLower(runErr.Error()), "cancel") {
-			status = database.ExecutionStatusFailed
-			errMsg = "execution cancelled"
-		} else {
-			status = database.ExecutionStatusFailed
-			errMsg = runErr.Error()
-		}
-	}
-
-	now := time.Now().UTC()
-	execIndex.Status = status
-	execIndex.ErrorMessage = errMsg
-	execIndex.CompletedAt = &now
-	execIndex.UpdatedAt = now
-	_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
-	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
-		ExecutionId: execIndex.ID.String(),
-		WorkflowId:  execIndex.WorkflowID.String(),
-		Status:      typeconv.StringToExecutionStatus(execIndex.Status),
-		StartedAt:   timestamppb.New(execIndex.StartedAt),
-		CreatedAt:   timestamppb.New(execIndex.CreatedAt),
-		UpdatedAt:   timestamppb.New(execIndex.UpdatedAt),
-		CompletedAt: timestamppb.New(now),
-		Error: func() *string {
-			if strings.TrimSpace(execIndex.ErrorMessage) == "" {
-				return nil
-			}
-			msg := execIndex.ErrorMessage
-			return &msg
-		}(),
-	})
-}
-
-func (s *WorkflowService) executeWorkflowAsyncWithNamespaces(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any) {
+// executeWorkflowAsync is the single implementation for running workflows asynchronously.
+// It handles both legacy (flat parameters in store) and new (namespaced store/params/env) callers.
+func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any) {
 	defer s.cancelExecutionByID(executionID)
 
 	persistenceCtx := context.Background()

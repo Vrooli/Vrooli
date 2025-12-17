@@ -128,7 +128,7 @@ func (h *Handler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Verify workflow exists
-	workflow, err := h.workflowCatalog.GetWorkflow(ctx, workflowID)
+	workflow, err := h.catalogService.GetWorkflow(ctx, workflowID)
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			h.respondError(w, ErrWorkflowNotFound.WithDetails(map[string]string{"workflow_id": workflowID.String()}))
@@ -199,7 +199,7 @@ func (h *Handler) ListWorkflowSchedules(w http.ResponseWriter, r *http.Request) 
 	}
 
 	workflowName := ""
-	if wf, wfErr := h.workflowCatalog.GetWorkflow(ctx, workflowID); wfErr == nil && wf != nil {
+	if wf, wfErr := h.catalogService.GetWorkflow(ctx, workflowID); wfErr == nil && wf != nil {
 		workflowName = wf.GetName()
 	}
 
@@ -245,7 +245,7 @@ func (h *Handler) ListAllSchedules(w http.ResponseWriter, r *http.Request) {
 	responses := make([]*WorkflowScheduleResponse, len(schedules))
 	for i, s := range schedules {
 		workflowName := ""
-		if wf, wfErr := h.workflowCatalog.GetWorkflow(ctx, s.WorkflowID); wfErr == nil && wf != nil {
+		if wf, wfErr := h.catalogService.GetWorkflow(ctx, s.WorkflowID); wfErr == nil && wf != nil {
 			workflowName = wf.GetName()
 		}
 		responses[i] = scheduleToResponse(s, workflowName)
@@ -280,7 +280,7 @@ func (h *Handler) GetSchedule(w http.ResponseWriter, r *http.Request) {
 
 	// Get workflow name
 	var workflowName string
-	workflow, wfErr := h.workflowCatalog.GetWorkflow(ctx, schedule.WorkflowID)
+	workflow, wfErr := h.catalogService.GetWorkflow(ctx, schedule.WorkflowID)
 	if wfErr == nil && workflow != nil {
 		workflowName = workflow.GetName()
 	}
@@ -376,7 +376,7 @@ func (h *Handler) UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 
 	// Get workflow name
 	var workflowName string
-	workflow, wfErr := h.workflowCatalog.GetWorkflow(ctx, schedule.WorkflowID)
+	workflow, wfErr := h.catalogService.GetWorkflow(ctx, schedule.WorkflowID)
 	if wfErr == nil && workflow != nil {
 		workflowName = workflow.GetName()
 	}
@@ -457,7 +457,7 @@ func (h *Handler) ToggleSchedule(w http.ResponseWriter, r *http.Request) {
 
 	// Get workflow name
 	var workflowName string
-	workflow, wfErr := h.workflowCatalog.GetWorkflow(ctx, schedule.WorkflowID)
+	workflow, wfErr := h.catalogService.GetWorkflow(ctx, schedule.WorkflowID)
 	if wfErr == nil && workflow != nil {
 		workflowName = workflow.GetName()
 	}

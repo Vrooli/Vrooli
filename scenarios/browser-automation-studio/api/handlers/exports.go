@@ -417,7 +417,7 @@ func (h *Handler) GenerateExportCaption(w http.ResponseWriter, r *http.Request) 
 	var workflowName string
 	var workflowDescription string
 	if export.WorkflowID != nil {
-		workflow, wfErr := h.workflowCatalog.GetWorkflow(ctx, *export.WorkflowID)
+		workflow, wfErr := h.catalogService.GetWorkflow(ctx, *export.WorkflowID)
 		if wfErr == nil && workflow != nil {
 			workflowName = workflow.GetName()
 			workflowDescription = workflow.GetDescription()

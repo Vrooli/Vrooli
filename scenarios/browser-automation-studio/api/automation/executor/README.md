@@ -36,7 +36,11 @@ sequenceDiagram
 
 Flow feature map (where to look/extend):
 - Branching/graph traversal: `flow_executor.go` (+ helpers in `flow_utils.go`)
-- Loop semantics: `flow_executor.go` (repeat + forEach + while conditionals)
+- Loop semantics: `loop_registry.go` (handler registry pattern for extensibility)
+  - `repeat` - Fixed count iterations
+  - `foreach` - Iterate over items with item/index variables
+  - `while` - Condition-based iteration
+  - Add new loop types by implementing `LoopHandler` interface and calling `RegisterLoopHandler()`
 - Capability preflight (tabs/iframe/upload/HAR/video/download/viewport): `preflight.go` (step-type matrix + param heuristics)
 - Variable scope + `${var}` interpolation (nested maps/slices, dot/index paths): `flow_utils.go` (`flowState`, `interpolateInstruction`)
 - Built-in variable mutation node for flow control: `set_variable` / `setVariable` handled in `flow_executor.go`

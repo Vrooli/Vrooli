@@ -1,5 +1,5 @@
-// Package workflow provides conversion utilities between workflow formats.
-package workflow
+// Package compiler provides workflow compilation and format conversion utilities.
+package compiler
 
 // WorkflowSchemaVersion identifies the workflow storage format.
 type WorkflowSchemaVersion string

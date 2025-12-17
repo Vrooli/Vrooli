@@ -57,8 +57,8 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	var automationHealthy bool
 	var automationError map[string]any
 
-	if h.executionService != nil {
-		ok, err := h.executionService.CheckAutomationHealth(ctx)
+	if h.catalogService != nil {
+		ok, err := h.catalogService.CheckAutomationHealth(ctx)
 		if err != nil {
 			automationError = map[string]any{
 				"code":      "AUTOMATION_ENGINE_ERROR",

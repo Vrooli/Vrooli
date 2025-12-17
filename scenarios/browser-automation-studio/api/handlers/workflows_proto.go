@@ -26,7 +26,7 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	resp, err := h.workflowCatalog.CreateWorkflow(ctx, &req)
+	resp, err := h.catalogService.CreateWorkflow(ctx, &req)
 	if err != nil {
 		if errors.Is(err, workflow.ErrWorkflowNameConflict) {
 			h.respondError(w, ErrWorkflowAlreadyExists.WithDetails(map[string]string{"name": req.Name}))
@@ -56,7 +56,7 @@ func (h *Handler) ListWorkflows(w http.ResponseWriter, r *http.Request) {
 		req.ProjectId = proto.String(projectID)
 	}
 
-	resp, err := h.workflowCatalog.ListWorkflows(ctx, req)
+	resp, err := h.catalogService.ListWorkflows(ctx, req)
 	if err != nil {
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))
 		return
@@ -81,7 +81,7 @@ func (h *Handler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	resp, err := h.workflowCatalog.GetWorkflowAPI(ctx, req)
+	resp, err := h.catalogService.GetWorkflowAPI(ctx, req)
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			h.respondError(w, ErrWorkflowNotFound.WithDetails(map[string]string{"workflow_id": idStr}))
@@ -111,7 +111,7 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	resp, err := h.workflowCatalog.UpdateWorkflow(ctx, &req)
+	resp, err := h.catalogService.UpdateWorkflow(ctx, &req)
 	if err != nil {
 		if errors.Is(err, workflow.ErrWorkflowVersionConflict) {
 			h.respondError(w, ErrWorkflowVersionConflict.WithDetails(map[string]string{"workflow_id": idStr}))
@@ -133,7 +133,7 @@ func (h *Handler) DeleteWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	resp, err := h.workflowCatalog.DeleteWorkflow(ctx, &basapi.DeleteWorkflowRequest{WorkflowId: idStr})
+	resp, err := h.catalogService.DeleteWorkflow(ctx, &basapi.DeleteWorkflowRequest{WorkflowId: idStr})
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			h.respondError(w, ErrWorkflowNotFound.WithDetails(map[string]string{"workflow_id": idStr}))

@@ -185,8 +185,8 @@ func boolParamTrue(params map[string]any, keys ...string) bool {
 }
 
 func applyInstructionCapabilities(req contracts.CapabilityRequirement, reasons map[string][]string, instr contracts.CompiledInstruction, add func(string, string)) (contracts.CapabilityRequirement, map[string][]string) {
-	stepType := instr.Type
-	params := instr.Params
+	stepType := InstructionStepType(instr)
+	params := InstructionParams(instr)
 	normalizedType := normalizeType(stepType)
 	if addition, ok := stepTypeCapabilityMatrix[normalizedType]; ok {
 		req = mergeRequirements(req, addition)
@@ -314,12 +314,8 @@ func applyGraphCapabilities(req contracts.CapabilityRequirement, reasons map[str
 		return req, reasons
 	}
 	for _, step := range graph.Steps {
-		req, reasons = applyInstructionCapabilities(req, reasons, contracts.CompiledInstruction{
-			Index:  step.Index,
-			NodeID: step.NodeID,
-			Type:   step.Type,
-			Params: step.Params,
-		}, add)
+		// Use planStepToInstruction to preserve Action field
+		req, reasons = applyInstructionCapabilities(req, reasons, planStepToInstruction(step), add)
 		if step.Loop != nil {
 			req, reasons = applyGraphCapabilities(req, reasons, step.Loop, add)
 		}

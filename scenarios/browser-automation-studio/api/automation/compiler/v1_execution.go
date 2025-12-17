@@ -1,4 +1,4 @@
-package workflow
+package compiler
 
 import (
 	"strings"
@@ -14,9 +14,6 @@ import (
 
 // WorkflowNodeV2ToCompiledInstruction converts a WorkflowNodeV2 proto to a
 // CompiledInstruction that can be executed by the automation engine.
-//
-// MIGRATION: This function populates both the new typed Action field and the
-// deprecated Type/Params fields for backward compatibility during migration.
 func WorkflowNodeV2ToCompiledInstruction(node *basworkflows.WorkflowNodeV2, index int) contracts.CompiledInstruction {
 	if node == nil {
 		return contracts.CompiledInstruction{Index: index}
@@ -25,17 +22,11 @@ func WorkflowNodeV2ToCompiledInstruction(node *basworkflows.WorkflowNodeV2, inde
 	instruction := contracts.CompiledInstruction{
 		Index:  index,
 		NodeID: node.Id,
-		Params: make(map[string]any),
 	}
 
-	// Extract type and params from ActionDefinition
+	// Populate the typed Action field directly
 	if node.Action != nil {
-		// NEW: Populate the typed Action field directly
 		instruction.Action = node.Action
-
-		// DEPRECATED: Still populate for backward compatibility with legacy consumers
-		instruction.Type = mapActionTypeToV1Type(node.Action.Type)
-		instruction.Params = actionDefinitionToParams(node.Action)
 	}
 
 	// Add execution settings to context
@@ -55,8 +46,6 @@ func WorkflowNodeV2ToCompiledInstruction(node *basworkflows.WorkflowNodeV2, inde
 
 // WorkflowDefinitionV2ToExecutionPlan converts a complete V2 workflow definition
 // to an execution plan with CompiledInstructions and PlanGraph.
-//
-// MIGRATION: Both typed Action and deprecated Type/Params are populated.
 func WorkflowDefinitionV2ToExecutionPlan(def *basworkflows.WorkflowDefinitionV2) ([]contracts.CompiledInstruction, *contracts.PlanGraph) {
 	if def == nil {
 		return nil, nil
@@ -76,12 +65,9 @@ func WorkflowDefinitionV2ToExecutionPlan(def *basworkflows.WorkflowDefinitionV2)
 			NodeID:   node.Id,
 			Outgoing: findOutgoingEdges(node.Id, def.Edges),
 		}
-		// NEW: Populate typed Action field
+		// Populate typed Action field
 		if node.Action != nil {
 			step.Action = node.Action
-			// DEPRECATED: Still populate for backward compatibility
-			step.Type = mapActionTypeToV1Type(node.Action.Type)
-			step.Params = actionDefinitionToParams(node.Action)
 		}
 		// Copy execution settings to context
 		if node.ExecutionSettings != nil {
@@ -391,20 +377,25 @@ func CompiledInstructionToWorkflowNodeV2(instr contracts.CompiledInstruction) (*
 		Id: instr.NodeID,
 	}
 
-	// Build ActionDefinition from type and params
-	action, err := V1DataToActionDefinition(instr.Type, instr.Params)
-	if err != nil {
-		return nil, err
+	// Prefer Action field if already set; otherwise fall back to deprecated Type/Params
+	if instr.Action != nil && instr.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
+		node.Action = instr.Action
+	} else {
+		// Fallback: Build ActionDefinition from deprecated type and params
+		action, err := V1DataToActionDefinition(instr.Type, instr.Params)
+		if err != nil {
+			return nil, err
+		}
+		node.Action = action
 	}
-	node.Action = action
 
-	// Add metadata from instruction
+	// Add metadata from instruction (merge with existing action metadata)
 	if instr.Metadata != nil {
 		if label, ok := instr.Metadata["label"]; ok {
-			if action.Metadata == nil {
-				action.Metadata = &basactions.ActionMetadata{}
+			if node.Action.Metadata == nil {
+				node.Action.Metadata = &basactions.ActionMetadata{}
 			}
-			action.Metadata.Label = &label
+			node.Action.Metadata.Label = &label
 		}
 	}
 

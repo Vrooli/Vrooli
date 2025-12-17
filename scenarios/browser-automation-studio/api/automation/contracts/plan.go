@@ -14,11 +14,33 @@ const (
 )
 
 // =============================================================================
-// NATIVE GO PLAN TYPES (Backward Compatibility)
+// NATIVE GO PLAN TYPES
 // =============================================================================
 // These types use time.Time and uuid.UUID which require conversion to/from proto.
 // For proto interoperability, use ProtoExecutionPlan, ProtoCompiledInstruction,
 // etc. defined in contracts.go with conversion helpers.
+//
+// TYPE DISTINCTION: PlanStep vs CompiledInstruction
+// -------------------------------------------------
+// ExecutionPlan contains TWO representations of workflow steps:
+//
+//  1. Instructions ([]CompiledInstruction) - FLAT list for sequential execution
+//     - Ordered by step index for linear execution
+//     - Used by engines that execute steps one at a time
+//     - Simpler structure, no graph metadata
+//
+//  2. Graph (*PlanGraph with []PlanStep) - DAG for complex control flow
+//     - Preserves branching, loops, and conditional edges
+//     - Contains Outgoing edges for graph traversal
+//     - Contains nested Loop *PlanGraph for loop bodies
+//     - Used by executor for control flow decisions
+//
+// Both representations describe the same steps but serve different purposes:
+// - The flat Instructions list is for step-by-step execution
+// - The Graph is for control flow decisions (which step comes next)
+//
+// Conversion helpers planStepToInstruction() and planStepToInstructionStep()
+// in flow_utils.go convert between these representations.
 //
 // NOTE: The proto types use string for UUIDs and google.protobuf.Timestamp for
 // time fields. The native Go types below provide a more idiomatic Go interface.

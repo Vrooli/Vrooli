@@ -71,7 +71,7 @@ func TestTriggersDOMChanges(t *testing.T) {
 		{"type", true},
 		{"navigate", true},
 		{"select", true},
-		{"keypress", true},
+		{"keyboard", true}, // Changed from "keypress" to match registry
 		{"dragDrop", true},
 		{"scroll", false},
 		{"focus", false},
@@ -363,41 +363,41 @@ func TestGenerateKeypressLabel(t *testing.T) {
 }
 
 func TestMapActionToNode_UsesRegistry(t *testing.T) {
-	// Test that mapActionToNode correctly uses the registry
+	// Test that mapActionToNode correctly uses the registry and outputs V2 format
 	tests := []struct {
-		name             string
-		action           RecordedAction
-		expectedNodeType string
+		name               string
+		action             RecordedAction
+		expectedActionType string // V2 ACTION_TYPE_* enum value
 	}{
 		{
-			name:             "click action",
-			action:           RecordedAction{ActionType: "click", Selector: &SelectorSet{Primary: "#btn"}},
-			expectedNodeType: "click",
+			name:               "click action",
+			action:             RecordedAction{ActionType: "click", Selector: &SelectorSet{Primary: "#btn"}},
+			expectedActionType: "ACTION_TYPE_CLICK",
 		},
 		{
-			name:             "type action",
-			action:           RecordedAction{ActionType: "type", Selector: &SelectorSet{Primary: "#input"}, Payload: map[string]interface{}{"text": "test"}},
-			expectedNodeType: "type",
+			name:               "type action",
+			action:             RecordedAction{ActionType: "type", Selector: &SelectorSet{Primary: "#input"}, Payload: map[string]interface{}{"text": "test"}},
+			expectedActionType: "ACTION_TYPE_INPUT",
 		},
 		{
-			name:             "navigate action",
-			action:           RecordedAction{ActionType: "navigate", URL: "https://example.com"},
-			expectedNodeType: "navigate",
+			name:               "navigate action",
+			action:             RecordedAction{ActionType: "navigate", URL: "https://example.com"},
+			expectedActionType: "ACTION_TYPE_NAVIGATE",
 		},
 		{
-			name:             "scroll action",
-			action:           RecordedAction{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 100.0}},
-			expectedNodeType: "scroll",
+			name:               "scroll action",
+			action:             RecordedAction{ActionType: "scroll", Payload: map[string]interface{}{"scrollY": 100.0}},
+			expectedActionType: "ACTION_TYPE_SCROLL",
 		},
 		{
-			name:             "keypress action",
-			action:           RecordedAction{ActionType: "keypress", Payload: map[string]interface{}{"key": "Enter"}},
-			expectedNodeType: "keyboard",
+			name:               "keyboard action",
+			action:             RecordedAction{ActionType: "keyboard", Payload: map[string]interface{}{"key": "Enter"}},
+			expectedActionType: "ACTION_TYPE_KEYBOARD",
 		},
 		{
-			name:             "unknown action falls back to click",
-			action:           RecordedAction{ActionType: "unknown_type"},
-			expectedNodeType: "click",
+			name:               "unknown action falls back to click",
+			action:             RecordedAction{ActionType: "unknown_type"},
+			expectedActionType: "ACTION_TYPE_CLICK",
 		},
 	}
 
@@ -405,12 +405,18 @@ func TestMapActionToNode_UsesRegistry(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			node := mapActionToNode(tt.action, "node_1", 0)
 
-			nodeType, ok := node["type"].(string)
+			// Verify V2 format: node["action"]["type"] contains ACTION_TYPE_* enum
+			action, ok := node["action"].(map[string]interface{})
 			if !ok {
-				t.Fatal("Expected node type to be string")
+				t.Fatal("Expected node to have action field (V2 format)")
 			}
-			if nodeType != tt.expectedNodeType {
-				t.Errorf("Expected node type %q, got %q", tt.expectedNodeType, nodeType)
+
+			actionType, ok := action["type"].(string)
+			if !ok {
+				t.Fatal("Expected action type to be string")
+			}
+			if actionType != tt.expectedActionType {
+				t.Errorf("Expected action type %q, got %q", tt.expectedActionType, actionType)
 			}
 
 			// Verify node has required fields
@@ -420,17 +426,14 @@ func TestMapActionToNode_UsesRegistry(t *testing.T) {
 			if node["position"] == nil {
 				t.Error("Expected node to have position")
 			}
-			if node["data"] == nil {
-				t.Error("Expected node to have data")
-			}
 
-			// Verify label is generated
-			data, ok := node["data"].(map[string]any)
+			// Verify label is in metadata (V2 format)
+			metadata, ok := action["metadata"].(map[string]interface{})
 			if !ok {
-				t.Fatal("Expected data to be map")
+				t.Fatal("Expected action to have metadata")
 			}
-			if data["label"] == nil || data["label"] == "" {
-				t.Error("Expected node to have a label")
+			if metadata["label"] == nil || metadata["label"] == "" {
+				t.Error("Expected action metadata to have a label")
 			}
 		})
 	}

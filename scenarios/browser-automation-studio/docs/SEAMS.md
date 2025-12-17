@@ -225,17 +225,64 @@ type HubInterface interface {
 
 ---
 
-### 9. WorkflowService Seam (Weak)
+### 9. WorkflowService Seam (Good)
 
 **Location:** `api/handlers/handler.go` and `api/services/workflow/service.go`
 
-**Interface:** `api/services/workflow/interfaces.go` (CatalogService, ExecutionService, ExportService)
+**Interface:** `api/services/workflow/interfaces.go`
+
+```go
+// CatalogService manages workflow/project CRUD, versioning, and file synchronization
+type CatalogService interface {
+    // Health checks
+    CheckHealth() string
+    CheckAutomationHealth(ctx context.Context) (bool, error)
+
+    // Project management (8 methods)
+    CreateProject(ctx context.Context, project *database.ProjectIndex, description string) error
+    GetProject(ctx context.Context, id uuid.UUID) (*database.ProjectIndex, error)
+    // ... more project methods
+
+    // Workflow CRUD (5 methods)
+    CreateWorkflow(ctx context.Context, req *basapi.CreateWorkflowRequest) (*basapi.CreateWorkflowResponse, error)
+    // ... more workflow methods
+
+    // Versioning (3 methods)
+    // File sync (1 method)
+    // AI modification (1 method)
+}
+
+// ExecutionService manages workflow execution lifecycle
+type ExecutionService interface {
+    // Execution control
+    ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error)
+    ExecuteWorkflowAPI(ctx context.Context, req *basapi.ExecuteWorkflowRequest) (*basapi.ExecuteWorkflowResponse, error)
+    ExecuteAdhocWorkflowAPI(ctx context.Context, req *basexecution.ExecuteAdhocRequest) (*basexecution.ExecuteAdhocResponse, error)
+    StopExecution(ctx context.Context, executionID uuid.UUID) error
+    ResumeExecution(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error)
+
+    // Execution queries (5 methods)
+    // Timeline and export (4 methods)
+}
+
+// WorkflowResolver - minimal interface for execution-time workflow lookup
+type WorkflowResolver interface {
+    GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*basapi.WorkflowSummary, error)
+    GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*basapi.WorkflowSummary, error)
+    GetWorkflowByProjectPath(ctx context.Context, callingWorkflowID uuid.UUID, workflowPath string) (*basapi.WorkflowSummary, error)
+}
+```
+
+**Test Doubles:**
+- Handler tests use interface types directly, enabling mock injection
 
 **Status:** Good
-- Interfaces live in `api/services/workflow/interfaces.go` with compile-time checks on `WorkflowService`
-- Handler uses `NewHandlerWithDeps` to accept injected services, keeping transport thin
-- Event sink wiring now flows through an injected factory + `wsHub.HubInterface` rather than a concrete hub
-- Remaining risk: interface breadth (20+ methods) still high; consider narrowing by role
+- Clear separation between catalog (CRUD/versioning) and execution (lifecycle/timeline) responsibilities
+- Handler uses interface types `CatalogService` and `ExecutionService` instead of concrete `*WorkflowService`
+- Compile-time enforcement via `var _ CatalogService = (*WorkflowService)(nil)`
+- `NewHandlerWithDeps` accepts injected services via `HandlerDeps` struct
+- `WorkflowResolver` provides minimal interface for execution-time workflow lookup
+- Remaining opportunity: Further interface segregation as package split progresses
 
 ---
 
@@ -434,7 +481,7 @@ function closeMetricsServer(server: Server): Promise<void>
 | Database Backend | Env flags `BAS_DB_BACKEND`/`BAS_TEST_BACKEND` + `database.Dialect` (tests default to `BAS_TEST_BACKEND` else `BAS_DB_BACKEND`) | Postgres testcontainer handle, SQLite temp DB in tests | N/A | Medium |
 | Storage | Yes | Yes (MemoryStorage) | Yes | - |
 | WebSocket Hub | Yes | **Partial** | **Missing** | Medium |
-| WorkflowService | Yes | Yes | Yes | Medium |
+| WorkflowService | Yes (CatalogService, ExecutionService) | Yes | Yes | - |
 | AI Client | Yes | Yes | Yes | - |
 | HTTP Client (Engine) | Yes | Injectable HTTPDoer | Yes | Medium |
 | SessionManager (TS) | **Missing** | **Missing** | N/A | Medium |
@@ -533,6 +580,9 @@ When adding new dependencies:
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2025-12-17 | Claude | WorkflowService decomposition Phase 1: Created CatalogService, ExecutionService, WorkflowResolver interfaces; refactored Handler to use interface types instead of concrete *WorkflowService; updated HandlerDeps for clean dependency injection |
+| 2025-12-17 | Claude | Architectural consolidation: Merged duplicate async execution runners; centralized eventBufferLimits(); consolidated ExecutionPlan types via compiler/contracts_adapter.go |
+| 2025-12-16 | Claude | Architecture refactoring: Added internal/wire package, services/recordmode, services/recordingimport; documented new responsibility boundaries |
 | 2025-12-09 | Claude | Boundary of Responsibility Enforcement pass #2: Removed unused BaseHandler.buildOutcome (consolidated in domain/outcome-builder.ts); replaced any types with Page in assertion handler; replaced console.log with injected logger in assertNotExists |
 | 2025-12-09 | Claude | Boundary of Responsibility Enforcement: Added Router (#16), OutcomeBuilder (#17), MetricsServer (#18) seams; extracted domain/outcome-builder.ts, utils/metrics-server.ts, routes/router.ts; updated responsibility boundaries |
 | 2025-12-09 | Claude | Added RecordingBuffer seam (#14), Playwright-Driver Responsibility Boundaries section; moved action buffer state from routes to recording/buffer.ts |
@@ -551,10 +601,203 @@ The codebase follows a layered architecture with clear responsibilities:
 | Layer | Location | Responsibility |
 |-------|----------|----------------|
 | **Entry/Presentation** | `handlers/` | HTTP routing, request/response mapping |
-| **Coordination** | `services/workflow/` | Orchestration, business flow |
-| **Domain Rules** | `automation/` | Execution contracts, engine abstraction |
+| **Coordination** | `services/workflow/`, `services/live-capture/` | Orchestration, business flow |
+| **Domain Rules** | `automation/` | Execution contracts, engine abstraction, format conversion |
 | **Infrastructure** | `database/`, `storage/`, `websocket/` | Persistence, storage, real-time |
-| **Cross-cutting** | `internal/` | Shared utilities, error handling |
+| **Cross-cutting** | `internal/` | Shared utilities, error handling, dependency wiring |
+
+### Dependency Wiring (NEW - 2025-12-16)
+
+**Location:** `internal/wire/`
+
+**Purpose:** Centralized dependency injection that separates infrastructure setup from business logic.
+
+**Interface:**
+```go
+type Dependencies struct {
+    WorkflowService   *workflow.WorkflowService
+    RecordModeService *livecapture.Service       // services/live-capture
+    RecordingService  archiveingestion.IngestionServiceInterface
+    WorkflowValidator *workflowvalidator.Validator
+    Storage           storage.StorageInterface
+    RecordingsRoot    string
+    ReplayRenderer    ReplayRenderer
+    SessionProfiles   *archiveingestion.SessionProfileStore
+    UXMetricsRepo     uxmetrics.Repository
+}
+
+func BuildDependencies(repo database.Repository, hub *wsHub.Hub, log *logrus.Logger, cfg Config) (*Dependencies, error)
+```
+
+**Benefits:**
+- Single source of truth for production dependency construction
+- Clear separation between infrastructure and business logic
+- Easier testing through explicit dependency injection
+- Handler construction simplified to receiving pre-wired dependencies
+
+### Recording Services Clarification (UPDATED - 2025-12-17)
+
+The codebase has distinct recording-related services with clear responsibilities:
+
+| Package | Purpose | Key Operations |
+|---------|---------|----------------|
+| `services/archive-ingestion/` | Import Chrome extension archives, session profiles | `ImportArchive()`, `SessionProfileStore` |
+| `services/live-capture/` | Live browser recording session management | `CreateSession()`, `StartRecording()`, `GenerateWorkflow()` |
+| `services/replay/` | Video/screenshot rendering from execution data | `Render()` |
+
+**`services/live-capture/`**:
+- Manages live recording sessions via Playwright driver
+- Encapsulates driver client HTTP communication
+- Contains workflow generation business logic:
+  - `WorkflowGenerator` - Converts recorded actions to workflow definitions
+  - `MergeConsecutiveActions()` - Optimizes action sequences
+  - `insertSmartWaits()` - Inserts wait nodes for reliability
+- `handlers/record_mode.go` delegates to this service
+
+**`services/archive-ingestion/`**:
+- Handles ZIP archive ingestion from Chrome extension
+- Creates projects, workflows, and execution artifacts from imported recordings
+- `SessionProfileStore` - Manages persisted session profiles AND tracks active browser sessions
+
+**Migration Status:**
+- Session profile active session tracking moved from handlers to `SessionProfileStore` (2025-12-17)
+- Deprecated type aliases removed from `handlers/record_mode.go` (2025-12-17)
+
+### Compiler Package Consolidation (2025-12-17)
+
+The `automation/workflow/` package has been **merged into `automation/compiler/`**:
+
+**Rationale:**
+- `automation/workflow/` contained V1↔V2 format conversion code
+- This is fundamentally compilation: transforming workflow definitions to execution plans
+- Having a separate `workflow/` folder in `automation/` was confusing (different from `services/workflow/`)
+
+**Files Moved:**
+- `v2_types.go` → `compiler/v1_types.go` - Legacy V1 type definitions
+- `v2_utils.go` → `compiler/v1_utils.go` - Type conversion utilities
+- `v2_param_builders.go` → `compiler/v1_param_builders.go` - Parameter builder wrappers
+- `v2_convert.go` → `compiler/v1_convert.go` - V1↔V2 format conversion
+- `v2_execution.go` → `compiler/v1_execution.go` - V2 workflow → execution plan
+
+**Impact:**
+- Imports changed from `automation/workflow` to `automation/compiler`
+- All conversion functions now in a single, logical location
+- `automation/workflow/` folder deleted
+
+### Execution Flow Consolidation (2025-12-17)
+
+The execution subsystem had significant technical debt with duplicate implementations. This has been addressed:
+
+#### Problem 1: Duplicate Async Execution Runners
+
+**Before:**
+```go
+// Two nearly identical functions (90% code duplication)
+func (s *WorkflowService) executeWorkflowAsync(ctx, workflow, executionID, parameters)
+func (s *WorkflowService) executeWorkflowAsyncWithNamespaces(ctx, workflow, executionID, store, params, env)
+```
+
+**After:**
+- Single `executeWorkflowAsync(ctx, workflow, executionID, store, params, env)` implementation
+- Legacy `startExecutionRunner()` normalizes flat parameters to namespaced model
+- `startExecutionRunnerWithNamespaces()` calls the unified implementation
+
+**Files Changed:** `services/workflow/executions.go`
+
+#### Problem 2: Duplicate eventBufferLimits()
+
+**Before:**
+- `handlers/handler.go:80` - Identical function loading from config
+- `services/workflow/service.go:174` - Same implementation copied
+
+**After:**
+- Single `config.EventBufferLimitsFromConfig()` in `config/config.go`
+- Both call sites delegate to centralized function
+- Returns `contracts.EventBufferLimits` directly
+
+**Files Changed:** `config/config.go`, `handlers/handler.go`, `services/workflow/service.go`
+
+#### Problem 3: Dual ExecutionPlan Types
+
+**Before:**
+- `compiler.ExecutionPlan` - Legacy type with `Steps []ExecutionStep`
+- `contracts.ExecutionPlan` - Canonical type with `Instructions` + `Graph`
+- `executor/contract_plan_compiler.go` - 60+ lines converting between types
+- `executor/plan_graph_helpers.go` - Graph conversion helper
+
+**After:**
+- New `compiler.CompileWorkflowToContracts()` centralizes conversion
+- `compiler/contracts_adapter.go` - Single location for compiler → contracts conversion
+- `ContractPlanCompiler.Compile()` now delegates to centralized function (3 lines)
+- Deleted redundant `executor/plan_graph_helpers.go`
+
+**Files Changed:**
+- `automation/compiler/contracts_adapter.go` (new)
+- `automation/executor/contract_plan_compiler.go` (simplified)
+- `automation/executor/plan_graph_helpers.go` (deleted)
+
+#### Change Axis Improvements
+
+These consolidations improve change axis resilience:
+
+| Change Type | Before | After |
+|-------------|--------|-------|
+| New parameter namespace | Edit 2 functions | Edit 1 function |
+| Event buffer config | Edit 2 files | Edit 1 file (config) |
+| New compilation target | Add conversion code in executor | Extend compiler adapter |
+
+### WorkflowService Decomposition (IN PROGRESS)
+
+The `WorkflowService` handles multiple responsibilities. Decomposition is proceeding in phases:
+
+**Phase 1: Interface Extraction (COMPLETED - 2025-12-17)**
+
+Created clean service interfaces in `services/workflow/interfaces.go`:
+
+| Interface | Responsibility | Method Count |
+|-----------|----------------|--------------|
+| `CatalogService` | Project/workflow CRUD, versioning, file sync, AI modification | ~20 methods |
+| `ExecutionService` | Execution lifecycle, queries, timeline, export | ~12 methods |
+| `WorkflowResolver` | Minimal workflow lookup for execution-time resolution | 3 methods |
+
+**Handler Changes:**
+```go
+// Before: Triple alias to same concrete type
+type Handler struct {
+    workflowCatalog   *workflow.WorkflowService
+    executionService  *workflow.WorkflowService
+    exportService     *workflow.WorkflowService
+}
+
+// After: Clean interface dependencies
+type Handler struct {
+    catalogService   workflow.CatalogService   // CRUD, versioning, sync
+    executionService workflow.ExecutionService // Execution lifecycle
+}
+```
+
+**Benefits Achieved:**
+- Handler no longer depends on concrete `*WorkflowService`
+- Clear responsibility boundaries at interface level
+- Enables future package split without handler changes
+- Tests can inject mock implementations
+
+**Phase 2: Package Split (PLANNED)**
+
+| Package | Responsibility | Key Methods |
+|---------|----------------|-------------|
+| `services/workflow/catalog/` | Workflow CRUD, versioning, storage | `CreateWorkflow`, `UpdateWorkflow`, `ListWorkflows`, `GetVersionHistory` |
+| `services/workflow/execution/` | Execution orchestration | `StartExecution`, `CancelExecution`, `GetExecutionStatus` |
+| `services/workflow/ai/` | AI workflow generation | `GenerateWorkflowFromPrompt`, `RefineWorkflow` |
+| `services/workflow/sync/` | File synchronization | `SyncToFilesystem`, `SyncFromFilesystem` |
+
+**Change Axis Analysis:**
+- Adding new node types → catalog package (validation) + execution (handlers)
+- New AI models → ai package only
+- New storage backends → catalog package only
+- New execution modes → execution package only
+
+**Status:** Phase 1 complete. Phase 2 planned - requires careful migration.
 
 ### Cross-cutting Concerns Centralization
 Error handling is centralized in `internal/apierror/` to avoid duplication:
@@ -568,12 +811,16 @@ The `Handler` struct supports explicit dependency injection for testing:
 ```go
 // HandlerDeps holds all dependencies for the Handler
 type HandlerDeps struct {
-    WorkflowService   WorkflowService
+    CatalogService    workflow.CatalogService   // Workflow/project CRUD, versioning, sync
+    ExecutionService  workflow.ExecutionService // Execution lifecycle, timeline, export
     WorkflowValidator *workflowvalidator.Validator
     Storage           storage.StorageInterface
-    RecordingService  recording.RecordingServiceInterface
+    RecordingService  archiveingestion.IngestionServiceInterface
+    RecordModeService *livecapture.Service
     RecordingsRoot    string
     ReplayRenderer    replayRenderer
+    SessionProfiles   *archiveingestion.SessionProfileStore
+    UXMetricsRepo     uxmetrics.Repository
 }
 
 // Production usage (wires all dependencies)
@@ -581,8 +828,9 @@ handler := handlers.NewHandler(repo, wsHub, log, allowAll, origins)
 
 // Testing usage (inject mocks)
 deps := handlers.HandlerDeps{
-    WorkflowService: mockWorkflowService,
-    Storage:         mockStorage,
+    CatalogService:   mockCatalogService,
+    ExecutionService: mockExecutionService,
+    Storage:          mockStorage,
     // ...
 }
 handler := handlers.NewHandlerWithDeps(repo, wsHub, log, allowAll, origins, deps)

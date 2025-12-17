@@ -1,22 +1,22 @@
 // Package livecapture provides action type configuration for workflow generation.
+// This file provides recording-specific functionality (node building, label generation)
+// while using the unified automation/actions package for action type definitions
+// and behavioral metadata.
 package livecapture
 
-import "fmt"
+import (
+	"fmt"
 
-// ActionTypeConfig defines how an action type should be converted to a workflow node.
-// This centralizes action type configuration so adding new action types requires
-// only one entry in the registry instead of changes across multiple functions.
-type ActionTypeConfig struct {
+	"github.com/vrooli/browser-automation-studio/automation/actions"
+)
+
+// ActionNodeConfig defines how to convert a recorded action type to a workflow node.
+// This includes the node type mapping, data building, and label generation.
+// Behavioral metadata (NeedsSelectorWait, TriggersDOMChanges) comes from the
+// unified actions.Registry.
+type ActionNodeConfig struct {
 	// NodeType is the workflow node type to create (e.g., "click", "type", "navigate")
 	NodeType string
-
-	// NeedsSelectorWait indicates whether this action type needs a wait-for-selector
-	// node inserted before it when preceded by a DOM-changing action.
-	NeedsSelectorWait bool
-
-	// TriggersDOMChanges indicates whether this action type might change the DOM,
-	// requiring a wait node before the next action.
-	TriggersDOMChanges bool
 
 	// BuildNode creates the node data and config for this action type.
 	// Returns (data, config) maps.
@@ -26,118 +26,150 @@ type ActionTypeConfig struct {
 	GenerateLabel func(action RecordedAction) string
 }
 
-// actionRegistry maps action type strings to their configuration.
-// This is the single source of truth for action type handling.
-var actionRegistry = map[string]ActionTypeConfig{
-	"click": {
-		NodeType:           "click",
-		NeedsSelectorWait:  true,
-		TriggersDOMChanges: true,
-		BuildNode:          buildClickNode,
-		GenerateLabel:      generateClickLabel,
+// actionNodeRegistry maps action types to their node conversion configuration.
+// Behavioral metadata is retrieved from the unified actions.Registry.
+var actionNodeRegistry = map[actions.ActionType]ActionNodeConfig{
+	actions.Click: {
+		NodeType:      "click",
+		BuildNode:     buildClickNode,
+		GenerateLabel: generateClickLabel,
 	},
-	"type": {
-		NodeType:           "type",
-		NeedsSelectorWait:  true,
-		TriggersDOMChanges: true,
-		BuildNode:          buildTypeNode,
-		GenerateLabel:      generateTypeLabel,
+	actions.TypeInput: {
+		NodeType:      "type",
+		BuildNode:     buildTypeNode,
+		GenerateLabel: generateTypeLabel,
 	},
-	"navigate": {
-		NodeType:           "navigate",
-		NeedsSelectorWait:  false,
-		TriggersDOMChanges: true,
-		BuildNode:          buildNavigateNode,
-		GenerateLabel:      generateNavigateLabel,
+	actions.Navigate: {
+		NodeType:      "navigate",
+		BuildNode:     buildNavigateNode,
+		GenerateLabel: generateNavigateLabel,
 	},
-	"scroll": {
-		NodeType:           "scroll",
-		NeedsSelectorWait:  true,
-		TriggersDOMChanges: false,
-		BuildNode:          buildScrollNode,
+	actions.Scroll: {
+		NodeType:  "scroll",
+		BuildNode: buildScrollNode,
 		GenerateLabel: func(_ RecordedAction) string {
 			return "Scroll"
 		},
 	},
-	"select": {
-		NodeType:           "select",
-		NeedsSelectorWait:  true,
-		TriggersDOMChanges: true,
-		BuildNode:          buildSelectNode,
+	actions.Select: {
+		NodeType:  "select",
+		BuildNode: buildSelectNode,
 		GenerateLabel: func(_ RecordedAction) string {
 			return "Select option"
 		},
 	},
-	"focus": {
-		NodeType:           "click", // Focus falls back to click
-		NeedsSelectorWait:  true,
-		TriggersDOMChanges: false,
-		BuildNode:          buildFocusNode,
+	actions.Focus: {
+		NodeType:  "click", // Focus falls back to click for execution
+		BuildNode: buildFocusNode,
 		GenerateLabel: func(_ RecordedAction) string {
 			return "Focus element"
 		},
 	},
-	"hover": {
-		NodeType:           "hover",
-		NeedsSelectorWait:  true,
-		TriggersDOMChanges: false,
-		BuildNode:          buildHoverNode,
+	actions.Hover: {
+		NodeType:  "hover",
+		BuildNode: buildHoverNode,
 		GenerateLabel: func(_ RecordedAction) string {
 			return "Hover element"
 		},
 	},
-	"keypress": {
-		NodeType:           "keyboard",
-		NeedsSelectorWait:  false,
-		TriggersDOMChanges: true,
-		BuildNode:          buildKeypressNode,
-		GenerateLabel:      generateKeypressLabel,
+	actions.Keyboard: {
+		NodeType:      "keyboard",
+		BuildNode:     buildKeypressNode,
+		GenerateLabel: generateKeypressLabel,
 	},
-	"dragDrop": {
-		NodeType:           "dragDrop",
-		NeedsSelectorWait:  true,
-		TriggersDOMChanges: true,
-		BuildNode:          buildDragDropNode,
+	actions.DragDrop: {
+		NodeType:  "dragDrop",
+		BuildNode: buildDragDropNode,
 		GenerateLabel: func(_ RecordedAction) string {
 			return "Drag and drop"
 		},
 	},
+	actions.Wait: {
+		NodeType:  "wait",
+		BuildNode: buildWaitNode,
+		GenerateLabel: func(_ RecordedAction) string {
+			return "Wait"
+		},
+	},
+	actions.Assert: {
+		NodeType:  "assert",
+		BuildNode: buildAssertNode,
+		GenerateLabel: func(_ RecordedAction) string {
+			return "Assert"
+		},
+	},
+	actions.Screenshot: {
+		NodeType:  "screenshot",
+		BuildNode: buildScreenshotNode,
+		GenerateLabel: func(_ RecordedAction) string {
+			return "Screenshot"
+		},
+	},
 }
 
-// GetActionConfig returns the configuration for an action type.
-// Returns the default config for unknown action types.
-func GetActionConfig(actionType string) ActionTypeConfig {
-	if cfg, ok := actionRegistry[actionType]; ok {
-		return cfg
-	}
-	return defaultActionConfig
-}
-
-// NeedsSelectorWait returns whether the given action type needs a selector wait.
-func NeedsSelectorWait(actionType string) bool {
-	if cfg, ok := actionRegistry[actionType]; ok {
-		return cfg.NeedsSelectorWait
-	}
-	return false
-}
-
-// TriggersDOMChanges returns whether the given action type might trigger DOM changes.
-func TriggersDOMChanges(actionType string) bool {
-	if cfg, ok := actionRegistry[actionType]; ok {
-		return cfg.TriggersDOMChanges
-	}
-	return false
-}
-
-// defaultActionConfig is used for unknown action types.
-var defaultActionConfig = ActionTypeConfig{
-	NodeType:           "click",
-	NeedsSelectorWait:  false,
-	TriggersDOMChanges: false,
-	BuildNode:          buildDefaultNode,
+// defaultActionNodeConfig is used for action types without specific node config.
+var defaultActionNodeConfig = ActionNodeConfig{
+	NodeType:  "click",
+	BuildNode: buildDefaultNode,
 	GenerateLabel: func(action RecordedAction) string {
 		return action.ActionType
 	},
+}
+
+// ActionTypeConfig provides backwards compatibility.
+// New code should use GetActionNodeConfig and the unified actions package.
+//
+// Deprecated: Use ActionNodeConfig and actions.GetMetadata instead.
+type ActionTypeConfig struct {
+	NodeType           string
+	NeedsSelectorWait  bool
+	TriggersDOMChanges bool
+	BuildNode          func(action RecordedAction) (data map[string]any, config map[string]any)
+	GenerateLabel      func(action RecordedAction) string
+}
+
+// GetActionConfig returns the combined configuration for an action type.
+// This merges node config with unified behavioral metadata.
+//
+// Deprecated: Use GetActionNodeConfig for node conversion behavior and
+// actions.GetMetadata for behavioral metadata.
+func GetActionConfig(actionType string) ActionTypeConfig {
+	at := actions.ActionType(actionType)
+	meta := actions.GetMetadata(at)
+
+	nodeConfig := defaultActionNodeConfig
+	if cfg, ok := actionNodeRegistry[at]; ok {
+		nodeConfig = cfg
+	}
+
+	return ActionTypeConfig{
+		NodeType:           nodeConfig.NodeType,
+		NeedsSelectorWait:  meta.NeedsSelectorWait,
+		TriggersDOMChanges: meta.TriggersDOMChanges,
+		BuildNode:          nodeConfig.BuildNode,
+		GenerateLabel:      nodeConfig.GenerateLabel,
+	}
+}
+
+// GetActionNodeConfig returns the node conversion configuration for an action type.
+// Use actions.GetMetadata for behavioral metadata (NeedsSelectorWait, etc.).
+func GetActionNodeConfig(actionType actions.ActionType) ActionNodeConfig {
+	if cfg, ok := actionNodeRegistry[actionType]; ok {
+		return cfg
+	}
+	return defaultActionNodeConfig
+}
+
+// NeedsSelectorWait returns whether the given action type needs a selector wait.
+// Delegates to the unified actions package.
+func NeedsSelectorWait(actionType string) bool {
+	return actions.NeedsSelectorWait(actions.ActionType(actionType))
+}
+
+// TriggersDOMChanges returns whether the given action type might trigger DOM changes.
+// Delegates to the unified actions package.
+func TriggersDOMChanges(actionType string) bool {
+	return actions.TriggersDOMChanges(actions.ActionType(actionType))
 }
 
 // Node builder functions
@@ -306,6 +338,60 @@ func buildDragDropNode(action RecordedAction) (map[string]any, map[string]any) {
 	config["custom"] = map[string]any{
 		"kind":    "dragDrop",
 		"payload": data,
+	}
+	return data, config
+}
+
+func buildWaitNode(action RecordedAction) (map[string]any, map[string]any) {
+	data := map[string]any{}
+	if action.Selector != nil {
+		data["selector"] = action.Selector.Primary
+	}
+	if action.Payload != nil {
+		if timeout, ok := action.Payload["timeoutMs"]; ok {
+			data["timeoutMs"] = timeout
+		}
+	}
+	config := map[string]any{
+		"custom": map[string]any{
+			"kind":    "wait",
+			"payload": data,
+		},
+	}
+	return data, config
+}
+
+func buildAssertNode(action RecordedAction) (map[string]any, map[string]any) {
+	data := map[string]any{}
+	if action.Selector != nil {
+		data["selector"] = action.Selector.Primary
+	}
+	if action.Payload != nil {
+		for k, v := range action.Payload {
+			data[k] = v
+		}
+	}
+	config := map[string]any{
+		"custom": map[string]any{
+			"kind":    "assert",
+			"payload": data,
+		},
+	}
+	return data, config
+}
+
+func buildScreenshotNode(action RecordedAction) (map[string]any, map[string]any) {
+	data := map[string]any{}
+	if action.Payload != nil {
+		if name, ok := action.Payload["name"].(string); ok {
+			data["name"] = name
+		}
+	}
+	config := map[string]any{
+		"custom": map[string]any{
+			"kind":    "screenshot",
+			"payload": data,
+		},
 	}
 	return data, config
 }
