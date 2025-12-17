@@ -12,91 +12,91 @@
       "description": "Implement REST API endpoints for sandbox CRUD operations with proper cleanup",
       "id": "REQ-P0-008",
       "prd_ref": "OT-P0-007",
-      "status": "implemented",
+      "status": "complete",
       "title": "Sandbox Lifecycle API",
       "validation": [
         {
           "notes": "List sandboxes returns empty array when none exist",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestListSandboxesEmpty",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "List sandboxes filters by status and owner",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestListSandboxesWithFilter",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "List sandboxes returns results with count",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestListSandboxesWithResults",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Delete sandbox returns 204 No Content on success",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestDeleteSandboxSuccess",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Delete sandbox returns 404 for unknown ID",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestDeleteSandboxNotFound",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Stop sandbox transitions status to stopped",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestStopSandboxSuccess",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Reject sandbox transitions status to rejected",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestRejectSuccess",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "e2e: List sandboxes returns valid response",
           "phase": "e2e",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::list sandboxes returns valid response",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "e2e: List supports status filter",
           "phase": "e2e",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::list sandboxes supports status filter",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "e2e: Delete is idempotent",
           "phase": "e2e",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::delete sandbox returns success for unknown ID",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "e2e: Stats endpoint returns aggregate data",
           "phase": "e2e",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::stats endpoint returns valid counts",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "e2e: UI displays sandbox list",
           "phase": "e2e",
           "ref": "bas/cases/sandbox-lifecycle/ui/sandbox_list_display.json",
-          "status": "passing",
+          "status": "implemented",
           "type": "workflow"
         }
       ]

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -30,6 +32,9 @@ func loadTestResults(scenarioRoot string) TestResults {
 	}
 }
 
+// summaryPattern matches "N passed, M failed" or "N passed, M failed, K skipped"
+var summaryPattern = regexp.MustCompile(`(\d+)\s+passed(?:,\s*(\d+)\s+failed)?`)
+
 // loadPhaseBasedResults loads from coverage/phase-results/*.json
 func loadPhaseBasedResults(scenarioRoot string) *TestResults {
 	phaseDir := filepath.Join(scenarioRoot, "coverage", "phase-results")
@@ -55,17 +60,21 @@ func loadPhaseBasedResults(scenarioRoot string) *TestResults {
 			continue
 		}
 
+		// Try the requirements array format first
 		var phaseData struct {
 			Requirements []struct {
 				Status string `json:"status"`
 			} `json:"requirements"`
 			UpdatedAt string `json:"updated_at"`
+			// Ecosystem-manager format fields
+			Summary string `json:"summary"`
 		}
 
 		if err := json.Unmarshal(data, &phaseData); err != nil {
 			continue
 		}
 
+		// Process requirements array format (preferred)
 		if len(phaseData.Requirements) > 0 {
 			hasResults = true
 			for _, req := range phaseData.Requirements {
@@ -78,12 +87,28 @@ func loadPhaseBasedResults(scenarioRoot string) *TestResults {
 					totalTests++
 				}
 			}
-
-			if phaseData.UpdatedAt != "" {
-				if t, err := time.Parse(time.RFC3339, phaseData.UpdatedAt); err == nil {
-					if t.After(latestTimestamp) {
-						latestTimestamp = t
+		} else if phaseData.Summary != "" {
+			// Fallback: parse ecosystem-manager summary format
+			// e.g., "2 passed, 1 failed, 1 skipped"
+			matches := summaryPattern.FindStringSubmatch(phaseData.Summary)
+			if len(matches) >= 2 {
+				hasResults = true
+				if passed, err := strconv.Atoi(matches[1]); err == nil {
+					totalPassing += passed
+					totalTests += passed
+				}
+				if len(matches) >= 3 && matches[2] != "" {
+					if failed, err := strconv.Atoi(matches[2]); err == nil {
+						totalTests += failed
 					}
+				}
+			}
+		}
+
+		if phaseData.UpdatedAt != "" {
+			if t, err := time.Parse(time.RFC3339, phaseData.UpdatedAt); err == nil {
+				if t.After(latestTimestamp) {
+					latestTimestamp = t
 				}
 			}
 		}

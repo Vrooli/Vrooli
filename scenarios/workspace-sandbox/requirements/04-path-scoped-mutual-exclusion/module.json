@@ -9,42 +9,42 @@
       "description": "Implement bidirectional ancestor/descendant path checking for sandbox scope conflicts",
       "id": "REQ-P0-005",
       "prd_ref": "OT-P0-004",
-      "status": "implemented",
+      "status": "complete",
       "title": "Scope Path Validation",
       "validation": [
         {
           "notes": "Test path comparison logic for overlap detection",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestCheckPathOverlap",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Verify ancestor/descendant conflict detection",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestFindConflicts",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Verify path within project boundary detection",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestIsWithinProject",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "API returns 409 Conflict for overlapping scope",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateSandboxScopeConflict",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Path check completes in <10ms",
           "phase": "performance",
           "ref": "api/internal/sandbox/pathutil_test.go::BenchmarkCheckPathOverlap",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         }
       ]

@@ -9,56 +9,56 @@
       "description": "System must create and mount a sandbox environment within 2 seconds maximum latency, generating a unique stable identifier and tracking its lifecycle status",
       "id": "REQ-P0-001",
       "prd_ref": "OT-P0-001",
-      "status": "implemented",
+      "status": "complete",
       "title": "Fast Sandbox Creation",
       "validation": [
         {
           "notes": "Verify UUID generation is unique",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestUUIDGeneration",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Verify status transitions are valid",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestStatusTransitions",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "API handler creates sandbox and returns 201 Created",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateSandboxSuccess",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "API returns 400 for invalid JSON input",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateSandboxInvalidJSON",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "API provides workspace path after creation",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestGetWorkspaceSuccess",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "e2e: Create sandbox validates scope path",
           "phase": "e2e",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::create sandbox requires scope path",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "e2e: Create dialog UI displays form fields",
           "phase": "e2e",
           "ref": "bas/cases/sandbox-lifecycle/ui/create_sandbox_dialog.json",
-          "status": "passing",
+          "status": "implemented",
           "type": "workflow"
         }
       ]
@@ -68,49 +68,49 @@
       "description": "Each sandbox must have a unique, stable UUID and normalized scope path that persists across restarts",
       "id": "REQ-P0-002",
       "prd_ref": "OT-P0-001",
-      "status": "implemented",
+      "status": "complete",
       "title": "Stable Sandbox Identifier",
       "validation": [
         {
           "notes": "UUID format validation",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestUUIDGeneration",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Path normalization test cases",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestPathNormalization",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "API retrieves sandbox by ID",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestGetSandboxSuccess",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "API returns 404 for unknown sandbox ID",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestGetSandboxNotFound",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "API validates UUID format in requests",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestGetSandboxInvalidID",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "e2e: Get sandbox returns 404 with hint for unknown ID",
           "phase": "e2e",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::get sandbox 404 response includes hint",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         }
       ]

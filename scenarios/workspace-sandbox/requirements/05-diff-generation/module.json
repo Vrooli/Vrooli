@@ -12,28 +12,28 @@
       "description": "Generate unified diffs with stable file ordering showing changes in sandbox upper layer",
       "id": "REQ-P0-006",
       "prd_ref": "OT-P0-005",
-      "status": "implemented",
+      "status": "complete",
       "title": "Stable Diff Generation",
       "validation": [
         {
           "notes": "API returns diff result with unified diff format",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestGetDiffSuccess",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Driver detects changed files in upper layer",
           "phase": "unit",
           "ref": "api/internal/driver/overlayfs_test.go::TestDetectChangeType",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "e2e: Diff endpoint returns 404 with hint for unknown sandbox",
           "phase": "e2e",
           "ref": "bas/cases/diff-generation/api/diff_endpoint.bats::diff 404 response includes hint",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         }
       ]

@@ -123,6 +123,28 @@ The following issues were addressed in the 2025-12-16 Idempotency & Temporal Flo
 7. **Idempotency key cleanup**: Consider adding TTL/expiration for old idempotency keys
 8. **Retry metrics**: Track idempotency key hits to monitor replay behavior
 
+### Test Infrastructure Issues (Discovered 2025-12-17)
+
+1. **Binary file bash syntax check**: test-genie unit phase runs `bash -n` on Go binary files (`cli/workspace-sandbox`), causing false failures. Exit code 126 indicates binary cannot be executed as shell script.
+   - **Impact**: Unit phase fails despite all Go/Node tests passing
+   - **Mitigation**: Test-genie should detect ELF binaries and skip bash syntax checking
+   - **Status**: Upstream test-genie issue
+
+2. **BATS test discovery**: test-genie integration phase reports "no .bats suites found" even though BATS files exist in `bas/cases/*/api/*.bats` and run successfully when executed directly.
+   - **Impact**: E2E validation not reflected in test coverage
+   - **Mitigation**: Check test-genie BATS discovery path configuration
+   - **Status**: Configuration/discovery issue to investigate
+
+3. **Requirement validation ref path resolution**: Business phase reports "validation references non-existent file" for valid test references like `api/internal/handlers/handlers_test.go::TestHealthHandler` even though file and test function exist.
+   - **Impact**: Completeness score shows 0% even with passing tests
+   - **Mitigation**: Verify path resolution base directory in test-genie
+   - **Status**: Path resolution issue to investigate
+
+4. **Golangci-lint warnings**: 22 lint issues detected (errcheck, staticcheck, gosimple). Pre-existing issues not blocking functionality but affecting lint phase score.
+   - **Impact**: Lint phase reports issues
+   - **Mitigation**: Address unchecked errors, deprecated function usage
+   - **Status**: Low priority cleanup
+
 ## Questions for Product/User Feedback
 
 1. Should sandbox creation require explicit confirmation, or default to auto-create?
@@ -133,5 +155,5 @@ The following issues were addressed in the 2025-12-16 Idempotency & Temporal Flo
 
 ---
 
-*Last updated: 2025-12-16 by Claude Opus 4.5 (Idempotency & Temporal Flow Hardening)*
-*Next review: After P0 implementation*
+*Last updated: 2025-12-17 by Claude Opus 4.5 (Security Fixes + Test Infrastructure Investigation)*
+*Next review: After test-genie path resolution issues are resolved*

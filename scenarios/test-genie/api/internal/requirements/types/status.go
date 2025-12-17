@@ -91,7 +91,7 @@ func NormalizeDeclaredStatus(s string) DeclaredStatus {
 		return StatusPlanned
 	case "in_progress", "inprogress", "in-progress", "wip":
 		return StatusInProgress
-	case "complete", "completed", "done":
+	case "complete", "completed", "done", "implemented":
 		return StatusComplete
 	case "not_implemented", "notimplemented", "not-implemented":
 		return StatusNotImplemented

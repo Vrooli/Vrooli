@@ -55,7 +55,7 @@ Collections were created but never populated with actual vector embeddings.
 
 ### Recommended Fix
 Future agents should populate collections using:
-- `resource-qdrant embeddings add` commands
+- Knowledge Observatory ingest endpoints/CLI (canonical write path)
 - Bulk data import from existing knowledge sources
 - Incremental population as new scenarios are created
 

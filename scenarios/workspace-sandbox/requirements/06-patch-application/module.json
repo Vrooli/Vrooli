@@ -12,28 +12,28 @@
       "description": "Apply approved changes to canonical repository through controlled process with proper locking",
       "id": "REQ-P0-007",
       "prd_ref": "OT-P0-006",
-      "status": "implemented",
+      "status": "complete",
       "title": "Secure Patch Application",
       "validation": [
         {
           "notes": "API approves all changes and returns success result",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestApproveAllSuccess",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "e2e: Approve endpoint returns 404 with hint for unknown sandbox",
           "phase": "e2e",
           "ref": "bas/cases/diff-generation/api/diff_endpoint.bats::approve endpoint returns 404 for unknown sandbox",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "e2e: Reject endpoint returns 404 with hint for unknown sandbox",
           "phase": "e2e",
           "ref": "bas/cases/diff-generation/api/diff_endpoint.bats::reject endpoint returns 404 for unknown sandbox",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         }
       ]

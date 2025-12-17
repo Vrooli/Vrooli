@@ -12,35 +12,35 @@
       "description": "Implement overlayfs driver with read-only lower dir pointing to canonical repo and writable upper/work dirs per sandbox",
       "id": "REQ-P0-003",
       "prd_ref": "OT-P0-002",
-      "status": "implemented",
+      "status": "complete",
       "title": "Overlayfs Mount Configuration",
       "validation": [
         {
           "notes": "Verify driver type returns overlayfs",
           "phase": "unit",
           "ref": "api/internal/driver/overlayfs_test.go::TestOverlayfsDriverType",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "Test directory structure creation",
           "phase": "unit",
           "ref": "api/internal/driver/overlayfs_test.go::TestOverlayfsDriverDirectoryStructure",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "API reports driver availability status",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestDriverInfoAvailable",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         },
         {
           "notes": "API reports driver unavailable status correctly",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestDriverInfoUnavailable",
-          "status": "passing",
+          "status": "implemented",
           "type": "test"
         }
       ]

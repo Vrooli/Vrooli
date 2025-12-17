@@ -4,6 +4,7 @@ Track development progress, decisions, and significant changes.
 
 | Date | Author | Status Snapshot | Notes |
 |------|--------|-----------------|-------|
+| 2025-12-17 | Claude Opus 4.5 | Security fixes + auditor passing | Fixed CRITICAL SQL injection pattern (SQL-002) by replacing fmt.Sprintf with safe queryBuilder pattern. Fixed HIGH CORS wildcard (HTTP-002) by implementing origin validation from config. Both auditor scans now pass with 0 violations. |
 | 2025-12-17 | Claude Opus 4.5 | E2E test infrastructure + multi-layer validation | Added 22 BATS e2e tests covering health, sandbox CRUD, diff, and approval endpoints. Created 3 UI workflow tests for BAS playbook execution. Updated 6 requirement modules (01, 05, 06, 07, 09) with e2e test references. Fixed playbook workflow JSON phase field issue. All BATS tests passing. Integration tests passing. |
 | 2025-12-17 | Claude Opus 4.5 | Database schema fix + UI smoke test passing | Fixed missing idempotency_key/version/updated_at columns in PostgreSQL schema. Fixed lighthouse.json schema validation. Added UI test setup with jsdom. Created App.test.tsx with 3 passing tests linked to requirements. Fixed broken RESEARCH.md link. All 41 Go tests passing, 3 UI tests passing, structure validation passing. |
 | 2025-12-17 | Claude Opus 4.5 | Test infrastructure migration to test-genie | Updated service.json to use `test-genie execute workspace-sandbox` instead of deprecated `cd test && ./run-tests.sh`. Removed unused test/ directory. Scenarios now use test-genie for all phased testing. |
