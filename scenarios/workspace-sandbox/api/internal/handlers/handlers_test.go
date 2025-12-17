@@ -52,6 +52,12 @@ func (m *mockDriver) IsMounted(ctx context.Context, s *types.Sandbox) (bool, err
 func (m *mockDriver) VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error {
 	return nil
 }
+func (m *mockDriver) Exec(ctx context.Context, s *types.Sandbox, cfg driver.BwrapConfig, cmd string, args ...string) (*driver.ExecResult, error) {
+	return &driver.ExecResult{ExitCode: 0}, nil
+}
+func (m *mockDriver) StartProcess(ctx context.Context, s *types.Sandbox, cfg driver.BwrapConfig, cmd string, args ...string) (int, error) {
+	return 12345, nil
+}
 
 // TestHealthHandler tests the Health endpoint handler.
 // [REQ:REQ-P0-010] Health Check API Endpoint - unit test for status codes

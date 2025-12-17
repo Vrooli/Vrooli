@@ -19,21 +19,25 @@ import (
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/gc"
 	"workspace-sandbox/internal/handlers"
 	"workspace-sandbox/internal/logging"
 	"workspace-sandbox/internal/policy"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/sandbox"
 )
 
 // Server wires the HTTP router, database, and services.
 type Server struct {
-	config   config.Config
-	db       *sql.DB
-	router   *mux.Router
-	driver   driver.Driver
-	handlers *handlers.Handlers
-	logger   *logging.Logger
+	config         config.Config
+	db             *sql.DB
+	router         *mux.Router
+	driver         driver.Driver
+	handlers       *handlers.Handlers
+	logger         *logging.Logger
+	processTracker *process.Tracker // OT-P0-008: Process/Session Tracking
+	gcService      *gc.Service      // OT-P1-003: GC/Prune Operations
 }
 
 // NewServer initializes configuration, database, and routes.
@@ -89,25 +93,42 @@ func NewServer() (*Server, error) {
 		sandbox.WithValidationPolicy(validationPolicy),
 	)
 
+	// Initialize process tracker (OT-P0-008)
+	processTracker := process.NewTracker()
+
+	// Initialize GC service (OT-P1-003)
+	gcCfg := gc.Config{
+		DefaultMaxAge:        cfg.Lifecycle.DefaultTTL,
+		DefaultIdleTimeout:   cfg.Lifecycle.IdleTimeout,
+		DefaultTerminalDelay: cfg.Lifecycle.TerminalCleanupDelay,
+		DefaultLimit:         100,
+		MaxTotalSizeBytes:    cfg.Limits.MaxTotalSizeMB * 1024 * 1024,
+	}
+	gcService := gc.NewService(repo, drv, gcCfg)
+
 	// Create handlers with injected dependencies
 	h := &handlers.Handlers{
-		Service:     svc,
-		Driver:      drv,
-		DB:          db,
-		Config:      cfg,
-		StatsGetter: repo, // Repository implements StatsGetter
+		Service:        svc,
+		Driver:         drv,
+		DB:             db,
+		Config:         cfg,
+		StatsGetter:    repo, // Repository implements StatsGetter
+		ProcessTracker: processTracker,
+		GCService:      gcService,
 	}
 
 	// Initialize structured logger
 	logger := logging.New("workspace-sandbox-api")
 
 	srv := &Server{
-		config:   cfg,
-		db:       db,
-		router:   mux.NewRouter(),
-		driver:   drv,
-		handlers: h,
-		logger:   logger,
+		config:         cfg,
+		db:             db,
+		router:         mux.NewRouter(),
+		driver:         drv,
+		handlers:       h,
+		logger:         logger,
+		processTracker: processTracker,
+		gcService:      gcService,
 	}
 
 	srv.setupRoutes()
@@ -147,11 +168,24 @@ func (s *Server) setupRoutes() {
 	// Workspace path helper
 	api.HandleFunc("/sandboxes/{id}/workspace", h.GetWorkspace).Methods("GET")
 
-	// Driver info
-	api.HandleFunc("/driver/info", h.DriverInfo).Methods("GET")
+	// Process isolation and execution (OT-P0-003)
+	api.HandleFunc("/sandboxes/{id}/exec", h.Exec).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/processes", h.StartProcess).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/processes", h.ListProcesses).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/processes/{pid}", h.KillProcess).Methods("DELETE")
+	api.HandleFunc("/sandboxes/{id}/processes/kill-all", h.KillAllProcesses).Methods("POST")
 
-	// Stats endpoint for dashboard metrics
+	// Driver and system info
+	api.HandleFunc("/driver/info", h.DriverInfo).Methods("GET")
+	api.HandleFunc("/driver/bwrap", h.BwrapInfo).Methods("GET")
+
+	// Stats endpoints for dashboard metrics
 	api.HandleFunc("/stats", h.Stats).Methods("GET")
+	api.HandleFunc("/stats/processes", h.ProcessStats).Methods("GET")
+
+	// Garbage collection endpoints (OT-P1-003)
+	api.HandleFunc("/gc", h.GC).Methods("POST")
+	api.HandleFunc("/gc/preview", h.GCPreview).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown.

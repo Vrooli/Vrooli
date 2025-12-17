@@ -98,6 +98,14 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	gc := cliapp.CommandGroup{
+		Title: "Garbage Collection",
+		Commands: []cliapp.Command{
+			{Name: "gc", NeedsAPI: true, Description: "Run garbage collection ([--dry-run] [--max-age=DURATION] [--idle=DURATION] [--limit=N])", Run: a.cmdGC},
+			{Name: "gc-preview", NeedsAPI: true, Description: "Preview what GC would collect (alias for gc --dry-run)", Run: a.cmdGCPreview},
+		},
+	}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -105,7 +113,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, sandboxes, diff, driver, config}
+	return []cliapp.CommandGroup{health, sandboxes, diff, gc, driver, config}
 }
 
 func (a *App) apiPath(v1Path string) string {
@@ -549,4 +557,166 @@ func (a *App) cmdDriverInfo(_ []string) error {
 
 	cliutil.PrintJSON(body)
 	return nil
+}
+
+// --- GC Types and Commands [OT-P1-003] ---
+
+type gcCollectedSandbox struct {
+	ID        string    `json:"id"`
+	ScopePath string    `json:"scopePath"`
+	Status    string    `json:"status"`
+	SizeBytes int64     `json:"sizeBytes"`
+	CreatedAt time.Time `json:"createdAt"`
+	Reason    string    `json:"reason"`
+}
+
+type gcResult struct {
+	Collected           []gcCollectedSandbox `json:"collected"`
+	TotalCollected      int                  `json:"totalCollected"`
+	TotalBytesReclaimed int64                `json:"totalBytesReclaimed"`
+	Errors              []struct {
+		SandboxID string `json:"sandboxId"`
+		Error     string `json:"error"`
+	} `json:"errors,omitempty"`
+	DryRun      bool      `json:"dryRun"`
+	StartedAt   time.Time `json:"startedAt"`
+	CompletedAt time.Time `json:"completedAt"`
+}
+
+func (a *App) cmdGC(args []string) error {
+	return a.runGC(args, false)
+}
+
+func (a *App) cmdGCPreview(args []string) error {
+	return a.runGC(args, true)
+}
+
+func (a *App) runGC(args []string, forceDryRun bool) error {
+	var dryRun bool
+	var maxAge, idleTimeout string
+	var limit int
+	var asJSON bool
+
+	for i, arg := range args {
+		switch {
+		case arg == "--dry-run":
+			dryRun = true
+		case arg == "--json":
+			asJSON = true
+		case strings.HasPrefix(arg, "--max-age="):
+			maxAge = strings.TrimPrefix(arg, "--max-age=")
+		case strings.HasPrefix(arg, "--idle="):
+			idleTimeout = strings.TrimPrefix(arg, "--idle=")
+		case strings.HasPrefix(arg, "--limit="):
+			limitStr := strings.TrimPrefix(arg, "--limit=")
+			fmt.Sscanf(limitStr, "%d", &limit)
+		case arg == "--limit" && i+1 < len(args):
+			fmt.Sscanf(args[i+1], "%d", &limit)
+		}
+	}
+
+	// Force dry run for preview command
+	if forceDryRun {
+		dryRun = true
+	}
+
+	// Build request
+	reqBody := map[string]interface{}{
+		"dryRun": dryRun,
+	}
+
+	policy := map[string]interface{}{}
+	if maxAge != "" {
+		policy["maxAge"] = maxAge
+	}
+	if idleTimeout != "" {
+		policy["idleTimeout"] = idleTimeout
+	}
+	if len(policy) > 0 {
+		reqBody["policy"] = policy
+	}
+	if limit > 0 {
+		reqBody["limit"] = limit
+	}
+
+	// Choose endpoint
+	endpoint := "/gc"
+	if dryRun {
+		endpoint = "/gc/preview"
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.apiPath(endpoint), nil, reqBody)
+	if err != nil {
+		return err
+	}
+
+	if asJSON {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var result gcResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Print results
+	if result.DryRun {
+		fmt.Println("=== GC Preview (Dry Run) ===")
+		fmt.Println("The following sandboxes WOULD be collected:\n")
+	} else {
+		fmt.Println("=== GC Results ===")
+		fmt.Println("The following sandboxes were collected:\n")
+	}
+
+	if len(result.Collected) == 0 {
+		fmt.Println("No sandboxes eligible for collection")
+		return nil
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tSTATUS\tSIZE\tCREATED\tREASON")
+	for _, sb := range result.Collected {
+		created := sb.CreatedAt.Format("2006-01-02 15:04")
+		size := formatBytes(sb.SizeBytes)
+		reason := sb.Reason
+		if len(reason) > 40 {
+			reason = reason[:37] + "..."
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			sb.ID[:8], sb.Status, size, created, reason)
+	}
+	w.Flush()
+
+	fmt.Printf("\nTotal: %d sandboxes", result.TotalCollected)
+	if result.TotalBytesReclaimed > 0 {
+		fmt.Printf(", %s reclaimed", formatBytes(result.TotalBytesReclaimed))
+	}
+	fmt.Println()
+
+	if len(result.Errors) > 0 {
+		fmt.Printf("\nWarnings (%d):\n", len(result.Errors))
+		for _, e := range result.Errors {
+			fmt.Printf("  - %s: %s\n", e.SandboxID[:8], e.Error)
+		}
+	}
+
+	duration := result.CompletedAt.Sub(result.StartedAt)
+	fmt.Printf("\nCompleted in %v\n", duration.Round(time.Millisecond))
+
+	return nil
+}
+
+// formatBytes formats bytes as human-readable string
+func formatBytes(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }

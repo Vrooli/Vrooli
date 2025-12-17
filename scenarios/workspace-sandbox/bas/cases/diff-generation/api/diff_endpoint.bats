@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # [REQ:REQ-P0-006] Stable Diff Generation
 # [REQ:REQ-P0-007] Patch Application
-# Phase: e2e
+# Phase: api
 # Validates diff generation and approval workflow via API
 
 setup() {

@@ -2,7 +2,7 @@
 # [REQ:REQ-P0-001] Fast Sandbox Creation
 # [REQ:REQ-P0-002] Stable Sandbox Identifier
 # [REQ:REQ-P0-008] Sandbox Lifecycle API
-# Phase: e2e
+# Phase: api
 # Validates sandbox CRUD operations via API
 
 setup() {

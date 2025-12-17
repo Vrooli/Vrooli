@@ -57,6 +57,17 @@ type Driver interface {
 	// Returns nil if the mount is valid, or an error describing the problem.
 	// This can detect issues like stale mounts or corrupted overlay state.
 	VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error
+
+	// --- Process Isolation Methods (OT-P0-003) ---
+
+	// Exec executes a command inside the sandbox with process isolation.
+	// Uses bubblewrap on Linux to provide filesystem constraints where
+	// the canonical repo is read-only and only the overlay upper layer is writable.
+	Exec(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (*ExecResult, error)
+
+	// StartProcess starts a long-running process in the sandbox.
+	// Returns the PID for tracking purposes.
+	StartProcess(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (int, error)
 }
 
 // MountState represents the current state of a sandbox mount.

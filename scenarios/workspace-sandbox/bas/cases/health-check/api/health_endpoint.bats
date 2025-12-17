@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
-# [REQ:REQ-P0-010] Health Check API Endpoint e2e validation
-# Phase: e2e
+# [REQ:REQ-P0-010] Health Check API Endpoint validation
+# Phase: api
 # Validates that the health endpoint returns correct responses and metrics
 
 setup() {

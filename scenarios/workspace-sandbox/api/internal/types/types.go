@@ -288,6 +288,111 @@ type SandboxStats struct {
 	AvgSizeBytes   float64 `json:"avgSizeBytes"`
 }
 
+// --- GC (Garbage Collection) Types [OT-P1-003] ---
+
+// GCPolicy specifies which sandboxes should be garbage collected.
+// Multiple policies can be combined - sandboxes matching ANY policy are collected.
+type GCPolicy struct {
+	// MaxAge is the maximum age of sandboxes. Sandboxes older than this are collected.
+	// Zero means no age limit.
+	MaxAge time.Duration `json:"maxAge,omitempty"`
+
+	// IdleTimeout is how long a sandbox can be unused before collection.
+	// Based on LastUsedAt timestamp.
+	// Zero means no idle timeout.
+	IdleTimeout time.Duration `json:"idleTimeout,omitempty"`
+
+	// MaxTotalSizeBytes is the maximum total size of all sandboxes.
+	// When exceeded, oldest sandboxes are collected until under limit.
+	// Zero means no size limit.
+	MaxTotalSizeBytes int64 `json:"maxTotalSizeBytes,omitempty"`
+
+	// IncludeTerminal specifies whether to collect approved/rejected sandboxes.
+	// If true, collects sandboxes in terminal states (approved, rejected) after
+	// TerminalDelay has passed.
+	IncludeTerminal bool `json:"includeTerminal,omitempty"`
+
+	// TerminalDelay is how long to wait before collecting terminal sandboxes.
+	// Only applies if IncludeTerminal is true.
+	// Default: 1 hour
+	TerminalDelay time.Duration `json:"terminalDelay,omitempty"`
+
+	// Statuses limits collection to sandboxes in these states.
+	// Empty means: stopped, error (never touches active sandboxes).
+	Statuses []Status `json:"statuses,omitempty"`
+}
+
+// DefaultGCPolicy returns a sensible default GC policy.
+func DefaultGCPolicy() GCPolicy {
+	return GCPolicy{
+		MaxAge:          24 * time.Hour,
+		IdleTimeout:     4 * time.Hour,
+		IncludeTerminal: true,
+		TerminalDelay:   1 * time.Hour,
+		// Only collect non-active sandboxes by default
+		Statuses: []Status{StatusStopped, StatusError, StatusApproved, StatusRejected},
+	}
+}
+
+// GCRequest contains parameters for a garbage collection run.
+type GCRequest struct {
+	// Policy specifies the GC criteria. If nil, uses DefaultGCPolicy.
+	Policy *GCPolicy `json:"policy,omitempty"`
+
+	// DryRun if true, reports what would be collected without actually deleting.
+	DryRun bool `json:"dryRun,omitempty"`
+
+	// Limit is the maximum number of sandboxes to collect in this run.
+	// Zero means no limit.
+	Limit int `json:"limit,omitempty"`
+
+	// Actor identifies who/what initiated the GC run.
+	Actor string `json:"actor,omitempty"`
+}
+
+// GCResult contains the outcome of a garbage collection run.
+type GCResult struct {
+	// Collected is the list of sandboxes that were (or would be) collected.
+	Collected []*GCCollectedSandbox `json:"collected"`
+
+	// TotalCollected is the count of sandboxes collected.
+	TotalCollected int `json:"totalCollected"`
+
+	// TotalBytesReclaimed is the total size of collected sandboxes.
+	TotalBytesReclaimed int64 `json:"totalBytesReclaimed"`
+
+	// Errors contains any errors encountered during collection.
+	Errors []GCError `json:"errors,omitempty"`
+
+	// DryRun indicates if this was a dry run (no actual deletion).
+	DryRun bool `json:"dryRun"`
+
+	// StartedAt is when the GC run started.
+	StartedAt time.Time `json:"startedAt"`
+
+	// CompletedAt is when the GC run finished.
+	CompletedAt time.Time `json:"completedAt"`
+
+	// Reason describes why each sandbox was collected.
+	Reasons map[string][]string `json:"reasons,omitempty"`
+}
+
+// GCCollectedSandbox contains info about a collected sandbox.
+type GCCollectedSandbox struct {
+	ID        uuid.UUID `json:"id"`
+	ScopePath string    `json:"scopePath"`
+	Status    Status    `json:"status"`
+	SizeBytes int64     `json:"sizeBytes"`
+	CreatedAt time.Time `json:"createdAt"`
+	Reason    string    `json:"reason"`
+}
+
+// GCError represents an error during garbage collection.
+type GCError struct {
+	SandboxID uuid.UUID `json:"sandboxId"`
+	Error     string    `json:"error"`
+}
+
 // CheckPathOverlap checks if an existing sandbox scope and a proposed new scope overlap.
 // Returns the conflict type if there's an overlap, or empty string if no conflict.
 //

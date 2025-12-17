@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -74,13 +75,13 @@ func TestOverlayfsDriverDirectoryStructure(t *testing.T) {
 	if paths.LowerDir != projectDir {
 		t.Errorf("LowerDir = %q, want %q", paths.LowerDir, projectDir)
 	}
-	if !filepath.HasPrefix(paths.UpperDir, tmpDir) {
+	if !strings.HasPrefix(paths.UpperDir, tmpDir) {
 		t.Errorf("UpperDir should be under base dir")
 	}
-	if !filepath.HasPrefix(paths.WorkDir, tmpDir) {
+	if !strings.HasPrefix(paths.WorkDir, tmpDir) {
 		t.Errorf("WorkDir should be under base dir")
 	}
-	if !filepath.HasPrefix(paths.MergedDir, tmpDir) {
+	if !strings.HasPrefix(paths.MergedDir, tmpDir) {
 		t.Errorf("MergedDir should be under base dir")
 	}
 

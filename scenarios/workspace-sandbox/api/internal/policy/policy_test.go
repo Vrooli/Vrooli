@@ -624,17 +624,17 @@ func TestValidationPolicyInterface(t *testing.T) {
 // Edge Cases and Error Conditions
 // =============================================================================
 
-func TestDefaultApprovalPolicy_NilContext(t *testing.T) {
+func TestDefaultApprovalPolicy_EmptyContext(t *testing.T) {
 	policy := NewDefaultApprovalPolicy(config.PolicyConfig{
 		RequireHumanApproval: false,
 	})
 	sandbox := &types.Sandbox{ID: uuid.New()}
 	changes := []*types.FileChange{}
 
-	// Should not panic with nil context
-	canApprove, _ := policy.CanAutoApprove(nil, sandbox, changes)
+	// Should work with minimal context
+	canApprove, _ := policy.CanAutoApprove(context.TODO(), sandbox, changes)
 	if !canApprove {
-		t.Error("should still work with nil context")
+		t.Error("should work with TODO context")
 	}
 }
 

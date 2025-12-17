@@ -57,6 +57,11 @@ type Repository interface {
 
 	// BeginTx starts a new transaction and returns a Repository scoped to it.
 	BeginTx(ctx context.Context) (TxRepository, error)
+
+	// --- GC Support [OT-P1-003] ---
+
+	// GetGCCandidates returns sandboxes eligible for garbage collection based on policy.
+	GetGCCandidates(ctx context.Context, policy *types.GCPolicy, limit int) ([]*types.Sandbox, error)
 }
 
 // TxRepository is a Repository bound to a transaction.
@@ -882,4 +887,144 @@ func (r *TxSandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *typ
 // BeginTx is not supported within transactions (nested transactions not supported).
 func (r *TxSandboxRepository) BeginTx(ctx context.Context) (TxRepository, error) {
 	return nil, fmt.Errorf("nested transactions not supported")
+}
+
+// GetGCCandidates is not supported within transactions.
+func (r *TxSandboxRepository) GetGCCandidates(ctx context.Context, policy *types.GCPolicy, limit int) ([]*types.Sandbox, error) {
+	return nil, fmt.Errorf("GetGCCandidates not implemented for transactions")
+}
+
+// --- GC Support [OT-P1-003] ---
+
+// GetGCCandidates returns sandboxes eligible for garbage collection based on policy.
+// It builds a query that finds sandboxes matching any of the policy criteria.
+// Results are ordered by created_at (oldest first) to prioritize old sandboxes.
+func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.GCPolicy, limit int) ([]*types.Sandbox, error) {
+	if policy == nil {
+		defaultPolicy := types.DefaultGCPolicy()
+		policy = &defaultPolicy
+	}
+
+	qb := newQueryBuilder()
+	now := time.Now()
+
+	// Build status filter - never touch active or creating sandboxes
+	statuses := policy.Statuses
+	if len(statuses) == 0 {
+		// Default: only collect stopped, error, and optionally terminal states
+		statuses = []types.Status{types.StatusStopped, types.StatusError}
+		if policy.IncludeTerminal {
+			statuses = append(statuses, types.StatusApproved, types.StatusRejected)
+		}
+	}
+	// Ensure we never accidentally collect active or creating sandboxes
+	safeStatuses := make([]types.Status, 0, len(statuses))
+	for _, s := range statuses {
+		if s != types.StatusActive && s != types.StatusCreating {
+			safeStatuses = append(safeStatuses, s)
+		}
+	}
+	if len(safeStatuses) == 0 {
+		// No valid statuses - return empty result
+		return []*types.Sandbox{}, nil
+	}
+	qb.addInCondition("status", safeStatuses)
+
+	// Build OR conditions for policy criteria
+	var orConditions []string
+
+	// MaxAge: sandboxes older than this threshold
+	if policy.MaxAge > 0 {
+		cutoff := now.Add(-policy.MaxAge)
+		orConditions = append(orConditions, fmt.Sprintf("created_at < $%d", qb.nextArgNum()))
+		qb.args = append(qb.args, cutoff)
+		qb.argNum++
+	}
+
+	// IdleTimeout: sandboxes not used recently
+	if policy.IdleTimeout > 0 {
+		idleCutoff := now.Add(-policy.IdleTimeout)
+		orConditions = append(orConditions, fmt.Sprintf("last_used_at < $%d", qb.nextArgNum()))
+		qb.args = append(qb.args, idleCutoff)
+		qb.argNum++
+	}
+
+	// TerminalDelay: approved/rejected sandboxes after delay
+	if policy.IncludeTerminal && policy.TerminalDelay > 0 {
+		terminalCutoff := now.Add(-policy.TerminalDelay)
+		orConditions = append(orConditions,
+			fmt.Sprintf("(status IN ('approved', 'rejected') AND (approved_at < $%d OR stopped_at < $%d))", qb.nextArgNum(), qb.nextArgNum()+1))
+		qb.args = append(qb.args, terminalCutoff, terminalCutoff)
+		qb.argNum += 2
+	}
+
+	// If no policy criteria specified, don't return any candidates
+	if len(orConditions) == 0 {
+		return []*types.Sandbox{}, nil
+	}
+
+	// Build the final query
+	whereClause := qb.whereClause()
+	if whereClause != "" {
+		whereClause += " AND (" + strings.Join(orConditions, " OR ") + ")"
+	} else {
+		whereClause = "WHERE (" + strings.Join(orConditions, " OR ") + ")"
+	}
+
+	// Apply limit
+	if limit <= 0 {
+		limit = 1000 // Default limit
+	}
+	limitArg := qb.nextArgNum()
+
+	query := `
+		SELECT id, scope_path, project_root, owner, owner_type, status, error_message,
+			created_at, last_used_at, stopped_at, approved_at, deleted_at,
+			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
+			size_bytes, file_count, active_pids, session_count, tags, metadata,
+			COALESCE(idempotency_key, ''), updated_at, version
+		FROM sandboxes
+		` + whereClause + `
+		ORDER BY created_at ASC
+		LIMIT $` + strconv.Itoa(limitArg)
+
+	qb.args = append(qb.args, limit)
+
+	rows, err := r.db.QueryContext(ctx, query, qb.args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query GC candidates: %w", err)
+	}
+	defer rows.Close()
+
+	var sandboxes []*types.Sandbox
+	for rows.Next() {
+		s := &types.Sandbox{}
+		var metadataJSON []byte
+		var tags pq.StringArray
+		var activePIDs pq.Int64Array
+
+		err := rows.Scan(
+			&s.ID, &s.ScopePath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+			&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
+			&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
+			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
+			&s.IdempotencyKey, &s.UpdatedAt, &s.Version,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan GC candidate: %w", err)
+		}
+
+		s.Tags = tags
+		s.ActivePIDs = make([]int, len(activePIDs))
+		for i, pid := range activePIDs {
+			s.ActivePIDs[i] = int(pid)
+		}
+		if len(metadataJSON) > 0 {
+			json.Unmarshal(metadataJSON, &s.Metadata)
+		}
+
+		sandboxes = append(sandboxes, s)
+	}
+
+	return sandboxes, nil
 }

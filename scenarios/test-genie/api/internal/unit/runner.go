@@ -21,6 +21,24 @@ type Config struct {
 	ScenarioName string
 }
 
+// TestingJSONUnitConfig represents the "unit" section of testing.json.
+// This is loaded from .vrooli/testing.json to customize unit test behavior.
+type TestingJSONUnitConfig struct {
+	Languages struct {
+		Go     *LanguageConfig `json:"go,omitempty"`
+		Node   *LanguageConfig `json:"node,omitempty"`
+		Python *LanguageConfig `json:"python,omitempty"`
+		Shell  *LanguageConfig `json:"shell,omitempty"`
+	} `json:"languages,omitempty"`
+}
+
+// LanguageConfig holds per-language configuration options.
+type LanguageConfig struct {
+	// Exclude is a list of relative paths to exclude from testing/linting.
+	// For shell, this excludes files from bash -n syntax checking.
+	Exclude []string `json:"exclude,omitempty"`
+}
+
 // Runner orchestrates unit test execution across all languages.
 type Runner struct {
 	config    Config
@@ -210,6 +228,15 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 // createDefaultRunners creates the default set of language runners.
 // This is called when no custom runners are provided.
 func (r *Runner) createDefaultRunners() []LanguageRunner {
+	// Load testing.json config for language-specific settings
+	unitConfig := r.loadTestingJSONConfig()
+
+	// Extract shell exclude list
+	var shellExclude []string
+	if unitConfig.Languages.Shell != nil {
+		shellExclude = unitConfig.Languages.Shell.Exclude
+	}
+
 	return []LanguageRunner{
 		golang.New(golang.Config{
 			ScenarioDir: r.config.ScenarioDir,
@@ -229,8 +256,19 @@ func (r *Runner) createDefaultRunners() []LanguageRunner {
 		shell.New(shell.Config{
 			ScenarioDir:  r.config.ScenarioDir,
 			ScenarioName: r.config.ScenarioName,
+			Exclude:      shellExclude,
 			Executor:     r.executor,
 			LogWriter:    r.logWriter,
 		}),
 	}
+}
+
+// loadTestingJSONConfig loads unit test configuration from .vrooli/testing.json.
+// Returns empty config if file doesn't exist or can't be parsed.
+func (r *Runner) loadTestingJSONConfig() TestingJSONUnitConfig {
+	var cfg TestingJSONUnitConfig
+	if err := shared.MergePhaseConfig(r.config.ScenarioDir, "unit", &cfg); err != nil {
+		shared.LogWarn(r.logWriter, "failed to load unit config from testing.json: %v", err)
+	}
+	return cfg
 }
