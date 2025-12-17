@@ -193,6 +193,49 @@ type InvalidReferenceRule struct{}
 
 func (r *InvalidReferenceRule) Name() string { return "invalid_reference" }
 
+// ParsedRef represents a parsed validation reference.
+// Refs can be in format "file/path.go" or "file/path.go::SymbolName"
+type ParsedRef struct {
+	FilePath string // The file path portion (before ::)
+	Symbol   string // The symbol name (after ::), empty if not specified
+	Raw      string // The original raw ref string
+}
+
+// ParseRef parses a validation ref string into its components.
+// Supports formats:
+//   - "path/to/file.go" -> FilePath="path/to/file.go", Symbol=""
+//   - "path/to/file.go::TestFunction" -> FilePath="path/to/file.go", Symbol="TestFunction"
+//   - "path/to/file.bats::test name with spaces" -> FilePath="path/to/file.bats", Symbol="test name with spaces"
+//
+// Edge cases handled gracefully:
+//   - Empty ref -> empty FilePath and Symbol
+//   - "::symbol" (no file) -> FilePath="", Symbol="symbol"
+//   - "file::" (empty symbol) -> FilePath="file", Symbol=""
+//   - "file::sym::bol" (multiple ::) -> FilePath="file", Symbol="sym::bol"
+func ParseRef(ref string) ParsedRef {
+	parsed := ParsedRef{Raw: ref}
+
+	if ref == "" {
+		return parsed
+	}
+
+	// Find the first :: separator
+	idx := strings.Index(ref, "::")
+	if idx == -1 {
+		// No separator, entire ref is the file path
+		parsed.FilePath = ref
+		return parsed
+	}
+
+	// Split at the first :: (allows :: in symbol names for edge cases)
+	parsed.FilePath = ref[:idx]
+	if idx+2 < len(ref) {
+		parsed.Symbol = ref[idx+2:]
+	}
+
+	return parsed
+}
+
 func (r *InvalidReferenceRule) Check(ctx context.Context, rctx RuleContext) []types.ValidationIssue {
 	var issues []types.ValidationIssue
 
@@ -212,14 +255,29 @@ func (r *InvalidReferenceRule) Check(ctx context.Context, rctx RuleContext) []ty
 					continue
 				}
 
-				// Check if file exists
-				refPath := filepath.Join(rctx.ScenarioRoot, val.Ref)
+				// Parse the ref to extract file path and optional symbol
+				parsed := ParseRef(val.Ref)
+
+				// If no file path (e.g., "::Symbol"), that's a malformed ref
+				if parsed.FilePath == "" {
+					issues = append(issues, types.ValidationIssue{
+						FilePath:      module.FilePath,
+						RequirementID: req.ID,
+						Field:         "validation.ref",
+						Message:       "validation ref is malformed (missing file path): " + val.Ref,
+						Severity:      types.SeverityWarning,
+					})
+					continue
+				}
+
+				// Check if file exists using the extracted file path
+				refPath := filepath.Join(rctx.ScenarioRoot, parsed.FilePath)
 				if !rctx.Reader.Exists(refPath) {
 					// Try alternative paths
 					altPaths := []string{
-						filepath.Join(rctx.ScenarioRoot, "api", val.Ref),
-						filepath.Join(rctx.ScenarioRoot, "ui", val.Ref),
-						filepath.Join(rctx.ScenarioRoot, "test", val.Ref),
+						filepath.Join(rctx.ScenarioRoot, "api", parsed.FilePath),
+						filepath.Join(rctx.ScenarioRoot, "ui", parsed.FilePath),
+						filepath.Join(rctx.ScenarioRoot, "test", parsed.FilePath),
 					}
 
 					found := false
@@ -235,7 +293,7 @@ func (r *InvalidReferenceRule) Check(ctx context.Context, rctx RuleContext) []ty
 							FilePath:      module.FilePath,
 							RequirementID: req.ID,
 							Field:         "validation.ref",
-							Message:       "validation references non-existent file: " + val.Ref,
+							Message:       "validation references non-existent file: " + parsed.FilePath,
 							Severity:      types.SeverityWarning,
 						})
 					}

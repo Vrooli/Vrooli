@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/fs"
 	"os"
+	"strings"
 	"testing"
 
 	"test-genie/internal/requirements/parsing"
@@ -377,6 +378,120 @@ func TestMissingTitleRule_Check_MissingTitle(t *testing.T) {
 }
 
 // =============================================================================
+// ParseRef Tests
+// =============================================================================
+
+func TestParseRef_SimpleFilePath(t *testing.T) {
+	parsed := ParseRef("path/to/file.go")
+
+	if parsed.FilePath != "path/to/file.go" {
+		t.Errorf("expected FilePath 'path/to/file.go', got: %s", parsed.FilePath)
+	}
+	if parsed.Symbol != "" {
+		t.Errorf("expected empty Symbol, got: %s", parsed.Symbol)
+	}
+	if parsed.Raw != "path/to/file.go" {
+		t.Errorf("expected Raw 'path/to/file.go', got: %s", parsed.Raw)
+	}
+}
+
+func TestParseRef_WithSymbol(t *testing.T) {
+	parsed := ParseRef("api/internal/handlers/handlers_test.go::TestHealthHandler")
+
+	if parsed.FilePath != "api/internal/handlers/handlers_test.go" {
+		t.Errorf("expected FilePath 'api/internal/handlers/handlers_test.go', got: %s", parsed.FilePath)
+	}
+	if parsed.Symbol != "TestHealthHandler" {
+		t.Errorf("expected Symbol 'TestHealthHandler', got: %s", parsed.Symbol)
+	}
+}
+
+func TestParseRef_BatsTestWithSpaces(t *testing.T) {
+	parsed := ParseRef("bas/cases/health-check/api/health_endpoint.bats::health endpoint returns 200 OK")
+
+	if parsed.FilePath != "bas/cases/health-check/api/health_endpoint.bats" {
+		t.Errorf("expected FilePath 'bas/cases/health-check/api/health_endpoint.bats', got: %s", parsed.FilePath)
+	}
+	if parsed.Symbol != "health endpoint returns 200 OK" {
+		t.Errorf("expected Symbol 'health endpoint returns 200 OK', got: %s", parsed.Symbol)
+	}
+}
+
+func TestParseRef_EmptyRef(t *testing.T) {
+	parsed := ParseRef("")
+
+	if parsed.FilePath != "" {
+		t.Errorf("expected empty FilePath, got: %s", parsed.FilePath)
+	}
+	if parsed.Symbol != "" {
+		t.Errorf("expected empty Symbol, got: %s", parsed.Symbol)
+	}
+	if parsed.Raw != "" {
+		t.Errorf("expected empty Raw, got: %s", parsed.Raw)
+	}
+}
+
+func TestParseRef_OnlySymbol(t *testing.T) {
+	// Malformed: no file path before ::
+	parsed := ParseRef("::TestFunction")
+
+	if parsed.FilePath != "" {
+		t.Errorf("expected empty FilePath for malformed ref, got: %s", parsed.FilePath)
+	}
+	if parsed.Symbol != "TestFunction" {
+		t.Errorf("expected Symbol 'TestFunction', got: %s", parsed.Symbol)
+	}
+}
+
+func TestParseRef_EmptySymbol(t *testing.T) {
+	// File path with trailing :: but no symbol
+	parsed := ParseRef("file.go::")
+
+	if parsed.FilePath != "file.go" {
+		t.Errorf("expected FilePath 'file.go', got: %s", parsed.FilePath)
+	}
+	if parsed.Symbol != "" {
+		t.Errorf("expected empty Symbol, got: %s", parsed.Symbol)
+	}
+}
+
+func TestParseRef_MultipleColonSeparators(t *testing.T) {
+	// Multiple :: in the ref - should split at first occurrence
+	parsed := ParseRef("file.go::Symbol::WithColons")
+
+	if parsed.FilePath != "file.go" {
+		t.Errorf("expected FilePath 'file.go', got: %s", parsed.FilePath)
+	}
+	if parsed.Symbol != "Symbol::WithColons" {
+		t.Errorf("expected Symbol 'Symbol::WithColons', got: %s", parsed.Symbol)
+	}
+}
+
+func TestParseRef_SingleColon(t *testing.T) {
+	// Single colon should NOT be treated as separator
+	parsed := ParseRef("C:/path/to/file.go")
+
+	if parsed.FilePath != "C:/path/to/file.go" {
+		t.Errorf("expected FilePath 'C:/path/to/file.go', got: %s", parsed.FilePath)
+	}
+	if parsed.Symbol != "" {
+		t.Errorf("expected empty Symbol, got: %s", parsed.Symbol)
+	}
+}
+
+func TestParseRef_WindowsPathWithSymbol(t *testing.T) {
+	// Windows-style path with symbol
+	parsed := ParseRef("C:/path/to/file.go::TestFunc")
+
+	if parsed.FilePath != "C:/path/to/file.go" {
+		t.Errorf("expected FilePath 'C:/path/to/file.go', got: %s", parsed.FilePath)
+	}
+	if parsed.Symbol != "TestFunc" {
+		t.Errorf("expected Symbol 'TestFunc', got: %s", parsed.Symbol)
+	}
+}
+
+// =============================================================================
 // InvalidReferenceRule Tests
 // =============================================================================
 
@@ -551,6 +666,211 @@ func TestInvalidReferenceRule_Check_AlternativePaths(t *testing.T) {
 	// Should find file in alternative path
 	if len(issues) != 0 {
 		t.Errorf("expected no issues when file found in alternative path, got: %d", len(issues))
+	}
+}
+
+func TestInvalidReferenceRule_Check_RefWithSymbol(t *testing.T) {
+	// Test that refs with :: symbol separator work correctly
+	rule := &InvalidReferenceRule{}
+	reader := newMemReader()
+	reader.AddFile("/test/scenario/api/internal/handlers/handlers_test.go", []byte("package handlers\n\nfunc TestHealthHandler(t *testing.T) {}"))
+
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/scenario/requirements/module.json",
+		Requirements: []types.Requirement{
+			{
+				ID: "REQ-001",
+				Validations: []types.Validation{
+					// This ref includes a test function name after ::
+					{Type: types.ValTypeTest, Ref: "api/internal/handlers/handlers_test.go::TestHealthHandler"},
+				},
+			},
+		},
+	}
+	index.AddModule(module)
+
+	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
+	issues := rule.Check(context.Background(), rctx)
+
+	// Should find file (ignoring the ::TestHealthHandler suffix)
+	if len(issues) != 0 {
+		t.Errorf("expected no issues for ref with symbol suffix, got: %d", len(issues))
+		for _, issue := range issues {
+			t.Logf("  Issue: %s", issue.Message)
+		}
+	}
+}
+
+func TestInvalidReferenceRule_Check_BatsRefWithTestName(t *testing.T) {
+	// Test BATS test refs with test names containing spaces
+	rule := &InvalidReferenceRule{}
+	reader := newMemReader()
+	reader.AddFile("/test/scenario/bas/cases/health-check/api/health_endpoint.bats", []byte("@test \"health endpoint returns 200 OK\" {}"))
+
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/scenario/requirements/module.json",
+		Requirements: []types.Requirement{
+			{
+				ID: "REQ-001",
+				Validations: []types.Validation{
+					{Type: types.ValTypeTest, Ref: "bas/cases/health-check/api/health_endpoint.bats::health endpoint returns 200 OK"},
+				},
+			},
+		},
+	}
+	index.AddModule(module)
+
+	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
+	issues := rule.Check(context.Background(), rctx)
+
+	// Should find file (ignoring the test name suffix with spaces)
+	if len(issues) != 0 {
+		t.Errorf("expected no issues for BATS ref with test name, got: %d", len(issues))
+		for _, issue := range issues {
+			t.Logf("  Issue: %s", issue.Message)
+		}
+	}
+}
+
+func TestInvalidReferenceRule_Check_RefWithSymbol_FileMissing(t *testing.T) {
+	// Test that missing files are still detected even with :: symbol
+	rule := &InvalidReferenceRule{}
+	reader := newMemReader()
+	// Don't add the file
+
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/scenario/requirements/module.json",
+		Requirements: []types.Requirement{
+			{
+				ID: "REQ-001",
+				Validations: []types.Validation{
+					{Type: types.ValTypeTest, Ref: "nonexistent.go::TestFunction"},
+				},
+			},
+		},
+	}
+	index.AddModule(module)
+
+	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
+	issues := rule.Check(context.Background(), rctx)
+
+	// Should report missing file
+	if len(issues) != 1 {
+		t.Errorf("expected 1 issue for missing file with symbol ref, got: %d", len(issues))
+	}
+	if len(issues) > 0 {
+		// Error message should show the file path, not the full ref with ::
+		if !strings.Contains(issues[0].Message, "nonexistent.go") {
+			t.Errorf("expected message to contain file path 'nonexistent.go', got: %s", issues[0].Message)
+		}
+		// Should NOT contain the symbol name in the error
+		if strings.Contains(issues[0].Message, "TestFunction") {
+			t.Errorf("expected message to NOT contain symbol 'TestFunction', got: %s", issues[0].Message)
+		}
+	}
+}
+
+func TestInvalidReferenceRule_Check_MalformedRef_NoFilePath(t *testing.T) {
+	// Test malformed ref with no file path (only ::symbol)
+	rule := &InvalidReferenceRule{}
+	reader := newMemReader()
+
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/scenario/requirements/module.json",
+		Requirements: []types.Requirement{
+			{
+				ID: "REQ-001",
+				Validations: []types.Validation{
+					{Type: types.ValTypeTest, Ref: "::TestFunction"},
+				},
+			},
+		},
+	}
+	index.AddModule(module)
+
+	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
+	issues := rule.Check(context.Background(), rctx)
+
+	// Should report malformed ref
+	if len(issues) != 1 {
+		t.Errorf("expected 1 issue for malformed ref, got: %d", len(issues))
+	}
+	if len(issues) > 0 {
+		if !strings.Contains(issues[0].Message, "malformed") {
+			t.Errorf("expected message to indicate malformed ref, got: %s", issues[0].Message)
+		}
+	}
+}
+
+func TestInvalidReferenceRule_Check_MultipleRefsWithSymbols(t *testing.T) {
+	// Test multiple refs in same requirement, some with symbols, some without
+	rule := &InvalidReferenceRule{}
+	reader := newMemReader()
+	reader.AddFile("/test/scenario/api/handlers_test.go", []byte("test"))
+	reader.AddFile("/test/scenario/api/service_test.go", []byte("test"))
+	// Don't add missing.go
+
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/scenario/requirements/module.json",
+		Requirements: []types.Requirement{
+			{
+				ID: "REQ-001",
+				Validations: []types.Validation{
+					{Type: types.ValTypeTest, Ref: "api/handlers_test.go::TestCreate"},      // exists
+					{Type: types.ValTypeTest, Ref: "api/service_test.go"},                   // exists, no symbol
+					{Type: types.ValTypeTest, Ref: "api/missing.go::TestMissing"},           // missing
+					{Type: types.ValTypeManual, Ref: "api/also_missing.go::ManualTest"},     // manual - skipped
+				},
+			},
+		},
+	}
+	index.AddModule(module)
+
+	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
+	issues := rule.Check(context.Background(), rctx)
+
+	// Should only report 1 issue (missing.go), manual is skipped
+	if len(issues) != 1 {
+		t.Errorf("expected 1 issue, got: %d", len(issues))
+		for _, issue := range issues {
+			t.Logf("  Issue: %s", issue.Message)
+		}
+	}
+}
+
+func TestInvalidReferenceRule_Check_AlternativePathsWithSymbol(t *testing.T) {
+	// Test that alternative paths work with symbol refs
+	rule := &InvalidReferenceRule{}
+	reader := newMemReader()
+	// File exists in api/ subdirectory
+	reader.AddFile("/test/scenario/api/handlers_test.go", []byte("test"))
+
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{
+		FilePath: "/test/scenario/requirements/module.json",
+		Requirements: []types.Requirement{
+			{
+				ID: "REQ-001",
+				Validations: []types.Validation{
+					// ref doesn't include api/ prefix, but file is in api/
+					{Type: types.ValTypeTest, Ref: "handlers_test.go::TestFunction"},
+				},
+			},
+		},
+	}
+	index.AddModule(module)
+
+	rctx := RuleContext{Index: index, ScenarioRoot: "/test/scenario", Reader: reader}
+	issues := rule.Check(context.Background(), rctx)
+
+	// Should find file in alternative api/ path
+	if len(issues) != 0 {
+		t.Errorf("expected no issues when file found in alternative path with symbol ref, got: %d", len(issues))
 	}
 }
 

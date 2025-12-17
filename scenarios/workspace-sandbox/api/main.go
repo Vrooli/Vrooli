@@ -123,7 +123,7 @@ func NewServer() (*Server, error) {
 
 func (s *Server) setupRoutes() {
 	s.router.Use(s.structuredLoggingMiddleware)
-	s.router.Use(corsMiddleware)
+	s.router.Use(s.corsMiddleware)
 
 	h := s.handlers
 
@@ -218,10 +218,39 @@ func (s *Server) structuredLoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// corsMiddleware adds CORS headers.
-func corsMiddleware(next http.Handler) http.Handler {
+// corsMiddleware returns a handler that adds CORS headers based on config.
+// If CORSAllowedOrigins is empty, it allows the UI port origin for local dev.
+// Otherwise, it checks the Origin header against the allowed list.
+func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+
+		allowedOrigins := s.config.Server.CORSAllowedOrigins
+		if len(allowedOrigins) == 0 {
+			// Default: allow local UI port for development
+			// This is more secure than "*" while still supporting local dev
+			uiPort := os.Getenv("UI_PORT")
+			if uiPort != "" {
+				allowedOrigins = []string{
+					"http://localhost:" + uiPort,
+					"http://127.0.0.1:" + uiPort,
+				}
+			}
+		}
+
+		// Check if origin is allowed
+		originAllowed := false
+		for _, allowed := range allowedOrigins {
+			if origin == allowed {
+				originAllowed = true
+				break
+			}
+		}
+
+		if originAllowed && origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 

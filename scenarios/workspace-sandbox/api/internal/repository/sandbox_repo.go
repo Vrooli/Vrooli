@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -200,69 +201,85 @@ func (r *SandboxRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// queryBuilder helps construct parameterized SQL queries safely.
+// All user-provided values are added as parameterized arguments, never interpolated.
+type queryBuilder struct {
+	conditions []string
+	args       []interface{}
+	argNum     int
+}
+
+func newQueryBuilder() *queryBuilder {
+	return &queryBuilder{argNum: 1}
+}
+
+func (qb *queryBuilder) addCondition(column string, op string, value interface{}) {
+	qb.conditions = append(qb.conditions, column+" "+op+" $"+strconv.Itoa(qb.argNum))
+	qb.args = append(qb.args, value)
+	qb.argNum++
+}
+
+func (qb *queryBuilder) addInCondition(column string, values []types.Status) {
+	if len(values) == 0 {
+		return
+	}
+	placeholders := make([]string, len(values))
+	for i, v := range values {
+		placeholders[i] = "$" + strconv.Itoa(qb.argNum)
+		qb.args = append(qb.args, v)
+		qb.argNum++
+	}
+	qb.conditions = append(qb.conditions, column+" IN ("+strings.Join(placeholders, ",")+")")
+}
+
+func (qb *queryBuilder) whereClause() string {
+	if len(qb.conditions) == 0 {
+		return ""
+	}
+	return "WHERE " + strings.Join(qb.conditions, " AND ")
+}
+
+func (qb *queryBuilder) nextArgNum() int {
+	return qb.argNum
+}
+
 // List retrieves sandboxes matching the filter.
+// Uses queryBuilder to safely construct parameterized queries.
 func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
-	var conditions []string
-	var args []interface{}
-	argNum := 1
+	qb := newQueryBuilder()
 
-	// Build WHERE conditions
+	// Build WHERE conditions - all values are parameterized
 	if len(filter.Status) > 0 {
-		placeholders := make([]string, len(filter.Status))
-		for i, s := range filter.Status {
-			placeholders[i] = fmt.Sprintf("$%d", argNum)
-			args = append(args, s)
-			argNum++
-		}
-		conditions = append(conditions, fmt.Sprintf("status IN (%s)", strings.Join(placeholders, ",")))
+		qb.addInCondition("status", filter.Status)
 	}
-
 	if filter.Owner != "" {
-		conditions = append(conditions, fmt.Sprintf("owner = $%d", argNum))
-		args = append(args, filter.Owner)
-		argNum++
+		qb.addCondition("owner", "=", filter.Owner)
 	}
-
 	if filter.ProjectRoot != "" {
-		conditions = append(conditions, fmt.Sprintf("project_root = $%d", argNum))
-		args = append(args, filter.ProjectRoot)
-		argNum++
+		qb.addCondition("project_root", "=", filter.ProjectRoot)
 	}
-
 	if filter.ScopePath != "" {
-		conditions = append(conditions, fmt.Sprintf("scope_path = $%d", argNum))
-		args = append(args, filter.ScopePath)
-		argNum++
+		qb.addCondition("scope_path", "=", filter.ScopePath)
 	}
-
 	if !filter.CreatedFrom.IsZero() {
-		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", argNum))
-		args = append(args, filter.CreatedFrom)
-		argNum++
+		qb.addCondition("created_at", ">=", filter.CreatedFrom)
 	}
-
 	if !filter.CreatedTo.IsZero() {
-		conditions = append(conditions, fmt.Sprintf("created_at <= $%d", argNum))
-		args = append(args, filter.CreatedTo)
-		argNum++
+		qb.addCondition("created_at", "<=", filter.CreatedTo)
 	}
 
-	// Build query
-	whereClause := ""
-	if len(conditions) > 0 {
-		whereClause = "WHERE " + strings.Join(conditions, " AND ")
-	}
+	whereClause := qb.whereClause()
+	args := qb.args
 
-	// Get total count
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM sandboxes %s", whereClause)
+	// Get total count using parameterized query
+	// The whereClause contains only column names and $N placeholders, never user data
+	countQuery := "SELECT COUNT(*) FROM sandboxes " + whereClause
 	var totalCount int
 	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalCount); err != nil {
 		return nil, fmt.Errorf("failed to count sandboxes: %w", err)
 	}
 
-	// Apply pagination
-	// Default limit is applied at the handler/service layer from config.
-	// Here we just ensure reasonable bounds.
+	// Apply pagination with reasonable bounds
 	limit := filter.Limit
 	if limit <= 0 {
 		limit = 100 // Fallback default; prefer config.Limits.DefaultListLimit
@@ -275,17 +292,19 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 		offset = 0
 	}
 
-	query := fmt.Sprintf(`
+	// Build main query with parameterized LIMIT/OFFSET
+	limitArg := qb.nextArgNum()
+	offsetArg := limitArg + 1
+	query := `
 		SELECT id, scope_path, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata,
 			COALESCE(idempotency_key, ''), updated_at, version
 		FROM sandboxes
-		%s
+		` + whereClause + `
 		ORDER BY created_at DESC
-		LIMIT $%d OFFSET $%d`,
-		whereClause, argNum, argNum+1)
+		LIMIT $` + strconv.Itoa(limitArg) + ` OFFSET $` + strconv.Itoa(offsetArg)
 
 	args = append(args, limit, offset)
 
