@@ -4,7 +4,7 @@ import type { Config } from '../config';
 import type { StartSessionRequest, StartSessionResponse, SessionSpec } from '../types';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
 import { InvalidInstructionError } from '../utils';
-import { startFrameStreaming } from './record-mode/recording-lifecycle';
+import { startFrameStreaming } from '../frame-streaming';
 
 /**
  * Start session endpoint

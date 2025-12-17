@@ -1,4 +1,3 @@
-import { chromium, Browser } from 'playwright';
 import type { SessionSpec, SessionState, SessionPhase } from '../types';
 import type { Config } from '../config';
 import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, LogContext } from '../utils';
@@ -7,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { removeRecordingBuffer } from '../recording/buffer';
 import { clearSessionRoutes } from '../handlers/network';
 import { clearSessionDownloadCache } from '../handlers/download';
+import { BrowserManager, type BrowserStatus } from './browser-manager';
 
 /**
  * SessionManager - Browser Session Lifecycle Management
@@ -26,7 +26,7 @@ import { clearSessionDownloadCache } from '../handlers/download';
  * - Session CRUD (create, read, update, delete)
  * - Resource limits (max concurrent sessions)
  * - Idle timeout cleanup
- * - Browser process management (single shared browser instance)
+ * - Browser process management (delegated to BrowserManager)
  *
  * IDEMPOTENCY GUARANTEES:
  * - startSession with same execution_id returns existing session (safe for retries)
@@ -36,15 +36,12 @@ import { clearSessionDownloadCache } from '../handlers/download';
  * CONCURRENCY SAFETY:
  * - closeSession may be called from multiple sources (idle cleanup, explicit close)
  * - Uses closingSessionIds Set to prevent double-close
- * - Uses browserLaunchPromise to prevent multiple browser launches
+ * - Browser concurrency handled by BrowserManager
  */
 export class SessionManager {
   private sessions: Map<string, SessionState> = new Map();
-  private browser: Browser | null = null;
+  private browserManager: BrowserManager;
   private config: Config;
-
-  private browserVerified = false;
-  private browserError: string | null = null;
 
   /** Track sessions currently being closed to prevent double-close */
   private closingSessionIds: Set<string> = new Set();
@@ -56,16 +53,9 @@ export class SessionManager {
    */
   private pendingSessionCreations: Map<string, Promise<{ sessionId: string; reused: boolean; createdAt: Date }>> = new Map();
 
-  /**
-   * Lock to prevent concurrent browser launches.
-   * Holds a promise that resolves when browser launch completes.
-   * This prevents the race condition where multiple startSession() calls
-   * could each launch their own browser instance.
-   */
-  private browserLaunchPromise: Promise<Browser> | null = null;
-
-  constructor(config: Config) {
+  constructor(config: Config, browserManager?: BrowserManager) {
     this.config = config;
+    this.browserManager = browserManager ?? new BrowserManager(config);
   }
 
   /**
@@ -74,130 +64,14 @@ export class SessionManager {
    * Returns null on success, error message on failure.
    */
   async verifyBrowserLaunch(): Promise<string | null> {
-    if (this.browserVerified) {
-      return this.browserError;
-    }
-
-    try {
-      logger.info('browser: verifying launch capability');
-      const browser = await this.getBrowser();
-
-      // Verify we can create a context and page
-      const context = await browser.newContext();
-      const page = await context.newPage();
-
-      // Verify basic navigation works
-      await page.goto('about:blank');
-
-      // Cleanup verification resources
-      await page.close();
-      await context.close();
-
-      this.browserVerified = true;
-      this.browserError = null;
-
-      logger.info('browser: verification successful', {
-        version: browser.version(),
-      });
-
-      return null;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.browserError = errorMessage;
-      this.browserVerified = true; // Mark as verified (we checked, it failed)
-
-      logger.error('browser: verification failed', {
-        error: errorMessage,
-        hint: 'Check that Chromium is installed and sandbox settings are correct',
-      });
-
-      return errorMessage;
-    }
+    return this.browserManager.verifyBrowserLaunch();
   }
 
   /**
-   * Get browser health status for health endpoint
+   * Get browser health status for health endpoint.
    */
-  getBrowserStatus(): { healthy: boolean; error?: string; version?: string } {
-    if (!this.browserVerified) {
-      return { healthy: false, error: 'Browser not yet verified' };
-    }
-
-    if (this.browserError) {
-      return { healthy: false, error: this.browserError };
-    }
-
-    if (this.browser && this.browser.isConnected()) {
-      return { healthy: true, version: this.browser.version() };
-    }
-
-    return { healthy: true };
-  }
-
-  /**
-   * Get or create shared browser instance.
-   *
-   * Temporal hardening:
-   * - Uses a lock (browserLaunchPromise) to prevent concurrent browser launches
-   * - Multiple concurrent calls will all await the same launch promise
-   * - If browser disconnects mid-launch, subsequent calls will retry
-   */
-  private async getBrowser(): Promise<Browser> {
-    // Fast path: browser already exists and is connected
-    if (this.browser && this.browser.isConnected()) {
-      return this.browser;
-    }
-
-    // If another call is already launching the browser, wait for it
-    if (this.browserLaunchPromise) {
-      logger.debug('browser: waiting for concurrent launch to complete');
-      try {
-        const browser = await this.browserLaunchPromise;
-        // Double-check it's still connected after await
-        if (browser.isConnected()) {
-          return browser;
-        }
-        // Browser disconnected during wait, fall through to launch new one
-      } catch (error) {
-        // Launch failed, fall through to try again
-        logger.debug('browser: concurrent launch failed, will retry', {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    // Create the launch promise BEFORE starting the launch
-    // This ensures concurrent calls will await this promise
-    this.browserLaunchPromise = this.launchBrowserInternal();
-
-    try {
-      this.browser = await this.browserLaunchPromise;
-      return this.browser;
-    } finally {
-      // Clear the promise after launch completes (success or failure)
-      // This allows retry on next call if launch failed
-      this.browserLaunchPromise = null;
-    }
-  }
-
-  /**
-   * Internal browser launch implementation.
-   * Separated from getBrowser() to make the locking logic clearer.
-   */
-  private async launchBrowserInternal(): Promise<Browser> {
-    logger.info('browser: launching', {
-      headless: this.config.browser.headless,
-      executablePath: this.config.browser.executablePath || 'auto',
-    });
-
-    const browser = await chromium.launch({
-      headless: this.config.browser.headless,
-      executablePath: this.config.browser.executablePath || undefined,
-      args: this.config.browser.args,
-    });
-
-    logger.info('browser: launched', { version: browser.version() });
-    return browser;
+  getBrowserStatus(): BrowserStatus {
+    return this.browserManager.getBrowserStatus();
   }
 
   /**
@@ -334,7 +208,7 @@ export class SessionManager {
       viewport: spec.viewport,
     });
 
-    const browser = await this.getBrowser();
+    const browser = await this.browserManager.getBrowser();
 
     // Build context
     const { context, harPath, tracePath, videoDir } = await buildContext(
@@ -804,13 +678,7 @@ export class SessionManager {
       await this.closeSession(sessionId);
     }
 
-    if (this.browser) {
-      await this.browser.close().catch((err) => {
-        logger.warn('Failed to close browser', { error: err.message });
-        metrics.cleanupFailures.inc({ operation: 'browser_close' });
-      });
-      this.browser = null;
-    }
+    await this.browserManager.shutdown();
 
     logger.info('session-manager: shutdown complete');
   }

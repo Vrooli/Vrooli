@@ -46,19 +46,14 @@ import {
   type ActionReplayResult,
   type SelectorValidation,
 } from './action-executor';
+import type { RecordingState } from './types';
+
+// Re-export for backwards compatibility
+export type { RecordingState } from './types';
 
 // =============================================================================
 // Types
 // =============================================================================
-
-/** Recording state */
-export interface RecordingState {
-  isRecording: boolean;
-  recordingId?: string;
-  sessionId: string;
-  actionCount: number;
-  startedAt?: string;
-}
 
 /** Callback invoked for each recorded TimelineEntry */
 export type RecordEntryCallback = (entry: TimelineEntry) => void | Promise<void>;

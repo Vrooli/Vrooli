@@ -17,17 +17,23 @@ Each module is classified by its stability:
 
 ```
 src/
-├── handlers/       # VOLATILE (by design) - Instruction execution
-├── recording/      # VOLATILE (by design) - Record mode feature
-├── telemetry/      # VOLATILE EDGE - Observability data capture
-├── routes/         # STABLE CORE + VOLATILE EDGE
-├── session/        # STABLE CORE - Session lifecycle
-├── outcome/        # STABLE CONTRACT - Wire format transformation
-├── types/          # Mixed - See types/index.ts for details
-├── utils/          # STABLE CORE - Infrastructure concerns
-├── config.ts       # VOLATILE EDGE - Configuration options
-├── constants.ts    # STABLE CORE - Hardcoded defaults
-└── server.ts       # STABLE CORE - HTTP server setup
+├── handlers/        # VOLATILE (by design) - Instruction execution
+├── recording/       # VOLATILE (by design) - Record mode feature
+├── telemetry/       # VOLATILE EDGE - Observability data capture
+├── frame-streaming/ # VOLATILE EDGE - Live frame streaming to UI
+├── infra/           # STABLE CORE - Cross-cutting infrastructure patterns
+├── routes/          # STABLE CORE + VOLATILE EDGE
+├── session/         # STABLE CORE - Session lifecycle
+│   ├── manager.ts        # Session CRUD operations
+│   └── browser-manager.ts # Browser lifecycle (launch, verify, shutdown)
+├── outcome/         # STABLE CONTRACT - Wire format transformation
+├── types/           # Mixed - See types/index.ts for details
+├── fps/             # STABLE CORE - Adaptive FPS control
+├── performance/     # VOLATILE EDGE - Performance metrics collection
+├── utils/           # STABLE CORE - Infrastructure concerns
+├── config.ts        # VOLATILE EDGE - Configuration options
+├── constants.ts     # STABLE CORE - Hardcoded defaults
+└── server.ts        # STABLE CORE - HTTP server setup
 ```
 
 ## Primary Change Axes
@@ -109,7 +115,26 @@ When adding new observability data:
 5. Add config options in `config.ts`
 6. Use collector in `routes/session-run.ts`
 
-### 5. Wire Format (LOW FREQUENCY, HIGH RISK)
+### 5. Frame Streaming (LOW-MEDIUM FREQUENCY)
+
+**Primary extension point:** `frame-streaming/`
+
+The frame streaming module handles live video streaming to the UI during recording:
+
+- **CDP Screencast** (preferred): Push-based streaming from Chrome compositor (30-60 FPS)
+- **Polling Fallback**: Pull-based screenshot capture with adaptive FPS
+
+Key files:
+- `frame-streaming/manager.ts` - Main streaming logic, WebSocket management
+- `frame-streaming/types.ts` - Types and constants
+- `routes/record-mode/screencast-streaming.ts` - CDP screencast implementation
+
+When modifying frame streaming:
+1. Configuration options are in `config.ts` under `frameStreaming`
+2. FPS control is handled by `fps/controller.ts`
+3. Performance metrics are collected by `performance/collector.ts`
+
+### 6. Wire Format (LOW FREQUENCY, HIGH RISK)
 
 **Primary extension point:** `types/contracts.ts` + `outcome/outcome-builder.ts`
 
@@ -122,6 +147,34 @@ When adding new observability data:
 ## Shotgun Surgery Mitigation
 
 The following patterns reduce multi-file changes:
+
+### Circuit Breaker Pattern
+
+`infra/circuit-breaker.ts` provides a reusable circuit breaker for failure-prone operations:
+
+```typescript
+import { createCircuitBreaker } from './infra';
+
+const breaker = createCircuitBreaker<string>({
+  maxFailures: 5,
+  resetTimeoutMs: 30_000,
+  name: 'my-service',
+});
+
+// Usage
+if (breaker.isOpen(key) && !breaker.tryEnterHalfOpen(key)) {
+  return; // Skip operation, circuit is open
+}
+try {
+  await riskyOperation();
+  breaker.recordSuccess(key);
+} catch (err) {
+  breaker.recordFailure(key);
+}
+```
+
+Currently used for callback streaming in record mode. Can be reused for any operation
+that may fail repeatedly (external APIs, network calls, etc.).
 
 ### Handler Registration
 
@@ -160,6 +213,8 @@ Handlers self-register via `getSupportedTypes()`. Adding a handler only requires
 | Recording Controller | `tests/unit/recording/controller.test.ts` |
 | Error Normalization | `tests/unit/utils/errors.test.ts` |
 | Session Lifecycle | `tests/unit/session/manager.test.ts` |
+| Circuit Breaker | `src/infra/circuit-breaker.test.ts` |
+| Browser Manager | `src/session/browser-manager.test.ts` |
 
 ## Architecture Decisions
 
@@ -193,3 +248,8 @@ The Go API expects flattened fields (`screenshot_base64` not `screenshot.base64`
 3. **Route grouping** - Group related routes (session/*, record/*) for cleaner registration
 4. **Telemetry pipeline** - Create composable collector pipeline for future types
 5. ~~**Selector strategy verification**~~ - No longer needed: reference file drift is acceptable
+6. ~~**Extract circuit breaker**~~ - ✅ Implemented in `infra/circuit-breaker.ts`
+7. ~~**Extract frame streaming**~~ - ✅ Implemented in `frame-streaming/`
+8. ~~**Extract browser manager**~~ - ✅ Implemented in `session/browser-manager.ts`
+9. **Unify result types** - HandlerResult, ActionReplayResult, and HandlerAdapterResult have similar shapes
+10. **Extract idempotency cache** - Currently inline in `routes/session-run.ts`
