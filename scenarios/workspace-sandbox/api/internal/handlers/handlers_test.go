@@ -364,7 +364,7 @@ func TestCreateSandboxScopeConflict(t *testing.T) {
 						ExistingID:    "abc123",
 						ExistingScope: "/project/src",
 						NewScope:      "/project/src/sub",
-						ConflictType:  types.ConflictTypeExistingIsAncestor,
+						ConflictType:  types.ConflictTypeExistingContainsNew,
 					},
 				},
 			}

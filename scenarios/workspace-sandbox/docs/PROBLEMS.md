@@ -80,12 +80,32 @@ This document tracks known issues, open questions, and ideas deferred for future
 - Direct diff viewer integration
 - Nice-to-have after core stabilizes
 
+### Assumptions Requiring Future Validation
+
+1. **Filesystem consistency during diff**: Assumes no writes occur while generating diff.
+   If an agent writes to the sandbox while diff is being generated, results may be inconsistent.
+   Future: Add optional file locking or copy-then-diff approach.
+
+2. **Mount persistence between calls**: Assumes mounted overlays remain stable.
+   If mount is unmounted externally (e.g., by system admin), operations will fail confusingly.
+   Future: Add mount verification before operations, with clear error messages.
+
+3. **External command availability**: Assumes `diff`, `git`, and `patch` are in PATH.
+   On minimal containers these may not be present.
+   Future: Check command availability at startup, report in health check.
+
+4. **UpperDir/LowerDir persistence**: Assumes these paths remain valid after sandbox creation.
+   If storage is removed or paths change, operations will fail.
+   Mitigated: Added existence checks in diff generation.
+
 ### Technical Debt to Address
 
 1. **Driver abstraction completeness**: Ensure interface covers all operations
-2. **Error message quality**: User-facing errors should guide resolution
+2. **Error message quality**: User-facing errors should guide resolution ✓ (Addressed - all errors now have hints)
 3. **Test coverage for edge cases**: Empty sandboxes, binary files, symlinks
 4. **Performance benchmarks**: Automated tracking of creation latency
+5. **Assumption documentation**: Document all assumptions in code comments (Partially addressed - key assumptions documented)
+6. **Property-based testing**: Path normalization should use property-based tests to catch edge cases
 
 ## Questions for Product/User Feedback
 
@@ -97,5 +117,5 @@ This document tracks known issues, open questions, and ideas deferred for future
 
 ---
 
-*Last updated: 2025-12-17 by Generator Agent*
+*Last updated: 2025-12-16 by Claude Opus 4.5 (Intent Clarification & Assumption Hardening)*
 *Next review: After P0 implementation*

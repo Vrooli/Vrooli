@@ -127,21 +127,47 @@ func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig
 	return s
 }
 
-// Create creates a new sandbox.
+// Create creates a new sandbox for the specified scope path.
+//
+// # Required Fields
+//
+// Either req.ProjectRoot must be set, or ServiceConfig.DefaultProjectRoot must
+// be configured. ScopePath is optional; if empty, defaults to the project root.
+//
+// # Assumptions Made
+//
+//   - The project root directory exists and is accessible
+//   - The driver is available (overlayfs on Linux)
+//   - The database is reachable for metadata storage
+//
+// # Errors
+//
+// Returns ValidationError for invalid input, ScopeConflictError if the scope
+// overlaps with an existing sandbox, or DriverError if mounting fails.
 func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error) {
-	// Determine project root
+	// ASSUMPTION: Either request or config provides project root
+	// GUARD: Check this explicitly and provide helpful error message
 	projectRoot := req.ProjectRoot
 	if projectRoot == "" {
 		projectRoot = s.config.DefaultProjectRoot
 	}
 	if projectRoot == "" {
-		return nil, fmt.Errorf("project root is required")
+		return nil, types.NewValidationErrorWithHint(
+			"projectRoot",
+			"project root is required but not provided",
+			"Set projectRoot in the request body, or configure PROJECT_ROOT environment variable",
+		)
 	}
 
-	// Validate and normalize scope path
+	// ASSUMPTION: Project root is a valid, accessible directory
+	// GUARD: Validate this before proceeding
 	normalizedPath, err := ValidateScopePath(req.ScopePath, projectRoot)
 	if err != nil {
-		return nil, fmt.Errorf("invalid scope path: %w", err)
+		return nil, types.NewValidationErrorWithHint(
+			"scopePath",
+			fmt.Sprintf("invalid scope path: %v", err),
+			"Ensure the path exists within the project root and contains no invalid characters",
+		)
 	}
 
 	// Check for overlapping sandboxes
@@ -292,20 +318,69 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 // GetDiff generates a diff for the sandbox changes.
+//
+// # Preconditions
+//
+// The sandbox must be in a state where diff generation is valid (Active, Stopped,
+// or terminal states for historical view). The overlay directories must exist.
+//
+// # Assumptions Made
+//
+//   - UpperDir contains the writable layer with modifications
+//   - LowerDir contains the read-only original files
+//   - The filesystem is in a consistent state (no writes in progress)
+//   - The 'diff' command is available on the system for modified files
+//
+// # Returns
+//
+// A DiffResult containing the list of changed files and a unified diff string.
+// Returns empty diff if no changes were made.
 func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult, error) {
 	sandbox, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
+	// ASSUMPTION: Diff can be generated for this status
+	// GUARD: Check explicitly with helpful error
+	if err := types.CanGenerateDiff(sandbox.Status); err != nil {
+		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
+	}
+
+	// ASSUMPTION: UpperDir is set when sandbox was created
+	// GUARD: Fail with clear message if this invariant is violated
 	if sandbox.UpperDir == "" {
-		return nil, fmt.Errorf("sandbox has no upper directory")
+		return nil, &types.ValidationError{
+			Field:   "upperDir",
+			Message: "sandbox upper directory not initialized (internal error)",
+			Hint:    "This indicates the sandbox was not properly created. Delete and recreate it.",
+		}
+	}
+
+	// ASSUMPTION: LowerDir is set (required for diff generation)
+	// GUARD: Check this as well for completeness
+	if sandbox.LowerDir == "" {
+		return nil, &types.ValidationError{
+			Field:   "lowerDir",
+			Message: "sandbox lower directory not initialized (internal error)",
+			Hint:    "This indicates the sandbox was not properly created. Delete and recreate it.",
+		}
 	}
 
 	// Get changed files from driver
 	changes, err := s.driver.GetChangedFiles(ctx, sandbox)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get changed files: %w", err)
+		return nil, types.NewDriverError("getChangedFiles", err)
+	}
+
+	// Handle the case of no changes gracefully
+	if len(changes) == 0 {
+		return &types.DiffResult{
+			SandboxID:   sandbox.ID,
+			Files:       []*types.FileChange{},
+			UnifiedDiff: "",
+			Generated:   time.Now(),
+		}, nil
 	}
 
 	// Generate unified diff

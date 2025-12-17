@@ -30,9 +30,9 @@ type NotFoundError struct {
 
 func (e *NotFoundError) Error() string {
 	if e.Resource != "" {
-		return fmt.Sprintf("%s not found: %s", e.Resource, e.ID)
+		return fmt.Sprintf("%s not found: %s. Verify the ID is correct and the %s hasn't been deleted.", e.Resource, e.ID, e.Resource)
 	}
-	return fmt.Sprintf("not found: %s", e.ID)
+	return fmt.Sprintf("resource not found: %s. Verify the ID is correct.", e.ID)
 }
 
 func (e *NotFoundError) HTTPStatus() int {
@@ -41,6 +41,11 @@ func (e *NotFoundError) HTTPStatus() int {
 
 func (e *NotFoundError) IsRetryable() bool {
 	return false
+}
+
+// Hint returns actionable guidance for resolving this error.
+func (e *NotFoundError) Hint() string {
+	return fmt.Sprintf("Use GET /api/v1/sandboxes to list available sandboxes and their IDs.")
 }
 
 // NewNotFoundError creates a NotFoundError for a sandbox.
@@ -56,9 +61,9 @@ type ScopeConflictError struct {
 func (e *ScopeConflictError) Error() string {
 	if len(e.Conflicts) == 1 {
 		c := e.Conflicts[0]
-		return fmt.Sprintf("scope conflict with sandbox %s (scope: %s)", c.ExistingID, c.ExistingScope)
+		return fmt.Sprintf("scope conflict: path overlaps with sandbox %s (scope: %s). Sandboxes cannot have overlapping paths.", c.ExistingID, c.ExistingScope)
 	}
-	return fmt.Sprintf("scope conflicts with %d existing sandboxes", len(e.Conflicts))
+	return fmt.Sprintf("scope conflicts with %d existing sandboxes. Sandboxes cannot have overlapping paths.", len(e.Conflicts))
 }
 
 func (e *ScopeConflictError) HTTPStatus() int {
@@ -69,15 +74,21 @@ func (e *ScopeConflictError) IsRetryable() bool {
 	return false // Conflicts are deterministic
 }
 
+// Hint returns actionable guidance for resolving this error.
+func (e *ScopeConflictError) Hint() string {
+	return "Either delete or stop the conflicting sandbox, or choose a non-overlapping scope path."
+}
+
 // ValidationError indicates input validation failed.
 type ValidationError struct {
 	Field   string
 	Message string
+	Hint    string // Optional hint for resolution
 }
 
 func (e *ValidationError) Error() string {
 	if e.Field != "" {
-		return fmt.Sprintf("validation error for %s: %s", e.Field, e.Message)
+		return fmt.Sprintf("validation error for '%s': %s", e.Field, e.Message)
 	}
 	return fmt.Sprintf("validation error: %s", e.Message)
 }
@@ -90,16 +101,31 @@ func (e *ValidationError) IsRetryable() bool {
 	return false
 }
 
+// GetHint returns actionable guidance for resolving this error.
+func (e *ValidationError) GetHint() string {
+	if e.Hint != "" {
+		return e.Hint
+	}
+	return "Check the API documentation for valid field values and formats."
+}
+
 // NewValidationError creates a ValidationError.
 func NewValidationError(field, message string) *ValidationError {
 	return &ValidationError{Field: field, Message: message}
 }
 
+// NewValidationErrorWithHint creates a ValidationError with a resolution hint.
+func NewValidationErrorWithHint(field, message, hint string) *ValidationError {
+	return &ValidationError{Field: field, Message: message, Hint: hint}
+}
+
 // StateError indicates an operation was attempted in an invalid state.
 // This wraps InvalidTransitionError for HTTP response purposes.
 type StateError struct {
-	Message string
-	Wrapped error
+	Message       string
+	Wrapped       error
+	CurrentStatus Status
+	Operation     string
 }
 
 func (e *StateError) Error() string {
@@ -118,11 +144,29 @@ func (e *StateError) Unwrap() error {
 	return e.Wrapped
 }
 
+// Hint returns actionable guidance for resolving this error.
+func (e *StateError) Hint() string {
+	switch e.CurrentStatus {
+	case StatusDeleted:
+		return "This sandbox has been deleted and cannot be modified."
+	case StatusApproved:
+		return "This sandbox has already been approved. Create a new sandbox to make additional changes."
+	case StatusRejected:
+		return "This sandbox has been rejected. Create a new sandbox to try again."
+	case StatusError:
+		return "This sandbox is in an error state. Delete it and create a new one."
+	default:
+		return "Check the sandbox status with GET /api/v1/sandboxes/{id} and review valid state transitions."
+	}
+}
+
 // NewStateError creates a StateError from an InvalidTransitionError.
 func NewStateError(err *InvalidTransitionError) *StateError {
 	return &StateError{
-		Message: err.Error(),
-		Wrapped: err,
+		Message:       err.Error(),
+		Wrapped:       err,
+		CurrentStatus: err.Current,
+		Operation:     string(err.Attempted),
 	}
 }
 
@@ -150,6 +194,20 @@ func (e *DriverError) IsRetryable() bool {
 
 func (e *DriverError) Unwrap() error {
 	return e.Wrapped
+}
+
+// Hint returns actionable guidance for resolving this error.
+func (e *DriverError) Hint() string {
+	switch e.Operation {
+	case "mount":
+		return "Check that overlayfs/fuse-overlayfs is available and the user has appropriate permissions. Check GET /api/v1/driver/info for driver status."
+	case "unmount":
+		return "Ensure no processes are using the sandbox workspace. The sandbox may need to be forcefully cleaned up."
+	case "cleanup":
+		return "The sandbox directories may need manual cleanup. Check the server logs for the specific path."
+	default:
+		return "Check the server logs for detailed error information. This operation may succeed on retry."
+	}
 }
 
 // NewDriverError creates a DriverError.

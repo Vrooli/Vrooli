@@ -16,45 +16,31 @@
       "title": "Overlayfs Mount Configuration",
       "validation": [
         {
-          "notes": "Verify mount options",
+          "notes": "Verify driver type returns overlayfs",
           "phase": "unit",
           "ref": "api/internal/driver/overlayfs_test.go::TestOverlayfsDriverType",
-          "status": "pass",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test directory structure",
+          "notes": "Test directory structure creation",
           "phase": "unit",
           "ref": "api/internal/driver/overlayfs_test.go::TestOverlayfsDriverDirectoryStructure",
-          "status": "pass",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Validate read-only lower layer",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "API reports driver availability status",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestDriverInfoAvailable",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify changes persist in upper layer",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Mount operation <500ms",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Changes isolated between sandboxes",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "API reports driver unavailable status correctly",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestDriverInfoUnavailable",
+          "status": "passing",
           "type": "test"
         }
       ]

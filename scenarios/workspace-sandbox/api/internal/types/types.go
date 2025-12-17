@@ -1,4 +1,41 @@
-// Package types provides shared types for workspace sandboxes.
+// Package types defines the domain model for workspace-sandbox.
+//
+// # Domain Overview
+//
+// A sandbox is an isolated, copy-on-write workspace that allows agents or users
+// to make changes to a project folder without modifying the original files.
+// Changes are captured in an overlay filesystem and can be reviewed, approved,
+// or rejected before being applied to the canonical repository.
+//
+// # Key Concepts
+//
+//   - Sandbox: An isolated workspace with a specific scope path within a project.
+//     Each sandbox has a unique ID and tracks its lifecycle status.
+//
+//   - Scope Path: The directory within the project that the sandbox covers.
+//     Sandboxes cannot have overlapping scopes (see mutual exclusion below).
+//
+//   - Status: Sandboxes progress through a state machine (see status.go).
+//     Key states: creating → active → stopped → approved/rejected → deleted
+//
+//   - Overlay Layers: The driver creates:
+//     - LowerDir: read-only view of the canonical repo
+//     - UpperDir: writable layer capturing changes
+//     - MergedDir: combined view where agents work
+//
+// # Mutual Exclusion Rule
+//
+// Two sandboxes cannot have scopes that overlap. This prevents:
+//   - A child sandbox from being affected by changes in a parent scope
+//   - A parent sandbox from overwriting changes made in a child scope
+//
+// The ConflictType enum describes the relationship when scopes overlap.
+//
+// # Safety Model
+//
+// This system provides SAFETY FROM ACCIDENTS, not security from adversaries.
+// It prevents unintended damage and makes agent work reviewable/revertible,
+// but does not create a hardened security boundary.
 package types
 
 import (
@@ -188,36 +225,74 @@ type PathConflict struct {
 	ConflictType  ConflictType
 }
 
-// ConflictType identifies the type of path conflict.
+// ConflictType identifies how two sandbox scope paths overlap.
+// This is critical for the mutual exclusion rule: sandboxes cannot have
+// overlapping scopes because changes in one could affect the other.
 type ConflictType string
 
 const (
-	ConflictTypeExact              ConflictType = "exact"
-	ConflictTypeNewIsAncestor      ConflictType = "new_is_ancestor"
-	ConflictTypeExistingIsAncestor ConflictType = "existing_is_ancestor"
+	// ConflictTypeExact means the new and existing scopes are identical paths.
+	// Example: new="/project/src" and existing="/project/src"
+	ConflictTypeExact ConflictType = "exact"
+
+	// ConflictTypeNewContainsExisting means the new scope is a parent of the existing scope.
+	// If we allow this, the new sandbox could modify files that the existing sandbox
+	// is also working on.
+	// Example: new="/project" contains existing="/project/src"
+	ConflictTypeNewContainsExisting ConflictType = "new_contains_existing"
+
+	// ConflictTypeExistingContainsNew means the existing scope is a parent of the new scope.
+	// The existing sandbox could modify files that the new sandbox wants to work on.
+	// Example: existing="/project" contains new="/project/src"
+	ConflictTypeExistingContainsNew ConflictType = "existing_contains_new"
 )
 
-// CheckPathOverlap checks if two paths have an ancestor/descendant relationship.
-// Returns the conflict type if there's an overlap, or empty string if no conflict.
-func CheckPathOverlap(path1, path2 string) ConflictType {
-	// Normalize paths
-	p1 := filepath.Clean(path1)
-	p2 := filepath.Clean(path2)
+// SandboxStats contains aggregate statistics for all sandboxes.
+// Used for dashboard metrics and monitoring.
+type SandboxStats struct {
+	TotalCount     int64   `json:"totalCount"`
+	ActiveCount    int64   `json:"activeCount"`
+	StoppedCount   int64   `json:"stoppedCount"`
+	ErrorCount     int64   `json:"errorCount"`
+	ApprovedCount  int64   `json:"approvedCount"`
+	RejectedCount  int64   `json:"rejectedCount"`
+	DeletedCount   int64   `json:"deletedCount"`
+	TotalSizeBytes int64   `json:"totalSizeBytes"`
+	AvgSizeBytes   float64 `json:"avgSizeBytes"`
+}
 
-	// Exact match
-	if p1 == p2 {
+// CheckPathOverlap checks if an existing sandbox scope and a proposed new scope overlap.
+// Returns the conflict type if there's an overlap, or empty string if no conflict.
+//
+// Parameters:
+//   - existingScope: the scope path of an existing active sandbox
+//   - newScope: the scope path being requested for a new sandbox
+//
+// The result indicates who "contains" whom:
+//   - ConflictTypeExact: same path
+//   - ConflictTypeExistingContainsNew: existing is parent of new
+//   - ConflictTypeNewContainsExisting: new is parent of existing
+func CheckPathOverlap(existingScope, newScope string) ConflictType {
+	// Normalize paths to ensure consistent comparison
+	existing := filepath.Clean(existingScope)
+	proposed := filepath.Clean(newScope)
+
+	// Exact match - same scope
+	if existing == proposed {
 		return ConflictTypeExact
 	}
 
-	// Check if p1 is ancestor of p2
-	if strings.HasPrefix(p2, p1+string(filepath.Separator)) {
-		return ConflictTypeNewIsAncestor
+	// Check if existing scope contains (is parent of) the new scope
+	// Example: existing="/project" contains new="/project/src"
+	if strings.HasPrefix(proposed, existing+string(filepath.Separator)) {
+		return ConflictTypeExistingContainsNew
 	}
 
-	// Check if p2 is ancestor of p1
-	if strings.HasPrefix(p1, p2+string(filepath.Separator)) {
-		return ConflictTypeExistingIsAncestor
+	// Check if new scope contains (is parent of) the existing scope
+	// Example: new="/project" contains existing="/project/src"
+	if strings.HasPrefix(existing, proposed+string(filepath.Separator)) {
+		return ConflictTypeNewContainsExisting
 	}
 
-	return ""
+	return "" // No overlap - paths are independent
 }

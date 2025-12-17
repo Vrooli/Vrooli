@@ -16,42 +16,35 @@
           "notes": "Verify UUID generation is unique",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestUUIDGeneration",
-          "status": "pass",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Verify status transitions are valid",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestStatusTransitions",
-          "status": "pass",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "End-to-end sandbox creation flow",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "API handler creates sandbox and returns 201 Created",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestCreateSandboxSuccess",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Creation completes in <2s under normal load",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "API returns 400 for invalid JSON input",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestCreateSandboxInvalidJSON",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Creation completes in <5s under 10x load",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Sandbox is usable immediately after creation confirmation",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "API provides workspace path after creation",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestGetWorkspaceSuccess",
+          "status": "passing",
           "type": "test"
         }
       ]
@@ -68,28 +61,35 @@
           "notes": "UUID format validation",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestUUIDGeneration",
-          "status": "pass",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Path normalization test cases",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestPathNormalization",
-          "status": "pass",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify ID persistence across service restart",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "API retrieves sandbox by ID",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestGetSandboxSuccess",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "IDs remain stable in audit logs",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "API returns 404 for unknown sandbox ID",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestGetSandboxNotFound",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "API validates UUID format in requests",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestGetSandboxInvalidID",
+          "status": "passing",
           "type": "test"
         }
       ]

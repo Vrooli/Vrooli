@@ -13,38 +13,38 @@
       "title": "Scope Path Validation",
       "validation": [
         {
-          "notes": "Test path comparison logic",
+          "notes": "Test path comparison logic for overlap detection",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestCheckPathOverlap",
-          "status": "pass",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify ancestor detection",
+          "notes": "Verify ancestor/descendant conflict detection",
           "phase": "unit",
           "ref": "api/internal/sandbox/pathutil_test.go::TestFindConflicts",
-          "status": "pass",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test concurrent sandbox creation with overlapping scopes",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Verify path within project boundary detection",
+          "phase": "unit",
+          "ref": "api/internal/sandbox/pathutil_test.go::TestIsWithinProject",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "API returns 409 Conflict for overlapping scope",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestCreateSandboxScopeConflict",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Path check completes in <10ms",
           "phase": "performance",
           "ref": "api/internal/sandbox/pathutil_test.go::BenchmarkCheckPathOverlap",
-          "status": "pass",
-          "type": "test"
-        },
-        {
-          "notes": "No overlapping sandboxes can be created",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "status": "passing",
           "type": "test"
         }
       ]

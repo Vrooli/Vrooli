@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/handlers"
+	"workspace-sandbox/internal/logging"
 	"workspace-sandbox/internal/policy"
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/sandbox"
@@ -31,6 +33,7 @@ type Server struct {
 	router   *mux.Router
 	driver   driver.Driver
 	handlers *handlers.Handlers
+	logger   *logging.Logger
 }
 
 // NewServer initializes configuration, database, and routes.
@@ -88,11 +91,15 @@ func NewServer() (*Server, error) {
 
 	// Create handlers with injected dependencies
 	h := &handlers.Handlers{
-		Service: svc,
-		Driver:  drv,
-		DB:      db,
-		Config:  cfg,
+		Service:     svc,
+		Driver:      drv,
+		DB:          db,
+		Config:      cfg,
+		StatsGetter: repo, // Repository implements StatsGetter
 	}
+
+	// Initialize structured logger
+	logger := logging.New("workspace-sandbox-api")
 
 	srv := &Server{
 		config:   cfg,
@@ -100,14 +107,22 @@ func NewServer() (*Server, error) {
 		router:   mux.NewRouter(),
 		driver:   drv,
 		handlers: h,
+		logger:   logger,
 	}
 
 	srv.setupRoutes()
+
+	logger.Info("server.initialized", "Server initialized successfully", map[string]interface{}{
+		"port":         cfg.Server.Port,
+		"driver":       drv.Type(),
+		"maxSandboxes": cfg.Limits.MaxSandboxes,
+	})
+
 	return srv, nil
 }
 
 func (s *Server) setupRoutes() {
-	s.router.Use(loggingMiddleware)
+	s.router.Use(s.structuredLoggingMiddleware)
 	s.router.Use(corsMiddleware)
 
 	h := s.handlers
@@ -134,6 +149,9 @@ func (s *Server) setupRoutes() {
 
 	// Driver info
 	api.HandleFunc("/driver/info", h.DriverInfo).Methods("GET")
+
+	// Stats endpoint for dashboard metrics
+	api.HandleFunc("/stats", h.Stats).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown.
@@ -170,12 +188,33 @@ func (s *Server) Start() error {
 	return nil
 }
 
-// loggingMiddleware logs HTTP requests.
-func loggingMiddleware(next http.Handler) http.Handler {
+// responseWriter wraps http.ResponseWriter to capture status code.
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+// structuredLoggingMiddleware logs HTTP requests with structured JSON output.
+func (s *Server) structuredLoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+
+		// Wrap response writer to capture status
+		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+		// Add logger to context for handlers
+		ctx := logging.WithLogger(r.Context(), s.logger)
+		r = r.WithContext(ctx)
+
+		next.ServeHTTP(wrapped, r)
+
+		duration := time.Since(start)
+		s.logger.APIRequest(r.Method, r.RequestURI, wrapped.statusCode, float64(duration.Milliseconds()))
 	})
 }
 
@@ -198,6 +237,14 @@ func corsMiddleware(next http.Handler) http.Handler {
 // resolveDatabaseURL builds database URL from config.
 func resolveDatabaseURL(cfg config.DatabaseConfig) (string, error) {
 	if cfg.URL != "" {
+		// Append search_path if schema is set and not already in URL
+		if cfg.Schema != "" && !strings.Contains(cfg.URL, "search_path") {
+			sep := "?"
+			if strings.Contains(cfg.URL, "?") {
+				sep = "&"
+			}
+			return cfg.URL + sep + "search_path=" + url.QueryEscape(cfg.Schema) + ",public", nil
+		}
 		return cfg.URL, nil
 	}
 
@@ -217,6 +264,11 @@ func resolveDatabaseURL(cfg config.DatabaseConfig) (string, error) {
 		sslMode = "disable"
 	}
 	values.Set("sslmode", sslMode)
+
+	// Set search_path to use the schema
+	if cfg.Schema != "" {
+		values.Set("search_path", cfg.Schema+",public")
+	}
 	pgURL.RawQuery = values.Encode()
 
 	return pgURL.String(), nil

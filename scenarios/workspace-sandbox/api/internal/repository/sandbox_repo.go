@@ -26,6 +26,7 @@ type Repository interface {
 	CheckScopeOverlap(ctx context.Context, scopePath, projectRoot string, excludeID *uuid.UUID) ([]types.PathConflict, error)
 	GetActiveSandboxes(ctx context.Context, projectRoot string) ([]*types.Sandbox, error)
 	LogAuditEvent(ctx context.Context, event *types.AuditEvent) error
+	GetStats(ctx context.Context) (*types.SandboxStats, error)
 }
 
 // Verify SandboxRepository implements Repository interface.
@@ -358,4 +359,27 @@ func (r *SandboxRepository) LogAuditEvent(ctx context.Context, event *types.Audi
 		detailsJSON, stateJSON,
 	)
 	return err
+}
+
+// GetStats retrieves aggregate sandbox statistics using the database function.
+func (r *SandboxRepository) GetStats(ctx context.Context) (*types.SandboxStats, error) {
+	query := `SELECT * FROM get_sandbox_stats()`
+
+	stats := &types.SandboxStats{}
+	err := r.db.QueryRowContext(ctx, query).Scan(
+		&stats.TotalCount,
+		&stats.ActiveCount,
+		&stats.StoppedCount,
+		&stats.ErrorCount,
+		&stats.ApprovedCount,
+		&stats.RejectedCount,
+		&stats.DeletedCount,
+		&stats.TotalSizeBytes,
+		&stats.AvgSizeBytes,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sandbox stats: %w", err)
+	}
+
+	return stats, nil
 }

@@ -95,58 +95,59 @@ func TestPathNormalization(t *testing.T) {
 	}
 }
 
-// [REQ:P0-005] Scope Path Validation - Ancestor detection
+// [REQ:P0-005] Scope Path Validation - Scope overlap detection
+// Tests use the semantic: CheckPathOverlap(existingScope, newScope)
 func TestCheckPathOverlap(t *testing.T) {
 	tests := []struct {
-		name     string
-		path1    string
-		path2    string
-		wantType types.ConflictType
+		name          string
+		existingScope string
+		newScope      string
+		wantType      types.ConflictType
 	}{
 		{
-			name:     "exact match",
-			path1:    "/project/src",
-			path2:    "/project/src",
-			wantType: types.ConflictTypeExact,
+			name:          "exact match",
+			existingScope: "/project/src",
+			newScope:      "/project/src",
+			wantType:      types.ConflictTypeExact,
 		},
 		{
-			name:     "path1 is ancestor",
-			path1:    "/project",
-			path2:    "/project/src/main.go",
-			wantType: types.ConflictTypeNewIsAncestor,
+			name:          "existing contains new (existing is parent)",
+			existingScope: "/project",
+			newScope:      "/project/src/main.go",
+			wantType:      types.ConflictTypeExistingContainsNew,
 		},
 		{
-			name:     "path2 is ancestor",
-			path1:    "/project/src/main.go",
-			path2:    "/project",
-			wantType: types.ConflictTypeExistingIsAncestor,
+			name:          "new contains existing (new is parent)",
+			existingScope: "/project/src/main.go",
+			newScope:      "/project",
+			wantType:      types.ConflictTypeNewContainsExisting,
 		},
 		{
-			name:     "no overlap - siblings",
-			path1:    "/project/src",
-			path2:    "/project/tests",
-			wantType: "",
+			name:          "no overlap - siblings",
+			existingScope: "/project/src",
+			newScope:      "/project/tests",
+			wantType:      "",
 		},
 		{
-			name:     "no overlap - different roots",
-			path1:    "/project1/src",
-			path2:    "/project2/src",
-			wantType: "",
+			name:          "no overlap - different roots",
+			existingScope: "/project1/src",
+			newScope:      "/project2/src",
+			wantType:      "",
 		},
 		{
-			name:     "partial name match but not ancestor",
-			path1:    "/project/src",
-			path2:    "/project/src-backup",
-			wantType: "",
+			name:          "partial name match but not ancestor",
+			existingScope: "/project/src",
+			newScope:      "/project/src-backup",
+			wantType:      "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := types.CheckPathOverlap(tt.path1, tt.path2)
+			got := types.CheckPathOverlap(tt.existingScope, tt.newScope)
 			if got != tt.wantType {
 				t.Errorf("types.CheckPathOverlap(%q, %q) = %q, want %q",
-					tt.path1, tt.path2, got, tt.wantType)
+					tt.existingScope, tt.newScope, got, tt.wantType)
 			}
 		})
 	}

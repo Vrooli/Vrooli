@@ -16,13 +16,19 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
+// StatsGetter is an interface for retrieving sandbox statistics.
+type StatsGetter interface {
+	GetStats(ctx context.Context) (*types.SandboxStats, error)
+}
+
 // Handlers contains dependencies for HTTP handlers.
 // Dependencies are expressed as interfaces to enable testing with mocks.
 type Handlers struct {
-	Service sandbox.ServiceAPI // Service interface for testability
-	Driver  driver.Driver
-	DB      Pinger
-	Config  config.Config // Unified configuration for accessing levers
+	Service     sandbox.ServiceAPI // Service interface for testability
+	Driver      driver.Driver
+	DB          Pinger
+	Config      config.Config // Unified configuration for accessing levers
+	StatsGetter StatsGetter   // For retrieving sandbox statistics
 }
 
 // Version is the API version string.
@@ -36,11 +42,18 @@ type Pinger interface {
 
 // --- Response Types ---
 
-// ErrorResponse represents a standard error response.
+// ErrorResponse represents a standard error response with optional guidance.
 type ErrorResponse struct {
-	Error   string `json:"error"`
-	Code    int    `json:"code"`
-	Success bool   `json:"success"`
+	Error     string `json:"error"`
+	Code      int    `json:"code"`
+	Success   bool   `json:"success"`
+	Hint      string `json:"hint,omitempty"`      // Actionable guidance for resolving the error
+	Retryable bool   `json:"retryable,omitempty"` // Whether the operation might succeed on retry
+}
+
+// Hintable is an interface for errors that provide resolution hints.
+type Hintable interface {
+	Hint() string
 }
 
 // SuccessResponse wraps successful responses with metadata.
@@ -87,13 +100,32 @@ func (h *Handlers) HandleDomainError(w http.ResponseWriter, err error) bool {
 
 	// Check if error implements DomainError interface
 	if domainErr, ok := err.(types.DomainError); ok {
-		h.JSONError(w, domainErr.Error(), domainErr.HTTPStatus())
+		h.JSONDomainError(w, domainErr)
 		return true
 	}
 
 	// Fallback to internal server error for unknown errors
 	h.JSONError(w, err.Error(), http.StatusInternalServerError)
 	return true
+}
+
+// JSONDomainError writes a JSON error response for domain errors with hints.
+func (h *Handlers) JSONDomainError(w http.ResponseWriter, err types.DomainError) {
+	response := ErrorResponse{
+		Error:     err.Error(),
+		Code:      err.HTTPStatus(),
+		Success:   false,
+		Retryable: err.IsRetryable(),
+	}
+
+	// Include hint if the error provides one
+	if hintable, ok := err.(Hintable); ok {
+		response.Hint = hintable.Hint()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(err.HTTPStatus())
+	json.NewEncoder(w).Encode(response)
 }
 
 // Health handles health check requests.
@@ -332,6 +364,28 @@ func (h *Handlers) DriverInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	if availErr != nil {
 		response["error"] = availErr.Error()
+	}
+
+	h.JSONSuccess(w, response)
+}
+
+// Stats handles getting aggregate sandbox statistics.
+// This endpoint supports dashboard metrics and monitoring.
+func (h *Handlers) Stats(w http.ResponseWriter, r *http.Request) {
+	if h.StatsGetter == nil {
+		h.JSONError(w, "stats not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	stats, err := h.StatsGetter.GetStats(r.Context())
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	// Include timestamp for cache invalidation hints
+	response := map[string]interface{}{
+		"stats":     stats,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	}
 
 	h.JSONSuccess(w, response)

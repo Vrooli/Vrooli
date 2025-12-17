@@ -1,4 +1,40 @@
 // Package diff provides diff generation and patch application for sandboxes.
+//
+// # External Command Dependencies
+//
+// This package relies on external commands for diff generation and patch application:
+//
+//   - diff: Used for generating unified diffs of modified files (GNU diffutils).
+//     Called via exec.CommandContext("diff", "-u", ...).
+//     Required for modified file comparisons.
+//
+//   - git: Used for patch application in git repositories.
+//     Called via exec.CommandContext("git", "apply", ...).
+//     Only used when target directory is a git repository.
+//
+//   - patch: Fallback for patch application in non-git directories.
+//     Called via exec.CommandContext("patch", "-p1", ...).
+//     Used when target is not a git repository.
+//
+// # Error Handling
+//
+// When external commands fail, errors include:
+//   - The command that was run
+//   - The exit code
+//   - Stderr output for debugging
+//
+// # Binary File Handling
+//
+// Binary files are detected by checking for null bytes in the first 8KB.
+// Binary files are reported in the diff output but their content is not
+// included (only a "Binary file <path>" marker).
+//
+// # Assumptions
+//
+//   - These commands are available in the system PATH
+//   - The 'diff' command follows GNU diff behavior (exit code 1 = files differ)
+//   - File paths do not contain newlines or special characters that would
+//     break the diff format
 package diff
 
 import (
@@ -26,9 +62,34 @@ func NewGenerator() *Generator {
 }
 
 // GenerateDiff creates a unified diff for all changes in a sandbox.
+//
+// # Preconditions
+//
+//   - s.UpperDir and s.LowerDir must be set (non-empty)
+//   - UpperDir must exist (contains the changes)
+//   - LowerDir must exist (contains the originals for comparison)
+//
+// # Assumptions Guarded
+//
+// This function validates its preconditions and returns clear errors if they
+// are not met, rather than failing with confusing filesystem errors.
 func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes []*types.FileChange) (*types.DiffResult, error) {
-	if s.UpperDir == "" || s.LowerDir == "" {
-		return nil, fmt.Errorf("sandbox paths not initialized")
+	// ASSUMPTION: Paths are initialized
+	// GUARD: Check for empty strings with clear message
+	if s.UpperDir == "" {
+		return nil, fmt.Errorf("sandbox upper directory path is empty (sandbox not properly initialized)")
+	}
+	if s.LowerDir == "" {
+		return nil, fmt.Errorf("sandbox lower directory path is empty (sandbox not properly initialized)")
+	}
+
+	// ASSUMPTION: Directories actually exist
+	// GUARD: Check filesystem to catch cleanup races or configuration errors
+	if _, err := os.Stat(s.UpperDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("sandbox upper directory does not exist: %s (sandbox may have been cleaned up)", s.UpperDir)
+	}
+	if _, err := os.Stat(s.LowerDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("sandbox lower directory does not exist: %s (project root may have moved)", s.LowerDir)
 	}
 
 	// Sort changes for stable output

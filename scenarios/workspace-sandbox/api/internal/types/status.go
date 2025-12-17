@@ -1,5 +1,50 @@
 // Package types provides shared types for workspace sandboxes.
 // This file contains the status state machine and transition logic.
+//
+// # Sandbox Lifecycle State Machine
+//
+// The following diagram shows all valid status transitions:
+//
+//	                              ┌─────────┐
+//	                              │ CREATING │
+//	                              └────┬────┘
+//	                        success │    │ error
+//	                    ┌───────────┘    └──────────┐
+//	                    ▼                           ▼
+//	               ┌────────┐                  ┌───────┐
+//	     ┌────────►│ ACTIVE │◄────┐            │ ERROR │
+//	     │ resume  └───┬────┘     │ resume     └───┬───┘
+//	     │             │          │                │
+//	     │       stop  │          │                │ delete
+//	     │             ▼          │                │
+//	     │        ┌─────────┐     │                │
+//	     └────────│ STOPPED │─────┘                │
+//	              └────┬────┘                      │
+//	       approve │      │ reject                 │
+//	               ▼      ▼                        │
+//	          ┌──────────┐ ┌──────────┐            │
+//	          │ APPROVED │ │ REJECTED │            │
+//	          └────┬─────┘ └────┬─────┘            │
+//	               │            │                  │
+//	               │ delete     │ delete           │
+//	               ▼            ▼                  ▼
+//	          ┌────────────────────────────────────────┐
+//	          │               DELETED                  │
+//	          └────────────────────────────────────────┘
+//
+// # Status Categories
+//
+//   - Active statuses (Creating, Active): sandbox has resources, can do work
+//   - Stopped: sandbox is paused, data preserved, can resume or finalize
+//   - Terminal statuses (Approved, Rejected, Deleted): no further transitions
+//   - Error: something went wrong; can only be deleted
+//
+// # Key Invariants
+//
+//  1. Only Active sandboxes have a mounted overlay (MergedDir is valid)
+//  2. Terminal statuses cannot transition to other states
+//  3. All statuses can transition to Deleted (cleanup is always allowed)
+//  4. Changes can only be approved/rejected from Active or Stopped
 package types
 
 import "fmt"

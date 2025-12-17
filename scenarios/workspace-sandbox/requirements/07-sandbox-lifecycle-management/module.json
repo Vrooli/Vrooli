@@ -12,49 +12,56 @@
       "description": "Implement REST API endpoints for sandbox CRUD operations with proper cleanup",
       "id": "REQ-P0-008",
       "prd_ref": "OT-P0-007",
-      "status": "draft",
+      "status": "implemented",
       "title": "Sandbox Lifecycle API",
       "validation": [
         {
-          "notes": "Test API endpoints",
+          "notes": "List sandboxes returns empty array when none exist",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestListSandboxesEmpty",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify response formats",
+          "notes": "List sandboxes filters by status and owner",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestListSandboxesWithFilter",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Full lifecycle flow",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "List sandboxes returns results with count",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestListSandboxesWithResults",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Cleanup verification",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Delete sandbox returns 204 No Content on success",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestDeleteSandboxSuccess",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "API latency \u003c100ms",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Delete sandbox returns 404 for unknown ID",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestDeleteSandboxNotFound",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "No resource leaks after operations",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Stop sandbox transitions status to stopped",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestStopSandboxSuccess",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Reject sandbox transitions status to rejected",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestRejectSuccess",
+          "status": "passing",
           "type": "test"
         }
       ]

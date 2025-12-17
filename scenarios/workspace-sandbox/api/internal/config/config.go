@@ -201,6 +201,10 @@ type DatabaseConfig struct {
 	// Name is the database name.
 	Name string
 
+	// Schema is the PostgreSQL schema to use.
+	// Default: workspace-sandbox
+	Schema string
+
 	// SSLMode controls SSL connection mode.
 	// Default: disable
 	SSLMode string
@@ -243,6 +247,7 @@ func Default() Config {
 			UseFuseOverlayfs: false,
 		},
 		Database: DatabaseConfig{
+			Schema:  "workspace-sandbox",
 			SSLMode: "disable",
 		},
 	}
@@ -305,6 +310,9 @@ func LoadFromEnv() (Config, error) {
 	cfg.Database.User = os.Getenv("POSTGRES_USER")
 	cfg.Database.Password = os.Getenv("POSTGRES_PASSWORD")
 	cfg.Database.Name = os.Getenv("POSTGRES_DB")
+	if schema := os.Getenv("POSTGRES_SCHEMA"); schema != "" {
+		cfg.Database.Schema = schema
+	}
 
 	if len(errs) > 0 {
 		return cfg, fmt.Errorf("missing required environment variables: %s", strings.Join(errs, ", "))

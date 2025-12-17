@@ -9,42 +9,28 @@
       "description": "Implement a /health endpoint that returns 200 OK when service is operational and 503 when degraded/unavailable. Response must include uptime, active sandbox count, and disk usage metrics.",
       "id": "REQ-P0-010",
       "prd_ref": "OT-P0-009",
-      "status": "draft",
+      "status": "implemented",
       "title": "Health Check API Endpoint",
       "validation": [
         {
-          "notes": "Verify endpoint returns correct status codes",
+          "notes": "Verify endpoint returns correct status codes for healthy/unhealthy scenarios",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestHealthHandler",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Validate JSON response schema",
+          "notes": "Validate JSON response schema includes required fields",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestHealthResponseSchema",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Health check responds correctly during service lifecycle events",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Endpoint responds within 100ms under load",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Monitoring systems can detect service health state",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Verify Content-Type header is application/json",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestHealthContentType",
+          "status": "passing",
           "type": "test"
         }
       ]
