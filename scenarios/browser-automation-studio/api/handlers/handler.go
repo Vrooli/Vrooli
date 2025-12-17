@@ -13,14 +13,15 @@ import (
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
-	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/performance"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/export"
-	"github.com/vrooli/browser-automation-studio/services/recording"
+	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	"github.com/vrooli/browser-automation-studio/services/replay"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
@@ -44,10 +45,11 @@ type Handler struct {
 	repo              database.Repository
 	wsHub             wsHub.HubInterface
 	storage           storage.StorageInterface
-	recordingService  recording.RecordingServiceInterface
+	recordingService  archiveingestion.IngestionServiceInterface
+	recordModeService *livecapture.Service // Live recording session management
 	recordingsRoot    string
 	replayRenderer    replayRenderer
-	sessionProfiles   *recording.SessionProfileStore
+	sessionProfiles   *archiveingestion.SessionProfileStore
 	activeSessions    map[string]string // sessionID -> profileID
 	activeSessionsMu  sync.Mutex
 	log               *logrus.Logger
@@ -108,10 +110,11 @@ type HandlerDeps struct {
 	ExportService     *workflow.WorkflowService
 	WorkflowValidator *workflowvalidator.Validator
 	Storage           storage.StorageInterface
-	RecordingService  recording.RecordingServiceInterface
+	RecordingService  archiveingestion.IngestionServiceInterface
+	RecordModeService *livecapture.Service // Live recording session management
 	RecordingsRoot    string
 	ReplayRenderer    replayRenderer
-	SessionProfiles   *recording.SessionProfileStore
+	SessionProfiles   *archiveingestion.SessionProfileStore
 	UXMetricsRepo     uxmetrics.Repository // Optional: enables UX metrics collection
 }
 
@@ -132,8 +135,8 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 
 	// Initialize recordings infrastructure
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
-	recordingService := recording.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
-	sessionProfiles := recording.NewSessionProfileStore(paths.ResolveSessionProfilesRoot(log), log)
+	recordingService := archiveingestion.NewIngestionService(repo, storageClient, wsHub, log, recordingsRoot)
+	sessionProfiles := archiveingestion.NewSessionProfileStore(paths.ResolveSessionProfilesRoot(log), log)
 
 	// Wire automation stack
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
@@ -142,7 +145,7 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 		log.WithError(engErr).Warn("Failed to initialize automation engine; automation executor will be disabled")
 	}
 	// Persist execution artifacts under recordingsRoot so file-truth execution data is durable and discoverable.
-	autoRecorder := autorecorder.NewFileRecorder(repo, storageClient, log, recordingsRoot)
+	autoRecorder := executionwriter.NewFileRecorder(repo, storageClient, log, recordingsRoot)
 
 	// Configure event sink factory - optionally wrap with UX metrics collector
 	var eventSinkFactory func() autoevents.Sink
@@ -180,6 +183,9 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 		log.WithError(err).Fatal("Failed to initialize workflow validator")
 	}
 
+	// Create record mode service for live recording session management
+	recordModeSvc := livecapture.NewService(log)
+
 	return HandlerDeps{
 		WorkflowCatalog:   workflowSvc,
 		ExecutionService:  workflowSvc,
@@ -187,6 +193,7 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 		WorkflowValidator: validatorInstance,
 		Storage:           storageClient,
 		RecordingService:  recordingService,
+		RecordModeService: recordModeSvc,
 		RecordingsRoot:    recordingsRoot,
 		ReplayRenderer:    replay.NewReplayRenderer(log, recordingsRoot),
 		SessionProfiles:   sessionProfiles,
@@ -222,6 +229,7 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 		wsHub:             wsHub,
 		storage:           deps.Storage,
 		recordingService:  deps.RecordingService,
+		recordModeService: deps.RecordModeService,
 		recordingsRoot:    deps.RecordingsRoot,
 		replayRenderer:    deps.ReplayRenderer,
 		sessionProfiles:   deps.SessionProfiles,

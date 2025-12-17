@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
@@ -116,13 +116,13 @@ func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID 
 	}
 
 	// Build indexes for artifacts and steps
-	stepByIndex := make(map[int]*autorecorder.StepResultData, len(resultData.Steps))
+	stepByIndex := make(map[int]*executionwriter.StepResultData, len(resultData.Steps))
 	for i := range resultData.Steps {
 		step := &resultData.Steps[i]
 		stepByIndex[step.StepIndex] = step
 	}
 
-	artifactByID := make(map[string]*autorecorder.ArtifactData, len(resultData.Artifacts))
+	artifactByID := make(map[string]*executionwriter.ArtifactData, len(resultData.Artifacts))
 	for i := range resultData.Artifacts {
 		artifact := &resultData.Artifacts[i]
 		artifactByID[artifact.ArtifactID] = artifact
@@ -208,9 +208,9 @@ func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID 
 // buildTimelineFrameFromData constructs a TimelineFrame from recorder data types.
 // This reads from the execution result JSON file format.
 func (s *WorkflowService) buildTimelineFrameFromData(
-	frameData *autorecorder.TimelineFrameData,
-	artifacts map[string]*autorecorder.ArtifactData,
-	stepsByIndex map[int]*autorecorder.StepResultData,
+	frameData *executionwriter.TimelineFrameData,
+	artifacts map[string]*executionwriter.ArtifactData,
+	stepsByIndex map[int]*executionwriter.StepResultData,
 ) TimelineFrame {
 	payload := frameData.Payload
 	if payload == nil {

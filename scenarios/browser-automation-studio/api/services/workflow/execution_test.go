@@ -15,7 +15,7 @@ import (
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
-	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -126,8 +126,8 @@ func (m *markerRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, f
 	return nil
 }
 
-func (m *markerRecorder) RecordStepOutcome(ctx context.Context, plan autocontracts.ExecutionPlan, outcome autocontracts.StepOutcome) (autorecorder.RecordResult, error) {
-	return autorecorder.RecordResult{}, nil
+func (m *markerRecorder) RecordStepOutcome(ctx context.Context, plan autocontracts.ExecutionPlan, outcome autocontracts.StepOutcome) (executionwriter.RecordResult, error) {
+	return executionwriter.RecordResult{}, nil
 }
 
 func (m *markerRecorder) RecordTelemetry(ctx context.Context, plan autocontracts.ExecutionPlan, telemetry autocontracts.StepTelemetry) error {
@@ -260,9 +260,9 @@ type stubRecorder struct {
 	outcomes []autocontracts.StepOutcome
 }
 
-func (r *stubRecorder) RecordStepOutcome(ctx context.Context, plan autocontracts.ExecutionPlan, outcome autocontracts.StepOutcome) (autorecorder.RecordResult, error) {
+func (r *stubRecorder) RecordStepOutcome(ctx context.Context, plan autocontracts.ExecutionPlan, outcome autocontracts.StepOutcome) (executionwriter.RecordResult, error) {
 	r.outcomes = append(r.outcomes, outcome)
-	return autorecorder.RecordResult{}, nil
+	return executionwriter.RecordResult{}, nil
 }
 
 func (r *stubRecorder) RecordTelemetry(ctx context.Context, plan autocontracts.ExecutionPlan, telemetry autocontracts.StepTelemetry) error {

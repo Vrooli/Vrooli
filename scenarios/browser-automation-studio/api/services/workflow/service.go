@@ -12,7 +12,7 @@ import (
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexec "github.com/vrooli/browser-automation-studio/automation/executor"
-	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
@@ -57,7 +57,7 @@ type WorkflowService struct {
 	aiClient         ai.AIClient
 	executor         autoexec.Executor
 	engineFactory    autoengine.Factory
-	artifactRecorder autorecorder.Recorder
+	artifactRecorder executionwriter.ExecutionWriter
 	planCompiler     autoexec.PlanCompiler
 	eventSinkFactory func() autoevents.Sink
 	executionDataRoot string
@@ -117,7 +117,7 @@ func NewWorkflowService(repo database.Repository, wsHub wsHub.HubInterface, log 
 type WorkflowServiceOptions struct {
 	Executor         autoexec.Executor
 	EngineFactory    autoengine.Factory
-	ArtifactRecorder autorecorder.Recorder
+	ArtifactRecorder executionwriter.ExecutionWriter
 	PlanCompiler     autoexec.PlanCompiler
 	AIClient         ai.AIClient
 	EventSinkFactory func() autoevents.Sink

@@ -1,4 +1,4 @@
-package recorder
+package executionwriter
 
 import (
 	"bytes"
@@ -29,10 +29,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// FileRecorder persists step outcomes and telemetry to JSON files on disk.
+// FileWriter persists step outcomes and telemetry to JSON files on disk.
 // The database stores only execution index data (status, progress, result_path).
 // Detailed execution data lives in JSON files at the result_path location.
-type FileRecorder struct {
+type FileWriter struct {
 	repo    ExecutionIndexRepository
 	storage storage.StorageInterface
 	log     *logrus.Logger
@@ -45,6 +45,14 @@ type FileRecorder struct {
 	// Cache of proto timeline data being built up (preferred on-disk format).
 	timelines sync.Map // executionID -> *executionTimelineData
 }
+
+// FileRecorder is an alias for FileWriter for backward compatibility.
+// MIGRATION: Callers should migrate to FileWriter.
+type FileRecorder = FileWriter
+
+// DBRecorder is an alias for FileWriter for backward compatibility.
+// MIGRATION: Callers should migrate to FileWriter.
+type DBRecorder = FileWriter
 
 // ExecutionResultData accumulates execution results to be written to disk.
 // This is the file format stored at ExecutionIndex.ResultPath.
@@ -122,12 +130,12 @@ type ExecutionSummary struct {
 	LastUpdated     time.Time `json:"last_updated"`
 }
 
-// NewFileRecorder constructs a Recorder that writes to files and updates the DB index.
-func NewFileRecorder(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger, dataDir string) *FileRecorder {
+// NewFileWriter constructs an ExecutionWriter that writes to files and updates the DB index.
+func NewFileWriter(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger, dataDir string) *FileWriter {
 	if dataDir == "" {
 		dataDir = "/tmp/bas-executions"
 	}
-	return &FileRecorder{
+	return &FileWriter{
 		repo:    repo,
 		storage: storage,
 		log:     log,
@@ -135,10 +143,16 @@ func NewFileRecorder(repo ExecutionIndexRepository, storage storage.StorageInter
 	}
 }
 
-// NewDBRecorder is an alias for NewFileRecorder for backward compatibility.
-// MIGRATION: Callers should migrate to NewFileRecorder.
-func NewDBRecorder(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger) *FileRecorder {
-	return NewFileRecorder(repo, storage, log, "")
+// NewFileRecorder is an alias for NewFileWriter for backward compatibility.
+// MIGRATION: Callers should migrate to NewFileWriter.
+func NewFileRecorder(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger, dataDir string) *FileWriter {
+	return NewFileWriter(repo, storage, log, dataDir)
+}
+
+// NewDBRecorder is an alias for NewFileWriter for backward compatibility.
+// MIGRATION: Callers should migrate to NewFileWriter.
+func NewDBRecorder(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger) *FileWriter {
+	return NewFileWriter(repo, storage, log, "")
 }
 
 const (
@@ -147,7 +161,7 @@ const (
 )
 
 // getOrCreateResult gets or creates the result data for an execution.
-func (r *FileRecorder) getOrCreateResult(plan contracts.ExecutionPlan) *ExecutionResultData {
+func (r *FileWriter) getOrCreateResult(plan contracts.ExecutionPlan) *ExecutionResultData {
 	key := plan.ExecutionID.String()
 	if val, ok := r.results.Load(key); ok {
 		return val.(*ExecutionResultData)
@@ -168,7 +182,7 @@ func (r *FileRecorder) getOrCreateResult(plan contracts.ExecutionPlan) *Executio
 	return result
 }
 
-func (r *FileRecorder) getOrCreateTimeline(plan contracts.ExecutionPlan) *executionTimelineData {
+func (r *FileWriter) getOrCreateTimeline(plan contracts.ExecutionPlan) *executionTimelineData {
 	key := plan.ExecutionID.String()
 	if val, ok := r.timelines.Load(key); ok {
 		return val.(*executionTimelineData)
@@ -186,16 +200,16 @@ func (r *FileRecorder) getOrCreateTimeline(plan contracts.ExecutionPlan) *execut
 }
 
 // resultFilePath returns the path where execution results should be stored.
-func (r *FileRecorder) resultFilePath(executionID uuid.UUID) string {
+func (r *FileWriter) resultFilePath(executionID uuid.UUID) string {
 	return filepath.Join(r.dataDir, executionID.String(), resultFileName)
 }
 
-func (r *FileRecorder) protoTimelineFilePath(executionID uuid.UUID) string {
+func (r *FileWriter) protoTimelineFilePath(executionID uuid.UUID) string {
 	return filepath.Join(r.dataDir, executionID.String(), protoTimelineFileName)
 }
 
 // writeResultFile persists the execution result data to disk.
-func (r *FileRecorder) writeResultFile(executionID uuid.UUID, result *ExecutionResultData) error {
+func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionResultData) error {
 	result.mu.Lock()
 	defer result.mu.Unlock()
 
@@ -220,7 +234,7 @@ func (r *FileRecorder) writeResultFile(executionID uuid.UUID, result *ExecutionR
 	return nil
 }
 
-func (r *FileRecorder) writeProtoTimelineFile(executionID uuid.UUID, timeline *executionTimelineData) error {
+func (r *FileWriter) writeProtoTimelineFile(executionID uuid.UUID, timeline *executionTimelineData) error {
 	if timeline == nil || timeline.pb == nil {
 		return nil
 	}
@@ -256,7 +270,7 @@ func (r *FileRecorder) writeProtoTimelineFile(executionID uuid.UUID, timeline *e
 }
 
 // RecordStepOutcome stores the execution step and key artifacts to files.
-func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error) {
+func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error) {
 	if r == nil {
 		return RecordResult{}, nil
 	}
@@ -541,7 +555,7 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 	}, nil
 }
 
-func (r *FileRecorder) appendProtoTimelineEntry(
+func (r *FileWriter) appendProtoTimelineEntry(
 	plan contracts.ExecutionPlan,
 	outcome contracts.StepOutcome,
 	artifacts []*bastimeline.TimelineArtifact,
@@ -673,7 +687,7 @@ func artifactTypeToProto(kind string) basbase.ArtifactType {
 }
 
 // persistExternalFile stores metadata for engine-provided files (trace/video/HAR).
-func (r *FileRecorder) persistExternalFile(result *ExecutionResultData, stepID string, stepIndex int, artifactType, filePath string) *uuid.UUID {
+func (r *FileWriter) persistExternalFile(result *ExecutionResultData, stepID string, stepIndex int, artifactType, filePath string) *uuid.UUID {
 	info, err := os.Stat(filePath)
 	if err != nil {
 		if r.log != nil {
@@ -713,7 +727,7 @@ func (r *FileRecorder) persistExternalFile(result *ExecutionResultData, stepID s
 }
 
 // RecordTelemetry persists telemetry data to the result file.
-func (r *FileRecorder) RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error {
+func (r *FileWriter) RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error {
 	if r == nil {
 		return nil
 	}
@@ -909,7 +923,7 @@ func anyToJsonValue(v any) *commonv1.JsonValue {
 }
 
 // MarkCrash records a crash event and updates the execution index.
-func (r *FileRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error {
+func (r *FileWriter) MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error {
 	if r == nil {
 		return nil
 	}
@@ -975,7 +989,7 @@ func (r *FileRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, fai
 }
 
 // UpdateCheckpoint persists the current execution progress to the database index.
-func (r *FileRecorder) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error {
+func (r *FileWriter) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error {
 	if r == nil || r.repo == nil {
 		return nil
 	}
@@ -1015,7 +1029,7 @@ func (r *FileRecorder) UpdateCheckpoint(ctx context.Context, executionID uuid.UU
 }
 
 // updateExecutionIndex updates the database index with the result path.
-func (r *FileRecorder) updateExecutionIndex(ctx context.Context, executionID uuid.UUID, resultPath string) error {
+func (r *FileWriter) updateExecutionIndex(ctx context.Context, executionID uuid.UUID, resultPath string) error {
 	execution, err := r.repo.GetExecution(ctx, executionID)
 	if err != nil {
 		// Execution may not exist yet - that's OK, it will be created by the workflow service
@@ -1026,7 +1040,7 @@ func (r *FileRecorder) updateExecutionIndex(ctx context.Context, executionID uui
 	return r.repo.UpdateExecution(ctx, execution)
 }
 
-func (r *FileRecorder) persistScreenshot(ctx context.Context, executionID uuid.UUID, outcome contracts.StepOutcome) (*storage.ScreenshotInfo, error) {
+func (r *FileWriter) persistScreenshot(ctx context.Context, executionID uuid.UUID, outcome contracts.StepOutcome) (*storage.ScreenshotInfo, error) {
 	if r.storage == nil {
 		return nil, nil
 	}
@@ -1245,9 +1259,5 @@ func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, s
 	return payload
 }
 
-// DBRecorder is an alias for FileRecorder for backward compatibility.
-// MIGRATION: Callers should migrate to FileRecorder.
-type DBRecorder = FileRecorder
-
 // Compile-time interface enforcement
-var _ Recorder = (*FileRecorder)(nil)
+var _ ExecutionWriter = (*FileWriter)(nil)

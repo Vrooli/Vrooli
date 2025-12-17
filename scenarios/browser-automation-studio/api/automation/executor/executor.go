@@ -9,7 +9,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
-	"github.com/vrooli/browser-automation-studio/automation/recorder"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
 
@@ -18,7 +18,7 @@ type Request struct {
 	Plan              contracts.ExecutionPlan
 	EngineName        string
 	EngineFactory     engine.Factory
-	Recorder          recorder.Recorder
+	Recorder          executionwriter.ExecutionWriter
 	EventSink         events.Sink
 	HeartbeatInterval time.Duration
 	ReuseMode         engine.SessionReuseMode

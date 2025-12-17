@@ -1,4 +1,4 @@
-package recording
+package archiveingestion
 
 import (
 	"encoding/json"
@@ -257,10 +257,10 @@ func (r recordingRegions) toContracts() []*autocontracts.HighlightRegion {
 		if region.Padding != 0 {
 			runtimeRegion.Padding = int32(region.Padding)
 		}
-			if region.Color != "" {
-				color := region.Color
-				runtimeRegion.CustomRgba = &color
-			}
+		if region.Color != "" {
+			color := region.Color
+			runtimeRegion.CustomRgba = &color
+		}
 		result = append(result, runtimeRegion)
 	}
 	return result

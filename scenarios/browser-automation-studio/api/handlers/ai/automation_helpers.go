@@ -11,7 +11,7 @@ import (
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
-	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 )
 
 // AutomationRunner provides an interface for running ephemeral automation sequences.
@@ -28,11 +28,11 @@ type inMemoryRecorder struct {
 	telemetry []autocontracts.StepTelemetry
 }
 
-func (r *inMemoryRecorder) RecordStepOutcome(_ context.Context, _ autocontracts.ExecutionPlan, outcome autocontracts.StepOutcome) (autorecorder.RecordResult, error) {
+func (r *inMemoryRecorder) RecordStepOutcome(_ context.Context, _ autocontracts.ExecutionPlan, outcome autocontracts.StepOutcome) (executionwriter.RecordResult, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.outcomes = append(r.outcomes, outcome)
-	return autorecorder.RecordResult{}, nil
+	return executionwriter.RecordResult{}, nil
 }
 
 func (r *inMemoryRecorder) RecordTelemetry(_ context.Context, _ autocontracts.ExecutionPlan, telemetry autocontracts.StepTelemetry) error {

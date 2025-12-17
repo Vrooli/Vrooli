@@ -12,7 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/services/recording"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 )
 
 // ImportRecording handles POST /api/v1/recordings/import
@@ -45,9 +45,9 @@ func (h *Handler) ImportRecording(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, context.DeadlineExceeded):
 			apiErr = ErrRequestTimeout.WithDetails(map[string]string{"error": err.Error()})
-		case errors.Is(err, recording.ErrRecordingArchiveTooLarge):
+		case errors.Is(err, archiveingestion.ErrArchiveTooLarge):
 			apiErr = ErrRequestTooLarge.WithMessage("Recording archive exceeds maximum allowed size")
-		case errors.Is(err, recording.ErrRecordingManifestMissingFrames), errors.Is(err, recording.ErrRecordingTooManyFrames):
+		case errors.Is(err, archiveingestion.ErrManifestMissingFrames), errors.Is(err, archiveingestion.ErrTooManyFrames):
 			apiErr = ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()})
 		default:
 			apiErr = ErrInternalServer.WithDetails(map[string]string{"operation": "import_recording", "error": err.Error()})
@@ -132,8 +132,8 @@ func (h *Handler) persistRecordingArchive(r *http.Request) (string, func(), erro
 	return tmpFile.Name(), cleanup, nil
 }
 
-func parseRecordingOptions(r *http.Request) (recording.RecordingImportOptions, error) {
-	opts := recording.RecordingImportOptions{}
+func parseRecordingOptions(r *http.Request) (archiveingestion.IngestionOptions, error) {
+	opts := archiveingestion.IngestionOptions{}
 
 	projectIDRaw := firstNonEmpty(formValue(r, "project_id"), r.URL.Query().Get("project_id"))
 	if projectIDRaw != "" {

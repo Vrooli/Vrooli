@@ -7,18 +7,18 @@ import (
 	"os"
 
 	"github.com/google/uuid"
-	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/database"
 	bastelemetry "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
-func (s *WorkflowService) readExecutionResult(resultPath string) (*autorecorder.ExecutionResultData, error) {
+func (s *WorkflowService) readExecutionResult(resultPath string) (*executionwriter.ExecutionResultData, error) {
 	data, err := os.ReadFile(resultPath)
 	if err != nil {
 		return nil, err
 	}
-	var result autorecorder.ExecutionResultData
+	var result executionwriter.ExecutionResultData
 	if err := json.Unmarshal(data, &result); err != nil {
 		return nil, fmt.Errorf("parse result JSON: %w", err)
 	}
@@ -91,7 +91,7 @@ func (s *WorkflowService) UpdateExecutionResultPath(ctx context.Context, executi
 }
 
 // Ensure our workflow service satisfies the recorder's minimal interface when used as ExecutionIndexRepository.
-var _ autorecorder.ExecutionIndexRepository = (*WorkflowService)(nil)
+var _ executionwriter.ExecutionIndexRepository = (*WorkflowService)(nil)
 
 func (s *WorkflowService) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
 	return s.repo.GetExecution(ctx, id)

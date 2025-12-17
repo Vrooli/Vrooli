@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/vrooli/browser-automation-studio/services/recording"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 )
 
 type sessionProfileResponse struct {
@@ -19,7 +19,7 @@ type sessionProfileResponse struct {
 	HasStorageState bool   `json:"has_storage_state"`
 }
 
-func toSessionProfileResponse(p *recording.SessionProfile) sessionProfileResponse {
+func toSessionProfileResponse(p *archiveingestion.SessionProfile) sessionProfileResponse {
 	if p == nil {
 		return sessionProfileResponse{}
 	}

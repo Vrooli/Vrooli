@@ -1,4 +1,4 @@
-package recording
+package archiveingestion
 
 import (
 	"archive/zip"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
@@ -59,16 +59,23 @@ func errTooManyFrames() error {
 
 // Exported error aliases for handler detection.
 var (
-	ErrRecordingManifestMissingFrames = errManifestMissingFrames
-	ErrRecordingArchiveTooLarge       = errManifestTooLarge
+	ErrManifestMissingFrames = errManifestMissingFrames
+	ErrArchiveTooLarge       = errManifestTooLarge
 )
 
-// ErrRecordingTooManyFrames is checked via errors.Is by using a custom type.
-var ErrRecordingTooManyFrames = errors.New("recording exceeds maximum frame count")
+// ErrTooManyFrames is checked via errors.Is by using a custom type.
+var ErrTooManyFrames = errors.New("recording exceeds maximum frame count")
 
-// RecordingRepository captures the repository functionality required for recording ingestion.
+// Backward compatibility aliases for existing code.
+var (
+	ErrRecordingManifestMissingFrames = ErrManifestMissingFrames
+	ErrRecordingArchiveTooLarge       = ErrArchiveTooLarge
+	ErrRecordingTooManyFrames         = ErrTooManyFrames
+)
+
+// IngestionRepository captures the repository functionality required for archive ingestion.
 // Uses index-only database operations; rich data is stored in JSON files.
-type RecordingRepository interface {
+type IngestionRepository interface {
 	GetProject(ctx context.Context, id uuid.UUID) (*database.ProjectIndex, error)
 	GetProjectByName(ctx context.Context, name string) (*database.ProjectIndex, error)
 	CreateProject(ctx context.Context, project *database.ProjectIndex) error
@@ -85,16 +92,22 @@ type RecordingRepository interface {
 	DeleteExecution(ctx context.Context, id uuid.UUID) error
 }
 
-// RecordingImportOptions capture optional metadata supplied during ingestion.
-type RecordingImportOptions struct {
+// RecordingRepository is an alias for backward compatibility.
+type RecordingRepository = IngestionRepository
+
+// IngestionOptions capture optional metadata supplied during ingestion.
+type IngestionOptions struct {
 	ProjectID    *uuid.UUID
 	ProjectName  string
 	WorkflowID   *uuid.UUID
 	WorkflowName string
 }
 
-// RecordingImportResult summarises the outcome of a recording import.
-type RecordingImportResult struct {
+// RecordingImportOptions is an alias for backward compatibility.
+type RecordingImportOptions = IngestionOptions
+
+// IngestionResult summarises the outcome of an archive import.
+type IngestionResult struct {
 	Execution  *database.ExecutionIndex `json:"execution"`
 	Workflow   *database.WorkflowIndex  `json:"workflow"`
 	Project    *database.ProjectIndex   `json:"project"`
@@ -103,26 +116,32 @@ type RecordingImportResult struct {
 	DurationMs int                      `json:"duration_ms"`
 }
 
-// RecordingService ingests Chrome extension recording archives and normalises them into execution artifacts.
+// RecordingImportResult is an alias for backward compatibility.
+type RecordingImportResult = IngestionResult
+
+// IngestionService ingests Chrome extension recording archives and normalises them into execution artifacts.
 //
 // This service is split across multiple files for better organization:
-//   - recording_service.go: Core service and main ImportArchive method
-//   - recording_types.go: Manifest types and their methods (recordingManifest, recordingFrame, etc.)
-//   - recording_resolution.go: Project and workflow resolution logic
-//   - recording_persistence.go: Frame persistence and cleanup operations
-//   - recording_adapter.go: Conversion from recording frames to automation contracts
-//   - recording_helpers.go: Utility functions (manifest loading, storage selection, etc.)
-//   - recording_file_store.go: Local filesystem storage implementation
-type RecordingService struct {
-	repo           RecordingRepository
+//   - service.go: Core service and main ImportArchive method
+//   - types.go: Manifest types and their methods (recordingManifest, recordingFrame, etc.)
+//   - resolution.go: Project and workflow resolution logic
+//   - persistence.go: Frame persistence and cleanup operations
+//   - adapter.go: Conversion from recording frames to automation contracts
+//   - helpers.go: Utility functions (manifest loading, storage selection, etc.)
+//   - file_store.go: Local filesystem storage implementation
+type IngestionService struct {
+	repo           IngestionRepository
 	storage        storage.StorageInterface
-	recorder       autorecorder.Recorder
+	recorder       executionwriter.ExecutionWriter
 	log            *logrus.Logger
 	recordingsRoot string
 }
 
-// NewRecordingService constructs a recording ingestion service.
-func NewRecordingService(repo RecordingRepository, storageClient storage.StorageInterface, _ *wsHub.Hub, log *logrus.Logger, recordingsRoot string) *RecordingService {
+// RecordingService is an alias for backward compatibility.
+type RecordingService = IngestionService
+
+// NewIngestionService constructs an archive ingestion service.
+func NewIngestionService(repo IngestionRepository, storageClient storage.StorageInterface, _ *wsHub.Hub, log *logrus.Logger, recordingsRoot string) *IngestionService {
 	absRoot := recordingsRoot
 	if absRoot == "" {
 		absRoot = filepath.Join("scenarios", "browser-automation-studio", "data", "recordings")
@@ -137,23 +156,26 @@ func NewRecordingService(repo RecordingRepository, storageClient storage.Storage
 	store := selectRecordingStorage(storageClient, absRoot, log)
 
 	// Create the recorder with the execution index repository adapter
-	var execRepo autorecorder.ExecutionIndexRepository
+	var execRepo executionwriter.ExecutionIndexRepository
 	if repo != nil {
 		execRepo = &executionIndexRepoAdapter{repo: repo}
 	}
 
-	return &RecordingService{
+	return &IngestionService{
 		repo:           repo,
 		storage:        store,
-		recorder:       autorecorder.NewFileRecorder(execRepo, store, log, absRoot),
+		recorder:       executionwriter.NewFileRecorder(execRepo, store, log, absRoot),
 		log:            log,
 		recordingsRoot: absRoot,
 	}
 }
 
-// executionIndexRepoAdapter adapts RecordingRepository to ExecutionIndexRepository
+// NewRecordingService is an alias for backward compatibility.
+var NewRecordingService = NewIngestionService
+
+// executionIndexRepoAdapter adapts IngestionRepository to ExecutionIndexRepository
 type executionIndexRepoAdapter struct {
-	repo RecordingRepository
+	repo IngestionRepository
 }
 
 func (a *executionIndexRepoAdapter) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
@@ -165,7 +187,7 @@ func (a *executionIndexRepoAdapter) UpdateExecution(ctx context.Context, executi
 }
 
 // ImportArchive ingests a Chrome extension recording archive located on disk.
-func (s *RecordingService) ImportArchive(ctx context.Context, archivePath string, opts RecordingImportOptions) (*RecordingImportResult, error) {
+func (s *IngestionService) ImportArchive(ctx context.Context, archivePath string, opts IngestionOptions) (*IngestionResult, error) {
 	if s == nil {
 		return nil, errors.New("recording service not configured")
 	}
@@ -251,7 +273,7 @@ func (s *RecordingService) ImportArchive(ctx context.Context, archivePath string
 			Info("Imported recording")
 	}
 
-	return &RecordingImportResult{
+	return &IngestionResult{
 		Execution:  execution,
 		Workflow:   workflow,
 		Project:    project,

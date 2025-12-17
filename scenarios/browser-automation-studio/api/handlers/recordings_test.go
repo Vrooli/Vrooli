@@ -19,23 +19,23 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services/recording"
 )
 
 // Mock recording service for testing
 type mockRecordingService struct {
-	importArchiveFn func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error)
+	importArchiveFn func(ctx context.Context, archivePath string, opts archiveingestion.IngestionOptions) (*archiveingestion.IngestionResult, error)
 }
 
-func (m *mockRecordingService) ImportArchive(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
+func (m *mockRecordingService) ImportArchive(ctx context.Context, archivePath string, opts archiveingestion.IngestionOptions) (*archiveingestion.IngestionResult, error) {
 	if m.importArchiveFn != nil {
 		return m.importArchiveFn(ctx, archivePath, opts)
 	}
 	return nil, errors.New("not implemented")
 }
 
-func setupRecordingTestHandler(t *testing.T, recordingService recording.RecordingServiceInterface) *Handler {
+func setupRecordingTestHandler(t *testing.T, recordingService archiveingestion.IngestionServiceInterface) *Handler {
 	t.Helper()
 
 	log := logrus.New()
@@ -54,8 +54,8 @@ func TestImportRecording_Success(t *testing.T) {
 		projectID := uuid.New()
 
 		mockService := &mockRecordingService{
-			importArchiveFn: func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
-				return &recording.RecordingImportResult{
+			importArchiveFn: func(ctx context.Context, archivePath string, opts archiveingestion.IngestionOptions) (*archiveingestion.IngestionResult, error) {
+				return &archiveingestion.IngestionResult{
 					Execution: &database.Execution{
 						ID:          executionID,
 						WorkflowID:  workflowID,
@@ -144,7 +144,7 @@ func TestImportRecording_ServiceUnavailable(t *testing.T) {
 func TestImportRecording_ArchiveTooLarge(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] rejects archives exceeding size limit", func(t *testing.T) {
 		mockService := &mockRecordingService{
-			importArchiveFn: func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
+			importArchiveFn: func(ctx context.Context, archivePath string, opts archiveingestion.IngestionOptions) (*archiveingestion.IngestionResult, error) {
 				return nil, recording.ErrRecordingArchiveTooLarge
 			},
 		}
@@ -178,7 +178,7 @@ func TestImportRecording_ArchiveTooLarge(t *testing.T) {
 func TestImportRecording_MissingManifest(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] rejects archives with missing manifest", func(t *testing.T) {
 		mockService := &mockRecordingService{
-			importArchiveFn: func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
+			importArchiveFn: func(ctx context.Context, archivePath string, opts archiveingestion.IngestionOptions) (*archiveingestion.IngestionResult, error) {
 				return nil, recording.ErrRecordingManifestMissingFrames
 			},
 		}
@@ -209,7 +209,7 @@ func TestImportRecording_MissingManifest(t *testing.T) {
 func TestImportRecording_TooManyFrames(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] rejects archives with too many frames", func(t *testing.T) {
 		mockService := &mockRecordingService{
-			importArchiveFn: func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
+			importArchiveFn: func(ctx context.Context, archivePath string, opts archiveingestion.IngestionOptions) (*archiveingestion.IngestionResult, error) {
 				return nil, recording.ErrRecordingTooManyFrames
 			},
 		}
@@ -240,7 +240,7 @@ func TestImportRecording_TooManyFrames(t *testing.T) {
 func TestImportRecording_Timeout(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] handles import timeout gracefully", func(t *testing.T) {
 		mockService := &mockRecordingService{
-			importArchiveFn: func(ctx context.Context, archivePath string, opts recording.RecordingImportOptions) (*recording.RecordingImportResult, error) {
+			importArchiveFn: func(ctx context.Context, archivePath string, opts archiveingestion.IngestionOptions) (*archiveingestion.IngestionResult, error) {
 				// Simulate timeout
 				<-ctx.Done()
 				return nil, ctx.Err()

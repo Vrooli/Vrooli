@@ -1,4 +1,4 @@
-package recording
+package archiveingestion
 
 import (
 	"archive/zip"
@@ -22,7 +22,7 @@ type framePersistResult struct {
 
 // persistFrames processes each frame in the recording manifest, converts it to a step outcome,
 // and persists it using the automation recorder. Returns summary statistics.
-func (s *RecordingService) persistFrames(
+func (s *IngestionService) persistFrames(
 	ctx context.Context,
 	zr *zip.Reader,
 	project *database.ProjectIndex,
@@ -96,7 +96,7 @@ func (s *RecordingService) persistFrames(
 
 // cleanupRecordingArtifacts removes partially created database records and filesystem artifacts
 // when a recording import fails. It attempts to clean up execution, workflow, and project in order.
-func (s *RecordingService) cleanupRecordingArtifacts(baseCtx context.Context, projectCreated, workflowCreated bool, project *database.ProjectIndex, workflow *database.WorkflowIndex, execution *database.ExecutionIndex) {
+func (s *IngestionService) cleanupRecordingArtifacts(baseCtx context.Context, projectCreated, workflowCreated bool, project *database.ProjectIndex, workflow *database.WorkflowIndex, execution *database.ExecutionIndex) {
 	ctx, cancel := context.WithTimeout(baseCtx, 30*time.Second)
 	defer cancel()
 

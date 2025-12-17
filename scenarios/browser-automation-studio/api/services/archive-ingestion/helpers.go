@@ -1,4 +1,4 @@
-package recording
+package archiveingestion
 
 import (
 	"archive/zip"
@@ -37,7 +37,7 @@ func selectRecordingStorage(provided storage.StorageInterface, recordingsRoot st
 	return newRecordingFileStore(recordingsRoot, log)
 }
 
-func deriveWorkflowName(manifest *recordingManifest, opts RecordingImportOptions) string {
+func deriveWorkflowName(manifest *recordingManifest, opts IngestionOptions) string {
 	if opts.WorkflowName != "" {
 		return opts.WorkflowName
 	}

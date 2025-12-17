@@ -18,25 +18,41 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/performance"
-	"github.com/vrooli/browser-automation-studio/services/recording"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// RecordedAction is an alias for events.RecordedAction to maintain API compatibility.
-// Use events.RecordedAction directly in new code.
-type RecordedAction = events.RecordedAction
+// RecordedAction is an alias for livecapture.RecordedAction.
+//
+// Deprecated: Import livecapture.RecordedAction from
+// github.com/vrooli/browser-automation-studio/services/live-capture directly.
+// This alias will be removed in a future version.
+type RecordedAction = livecapture.RecordedAction
 
-// SelectorSet is an alias for events.SelectorSet to maintain API compatibility.
-type SelectorSet = events.SelectorSet
+// SelectorSet is an alias for livecapture.SelectorSet.
+//
+// Deprecated: Import livecapture.SelectorSet from
+// github.com/vrooli/browser-automation-studio/services/live-capture directly.
+// This alias will be removed in a future version.
+type SelectorSet = livecapture.SelectorSet
 
-// SelectorCandidate is an alias for events.SelectorCandidate to maintain API compatibility.
-type SelectorCandidate = events.SelectorCandidate
+// SelectorCandidate is an alias for livecapture.SelectorCandidate.
+//
+// Deprecated: Import livecapture.SelectorCandidate from
+// github.com/vrooli/browser-automation-studio/services/live-capture directly.
+// This alias will be removed in a future version.
+type SelectorCandidate = livecapture.SelectorCandidate
 
-// ElementMeta is an alias for events.ElementMeta to maintain API compatibility.
-type ElementMeta = events.ElementMeta
+// ElementMeta is an alias for livecapture.ElementMeta.
+//
+// Deprecated: Import livecapture.ElementMeta from
+// github.com/vrooli/browser-automation-studio/services/live-capture directly.
+// This alias will be removed in a future version.
+type ElementMeta = livecapture.ElementMeta
 
 // CreateRecordingSessionRequest is the request body for creating a browser session for recording.
 type CreateRecordingSessionRequest struct {
@@ -97,14 +113,16 @@ type RecordingStatusResponse struct {
 	IsRecording bool   `json:"is_recording"`
 	RecordingID string `json:"recording_id,omitempty"`
 	ActionCount int    `json:"action_count"`
+	FrameCount  int    `json:"frame_count,omitempty"`
 	StartedAt   string `json:"started_at,omitempty"`
 }
 
 // GetActionsResponse is the response for getting recorded actions.
 type GetActionsResponse struct {
-	SessionID string           `json:"session_id"`
-	Actions   []RecordedAction `json:"actions"`
-	Count     int              `json:"count"`
+	SessionID   string           `json:"session_id"`
+	IsRecording bool             `json:"is_recording,omitempty"`
+	Actions     []RecordedAction `json:"actions"`
+	Count       int              `json:"count"`
 }
 
 // GenerateWorkflowRequest is the request body for generating a workflow from recording.
@@ -181,6 +199,8 @@ type NavigateRecordingRequest struct {
 type NavigateRecordingResponse struct {
 	SessionID  string `json:"session_id"`
 	URL        string `json:"url"`
+	Title      string `json:"title,omitempty"`
+	StatusCode int    `json:"status_code,omitempty"`
 	Screenshot string `json:"screenshot,omitempty"`
 }
 
@@ -263,16 +283,7 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Set default viewport if not provided
-	viewportWidth := req.ViewportWidth
-	viewportHeight := req.ViewportHeight
-	if viewportWidth <= 0 {
-		viewportWidth = 1280
-	}
-	if viewportHeight <= 0 {
-		viewportHeight = 720
-	}
-
+	// Resolve session profile for authentication persistence
 	var profileID, profileName, profileLastUsed string
 	var storageState json.RawMessage
 	if h.sessionProfiles != nil {
@@ -289,118 +300,43 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Build request to playwright-driver
-	driverURL := fmt.Sprintf("%s/session/start", getPlaywrightDriverURL())
-
-	// Generate IDs for the recording session
-	// For record mode, we create ephemeral IDs since this isn't tied to a stored workflow/execution
-	recordingExecutionID := uuid.New().String()
-	recordingWorkflowID := uuid.New().String()
-
-	// Construct frame callback URL for live preview streaming
-	// Frame streaming starts immediately when session is created (not when recording starts)
-	// The driver extracts the host from this URL and builds the WebSocket URL with the actual session ID
-	apiHost := os.Getenv("API_HOST")
-	if apiHost == "" {
-		apiHost = "127.0.0.1"
-	}
-	apiPort := os.Getenv("API_PORT")
-	if apiPort == "" {
-		apiPort = "8080"
-	}
-	frameCallbackURL := fmt.Sprintf("http://%s:%s/api/v1/recordings/live/placeholder/frame", apiHost, apiPort)
-
 	// Apply stream settings with defaults
-	streamQuality := 55 // default
+	streamQuality := 55
 	if req.StreamQuality != nil && *req.StreamQuality >= 1 && *req.StreamQuality <= 100 {
 		streamQuality = *req.StreamQuality
 	}
-	streamFPS := 6 // default
+	streamFPS := 6
 	if req.StreamFPS != nil && *req.StreamFPS >= 1 && *req.StreamFPS <= 60 {
 		streamFPS = *req.StreamFPS
 	}
-	streamScale := "css" // default - 1x scale for efficiency
+	streamScale := "css"
 	if req.StreamScale == "device" {
 		streamScale = "device"
 	}
 
-	driverReq := map[string]interface{}{
-		"execution_id": recordingExecutionID,
-		"workflow_id":  recordingWorkflowID,
-		"viewport": map[string]int{
-			"width":  viewportWidth,
-			"height": viewportHeight,
-		},
-		"reuse_mode": "fresh",
-		"labels": map[string]string{
-			"purpose": "record-mode",
-		},
-		// Enable frame streaming immediately for live preview
-		"frame_streaming": map[string]interface{}{
-			"callback_url": frameCallbackURL,
-			"quality":      streamQuality,
-			"fps":          streamFPS,
-			"scale":        streamScale,
-		},
-	}
-	if len(storageState) > 0 {
-		// Pass through persisted storage state to reuse authentication
-		driverReq["storage_state"] = json.RawMessage(storageState)
+	// Delegate to recordmode service
+	cfg := &livecapture.SessionConfig{
+		ViewportWidth:  req.ViewportWidth,
+		ViewportHeight: req.ViewportHeight,
+		InitialURL:     req.InitialURL,
+		StreamQuality:  streamQuality,
+		StreamFPS:      streamFPS,
+		StreamScale:    streamScale,
+		StorageState:   storageState,
+		APIHost:        os.Getenv("API_HOST"),
+		APIPort:        os.Getenv("API_PORT"),
 	}
 
-	jsonBody, err := json.Marshal(driverReq)
+	result, err := h.recordModeService.CreateSession(ctx, cfg)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to marshal request",
-		}))
-		return
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
-	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for create session")
+		h.log.WithError(err).Error("Failed to create recording session")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		h.log.WithFields(map[string]interface{}{
-			"status": resp.StatusCode,
-			"body":   string(body),
-		}).Error("Driver returned error for create session")
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
-			"body":   string(body),
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	var driverResp struct {
-		SessionID string `json:"session_id"`
-	}
-	if err := json.Unmarshal(body, &driverResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		}))
-		return
-	}
-
+	// Update session profile usage tracking
 	if profileID != "" && h.sessionProfiles != nil {
 		if updated, err := h.sessionProfiles.Touch(profileID); err != nil {
 			h.log.WithError(err).WithField("profile_id", profileID).Warn("Failed to update session profile usage")
@@ -408,34 +344,12 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 			profileName = updated.Name
 			profileLastUsed = updated.LastUsedAt.Format(time.RFC3339)
 		}
-		h.setActiveSessionProfile(driverResp.SessionID, profileID)
-	}
-
-	// If initial URL provided, navigate to it
-	if req.InitialURL != "" {
-		navURL := fmt.Sprintf("%s/session/%s/run", getPlaywrightDriverURL(), driverResp.SessionID)
-		navReq := map[string]interface{}{
-			"instructions": []map[string]interface{}{
-				{
-					"op":  "navigate",
-					"url": req.InitialURL,
-				},
-			},
-		}
-		navBody, _ := json.Marshal(navReq)
-		navHTTPReq, _ := http.NewRequestWithContext(ctx, http.MethodPost, navURL, bytes.NewReader(navBody))
-		navHTTPReq.Header.Set("Content-Type", "application/json")
-		navResp, err := client.Do(navHTTPReq)
-		if err != nil {
-			h.log.WithError(err).Warn("Failed to navigate to initial URL")
-		} else {
-			navResp.Body.Close()
-		}
+		h.setActiveSessionProfile(result.SessionID, profileID)
 	}
 
 	response := CreateRecordingSessionResponse{
-		SessionID:          driverResp.SessionID,
-		CreatedAt:          time.Now().UTC().Format(time.RFC3339),
+		SessionID:          result.SessionID,
+		CreatedAt:          result.CreatedAt.Format(time.RFC3339),
 		SessionProfileID:   profileID,
 		SessionProfileName: profileName,
 		LastUsedAt:         profileLastUsed,
@@ -462,10 +376,11 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Capture storage state before closing (for session profile persistence)
 	var storageState json.RawMessage
 	profileID := h.getActiveSessionProfile(sessionID)
 	if profileID != "" && h.sessionProfiles != nil {
-		if state, err := h.fetchSessionStorageState(ctx, sessionID); err != nil {
+		if state, err := h.recordModeService.GetStorageState(ctx, sessionID); err != nil {
 			h.log.WithError(err).WithFields(map[string]interface{}{
 				"session_id": sessionID,
 				"profile_id": profileID,
@@ -475,43 +390,21 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// Call playwright-driver to close the session
-	driverURL := fmt.Sprintf("%s/session/%s/close", getPlaywrightDriverURL(), sessionID)
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, nil)
-	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for close session")
+	// Delegate to recordmode service
+	if err := h.recordModeService.CloseSession(ctx, sessionID); err != nil {
+		h.log.WithError(err).Error("Failed to close recording session")
+		// Check for not found error
+		if driverErr, ok := err.(*livecapture.DriverError); ok && driverErr.StatusCode == 404 {
+			h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
+			return
+		}
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
-		return
-	}
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		body, _ := io.ReadAll(resp.Body)
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
-			"body":   string(body),
+			"error": err.Error(),
 		}))
 		return
 	}
 
+	// Persist storage state to profile after successful close
 	if profileID != "" && h.sessionProfiles != nil && len(storageState) > 0 {
 		if _, err := h.sessionProfiles.SaveStorageState(profileID, storageState); err != nil {
 			h.log.WithError(err).WithFields(map[string]interface{}{
@@ -550,85 +443,30 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call playwright-driver to start recording
-	driverURL := fmt.Sprintf("%s/session/%s/record/start", getPlaywrightDriverURL(), req.SessionID)
-
-	// Construct callback URLs for real-time streaming
-	// The driver will POST each action/frame to these URLs for WebSocket broadcasting
-	apiHost := os.Getenv("API_HOST")
-	if apiHost == "" {
-		apiHost = "127.0.0.1"
-	}
-	apiPort := os.Getenv("API_PORT")
-	if apiPort == "" {
-		apiPort = "8080"
-	}
-	actionCallbackURL := fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/action", apiHost, apiPort, req.SessionID)
-	frameCallbackURL := fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/frame", apiHost, apiPort, req.SessionID)
-
-	reqBody := map[string]interface{}{
-		"callback_url":       actionCallbackURL,
-		"frame_callback_url": frameCallbackURL,
-		"frame_quality":      65, // WebP quality for live preview
-		"frame_fps":          6,  // 6 FPS for low-latency streaming
-	}
-	// Allow override from request if provided
-	if req.CallbackURL != "" {
-		reqBody["callback_url"] = req.CallbackURL
-	}
-
-	jsonBody, err := json.Marshal(reqBody)
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.StartRecording(ctx, req.SessionID, &livecapture.RecordingConfig{
+		APIHost: os.Getenv("API_HOST"),
+		APIPort: os.Getenv("API_PORT"),
+	})
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to marshal request",
-		}))
-		return
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
-	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for start recording")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		var errResp map[string]interface{}
-		if err := json.Unmarshal(body, &errResp); err == nil {
-			if errMsg, ok := errResp["error"].(string); ok && errMsg == "RECORDING_IN_PROGRESS" {
+		h.log.WithError(err).Error("Failed to start recording")
+		// Check for specific error types
+		if driverErr, ok := err.(*livecapture.DriverError); ok {
+			if strings.Contains(driverErr.Body, "RECORDING_IN_PROGRESS") {
 				h.respondError(w, ErrConflict.WithMessage("Recording is already in progress for this session"))
 				return
 			}
 		}
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
-			"body":   string(body),
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	var driverResp StartRecordingResponse
-	if err := json.Unmarshal(body, &driverResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		}))
-		return
+	// Map service response to handler response type
+	driverResp := StartRecordingResponse{
+		SessionID: resp.SessionID,
+		StartedAt: resp.StartedAt,
 	}
 
 	if pb, err := protoconv.StartRecordingToProto(driverResp); err == nil && pb != nil {
@@ -652,53 +490,31 @@ func (h *Handler) StopLiveRecording(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call playwright-driver to stop recording
-	driverURL := fmt.Sprintf("%s/session/%s/record/stop", getPlaywrightDriverURL(), sessionID)
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, nil)
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.StopRecording(ctx, sessionID)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for stop recording")
+		h.log.WithError(err).Error("Failed to stop recording")
+		// Check for not found error
+		if driverErr, ok := err.(*livecapture.DriverError); ok && driverErr.StatusCode == 404 {
+			h.respondError(w, ErrExecutionNotFound.WithMessage("No recording in progress for this session"))
+			return
+		}
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode == http.StatusNotFound {
-		h.respondError(w, ErrExecutionNotFound.WithMessage("No recording in progress for this session"))
-		return
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	var driverResp StopRecordingResponse
-	if err := json.Unmarshal(body, &driverResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		}))
-		return
-	}
-
+	// Persist session profile after stopping
 	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
 		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to persist session profile after stop")
+	}
+
+	// Map service response to handler response type
+	driverResp := StopRecordingResponse{
+		SessionID:   resp.SessionID,
+		ActionCount: resp.ActionCount,
+		StoppedAt:   resp.StoppedAt,
 	}
 
 	if pb, err := protoconv.StopRecordingToProto(driverResp); err == nil && pb != nil {
@@ -722,44 +538,23 @@ func (h *Handler) GetRecordingStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call playwright-driver to get status
-	driverURL := fmt.Sprintf("%s/session/%s/record/status", getPlaywrightDriverURL(), sessionID)
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, driverURL, nil)
+	// Delegate to recordmode service
+	status, err := h.recordModeService.GetRecordingStatus(ctx, sessionID)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for recording status")
+		h.log.WithError(err).Error("Failed to get recording status")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	var driverResp RecordingStatusResponse
-	if err := json.Unmarshal(body, &driverResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		}))
-		return
+	// Map service response to handler response type
+	driverResp := RecordingStatusResponse{
+		SessionID:   status.SessionID,
+		IsRecording: status.IsRecording,
+		ActionCount: status.ActionCount,
+		StartedAt:   status.StartedAt,
+		FrameCount:  status.FrameCount,
 	}
 
 	if pb, err := protoconv.RecordingStatusToProto(driverResp); err == nil && pb != nil {
@@ -786,61 +581,24 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 	// Check for clear query param
 	clearActions := r.URL.Query().Get("clear") == "true"
 
-	driverResp, apiErr := h.fetchRecordedActions(ctx, sessionID, clearActions)
-	if apiErr != nil {
-		h.respondError(w, apiErr)
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.GetRecordedActions(ctx, sessionID, clearActions)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to get recorded actions")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
 		return
 	}
 
+	// Map service response to handler response type
+	driverResp := &GetActionsResponse{
+		SessionID:   resp.SessionID,
+		IsRecording: resp.IsRecording,
+		Actions:     resp.Actions,
+	}
+
 	h.respondSuccess(w, http.StatusOK, driverResp)
-}
-
-// fetchRecordedActions centralizes the driver call and response normalization for recorded actions.
-func (h *Handler) fetchRecordedActions(ctx context.Context, sessionID string, clearActions bool) (*GetActionsResponse, *APIError) {
-	driverURL := fmt.Sprintf("%s/session/%s/record/actions", getPlaywrightDriverURL(), sessionID)
-	if clearActions {
-		driverURL += "?clear=true"
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, driverURL, nil)
-	if err != nil {
-		return nil, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		})
-	}
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		if h.log != nil {
-			h.log.WithError(err).Error("Failed to call playwright-driver for recorded actions")
-		}
-		return nil, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		})
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
-		})
-	}
-
-	var driverResp GetActionsResponse
-	if err := json.Unmarshal(body, &driverResp); err != nil {
-		return nil, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		})
-	}
-	if driverResp.Actions == nil {
-		driverResp.Actions = []RecordedAction{}
-	}
-
-	return &driverResp, nil
 }
 
 // GenerateWorkflowFromRecording handles POST /api/v1/recordings/live/{sessionId}/generate-workflow
@@ -869,49 +627,48 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 		req.Name = fmt.Sprintf("Recorded Workflow %s", time.Now().Format("2006-01-02 15:04"))
 	}
 
-	var actions []RecordedAction
-
-	// Use actions from request if provided (these contain user edits)
-	if len(req.Actions) > 0 {
-		actions = req.Actions
-	} else {
-		resp, apiErr := h.fetchRecordedActions(ctx, sessionID, false)
-		if apiErr != nil {
-			h.respondError(w, apiErr)
-			return
-		}
-
-		actions = resp.Actions
-	}
-
-	actions = applyActionRange(actions, req.ActionRange)
-
-	if len(actions) == 0 {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "No actions to convert to workflow",
-		}))
-		return
-	}
-
-	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
-		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to persist session profile before workflow generation")
-	}
-
-	// Convert actions to workflow nodes
-	flowDefinition := convertActionsToWorkflow(actions)
-
 	if req.ProjectID == nil || *req.ProjectID == uuid.Nil {
 		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "project_id"}))
 		return
 	}
 	projectID := *req.ProjectID
 
-	v2, err := workflowservice.BuildFlowDefinitionV2ForWrite(flowDefinition, nil, nil)
+	// Persist session profile before workflow generation
+	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to persist session profile before workflow generation")
+	}
+
+	// Delegate workflow generation to the recordmode service
+	// The service handles action fetching, merging, and smart wait insertion
+	var actionRange *livecapture.ActionRange
+	if req.ActionRange != nil {
+		actionRange = &livecapture.ActionRange{
+			Start: req.ActionRange.Start,
+			End:   req.ActionRange.End,
+		}
+	}
+
+	genResult, err := h.recordModeService.GenerateWorkflow(ctx, sessionID, &livecapture.GenerateWorkflowConfig{
+		Name:        req.Name,
+		Actions:     req.Actions, // Pass through user-edited actions if provided
+		ActionRange: actionRange,
+	})
+	if err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Error("Failed to generate workflow from recording")
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	// Build V2 flow definition for storage
+	v2, err := workflowservice.BuildFlowDefinitionV2ForWrite(genResult.FlowDefinition, nil, nil)
 	if err != nil {
 		h.respondError(w, ErrInvalidWorkflowPayload.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
 
+	// Create the workflow via catalog service
 	createResp, err := h.workflowCatalog.CreateWorkflow(ctx, &basapi.CreateWorkflowRequest{
 		ProjectId:      projectID.String(),
 		Name:           req.Name,
@@ -930,548 +687,14 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 		WorkflowID:  uuid.MustParse(createResp.Workflow.Id),
 		ProjectID:   projectID,
 		Name:        createResp.Workflow.Name,
-		NodeCount:   len(workflowservice.ToInterfaceSlice(flowDefinition["nodes"])),
-		ActionCount: len(actions),
+		NodeCount:   genResult.NodeCount,
+		ActionCount: genResult.ActionCount,
 	}
 	if pb, err := protoconv.GenerateWorkflowToProto(respPayload); err == nil && pb != nil {
 		h.respondProto(w, http.StatusCreated, pb)
 		return
 	}
 	h.respondSuccess(w, http.StatusCreated, respPayload)
-}
-
-// applyActionRange returns the requested action subset, clamping indices to the available actions.
-func applyActionRange(actions []RecordedAction, actionRange *struct {
-	Start int `json:"start"`
-	End   int `json:"end"`
-}) []RecordedAction {
-	if actionRange == nil || len(actions) == 0 {
-		return actions
-	}
-
-	start := actionRange.Start
-	end := actionRange.End
-
-	if start < 0 {
-		start = 0
-	}
-	if end >= len(actions) {
-		end = len(actions) - 1
-	}
-	if start <= end && start < len(actions) {
-		return actions[start : end+1]
-	}
-	return actions
-}
-
-// mergeConsecutiveActions optimizes recorded actions by merging:
-// - Consecutive type actions on the same selector (text is concatenated)
-// - Consecutive scroll actions (uses final scroll position)
-// - Removes focus events that precede type events on the same element
-func mergeConsecutiveActions(actions []RecordedAction) []RecordedAction {
-	if len(actions) <= 1 {
-		return actions
-	}
-
-	merged := make([]RecordedAction, 0, len(actions))
-
-	for i := 0; i < len(actions); i++ {
-		action := actions[i]
-
-		// Skip focus events that are immediately followed by type on the same element
-		if action.ActionType == "focus" && i+1 < len(actions) {
-			next := actions[i+1]
-			if next.ActionType == "type" && selectorsMatch(action.Selector, next.Selector) {
-				continue // Skip this focus event
-			}
-		}
-
-		// Merge consecutive type actions on same selector
-		if action.ActionType == "type" && action.Selector != nil {
-			mergedText := ""
-			if action.Payload != nil {
-				if text, ok := action.Payload["text"].(string); ok {
-					mergedText = text
-				}
-			}
-
-			// Look ahead for more type actions on same element
-			for i+1 < len(actions) {
-				next := actions[i+1]
-				if next.ActionType != "type" || !selectorsMatch(action.Selector, next.Selector) {
-					break
-				}
-				// Merge the text
-				if next.Payload != nil {
-					if text, ok := next.Payload["text"].(string); ok {
-						mergedText += text
-					}
-				}
-				i++ // Skip this action, we've merged it
-			}
-
-			// Update the action with merged text
-			if mergedText != "" {
-				if action.Payload == nil {
-					action.Payload = make(map[string]interface{})
-				}
-				action.Payload["text"] = mergedText
-			}
-		}
-
-		// Merge consecutive scroll actions
-		if action.ActionType == "scroll" {
-			var finalScrollY float64
-			if action.Payload != nil {
-				if y, ok := action.Payload["scrollY"].(float64); ok {
-					finalScrollY = y
-				}
-			}
-
-			// Look ahead for more scroll actions
-			for i+1 < len(actions) {
-				next := actions[i+1]
-				if next.ActionType != "scroll" {
-					break
-				}
-				// Use the final scroll position
-				if next.Payload != nil {
-					if y, ok := next.Payload["scrollY"].(float64); ok {
-						finalScrollY = y
-					}
-				}
-				i++ // Skip this action, we've merged it
-			}
-
-			// Update the action with final scroll position
-			if action.Payload == nil {
-				action.Payload = make(map[string]interface{})
-			}
-			action.Payload["scrollY"] = finalScrollY
-		}
-
-		merged = append(merged, action)
-	}
-
-	return merged
-}
-
-// selectorsMatch checks if two SelectorSets refer to the same element
-func selectorsMatch(a, b *SelectorSet) bool {
-	if a == nil || b == nil {
-		return false
-	}
-	return a.Primary == b.Primary
-}
-
-// convertActionsToWorkflow converts recorded actions to a workflow flow definition.
-// It applies action merging and inserts smart wait nodes to improve reliability.
-func convertActionsToWorkflow(actions []RecordedAction) map[string]interface{} {
-	// First, merge consecutive actions for cleaner workflows
-	mergedActions := mergeConsecutiveActions(actions)
-
-	// Insert smart wait nodes between actions that need them
-	nodes, edges := insertSmartWaits(mergedActions)
-
-	return map[string]interface{}{
-		"nodes": nodes,
-		"edges": edges,
-	}
-}
-
-// mapActionToNode converts a single recorded action to a workflow node.
-func mapActionToNode(action RecordedAction, nodeID string, index int) map[string]interface{} {
-	// Calculate position (vertical layout)
-	posX := 250.0
-	posY := float64(100 + index*120)
-
-	node := map[string]interface{}{
-		"id": nodeID,
-		"position": map[string]interface{}{
-			"x": posX,
-			"y": posY,
-		},
-	}
-
-	var nodeType string
-	data := map[string]interface{}{}
-	config := map[string]interface{}{}
-
-	switch action.ActionType {
-	case "click":
-		nodeType = "click"
-		if action.Selector != nil {
-			data["selector"] = action.Selector.Primary
-			config["click"] = map[string]any{
-				"selector": action.Selector.Primary,
-			}
-		}
-		if action.Payload != nil {
-			if btn, ok := action.Payload["button"]; ok {
-				data["button"] = btn
-				ensureConfig(config, "click")["button"] = btn
-			}
-			if mods, ok := action.Payload["modifiers"]; ok {
-				data["modifiers"] = mods
-			}
-			if count, ok := action.Payload["clickCount"]; ok {
-				ensureConfig(config, "click")["click_count"] = count
-			}
-			if delay, ok := action.Payload["delay"]; ok {
-				ensureConfig(config, "click")["delay_ms"] = delay
-			}
-		}
-		data["label"] = generateClickLabel(action)
-
-	case "type":
-		nodeType = "type"
-		if action.Selector != nil {
-			data["selector"] = action.Selector.Primary
-			config["input"] = map[string]any{
-				"selector": action.Selector.Primary,
-			}
-		}
-		if action.Payload != nil {
-			if text, ok := action.Payload["text"].(string); ok {
-				data["text"] = text
-				data["label"] = fmt.Sprintf("Type: %q", truncateString(text, 20))
-				ensureConfig(config, "input")["value"] = text
-			}
-			if submit, ok := action.Payload["submit"]; ok {
-				ensureConfig(config, "input")["submit"] = submit
-			}
-		}
-
-	case "navigate":
-		nodeType = "navigate"
-		data["url"] = action.URL
-		data["label"] = fmt.Sprintf("Navigate to %s", extractHostname(action.URL))
-		config["navigate"] = map[string]any{
-			"url": action.URL,
-		}
-		if action.Payload != nil {
-			if waitFor, ok := action.Payload["waitForSelector"]; ok {
-				ensureConfig(config, "navigate")["wait_for_selector"] = waitFor
-			}
-			if timeout, ok := action.Payload["timeoutMs"]; ok {
-				ensureConfig(config, "navigate")["timeout_ms"] = timeout
-			}
-		}
-
-	case "scroll":
-		nodeType = "scroll"
-		if action.Selector != nil {
-			data["selector"] = action.Selector.Primary
-		}
-		if action.Payload != nil {
-			if y, ok := action.Payload["scrollY"].(float64); ok {
-				data["y"] = y
-			}
-		}
-		data["label"] = "Scroll"
-		config["custom"] = map[string]any{
-			"kind": "scroll",
-			"payload": map[string]any{
-				"y": data["y"],
-			},
-		}
-
-	case "select":
-		nodeType = "select"
-		if action.Selector != nil {
-			data["selector"] = action.Selector.Primary
-		}
-		if action.Payload != nil {
-			if val, ok := action.Payload["value"]; ok {
-				data["value"] = val
-			}
-		}
-		data["label"] = "Select option"
-		config["custom"] = map[string]any{
-			"kind":    "select",
-			"payload": data,
-		}
-
-	case "focus":
-		nodeType = "click"
-		if action.Selector != nil {
-			data["selector"] = action.Selector.Primary
-		}
-		data["label"] = "Focus element"
-		config["click"] = map[string]any{
-			"selector": action.Selector.Primary,
-		}
-
-	case "keypress":
-		nodeType = "keyboard"
-		if action.Payload != nil {
-			if key, ok := action.Payload["key"].(string); ok {
-				data["key"] = key
-				data["label"] = fmt.Sprintf("Press %s", key)
-			}
-		}
-		config["custom"] = map[string]any{
-			"kind":    "keypress",
-			"payload": data,
-		}
-
-	default:
-		// Default to click for unknown types
-		nodeType = "click"
-		if action.Selector != nil {
-			data["selector"] = action.Selector.Primary
-		}
-		data["label"] = action.ActionType
-		config["custom"] = map[string]any{
-			"kind":    action.ActionType,
-			"payload": data,
-		}
-	}
-
-	node["type"] = nodeType
-	node["data"] = data
-	if len(config) > 0 {
-		node["config"] = config
-	}
-
-	return node
-}
-
-func ensureConfig(config map[string]any, key string) map[string]any {
-	if existing, ok := config[key]; ok {
-		if typed, ok := existing.(map[string]any); ok {
-			return typed
-		}
-	}
-	typed := map[string]any{}
-	config[key] = typed
-	return typed
-}
-
-// WaitTemplate describes a wait node to be inserted between actions.
-type WaitTemplate struct {
-	WaitType  string // "selector" or "timeout"
-	Selector  string // For selector waits
-	TimeoutMs int    // Timeout for selector waits, or duration for timeout waits
-	Label     string // Human-readable label
-}
-
-// analyzeTransitionForWait examines two consecutive actions and determines
-// if a wait node should be inserted between them.
-// Returns nil if no wait is needed.
-func analyzeTransitionForWait(current, next RecordedAction) *WaitTemplate {
-	// Actions that need the element to exist before interaction
-	needsSelectorWait := map[string]bool{
-		"click":    true,
-		"type":     true,
-		"select":   true,
-		"focus":    true,
-		"hover":    true,
-		"scroll":   true,
-		"dragDrop": true,
-	}
-
-	// Check if the next action needs its selector to exist
-	if needsSelectorWait[next.ActionType] && next.Selector != nil && next.Selector.Primary != "" {
-		// If current action might trigger DOM changes, add a wait
-		triggersChanges := current.ActionType == "click" ||
-			current.ActionType == "type" ||
-			current.ActionType == "select" ||
-			current.ActionType == "navigate" ||
-			current.ActionType == "keypress"
-
-		// Check for URL change (indicates navigation happened)
-		urlChanged := current.URL != next.URL
-
-		// Check for significant time gap (>500ms suggests async activity)
-		var timeDiff int64
-		if current.Timestamp != "" && next.Timestamp != "" {
-			currentTime, err1 := time.Parse(time.RFC3339Nano, current.Timestamp)
-			nextTime, err2 := time.Parse(time.RFC3339Nano, next.Timestamp)
-			if err1 == nil && err2 == nil {
-				timeDiff = nextTime.Sub(currentTime).Milliseconds()
-			}
-		}
-		significantGap := timeDiff > 500
-
-		// Insert wait if any condition is met
-		if triggersChanges || urlChanged || significantGap {
-			label := fmt.Sprintf("Wait for %s", describeElement(next))
-			return &WaitTemplate{
-				WaitType:  "selector",
-				Selector:  next.Selector.Primary,
-				TimeoutMs: 10000, // 10 second default timeout
-				Label:     label,
-			}
-		}
-	}
-
-	// Check for large time gaps that suggest async operations even without selector needs
-	if current.Timestamp != "" && next.Timestamp != "" {
-		currentTime, err1 := time.Parse(time.RFC3339Nano, current.Timestamp)
-		nextTime, err2 := time.Parse(time.RFC3339Nano, next.Timestamp)
-		if err1 == nil && err2 == nil {
-			timeDiff := nextTime.Sub(currentTime).Milliseconds()
-			// If gap > 2 seconds, insert a proportional wait (capped at 5 seconds)
-			if timeDiff > 2000 {
-				waitDuration := timeDiff / 2 // Wait for half the observed gap
-				if waitDuration > 5000 {
-					waitDuration = 5000
-				}
-				return &WaitTemplate{
-					WaitType:  "timeout",
-					TimeoutMs: int(waitDuration),
-					Label:     "Wait for page to stabilize",
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-// describeElement creates a human-readable description of an element for labels.
-func describeElement(action RecordedAction) string {
-	if action.ElementMeta != nil {
-		if action.ElementMeta.InnerText != "" {
-			text := truncateString(action.ElementMeta.InnerText, 15)
-			return fmt.Sprintf("\"%s\"", text)
-		}
-		if action.ElementMeta.AriaLabel != "" {
-			return action.ElementMeta.AriaLabel
-		}
-		if action.ElementMeta.TagName != "" {
-			return action.ElementMeta.TagName
-		}
-	}
-	return "element"
-}
-
-// createWaitNode generates a workflow wait node from a WaitTemplate.
-func createWaitNode(template *WaitTemplate, nodeID string, posY float64) map[string]interface{} {
-	data := map[string]interface{}{
-		"label":     template.Label,
-		"timeoutMs": template.TimeoutMs,
-	}
-
-	if template.WaitType == "selector" && template.Selector != "" {
-		data["selector"] = template.Selector
-	}
-
-	return map[string]interface{}{
-		"id":   nodeID,
-		"type": "wait",
-		"position": map[string]interface{}{
-			"x": 250.0,
-			"y": posY,
-		},
-		"data": data,
-		"config": map[string]any{
-			"custom": map[string]any{
-				"kind":    "wait",
-				"payload": data,
-			},
-		},
-	}
-}
-
-// insertSmartWaits analyzes action transitions and inserts wait nodes where needed.
-// This improves reliability of recorded workflows by ensuring elements exist before interaction.
-func insertSmartWaits(actions []RecordedAction) ([]map[string]interface{}, []map[string]interface{}) {
-	if len(actions) == 0 {
-		return nil, nil
-	}
-
-	nodes := make([]map[string]interface{}, 0, len(actions)*2)
-	edges := make([]map[string]interface{}, 0, len(actions)*2)
-
-	var prevNodeID string
-	nodeIndex := 0
-	edgeIndex := 0
-	posY := 100.0
-	posYIncrement := 120.0
-
-	for i, action := range actions {
-		// Create the action node
-		nodeID := fmt.Sprintf("node_%d", nodeIndex+1)
-		node := mapActionToNode(action, nodeID, nodeIndex)
-		// Override position to account for inserted wait nodes
-		node["position"] = map[string]interface{}{
-			"x": 250.0,
-			"y": posY,
-		}
-		nodes = append(nodes, node)
-		posY += posYIncrement
-		nodeIndex++
-
-		// Create edge from previous node
-		if prevNodeID != "" {
-			edges = append(edges, map[string]interface{}{
-				"id":     fmt.Sprintf("edge_%d", edgeIndex+1),
-				"source": prevNodeID,
-				"target": nodeID,
-			})
-			edgeIndex++
-		}
-		prevNodeID = nodeID
-
-		// Check if we need a wait before the next action
-		if i < len(actions)-1 {
-			nextAction := actions[i+1]
-			waitTemplate := analyzeTransitionForWait(action, nextAction)
-
-			if waitTemplate != nil {
-				// Create wait node
-				waitNodeID := fmt.Sprintf("wait_%d", nodeIndex+1)
-				waitNode := createWaitNode(waitTemplate, waitNodeID, posY)
-				nodes = append(nodes, waitNode)
-				posY += posYIncrement
-				nodeIndex++
-
-				// Create edge from action to wait
-				edges = append(edges, map[string]interface{}{
-					"id":     fmt.Sprintf("edge_%d", edgeIndex+1),
-					"source": prevNodeID,
-					"target": waitNodeID,
-				})
-				edgeIndex++
-				prevNodeID = waitNodeID
-			}
-		}
-	}
-
-	return nodes, edges
-}
-
-// generateClickLabel creates a readable label for a click action.
-func generateClickLabel(action RecordedAction) string {
-	if action.ElementMeta != nil {
-		if action.ElementMeta.InnerText != "" {
-			text := truncateString(action.ElementMeta.InnerText, 20)
-			return fmt.Sprintf("Click: %s", text)
-		}
-		if action.ElementMeta.AriaLabel != "" {
-			return fmt.Sprintf("Click: %s", action.ElementMeta.AriaLabel)
-		}
-		return fmt.Sprintf("Click %s", action.ElementMeta.TagName)
-	}
-	return "Click element"
-}
-
-// truncateString truncates a string to maxLen and adds "..." if truncated.
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
-}
-
-// extractHostname extracts the hostname from a URL.
-func extractHostname(urlStr string) string {
-	if len(urlStr) > 50 {
-		return urlStr[:50] + "..."
-	}
-	return urlStr
 }
 
 // ReceiveRecordingAction handles POST /api/v1/recordings/live/{sessionId}/action
@@ -1737,51 +960,27 @@ func (h *Handler) ValidateSelector(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call playwright-driver to validate selector
-	driverURL := fmt.Sprintf("%s/session/%s/record/validate-selector", getPlaywrightDriverURL(), sessionID)
-
-	jsonBody, _ := json.Marshal(req)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.ValidateSelector(ctx, sessionID, req.Selector)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for selector validation")
+		h.log.WithError(err).Error("Failed to validate selector")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	var driverResp struct {
+	// Map service response to handler response type
+	driverResp := struct {
 		Valid      bool   `json:"valid"`
 		MatchCount int    `json:"match_count"`
 		Selector   string `json:"selector"`
 		Error      string `json:"error,omitempty"`
-	}
-	if err := json.Unmarshal(body, &driverResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		}))
-		return
+	}{
+		Valid:      resp.Valid,
+		MatchCount: resp.MatchCount,
+		Selector:   resp.Selector,
+		Error:      resp.Error,
 	}
 
 	if pb, err := protoconv.SelectorValidationToProto(driverResp); err == nil && pb != nil {
@@ -1821,68 +1020,47 @@ func (h *Handler) ReplayRecordingPreview(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Build request for playwright-driver
-	driverReq := map[string]interface{}{
-		"actions": req.Actions,
-	}
-	if req.Limit != nil {
-		driverReq["limit"] = *req.Limit
-	}
-	if req.StopOnFailure != nil {
-		driverReq["stop_on_failure"] = *req.StopOnFailure
-	}
-	if req.ActionTimeout != nil {
-		driverReq["action_timeout"] = *req.ActionTimeout
+	// Delegate to recordmode service
+	svcReq := &livecapture.ReplayPreviewRequest{
+		Actions:       req.Actions,
+		Limit:         req.Limit,
+		StopOnFailure: req.StopOnFailure,
+		ActionTimeout: req.ActionTimeout,
 	}
 
-	jsonBody, err := json.Marshal(driverReq)
+	resp, err := h.recordModeService.ReplayPreview(ctx, sessionID, svcReq)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to marshal request",
-		}))
-		return
-	}
-
-	// Call playwright-driver to replay actions
-	driverURL := fmt.Sprintf("%s/session/%s/record/replay-preview", getPlaywrightDriverURL(), sessionID)
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
-	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 2 * time.Minute}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for replay preview")
+		h.log.WithError(err).Error("Failed to replay preview")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
-			"body":   string(body),
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	var replayResp ReplayPreviewResponse
-	if err := json.Unmarshal(body, &replayResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		}))
-		return
+	// Map service response to handler response
+	results := make([]ActionReplayResult, len(resp.Results))
+	for i, r := range resp.Results {
+		var replayErr *ActionReplayError
+		if r.Error != "" {
+			replayErr = &ActionReplayError{Message: r.Error}
+		}
+		results[i] = ActionReplayResult{
+			SequenceNum: r.Index,
+			ActionType:  r.ActionType,
+			Success:     r.Success,
+			DurationMs:  r.DurationMs,
+			Error:       replayErr,
+		}
+	}
+
+	replayResp := ReplayPreviewResponse{
+		Success:         resp.Success,
+		TotalActions:    len(req.Actions),
+		PassedActions:   resp.PassedActions,
+		FailedActions:   resp.FailedActions,
+		Results:         results,
+		TotalDurationMs: resp.TotalDurationMs,
+		StoppedEarly:    resp.FailedActions > 0 && req.StopOnFailure != nil && *req.StopOnFailure,
 	}
 
 	h.log.WithFields(map[string]interface{}{
@@ -1929,51 +1107,27 @@ func (h *Handler) NavigateRecordingSession(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	driverURL := fmt.Sprintf("%s/session/%s/record/navigate", getPlaywrightDriverURL(), sessionID)
-	body, _ := json.Marshal(map[string]interface{}{
-		"url":        req.URL,
-		"wait_until": req.WaitUntil,
-		"timeout_ms": req.TimeoutMs,
-		"capture":    req.Capture,
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.Navigate(ctx, sessionID, &livecapture.NavigateRequest{
+		URL:       req.URL,
+		WaitUntil: req.WaitUntil,
+		TimeoutMs: req.TimeoutMs,
+		Capture:   req.Capture,
 	})
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(body))
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for navigate")
+		h.log.WithError(err).Error("Failed to navigate recording session")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
-			"body":   string(bodyBytes),
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	var driverResp NavigateRecordingResponse
-	if err := json.Unmarshal(bodyBytes, &driverResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		}))
-		return
+	// Map service response to handler response type
+	driverResp := NavigateRecordingResponse{
+		URL:        resp.URL,
+		Title:      resp.Title,
+		StatusCode: resp.StatusCode,
+		Screenshot: resp.Screenshot,
 	}
 
 	h.respondSuccess(w, http.StatusOK, driverResp)
@@ -1993,56 +1147,37 @@ func (h *Handler) CaptureRecordingScreenshot(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	driverURL := fmt.Sprintf("%s/session/%s/record/screenshot", getPlaywrightDriverURL(), sessionID)
-
-	bodyBytes, err := io.ReadAll(r.Body)
-	if err != nil {
+	// Parse optional request body for format/quality
+	var reqBody struct {
+		Format  string `json:"format,omitempty"`
+		Quality int    `json:"quality,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil && err.Error() != "EOF" {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Failed to read request body: " + err.Error(),
+			"error": "Invalid JSON body: " + err.Error(),
 		}))
 		return
 	}
-	if len(bodyBytes) == 0 {
-		bodyBytes = []byte("{}")
+
+	// Delegate to recordmode service
+	svcReq := &livecapture.CaptureScreenshotRequest{
+		Format:  reqBody.Format,
+		Quality: reqBody.Quality,
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(bodyBytes))
+	resp, err := h.recordModeService.CaptureScreenshot(ctx, sessionID, svcReq)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for screenshot")
+		h.log.WithError(err).Error("Failed to capture screenshot")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
-			"body":   string(respBody),
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	var driverResp RecordingScreenshotResponse
-	if err := json.Unmarshal(respBody, &driverResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		}))
-		return
+	// Map service response to handler response
+	driverResp := RecordingScreenshotResponse{
+		SessionID:  sessionID,
+		Screenshot: resp.Data,
 	}
 
 	h.respondSuccess(w, http.StatusOK, driverResp)
@@ -2077,50 +1212,25 @@ func (h *Handler) UpdateRecordingViewport(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	driverURL := fmt.Sprintf("%s/session/%s/record/viewport", getPlaywrightDriverURL(), sessionID)
-	jsonBody, _ := json.Marshal(reqBody)
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
+	// Delegate to recordmode service
+	resp, err := h.recordModeService.UpdateViewport(ctx, sessionID, reqBody.Width, reqBody.Height)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for viewport update")
+		h.log.WithError(err).Error("Failed to update recording viewport")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
-			"body":   string(body),
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	var driverResp struct {
+	// Map service response to handler response type
+	driverResp := struct {
 		SessionID string `json:"session_id"`
 		Width     int    `json:"width"`
 		Height    int    `json:"height"`
-	}
-	if err := json.Unmarshal(body, &driverResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		}))
-		return
+	}{
+		SessionID: resp.SessionID,
+		Width:     resp.Width,
+		Height:    resp.Height,
 	}
 
 	h.respondSuccess(w, http.StatusOK, driverResp)
@@ -2149,55 +1259,34 @@ func (h *Handler) UpdateStreamSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build request to playwright-driver
-	driverURL := fmt.Sprintf("%s/session/%s/record/stream-settings", getPlaywrightDriverURL(), sessionID)
-
-	// Forward the request body as-is
-	jsonBody, err := json.Marshal(reqBody)
-	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to marshal request",
-		}))
-		return
+	// Delegate to recordmode service
+	svcReq := &livecapture.UpdateStreamSettingsRequest{
+		Quality:  reqBody.Quality,
+		FPS:      reqBody.FPS,
+		Scale:    reqBody.Scale,
+		PerfMode: reqBody.PerfMode,
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
+	resp, err := h.recordModeService.UpdateStreamSettings(ctx, sessionID, svcReq)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for stream settings update")
+		h.log.WithError(err).Error("Failed to update stream settings")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
-			"body":   string(body),
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	var driverResp UpdateStreamSettingsResponse
-	if err := json.Unmarshal(body, &driverResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		}))
-		return
+	// Map service response to handler response
+	driverResp := UpdateStreamSettingsResponse{
+		SessionID:    resp.SessionID,
+		Quality:      resp.Quality,
+		FPS:          resp.FPS,
+		CurrentFPS:   resp.CurrentFPS,
+		Scale:        resp.Scale,
+		IsStreaming:  resp.IsStreaming,
+		Updated:      resp.Updated,
+		ScaleWarning: resp.ScaleWarning,
+		PerfMode:     resp.PerfMode,
 	}
 
 	h.log.WithFields(map[string]interface{}{
@@ -2239,34 +1328,12 @@ func (h *Handler) ForwardRecordingInput(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	driverURL := fmt.Sprintf("%s/session/%s/record/input", getPlaywrightDriverURL(), sessionID)
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(bodyBytes))
+	// Delegate to recordmode service
+	err = h.recordModeService.ForwardInput(ctx, sessionID, bodyBytes)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for record input")
+		h.log.WithError(err).Error("Failed to forward recording input")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
-			"body":   string(body),
+			"error": err.Error(),
 		}))
 		return
 	}
@@ -2291,60 +1358,37 @@ func (h *Handler) GetRecordingFrame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	driverURL := fmt.Sprintf("%s/session/%s/record/frame", getPlaywrightDriverURL(), sessionID)
-	if rawQuery := r.URL.RawQuery; rawQuery != "" {
-		driverURL += "?" + rawQuery
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, driverURL, nil)
+	// Delegate to recordmode service, passing query params for filtering
+	resp, err := h.recordModeService.GetFrame(ctx, sessionID, r.URL.RawQuery)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
-	}
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for frame")
+		h.log.WithError(err).Error("Failed to get frame")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error":  "Driver returned error",
-			"status": fmt.Sprintf("%d", resp.StatusCode),
-			"body":   string(bodyBytes),
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	var driverResp RecordingFrameResponse
-	if err := json.Unmarshal(bodyBytes, &driverResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse driver response",
-		}))
-		return
+	// Map service response to handler response
+	driverResp := RecordingFrameResponse{
+		SessionID:   sessionID,
+		Mime:        resp.MediaType,
+		Image:       resp.Data,
+		Width:       resp.Width,
+		Height:      resp.Height,
+		CapturedAt:  resp.CapturedAt,
+		ContentHash: resp.ContentHash,
+		PageTitle:   resp.PageTitle,
+		PageURL:     resp.PageURL,
 	}
 
 	// Generate ETag from content hash provided by playwright-driver.
 	// The driver computes MD5 hash of raw JPEG buffer, which is a reliable
 	// content fingerprint that changes if and only if the frame content changes.
-	// This eliminates false positives (stale frames) and false negatives (unnecessary transfers).
 	var etag string
 	if driverResp.ContentHash != "" {
-		// Use the MD5 hash directly - it's already a reliable content fingerprint
 		etag = fmt.Sprintf(`"%s"`, driverResp.ContentHash)
 	} else {
 		// Fallback for older driver versions without content_hash field
-		// Use timestamp only (less reliable but safe)
 		etag = fmt.Sprintf(`"%s"`, driverResp.CapturedAt)
 	}
 
@@ -2393,7 +1437,7 @@ func (h *Handler) PersistRecordingSession(w http.ResponseWriter, r *http.Request
 	})
 }
 
-func (h *Handler) resolveSessionProfile(requestedID string) (*recording.SessionProfile, *APIError) {
+func (h *Handler) resolveSessionProfile(requestedID string) (*archiveingestion.SessionProfile, *APIError) {
 	if h == nil || h.sessionProfiles == nil {
 		return nil, nil
 	}
@@ -2464,35 +1508,6 @@ func (h *Handler) getActiveSessionProfile(sessionID string) string {
 	return h.activeSessions[sessionID]
 }
 
-func (h *Handler) fetchSessionStorageState(ctx context.Context, sessionID string) (json.RawMessage, error) {
-	driverURL := fmt.Sprintf("%s/session/%s/storage-state", getPlaywrightDriverURL(), sessionID)
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, driverURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("build storage state request: %w", err)
-	}
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("request storage state: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("driver returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-	}
-
-	var payload struct {
-		StorageState json.RawMessage `json:"storage_state"`
-	}
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return nil, fmt.Errorf("parse storage state: %w", err)
-	}
-	return payload.StorageState, nil
-}
-
 func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) error {
 	if h.sessionProfiles == nil {
 		return nil
@@ -2502,7 +1517,8 @@ func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) e
 		return nil
 	}
 
-	state, err := h.fetchSessionStorageState(ctx, sessionID)
+	// Delegate to recordmode service for storage state
+	state, err := h.recordModeService.GetStorageState(ctx, sessionID)
 	if err != nil {
 		return err
 	}

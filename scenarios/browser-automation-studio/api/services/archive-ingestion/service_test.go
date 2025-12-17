@@ -1,4 +1,4 @@
-package recording
+package archiveingestion
 
 import (
 	"archive/zip"
@@ -47,13 +47,13 @@ func TestImportArchiveRejectsMissingFrames(t *testing.T) {
 		"frames": []any{},
 	})
 
-	svc := NewRecordingService(nil, nil, nil, logrus.New(), dir)
-	_, err := svc.ImportArchive(context.Background(), archive, RecordingImportOptions{})
+	svc := NewIngestionService(nil, nil, nil, logrus.New(), dir)
+	_, err := svc.ImportArchive(context.Background(), archive, IngestionOptions{})
 	if err == nil || err.Error() == "" {
 		t.Fatalf("expected error for missing frames")
 	}
-	if err != ErrRecordingManifestMissingFrames {
-		t.Fatalf("expected ErrRecordingManifestMissingFrames, got %v", err)
+	if err != ErrManifestMissingFrames {
+		t.Fatalf("expected ErrManifestMissingFrames, got %v", err)
 	}
 }
 
@@ -68,13 +68,13 @@ func TestImportArchiveRejectsTooManyFrames(t *testing.T) {
 		"frames": frames,
 	})
 
-	svc := NewRecordingService(nil, nil, nil, logrus.New(), dir)
-	_, err := svc.ImportArchive(context.Background(), archive, RecordingImportOptions{})
+	svc := NewIngestionService(nil, nil, nil, logrus.New(), dir)
+	_, err := svc.ImportArchive(context.Background(), archive, IngestionOptions{})
 	if err == nil {
 		t.Fatalf("expected error for too many frames")
 	}
-	if !strings.Contains(err.Error(), ErrRecordingTooManyFrames.Error()) {
-		t.Fatalf("expected error to contain %q, got %v", ErrRecordingTooManyFrames.Error(), err)
+	if !strings.Contains(err.Error(), ErrTooManyFrames.Error()) {
+		t.Fatalf("expected error to contain %q, got %v", ErrTooManyFrames.Error(), err)
 	}
 }
 
@@ -89,9 +89,9 @@ func TestImportArchiveRejectsTooLargeArchive(t *testing.T) {
 		t.Fatalf("truncate file: %v", err)
 	}
 
-	svc := NewRecordingService(nil, nil, nil, logrus.New(), dir)
-	_, err := svc.ImportArchive(context.Background(), path, RecordingImportOptions{})
-	if err != ErrRecordingArchiveTooLarge {
-		t.Fatalf("expected ErrRecordingArchiveTooLarge, got %v", err)
+	svc := NewIngestionService(nil, nil, nil, logrus.New(), dir)
+	_, err := svc.ImportArchive(context.Background(), path, IngestionOptions{})
+	if err != ErrArchiveTooLarge {
+		t.Fatalf("expected ErrArchiveTooLarge, got %v", err)
 	}
 }

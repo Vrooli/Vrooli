@@ -1,4 +1,4 @@
-package recording
+package archiveingestion
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 // resolveProject finds an existing project or creates a new one for the recording.
 // It attempts to match by explicit ID, then by name from opts or manifest, then creates a default.
 // Returns the project, whether it was newly created, and any error.
-func (s *RecordingService) resolveProject(ctx context.Context, manifest *recordingManifest, opts RecordingImportOptions) (*database.ProjectIndex, bool, error) {
+func (s *IngestionService) resolveProject(ctx context.Context, manifest *recordingManifest, opts IngestionOptions) (*database.ProjectIndex, bool, error) {
 	// First priority: explicit project ID from options
 	if opts.ProjectID != nil {
 		if project, err := s.repo.GetProject(ctx, *opts.ProjectID); err == nil {
@@ -64,7 +64,7 @@ func (s *RecordingService) resolveProject(ctx context.Context, manifest *recordi
 // resolveWorkflow finds an existing workflow or creates a new one for the recording.
 // It attempts to match by explicit ID, then by name from opts or manifest, then creates a default.
 // Returns the workflow, whether it was newly created, and any error.
-func (s *RecordingService) resolveWorkflow(ctx context.Context, manifest *recordingManifest, project *database.ProjectIndex, opts RecordingImportOptions) (*database.WorkflowIndex, bool, error) {
+func (s *IngestionService) resolveWorkflow(ctx context.Context, manifest *recordingManifest, project *database.ProjectIndex, opts IngestionOptions) (*database.WorkflowIndex, bool, error) {
 	// First priority: explicit workflow ID from options
 	if opts.WorkflowID != nil {
 		if workflow, err := s.repo.GetWorkflow(ctx, *opts.WorkflowID); err == nil {

@@ -1,7 +1,7 @@
 package typeconv
 
 import (
-	"github.com/vrooli/browser-automation-studio/automation/recorder"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 )
 
 // RetryHistoryEntry captures the outcome of a single retry attempt for a step.
@@ -94,7 +94,7 @@ func ToRetryHistoryEntry(value any) *RetryHistoryEntry {
 
 // ToTimelineScreenshot converts an artifact to *TimelineScreenshot.
 // Returns nil if artifact is nil.
-func ToTimelineScreenshot(artifact *recorder.ArtifactData) *TimelineScreenshot {
+func ToTimelineScreenshot(artifact *executionwriter.ArtifactData) *TimelineScreenshot {
 	if artifact == nil {
 		return nil
 	}
@@ -113,7 +113,7 @@ func ToTimelineScreenshot(artifact *recorder.ArtifactData) *TimelineScreenshot {
 }
 
 // ToTimelineArtifact converts an artifact to TimelineArtifact.
-func ToTimelineArtifact(artifact *recorder.ArtifactData) TimelineArtifact {
+func ToTimelineArtifact(artifact *executionwriter.ArtifactData) TimelineArtifact {
 	payload := map[string]any{}
 	if artifact.Payload != nil {
 		payload = artifact.Payload

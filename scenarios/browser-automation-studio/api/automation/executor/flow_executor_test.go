@@ -14,16 +14,16 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
-	"github.com/vrooli/browser-automation-studio/automation/recorder"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 )
 
 type recordingRecorder struct {
 	outcomes []contracts.StepOutcome
 }
 
-func (r *recordingRecorder) RecordStepOutcome(_ context.Context, _ contracts.ExecutionPlan, outcome contracts.StepOutcome) (recorder.RecordResult, error) {
+func (r *recordingRecorder) RecordStepOutcome(_ context.Context, _ contracts.ExecutionPlan, outcome contracts.StepOutcome) (executionwriter.RecordResult, error) {
 	r.outcomes = append(r.outcomes, outcome)
-	return recorder.RecordResult{ArtifactIDs: []uuid.UUID{}}, nil
+	return executionwriter.RecordResult{ArtifactIDs: []uuid.UUID{}}, nil
 }
 
 func (r *recordingRecorder) RecordTelemetry(_ context.Context, _ contracts.ExecutionPlan, _ contracts.StepTelemetry) error {

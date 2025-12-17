@@ -16,7 +16,7 @@ import (
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
-	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 )
 
 // captureFrame represents a single captured frame.
@@ -206,9 +206,9 @@ type inMemoryCaptureRecorder struct {
 	telemetry []autocontracts.StepTelemetry
 }
 
-func (r *inMemoryCaptureRecorder) RecordStepOutcome(_ context.Context, _ autocontracts.ExecutionPlan, outcome autocontracts.StepOutcome) (autorecorder.RecordResult, error) {
+func (r *inMemoryCaptureRecorder) RecordStepOutcome(_ context.Context, _ autocontracts.ExecutionPlan, outcome autocontracts.StepOutcome) (executionwriter.RecordResult, error) {
 	r.outcomes = append(r.outcomes, outcome)
-	return autorecorder.RecordResult{}, nil
+	return executionwriter.RecordResult{}, nil
 }
 
 func (r *inMemoryCaptureRecorder) RecordTelemetry(_ context.Context, _ autocontracts.ExecutionPlan, telemetry autocontracts.StepTelemetry) error {

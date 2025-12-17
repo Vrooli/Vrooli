@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/internal/params"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
@@ -21,53 +21,33 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// RecordedAction represents an action captured during recording.
-// This mirrors the JSON structure sent from playwright-driver.
-// This is the canonical Go type for recorded actions - use this type throughout
-// the codebase instead of defining local copies.
-type RecordedAction struct {
-	ID          string                 `json:"id"`
-	SessionID   string                 `json:"sessionId"`
-	SequenceNum int                    `json:"sequenceNum"`
-	Timestamp   string                 `json:"timestamp"`
-	DurationMs  int                    `json:"durationMs,omitempty"`
-	ActionType  string                 `json:"actionType"`
-	Confidence  float64                `json:"confidence"`
-	Selector    *SelectorSet           `json:"selector,omitempty"`
-	ElementMeta *ElementMeta           `json:"elementMeta,omitempty"`
-	BoundingBox *contracts.BoundingBox `json:"boundingBox,omitempty"`
-	Payload     map[string]interface{} `json:"payload,omitempty"`
-	URL         string                 `json:"url"`
-	FrameID     string                 `json:"frameId,omitempty"`
-	CursorPos   *contracts.Point       `json:"cursorPos,omitempty"`
-}
+// RecordedAction is an alias for livecapture.RecordedAction.
+//
+// Deprecated: Import livecapture.RecordedAction from
+// github.com/vrooli/browser-automation-studio/services/live-capture directly.
+// This alias will be removed in a future version.
+type RecordedAction = livecapture.RecordedAction
 
-// SelectorSet contains multiple selector strategies for resilience.
-type SelectorSet struct {
-	Primary    string              `json:"primary"`
-	Candidates []SelectorCandidate `json:"candidates"`
-}
+// SelectorSet is an alias for livecapture.SelectorSet.
+//
+// Deprecated: Import livecapture.SelectorSet from
+// github.com/vrooli/browser-automation-studio/services/live-capture directly.
+// This alias will be removed in a future version.
+type SelectorSet = livecapture.SelectorSet
 
-// SelectorCandidate is a single selector with metadata.
-type SelectorCandidate struct {
-	Type        string  `json:"type"`
-	Value       string  `json:"value"`
-	Confidence  float64 `json:"confidence"`
-	Specificity int     `json:"specificity"`
-}
+// SelectorCandidate is an alias for livecapture.SelectorCandidate.
+//
+// Deprecated: Import livecapture.SelectorCandidate from
+// github.com/vrooli/browser-automation-studio/services/live-capture directly.
+// This alias will be removed in a future version.
+type SelectorCandidate = livecapture.SelectorCandidate
 
-// ElementMeta captures information about the target element.
-type ElementMeta struct {
-	TagName    string            `json:"tagName"`
-	ID         string            `json:"id,omitempty"`
-	ClassName  string            `json:"className,omitempty"`
-	InnerText  string            `json:"innerText,omitempty"`
-	Attributes map[string]string `json:"attributes,omitempty"`
-	IsVisible  bool              `json:"isVisible"`
-	IsEnabled  bool              `json:"isEnabled"`
-	Role       string            `json:"role,omitempty"`
-	AriaLabel  string            `json:"ariaLabel,omitempty"`
-}
+// ElementMeta is an alias for livecapture.ElementMeta.
+//
+// Deprecated: Import livecapture.ElementMeta from
+// github.com/vrooli/browser-automation-studio/services/live-capture directly.
+// This alias will be removed in a future version.
+type ElementMeta = livecapture.ElementMeta
 
 // RecordedActionToTimelineEntry converts a RecordedAction from the recording
 // controller to the unified TimelineEntry proto format.
@@ -469,4 +449,3 @@ func extractInt32FromPayload(payload map[string]any, key string) (int32, bool) {
 		return 0, false
 	}
 }
-

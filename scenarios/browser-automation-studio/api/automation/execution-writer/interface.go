@@ -1,4 +1,4 @@
-package recorder
+package executionwriter
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
-// Recorder normalizes and persists artifacts derived from engine output.
+// ExecutionWriter normalizes and persists artifacts derived from engine output.
 // Execution details are written to JSON files on disk; the database stores only index data.
-type Recorder interface {
+type ExecutionWriter interface {
 	RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error)
 	RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error
 	MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error
@@ -20,7 +20,11 @@ type Recorder interface {
 	UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error
 }
 
-// ExecutionIndexRepository captures the minimal persistence surface needed by the recorder.
+// Recorder is an alias for ExecutionWriter for backward compatibility.
+// MIGRATION: Callers should migrate to ExecutionWriter.
+type Recorder = ExecutionWriter
+
+// ExecutionIndexRepository captures the minimal persistence surface needed by the writer.
 // This updates the database index only; detailed execution data is written to JSON files.
 type ExecutionIndexRepository interface {
 	GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
