@@ -105,6 +105,12 @@ export const RETRYABLE_ERROR_CODES: ReadonlySet<string> = new Set([
 /**
  * Base execution error interface.
  * Provides a common structure for error reporting across the codebase.
+ *
+ * This is the CANONICAL error type. All domain-specific error types should
+ * either use this directly or extend it with additional context fields.
+ *
+ * @see SelectorError - Extended with selector context (matchCount, selector)
+ * @see HandlerError - Alias for backward compatibility in handler code
  */
 export interface ExecutionError {
   /** Human-readable error message */
@@ -116,6 +122,29 @@ export interface ExecutionError {
   /** Whether the operation may succeed on retry */
   retryable?: boolean;
 }
+
+/**
+ * Error type with selector context.
+ * Used when failures relate to element selection (not found, ambiguous, etc.)
+ *
+ * Use this type when errors need to communicate selector-specific details
+ * like match count or the selector that failed.
+ */
+export interface SelectorError extends ExecutionError {
+  /** Number of elements matching the selector (0 = not found, >1 = ambiguous) */
+  matchCount?: number;
+  /** The selector that was used */
+  selector?: string;
+}
+
+/**
+ * Handler error type alias.
+ * For backward compatibility with handler code that expects HandlerError.
+ * This is semantically identical to ExecutionError.
+ *
+ * @deprecated Prefer using ExecutionError directly in new code
+ */
+export type HandlerError = ExecutionError;
 
 /**
  * Create an ExecutionError from basic inputs.

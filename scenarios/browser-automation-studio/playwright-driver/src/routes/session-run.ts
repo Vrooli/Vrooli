@@ -31,7 +31,7 @@ import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
 import type { ExecutedInstructionRecord } from '../types/session';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
-import { captureScreenshot, captureDOMSnapshot, ConsoleLogCollector, NetworkCollector } from '../telemetry';
+import { TelemetryOrchestrator } from '../telemetry';
 import { buildStepOutcome, toDriverOutcome } from '../outcome';
 import {
   CompiledInstructionSchema,
@@ -217,25 +217,39 @@ export async function handleSessionRun(
       url: instruction.params.url,
     });
 
-    // Execute instruction with telemetry
+    // Execute instruction with telemetry orchestration
     const handler = handlerRegistry.getHandler(instruction);
-    const { result, consoleLogs, networkEvents, instructionDuration } = await executeWithTelemetry(
-      handler, instruction, session, config, appLogger, appMetrics, sessionId
-    );
+    const telemetryOrchestrator = new TelemetryOrchestrator(session.page, config);
+    telemetryOrchestrator.start();
+
+    let result: HandlerResult;
+    let instructionDuration: number;
+    try {
+      const instructionStart = Date.now();
+      const handlerContext: HandlerContext = {
+        page: session.page, context: session.context, config, logger: appLogger, metrics: appMetrics, sessionId,
+      };
+      result = await handler.execute(instruction, handlerContext);
+      instructionDuration = Date.now() - instructionStart;
+    } finally {
+      // Telemetry orchestrator disposed after collecting
+    }
 
     sessionManager.incrementInstructionCount(sessionId);
     recordMetrics(appMetrics, instruction.type, result, instructionDuration);
 
-    // Capture remaining telemetry
-    const screenshot = result.screenshot || (config.telemetry.screenshot.enabled ? await captureScreenshot(session.page, config) : undefined);
-    const domSnapshot = result.domSnapshot || (config.telemetry.dom.enabled ? await captureDOMSnapshot(session.page, config) : undefined);
+    // Collect telemetry via orchestrator (consolidates screenshot, DOM, console, network)
+    const telemetry = await telemetryOrchestrator.collectForStep(result);
+    telemetryOrchestrator.dispose();
 
     // Build and convert outcome
     const completedAt = new Date();
     const outcome = buildStepOutcome({
       instruction, result, startedAt, completedAt, finalUrl: session.page.url(),
-      screenshot: screenshot as Parameters<typeof buildStepOutcome>[0]['screenshot'],
-      domSnapshot, consoleLogs, networkEvents,
+      screenshot: telemetry.screenshot,
+      domSnapshot: telemetry.domSnapshot,
+      consoleLogs: telemetry.consoleLogs,
+      networkEvents: telemetry.networkEvents,
     });
 
     logger.info(scopedLog(LogContext.INSTRUCTION, result.success ? 'completed' : 'failed'), {
@@ -244,8 +258,7 @@ export async function handleSessionRun(
       ...(result.error && { errorCode: result.error.code, errorKind: result.error.kind, errorMessage: result.error.message }),
     });
 
-    const screenshotData = screenshot as { base64?: string; media_type?: string; width?: number; height?: number } | undefined;
-    const driverOutcome = toDriverOutcome(outcome, screenshotData, domSnapshot);
+    const driverOutcome = toDriverOutcome(outcome, telemetry.screenshot, telemetry.domSnapshot);
 
     // Record for replay detection and cache
     recordExecutedInstruction(session, instructionKey, driverOutcome, result.success, completedAt);
@@ -268,43 +281,8 @@ export async function handleSessionRun(
 // Execution Helpers
 // =============================================================================
 
-import type { HandlerContext, InstructionHandler } from '../handlers/base';
-import type { HandlerResult, ConsoleLogEntry, NetworkEvent } from '../outcome';
-
-async function executeWithTelemetry(
-  handler: InstructionHandler,
-  instruction: HandlerInstruction,
-  session: SessionState,
-  config: Config,
-  appLogger: winston.Logger,
-  appMetrics: Metrics,
-  sessionId: string
-): Promise<{
-  result: HandlerResult;
-  consoleLogs: ConsoleLogEntry[] | undefined;
-  networkEvents: NetworkEvent[] | undefined;
-  instructionDuration: number;
-}> {
-  const consoleCollector = new ConsoleLogCollector(session.page, config.telemetry.console.maxEntries);
-  const networkCollector = new NetworkCollector(session.page, config.telemetry.network.maxEvents);
-
-  try {
-    const instructionStart = Date.now();
-    const handlerContext: HandlerContext = {
-      page: session.page, context: session.context, config, logger: appLogger, metrics: appMetrics, sessionId,
-    };
-    const result = await handler.execute(instruction, handlerContext);
-    const instructionDuration = Date.now() - instructionStart;
-
-    const consoleLogs = result.consoleLogs || (config.telemetry.console.enabled ? consoleCollector.getAndClear() : undefined);
-    const networkEvents = result.networkEvents || (config.telemetry.network.enabled ? networkCollector.getAndClear() : undefined);
-
-    return { result, consoleLogs, networkEvents, instructionDuration };
-  } finally {
-    consoleCollector.dispose();
-    networkCollector.dispose();
-  }
-}
+import type { HandlerContext } from '../handlers/base';
+import type { HandlerResult } from '../outcome';
 
 function recordMetrics(
   appMetrics: Metrics,

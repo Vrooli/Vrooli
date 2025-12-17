@@ -103,6 +103,11 @@
       },
       "steps": [
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
+        },
+        {
           "name": "db-schema",
           "run": "if command -v psql >/dev/null; then psql \"$DATABASE_URL\" -f initialization/postgres/schema.sql; else echo \"psql not found; runtime will auto-init schema\"; fi",
           "description": "Apply database schema (admin, variants, metrics, subscriptions, content sections) to postgres if psql is available"
@@ -120,7 +125,10 @@
         {
           "name": "install-ui-deps",
           "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
         },
         {
           "name": "build-ui",
@@ -144,16 +152,16 @@
           "condition": {
             "file_exists": "api/{{SCENARIO_ID}}-api"
           },
-          "description": "Start Go API server"
+          "description": "Start Go API server in background"
         },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "background": true,
+          "description": "Serve production UI bundle",
           "condition": {
             "file_exists": "ui/dist/index.html"
-          },
-          "description": "Serve production UI bundle"
+          }
         },
         {
           "name": "show-urls",

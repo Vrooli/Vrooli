@@ -44,6 +44,8 @@ export {
   type HandlerErrorCode,
   type ActionErrorCode,
   type ExecutionError,
+  type SelectorError,
+  type HandlerError,
   type ExecutionMetrics,
   type BaseExecutionResult,
   ERROR_CODE_TO_FAILURE_KIND,

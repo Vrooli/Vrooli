@@ -428,3 +428,77 @@ export class SelectorService {
 export function createSelectorService(page: Page, config: Config): SelectorService {
   return new SelectorService(page, config);
 }
+
+// =============================================================================
+// Standalone Validation Function
+// =============================================================================
+
+/**
+ * Check if a selector string is an XPath expression.
+ * XPath expressions start with '/' or '(' (for grouped expressions).
+ */
+export function isXPathSelector(selector: string): boolean {
+  return selector.startsWith('/') || selector.startsWith('(');
+}
+
+/**
+ * Validate a selector on a page without requiring a full SelectorService.
+ *
+ * This is a convenience function for contexts (like RecordModeController) that
+ * need selector validation but don't have access to the full Config object.
+ *
+ * @param page - Playwright page to validate against
+ * @param selector - CSS selector or XPath expression to validate
+ * @returns Validation result with valid flag, matchCount, and error
+ */
+export async function validateSelectorOnPage(
+  page: Page,
+  selector: string
+): Promise<SelectorValidation> {
+  try {
+    if (isXPathSelector(selector)) {
+      // XPath validation via page.evaluate
+      const count = await page.evaluate<number>(`
+        (function() {
+          try {
+            const result = document.evaluate(
+              ${JSON.stringify(selector)},
+              document,
+              null,
+              XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+              null
+            );
+            return result.snapshotLength;
+          } catch {
+            return -1;
+          }
+        })()
+      `);
+
+      if (count === -1) {
+        return { valid: false, matchCount: 0, selector, error: 'Invalid XPath expression' };
+      }
+
+      return {
+        valid: count === 1,
+        matchCount: count,
+        selector,
+      };
+    } else {
+      // CSS selector validation via locator
+      const count = await page.locator(selector).count();
+      return {
+        valid: count === 1,
+        matchCount: count,
+        selector,
+      };
+    }
+  } catch (error) {
+    return {
+      valid: false,
+      matchCount: 0,
+      selector,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}

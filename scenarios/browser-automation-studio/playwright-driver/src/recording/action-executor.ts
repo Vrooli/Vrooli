@@ -28,13 +28,13 @@ import type { TimelineEntry } from '../proto';
 import { ActionType } from '../proto';
 
 // Import shared types from outcome module (single source of truth)
-import { type ActionErrorCode, type BaseExecutionResult } from '../outcome/types';
+import { type ActionErrorCode, type BaseExecutionResult, type SelectorError } from '../outcome/types';
 
 // Import handler adapter for delegating execution to handlers
 import { executeViaHandler, hasHandlerForActionType, type ReplayContext } from './handler-adapter';
 
-// Re-export ActionErrorCode for consumers of this module
-export type { ActionErrorCode };
+// Re-export types for consumers of this module
+export type { ActionErrorCode, SelectorError };
 
 // =============================================================================
 // Types
@@ -56,15 +56,14 @@ export interface ExecutorContext {
 }
 
 /**
- * Replay-specific error structure.
- * Includes additional context for selector-related failures.
+ * Replay-specific error type alias.
+ * Uses SelectorError from the canonical types module.
+ *
+ * SelectorError includes: message, code, kind, retryable, matchCount, selector
+ *
+ * @see SelectorError - Canonical type in outcome/types.ts
  */
-export interface ActionReplayError {
-  message: string;
-  code: ActionErrorCode;
-  matchCount?: number;
-  selector?: string;
-}
+export type ActionReplayError = SelectorError;
 
 /**
  * Result of replaying a single action.

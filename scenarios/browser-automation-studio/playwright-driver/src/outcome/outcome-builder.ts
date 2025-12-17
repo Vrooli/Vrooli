@@ -23,7 +23,6 @@ import {
   DriverConsoleLogEntrySchema,
   DriverNetworkEventSchema,
   StepFailureSchema,
-  FailureKind,
   FailureSource,
   type StepOutcome,
 } from '@vrooli/proto-types/browser-automation-studio/v1/execution/driver_pb';
@@ -35,23 +34,15 @@ import {
 } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 
 import { safeDuration, validateStepIndex, safeSerializable } from '../utils';
-import type { BaseExecutionResult } from './types';
+import type { BaseExecutionResult, HandlerError } from './types';
+
+// Re-export HandlerError for consumers that import from this module
+export type { HandlerError };
 
 // =============================================================================
-// HANDLER RESULT TYPE (defined here to avoid circular import with handlers/base.ts)
+// HANDLER RESULT TYPE
 // =============================================================================
-
-/**
- * Handler-specific error structure.
- * Extends the base error pattern with handler-specific flexibility.
- */
-export interface HandlerError {
-  message: string;
-  code?: string;
-  /** Failure kind - accepts proto FailureKind enum or legacy string for backward compat */
-  kind?: FailureKind | string;
-  retryable?: boolean;
-}
+// HandlerError is now imported from types.ts (single source of truth)
 
 /**
  * Result of handler execution with optional extracted data.

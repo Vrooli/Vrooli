@@ -44,8 +44,8 @@ import {
   executeTimelineEntry,
   type ExecutorContext,
   type ActionReplayResult,
-  type SelectorValidation,
 } from './action-executor';
+import { validateSelectorOnPage, type SelectorValidation } from './selector-service';
 import type { RecordingState } from './types';
 
 // Re-export for backwards compatibility
@@ -490,54 +490,12 @@ export class RecordModeController {
 
   /**
    * Validate a selector on the current page.
+   *
+   * Delegates to the standalone validateSelectorOnPage function from selector-service.ts.
+   * This eliminates code duplication and centralizes selector validation logic.
    */
   async validateSelector(selector: string): Promise<SelectorValidation> {
-    try {
-      const isXPath = selector.startsWith('/') || selector.startsWith('(');
-
-      if (isXPath) {
-        const count = await this.page.evaluate<number>(`
-          (function() {
-            try {
-              const result = document.evaluate(
-                ${JSON.stringify(selector)},
-                document,
-                null,
-                XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
-                null
-              );
-              return result.snapshotLength;
-            } catch {
-              return -1;
-            }
-          })()
-        `);
-
-        if (count === -1) {
-          return { valid: false, matchCount: 0, selector, error: 'Invalid XPath expression' };
-        }
-
-        return {
-          valid: count === 1,
-          matchCount: count,
-          selector,
-        };
-      } else {
-        const count = await this.page.locator(selector).count();
-        return {
-          valid: count === 1,
-          matchCount: count,
-          selector,
-        };
-      }
-    } catch (error) {
-      return {
-        valid: false,
-        matchCount: 0,
-        selector,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+    return validateSelectorOnPage(this.page, selector);
   }
 
   /**

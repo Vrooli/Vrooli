@@ -110,17 +110,25 @@
         {
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o workspace-sandbox-api .",
-          "description": "Compile Go API server"
+          "description": "Build Go API server"
         },
         {
-          "name": "install-ui",
+          "name": "install-ui-deps",
           "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
         },
         {
           "name": "build-ui",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
         }
       ]
     },
@@ -131,7 +139,10 @@
           "name": "start-api",
           "run": "cd api && ./workspace-sandbox-api",
           "background": true,
-          "description": "Start Go API server"
+          "description": "Start Go API server in background",
+          "condition": {
+            "file_exists": "api/workspace-sandbox-api"
+          }
         },
         {
           "name": "start-ui",
@@ -141,6 +152,11 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
         }
       ]
     },

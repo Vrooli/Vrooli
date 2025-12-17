@@ -23,7 +23,7 @@ import type { HandlerInstruction } from '../proto';
 import type { HandlerContext } from '../handlers/base';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
-import type { BaseExecutionResult } from '../outcome/types';
+import type { BaseExecutionResult, SelectorError } from '../outcome/types';
 import { ActionType } from '../proto';
 import { actionTypeToString, stringToActionType } from '../proto/action-type-utils';
 import { handlerRegistry } from '../handlers/registry';
@@ -46,15 +46,12 @@ export interface ReplayContext {
 }
 
 /**
- * Adapter-specific error structure.
- * Minimal error info sufficient for replay result bridging.
+ * Adapter error type alias.
+ * Uses SelectorError from the canonical types module.
+ *
+ * @see SelectorError - Canonical type in outcome/types.ts
  */
-export interface HandlerAdapterError {
-  message: string;
-  code: string;
-  matchCount?: number;
-  selector?: string;
-}
+export type HandlerAdapterError = SelectorError;
 
 /**
  * Result of replay execution via handler.
