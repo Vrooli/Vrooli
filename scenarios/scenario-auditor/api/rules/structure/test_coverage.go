@@ -23,6 +23,9 @@ Severity: medium
 Standard: testing-standards-v1
 Targets: structure
 
+Note: main.go files are always skipped - entry points are better validated via integration/e2e tests.
+Other exempt files: doc.go, generated code (.pb.go, _gen.go), vendor/, testdata/, mocks/.
+
 <test-case id="missing-test-file" should-fail="true" path="scenarios/demo">
   <description>Go source without matching test file</description>
   <input language="json">
@@ -106,8 +109,8 @@ Targets: structure
   </input>
 </test-case>
 
-<test-case id="cli-main-requires-tests" should-fail="true" path="scenarios/roi-fit-analysis" scenario="roi-fit-analysis">
-  <description>CLI entrypoint with substantive logic must have a companion test</description>
+<test-case id="cli-main-skipped" should-fail="false" path="scenarios/roi-fit-analysis" scenario="roi-fit-analysis">
+  <description>CLI entrypoint main.go is always skipped - entry points are validated via integration/e2e tests</description>
   <input language="json">
 {
   "scenario": "roi-fit-analysis",
@@ -116,8 +119,6 @@ Targets: structure
   ]
 }
   </input>
-  <expected-violations>1</expected-violations>
-  <expected-message>Missing test file in directory cli/</expected-message>
 </test-case>
 
 <test-case id="constants-only-skip" should-fail="false" path="scenarios/app-issue-tracker" scenario="app-issue-tracker">
@@ -278,10 +279,8 @@ func shouldSkipForCoverage(path, scenarioRoot string) bool {
 	case "doc.go":
 		return true
 	case "main.go":
-		if hasFile && fileIsTrivialMain(absPath) {
-			return true
-		}
-		return false
+		// Entry points are better validated via integration/e2e tests
+		return true
 	case "types.go", "constants.go", "interfaces.go":
 		if hasFile {
 			if fileHasExecutableLogic(absPath) {
