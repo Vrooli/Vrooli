@@ -39,7 +39,8 @@ import {
   parseProtoLenient,
   type HandlerInstruction,
 } from '../proto';
-import { logger, scopedLog, LogContext, isRecentTimestamp } from '../utils';
+import { getIdempotencyCache } from '../infra';
+import { logger, scopedLog, LogContext } from '../utils';
 import winston from 'winston';
 
 // =============================================================================
@@ -47,71 +48,18 @@ import winston from 'winston';
 // =============================================================================
 
 const IDEMPOTENCY_KEY_HEADER = 'x-idempotency-key';
-const IDEMPOTENCY_CACHE_TTL_MS = 300_000; // 5 minutes
-const MAX_IDEMPOTENCY_CACHE_SIZE = 10_000;
 const MAX_EXECUTED_INSTRUCTIONS = 1000;
 
 // =============================================================================
-// Idempotency Cache
+// Idempotency Cache (delegated to infra/idempotency-cache.ts)
 // =============================================================================
 
-interface CachedResult {
-  response: unknown;
-  timestamp: number;
-  sessionId: string;
-  instructionKey: string;
-}
-
-const idempotencyCache = new Map<string, CachedResult>();
-
-// Cleanup runs every minute
-setInterval(cleanupIdempotencyCache, 60_000).unref();
-
-function cleanupIdempotencyCache(): void {
-  const now = Date.now();
-  let expiredCount = 0;
-
-  for (const [key, value] of idempotencyCache.entries()) {
-    if (now - value.timestamp > IDEMPOTENCY_CACHE_TTL_MS) {
-      idempotencyCache.delete(key);
-      expiredCount++;
-    }
-  }
-
-  enforceMaxCacheSize();
-
-  if (expiredCount > 0) {
-    logger.debug('idempotency cache cleanup', { expiredCount, remainingCount: idempotencyCache.size });
-  }
-}
-
-function enforceMaxCacheSize(): void {
-  if (idempotencyCache.size <= MAX_IDEMPOTENCY_CACHE_SIZE) return;
-
-  const toEvict = idempotencyCache.size - MAX_IDEMPOTENCY_CACHE_SIZE;
-  let evicted = 0;
-  for (const key of idempotencyCache.keys()) {
-    if (evicted >= toEvict) break;
-    idempotencyCache.delete(key);
-    evicted++;
-  }
-  logger.warn(scopedLog(LogContext.INSTRUCTION, 'idempotency cache size limit reached'), {
-    maxSize: MAX_IDEMPOTENCY_CACHE_SIZE,
-    evictedForSize: evicted,
-  });
-}
-
+/**
+ * Clear idempotency cache entries for a session.
+ * Called when a session is closed to prevent stale cache entries.
+ */
 export function clearSessionIdempotencyCache(sessionId: string): void {
-  let clearedCount = 0;
-  for (const [key, value] of idempotencyCache.entries()) {
-    if (value.sessionId === sessionId) {
-      idempotencyCache.delete(key);
-      clearedCount++;
-    }
-  }
-  if (clearedCount > 0) {
-    logger.debug(scopedLog(LogContext.SESSION, 'cleared session idempotency cache'), { sessionId, clearedCount });
-  }
+  getIdempotencyCache().clearSession(sessionId);
 }
 
 // =============================================================================
@@ -124,44 +72,6 @@ export function clearSessionIdempotencyCache(sessionId: string): void {
  */
 function createInstructionKey(instruction: HandlerInstruction): string {
   return `${instruction.nodeId}:${instruction.index}`;
-}
-
-/**
- * Look up a cached response from a previous identical request.
- *
- * The idempotency cache allows clients to safely retry requests - if the same
- * x-idempotency-key header is sent, we return the cached result instead of
- * re-executing the instruction.
- *
- * @returns Cached response if found and valid, null otherwise
- */
-function lookupIdempotencyCache(
-  idempotencyKey: string | undefined,
-  sessionId: string
-): unknown | null {
-  if (!idempotencyKey) return null;
-
-  const cached = idempotencyCache.get(idempotencyKey);
-  if (!cached || !isRecentTimestamp(cached.timestamp, IDEMPOTENCY_CACHE_TTL_MS)) return null;
-
-  // Security: Reject if key was used for a different session
-  if (cached.sessionId !== sessionId) {
-    logger.warn(scopedLog(LogContext.INSTRUCTION, 'idempotency key reused for different session'), {
-      sessionId,
-      cachedSessionId: cached.sessionId,
-      idempotencyKey,
-    });
-    return null;
-  }
-
-  logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached idempotent result'), {
-    sessionId,
-    idempotencyKey,
-    instructionKey: cached.instructionKey,
-    cacheAgeMs: Date.now() - cached.timestamp,
-  });
-
-  return cached.response;
 }
 
 /**
@@ -182,25 +92,6 @@ function validateInstructionStructure(rawInstruction: unknown): string | null {
   if (!inst.type || typeof inst.type !== 'string') return 'Missing or invalid instruction.type: must be a non-empty string';
   if (!inst.params || typeof inst.params !== 'object') return 'Missing or invalid instruction.params: must be an object';
   return null;
-}
-
-/**
- * Store a response in the idempotency cache for future identical requests.
- */
-function storeInIdempotencyCache(
-  idempotencyKey: string | undefined,
-  sessionId: string,
-  instructionKey: string,
-  response: unknown
-): void {
-  if (!idempotencyKey) return;
-  idempotencyCache.set(idempotencyKey, { response, timestamp: Date.now(), sessionId, instructionKey });
-  logger.debug(scopedLog(LogContext.INSTRUCTION, 'cached idempotent result'), {
-    sessionId,
-    idempotencyKey,
-    instructionKey,
-    cacheSize: idempotencyCache.size,
-  });
 }
 
 /** Record an executed instruction in the session's tracking map. */
@@ -258,7 +149,8 @@ export async function handleSessionRun(
   const idempotencyKey = req.headers[IDEMPOTENCY_KEY_HEADER] as string | undefined;
 
   // Fast path: Return cached result if available
-  const cachedResponse = lookupIdempotencyCache(idempotencyKey, sessionId);
+  const idempotencyCache = getIdempotencyCache();
+  const cachedResponse = idempotencyKey ? idempotencyCache.lookup(idempotencyKey, sessionId) : null;
   if (cachedResponse) {
     sendJson(res, 200, cachedResponse);
     return;
@@ -305,7 +197,9 @@ export async function handleSessionRun(
         sessionId, type: instruction.type, stepIndex: instruction.index, nodeId: instruction.nodeId,
       });
       sessionManager.setSessionPhase(sessionId, session.recordingController?.isRecording() ? 'recording' : 'ready');
-      storeInIdempotencyCache(idempotencyKey, sessionId, instructionKey, previousExecution.cachedOutcome);
+      if (idempotencyKey) {
+        idempotencyCache.store(idempotencyKey, sessionId, instructionKey, previousExecution.cachedOutcome);
+      }
       sendJson(res, 200, previousExecution.cachedOutcome);
       return;
     }
@@ -356,7 +250,9 @@ export async function handleSessionRun(
     // Record for replay detection and cache
     recordExecutedInstruction(session, instructionKey, driverOutcome, result.success, completedAt);
     sessionManager.setSessionPhase(sessionId, session.recordingController?.isRecording() ? 'recording' : 'ready');
-    storeInIdempotencyCache(idempotencyKey, sessionId, instructionKey, driverOutcome);
+    if (idempotencyKey) {
+      idempotencyCache.store(idempotencyKey, sessionId, instructionKey, driverOutcome);
+    }
 
     sendJson(res, 200, driverOutcome);
   } catch (error) {

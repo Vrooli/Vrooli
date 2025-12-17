@@ -91,6 +91,10 @@
             "targets": ["api/{{SCENARIO_ID}}-api"]
           },
           {
+            "type": "cli",
+            "command": "{{SCENARIO_ID}}"
+          },
+          {
             "type": "ui-bundle",
             "bundle_path": "ui/dist/index.html",
             "source_dir": "ui/src"

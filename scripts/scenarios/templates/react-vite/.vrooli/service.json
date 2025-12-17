@@ -53,6 +53,10 @@
     "version": "2.0.0",
     "health": {
       "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
       "startup_grace_period": 15000,
       "checks": [
         {
@@ -75,6 +79,23 @@
     },
     "setup": {
       "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": ["api/{{SCENARIO_ID}}-api"]
+          },
+          {
+            "type": "cli",
+            "command": "{{SCENARIO_ID}}"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
       "steps": [
         {
           "name": "install-cli",

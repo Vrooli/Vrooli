@@ -1,47 +1,15 @@
 /**
- * Recording Action Types Registry
+ * Recording-Specific Action Type Utilities
  *
- * PROTO-FIRST ARCHITECTURE:
- * This module re-exports ActionType utilities from the canonical source
- * (proto/action-type-utils.ts) and provides recording-specific functions.
+ * This module contains recording-specific logic that doesn't belong in the
+ * canonical proto/action-type-utils.ts module.
  *
- * CHANGE AXIS: Recording Action Types
- * When adding a new action type:
- * 1. Add to the proto schema (action.proto)
- * 2. Regenerate proto types
- * 3. Update proto/action-type-utils.ts with new mappings
+ * For action type utilities (ACTION_TYPE_MAP, actionTypeToString, etc.),
+ * import from '../proto/action-type-utils' directly.
  *
  * @module recording/action-types
  */
 
-// =============================================================================
-// RE-EXPORTS FROM CANONICAL SOURCE
-// =============================================================================
-// All ActionType utilities are now consolidated in proto/action-type-utils.ts
-// These re-exports maintain backward compatibility for existing imports.
-
-export {
-  // Data exports
-  ACTION_TYPE_MAP,
-  SELECTOR_OPTIONAL_ACTIONS,
-  // Conversion functions
-  normalizeToProtoActionType,
-  actionTypeToString,
-  actionTypeToDisplayString,
-  stringToActionType,
-  // Utility functions
-  isValidActionType,
-  isSelectorOptional,
-  getSupportedActionTypes,
-  // ActionType enum re-export for convenience
-  ActionType,
-} from '../proto/action-type-utils';
-
-// =============================================================================
-// RECORDING-SPECIFIC FUNCTIONS
-// =============================================================================
-
-// Import ActionType for use in this file
 import { ActionType, isSelectorOptional } from '../proto/action-type-utils';
 
 /**

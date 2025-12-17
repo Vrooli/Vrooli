@@ -18,9 +18,8 @@ Category: structure
 Severity: critical
 Targets: structure
 
-Note: Testing is now handled by test-genie via .vrooli/service.json lifecycle.test.
-Scenarios only need a test/ directory for artifacts (playbooks, fixtures, logs).
-The old test/run-tests.sh + test/phases/* pattern is deprecated.
+Note: Testing is handled by test-genie via .vrooli/service.json lifecycle.test.
+Test artifacts live in bas/ (playbooks, fixtures) and coverage/ (logs, reports).
 
 <test-case id="missing-makefile" should-fail="true">
   <description>Scenario missing Makefile and PRD</description>
@@ -31,7 +30,6 @@ The old test/run-tests.sh + test/phases/* pattern is deprecated.
     "api/main.go",
     "cli/install.sh",
     "cli/demo",
-    "test/.gitkeep",
     ".vrooli/service.json",
     "README.md"
   ]
@@ -53,8 +51,7 @@ The old test/run-tests.sh + test/phases/* pattern is deprecated.
     ".vrooli/service.json",
     "api/main.go",
     "cli/install.sh",
-    "cli/demo",
-    "test/.gitkeep"
+    "cli/demo"
   ]
 }
   </input>
@@ -97,8 +94,6 @@ func Check(content string, scenarioPath string, scenario string) ([]Violation, e
 	var violations []Violation
 
 	// Core required files.
-	// Note: Testing is handled by test-genie via .vrooli/service.json lifecycle.test.
-	// The old test/run-tests.sh + test/phases/* pattern is deprecated.
 	requiredFiles := []string{
 		".vrooli/service.json",
 		"api/main.go",
@@ -122,12 +117,6 @@ func Check(content string, scenarioPath string, scenario string) ([]Violation, e
 		}
 	} else {
 		violations = append(violations, newStructureViolation("cli/<scenario>", "Unable to determine scenario name for CLI binary validation"))
-	}
-
-	// Test directory should exist for test artifacts (playbooks, fixtures, logs).
-	// Actual test orchestration is handled by test-genie via .vrooli/service.json lifecycle.test.
-	if !directoryExists(scenarioPath, "test", filesSet) {
-		violations = append(violations, newStructureViolation("test", "Missing test/ directory for test artifacts"))
 	}
 
 	return violations, nil

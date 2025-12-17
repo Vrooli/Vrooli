@@ -112,23 +112,9 @@ export type {
 // =============================================================================
 // ACTION TYPES UTILITIES
 // =============================================================================
-// Re-exported for backward compatibility. Canonical source: proto/action-type-utils.ts
-// New code should prefer importing directly from ../proto.
-
-export {
-  // Data exports
-  ACTION_TYPE_MAP,
-  SELECTOR_OPTIONAL_ACTIONS,
-  // Conversion functions
-  normalizeToProtoActionType,
-  actionTypeToString,
-  actionTypeToDisplayString,
-  stringToActionType,
-  // Utility functions
-  isValidActionType,
-  isSelectorOptional,
-  getSupportedActionTypes,
-} from '../proto/action-type-utils';
+// NOTE: Action type utilities have been consolidated in proto/action-type-utils.ts
+// Import from '../proto/action-type-utils' for: ACTION_TYPE_MAP, SELECTOR_OPTIONAL_ACTIONS,
+// normalizeToProtoActionType, actionTypeToString, stringToActionType, etc.
 
 // Recording-specific function (not in proto module)
 export { calculateActionConfidence } from './action-types';

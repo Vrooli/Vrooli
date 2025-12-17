@@ -35,25 +35,44 @@ import {
 } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 
 import { safeDuration, validateStepIndex, safeSerializable } from '../utils';
+import type { BaseExecutionResult } from './types';
 
 // =============================================================================
 // HANDLER RESULT TYPE (defined here to avoid circular import with handlers/base.ts)
 // =============================================================================
 
 /**
+ * Handler-specific error structure.
+ * Extends the base error pattern with handler-specific flexibility.
+ */
+export interface HandlerError {
+  message: string;
+  code?: string;
+  /** Failure kind - accepts proto FailureKind enum or legacy string for backward compat */
+  kind?: FailureKind | string;
+  retryable?: boolean;
+}
+
+/**
  * Result of handler execution with optional extracted data.
  * Handlers return this, which is then converted to proto StepOutcome.
  *
- * This is a domain-specific result type that extends the base execution
- * contract with handler-specific telemetry fields (screenshots, DOM, logs).
+ * Extends BaseExecutionResult with handler-specific telemetry fields
+ * (screenshots, DOM snapshots, console logs, network events).
+ *
+ * Note: Handlers don't track their own duration - that's added by the calling
+ * route layer when building StepOutcome. Hence durationMs is optional via base.
  *
  * @see BaseExecutionResult - Base interface defining success/error contract
  * @see ActionReplayResult - Recording replay variant in recording/action-executor.ts
  * @see HandlerAdapterResult - Minimal adapter variant in recording/handler-adapter.ts
  */
-export interface HandlerResult {
-  success: boolean;
+export interface HandlerResult extends Omit<BaseExecutionResult, 'error'> {
+  /** Handler-specific error with flexible kind type */
+  error?: HandlerError;
+  /** Extracted data from the page (text, attributes, etc.) */
   extracted_data?: Record<string, unknown>;
+  /** Information about the focused element */
   focus?: {
     selector?: string;
     bounding_box?: {
@@ -63,18 +82,16 @@ export interface HandlerResult {
       height: number;
     };
   };
+  /** Screenshot captured during execution */
   screenshot?: Screenshot;
+  /** DOM snapshot captured during execution */
   domSnapshot?: DOMSnapshot;
+  /** Console log entries collected during execution */
   consoleLogs?: ConsoleLogEntry[];
+  /** Network events captured during execution */
   networkEvents?: NetworkEvent[];
+  /** Assertion outcome for assert instructions */
   assertion?: HandlerAssertionOutcome;
-  error?: {
-    message: string;
-    code?: string;
-    /** Failure kind - accepts proto FailureKind enum or legacy string for backward compat */
-    kind?: FailureKind | string;
-    retryable?: boolean;
-  };
 }
 
 // =============================================================================

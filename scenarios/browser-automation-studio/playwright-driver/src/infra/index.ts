@@ -15,3 +15,14 @@ export {
   type CircuitState,
   type CircuitStats,
 } from './circuit-breaker';
+
+export {
+  createIdempotencyCache,
+  getIdempotencyCache,
+  shutdownIdempotencyCache,
+  DEFAULT_IDEMPOTENCY_CACHE_CONFIG,
+  type IdempotencyCache,
+  type IdempotencyCacheConfig,
+  type CachedEntry,
+  type CacheStats,
+} from './idempotency-cache';

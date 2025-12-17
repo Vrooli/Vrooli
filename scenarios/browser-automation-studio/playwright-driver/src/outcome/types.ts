@@ -181,8 +181,8 @@ export interface ExecutionMetrics {
 export interface BaseExecutionResult {
   /** Whether the execution succeeded */
   success: boolean;
-  /** Execution duration in milliseconds */
-  durationMs: number;
+  /** Execution duration in milliseconds (optional - not all contexts track timing) */
+  durationMs?: number;
   /** Error details if execution failed */
   error?: ExecutionError;
 }

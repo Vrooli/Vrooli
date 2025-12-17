@@ -27,8 +27,8 @@ import type { Page } from 'playwright';
 import type { TimelineEntry } from '../proto';
 import { ActionType } from '../proto';
 
-// Import shared error types from outcome module (single source of truth)
-import { type ActionErrorCode } from '../outcome/types';
+// Import shared types from outcome module (single source of truth)
+import { type ActionErrorCode, type BaseExecutionResult } from '../outcome/types';
 
 // Import handler adapter for delegating execution to handlers
 import { executeViaHandler, hasHandlerForActionType, type ReplayContext } from './handler-adapter';
@@ -56,27 +56,38 @@ export interface ExecutorContext {
 }
 
 /**
+ * Replay-specific error structure.
+ * Includes additional context for selector-related failures.
+ */
+export interface ActionReplayError {
+  message: string;
+  code: ActionErrorCode;
+  matchCount?: number;
+  selector?: string;
+}
+
+/**
  * Result of replaying a single action.
  *
- * This is a domain-specific result type for recording replay that extends
- * the base execution contract with entry metadata (entryId, sequenceNum, actionType).
+ * Extends BaseExecutionResult with entry metadata (entryId, sequenceNum, actionType)
+ * needed to correlate replay results with the original recorded timeline.
  *
  * @see BaseExecutionResult - Base interface defining success/error contract
  * @see HandlerResult - Handler execution variant in outcome/outcome-builder.ts
  * @see HandlerAdapterResult - Minimal adapter variant in recording/handler-adapter.ts
  */
-export interface ActionReplayResult {
+export interface ActionReplayResult extends Omit<BaseExecutionResult, 'error' | 'durationMs'> {
+  /** ID of the timeline entry being replayed */
   entryId: string;
+  /** Sequence number in the timeline */
   sequenceNum: number;
+  /** Type of action being replayed */
   actionType: ActionType;
-  success: boolean;
+  /** Execution duration in milliseconds (always tracked for replay) */
   durationMs: number;
-  error?: {
-    message: string;
-    code: ActionErrorCode;
-    matchCount?: number;
-    selector?: string;
-  };
+  /** Replay-specific error with selector context */
+  error?: ActionReplayError;
+  /** Screenshot captured on error for debugging */
   screenshotOnError?: string;
 }
 

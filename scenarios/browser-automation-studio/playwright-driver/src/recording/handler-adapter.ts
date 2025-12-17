@@ -23,6 +23,7 @@ import type { HandlerInstruction } from '../proto';
 import type { HandlerContext } from '../handlers/base';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
+import type { BaseExecutionResult } from '../outcome/types';
 import { ActionType } from '../proto';
 import { actionTypeToString, stringToActionType } from '../proto/action-type-utils';
 import { handlerRegistry } from '../handlers/registry';
@@ -45,24 +46,31 @@ export interface ReplayContext {
 }
 
 /**
+ * Adapter-specific error structure.
+ * Minimal error info sufficient for replay result bridging.
+ */
+export interface HandlerAdapterError {
+  message: string;
+  code: string;
+  matchCount?: number;
+  selector?: string;
+}
+
+/**
  * Result of replay execution via handler.
  *
- * This is a minimal result type for the handler adapter bridge.
- * It follows the BaseExecutionResult contract without additional fields.
+ * Extends BaseExecutionResult as a minimal adapter bridge between
+ * the handler infrastructure and the action replay system.
  *
  * @see BaseExecutionResult - Base interface defining success/error contract
  * @see HandlerResult - Full handler execution variant in outcome/outcome-builder.ts
  * @see ActionReplayResult - Recording replay variant in recording/action-executor.ts
  */
-export interface HandlerAdapterResult {
-  success: boolean;
+export interface HandlerAdapterResult extends Omit<BaseExecutionResult, 'error' | 'durationMs'> {
+  /** Execution duration in milliseconds */
   durationMs: number;
-  error?: {
-    message: string;
-    code: string;
-    matchCount?: number;
-    selector?: string;
-  };
+  /** Adapter error with optional selector context */
+  error?: HandlerAdapterError;
 }
 
 // =============================================================================
