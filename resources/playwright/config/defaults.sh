@@ -1,4 +1,0 @@
-export PLAYWRIGHT_DRIVER_PORT="${PLAYWRIGHT_DRIVER_PORT:-39400}"
-export PLAYWRIGHT_DRIVER_HOST="${PLAYWRIGHT_DRIVER_HOST:-127.0.0.1}"
-export HEADLESS="${HEADLESS:-true}"
-# Optional: set PLAYWRIGHT_CHROMIUM_PATH to reuse an existing Chromium/Chrome binary

@@ -143,6 +143,16 @@
           "description": "Build React UI for production"
         },
         {
+          "name": "install-playwright-driver-deps",
+          "run": "cd playwright-driver && pnpm install --ignore-workspace",
+          "description": "Install Playwright driver dependencies"
+        },
+        {
+          "name": "build-playwright-driver",
+          "run": "cd playwright-driver && pnpm run build",
+          "description": "Build Playwright driver for production"
+        },
+        {
           "name": "setup-database",
           "run": "echo 'Database schema will be initialized on first API startup'",
           "description": "Prepare database schema"
@@ -159,11 +169,11 @@
       "steps": [
         {
           "name": "start-playwright-driver",
-          "run": "if [ -n \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then exit 0; fi; cd playwright-driver && npm run dev",
-          "description": "Start TypeScript Playwright driver (v2.0) if no driver URL is configured",
+          "run": "if [ -n \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then exit 0; fi; cd playwright-driver && node dist/server.js",
+          "description": "Start Playwright driver (v2.0) if no driver URL is configured",
           "background": true,
           "condition": {
-            "file_exists": "playwright-driver/package.json"
+            "file_exists": "playwright-driver/dist/server.js"
           }
         },
         {
@@ -206,8 +216,8 @@
       "steps": [
         {
           "name": "stop-playwright-driver",
-          "run": "if [ -f /tmp/vrooli-playwright-driver.pid ]; then ../../resources/playwright/cli.sh stop; fi",
-          "description": "Stop local Playwright driver if started"
+          "run": "pkill -f 'playwright-driver.*server' || true; pkill -f 'node.*playwright-driver/dist/server.js' || true",
+          "description": "Stop scenario-managed Playwright driver if running"
         },
         {
           "name": "stop-api",
