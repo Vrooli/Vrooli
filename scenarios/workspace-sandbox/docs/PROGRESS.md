@@ -4,6 +4,7 @@ Track development progress, decisions, and significant changes.
 
 | Date | Author | Status Snapshot | Notes |
 |------|--------|-----------------|-------|
+| 2025-12-17 | Claude Opus 4.5 | Test infrastructure migration to test-genie | Updated service.json to use `test-genie execute workspace-sandbox` instead of deprecated `cd test && ./run-tests.sh`. Removed unused test/ directory. Scenarios now use test-genie for all phased testing. |
 | 2025-12-16 | Claude Opus 4.5 | Idempotency & Temporal Flow Hardening | Added idempotency keys for Create, made all state transitions idempotent, added optimistic locking, database-level scope locking, mount verification methods |
 | 2025-12-16 | Claude Opus 4.5 | Intent Clarification & Assumption Hardening | Renamed ConflictType constants for clarity, added state machine ASCII diagram, documented assumptions explicitly in code, added validation guards, created assumption tests as executable documentation |
 | 2025-12-17 | Claude Opus 4.5 | Progress & Signal Surface Design | Created PostgreSQL schema (sandboxes, audit_log, check_scope_overlap), added stats endpoint, implemented structured JSON logging, improved error signals with actionable hints. Backend API now fully functional. |

@@ -159,12 +159,12 @@
       ]
     },
     "test": {
-      "description": "Execute phased test suite",
+      "description": "Execute phased test suite via test-genie",
       "steps": [
         {
           "name": "run-tests",
-          "run": "cd test && ./run-tests.sh",
-          "description": "Run structure/unit/integration/business/performance phases"
+          "run": "test-genie execute {{SCENARIO_ID}} --preset comprehensive",
+          "description": "Run all test phases via test-genie"
         }
       ]
     },

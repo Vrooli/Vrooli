@@ -48,11 +48,14 @@ func TestTickCommand(t *testing.T) {
 ## Running Tests
 
 ```bash
-# Full phased test suite
-cd test && ./run-tests.sh
+# Full phased test suite via test-genie
+test-genie execute vrooli-autoheal --preset comprehensive
 
 # Via Makefile
 make test
+
+# Via vrooli CLI
+vrooli scenario test vrooli-autoheal
 ```
 
 ## Reference
