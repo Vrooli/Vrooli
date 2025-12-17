@@ -83,17 +83,17 @@ When adding a new recorded action type:
 
 ### 3. Selector Strategies (MEDIUM FREQUENCY)
 
-**Primary extension points:**
-- `recording/selectors.ts` - Reference implementation (documentation)
-- `recording/injector.ts` - Runtime implementation (browser-injected)
+**Primary extension point:**
+- `recording/injector.ts` - Runtime implementation (browser-injected) **SOURCE OF TRUTH**
+- `recording/selectors.reference.ts` - TypeScript reference (documentation only, not imported)
 
-**Important:** These files must stay in sync. `selectors.ts` uses TypeScript with DOM types for documentation; `injector.ts` contains the actual stringified JavaScript injected into pages.
+**Note:** `selectors.reference.ts` is documentation-only and may drift from `injector.ts`. The injector is the source of truth. Update the reference file opportunistically when making algorithm changes.
 
 When adding a new selector strategy:
 
 1. Add `SelectorType` to `recording/types.ts`
-2. Implement in `selectors.ts` (for documentation/reference)
-3. Mirror implementation in `injector.ts` (actual runtime code)
+2. Implement in `injector.ts` (the actual runtime code)
+3. Optionally update `selectors.reference.ts` for documentation
 4. Update `DEFAULT_SELECTOR_OPTIONS` if needed
 
 ### 4. Telemetry Types (LOW-MEDIUM FREQUENCY)
@@ -170,14 +170,14 @@ Handlers declare their supported types via `getSupportedTypes()` rather than ext
 - Enables handlers to support multiple related types
 - Simplifies registration (just instantiate and register)
 
-### Why Selectors Have Dual Implementation
+### Why Selectors Have Reference Implementation
 
-`selectors.ts` (TypeScript) and `injector.ts` (stringified JS) exist because:
+`selectors.reference.ts` (TypeScript) and `injector.ts` (stringified JS) exist because:
 - Browser context requires plain JavaScript injection
-- TypeScript version provides documentation and type safety
-- Algorithm changes should be made in both files
-
-Consider generating `injector.ts` from `selectors.ts` in the future.
+- TypeScript version is easier to read and understand than stringified JS
+- `injector.ts` is the SOURCE OF TRUTH - it runs at runtime
+- `selectors.reference.ts` is documentation-only and NOT imported anywhere
+- The reference file may drift over time - that's acceptable
 
 ### Why Outcomes Have Two Formats
 
@@ -188,8 +188,8 @@ The Go API expects flattened fields (`screenshot_base64` not `screenshot.base64`
 
 ## Future Improvements
 
-1. **Auto-generate injector.ts** - Compile `selectors.ts` to browser-compatible JS
+1. ~~**Auto-generate injector.ts**~~ - Decided against: `injector.ts` is source of truth, `selectors.reference.ts` is documentation
 2. ~~**Action executor registry**~~ - ✅ Implemented in `recording/action-executor.ts`
 3. **Route grouping** - Group related routes (session/*, record/*) for cleaner registration
 4. **Telemetry pipeline** - Create composable collector pipeline for future types
-5. **Selector strategy verification** - Add test to verify `selectors.ts` and `injector.ts` are in sync
+5. ~~**Selector strategy verification**~~ - No longer needed: reference file drift is acceptable

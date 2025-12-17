@@ -1,7 +1,7 @@
 import type { Page } from 'playwright';
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction, AssertionOutcome } from '../types';
-import { getAssertParams } from '../proto';
+import { getAssertParams } from '../types';
 import { DEFAULT_ASSERTION_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 

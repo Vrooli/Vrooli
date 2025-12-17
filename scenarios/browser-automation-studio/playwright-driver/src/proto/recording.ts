@@ -66,6 +66,9 @@ import {
   type Point,
 } from '@vrooli/proto-types/browser-automation-studio/v1/base/geometry_pb';
 
+// Import the canonical ACTION_TYPE_MAP from the single source of truth
+import { ACTION_TYPE_MAP } from './action-type-utils';
+
 // =============================================================================
 // RAW TYPES (browser-originated, before conversion to proto)
 // =============================================================================
@@ -140,24 +143,7 @@ export interface ConversionContext {
 // ENUM CONVERSION MAPS
 // =============================================================================
 
-/**
- * Map from raw action type string to proto ActionType enum.
- */
-const ACTION_TYPE_MAP: Record<string, ActionType> = {
-  navigate: ActionType.NAVIGATE,
-  click: ActionType.CLICK,
-  type: ActionType.INPUT,
-  input: ActionType.INPUT,
-  scroll: ActionType.SCROLL,
-  select: ActionType.SELECT,
-  hover: ActionType.HOVER,
-  focus: ActionType.FOCUS,
-  blur: ActionType.BLUR,
-  keypress: ActionType.KEYBOARD,
-  keydown: ActionType.KEYBOARD,
-  keyup: ActionType.KEYBOARD,
-  change: ActionType.SELECT,
-};
+// NOTE: ACTION_TYPE_MAP is imported from './action-type-utils' (single source of truth)
 
 /**
  * Map string selector type to proto SelectorType enum.

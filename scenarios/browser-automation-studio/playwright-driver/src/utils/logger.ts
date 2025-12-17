@@ -77,3 +77,15 @@ export function setLogger(newLogger: winston.Logger): void {
 export function scopedLog(context: LogContextType, event: string): string {
   return `${context}: ${event}`;
 }
+
+/**
+ * Create a no-op logger for contexts that don't need logging (e.g., replay preview).
+ * All methods are defined but do nothing.
+ */
+export function createNoOpLogger(): winston.Logger {
+  return winston.createLogger({
+    level: 'silent',
+    silent: true,
+    transports: [],
+  });
+}

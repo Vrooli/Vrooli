@@ -50,21 +50,42 @@ export type {
 // Re-export the conversion function
 export { toHandlerInstruction, getActionType } from '../proto';
 
-// Re-export typed param extractors for handlers that want to use typed action
+// Re-export ALL typed param extractors for handlers
+// This provides a convenient import path: import { getClickParams } from '../types'
 export {
+  // Core interaction params
   getClickParams,
   getInputParams,
-  getNavigateParams,
-  getWaitParams,
-  getAssertParams,
   getHoverParams,
   getFocusParams,
   getBlurParams,
+  // Navigation & frames
+  getNavigateParams,
+  getFrameSwitchParams,
+  getTabSwitchParams,
+  // Wait & assert
+  getWaitParams,
+  getAssertParams,
+  // Data extraction
   getScrollParams,
   getSelectParams,
   getScreenshotParams,
   getEvaluateParams,
+  getExtractParams,
+  // Keyboard & shortcuts
   getKeyboardParams,
+  getShortcutParams,
+  // File operations
+  getUploadFileParams,
+  getDownloadParams,
+  // Storage
+  getCookieStorageParams,
+  // Gestures & drag-drop
+  getDragDropParams,
+  getGestureParams,
+  // Network & device
+  getNetworkMockParams,
+  getRotateParams,
 } from '../proto';
 
 // Re-export proto enums directly (no more string literal types)

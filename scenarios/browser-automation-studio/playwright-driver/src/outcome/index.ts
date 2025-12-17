@@ -38,3 +38,18 @@ export {
   type NetworkEvent,
   type HandlerAssertionOutcome,
 } from './outcome-builder';
+
+// Unified outcome types (shared error codes, failure kinds, utilities)
+export {
+  type HandlerErrorCode,
+  type ActionErrorCode,
+  type ExecutionError,
+  type ExecutionMetrics,
+  type BaseExecutionResult,
+  ERROR_CODE_TO_FAILURE_KIND,
+  RETRYABLE_ERROR_CODES,
+  createExecutionError,
+  isRetryableError,
+  getFailureKindFromCode,
+  normalizeFailureKind,
+} from './types';

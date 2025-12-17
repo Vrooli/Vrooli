@@ -2,105 +2,53 @@
  * Recording Action Types Registry
  *
  * PROTO-FIRST ARCHITECTURE:
- * This module provides utilities for working with proto ActionType enum
- * and converting between browser events and proto types.
+ * This module re-exports ActionType utilities from the canonical source
+ * (proto/action-type-utils.ts) and provides recording-specific functions.
  *
  * CHANGE AXIS: Recording Action Types
  * When adding a new action type:
  * 1. Add to the proto schema (action.proto)
  * 2. Regenerate proto types
- * 3. Add normalization mapping here if browser sends different name
- */
-
-import { ActionType } from '../proto';
-
-/**
- * Map from raw browser event type string to proto ActionType enum.
- * Handles common variations in event naming from the browser.
- */
-const ACTION_TYPE_FROM_STRING: Record<string, ActionType> = {
-  // Direct mappings
-  click: ActionType.CLICK,
-  type: ActionType.INPUT,
-  input: ActionType.INPUT,
-  scroll: ActionType.SCROLL,
-  navigate: ActionType.NAVIGATE,
-  select: ActionType.SELECT,
-  hover: ActionType.HOVER,
-  focus: ActionType.FOCUS,
-  blur: ActionType.BLUR,
-  keypress: ActionType.KEYBOARD,
-  keyboard: ActionType.KEYBOARD,
-  wait: ActionType.WAIT,
-  assert: ActionType.ASSERT,
-  screenshot: ActionType.SCREENSHOT,
-  evaluate: ActionType.EVALUATE,
-  // Aliases for browser event types
-  change: ActionType.SELECT,
-  keydown: ActionType.KEYBOARD,
-  keyup: ActionType.KEYBOARD,
-  mousedown: ActionType.CLICK,
-  mouseup: ActionType.CLICK,
-  dblclick: ActionType.CLICK,
-};
-
-/**
- * Action types that don't require selectors.
- * Used for confidence calculation and validation.
- */
-export const SELECTOR_OPTIONAL_ACTIONS: ReadonlySet<ActionType> = new Set([
-  ActionType.SCROLL,
-  ActionType.NAVIGATE,
-  ActionType.WAIT,
-  ActionType.KEYBOARD,
-  ActionType.SCREENSHOT,
-  ActionType.EVALUATE,
-]);
-
-/**
- * Normalize raw action type string to proto ActionType enum.
+ * 3. Update proto/action-type-utils.ts with new mappings
  *
- * @param rawType - Raw action type from browser event
- * @returns Proto ActionType (defaults to CLICK for unknown)
+ * @module recording/action-types
  */
-export function normalizeToProtoActionType(rawType: string): ActionType {
-  const normalized = rawType.toLowerCase();
-  return ACTION_TYPE_FROM_STRING[normalized] ?? ActionType.CLICK;
-}
 
-/**
- * Convert proto ActionType enum to string name.
- * Useful for logging and debugging.
- *
- * @param actionType - Proto ActionType enum value
- * @returns Human-readable string name
- */
-export function actionTypeToString(actionType: ActionType): string {
-  return ActionType[actionType] ?? 'UNKNOWN';
-}
+// =============================================================================
+// RE-EXPORTS FROM CANONICAL SOURCE
+// =============================================================================
+// All ActionType utilities are now consolidated in proto/action-type-utils.ts
+// These re-exports maintain backward compatibility for existing imports.
 
-/**
- * Check if action type is valid (not UNSPECIFIED).
- *
- * @param actionType - Action type to validate
- * @returns True if valid (not UNSPECIFIED)
- */
-export function isValidActionType(actionType: ActionType): boolean {
-  return actionType !== ActionType.UNSPECIFIED;
-}
+export {
+  // Data exports
+  ACTION_TYPE_MAP,
+  SELECTOR_OPTIONAL_ACTIONS,
+  // Conversion functions
+  normalizeToProtoActionType,
+  actionTypeToString,
+  actionTypeToDisplayString,
+  stringToActionType,
+  // Utility functions
+  isValidActionType,
+  isSelectorOptional,
+  getSupportedActionTypes,
+  // ActionType enum re-export for convenience
+  ActionType,
+} from '../proto/action-type-utils';
 
-/**
- * Check if action type requires a selector.
- *
- * @param actionType - Action type to check
- * @returns True if selector is optional for this action
- */
-export function isSelectorOptional(actionType: ActionType): boolean {
-  return SELECTOR_OPTIONAL_ACTIONS.has(actionType);
-}
+// =============================================================================
+// RECORDING-SPECIFIC FUNCTIONS
+// =============================================================================
+
+// Import ActionType for use in this file
+import { ActionType, isSelectorOptional } from '../proto/action-type-utils';
 
 /**
  * Calculate confidence score for an action based on selector quality.
+ *
+ * This is recording-specific logic that evaluates how reliable a recorded
+ * selector is likely to be during replay.
  *
  * @param actionType - Proto ActionType
  * @param selector - Selector set from raw event
@@ -136,38 +84,4 @@ export function calculateActionConfidence(
   }
 
   return primaryCandidate.confidence ?? 0.5;
-}
-
-/**
- * Get all supported proto action types.
- * Useful for validation and documentation.
- */
-export function getSupportedActionTypes(): ActionType[] {
-  return [
-    ActionType.NAVIGATE,
-    ActionType.CLICK,
-    ActionType.INPUT,
-    ActionType.WAIT,
-    ActionType.ASSERT,
-    ActionType.SCROLL,
-    ActionType.SELECT,
-    ActionType.EVALUATE,
-    ActionType.KEYBOARD,
-    ActionType.HOVER,
-    ActionType.SCREENSHOT,
-    ActionType.FOCUS,
-    ActionType.BLUR,
-    ActionType.SUBFLOW,
-    ActionType.EXTRACT,
-    ActionType.UPLOAD_FILE,
-    ActionType.DOWNLOAD,
-    ActionType.FRAME_SWITCH,
-    ActionType.TAB_SWITCH,
-    ActionType.COOKIE_STORAGE,
-    ActionType.SHORTCUT,
-    ActionType.DRAG_DROP,
-    ActionType.GESTURE,
-    ActionType.NETWORK_MOCK,
-    ActionType.ROTATE,
-  ];
 }

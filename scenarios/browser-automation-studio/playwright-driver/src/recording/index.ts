@@ -10,14 +10,15 @@
  * ├─────────────────────────────────────────────────────────────────────────┤
  * │                                                                         │
  * │ UNDERSTANDING THE SYSTEM:                                               │
- * │   controller.ts        - Main orchestrator (start/stop, replay)         │
- * │   action-executor.ts   - Proto-native action execution                  │
- * │   ../proto/recording.ts - Proto conversion (RawBrowserEvent → Timeline) │
+ * │   controller.ts          - Main orchestrator (start/stop, replay)       │
+ * │   action-executor.ts     - Proto-native action execution                │
+ * │   ../proto/recording.ts  - Proto conversion (RawBrowserEvent→Timeline)  │
  * │                                                                         │
  * │ ADDING A NEW ACTION TYPE (e.g., 'drag'):                                │
  * │   1. packages/proto/schemas/.../action.proto - Add to ActionType enum   │
- * │   2. action-types.ts   - Add string → enum mapping                      │
- * │   3. action-executor.ts - Add executor with registerTimelineExecutor    │
+ * │   2. ../proto/action-type-utils.ts - Add string ↔ enum mappings         │
+ * │   3. ../handlers/*.ts - Implement handler (preferred)                   │
+ * │      OR action-executor.ts - Add executor (if handler not suitable)     │
  * │                                                                         │
  * │ MODIFYING SELECTOR GENERATION:                                          │
  * │   1. selector-config.ts - Configuration (scores, patterns) - EDIT THIS  │
@@ -111,23 +112,37 @@ export type {
 // =============================================================================
 // ACTION TYPES UTILITIES
 // =============================================================================
+// Re-exported for backward compatibility. Canonical source: proto/action-type-utils.ts
+// New code should prefer importing directly from ../proto.
 
 export {
+  // Data exports
+  ACTION_TYPE_MAP,
+  SELECTOR_OPTIONAL_ACTIONS,
+  // Conversion functions
   normalizeToProtoActionType,
   actionTypeToString,
+  actionTypeToDisplayString,
+  stringToActionType,
+  // Utility functions
   isValidActionType,
   isSelectorOptional,
-  calculateActionConfidence,
   getSupportedActionTypes,
-  SELECTOR_OPTIONAL_ACTIONS,
-} from './action-types';
+} from '../proto/action-type-utils';
+
+// Recording-specific function (not in proto module)
+export { calculateActionConfidence } from './action-types';
 
 // =============================================================================
-// SELECTOR CONFIGURATION
+// SELECTOR CONFIGURATION & SERVICE
 // =============================================================================
 
 export * from './selector-config';
-export * from './selectors';
+export * from './selector-service';
+
+// NOTE: selectors.reference.ts is NOT exported - it's documentation-only reference code.
+// The actual runtime implementation is in injector.ts (stringified JavaScript).
+// See selectors.reference.ts file header for details on why this separation exists.
 
 // =============================================================================
 // BROWSER SCRIPT INJECTION
@@ -165,3 +180,20 @@ export {
   isEntryBuffered,
   getBufferStats,
 } from './buffer';
+
+// =============================================================================
+// HANDLER ADAPTER (Bridge replay to handlers)
+// =============================================================================
+
+export {
+  executeViaHandler,
+  timelineEntryToHandlerInstruction,
+  createReplayHandlerContext,
+  hasHandlerForActionType,
+  getHandlerSupportedActionTypes,
+} from './handler-adapter';
+
+export type {
+  ReplayContext,
+  HandlerAdapterResult,
+} from './handler-adapter';

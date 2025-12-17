@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getSelectParams } from '../proto';
+import { getSelectParams } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 

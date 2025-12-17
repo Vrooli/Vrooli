@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getCookieStorageParams } from '../proto';
+import { getCookieStorageParams } from '../types';
 import { normalizeError } from '../utils';
 
 /** Internal params type returned by getCookieStorageParams */

@@ -3,22 +3,30 @@
 /* eslint-enable @typescript-eslint/ban-ts-comment */
 
 /**
- * Selector Generator - DOCUMENTATION ONLY
+ * ============================================================================
+ * SELECTOR GENERATION - REFERENCE IMPLEMENTATION
+ * ============================================================================
  *
- * ⚠️  WARNING: This file is NOT executable code. It exists ONLY for documentation.
+ * FILE: selectors.reference.ts
  *
- * The ACTUAL runtime code lives in `injector.ts` as a stringified JavaScript
- * function that gets injected into browser pages via page.evaluate().
+ * STATUS: DOCUMENTATION ONLY - NOT IMPORTED ANYWHERE
  *
- * WHY THIS FILE EXISTS:
- * - TypeScript with types is easier to read than stringified JS in injector.ts
- * - Serves as an algorithm reference when modifying selector generation
- * - Exports type definitions used elsewhere in the recording module
+ * This file contains a TypeScript reference implementation of the selector
+ * generation algorithm. It is NOT executed at runtime.
  *
- * WHEN MODIFYING SELECTOR GENERATION:
- * 1. Update the algorithm in injector.ts (the actual runtime code)
- * 2. Optionally update this file to keep documentation in sync
- * 3. Configuration values come from selector-config.ts
+ * The ACTUAL runtime code lives in `injector.ts` as stringified JavaScript
+ * that gets injected into browser pages via page.evaluate().
+ *
+ * WHY THIS DUAL-FILE APPROACH EXISTS:
+ * - Browser context requires plain JavaScript (no TypeScript)
+ * - injector.ts contains stringified JS for browser injection
+ * - This file provides readable TypeScript with types as documentation
+ * - Algorithm changes should be made in injector.ts FIRST
+ *
+ * KEEPING THEM IN SYNC:
+ * - This file may drift from injector.ts over time
+ * - injector.ts is the source of truth for runtime behavior
+ * - Update this file opportunistically when making algorithm changes
  *
  * SELECTOR STRATEGY PRIORITY (highest confidence first):
  * 1. data-testid - Explicitly stable test IDs (0.98)
@@ -29,8 +37,8 @@
  * 6. Stable CSS path - Filtered CSS classes (0.65)
  * 7. XPath fallback - Text-based or positional (0.4-0.55)
  *
- * @see injector.ts - The actual runtime implementation
- * @see selector-config.ts - Configuration values (single source of truth)
+ * @see injector.ts - The actual runtime implementation (SOURCE OF TRUTH)
+ * @see selector-config.ts - Configuration values (shared by both files)
  */
 
 import type {

@@ -1,7 +1,7 @@
 import { Page } from 'playwright';
 import { BaseHandler, HandlerContext, HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getDragDropParams, getGestureParams } from '../proto';
+import { getDragDropParams, getGestureParams } from '../types';
 import { normalizeError } from '../utils/errors';
 
 /** Internal gesture params type for handler use */

@@ -155,3 +155,52 @@ export class Metrics {
 
 // Default metrics instance
 export const metrics = new Metrics();
+
+/**
+ * No-op metrics interface for contexts that don't need metrics collection.
+ * Provides the same interface as Metrics but does nothing.
+ */
+export interface NoOpMetrics {
+  sessionCount: { inc: () => void; dec: () => void; set: () => void };
+  instructionDuration: { observe: () => void };
+  instructionErrors: { inc: () => void };
+  screenshotSize: { observe: () => void };
+  sessionDuration: { observe: () => void };
+  cleanupFailures: { inc: () => void };
+  recordingActionsTotal: { inc: () => void };
+  recordingSessionsActive: { inc: () => void; dec: () => void; set: () => void };
+  telemetryFailures: { inc: () => void };
+  recordingCallbackFailures: { inc: () => void };
+  circuitBreakerStateChanges: { inc: () => void };
+  frameCaptureLatency: { observe: () => void };
+  frameE2ELatency: { observe: () => void };
+  frameSkipCount: { inc: () => void };
+}
+
+const noOp = () => {};
+const noOpGauge = { inc: noOp, dec: noOp, set: noOp };
+const noOpCounter = { inc: noOp };
+const noOpHistogram = { observe: noOp };
+
+/**
+ * Create a no-op metrics instance for contexts that don't need metrics collection.
+ * Useful for replay preview where we don't want to pollute production metrics.
+ */
+export function createNoOpMetrics(): NoOpMetrics {
+  return {
+    sessionCount: noOpGauge,
+    instructionDuration: noOpHistogram,
+    instructionErrors: noOpCounter,
+    screenshotSize: noOpHistogram,
+    sessionDuration: noOpHistogram,
+    cleanupFailures: noOpCounter,
+    recordingActionsTotal: noOpCounter,
+    recordingSessionsActive: noOpGauge,
+    telemetryFailures: noOpCounter,
+    recordingCallbackFailures: noOpCounter,
+    circuitBreakerStateChanges: noOpCounter,
+    frameCaptureLatency: noOpHistogram,
+    frameE2ELatency: noOpHistogram,
+    frameSkipCount: noOpCounter,
+  };
+}

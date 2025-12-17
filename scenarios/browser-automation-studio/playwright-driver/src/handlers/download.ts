@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getDownloadParams } from '../proto';
+import { getDownloadParams } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError, validateTimeout, logger, scopedLog, LogContext } from '../utils';
 import * as fs from 'fs/promises';

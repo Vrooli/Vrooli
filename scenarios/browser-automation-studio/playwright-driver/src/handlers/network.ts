@@ -1,6 +1,6 @@
 import { BaseHandler, HandlerContext, HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getNetworkMockParams } from '../proto';
+import { getNetworkMockParams } from '../types';
 import { normalizeError } from '../utils/errors';
 import { logger, scopedLog, LogContext } from '../utils';
 

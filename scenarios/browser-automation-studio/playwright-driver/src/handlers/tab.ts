@@ -1,7 +1,7 @@
 import { Page } from 'playwright';
 import { BaseHandler, HandlerContext, HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getTabSwitchParams } from '../proto';
+import { getTabSwitchParams } from '../types';
 import { normalizeError } from '../utils/errors';
 import { logger, scopedLog, LogContext } from '../utils';
 

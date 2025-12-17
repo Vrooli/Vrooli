@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getNavigateParams } from '../proto';
+import { getNavigateParams } from '../types';
 import { DEFAULT_NAVIGATION_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 

@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getScreenshotParams } from '../proto';
+import { getScreenshotParams } from '../types';
 import { captureScreenshot, captureCompressedScreenshot } from '../telemetry';
 import { normalizeError } from '../utils';
 

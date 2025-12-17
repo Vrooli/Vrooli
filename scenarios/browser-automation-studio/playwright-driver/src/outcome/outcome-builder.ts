@@ -43,6 +43,13 @@ import { safeDuration, validateStepIndex, safeSerializable } from '../utils';
 /**
  * Result of handler execution with optional extracted data.
  * Handlers return this, which is then converted to proto StepOutcome.
+ *
+ * This is a domain-specific result type that extends the base execution
+ * contract with handler-specific telemetry fields (screenshots, DOM, logs).
+ *
+ * @see BaseExecutionResult - Base interface defining success/error contract
+ * @see ActionReplayResult - Recording replay variant in recording/action-executor.ts
+ * @see HandlerAdapterResult - Minimal adapter variant in recording/handler-adapter.ts
  */
 export interface HandlerResult {
   success: boolean;
@@ -165,28 +172,11 @@ export interface DriverOutcome {
 // ENUM CONVERSION HELPERS
 // =============================================================================
 
-/**
- * Convert a FailureKind value (enum or legacy string) to proto enum.
- * Supports both proto enum values and legacy string values for backward compatibility.
- */
-function toFailureKind(kind: FailureKind | string | undefined): FailureKind {
-  if (kind === undefined) return FailureKind.ENGINE;
+// Import normalizeFailureKind from shared types module
+import { normalizeFailureKind } from './types';
 
-  // If it's already a proto enum value (number), return it
-  if (typeof kind === 'number') return kind;
-
-  // Legacy string conversion
-  const FAILURE_KIND_MAP: Record<string, FailureKind> = {
-    engine: FailureKind.ENGINE,
-    infra: FailureKind.INFRA,
-    orchestration: FailureKind.ORCHESTRATION,
-    user: FailureKind.USER,
-    timeout: FailureKind.TIMEOUT,
-    cancelled: FailureKind.CANCELLED,
-  };
-
-  return FAILURE_KIND_MAP[kind] ?? FailureKind.ENGINE;
-}
+// Alias for backward compatibility within this file
+const toFailureKind = normalizeFailureKind;
 
 // =============================================================================
 // CONSTANTS

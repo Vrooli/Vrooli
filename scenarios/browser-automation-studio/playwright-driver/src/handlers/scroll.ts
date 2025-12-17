@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getScrollParams } from '../proto';
+import { getScrollParams } from '../types';
 import { normalizeError } from '../utils';
 
 /**

@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getUploadFileParams } from '../proto';
+import { getUploadFileParams } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError, validateTimeout, logger, scopedLog, LogContext } from '../utils';
 import { constants as fsConstants } from 'fs';

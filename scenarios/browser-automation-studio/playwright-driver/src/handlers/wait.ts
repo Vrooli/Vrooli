@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getWaitParams } from '../proto';
+import { getWaitParams } from '../types';
 import { DEFAULT_WAIT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 

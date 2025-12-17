@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
-import { getKeyboardParams, getShortcutParams } from '../proto';
+import { getKeyboardParams, getShortcutParams } from '../types';
 import { normalizeError } from '../utils';
 
 /**

@@ -1,7 +1,7 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import type { Frame } from 'playwright';
-import { getFrameSwitchParams } from '../proto';
+import { getFrameSwitchParams } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError, FrameNotFoundError, validateTimeout, logger, scopedLog, LogContext } from '../utils';
 
