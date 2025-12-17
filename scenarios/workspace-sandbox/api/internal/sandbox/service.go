@@ -505,6 +505,19 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		return nil, fmt.Errorf("failed to generate diff: %w", err)
 	}
 
+	// [OT-P1-001] Hunk-Level Approval
+	// Filter to only selected hunks if hunks mode is requested
+	if req.Mode == "hunks" && len(req.HunkRanges) > 0 {
+		diffResult.UnifiedDiff = diff.FilterHunks(diffResult.UnifiedDiff, req.HunkRanges, changes)
+		if diffResult.UnifiedDiff == "" {
+			return &types.ApprovalResult{
+				Success:   true,
+				Applied:   0,
+				AppliedAt: time.Now(),
+			}, nil
+		}
+	}
+
 	// Determine commit message and author using attribution policy
 	commitMsg := req.CommitMsg
 	author := req.Actor

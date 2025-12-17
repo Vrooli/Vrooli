@@ -6,30 +6,36 @@ import (
 )
 
 // ValidationLayerPatterns defines patterns for each validation layer
+// Note: Patterns should NOT use $ anchors to allow ::function_name suffixes
+// in requirement refs (e.g., "api/foo_test.go::TestBar")
 var ValidationLayerPatterns = map[string]struct {
 	Patterns    []*regexp.Regexp
 	Description string
 }{
 	"API": {
 		Patterns: []*regexp.Regexp{
-			regexp.MustCompile(`(?i)^/?api/.*_test\.go$`),
+			// Match Go test files, allowing optional ::TestName suffix
+			regexp.MustCompile(`(?i)^/?api/.*_test\.go(::.*)?$`),
 			regexp.MustCompile(`(?i)^/?api/.*/tests/`),
 		},
 		Description: "API unit tests (Go)",
 	},
 	"UI": {
 		Patterns: []*regexp.Regexp{
-			regexp.MustCompile(`(?i)^/?ui/src/.*\.test\.(ts|tsx|js|jsx)$`),
+			// Match UI test files, allowing optional ::TestName suffix
+			regexp.MustCompile(`(?i)^/?ui/src/.*\.test\.(ts|tsx|js|jsx)(::.*)?$`),
 		},
 		Description: "UI unit tests (Vitest/Jest)",
 	},
-		"E2E": {
-			Patterns: []*regexp.Regexp{
-				regexp.MustCompile(`(?i)^/?bas/cases/.*\.(json|yaml)$`),
-			},
-			Description: "End-to-end automation (BAS playbooks)",
+	"E2E": {
+		Patterns: []*regexp.Regexp{
+			// Match BAS playbooks (JSON/YAML) and BATS test files
+			regexp.MustCompile(`(?i)^/?bas/cases/.*\.(json|yaml)(::.*)?$`),
+			regexp.MustCompile(`(?i)^/?bas/cases/.*\.bats(::.*)?$`),
 		},
-	}
+		Description: "End-to-end automation (BAS playbooks and BATS tests)",
+	},
+}
 
 // DeriveRequirementCriticality derives criticality from PRD reference
 func DeriveRequirementCriticality(req Requirement) string {
@@ -121,12 +127,19 @@ func DetectValidationLayers(req Requirement, scenarioRoot string) ValidationLaye
 
 		// Quality check for test type validations
 		if v.Type == "test" && refOriginal != "" {
-			isActualTestFile := strings.HasSuffix(refOriginal, "_test.go") ||
-				strings.Contains(refOriginal, "/tests/") ||
-				regexp.MustCompile(`\.test\.(ts|tsx|js|jsx)$`).MatchString(refOriginal)
+			// Strip ::function_name suffix for file-based checks
+			refForFileCheck := refOriginal
+			if idx := strings.Index(refOriginal, "::"); idx > 0 {
+				refForFileCheck = refOriginal[:idx]
+			}
+
+			isActualTestFile := strings.HasSuffix(refForFileCheck, "_test.go") ||
+				strings.Contains(refForFileCheck, "/tests/") ||
+				regexp.MustCompile(`\.test\.(ts|tsx|js|jsx)$`).MatchString(refForFileCheck) ||
+				strings.HasSuffix(refForFileCheck, ".bats")
 
 			if isActualTestFile {
-				quality := AnalyzeTestFileQuality(refOriginal, scenarioRoot)
+				quality := AnalyzeTestFileQuality(refForFileCheck, scenarioRoot)
 				if !quality.IsMeaningful {
 					continue
 				}
@@ -137,8 +150,14 @@ func DetectValidationLayers(req Requirement, scenarioRoot string) ValidationLaye
 
 		// Quality check for automation type validations (playbooks)
 		if v.Type == "automation" && refOriginal != "" {
-			if regexp.MustCompile(`\.(json|yaml)$`).MatchString(refOriginal) {
-				quality := AnalyzePlaybookQuality(refOriginal, scenarioRoot)
+			// Strip ::function_name suffix for file-based checks
+			refForFileCheck := refOriginal
+			if idx := strings.Index(refOriginal, "::"); idx > 0 {
+				refForFileCheck = refOriginal[:idx]
+			}
+
+			if regexp.MustCompile(`\.(json|yaml|bats)$`).MatchString(refForFileCheck) {
+				quality := AnalyzePlaybookQuality(refForFileCheck, scenarioRoot)
 				if !quality.IsMeaningful {
 					continue
 				}

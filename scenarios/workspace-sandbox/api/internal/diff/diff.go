@@ -512,3 +512,233 @@ func FilterChanges(changes []*types.FileChange, ids []uuid.UUID) []*types.FileCh
 	}
 	return filtered
 }
+
+// ParsedHunk represents a parsed diff hunk with metadata.
+type ParsedHunk struct {
+	Header    string   // Full header line including context
+	OldStart  int      // Starting line number in original file
+	OldCount  int      // Number of lines from original file
+	NewStart  int      // Starting line number in new file
+	NewCount  int      // Number of lines in new file
+	Lines     []string // The actual diff lines (including +/-/space prefixes)
+	FileID    uuid.UUID
+	HunkIndex int
+}
+
+// ParsedFileDiff represents a parsed file diff with its hunks.
+type ParsedFileDiff struct {
+	Path       string
+	ChangeType types.ChangeType
+	Header     string // Full git diff header
+	Hunks      []*ParsedHunk
+}
+
+// ParseUnifiedDiff parses a unified diff string into structured format.
+// This enables hunk-level selection and filtering.
+func ParseUnifiedDiff(diff string) []*ParsedFileDiff {
+	var files []*ParsedFileDiff
+	lines := strings.Split(diff, "\n")
+	var currentFile *ParsedFileDiff
+	var currentHunk *ParsedHunk
+	hunkIdx := 0
+
+	for _, line := range lines {
+		// File header: diff --git a/path b/path
+		if strings.HasPrefix(line, "diff --git") {
+			if currentFile != nil {
+				if currentHunk != nil {
+					currentFile.Hunks = append(currentFile.Hunks, currentHunk)
+				}
+				files = append(files, currentFile)
+			}
+			currentFile = &ParsedFileDiff{
+				Header:     line,
+				ChangeType: types.ChangeTypeModified,
+				Hunks:      []*ParsedHunk{},
+			}
+			currentHunk = nil
+			hunkIdx = 0
+
+			// Extract path from header
+			if idx := strings.Index(line, " b/"); idx > 0 {
+				currentFile.Path = line[idx+3:]
+			}
+			continue
+		}
+
+		if currentFile == nil {
+			continue
+		}
+
+		// Append header lines
+		if strings.HasPrefix(line, "new file mode") {
+			currentFile.ChangeType = types.ChangeTypeAdded
+			currentFile.Header += "\n" + line
+			continue
+		}
+		if strings.HasPrefix(line, "deleted file mode") {
+			currentFile.ChangeType = types.ChangeTypeDeleted
+			currentFile.Header += "\n" + line
+			continue
+		}
+		if strings.HasPrefix(line, "---") || strings.HasPrefix(line, "+++") ||
+			strings.HasPrefix(line, "index ") {
+			currentFile.Header += "\n" + line
+			continue
+		}
+
+		// Hunk header: @@ -old,count +new,count @@
+		if strings.HasPrefix(line, "@@") {
+			if currentHunk != nil {
+				currentFile.Hunks = append(currentFile.Hunks, currentHunk)
+			}
+			currentHunk = parseHunkHeader(line, hunkIdx)
+			hunkIdx++
+			continue
+		}
+
+		// Content lines
+		if currentHunk != nil {
+			currentHunk.Lines = append(currentHunk.Lines, line)
+		}
+	}
+
+	// Push final file and hunk
+	if currentFile != nil {
+		if currentHunk != nil {
+			currentFile.Hunks = append(currentFile.Hunks, currentHunk)
+		}
+		files = append(files, currentFile)
+	}
+
+	return files
+}
+
+// parseHunkHeader parses a hunk header like "@@ -1,5 +1,7 @@ context"
+func parseHunkHeader(line string, idx int) *ParsedHunk {
+	hunk := &ParsedHunk{
+		Header:    line,
+		HunkIndex: idx,
+		OldStart:  1,
+		OldCount:  1,
+		NewStart:  1,
+		NewCount:  1,
+	}
+
+	// Parse @@ -old,count +new,count @@
+	// Format: @@ -startLine,count +startLine,count @@ optional context
+	parts := strings.SplitN(line, "@@", 3)
+	if len(parts) < 2 {
+		return hunk
+	}
+
+	rangeStr := strings.TrimSpace(parts[1])
+	// rangeStr looks like: "-1,5 +1,7"
+	fields := strings.Fields(rangeStr)
+	for _, f := range fields {
+		if strings.HasPrefix(f, "-") {
+			parseRange(f[1:], &hunk.OldStart, &hunk.OldCount)
+		} else if strings.HasPrefix(f, "+") {
+			parseRange(f[1:], &hunk.NewStart, &hunk.NewCount)
+		}
+	}
+
+	return hunk
+}
+
+// parseRange parses "start,count" or "start" into line numbers
+func parseRange(s string, start, count *int) {
+	parts := strings.Split(s, ",")
+	if len(parts) >= 1 {
+		fmt.Sscanf(parts[0], "%d", start)
+	}
+	if len(parts) >= 2 {
+		fmt.Sscanf(parts[1], "%d", count)
+	}
+}
+
+// FilterHunks filters a unified diff to only include selected hunks.
+// hunkRanges specifies which hunks to include for each file.
+func FilterHunks(diff string, hunkRanges []types.HunkRange, fileChanges []*types.FileChange) string {
+	if len(hunkRanges) == 0 {
+		return diff
+	}
+
+	// Build a map of file ID -> file path for lookup
+	filePathMap := make(map[uuid.UUID]string)
+	for _, fc := range fileChanges {
+		filePathMap[fc.ID] = fc.FilePath
+	}
+
+	// Build a map of file path -> set of hunk line ranges to include
+	type hunkKey struct {
+		filePath  string
+		startLine int
+		endLine   int
+	}
+	selectedHunks := make(map[string][]hunkKey)
+	for _, hr := range hunkRanges {
+		filePath, ok := filePathMap[hr.FileID]
+		if !ok {
+			continue
+		}
+		selectedHunks[filePath] = append(selectedHunks[filePath], hunkKey{
+			filePath:  filePath,
+			startLine: hr.StartLine,
+			endLine:   hr.EndLine,
+		})
+	}
+
+	// Parse the diff and filter
+	parsedFiles := ParseUnifiedDiff(diff)
+	var result strings.Builder
+
+	for _, file := range parsedFiles {
+		selectedForFile, hasFile := selectedHunks[file.Path]
+		if !hasFile {
+			continue
+		}
+
+		// Check which hunks in this file are selected
+		var selectedFileHunks []*ParsedHunk
+		for _, hunk := range file.Hunks {
+			for _, sel := range selectedForFile {
+				// Match by hunk line range (newStart is in the range)
+				if hunk.NewStart >= sel.startLine && hunk.NewStart <= sel.endLine {
+					selectedFileHunks = append(selectedFileHunks, hunk)
+					break
+				}
+			}
+		}
+
+		if len(selectedFileHunks) == 0 {
+			continue
+		}
+
+		// Reconstruct the diff for this file with only selected hunks
+		result.WriteString(file.Header)
+		result.WriteString("\n")
+
+		for _, hunk := range selectedFileHunks {
+			result.WriteString(hunk.Header)
+			result.WriteString("\n")
+			for _, line := range hunk.Lines {
+				result.WriteString(line)
+				result.WriteString("\n")
+			}
+		}
+	}
+
+	return result.String()
+}
+
+// GetHunksForFile extracts all hunks from a diff for a specific file path.
+func GetHunksForFile(diff string, filePath string) []*ParsedHunk {
+	parsedFiles := ParseUnifiedDiff(diff)
+	for _, file := range parsedFiles {
+		if file.Path == filePath {
+			return file.Hunks
+		}
+	}
+	return nil
+}

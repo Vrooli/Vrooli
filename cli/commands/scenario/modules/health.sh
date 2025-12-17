@@ -486,17 +486,29 @@ scenario::health::collect_api_health_data() {
         
         # Validate against schema
         if validate_health_response "$api_health" "api" >/dev/null 2>&1; then
-            local api_status db_connected
+            local api_status db_connected db_value
             api_status=$(echo "$api_health" | jq -r '.status // "unknown"' 2>/dev/null)
+
+            # Handle both object format {"database": {"connected": true}} and
+            # string format {"database": "connected"} for backward compatibility
             db_connected=$(echo "$api_health" | jq -r '.dependencies.database.connected // null' 2>/dev/null)
-            
+            if [[ -z "$db_connected" || "$db_connected" == "null" ]]; then
+                # Try string format - check if value is "connected"
+                db_value=$(echo "$api_health" | jq -r '.dependencies.database // null' 2>/dev/null)
+                if [[ "$db_value" == "connected" ]]; then
+                    db_connected="true"
+                elif [[ "$db_value" != "null" && -n "$db_value" ]]; then
+                    db_connected="false"
+                fi
+            fi
+
             result=$(echo "$result" | jq \
                 --arg status "$api_status" \
                 --arg db_connected "$db_connected" \
-                '.schema_valid = true | 
+                '.schema_valid = true |
                  .status = $status |
                  .dependencies.database = {
-                     "connected": (if $db_connected == "null" then null else ($db_connected == "true") end)
+                     "connected": (if $db_connected == "null" or $db_connected == "" then null else ($db_connected == "true") end)
                  }')
         fi
     fi

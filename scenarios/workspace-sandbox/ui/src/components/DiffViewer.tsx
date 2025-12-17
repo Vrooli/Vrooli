@@ -19,6 +19,15 @@ import { Button } from "./ui/button";
 import type { DiffResult, FileChange, ChangeType } from "../lib/api";
 import { SELECTORS } from "../consts/selectors";
 
+// Hunk selection type for approval workflow
+export interface HunkSelection {
+  fileId: string;
+  filePath: string;
+  startLine: number;
+  endLine: number;
+  hunkIndex: number;
+}
+
 interface DiffViewerProps {
   diff?: DiffResult;
   isLoading: boolean;
@@ -26,6 +35,10 @@ interface DiffViewerProps {
   onApproveFile?: (fileId: string) => void;
   onRejectFile?: (fileId: string) => void;
   showFileActions?: boolean;
+  // Hunk-level selection props [OT-P1-001]
+  showHunkSelection?: boolean;
+  selectedHunks?: HunkSelection[];
+  onHunkSelectionChange?: (hunks: HunkSelection[]) => void;
 }
 
 interface ParsedHunk {
@@ -161,16 +174,41 @@ function DiffLine({ line }: { line: string }) {
   );
 }
 
-function HunkDisplay({ hunk, index }: { hunk: ParsedHunk; index: number }) {
+interface HunkDisplayProps {
+  hunk: ParsedHunk;
+  index: number;
+  showSelection?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: () => void;
+}
+
+function HunkDisplay({ hunk, index, showSelection, isSelected, onToggleSelection }: HunkDisplayProps) {
   return (
     <div className="border-b border-slate-800 last:border-b-0" data-testid={SELECTORS.diffHunk(index)}>
-      {/* Hunk header */}
-      <div className="bg-slate-800/50 px-3 py-1.5 font-mono text-xs text-blue-400">
-        {hunk.header}
+      {/* Hunk header with optional selection checkbox */}
+      <div className="bg-slate-800/50 px-3 py-1.5 font-mono text-xs text-blue-400 flex items-center gap-2">
+        {showSelection && (
+          <label
+            className="flex items-center cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+            data-testid={`hunk-checkbox-${index}`}
+          >
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={onToggleSelection}
+              className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
+            />
+          </label>
+        )}
+        <span className="flex-1">{hunk.header}</span>
+        {isSelected && (
+          <Check className="h-3.5 w-3.5 text-emerald-400" />
+        )}
       </div>
 
       {/* Hunk lines */}
-      <div>
+      <div className={showSelection && !isSelected ? "opacity-50" : ""}>
         {hunk.lines.map((line, lineIdx) => (
           <DiffLine key={lineIdx} line={line} />
         ))}
@@ -179,19 +217,28 @@ function HunkDisplay({ hunk, index }: { hunk: ParsedHunk; index: number }) {
   );
 }
 
+interface FileDiffSectionProps {
+  file: ParsedFileDiff;
+  fileChange?: FileChange;
+  onApprove?: () => void;
+  onReject?: () => void;
+  showActions?: boolean;
+  // Hunk selection props [OT-P1-001]
+  showHunkSelection?: boolean;
+  selectedHunkIndices?: Set<number>;
+  onToggleHunkSelection?: (hunkIndex: number, hunk: ParsedHunk) => void;
+}
+
 function FileDiffSection({
   file,
   fileChange,
   onApprove,
   onReject,
   showActions,
-}: {
-  file: ParsedFileDiff;
-  fileChange?: FileChange;
-  onApprove?: () => void;
-  onReject?: () => void;
-  showActions?: boolean;
-}) {
+  showHunkSelection,
+  selectedHunkIndices,
+  onToggleHunkSelection,
+}: FileDiffSectionProps) {
   const [expanded, setExpanded] = useState(true);
 
   const changeIcon = {
@@ -205,6 +252,10 @@ function FileDiffSection({
     modified: "modified" as const,
     deleted: "removed" as const,
   };
+
+  // Count selected hunks for this file
+  const selectedCount = selectedHunkIndices?.size ?? 0;
+  const totalHunks = file.hunks.length;
 
   return (
     <div
@@ -226,6 +277,14 @@ function FileDiffSection({
         <span className="font-mono text-xs text-slate-200 flex-1 truncate">
           {file.path}
         </span>
+
+        {/* Show hunk selection count when in selection mode */}
+        {showHunkSelection && totalHunks > 0 && (
+          <span className="text-xs text-slate-500">
+            {selectedCount}/{totalHunks} hunks
+          </span>
+        )}
+
         <Badge variant={changeBadge[file.changeType]} className="text-[10px]">
           {file.changeType}
         </Badge>
@@ -267,7 +326,18 @@ function FileDiffSection({
       {expanded && (
         <div data-testid={SELECTORS.diffContent}>
           {file.hunks.map((hunk, index) => (
-            <HunkDisplay key={index} hunk={hunk} index={index} />
+            <HunkDisplay
+              key={index}
+              hunk={hunk}
+              index={index}
+              showSelection={showHunkSelection}
+              isSelected={selectedHunkIndices?.has(index)}
+              onToggleSelection={
+                onToggleHunkSelection
+                  ? () => onToggleHunkSelection(index, hunk)
+                  : undefined
+              }
+            />
           ))}
           {file.hunks.length === 0 && (
             <div className="px-3 py-4 text-xs text-slate-500 text-center">
@@ -291,6 +361,9 @@ export function DiffViewer({
   onApproveFile,
   onRejectFile,
   showFileActions = false,
+  showHunkSelection = false,
+  selectedHunks = [],
+  onHunkSelectionChange,
 }: DiffViewerProps) {
   // Parse the unified diff
   const parsedFiles = useMemo(() => {
@@ -308,6 +381,47 @@ export function DiffViewer({
     }
     return map;
   }, [diff?.files]);
+
+  // Build a map of file path -> set of selected hunk indices [OT-P1-001]
+  const selectedHunksByFile = useMemo(() => {
+    const map = new Map<string, Set<number>>();
+    for (const sel of selectedHunks) {
+      const existing = map.get(sel.filePath) ?? new Set<number>();
+      existing.add(sel.hunkIndex);
+      map.set(sel.filePath, existing);
+    }
+    return map;
+  }, [selectedHunks]);
+
+  // Handle toggling hunk selection
+  const handleToggleHunk = (filePath: string, fileId: string, hunkIndex: number, hunk: ParsedHunk) => {
+    if (!onHunkSelectionChange) return;
+
+    const isCurrentlySelected = selectedHunks.some(
+      (s) => s.filePath === filePath && s.hunkIndex === hunkIndex
+    );
+
+    if (isCurrentlySelected) {
+      // Remove this hunk from selection
+      onHunkSelectionChange(
+        selectedHunks.filter(
+          (s) => !(s.filePath === filePath && s.hunkIndex === hunkIndex)
+        )
+      );
+    } else {
+      // Add this hunk to selection
+      onHunkSelectionChange([
+        ...selectedHunks,
+        {
+          fileId,
+          filePath,
+          startLine: hunk.newStart,
+          endLine: hunk.newStart + hunk.newCount - 1,
+          hunkIndex,
+        },
+      ]);
+    }
+  };
 
   const hasChanges = parsedFiles.length > 0 || (diff?.files && diff.files.length > 0);
 
@@ -379,6 +493,7 @@ export function DiffViewer({
             <div data-testid={SELECTORS.diffFileList}>
               {parsedFiles.map((file) => {
                 const fileChange = fileChangeMap.get(file.path);
+                const fileId = fileChange?.id ?? "";
                 return (
                   <FileDiffSection
                     key={file.path}
@@ -393,6 +508,14 @@ export function DiffViewer({
                     onReject={
                       fileChange && onRejectFile
                         ? () => onRejectFile(fileChange.id)
+                        : undefined
+                    }
+                    // Hunk selection props [OT-P1-001]
+                    showHunkSelection={showHunkSelection}
+                    selectedHunkIndices={selectedHunksByFile.get(file.path)}
+                    onToggleHunkSelection={
+                      onHunkSelectionChange
+                        ? (hunkIndex, hunk) => handleToggleHunk(file.path, fileId, hunkIndex, hunk)
                         : undefined
                     }
                   />

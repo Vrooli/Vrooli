@@ -783,3 +783,240 @@ func BenchmarkFilterChanges(b *testing.B) {
 		FilterChanges(changes, filterIDs)
 	}
 }
+
+// --- Hunk-Level Approval Tests [OT-P1-001] ---
+
+// TestParseUnifiedDiff tests parsing unified diffs into structured format
+func TestParseUnifiedDiff(t *testing.T) {
+	t.Run("parse single file with multiple hunks", func(t *testing.T) {
+		diff := `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1,3 +1,4 @@
+ line1
++newline
+ line2
+ line3
+@@ -10,2 +11,3 @@
+ line10
++anotherline
+ line11
+`
+		files := ParseUnifiedDiff(diff)
+		if len(files) != 1 {
+			t.Fatalf("expected 1 file, got %d", len(files))
+		}
+
+		file := files[0]
+		if file.Path != "file.txt" {
+			t.Errorf("expected path 'file.txt', got '%s'", file.Path)
+		}
+		if file.ChangeType != types.ChangeTypeModified {
+			t.Errorf("expected modified change type, got %s", file.ChangeType)
+		}
+		if len(file.Hunks) != 2 {
+			t.Fatalf("expected 2 hunks, got %d", len(file.Hunks))
+		}
+
+		// Check first hunk
+		hunk1 := file.Hunks[0]
+		if hunk1.OldStart != 1 || hunk1.OldCount != 3 {
+			t.Errorf("hunk1 old range: expected 1,3, got %d,%d", hunk1.OldStart, hunk1.OldCount)
+		}
+		if hunk1.NewStart != 1 || hunk1.NewCount != 4 {
+			t.Errorf("hunk1 new range: expected 1,4, got %d,%d", hunk1.NewStart, hunk1.NewCount)
+		}
+
+		// Check second hunk
+		hunk2 := file.Hunks[1]
+		if hunk2.OldStart != 10 || hunk2.OldCount != 2 {
+			t.Errorf("hunk2 old range: expected 10,2, got %d,%d", hunk2.OldStart, hunk2.OldCount)
+		}
+		if hunk2.NewStart != 11 || hunk2.NewCount != 3 {
+			t.Errorf("hunk2 new range: expected 11,3, got %d,%d", hunk2.NewStart, hunk2.NewCount)
+		}
+	})
+
+	t.Run("parse new file", func(t *testing.T) {
+		diff := `diff --git a/newfile.txt b/newfile.txt
+new file mode 100644
+--- /dev/null
++++ b/newfile.txt
+@@ -0,0 +1,2 @@
++line1
++line2
+`
+		files := ParseUnifiedDiff(diff)
+		if len(files) != 1 {
+			t.Fatalf("expected 1 file, got %d", len(files))
+		}
+
+		file := files[0]
+		if file.ChangeType != types.ChangeTypeAdded {
+			t.Errorf("expected added change type, got %s", file.ChangeType)
+		}
+	})
+
+	t.Run("parse deleted file", func(t *testing.T) {
+		diff := `diff --git a/deleted.txt b/deleted.txt
+deleted file mode 100644
+--- a/deleted.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-line1
+-line2
+`
+		files := ParseUnifiedDiff(diff)
+		if len(files) != 1 {
+			t.Fatalf("expected 1 file, got %d", len(files))
+		}
+
+		file := files[0]
+		if file.ChangeType != types.ChangeTypeDeleted {
+			t.Errorf("expected deleted change type, got %s", file.ChangeType)
+		}
+	})
+
+	t.Run("parse multiple files", func(t *testing.T) {
+		diff := `diff --git a/file1.txt b/file1.txt
+--- a/file1.txt
++++ b/file1.txt
+@@ -1 +1,2 @@
+ line1
++line2
+diff --git a/file2.txt b/file2.txt
+--- a/file2.txt
++++ b/file2.txt
+@@ -1 +1,2 @@
+ line1
++line2
+`
+		files := ParseUnifiedDiff(diff)
+		if len(files) != 2 {
+			t.Fatalf("expected 2 files, got %d", len(files))
+		}
+
+		if files[0].Path != "file1.txt" {
+			t.Errorf("expected first file 'file1.txt', got '%s'", files[0].Path)
+		}
+		if files[1].Path != "file2.txt" {
+			t.Errorf("expected second file 'file2.txt', got '%s'", files[1].Path)
+		}
+	})
+
+	t.Run("parse empty diff", func(t *testing.T) {
+		files := ParseUnifiedDiff("")
+		if len(files) != 0 {
+			t.Errorf("expected 0 files, got %d", len(files))
+		}
+	})
+}
+
+// TestFilterHunks tests filtering diffs by selected hunks
+func TestFilterHunks(t *testing.T) {
+	fileID := uuid.New()
+	fileChanges := []*types.FileChange{
+		{ID: fileID, FilePath: "file.txt"},
+	}
+
+	t.Run("filter to single hunk", func(t *testing.T) {
+		diff := `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1,3 +1,4 @@
+ line1
++newline
+ line2
+ line3
+@@ -10,2 +11,3 @@
+ line10
++anotherline
+ line11
+`
+		// Select only the second hunk (starting at line 11)
+		hunkRanges := []types.HunkRange{
+			{FileID: fileID, StartLine: 11, EndLine: 13},
+		}
+
+		filtered := FilterHunks(diff, hunkRanges, fileChanges)
+
+		// Should only contain the second hunk
+		if !strings.Contains(filtered, "@@ -10,2 +11,3 @@") {
+			t.Error("filtered diff should contain second hunk header")
+		}
+		if strings.Contains(filtered, "@@ -1,3 +1,4 @@") {
+			t.Error("filtered diff should not contain first hunk header")
+		}
+	})
+
+	t.Run("filter with empty hunk ranges", func(t *testing.T) {
+		diff := `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1 +1,2 @@
+ line1
++line2
+`
+		// Empty hunk ranges should return the original diff
+		filtered := FilterHunks(diff, []types.HunkRange{}, fileChanges)
+		if filtered != diff {
+			t.Error("empty hunk ranges should return original diff")
+		}
+	})
+
+	t.Run("filter with no matching file", func(t *testing.T) {
+		diff := `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1 +1,2 @@
+ line1
++line2
+`
+		otherFileID := uuid.New()
+		hunkRanges := []types.HunkRange{
+			{FileID: otherFileID, StartLine: 1, EndLine: 2},
+		}
+
+		filtered := FilterHunks(diff, hunkRanges, fileChanges)
+		// No matching file, should return empty
+		if filtered != "" {
+			t.Errorf("expected empty string when no files match, got: %s", filtered)
+		}
+	})
+}
+
+// TestGetHunksForFile tests extracting hunks for a specific file
+func TestGetHunksForFile(t *testing.T) {
+	diff := `diff --git a/file1.txt b/file1.txt
+--- a/file1.txt
++++ b/file1.txt
+@@ -1 +1,2 @@
+ line1
++line2
+diff --git a/file2.txt b/file2.txt
+--- a/file2.txt
++++ b/file2.txt
+@@ -1,3 +1,4 @@
+ a
++b
+ c
+ d
+@@ -10 +11,2 @@
+ x
++y
+`
+
+	t.Run("get hunks for existing file", func(t *testing.T) {
+		hunks := GetHunksForFile(diff, "file2.txt")
+		if len(hunks) != 2 {
+			t.Fatalf("expected 2 hunks for file2.txt, got %d", len(hunks))
+		}
+	})
+
+	t.Run("get hunks for non-existing file", func(t *testing.T) {
+		hunks := GetHunksForFile(diff, "nonexistent.txt")
+		if len(hunks) != 0 {
+			t.Errorf("expected 0 hunks for non-existing file, got %d", len(hunks))
+		}
+	})
+}

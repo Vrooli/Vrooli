@@ -181,6 +181,13 @@ func TestDetectValidationLayersBasic(t *testing.T) {
 			expectedLayers: []string{"API"},
 		},
 		{
+			name: "API test with function suffix",
+			req: Requirement{
+				Validation: []Validation{{Type: "test", Ref: "api/pkg/feature/feature_test.go::TestCreateFeature"}},
+			},
+			expectedLayers: []string{"API"},
+		},
+		{
 			name: "UI test",
 			req: Requirement{
 				Validation: []Validation{{Type: "test", Ref: "ui/src/components/Button.test.tsx"}},
@@ -188,9 +195,37 @@ func TestDetectValidationLayersBasic(t *testing.T) {
 			expectedLayers: []string{"UI"},
 		},
 		{
+			name: "UI test with function suffix",
+			req: Requirement{
+				Validation: []Validation{{Type: "test", Ref: "ui/src/components/Button.test.tsx::renders correctly"}},
+			},
+			expectedLayers: []string{"UI"},
+		},
+		{
 			name: "E2E playbook",
 			req: Requirement{
 				Validation: []Validation{{Type: "automation", Ref: "bas/cases/feature.json"}},
+			},
+			expectedLayers: []string{"E2E"},
+		},
+		{
+			name: "E2E playbook with function suffix",
+			req: Requirement{
+				Validation: []Validation{{Type: "automation", Ref: "bas/cases/feature.json::step1"}},
+			},
+			expectedLayers: []string{"E2E"},
+		},
+		{
+			name: "E2E BATS test",
+			req: Requirement{
+				Validation: []Validation{{Type: "test", Ref: "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats"}},
+			},
+			expectedLayers: []string{"E2E"},
+		},
+		{
+			name: "E2E BATS test with function suffix",
+			req: Requirement{
+				Validation: []Validation{{Type: "test", Ref: "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::create sandbox"}},
 			},
 			expectedLayers: []string{"E2E"},
 		},
@@ -207,6 +242,16 @@ func TestDetectValidationLayersBasic(t *testing.T) {
 				Validation: []Validation{
 					{Type: "test", Ref: "api/pkg/feature/feature_test.go"},
 					{Type: "automation", Ref: "bas/cases/feature.json"},
+				},
+			},
+			expectedLayers: []string{"API", "E2E"},
+		},
+		{
+			name: "Multi-layer with function suffixes",
+			req: Requirement{
+				Validation: []Validation{
+					{Type: "test", Ref: "api/pkg/feature/feature_test.go::TestCreate"},
+					{Type: "test", Ref: "bas/cases/api/test.bats::test case 1"},
 				},
 			},
 			expectedLayers: []string{"API", "E2E"},

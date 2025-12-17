@@ -22,6 +22,7 @@ import (
 	"workspace-sandbox/internal/gc"
 	"workspace-sandbox/internal/handlers"
 	"workspace-sandbox/internal/logging"
+	"workspace-sandbox/internal/metrics"
 	"workspace-sandbox/internal/policy"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
@@ -30,14 +31,15 @@ import (
 
 // Server wires the HTTP router, database, and services.
 type Server struct {
-	config         config.Config
-	db             *sql.DB
-	router         *mux.Router
-	driver         driver.Driver
-	handlers       *handlers.Handlers
-	logger         *logging.Logger
-	processTracker *process.Tracker // OT-P0-008: Process/Session Tracking
-	gcService      *gc.Service      // OT-P1-003: GC/Prune Operations
+	config           config.Config
+	db               *sql.DB
+	router           *mux.Router
+	driver           driver.Driver
+	handlers         *handlers.Handlers
+	logger           *logging.Logger
+	processTracker   *process.Tracker   // OT-P0-008: Process/Session Tracking
+	gcService        *gc.Service        // OT-P1-003: GC/Prune Operations
+	metricsCollector *metrics.Collector // OT-P1-008: Metrics/Observability
 }
 
 // NewServer initializes configuration, database, and routes.
@@ -78,7 +80,28 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create attribution policy: %w", err)
 	}
-	validationPolicy := policy.NewNoOpValidationPolicy()
+
+	// Initialize validation policy [OT-P1-005]
+	// If validation hooks are configured, use HookValidationPolicy
+	var validationPolicy policy.ValidationPolicy
+	if len(cfg.Policy.ValidationHooks) > 0 {
+		hooks := make([]policy.ValidationHook, len(cfg.Policy.ValidationHooks))
+		for i, h := range cfg.Policy.ValidationHooks {
+			hooks[i] = policy.ValidationHook{
+				Name:        h.Name,
+				Description: h.Description,
+				Command:     h.Command,
+				Args:        h.Args,
+				Required:    h.Required,
+			}
+		}
+		validationPolicy = policy.NewHookValidationPolicy(hooks,
+			policy.WithGlobalTimeout(cfg.Policy.ValidationTimeout),
+		)
+		log.Printf("validation hooks enabled | hooks=%d timeout=%v", len(hooks), cfg.Policy.ValidationTimeout)
+	} else {
+		validationPolicy = policy.NewNoOpValidationPolicy()
+	}
 
 	// Initialize repository and service
 	repo := repository.NewSandboxRepository(db)
@@ -120,15 +143,19 @@ func NewServer() (*Server, error) {
 	// Initialize structured logger
 	logger := logging.New("workspace-sandbox-api")
 
+	// Initialize metrics collector [OT-P1-008]
+	metricsCollector := metrics.NewCollector()
+
 	srv := &Server{
-		config:         cfg,
-		db:             db,
-		router:         mux.NewRouter(),
-		driver:         drv,
-		handlers:       h,
-		logger:         logger,
-		processTracker: processTracker,
-		gcService:      gcService,
+		config:           cfg,
+		db:               db,
+		router:           mux.NewRouter(),
+		driver:           drv,
+		handlers:         h,
+		logger:           logger,
+		processTracker:   processTracker,
+		gcService:        gcService,
+		metricsCollector: metricsCollector,
 	}
 
 	srv.setupRoutes()
@@ -190,6 +217,18 @@ func (s *Server) setupRoutes() {
 	// Audit log endpoints (OT-P1-004)
 	api.HandleFunc("/audit", h.GetAuditLog).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/audit", h.GetSandboxAuditLog).Methods("GET")
+
+	// Metrics endpoint (OT-P1-008)
+	// Supports Prometheus format (default) and JSON (?format=json)
+	metricsCollector := s.metricsCollector
+	api.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		h.Metrics(w, r, metricsCollector)
+	}).Methods("GET")
+
+	// Also expose at root /metrics for standard Prometheus scraping
+	s.router.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		h.Metrics(w, r, metricsCollector)
+	}).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown.
