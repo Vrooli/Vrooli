@@ -18,6 +18,15 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+
+	"knowledge-observatory/internal/adapters/embedder"
+	"knowledge-observatory/internal/adapters/jobstore"
+	"knowledge-observatory/internal/adapters/metadatastore"
+	"knowledge-observatory/internal/adapters/vectorstore"
+	"knowledge-observatory/internal/ports"
+	"knowledge-observatory/internal/services/ingest"
+	"knowledge-observatory/internal/services/ingestjobs"
+	"knowledge-observatory/internal/services/search"
 )
 
 // Config holds minimal runtime configuration
@@ -25,6 +34,7 @@ type Config struct {
 	Port                  string
 	DatabaseURL            string
 	QdrantURL              string
+	QdrantAPIKey           string
 	OllamaURL              string
 	OllamaEmbeddingModel   string
 	ResourceQdrantCLI      string
@@ -36,6 +46,16 @@ type Server struct {
 	config *Config
 	db     *sql.DB
 	router *mux.Router
+
+	vectorStore ports.VectorStore
+	embedder    ports.Embedder
+	metadata    ports.MetadataStore
+	jobStore    ports.JobStore
+
+	ingestService *ingest.Service
+	searchService *search.Service
+
+	ingestJobRunner *ingestjobs.Runner
 }
 
 // NewServer initializes configuration, database, and routes
@@ -49,6 +69,7 @@ func NewServer() (*Server, error) {
 		Port:                  requireEnv("API_PORT"),
 		DatabaseURL:            dbURL,
 		QdrantURL:              strings.TrimSpace(os.Getenv("QDRANT_URL")),
+		QdrantAPIKey:           strings.TrimSpace(os.Getenv("QDRANT_API_KEY")),
 		OllamaURL:              strings.TrimSpace(os.Getenv("OLLAMA_URL")),
 		OllamaEmbeddingModel:   strings.TrimSpace(os.Getenv("OLLAMA_EMBEDDING_MODEL")),
 		ResourceQdrantCLI:      strings.TrimSpace(os.Getenv("RESOURCE_QDRANT_CLI")),
@@ -70,8 +91,56 @@ func NewServer() (*Server, error) {
 		router: mux.NewRouter(),
 	}
 
+	srv.setupServices()
 	srv.setupRoutes()
 	return srv, nil
+}
+
+func (s *Server) setupServices() {
+	vs := &vectorstore.Qdrant{
+		BaseURL: s.qdrantURL(),
+		APIKey:  s.qdrantAPIKey(),
+	}
+	emb := &embedder.Ollama{
+		BaseURL: s.ollamaURL(),
+		Model:   s.ollamaEmbeddingModel(),
+	}
+
+	var meta *metadatastore.Postgres
+	if s.db != nil {
+		meta = &metadatastore.Postgres{DB: s.db}
+	}
+
+	var js ports.JobStore
+	if s.db != nil {
+		js = &jobstore.Postgres{DB: s.db}
+	}
+
+	s.vectorStore = vs
+	s.embedder = emb
+	s.metadata = meta
+	s.jobStore = js
+
+	s.ingestService = &ingest.Service{
+		VectorStore: vs,
+		Embedder:    emb,
+		Metadata:    meta,
+	}
+
+	s.searchService = &search.Service{
+		VectorStore: vs,
+		Embedder:    emb,
+	}
+
+	if js != nil {
+		s.ingestJobRunner = &ingestjobs.Runner{
+			Jobs:    js,
+			Ingest:  s.ingestService,
+			Now:     time.Now,
+			Sleep:   time.Sleep,
+			MaxChunks: maxChunksPerDoc,
+		}
+	}
 }
 
 func (s *Server) setupRoutes() {
@@ -84,6 +153,15 @@ func (s *Server) setupRoutes() {
 
 	// Knowledge health metrics endpoint [REQ:KO-QM-004]
 	s.router.HandleFunc("/api/v1/knowledge/health", s.handleHealthEndpoint).Methods("GET")
+
+	// Canonical knowledge write path (records) - sync upsert
+	s.router.HandleFunc("/api/v1/knowledge/records/upsert", s.handleUpsertRecord).Methods("POST")
+	s.router.HandleFunc("/api/v1/knowledge/records/{record_id}", s.handleDeleteRecord).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/knowledge/documents/ingest", s.handleIngestDocument).Methods("POST")
+
+	// Async ingest jobs
+	s.router.HandleFunc("/api/v1/ingest/jobs", s.handleCreateIngestJob).Methods("POST")
+	s.router.HandleFunc("/api/v1/ingest/jobs/{job_id}", s.handleGetIngestJob).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -92,6 +170,11 @@ func (s *Server) Start() error {
 		"service": "knowledge-observatory-api",
 		"port":    s.config.Port,
 	})
+
+	runnerCtx, runnerCancel := context.WithCancel(context.Background())
+	if s.ingestJobRunner != nil && s.db != nil {
+		go s.ingestJobRunner.Run(runnerCtx)
+	}
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", s.config.Port),
@@ -114,6 +197,7 @@ func (s *Server) Start() error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	runnerCancel()
 
 	if err := httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("server shutdown failed: %w", err)
@@ -219,6 +303,15 @@ func (s *Server) qdrantURL() string {
 		return value
 	}
 	return "http://localhost:6333"
+}
+
+func (s *Server) qdrantAPIKey() string {
+	if s != nil && s.config != nil {
+		if value := strings.TrimSpace(s.config.QdrantAPIKey); value != "" {
+			return value
+		}
+	}
+	return strings.TrimSpace(os.Getenv("QDRANT_API_KEY"))
 }
 
 func (s *Server) ollamaURL() string {

@@ -101,6 +101,7 @@ resolve_api_base() {
 api_request() {
     local method="$1"
     local endpoint="$2"
+    local data="${3:-}"
     local url="${API_BASE}${endpoint}"
 
     if [[ -z "$API_BASE" ]]; then
@@ -113,7 +114,11 @@ api_request() {
         headers+=(-H "Authorization: Bearer $API_TOKEN")
     fi
 
-    curl -s -X "$method" "${headers[@]}" "$url"
+    if [[ -n "$data" ]]; then
+        curl -s -X "$method" "${headers[@]}" -d "$data" "$url"
+    else
+        curl -s -X "$method" "${headers[@]}" "$url"
+    fi
 }
 
 cmd_status() {
@@ -136,6 +141,254 @@ cmd_status() {
         "  Version: \(.version // "unknown")",
         "  Database: \(.dependencies.database // "unknown")"
     ' 2>/dev/null || true
+}
+
+cmd_search() {
+    local query="${1:-}"
+    shift || true
+
+    local collection=""
+    local limit=""
+    local threshold=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --collection)
+                collection="${2:-}"
+                shift 2
+                ;;
+            --limit)
+                limit="${2:-}"
+                shift 2
+                ;;
+            --threshold)
+                threshold="${2:-}"
+                shift 2
+                ;;
+            *)
+                echo -e "${RED}✗${NC} Unknown option: $1" >&2
+                return 1
+                ;;
+        esac
+    done
+
+    if [[ -z "$query" ]]; then
+        echo -e "${RED}✗${NC} Query is required" >&2
+        return 1
+    fi
+
+    local payload
+    payload="$(jq -n \
+        --arg query "$query" \
+        --arg collection "$collection" \
+        --arg limit "$limit" \
+        --arg threshold "$threshold" \
+        '{
+            query: $query
+        }
+        + ( ($collection | length) > 0 ? {collection: $collection} : {} )
+        + ( ($limit | length) > 0 ? {limit: ($limit | tonumber)} : {} )
+        + ( ($threshold | length) > 0 ? {threshold: ($threshold | tonumber)} : {} )
+        ')"
+
+    api_request POST "/knowledge/search" "$payload"
+}
+
+cmd_ingest() {
+    local namespace=""
+    local collection=""
+    local visibility=""
+    local source=""
+    local source_type=""
+    local metadata="{}"
+    local content=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --namespace)
+                namespace="${2:-}"
+                shift 2
+                ;;
+            --collection)
+                collection="${2:-}"
+                shift 2
+                ;;
+            --visibility)
+                visibility="${2:-}"
+                shift 2
+                ;;
+            --source)
+                source="${2:-}"
+                shift 2
+                ;;
+            --source-type)
+                source_type="${2:-}"
+                shift 2
+                ;;
+            --metadata)
+                metadata="${2:-}"
+                shift 2
+                ;;
+            --content)
+                content="${2:-}"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$content" ]]; then
+                    content="$1"
+                    shift
+                else
+                    echo -e "${RED}✗${NC} Unknown option/extra argument: $1" >&2
+                    return 1
+                fi
+                ;;
+        esac
+    done
+
+    if [[ -z "$content" && ! -t 0 ]]; then
+        content="$(cat)"
+    fi
+
+    if [[ -z "$namespace" ]]; then
+        echo -e "${RED}✗${NC} --namespace is required" >&2
+        return 1
+    fi
+    if [[ -z "$content" ]]; then
+        echo -e "${RED}✗${NC} Content is required (use --content or pipe stdin)" >&2
+        return 1
+    fi
+
+    local payload
+    payload="$(jq -n \
+        --arg namespace "$namespace" \
+        --arg content "$content" \
+        --arg collection "$collection" \
+        --arg visibility "$visibility" \
+        --arg source "$source" \
+        --arg source_type "$source_type" \
+        --argjson metadata "$metadata" \
+        '{
+            namespace: $namespace,
+            content: $content,
+            metadata: $metadata
+        }
+        + ( ($collection | length) > 0 ? {collection: $collection} : {} )
+        + ( ($visibility | length) > 0 ? {visibility: $visibility} : {} )
+        + ( ($source | length) > 0 ? {source: $source} : {} )
+        + ( ($source_type | length) > 0 ? {source_type: $source_type} : {} )
+        ')"
+
+    api_request POST "/knowledge/records/upsert" "$payload"
+}
+
+cmd_ingest_job() {
+    local namespace=""
+    local collection=""
+    local visibility=""
+    local source=""
+    local source_type=""
+    local metadata="{}"
+    local content=""
+    local chunk_size=""
+    local chunk_overlap=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --namespace)
+                namespace="${2:-}"
+                shift 2
+                ;;
+            --collection)
+                collection="${2:-}"
+                shift 2
+                ;;
+            --visibility)
+                visibility="${2:-}"
+                shift 2
+                ;;
+            --source)
+                source="${2:-}"
+                shift 2
+                ;;
+            --source-type)
+                source_type="${2:-}"
+                shift 2
+                ;;
+            --metadata)
+                metadata="${2:-}"
+                shift 2
+                ;;
+            --chunk-size)
+                chunk_size="${2:-}"
+                shift 2
+                ;;
+            --chunk-overlap)
+                chunk_overlap="${2:-}"
+                shift 2
+                ;;
+            --content)
+                content="${2:-}"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$content" ]]; then
+                    content="$1"
+                    shift
+                else
+                    echo -e "${RED}✗${NC} Unknown option/extra argument: $1" >&2
+                    return 1
+                fi
+                ;;
+        esac
+    done
+
+    if [[ -z "$content" && ! -t 0 ]]; then
+        content="$(cat)"
+    fi
+
+    if [[ -z "$namespace" ]]; then
+        echo -e "${RED}✗${NC} --namespace is required" >&2
+        return 1
+    fi
+    if [[ -z "$content" ]]; then
+        echo -e "${RED}✗${NC} Content is required (use --content or pipe stdin)" >&2
+        return 1
+    fi
+
+    local payload
+    payload="$(jq -n \
+        --arg namespace "$namespace" \
+        --arg content "$content" \
+        --arg collection "$collection" \
+        --arg visibility "$visibility" \
+        --arg source "$source" \
+        --arg source_type "$source_type" \
+        --arg chunk_size "$chunk_size" \
+        --arg chunk_overlap "$chunk_overlap" \
+        --argjson metadata "$metadata" \
+        '{
+            namespace: $namespace,
+            content: $content,
+            metadata: $metadata
+        }
+        + ( ($collection | length) > 0 ? {collection: $collection} : {} )
+        + ( ($visibility | length) > 0 ? {visibility: $visibility} : {} )
+        + ( ($source | length) > 0 ? {source: $source} : {} )
+        + ( ($source_type | length) > 0 ? {source_type: $source_type} : {} )
+        + ( ($chunk_size | length) > 0 ? {chunk_size: ($chunk_size | tonumber)} : {} )
+        + ( ($chunk_overlap | length) > 0 ? {chunk_overlap: ($chunk_overlap | tonumber)} : {} )
+        ')"
+
+    api_request POST "/ingest/jobs" "$payload"
+}
+
+cmd_job_status() {
+    local job_id="${1:-}"
+    if [[ -z "$job_id" ]]; then
+        echo -e "${RED}✗${NC} job_id is required" >&2
+        return 1
+    fi
+    api_request GET "/ingest/jobs/${job_id}"
 }
 
 cmd_configure() {
@@ -183,6 +436,10 @@ Usage: knowledge-observatory <command>
 
 Commands:
     status          Check API and dependency health
+    search          Semantic search (calls KO API)
+    ingest          Ingest a record (calls KO API write path)
+    ingest-job      Enqueue an async document ingest job
+    job-status      Get async ingest job status
     configure       View or update CLI configuration
     version         Show CLI version
     help            Show this help message
@@ -211,7 +468,7 @@ main() {
         API_BASE="${env_api_base%/}"
     fi
 
-    if [[ "$command" == "status" ]]; then
+    if [[ "$command" == "status" || "$command" == "search" || "$command" == "ingest" || "$command" == "ingest-job" || "$command" == "job-status" ]]; then
         if [[ -z "$API_BASE" ]]; then
             if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
                 echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it with '$CLI_NAME configure api_base <url>'."
@@ -223,6 +480,18 @@ main() {
     case "$command" in
         status)
             cmd_status
+            ;;
+        search)
+            cmd_search "$@"
+            ;;
+        ingest)
+            cmd_ingest "$@"
+            ;;
+        ingest-job)
+            cmd_ingest_job "$@"
+            ;;
+        job-status)
+            cmd_job_status "$@"
             ;;
         configure|config)
             cmd_configure "$@"

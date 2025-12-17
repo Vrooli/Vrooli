@@ -2,7 +2,8 @@
 # Tests for knowledge-observatory CLI
 
 # Test configuration
-readonly TEST_CLI="./knowledge-observatory"
+readonly TEST_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
+readonly TEST_CLI="${TEST_DIR}/knowledge-observatory"
 readonly TEST_CONFIG_DIR="$HOME/.knowledge-observatory"
 readonly TEST_CONFIG_FILE="$TEST_CONFIG_DIR/config.json"
 
@@ -65,6 +66,10 @@ teardown() {
     run $TEST_CLI help
     [ "$status" -eq 0 ]
     [[ "$output" =~ "status" ]]
+    [[ "$output" =~ "search" ]]
+    [[ "$output" =~ "ingest" ]]
+    [[ "$output" =~ "ingest-job" ]]
+    [[ "$output" =~ "job-status" ]]
     [[ "$output" =~ "configure" ]]
 }
 

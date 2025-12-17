@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"knowledge-observatory/internal/services/search"
 )
 
 const (
@@ -106,30 +108,48 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate embedding via Ollama [REQ:KO-SS-002]
-	embedding, err := s.generateEmbedding(r.Context(), req.Query)
-	if err != nil {
-		s.log("embedding generation failed", map[string]interface{}{"error": err.Error()})
-		s.respondError(w, http.StatusInternalServerError, "Failed to generate query embedding")
+	if s == nil || s.searchService == nil {
+		s.respondError(w, http.StatusInternalServerError, "Search service unavailable")
 		return
 	}
 
-	// Search Qdrant [REQ:KO-SS-003]
-	results, err := s.searchQdrant(r.Context(), req.Collection, embedding, req.Limit, req.Threshold)
+	out, err := s.searchService.Search(r.Context(), search.Request{
+		Query:      req.Query,
+		Collection: req.Collection,
+		Limit:      req.Limit,
+		Threshold:  req.Threshold,
+	})
 	if err != nil {
-		s.log("qdrant search failed", map[string]interface{}{"error": err.Error()})
+		s.log("search failed", map[string]interface{}{"error": err.Error()})
 		s.respondError(w, http.StatusInternalServerError, "Failed to execute search")
 		return
+	}
+
+	results := make([]SearchResult, 0, len(out.Results))
+	for _, r := range out.Results {
+		results = append(results, SearchResult{
+			ID:       r.ID,
+			Score:    r.Score,
+			Content:  r.Content,
+			Metadata: r.Metadata,
+		})
 	}
 
 	response := SearchResponse{
 		Results: results,
 		Query:   req.Query,
-		Took:    time.Since(start).Milliseconds(),
+		Took:    maxInt64(out.TookMS, time.Since(start).Milliseconds()),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func maxInt64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // generateEmbedding creates a vector embedding using Ollama [REQ:KO-SS-002]
@@ -231,6 +251,10 @@ func (s *Server) searchQdrant(ctx context.Context, collection string, vector []f
 
 // getCollections retrieves list of Qdrant collections
 func (s *Server) getCollections(ctx context.Context) ([]string, error) {
+	if collections, err := s.listQdrantCollectionsHTTP(ctx); err == nil {
+		return collections, nil
+	}
+
 	output, err := s.execResourceQdrant(ctx, "collections")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list collections: %w", err)
@@ -299,8 +323,7 @@ func (s *Server) searchSingleCollection(ctx context.Context, collection string, 
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(httpReq)
+	resp, err := s.qdrantDo(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("qdrant request failed: %w", err)
 	}

@@ -208,8 +208,7 @@ func (s *Server) getCollectionPointCount(ctx context.Context, qdrantBase string,
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := s.qdrantDo(req)
 	if err != nil {
 		return 0, fmt.Errorf("qdrant count request failed: %w", err)
 	}

@@ -13,13 +13,38 @@ import (
 
 // TestHandleSearch tests the HTTP search handler [REQ:KO-SS-001]
 func TestHandleSearch(t *testing.T) {
-	// Set required environment variables
+	mockOllama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/embeddings" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"embedding":[0.1,0.2,0.3]}`))
+	}))
+	defer mockOllama.Close()
+
+	mockQdrant := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/collections":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":{"collections":[{"name":"test-collection"}]}}`))
+			return
+		case r.Method == "POST" && r.URL.Path == "/collections/test-collection/points/search":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":[{"id":"abc","score":0.9,"payload":{"content":"hello","source":"test"}}]}`))
+			return
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	}))
+	defer mockQdrant.Close()
+
 	os.Setenv("API_PORT", "8080")
-	os.Setenv("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
-	defer func() {
-		os.Unsetenv("API_PORT")
-		os.Unsetenv("DATABASE_URL")
-	}()
+	defer os.Unsetenv("API_PORT")
 
 	tests := []struct {
 		name           string
@@ -99,10 +124,12 @@ func TestHandleSearch(t *testing.T) {
 	srv := &Server{
 		config: &Config{
 			Port:        "8080",
-			DatabaseURL: "postgresql://test:test@localhost:5432/test",
+			QdrantURL:   mockQdrant.URL,
+			OllamaURL:   mockOllama.URL,
 		},
 		db: nil, // Will skip DB operations in tests
 	}
+	srv.setupServices()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -137,13 +164,41 @@ func TestHandleSearch(t *testing.T) {
 
 // TestHandleSearchContext tests context handling in search [REQ:KO-SS-001]
 func TestHandleSearchContext(t *testing.T) {
+	mockOllama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"embedding":[0.1,0.2,0.3]}`))
+	}))
+	defer mockOllama.Close()
+
+	mockQdrant := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/collections":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":{"collections":[{"name":"test-collection"}]}}`))
+			return
+		case r.Method == "POST" && r.URL.Path == "/collections/test-collection/points/search":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":[{"id":"abc","score":0.9,"payload":{"content":"hello"}}]}`))
+			return
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	}))
+	defer mockQdrant.Close()
+
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgresql://test:test@localhost:5432/test",
+			Port:      "8080",
+			QdrantURL: mockQdrant.URL,
+			OllamaURL: mockOllama.URL,
 		},
 		db: nil,
 	}
+	srv.setupServices()
 
 	reqBody, _ := json.Marshal(map[string]interface{}{
 		"query": "test query",
@@ -169,13 +224,41 @@ func TestHandleSearchContext(t *testing.T) {
 
 // TestHandleSearchLargeQuery tests handling of large queries [REQ:KO-SS-001]
 func TestHandleSearchLargeQuery(t *testing.T) {
+	mockOllama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"embedding":[0.1,0.2,0.3]}`))
+	}))
+	defer mockOllama.Close()
+
+	mockQdrant := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/collections":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":{"collections":[{"name":"test-collection"}]}}`))
+			return
+		case r.Method == "POST" && r.URL.Path == "/collections/test-collection/points/search":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":[{"id":"abc","score":0.9,"payload":{"content":"hello"}}]}`))
+			return
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	}))
+	defer mockQdrant.Close()
+
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgresql://test:test@localhost:5432/test",
+			Port:      "8080",
+			QdrantURL: mockQdrant.URL,
+			OllamaURL: mockOllama.URL,
 		},
 		db: nil,
 	}
+	srv.setupServices()
 
 	// Create a very large query (10KB)
 	largeQuery := make([]byte, 10*1024)
