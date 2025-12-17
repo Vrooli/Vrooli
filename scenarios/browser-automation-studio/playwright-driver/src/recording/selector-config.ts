@@ -232,6 +232,59 @@ export const CONFIDENCE_SCORES = {
 } as const;
 
 /**
+ * Strong selector types that indicate stable, reliable selectors.
+ * These types get a minimum confidence floor applied.
+ *
+ * SINGLE SOURCE OF TRUTH: This constant is used by:
+ * - selector-service.ts (adjustConfidence)
+ * - action-types.ts (calculateActionConfidence)
+ *
+ * Do not duplicate this list elsewhere.
+ */
+export const STRONG_SELECTOR_TYPES = [
+  'data-testid',
+  'id',
+  'aria',
+  'data-attr',
+] as const;
+
+export type StrongSelectorType = (typeof STRONG_SELECTOR_TYPES)[number];
+
+/**
+ * Minimum confidence floor for strong selector types.
+ * Selectors using strong types (test IDs, IDs, ARIA, data attributes)
+ * are boosted to at least this confidence level to avoid flashing
+ * "unstable" warnings on otherwise solid selectors.
+ *
+ * SINGLE SOURCE OF TRUTH: Used by adjustConfidenceForStrongType()
+ */
+export const STRONG_SELECTOR_CONFIDENCE_FLOOR = 0.85;
+
+/**
+ * Adjust confidence score for strong selector types.
+ *
+ * This is the SINGLE SOURCE OF TRUTH for confidence floor logic.
+ * Strong types (data-testid, id, aria, data-attr) get boosted to a minimum
+ * confidence floor to avoid incorrect "unstable" warnings.
+ *
+ * @param type - The selector type (e.g., 'data-testid', 'css', 'xpath')
+ * @param baseConfidence - The calculated confidence score
+ * @returns Adjusted confidence (at least STRONG_SELECTOR_CONFIDENCE_FLOOR for strong types)
+ */
+export function adjustConfidenceForStrongType(
+  type: string,
+  baseConfidence: number
+): number {
+  if (
+    (STRONG_SELECTOR_TYPES as readonly string[]).includes(type) &&
+    baseConfidence < STRONG_SELECTOR_CONFIDENCE_FLOOR
+  ) {
+    return Math.max(baseConfidence, STRONG_SELECTOR_CONFIDENCE_FLOOR);
+  }
+  return baseConfidence;
+}
+
+/**
  * Specificity scores for selector ranking.
  * Higher scores indicate more specific selectors.
  */

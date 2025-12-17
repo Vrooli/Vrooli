@@ -43,6 +43,7 @@ import {
   getSemanticClassPatterns,
   TEST_ID_ATTRIBUTES,
   SELECTOR_DEFAULTS,
+  adjustConfidenceForStrongType,
 } from './selector-config';
 
 // =============================================================================
@@ -315,14 +316,11 @@ export class SelectorService {
 
   /**
    * Adjust confidence based on selector type and known patterns.
+   * Delegates to the shared adjustConfidenceForStrongType function
+   * from selector-config.ts (single source of truth).
    */
   private adjustConfidence(type: string, baseConfidence: number): number {
-    // Strong types get a floor confidence
-    const strongTypes = ['data-testid', 'id', 'aria', 'data-attr'];
-    if (strongTypes.includes(type) && baseConfidence < 0.85) {
-      return Math.max(baseConfidence, 0.85);
-    }
-    return baseConfidence;
+    return adjustConfidenceForStrongType(type, baseConfidence);
   }
 
   /**

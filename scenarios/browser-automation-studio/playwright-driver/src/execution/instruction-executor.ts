@@ -34,12 +34,9 @@
  * @module execution/instruction-executor
  */
 
-import type { Page, BrowserContext } from 'playwright';
-import type { Config } from '../config';
 import type { HandlerRegistry } from '../handlers';
-import type { HandlerContext } from '../handlers/base';
+import { type HandlerContext } from '../handlers/base';
 import type { Metrics } from '../utils/metrics';
-import type winston from 'winston';
 import {
   CompiledInstructionSchema,
   toHandlerInstruction,
@@ -61,23 +58,16 @@ import { logger, scopedLog, LogContext } from '../utils';
 // =============================================================================
 
 /**
- * Context required for instruction execution.
- * Provided by the route layer from session state.
+ * ExecutionContext is now an alias for HandlerContext.
+ *
+ * UNIFIED CONTEXT: Both the instruction executor and handlers use the same
+ * context type to eliminate the mental mapping between two similar types.
+ * The HandlerContext in handlers/base.ts is the canonical definition.
+ *
+ * This alias is retained for backward compatibility with code that imports
+ * ExecutionContext from this module.
  */
-export interface ExecutionContext {
-  /** The Playwright page to execute against */
-  page: Page;
-  /** The browser context (for cookies, permissions, etc.) */
-  browserContext: BrowserContext;
-  /** Application configuration */
-  config: Config;
-  /** Logger instance */
-  logger: winston.Logger;
-  /** Metrics collector */
-  metrics: Metrics;
-  /** Session ID for logging/correlation */
-  sessionId: string;
-}
+export type ExecutionContext = HandlerContext;
 
 /**
  * Result of instruction execution.
@@ -218,15 +208,8 @@ export async function executeInstruction(
 
   try {
     const instructionStart = Date.now();
-    const handlerContext: HandlerContext = {
-      page: context.page,
-      context: context.browserContext,
-      config: context.config,
-      logger: context.logger,
-      metrics: context.metrics,
-      sessionId: context.sessionId,
-    };
-    handlerResult = await handler.execute(instruction, handlerContext);
+    // Context is now unified - pass directly to handler
+    handlerResult = await handler.execute(instruction, context);
     instructionDuration = Date.now() - instructionStart;
   } catch (error) {
     // Ensure telemetry is disposed on error

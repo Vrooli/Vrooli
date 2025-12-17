@@ -135,7 +135,7 @@ export function createReplayHandlerContext(
 
   return {
     page: replayContext.page,
-    context: browserContext,
+    browserContext,
     config: cachedConfig,
     logger: cachedLogger,
     // Cast to Metrics - NoOpMetrics implements the same interface

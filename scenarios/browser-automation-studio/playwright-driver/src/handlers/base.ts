@@ -39,11 +39,17 @@ export type CompiledInstruction = HandlerInstruction;
 /**
  * Handler execution context
  *
- * Provides all necessary context for handler execution
+ * Provides all necessary context for handler execution.
+ * This is the UNIFIED context type used across the execution pipeline.
+ * Both handlers and the instruction executor use this same type.
+ *
+ * NOTE: Uses `browserContext` (not `context`) to avoid confusion with
+ * the overloaded term "context" in other parts of the codebase.
  */
 export interface HandlerContext {
   page: Page;
-  context: BrowserContext;
+  /** The Playwright browser context (for cookies, permissions, etc.) */
+  browserContext: BrowserContext;
   config: Config;
   logger: winston.Logger;
   metrics: Metrics;

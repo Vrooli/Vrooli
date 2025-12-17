@@ -7,9 +7,6 @@
  */
 
 import type { Page } from 'playwright';
-import type { PerfCollector } from '../performance';
-import type { FpsControllerState, FpsControllerConfig } from '../fps';
-import type { ScreencastHandle } from '../routes/record-mode/screencast-streaming';
 
 // =============================================================================
 // WebSocket Types
@@ -26,51 +23,6 @@ export interface FrameWebSocket {
   on(event: 'open', listener: () => void): void;
   on(event: 'close', listener: () => void): void;
   on(event: 'error', listener: (err: Error) => void): void;
-}
-
-// =============================================================================
-// Frame Streaming State
-// =============================================================================
-
-/**
- * Frame streaming state for a session.
- * Uses WebSocket for efficient binary frame delivery.
- */
-export interface FrameStreamState {
-  /** Whether streaming is active */
-  isStreaming: boolean;
-  /** AbortController to stop the streaming loop */
-  abortController: AbortController;
-  /** Last frame buffer for quick byte-level comparison */
-  lastFrameBuffer: Buffer | null;
-  /** Frame quality (0-100) */
-  quality: number;
-  /** Target FPS (user-requested) */
-  targetFps: number;
-  /** Number of frames sent (for logging/metrics) */
-  frameCount: number;
-  /** WebSocket connection to API */
-  ws: FrameWebSocket | null;
-  /** WebSocket URL for reconnection */
-  wsUrl: string;
-  /** Consecutive failure count for circuit breaker */
-  consecutiveFailures: number;
-  /** Whether WebSocket is connected and ready */
-  wsReady: boolean;
-  /** Screenshot scale: 'css' for 1x, 'device' for devicePixelRatio */
-  scale: 'css' | 'device';
-  /** Performance collector - always created for runtime perf mode toggling */
-  perfCollector: PerfCollector;
-  /** Whether to include timing headers in frames (toggled via UI) */
-  includePerfHeaders: boolean;
-  /** FPS controller state (handles adaptive FPS logic) - only used for polling mode */
-  fpsState: FpsControllerState;
-  /** FPS controller config - only used for polling mode */
-  fpsConfig: FpsControllerConfig;
-  /** Whether using CDP screencast (vs legacy polling) */
-  useScreencast: boolean;
-  /** Handle to stop screencast and cleanup - only set when useScreencast is true */
-  screencastHandle?: ScreencastHandle;
 }
 
 // =============================================================================

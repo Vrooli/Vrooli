@@ -1,62 +1,60 @@
 /**
  * Frame Streaming Manager
  *
- * Manages frame streaming for recording sessions. Supports two modes:
- * - CDP Screencast: Push-based streaming from Chrome (preferred, 30-60 FPS)
- * - Polling: Pull-based screenshot capture (fallback, adaptive FPS)
+ * Orchestrates frame streaming for recording sessions.
+ * Supports CDP screencast (preferred) and polling (fallback).
  *
- * Uses WebSocket for efficient binary frame delivery to the API.
+ * This is a thin orchestrator that delegates to:
+ * - strategies/ - Frame capture implementations (CDP screencast, polling)
+ * - websocket/ - WebSocket connection management
  *
  * @module frame-streaming/manager
  */
 
-import type { Page, CDPSession } from 'playwright';
-import WebSocket from 'ws';
-import { logger, metrics, scopedLog, LogContext } from '../utils';
+import { logger, scopedLog, LogContext } from '../utils';
 import { loadConfig } from '../config';
 import { PerfCollector } from '../performance';
 import {
-  createFpsController,
-  processFrame as processFpsFrame,
-  handleTimeout as handleFpsTimeout,
-  getIntervalMs,
-  getCurrentFps,
-} from '../fps';
+  createCdpScreencastStrategy,
+  createPollingStrategy,
+  type FrameStreamingStrategy,
+  type StreamingHandle,
+  type WebSocketProvider,
+  type FrameStatsReporter,
+} from './strategies';
 import {
-  startScreencastStreaming,
-  type ScreencastState,
-} from '../routes/record-mode/screencast-streaming';
+  createWebSocketConnectionManager,
+  buildWebSocketUrl,
+  type WebSocketConnectionManager,
+} from './websocket';
 import type {
-  FrameStreamState,
   FrameStreamOptions,
   FrameStreamUpdateOptions,
   FrameStreamSettings,
-  FrameWebSocket,
   SessionProvider,
-} from './types';
-import {
-  MAX_FRAME_FAILURES,
-  WS_RECONNECT_DELAY_MS,
-  FPS_LOG_INTERVAL,
-  SCREENSHOT_TIMEOUT_MS,
 } from './types';
 
 // =============================================================================
 // Module State
 // =============================================================================
 
-/** Per-session frame streaming state */
-const frameStreamStates = new Map<string, FrameStreamState>();
-
 /**
- * CDP session cache for frame capture.
- * Reusing the CDP session avoids the overhead of creating a new one per frame.
- * WeakMap ensures sessions are cleaned up when pages are garbage collected.
+ * Per-session streaming state.
+ * Tracks WebSocket connection, strategy handle, and configuration.
  */
-const cdpSessionCache = new WeakMap<Page, CDPSession>();
+interface StreamingSession {
+  wsManager: WebSocketConnectionManager;
+  strategyHandle: StreamingHandle | null;
+  strategyName: string;
+  perfCollector: PerfCollector;
+  quality: number;
+  targetFps: number;
+  scale: 'css' | 'device';
+  includePerfHeaders: boolean;
+}
 
-// Type cast for WebSocket constructor
-const WS: new (url: string) => FrameWebSocket = WebSocket as unknown as new (url: string) => FrameWebSocket;
+/** Active streaming sessions */
+const sessions = new Map<string, StreamingSession>();
 
 // =============================================================================
 // Public API
@@ -68,8 +66,6 @@ const WS: new (url: string) => FrameWebSocket = WebSocket as unknown as new (url
  * Uses CDP screencast by default for push-based frame delivery (30-60 FPS).
  * Falls back to polling-based screenshot capture if screencast fails.
  *
- * WebSocket is used for efficient binary frame delivery to the API.
- *
  * @param sessionId - Session ID
  * @param sessionProvider - Provider to get session/page data
  * @param options - Streaming options
@@ -79,116 +75,81 @@ export function startFrameStreaming(
   sessionProvider: SessionProvider,
   options: FrameStreamOptions
 ): void {
-  // Stop any existing stream for this session (fire and forget - don't block)
+  // Stop any existing stream for this session
   void stopFrameStreaming(sessionId);
 
+  const config = loadConfig();
   const quality = options.quality ?? 65;
-  const fps = Math.min(Math.max(options.fps ?? 30, 1), 60); // Clamp 1-60 FPS
+  const fps = Math.min(Math.max(options.fps ?? 30, 1), 60);
   const scale = options.scale ?? 'css';
   const wsUrl = buildWebSocketUrl(options.callbackUrl, sessionId);
 
-  // Load config for feature flags and performance settings
-  const config = loadConfig();
-
-  // Always create performance collector (it's cheap - just a ring buffer).
-  const perfCollector = PerfCollector.fromConfig(sessionId, config, fps);
-
-  // Initialize FPS controller (only used for polling fallback mode)
-  const { state: fpsState, config: fpsConfig } = createFpsController(fps, {
-    minFps: 2,
-    maxFps: Math.min(60, fps * 2),
-    targetUtilization: 0.7,
-    smoothing: 0.25,
-    adjustmentInterval: 3,
+  // Create WebSocket connection manager
+  const wsManager = createWebSocketConnectionManager({
+    url: wsUrl,
+    sessionId,
   });
 
-  const state: FrameStreamState = {
-    isStreaming: true,
-    abortController: new AbortController(),
-    lastFrameBuffer: null,
+  // Create performance collector
+  const perfCollector = PerfCollector.fromConfig(sessionId, config, fps);
+
+  // Create session state
+  const session: StreamingSession = {
+    wsManager,
+    strategyHandle: null,
+    strategyName: 'none',
+    perfCollector,
     quality,
     targetFps: fps,
-    frameCount: 0,
-    ws: null,
-    wsUrl,
-    consecutiveFailures: 0,
-    wsReady: false,
     scale,
-    perfCollector,
     includePerfHeaders: config.performance.enabled && config.performance.includeTimingHeaders,
-    fpsState,
-    fpsConfig,
-    useScreencast: config.frameStreaming.useScreencast, // Feature flag from config
   };
 
-  frameStreamStates.set(sessionId, state);
+  sessions.set(sessionId, session);
 
-  // Connect WebSocket first (needed for both modes)
-  connectFrameWebSocket(sessionId, state);
+  // Connect WebSocket first
+  wsManager.connect();
 
-  // Start streaming based on mode
-  if (state.useScreencast) {
-    void startScreencastMode(sessionId, sessionProvider, state, config);
-  } else {
-    logger.info(scopedLog(LogContext.RECORDING, 'frame streaming started (polling mode)'), {
-      sessionId,
-      targetFps: fps,
-      quality,
-      scale,
-      wsUrl,
-    });
-    void runFrameStreamLoop(sessionId, sessionProvider, state);
-  }
+  // Start streaming with appropriate strategy
+  void startWithStrategy(sessionId, sessionProvider, session, config);
 }
 
 /**
  * Stop frame streaming for a session.
- * Handles cleanup for both screencast and polling modes.
  *
  * @param sessionId - Session ID to stop streaming for
  */
 export async function stopFrameStreaming(sessionId: string): Promise<void> {
-  const state = frameStreamStates.get(sessionId);
-  if (!state) return;
+  const session = sessions.get(sessionId);
+  if (!session) return;
 
-  state.isStreaming = false;
-  state.abortController.abort();
-
-  // Stop CDP screencast if active
-  if (state.screencastHandle) {
+  // Stop strategy
+  if (session.strategyHandle) {
     try {
-      await state.screencastHandle.stop();
+      await session.strategyHandle.stop();
     } catch (error) {
-      logger.debug(scopedLog(LogContext.RECORDING, 'screencast stop error (may already be stopped)'), {
+      logger.debug(scopedLog(LogContext.RECORDING, 'strategy stop error'), {
         sessionId,
         error: error instanceof Error ? error.message : String(error),
       });
     }
-    state.screencastHandle = undefined;
   }
 
-  // Close WebSocket connection
-  if (state.ws) {
-    try {
-      state.ws.close();
-    } catch {
-      // Ignore close errors
-    }
-    state.ws = null;
-  }
+  // Close WebSocket
+  session.wsManager.close();
 
-  frameStreamStates.delete(sessionId);
+  const frameCount = session.strategyHandle?.getFrameCount() ?? 0;
+  sessions.delete(sessionId);
 
   logger.info(scopedLog(LogContext.RECORDING, 'frame streaming stopped'), {
     sessionId,
-    totalFrames: state.frameCount,
-    mode: state.useScreencast ? 'screencast' : 'polling',
+    totalFrames: frameCount,
+    strategy: session.strategyName,
   });
 }
 
 /**
  * Update frame streaming settings for an active session.
- * Only updates quality and fps - scale changes require session restart.
  *
  * @param sessionId - Session ID
  * @param options - Settings to update
@@ -198,8 +159,8 @@ export function updateFrameStreamSettings(
   sessionId: string,
   options: FrameStreamUpdateOptions
 ): boolean {
-  const state = frameStreamStates.get(sessionId);
-  if (!state || !state.isStreaming) {
+  const session = sessions.get(sessionId);
+  if (!session || !session.strategyHandle?.isActive()) {
     return false;
   }
 
@@ -207,38 +168,34 @@ export function updateFrameStreamSettings(
 
   if (options.quality !== undefined) {
     const newQuality = Math.min(Math.max(options.quality, 1), 100);
-    if (newQuality !== state.quality) {
-      state.quality = newQuality;
+    if (newQuality !== session.quality) {
+      session.quality = newQuality;
+      session.strategyHandle.updateQuality?.(newQuality);
       changed = true;
     }
   }
 
   if (options.fps !== undefined) {
     const newFps = Math.min(Math.max(options.fps, 1), 60);
-    if (newFps !== state.targetFps) {
-      state.targetFps = newFps;
-      // Update FPS config with new max (allow up to 2x target, capped at 60)
-      state.fpsConfig = {
-        ...state.fpsConfig,
-        maxFps: Math.min(60, newFps * 2),
-      };
+    if (newFps !== session.targetFps) {
+      session.targetFps = newFps;
+      session.strategyHandle.updateTargetFps?.(newFps);
       changed = true;
     }
   }
 
-  if (options.perfMode !== undefined && options.perfMode !== state.includePerfHeaders) {
-    state.includePerfHeaders = options.perfMode;
+  if (options.perfMode !== undefined && options.perfMode !== session.includePerfHeaders) {
+    session.includePerfHeaders = options.perfMode;
     changed = true;
   }
 
   if (changed) {
     logger.info(scopedLog(LogContext.RECORDING, 'frame stream settings updated'), {
       sessionId,
-      quality: state.quality,
-      targetFps: state.targetFps,
-      currentFps: getCurrentFps(state.fpsState),
-      scale: state.scale,
-      perfMode: state.includePerfHeaders,
+      quality: session.quality,
+      targetFps: session.targetFps,
+      perfMode: session.includePerfHeaders,
+      strategy: session.strategyName,
     });
   }
 
@@ -252,495 +209,159 @@ export function updateFrameStreamSettings(
  * @returns Current settings or null if no active stream
  */
 export function getFrameStreamSettings(sessionId: string): FrameStreamSettings | null {
-  const state = frameStreamStates.get(sessionId);
-  if (!state) {
+  const session = sessions.get(sessionId);
+  if (!session) {
     return null;
   }
 
   return {
-    quality: state.quality,
-    fps: state.targetFps,
-    scale: state.scale,
-    currentFps: getCurrentFps(state.fpsState),
-    isStreaming: state.isStreaming,
-    perfMode: state.includePerfHeaders,
+    quality: session.quality,
+    fps: session.targetFps,
+    scale: session.scale,
+    currentFps: session.targetFps, // Actual FPS tracking would need strategy cooperation
+    isStreaming: session.strategyHandle?.isActive() ?? false,
+    perfMode: session.includePerfHeaders,
   };
 }
 
 // =============================================================================
-// Internal Functions - WebSocket
+// Internal Functions
 // =============================================================================
 
 /**
- * Build WebSocket URL from HTTP callback URL.
- * Converts http://host:port/api/v1/recordings/live/{sessionId}/frame
- * to ws://host:port/ws/recording/{sessionId}/frames
+ * Start streaming with the appropriate strategy.
+ * Tries CDP screencast first, falls back to polling if configured.
  */
-function buildWebSocketUrl(callbackUrl: string, sessionId: string): string {
-  try {
-    const url = new URL(callbackUrl);
-    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${url.host}/ws/recording/${sessionId}/frames`;
-  } catch {
-    // Fallback: assume localhost API
-    return `ws://127.0.0.1:8080/ws/recording/${sessionId}/frames`;
-  }
-}
-
-/**
- * Connect WebSocket for frame streaming.
- */
-function connectFrameWebSocket(sessionId: string, state: FrameStreamState): void {
-  if (!state.isStreaming) return;
-
-  try {
-    const ws = new WS(state.wsUrl);
-    state.ws = ws;
-
-    ws.on('open', () => {
-      state.wsReady = true;
-      state.consecutiveFailures = 0;
-      logger.info(scopedLog(LogContext.RECORDING, 'frame WebSocket connected'), { sessionId });
-    });
-
-    ws.on('close', () => {
-      state.wsReady = false;
-      logger.debug(scopedLog(LogContext.RECORDING, 'frame WebSocket closed'), { sessionId });
-
-      // Reconnect if still streaming
-      if (state.isStreaming) {
-        setTimeout(() => connectFrameWebSocket(sessionId, state), WS_RECONNECT_DELAY_MS);
-      }
-    });
-
-    ws.on('error', (err: Error) => {
-      state.wsReady = false;
-      logger.warn(scopedLog(LogContext.RECORDING, 'frame WebSocket error'), {
-        sessionId,
-        error: err.message,
-      });
-    });
-  } catch (err) {
-    logger.warn(scopedLog(LogContext.RECORDING, 'failed to create frame WebSocket'), {
-      sessionId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-
-    // Retry connection
-    if (state.isStreaming) {
-      setTimeout(() => connectFrameWebSocket(sessionId, state), WS_RECONNECT_DELAY_MS);
-    }
-  }
-}
-
-// =============================================================================
-// Internal Functions - Screencast Mode
-// =============================================================================
-
-/**
- * Start CDP screencast streaming mode.
- * Falls back to polling mode if screencast fails (and fallback is enabled).
- */
-async function startScreencastMode(
+async function startWithStrategy(
   sessionId: string,
   sessionProvider: SessionProvider,
-  state: FrameStreamState,
+  session: StreamingSession,
   config: ReturnType<typeof loadConfig>
 ): Promise<void> {
-  try {
-    const session = sessionProvider.getSession(sessionId);
-    const viewport = session.page.viewportSize() ?? { width: 1280, height: 720 };
+  const page = sessionProvider.getSession(sessionId).page;
 
+  // Create strategy instances
+  const screencastStrategy = createCdpScreencastStrategy();
+  const pollingStrategy = createPollingStrategy();
+
+  // Determine which strategy to use
+  let strategy: FrameStreamingStrategy;
+  if (config.frameStreaming.useScreencast && await screencastStrategy.isSupported(page)) {
+    strategy = screencastStrategy;
+  } else {
+    strategy = pollingStrategy;
+  }
+
+  // Create WebSocket provider adapter
+  const wsProvider: WebSocketProvider = {
+    getWebSocket: () => session.wsManager.getWebSocket(),
+    isReady: () => session.wsManager.isReady(),
+  };
+
+  // Create stats reporter adapter
+  const statsReporter: FrameStatsReporter = {
+    onFrameSent: (stats) => {
+      session.perfCollector.recordFrame({
+        captureMs: stats.captureMs,
+        compareMs: stats.compareMs ?? 0,
+        wsSendMs: stats.wsSendMs,
+        frameBytes: stats.frameBytes,
+        skipped: false,
+      });
+
+      // Log summary periodically
+      if (session.perfCollector.shouldLogSummary()) {
+        const aggregated = session.perfCollector.getAggregatedStats();
+        logger.info(scopedLog(LogContext.RECORDING, 'frame perf summary'), {
+          session_id: sessionId,
+          frame_count: aggregated.frame_count,
+          skipped_count: aggregated.skipped_count,
+          capture_p50_ms: aggregated.capture_p50_ms,
+          capture_p90_ms: aggregated.capture_p90_ms,
+          e2e_p50_ms: aggregated.e2e_p50_ms,
+          e2e_p90_ms: aggregated.e2e_p90_ms,
+          bottleneck: aggregated.primary_bottleneck,
+          strategy: strategy.name,
+        });
+      }
+    },
+    onFrameSkipped: (reason) => {
+      if (reason === 'unchanged') {
+        session.perfCollector.recordSkipped(0, 0);
+      }
+    },
+  };
+
+  // Try to start the strategy
+  try {
     // Wait briefly for WebSocket to connect
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    // Create a state proxy that keeps screencast in sync with our state
-    const screencastState: ScreencastState = {
-      get ws() {
-        return state.ws;
-      },
-      get wsReady() {
-        return state.wsReady;
-      },
-      get isStreaming() {
-        return state.isStreaming;
-      },
-      frameCount: state.frameCount,
-    };
-
-    // Define a setter to update frame count in our state
-    Object.defineProperty(screencastState, 'frameCount', {
-      get: () => state.frameCount,
-      set: (value: number) => {
-        state.frameCount = value;
-      },
-    });
-
-    state.screencastHandle = await startScreencastStreaming(
-      session.page,
-      sessionId,
-      screencastState,
+    session.strategyHandle = await strategy.start(
+      page,
       {
-        format: 'jpeg',
-        quality: state.quality,
-        maxWidth: viewport.width,
-        maxHeight: viewport.height,
-        everyNthFrame: 1, // Every frame - Chrome handles change detection
-      }
+        sessionId,
+        quality: session.quality,
+        targetFps: session.targetFps,
+        scale: session.scale,
+        includePerfHeaders: session.includePerfHeaders,
+      },
+      wsProvider,
+      statsReporter
     );
+    session.strategyName = strategy.name;
 
-    logger.info(scopedLog(LogContext.RECORDING, 'frame streaming started (CDP screencast)'), {
+    logger.info(scopedLog(LogContext.RECORDING, 'frame streaming started'), {
       sessionId,
-      quality: state.quality,
-      viewport,
-      wsUrl: state.wsUrl,
-      mode: 'screencast',
+      strategy: strategy.name,
+      quality: session.quality,
+      targetFps: session.targetFps,
+      scale: session.scale,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
-    // Screencast failed - check if we should fall back to polling
-    if (config.frameStreaming.fallbackToPolling) {
+    // If screencast failed and fallback is enabled, try polling
+    if (strategy.name === 'cdp-screencast' && config.frameStreaming.fallbackToPolling) {
       logger.warn(scopedLog(LogContext.RECORDING, 'CDP screencast failed, falling back to polling'), {
         sessionId,
         error: message,
-        fallback: true,
       });
 
-      state.useScreencast = false;
-      void runFrameStreamLoop(sessionId, sessionProvider, state);
-    } else {
-      logger.error(scopedLog(LogContext.RECORDING, 'CDP screencast failed (no fallback)'), {
-        sessionId,
-        error: message,
-        fallback: false,
-        hint: 'Set FRAME_STREAMING_FALLBACK=true to enable polling fallback',
-      });
-
-      // Clean up state since we're not streaming
-      state.isStreaming = false;
-      frameStreamStates.delete(sessionId);
-    }
-  }
-}
-
-// =============================================================================
-// Internal Functions - Polling Mode
-// =============================================================================
-
-/**
- * The main frame streaming loop.
- * Captures frames and sends via WebSocket as binary data.
- *
- * Uses target-utilization based adaptive FPS via the fps controller:
- * - Measures actual screenshot capture time (the bottleneck)
- * - Adjusts FPS to keep capture at ~70% of frame budget
- * - Simple, single-mechanism feedback loop
- */
-async function runFrameStreamLoop(
-  sessionId: string,
-  sessionProvider: SessionProvider,
-  state: FrameStreamState
-): Promise<void> {
-  while (state.isStreaming && !state.abortController.signal.aborted) {
-    const loopStart = performance.now();
-
-    // Get current interval from FPS controller
-    const currentIntervalMs = getIntervalMs(state.fpsState);
-
-    try {
-      // Check if session still exists
-      let session;
       try {
-        session = sessionProvider.getSession(sessionId);
-      } catch {
-        // Session closed, stop streaming
-        void stopFrameStreaming(sessionId);
-        return;
-      }
-
-      // Skip if WebSocket not connected (readyState 1 = OPEN)
-      if (!state.wsReady || !state.ws || state.ws.readyState !== 1) {
-        await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
-        continue;
-      }
-
-      // Skip if too many consecutive failures (circuit breaker)
-      if (state.consecutiveFailures >= MAX_FRAME_FAILURES) {
-        // Wait longer before retrying
-        await sleep(currentIntervalMs * 5, state.abortController.signal);
-        state.consecutiveFailures = 0; // Reset and retry
-        continue;
-      }
-
-      // === CAPTURE FRAME WITH TIMING ===
-      const captureStart = performance.now();
-      const buffer = await captureFrameBuffer(session.page, state.quality, state.scale);
-      const captureTime = performance.now() - captureStart;
-
-      if (!buffer) {
-        // Timeout hit - use FPS controller's timeout handler
-        const timeoutResult = handleFpsTimeout(state.fpsState, SCREENSHOT_TIMEOUT_MS, state.fpsConfig);
-        state.fpsState = timeoutResult.state;
-
-        // Record timeout in perf metrics
-        metrics.frameSkipCount.inc({ session_id: sessionId, reason: 'timeout' });
-
-        if (timeoutResult.adjusted && timeoutResult.diagnostics) {
-          logger.debug(scopedLog(LogContext.RECORDING, 'FPS reduced (capture timeout)'), {
+        session.strategyHandle = await pollingStrategy.start(
+          page,
+          {
             sessionId,
-            previousFps: timeoutResult.diagnostics.previousFps,
-            currentFps: timeoutResult.newFps,
-          });
-        }
-
-        await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
-        continue;
-      }
-
-      // === UPDATE FPS CONTROLLER WITH CAPTURE TIME ===
-      const fpsResult = processFpsFrame(state.fpsState, captureTime, state.fpsConfig);
-      state.fpsState = fpsResult.state;
-      state.frameCount++;
-
-      // Log FPS changes periodically
-      if (fpsResult.adjusted && fpsResult.diagnostics && state.frameCount % FPS_LOG_INTERVAL === 0) {
-        const direction = fpsResult.diagnostics.reason === 'too_fast' ? 'increased' : 'reduced';
-        logger.debug(scopedLog(LogContext.RECORDING, `FPS ${direction}`), {
-          sessionId,
-          previousFps: fpsResult.diagnostics.previousFps,
-          currentFps: fpsResult.newFps,
-          avgCaptureMs: fpsResult.diagnostics.avgCaptureMs,
-          targetCaptureMs: fpsResult.diagnostics.targetCaptureMs,
-          reason: fpsResult.diagnostics.reason,
-        });
-      }
-
-      // === COMPARE WITH TIMING ===
-      const compareStart = performance.now();
-      const isUnchanged = isFrameUnchanged(buffer, state);
-      const compareTime = performance.now() - compareStart;
-
-      // Skip if frame content unchanged (fast buffer comparison)
-      if (isUnchanged) {
-        // Record skipped frame in perf collector
-        state.perfCollector.recordSkipped(captureTime, compareTime);
-        metrics.frameSkipCount.inc({ session_id: sessionId, reason: 'unchanged' });
-        await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
-        continue;
-      }
-
-      // Update last frame state
-      state.lastFrameBuffer = buffer;
-
-      // === SEND WITH TIMING ===
-      const wsSendStart = performance.now();
-
-      // Send frame with or without perf header
-      if (state.includePerfHeaders) {
-        // Build and prepend binary header with timing data
-        const header = state.perfCollector.buildFrameHeader(
-          captureTime,
-          compareTime,
-          0, // wsSendMs will be measured after send
-          buffer.length
+            quality: session.quality,
+            targetFps: session.targetFps,
+            scale: session.scale,
+            includePerfHeaders: session.includePerfHeaders,
+          },
+          wsProvider,
+          statsReporter
         );
-        state.ws.send(Buffer.concat([header, buffer]));
-      } else {
-        // Send raw binary frame (no JSON, no base64!)
-        state.ws.send(buffer);
-      }
+        session.strategyName = 'polling';
 
-      const wsSendTime = performance.now() - wsSendStart;
-      state.consecutiveFailures = 0;
-
-      // === RECORD PERFORMANCE DATA ===
-      state.perfCollector.recordFrame({
-        captureMs: captureTime,
-        compareMs: compareTime,
-        wsSendMs: wsSendTime,
-        frameBytes: buffer.length,
-        skipped: false,
-      });
-
-      // Record to Prometheus metrics
-      metrics.frameCaptureLatency.observe({ session_id: sessionId }, captureTime);
-      metrics.frameE2ELatency.observe({ session_id: sessionId }, captureTime + compareTime + wsSendTime);
-
-      // Log summary periodically
-      if (state.perfCollector.shouldLogSummary()) {
-        const stats = state.perfCollector.getAggregatedStats();
-        logger.info(scopedLog(LogContext.RECORDING, 'frame perf summary'), {
-          session_id: sessionId,
-          frame_count: stats.frame_count,
-          skipped_count: stats.skipped_count,
-          capture_p50_ms: stats.capture_p50_ms,
-          capture_p90_ms: stats.capture_p90_ms,
-          e2e_p50_ms: stats.e2e_p50_ms,
-          e2e_p90_ms: stats.e2e_p90_ms,
-          actual_fps: getCurrentFps(state.fpsState),
-          target_fps: state.targetFps,
-          bottleneck: stats.primary_bottleneck,
+        logger.info(scopedLog(LogContext.RECORDING, 'frame streaming started (fallback)'), {
+          sessionId,
+          strategy: 'polling',
         });
+      } catch (fallbackError) {
+        logger.error(scopedLog(LogContext.RECORDING, 'polling fallback also failed'), {
+          sessionId,
+          error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+        });
+        sessions.delete(sessionId);
       }
-
-    } catch (err) {
-      if (state.abortController.signal.aborted) {
-        return; // Normal shutdown
-      }
-
-      state.consecutiveFailures++;
-      const message = err instanceof Error ? err.message : String(err);
-
-      logger.warn(scopedLog(LogContext.RECORDING, 'frame streaming error'), {
+    } else {
+      logger.error(scopedLog(LogContext.RECORDING, 'frame streaming failed to start'), {
         sessionId,
+        strategy: strategy.name,
         error: message,
-        consecutiveFailures: state.consecutiveFailures,
+        fallbackEnabled: config.frameStreaming.fallbackToPolling,
       });
+      sessions.delete(sessionId);
     }
-
-    await sleepUntilNextFrame(loopStart, getIntervalMs(state.fpsState), state.abortController.signal);
   }
-}
-
-// =============================================================================
-// Internal Functions - Frame Capture
-// =============================================================================
-
-/**
- * Get or create a CDP session for a page.
- * CDP sessions are cached to avoid per-frame creation overhead.
- */
-async function getCDPSession(page: Page): Promise<CDPSession> {
-  let session = cdpSessionCache.get(page);
-  if (!session) {
-    session = await page.context().newCDPSession(page);
-    cdpSessionCache.set(page, session);
-  }
-  return session;
-}
-
-/**
- * Capture a frame as raw JPEG buffer using CDP directly.
- * Uses Page.captureScreenshot with optimizeForSpeed for faster encoding.
- *
- * Only captures the visible viewport (not full page) to reduce bandwidth and improve performance.
- * No base64 encoding overhead on our side - CDP returns base64 but we decode it once.
- *
- * Performance notes:
- * - optimizeForSpeed uses faster zlib settings (q1/RLE) for ~2x speedup
- * - CDP clip uses device pixels, so we scale viewport dimensions accordingly
- * - Using 'css' scale (1x) produces smaller images, 'device' uses devicePixelRatio
- *
- * @param page - Playwright page to capture
- * @param quality - JPEG quality 1-100
- * @param scale - 'css' captures at 1x logical pixels (smaller, faster),
- *                'device' captures at devicePixelRatio (sharper on HiDPI, but 4x larger on 2x displays)
- */
-async function captureFrameBuffer(
-  page: Page,
-  quality: number,
-  scale: 'css' | 'device' = 'css'
-): Promise<Buffer | null> {
-  try {
-    // Get viewport dimensions for clipping - only capture what's visible
-    const viewport = page.viewportSize();
-    if (!viewport) {
-      // Fallback to Playwright's screenshot if viewport not available
-      return await page.screenshot({
-        type: 'jpeg',
-        quality,
-        timeout: SCREENSHOT_TIMEOUT_MS,
-        scale,
-      });
-    }
-
-    // Get or create CDP session (cached for performance)
-    const cdp = await getCDPSession(page);
-
-    // Use CDP Page.captureScreenshot directly with optimizeForSpeed
-    // This provides ~2x speedup on encoding by using faster compression settings
-    //
-    // Key settings:
-    // - captureBeyondViewport: false - only capture visible viewport (not full page)
-    // - fromSurface: true - capture from compositor surface (default, faster)
-    // - optimizeForSpeed: true - use faster encoding (zlib q1/RLE)
-    //
-    // Note: We don't use 'clip' because it captures a fixed page region, not the
-    // current viewport. With captureBeyondViewport: false, CDP captures exactly
-    // what's visible in the viewport, which is what we want for live streaming.
-    const result = await Promise.race([
-      cdp.send('Page.captureScreenshot', {
-        format: 'jpeg',
-        quality,
-        optimizeForSpeed: true, // Key optimization: faster encoding
-        captureBeyondViewport: false, // Only capture visible viewport
-        fromSurface: true, // Capture from compositor (faster)
-      }),
-      // Timeout handling
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), SCREENSHOT_TIMEOUT_MS)),
-    ]);
-
-    if (!result) {
-      return null; // Timeout
-    }
-
-    // CDP returns base64, decode to Buffer
-    return Buffer.from(result.data, 'base64');
-  } catch {
-    // CDP error or other failure - skip this frame
-    return null;
-  }
-}
-
-/**
- * Check if frame is unchanged from last frame.
- * Uses fast buffer length check before expensive byte comparison.
- */
-function isFrameUnchanged(buffer: Buffer, state: FrameStreamState): boolean {
-  if (!state.lastFrameBuffer) {
-    return false;
-  }
-
-  // Fast path: different length means different content
-  if (buffer.length !== state.lastFrameBuffer.length) {
-    return false;
-  }
-
-  // Same length: do byte comparison (still faster than MD5 for most cases)
-  return buffer.equals(state.lastFrameBuffer);
-}
-
-// =============================================================================
-// Internal Functions - Timing Utilities
-// =============================================================================
-
-/**
- * Sleep until the next frame capture time.
- */
-async function sleepUntilNextFrame(
-  loopStart: number,
-  intervalMs: number,
-  signal: AbortSignal
-): Promise<void> {
-  const elapsed = performance.now() - loopStart;
-  const sleepTime = Math.max(0, intervalMs - elapsed);
-  if (sleepTime > 0) {
-    await sleep(sleepTime, signal);
-  }
-}
-
-/**
- * Sleep with abort signal support.
- */
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(resolve, ms);
-    if (signal) {
-      signal.addEventListener('abort', () => {
-        clearTimeout(timeoutId);
-        reject(new Error('Aborted'));
-      }, { once: true });
-    }
-  });
 }

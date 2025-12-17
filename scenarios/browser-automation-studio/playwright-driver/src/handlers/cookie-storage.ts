@@ -86,7 +86,7 @@ export class CookieStorageHandler extends BaseHandler {
     operation: string,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { context: browserContext, logger } = context;
+    const { browserContext, logger } = context;
 
     switch (operation) {
       case 'set':

@@ -174,7 +174,7 @@ export class TabHandler extends BaseHandler {
     context: HandlerContext,
     url: string
   ): Promise<HandlerResult> {
-    const browserContext = context.context;
+    const browserContext = context.browserContext;
     const sessionId = context.sessionId;
 
     logger.debug(scopedLog(LogContext.INSTRUCTION, 'opening new tab'), {

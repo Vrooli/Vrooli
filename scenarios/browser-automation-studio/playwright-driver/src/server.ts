@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
-import { loadConfig, type Config } from './config';
+import { loadConfig, logConfigTierWarnings, getConfigSummary, type Config } from './config';
 import { SessionManager, SessionCleanup } from './session';
 import * as handlers from './handlers';
 import * as routes from './routes';
@@ -25,6 +25,12 @@ async function main() {
     host: config.server.host,
     logLevel: config.logging.level,
     metricsEnabled: config.metrics.enabled,
+    configStatus: getConfigSummary(),
+  });
+
+  // Log warnings about modified configuration options (Tier 2/3)
+  logConfigTierWarnings((msg, data) => {
+    logger.info(msg, data);
   });
 
   // Create session manager

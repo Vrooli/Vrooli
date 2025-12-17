@@ -126,9 +126,8 @@ export { calculateActionConfidence } from './action-types';
 export * from './selector-config';
 export * from './selector-service';
 
-// NOTE: selectors.reference.ts is NOT exported - it's documentation-only reference code.
-// The actual runtime implementation is in injector.ts (stringified JavaScript).
-// See selectors.reference.ts file header for details on why this separation exists.
+// NOTE: The selector generation runtime implementation is in injector.ts (stringified JavaScript).
+// This is injected into browser pages via page.evaluate() since browser context requires plain JS.
 
 // =============================================================================
 // BROWSER SCRIPT INJECTION

@@ -4,7 +4,14 @@ import { z } from 'zod';
  * Playwright Driver Configuration Schema
  *
  * CONTROL SURFACE: This file defines the tunable levers for the Playwright Driver.
- * Grouped by operational concern for easier navigation.
+ *
+ * **IMPORTANT**: Most users only need 5-7 options. See CONFIG-TIERS.md for guidance
+ * on which options to prioritize.
+ *
+ * ## Configuration Tiers (see CONFIG-TIERS.md):
+ * - **Tier 1 (Essential)**: port, maxConcurrent, defaultTimeoutMs, logLevel, metricsEnabled
+ * - **Tier 2 (Advanced)**: Fine-grained timeouts, telemetry controls, session tuning
+ * - **Tier 3 (Internal)**: Recording, frame streaming, performance debug
  *
  * ## Configuration Groups:
  * - **server**: HTTP server settings (port, host, request limits)
@@ -21,7 +28,85 @@ import { z } from 'zod';
  * 2. Add environment variable parsing in loadConfig()
  * 3. Document the tradeoff in comments
  * 4. Set a sane default that works for common usage
+ * 5. Update CONFIG-TIERS.md if user-facing
+ * 6. Add tier metadata to CONFIG_TIER_METADATA below
  */
+
+// =============================================================================
+// CONFIGURATION TIER METADATA
+// =============================================================================
+
+/**
+ * Configuration tier levels.
+ * - ESSENTIAL: Options most users will need to consider
+ * - ADVANCED: Fine-tuning options for specific needs
+ * - INTERNAL: Rarely changed, for developers and debugging
+ */
+export enum ConfigTier {
+  ESSENTIAL = 1,
+  ADVANCED = 2,
+  INTERNAL = 3,
+}
+
+/**
+ * Metadata for each configuration option.
+ * Maps environment variable names to their tier and default value.
+ * Used for warning when non-essential options are modified.
+ */
+export const CONFIG_TIER_METADATA: Record<string, { tier: ConfigTier; defaultValue: unknown; description: string }> = {
+  // === Tier 1: Essential ===
+  PLAYWRIGHT_DRIVER_PORT: { tier: ConfigTier.ESSENTIAL, defaultValue: 39400, description: 'HTTP server port' },
+  MAX_SESSIONS: { tier: ConfigTier.ESSENTIAL, defaultValue: 10, description: 'Maximum parallel browser sessions' },
+  EXECUTION_DEFAULT_TIMEOUT_MS: { tier: ConfigTier.ESSENTIAL, defaultValue: 30000, description: 'Main reliability dial' },
+  LOG_LEVEL: { tier: ConfigTier.ESSENTIAL, defaultValue: 'info', description: 'Log verbosity' },
+  METRICS_ENABLED: { tier: ConfigTier.ESSENTIAL, defaultValue: true, description: 'Prometheus metrics endpoint' },
+
+  // === Tier 2: Advanced ===
+  EXECUTION_NAVIGATION_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 45000, description: 'Navigation timeout' },
+  EXECUTION_WAIT_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 30000, description: 'Wait timeout' },
+  EXECUTION_ASSERTION_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 15000, description: 'Assertion timeout' },
+  EXECUTION_REPLAY_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 10000, description: 'Replay timeout' },
+  SCREENSHOT_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Screenshot collection' },
+  SCREENSHOT_QUALITY: { tier: ConfigTier.ADVANCED, defaultValue: 80, description: 'Screenshot JPEG quality' },
+  DOM_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'DOM snapshot collection' },
+  CONSOLE_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Console log collection' },
+  NETWORK_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Network event collection' },
+  SESSION_POOL_SIZE: { tier: ConfigTier.ADVANCED, defaultValue: 5, description: 'Pre-warmed session pool' },
+  SESSION_IDLE_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 300000, description: 'Session idle TTL' },
+
+  // === Tier 3: Internal ===
+  PLAYWRIGHT_DRIVER_HOST: { tier: ConfigTier.INTERNAL, defaultValue: '127.0.0.1', description: 'HTTP server host' },
+  REQUEST_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 300000, description: 'Request timeout' },
+  MAX_REQUEST_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 5242880, description: 'Max request body size' },
+  HEADLESS: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Headless browser mode' },
+  BROWSER_EXECUTABLE_PATH: { tier: ConfigTier.INTERNAL, defaultValue: undefined, description: 'Custom browser path' },
+  BROWSER_ARGS: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'Extra browser arguments' },
+  IGNORE_HTTPS_ERRORS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Ignore HTTPS errors' },
+  RECORDING_MAX_BUFFER_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 10000, description: 'Recording buffer size' },
+  RECORDING_MIN_SELECTOR_CONFIDENCE: { tier: ConfigTier.INTERNAL, defaultValue: 0.3, description: 'Selector confidence threshold' },
+  RECORDING_INPUT_DEBOUNCE_MS: { tier: ConfigTier.INTERNAL, defaultValue: 500, description: 'Input debounce timing' },
+  RECORDING_SCROLL_DEBOUNCE_MS: { tier: ConfigTier.INTERNAL, defaultValue: 150, description: 'Scroll debounce timing' },
+  RECORDING_MAX_CSS_DEPTH: { tier: ConfigTier.INTERNAL, defaultValue: 5, description: 'CSS path max depth' },
+  RECORDING_INCLUDE_XPATH: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Include XPath selectors' },
+  RECORDING_DEFAULT_SWIPE_DISTANCE: { tier: ConfigTier.INTERNAL, defaultValue: 300, description: 'Default swipe distance' },
+  FRAME_STREAMING_USE_SCREENCAST: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Use CDP screencast' },
+  FRAME_STREAMING_FALLBACK: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Fall back to polling' },
+  PLAYWRIGHT_DRIVER_PERF_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Performance debug mode' },
+  PLAYWRIGHT_DRIVER_PERF_INCLUDE_HEADERS: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Include timing headers' },
+  PLAYWRIGHT_DRIVER_PERF_LOG_INTERVAL: { tier: ConfigTier.INTERNAL, defaultValue: 60, description: 'Performance log interval' },
+  PLAYWRIGHT_DRIVER_PERF_BUFFER_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Performance buffer size' },
+  METRICS_PORT: { tier: ConfigTier.INTERNAL, defaultValue: 9090, description: 'Metrics server port' },
+  CLEANUP_INTERVAL_MS: { tier: ConfigTier.INTERNAL, defaultValue: 60000, description: 'Session cleanup interval' },
+  SCREENSHOT_FULL_PAGE: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Full page screenshots' },
+  SCREENSHOT_MAX_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 512000, description: 'Max screenshot size' },
+  DOM_MAX_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 524288, description: 'Max DOM snapshot size' },
+  CONSOLE_MAX_ENTRIES: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Max console entries' },
+  NETWORK_MAX_EVENTS: { tier: ConfigTier.INTERNAL, defaultValue: 200, description: 'Max network events' },
+  HAR_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'HAR recording' },
+  VIDEO_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Video recording' },
+  TRACING_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Playwright tracing' },
+  LOG_FORMAT: { tier: ConfigTier.INTERNAL, defaultValue: 'json', description: 'Log format (json/text)' },
+};
 
 const ConfigSchema = z.object({
   server: z.object({
@@ -371,4 +456,154 @@ function deepFreeze<T extends Record<string, unknown>>(obj: T): T {
   }
 
   return Object.freeze(obj);
+}
+
+// =============================================================================
+// CONFIGURATION TIER WARNINGS
+// =============================================================================
+
+/**
+ * Result of checking modified configuration options.
+ */
+export interface ConfigTierCheckResult {
+  /** Options modified from defaults */
+  modified: Array<{
+    envVar: string;
+    tier: ConfigTier;
+    tierName: string;
+    description: string;
+    currentValue: unknown;
+    defaultValue: unknown;
+  }>;
+  /** Count of modified options by tier */
+  byTier: {
+    essential: number;
+    advanced: number;
+    internal: number;
+  };
+}
+
+/**
+ * Check which configuration options have been modified from their defaults.
+ * Returns detailed information about modified options organized by tier.
+ *
+ * @returns Object with modified options and counts by tier
+ */
+export function checkModifiedConfig(): ConfigTierCheckResult {
+  const modified: ConfigTierCheckResult['modified'] = [];
+  const byTier = { essential: 0, advanced: 0, internal: 0 };
+
+  const tierNames: Record<ConfigTier, string> = {
+    [ConfigTier.ESSENTIAL]: 'essential',
+    [ConfigTier.ADVANCED]: 'advanced',
+    [ConfigTier.INTERNAL]: 'internal',
+  };
+
+  for (const [envVar, meta] of Object.entries(CONFIG_TIER_METADATA)) {
+    const currentValue = process.env[envVar];
+
+    // Skip if not set in environment
+    if (currentValue === undefined) continue;
+
+    // Check if value differs from default
+    const defaultStr = String(meta.defaultValue);
+    const currentStr = currentValue.trim();
+
+    // Handle boolean defaults
+    let isModified = false;
+    if (typeof meta.defaultValue === 'boolean') {
+      const currentBool = currentStr.toLowerCase() === 'true';
+      isModified = currentBool !== meta.defaultValue;
+    } else if (typeof meta.defaultValue === 'number') {
+      const currentNum = parseFloat(currentStr);
+      isModified = !isNaN(currentNum) && currentNum !== meta.defaultValue;
+    } else if (meta.defaultValue === undefined) {
+      // Any non-empty value for undefined default is a modification
+      isModified = currentStr.length > 0;
+    } else {
+      isModified = currentStr !== defaultStr;
+    }
+
+    if (isModified) {
+      const tierName = tierNames[meta.tier];
+      modified.push({
+        envVar,
+        tier: meta.tier,
+        tierName,
+        description: meta.description,
+        currentValue: currentStr,
+        defaultValue: meta.defaultValue,
+      });
+
+      if (meta.tier === ConfigTier.ESSENTIAL) byTier.essential++;
+      else if (meta.tier === ConfigTier.ADVANCED) byTier.advanced++;
+      else byTier.internal++;
+    }
+  }
+
+  // Sort by tier (essential first)
+  modified.sort((a, b) => a.tier - b.tier);
+
+  return { modified, byTier };
+}
+
+/**
+ * Log warnings about modified configuration options.
+ * Called at startup to inform operators about non-default settings.
+ *
+ * This function helps operators understand what they've configured:
+ * - Tier 1 (Essential): Informational - expected to be configured
+ * - Tier 2 (Advanced): Note - ensure these are intentional
+ * - Tier 3 (Internal): Warning - rarely needed, may indicate misconfiguration
+ *
+ * @param logFn - Logging function to use (defaults to console.warn)
+ */
+export function logConfigTierWarnings(logFn: (msg: string, data?: Record<string, unknown>) => void = console.warn): void {
+  const result = checkModifiedConfig();
+
+  if (result.modified.length === 0) {
+    return; // All defaults, nothing to log
+  }
+
+  // Group messages by tier
+  const tier2Options = result.modified.filter(m => m.tier === ConfigTier.ADVANCED);
+  const tier3Options = result.modified.filter(m => m.tier === ConfigTier.INTERNAL);
+
+  // Log Tier 2 (Advanced) options as INFO
+  if (tier2Options.length > 0) {
+    logFn('[config] Advanced options configured (Tier 2):', {
+      count: tier2Options.length,
+      options: tier2Options.map(o => `${o.envVar}=${o.currentValue}`),
+      hint: 'These are fine-tuning options. See CONFIG-TIERS.md for guidance.',
+    });
+  }
+
+  // Log Tier 3 (Internal) options as WARN
+  if (tier3Options.length > 0) {
+    logFn('[config] Internal options configured (Tier 3):', {
+      count: tier3Options.length,
+      options: tier3Options.map(o => `${o.envVar}=${o.currentValue}`),
+      hint: 'These are rarely-needed internal options. Consider if they are necessary.',
+    });
+  }
+}
+
+/**
+ * Get a human-readable summary of the configuration tier status.
+ * Useful for health checks and debugging.
+ */
+export function getConfigSummary(): string {
+  const result = checkModifiedConfig();
+  const total = result.modified.length;
+
+  if (total === 0) {
+    return 'All configuration options at defaults';
+  }
+
+  const parts: string[] = [];
+  if (result.byTier.essential > 0) parts.push(`${result.byTier.essential} essential`);
+  if (result.byTier.advanced > 0) parts.push(`${result.byTier.advanced} advanced`);
+  if (result.byTier.internal > 0) parts.push(`${result.byTier.internal} internal`);
+
+  return `${total} option(s) modified from defaults: ${parts.join(', ')}`;
 }

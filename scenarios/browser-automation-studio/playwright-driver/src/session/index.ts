@@ -27,3 +27,4 @@ export * from './browser-manager';
 export * from './cleanup';
 export * from './context-builder';
 export * from './cdp-session';
+export * from './state-machine';

@@ -7,6 +7,7 @@ import { removeRecordingBuffer } from '../recording/buffer';
 import { clearSessionRoutes } from '../handlers/network';
 import { clearSessionDownloadCache } from '../handlers/download';
 import { BrowserManager, type BrowserStatus } from './browser-manager';
+import { transition, canTransition, canAcceptInstructions } from './state-machine';
 
 /**
  * SessionManager - Browser Session Lifecycle Management
@@ -316,20 +317,62 @@ export class SessionManager {
   }
 
   /**
-   * Update session phase.
-   * Used to track session lifecycle transitions for observability.
+   * Update session phase using the state machine.
+   *
+   * Uses the session state machine to validate transitions.
+   * Invalid transitions are logged but don't crash - the phase
+   * remains unchanged in that case.
+   *
+   * @param sessionId - Session ID
+   * @param targetPhase - Desired phase to transition to
+   * @returns true if transition was successful, false if invalid or session not found
    */
-  setSessionPhase(sessionId: string, phase: SessionPhase): void {
+  setSessionPhase(sessionId: string, targetPhase: SessionPhase): boolean {
     const session = this.sessions.get(sessionId);
-    if (session) {
-      const previousPhase = session.phase;
-      session.phase = phase;
-      logger.debug(scopedLog(LogContext.SESSION, 'phase transition'), {
-        sessionId,
-        from: previousPhase,
-        to: phase,
-      });
+    if (!session) {
+      return false;
     }
+
+    const previousPhase = session.phase;
+    const newPhase = transition(previousPhase, targetPhase, sessionId);
+
+    // transition() returns the original phase if invalid
+    if (newPhase === previousPhase && newPhase !== targetPhase) {
+      // Invalid transition - phase wasn't changed
+      return false;
+    }
+
+    session.phase = newPhase;
+    return true;
+  }
+
+  /**
+   * Check if a session can accept new instructions.
+   *
+   * @param sessionId - Session ID
+   * @returns true if session exists and can accept instructions
+   */
+  canAcceptInstructions(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return false;
+    }
+    return canAcceptInstructions(session.phase);
+  }
+
+  /**
+   * Check if a session can transition to a target phase.
+   *
+   * @param sessionId - Session ID
+   * @param targetPhase - Phase to check transition to
+   * @returns true if the transition would be valid
+   */
+  canTransitionTo(sessionId: string, targetPhase: SessionPhase): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return false;
+    }
+    return canTransition(session.phase, targetPhase);
   }
 
   /**

@@ -4,6 +4,11 @@
  * Provides frame streaming capabilities for recording sessions.
  * Supports CDP screencast (preferred) and polling-based capture (fallback).
  *
+ * Architecture:
+ * - manager.ts - Thin orchestrator
+ * - strategies/ - Frame capture implementations (CDP screencast, polling)
+ * - websocket/ - WebSocket connection management
+ *
  * @module frame-streaming
  */
 
@@ -17,7 +22,6 @@ export {
 
 // Types
 export type {
-  FrameStreamState,
   FrameStreamOptions,
   FrameStreamUpdateOptions,
   FrameStreamSettings,
@@ -32,3 +36,19 @@ export {
   FPS_LOG_INTERVAL,
   SCREENSHOT_TIMEOUT_MS,
 } from './types';
+
+// Strategy types (for advanced usage)
+export type {
+  FrameStreamingStrategy,
+  StreamingStrategyConfig,
+  StreamingHandle,
+  WebSocketProvider,
+  FrameStatsReporter,
+  FrameStats,
+} from './strategies';
+
+// Strategy factories (for testing/custom usage)
+export { createCdpScreencastStrategy, createPollingStrategy } from './strategies';
+
+// WebSocket utilities
+export { buildWebSocketUrl } from './websocket';
