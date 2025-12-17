@@ -4,6 +4,7 @@ Track development progress, decisions, and significant changes.
 
 | Date | Author | Status Snapshot | Notes |
 |------|--------|-----------------|-------|
+| 2025-12-16 | Claude Opus 4.5 | Idempotency & Temporal Flow Hardening | Added idempotency keys for Create, made all state transitions idempotent, added optimistic locking, database-level scope locking, mount verification methods |
 | 2025-12-16 | Claude Opus 4.5 | Intent Clarification & Assumption Hardening | Renamed ConflictType constants for clarity, added state machine ASCII diagram, documented assumptions explicitly in code, added validation guards, created assumption tests as executable documentation |
 | 2025-12-17 | Claude Opus 4.5 | Progress & Signal Surface Design | Created PostgreSQL schema (sandboxes, audit_log, check_scope_overlap), added stats endpoint, implemented structured JSON logging, improved error signals with actionable hints. Backend API now fully functional. |
 | 2025-12-17 | Claude Opus 4.5 | Comprehensive UI implementation | Replaced template UI with full-featured diff viewer, sandbox list, status header, create dialog. Complete UX for sandbox lifecycle management with approve/reject workflow. |
@@ -43,6 +44,163 @@ Track development progress, decisions, and significant changes.
 2. Implement P0-002: overlayfs driver
 3. Add unit tests for path normalization and mutual exclusion
 4. Set up database schema for sandbox metadata
+
+---
+
+## 2025-12-16 Idempotency & Temporal Flow Hardening
+
+### Focus: Replay Safety and Temporal Correctness
+
+Following the ecosystem-manager phases for "Idempotency & Replay Safety Hardening" and "Temporal Flow Audit", this session focused on:
+1. Making operations safe under repeated execution
+2. Adding optimistic concurrency control
+3. Preventing race conditions in scope overlap checking
+4. Verifying mount state before operations
+
+### Key Changes
+
+#### 1. Idempotency Key Support (types/types.go, repository, service)
+
+Added idempotency key support for Create operations:
+
+**CreateRequest** now includes:
+```go
+IdempotencyKey string `json:"idempotencyKey,omitempty"`
+```
+
+**Sandbox** now includes:
+```go
+IdempotencyKey string `json:"idempotencyKey,omitempty" db:"idempotency_key"`
+UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
+Version int64 `json:"version" db:"version"`
+```
+
+**Service.Create** checks idempotency key first:
+- If key provided and sandbox exists with that key, return existing sandbox
+- This enables safe retries without creating duplicates
+
+#### 2. Idempotent State Transitions (sandbox/service.go)
+
+Made all state-changing operations idempotent:
+
+| Operation | Behavior on Repeat |
+|-----------|-------------------|
+| **Stop** | Returns sandbox if already Stopped |
+| **Delete** | Returns success if already Deleted or not found |
+| **Approve** | Returns success result with Applied=0 if already Approved |
+| **Reject** | Returns sandbox if already Rejected |
+
+This means callers can safely retry operations without checking status first.
+
+#### 3. Optimistic Locking (repository/sandbox_repo.go)
+
+Added version-based optimistic concurrency control:
+
+**UpdateWithVersionCheck** method:
+- Only updates if version matches expected
+- Returns `ConcurrentModificationError` on version mismatch
+- Error includes expected vs actual version for debugging
+
+**Update** method:
+- Automatically increments version on every update
+- Updates UpdatedAt timestamp
+
+#### 4. Database-Level Scope Locking (repository/sandbox_repo.go)
+
+The TxRepository's CheckScopeOverlap uses `FOR UPDATE` to prevent race conditions:
+```sql
+SELECT id, scope_path, status
+FROM sandboxes
+WHERE project_root = $1
+  AND status IN ('creating', 'active', 'stopped')
+  AND ($3::uuid IS NULL OR id != $3)
+FOR UPDATE
+```
+
+This locks potentially conflicting rows during scope checking, preventing two sandboxes from being created with overlapping scopes simultaneously.
+
+#### 5. New Error Types (types/errors.go)
+
+Added errors for idempotency and concurrency:
+
+**ConcurrentModificationError**:
+- Indicates version mismatch (someone else modified the sandbox)
+- HTTP 409 Conflict
+- Retryable (fetch new version and retry)
+
+**AlreadyExistsError**:
+- Indicates idempotency key collision with different parameters
+- HTTP 409 Conflict
+- Not retryable (use existing resource or new key)
+
+#### 6. Mount Verification Methods (driver/driver.go, overlayfs.go)
+
+Added temporal safety methods to the Driver interface:
+
+**IsMounted**: Checks if overlay is currently mounted
+**VerifyMountIntegrity**: Comprehensive health check including:
+- Mount point exists and is a directory
+- Mount is actually mounted (not just a directory)
+- Mount is accessible (can list contents)
+- Upper dir exists and is writable
+
+#### 7. Transaction Support (repository/sandbox_repo.go)
+
+Added transactional repository support:
+
+**BeginTx**: Starts a transaction, returns TxRepository
+**TxRepository**: Repository bound to a transaction with Commit/Rollback
+
+This enables atomic operations across multiple database calls.
+
+### Database Schema Changes (initialization/postgres/seed.sql)
+
+Added new columns:
+```sql
+idempotency_key TEXT UNIQUE,  -- Client-provided key for request deduplication
+updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),  -- Last modification time
+version BIGINT NOT NULL DEFAULT 1  -- Optimistic locking version counter
+```
+
+Added index:
+```sql
+CREATE INDEX IF NOT EXISTS idx_sandboxes_idempotency_key
+    ON sandboxes(idempotency_key) WHERE idempotency_key IS NOT NULL;
+```
+
+### Files Changed
+- `api/internal/types/types.go` (IdempotencyKey, UpdatedAt, Version fields)
+- `api/internal/types/errors.go` (ConcurrentModificationError, AlreadyExistsError)
+- `api/internal/repository/sandbox_repo.go` (FindByIdempotencyKey, UpdateWithVersionCheck, BeginTx, TxRepository)
+- `api/internal/sandbox/service.go` (idempotent operations)
+- `api/internal/driver/driver.go` (IsMounted, VerifyMountIntegrity interface)
+- `api/internal/driver/overlayfs.go` (mount verification implementations)
+- `api/internal/sandbox/idempotency_test.go` (new - comprehensive tests)
+- `initialization/postgres/seed.sql` (new columns)
+
+### Test Coverage
+
+Created comprehensive idempotency tests documenting:
+- Idempotency key behavior for Create
+- Idempotent behavior for Stop, Delete, Approve, Reject
+- Concurrent modification detection
+- Terminal state transition rejection
+- Version increment behavior
+
+### Why Idempotency Matters
+
+Network failures, retries, and distributed systems make idempotency critical:
+- A client may retry after timeout without knowing if first request succeeded
+- Message queues may deliver the same message twice
+- Cron jobs may run twice due to clock skew
+
+Without idempotency, these cause duplicate resources, conflicting state, and hard-to-debug errors.
+
+### Next Steps
+- Add integration tests for concurrent operations
+- Implement retry logic with backoff in client libraries
+- Add metrics for idempotency key hits (replay detection)
+- Consider adding idempotency key expiration/cleanup
 
 ---
 

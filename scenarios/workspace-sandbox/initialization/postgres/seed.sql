@@ -85,7 +85,12 @@ CREATE TABLE IF NOT EXISTS sandboxes (
 
     -- Metadata
     tags TEXT[] NOT NULL DEFAULT '{}',
-    metadata JSONB NOT NULL DEFAULT '{}'
+    metadata JSONB NOT NULL DEFAULT '{}',
+
+    -- Idempotency & Concurrency Control (added for replay safety)
+    idempotency_key TEXT UNIQUE,  -- Client-provided key for request deduplication
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),  -- Last modification time
+    version BIGINT NOT NULL DEFAULT 1  -- Optimistic locking version counter
 );
 
 -- Index for fast status filtering (most common query pattern)
@@ -106,6 +111,10 @@ CREATE INDEX IF NOT EXISTS idx_sandboxes_created_at ON sandboxes(created_at DESC
 -- Composite index for common filter combinations
 CREATE INDEX IF NOT EXISTS idx_sandboxes_status_created
     ON sandboxes(status, created_at DESC);
+
+-- Index for idempotency key lookups (UNIQUE constraint already provides this, but explicit for clarity)
+CREATE INDEX IF NOT EXISTS idx_sandboxes_idempotency_key
+    ON sandboxes(idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 -- ============================================================================
 -- AUDIT LOG TABLE
@@ -244,6 +253,11 @@ COMMENT ON COLUMN sandboxes.active_pids IS 'PIDs of processes running in this sa
 COMMENT ON TABLE sandbox_audit_log IS 'Immutable audit trail of all sandbox operations';
 COMMENT ON COLUMN sandbox_audit_log.event_type IS 'Operation type: created, stopped, approved, rejected, deleted, error';
 COMMENT ON COLUMN sandbox_audit_log.sandbox_state IS 'Snapshot of sandbox state at event time';
+
+-- Idempotency & Concurrency Control documentation
+COMMENT ON COLUMN sandboxes.idempotency_key IS 'Client-provided key for request deduplication; enables safe retries';
+COMMENT ON COLUMN sandboxes.updated_at IS 'Last modification timestamp; updated on every change';
+COMMENT ON COLUMN sandboxes.version IS 'Optimistic lock version; incremented on each update to detect concurrent modifications';
 
 COMMENT ON FUNCTION check_scope_overlap IS 'Checks for path overlaps with active sandboxes to enforce mutual exclusion';
 COMMENT ON FUNCTION get_sandbox_stats IS 'Returns aggregate statistics for dashboard and metrics';

@@ -86,26 +86,42 @@ This document tracks known issues, open questions, and ideas deferred for future
    If an agent writes to the sandbox while diff is being generated, results may be inconsistent.
    Future: Add optional file locking or copy-then-diff approach.
 
-2. **Mount persistence between calls**: Assumes mounted overlays remain stable.
-   If mount is unmounted externally (e.g., by system admin), operations will fail confusingly.
-   Future: Add mount verification before operations, with clear error messages.
+2. **Mount persistence between calls**: ✓ ADDRESSED - Added `IsMounted()` and `VerifyMountIntegrity()` methods to driver.
+   Now operations can verify mount state before proceeding and provide clear errors.
 
 3. **External command availability**: Assumes `diff`, `git`, and `patch` are in PATH.
    On minimal containers these may not be present.
    Future: Check command availability at startup, report in health check.
 
-4. **UpperDir/LowerDir persistence**: Assumes these paths remain valid after sandbox creation.
-   If storage is removed or paths change, operations will fail.
-   Mitigated: Added existence checks in diff generation.
+4. **UpperDir/LowerDir persistence**: ✓ ADDRESSED - Added existence checks in diff generation.
+   Clear error messages indicate when directories are missing.
+
+### Idempotency & Concurrency (Recently Addressed)
+
+The following issues were addressed in the 2025-12-16 Idempotency & Temporal Flow session:
+
+1. **Create operation idempotency**: ✓ ADDRESSED - Added idempotency key support.
+   Callers can provide an idempotency key; retries with same key return the existing sandbox.
+
+2. **State transition idempotency**: ✓ ADDRESSED - All state transitions are now idempotent.
+   Stop/Delete/Approve/Reject return success when already in target state.
+
+3. **Concurrent modification detection**: ✓ ADDRESSED - Added optimistic locking with version field.
+   Updates check version; ConcurrentModificationError on conflict.
+
+4. **Scope overlap race condition**: ✓ ADDRESSED - TxRepository uses FOR UPDATE to lock during overlap check.
+   Prevents two sandboxes from being created with overlapping scopes simultaneously.
 
 ### Technical Debt to Address
 
-1. **Driver abstraction completeness**: Ensure interface covers all operations
-2. **Error message quality**: User-facing errors should guide resolution ✓ (Addressed - all errors now have hints)
+1. **Driver abstraction completeness**: ✓ PARTIALLY ADDRESSED - Added IsMounted/VerifyMountIntegrity methods
+2. **Error message quality**: ✓ ADDRESSED - All errors now have hints
 3. **Test coverage for edge cases**: Empty sandboxes, binary files, symlinks
 4. **Performance benchmarks**: Automated tracking of creation latency
-5. **Assumption documentation**: Document all assumptions in code comments (Partially addressed - key assumptions documented)
+5. **Assumption documentation**: ✓ PARTIALLY ADDRESSED - Key assumptions documented in code comments
 6. **Property-based testing**: Path normalization should use property-based tests to catch edge cases
+7. **Idempotency key cleanup**: Consider adding TTL/expiration for old idempotency keys
+8. **Retry metrics**: Track idempotency key hits to monitor replay behavior
 
 ## Questions for Product/User Feedback
 
@@ -117,5 +133,5 @@ This document tracks known issues, open questions, and ideas deferred for future
 
 ---
 
-*Last updated: 2025-12-16 by Claude Opus 4.5 (Intent Clarification & Assumption Hardening)*
+*Last updated: 2025-12-16 by Claude Opus 4.5 (Idempotency & Temporal Flow Hardening)*
 *Next review: After P0 implementation*

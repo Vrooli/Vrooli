@@ -134,6 +134,12 @@ func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig
 // Either req.ProjectRoot must be set, or ServiceConfig.DefaultProjectRoot must
 // be configured. ScopePath is optional; if empty, defaults to the project root.
 //
+// # Idempotency
+//
+// If req.IdempotencyKey is provided, the system first checks if a sandbox was
+// already created with that key. If found, the existing sandbox is returned
+// without creating a duplicate. This enables safe retries of create requests.
+//
 // # Assumptions Made
 //
 //   - The project root directory exists and is accessible
@@ -145,6 +151,23 @@ func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig
 // Returns ValidationError for invalid input, ScopeConflictError if the scope
 // overlaps with an existing sandbox, or DriverError if mounting fails.
 func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error) {
+	// --- Idempotency Check ---
+	// If an idempotency key is provided, check if we already processed this request.
+	// This enables safe retries: if a client retries a create request, they get
+	// the same sandbox back instead of an error or a duplicate.
+	if req.IdempotencyKey != "" {
+		existing, err := s.repo.FindByIdempotencyKey(ctx, req.IdempotencyKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check idempotency key: %w", err)
+		}
+		if existing != nil {
+			// Found existing sandbox with this key - return it (idempotent success)
+			// Note: We don't verify parameters match because the idempotency key
+			// is the authoritative indicator that this is the "same" request.
+			return existing, nil
+		}
+	}
+
 	// ASSUMPTION: Either request or config provides project root
 	// GUARD: Check this explicitly and provide helpful error message
 	projectRoot := req.ProjectRoot
@@ -181,16 +204,17 @@ func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.
 
 	// Create sandbox record
 	sandbox := &types.Sandbox{
-		ID:            uuid.New(),
-		ScopePath:     normalizedPath,
-		ProjectRoot:   projectRoot,
-		Owner:         req.Owner,
-		OwnerType:     req.OwnerType,
-		Status:        types.StatusCreating,
-		Driver:        string(s.driver.Type()),
-		DriverVersion: s.driver.Version(),
-		Tags:          req.Tags,
-		Metadata:      req.Metadata,
+		ID:             uuid.New(),
+		ScopePath:      normalizedPath,
+		ProjectRoot:    projectRoot,
+		Owner:          req.Owner,
+		OwnerType:      req.OwnerType,
+		Status:         types.StatusCreating,
+		Driver:         string(s.driver.Type()),
+		DriverVersion:  s.driver.Version(),
+		Tags:           req.Tags,
+		Metadata:       req.Metadata,
+		IdempotencyKey: req.IdempotencyKey,
 	}
 
 	if sandbox.OwnerType == "" {
@@ -232,8 +256,9 @@ func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.
 		Actor:     req.Owner,
 		ActorType: string(req.OwnerType),
 		Details: map[string]interface{}{
-			"scopePath":   sandbox.ScopePath,
-			"projectRoot": sandbox.ProjectRoot,
+			"scopePath":      sandbox.ScopePath,
+			"projectRoot":    sandbox.ProjectRoot,
+			"idempotencyKey": req.IdempotencyKey,
 		},
 	})
 
@@ -258,13 +283,26 @@ func (s *Service) List(ctx context.Context, filter *types.ListFilter) (*types.Li
 }
 
 // Stop unmounts a sandbox but preserves its data.
+//
+// # Idempotency
+//
+// This operation is idempotent: calling Stop on an already-stopped sandbox
+// returns success with the current sandbox state. This enables safe retries
+// without requiring callers to check the status first.
 func (s *Service) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 	sandbox, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	// Use explicit state transition check
+	// --- Idempotency Check ---
+	// If already stopped, return success (no-op)
+	// This makes Stop safe to retry without error
+	if sandbox.Status == types.StatusStopped {
+		return sandbox, nil
+	}
+
+	// Use explicit state transition check for other states
 	if err := types.CanStop(sandbox.Status); err != nil {
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}
@@ -292,20 +330,40 @@ func (s *Service) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error
 }
 
 // Delete removes a sandbox and all its data.
+//
+// # Idempotency
+//
+// This operation is idempotent: calling Delete on an already-deleted sandbox
+// returns success without error. This enables safe retries and simplifies
+// cleanup workflows.
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	sandbox, err := s.Get(ctx, id)
 	if err != nil {
+		// If sandbox not found, treat as already deleted (idempotent success)
+		if _, ok := err.(*types.NotFoundError); ok {
+			return nil
+		}
 		return err
+	}
+
+	// --- Idempotency Check ---
+	// If already deleted, return success (no-op)
+	if sandbox.Status == types.StatusDeleted {
+		return nil
 	}
 
 	// Cleanup driver resources
 	if err := s.driver.Cleanup(ctx, sandbox); err != nil {
-		// Log but continue
+		// Log but continue - cleanup failures shouldn't block deletion
 		fmt.Printf("warning: driver cleanup failed: %v\n", err)
 	}
 
 	// Mark as deleted in database
 	if err := s.repo.Delete(ctx, id); err != nil {
+		// If already deleted (race condition), treat as success
+		if err.Error() == "sandbox not found or already deleted" {
+			return nil
+		}
 		return fmt.Errorf("failed to delete sandbox: %w", err)
 	}
 
@@ -389,13 +447,30 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 }
 
 // Approve applies sandbox changes to the canonical repo.
+//
+// # Idempotency
+//
+// This operation is idempotent: calling Approve on an already-approved sandbox
+// returns a success result indicating the prior approval. This enables safe retries
+// without re-applying changes or creating duplicate commits.
 func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error) {
 	sandbox, err := s.Get(ctx, req.SandboxID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Use explicit state transition check
+	// --- Idempotency Check ---
+	// If already approved, return success without re-applying changes
+	// This makes Approve safe to retry after network timeouts, etc.
+	if sandbox.Status == types.StatusApproved {
+		return &types.ApprovalResult{
+			Success:   true,
+			Applied:   0, // No changes applied this time
+			AppliedAt: *sandbox.ApprovedAt,
+		}, nil
+	}
+
+	// Use explicit state transition check for other states
 	if err := types.CanApprove(sandbox.Status); err != nil {
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}
@@ -500,13 +575,26 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 }
 
 // Reject marks sandbox changes as rejected.
+//
+// # Idempotency
+//
+// This operation is idempotent: calling Reject on an already-rejected sandbox
+// returns success with the current sandbox state. This enables safe retries
+// without requiring callers to check the status first.
 func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error) {
 	sandbox, err := s.Get(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	// Use explicit state transition check
+	// --- Idempotency Check ---
+	// If already rejected, return success (no-op)
+	// This makes Reject safe to retry without error
+	if sandbox.Status == types.StatusRejected {
+		return sandbox, nil
+	}
+
+	// Use explicit state transition check for other states
 	if err := types.CanReject(sandbox.Status); err != nil {
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}

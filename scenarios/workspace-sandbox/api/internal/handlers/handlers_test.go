@@ -46,6 +46,12 @@ func (m *mockDriver) Cleanup(ctx context.Context, s *types.Sandbox) error  { ret
 func (m *mockDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error) {
 	return nil, nil
 }
+func (m *mockDriver) IsMounted(ctx context.Context, s *types.Sandbox) (bool, error) {
+	return true, nil
+}
+func (m *mockDriver) VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error {
+	return nil
+}
 
 // TestHealthHandler tests the Health endpoint handler.
 // [REQ:REQ-P0-010] Health Check API Endpoint - unit test for status codes

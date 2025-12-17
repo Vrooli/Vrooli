@@ -279,3 +279,71 @@ func (d *OverlayfsDriver) Cleanup(ctx context.Context, s *types.Sandbox) error {
 
 	return nil
 }
+
+// --- Temporal Safety Methods ---
+
+// IsMounted checks if the sandbox overlay is currently mounted.
+// This is critical for temporal safety - we must verify state before operations.
+func (d *OverlayfsDriver) IsMounted(ctx context.Context, s *types.Sandbox) (bool, error) {
+	if s.MergedDir == "" {
+		return false, nil // No merge dir means nothing to check
+	}
+	return d.isMounted(s.MergedDir), nil
+}
+
+// VerifyMountIntegrity performs comprehensive health checks on the mount.
+// Returns nil if healthy, error describing the problem otherwise.
+//
+// Checks performed:
+//   - Mount point exists and is a directory
+//   - Mount is actually mounted (not just a directory)
+//   - Mount is accessible (can list contents)
+//   - Upper dir exists and is writable
+func (d *OverlayfsDriver) VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error {
+	// Check merged dir exists
+	if s.MergedDir == "" {
+		return fmt.Errorf("merged directory path is empty")
+	}
+
+	info, err := os.Stat(s.MergedDir)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("merged directory does not exist: %s", s.MergedDir)
+	}
+	if err != nil {
+		return fmt.Errorf("cannot stat merged directory: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("merged path is not a directory: %s", s.MergedDir)
+	}
+
+	// Verify it's actually mounted
+	if !d.isMounted(s.MergedDir) {
+		return fmt.Errorf("merged directory is not mounted (may be stale): %s", s.MergedDir)
+	}
+
+	// Check accessibility by attempting to list the directory
+	entries, err := os.ReadDir(s.MergedDir)
+	if err != nil {
+		return fmt.Errorf("merged directory is not accessible: %w", err)
+	}
+	_ = entries // We just want to verify access, don't need the entries
+
+	// Check upper dir for write capability
+	if s.UpperDir != "" {
+		upperInfo, err := os.Stat(s.UpperDir)
+		if err != nil {
+			return fmt.Errorf("upper directory check failed: %w", err)
+		}
+		if !upperInfo.IsDir() {
+			return fmt.Errorf("upper path is not a directory: %s", s.UpperDir)
+		}
+
+		// Try to verify write access by checking directory is writable
+		// Note: We don't actually write a test file to avoid side effects
+		if upperInfo.Mode().Perm()&0200 == 0 {
+			return fmt.Errorf("upper directory appears not writable: %s", s.UpperDir)
+		}
+	}
+
+	return nil
+}

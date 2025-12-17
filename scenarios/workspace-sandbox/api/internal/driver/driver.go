@@ -45,6 +45,26 @@ type Driver interface {
 
 	// Cleanup removes all sandbox artifacts (dirs, mounts).
 	Cleanup(ctx context.Context, s *types.Sandbox) error
+
+	// --- Temporal Safety Methods ---
+
+	// IsMounted verifies whether the sandbox overlay is currently mounted.
+	// This enables validation before operations that require an active mount.
+	// Returns true if mounted, false if not, and error if check fails.
+	IsMounted(ctx context.Context, s *types.Sandbox) (bool, error)
+
+	// VerifyMountIntegrity checks that the mount is healthy and accessible.
+	// Returns nil if the mount is valid, or an error describing the problem.
+	// This can detect issues like stale mounts or corrupted overlay state.
+	VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error
+}
+
+// MountState represents the current state of a sandbox mount.
+type MountState struct {
+	IsMounted    bool   `json:"isMounted"`
+	IsHealthy    bool   `json:"isHealthy"`
+	MergedDir    string `json:"mergedDir,omitempty"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 
 // Config holds driver configuration.
