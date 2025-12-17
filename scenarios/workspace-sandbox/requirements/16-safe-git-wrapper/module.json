@@ -1,0 +1,54 @@
+{
+  "description": "PATH-injected wrapper that explains correct workflow for blocked git commands during agent runs",
+  "module_id": "MOD-P1-016",
+  "prd_ref": "OT-P1-007",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "security",
+      "description": "Implement a PATH-injected git wrapper that intercepts restricted commands during sandbox sessions and provides helpful workflow guidance messages.",
+      "id": "REQ-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "draft",
+      "title": "Git Command Safety Wrapper",
+      "validation": [
+        {
+          "notes": "Test command interception",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify help messages",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test with real git operations",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Wrapper overhead \u003c10ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users understand workflow restrictions",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Safe-Git Wrapper"
+}

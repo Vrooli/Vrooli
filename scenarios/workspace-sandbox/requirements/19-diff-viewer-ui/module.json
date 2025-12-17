@@ -1,0 +1,57 @@
+{
+  "description": "Web UI with file-level toggle approval, hunk selection, sandbox metadata display, one-click approve/reject",
+  "module_id": "MOD-P2-019",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-001"
+      ],
+      "description": "Implement web UI for reviewing and approving changes with syntax highlighting",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "draft",
+      "title": "Web-Based Diff Viewer",
+      "validation": [
+        {
+          "notes": "Test UI components",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify syntax highlighting",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Complete review workflow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "UI renders \u003c1000 lines in \u003c1s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can efficiently review changes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Diff Viewer UI"
+}

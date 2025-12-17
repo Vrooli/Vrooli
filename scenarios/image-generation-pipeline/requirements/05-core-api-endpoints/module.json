@@ -1,0 +1,47 @@
+{
+  "description": "POST /api/voice-brief, POST /api/generate, GET /api/campaigns, POST /api/campaigns/:id/generate",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Implement specified REST API endpoints with standardized request/response formats",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "Core API Implementation",
+      "validation": [
+        {
+          "notes": "Test each endpoint",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API flow testing",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Response time \u003c 500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API functionality complete",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Core API endpoints"
+}

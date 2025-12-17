@@ -1,0 +1,117 @@
+{
+  "_metadata": {
+    "entity": "local-info-scout",
+    "generated_at": "2025-12-16T18:34:50-05:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-health-check-api-responds-to-health-endp/module.json",
+    "02-search-api-process-location-based-querie/module.json",
+    "03-categories-api-return-available-business/module.json",
+    "04-natural-language-parse-queries-like-vega/module.json",
+    "05-real-time-data-integrate-with-live-data/module.json",
+    "06-cli-tool-command-line-interface-for-loca/module.json",
+    "07-lifecycle-compliance-works-with-vrooli-s/module.json",
+    "08-smart-filtering-filter-by-rating-price-d/module.json",
+    "09-multi-source-aggregate-data-from-maps-re/module.json",
+    "10-caching-redis-caching-for-frequently-acc/module.json",
+    "11-discovery-mode-suggest-hidden-gems-and-n/module.json",
+    "12-personalization-learn-user-preferences-o/module.json",
+    "13-route-planning-optimize-multi-stop-journ/module.json",
+    "14-social-features-share-discoveries-with-f/module.json",
+    "15-database-persistence-postgresql-for-plac/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-health-check-api-responds-to-health-endp",
+      "priority": "P0",
+      "title": "**Health Check**: API responds to /health endpoint within 500ms (✅ 2025-09-24: 4ms response time)"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-search-api-process-location-based-querie",
+      "priority": "P0",
+      "title": "**Search API**: Process location-based queries with lat/lon/radius parameters (✅ 2025-09-24: Working with multi-source data)"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-categories-api-return-available-business",
+      "priority": "P0",
+      "title": "**Categories API**: Return available business categories for filtering (✅ 2025-09-24: 9 categories available)"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-natural-language-parse-queries-like-vega",
+      "priority": "P0",
+      "title": "**Natural Language**: Parse queries like \"vegan restaurants within 2 miles\" (✅ 2025-09-24: Ollama integration)"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-real-time-data-integrate-with-live-data",
+      "priority": "P0",
+      "title": "**Real-time Data**: Integrate with live data sources for hours/availability (✅ 2025-09-24: SearXNG + OSM ready)"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-cli-tool-command-line-interface-for-loca",
+      "priority": "P0",
+      "title": "**CLI Tool**: Command-line interface for local queries (✅ 2025-09-24: Full CLI with search, categories, help)"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-lifecycle-compliance-works-with-vrooli-s",
+      "priority": "P0",
+      "title": "**Lifecycle Compliance**: Works with vrooli scenario start/stop commands (✅ 2025-09-24: Fully compliant)"
+    },
+    {
+      "id": "MOD-P1-008",
+      "path": "08-smart-filtering-filter-by-rating-price-d",
+      "priority": "P1",
+      "title": "**Smart Filtering**: Filter by rating, price, distance, accessibility (✅ 2025-10-03: Category-aware thresholds, 24-hour detection, relevance scoring)"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-multi-source-aggregate-data-from-maps-re",
+      "priority": "P1",
+      "title": "**Multi-Source**: Aggregate data from maps, reviews, directories (✅ 2025-10-14: LocalDB, OpenStreetMap, SearXNG, Mock data)"
+    },
+    {
+      "id": "MOD-P1-010",
+      "path": "10-caching-redis-caching-for-frequently-acc",
+      "priority": "P1",
+      "title": "**Caching**: Redis caching for frequently accessed data (PARTIAL 2025-10-14: Implementation complete but Redis unavailable - see PROBLEMS.md)"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-discovery-mode-suggest-hidden-gems-and-n",
+      "priority": "P1",
+      "title": "**Discovery Mode**: Suggest \"hidden gems\" and \"new openings\" (✅ 2025-10-03: Time-based recommendations, trending places)"
+    },
+    {
+      "id": "MOD-P2-012",
+      "path": "12-personalization-learn-user-preferences-o",
+      "priority": "P2",
+      "title": "**Personalization**: Learn user preferences over time (✅ 2025-10-14: Full recommendation engine with profiles, history analysis)"
+    },
+    {
+      "id": "MOD-P2-013",
+      "path": "13-route-planning-optimize-multi-stop-journ",
+      "priority": "P2",
+      "title": "**Route Planning**: Optimize multi-stop journeys"
+    },
+    {
+      "id": "MOD-P2-014",
+      "path": "14-social-features-share-discoveries-with-f",
+      "priority": "P2",
+      "title": "**Social Features**: Share discoveries with friends"
+    },
+    {
+      "id": "MOD-P2-015",
+      "path": "15-database-persistence-postgresql-for-plac",
+      "priority": "P2",
+      "title": "**Database Persistence**: PostgreSQL for place data and search logs (✅ 2025-10-03: Port 5433, search logging, analytics)"
+    }
+  ]
+}

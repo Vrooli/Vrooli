@@ -1,0 +1,117 @@
+{
+  "_metadata": {
+    "entity": "email-triage",
+    "generated_at": "2025-12-16T18:12:41-05:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-multi-tenant-user-accounts-with-email-pr/module.json",
+    "02-imap-smtp-integration-with-mail-in-a-box/module.json",
+    "03-ai-powered-rule-creation-assistant-using/module.json",
+    "04-email-semantic-search-with-vector-embedd/module.json",
+    "05-smart-email-prioritization-with-ml-scori/module.json",
+    "06-basic-triage-actions/module.json",
+    "07-real-time-email-processing-and-notificat/module.json",
+    "08-web-dashboard-for-email-management-and-r/module.json",
+    "09-advanced-automation-rules/module.json",
+    "10-email-thread-analysis-and-conversation-t/module.json",
+    "11-integration-with-external-calendars-for/module.json",
+    "12-bulk-email-operations-with-undo-capabili/module.json",
+    "13-email-analytics-and-productivity-insight/module.json",
+    "14-mobile-responsive-ui-for-on-the-go-manag/module.json",
+    "15-email-signature-and-template-management/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-multi-tenant-user-accounts-with-email-pr",
+      "priority": "P0",
+      "title": "Multi-tenant user accounts with email profile isolation (2025-09-24: Mock auth via DEV_MODE)"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-imap-smtp-integration-with-mail-in-a-box",
+      "priority": "P0",
+      "title": "IMAP/SMTP integration with mail-in-a-box for email access (2025-09-24: Mock email service working)"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-ai-powered-rule-creation-assistant-using",
+      "priority": "P0",
+      "title": "AI-powered rule creation assistant using natural language (2025-09-24: Mock AI fallback when Ollama unavailable)"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-email-semantic-search-with-vector-embedd",
+      "priority": "P0",
+      "title": "Email semantic search with vector embeddings in Qdrant (2025-09-24: Qdrant connected and healthy)"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-smart-email-prioritization-with-ml-scori",
+      "priority": "P0",
+      "title": "Smart email prioritization with ML scoring (2025-09-27: PrioritizationService implemented and verified)"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-basic-triage-actions",
+      "priority": "P0",
+      "title": "Basic triage actions (forward, archive, mark important, auto-reply) (2025-09-27: TriageActionService implemented and verified)"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-real-time-email-processing-and-notificat",
+      "priority": "P0",
+      "title": "Real-time email processing and notification integration (2025-09-27: RealtimeProcessor service running and verified)"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-web-dashboard-for-email-management-and-r",
+      "priority": "P0",
+      "title": "Web dashboard for email management and rule configuration (2025-09-24: UI running with dashboard)"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-advanced-automation-rules",
+      "priority": "P1",
+      "title": "Advanced automation rules (scheduled sends, follow-up reminders)"
+    },
+    {
+      "id": "MOD-P1-010",
+      "path": "10-email-thread-analysis-and-conversation-t",
+      "priority": "P1",
+      "title": "Email thread analysis and conversation tracking"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-integration-with-external-calendars-for",
+      "priority": "P1",
+      "title": "Integration with external calendars for meeting context"
+    },
+    {
+      "id": "MOD-P1-012",
+      "path": "12-bulk-email-operations-with-undo-capabili",
+      "priority": "P1",
+      "title": "Bulk email operations with undo capability"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-email-analytics-and-productivity-insight",
+      "priority": "P1",
+      "title": "Email analytics and productivity insights"
+    },
+    {
+      "id": "MOD-P1-014",
+      "path": "14-mobile-responsive-ui-for-on-the-go-manag",
+      "priority": "P1",
+      "title": "Mobile-responsive UI for on-the-go management"
+    },
+    {
+      "id": "MOD-P2-015",
+      "path": "15-email-signature-and-template-management",
+      "priority": "P2",
+      "title": "Email signature and template management"
+    }
+  ]
+}

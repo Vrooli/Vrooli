@@ -1,0 +1,57 @@
+{
+  "description": "",
+  "module_id": "MOD-P2-012",
+  "prd_ref": "elo-swipe-nice-to-have-ai-assisted-pre-filtering-using-ollamajson-workflow",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P1-001"
+      ],
+      "description": "Implement AI-assisted pre-filtering using ollama.json workflow",
+      "id": "REQ-P2-001",
+      "prd_ref": "elo-swipe-nice-to-have-ai-assisted-pre-filtering-using-ollamajson-workflow",
+      "status": "draft",
+      "title": "AI Pre-filtering Integration",
+      "validation": [
+        {
+          "notes": "Test AI integration",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify filter results",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate workflow execution",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Process 100 items in \u003c5s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Pre-filtering reduces manual comparisons",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "AI-assisted pre-filtering using ollama.json workflow"
+}

@@ -1,0 +1,99 @@
+{
+  "description": "Create + mount a sandbox in ~1-2 seconds (best effort) with stable ID, scopePath, and status tracking",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "performance",
+      "description": "System must create and mount a sandbox environment within 2 seconds maximum latency, generating a unique stable identifier and tracking its lifecycle status",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "implemented",
+      "title": "Fast Sandbox Creation",
+      "validation": [
+        {
+          "notes": "Verify UUID generation is unique",
+          "phase": "unit",
+          "ref": "api/internal/sandbox/pathutil_test.go::TestUUIDGeneration",
+          "status": "pass",
+          "type": "test"
+        },
+        {
+          "notes": "Verify status transitions are valid",
+          "phase": "unit",
+          "ref": "api/internal/sandbox/pathutil_test.go::TestStatusTransitions",
+          "status": "pass",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end sandbox creation flow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Creation completes in <2s under normal load",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Creation completes in <5s under 10x load",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Sandbox is usable immediately after creation confirmation",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "Each sandbox must have a unique, stable UUID and normalized scope path that persists across restarts",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-001",
+      "status": "implemented",
+      "title": "Stable Sandbox Identifier",
+      "validation": [
+        {
+          "notes": "UUID format validation",
+          "phase": "unit",
+          "ref": "api/internal/sandbox/pathutil_test.go::TestUUIDGeneration",
+          "status": "pass",
+          "type": "test"
+        },
+        {
+          "notes": "Path normalization test cases",
+          "phase": "unit",
+          "ref": "api/internal/sandbox/pathutil_test.go::TestPathNormalization",
+          "status": "pass",
+          "type": "test"
+        },
+        {
+          "notes": "Verify ID persistence across service restart",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "IDs remain stable in audit logs",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Sandbox Create/Mount Operations"
+}

@@ -1,0 +1,57 @@
+{
+  "description": "",
+  "module_id": "MOD-P2-015",
+  "prd_ref": "email-triage-nice-to-have-email-signature-and-template-management",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-004"
+      ],
+      "description": "Implement email signature and template management system",
+      "id": "REQ-P2-001",
+      "prd_ref": "email-triage-nice-to-have-email-signature-and-template-management",
+      "status": "draft",
+      "title": "Template Management",
+      "validation": [
+        {
+          "notes": "Test template storage",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify signature handling",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end template usage",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Template load \u003c 500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "User template adoption \u003e 50%",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Email signature and template management"
+}

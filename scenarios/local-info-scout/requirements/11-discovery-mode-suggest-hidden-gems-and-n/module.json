@@ -1,0 +1,57 @@
+{
+  "description": "",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "local-info-scout-should-have-discovery-mode-suggest-hidden-gems-and-new-openings-2025-10-03-time-based-recommendations-trending-places",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P1-002"
+      ],
+      "description": "Algorithm to identify and suggest hidden gems and new businesses",
+      "id": "REQ-P1-004",
+      "prd_ref": "local-info-scout-should-have-discovery-mode-suggest-hidden-gems-and-new-openings-2025-10-03-time-based-recommendations-trending-places",
+      "status": "draft",
+      "title": "Discovery Mode",
+      "validation": [
+        {
+          "notes": "New business detection working",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Trending detection working",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Discovery results in main search API",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Algorithm completes in \u003c 5 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users find valuable new places",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "**Discovery Mode**: Suggest \"hidden gems\" and \"new openings\" (✅ 2025-10-03: Time-based recommendations, trending places)"
+}

@@ -1,0 +1,58 @@
+{
+  "description": "",
+  "module_id": "MOD-P1-010",
+  "prd_ref": "elo-swipe-should-have-undoskip-functionality-during-swiping",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "Allow users to undo last comparison or skip current comparison",
+      "id": "REQ-P1-004",
+      "prd_ref": "elo-swipe-should-have-undoskip-functionality-during-swiping",
+      "status": "draft",
+      "title": "Comparison Undo/Skip",
+      "validation": [
+        {
+          "notes": "Test undo logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify skip handling",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate rating restoration on undo",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Undo/skip actions complete in \u003c100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can correct comparison mistakes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Undo/skip functionality during swiping"
+}

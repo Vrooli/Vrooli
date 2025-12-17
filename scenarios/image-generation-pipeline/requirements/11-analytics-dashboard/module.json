@@ -1,0 +1,54 @@
+{
+  "description": "Performance metrics with generation statistics and campaign insights",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "description": "The system shall provide an analytics dashboard displaying key image generation metrics including: total images generated per campaign, average generation time, success/failure rates, and resource utilization stats. Data must be filterable by date range, campaign, and brand.",
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "draft",
+      "title": "Analytics Dashboard Core Metrics",
+      "validation": [
+        {
+          "notes": "Test metric calculation functions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify filter implementations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Dashboard loads and displays real production data",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Dashboard loads in \u003c 2 seconds with 6 months of data",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Stakeholders can track campaign performance effectively",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Analytics dashboard"
+}

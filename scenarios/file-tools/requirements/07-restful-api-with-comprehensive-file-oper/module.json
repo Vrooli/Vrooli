@@ -1,0 +1,61 @@
+{
+  "description": "HTTP API for operations",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "System must provide REST API for all core file operations",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-007",
+      "status": "draft",
+      "title": "RESTful API Endpoints",
+      "validation": [
+        {
+          "notes": "Implement CRUD endpoints",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Proper error responses",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API authentication works",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Rate limiting",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API response within 200ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All core operations accessible via API",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "RESTful API with comprehensive file operation endpoints *(2025-09-24: All P0 endpoints working)*"
+}

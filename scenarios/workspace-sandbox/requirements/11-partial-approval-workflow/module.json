@@ -1,0 +1,57 @@
+{
+  "description": "Apply only selected diffs while preserving remaining sandbox state for follow-up runs",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P1-001"
+      ],
+      "description": "Allow selective application of diff hunks while maintaining sandbox state for unapproved changes. Must track partial approval state and support incremental commits.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Partial Sandbox Change Approval",
+      "validation": [
+        {
+          "notes": "Test hunk selection and application",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify state preservation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Multi-stage approval workflow test",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Partial apply completes within 1s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can iteratively review and approve changes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Partial Approval Workflow"
+}

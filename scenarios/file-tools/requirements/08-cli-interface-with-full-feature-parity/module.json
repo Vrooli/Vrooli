@@ -1,0 +1,64 @@
+{
+  "description": "Command-line tool",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-008"
+      ],
+      "description": "System must provide command-line interface for all operations",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-008",
+      "status": "draft",
+      "title": "CLI Interface Implementation",
+      "validation": [
+        {
+          "notes": "All commands functional",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Help documentation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Pipeline support",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Shell completion",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Command execution within 100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "100% feature parity with API",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "CLI interface with full feature parity *(2025-09-24: Complete CLI with all operations)*"
+}

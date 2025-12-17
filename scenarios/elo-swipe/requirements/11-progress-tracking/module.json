@@ -1,0 +1,57 @@
+{
+  "description": "",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "elo-swipe-should-have-progress-tracking-x-of-y-potential-comparisons",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Display and track progress through potential comparison pairs",
+      "id": "REQ-P1-005",
+      "prd_ref": "elo-swipe-should-have-progress-tracking-x-of-y-potential-comparisons",
+      "status": "draft",
+      "title": "Comparison Progress Tracking",
+      "validation": [
+        {
+          "notes": "Test progress calculation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify display updates",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate progress accuracy",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Update progress in \u003c50ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can track completion status",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Progress tracking (X of Y potential comparisons)"
+}

@@ -1,0 +1,54 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "local-info-scout-must-have-categories-api-return-available-business-categories-for-filtering-2025-09-24-9-categories-available",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "API endpoint returning available business categories for search filtering",
+      "id": "REQ-P0-003",
+      "prd_ref": "local-info-scout-must-have-categories-api-return-available-business-categories-for-filtering-2025-09-24-9-categories-available",
+      "status": "draft",
+      "title": "Business Categories API",
+      "validation": [
+        {
+          "notes": "Returns list of categories",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Categories include metadata",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Categories match search results",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Response time \u003c 200ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All major business types represented",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "**Categories API**: Return available business categories for filtering (✅ 2025-09-24: 9 categories available)"
+}

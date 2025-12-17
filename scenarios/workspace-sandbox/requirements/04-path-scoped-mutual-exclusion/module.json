@@ -1,0 +1,54 @@
+{
+  "description": "Forbid creating sandbox for path P if any active sandbox has scope S where S is ancestor of P or P is ancestor of S",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Implement bidirectional ancestor/descendant path checking for sandbox scope conflicts",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-004",
+      "status": "implemented",
+      "title": "Scope Path Validation",
+      "validation": [
+        {
+          "notes": "Test path comparison logic",
+          "phase": "unit",
+          "ref": "api/internal/sandbox/pathutil_test.go::TestCheckPathOverlap",
+          "status": "pass",
+          "type": "test"
+        },
+        {
+          "notes": "Verify ancestor detection",
+          "phase": "unit",
+          "ref": "api/internal/sandbox/pathutil_test.go::TestFindConflicts",
+          "status": "pass",
+          "type": "test"
+        },
+        {
+          "notes": "Test concurrent sandbox creation with overlapping scopes",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Path check completes in <10ms",
+          "phase": "performance",
+          "ref": "api/internal/sandbox/pathutil_test.go::BenchmarkCheckPathOverlap",
+          "status": "pass",
+          "type": "test"
+        },
+        {
+          "notes": "No overlapping sandboxes can be created",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Path-Scoped Mutual Exclusion"
+}

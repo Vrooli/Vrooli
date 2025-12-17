@@ -1,0 +1,64 @@
+{
+  "description": "Create, list, inspect, stop, delete sandboxes with idempotent cleanup and no leaked mounts",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Implement REST API endpoints for sandbox CRUD operations with proper cleanup",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-007",
+      "status": "draft",
+      "title": "Sandbox Lifecycle API",
+      "validation": [
+        {
+          "notes": "Test API endpoints",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify response formats",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Full lifecycle flow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cleanup verification",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API latency \u003c100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No resource leaks after operations",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Sandbox Lifecycle Management"
+}

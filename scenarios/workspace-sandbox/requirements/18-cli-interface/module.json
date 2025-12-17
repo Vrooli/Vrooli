@@ -1,0 +1,54 @@
+{
+  "description": "Full-featured CLI for create, list, inspect, diff, approve, reject, delete, gc operations",
+  "module_id": "MOD-P1-018",
+  "prd_ref": "OT-P1-009",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "cli",
+      "description": "Provide CLI commands for all sandbox operations including create, list, inspect, diff, approve, reject, delete and gc. Must support both interactive and automated usage.",
+      "id": "REQ-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "draft",
+      "title": "Command Line Interface",
+      "validation": [
+        {
+          "notes": "Test command parsing",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify output formats",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end CLI workflow test",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Command response \u003c500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can manage sandboxes efficiently",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "CLI Interface"
+}

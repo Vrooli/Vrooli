@@ -1,0 +1,57 @@
+{
+  "description": "bwrap to run agent/tool processes in constrained filesystem view with canonical repo mounted read-only",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "security",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "Configure bubblewrap to provide process isolation with restricted filesystem view",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-003",
+      "status": "draft",
+      "title": "Process Isolation with Bubblewrap",
+      "validation": [
+        {
+          "notes": "Verify bwrap configuration",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test filesystem restrictions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate process isolation",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Check mount propagation",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Processes cannot escape sandbox",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Bubblewrap Process Isolation"
+}

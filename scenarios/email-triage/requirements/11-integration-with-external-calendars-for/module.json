@@ -1,0 +1,54 @@
+{
+  "description": "",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "email-triage-should-have-integration-with-external-calendars-for-meeting-context",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "Integrate with external calendar systems for meeting context",
+      "id": "REQ-P1-003",
+      "prd_ref": "email-triage-should-have-integration-with-external-calendars-for-meeting-context",
+      "status": "draft",
+      "title": "Calendar Integration",
+      "validation": [
+        {
+          "notes": "Test calendar sync",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify context mapping",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Full calendar integration test",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Context fetch \u003c 1s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "100% calendar sync accuracy",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Integration with external calendars for meeting context"
+}

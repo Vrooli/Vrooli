@@ -1,0 +1,57 @@
+{
+  "description": "Generate unified diff and file list of all changes in sandbox's upper layer with stable ordering",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "Generate unified diffs with stable file ordering showing changes in sandbox upper layer",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-005",
+      "status": "implemented",
+      "title": "Stable Diff Generation",
+      "validation": [
+        {
+          "notes": "Verify diff format",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test file ordering",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Generate diff for various change types",
+          "phase": "integration",
+          "ref": "api/internal/driver/overlayfs_test.go::TestDetectChangeType",
+          "status": "pass",
+          "type": "test"
+        },
+        {
+          "notes": "Generate diff for 1000 files in <5s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Diffs are reproducible and stable",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Diff Generation"
+}

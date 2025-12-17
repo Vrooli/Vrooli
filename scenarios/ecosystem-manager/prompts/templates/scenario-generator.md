@@ -36,7 +36,7 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
 ## PRD Generation
 Do not hand-write `PRD.md`. Always generate and publish `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` through `prd-control-tower` by using the guide below:
 
-1. Write a free-form PRD brief: 
+1. Write a free-form PRD brief:
 ```bash
 cat > /tmp/prd_context_{{TARGET}}.md <<'EOF'
 <your multi-line brief here>
@@ -63,17 +63,59 @@ Make sure you *do not:*
 prd-control-tower prd generate {{TARGET}} --context-file /tmp/prd_context_{{TARGET}}.md --publish --json
 ```
 
+## Requirements Registry Generation
+
+After PRD generation, create the requirements registry from the operational targets:
+
+1. Optionally write a requirements context file with additional guidance:
+```bash
+cat > /tmp/requirements_context_{{TARGET}}.md <<'EOF'
+## Validation Approach
+- Describe testing strategy (unit, integration, performance tests)
+- Note any specific validation criteria
+
+## Technical Constraints
+- Note any technical limitations or requirements
+- Specify dependencies between requirements
+
+## Requirement Details
+- Add details for specific operational targets that need clarification
+EOF
+```
+
+2. Generate the requirements files:
+```bash
+prd-control-tower requirements generate {{TARGET}} --context-file /tmp/requirements_context_{{TARGET}}.md --json
+```
+
+This creates:
+- `requirements/index.json` - Module registry linking to PRD targets
+- `requirements/README.md` - Documentation with auto-sync guidance and validation commands
+- `requirements/01-<target-name>/module.json` - Per-target requirement definitions
+
+3. Validate the generated requirements:
+```bash
+prd-control-tower requirements validate {{TARGET}} --json
+```
+
 ## `.vrooli/` Setup Checklist
 - `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/service.json` – service metadata, tags, port ranges. Keep ports in the scenario allocation bands.
 - `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/endpoints.json` (and any additional files such as testing.json, lighthouse.json) so lifecycle commands know how to monitor/test the scenario.
 - Document any required environment variables or secrets in README.md.
 
-## Requirements Registry Seeding
-- Create `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json` plus a folder per operational target (e.g., `01-<first-target-name>`, `02-<second-target-name>`, …). Place module JSON files inside these directories so the filesystem mirrors the PRD targets.
-- For every operational target, add requirement entries with:
-  - `id` (pattern `[A-Z][A-Z0-9]+-[A-Z0-9-]+`), title, `prd_ref`, `criticality`, optional children/dependencies, empty `validation` array.
-  - Notes on which phases (unit/integration/business/performance) should validate the requirement once implemented.
-- In README/PRD, instruct improvers to tag tests with `[REQ:ID]`, run the scenario’s full test suite.
+## Requirements Registry (Reference)
+The requirements registry is generated automatically by `prd-control-tower requirements generate` (see above). The structure created is:
+- `requirements/index.json` - Module registry with metadata
+- `requirements/README.md` - Documentation with validation commands and test tagging guidance
+- `requirements/01-<target-name>/module.json` - Per-target requirements
+
+Each requirement has:
+- `id` (pattern `REQ-P0-001`, `REQ-P1-001`, etc.)
+- `title`, `description`, `prd_ref` linking to operational target
+- `criticality` derived from target (P0/P1/P2)
+- `validation` phases (unit/integration/business/performance)
+
+The generated README instructs improvers to tag tests with `[REQ:ID]` comments.
 
 ## Documentation Checklist
 - **README.md**

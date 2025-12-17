@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -29,6 +31,7 @@ func NewApp() (*App, error) {
 		Version:            appVersion,
 		Description:        "PRD Control Tower CLI",
 		DefaultAPIBase:     defaultAPIBase,
+		DefaultHTTPTimeout: 300 * time.Second, // AI generation can take several minutes
 		APIEnvVars:         env.APIEnvVars,
 		APIPortEnvVars:     env.APIPortEnvVars,
 		APIPortDetector:    cliutil.DetectPortFromVrooli(appName, "API_PORT"),

@@ -1,0 +1,54 @@
+{
+  "description": "Basic health endpoint for lifecycle monitoring",
+  "module_id": "MOD-P0-009",
+  "prd_ref": "OT-P0-009",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Implement a /health endpoint that returns 200 OK when service is operational and 503 when degraded/unavailable. Response must include uptime, active sandbox count, and disk usage metrics.",
+      "id": "REQ-P0-010",
+      "prd_ref": "OT-P0-009",
+      "status": "draft",
+      "title": "Health Check API Endpoint",
+      "validation": [
+        {
+          "notes": "Verify endpoint returns correct status codes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate JSON response schema",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Health check responds correctly during service lifecycle events",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Endpoint responds within 100ms under load",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Monitoring systems can detect service health state",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Health Check API"
+}

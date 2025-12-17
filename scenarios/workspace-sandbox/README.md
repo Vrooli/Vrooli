@@ -1,0 +1,171 @@
+# Workspace Sandbox
+
+Fast, storage-efficient, copy-on-write workspaces for running agents and tools against a project folder without risking modification to the canonical repo.
+
+## What It Is
+
+workspace-sandbox creates isolated writable views of a chosen path scope within a repository, captures all changes as diffs, and supports an approval workflow to selectively apply those changes back to the real repo via controlled patch application.
+
+**Key Capabilities:**
+- Create sandboxes in ~1-2 seconds with overlayfs copy-on-write
+- Disk cost proportional only to files actually changed
+- Generate unified diffs from sandbox changes
+- Review and approve changes at file or hunk level
+- Apply approved patches to canonical repo via controlled process
+
+## What It Is NOT
+
+This system is designed for **safety from accidents**, not **security from adversaries**:
+- Prevents unintended repo damage
+- Reduces concurrency collisions
+- Makes agent work reviewable and revertible
+- **NOT** a hardened security sandbox - adversarial processes may escape
+
+## Quick Start
+
+```bash
+# Start the workspace-sandbox services
+cd scenarios/workspace-sandbox
+make start
+
+# Or use the CLI directly
+vrooli scenario start workspace-sandbox
+```
+
+## Usage
+
+### CLI Commands
+
+```bash
+# Create a new sandbox for a path
+workspace-sandbox create --scope /path/to/scope
+
+# List active sandboxes
+workspace-sandbox list
+
+# Inspect a sandbox
+workspace-sandbox inspect <sandbox-id>
+
+# Generate diff from sandbox changes
+workspace-sandbox diff <sandbox-id>
+
+# Approve changes
+workspace-sandbox approve <sandbox-id>
+workspace-sandbox approve <sandbox-id> --files file1.go,file2.go
+
+# Reject and cleanup
+workspace-sandbox reject <sandbox-id>
+
+# Delete a sandbox
+workspace-sandbox delete <sandbox-id>
+
+# Garbage collection
+workspace-sandbox gc --older-than 24h
+```
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/sandboxes` | Create a new sandbox |
+| GET | `/api/v1/sandboxes` | List sandboxes |
+| GET | `/api/v1/sandboxes/:id` | Get sandbox details |
+| GET | `/api/v1/sandboxes/:id/diff` | Get unified diff |
+| POST | `/api/v1/sandboxes/:id/approve` | Approve and apply changes |
+| POST | `/api/v1/sandboxes/:id/reject` | Reject changes |
+| DELETE | `/api/v1/sandboxes/:id` | Delete sandbox |
+| POST | `/api/v1/gc` | Run garbage collection |
+
+### UI
+
+The web UI provides a diff viewer for reviewing and approving changes:
+- File-level approval toggles
+- Hunk-level selection (P1 feature)
+- Sandbox metadata display
+- One-click approve/reject
+
+Access at `http://localhost:<UI_PORT>` after starting the scenario.
+
+## Architecture
+
+### Linux Driver Stack
+
+```
+┌─────────────────────────────────────────┐
+│           Sandbox Merged View           │
+│         (read-write mount point)        │
+└─────────────────────────────────────────┘
+                    │
+         ┌──────────┴──────────┐
+         │                     │
+┌────────▼────────┐   ┌───────▼────────┐
+│   Upper Layer   │   │  Lower Layer   │
+│   (writeable)   │   │  (read-only)   │
+│   /sandbox/uuid │   │  /project/root │
+│       /upper    │   │                │
+└─────────────────┘   └────────────────┘
+         │                     │
+         └──────────┬──────────┘
+                    │
+         ┌──────────▼──────────┐
+         │     overlayfs       │
+         └─────────────────────┘
+```
+
+### Process Isolation
+
+Sandboxed processes run under bubblewrap (bwrap) with:
+- Canonical repo mounted read-only
+- Sandbox merged view as working directory
+- Optional network restrictions
+- Process group tracking for cleanup
+
+## Requirements
+
+### System Requirements
+- Linux kernel 4.0+ with overlayfs support
+- bubblewrap package (`apt install bubblewrap`)
+- PostgreSQL for metadata storage
+
+### Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `API_PORT` | Port for the Go API server |
+| `UI_PORT` | Port for the Vite dev server |
+| `WS_PORT` | WebSocket for live updates |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `PROJECT_ROOT` | Root path for sandboxable directories |
+
+## Documentation
+
+- [PRD.md](./PRD.md) - Product requirements and operational targets
+- [docs/RESEARCH.md](./docs/RESEARCH.md) - Research notes and external references
+- [docs/PROBLEMS.md](./docs/PROBLEMS.md) - Known issues and deferred ideas
+- [docs/PROGRESS.md](./docs/PROGRESS.md) - Development progress log
+- [requirements/README.md](./requirements/README.md) - Requirements traceability
+
+## Known Footguns
+
+1. **Background processes**: Agents may spawn processes that outlive the sandbox session
+2. **Build artifacts**: node_modules, build caches grow sandbox size rapidly
+3. **Long-lived sandboxes**: Changes accumulate; prefer ephemeral use
+4. **Git operations**: stash/commit/checkout/clean/reset blocked by safe-git wrapper
+
+## Testing
+
+```bash
+# Run test suite
+make test
+
+# Or via vrooli
+vrooli scenario test workspace-sandbox
+```
+
+## Contributing
+
+Future agents should:
+1. Update PRD.md and requirements/ when adding features
+2. Append entries to docs/PROGRESS.md for significant changes
+3. Document new footguns in docs/PROBLEMS.md
+4. Stay within `scenarios/workspace-sandbox/` boundaries

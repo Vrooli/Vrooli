@@ -1,0 +1,57 @@
+{
+  "description": "",
+  "module_id": "MOD-P2-014",
+  "prd_ref": "local-info-scout-nice-to-have-social-features-share-discoveries-with-friends",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-004"
+      ],
+      "description": "Allow users to share discovered places with others",
+      "id": "REQ-P2-003",
+      "prd_ref": "local-info-scout-nice-to-have-social-features-share-discoveries-with-friends",
+      "status": "draft",
+      "title": "Social Sharing Features",
+      "validation": [
+        {
+          "notes": "Sharing mechanism works",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Privacy controls effective",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Shared content accessible to recipients",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Share action completes in \u003c 2 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users actively share discoveries",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "**Social Features**: Share discoveries with friends"
+}

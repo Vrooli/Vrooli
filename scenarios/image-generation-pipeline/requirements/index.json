@@ -1,0 +1,103 @@
+{
+  "_metadata": {
+    "entity": "image-generation-pipeline",
+    "generated_at": "2025-12-16T18:27:56-05:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-voice-enabled-briefings/module.json",
+    "02-ai-image-generation/module.json",
+    "03-brand-profile-management/module.json",
+    "04-campaign-organization/module.json",
+    "05-core-api-endpoints/module.json",
+    "06-gallery-ui/module.json",
+    "07-cli-commands/module.json",
+    "08-automated-quality-control/module.json",
+    "09-multi-language-support/module.json",
+    "10-version-control/module.json",
+    "11-analytics-dashboard/module.json",
+    "12-image-variation-generation/module.json",
+    "13-brand-compliance-checking/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-voice-enabled-briefings",
+      "priority": "P0",
+      "title": "Voice-enabled briefings"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-ai-image-generation",
+      "priority": "P0",
+      "title": "AI image generation"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-brand-profile-management",
+      "priority": "P0",
+      "title": "Brand profile management"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-campaign-organization",
+      "priority": "P0",
+      "title": "Campaign organization"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-core-api-endpoints",
+      "priority": "P0",
+      "title": "Core API endpoints"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-gallery-ui",
+      "priority": "P0",
+      "title": "Gallery UI"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-cli-commands",
+      "priority": "P0",
+      "title": "CLI commands"
+    },
+    {
+      "id": "MOD-P1-008",
+      "path": "08-automated-quality-control",
+      "priority": "P1",
+      "title": "Automated quality control"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-multi-language-support",
+      "priority": "P1",
+      "title": "Multi-language support"
+    },
+    {
+      "id": "MOD-P1-010",
+      "path": "10-version-control",
+      "priority": "P1",
+      "title": "Version control"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-analytics-dashboard",
+      "priority": "P1",
+      "title": "Analytics dashboard"
+    },
+    {
+      "id": "MOD-P1-012",
+      "path": "12-image-variation-generation",
+      "priority": "P1",
+      "title": "Image variation generation"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-brand-compliance-checking",
+      "priority": "P1",
+      "title": "Brand compliance checking"
+    }
+  ]
+}

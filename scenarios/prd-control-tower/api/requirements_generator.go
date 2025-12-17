@@ -13,6 +13,150 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// PRDPreValidationResult contains the result of PRD pre-validation for requirements
+type PRDPreValidationResult struct {
+	Valid   bool     `json:"valid"`
+	Issues  []string `json:"issues,omitempty"`
+	FixHint string   `json:"fix_hint,omitempty"`
+}
+
+// validatePRDForRequirements checks if the PRD is properly formatted for requirements generation
+// It validates that operational targets exist and use the correct format
+func validatePRDForRequirements(entityType, entityName string) PRDPreValidationResult {
+	vrooliRoot, err := getVrooliRoot()
+	if err != nil {
+		return PRDPreValidationResult{
+			Valid:   false,
+			Issues:  []string{"Failed to determine Vrooli root directory"},
+			FixHint: "Ensure VROOLI_ROOT is set or you're in the Vrooli project",
+		}
+	}
+
+	prdPath := filepath.Join(vrooliRoot, entityType+"s", entityName, "PRD.md")
+	content, err := os.ReadFile(prdPath)
+	if err != nil {
+		return PRDPreValidationResult{
+			Valid:   false,
+			Issues:  []string{fmt.Sprintf("PRD file not found at %s", prdPath)},
+			FixHint: fmt.Sprintf("Run: prd-control-tower prd generate %s --publish", entityName),
+		}
+	}
+
+	prdContent := string(content)
+	var issues []string
+
+	// Check for modern operational targets section
+	hasModernHeader := strings.Contains(strings.ToLower(prdContent), strings.ToLower(modernOperationalHeader))
+	hasLegacyHeader := strings.Contains(prdContent, "### Functional Requirements")
+
+	if !hasModernHeader && !hasLegacyHeader {
+		issues = append(issues, "PRD is missing operational targets section (expected '## 🎯 Operational Targets' or '### Functional Requirements')")
+	}
+
+	// If modern header exists, validate target format
+	if hasModernHeader {
+		formatIssues := validateModernTargetFormat(prdContent)
+		issues = append(issues, formatIssues...)
+	}
+
+	if len(issues) > 0 {
+		return PRDPreValidationResult{
+			Valid:   false,
+			Issues:  issues,
+			FixHint: fmt.Sprintf("Run: prd-control-tower prd fix %s\nThen retry: prd-control-tower requirements generate %s", entityName, entityName),
+		}
+	}
+
+	return PRDPreValidationResult{Valid: true}
+}
+
+// validateModernTargetFormat checks that modern operational targets use proper format
+func validateModernTargetFormat(content string) []string {
+	var issues []string
+	lines := strings.Split(content, "\n")
+	inSection := false
+	currentPriority := ""
+	targetsFound := 0
+	targetsWithProperFormat := 0
+
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+
+		// Detect section start/end
+		if strings.HasPrefix(line, "## ") {
+			if strings.EqualFold(line, modernOperationalHeader) {
+				inSection = true
+				continue
+			}
+			if inSection {
+				break // Exit when hitting next ## section
+			}
+		}
+
+		if !inSection {
+			continue
+		}
+
+		// Track priority subsections
+		if strings.HasPrefix(line, "###") {
+			if strings.Contains(line, "P0") {
+				currentPriority = "P0"
+			} else if strings.Contains(line, "P1") {
+				currentPriority = "P1"
+			} else if strings.Contains(line, "P2") {
+				currentPriority = "P2"
+			}
+			continue
+		}
+
+		// Check checkbox lines
+		if !strings.HasPrefix(line, "- [") {
+			continue
+		}
+
+		targetsFound++
+
+		// Extract content after checkbox
+		if len(line) < 6 {
+			continue
+		}
+		targetContent := strings.TrimSpace(line[6:])
+
+		// Check for proper format: "ID | title | description"
+		// At minimum need: "ID | title"
+		if strings.Contains(targetContent, "|") {
+			parts := strings.SplitN(targetContent, "|", 3)
+			if len(parts) >= 2 {
+				id := strings.TrimSpace(parts[0])
+				title := strings.TrimSpace(parts[1])
+				if id != "" && title != "" {
+					targetsWithProperFormat++
+					continue
+				}
+			}
+		}
+
+		// Target doesn't have proper format
+		if currentPriority == "P0" || currentPriority == "P1" {
+			preview := targetContent
+			if len(preview) > 50 {
+				preview = preview[:50] + "..."
+			}
+			issues = append(issues, fmt.Sprintf("%s target missing proper format (expected 'ID | title | description'): %s", currentPriority, preview))
+		}
+	}
+
+	if targetsFound == 0 {
+		issues = append(issues, "No operational targets found in '## 🎯 Operational Targets' section")
+	} else if targetsWithProperFormat == 0 {
+		issues = append(issues, fmt.Sprintf("Found %d targets but none use proper format 'ID | title | description'", targetsFound))
+	} else if float64(targetsWithProperFormat)/float64(targetsFound) < 0.5 {
+		issues = append(issues, fmt.Sprintf("Only %d/%d targets use proper format 'ID | title | description'", targetsWithProperFormat, targetsFound))
+	}
+
+	return issues
+}
+
 // RequirementsGenerateRequest represents a request to generate requirements from PRD
 type RequirementsGenerateRequest struct {
 	EntityType string `json:"entity_type"`
@@ -100,6 +244,24 @@ func executeRequirementsGenerate(req RequirementsGenerateRequest) (RequirementsG
 			Success:    false,
 			Message:    fmt.Sprintf("Failed to get Vrooli root: %v", err),
 		}, http.StatusInternalServerError
+	}
+
+	// Step 0: Validate PRD format before proceeding
+	prdValidation := validatePRDForRequirements(req.EntityType, req.EntityName)
+	if !prdValidation.Valid {
+		message := "PRD validation failed. Fix PRD issues before generating requirements.\n\nIssues:\n"
+		for _, issue := range prdValidation.Issues {
+			message += "  • " + issue + "\n"
+		}
+		if prdValidation.FixHint != "" {
+			message += "\n" + prdValidation.FixHint
+		}
+		return RequirementsGenerateResponse{
+			EntityType: req.EntityType,
+			EntityName: req.EntityName,
+			Success:    false,
+			Message:    message,
+		}, http.StatusBadRequest
 	}
 
 	// Step 1: Extract operational targets from PRD
@@ -819,6 +981,25 @@ func executeRequirementsFix(req RequirementsFixRequest) (RequirementsFixResponse
 			Success:    false,
 			Message:    fmt.Sprintf("Failed to get Vrooli root: %v", err),
 		}, http.StatusInternalServerError
+	}
+	_ = vrooliRoot // Used for context, validation uses its own path resolution
+
+	// Step 0: Validate PRD format before proceeding
+	prdValidation := validatePRDForRequirements(req.EntityType, req.EntityName)
+	if !prdValidation.Valid {
+		message := "PRD validation failed. Fix PRD issues before fixing requirements.\n\nIssues:\n"
+		for _, issue := range prdValidation.Issues {
+			message += "  • " + issue + "\n"
+		}
+		if prdValidation.FixHint != "" {
+			message += "\n" + prdValidation.FixHint
+		}
+		return RequirementsFixResponse{
+			EntityType: req.EntityType,
+			EntityName: req.EntityName,
+			Success:    false,
+			Message:    message,
+		}, http.StatusBadRequest
 	}
 
 	// Step 1: Get current validation state

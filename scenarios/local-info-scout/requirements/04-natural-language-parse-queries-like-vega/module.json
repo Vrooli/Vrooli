@@ -1,0 +1,64 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "local-info-scout-must-have-natural-language-parse-queries-like-vegan-restaurants-within-2-miles-2025-09-24-ollama-integration",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-002"
+      ],
+      "description": "Parse natural language location queries into structured search parameters",
+      "id": "REQ-P0-004",
+      "prd_ref": "local-info-scout-must-have-natural-language-parse-queries-like-vegan-restaurants-within-2-miles-2025-09-24-ollama-integration",
+      "status": "draft",
+      "title": "Natural Language Query Parser",
+      "validation": [
+        {
+          "notes": "Extracts location parameters",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Identifies search terms",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Handles distance units",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Parsed queries work with search API",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Parse time \u003c 1 second",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "90% accuracy on test query set",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "**Natural Language**: Parse queries like \"vegan restaurants within 2 miles\" (✅ 2025-09-24: Ollama integration)"
+}

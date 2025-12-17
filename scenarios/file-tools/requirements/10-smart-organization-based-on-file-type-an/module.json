@@ -1,0 +1,57 @@
+{
+  "description": "Auto-organize files",
+  "module_id": "MOD-P1-010",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-005"
+      ],
+      "description": "System must organize files based on configurable rules and patterns",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Auto-Organization Rules",
+      "validation": [
+        {
+          "notes": "Date-based organization",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Type-based sorting",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Custom rule application",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Process 1000 files within 1 minute",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Correct categorization of 95% of files",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Smart organization based on file type and date patterns *(2025-09-24: File type and date organization)*"
+}

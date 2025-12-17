@@ -1,0 +1,54 @@
+{
+  "description": "Active sandbox count, total disk usage, per-sandbox size distribution, create latency, cleanup success rates",
+  "module_id": "MOD-P1-017",
+  "prd_ref": "OT-P1-008",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "performance",
+      "description": "Collect and expose metrics for sandbox count, disk usage, size distribution, operation latencies, and success rates. Support standard monitoring integrations.",
+      "id": "REQ-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "draft",
+      "title": "Sandbox Metrics Collection",
+      "validation": [
+        {
+          "notes": "Test metric collection",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify data formats",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Monitor real usage patterns",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Collection overhead \u003c1%",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operations can monitor system health",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Metrics/Observability"
+}

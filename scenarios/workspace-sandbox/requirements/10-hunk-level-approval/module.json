@@ -1,0 +1,50 @@
+{
+  "description": "UI and API support for selecting individual hunks/sections to approve, not just full files",
+  "module_id": "MOD-P1-010",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-006"
+      ],
+      "description": "Implement UI components for selecting individual diff hunks for approval",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Hunk Selection UI",
+      "validation": [
+        {
+          "notes": "Test hunk parsing",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify selection state",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end hunk approval flow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can select specific changes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Hunk-Level Approval"
+}

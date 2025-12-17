@@ -1,0 +1,215 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "workspace-sandbox status"
+      }
+    },
+    {
+      "id": "create-sandbox",
+      "path": "/api/v1/sandboxes",
+      "method": "POST",
+      "summary": "Create a new sandbox",
+      "description": "Creates a new copy-on-write sandbox for the specified scope path",
+      "category": "sandbox",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scope_path": "string",
+          "owner": "string",
+          "project_root": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "scope_path": "string",
+          "status": "string",
+          "created_at": "string",
+          "merged_path": "string"
+        }
+      },
+      "cli_mapping": {
+        "command": "workspace-sandbox create"
+      }
+    },
+    {
+      "id": "list-sandboxes",
+      "path": "/api/v1/sandboxes",
+      "method": "GET",
+      "summary": "List sandboxes",
+      "description": "Returns all sandboxes with optional filtering by status, scope, or owner",
+      "category": "sandbox",
+      "response": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "cli_mapping": {
+        "command": "workspace-sandbox list"
+      }
+    },
+    {
+      "id": "get-sandbox",
+      "path": "/api/v1/sandboxes/:id",
+      "method": "GET",
+      "summary": "Get sandbox details",
+      "description": "Returns full metadata for a specific sandbox",
+      "category": "sandbox",
+      "cli_mapping": {
+        "command": "workspace-sandbox inspect"
+      }
+    },
+    {
+      "id": "get-sandbox-diff",
+      "path": "/api/v1/sandboxes/:id/diff",
+      "method": "GET",
+      "summary": "Get sandbox diff",
+      "description": "Returns unified diff of all changes in the sandbox",
+      "category": "sandbox",
+      "response": {
+        "type": "object",
+        "properties": {
+          "unified_diff": "string",
+          "files_changed": "array",
+          "additions": "number",
+          "deletions": "number"
+        }
+      },
+      "cli_mapping": {
+        "command": "workspace-sandbox diff"
+      }
+    },
+    {
+      "id": "approve-sandbox",
+      "path": "/api/v1/sandboxes/:id/approve",
+      "method": "POST",
+      "summary": "Approve sandbox changes",
+      "description": "Applies approved changes to the canonical repo",
+      "category": "sandbox",
+      "request": {
+        "type": "object",
+        "properties": {
+          "files": "array",
+          "hunks": "array",
+          "commit_message": "string"
+        }
+      },
+      "cli_mapping": {
+        "command": "workspace-sandbox approve"
+      }
+    },
+    {
+      "id": "reject-sandbox",
+      "path": "/api/v1/sandboxes/:id/reject",
+      "method": "POST",
+      "summary": "Reject sandbox changes",
+      "description": "Discards all changes and marks sandbox as rejected",
+      "category": "sandbox",
+      "cli_mapping": {
+        "command": "workspace-sandbox reject"
+      }
+    },
+    {
+      "id": "delete-sandbox",
+      "path": "/api/v1/sandboxes/:id",
+      "method": "DELETE",
+      "summary": "Delete sandbox",
+      "description": "Unmounts and removes a sandbox, cleaning up all resources",
+      "category": "sandbox",
+      "cli_mapping": {
+        "command": "workspace-sandbox delete"
+      }
+    },
+    {
+      "id": "garbage-collect",
+      "path": "/api/v1/gc",
+      "method": "POST",
+      "summary": "Run garbage collection",
+      "description": "Cleans up old sandboxes based on age and size policies",
+      "category": "system",
+      "request": {
+        "type": "object",
+        "properties": {
+          "older_than": "string",
+          "max_total_size": "number",
+          "dry_run": "boolean"
+        }
+      },
+      "cli_mapping": {
+        "command": "workspace-sandbox gc"
+      }
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "create",
+      "description": "Create a new sandbox for a path scope",
+      "endpoint_id": "create-sandbox"
+    },
+    {
+      "name": "list",
+      "description": "List all sandboxes",
+      "endpoint_id": "list-sandboxes"
+    },
+    {
+      "name": "inspect",
+      "description": "Get detailed info about a sandbox",
+      "endpoint_id": "get-sandbox"
+    },
+    {
+      "name": "diff",
+      "description": "Show changes in a sandbox",
+      "endpoint_id": "get-sandbox-diff"
+    },
+    {
+      "name": "approve",
+      "description": "Approve and apply sandbox changes",
+      "endpoint_id": "approve-sandbox"
+    },
+    {
+      "name": "reject",
+      "description": "Reject and discard sandbox changes",
+      "endpoint_id": "reject-sandbox"
+    },
+    {
+      "name": "delete",
+      "description": "Delete a sandbox",
+      "endpoint_id": "delete-sandbox"
+    },
+    {
+      "name": "gc",
+      "description": "Run garbage collection",
+      "endpoint_id": "garbage-collect"
+    }
+  ]
+}

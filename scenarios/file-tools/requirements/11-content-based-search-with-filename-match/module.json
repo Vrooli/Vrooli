@@ -1,0 +1,54 @@
+{
+  "description": "Search file contents",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "System must support full-text search across file contents",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "Content Search Implementation",
+      "validation": [
+        {
+          "notes": "Text file search",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Pattern matching",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Multi-file search capability",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search 1GB of text within 5 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "95% accuracy in content matches",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Content-based search with filename matching *(2025-09-24: Filename search implemented)*"
+}

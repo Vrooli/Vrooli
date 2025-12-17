@@ -1,0 +1,54 @@
+{
+  "description": "Configurable commit message templates and author attribution for applied patches",
+  "module_id": "MOD-P1-015",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Allow customization of commit message format and author attribution for sandbox changes via templates and policy configuration.",
+      "id": "REQ-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "draft",
+      "title": "Configurable Commit Attribution",
+      "validation": [
+        {
+          "notes": "Test template rendering",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify attribution rules",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end commit flow test",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Template processing \u003c100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Commits follow organization standards",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Commit Attribution Policy"
+}

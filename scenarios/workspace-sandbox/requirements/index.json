@@ -1,0 +1,145 @@
+{
+  "_metadata": {
+    "entity": "workspace-sandbox",
+    "generated_at": "2025-12-16T19:07:33-05:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-sandbox-create-mount-operations/module.json",
+    "02-overlayfs-copy-on-write-driver/module.json",
+    "03-bubblewrap-process-isolation/module.json",
+    "04-path-scoped-mutual-exclusion/module.json",
+    "05-diff-generation/module.json",
+    "06-patch-application/module.json",
+    "07-sandbox-lifecycle-management/module.json",
+    "08-process-session-tracking/module.json",
+    "09-health-check-api/module.json",
+    "10-hunk-level-approval/module.json",
+    "11-partial-approval-workflow/module.json",
+    "12-gc-prune-operations/module.json",
+    "13-audit-trail-metadata/module.json",
+    "14-pre-commit-validation-hooks/module.json",
+    "15-commit-attribution-policy/module.json",
+    "16-safe-git-wrapper/module.json",
+    "17-metrics-observability/module.json",
+    "18-cli-interface/module.json",
+    "19-diff-viewer-ui/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-sandbox-create-mount-operations",
+      "priority": "P0",
+      "title": "Sandbox Create/Mount Operations"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-overlayfs-copy-on-write-driver",
+      "priority": "P0",
+      "title": "Overlayfs Copy-on-Write Driver"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-bubblewrap-process-isolation",
+      "priority": "P0",
+      "title": "Bubblewrap Process Isolation"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-path-scoped-mutual-exclusion",
+      "priority": "P0",
+      "title": "Path-Scoped Mutual Exclusion"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-diff-generation",
+      "priority": "P0",
+      "title": "Diff Generation"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-patch-application",
+      "priority": "P0",
+      "title": "Patch Application"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-sandbox-lifecycle-management",
+      "priority": "P0",
+      "title": "Sandbox Lifecycle Management"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-process-session-tracking",
+      "priority": "P0",
+      "title": "Process/Session Tracking"
+    },
+    {
+      "id": "MOD-P0-009",
+      "path": "09-health-check-api",
+      "priority": "P0",
+      "title": "Health Check API"
+    },
+    {
+      "id": "MOD-P1-010",
+      "path": "10-hunk-level-approval",
+      "priority": "P1",
+      "title": "Hunk-Level Approval"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-partial-approval-workflow",
+      "priority": "P1",
+      "title": "Partial Approval Workflow"
+    },
+    {
+      "id": "MOD-P1-012",
+      "path": "12-gc-prune-operations",
+      "priority": "P1",
+      "title": "GC/Prune Operations"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-audit-trail-metadata",
+      "priority": "P1",
+      "title": "Audit Trail Metadata"
+    },
+    {
+      "id": "MOD-P1-014",
+      "path": "14-pre-commit-validation-hooks",
+      "priority": "P1",
+      "title": "Pre-commit Validation Hooks"
+    },
+    {
+      "id": "MOD-P1-015",
+      "path": "15-commit-attribution-policy",
+      "priority": "P1",
+      "title": "Commit Attribution Policy"
+    },
+    {
+      "id": "MOD-P1-016",
+      "path": "16-safe-git-wrapper",
+      "priority": "P1",
+      "title": "Safe-Git Wrapper"
+    },
+    {
+      "id": "MOD-P1-017",
+      "path": "17-metrics-observability",
+      "priority": "P1",
+      "title": "Metrics/Observability"
+    },
+    {
+      "id": "MOD-P1-018",
+      "path": "18-cli-interface",
+      "priority": "P1",
+      "title": "CLI Interface"
+    },
+    {
+      "id": "MOD-P2-019",
+      "path": "19-diff-viewer-ui",
+      "priority": "P2",
+      "title": "Diff Viewer UI"
+    }
+  ]
+}

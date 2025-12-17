@@ -1,0 +1,124 @@
+{
+  "_metadata": {
+    "entity": "elo-swipe",
+    "generated_at": "2025-12-16T18:58:04-05:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-tinder-like-swipe-ui-for-binary-comparis/module.json",
+    "02-elo-rating-calculation-and-storage/module.json",
+    "03-api-for-submitting-lists-and-retrieving/module.json",
+    "04-postgresql-persistence-for-items-ratings/module.json",
+    "05-cli-for-managing-lists-and-viewing-ranki/module.json",
+    "06-multi-list-support-with-isolated-ranking/module.json",
+    "07-smart-pairing-algorithm-to-minimize-comp/module.json",
+    "08-confidence-scores-based-on-comparison-co/module.json",
+    "09-export-rankings-to-json-csv/module.json",
+    "10-undo-skip-functionality-during-swiping/module.json",
+    "11-progress-tracking/module.json",
+    "12-ai-assisted-pre-filtering-using-ollama-j/module.json",
+    "13-ranking-visualization/module.json",
+    "14-import-lists-from-external-sources/module.json",
+    "15-collaborative-ranking/module.json",
+    "16-historical-preference-analytics/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-tinder-like-swipe-ui-for-binary-comparis",
+      "priority": "P0",
+      "title": "Tinder-like swipe UI for binary comparisons"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-elo-rating-calculation-and-storage",
+      "priority": "P0",
+      "title": "Elo rating calculation and storage"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-api-for-submitting-lists-and-retrieving",
+      "priority": "P0",
+      "title": "API for submitting lists and retrieving rankings"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-postgresql-persistence-for-items-ratings",
+      "priority": "P0",
+      "title": "PostgreSQL persistence for items, ratings, and comparison history"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-cli-for-managing-lists-and-viewing-ranki",
+      "priority": "P0",
+      "title": "CLI for managing lists and viewing rankings"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-multi-list-support-with-isolated-ranking",
+      "priority": "P0",
+      "title": "Multi-list support with isolated ranking pools"
+    },
+    {
+      "id": "MOD-P1-007",
+      "path": "07-smart-pairing-algorithm-to-minimize-comp",
+      "priority": "P1",
+      "title": "Smart pairing algorithm to minimize comparisons needed"
+    },
+    {
+      "id": "MOD-P1-008",
+      "path": "08-confidence-scores-based-on-comparison-co",
+      "priority": "P1",
+      "title": "Confidence scores based on comparison count"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-export-rankings-to-json-csv",
+      "priority": "P1",
+      "title": "Export rankings to JSON/CSV"
+    },
+    {
+      "id": "MOD-P1-010",
+      "path": "10-undo-skip-functionality-during-swiping",
+      "priority": "P1",
+      "title": "Undo/skip functionality during swiping"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-progress-tracking",
+      "priority": "P1",
+      "title": "Progress tracking (X of Y potential comparisons)"
+    },
+    {
+      "id": "MOD-P2-012",
+      "path": "12-ai-assisted-pre-filtering-using-ollama-j",
+      "priority": "P2",
+      "title": "AI-assisted pre-filtering using ollama.json workflow"
+    },
+    {
+      "id": "MOD-P2-013",
+      "path": "13-ranking-visualization",
+      "priority": "P2",
+      "title": "Ranking visualization (graph/chart view)"
+    },
+    {
+      "id": "MOD-P2-014",
+      "path": "14-import-lists-from-external-sources",
+      "priority": "P2",
+      "title": "Import lists from external sources"
+    },
+    {
+      "id": "MOD-P2-015",
+      "path": "15-collaborative-ranking",
+      "priority": "P2",
+      "title": "Collaborative ranking (multiple users)"
+    },
+    {
+      "id": "MOD-P2-016",
+      "path": "16-historical-preference-analytics",
+      "priority": "P2",
+      "title": "Historical preference analytics"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "description": "Basic file manipulation functions",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "System must copy files with preserved attributes and verification",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Basic File Copy Operation",
+      "validation": [
+        {
+          "notes": "Copy single file",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify file integrity",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Preserve timestamps",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Handle concurrent copy operations",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Copy 1GB file within 10 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Identical source and destination checksums",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "File operations (copy, move, rename, delete) *(2025-09-24: Implemented core operations)*"
+}

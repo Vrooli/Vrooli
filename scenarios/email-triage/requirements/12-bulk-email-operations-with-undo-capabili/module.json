@@ -1,0 +1,86 @@
+{
+  "description": "",
+  "module_id": "MOD-P1-012",
+  "prd_ref": "email-triage-should-have-bulk-email-operations-with-undo-capability",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P0-008"
+      ],
+      "description": "System must provide bulk email operations (delete, archive, mark read/unread, move to folder) with an undo capability that allows reverting actions within 30 seconds. The undo feature should maintain a temporary transaction log and support atomic rollback of bulk operations.",
+      "id": "REQ-P1-004",
+      "prd_ref": "email-triage-should-have-bulk-email-operations-with-undo-capability",
+      "status": "draft",
+      "title": "Bulk Email Actions with Undo Support",
+      "validation": [
+        {
+          "notes": "Verify bulk operations execution",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test undo functionality within time window",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate atomic rollback",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm bulk operations across email providers",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test undo across different email operations",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Bulk operations complete within 5 seconds for up to 1000 emails",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Undo operation executes within 2 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Reduces risk of accidental bulk operations",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Improves user confidence in bulk actions",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Bulk email operations with undo capability"
+}

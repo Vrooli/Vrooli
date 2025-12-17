@@ -1,0 +1,57 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "local-info-scout-must-have-search-api-process-location-based-queries-with-latlonradius-parameters-2025-09-24-working-with-multi-source-data",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-007"
+      ],
+      "description": "API endpoint accepting latitude, longitude and radius parameters to search for local businesses",
+      "id": "REQ-P0-002",
+      "prd_ref": "local-info-scout-must-have-search-api-process-location-based-queries-with-latlonradius-parameters-2025-09-24-working-with-multi-source-data",
+      "status": "draft",
+      "title": "Location Search API",
+      "validation": [
+        {
+          "notes": "Valid coordinates return results",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Invalid coordinates handled gracefully",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search results match data from all configured sources",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search completes within 2 seconds",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Results are relevant to search location",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "**Search API**: Process location-based queries with lat/lon/radius parameters (✅ 2025-09-24: Working with multi-source data)"
+}

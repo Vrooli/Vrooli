@@ -1,0 +1,54 @@
+{
+  "description": "Identify file types automatically",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "System must accurately detect MIME types of common file formats",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "MIME Type Detection",
+      "validation": [
+        {
+          "notes": "Detect common image formats",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Detect text file types",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Handle batch MIME detection",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Detect type within 100ms per file",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "95% accuracy for common file types",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "MIME type detection with basic support *(2025-09-24: Implemented using Go mime package)*"
+}

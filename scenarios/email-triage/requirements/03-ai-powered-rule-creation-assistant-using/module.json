@@ -1,0 +1,54 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "email-triage-must-have-ai-powered-rule-creation-assistant-using-natural-language-2025-09-24-mock-ai-fallback-when-ollama-unavailable",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "System must provide AI-powered assistant for creating email rules using natural language input",
+      "id": "REQ-P0-005",
+      "prd_ref": "email-triage-must-have-ai-powered-rule-creation-assistant-using-natural-language-2025-09-24-mock-ai-fallback-when-ollama-unavailable",
+      "status": "draft",
+      "title": "AI Rule Assistant",
+      "validation": [
+        {
+          "notes": "Test NL parsing",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify rule generation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end rule creation flow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Rule generation \u003c 3s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "90% accuracy in rule interpretation",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "AI-powered rule creation assistant using natural language (2025-09-24: Mock AI fallback when Ollama unavailable)"
+}

@@ -1,0 +1,57 @@
+{
+  "description": "Apply approved diffs to canonical repo via controlled, trusted process",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-006"
+      ],
+      "description": "Apply approved changes to canonical repository through controlled process with proper locking",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "Secure Patch Application",
+      "validation": [
+        {
+          "notes": "Test patch application logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify lock handling",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end patch flow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Conflict detection",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Changes applied atomically and safely",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Patch Application"
+}

@@ -1,0 +1,54 @@
+{
+  "description": "Garbage collection by age, max-total-size, inactive TTL policies",
+  "module_id": "MOD-P1-012",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Implement configurable GC policies for sandbox cleanup based on age, total size limits, and inactivity period. Must handle concurrent GC operations safely.",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "Sandbox Garbage Collection",
+      "validation": [
+        {
+          "notes": "Test policy evaluation logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify cleanup operations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end GC cycle test",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "GC completes within resource limits",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "System remains within storage quotas",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "GC/Prune Operations"
+}

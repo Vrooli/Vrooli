@@ -1,0 +1,54 @@
+{
+  "description": "Configurable hooks to run tests/lint before final commit of approved changes",
+  "module_id": "MOD-P1-014",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "Support configurable pre-commit hooks for running tests, linters and custom validation before finalizing sandbox changes. Must handle hook failures appropriately.",
+      "id": "REQ-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "draft",
+      "title": "Pre-commit Validation Hooks",
+      "validation": [
+        {
+          "notes": "Test hook configuration",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify failure handling",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run actual validation tools",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Hook overhead \u003c500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Quality checks prevent invalid commits",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Pre-commit Validation Hooks"
+}

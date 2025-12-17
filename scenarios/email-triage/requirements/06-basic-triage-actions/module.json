@@ -1,0 +1,58 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "email-triage-must-have-basic-triage-actions-forward-archive-mark-important-auto-reply-2025-09-27-triageactionservice-implemented-and-verified",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P0-004"
+      ],
+      "description": "Implement basic email triage actions including forward, archive, mark important, and auto-reply",
+      "id": "REQ-P0-008",
+      "prd_ref": "email-triage-must-have-basic-triage-actions-forward-archive-mark-important-auto-reply-2025-09-27-triageactionservice-implemented-and-verified",
+      "status": "draft",
+      "title": "Core Triage Actions",
+      "validation": [
+        {
+          "notes": "Test each action individually",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify action states",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Full triage workflow testing",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Action execution \u003c 1s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "100% action reliability",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Basic triage actions (forward, archive, mark important, auto-reply) (2025-09-27: TriageActionService implemented and verified)"
+}
