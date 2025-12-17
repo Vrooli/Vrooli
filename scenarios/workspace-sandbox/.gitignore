@@ -1,0 +1,16 @@
+# Build artifacts
+cli/cli
+cli/workspace-sandbox-cli
+api/workspace-sandbox-api
+
+# Node modules
+node_modules/
+.pnpm-debug.log
+
+# Coverage
+coverage/
+
+# Temporary files
+*.tmp
+*.log
+.DS_Store

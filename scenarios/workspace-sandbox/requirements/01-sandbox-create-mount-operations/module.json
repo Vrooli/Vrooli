@@ -46,6 +46,20 @@
           "ref": "api/internal/handlers/handlers_test.go::TestGetWorkspaceSuccess",
           "status": "passing",
           "type": "test"
+        },
+        {
+          "notes": "e2e: Create sandbox validates scope path",
+          "phase": "e2e",
+          "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::create sandbox requires scope path",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "e2e: Create dialog UI displays form fields",
+          "phase": "e2e",
+          "ref": "bas/cases/sandbox-lifecycle/ui/create_sandbox_dialog.json",
+          "status": "passing",
+          "type": "workflow"
         }
       ]
     },
@@ -89,6 +103,13 @@
           "notes": "API validates UUID format in requests",
           "phase": "unit",
           "ref": "api/internal/handlers/handlers_test.go::TestGetSandboxInvalidID",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "e2e: Get sandbox returns 404 with hint for unknown ID",
+          "phase": "e2e",
+          "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::get sandbox 404 response includes hint",
           "status": "passing",
           "type": "test"
         }

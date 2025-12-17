@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "description": "Validates that the create sandbox dialog opens and displays form fields",
+    "requirement": "REQ-P0-001",
+    "version": 1
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "target": "/"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/header.createButton",
+      "timeout": 5000
+    },
+    {
+      "action": "click",
+      "selector": "@selector/header.createButton"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/createDialog.root",
+      "timeout": 3000
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/createDialog.scopePathInput",
+      "condition": "visible"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/createDialog.submitButton",
+      "condition": "visible"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/createDialog.cancelButton",
+      "condition": "visible"
+    },
+    {
+      "action": "click",
+      "selector": "@selector/createDialog.cancelButton"
+    }
+  ]
+}

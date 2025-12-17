@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "description": "Validates that the health indicator displays API connection status",
+    "requirement": "REQ-P0-010",
+    "version": 1
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "target": "/"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/header.root",
+      "timeout": 5000
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/header.healthIndicator",
+      "condition": "visible"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/header.statsPanel",
+      "condition": "visible"
+    }
+  ]
+}

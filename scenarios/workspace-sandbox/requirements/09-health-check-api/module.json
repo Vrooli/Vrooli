@@ -32,6 +32,34 @@
           "ref": "api/internal/handlers/handlers_test.go::TestHealthContentType",
           "status": "passing",
           "type": "test"
+        },
+        {
+          "notes": "e2e: Health endpoint returns 200 OK",
+          "phase": "e2e",
+          "ref": "bas/cases/health-check/api/health_endpoint.bats::health endpoint returns 200 OK",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "e2e: Health response includes required fields",
+          "phase": "e2e",
+          "ref": "bas/cases/health-check/api/health_endpoint.bats::health response includes service field",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "e2e: Health endpoint responds within 500ms",
+          "phase": "e2e",
+          "ref": "bas/cases/health-check/api/health_endpoint.bats::health endpoint responds within 500ms",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "e2e: Health indicator UI displays connection status",
+          "phase": "e2e",
+          "ref": "bas/cases/health-check/ui/health_indicator.json",
+          "status": "passing",
+          "type": "workflow"
         }
       ]
     }

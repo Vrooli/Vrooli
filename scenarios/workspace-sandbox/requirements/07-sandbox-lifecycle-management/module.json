@@ -63,6 +63,41 @@
           "ref": "api/internal/handlers/handlers_test.go::TestRejectSuccess",
           "status": "passing",
           "type": "test"
+        },
+        {
+          "notes": "e2e: List sandboxes returns valid response",
+          "phase": "e2e",
+          "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::list sandboxes returns valid response",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "e2e: List supports status filter",
+          "phase": "e2e",
+          "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::list sandboxes supports status filter",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "e2e: Delete is idempotent",
+          "phase": "e2e",
+          "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::delete sandbox returns success for unknown ID",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "e2e: Stats endpoint returns aggregate data",
+          "phase": "e2e",
+          "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::stats endpoint returns valid counts",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "e2e: UI displays sandbox list",
+          "phase": "e2e",
+          "ref": "bas/cases/sandbox-lifecycle/ui/sandbox_list_display.json",
+          "status": "passing",
+          "type": "workflow"
         }
       ]
     }

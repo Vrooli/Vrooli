@@ -44,7 +44,7 @@ The `test-genie` containment system (see `scenarios/test-genie/api/internal/cont
 - Can mount filesystems with specific read/write permissions
 
 ### Git Diff/Patch Format
-- [Unified Diff Format](https://www.gnu.org/software/diffutils/manual/html_node/Unified-Format.html)
+- [Git Diff Documentation](https://git-scm.com/docs/git-diff) - Includes unified format description
 - [Git-Format-Patch Documentation](https://git-scm.com/docs/git-format-patch)
 - Important for diff generation and hunk-level approval parsing
 

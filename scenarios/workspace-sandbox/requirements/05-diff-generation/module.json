@@ -28,6 +28,13 @@
           "ref": "api/internal/driver/overlayfs_test.go::TestDetectChangeType",
           "status": "passing",
           "type": "test"
+        },
+        {
+          "notes": "e2e: Diff endpoint returns 404 with hint for unknown sandbox",
+          "phase": "e2e",
+          "ref": "bas/cases/diff-generation/api/diff_endpoint.bats::diff 404 response includes hint",
+          "status": "passing",
+          "type": "test"
         }
       ]
     }

@@ -60,6 +60,13 @@ CREATE TABLE sandboxes (
     tags TEXT[] DEFAULT '{}',
     metadata JSONB DEFAULT '{}',
 
+    -- Idempotency support
+    idempotency_key TEXT UNIQUE,        -- Optional client-provided key for idempotent creates
+
+    -- Optimistic locking
+    version BIGINT NOT NULL DEFAULT 1,  -- Version number for optimistic concurrency control
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
     -- Constraints
     CONSTRAINT valid_scope_path CHECK (scope_path != '' AND scope_path ~ '^/'),
     CONSTRAINT valid_project_root CHECK (project_root != '' AND project_root ~ '^/')
@@ -115,6 +122,7 @@ CREATE INDEX idx_sandboxes_project_root ON sandboxes(project_root);
 CREATE INDEX idx_sandboxes_created_at ON sandboxes(created_at);
 CREATE INDEX idx_sandboxes_last_used_at ON sandboxes(last_used_at);
 CREATE INDEX idx_sandboxes_active ON sandboxes(status) WHERE status IN ('creating', 'active');
+CREATE INDEX idx_sandboxes_idempotency_key ON sandboxes(idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 CREATE INDEX idx_sandbox_changes_sandbox_id ON sandbox_changes(sandbox_id);
 CREATE INDEX idx_sandbox_changes_approval ON sandbox_changes(approval_status);
@@ -161,3 +169,32 @@ CREATE TRIGGER sandbox_last_used_trigger
     WHEN (OLD.status IS DISTINCT FROM NEW.status
           OR OLD.active_pids IS DISTINCT FROM NEW.active_pids)
     EXECUTE FUNCTION update_sandbox_last_used();
+
+-- Function to get aggregate sandbox statistics
+CREATE OR REPLACE FUNCTION get_sandbox_stats()
+RETURNS TABLE(
+    total_count BIGINT,
+    active_count BIGINT,
+    stopped_count BIGINT,
+    error_count BIGINT,
+    approved_count BIGINT,
+    rejected_count BIGINT,
+    deleted_count BIGINT,
+    total_size_bytes BIGINT,
+    avg_size_bytes NUMERIC
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        COUNT(*)::BIGINT AS total_count,
+        COUNT(*) FILTER (WHERE status = 'active')::BIGINT AS active_count,
+        COUNT(*) FILTER (WHERE status = 'stopped')::BIGINT AS stopped_count,
+        COUNT(*) FILTER (WHERE status = 'error')::BIGINT AS error_count,
+        COUNT(*) FILTER (WHERE status = 'approved')::BIGINT AS approved_count,
+        COUNT(*) FILTER (WHERE status = 'rejected')::BIGINT AS rejected_count,
+        COUNT(*) FILTER (WHERE status = 'deleted')::BIGINT AS deleted_count,
+        COALESCE(SUM(s.size_bytes), 0)::BIGINT AS total_size_bytes,
+        COALESCE(AVG(s.size_bytes), 0)::NUMERIC AS avg_size_bytes
+    FROM sandboxes s;
+END;
+$$ LANGUAGE plpgsql;
