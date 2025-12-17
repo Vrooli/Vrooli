@@ -3,6 +3,7 @@ import { BaseHandler, HandlerContext, HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getDragDropParams, getGestureParams } from '../types';
 import { normalizeError } from '../utils/errors';
+import { DEFAULT_DRAG_ANIMATION_STEPS } from '../constants';
 
 /** Internal gesture params type for handler use */
 interface GestureParams {
@@ -13,6 +14,11 @@ interface GestureParams {
   scale?: number;
   durationMs?: number;
 }
+
+/**
+ * Canonical gesture types supported by this handler.
+ */
+type GestureType = 'drag' | 'swipe' | 'pinch' | 'zoom' | 'unknown';
 
 /**
  * GestureHandler implements complex mouse/touch gestures
@@ -30,6 +36,45 @@ export class GestureHandler extends BaseHandler {
     return ['drag-drop', 'dragdrop', 'drag', 'swipe', 'pinch', 'zoom', 'gesture'];
   }
 
+  /**
+   * DECISION: Gesture Type Resolution
+   *
+   * Resolves the canonical gesture type from an instruction.
+   * This centralizes the logic for determining what kind of gesture to execute.
+   *
+   * Resolution rules:
+   * - 'drag-drop', 'dragdrop', 'drag' → 'drag'
+   * - 'swipe', 'pinch', 'zoom' → as-is (direct match)
+   * - 'gesture' with gestureType param → param value
+   * - Otherwise → 'unknown'
+   */
+  private resolveGestureType(instruction: HandlerInstruction): GestureType {
+    const type = instruction.type.toLowerCase();
+
+    // Direct drag types
+    if (type.includes('drag')) {
+      return 'drag';
+    }
+
+    // Direct gesture types
+    if (type === 'swipe' || type === 'pinch' || type === 'zoom') {
+      return type;
+    }
+
+    // Generic 'gesture' instruction - resolve from params
+    if (type === 'gesture') {
+      const typedParams = instruction.action ? getGestureParams(instruction.action) : undefined;
+      if (typedParams?.gestureType) {
+        const gestureType = typedParams.gestureType;
+        if (gestureType === 'swipe' || gestureType === 'pinch' || gestureType === 'zoom') {
+          return gestureType;
+        }
+      }
+    }
+
+    return 'unknown';
+  }
+
   async execute(
     instruction: HandlerInstruction,
     context: HandlerContext
@@ -37,43 +82,27 @@ export class GestureHandler extends BaseHandler {
     const { logger } = context;
 
     try {
-      const instructionType = instruction.type.toLowerCase();
+      const gestureType = this.resolveGestureType(instruction);
 
-      // Route to appropriate handler based on instruction type
-      if (instructionType.includes('drag')) {
-        return this.handleDragDrop(instruction, context);
-      } else if (instructionType === 'swipe' || instructionType === 'pinch' || instructionType === 'zoom') {
-        return this.handleGesture(instruction, context);
-      } else if (instructionType === 'gesture') {
-        // Generic gesture - check params.type
-        // Get typed params from instruction.action (required after migration)
-        const typedParams = instruction.action ? getGestureParams(instruction.action) : undefined;
-        const gestureParams = this.requireTypedParams(typedParams, 'gesture', instruction.nodeId);
-        // Map typed gestureType to internal type field
-        const gestureType = gestureParams.gestureType;
-        if (gestureType === 'swipe' || gestureType === 'pinch' || gestureType === 'zoom') {
+      // Dispatch to appropriate handler based on resolved type
+      switch (gestureType) {
+        case 'drag':
+          return this.handleDragDrop(instruction, context);
+        case 'swipe':
+        case 'pinch':
+        case 'zoom':
           return this.handleGesture(instruction, context);
-        }
-        return {
-          success: false,
-          error: {
-            message: `Unknown gesture type: ${gestureType}`,
-            code: 'INVALID_GESTURE',
-            kind: 'user',
-            retryable: false,
-          },
-        };
+        case 'unknown':
+          return {
+            success: false,
+            error: {
+              message: `Unknown or unsupported gesture type: ${instruction.type}`,
+              code: 'INVALID_GESTURE',
+              kind: 'user',
+              retryable: false,
+            },
+          };
       }
-
-      return {
-        success: false,
-        error: {
-          message: `Unsupported instruction type: ${instructionType}`,
-          code: 'INVALID_TYPE',
-          kind: 'user',
-          retryable: false,
-        },
-      };
     } catch (error) {
       logger.error('Gesture operation failed', {
         error: error instanceof Error ? error.message : String(error),
@@ -227,7 +256,7 @@ export class GestureHandler extends BaseHandler {
     }
 
     // Perform drag-and-drop
-    const steps = validated.steps || 10;
+    const steps = validated.steps || DEFAULT_DRAG_ANIMATION_STEPS;
 
     await page.mouse.move(sourceX, sourceY);
     await page.mouse.down();

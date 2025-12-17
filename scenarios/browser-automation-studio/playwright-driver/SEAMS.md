@@ -158,13 +158,13 @@ recording/ ───────────────────────
 ```
 
 - `proto/` is the foundation (imported by all)
-- `recording/` may import from `proto/` via the safe path in `action-types.ts`
+- `proto/action-type-utils.ts` is the single source of truth for ActionType utilities
 - `outcome/` can be imported by handlers and recording
 - `handler-adapter.ts` bridges recording to handlers for replay execution
 
 ### 3. Circular Import Prevention
 
-The `recording/action-types.ts` file imports directly from `@vrooli/proto-types` rather than `../proto` to avoid circular imports. This pattern must be maintained.
+Internal modules import ActionType utilities from `../proto/action-type-utils` rather than re-exports to maintain clear dependency direction.
 
 ## Testing Boundaries
 

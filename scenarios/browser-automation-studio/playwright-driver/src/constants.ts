@@ -23,4 +23,32 @@ export const MAX_NETWORK_EVENTS = 200;
 export const MAX_SCREENSHOT_SIZE_BYTES = 512 * 1024;
 export const MAX_DOM_SIZE_BYTES = 512 * 1024;
 
+// Session limits
+/**
+ * Maximum executed instructions tracked per session for idempotency.
+ * When exceeded, oldest entries are evicted (FIFO).
+ * Trade-off: Higher = more replay protection, more memory per session.
+ */
+export const MAX_EXECUTED_INSTRUCTIONS_PER_SESSION = 1000;
+
+// Recording injection retry configuration
+/**
+ * Maximum attempts to re-inject the recording script after navigation.
+ * Scripts must be re-injected because pages lose injected JS on navigation.
+ */
+export const INJECTION_RETRY_MAX_ATTEMPTS = 3;
+
+/**
+ * Base delay (ms) for exponential backoff during injection retry.
+ * Actual delays: 100ms, 200ms, 400ms (attempts 0, 1, 2).
+ */
+export const INJECTION_RETRY_BASE_DELAY_MS = 100;
+
+// Gesture defaults
+/**
+ * Default number of animation steps for drag operations.
+ * Higher = smoother animation but slower execution.
+ */
+export const DEFAULT_DRAG_ANIMATION_STEPS = 10;
+
 export const VERSION = '2.0.0';

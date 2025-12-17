@@ -148,9 +148,21 @@ export {
 export type {
   RecordEntryCallback,
   StartRecordingOptions,
+} from './controller';
+
+// =============================================================================
+// REPLAY PREVIEW SERVICE
+// =============================================================================
+
+export {
+  ReplayPreviewService,
+  createReplayPreviewService,
+} from './replay-service';
+
+export type {
   ReplayPreviewRequest,
   ReplayPreviewResponse,
-} from './controller';
+} from './replay-service';
 
 // =============================================================================
 // BUFFER (TimelineEntry Storage)

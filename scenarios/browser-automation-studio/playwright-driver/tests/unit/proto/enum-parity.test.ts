@@ -13,9 +13,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
-
-const testDir = path.dirname(fileURLToPath(import.meta.url));
 
 import {
   ActionType,
@@ -266,7 +263,7 @@ interface EnumParityFixture {
 // Find the fixture file - it's in packages/proto/examples/testdata/
 // Path from tests/unit/proto: 6 levels up to Vrooli root
 const fixturePathFromDriver = path.resolve(
-  testDir,
+  __dirname,
   '../../../../../../packages/proto/examples/testdata/enum_parity_fixture.json'
 );
 

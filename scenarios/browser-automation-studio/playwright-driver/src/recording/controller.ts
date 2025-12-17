@@ -18,7 +18,7 @@
  * │    - Converts RawBrowserEvent → TimelineEntry (proto)                  │
  * │    - Calls onEntry callback for each converted entry                   │
  * │                                                                        │
- * │ 3. REPLAY PREVIEW (replayPreview)                                      │
+ * │ 3. REPLAY PREVIEW (replayPreview) - Delegated to ReplayPreviewService  │
  * │    - Executes TimelineEntry actions to test them before saving         │
  * │    - Uses proto-native executeTimelineEntry for direct execution       │
  * │                                                                        │
@@ -30,6 +30,11 @@
  * A counter that increments each time recording starts. Used to detect and
  * ignore stale async operations from previous recording sessions. Without this,
  * callbacks from a stopped recording could affect a newly started one.
+ *
+ * DESIGN: Replay functionality is delegated to ReplayPreviewService (P1.2)
+ * The controller maintains backward-compatible methods that delegate to the service.
+ *
+ * @see replay-service.ts - Extracted replay execution logic
  */
 
 import type { Page } from 'playwright';
@@ -40,13 +45,18 @@ import {
   type RawBrowserEvent,
   type TimelineEntry,
 } from '../proto/recording';
-import {
-  executeTimelineEntry,
-  type ExecutorContext,
-  type ActionReplayResult,
-} from './action-executor';
+import type { ActionReplayResult } from './action-executor';
 import { validateSelectorOnPage, type SelectorValidation } from './selector-service';
+import {
+  ReplayPreviewService,
+  type ReplayPreviewRequest,
+  type ReplayPreviewResponse,
+} from './replay-service';
 import type { RecordingState } from './types';
+import {
+  INJECTION_RETRY_MAX_ATTEMPTS,
+  INJECTION_RETRY_BASE_DELAY_MS,
+} from '../constants';
 
 // Re-export for backwards compatibility
 export type { RecordingState } from './types';
@@ -66,30 +76,8 @@ export interface StartRecordingOptions {
   onError?: (error: Error) => void;
 }
 
-/** Configuration for script injection retry logic */
-interface InjectionRetryConfig {
-  maxAttempts: number;
-  baseDelayMs: number;
-}
-
-/** Request for replay preview */
-export interface ReplayPreviewRequest {
-  entries: TimelineEntry[];
-  limit?: number;
-  stopOnFailure?: boolean;
-  actionTimeout?: number;
-}
-
-/** Response from replay preview */
-export interface ReplayPreviewResponse {
-  success: boolean;
-  totalActions: number;
-  passedActions: number;
-  failedActions: number;
-  results: ActionReplayResult[];
-  totalDurationMs: number;
-  stoppedEarly: boolean;
-}
+// Re-export types from replay-service for backward compatibility
+export type { ReplayPreviewRequest, ReplayPreviewResponse } from './replay-service';
 
 // Re-export types from action-executor for convenience
 export type { ActionReplayResult, SelectorValidation };
@@ -126,6 +114,9 @@ export class RecordModeController {
   private lastUrl: string | null = null;
   private recordingGeneration = 0;
 
+  /** Replay service for executing timeline entries (delegated) */
+  private readonly replayService: ReplayPreviewService;
+
   constructor(page: Page, sessionId: string) {
     this.page = page;
     this.state = {
@@ -133,6 +124,7 @@ export class RecordModeController {
       sessionId,
       actionCount: 0,
     };
+    this.replayService = new ReplayPreviewService(page);
   }
 
   /**
@@ -226,16 +218,16 @@ export class RecordModeController {
       }
 
       // Schedule injection with retry support
-      this.scheduleInjectionWithRetry(generation, { maxAttempts: 3, baseDelayMs: 100 });
+      this.scheduleInjectionWithRetry(generation);
     };
   }
 
   /**
    * Schedule script injection with exponential backoff retry.
+   * Uses constants from ../constants.ts for retry configuration.
    */
   private scheduleInjectionWithRetry(
     generation: number,
-    config: InjectionRetryConfig,
     attempt = 0
   ): void {
     if (!this.state.isRecording || this.recordingGeneration !== generation) {
@@ -243,8 +235,8 @@ export class RecordModeController {
     }
 
     const delay = attempt === 0
-      ? config.baseDelayMs
-      : config.baseDelayMs * Math.pow(2, attempt);
+      ? INJECTION_RETRY_BASE_DELAY_MS
+      : INJECTION_RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
 
     const timeoutId = setTimeout(async () => {
       this.pendingInjectionTimeouts.delete(timeoutId);
@@ -262,11 +254,11 @@ export class RecordModeController {
           return;
         }
 
-        if (attempt < config.maxAttempts - 1) {
-          this.scheduleInjectionWithRetry(generation, config, attempt + 1);
+        if (attempt < INJECTION_RETRY_MAX_ATTEMPTS - 1) {
+          this.scheduleInjectionWithRetry(generation, attempt + 1);
         } else {
           this.handleError(
-            new Error(`Failed to re-inject recording script after ${config.maxAttempts} attempts: ${message}`)
+            new Error(`Failed to re-inject recording script after ${INJECTION_RETRY_MAX_ATTEMPTS} attempts: ${message}`)
           );
         }
       }
@@ -393,99 +385,16 @@ export class RecordModeController {
   }
 
   /**
-   * Track in-flight replay operations for idempotency.
-   */
-  private pendingReplays: Map<string, Promise<ReplayPreviewResponse>> = new Map();
-
-  /**
    * Replay recorded entries for preview/testing.
+   *
+   * Delegates to ReplayPreviewService for execution.
+   * This maintains backward compatibility while centralizing replay logic.
+   *
+   * @param request - Replay configuration
+   * @returns Replay results
    */
   async replayPreview(request: ReplayPreviewRequest): Promise<ReplayPreviewResponse> {
-    const {
-      entries,
-      limit,
-      stopOnFailure = true,
-      actionTimeout = 10000,
-    } = request;
-
-    const entriesToReplay = limit ? entries.slice(0, limit) : entries;
-    const replayKey = this.generateReplayKey(entriesToReplay);
-
-    const pendingReplay = this.pendingReplays.get(replayKey);
-    if (pendingReplay) {
-      return pendingReplay;
-    }
-
-    const replayPromise = this.executeReplay(entriesToReplay, stopOnFailure, actionTimeout);
-    this.pendingReplays.set(replayKey, replayPromise);
-
-    try {
-      return await replayPromise;
-    } finally {
-      this.pendingReplays.delete(replayKey);
-    }
-  }
-
-  /**
-   * Generate a stable key for replay idempotency tracking.
-   */
-  private generateReplayKey(entries: TimelineEntry[]): string {
-    return entries.map((e) => `${e.id}:${e.sequenceNum}`).join('|');
-  }
-
-  /**
-   * Internal replay execution logic.
-   */
-  private async executeReplay(
-    entriesToReplay: TimelineEntry[],
-    stopOnFailure: boolean,
-    actionTimeout: number
-  ): Promise<ReplayPreviewResponse> {
-    const results: ActionReplayResult[] = [];
-    let stoppedEarly = false;
-    const startTime = Date.now();
-
-    // Create executor context once for all entries
-    const context: ExecutorContext = {
-      page: this.page,
-      timeout: actionTimeout,
-      validateSelector: (sel: string) => this.validateSelector(sel),
-    };
-
-    for (const entry of entriesToReplay) {
-      // Execute using proto-native executor
-      const result = await executeTimelineEntry(entry, context);
-
-      // Capture screenshot on error
-      if (!result.success) {
-        try {
-          const screenshot = await this.page.screenshot({ type: 'png' });
-          result.screenshotOnError = screenshot.toString('base64');
-        } catch {
-          // Ignore screenshot errors
-        }
-      }
-
-      results.push(result);
-
-      if (!result.success && stopOnFailure) {
-        stoppedEarly = true;
-        break;
-      }
-    }
-
-    const passedActions = results.filter((r) => r.success).length;
-    const failedActions = results.filter((r) => !r.success).length;
-
-    return {
-      success: failedActions === 0,
-      totalActions: results.length,
-      passedActions,
-      failedActions,
-      results,
-      totalDurationMs: Date.now() - startTime,
-      stoppedEarly,
-    };
+    return this.replayService.replayPreview(request);
   }
 
   /**

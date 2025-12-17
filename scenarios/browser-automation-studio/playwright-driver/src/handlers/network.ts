@@ -16,6 +16,42 @@ interface NetworkMockParams {
 }
 
 /**
+ * Canonical network operations supported by this handler.
+ */
+type NetworkOperation = 'mock' | 'block' | 'modifyRequest' | 'modifyResponse' | 'clear';
+
+/**
+ * DECISION BOUNDARY: Network Operations
+ *
+ * Each operation has distinct behavior and side effects:
+ * - mock: Intercept requests and return synthetic responses
+ * - block: Abort matching requests entirely
+ * - modifyRequest: Alter request headers/body before sending
+ * - modifyResponse: Alter response headers/body before returning
+ * - clear: Remove all active route handlers for the session
+ */
+const NETWORK_OPERATIONS: Record<NetworkOperation, { description: string }> = {
+  mock: { description: 'Mock response for matching requests' },
+  block: { description: 'Block requests matching pattern' },
+  modifyRequest: { description: 'Modify request headers/body before sending' },
+  modifyResponse: { description: 'Modify response headers/body before returning' },
+  clear: { description: 'Clear all mocks for session' },
+} as const;
+
+/** Result when an idempotent route is found */
+interface IdempotentResult {
+  isIdempotent: true;
+  result: HandlerResult;
+}
+
+/** Result when route should be registered */
+interface ProceedResult {
+  isIdempotent: false;
+  routeKey: string;
+  routes: Map<string, RouteMetadata>;
+}
+
+/**
  * Track registered routes per session to enable idempotency.
  * Key: sessionId
  * Value: Map of routeKey -> route metadata
@@ -91,6 +127,72 @@ export class NetworkHandler extends BaseHandler {
     return ['network-mock', 'network', 'mock', 'intercept'];
   }
 
+  /**
+   * Check if a route is already registered (idempotency guard).
+   *
+   * This helper centralizes the idempotency check pattern used by all
+   * route-registering operations (mock, block, modifyRequest, modifyResponse).
+   *
+   * @returns IdempotentResult if route exists (caller should return immediately),
+   *          ProceedResult if route should be registered (caller should proceed)
+   */
+  private checkIdempotency(
+    sessionId: string,
+    urlPattern: string,
+    method: string | undefined,
+    operation: NetworkOperation,
+    extraData?: Record<string, unknown>
+  ): IdempotentResult | ProceedResult {
+    const routeKey = generateRouteKey(urlPattern, method, operation);
+    const routes = getSessionRouteMap(sessionId);
+
+    if (routes.has(routeKey)) {
+      const existing = routes.get(routeKey)!;
+      logger.debug(scopedLog(LogContext.INSTRUCTION, `${operation} route already registered (idempotent)`), {
+        sessionId,
+        urlPattern,
+        method,
+        registeredAt: new Date(existing.registeredAt).toISOString(),
+      });
+
+      return {
+        isIdempotent: true,
+        result: {
+          success: true,
+          extracted_data: {
+            network: {
+              operation,
+              urlPattern,
+              method,
+              idempotent: true,
+              ...extraData,
+            },
+          },
+        },
+      };
+    }
+
+    return { isIdempotent: false, routeKey, routes };
+  }
+
+  /**
+   * Register a route after successful setup.
+   */
+  private registerRoute(
+    routes: Map<string, RouteMetadata>,
+    routeKey: string,
+    urlPattern: string,
+    method: string | undefined,
+    operation: string
+  ): void {
+    routes.set(routeKey, {
+      urlPattern,
+      method,
+      operation,
+      registeredAt: Date.now(),
+    });
+  }
+
   async execute(
     instruction: HandlerInstruction,
     context: HandlerContext
@@ -106,27 +208,32 @@ export class NetworkHandler extends BaseHandler {
         method: validated.method,
       });
 
-      switch (validated.operation) {
+      // Validate operation against known operations
+      const operation = validated.operation as NetworkOperation;
+      if (!(operation in NETWORK_OPERATIONS)) {
+        return {
+          success: false,
+          error: {
+            message: `Unknown network operation: ${validated.operation}. Valid operations: ${Object.keys(NETWORK_OPERATIONS).join(', ')}`,
+            code: 'INVALID_OPERATION',
+            kind: 'user',
+            retryable: false,
+          },
+        };
+      }
+
+      // Dispatch to appropriate handler
+      switch (operation) {
         case 'mock':
-          return this.handleMockResponse(validated, context, logger);
+          return this.handleMockResponse(validated, context);
         case 'block':
-          return this.handleBlockRequest(validated, context, logger);
+          return this.handleBlockRequest(validated, context);
         case 'modifyRequest':
-          return this.handleModifyRequest(validated, context, logger);
+          return this.handleModifyRequest(validated, context);
         case 'modifyResponse':
-          return this.handleModifyResponse(validated, context, logger);
+          return this.handleModifyResponse(validated, context);
         case 'clear':
-          return this.handleClearMocks(context, logger);
-        default:
-          return {
-            success: false,
-            error: {
-              message: `Unknown network operation: ${validated.operation}`,
-              code: 'INVALID_OPERATION',
-              kind: 'user',
-              retryable: false,
-            },
-          };
+          return this.handleClearMocks(context);
       }
     } catch (error) {
       logger.error('Network operation failed', {
@@ -155,40 +262,22 @@ export class NetworkHandler extends BaseHandler {
    */
   private async handleMockResponse(
     params: NetworkMockParams,
-    context: HandlerContext,
-    _logger: unknown
+    context: HandlerContext
   ): Promise<HandlerResult> {
     const page = context.page;
     const sessionId = context.sessionId;
     const urlPattern = this.compileUrlPattern(params.urlPattern);
     const urlPatternStr = params.urlPattern.toString();
 
-    // Idempotency check: See if this route is already registered
-    const routeKey = generateRouteKey(urlPatternStr, params.method, 'mock');
-    const routes = getSessionRouteMap(sessionId);
-
-    if (routes.has(routeKey)) {
-      const existing = routes.get(routeKey)!;
-      logger.debug(scopedLog(LogContext.INSTRUCTION, 'mock route already registered (idempotent)'), {
-        sessionId,
-        urlPattern: urlPatternStr,
-        method: params.method,
-        registeredAt: new Date(existing.registeredAt).toISOString(),
-      });
-
-      return {
-        success: true,
-        extracted_data: {
-          network: {
-            operation: 'mock',
-            urlPattern: urlPatternStr,
-            method: params.method,
-            statusCode: params.statusCode,
-            idempotent: true,
-          },
-        },
-      };
+    // Idempotency check
+    const idempotencyCheck = this.checkIdempotency(
+      sessionId, urlPatternStr, params.method, 'mock',
+      { statusCode: params.statusCode }
+    );
+    if (idempotencyCheck.isIdempotent) {
+      return idempotencyCheck.result;
     }
+    const { routeKey, routes } = idempotencyCheck;
 
     logger.debug('Setting up mock response', {
       urlPattern: params.urlPattern,
@@ -239,12 +328,7 @@ export class NetworkHandler extends BaseHandler {
     });
 
     // Track this route registration for idempotency
-    routes.set(routeKey, {
-      urlPattern: urlPatternStr,
-      method: params.method,
-      operation: 'mock',
-      registeredAt: Date.now(),
-    });
+    this.registerRoute(routes, routeKey, urlPatternStr, params.method, 'mock');
 
     return {
       success: true,
@@ -267,39 +351,21 @@ export class NetworkHandler extends BaseHandler {
    */
   private async handleBlockRequest(
     params: NetworkMockParams,
-    context: HandlerContext,
-    _logger: unknown
+    context: HandlerContext
   ): Promise<HandlerResult> {
     const page = context.page;
     const sessionId = context.sessionId;
     const urlPattern = this.compileUrlPattern(params.urlPattern);
     const urlPatternStr = params.urlPattern.toString();
 
-    // Idempotency check: See if this route is already registered
-    const routeKey = generateRouteKey(urlPatternStr, params.method, 'block');
-    const routes = getSessionRouteMap(sessionId);
-
-    if (routes.has(routeKey)) {
-      const existing = routes.get(routeKey)!;
-      logger.debug(scopedLog(LogContext.INSTRUCTION, 'block route already registered (idempotent)'), {
-        sessionId,
-        urlPattern: urlPatternStr,
-        method: params.method,
-        registeredAt: new Date(existing.registeredAt).toISOString(),
-      });
-
-      return {
-        success: true,
-        extracted_data: {
-          network: {
-            operation: 'block',
-            urlPattern: urlPatternStr,
-            method: params.method,
-            idempotent: true,
-          },
-        },
-      };
+    // Idempotency check
+    const idempotencyCheck = this.checkIdempotency(
+      sessionId, urlPatternStr, params.method, 'block'
+    );
+    if (idempotencyCheck.isIdempotent) {
+      return idempotencyCheck.result;
     }
+    const { routeKey, routes } = idempotencyCheck;
 
     logger.debug('Setting up request blocking', {
       urlPattern: params.urlPattern,
@@ -323,12 +389,7 @@ export class NetworkHandler extends BaseHandler {
     });
 
     // Track this route registration for idempotency
-    routes.set(routeKey, {
-      urlPattern: urlPatternStr,
-      method: params.method,
-      operation: 'block',
-      registeredAt: Date.now(),
-    });
+    this.registerRoute(routes, routeKey, urlPatternStr, params.method, 'block');
 
     return {
       success: true,
@@ -350,39 +411,21 @@ export class NetworkHandler extends BaseHandler {
    */
   private async handleModifyRequest(
     params: NetworkMockParams,
-    context: HandlerContext,
-    _logger: unknown
+    context: HandlerContext
   ): Promise<HandlerResult> {
     const page = context.page;
     const sessionId = context.sessionId;
     const urlPattern = this.compileUrlPattern(params.urlPattern);
     const urlPatternStr = params.urlPattern.toString();
 
-    // Idempotency check: See if this route is already registered
-    const routeKey = generateRouteKey(urlPatternStr, params.method, 'modifyRequest');
-    const routes = getSessionRouteMap(sessionId);
-
-    if (routes.has(routeKey)) {
-      const existing = routes.get(routeKey)!;
-      logger.debug(scopedLog(LogContext.INSTRUCTION, 'modifyRequest route already registered (idempotent)'), {
-        sessionId,
-        urlPattern: urlPatternStr,
-        method: params.method,
-        registeredAt: new Date(existing.registeredAt).toISOString(),
-      });
-
-      return {
-        success: true,
-        extracted_data: {
-          network: {
-            operation: 'modifyRequest',
-            urlPattern: urlPatternStr,
-            method: params.method,
-            idempotent: true,
-          },
-        },
-      };
+    // Idempotency check
+    const idempotencyCheck = this.checkIdempotency(
+      sessionId, urlPatternStr, params.method, 'modifyRequest'
+    );
+    if (idempotencyCheck.isIdempotent) {
+      return idempotencyCheck.result;
     }
+    const { routeKey, routes } = idempotencyCheck;
 
     logger.debug('Setting up request modification', {
       urlPattern: params.urlPattern,
@@ -409,12 +452,7 @@ export class NetworkHandler extends BaseHandler {
     });
 
     // Track this route registration for idempotency
-    routes.set(routeKey, {
-      urlPattern: urlPatternStr,
-      method: params.method,
-      operation: 'modifyRequest',
-      registeredAt: Date.now(),
-    });
+    this.registerRoute(routes, routeKey, urlPatternStr, params.method, 'modifyRequest');
 
     return {
       success: true,
@@ -439,40 +477,22 @@ export class NetworkHandler extends BaseHandler {
    */
   private async handleModifyResponse(
     params: NetworkMockParams,
-    context: HandlerContext,
-    _logger: unknown
+    context: HandlerContext
   ): Promise<HandlerResult> {
     const page = context.page;
     const sessionId = context.sessionId;
     const urlPattern = this.compileUrlPattern(params.urlPattern);
     const urlPatternStr = params.urlPattern.toString();
 
-    // Idempotency check: See if this route is already registered
-    const routeKey = generateRouteKey(urlPatternStr, params.method, 'modifyResponse');
-    const routes = getSessionRouteMap(sessionId);
-
-    if (routes.has(routeKey)) {
-      const existing = routes.get(routeKey)!;
-      logger.debug(scopedLog(LogContext.INSTRUCTION, 'modifyResponse route already registered (idempotent)'), {
-        sessionId,
-        urlPattern: urlPatternStr,
-        method: params.method,
-        registeredAt: new Date(existing.registeredAt).toISOString(),
-      });
-
-      return {
-        success: true,
-        extracted_data: {
-          network: {
-            operation: 'modifyResponse',
-            urlPattern: urlPatternStr,
-            method: params.method,
-            statusCode: params.statusCode,
-            idempotent: true,
-          },
-        },
-      };
+    // Idempotency check
+    const idempotencyCheck = this.checkIdempotency(
+      sessionId, urlPatternStr, params.method, 'modifyResponse',
+      { statusCode: params.statusCode }
+    );
+    if (idempotencyCheck.isIdempotent) {
+      return idempotencyCheck.result;
     }
+    const { routeKey, routes } = idempotencyCheck;
 
     logger.debug('Setting up response modification', {
       urlPattern: params.urlPattern,
@@ -511,12 +531,7 @@ export class NetworkHandler extends BaseHandler {
     });
 
     // Track this route registration for idempotency
-    routes.set(routeKey, {
-      urlPattern: urlPatternStr,
-      method: params.method,
-      operation: 'modifyResponse',
-      registeredAt: Date.now(),
-    });
+    this.registerRoute(routes, routeKey, urlPatternStr, params.method, 'modifyResponse');
 
     return {
       success: true,
@@ -537,7 +552,7 @@ export class NetworkHandler extends BaseHandler {
    * Idempotency: This operation is inherently idempotent - clearing an already
    * cleared state is a no-op and returns success.
    */
-  private async handleClearMocks(context: HandlerContext, _logger: unknown): Promise<HandlerResult> {
+  private async handleClearMocks(context: HandlerContext): Promise<HandlerResult> {
     const page = context.page;
     const sessionId = context.sessionId;
 

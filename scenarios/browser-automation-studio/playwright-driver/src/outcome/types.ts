@@ -7,6 +7,73 @@
  * - Recording replay (ActionReplayResult)
  * - StepOutcome building
  *
+ * TYPE HIERARCHY
+ * ==============
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │                         BaseExecutionResult                                  │
+ * │  (success: boolean, error?: ExecutionError, durationMs?: number)            │
+ * └─────────────────────────────────────────────────────────────────────────────┘
+ *          │                          │                          │
+ *          ▼                          ▼                          ▼
+ * ┌─────────────────┐      ┌─────────────────────┐      ┌──────────────────────┐
+ * │  HandlerResult  │      │  ActionReplayResult │      │ HandlerAdapterResult │
+ * │  (outcome-      │      │  (action-executor)  │      │ (handler-adapter)    │
+ * │   builder.ts)   │      │                     │      │                      │
+ * │                 │      │ + entryId           │      │ (minimal: just       │
+ * │ + screenshot    │      │ + sequenceNum       │      │  success/error/      │
+ * │ + domSnapshot   │      │ + actionType        │      │  duration)           │
+ * │ + consoleLogs   │      │ + screenshotOnError │      │                      │
+ * │ + networkEvents │      │                     │      │                      │
+ * │ + extracted_data│      │ Uses SelectorError  │      │                      │
+ * │ + focus         │      │ for error field     │      │                      │
+ * │ + assertion     │      │                     │      │                      │
+ * └─────────────────┘      └─────────────────────┘      └──────────────────────┘
+ *          │
+ *          ▼
+ * ┌─────────────────┐
+ * │   StepOutcome   │
+ * │  (proto type)   │
+ * │                 │
+ * │ Built by        │
+ * │ buildStepOutcome│
+ * │ from Handler-   │
+ * │ Result          │
+ * └─────────────────┘
+ *
+ * ERROR TYPE HIERARCHY
+ * ====================
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │                          ExecutionError                                      │
+ * │  (message, code, kind?, retryable?)                                         │
+ * └─────────────────────────────────────────────────────────────────────────────┘
+ *          │
+ *          ▼
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │                          SelectorError                                       │
+ * │  extends ExecutionError + matchCount?, selector?                            │
+ * └─────────────────────────────────────────────────────────────────────────────┘
+ *
+ * WHY MULTIPLE RESULT TYPES?
+ * ==========================
+ *
+ * We use composition rather than forcing a single result type because:
+ *
+ * 1. Different contexts need different additional fields:
+ *    - Handlers need telemetry (screenshots, DOM snapshots, console logs)
+ *    - Replay needs entry metadata (entryId, sequenceNum, actionType)
+ *    - Adapters need just the basics (minimal overhead)
+ *
+ * 2. Forcing one type adds unnecessary complexity:
+ *    - ActionReplayResult doesn't need screenshot/domSnapshot fields
+ *    - HandlerAdapterResult doesn't need entryId fields
+ *
+ * 3. Each variant serves a specific purpose:
+ *    - HandlerResult → StepOutcome (wire format for Go API)
+ *    - ActionReplayResult → ReplayPreviewResponse (UI feedback)
+ *    - HandlerAdapterResult → ActionReplayResult (bridge layer)
+ *
  * DESIGN PHILOSOPHY:
  * Rather than forcing all contexts to use a single result type (which would
  * add unnecessary complexity), we define shared building blocks:

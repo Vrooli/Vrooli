@@ -251,5 +251,5 @@ The Go API expects flattened fields (`screenshot_base64` not `screenshot.base64`
 6. ~~**Extract circuit breaker**~~ - ✅ Implemented in `infra/circuit-breaker.ts`
 7. ~~**Extract frame streaming**~~ - ✅ Implemented in `frame-streaming/`
 8. ~~**Extract browser manager**~~ - ✅ Implemented in `session/browser-manager.ts`
-9. **Unify result types** - HandlerResult, ActionReplayResult, and HandlerAdapterResult have similar shapes
-10. **Extract idempotency cache** - Currently inline in `routes/session-run.ts`
+9. ~~**Unify result types**~~ - ✅ All result types now extend BaseExecutionResult (outcome/types.ts)
+10. ~~**Extract idempotency cache**~~ - ✅ Implemented in `infra/idempotency-cache.ts`

@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "description": "Validates that the sandbox list displays correctly with empty state",
+    "requirement": "REQ-P0-008",
+    "version": 1
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "target": "/"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/header.root",
+      "timeout": 5000
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/sandboxList",
+      "condition": "visible"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/header.createButton",
+      "condition": "visible"
+    }
+  ]
+}

@@ -21,6 +21,30 @@
  *
  * CONCURRENCY: One instruction per session at a time (returns 409 if busy)
  * IDEMPOTENCY: x-idempotency-key header enables safe retries
+ *
+ * RESPONSIBILITY ZONES
+ * ====================
+ *
+ * This handler orchestrates multiple concerns. Each zone is marked inline:
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ ZONE                │ RESPONSIBILITY              │ COULD EXTRACT TO    │
+ * ├─────────────────────┼─────────────────────────────┼─────────────────────┤
+ * │ [PRESENTATION]      │ HTTP parsing, response      │ (stays in route)    │
+ * │ [INFRASTRUCTURE]    │ Idempotency cache lookups   │ infra/              │
+ * │ [COORDINATION]      │ Session phase management    │ execution/          │
+ * │ [DOMAIN:VALIDATION] │ Instruction structure check │ execution/          │
+ * │ [DOMAIN:EXECUTION]  │ Handler dispatch            │ execution/          │
+ * │ [CROSS-CUTTING]     │ Telemetry collection        │ telemetry/          │
+ * │ [DOMAIN:OUTCOME]    │ StepOutcome building        │ outcome/            │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ *
+ * The handleSessionRun function is intentionally comprehensive - it shows
+ * the full pipeline in one place. P1.1 refactoring extracts the core execution
+ * logic into InstructionExecutor while keeping the route handler as thin
+ * coordination layer.
+ *
+ * @see execution/instruction-executor.ts - Extracted execution pipeline (P1.1)
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
@@ -31,16 +55,15 @@ import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
 import type { ExecutedInstructionRecord } from '../types/session';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
-import { TelemetryOrchestrator } from '../telemetry';
-import { buildStepOutcome, toDriverOutcome } from '../outcome';
-import {
-  CompiledInstructionSchema,
-  toHandlerInstruction,
-  parseProtoLenient,
-  type HandlerInstruction,
-} from '../proto';
 import { getIdempotencyCache } from '../infra';
+import {
+  executeInstruction,
+  validateInstruction,
+  createInstructionKey,
+  type ExecutionContext,
+} from '../execution';
 import { logger, scopedLog, LogContext } from '../utils';
+import { MAX_EXECUTED_INSTRUCTIONS_PER_SESSION } from '../constants';
 import winston from 'winston';
 
 // =============================================================================
@@ -48,7 +71,6 @@ import winston from 'winston';
 // =============================================================================
 
 const IDEMPOTENCY_KEY_HEADER = 'x-idempotency-key';
-const MAX_EXECUTED_INSTRUCTIONS = 1000;
 
 // =============================================================================
 // Idempotency Cache (delegated to infra/idempotency-cache.ts)
@@ -66,34 +88,6 @@ export function clearSessionIdempotencyCache(sessionId: string): void {
 // Helper Functions
 // =============================================================================
 
-/**
- * Create a unique key for an instruction based on nodeId and index.
- * Used to track which instructions have been executed in a session.
- */
-function createInstructionKey(instruction: HandlerInstruction): string {
-  return `${instruction.nodeId}:${instruction.index}`;
-}
-
-/**
- * Validate that a raw instruction object has all required fields.
- * Accepts both wire format (snake_case: node_id) and proto format (camelCase: nodeId).
- *
- * @returns Error message if invalid, null if valid
- */
-function validateInstructionStructure(rawInstruction: unknown): string | null {
-  if (!rawInstruction || typeof rawInstruction !== 'object') {
-    return 'Missing or invalid instruction: must be an object';
-  }
-  const inst = rawInstruction as Record<string, unknown>;
-  if (typeof inst.index !== 'number') return 'Missing or invalid instruction.index: must be a number';
-  // Accept both node_id (wire format) and nodeId (proto format)
-  const nodeId = inst.node_id ?? inst.nodeId;
-  if (!nodeId || typeof nodeId !== 'string') return 'Missing or invalid instruction.node_id: must be a non-empty string';
-  if (!inst.type || typeof inst.type !== 'string') return 'Missing or invalid instruction.type: must be a non-empty string';
-  if (!inst.params || typeof inst.params !== 'object') return 'Missing or invalid instruction.params: must be an object';
-  return null;
-}
-
 /** Record an executed instruction in the session's tracking map. */
 function recordExecutedInstruction(
   session: SessionState,
@@ -105,14 +99,14 @@ function recordExecutedInstruction(
   if (!session.executedInstructions) return;
 
   // Enforce max size by evicting oldest
-  if (session.executedInstructions.size >= MAX_EXECUTED_INSTRUCTIONS) {
+  if (session.executedInstructions.size >= MAX_EXECUTED_INSTRUCTIONS_PER_SESSION) {
     const firstKey = session.executedInstructions.keys().next().value;
     if (firstKey) {
       session.executedInstructions.delete(firstKey);
       logger.debug(scopedLog(LogContext.INSTRUCTION, 'evicted old instruction from tracking'), {
         sessionId: session.id,
         evictedKey: firstKey,
-        maxTracked: MAX_EXECUTED_INSTRUCTIONS,
+        maxTracked: MAX_EXECUTED_INSTRUCTIONS_PER_SESSION,
       });
     }
   }
@@ -145,10 +139,11 @@ export async function handleSessionRun(
   appLogger: winston.Logger,
   appMetrics: Metrics
 ): Promise<void> {
-  const startedAt = new Date();
   const idempotencyKey = req.headers[IDEMPOTENCY_KEY_HEADER] as string | undefined;
 
-  // Fast path: Return cached result if available
+  // ─────────────────────────────────────────────────────────────────────────
+  // [INFRASTRUCTURE] Idempotency cache fast path
+  // ─────────────────────────────────────────────────────────────────────────
   const idempotencyCache = getIdempotencyCache();
   const cachedResponse = idempotencyKey ? idempotencyCache.lookup(idempotencyKey, sessionId) : null;
   if (cachedResponse) {
@@ -161,7 +156,9 @@ export async function handleSessionRun(
   try {
     const session = sessionManager.getSession(sessionId);
 
-    // Guard: Prevent concurrent execution
+    // ─────────────────────────────────────────────────────────────────────────
+    // [COORDINATION] Session phase guard - prevent concurrent execution
+    // ─────────────────────────────────────────────────────────────────────────
     if (session.phase === 'executing') {
       logger.warn(scopedLog(LogContext.INSTRUCTION, 'concurrent execution rejected'), { sessionId, phase: session.phase });
       sendJson(res, 409, {
@@ -173,24 +170,27 @@ export async function handleSessionRun(
     sessionManager.setSessionPhase(sessionId, 'executing');
     enteredExecutingPhase = true;
 
-    // Parse and validate instruction
+    // ─────────────────────────────────────────────────────────────────────────
+    // [PRESENTATION] Parse request body
+    // [DOMAIN:VALIDATION] Validate instruction structure (delegated to executor)
+    // ─────────────────────────────────────────────────────────────────────────
     const body = await parseJsonBody(req, config);
     const rawInstruction = (body as Record<string, unknown>).instruction;
-    const validationError = validateInstructionStructure(rawInstruction);
-    if (validationError) {
+    const validationResult = validateInstruction(rawInstruction);
+    if (!validationResult.valid) {
       sessionManager.setSessionPhase(sessionId, 'ready');
       sendJson(res, 400, {
-        error: { code: 'INVALID_INSTRUCTION', message: validationError, kind: 'orchestration', retryable: false },
+        error: { code: validationResult.error.code, message: validationResult.error.message, kind: 'orchestration', retryable: false },
       });
       return;
     }
 
-    // Parse with proto schema and convert to handler-friendly format
-    const protoInstruction = parseProtoLenient(CompiledInstructionSchema, rawInstruction);
-    const instruction = toHandlerInstruction(protoInstruction);
+    const instruction = validationResult.instruction;
     const instructionKey = createInstructionKey(instruction);
 
-    // Check session-level instruction cache (replay detection)
+    // ─────────────────────────────────────────────────────────────────────────
+    // [INFRASTRUCTURE] Replay detection via session-level instruction cache
+    // ─────────────────────────────────────────────────────────────────────────
     const previousExecution = session.executedInstructions?.get(instructionKey);
     if (previousExecution?.cachedOutcome) {
       logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached replay result'), {
@@ -210,58 +210,31 @@ export async function handleSessionRun(
       });
     }
 
-    logger.info(scopedLog(LogContext.INSTRUCTION, 'executing'), {
-      sessionId, type: instruction.type, stepIndex: instruction.index, nodeId: instruction.nodeId,
-      instructionCount: session.instructionCount, isReplay: !!previousExecution,
-      selector: instruction.params.selector,
-      url: instruction.params.url,
-    });
+    // ─────────────────────────────────────────────────────────────────────────
+    // [DOMAIN:EXECUTION] Delegate to InstructionExecutor service
+    // This handles: handler dispatch, telemetry, outcome building
+    // ─────────────────────────────────────────────────────────────────────────
+    const executionContext: ExecutionContext = {
+      page: session.page,
+      browserContext: session.context,
+      config,
+      logger: appLogger,
+      metrics: appMetrics,
+      sessionId,
+    };
 
-    // Execute instruction with telemetry orchestration
-    const handler = handlerRegistry.getHandler(instruction);
-    const telemetryOrchestrator = new TelemetryOrchestrator(session.page, config);
-    telemetryOrchestrator.start();
-
-    let result: HandlerResult;
-    let instructionDuration: number;
-    try {
-      const instructionStart = Date.now();
-      const handlerContext: HandlerContext = {
-        page: session.page, context: session.context, config, logger: appLogger, metrics: appMetrics, sessionId,
-      };
-      result = await handler.execute(instruction, handlerContext);
-      instructionDuration = Date.now() - instructionStart;
-    } finally {
-      // Telemetry orchestrator disposed after collecting
-    }
-
+    const executionResult = await executeInstruction(instruction, executionContext, handlerRegistry);
     sessionManager.incrementInstructionCount(sessionId);
-    recordMetrics(appMetrics, instruction.type, result, instructionDuration);
 
-    // Collect telemetry via orchestrator (consolidates screenshot, DOM, console, network)
-    const telemetry = await telemetryOrchestrator.collectForStep(result);
-    telemetryOrchestrator.dispose();
-
-    // Build and convert outcome
+    const { driverOutcome, success } = executionResult;
     const completedAt = new Date();
-    const outcome = buildStepOutcome({
-      instruction, result, startedAt, completedAt, finalUrl: session.page.url(),
-      screenshot: telemetry.screenshot,
-      domSnapshot: telemetry.domSnapshot,
-      consoleLogs: telemetry.consoleLogs,
-      networkEvents: telemetry.networkEvents,
-    });
 
-    logger.info(scopedLog(LogContext.INSTRUCTION, result.success ? 'completed' : 'failed'), {
-      sessionId, type: instruction.type, stepIndex: instruction.index, success: result.success,
-      durationMs: outcome.durationMs, finalUrl: session.page.url(), instructionCount: session.instructionCount,
-      ...(result.error && { errorCode: result.error.code, errorKind: result.error.kind, errorMessage: result.error.message }),
-    });
-
-    const driverOutcome = toDriverOutcome(outcome, telemetry.screenshot, telemetry.domSnapshot);
-
-    // Record for replay detection and cache
-    recordExecutedInstruction(session, instructionKey, driverOutcome, result.success, completedAt);
+    // ─────────────────────────────────────────────────────────────────────────
+    // [INFRASTRUCTURE] Cache result for replay detection and idempotency
+    // [COORDINATION] Reset session phase
+    // [PRESENTATION] Send response
+    // ─────────────────────────────────────────────────────────────────────────
+    recordExecutedInstruction(session, instructionKey, driverOutcome, success, completedAt);
     sessionManager.setSessionPhase(sessionId, session.recordingController?.isRecording() ? 'recording' : 'ready');
     if (idempotencyKey) {
       idempotencyCache.store(idempotencyKey, sessionId, instructionKey, driverOutcome);
@@ -269,6 +242,10 @@ export async function handleSessionRun(
 
     sendJson(res, 200, driverOutcome);
   } catch (error) {
+    // ─────────────────────────────────────────────────────────────────────────
+    // [COORDINATION] Error recovery - reset phase
+    // [PRESENTATION] Error response
+    // ─────────────────────────────────────────────────────────────────────────
     if (enteredExecutingPhase) {
       try { sessionManager.setSessionPhase(sessionId, 'ready'); } catch { /* Session may be closed */ }
     }
@@ -277,21 +254,3 @@ export async function handleSessionRun(
   }
 }
 
-// =============================================================================
-// Execution Helpers
-// =============================================================================
-
-import type { HandlerContext } from '../handlers/base';
-import type { HandlerResult } from '../outcome';
-
-function recordMetrics(
-  appMetrics: Metrics,
-  instructionType: string,
-  result: HandlerResult,
-  instructionDuration: number
-): void {
-  appMetrics.instructionDuration.observe({ type: instructionType, success: String(result.success) }, instructionDuration);
-  if (!result.success) {
-    appMetrics.instructionErrors.inc({ type: instructionType, error_kind: result.error?.kind || 'unknown' });
-  }
-}

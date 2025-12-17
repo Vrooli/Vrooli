@@ -57,6 +57,74 @@ export interface SessionSpec {
  * These phases represent the high-level state of a session and are exposed
  * in API responses and logs for observability.
  *
+ * ## STATE MACHINE
+ *
+ * ```
+ *                          ┌─────────────────────────────────────┐
+ *                          │                                     │
+ *    startSession()        │       NORMAL OPERATION              │
+ *         │                │                                     │
+ *         ▼                │   ┌────────────────────────────┐    │
+ *  ┌──────────────┐        │   │                            │    │
+ *  │ initializing │────────┼──▶│           ready            │◀───┼────┐
+ *  └──────────────┘        │   │                            │    │    │
+ *                          │   └─────────┬──────────────────┘    │    │
+ *                          │             │                       │    │
+ *                          │   runInstruction()    startRecording()   │
+ *                          │             │                       │    │
+ *                          │             ▼                       │    │
+ *                          │   ┌────────────────┐               │    │
+ *                          │   │   executing    │───────────────┼────┘
+ *                          │   │                │  instruction  │ (completes)
+ *                          │   │ (one at a time │    done       │
+ *                          │   │  per session)  │               │
+ *                          │   └────────────────┘               │
+ *                          │                                     │
+ *                          │   ┌────────────────┐               │
+ *              ┌───────────┼──▶│   recording    │───────────────┼────┐
+ *              │           │   │                │  stopRecording()   │
+ *  startRecording()        │   │ (captures user │               │    │
+ *              │           │   │    actions)    │               │    │
+ *              │           │   └────────────────┘               │    │
+ *              │           │                                     │    │
+ *              │           └─────────────────────────────────────┘    │
+ *              │                                                      │
+ *              └──────────────────────────────────────────────────────┘
+ *
+ *    resetSession()               closeSession()
+ *         │                            │
+ *         ▼                            ▼
+ *  ┌──────────────┐            ┌──────────────┐
+ *  │  resetting   │            │   closing    │
+ *  │              │            │              │
+ *  │ (clears      │            │ (frees       │
+ *  │  state)      │────────▶   │  resources)  │
+ *  └──────────────┘  done      └──────────────┘
+ *                       │
+ *                       ▼
+ *                     ready
+ * ```
+ *
+ * ## TRANSITION RULES
+ *
+ * | From         | To          | Trigger                    | Concurrency      |
+ * |--------------|-------------|----------------------------|------------------|
+ * | initializing | ready       | Browser context created    | N/A              |
+ * | ready        | executing   | POST /session/:id/run      | One at a time    |
+ * | executing    | ready       | Instruction completes      | Automatic        |
+ * | ready        | recording   | POST /record/start         | -                |
+ * | recording    | ready       | POST /record/stop          | -                |
+ * | executing    | recording   | If recording was active    | Restores state   |
+ * | any          | resetting   | POST /session/:id/reset    | -                |
+ * | resetting    | ready       | Reset completes            | Automatic        |
+ * | any          | closing     | POST /session/:id/close    | Terminal         |
+ *
+ * ## CONCURRENCY RULES
+ *
+ * - Only ONE instruction can execute at a time per session
+ * - Concurrent instruction attempts return 409 Conflict
+ * - Recording mode allows streaming but blocks instruction execution
+ *
  * Phase meanings:
  * - 'initializing': Session is being created, browser context not yet ready
  * - 'ready': Session is ready to accept instructions
