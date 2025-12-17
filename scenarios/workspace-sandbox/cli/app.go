@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -72,16 +73,8 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	sandboxes := cliapp.CommandGroup{
 		Title: "Sandbox Operations",
 		Commands: []cliapp.Command{
-			{Name: "create", NeedsAPI: true, Description: "Create a new sandbox", Run: a.cmdCreate, Flags: []cliapp.Flag{
-				{Name: "scope", Alias: "s", Default: "", Description: "Scope path within project"},
-				{Name: "project", Alias: "p", Default: "", Description: "Project root directory"},
-				{Name: "owner", Alias: "o", Default: "", Description: "Owner identifier"},
-			}},
-			{Name: "list", NeedsAPI: true, Description: "List sandboxes", Run: a.cmdList, Flags: []cliapp.Flag{
-				{Name: "status", Default: "", Description: "Filter by status (active,stopped,approved,rejected)"},
-				{Name: "owner", Default: "", Description: "Filter by owner"},
-				{Name: "json", Default: "false", Description: "Output as JSON"},
-			}},
+			{Name: "create", NeedsAPI: true, Description: "Create a new sandbox (--scope=PATH [--project=DIR] [--owner=ID])", Run: a.cmdCreate},
+			{Name: "list", NeedsAPI: true, Description: "List sandboxes ([--status=STATUS] [--owner=ID] [--json])", Run: a.cmdList},
 			{Name: "inspect", NeedsAPI: true, Description: "Show sandbox details", Run: a.cmdInspect},
 			{Name: "stop", NeedsAPI: true, Description: "Stop a sandbox (unmount but preserve)", Run: a.cmdStop},
 			{Name: "delete", NeedsAPI: true, Description: "Delete a sandbox and all data", Run: a.cmdDelete},
@@ -92,12 +85,8 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	diff := cliapp.CommandGroup{
 		Title: "Diff & Approval",
 		Commands: []cliapp.Command{
-			{Name: "diff", NeedsAPI: true, Description: "Show changes in a sandbox", Run: a.cmdDiff, Flags: []cliapp.Flag{
-				{Name: "raw", Default: "false", Description: "Show raw unified diff"},
-			}},
-			{Name: "approve", NeedsAPI: true, Description: "Apply sandbox changes to the repo", Run: a.cmdApprove, Flags: []cliapp.Flag{
-				{Name: "message", Alias: "m", Default: "", Description: "Commit message"},
-			}},
+			{Name: "diff", NeedsAPI: true, Description: "Show changes in a sandbox ([--raw])", Run: a.cmdDiff},
+			{Name: "approve", NeedsAPI: true, Description: "Apply sandbox changes to the repo ([-m MESSAGE])", Run: a.cmdApprove},
 			{Name: "reject", NeedsAPI: true, Description: "Reject and discard sandbox changes", Run: a.cmdReject},
 		},
 	}
@@ -214,9 +203,28 @@ func (a *App) cmdStatus(_ []string) error {
 }
 
 func (a *App) cmdCreate(args []string) error {
-	scope := a.core.CLI.String("scope")
-	project := a.core.CLI.String("project")
-	owner := a.core.CLI.String("owner")
+	var scope, project, owner string
+
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--scope="):
+			scope = strings.TrimPrefix(arg, "--scope=")
+		case strings.HasPrefix(arg, "-s="):
+			scope = strings.TrimPrefix(arg, "-s=")
+		case strings.HasPrefix(arg, "--project="):
+			project = strings.TrimPrefix(arg, "--project=")
+		case strings.HasPrefix(arg, "-p="):
+			project = strings.TrimPrefix(arg, "-p=")
+		case strings.HasPrefix(arg, "--owner="):
+			owner = strings.TrimPrefix(arg, "--owner=")
+		case strings.HasPrefix(arg, "-o="):
+			owner = strings.TrimPrefix(arg, "-o=")
+		}
+	}
+
+	if scope == "" {
+		return fmt.Errorf("usage: workspace-sandbox create --scope=PATH [--project=DIR] [--owner=ID]")
+	}
 
 	reqBody := map[string]interface{}{
 		"scopePath": scope,
@@ -228,7 +236,7 @@ func (a *App) cmdCreate(args []string) error {
 		reqBody["owner"] = owner
 	}
 
-	body, err := a.core.APIClient.Post(a.apiPath("/sandboxes"), reqBody, nil)
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes"), nil, reqBody)
 	if err != nil {
 		return err
 	}
@@ -248,20 +256,30 @@ func (a *App) cmdCreate(args []string) error {
 	return nil
 }
 
-func (a *App) cmdList(_ []string) error {
-	status := a.core.CLI.String("status")
-	owner := a.core.CLI.String("owner")
-	asJSON := a.core.CLI.Bool("json")
+func (a *App) cmdList(args []string) error {
+	var status, owner string
+	var asJSON bool
 
-	params := make(map[string]string)
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--status="):
+			status = strings.TrimPrefix(arg, "--status=")
+		case strings.HasPrefix(arg, "--owner="):
+			owner = strings.TrimPrefix(arg, "--owner=")
+		case arg == "--json":
+			asJSON = true
+		}
+	}
+
+	query := url.Values{}
 	if status != "" {
-		params["status"] = status
+		query.Set("status", status)
 	}
 	if owner != "" {
-		params["owner"] = owner
+		query.Set("owner", owner)
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes"), params)
+	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes"), query)
 	if err != nil {
 		return err
 	}
@@ -341,7 +359,7 @@ func (a *App) cmdStop(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox stop <sandbox-id>")
 	}
 
-	body, err := a.core.APIClient.Post(a.apiPath("/sandboxes/"+args[0]+"/stop"), nil, nil)
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+args[0]+"/stop"), nil, nil)
 	if err != nil {
 		return err
 	}
@@ -360,7 +378,7 @@ func (a *App) cmdDelete(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox delete <sandbox-id>")
 	}
 
-	_, err := a.core.APIClient.Delete(a.apiPath("/sandboxes/"+args[0]), nil)
+	_, err := a.core.APIClient.Request("DELETE", a.apiPath("/sandboxes/"+args[0]), nil, nil)
 	if err != nil {
 		return err
 	}
@@ -391,13 +409,25 @@ func (a *App) cmdWorkspace(args []string) error {
 }
 
 func (a *App) cmdDiff(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: workspace-sandbox diff <sandbox-id>")
+	var sandboxID string
+	var raw bool
+
+	for _, arg := range args {
+		switch {
+		case arg == "--raw":
+			raw = true
+		case !strings.HasPrefix(arg, "-"):
+			if sandboxID == "" {
+				sandboxID = arg
+			}
+		}
 	}
 
-	raw := a.core.CLI.Bool("raw")
+	if sandboxID == "" {
+		return fmt.Errorf("usage: workspace-sandbox diff <sandbox-id> [--raw]")
+	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+args[0]+"/diff"), nil)
+	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+sandboxID+"/diff"), nil)
 	if err != nil {
 		return err
 	}
@@ -441,11 +471,26 @@ func (a *App) cmdDiff(args []string) error {
 }
 
 func (a *App) cmdApprove(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: workspace-sandbox approve <sandbox-id>")
+	var sandboxID, message string
+
+	for i, arg := range args {
+		switch {
+		case arg == "-m" && i+1 < len(args):
+			message = args[i+1]
+		case strings.HasPrefix(arg, "-m="):
+			message = strings.TrimPrefix(arg, "-m=")
+		case strings.HasPrefix(arg, "--message="):
+			message = strings.TrimPrefix(arg, "--message=")
+		case !strings.HasPrefix(arg, "-") && (i == 0 || !strings.HasPrefix(args[i-1], "-m")):
+			if sandboxID == "" {
+				sandboxID = arg
+			}
+		}
 	}
 
-	message := a.core.CLI.String("message")
+	if sandboxID == "" {
+		return fmt.Errorf("usage: workspace-sandbox approve <sandbox-id> [-m MESSAGE]")
+	}
 
 	reqBody := map[string]interface{}{
 		"mode": "all",
@@ -454,7 +499,7 @@ func (a *App) cmdApprove(args []string) error {
 		reqBody["commitMessage"] = message
 	}
 
-	body, err := a.core.APIClient.Post(a.apiPath("/sandboxes/"+args[0]+"/approve"), reqBody, nil)
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+sandboxID+"/approve"), nil, reqBody)
 	if err != nil {
 		return err
 	}
@@ -482,7 +527,7 @@ func (a *App) cmdReject(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox reject <sandbox-id>")
 	}
 
-	body, err := a.core.APIClient.Post(a.apiPath("/sandboxes/"+args[0]+"/reject"), nil, nil)
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+args[0]+"/reject"), nil, nil)
 	if err != nil {
 		return err
 	}
