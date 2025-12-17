@@ -38,6 +38,7 @@ type Repository interface {
 	CheckScopeOverlap(ctx context.Context, scopePath, projectRoot string, excludeID *uuid.UUID) ([]types.PathConflict, error)
 	GetActiveSandboxes(ctx context.Context, projectRoot string) ([]*types.Sandbox, error)
 	LogAuditEvent(ctx context.Context, event *types.AuditEvent) error
+	GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error)
 	GetStats(ctx context.Context) (*types.SandboxStats, error)
 
 	// --- Idempotency Support ---
@@ -433,6 +434,96 @@ func (r *SandboxRepository) LogAuditEvent(ctx context.Context, event *types.Audi
 	return err
 }
 
+// GetAuditLog retrieves audit events, optionally filtered by sandbox ID.
+// [OT-P1-004] Audit Trail Metadata
+// Returns events in reverse chronological order (most recent first).
+func (r *SandboxRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error) {
+	// Set reasonable defaults
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Build query with optional sandbox filter
+	var whereClause string
+	var args []interface{}
+
+	if sandboxID != nil {
+		whereClause = "WHERE sandbox_id = $1"
+		args = append(args, *sandboxID)
+	}
+
+	// Get total count
+	countQuery := "SELECT COUNT(*) FROM sandbox_audit_log " + whereClause
+	var totalCount int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalCount); err != nil {
+		return nil, 0, fmt.Errorf("failed to count audit events: %w", err)
+	}
+
+	// Build main query
+	limitArgNum := len(args) + 1
+	offsetArgNum := limitArgNum + 1
+
+	query := `
+		SELECT id, sandbox_id, event_type, event_time, actor, actor_type, details, sandbox_state
+		FROM sandbox_audit_log
+		` + whereClause + `
+		ORDER BY event_time DESC
+		LIMIT $` + strconv.Itoa(limitArgNum) + ` OFFSET $` + strconv.Itoa(offsetArgNum)
+
+	args = append(args, limit, offset)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query audit log: %w", err)
+	}
+	defer rows.Close()
+
+	var events []*types.AuditEvent
+	for rows.Next() {
+		event := &types.AuditEvent{}
+		var detailsJSON, stateJSON []byte
+		var sandboxID sql.NullString
+
+		err := rows.Scan(
+			&event.ID,
+			&sandboxID,
+			&event.EventType,
+			&event.EventTime,
+			&event.Actor,
+			&event.ActorType,
+			&detailsJSON,
+			&stateJSON,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan audit event: %w", err)
+		}
+
+		// Parse sandbox ID
+		if sandboxID.Valid {
+			id, _ := uuid.Parse(sandboxID.String)
+			event.SandboxID = &id
+		}
+
+		// Parse JSON fields
+		if len(detailsJSON) > 0 {
+			json.Unmarshal(detailsJSON, &event.Details)
+		}
+		if len(stateJSON) > 0 {
+			json.Unmarshal(stateJSON, &event.SandboxState)
+		}
+
+		events = append(events, event)
+	}
+
+	return events, totalCount, nil
+}
+
 // GetStats retrieves aggregate sandbox statistics using the database function.
 func (r *SandboxRepository) GetStats(ctx context.Context) (*types.SandboxStats, error) {
 	query := `SELECT * FROM get_sandbox_stats()`
@@ -792,6 +883,11 @@ func (r *TxSandboxRepository) LogAuditEvent(ctx context.Context, event *types.Au
 // GetStats is not supported within transactions.
 func (r *TxSandboxRepository) GetStats(ctx context.Context) (*types.SandboxStats, error) {
 	return nil, fmt.Errorf("GetStats not implemented for transactions")
+}
+
+// GetAuditLog is not supported within transactions.
+func (r *TxSandboxRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error) {
+	return nil, 0, fmt.Errorf("GetAuditLog not implemented for transactions")
 }
 
 // FindByIdempotencyKey finds a sandbox by idempotency key within the transaction.

@@ -186,6 +186,10 @@ func (s *Server) setupRoutes() {
 	// Garbage collection endpoints (OT-P1-003)
 	api.HandleFunc("/gc", h.GC).Methods("POST")
 	api.HandleFunc("/gc/preview", h.GCPreview).Methods("POST")
+
+	// Audit log endpoints (OT-P1-004)
+	api.HandleFunc("/audit", h.GetAuditLog).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/audit", h.GetSandboxAuditLog).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown.

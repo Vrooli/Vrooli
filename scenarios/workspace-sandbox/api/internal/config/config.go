@@ -162,6 +162,38 @@ type PolicyConfig struct {
 	// Options: "agent", "reviewer", "coauthored"
 	// Default: "agent"
 	CommitAuthorMode string
+
+	// ValidationHooks defines pre-commit validation hooks to run before
+	// applying changes. Each hook is a command that must exit 0 to pass.
+	// [OT-P1-005] Pre-commit Validation Hooks
+	ValidationHooks []ValidationHookConfig
+
+	// ValidationTimeout is the maximum time to wait for all validation hooks.
+	// Default: 5m
+	ValidationTimeout time.Duration
+}
+
+// ValidationHookConfig defines a single validation hook.
+type ValidationHookConfig struct {
+	// Name is a human-readable identifier for the hook.
+	Name string
+
+	// Description explains what the hook validates.
+	Description string
+
+	// Command is the executable to run.
+	Command string
+
+	// Args are arguments to pass to the command.
+	Args []string
+
+	// Required determines if a failure blocks the commit.
+	// If false, failure is logged but approval proceeds.
+	Required bool
+
+	// Timeout is the maximum time for this specific hook.
+	// If zero, uses the global ValidationTimeout.
+	Timeout time.Duration
 }
 
 // DriverConfig controls filesystem driver settings.
@@ -241,6 +273,8 @@ func Default() Config {
 			AutoApproveThresholdLines: 500,
 			CommitMessageTemplate:     "Apply sandbox changes ({{.FileCount}} files)",
 			CommitAuthorMode:          "agent",
+			ValidationHooks:           nil, // No hooks by default
+			ValidationTimeout:         5 * time.Minute,
 		},
 		Driver: DriverConfig{
 			BaseDir:          "/var/lib/workspace-sandbox",

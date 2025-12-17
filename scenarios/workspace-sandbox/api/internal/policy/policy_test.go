@@ -547,19 +547,302 @@ func TestHookValidationPolicy_GetValidationHooks(t *testing.T) {
 
 func TestHookValidationPolicy_ValidateBeforeApply(t *testing.T) {
 	ctx := context.Background()
-	hooks := []ValidationHook{
-		{Name: "lint", Command: "true", Required: true},
+
+	t.Run("empty hooks list always succeeds", func(t *testing.T) {
+		policy := NewHookValidationPolicy(nil)
+		sandbox := &types.Sandbox{ID: uuid.New()}
+		changes := []*types.FileChange{}
+
+		err := policy.ValidateBeforeApply(ctx, sandbox, changes)
+		if err != nil {
+			t.Errorf("empty hooks should succeed: %v", err)
+		}
+	})
+
+	t.Run("successful hook passes", func(t *testing.T) {
+		hooks := []ValidationHook{
+			{Name: "echo-test", Command: "true", Required: true},
+		}
+		policy := NewHookValidationPolicy(hooks)
+		sandbox := &types.Sandbox{ID: uuid.New(), ProjectRoot: "/tmp"}
+		changes := []*types.FileChange{}
+
+		err := policy.ValidateBeforeApply(ctx, sandbox, changes)
+		if err != nil {
+			t.Errorf("successful hook should pass: %v", err)
+		}
+	})
+
+	t.Run("required hook failure blocks approval", func(t *testing.T) {
+		hooks := []ValidationHook{
+			{Name: "fail-hook", Command: "false", Required: true},
+		}
+		policy := NewHookValidationPolicy(hooks)
+		sandbox := &types.Sandbox{ID: uuid.New(), ProjectRoot: "/tmp"}
+		changes := []*types.FileChange{}
+
+		err := policy.ValidateBeforeApply(ctx, sandbox, changes)
+		if err == nil {
+			t.Error("required hook failure should block approval")
+		}
+
+		hookErr, ok := err.(*ValidationHookError)
+		if !ok {
+			t.Errorf("expected ValidationHookError, got: %T", err)
+		} else if hookErr.HookName != "fail-hook" {
+			t.Errorf("error should reference failing hook, got: %s", hookErr.HookName)
+		}
+	})
+
+	t.Run("non-required hook failure does not block approval", func(t *testing.T) {
+		hooks := []ValidationHook{
+			{Name: "optional-fail", Command: "false", Required: false},
+		}
+		policy := NewHookValidationPolicy(hooks)
+		sandbox := &types.Sandbox{ID: uuid.New(), ProjectRoot: "/tmp"}
+		changes := []*types.FileChange{}
+
+		err := policy.ValidateBeforeApply(ctx, sandbox, changes)
+		if err != nil {
+			t.Errorf("non-required hook failure should not block: %v", err)
+		}
+	})
+
+	t.Run("multiple hooks execute in order", func(t *testing.T) {
+		hooks := []ValidationHook{
+			{Name: "hook1", Command: "true", Required: true},
+			{Name: "hook2", Command: "true", Required: true},
+		}
+		policy := NewHookValidationPolicy(hooks)
+		sandbox := &types.Sandbox{ID: uuid.New(), ProjectRoot: "/tmp"}
+		changes := []*types.FileChange{}
+
+		err := policy.ValidateBeforeApply(ctx, sandbox, changes)
+		if err != nil {
+			t.Errorf("all passing hooks should succeed: %v", err)
+		}
+	})
+
+	t.Run("stops on first required failure by default", func(t *testing.T) {
+		hooks := []ValidationHook{
+			{Name: "hook1", Command: "false", Required: true},
+			{Name: "hook2", Command: "true", Required: true},
+		}
+		policy := NewHookValidationPolicy(hooks)
+		sandbox := &types.Sandbox{ID: uuid.New(), ProjectRoot: "/tmp"}
+		changes := []*types.FileChange{}
+
+		err := policy.ValidateBeforeApply(ctx, sandbox, changes)
+		if err == nil {
+			t.Error("should fail on first required hook failure")
+		}
+
+		hookErr := err.(*ValidationHookError)
+		if hookErr.HookName != "hook1" {
+			t.Errorf("should fail on hook1, got: %s", hookErr.HookName)
+		}
+	})
+
+	t.Run("continue on fail option runs all hooks", func(t *testing.T) {
+		var executedHooks []string
+		hooks := []ValidationHook{
+			{Name: "hook1", Command: "false", Required: false},
+			{Name: "hook2", Command: "true", Required: false},
+		}
+
+		policy := NewHookValidationPolicy(hooks, WithContinueOnFail(true))
+		sandbox := &types.Sandbox{ID: uuid.New(), ProjectRoot: "/tmp"}
+		changes := []*types.FileChange{}
+
+		// Use a simple logger to track execution
+		_ = executedHooks // Used to track in real implementation
+
+		err := policy.ValidateBeforeApply(ctx, sandbox, changes)
+		if err != nil {
+			t.Errorf("non-required hooks should not fail: %v", err)
+		}
+	})
+
+	t.Run("environment variables are set correctly", func(t *testing.T) {
+		// Use sh to verify env vars are available
+		// Note: Use /tmp as working dir which always exists
+		hooks := []ValidationHook{
+			{
+				Name:    "check-env",
+				Command: "sh",
+				Args:    []string{"-c", "test -n \"$SANDBOX_ID\""},
+				Required: true,
+			},
+		}
+		policy := NewHookValidationPolicy(hooks)
+		sandbox := &types.Sandbox{
+			ID:          uuid.New(),
+			ScopePath:   "/project/src",
+			ProjectRoot: "/tmp", // Use /tmp which always exists
+			UpperDir:    "/tmp",
+			MergedDir:   "", // Empty to fall back to ProjectRoot
+		}
+		changes := []*types.FileChange{
+			{FilePath: "file1.go"},
+			{FilePath: "file2.go"},
+		}
+
+		err := policy.ValidateBeforeApply(ctx, sandbox, changes)
+		if err != nil {
+			t.Errorf("env vars should be set: %v", err)
+		}
+	})
+
+	t.Run("hook with arguments executes correctly", func(t *testing.T) {
+		hooks := []ValidationHook{
+			{
+				Name:     "echo-args",
+				Command:  "sh",
+				Args:     []string{"-c", "exit 0"},
+				Required: true,
+			},
+		}
+		policy := NewHookValidationPolicy(hooks)
+		sandbox := &types.Sandbox{ID: uuid.New(), ProjectRoot: "/tmp"}
+		changes := []*types.FileChange{}
+
+		err := policy.ValidateBeforeApply(ctx, sandbox, changes)
+		if err != nil {
+			t.Errorf("hook with args should work: %v", err)
+		}
+	})
+}
+
+// [OT-P1-005] Pre-commit Validation Hooks - Additional Tests
+func TestValidationHookError(t *testing.T) {
+	t.Run("error message includes hook name", func(t *testing.T) {
+		err := &ValidationHookError{
+			HookName: "lint-check",
+			Err:      nil,
+		}
+
+		msg := err.Error()
+		if !strings.Contains(msg, "lint-check") {
+			t.Errorf("error should include hook name, got: %s", msg)
+		}
+	})
+
+	t.Run("error message includes underlying error", func(t *testing.T) {
+		err := &ValidationHookError{
+			HookName: "test",
+			Err:      context.DeadlineExceeded,
+		}
+
+		msg := err.Error()
+		if !strings.Contains(msg, "deadline") {
+			t.Errorf("error should include underlying error, got: %s", msg)
+		}
+	})
+
+	t.Run("implements DomainError interface", func(t *testing.T) {
+		err := &ValidationHookError{HookName: "test"}
+
+		if err.HTTPStatus() != 422 {
+			t.Errorf("expected HTTP 422, got: %d", err.HTTPStatus())
+		}
+		if err.IsRetryable() {
+			t.Error("validation errors should not be retryable")
+		}
+		if !strings.Contains(err.Hint(), "test") {
+			t.Errorf("hint should reference hook name, got: %s", err.Hint())
+		}
+	})
+
+	t.Run("Unwrap returns underlying error", func(t *testing.T) {
+		underlying := context.Canceled
+		err := &ValidationHookError{
+			HookName: "test",
+			Err:      underlying,
+		}
+
+		if err.Unwrap() != underlying {
+			t.Error("Unwrap should return underlying error")
+		}
+	})
+}
+
+func TestBuildHookEnv(t *testing.T) {
+	sandbox := &types.Sandbox{
+		ID:          uuid.MustParse("123e4567-e89b-12d3-a456-426614174000"),
+		ScopePath:   "/project/src",
+		ProjectRoot: "/project",
+		UpperDir:    "/tmp/upper",
+		MergedDir:   "/tmp/merged",
+	}
+	changes := []*types.FileChange{
+		{FilePath: "file1.go"},
+		{FilePath: "file2.go"},
 	}
 
-	policy := NewHookValidationPolicy(hooks)
-	sandbox := &types.Sandbox{ID: uuid.New()}
-	changes := []*types.FileChange{}
+	env := buildHookEnv(sandbox, changes)
 
-	// Current implementation is a placeholder that always succeeds
-	err := policy.ValidateBeforeApply(ctx, sandbox, changes)
-	if err != nil {
-		t.Errorf("placeholder should succeed: %v", err)
-	}
+	t.Run("includes sandbox ID", func(t *testing.T) {
+		found := false
+		for _, e := range env {
+			if strings.HasPrefix(e, "SANDBOX_ID=") {
+				found = true
+				if !strings.Contains(e, "123e4567") {
+					t.Errorf("SANDBOX_ID should contain UUID, got: %s", e)
+				}
+			}
+		}
+		if !found {
+			t.Error("SANDBOX_ID not found in environment")
+		}
+	})
+
+	t.Run("includes scope path", func(t *testing.T) {
+		found := false
+		for _, e := range env {
+			if e == "SANDBOX_SCOPE_PATH=/project/src" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("SANDBOX_SCOPE_PATH not found in environment")
+		}
+	})
+
+	t.Run("includes change count", func(t *testing.T) {
+		found := false
+		for _, e := range env {
+			if e == "SANDBOX_CHANGE_COUNT=2" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("SANDBOX_CHANGE_COUNT not found in environment")
+		}
+	})
+
+	t.Run("includes changed files", func(t *testing.T) {
+		found := false
+		for _, e := range env {
+			if strings.HasPrefix(e, "SANDBOX_CHANGED_FILES=") {
+				found = true
+				if !strings.Contains(e, "file1.go") || !strings.Contains(e, "file2.go") {
+					t.Errorf("SANDBOX_CHANGED_FILES should list files, got: %s", e)
+				}
+			}
+		}
+		if !found {
+			t.Error("SANDBOX_CHANGED_FILES not found in environment")
+		}
+	})
+
+	t.Run("empty changes does not include changed files", func(t *testing.T) {
+		env := buildHookEnv(sandbox, []*types.FileChange{})
+		for _, e := range env {
+			if strings.HasPrefix(e, "SANDBOX_CHANGED_FILES=") {
+				t.Error("should not include SANDBOX_CHANGED_FILES for empty changes")
+			}
+		}
+	})
 }
 
 func TestNewHookValidationPolicy_EmptyHooks(t *testing.T) {

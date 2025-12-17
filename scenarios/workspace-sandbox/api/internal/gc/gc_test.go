@@ -47,6 +47,10 @@ func (m *MockRepository) LogAuditEvent(ctx context.Context, event *types.AuditEv
 	return nil
 }
 
+func (m *MockRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error) {
+	return m.auditEvents, len(m.auditEvents), nil
+}
+
 // Unused methods - implement interface
 func (m *MockRepository) Create(ctx context.Context, s *types.Sandbox) error { return nil }
 func (m *MockRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
@@ -79,6 +83,9 @@ type MockTxRepository struct {
 
 func (m *MockTxRepository) Commit() error   { return nil }
 func (m *MockTxRepository) Rollback() error { return nil }
+func (m *MockTxRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error) {
+	return nil, 0, nil
+}
 
 // Ensure MockRepository implements Repository
 var _ repository.Repository = (*MockRepository)(nil)

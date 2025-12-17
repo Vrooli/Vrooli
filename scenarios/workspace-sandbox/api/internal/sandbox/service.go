@@ -249,17 +249,11 @@ func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.
 		return nil, fmt.Errorf("failed to update sandbox: %w", err)
 	}
 
-	// Log audit event
-	s.repo.LogAuditEvent(ctx, &types.AuditEvent{
-		SandboxID: &sandbox.ID,
-		EventType: "created",
-		Actor:     req.Owner,
-		ActorType: string(req.OwnerType),
-		Details: map[string]interface{}{
-			"scopePath":      sandbox.ScopePath,
-			"projectRoot":    sandbox.ProjectRoot,
-			"idempotencyKey": req.IdempotencyKey,
-		},
+	// Log audit event [OT-P1-004]
+	s.logAuditEvent(ctx, sandbox, "created", req.Owner, string(req.OwnerType), map[string]interface{}{
+		"scopePath":      sandbox.ScopePath,
+		"projectRoot":    sandbox.ProjectRoot,
+		"idempotencyKey": req.IdempotencyKey,
 	})
 
 	return sandbox, nil
@@ -321,10 +315,8 @@ func (s *Service) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error
 		return nil, fmt.Errorf("failed to update sandbox: %w", err)
 	}
 
-	s.repo.LogAuditEvent(ctx, &types.AuditEvent{
-		SandboxID: &sandbox.ID,
-		EventType: "stopped",
-	})
+	// Log audit event [OT-P1-004]
+	s.logAuditEvent(ctx, sandbox, "stopped", "", "", nil)
 
 	return sandbox, nil
 }
@@ -367,10 +359,8 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("failed to delete sandbox: %w", err)
 	}
 
-	s.repo.LogAuditEvent(ctx, &types.AuditEvent{
-		SandboxID: &sandbox.ID,
-		EventType: "deleted",
-	})
+	// Log audit event [OT-P1-004] - Note: sandbox is being deleted, capture final state
+	s.logAuditEvent(ctx, sandbox, "deleted", "", "", nil)
 
 	return nil
 }
@@ -556,14 +546,11 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 	sandbox.ApprovedAt = &now
 	s.repo.Update(ctx, sandbox)
 
-	s.repo.LogAuditEvent(ctx, &types.AuditEvent{
-		SandboxID: &sandbox.ID,
-		EventType: "approved",
-		Actor:     req.Actor,
-		Details: map[string]interface{}{
-			"filesApplied": len(changes),
-			"commitHash":   applyResult.CommitHash,
-		},
+	// Log audit event [OT-P1-004]
+	s.logAuditEvent(ctx, sandbox, "approved", req.Actor, "", map[string]interface{}{
+		"filesApplied": len(changes),
+		"commitHash":   applyResult.CommitHash,
+		"mode":         req.Mode,
 	})
 
 	return &types.ApprovalResult{
@@ -604,11 +591,8 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*type
 		return nil, fmt.Errorf("failed to update sandbox: %w", err)
 	}
 
-	s.repo.LogAuditEvent(ctx, &types.AuditEvent{
-		SandboxID: &sandbox.ID,
-		EventType: "rejected",
-		Actor:     actor,
-	})
+	// Log audit event [OT-P1-004]
+	s.logAuditEvent(ctx, sandbox, "rejected", actor, "", nil)
 
 	return sandbox, nil
 }
@@ -626,6 +610,63 @@ func (s *Service) GetWorkspacePath(ctx context.Context, id uuid.UUID) (string, e
 	}
 
 	return sandbox.MergedDir, nil
+}
+
+// logAuditEvent creates and logs an audit event with full sandbox state.
+// [OT-P1-004] Audit Trail Metadata
+//
+// This captures an immutable snapshot of the sandbox state at the time of the event,
+// enabling full auditability and forensic analysis of sandbox lifecycle changes.
+func (s *Service) logAuditEvent(ctx context.Context, sandbox *types.Sandbox, eventType, actor, actorType string, details map[string]interface{}) {
+	// Build sandbox state snapshot
+	sandboxState := map[string]interface{}{
+		"id":          sandbox.ID.String(),
+		"scopePath":   sandbox.ScopePath,
+		"projectRoot": sandbox.ProjectRoot,
+		"status":      string(sandbox.Status),
+		"owner":       sandbox.Owner,
+		"ownerType":   string(sandbox.OwnerType),
+		"sizeBytes":   sandbox.SizeBytes,
+		"fileCount":   sandbox.FileCount,
+		"driver":      sandbox.Driver,
+		"createdAt":   sandbox.CreatedAt.Format(time.RFC3339),
+	}
+
+	// Add optional timestamps
+	if sandbox.StoppedAt != nil {
+		sandboxState["stoppedAt"] = sandbox.StoppedAt.Format(time.RFC3339)
+	}
+	if sandbox.ApprovedAt != nil {
+		sandboxState["approvedAt"] = sandbox.ApprovedAt.Format(time.RFC3339)
+	}
+	if sandbox.DeletedAt != nil {
+		sandboxState["deletedAt"] = sandbox.DeletedAt.Format(time.RFC3339)
+	}
+
+	// Add error message if present
+	if sandbox.ErrorMsg != "" {
+		sandboxState["errorMessage"] = sandbox.ErrorMsg
+	}
+
+	// Determine actor type if not provided
+	if actorType == "" && actor != "" {
+		actorType = "user" // Default
+	}
+
+	event := &types.AuditEvent{
+		SandboxID:    &sandbox.ID,
+		EventType:    eventType,
+		Actor:        actor,
+		ActorType:    actorType,
+		Details:      details,
+		SandboxState: sandboxState,
+	}
+
+	// Log to database (fire-and-forget, don't block on audit log failures)
+	if err := s.repo.LogAuditEvent(ctx, event); err != nil {
+		// Log the error but don't fail the operation
+		fmt.Printf("warning: failed to log audit event: %v\n", err)
+	}
 }
 
 // Legacy error type aliases for backwards compatibility.
