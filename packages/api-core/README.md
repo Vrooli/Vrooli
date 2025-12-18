@@ -1,20 +1,8 @@
 # api-core
 
-Shared Go utilities for Vrooli scenario APIs. Currently provides automatic staleness detection and hot-rebuild capabilities.
+Shared Go utilities for Vrooli scenario APIs. Provides automatic startup checks including staleness detection, auto-rebuild, and lifecycle management verification.
 
-## Features
-
-### Staleness Checker
-
-The `staleness` package enables Go API binaries to detect when their source files have changed and automatically rebuild/restart themselves.
-
-**How it works:**
-1. On startup, the API compares its binary's modification time against source files
-2. If any `.go` files, `go.mod`, or `go.sum` are newer than the binary, it triggers a rebuild
-3. After successful rebuild, the process re-execs itself with the new binary
-4. Loop detection prevents infinite rebuild cycles
-
-## Installation
+## Quick Start
 
 Add to your scenario's `api/go.mod`:
 
@@ -24,122 +12,198 @@ require github.com/vrooli/api-core v0.0.0
 replace github.com/vrooli/api-core => ../../../packages/api-core
 ```
 
-## Usage
-
-Add the staleness check at the very start of your `main()` function, before any other initialization:
+Add preflight checks to your `main()`:
 
 ```go
 package main
 
-import (
-    "github.com/vrooli/api-core/staleness"
-)
+import "github.com/vrooli/api-core/preflight"
 
 func main() {
-    // Staleness check - auto-rebuild if source files have changed
-    // Must be first, before any initialization
-    checker := staleness.NewChecker(staleness.CheckerConfig{})
-    if checker.CheckAndMaybeRebuild() {
-        return // Process was re-exec'd with new binary
+    // Must be first - before any initialization
+    if preflight.Run(preflight.Config{
+        ScenarioName: "my-scenario",
+    }) {
+        return // Process was re-exec'd after rebuild
     }
 
-    // Rest of your main() ...
+    // Safe to initialize server, DB connections, etc.
+    server := NewServer()
+    server.Start()
 }
 ```
 
-## Configuration
+## What Preflight Does
 
-The checker accepts a `CheckerConfig` struct:
+The `preflight` package combines two critical startup checks:
+
+1. **Staleness Detection** - Detects if source files changed since compilation and auto-rebuilds
+2. **Lifecycle Guard** - Verifies the API is running under the Vrooli lifecycle system
+
+### Flow Diagram
+
+```
+vrooli scenario start my-scenario
+         │
+         ├─► Sets VROOLI_LIFECYCLE_MANAGED=true
+         ├─► Sets API_PORT, VROOLI_ROOT, etc.
+         │
+         └─► Executes: ./my-scenario-api
+                  │
+                  ▼
+            preflight.Run()
+                  │
+         ┌───────┴───────┐
+         │               │
+    Binary stale?    Binary fresh?
+         │               │
+         ▼               ▼
+      Rebuild      Lifecycle guard
+      Re-exec      (check env var)
+         │               │
+         ▼               ▼
+    New process     Continue to
+    starts fresh    initialization
+```
+
+## Features
+
+### Auto-Rebuild on Source Changes
+
+When source files are modified after the binary was compiled:
+
+```
+api-core: binary is stale (source file modified: pkg/handlers/scores.go)
+api-core: rebuilding binary...
+api-core: rebuild successful, restarting...
+```
+
+### Shared Package Detection
+
+Changes to local dependencies via `replace` directives are detected:
 
 ```go
-type CheckerConfig struct {
-    // APIDir is the directory containing the Go source files.
-    // Default: directory containing the binary
-    APIDir string
+// go.mod
+replace github.com/vrooli/api-core => ../../../packages/api-core
+```
 
-    // BinaryPath is the path to the compiled binary.
-    // Default: os.Executable()
-    BinaryPath string
+```
+api-core: binary is stale (dependency modified: ../../../packages/api-core (checker.go))
+```
 
-    // Logger is a function for logging messages.
-    // Default: log.Printf
-    Logger func(format string, args ...interface{})
+### Lifecycle Guard
 
-    // Disabled completely disables staleness checking.
-    // Default: false
-    Disabled bool
+Prevents direct execution without the lifecycle system:
 
-    // SkipRebuild detects staleness but doesn't rebuild (useful for testing).
-    // Default: false
-    SkipRebuild bool
-}
+```
+$ ./my-scenario-api
+This binary must be run through the Vrooli lifecycle system.
+
+Instead, use:
+   vrooli scenario start my-scenario
+```
+
+### Graceful Fallbacks
+
+- **No `go` in PATH**: Logs warning, continues with existing binary
+- **Build fails**: Logs error, continues with existing binary
+- **Rebuild loop**: Detected and prevented (60-second cooldown)
+
+## Configuration
+
+```go
+preflight.Run(preflight.Config{
+    // Required: scenario name for error messages
+    ScenarioName: "my-scenario",
+
+    // Optional: disable staleness check (e.g., in production)
+    DisableStaleness: os.Getenv("PRODUCTION") == "true",
+
+    // Optional: detect staleness without rebuilding
+    SkipRebuild: false,
+
+    // Optional: disable lifecycle guard (for testing)
+    DisableLifecycleGuard: false,
+
+    // Optional: custom logger
+    Logger: log.Printf,
+})
 ```
 
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `VROOLI_API_SKIP_STALE_CHECK` | Set to `true` to disable staleness checking |
+| `VROOLI_LIFECYCLE_MANAGED` | Set by lifecycle system; required for API to start |
+| `VROOLI_API_SKIP_STALE_CHECK` | Set to `"true"` to disable staleness checking |
 
-## What Gets Checked
+## Package Structure
 
-The checker monitors:
-
-1. **Source files** (`*.go`) in the API directory and subdirectories
-2. **go.mod** - dependency changes
-3. **go.sum** - dependency version changes
-4. **Local replace directives** - changes in local packages referenced via `replace` in go.mod
-
-### Skipped Directories
-
-The following directories are automatically skipped during file scanning:
-- `.git`
-- `vendor`
-- `node_modules`
-- `dist`
-- `build`
-- `__pycache__`
-- `.cache`
-- `testdata`
-
-## Graceful Fallbacks
-
-The checker handles edge cases gracefully:
-
-- **No `go` in PATH**: Logs warning, continues with existing binary
-- **Build fails**: Logs error, continues with existing binary
-- **No go.mod**: Skips checking (not a Go module)
-- **Loop detected**: Logs warning, continues with existing binary (prevents infinite rebuilds)
-
-## Example Output
-
-When a rebuild is triggered:
 ```
-[staleness] stale binary detected: source file modified: /path/to/api/handlers/scores.go
-[staleness] rebuilding with: go build -o /path/to/api/api .
-[staleness] rebuild successful, re-executing...
+packages/api-core/
+├── preflight/              # High-level API (recommended)
+│   ├── preflight.go
+│   └── preflight_test.go
+├── staleness/              # Low-level staleness detection
+│   ├── checker.go
+│   ├── checker_test.go
+│   ├── gomod.go
+│   ├── gomod_test.go
+│   ├── timestamps.go
+│   └── timestamps_test.go
+├── docs/                   # Documentation with flow diagrams
+│   ├── preflight.md
+│   └── staleness.md
+├── go.mod
+└── README.md
 ```
+
+## Documentation
+
+- [Preflight Checks](docs/preflight.md) - Detailed preflight documentation with flow diagrams
+- [Staleness Detection](docs/staleness.md) - Low-level staleness checker details
 
 ## Testing
-
-Run the test suite:
 
 ```bash
 cd packages/api-core
 go test ./...
 ```
 
-## Architecture
+## Migration from Separate Checks
 
+If your scenario has separate staleness and lifecycle checks:
+
+### Before
+
+```go
+func main() {
+    checker := staleness.NewChecker(staleness.CheckerConfig{})
+    if checker.CheckAndMaybeRebuild() {
+        return
+    }
+
+    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+        fmt.Fprintf(os.Stderr, "Must run via lifecycle\n")
+        os.Exit(1)
+    }
+    // ...
+}
 ```
-packages/api-core/
-├── go.mod
-├── staleness/
-│   ├── checker.go          # Main StalenessChecker
-│   ├── checker_test.go
-│   ├── gomod.go            # Parse replace directives
-│   ├── gomod_test.go
-│   ├── timestamps.go       # File timestamp utilities
-│   └── timestamps_test.go
-└── README.md
+
+### After
+
+```go
+func main() {
+    if preflight.Run(preflight.Config{
+        ScenarioName: "my-scenario",
+    }) {
+        return
+    }
+    // ...
+}
 ```
+
+## Currently Using api-core
+
+- `scenario-completeness-scoring` - Reference implementation
