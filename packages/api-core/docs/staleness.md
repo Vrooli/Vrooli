@@ -134,6 +134,11 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 replace github.com/vrooli/proto => ../../../packages/proto
 ```
 
+For each local dependency, the following are checked:
+- `*.go` source files
+- `go.mod` (dependency changes)
+- `go.sum` (dependency version updates)
+
 Both `packages/api-core` and `packages/proto` are checked for modifications.
 
 ### Parsing Logic
@@ -238,10 +243,18 @@ api-core: rebuilding binary...
 api-core: rebuild successful, restarting...
 ```
 
-### Stale Dependency
+### Stale Dependency (Source)
 
 ```
 api-core: binary is stale (dependency modified: ../../../packages/api-core (checker.go))
+api-core: rebuilding binary...
+api-core: rebuild successful, restarting...
+```
+
+### Stale Dependency (go.sum)
+
+```
+api-core: binary is stale (dependency go.sum modified: ../../../packages/api-core)
 api-core: rebuilding binary...
 api-core: rebuild successful, restarting...
 ```

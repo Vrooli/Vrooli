@@ -107,6 +107,17 @@ replace test-genie => ../api
 				"../api",
 			},
 		},
+		{
+			name: "replace block with whitespace variations",
+			content: `module test
+go 1.21
+
+replace  (
+	github.com/foo/bar => ../packages/bar
+)
+`,
+			expected: []string{"../packages/bar"},
+		},
 	}
 
 	for _, tt := range tests {

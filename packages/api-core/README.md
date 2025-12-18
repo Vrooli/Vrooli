@@ -80,7 +80,10 @@ api-core: rebuild successful, restarting...
 
 ### Shared Package Detection
 
-Changes to local dependencies via `replace` directives are detected:
+Changes to local dependencies via `replace` directives are detected. For each local dependency, the following are monitored:
+- Source files (`*.go`)
+- `go.mod` changes
+- `go.sum` changes (dependency version updates)
 
 ```go
 // go.mod
@@ -89,6 +92,7 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 
 ```
 api-core: binary is stale (dependency modified: ../../../packages/api-core (checker.go))
+api-core: binary is stale (dependency go.sum modified: ../../../packages/api-core)
 ```
 
 ### Lifecycle Guard
@@ -132,10 +136,11 @@ preflight.Run(preflight.Config{
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `VROOLI_LIFECYCLE_MANAGED` | Set by lifecycle system; required for API to start |
-| `VROOLI_API_SKIP_STALE_CHECK` | Set to `"true"` to disable staleness checking |
+| Variable | Set By | Description |
+|----------|--------|-------------|
+| `VROOLI_LIFECYCLE_MANAGED` | Lifecycle system | Required for API to start; set to `"true"` |
+| `VROOLI_API_SKIP_STALE_CHECK` | User/Environment | Set to `"true"` to disable staleness checking |
+| `API_CORE_REBUILD_TIMESTAMP` | api-core (internal) | Unix timestamp of last rebuild; used for loop detection |
 
 ## Package Structure
 

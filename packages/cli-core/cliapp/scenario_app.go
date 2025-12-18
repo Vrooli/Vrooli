@@ -1,9 +1,11 @@
 package cliapp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -125,7 +127,19 @@ func (a *ScenarioApp) SetCommands(commands []CommandGroup) {
 	preflight := func(cmd Command, global GlobalOptions) error {
 		if cmd.NeedsAPI {
 			if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err != nil {
-				return err
+				// If auto-start is enabled, try to start the scenario
+				if global.AutoStart {
+					if startErr := a.tryAutoStart(); startErr != nil {
+						return fmt.Errorf("failed to auto-start %s: %w", a.options.Name, startErr)
+					}
+					// Retry API validation after starting
+					if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err != nil {
+						return fmt.Errorf("%s API still not reachable after auto-start", a.options.Name)
+					}
+				} else {
+					// Provide actionable error with auto-start suggestion
+					return fmt.Errorf("%s API is not reachable.\n\nTo auto-start the scenario:\n  %s --auto-start %s\n\nOr start manually:\n  vrooli scenario start %s", a.options.Name, a.options.Name, cmd.Name, a.options.Name)
+				}
 			}
 			if !a.options.AllowAnonymous && strings.TrimSpace(a.tokenSource()) == "" {
 				return fmt.Errorf("API token is required for %s; set one via configure or %s", cmd.Name, strings.Join(a.options.TokenEnvVars, ", "))
@@ -219,4 +233,34 @@ func applyTimeoutOpts(opts ScenarioOptions) cliutil.HTTPClientOptions {
 		clientOpts.Timeout = cliutil.ResolveTimeout(opts.HTTPTimeoutEnvVars, opts.DefaultHTTPTimeout)
 	}
 	return clientOpts
+}
+
+// tryAutoStart attempts to start the scenario via vrooli and waits for the API to become available.
+func (a *ScenarioApp) tryAutoStart() error {
+	fmt.Printf("Starting %s...\n", a.options.Name)
+
+	// Start the scenario in background
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "start", a.options.Name)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("vrooli scenario start failed: %w", err)
+	}
+
+	// Wait for API to become available (poll port detector)
+	fmt.Printf("Waiting for %s API...\n", a.options.Name)
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err == nil {
+			fmt.Printf("%s API is ready\n", a.options.Name)
+			return nil
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	return fmt.Errorf("timeout waiting for API to become available")
 }

@@ -192,6 +192,12 @@ func (c *Checker) checkStaleness(binaryPath, apiDir string, binaryTime time.Time
 			if IsFileNewer(depGoMod, binaryTime) {
 				return true, fmt.Sprintf("dependency go.mod modified: %s", relPath)
 			}
+
+			// Check go.sum in replaced package (dependency version updates)
+			depGoSum := filepath.Join(absPath, "go.sum")
+			if IsFileNewer(depGoSum, binaryTime) {
+				return true, fmt.Sprintf("dependency go.sum modified: %s", relPath)
+			}
 		}
 	}
 

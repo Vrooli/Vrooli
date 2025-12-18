@@ -28,7 +28,8 @@ func ParseReplaceDirectives(goModPath string) ([]string, error) {
 		line := strings.TrimSpace(scanner.Text())
 
 		// Handle replace block: replace ( ... )
-		if line == "replace (" {
+		// Use HasPrefix/HasSuffix to handle whitespace variations like "replace  ("
+		if strings.HasPrefix(line, "replace") && strings.HasSuffix(line, "(") {
 			inReplaceBlock = true
 			continue
 		}
