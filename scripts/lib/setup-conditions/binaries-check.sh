@@ -8,7 +8,8 @@
 # Checks performed:
 # 1. Binary exists and is executable
 # 2. Binary is newer than all source files (*.go, *.rs, *.c, *.cpp)
-# 3. Binary is newer than dependency files (go.mod, Cargo.toml, etc.)
+# 3. Binary is newer than dependency files (go.mod, go.sum, Cargo.toml, etc.)
+# 4. Binary is newer than local replace directive dependencies (shared packages)
 #
 # Input: JSON object with "targets" array
 # Returns: 0 if setup needed (binaries missing/outdated), 1 if all current
@@ -17,7 +18,9 @@
 set -euo pipefail
 
 # Get check configuration from argument
-CHECK_CONFIG="${1:-{}}"
+# Note: Cannot use ${1:-{}} as bash has a parsing bug when arg ends with }
+CHECK_CONFIG="${1:-}"
+[[ -z "$CHECK_CONFIG" ]] && CHECK_CONFIG='{}'
 
 # Extract targets array
 TARGETS=$(echo "$CHECK_CONFIG" | jq -r '.targets[]?' 2>/dev/null || echo "")
@@ -60,6 +63,39 @@ while IFS= read -r target; do
         if [[ -f "$binary_dir/go.mod" ]] && [[ "$binary_dir/go.mod" -nt "$target" ]]; then
             echo "[DEBUG] Binary outdated (go.mod modified): $target" >&2
             MISSING_COUNT=$((MISSING_COUNT + 1))
+        fi
+
+        # Check go.sum for dependency version updates
+        if [[ -f "$binary_dir/go.sum" ]] && [[ "$binary_dir/go.sum" -nt "$target" ]]; then
+            echo "[DEBUG] Binary outdated (go.sum modified): $target" >&2
+            MISSING_COUNT=$((MISSING_COUNT + 1))
+        fi
+
+        # Check local replace directives for shared package changes
+        # Parse go.mod for lines like: replace github.com/foo => ../../../packages/foo
+        if [[ -f "$binary_dir/go.mod" ]]; then
+            while IFS= read -r replace_path; do
+                [[ -z "$replace_path" ]] && continue
+
+                # Resolve path relative to binary_dir
+                resolved_path="$binary_dir/$replace_path"
+
+                # Only check if it's a local directory (not a version replacement)
+                if [[ -d "$resolved_path" ]]; then
+                    if find "$resolved_path" -name "*.go" -newer "$target" 2>/dev/null | head -1 | grep -q .; then
+                        echo "[DEBUG] Binary outdated (replace dependency modified): $replace_path" >&2
+                        MISSING_COUNT=$((MISSING_COUNT + 1))
+                        break  # One stale dependency is enough to trigger rebuild
+                    fi
+
+                    # Also check go.mod in the replaced package
+                    if [[ -f "$resolved_path/go.mod" ]] && [[ "$resolved_path/go.mod" -nt "$target" ]]; then
+                        echo "[DEBUG] Binary outdated (replace dependency go.mod modified): $replace_path" >&2
+                        MISSING_COUNT=$((MISSING_COUNT + 1))
+                        break
+                    fi
+                fi
+            done < <(grep "^replace.*=>" "$binary_dir/go.mod" 2>/dev/null | awk '{print $NF}' | grep "^\.\./")
         fi
     fi
 done <<< "$TARGETS"

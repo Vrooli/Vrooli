@@ -28,12 +28,12 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 ### 🔴 P0 – Must ship for viability
 - [x] OT-P0-001 | Sandbox Create/Mount Operations | Create + mount a sandbox in ~1-2 seconds (best effort) with stable ID, scopePath, and status tracking
 - [x] OT-P0-002 | Overlayfs Copy-on-Write Driver | Linux driver using overlayfs (lowerdir=canonical read-only, upperdir/workdir per sandbox, merged mount point)
-- [ ] OT-P0-003 | Bubblewrap Process Isolation | bwrap to run agent/tool processes in constrained filesystem view with canonical repo mounted read-only
+- [x] OT-P0-003 | Bubblewrap Process Isolation | bwrap to run agent/tool processes in constrained filesystem view with canonical repo mounted read-only
 - [x] OT-P0-004 | Path-Scoped Mutual Exclusion | Forbid creating sandbox for path P if any active sandbox has scope S where S is ancestor of P or P is ancestor of S
 - [x] OT-P0-005 | Diff Generation | Generate unified diff and file list of all changes in sandbox's upper layer with stable ordering
 - [x] OT-P0-006 | Patch Application | Apply approved diffs to canonical repo via controlled, trusted process
 - [x] OT-P0-007 | Sandbox Lifecycle Management | Create, list, inspect, stop, delete sandboxes with idempotent cleanup and no leaked mounts
-- [ ] OT-P0-008 | Process/Session Tracking | Track PIDs/process groups spawned under sandbox, clean up on stop/delete
+- [x] OT-P0-008 | Process/Session Tracking | Track PIDs/process groups spawned under sandbox, clean up on stop/delete
 - [x] OT-P0-009 | Health Check API | Basic health endpoint for lifecycle monitoring
 
 ### 🟠 P1 – Should have post-launch
