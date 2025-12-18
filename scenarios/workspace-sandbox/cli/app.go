@@ -133,6 +133,61 @@ func (a *App) apiPath(v1Path string) string {
 	return "/api/v1" + v1Path
 }
 
+// resolveSandboxID resolves a short sandbox ID prefix to a full UUID.
+// Accepts either:
+//   - Full UUID (36 chars with dashes): returned as-is
+//   - Short prefix (e.g., first 8 chars): resolved by matching against existing sandboxes
+//
+// Returns an error if:
+//   - The prefix matches multiple sandboxes (ambiguous)
+//   - The prefix matches no sandboxes (not found)
+func (a *App) resolveSandboxID(shortID string) (string, error) {
+	shortID = strings.TrimSpace(shortID)
+	if shortID == "" {
+		return "", fmt.Errorf("sandbox ID required")
+	}
+
+	// Full UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (36 chars)
+	if len(shortID) == 36 && strings.Count(shortID, "-") == 4 {
+		return shortID, nil
+	}
+
+	// Short ID - need to resolve by fetching sandbox list
+	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes"), nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch sandboxes for ID resolution: %w", err)
+	}
+
+	var resp listResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", fmt.Errorf("failed to parse sandbox list: %w", err)
+	}
+
+	// Find all sandboxes matching the prefix
+	var matches []sandboxResponse
+	shortIDLower := strings.ToLower(shortID)
+	for _, sb := range resp.Sandboxes {
+		if strings.HasPrefix(strings.ToLower(sb.ID), shortIDLower) {
+			matches = append(matches, sb)
+		}
+	}
+
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("no sandbox found matching prefix %q", shortID)
+	case 1:
+		return matches[0].ID, nil
+	default:
+		// Ambiguous - show the user the matching IDs
+		var ids []string
+		for _, m := range matches {
+			ids = append(ids, m.ID[:12]+"...")
+		}
+		return "", fmt.Errorf("ambiguous prefix %q matches %d sandboxes: %s",
+			shortID, len(matches), strings.Join(ids, ", "))
+	}
+}
+
 // Sandbox types
 type sandboxResponse struct {
 	ID          string    `json:"id"`
@@ -335,7 +390,12 @@ func (a *App) cmdInspect(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox inspect <sandbox-id>")
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+args[0]), nil)
+	sandboxID, err := a.resolveSandboxID(args[0])
+	if err != nil {
+		return err
+	}
+
+	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+sandboxID), nil)
 	if err != nil {
 		return err
 	}
@@ -369,7 +429,12 @@ func (a *App) cmdStop(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox stop <sandbox-id>")
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+args[0]+"/stop"), nil, nil)
+	sandboxID, err := a.resolveSandboxID(args[0])
+	if err != nil {
+		return err
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+sandboxID+"/stop"), nil, nil)
 	if err != nil {
 		return err
 	}
@@ -388,12 +453,17 @@ func (a *App) cmdDelete(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox delete <sandbox-id>")
 	}
 
-	_, err := a.core.APIClient.Request("DELETE", a.apiPath("/sandboxes/"+args[0]), nil, nil)
+	sandboxID, err := a.resolveSandboxID(args[0])
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Sandbox %s deleted\n", args[0])
+	_, err = a.core.APIClient.Request("DELETE", a.apiPath("/sandboxes/"+sandboxID), nil, nil)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Sandbox %s deleted\n", sandboxID)
 	return nil
 }
 
@@ -402,7 +472,12 @@ func (a *App) cmdWorkspace(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox workspace <sandbox-id>")
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+args[0]+"/workspace"), nil)
+	sandboxID, err := a.resolveSandboxID(args[0])
+	if err != nil {
+		return err
+	}
+
+	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+sandboxID+"/workspace"), nil)
 	if err != nil {
 		return err
 	}
@@ -437,7 +512,12 @@ func (a *App) cmdDiff(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox diff <sandbox-id> [--raw]")
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+sandboxID+"/diff"), nil)
+	resolvedID, err := a.resolveSandboxID(sandboxID)
+	if err != nil {
+		return err
+	}
+
+	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+resolvedID+"/diff"), nil)
 	if err != nil {
 		return err
 	}
@@ -505,6 +585,11 @@ func (a *App) cmdApprove(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox approve <sandbox-id> [-m MESSAGE] [--force]")
 	}
 
+	resolvedID, err := a.resolveSandboxID(sandboxID)
+	if err != nil {
+		return err
+	}
+
 	reqBody := map[string]interface{}{
 		"mode": "all",
 	}
@@ -515,7 +600,7 @@ func (a *App) cmdApprove(args []string) error {
 		reqBody["force"] = true
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+sandboxID+"/approve"), nil, reqBody)
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+resolvedID+"/approve"), nil, reqBody)
 	if err != nil {
 		return err
 	}
@@ -543,7 +628,12 @@ func (a *App) cmdReject(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox reject <sandbox-id>")
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+args[0]+"/reject"), nil, nil)
+	sandboxID, err := a.resolveSandboxID(args[0])
+	if err != nil {
+		return err
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+sandboxID+"/reject"), nil, nil)
 	if err != nil {
 		return err
 	}
@@ -771,7 +861,12 @@ func (a *App) cmdConflicts(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox conflicts <sandbox-id> [--json]")
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+sandboxID+"/conflicts"), nil)
+	resolvedID, err := a.resolveSandboxID(sandboxID)
+	if err != nil {
+		return err
+	}
+
+	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+resolvedID+"/conflicts"), nil)
 	if err != nil {
 		return err
 	}
@@ -846,11 +941,16 @@ func (a *App) cmdRebase(args []string) error {
 		return fmt.Errorf("usage: workspace-sandbox rebase <sandbox-id> [--json]")
 	}
 
+	resolvedID, err := a.resolveSandboxID(sandboxID)
+	if err != nil {
+		return err
+	}
+
 	reqBody := map[string]interface{}{
 		"strategy": "regenerate",
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+sandboxID+"/rebase"), nil, reqBody)
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+resolvedID+"/rebase"), nil, reqBody)
 	if err != nil {
 		return err
 	}
