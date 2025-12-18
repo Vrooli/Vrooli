@@ -205,7 +205,8 @@ resource-qdrant collections delete {collection}
 
 # Recreate and re-index
 resource-qdrant collections create {collection} --dimensions 1536
-resource-qdrant embeddings refresh
+# Re-index via the owning application (example: knowledge-observatory)
+cat your-content.txt | knowledge-observatory ingest-job --namespace your-namespace
 ```
 
 #### Duplicate Vectors
@@ -233,8 +234,9 @@ curl -X PUT "http://localhost:6333/collections/{collection}/points" \
 
 2. **Clean duplicates:**
 ```bash
-# Find and remove duplicates
-resource-qdrant embeddings gc --force
+# Prefer deleting by ID (or delete & re-index) in the owning application.
+# Example (knowledge-observatory canonical delete path):
+curl -X DELETE "http://localhost:<knowledge-observatory-port>/api/v1/knowledge/records/{record_id}"
 ```
 
 ### Docker Issues
@@ -432,7 +434,8 @@ docker start qdrant
 curl http://localhost:6333/health
 
 # 6. Re-index if needed
-resource-qdrant embeddings refresh --force
+# Re-index via the owning application (example: knowledge-observatory)
+cat your-content.txt | knowledge-observatory ingest-job --namespace your-namespace
 ```
 
 ### Emergency Rollback
