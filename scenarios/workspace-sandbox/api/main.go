@@ -353,24 +353,48 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Enter user namespace for unprivileged overlayfs support (Linux 5.11+)
-	// This re-execs the process inside a user namespace where we appear as root
-	// and can mount overlayfs without actual root privileges.
+	// Decide whether to enter user namespace based on driver strategy.
 	//
-	// If user namespaces aren't available (older kernel, container restrictions),
-	// we continue without them and fall back to copy driver or fuse-overlayfs.
+	// Key insight: fuse-overlayfs is already unprivileged (uses FUSE, not kernel mount).
+	// If we enter a user namespace with private mount propagation, the fuse-overlayfs
+	// mount becomes invisible to processes outside the namespace (like agent shells).
+	//
+	// Default behavior (optimized for agent integration):
+	// - If fuse-overlayfs is available → stay in host namespace (mounts visible)
+	// - If fuse-overlayfs unavailable → enter user namespace for native overlayfs
+	//
+	// Override with WORKSPACE_SANDBOX_PREFER_NATIVE_OVERLAYFS=true to force user
+	// namespace even when fuse-overlayfs is available (better performance, isolated mounts).
+	preferNativeOverlayfs := os.Getenv("WORKSPACE_SANDBOX_PREFER_NATIVE_OVERLAYFS") == "true" ||
+		os.Getenv("WORKSPACE_SANDBOX_PREFER_NATIVE_OVERLAYFS") == "1"
+	fuseAvailable, _, _ := driver.IsFuseOverlayfsAvailable()
+
 	nsStatus := namespace.Check()
-	if !nsStatus.InUserNamespace && nsStatus.CanCreateUserNamespace {
-		log.Printf("entering user namespace for unprivileged overlayfs | kernel=%s", nsStatus.KernelVersion)
+
+	// Decision logic:
+	// 1. If already in namespace → continue (re-exec completed)
+	// 2. If fuse available AND not preferring native → stay in host namespace
+	// 3. If can create namespace AND (prefer native OR fuse unavailable) → enter namespace
+	// 4. Otherwise → use fallback (copy driver)
+	if nsStatus.InUserNamespace {
+		log.Printf("running in user namespace | kernel=%s overlayfs=%v",
+			nsStatus.KernelVersion, nsStatus.CanMountOverlayfs)
+	} else if fuseAvailable && !preferNativeOverlayfs {
+		// Best for agent integration: fuse-overlayfs in host namespace
+		// Mounts are visible to all processes (agents, shells, file managers)
+		log.Printf("using fuse-overlayfs in host namespace | mounts visible to all processes | kernel=%s",
+			nsStatus.KernelVersion)
+	} else if nsStatus.CanCreateUserNamespace {
+		// Enter user namespace for native overlayfs (better performance, isolated mounts)
+		log.Printf("entering user namespace for native overlayfs | kernel=%s | preferNative=%v fuseAvailable=%v",
+			nsStatus.KernelVersion, preferNativeOverlayfs, fuseAvailable)
 		if err := namespace.EnterUserNamespace(); err != nil {
 			// EnterUserNamespace only returns on error; success replaces the process
 			log.Printf("warning: failed to enter user namespace: %v (will use fallback driver)", err)
 		}
-	} else if !nsStatus.InUserNamespace {
-		log.Printf("user namespace not available: %s (will use fallback driver)", nsStatus.Reason)
 	} else {
-		log.Printf("running in user namespace | kernel=%s overlayfs=%v",
-			nsStatus.KernelVersion, nsStatus.CanMountOverlayfs)
+		log.Printf("no overlayfs available | kernel=%s reason=%s (will use copy driver)",
+			nsStatus.KernelVersion, nsStatus.Reason)
 	}
 
 	server, err := NewServer()
