@@ -491,6 +491,63 @@ func TestParseRef_WindowsPathWithSymbol(t *testing.T) {
 	}
 }
 
+func TestParseRef_LegacySingleColonFileSymbol(t *testing.T) {
+	// Single colon after file extension SHOULD be treated as separator (legacy format)
+	testCases := []struct {
+		ref          string
+		wantFilePath string
+		wantSymbol   string
+	}{
+		{"api/internal/gc/gc_test.go:TestGCService", "api/internal/gc/gc_test.go", "TestGCService"},
+		{"path/to/file.ts:someFunction", "path/to/file.ts", "someFunction"},
+		{"test.bats:test_name", "test.bats", "test_name"}, // bats tests often use lowercase names
+		{"file.py:TestClass", "file.py", "TestClass"},
+		{"file.json:key", "file.json", "key"},
+		// Multiple colons after extension - symbol includes the rest
+		{"file.go:Test:SubTest", "file.go", "Test:SubTest"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.ref, func(t *testing.T) {
+			parsed := ParseRef(tc.ref)
+			if parsed.FilePath != tc.wantFilePath {
+				t.Errorf("FilePath: got %q, want %q", parsed.FilePath, tc.wantFilePath)
+			}
+			if parsed.Symbol != tc.wantSymbol {
+				t.Errorf("Symbol: got %q, want %q", parsed.Symbol, tc.wantSymbol)
+			}
+		})
+	}
+}
+
+func TestParseRef_SingleColonNotSeparator(t *testing.T) {
+	// Cases where single colon should NOT be treated as file:symbol separator
+	testCases := []struct {
+		ref          string
+		wantFilePath string
+		wantSymbol   string
+	}{
+		// Windows drive letter
+		{"C:/path/to/file.go", "C:/path/to/file.go", ""},
+		// No extension before colon
+		{"noextension:symbol", "noextension:symbol", ""},
+		// Colon after something that doesn't look like file extension
+		{"path/to/dir:something", "path/to/dir:something", ""},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.ref, func(t *testing.T) {
+			parsed := ParseRef(tc.ref)
+			if parsed.FilePath != tc.wantFilePath {
+				t.Errorf("FilePath: got %q, want %q", parsed.FilePath, tc.wantFilePath)
+			}
+			if parsed.Symbol != tc.wantSymbol {
+				t.Errorf("Symbol: got %q, want %q", parsed.Symbol, tc.wantSymbol)
+			}
+		})
+	}
+}
+
 // =============================================================================
 // InvalidReferenceRule Tests
 // =============================================================================

@@ -140,7 +140,7 @@ func NormalizeValidationType(s string) ValidationType {
 		return ValTypeTest
 	case "automation", "workflow", "playbook":
 		return ValTypeAutomation
-	case "manual":
+	case "manual", "inspection", "review":
 		return ValTypeManual
 	case "lighthouse", "perf", "performance":
 		return ValTypeLighthouse

@@ -205,6 +205,7 @@ type ParsedRef struct {
 // Supports formats:
 //   - "path/to/file.go" -> FilePath="path/to/file.go", Symbol=""
 //   - "path/to/file.go::TestFunction" -> FilePath="path/to/file.go", Symbol="TestFunction"
+//   - "path/to/file.go:TestFunction" -> FilePath="path/to/file.go", Symbol="TestFunction" (legacy single-colon)
 //   - "path/to/file.bats::test name with spaces" -> FilePath="path/to/file.bats", Symbol="test name with spaces"
 //
 // Edge cases handled gracefully:
@@ -212,6 +213,7 @@ type ParsedRef struct {
 //   - "::symbol" (no file) -> FilePath="", Symbol="symbol"
 //   - "file::" (empty symbol) -> FilePath="file", Symbol=""
 //   - "file::sym::bol" (multiple ::) -> FilePath="file", Symbol="sym::bol"
+//   - "file:sym:bol" (multiple :) -> FilePath="file", Symbol="sym:bol"
 func ParseRef(ref string) ParsedRef {
 	parsed := ParsedRef{Raw: ref}
 
@@ -219,20 +221,49 @@ func ParseRef(ref string) ParsedRef {
 		return parsed
 	}
 
-	// Find the first :: separator
+	// First, try the canonical :: separator
 	idx := strings.Index(ref, "::")
-	if idx == -1 {
-		// No separator, entire ref is the file path
-		parsed.FilePath = ref
+	if idx != -1 {
+		// Split at the first :: (allows :: in symbol names for edge cases)
+		parsed.FilePath = ref[:idx]
+		if idx+2 < len(ref) {
+			parsed.Symbol = ref[idx+2:]
+		}
 		return parsed
 	}
 
-	// Split at the first :: (allows :: in symbol names for edge cases)
-	parsed.FilePath = ref[:idx]
-	if idx+2 < len(ref) {
-		parsed.Symbol = ref[idx+2:]
+	// Fallback: try single : separator
+	// Be careful about Windows drive letters (e.g., C:\path) - they have : at index 1
+	// and are followed by \ or /. We only want to split on : that appears after
+	// a file extension pattern (e.g., .go:, .ts:, .bats:)
+	//
+	// Look for patterns like ".go:", ".ts:", etc. and split at that colon.
+	// This handles cases like "file.go:Test:SubTest" correctly by finding
+	// the first colon after the extension.
+	extensions := []string{".go:", ".ts:", ".tsx:", ".js:", ".jsx:", ".bats:", ".sh:", ".py:", ".json:"}
+	for _, ext := range extensions {
+		idx := strings.Index(ref, ext)
+		if idx != -1 {
+			colonIdx := idx + len(ext) - 1 // Position of the colon
+			beforeColon := ref[:colonIdx]
+			afterColon := ref[colonIdx+1:]
+
+			// Verify afterColon looks like a symbol (starts with letter or underscore)
+			isLikelySymbol := len(afterColon) > 0 &&
+				(afterColon[0] >= 'A' && afterColon[0] <= 'Z' || // Starts with uppercase
+					afterColon[0] >= 'a' && afterColon[0] <= 'z' || // Starts with lowercase
+					afterColon[0] == '_') // Starts with underscore
+
+			if isLikelySymbol {
+				parsed.FilePath = beforeColon
+				parsed.Symbol = afterColon
+				return parsed
+			}
+		}
 	}
 
+	// No valid separator found, entire ref is the file path
+	parsed.FilePath = ref
 	return parsed
 }
 
@@ -250,8 +281,9 @@ func (r *InvalidReferenceRule) Check(ctx context.Context, rctx RuleContext) []ty
 					continue
 				}
 
-				// Skip manual validations
-				if val.Type == types.ValTypeManual {
+				// Skip manual/inspection validations (these are human reviews, not automated tests)
+				normalizedType := types.NormalizeValidationType(string(val.Type))
+				if normalizedType == types.ValTypeManual {
 					continue
 				}
 

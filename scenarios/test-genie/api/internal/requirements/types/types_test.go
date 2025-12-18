@@ -177,6 +177,8 @@ func TestNormalizeValidationType(t *testing.T) {
 
 		// Manual
 		{"manual", ValTypeManual},
+		{"inspection", ValTypeManual},
+		{"review", ValTypeManual},
 
 		// Lighthouse
 		{"lighthouse", ValTypeLighthouse},
