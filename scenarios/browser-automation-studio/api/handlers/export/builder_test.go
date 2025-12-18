@@ -229,15 +229,15 @@ func TestBuildCursorSpec(t *testing.T) {
 		// Test scale too low
 		preset = &CursorPreset{Theme: "aura", Scale: 0.1}
 		result = BuildCursorSpec(existing, preset)
-		if result.Scale != CursorScaleMin {
-			t.Errorf("expected scale clamped to %f, got %f", CursorScaleMin, result.Scale)
+		if result.Scale != exportservices.CursorScaleMin {
+			t.Errorf("expected scale clamped to %f, got %f", exportservices.CursorScaleMin, result.Scale)
 		}
 
 		// Test scale too high
 		preset = &CursorPreset{Theme: "aura", Scale: 10.0}
 		result = BuildCursorSpec(existing, preset)
-		if result.Scale != CursorScaleMax {
-			t.Errorf("expected scale clamped to %f, got %f", CursorScaleMax, result.Scale)
+		if result.Scale != exportservices.CursorScaleMax {
+			t.Errorf("expected scale clamped to %f, got %f", exportservices.CursorScaleMax, result.Scale)
 		}
 	})
 

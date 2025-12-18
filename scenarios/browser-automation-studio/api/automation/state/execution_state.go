@@ -280,12 +280,6 @@ func (s *ExecutionState) AllocateIndexRange(count int) int {
 	return base
 }
 
-// AllVars returns all store variables as a flat map (legacy compatibility).
-// Deprecated: Use GetNamespace(NamespaceStore) instead.
-func (s *ExecutionState) AllVars() map[string]any {
-	return s.CopyStore()
-}
-
 // resolvePath resolves a dot-notation path against a map.
 func resolvePath(m map[string]any, path string) (any, bool) {
 	if m == nil || path == "" {

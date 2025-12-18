@@ -5,6 +5,7 @@ import (
 )
 
 // Request represents the JSON payload for execution export endpoints.
+// This is HTTP-layer only; it wraps the service-layer types for JSON binding.
 type Request struct {
 	Format    string                     `json:"format,omitempty"`
 	FileName  string                     `json:"file_name,omitempty"`
@@ -13,24 +14,14 @@ type Request struct {
 	MovieSpec *basexport.ReplayMovieSpec `json:"movie_spec,omitempty"`
 }
 
-// Overrides allows clients to customize export themes and cursor configuration.
-type Overrides struct {
-	Theme        *basexport.ExportTheme      `json:"theme,omitempty"`
-	Cursor       *basexport.ExportCursorSpec `json:"cursor,omitempty"`
-	ThemePreset  *ThemePreset                `json:"theme_preset,omitempty"`
-	CursorPreset *CursorPreset               `json:"cursor_preset,omitempty"`
-}
+// Type aliases for backward compatibility - these delegate to services/export.
+type (
+	// Overrides allows clients to customize export themes and cursor configuration.
+	Overrides = basexport.Overrides
 
-// ThemePreset specifies which chrome and background preset themes to apply.
-type ThemePreset struct {
-	ChromeTheme     string `json:"chrome_theme,omitempty"`
-	BackgroundTheme string `json:"background_theme,omitempty"`
-}
+	// ThemePreset specifies which chrome and background preset themes to apply.
+	ThemePreset = basexport.ThemePreset
 
-// CursorPreset specifies which cursor preset theme to apply and additional options.
-type CursorPreset struct {
-	Theme           string  `json:"theme,omitempty"`
-	InitialPosition string  `json:"initial_position,omitempty"`
-	Scale           float64 `json:"scale,omitempty"`
-	ClickAnimation  string  `json:"click_animation,omitempty"`
-}
+	// CursorPreset specifies which cursor preset theme to apply and additional options.
+	CursorPreset = basexport.CursorPreset
+)

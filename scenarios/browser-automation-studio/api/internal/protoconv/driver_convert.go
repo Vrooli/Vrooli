@@ -927,9 +927,7 @@ func CompiledInstructionToProto(instr *autocontracts.CompiledInstruction) *basex
 }
 
 // ProtoToCompiledInstruction converts a proto CompiledInstruction to native.
-//
-// MIGRATION: This function handles both old (Type/Params) and new (Action) fields.
-// When Action is present, it takes precedence and is preserved directly.
+// The Action field contains the typed action definition.
 func ProtoToCompiledInstruction(pb *basexecution.CompiledInstruction) *autocontracts.CompiledInstruction {
 	if pb == nil {
 		return nil
@@ -1029,8 +1027,7 @@ func PlanStepToProto(step *autocontracts.PlanStep) *basexecution.PlanStep {
 }
 
 // ProtoToPlanStep converts a proto PlanStep to native.
-//
-// MIGRATION: Same transition as CompiledInstruction - handles both old and new fields.
+// The Action field contains the typed action definition.
 func ProtoToPlanStep(pb *basexecution.PlanStep) *autocontracts.PlanStep {
 	if pb == nil {
 		return nil

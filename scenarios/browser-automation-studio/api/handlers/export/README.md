@@ -1,48 +1,44 @@
-# Export Package
+# Export Package (Handler Layer)
 
-This package provides configuration, validation, and building utilities for workflow execution exports (replay movies). It was extracted from the monolithic `handlers/execution_export_helpers.go` file (969 lines) to improve code organization, maintainability, and testability.
+This package provides a thin HTTP-layer wrapper around `services/export` for workflow execution exports (replay movies). All business logic lives in `services/export`; this package only provides:
+1. HTTP request types (`Request`)
+2. Type aliases for backward compatibility
+3. Function wrappers that delegate to `services/export`
 
 ## Architecture
 
-The package is organized into four focused modules plus imports from `services/export`:
+### Boundary Enforcement
 
-### Shared from `services/export`
-- **Preset definitions**: `ChromeThemePresets`, `BackgroundThemePresets`, `CursorThemePresets`
-- **Helper functions**: `ClampCursorScale()`, `DefaultAccentColor`
-- **Domain types**: `ReplayMovieSpec`, `ExportTheme`, `ExportCursorSpec`, etc.
+Per the architectural boundary enforcement principles, handlers should only handle HTTP request/response mapping. This package follows that principle by:
 
-### 1. `types.go` - Request/Response Types
-- **Purpose**: Defines JSON payload structures for export API endpoints
-- **Key Types**: `Request`, `Overrides`, `ThemePreset`, `CursorPreset`
-- **Usage**: Request parsing and validation in HTTP handlers
+- **Keeping only HTTP concerns**: The `Request` type defines JSON payload structure for API endpoints
+- **Delegating business logic**: All functions (`BuildSpec`, `Apply`, `Clone`, etc.) delegate to `services/export`
+- **Type aliases for compatibility**: `Overrides`, `ThemePreset`, `CursorPreset` are aliases to `services/export` types
 
-### 2. `builder.go` - Theme & Cursor Builders
-- **Purpose**: Constructs export themes and cursor specs by applying preset configurations
-- **Key Functions**:
-  - `BuildThemeFromPreset()` - Applies chrome and background presets to build an ExportTheme
-  - `BuildCursorSpec()` - Applies cursor preset configurations and defaults
+### Files
 
-### 3. `overrides.go` - Override Application
-- **Purpose**: Applies client-provided overrides to movie specs
-- **Key Functions**:
-  - `Apply()` - Main entry point for applying all overrides
-  - `applyDecorOverrides()` - Applies preset names for provenance tracking
-  - `syncCursorFields()` - Synchronizes cursor-related fields across spec structures
+| File | Purpose |
+|------|---------|
+| `types.go` | HTTP request type + type aliases for backward compatibility |
+| `builder.go` | Thin wrappers delegating to `services/export.BuildThemeFromPreset`, `BuildCursorSpec` |
+| `overrides.go` | Thin wrapper delegating to `services/export.Apply` |
+| `spec_builder.go` | Thin wrappers delegating to `services/export.BuildSpec`, `Clone`, `Harmonize` |
 
-### 4. `spec_builder.go` - Movie Spec Construction
-- **Purpose**: Validates and harmonizes ReplayMovieSpec structures for export
-- **Key Functions**:
-  - `BuildSpec()` - Main entry point for building validated specs
-  - `Clone()` - Deep copies movie specs via JSON marshaling
-  - `Harmonize()` - Validates execution IDs and fills in defaults
-  - `ensureTheme()`, `ensureDecor()`, `ensureCursor()`, etc. - Fills in nested structures
+### Business Logic (in `services/export`)
+
+All actual implementation lives in `services/export`:
+- `preset_builder.go` - Theme and cursor preset application logic
+- `spec_overrides.go` - Override application and field synchronization
+- `spec_harmonizer.go` - Movie spec validation and harmonization
+- `presets.go` - Preset definitions (`ChromeThemePresets`, `BackgroundThemePresets`, etc.)
+- `exporter.go` - Domain types (`ReplayMovieSpec`, `ExportTheme`, etc.)
 
 ## Usage Example
 
 ```go
 import (
     "github.com/vrooli/browser-automation-studio/handlers/export"
-    "github.com/vrooli/browser-automation-studio/services"
+    exportservices "github.com/vrooli/browser-automation-studio/services/export"
 )
 
 // Build a complete movie spec from client and server data
@@ -67,32 +63,20 @@ export.Apply(spec, overrides)
 // Use the validated and harmonized spec for rendering
 ```
 
-## Design Principles
+## Migration Notes
 
-1. **Separation of Concerns**: Each module has a single, well-defined responsibility
-2. **Immutability**: Builder functions create new values rather than modifying inputs
-3. **Defensive Defaults**: All fields have sensible fallback values
-4. **Validation**: Execution IDs are validated to prevent spec mismatches
-5. **Documentation**: All exported types and functions are documented
+As of 2025-12-17, business logic was moved from this package to `services/export` as part of the boundary enforcement phase. Existing code using `handlers/export` will continue to work via the wrapper functions and type aliases.
 
-## Benefits of This Refactoring
-
-- **Reduced Complexity**: 969-line file → 4 focused modules + shared presets
-- **Improved Testability**: Each module can be tested independently
-- **Better Documentation**: Clear module boundaries and responsibilities
-- **Easier Maintenance**: Changes are localized to specific modules
-- **Type Safety**: Type aliases maintain backwards compatibility while improving organization
+For new code, prefer importing directly from `services/export` to access the canonical types and functions.
 
 ## Testing
 
-Currently, the export package relies on integration tests in `handlers/executions_test.go`. Consider adding unit tests for:
-- Preset application logic
-- Cursor scale clamping
-- Movie spec harmonization edge cases
-- Theme and cursor builder functions
+- Unit tests for the public API wrappers are in this package (`*_test.go`)
+- Unit tests for internal business logic are in `services/export/*_test.go`
 
 ## Related Files
 
 - `handlers/executions.go` - HTTP handlers that use this package
-- `handlers/execution_export_helpers.go` - Thin compatibility shim (41 lines)
+- `handlers/execution_export_helpers.go` - Compatibility shim with local type aliases
+- `services/export/` - **Canonical business logic location**
 - `services/replay_renderer.go` - Consumes the built movie specs for rendering

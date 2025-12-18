@@ -838,37 +838,38 @@ deps := handlers.HandlerDeps{
 handler := handlers.NewHandlerWithDeps(repo, wsHub, log, allowAll, origins, deps)
 ```
 
-### Export Package Boundary Clarification (COMPLETED 2025-12-17)
+### Export Package Boundary Enforcement (COMPLETED 2025-12-17)
 
-The export functionality now has clean separation:
+The export functionality now has proper boundary enforcement per architectural principles:
 
 | Package | Role |
 |---------|------|
-| `handlers/export/` | HTTP request types, spec building, preset application |
-| `services/export/` | Core types, export service, format strategies, presets |
+| `handlers/export/` | **HTTP layer only** - Request types, thin wrappers delegating to services |
+| `services/export/` | **Business logic** - Spec building, preset application, validation, format strategies |
 
-**Cleanup Completed:**
+**Architecture Refactoring (Phase 2 - 2025-12-17):**
 
-| handlers/export | services/export | Status |
-|-----------------|-----------------|--------|
-| presets.go | presets.go | ✅ handlers copy deleted, uses services/export |
-| builder.go | ~~preset_builder.go~~ | ✅ services duplicate DELETED |
-| spec_builder.go | ~~spec_harmonizer.go~~ | ✅ services duplicate DELETED |
-| overrides.go | ~~spec_overrides.go~~ | ✅ services duplicate DELETED |
-| types.go | ~~types_overrides.go~~ | ✅ services duplicate DELETED |
+All business logic moved from `handlers/export/` to `services/export/`:
 
-**Deleted files (2025-12-17):**
-- `services/export/preset_builder.go`
-- `services/export/spec_harmonizer.go`
-- `services/export/spec_overrides.go`
-- `services/export/types_overrides.go`
-- `services/export/builder_test.go`
-- `services/export/spec_builder_test.go`
-- `services/export/overrides_test.go`
+| File | Before (handlers) | After (services) |
+|------|-------------------|------------------|
+| `preset_builder.go` | ❌ Deleted | ✅ Owns `BuildThemeFromPreset`, `BuildCursorSpec` |
+| `spec_harmonizer.go` | ❌ Deleted | ✅ Owns `BuildSpec`, `Clone`, `Harmonize`, `ErrMovieSpecUnavailable` |
+| `spec_overrides.go` | ❌ Deleted | ✅ Owns `Apply`, `applyDecorOverrides`, `syncCursorFields` |
+| `types_overrides.go` | ❌ Deleted | ✅ Owns `Overrides`, `ThemePreset`, `CursorPreset` |
+| `overrides_test.go` | Reduced (public API) | ✅ Added (internal functions) |
 
-**Current architecture:**
-- `handlers/export/` owns: `BuildSpec`, `Apply`, `Clone`, `BuildThemeFromPreset`, `BuildCursorSpec`
-- `services/export/` owns: Types, presets, export service, format strategies, markdown generation
+**handlers/export/ now contains (thin wrappers only):**
+- `types.go` - `Request` type + type aliases to services/export
+- `builder.go` - Delegates to `services/export.BuildThemeFromPreset`, `BuildCursorSpec`
+- `overrides.go` - Delegates to `services/export.Apply`
+- `spec_builder.go` - Delegates to `services/export.BuildSpec`, `Clone`, `Harmonize`
+
+**services/export/ now owns:**
+- Types: `ReplayMovieSpec`, `ExportTheme`, `Overrides`, `ThemePreset`, `CursorPreset`, etc.
+- Business logic: `BuildSpec`, `Apply`, `Clone`, `Harmonize`, `BuildThemeFromPreset`, `BuildCursorSpec`
+- Presets: `ChromeThemePresets`, `BackgroundThemePresets`, `CursorThemePresets`
+- Format strategies: Export service, markdown generation
 
 ### Action Type Mapping Boundary (2025-12-17)
 
