@@ -25,7 +25,7 @@ import { useDashboardStore, type RecentWorkflow, type FavoriteWorkflow } from '@
 import { useExecutionStore } from '@stores/executionStore';
 import { useAICapability } from '@stores/aiCapabilityStore';
 import { formatDistanceToNow } from 'date-fns';
-import { TemplatesGallery } from './TemplatesGallery';
+import { TemplatesGallery } from './widgets/TemplatesGallery';
 
 interface HomeTabProps {
   onAIGenerate: (prompt: string) => void;

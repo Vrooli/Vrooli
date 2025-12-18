@@ -1,5 +1,10 @@
 /**
- * AI feature - handles AI-powered workflow generation and editing
+ * AI Feature - Backward Compatibility Re-exports
+ *
+ * @deprecated Import from '@/domains/ai' instead
+ *
+ * This module re-exports from the new domains/ai location
+ * for backward compatibility during the migration.
  */
-export { default as AIPromptModal } from "./AIPromptModal";
-export { default as AIEditModal } from "./AIEditModal";
+
+export { AIPromptModal, AIEditModal } from '@/domains/ai';

@@ -125,6 +125,13 @@ export default function App() {
   // Use the list version if available (more up-to-date)
   const currentSandbox = selectedFromList || selectedSandbox;
 
+  // Extract existing scope paths from active sandboxes for conflict detection
+  const existingScopePaths = useMemo(() => {
+    return sandboxes
+      .filter((sb) => sb.status === "active" || sb.status === "creating")
+      .map((sb) => sb.scopePath);
+  }, [sandboxes]);
+
   return (
     <div
       className="h-screen flex flex-col bg-slate-950 text-slate-50"
@@ -176,6 +183,9 @@ export default function App() {
         onOpenChange={setCreateDialogOpen}
         onCreate={handleCreate}
         isCreating={createMutation.isPending}
+        recentSandboxes={sandboxes}
+        existingScopePaths={existingScopePaths}
+        defaultProjectRoot={healthQuery.data?.config?.projectRoot}
       />
 
       {/* Error Toast */}

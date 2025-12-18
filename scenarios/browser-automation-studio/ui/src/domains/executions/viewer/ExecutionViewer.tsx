@@ -10,53 +10,40 @@ import {
   type MutableRefObject,
 } from "react";
 import {
-  Activity,
-  Pause,
-  RotateCw,
   X,
-  Square,
   Terminal,
   Image,
-  Clock,
-  CheckCircle,
-  XCircle,
   Loader,
   PlayCircle,
-  AlertTriangle,
-  ChevronDown,
-  Check,
   ListTree,
-  Download,
-  FolderOutput,
-  Pencil,
 } from "lucide-react";
-import { format } from "date-fns";
-import clsx from "clsx";
+import { ExecutionHeader } from "./components/ExecutionHeader";
+import { ScreenshotsPanel } from "./components/ScreenshotsPanel";
+import { LogsPanel } from "./components/LogsPanel";
+import { ReplayPanel } from "./components/ReplayPanel";
 import { useExecutionStore } from "@stores/executionStore";
 import type { Execution, TimelineFrame } from "@stores/executionStore";
 import { useWorkflowStore } from "@stores/workflowStore";
 import { useExportStore } from "@stores/exportStore";
-import { ExportSuccessPanel } from "./ExportSuccessPanel";
-import type { Screenshot, LogEntry } from "@stores/executionEventProcessor";
+import { ExportSuccessPanel } from "@/domains/exports/ExportSuccessPanel";
+import type { Screenshot } from "@stores/executionEventProcessor";
 import { toast } from "react-hot-toast";
 import { logger } from "@utils/logger";
 import { resolveUrl } from "@utils/executionTypeMappers";
-import ExecutionHistory from "./ExecutionHistory";
+import ExecutionHistory from "../history/ExecutionHistory";
 import { selectors } from "@constants/selectors";
-import { useExecutionEvents } from "./hooks/useExecutionEvents";
-import { useExecutionActions } from "./hooks/useExecutionActions";
+import { useExecutionEvents } from "../hooks/useExecutionEvents";
+import { useExecutionActions } from "../hooks/useExecutionActions";
 import {
   describePreviewStatusMessage,
-  formatCapturedLabel,
   normalizePreviewStatus,
-} from "./utils/exportHelpers";
-import { coerceMetricNumber } from "./viewer/exportConfig";
-import { useReplayCustomization } from "./viewer/useReplayCustomization";
-import ReplayCustomizationPanel from "./viewer/ReplayCustomizationPanel";
-import ExportDialog from "./viewer/ExportDialog";
-import ActiveExecutionTabs from "./viewer/ActiveExecutionTabs";
-import { useExecutionHeartbeat, formatSeconds } from "./viewer/useExecutionHeartbeat";
-import { useExecutionExport } from "./viewer/useExecutionExport";
+} from "../utils/exportHelpers";
+import { coerceMetricNumber } from "./exportConfig";
+import { useReplayCustomization } from "./useReplayCustomization";
+import ExportDialog from "./ExportDialog";
+import ActiveExecutionTabs from "./ActiveExecutionTabs";
+import { useExecutionHeartbeat } from "./useExecutionHeartbeat";
+import { useExecutionExport } from "./useExecutionExport";
 
 interface ActiveExecutionProps {
   execution: Execution;
@@ -105,7 +92,6 @@ function ActiveExecutionViewer({
   const [isSwitchingExecution, setIsSwitchingExecution] = useState(false);
   const replayCustomization = useReplayCustomization({ executionId: execution.id });
   const { heartbeatDescriptor, inStepLabel } = useExecutionHeartbeat(execution);
-  const screenshotRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const preloadedWorkflowRef = useRef<string | null>(null);
   const composerRef = useRef<HTMLIFrameElement | null>(null);
   const composerWindowRef = useRef<Window | null>(null);
@@ -642,19 +628,6 @@ function ActiveExecutionViewer({
     }
   }, [screenshots, selectedScreenshot, hasAutoOpenedScreenshots, activeTab]);
 
-  useEffect(() => {
-    if (!selectedScreenshot) {
-      return;
-    }
-    const element = screenshotRefs.current[selectedScreenshot.id];
-    if (element) {
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-        inline: "nearest",
-      });
-    }
-  }, [selectedScreenshot]);
 
   useEffect(() => {
     if (
@@ -753,197 +726,27 @@ function ActiveExecutionViewer({
     [execution.id, loadExecution],
   );
 
-  const getStatusIcon = () => {
-    const statusTestId = `execution-status-${execution.status}`;
-    // Add both general and specific status selectors for test flexibility
-    const testIds = `${selectors.executions.viewer.status} ${statusTestId}`;
-    switch (execution.status) {
-      case "running":
-        return (
-          <Loader
-            size={16}
-            className="animate-spin text-blue-400"
-            data-testid={testIds}
-          />
-        );
-      case "completed":
-        return (
-          <CheckCircle
-            size={16}
-            className="text-green-400"
-            data-testid={testIds}
-          />
-        );
-      case "failed":
-        return (
-          <XCircle
-            size={16}
-            className="text-red-400"
-            data-testid={testIds}
-          />
-        );
-      case "cancelled":
-        return (
-          <AlertTriangle
-            size={16}
-            className="text-yellow-400"
-            data-testid={testIds}
-          />
-        );
-      default:
-        return (
-          <Clock
-            size={16}
-            className="text-gray-400"
-            data-testid={testIds}
-          />
-        );
-    }
-  };
-
-  const getLogColor = (level: LogEntry["level"]) => {
-    switch (level) {
-      case "error":
-        return "text-red-400";
-      case "warning":
-        return "text-yellow-400";
-      case "success":
-        return "text-green-400";
-      default:
-        return "text-gray-300";
-    }
-  };
 
   return (
     <div
       className="h-full flex flex-col bg-flow-node min-h-0"
       data-testid={selectors.executions.viewer.root}
     >
-      <div className="flex items-center justify-between p-3 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          {getStatusIcon()}
-          <div>
-            <div className="text-sm font-medium text-surface">
-              Execution #{execution.id.slice(0, 8)}
-            </div>
-            <div
-              className="text-xs text-gray-500"
-              data-testid={selectors.executions.viewer.status}
-            >
-              {statusMessage}
-            </div>
-            {heartbeatDescriptor && (
-              <div
-                className="mt-1 flex items-center gap-2 text-[11px]"
-                data-testid={selectors.heartbeat.indicator}
-              >
-                {heartbeatDescriptor.tone === "stalled" ? (
-                  <AlertTriangle
-                    size={12}
-                    className={heartbeatDescriptor.iconClass}
-                    data-testid={
-                      heartbeatDescriptor.tone === "stalled"
-                        ? selectors.heartbeat.lagWarning
-                        : undefined
-                    }
-                  />
-                ) : (
-                  <Activity
-                    size={12}
-                    className={heartbeatDescriptor.iconClass}
-                  />
-                )}
-                <span
-                  className={heartbeatDescriptor.textClass}
-                  data-testid={selectors.heartbeat.status}
-                >
-                  {heartbeatDescriptor.label}
-                </span>
-                {inStepLabel && execution.lastHeartbeat && (
-                  <span
-                    className={`${heartbeatDescriptor.textClass} opacity-80`}
-                  >
-                    • {inStepLabel} in step
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            className="toolbar-button p-1.5 text-gray-500 opacity-50 cursor-not-allowed"
-            title="Pause (coming soon)"
-            disabled
-            aria-disabled="true"
-          >
-            <Pause size={14} />
-          </button>
-          <button
-            className="toolbar-button p-1.5"
-            title={
-              canRestart
-                ? "Re-run workflow"
-                : "Stop execution before re-running"
-            }
-            onClick={handleRestart}
-            disabled={!canRestart || isRestarting || isStopping}
-            data-testid={selectors.executions.viewer.rerunButton}
-          >
-            {isRestarting ? (
-              <Loader size={14} className="animate-spin" />
-            ) : (
-              <RotateCw size={14} />
-            )}
-          </button>
-          <button
-            className="toolbar-button p-1.5 disabled:text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            title={
-              replayFrames.length === 0
-                ? "Replay not ready to export"
-                : "Export replay"
-            }
-            onClick={openExportDialog}
-            disabled={replayFrames.length === 0}
-            data-testid={selectors.executions.actions.exportReplayButton}
-          >
-            <Download size={14} />
-          </button>
-          <button
-            className="toolbar-button p-1.5 text-red-400 disabled:text-red-400/50 disabled:cursor-not-allowed"
-            title={isRunning ? "Stop execution" : "Execution not running"}
-            onClick={handleStop}
-            disabled={!isRunning || isStopping}
-            data-testid={selectors.executions.viewer.stopButton}
-          >
-            {isStopping ? (
-              <Loader size={14} className="animate-spin" />
-            ) : (
-              <Square size={14} />
-            )}
-          </button>
-          {onClose && (
-            <>
-              <button
-                className="toolbar-button p-1.5 ml-2 border-l border-gray-700 pl-3 text-blue-400 hover:text-blue-300"
-                title="Edit workflow"
-                onClick={onClose}
-                data-testid={selectors.executions.viewer.editWorkflowButton}
-              >
-                <Pencil size={14} />
-              </button>
-              <button
-                className="toolbar-button p-1.5"
-                title="Close"
-                onClick={onClose}
-              >
-                <X size={14} />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+      <ExecutionHeader
+        execution={execution}
+        statusMessage={statusMessage}
+        heartbeatDescriptor={heartbeatDescriptor}
+        inStepLabel={inStepLabel}
+        isRunning={isRunning}
+        canRestart={canRestart}
+        isStopping={isStopping}
+        isRestarting={isRestarting}
+        replayFramesCount={replayFrames.length}
+        onStop={handleStop}
+        onRestart={handleRestart}
+        onExport={openExportDialog}
+        onClose={onClose}
+      />
 
       <div className="h-2 bg-flow-bg">
         <div
@@ -965,228 +768,38 @@ function ActiveExecutionViewer({
         }}
         tabs={{
           replay: (
-            <div
-              className="flex-1 overflow-auto p-3 space-y-3"
-              data-testid={selectors.replay.player}
-            >
-              {!hasTimeline && (
-                <div className="rounded-lg border border-dashed border-flow-border/70 bg-flow-node/70 px-4 py-3 text-sm text-flow-text-secondary">
-                  Replay frames stream in as each action runs. Leave this tab open
-                  to tailor the final cut in real time.
-                </div>
-              )}
-              {(isFailed || isCancelled) && execution.progress < 100 && (
-                <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 flex items-start gap-3">
-                  <AlertTriangle
-                    size={18}
-                    className="text-rose-400 flex-shrink-0 mt-0.5"
-                  />
-                  <div className="flex-1 text-sm">
-                    <div className="font-medium text-rose-200 mb-1">
-                      Execution {isFailed ? "Failed" : "Cancelled"} - Replay
-                      Incomplete
-                    </div>
-                    <div className="text-rose-100/80">
-                      This replay shows only {replayFrames.length} of the
-                      workflow's steps. Execution{" "}
-                      {isFailed ? "failed" : "was cancelled"}
-                      at {execution.currentStep || "an unknown step"}.
-                    </div>
-                    {isFailed && executionError && (
-                      <div className="mt-2 text-xs font-mono text-rose-100/70 bg-rose-950/30 px-2 py-1 rounded">
-                        {executionError}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              <ReplayCustomizationPanel controller={replayCustomization} />
-              <div className="relative w-full overflow-hidden rounded-2xl border border-flow-border bg-flow-node/70 shadow-[0_25px_70px_rgba(0,0,0,0.35)]">
-                <iframe
-                  key={execution.id}
-                  ref={(node) => {
-                    composerRef.current = node;
-                    composerWindowRef.current = node?.contentWindow ?? null;
-                  }}
-                  src={composerUrl}
-                  title="Replay Composer"
-                  className="w-full border-0"
-                  style={{
-                    aspectRatio: `${selectedDimensions.width} / ${selectedDimensions.height}`,
-                    minHeight: "360px",
-                  }}
-                  allow="clipboard-read; clipboard-write"
-                />
-                {(isMovieSpecLoading || !isComposerReady) && !movieSpecError && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/50">
-                    <span className="text-xs uppercase tracking-[0.3em] text-flow-text-muted">
-                      {isMovieSpecLoading
-                        ? "Loading replay spec…"
-                        : "Initialising player…"}
-                    </span>
-                  </div>
-                )}
-                {movieSpecError && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/60 p-6 text-center">
-                    <div className="rounded-xl border border-flow-border bg-flow-node/80 px-6 py-4 text-sm text-flow-text shadow-[0_15px_45px_rgba(0,0,0,0.4)]">
-                      <div className="mb-1 font-semibold text-flow-text">
-                        Failed to load replay spec
-                      </div>
-                      <div className="text-xs text-flow-text-secondary">
-                        {movieSpecError}
-                      </div>
-                      {(previewMetrics.capturedFrames > 0 ||
-                        previewMetrics.totalDurationMs > 0) && (
-                        <div className="mt-3 text-[11px] text-flow-text-muted">
-                          {previewMetrics.capturedFrames > 0 && (
-                            <span>
-                              {formatCapturedLabel(
-                                previewMetrics.capturedFrames,
-                                "frame",
-                              )}
-                            </span>
-                          )}
-                          {previewMetrics.capturedFrames > 0 &&
-                            previewMetrics.totalDurationMs > 0 && (
-                              <span> • </span>
-                            )}
-                          {previewMetrics.totalDurationMs > 0 && (
-                            <span>
-                              {formatSeconds(
-                                previewMetrics.totalDurationMs / 1000,
-                              )}{" "}
-                              recorded
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      {activeSpecId && (
-                        <div className="mt-1 text-[10px] uppercase tracking-[0.24em] text-flow-text-muted">
-                          Spec {activeSpecId.slice(0, 8)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <ReplayPanel
+              executionId={execution.id}
+              hasTimeline={hasTimeline}
+              isFailed={isFailed}
+              isCancelled={isCancelled}
+              progress={execution.progress}
+              currentStep={execution.currentStep}
+              executionError={executionError}
+              replayFrames={replayFrames}
+              replayCustomization={replayCustomization}
+              composerUrl={composerUrl}
+              composerRef={composerRef}
+              composerWindowRef={composerWindowRef}
+              isMovieSpecLoading={isMovieSpecLoading}
+              isComposerReady={isComposerReady}
+              movieSpecError={movieSpecError}
+              previewMetrics={previewMetrics}
+              activeSpecId={activeSpecId}
+              selectedDimensions={selectedDimensions}
+            />
           ),
-          screenshots:
-            screenshots.length === 0 ? (
-              <div className="flex flex-1 items-center justify-center p-6 text-center">
-                <div>
-                  <Image size={32} className="mx-auto mb-3 text-gray-600" />
-                  <div className="text-sm text-gray-400 mb-1">
-                    No screenshots captured
-                  </div>
-                  {isFailed && (
-                    <div className="text-xs text-gray-500">
-                      Execution failed before screenshot steps could run
-                    </div>
-                  )}
-                  {isCancelled && (
-                    <div className="text-xs text-gray-500">
-                      Execution was cancelled before screenshot steps could run
-                    </div>
-                  )}
-                  {execution.status === "completed" && (
-                    <div className="text-xs text-gray-500">
-                      This workflow does not include screenshot steps
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex-1 p-3 overflow-auto">
-                  <div className="space-y-4" data-testid={selectors.executions.viewer.screenshots}>
-                    {screenshots.map((screenshot) => (
-                      <div
-                        key={screenshot.id}
-                        ref={(node) => {
-                          if (node) {
-                            screenshotRefs.current[screenshot.id] = node;
-                          } else {
-                            delete screenshotRefs.current[screenshot.id];
-                          }
-                        }}
-                        onClick={() => setSelectedScreenshot(screenshot)}
-                        className={clsx(
-                          "cursor-pointer overflow-hidden rounded-xl border transition-all duration-200",
-                          selectedScreenshot?.id === screenshot.id
-                            ? "border-flow-accent/80 shadow-[0_22px_50px_rgba(59,130,246,0.35)]"
-                            : "border-gray-800 hover:border-flow-accent/50 hover:shadow-[0_15px_40px_rgba(59,130,246,0.2)]",
-                        )}
-                        data-testid={selectors.timeline.frame}
-                      >
-                        <div className="bg-flow-node/80 px-3 py-2 flex items-center justify-between text-xs text-flow-text-secondary">
-                          <span className="truncate font-medium">
-                            {screenshot.stepName}
-                          </span>
-                          <span className="text-flow-text-muted">
-                            {format(screenshot.timestamp, "HH:mm:ss.SSS")}
-                          </span>
-                        </div>
-                        <img
-                          src={screenshot.url}
-                          alt={screenshot.stepName}
-                          loading="lazy"
-                          className="block w-full"
-                          data-testid={selectors.executions.viewer.screenshot}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-800 p-2 overflow-x-auto">
-                  <div className="flex gap-2">
-                    {screenshots.map((screenshot) => (
-                      <div
-                        key={screenshot.id}
-                        onClick={() => setSelectedScreenshot(screenshot)}
-                        className={clsx(
-                          "flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-150",
-                          selectedScreenshot?.id === screenshot.id
-                            ? "border-flow-accent shadow-[0_12px_30px_rgba(59,130,246,0.35)]"
-                            : "border-gray-700 hover:border-flow-accent/60",
-                        )}
-                      >
-                        <img
-                          src={screenshot.url}
-                          alt={screenshot.stepName}
-                          loading="lazy"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ),
-          logs: (
-            <div
-              className="flex-1 overflow-auto p-3"
-              data-testid={selectors.executions.viewer.logs}
-            >
-              <div className="terminal-output">
-                {execution.logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="flex gap-2 mb-1"
-                    data-testid={selectors.executions.logEntry}
-                  >
-                    <span className="text-xs text-gray-600">
-                      {format(log.timestamp, "HH:mm:ss")}
-                    </span>
-                    <span className={`flex-1 text-xs ${getLogColor(log.level)}`}>
-                      {log.message}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          screenshots: (
+            <ScreenshotsPanel
+              screenshots={screenshots}
+              selectedScreenshot={selectedScreenshot}
+              onSelectScreenshot={setSelectedScreenshot}
+              executionStatus={execution.status}
+              isFailed={isFailed}
+              isCancelled={isCancelled}
+            />
           ),
+          logs: <LogsPanel logs={execution.logs} />,
           executions: (
             <div className="flex-1 overflow-hidden p-3">
               {execution.workflowId ? (
@@ -1497,5 +1110,5 @@ function ExecutionViewer({
   );
 }
 
-export { parseExportPreviewPayload } from "./viewer/exportPreview";
+export { parseExportPreviewPayload } from "./exportPreview";
 export default ExecutionViewer;

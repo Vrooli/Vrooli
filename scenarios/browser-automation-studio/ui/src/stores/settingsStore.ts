@@ -7,7 +7,7 @@ import type {
   ReplayCursorClickAnimation,
   CursorSpeedProfile,
   CursorPathStyle,
-} from '../features/execution/ReplayPlayer';
+} from '@/domains/exports/replay/ReplayPlayer';
 import {
   isReplayChromeTheme,
   isReplayBackgroundTheme,
@@ -21,7 +21,7 @@ import {
   REPLAY_CURSOR_OPTIONS,
   REPLAY_CURSOR_POSITIONS,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
-} from '../features/execution/replay/replayThemeOptions';
+} from '@/domains/exports/replay/replayThemeOptions';
 
 const STORAGE_PREFIX = 'browserAutomation.settings.';
 const PRESETS_STORAGE_KEY = `${STORAGE_PREFIX}replay.userPresets`;

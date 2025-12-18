@@ -7,9 +7,9 @@ import {
   WorkflowValidationResultSchema,
   type WorkflowValidationResult as ProtoWorkflowValidationResult,
 } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
-import { getConfig } from '../config';
-import { parseProtoStrict } from './proto';
-import type { WorkflowDefinition, WorkflowValidationResult } from '../types/workflow';
+import { getConfig } from '@/config';
+import { parseProtoStrict } from '@/utils/proto';
+import type { WorkflowDefinition, WorkflowValidationResult } from '@/types/workflow';
 
 interface ValidationOptions {
   strict?: boolean;

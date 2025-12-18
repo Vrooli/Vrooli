@@ -11,7 +11,7 @@ import {
   ArrowDownToLine,
 } from 'lucide-react';
 import { selectors } from '@constants/selectors';
-import { FeatureShowcase } from './FeatureShowcase';
+import { FeatureShowcase } from './previews/FeatureShowcase';
 
 // ============================================
 // TYPES

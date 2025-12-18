@@ -5,7 +5,7 @@ import * as ReactQuery from '@tanstack/react-query';
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'react-hot-toast';
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
-import App from './App';
+import AppRouter from './AppRouter';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { useExecutionUpdates } from './hooks/useExecutionUpdates';
 import './index.css';
@@ -79,7 +79,7 @@ function ReadyMarker(): null {
 function AppWithUpdates(): React.ReactElement {
   // Listen to WebSocket messages and update stores accordingly
   useExecutionUpdates();
-  return <App />;
+  return <AppRouter />;
 }
 
 function renderTree(): ReactNode {

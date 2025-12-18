@@ -15,5 +15,5 @@ export * from "./workflows";
 export * from "./execution";
 export * from "./ai";
 export * from "./settings";
-export * from "./onboarding";
+export * from "@shared/onboarding";
 export * from "./docs";

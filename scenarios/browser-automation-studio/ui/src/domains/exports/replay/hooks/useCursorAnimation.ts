@@ -12,7 +12,6 @@ import type {
   NormalizedPoint,
   CursorSpeedProfile,
   CursorPathStyle,
-  CursorAnimationOverride,
   CursorOverrideMap,
   CursorPlan,
   Dimensions,

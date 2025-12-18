@@ -12,7 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   envelopeToExecutionEvent,
   ExecutionEventsClient,
-} from '../../features/execution/ws/executionEvents';
+} from '../../domains/executions/live/executionEvents';
 
 const baseTimestamp = { seconds: BigInt(1), nanos: 0 };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { getConfig } from '../../config';
-import { parseProjectList } from '../../utils/projectProto';
+import { getConfig } from '@/config';
+import { parseProjectList } from '@/utils/projectProto';
 
 interface SearchResult {
   id: string;

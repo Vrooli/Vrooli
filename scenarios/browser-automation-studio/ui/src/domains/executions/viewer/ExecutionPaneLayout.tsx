@@ -8,7 +8,7 @@ import { useState, useCallback, useEffect, lazy, Suspense, type ReactNode } from
 import { LoadingSpinner } from "@shared/ui";
 import type { Execution } from "@stores/executionStore";
 
-const ExecutionViewer = lazy(() => import("@features/execution/ExecutionViewer"));
+const ExecutionViewer = lazy(() => import("./ExecutionViewer"));
 const ResponsiveDialog = lazy(() => import("@shared/layout/ResponsiveDialog"));
 
 // Pane dimension constants

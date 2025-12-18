@@ -14,12 +14,12 @@ import type {
   ReplayCursorTheme,
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
-} from "../ReplayPlayer";
+} from "./ReplayPlayer";
 
 // Background images - using ES imports for reliable Vite asset handling
-import geometricPrismUrl from "../../../assets/replay-backgrounds/geometric-prism.jpg";
-import geometricOrbitUrl from "../../../assets/replay-backgrounds/geometric-orbit.jpg";
-import geometricMosaicUrl from "../../../assets/replay-backgrounds/geometric-mosaic.jpg";
+import geometricPrismUrl from "@/assets/replay-backgrounds/geometric-prism.jpg";
+import geometricOrbitUrl from "@/assets/replay-backgrounds/geometric-orbit.jpg";
+import geometricMosaicUrl from "@/assets/replay-backgrounds/geometric-mosaic.jpg";
 
 // =============================================================================
 // Chrome Theme Options

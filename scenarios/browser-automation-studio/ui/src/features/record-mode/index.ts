@@ -1,27 +1,42 @@
 /**
- * Record Mode Feature
+ * Record Mode Feature - Backward Compatibility Re-exports
  *
- * Exports for the Record Mode feature, which allows users to
- * record browser actions and generate workflows from them.
+ * @deprecated Import from '@/domains/recording' instead
+ *
+ * This module re-exports from the new domains/recording location
+ * for backward compatibility during the migration.
  */
 
-// Components
-export { RecordModePage } from './RecordModePage';
-export { ActionTimeline } from './ActionTimeline';
-export { SelectorEditor } from './SelectorEditor';
-export { TimelineEventCard, UnifiedTimeline } from './components/TimelineEventCard';
+export {
+  // Main component (with alias)
+  RecordingSession as RecordModePage,
+  // Timeline components
+  ActionTimeline,
+  SelectorEditor,
+  TimelineEventCard,
+  UnifiedTimeline,
+  // Hooks
+  useRecordMode,
+  useUnifiedTimeline,
+  // Utilities
+  mergeConsecutiveActions,
+  getMergeDescription,
+  // Timeline converters
+  recordedActionToTimelineItem,
+  timelineEntryToTimelineItem,
+  timelineEntryToRecordedAction,
+  hasTimelineEntry,
+  parseTimelineEntry,
+} from '@/domains/recording';
 
-// Hooks
-export { useRecordMode } from './hooks/useRecordMode';
-export { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
-export type { UseUnifiedTimelineOptions, UseUnifiedTimelineReturn } from './hooks/useUnifiedTimeline';
-
-// Utilities
-export { mergeConsecutiveActions, getMergeDescription } from './mergeActions';
-export type { MergedAction, MergedActionMeta } from './mergeActions';
-
-// Types
 export type {
+  // Hook types
+  UseUnifiedTimelineOptions,
+  UseUnifiedTimelineReturn,
+  // Utility types
+  MergedAction,
+  MergedActionMeta,
+  // Core types
   RecordedAction,
   SelectorSet,
   SelectorCandidate,
@@ -36,10 +51,7 @@ export type {
   GetActionsResponse,
   GenerateWorkflowResponse,
   SelectorValidation,
-} from './types';
-
-// Unified Timeline Types (for recording + execution modes)
-export type {
+  // Unified timeline types
   TimelineItem,
   TimelineMode,
   TimelineEntry,
@@ -49,11 +61,4 @@ export type {
   EventContext,
   WorkflowNodeV2,
   ActionMetadata,
-} from './types/timeline-unified';
-export {
-  recordedActionToTimelineItem,
-  timelineEntryToTimelineItem,
-  timelineEntryToRecordedAction,
-  hasTimelineEntry,
-  parseTimelineEntry,
-} from './types/timeline-unified';
+} from '@/domains/recording';

@@ -18,7 +18,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
 import { useExecutionStore } from "@stores/executionStore";
 import { useProjectStore, type Project } from "@stores/projectStore";
-import { AIEditModal } from "@features/ai";
+import { AIEditModal } from "@/domains/ai";
 import toast from "react-hot-toast";
 import { usePopoverPosition } from "@hooks/usePopoverPosition";
 import ResponsiveDialog from "./ResponsiveDialog";

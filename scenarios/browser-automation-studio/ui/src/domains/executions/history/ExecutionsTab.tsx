@@ -17,8 +17,7 @@ import {
 import { useDashboardStore, type RecentExecution } from '@stores/dashboardStore';
 import { useExecutionStore } from '@stores/executionStore';
 import { formatDistanceToNow } from 'date-fns';
-import { TabEmptyState } from './TabEmptyState';
-import { ExecutionsEmptyPreview } from './ExecutionsEmptyPreview';
+import { TabEmptyState, ExecutionsEmptyPreview } from '@/views/DashboardView/previews';
 
 interface ExecutionsTabProps {
   onViewExecution: (executionId: string, workflowId: string) => void;

@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense, type MouseEvent as ReactMouseEvent } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const NodePalette = lazy(() => import('@features/workflows/builder/NodePalette'));
+const NodePalette = lazy(() => import('@/domains/workflows/builder/NodePalette'));
 
 function Sidebar() {
   const COLLAPSED_WIDTH = 48;

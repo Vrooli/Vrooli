@@ -69,6 +69,9 @@ export interface HealthResponse {
     database: string;
     driver: string;
   };
+  config?: {
+    projectRoot?: string;
+  };
 }
 
 export interface DriverInfo {
@@ -314,4 +317,28 @@ export function formatRelativeTime(dateString: string): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+// --- Path Validation ---
+
+export interface PathValidationResult {
+  path: string;
+  projectRoot?: string;
+  valid: boolean;
+  exists?: boolean;
+  isDirectory?: boolean;
+  withinProjectRoot?: boolean;
+  error?: string;
+}
+
+// Validate a path on the server
+export async function validatePath(
+  path: string,
+  projectRoot?: string
+): Promise<PathValidationResult> {
+  const params = new URLSearchParams({ path });
+  if (projectRoot) {
+    params.set("projectRoot", projectRoot);
+  }
+  return apiRequest<PathValidationResult>(`/validate-path?${params.toString()}`);
 }

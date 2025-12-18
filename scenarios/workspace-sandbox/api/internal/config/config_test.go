@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -83,8 +84,14 @@ func TestDefault(t *testing.T) {
 	})
 
 	t.Run("Driver defaults", func(t *testing.T) {
-		if cfg.Driver.BaseDir != "/var/lib/workspace-sandbox" {
-			t.Errorf("expected BaseDir /var/lib/workspace-sandbox, got %s", cfg.Driver.BaseDir)
+		// BaseDir should use XDG data directory (~/.local/share/workspace-sandbox)
+		home, err := os.UserHomeDir()
+		if err != nil {
+			t.Fatalf("failed to get home dir: %v", err)
+		}
+		expectedBaseDir := filepath.Join(home, ".local", "share", "workspace-sandbox")
+		if cfg.Driver.BaseDir != expectedBaseDir {
+			t.Errorf("expected BaseDir %s, got %s", expectedBaseDir, cfg.Driver.BaseDir)
 		}
 		if cfg.Driver.UseFuseOverlayfs {
 			t.Error("expected UseFuseOverlayfs false")

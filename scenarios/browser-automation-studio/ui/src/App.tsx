@@ -1,14 +1,14 @@
 import { useCallback, useEffect, lazy, Suspense } from "react";
 
 // Shared layout components
-import ProjectModal from "@features/projects/ProjectModal";
-import { GuidedTour, useGuidedTour } from "@features/onboarding";
-import { DocsModal } from "@features/docs";
+import { ProjectModal } from "@/domains/projects";
+import { GuidedTour, useGuidedTour } from "@shared/onboarding";
+import { DocsModal } from "@/domains/docs";
 
 // Extracted feature modules
-import { ModalProvider, useModals } from "@features/modals";
-import { useAppShortcuts } from "@features/shortcuts";
-import { ExecutionPaneLayout } from "@features/execution";
+import { ModalProvider, useModals } from "@shared/modals";
+import { useAppShortcuts } from "@shared/hooks/useAppShortcuts";
+import { ExecutionPaneLayout } from "@/domains/executions";
 
 // Navigation - SINGLE SOURCE OF TRUTH
 import { useAppNavigation, type DashboardTab } from "@/routing";
@@ -16,14 +16,14 @@ import { useAppNavigation, type DashboardTab } from "@/routing";
 // Lazy load heavy components for better initial load performance
 const Header = lazy(() => import("@shared/layout/Header"));
 const Sidebar = lazy(() => import("@shared/layout/Sidebar"));
-const WorkflowBuilder = lazy(() => import("@features/workflows/builder/WorkflowBuilder"));
-const AIPromptModal = lazy(() => import("@features/ai/AIPromptModal"));
-const Dashboard = lazy(() => import("@features/projects/Dashboard"));
-const ProjectDetail = lazy(() => import("@features/projects/ProjectDetail"));
-const SettingsPage = lazy(() => import("@features/settings/SettingsPage"));
-const GlobalWorkflowsView = lazy(() => import("@features/dashboard/GlobalWorkflowsView").then(m => ({ default: m.GlobalWorkflowsView })));
-const GlobalExecutionsView = lazy(() => import("@features/dashboard/GlobalExecutionsView").then(m => ({ default: m.GlobalExecutionsView })));
-const RecordModePage = lazy(() => import("@features/record-mode/RecordModePage").then(m => ({ default: m.RecordModePage })));
+const WorkflowBuilder = lazy(() => import("@/domains/workflows/builder/WorkflowBuilder"));
+const AIPromptModal = lazy(() => import("@/domains/ai/AIPromptModal"));
+const Dashboard = lazy(() => import("@/views/DashboardView/DashboardView"));
+const ProjectDetail = lazy(() => import("@/domains/projects/ProjectDetail"));
+const SettingsPage = lazy(() => import("@/views/SettingsView/SettingsView"));
+const GlobalWorkflowsView = lazy(() => import("@/views/AllWorkflowsView/GlobalWorkflowsView").then(m => ({ default: m.GlobalWorkflowsView })));
+const GlobalExecutionsView = lazy(() => import("@/views/AllExecutionsView/GlobalExecutionsView").then(m => ({ default: m.GlobalExecutionsView })));
+const RecordModePage = lazy(() => import("@/domains/recording/RecordingSession").then(m => ({ default: m.RecordModePage })));
 
 // Stores and hooks
 import { useExecutionStore } from "@stores/executionStore";

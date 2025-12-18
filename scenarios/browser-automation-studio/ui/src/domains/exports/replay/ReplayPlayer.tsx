@@ -5,32 +5,29 @@
  * Orchestrates playback, cursor animation, and theme rendering.
  */
 
-import React, { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import clsx from 'clsx';
 
 // Sub-components
-import { WatermarkOverlay } from './replay/WatermarkOverlay';
-import { IntroCard } from './replay/IntroCard';
-import { OutroCard } from './replay/OutroCard';
+import { WatermarkOverlay } from './WatermarkOverlay';
+import { IntroCard } from './IntroCard';
+import { OutroCard } from './OutroCard';
 import {
   ReplayControls,
   ReplayStoryboard,
   ReplayEmptyState,
   ReplayMetadataPanel,
   ReplayCursorEditor,
-} from './replay/components';
+} from './components';
 
 // Types
 import type {
   ReplayRegion,
-  ReplayPoint,
-  NormalizedPoint,
   ReplayFrame,
   ReplayPlayerController,
   ReplayPlayerProps,
   Dimensions,
-  CursorPlan,
-} from './replay/types';
+} from './types';
 
 // Constants
 import {
@@ -39,21 +36,21 @@ import {
   DEFAULT_SPEED_PROFILE,
   DEFAULT_PATH_STYLE,
   FALLBACK_DIMENSIONS,
-} from './replay/constants';
+} from './constants';
 
 // Utilities
-import { clamp01, isSamePoint } from './replay/utils/cursorMath';
-import { toAbsolutePoint, toRectStyle, toPointStyle, pickZoomAnchor } from './replay/utils/geometry';
-import { parseRgbaComponents, rgbaWithAlpha } from './replay/utils/formatting';
+import { clamp01, isSamePoint } from './utils/cursorMath';
+import { toAbsolutePoint, toRectStyle, toPointStyle, pickZoomAnchor } from './utils/geometry';
+import { parseRgbaComponents, rgbaWithAlpha } from './utils/formatting';
 
 // Theme builders
-import { buildBackgroundDecor, buildCursorDecor, buildChromeDecor } from './replay/themes';
+import { buildBackgroundDecor, buildCursorDecor, buildChromeDecor } from './themes';
 
 // Hooks
-import { usePlayback } from './replay/hooks/usePlayback';
-import { useCursorAnimation } from './replay/hooks/useCursorAnimation';
-import { useCursorEditor } from './replay/hooks/useCursorEditor';
-import { useClickEffect } from './replay/hooks/useClickEffect';
+import { usePlayback } from './hooks/usePlayback';
+import { useCursorAnimation } from './hooks/useCursorAnimation';
+import { useCursorEditor } from './hooks/useCursorEditor';
+import { useClickEffect } from './hooks/useClickEffect';
 
 // Re-export types for backward compatibility
 export type {
@@ -71,7 +68,7 @@ export type {
   ReplayPlayerController,
   CursorSpeedProfile,
   CursorPathStyle,
-} from './replay/types';
+} from './types';
 
 export function ReplayPlayer({
   frames,

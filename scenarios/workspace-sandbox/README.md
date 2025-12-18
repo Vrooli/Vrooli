@@ -91,26 +91,34 @@ Access at `http://localhost:<UI_PORT>` after starting the scenario.
 ### Linux Driver Stack
 
 ```
-┌─────────────────────────────────────────┐
-│           Sandbox Merged View           │
-│         (read-write mount point)        │
-└─────────────────────────────────────────┘
-                    │
-         ┌──────────┴──────────┐
-         │                     │
-┌────────▼────────┐   ┌───────▼────────┐
-│   Upper Layer   │   │  Lower Layer   │
-│   (writeable)   │   │  (read-only)   │
-│   /sandbox/uuid │   │  /project/root │
-│       /upper    │   │                │
-└─────────────────┘   └────────────────┘
-         │                     │
-         └──────────┬──────────┘
-                    │
-         ┌──────────▼──────────┐
-         │     overlayfs       │
-         └─────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     User Namespace                          │
+│  (API runs here with UID 0 mapping for unprivileged mount)  │
+│                                                             │
+│  ┌─────────────────────────────────────────┐                │
+│  │           Sandbox Merged View           │                │
+│  │         (read-write mount point)        │                │
+│  └─────────────────────────────────────────┘                │
+│                      │                                      │
+│           ┌──────────┴──────────┐                           │
+│           │                     │                           │
+│  ┌────────▼────────┐   ┌───────▼────────┐                   │
+│  │   Upper Layer   │   │  Lower Layer   │                   │
+│  │   (writeable)   │   │  (read-only)   │                   │
+│  │ ~/.local/share/ │   │  /project/root │                   │
+│  │ workspace-sandbox│  │                │                   │
+│  └─────────────────┘   └────────────────┘                   │
+│           │                     │                           │
+│           └──────────┬──────────┘                           │
+│                      │                                      │
+│           ┌──────────▼──────────┐                           │
+│           │     overlayfs       │                           │
+│           │   (kernel 5.11+)    │                           │
+│           └─────────────────────┘                           │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+**Key insight:** The overlay mount is only visible inside the user namespace. All sandbox operations (exec, diff, approve) go through the API, which runs inside the namespace and can access the mounted filesystem.
 
 ### Process Isolation
 
@@ -123,9 +131,44 @@ Sandboxed processes run under bubblewrap (bwrap) with:
 ## Requirements
 
 ### System Requirements
-- Linux kernel 4.0+ with overlayfs support
+- **Linux kernel 5.11+** (recommended) - Enables unprivileged overlayfs via user namespaces
+- Linux kernel 4.0+ (minimum) - Falls back to copy driver if user namespaces unavailable
 - bubblewrap package (`apt install bubblewrap`)
 - PostgreSQL for metadata storage
+
+### Driver Selection
+
+workspace-sandbox automatically selects the best available driver:
+
+| Priority | Driver | Requirements | Performance |
+|----------|--------|--------------|-------------|
+| 1 | Native overlayfs | Kernel 5.11+, user namespaces enabled | Best (~1-2s creation) |
+| 2 | Copy driver | Any Linux | Slower (copies files) |
+
+**How it works:**
+
+On kernel 5.11+, the API automatically enters a user namespace at startup. Inside this namespace, it appears as UID 0 and can mount overlayfs without actual root privileges. This is the same mechanism used by rootless Podman/Docker.
+
+```
+$ vrooli scenario logs workspace-sandbox --step start-api --tail 5
+2025/12/18 09:40:57 entering user namespace for unprivileged overlayfs | kernel=6.14.0-33-generic
+2025/12/18 09:40:57 running in user namespace | kernel=6.14.0-33-generic overlayfs=true
+2025/12/18 09:40:57 driver: using native overlayfs (optimal performance)
+```
+
+**Troubleshooting driver selection:**
+
+If you see "falling back to copy driver", check:
+1. Kernel version: `uname -r` (should be 5.11+)
+2. User namespaces enabled: `cat /proc/sys/kernel/unprivileged_userns_clone` (should be 1)
+3. unshare command available: `which unshare`
+
+**Environment variables for driver control:**
+
+| Variable | Purpose |
+|----------|---------|
+| `WORKSPACE_SANDBOX_DISABLE_USERNS` | Set to `1` to skip user namespace (use fallback) |
+| `SANDBOX_BASE_DIR` | Override base directory for sandbox storage |
 
 ### Environment Variables
 
@@ -151,6 +194,7 @@ Sandboxed processes run under bubblewrap (bwrap) with:
 2. **Build artifacts**: node_modules, build caches grow sandbox size rapidly
 3. **Long-lived sandboxes**: Changes accumulate; prefer ephemeral use
 4. **Git operations**: stash/commit/checkout/clean/reset blocked by safe-git wrapper
+5. **Namespace isolation**: Overlay mounts are only visible inside the API's user namespace; use the exec API for running commands in sandboxes
 
 ## Testing
 

@@ -4,7 +4,11 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -157,6 +161,9 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 		"dependencies": map[string]string{
 			"database": dbStatus,
 			"driver":   driverStatus,
+		},
+		"config": map[string]interface{}{
+			"projectRoot": h.Config.Driver.ProjectRoot,
 		},
 	}
 
@@ -348,6 +355,89 @@ func (h *Handlers) GetWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.JSONSuccess(w, map[string]string{"path": path})
+}
+
+// ValidatePath handles path validation requests.
+// This allows the UI to check if a path exists and is valid before creating a sandbox.
+func (h *Handlers) ValidatePath(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		h.JSONError(w, "path parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	projectRoot := r.URL.Query().Get("projectRoot")
+	if projectRoot == "" {
+		projectRoot = h.Config.Driver.ProjectRoot
+	}
+
+	response := map[string]interface{}{
+		"path":        path,
+		"projectRoot": projectRoot,
+	}
+
+	// Check if path is absolute
+	if !filepath.IsAbs(path) {
+		response["valid"] = false
+		response["error"] = "Path must be absolute"
+		h.JSONSuccess(w, response)
+		return
+	}
+
+	// Check for dangerous system paths
+	cleanPath := filepath.Clean(path)
+	dangerousPaths := []string{"/", "/bin", "/sbin", "/usr", "/etc", "/var", "/tmp", "/root", "/home"}
+	for _, dangerous := range dangerousPaths {
+		if cleanPath == dangerous {
+			response["valid"] = false
+			response["error"] = "Cannot use system directories"
+			h.JSONSuccess(w, response)
+			return
+		}
+	}
+
+	// Check if path exists
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		response["valid"] = false
+		response["exists"] = false
+		response["error"] = "Path does not exist"
+		h.JSONSuccess(w, response)
+		return
+	}
+	if err != nil {
+		response["valid"] = false
+		response["error"] = fmt.Sprintf("Cannot access path: %v", err)
+		h.JSONSuccess(w, response)
+		return
+	}
+
+	response["exists"] = true
+	response["isDirectory"] = info.IsDir()
+
+	// Check if it's a directory
+	if !info.IsDir() {
+		response["valid"] = false
+		response["error"] = "Path must be a directory"
+		h.JSONSuccess(w, response)
+		return
+	}
+
+	// Check if path is within project root (if project root is set)
+	if projectRoot != "" {
+		cleanProjectRoot := filepath.Clean(projectRoot)
+		if cleanPath != cleanProjectRoot && !strings.HasPrefix(cleanPath, cleanProjectRoot+string(filepath.Separator)) {
+			response["valid"] = false
+			response["error"] = fmt.Sprintf("Path must be within %s", projectRoot)
+			response["withinProjectRoot"] = false
+			h.JSONSuccess(w, response)
+			return
+		}
+		response["withinProjectRoot"] = true
+	}
+
+	response["valid"] = true
+	h.JSONSuccess(w, response)
 }
 
 // DriverInfo handles getting driver information.

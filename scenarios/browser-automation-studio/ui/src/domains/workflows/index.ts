@@ -16,5 +16,5 @@ export { default as WorkflowToolbar } from "./builder/WorkflowToolbar";
 export * from "./components";
 
 // Node types - use direct imports for tree-shaking:
-// import { ClickNode, NavigateNode } from "@features/workflows/nodes";
-// Or individual: import ClickNode from "@features/workflows/nodes/ClickNode";
+// import { ClickNode, NavigateNode } from "@/domains/workflows/nodes";
+// Or individual: import ClickNode from "@/domains/workflows/nodes/ClickNode";

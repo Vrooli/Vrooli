@@ -3,6 +3,9 @@ package driver
 
 import (
 	"context"
+	"log"
+	"os"
+	"path/filepath"
 
 	"workspace-sandbox/internal/types"
 )
@@ -103,10 +106,19 @@ type Config struct {
 	UseFuseOverlayfs bool
 }
 
+// defaultBaseDir returns the default sandbox base directory.
+// Uses XDG data directory (~/.local/share/workspace-sandbox) for unprivileged operation.
+func defaultBaseDir() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, ".local", "share", "workspace-sandbox")
+	}
+	return "/var/lib/workspace-sandbox"
+}
+
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
 	return Config{
-		BaseDir:          "/var/lib/workspace-sandbox",
+		BaseDir:          defaultBaseDir(),
 		MaxSandboxes:     1000,
 		MaxSizeMB:        10240, // 10 GB
 		UseFuseOverlayfs: false,
@@ -124,22 +136,35 @@ type Info struct {
 // --- Driver Selection [OT-P2-004] ---
 
 // SelectDriver returns the best available driver for the current system.
-// It prefers overlayfs on Linux, falling back to copy driver on other platforms.
+// It tests each driver in priority order and returns the first one that works.
 //
 // Selection order:
-//  1. OverlayfsDriver - if on Linux and overlayfs is available
-//  2. CopyDriver - cross-platform fallback (always available)
+//  1. OverlayfsDriver - native kernel overlayfs (best performance)
+//     Works if: running in user namespace (kernel 5.11+) OR has CAP_SYS_ADMIN
+//  2. CopyDriver - cross-platform fallback (always works)
+//     Uses file copies instead of overlayfs, slower but universal
 //
 // The cfg parameter is used to configure whichever driver is selected.
+// Logs are emitted explaining which driver was selected and why fallbacks occurred.
 func SelectDriver(ctx context.Context, cfg Config) (Driver, error) {
-	// Try overlayfs first
+	// Try native overlayfs first (best performance)
 	overlayDriver := NewOverlayfsDriver(cfg)
 	available, err := overlayDriver.IsAvailable(ctx)
 	if err == nil && available {
+		log.Printf("driver: using native overlayfs (optimal performance)")
 		return overlayDriver, nil
 	}
 
+	// Log why overlayfs isn't available
+	if err != nil {
+		log.Printf("driver: overlayfs not available: %v", err)
+	} else {
+		log.Printf("driver: overlayfs not available (mount test failed)")
+	}
+
 	// Fall back to copy driver
+	log.Printf("driver: falling back to copy driver (slower but universal)")
+	log.Printf("driver: for better performance, ensure you're running on Linux kernel 5.11+ with user namespaces enabled")
 	copyDriver := NewCopyDriver(cfg)
 	return copyDriver, nil
 }

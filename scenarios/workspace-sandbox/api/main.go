@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"fmt"
@@ -17,6 +16,7 @@ import (
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/preflight"
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
@@ -24,6 +24,7 @@ import (
 	"workspace-sandbox/internal/handlers"
 	"workspace-sandbox/internal/logging"
 	"workspace-sandbox/internal/metrics"
+	"workspace-sandbox/internal/namespace"
 	"workspace-sandbox/internal/policy"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
@@ -66,14 +67,19 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Initialize driver from config
+	// Initialize driver with automatic selection and fallback
+	// Priority: native overlayfs (in user namespace) > fuse-overlayfs > copy driver
 	driverCfg := driver.Config{
 		BaseDir:          cfg.Driver.BaseDir,
 		MaxSandboxes:     cfg.Limits.MaxSandboxes,
 		MaxSizeMB:        cfg.Limits.MaxSandboxSizeMB,
 		UseFuseOverlayfs: cfg.Driver.UseFuseOverlayfs,
 	}
-	drv := driver.NewOverlayfsDriver(driverCfg)
+	drv, err := driver.SelectDriver(context.Background(), driverCfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize driver: %w", err)
+	}
+	log.Printf("driver selected | type=%s version=%s", drv.Type(), drv.Version())
 
 	// Initialize policies
 	approvalPolicy := policy.NewDefaultApprovalPolicy(cfg.Policy)
@@ -210,6 +216,9 @@ func (s *Server) setupRoutes() {
 	// Driver and system info
 	api.HandleFunc("/driver/info", h.DriverInfo).Methods("GET")
 	api.HandleFunc("/driver/bwrap", h.BwrapInfo).Methods("GET")
+
+	// Path validation for UI
+	api.HandleFunc("/validate-path", h.ValidatePath).Methods("GET")
 
 	// Stats endpoints for dashboard metrics
 	api.HandleFunc("/stats", h.Stats).Methods("GET")
@@ -391,6 +400,26 @@ func main() {
 		ScenarioName: "workspace-sandbox",
 	}) {
 		return // Process was re-exec'd after rebuild
+	}
+
+	// Enter user namespace for unprivileged overlayfs support (Linux 5.11+)
+	// This re-execs the process inside a user namespace where we appear as root
+	// and can mount overlayfs without actual root privileges.
+	//
+	// If user namespaces aren't available (older kernel, container restrictions),
+	// we continue without them and fall back to copy driver or fuse-overlayfs.
+	nsStatus := namespace.Check()
+	if !nsStatus.InUserNamespace && nsStatus.CanCreateUserNamespace {
+		log.Printf("entering user namespace for unprivileged overlayfs | kernel=%s", nsStatus.KernelVersion)
+		if err := namespace.EnterUserNamespace(); err != nil {
+			// EnterUserNamespace only returns on error; success replaces the process
+			log.Printf("warning: failed to enter user namespace: %v (will use fallback driver)", err)
+		}
+	} else if !nsStatus.InUserNamespace {
+		log.Printf("user namespace not available: %s (will use fallback driver)", nsStatus.Reason)
+	} else {
+		log.Printf("running in user namespace | kernel=%s overlayfs=%v",
+			nsStatus.KernelVersion, nsStatus.CanMountOverlayfs)
 	}
 
 	server, err := NewServer()

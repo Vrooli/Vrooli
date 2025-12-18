@@ -1,22 +1,50 @@
 /**
- * Execution feature - handles execution viewing, history, and replay
+ * Executions domain - handles execution viewing, history, and live monitoring
  *
  * Structure:
- * - ExecutionViewer: Main viewer component with tabs
- * - ExecutionHistory: List of past executions
- * - ReplayPlayer: Visual replay of execution steps
- * - replay/: Replay theming configuration (backgrounds, cursors, etc.)
- * - viewer/: Viewer configuration and sub-components
+ * - viewer/: ExecutionViewer and related components
+ * - history/: ExecutionHistory and ExecutionsTab
+ * - live/: WebSocket handling for live execution updates
+ * - hooks/: React hooks for execution state
+ * - utils/: Execution-related utilities
+ * - store.ts: Execution state management
  */
 
-// Main components
-export { default as ExecutionViewer } from "./ExecutionViewer";
-export { default as ExecutionHistory } from "./ExecutionHistory";
-export { default as ReplayPlayer } from "./ReplayPlayer";
-export { ExecutionPaneLayout } from "./ExecutionPaneLayout";
+// Store
+export { useExecutionStore, mapTimelineEntryToFrame, mapTimelineFrameFromProto } from './store';
+export type {
+  Execution,
+  ExecutionStore,
+  Screenshot,
+  LogEntry,
+  TimelineFrame,
+  TimelineBoundingBox,
+  TimelineRegion,
+  TimelineRetryHistoryEntry,
+  TimelineAssertion,
+  TimelineArtifact,
+  TimelineLog,
+} from './store';
 
-// Replay theming configuration
-export * from "./replay";
+// Event processor utilities
+export {
+  processExecutionEvent,
+  createId,
+  parseTimestamp,
+  stepLabel,
+} from './utils/eventProcessor';
+export type {
+  ExecutionEventHandlers,
+  ExecutionEventContext,
+  LogLevel,
+} from './utils/eventProcessor';
+
+// Main components
+export { default as ExecutionViewer } from "./viewer/ExecutionViewer";
+export { default as ExecutionHistory } from "./history/ExecutionHistory";
+export { ExecutionPaneLayout } from "./viewer/ExecutionPaneLayout";
+export { ExecutionLimitModal } from "./viewer/ExecutionLimitModal";
+export { ExecutionsTab } from "./history/ExecutionsTab";
 
 // Viewer configuration (export config, etc.)
 export * from "./viewer";

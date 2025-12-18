@@ -9,7 +9,7 @@ import type {
   ReplayFrame,
   ReplayPoint,
   ReplayRetryHistoryEntry,
-} from "../features/execution/ReplayPlayer";
+} from "@/domains/exports/replay/ReplayPlayer";
 
 declare global {
   interface Window {

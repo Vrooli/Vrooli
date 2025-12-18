@@ -7,12 +7,10 @@
 
 import type {
   ReplayPoint,
-  NormalizedPoint,
   CursorPlan,
   CursorAnimationOverride,
   CursorSpeedProfile,
   CursorPathStyle,
-  Dimensions,
 } from '../types';
 import { SPEED_PROFILE_OPTIONS, CURSOR_PATH_STYLE_OPTIONS } from '../constants';
 import { formatCoordinate } from '../utils/formatting';

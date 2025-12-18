@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { Image, ListTree, PlayCircle, Terminal } from "lucide-react";
 import type { ReactNode } from "react";
 import { selectors } from "@constants/selectors";
-import type { ViewerTab } from "../ExecutionViewer";
+import type { ViewerTab } from "./ExecutionViewer";
 
 interface ExecutionTabsProps {
   activeTab: ViewerTab;

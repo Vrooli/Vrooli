@@ -23,6 +23,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -199,7 +200,7 @@ type ValidationHookConfig struct {
 // DriverConfig controls filesystem driver settings.
 type DriverConfig struct {
 	// BaseDir is the root directory for sandbox artifacts.
-	// Default: /var/lib/workspace-sandbox
+	// Default: ~/.local/share/workspace-sandbox (XDG-compliant, user-writable)
 	BaseDir string
 
 	// UseFuseOverlayfs enables fuse-overlayfs instead of kernel overlayfs.
@@ -208,7 +209,8 @@ type DriverConfig struct {
 	UseFuseOverlayfs bool
 
 	// ProjectRoot is the default project root for sandboxes.
-	// If empty, must be specified per-request.
+	// Set via PROJECT_ROOT env var, falls back to VROOLI_ROOT if not set.
+	// If both are empty, must be specified per-request.
 	ProjectRoot string
 }
 
@@ -240,6 +242,17 @@ type DatabaseConfig struct {
 	// SSLMode controls SSL connection mode.
 	// Default: disable
 	SSLMode string
+}
+
+// DefaultBaseDir returns the default sandbox base directory.
+// Uses XDG data directory (~/.local/share/workspace-sandbox) for unprivileged operation.
+// Falls back to /var/lib/workspace-sandbox if home directory cannot be determined.
+func DefaultBaseDir() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, ".local", "share", "workspace-sandbox")
+	}
+	// Fallback for edge cases (e.g., running in containers without HOME set)
+	return "/var/lib/workspace-sandbox"
 }
 
 // Default returns a Config with sensible defaults.
@@ -277,7 +290,7 @@ func Default() Config {
 			ValidationTimeout:         5 * time.Minute,
 		},
 		Driver: DriverConfig{
-			BaseDir:          "/var/lib/workspace-sandbox",
+			BaseDir:          DefaultBaseDir(),
 			UseFuseOverlayfs: false,
 		},
 		Database: DatabaseConfig{
@@ -331,7 +344,11 @@ func LoadFromEnv() (Config, error) {
 	}
 
 	// Driver config
+	// PROJECT_ROOT takes precedence, falls back to VROOLI_ROOT if not set
 	cfg.Driver.ProjectRoot = os.Getenv("PROJECT_ROOT")
+	if cfg.Driver.ProjectRoot == "" {
+		cfg.Driver.ProjectRoot = os.Getenv("VROOLI_ROOT")
+	}
 	if baseDir := os.Getenv("SANDBOX_BASE_DIR"); baseDir != "" {
 		cfg.Driver.BaseDir = baseDir
 	}

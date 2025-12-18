@@ -6,7 +6,7 @@ import {
   type WorkflowSummary,
 } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
 import { logger } from '../../../utils/logger';
-import { normalizeNodes, normalizeEdges } from '../../../utils/workflowNormalizers';
+import { normalizeNodes, normalizeEdges } from '@/domains/workflows/utils/normalizers';
 import { parseProtoStrict } from '../../../utils/proto';
 import type { Workflow, WorkflowVersionSummary, WorkflowLoadState } from '../types';
 import { sanitizeViewportSettings, extractExecutionViewport } from './viewport';

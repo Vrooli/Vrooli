@@ -8,7 +8,7 @@ import {
   REPLAY_CURSOR_POSITIONS,
   CURSOR_SCALE_MIN,
   CURSOR_SCALE_MAX,
-} from "../replay/replayThemeOptions";
+} from "@/domains/exports/replay/replayThemeOptions";
 import type { ReplayCustomizationController } from "./useReplayCustomization";
 
 interface ReplayCustomizationPanelProps {

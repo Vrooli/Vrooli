@@ -38,7 +38,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, act, type RenderResult } from '@testing-library/react';
 import type { Execution } from '@stores/executionStore';
-import { createMockExecutionStoreState, resetMockExecutionStoreState } from './testUtils/mockExecutionStore';
+import { createMockExecutionStoreState, resetMockExecutionStoreState } from '../testUtils/mockExecutionStore';
 
 // Mock modules
 vi.mock('@/config', () => ({

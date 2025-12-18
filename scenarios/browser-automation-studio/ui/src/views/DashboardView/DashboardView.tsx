@@ -13,23 +13,23 @@ import { useDashboardStore } from "@stores/dashboardStore";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { selectors } from "@constants/selectors";
 import { getModifierKey } from "@hooks/useKeyboardShortcuts";
-import { GlobalSearchModal } from "@features/dashboard/GlobalSearchModal";
-import { TabNavigation, type DashboardTab } from "@features/dashboard/TabNavigation";
-import { HomeTab } from "@features/dashboard/HomeTab";
-import { RunningExecutionsBadge } from "@features/dashboard/RunningExecutionsBadge";
-import { WelcomeHero } from "@features/dashboard/WelcomeHero";
+import { GlobalSearchModal } from "./GlobalSearchModal";
+import { TabNavigation, type DashboardTab } from "./DashboardTabs";
+import { HomeTab } from "./HomeSection";
+import { RunningExecutionsBadge } from "./RunningExecutionsBadge";
+import { WelcomeHero } from "./WelcomeHero";
 
 const ExecutionsTab = lazy(() =>
-  import("@features/dashboard/ExecutionsTab").then((mod) => ({ default: mod.ExecutionsTab })),
+  import("@/domains/executions/history/ExecutionsTab").then((mod) => ({ default: mod.ExecutionsTab })),
 );
 const ExportsTab = lazy(() =>
-  import("@features/dashboard/ExportsTab").then((mod) => ({ default: mod.ExportsTab })),
+  import("@/domains/exports/ExportsTab").then((mod) => ({ default: mod.ExportsTab })),
 );
 const ProjectsTab = lazy(() =>
-  import("@features/dashboard/ProjectsTab").then((mod) => ({ default: mod.ProjectsTab })),
+  import("@/domains/projects/ProjectsTab").then((mod) => ({ default: mod.ProjectsTab })),
 );
 const SchedulesTab = lazy(() =>
-  import("@features/dashboard/SchedulesTab").then((mod) => ({ default: mod.SchedulesTab })),
+  import("./SchedulesSection").then((mod) => ({ default: mod.SchedulesTab })),
 );
 
 interface DashboardProps {

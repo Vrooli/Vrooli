@@ -1,24 +1,34 @@
 /**
- * Project management feature - handles projects listing, creation, and details
+ * Projects Feature - Backward Compatibility Re-exports
+ *
+ * @deprecated Import from '@/domains/projects' instead
+ *
+ * This module re-exports from the new domains/projects location
+ * for backward compatibility during the migration.
  */
-export { default as Dashboard } from "./Dashboard";
-export { default as ProjectDetail } from "./ProjectDetail";
-export { default as ProjectModal } from "./ProjectModal";
 
-// Decomposed ProjectDetail components
-export { ProjectDetailHeader } from "./ProjectDetailHeader";
-export { ProjectDetailTabs } from "./ProjectDetailTabs";
-export { ExecutionPanel } from "./ExecutionPanel";
-export { WorkflowCardGrid } from "./WorkflowCardGrid";
-export { ProjectFileTree } from "./ProjectFileTree";
+// Dashboard re-export for backwards compatibility (already in views/)
+export { DashboardView as Dashboard } from '@/views/DashboardView';
 
-// Hooks
-export { useProjectDetailStore } from "./hooks/useProjectDetailStore";
-export { useFileTreeOperations } from "./hooks/useFileTreeOperations";
+export {
+  // Main components
+  ProjectDetail,
+  ProjectModal,
+  // Decomposed components
+  ProjectDetailHeader,
+  ProjectDetailTabs,
+  ExecutionPanel,
+  WorkflowCardGrid,
+  ProjectFileTree,
+  // Hooks
+  useProjectDetailStore,
+  useFileTreeOperations,
+} from '@/domains/projects';
+
 export type {
   WorkflowWithStats,
   ProjectEntry,
   ProjectEntryKind,
   ViewMode,
   ActiveTab,
-} from "./hooks/useProjectDetailStore";
+} from '@/domains/projects';

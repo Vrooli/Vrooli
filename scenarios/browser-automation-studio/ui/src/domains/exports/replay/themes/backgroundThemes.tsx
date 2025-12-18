@@ -8,9 +8,9 @@
 import type { BackgroundDecor, ReplayBackgroundTheme } from '../types';
 
 // Background images - using ES imports for reliable Vite asset handling
-import geometricPrismUrl from '../../../assets/replay-backgrounds/geometric-prism.jpg';
-import geometricOrbitUrl from '../../../assets/replay-backgrounds/geometric-orbit.jpg';
-import geometricMosaicUrl from '../../../assets/replay-backgrounds/geometric-mosaic.jpg';
+import geometricPrismUrl from '../../../../assets/replay-backgrounds/geometric-prism.jpg';
+import geometricOrbitUrl from '../../../../assets/replay-backgrounds/geometric-orbit.jpg';
+import geometricMosaicUrl from '../../../../assets/replay-backgrounds/geometric-mosaic.jpg';
 
 export const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDecor => {
   switch (theme) {

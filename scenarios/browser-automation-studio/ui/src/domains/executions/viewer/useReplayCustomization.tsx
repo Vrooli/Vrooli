@@ -6,7 +6,7 @@ import type {
   ReplayCursorClickAnimation,
   ReplayCursorInitialPosition,
   ReplayCursorTheme,
-} from "../ReplayPlayer";
+} from "@/domains/exports/replay/ReplayPlayer";
 import {
   CURSOR_SCALE_MAX,
   CURSOR_SCALE_MIN,
@@ -24,7 +24,7 @@ import {
   type ClickAnimationOption,
   type CursorOption,
   type CursorPositionOption,
-} from "../replay/replayThemeOptions";
+} from "@/domains/exports/replay/replayThemeOptions";
 
 export interface ReplayCustomizationController {
   replayChromeTheme: ReplayChromeTheme;

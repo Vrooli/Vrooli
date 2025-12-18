@@ -14,8 +14,7 @@ import {
   type WorkflowNodeDefinition,
 } from "@constants/nodeCategories";
 import { selectors } from "@constants/selectors";
-import { getNodeDocumentation } from "@features/docs";
-import { MarkdownRenderer } from "@features/docs/MarkdownRenderer";
+import { getNodeDocumentation, MarkdownRenderer } from "@/domains/docs";
 
 const FAVORITES_KEY = "bas.palette.favorites";
 const RECENTS_KEY = "bas.palette.recents";
