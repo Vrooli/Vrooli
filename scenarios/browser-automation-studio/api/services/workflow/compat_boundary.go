@@ -2,22 +2,27 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
-	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+// ErrInvalidWorkflowFormat is returned when a workflow is missing required V2 structure.
+// All workflows must use V2 format where nodes have an "action" field with typed action definitions.
+// Legacy V1 format (nodes with type+data instead of action field) is rejected.
+var ErrInvalidWorkflowFormat = errors.New("invalid workflow format: nodes must have 'action' field with typed action definitions")
+
 // BuildFlowDefinitionV2ForWrite converts an incoming flow definition map to a WorkflowDefinitionV2.
-// This is the write compat boundary: it first attempts strict V2 protojson parsing, and falls back
-// to V1 nodes/edges conversion only when the payload looks like legacy format.
+// Validates that the workflow uses V2 format (nodes with "action" field) and normalizes
+// UI-oriented fields for proto compatibility.
 func BuildFlowDefinitionV2ForWrite(flow map[string]any, metadata map[string]any, settings map[string]any) (*basworkflows.WorkflowDefinitionV2, error) {
 	if flow == nil {
 		return &basworkflows.WorkflowDefinitionV2{}, nil
 	}
 
-	// Merge metadata and settings into the flow for conversion if provided separately.
+	// Merge metadata and settings into the flow if provided separately.
 	merged := make(map[string]any, len(flow))
 	for k, v := range flow {
 		merged[k] = v
@@ -29,33 +34,24 @@ func BuildFlowDefinitionV2ForWrite(flow map[string]any, metadata map[string]any,
 		merged["settings"] = settings
 	}
 
-	// First attempt: strict V2 protojson parsing.
-	if looksLikeV2(merged) {
-		normalizeV2Compat(merged)
-		body, err := json.Marshal(merged)
-		if err == nil {
-			var pb basworkflows.WorkflowDefinitionV2
-			if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, &pb); err == nil {
-				return &pb, nil
-			}
-		}
+	// Validate V2 format - all nodes must have action field.
+	if !isV2Format(merged) {
+		return nil, ErrInvalidWorkflowFormat
 	}
 
-	// Fallback: treat as V1 nodes/edges and convert to V2.
-	nodes := ToInterfaceSlice(merged["nodes"])
-	edges := ToInterfaceSlice(merged["edges"])
-
-	v2, err := autocompiler.V1FlowDefinitionToV2(autocompiler.V1FlowDefinition{
-		Nodes:    v1NodesFromAny(nodes),
-		Edges:    v1EdgesFromAny(edges),
-		Metadata: extractMapAny(merged, "metadata"),
-		Settings: extractMapAny(merged, "settings"),
-	})
+	// Parse V2 format.
+	normalizeV2Compat(merged)
+	body, err := json.Marshal(merged)
 	if err != nil {
-		return nil, fmt.Errorf("convert to v2: %w", err)
+		return nil, fmt.Errorf("marshal flow definition: %w", err)
 	}
 
-	return v2, nil
+	var pb basworkflows.WorkflowDefinitionV2
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, &pb); err != nil {
+		return nil, fmt.Errorf("parse V2 flow definition: %w", err)
+	}
+
+	return &pb, nil
 }
 
 // validateFlowDefinitionV2OnWrite validates a WorkflowDefinitionV2 proto message.
@@ -108,12 +104,14 @@ func validateFlowDefinitionV2OnWrite(def *basworkflows.WorkflowDefinitionV2) err
 	return nil
 }
 
-// looksLikeV2 checks if a flow definition map appears to be in V2 format.
-// V2 format has nodes with "action" fields containing typed action definitions.
-func looksLikeV2(doc map[string]any) bool {
+// isV2Format validates that a flow definition uses V2 format.
+// V2 format requires nodes to have "action" fields with typed action definitions.
+// Returns false for empty workflows or workflows missing the action field.
+func isV2Format(doc map[string]any) bool {
 	nodes, ok := doc["nodes"].([]any)
 	if !ok || len(nodes) == 0 {
-		return false
+		// Empty workflow is technically valid V2, but we check first node for non-empty
+		return true
 	}
 	first, ok := nodes[0].(map[string]any)
 	if !ok || first == nil {

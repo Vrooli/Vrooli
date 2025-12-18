@@ -394,6 +394,11 @@ func StringToActionType(actionType string) basactions.ActionType {
 
 // ActionTypeToString converts an ActionType enum to its canonical string representation.
 // Returns "unknown" for unrecognized types.
+//
+// NOTE: automation/executor/flow_utils.go has a local actionTypeToString that returns
+// "type" instead of "input" for ACTION_TYPE_INPUT. This is intentional for backward
+// compatibility with legacy workflows that stored "type" in the Type field.
+// Use this function for new code; the legacy version is only for Type field comparisons.
 func ActionTypeToString(actionType basactions.ActionType) string {
 	switch actionType {
 	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
@@ -424,6 +429,28 @@ func ActionTypeToString(actionType basactions.ActionType) string {
 		return "blur"
 	case basactions.ActionType_ACTION_TYPE_SUBFLOW:
 		return "subflow"
+	case basactions.ActionType_ACTION_TYPE_EXTRACT:
+		return "extract"
+	case basactions.ActionType_ACTION_TYPE_UPLOAD_FILE:
+		return "uploadFile"
+	case basactions.ActionType_ACTION_TYPE_DOWNLOAD:
+		return "download"
+	case basactions.ActionType_ACTION_TYPE_FRAME_SWITCH:
+		return "frameSwitch"
+	case basactions.ActionType_ACTION_TYPE_TAB_SWITCH:
+		return "tabSwitch"
+	case basactions.ActionType_ACTION_TYPE_COOKIE_STORAGE:
+		return "setCookie"
+	case basactions.ActionType_ACTION_TYPE_SHORTCUT:
+		return "shortcut"
+	case basactions.ActionType_ACTION_TYPE_DRAG_DROP:
+		return "dragDrop"
+	case basactions.ActionType_ACTION_TYPE_GESTURE:
+		return "gesture"
+	case basactions.ActionType_ACTION_TYPE_NETWORK_MOCK:
+		return "networkMock"
+	case basactions.ActionType_ACTION_TYPE_ROTATE:
+		return "rotate"
 	case basactions.ActionType_ACTION_TYPE_SET_VARIABLE:
 		return "setVariable"
 	case basactions.ActionType_ACTION_TYPE_LOOP:

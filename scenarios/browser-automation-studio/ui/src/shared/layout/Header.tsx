@@ -2,7 +2,6 @@ import {
   Play,
   Save,
   Bug,
-  ArrowLeft,
   Edit2,
   Check,
   X,
@@ -25,6 +24,7 @@ import { usePopoverPosition } from "@hooks/usePopoverPosition";
 import ResponsiveDialog from "./ResponsiveDialog";
 import { selectors } from "@constants/selectors";
 import { SubscriptionBadge } from "@shared/components";
+import Breadcrumbs from "./Breadcrumbs";
 
 type HeaderWorkflow = Pick<
   Workflow,
@@ -45,6 +45,7 @@ type HeaderWorkflow = Pick<
 interface HeaderProps {
   onNewWorkflow: () => void;
   onBackToDashboard?: () => void;
+  onBackToProject?: () => void;
   currentProject?: Project | null;
   currentWorkflow?: HeaderWorkflow | null;
   showBackToProject?: boolean;
@@ -55,6 +56,7 @@ interface HeaderProps {
 function Header({
   onNewWorkflow: _onNewWorkflow,
   onBackToDashboard,
+  onBackToProject,
   currentProject,
   currentWorkflow: selectedWorkflow,
   showBackToProject,
@@ -634,82 +636,84 @@ function Header({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              {onBackToDashboard && (
-                <button
-                  onClick={onBackToDashboard}
-                  className="toolbar-button flex items-center gap-2"
-                  title={
-                    showBackToProject ? "Back to Project" : "Back to Dashboard"
-                  }
-                  data-testid={
-                    showBackToProject
-                      ? selectors.header.buttons.backToProject
-                      : selectors.header.buttons.backToDashboard
-                  }
-                >
-                  <ArrowLeft size={16} />
-                </button>
+              {/* Breadcrumbs navigation with integrated workflow title */}
+              {(onBackToDashboard || currentProject || displayWorkflow) && (
+                <Breadcrumbs
+                  items={[
+                    ...(onBackToDashboard
+                      ? [{ label: "Dashboard", onClick: onBackToDashboard }]
+                      : []),
+                    ...(currentProject && (showBackToProject || displayWorkflow)
+                      ? [{
+                          label: currentProject.name,
+                          onClick: onBackToProject,
+                          current: !displayWorkflow,
+                        }]
+                      : []),
+                    ...(displayWorkflow
+                      ? [{
+                          label: displayWorkflow.name,
+                          current: true,
+                        }]
+                      : []),
+                  ].filter(Boolean)}
+                  className="mr-2"
+                  showHomeIcon={true}
+                />
               )}
 
-              <h1 className="text-xl font-bold text-surface flex items-center gap-2">
-                {displayWorkflow ? (
-                  <div className="flex items-center gap-2">
-                    {isEditingTitle ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          ref={titleInputRef}
-                          type="text"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          onKeyDown={handleTitleKeyDown}
-                          onBlur={handleSaveTitle}
-                          className="bg-gray-800 text-surface px-2 py-1 rounded border border-gray-600 focus:border-flow-accent focus:outline-none"
-                          placeholder="Workflow name..."
-                          data-testid={selectors.header.title.input}
-                        />
-                        <button
-                          onClick={handleSaveTitle}
-                          className="text-green-400 hover:text-green-300 p-1"
-                          title="Save title"
-                          data-testid={selectors.header.title.saveButton}
-                        >
-                          <Check size={14} />
-                        </button>
-                        <button
-                          onClick={handleCancelEditTitle}
-                          className="text-red-400 hover:text-red-300 p-1"
-                          title="Cancel editing"
-                          data-testid={selectors.header.title.cancelButton}
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 group">
-                        <span
-                          className="cursor-pointer"
-                          onClick={handleStartEditTitle}
-                          data-testid={selectors.header.title.text}
-                        >
-                          {displayWorkflow.name}
-                        </span>
-                        <button
-                          onClick={handleStartEditTitle}
-                          className="opacity-0 group-hover:opacity-100 text-subtle hover:text-surface transition-opacity p-1"
-                          title="Edit workflow name"
-                          data-testid={selectors.header.title.editButton}
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : currentProject ? (
-                  currentProject.name
-                ) : (
-                  "Vrooli Ascension"
-                )}
-              </h1>
+              {/* Editable workflow title (shown inline when workflow is selected) */}
+              {displayWorkflow && (
+                <div className="flex items-center gap-1 ml-1">
+                  {isEditingTitle ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={titleInputRef}
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={handleTitleKeyDown}
+                        onBlur={handleSaveTitle}
+                        className="bg-gray-800 text-surface px-2 py-1 rounded border border-gray-600 focus:border-flow-accent focus:outline-none text-sm"
+                        placeholder="Workflow name..."
+                        data-testid={selectors.header.title.input}
+                      />
+                      <button
+                        onClick={handleSaveTitle}
+                        className="text-green-400 hover:text-green-300 p-1"
+                        title="Save title"
+                        data-testid={selectors.header.title.saveButton}
+                      >
+                        <Check size={14} />
+                      </button>
+                      <button
+                        onClick={handleCancelEditTitle}
+                        className="text-red-400 hover:text-red-300 p-1"
+                        title="Cancel editing"
+                        data-testid={selectors.header.title.cancelButton}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleStartEditTitle}
+                      className="text-subtle hover:text-surface transition-colors p-1 rounded hover:bg-gray-700"
+                      title="Edit workflow name"
+                      data-testid={selectors.header.title.editButton}
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Application title (only shown when no workflow or project context) */}
+              {!displayWorkflow && !currentProject && (
+                <h1 className="text-xl font-bold text-surface">
+                  Vrooli Ascension
+                </h1>
+              )}
               {(currentProject || displayWorkflow) && (
                 <div className="relative">
                   <button

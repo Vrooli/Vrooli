@@ -9,6 +9,7 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
+	"github.com/vrooli/browser-automation-studio/automation/state"
 )
 
 // LoopContext bundles all state needed for loop execution.
@@ -21,7 +22,7 @@ type LoopContext struct {
 	Spec          engine.SessionSpec
 	Session       engine.EngineSession
 	Step          contracts.PlanStep
-	State         *flowState
+	State         *state.ExecutionState
 	ReuseMode     engine.SessionReuseMode
 	MaxIterations int
 }
@@ -94,7 +95,7 @@ func (h *repeatHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (loo
 	result := loopExecutionResult{session: lctx.Session}
 	stepParams := PlanStepParams(lctx.Step)
 
-	desiredIterations := intValue(stepParams, "loopCount")
+	desiredIterations := state.IntValue(stepParams, "loopCount")
 	if desiredIterations <= 0 {
 		return result, fmt.Errorf("loop node %s repeat requires loopCount > 0", lctx.Step.NodeID)
 	}
@@ -132,21 +133,21 @@ func (h *forEachHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (lo
 	result := loopExecutionResult{session: lctx.Session}
 	stepParams := PlanStepParams(lctx.Step)
 
-	items := extractLoopItems(stepParams, lctx.State)
+	items := state.ExtractLoopItems(stepParams, lctx.State)
 	if len(items) == 0 {
 		return result, nil
 	}
 
-	itemVar := stringValue(stepParams, "loopItemVariable")
+	itemVar := state.StringValue(stepParams, "loopItemVariable")
 	if itemVar == "" {
-		itemVar = stringValue(stepParams, "itemVariable")
+		itemVar = state.StringValue(stepParams, "itemVariable")
 	}
 	if itemVar == "" {
 		itemVar = defaultLoopItemVar
 	}
-	indexVar := stringValue(stepParams, "loopIndexVariable")
+	indexVar := state.StringValue(stepParams, "loopIndexVariable")
 	if indexVar == "" {
-		indexVar = stringValue(stepParams, "indexVariable")
+		indexVar = state.StringValue(stepParams, "indexVariable")
 	}
 	if indexVar == "" {
 		indexVar = defaultLoopIndexVar
@@ -156,8 +157,8 @@ func (h *forEachHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (lo
 	upperBound := minInt(lctx.MaxIterations, len(items))
 	executed := 0
 	for i := 0; i < upperBound; i++ {
-		lctx.State.set(itemVar, items[i])
-		lctx.State.set(indexVar, i)
+		lctx.State.Set(itemVar, items[i])
+		lctx.State.Set(indexVar, i)
 
 		control, nextSession, err := executor.executeGraphIteration(
 			lctx.Ctx, lctx.Request, lctx.ExecCtx, lctx.Engine, lctx.Spec,
@@ -189,7 +190,7 @@ func (h *whileHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (loop
 	activeSession := lctx.Session
 	iterations := 0
 	for iterations < lctx.MaxIterations {
-		if !evaluateLoopCondition(stepParams, lctx.State) {
+		if !state.EvaluateLoopCondition(stepParams, lctx.State) {
 			break
 		}
 

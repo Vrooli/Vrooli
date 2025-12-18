@@ -123,22 +123,20 @@ func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http
 		{
 			Index:  0,
 			NodeID: "preview.navigate",
-			Type:   "navigate",
-			Params: map[string]any{
+			Action: mustBuildAction("navigate", map[string]any{
 				"url":       req.URL,
 				"waitUntil": defaultPreviewWaitUntil,
 				"timeoutMs": defaultPreviewTimeoutMilliseconds,
-			},
+			}),
 		},
 		{
 			Index:  1,
 			NodeID: "preview.screenshot",
-			Type:   "screenshot",
-			Params: map[string]any{
+			Action: mustBuildAction("screenshot", map[string]any{
 				"fullPage":  true,
 				"waitForMs": defaultPreviewWaitMilliseconds,
 				"timeoutMs": defaultPreviewTimeoutMilliseconds,
-			},
+			}),
 		},
 	}
 

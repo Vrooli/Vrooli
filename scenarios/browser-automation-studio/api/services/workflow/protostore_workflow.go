@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/database"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -109,26 +108,13 @@ func legacyWorkflowPayloadToProto(project *database.ProjectIndex, payload map[st
 		version = 1
 	}
 
+	// Parse V2 definition - V1 format is no longer supported for disk storage.
 	var def *basworkflows.WorkflowDefinitionV2
 	if v2Raw, ok := payload["definition_v2"].(map[string]any); ok {
 		v2Bytes, _ := json.Marshal(v2Raw)
 		var v2 basworkflows.WorkflowDefinitionV2
 		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(v2Bytes, &v2); err == nil {
 			def = &v2
-		}
-	}
-
-	// If legacy nodes/edges exist, convert to V2.
-	if def == nil {
-		nodes := ToInterfaceSlice(payload["nodes"])
-		edges := ToInterfaceSlice(payload["edges"])
-		if flow, ok := payload["flow_definition"].(map[string]any); ok && (len(nodes) == 0 && len(edges) == 0) {
-			nodes = ToInterfaceSlice(flow["nodes"])
-			edges = ToInterfaceSlice(flow["edges"])
-		}
-		v2, err := V1NodesEdgesToV2Definition(nodes, edges, payload)
-		if err == nil {
-			def = v2
 		}
 	}
 
@@ -163,84 +149,6 @@ func legacyWorkflowPayloadToProto(project *database.ProjectIndex, payload map[st
 		UpdatedAt:   updatedAt,
 		FlowDefinition: def,
 	}, needsWrite, nil
-}
-
-func V1NodesEdgesToV2Definition(nodes []any, edges []any, payload map[string]any) (*basworkflows.WorkflowDefinitionV2, error) {
-	meta := extractMapAny(payload, "metadata")
-	settings := extractMapAny(payload, "settings")
-	if flow, ok := payload["flow_definition"].(map[string]any); ok {
-		if meta == nil {
-			meta = extractMapAny(flow, "metadata")
-		}
-		if settings == nil {
-			settings = extractMapAny(flow, "settings")
-		}
-	}
-	return autocompiler.V1FlowDefinitionToV2(autocompiler.V1FlowDefinition{
-		Nodes:    v1NodesFromAny(nodes),
-		Edges:    v1EdgesFromAny(edges),
-		Metadata: meta,
-		Settings: settings,
-	})
-}
-
-func extractMapAny(m map[string]any, key string) map[string]any {
-	if m == nil {
-		return nil
-	}
-	if v, ok := m[key].(map[string]any); ok {
-		return v
-	}
-	return nil
-}
-
-func v1NodesFromAny(nodes []any) []autocompiler.V1Node {
-	out := make([]autocompiler.V1Node, 0, len(nodes))
-	for _, raw := range nodes {
-		nodeMap, ok := raw.(map[string]any)
-		if !ok {
-			if typed, ok := raw.(database.JSONMap); ok {
-				nodeMap = map[string]any(typed)
-			} else {
-				continue
-			}
-		}
-		n := autocompiler.V1Node{
-			ID:   anyToString(nodeMap["id"]),
-			Type: anyToString(nodeMap["type"]),
-		}
-		if data, ok := nodeMap["data"].(map[string]any); ok {
-			n.Data = data
-		} else {
-			n.Data = map[string]any{}
-		}
-		out = append(out, n)
-	}
-	return out
-}
-
-func v1EdgesFromAny(edges []any) []autocompiler.V1Edge {
-	out := make([]autocompiler.V1Edge, 0, len(edges))
-	for _, raw := range edges {
-		edgeMap, ok := raw.(map[string]any)
-		if !ok {
-			if typed, ok := raw.(database.JSONMap); ok {
-				edgeMap = map[string]any(typed)
-			} else {
-				continue
-			}
-		}
-		out = append(out, autocompiler.V1Edge{
-			ID:           anyToString(edgeMap["id"]),
-			Source:       anyToString(edgeMap["source"]),
-			Target:       anyToString(edgeMap["target"]),
-			Type:         anyToString(edgeMap["type"]),
-			Label:        anyToString(edgeMap["label"]),
-			SourceHandle: anyToString(edgeMap["sourceHandle"]),
-			TargetHandle: anyToString(edgeMap["targetHandle"]),
-		})
-	}
-	return out
 }
 
 func WriteWorkflowSummaryFile(project *database.ProjectIndex, wf *basapi.WorkflowSummary, preferredRel string) (absPath string, relPath string, err error) {

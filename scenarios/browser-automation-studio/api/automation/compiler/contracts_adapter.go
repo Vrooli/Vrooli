@@ -47,8 +47,8 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 			Metadata:    map[string]string{},
 		}
 
-		// Populate typed Action field from V1 type/params for type safety
-		action, actionErr := V1DataToActionDefinition(string(step.Type), step.Params)
+		// Populate typed Action field from step type/params for type safety
+		action, actionErr := BuildActionDefinition(string(step.Type), step.Params)
 		if actionErr != nil {
 			log.Printf("[COMPILER] Warning: failed to build ActionDefinition for step %d (%s): %v", step.Index, step.Type, actionErr)
 		} else {
@@ -118,7 +118,7 @@ func toContractsGraph(plan *ExecutionPlan) *contracts.PlanGraph {
 		}
 
 		// Build typed Action for type safety
-		action, err := V1DataToActionDefinition(string(step.Type), step.Params)
+		action, err := BuildActionDefinition(string(step.Type), step.Params)
 		if err == nil {
 			converted.Action = action
 		}

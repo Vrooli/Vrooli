@@ -344,11 +344,13 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	flow := body.CurrentFlow
-	nodes := workflowservice.ToInterfaceSlice(flow["nodes"])
-	edges := workflowservice.ToInterfaceSlice(flow["edges"])
-	def, err := workflowservice.V1NodesEdgesToV2Definition(nodes, edges, map[string]any{"flow_definition": flow})
+	// Parse V2 flow definition directly - V1 format is no longer accepted.
+	def, err := workflowservice.BuildFlowDefinitionV2ForWrite(body.CurrentFlow, nil, nil)
 	if err != nil {
+		if errors.Is(err, workflowservice.ErrInvalidWorkflowFormat) {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "Invalid workflow format: nodes must have 'action' field with typed action definitions"}))
+			return
+		}
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}

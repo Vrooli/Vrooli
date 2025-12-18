@@ -206,30 +206,27 @@ func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, er
 		{
 			Index:  0,
 			NodeID: "dom.navigate",
-			Type:   "navigate",
-			Params: map[string]any{
+			Action: mustBuildAction("navigate", map[string]any{
 				"url":       url,
 				"waitUntil": defaultPreviewWaitUntil,
 				"timeoutMs": defaultPreviewTimeoutMilliseconds,
-			},
+			}),
 		},
 		{
 			Index:  1,
 			NodeID: "dom.wait",
-			Type:   "wait",
-			Params: map[string]any{
+			Action: mustBuildAction("wait", map[string]any{
 				"waitType":   "time",
 				"durationMs": defaultDomExtractionWaitMs,
-			},
+			}),
 		},
 		{
 			Index:  2,
 			NodeID: domExtractionNodeID,
-			Type:   "evaluate",
-			Params: map[string]any{
+			Action: mustBuildAction("evaluate", map[string]any{
 				"expression": domExtractionExpression,
 				"timeoutMs":  defaultPreviewTimeoutMilliseconds,
-			},
+			}),
 		},
 	}
 

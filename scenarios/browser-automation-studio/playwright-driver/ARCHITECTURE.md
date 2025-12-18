@@ -89,18 +89,18 @@ When adding a new recorded action type:
 
 ### 3. Selector Strategies (MEDIUM FREQUENCY)
 
-**Primary extension point:**
-- `recording/injector.ts` - Runtime implementation (browser-injected) **SOURCE OF TRUTH**
-- `recording/selectors.reference.ts` - TypeScript reference (documentation only, not imported)
+**Primary extension point:** `recording/injector.ts` - Runtime implementation (browser-injected)
 
-**Note:** `selectors.reference.ts` is documentation-only and may drift from `injector.ts`. The injector is the source of truth. Update the reference file opportunistically when making algorithm changes.
+The selector generation code lives in `injector.ts` as stringified JavaScript that gets injected
+into browser pages via `page.evaluate()`. Browser context requires plain JS, so the code is
+stored as a string template.
 
 When adding a new selector strategy:
 
 1. Add `SelectorType` to `recording/types.ts`
-2. Implement in `injector.ts` (the actual runtime code)
-3. Optionally update `selectors.reference.ts` for documentation
-4. Update `DEFAULT_SELECTOR_OPTIONS` if needed
+2. Implement in `injector.ts` (the runtime code)
+3. Update `DEFAULT_SELECTOR_OPTIONS` if needed
+4. Add configuration to `selector-config.ts` if the strategy has tunable parameters
 
 ### 4. Telemetry Types (LOW-MEDIUM FREQUENCY)
 
@@ -119,15 +119,29 @@ When adding new observability data:
 
 **Primary extension point:** `frame-streaming/`
 
-The frame streaming module handles live video streaming to the UI during recording:
+The frame streaming module handles live video streaming to the UI during recording.
+Uses a **strategy pattern** for different streaming implementations:
 
 - **CDP Screencast** (preferred): Push-based streaming from Chrome compositor (30-60 FPS)
 - **Polling Fallback**: Pull-based screenshot capture with adaptive FPS
 
-Key files:
-- `frame-streaming/manager.ts` - Main streaming logic, WebSocket management
-- `frame-streaming/types.ts` - Types and constants
-- `routes/record-mode/screencast-streaming.ts` - CDP screencast implementation
+**Architecture:**
+```
+frame-streaming/
+├── manager.ts              # Thin orchestrator (~270 lines)
+├── types.ts                # Shared types and constants
+├── strategies/
+│   ├── interface.ts        # FrameStreamingStrategy interface
+│   ├── cdp-screencast.ts   # CDP screencast implementation
+│   └── polling.ts          # Polling fallback implementation
+└── websocket/
+    └── connection.ts       # WebSocket lifecycle management
+```
+
+When adding a new streaming strategy:
+1. Implement `FrameStreamingStrategy` interface from `strategies/interface.ts`
+2. Add strategy selection logic in `manager.ts:startWithStrategy()`
+3. Export from `strategies/index.ts`
 
 When modifying frame streaming:
 1. Configuration options are in `config.ts` under `frameStreaming`
@@ -225,14 +239,12 @@ Handlers declare their supported types via `getSupportedTypes()` rather than ext
 - Enables handlers to support multiple related types
 - Simplifies registration (just instantiate and register)
 
-### Why Selectors Have Reference Implementation
+### Why Selectors are Stringified JavaScript
 
-`selectors.reference.ts` (TypeScript) and `injector.ts` (stringified JS) exist because:
-- Browser context requires plain JavaScript injection
-- TypeScript version is easier to read and understand than stringified JS
-- `injector.ts` is the SOURCE OF TRUTH - it runs at runtime
-- `selectors.reference.ts` is documentation-only and NOT imported anywhere
-- The reference file may drift over time - that's acceptable
+`injector.ts` contains stringified JavaScript for selector generation because:
+- Browser context requires plain JavaScript injection (no TypeScript)
+- The code must be injected via `page.evaluate()` which requires a serializable function
+- Configuration values from `selector-config.ts` are shared between the injector and other modules
 
 ### Why Outcomes Have Two Formats
 
@@ -243,11 +255,11 @@ The Go API expects flattened fields (`screenshot_base64` not `screenshot.base64`
 
 ## Future Improvements
 
-1. ~~**Auto-generate injector.ts**~~ - Decided against: `injector.ts` is source of truth, `selectors.reference.ts` is documentation
+1. ~~**Auto-generate injector.ts**~~ - Not needed: injector.ts is self-contained and readable
 2. ~~**Action executor registry**~~ - ✅ Implemented in `recording/action-executor.ts`
 3. **Route grouping** - Group related routes (session/*, record/*) for cleaner registration
 4. **Telemetry pipeline** - Create composable collector pipeline for future types
-5. ~~**Selector strategy verification**~~ - No longer needed: reference file drift is acceptable
+5. ~~**Selector strategy verification**~~ - Not needed: single source of truth in injector.ts
 6. ~~**Extract circuit breaker**~~ - ✅ Implemented in `infra/circuit-breaker.ts`
 7. ~~**Extract frame streaming**~~ - ✅ Implemented in `frame-streaming/`
 8. ~~**Extract browser manager**~~ - ✅ Implemented in `session/browser-manager.ts`

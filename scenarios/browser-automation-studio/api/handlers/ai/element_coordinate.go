@@ -21,23 +21,21 @@ func (h *ElementAnalysisHandler) getElementAtCoordinate(ctx context.Context, url
 		{
 			Index:  0,
 			NodeID: "probe.navigate",
-			Type:   "navigate",
-			Params: map[string]any{
+			Action: mustBuildAction("navigate", map[string]any{
 				"url":       url,
 				"waitUntil": "networkidle",
 				"timeoutMs": 45000,
-			},
+			}),
 		},
 		{
 			Index:  1,
 			NodeID: "probe.element",
-			Type:   "probeElements",
-			Params: map[string]any{
+			Action: mustBuildAction("probeElements", map[string]any{
 				"probeX":       x,
 				"probeY":       y,
 				"probeRadius":  8,
 				"probeSamples": 36,
-			},
+			}),
 		},
 	}
 

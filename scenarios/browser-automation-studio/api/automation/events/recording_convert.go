@@ -21,37 +21,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// RecordedAction is an alias for livecapture.RecordedAction.
-//
-// Deprecated: Import livecapture.RecordedAction from
-// github.com/vrooli/browser-automation-studio/services/live-capture directly.
-// This alias will be removed in a future version.
-type RecordedAction = livecapture.RecordedAction
-
-// SelectorSet is an alias for livecapture.SelectorSet.
-//
-// Deprecated: Import livecapture.SelectorSet from
-// github.com/vrooli/browser-automation-studio/services/live-capture directly.
-// This alias will be removed in a future version.
-type SelectorSet = livecapture.SelectorSet
-
-// SelectorCandidate is an alias for livecapture.SelectorCandidate.
-//
-// Deprecated: Import livecapture.SelectorCandidate from
-// github.com/vrooli/browser-automation-studio/services/live-capture directly.
-// This alias will be removed in a future version.
-type SelectorCandidate = livecapture.SelectorCandidate
-
-// ElementMeta is an alias for livecapture.ElementMeta.
-//
-// Deprecated: Import livecapture.ElementMeta from
-// github.com/vrooli/browser-automation-studio/services/live-capture directly.
-// This alias will be removed in a future version.
-type ElementMeta = livecapture.ElementMeta
-
 // RecordedActionToTimelineEntry converts a RecordedAction from the recording
 // controller to the unified TimelineEntry proto format.
-func RecordedActionToTimelineEntry(action *RecordedAction) *bastimeline.TimelineEntry {
+func RecordedActionToTimelineEntry(action *livecapture.RecordedAction) *bastimeline.TimelineEntry {
 	if action == nil {
 		return nil
 	}
@@ -92,7 +64,7 @@ func RecordedActionToTimelineEntry(action *RecordedAction) *bastimeline.Timeline
 }
 
 // buildRecordingActionDefinition creates an ActionDefinition from a RecordedAction.
-func buildRecordingActionDefinition(action *RecordedAction) *basactions.ActionDefinition {
+func buildRecordingActionDefinition(action *livecapture.RecordedAction) *basactions.ActionDefinition {
 	actionType := mapRecordingActionType(action.ActionType)
 
 	def := &basactions.ActionDefinition{
@@ -258,7 +230,7 @@ func buildRecordingActionDefinition(action *RecordedAction) *basactions.ActionDe
 }
 
 // buildRecordingMetadata creates ActionMetadata from a RecordedAction.
-func buildRecordingMetadata(action *RecordedAction) *basactions.ActionMetadata {
+func buildRecordingMetadata(action *livecapture.RecordedAction) *basactions.ActionMetadata {
 	meta := &basactions.ActionMetadata{}
 
 	// Generate label from element info
@@ -323,7 +295,7 @@ func buildRecordingMetadata(action *RecordedAction) *basactions.ActionMetadata {
 }
 
 // buildRecordingTelemetry creates ActionTelemetry from a RecordedAction.
-func buildRecordingTelemetry(action *RecordedAction) *basdomain.ActionTelemetry {
+func buildRecordingTelemetry(action *livecapture.RecordedAction) *basdomain.ActionTelemetry {
 	tel := &basdomain.ActionTelemetry{
 		Url: action.URL,
 	}
@@ -355,7 +327,7 @@ func buildRecordingTelemetry(action *RecordedAction) *basdomain.ActionTelemetry 
 
 // buildRecordingEventContext creates EventContext with recording origin.
 // EventContext is the unified context type that replaces RecordingContext/ExecutionContext.
-func buildRecordingEventContext(action *RecordedAction) *basbase.EventContext {
+func buildRecordingEventContext(action *livecapture.RecordedAction) *basbase.EventContext {
 	// Determine if user confirmation is needed
 	needsConfirmation := false
 	if action.Selector != nil && len(action.Selector.Candidates) > 0 {
@@ -379,7 +351,7 @@ func mapRecordingActionType(actionType string) basactions.ActionType {
 }
 
 // generateRecordingLabel creates a human-readable label for an action.
-func generateRecordingLabel(action *RecordedAction) string {
+func generateRecordingLabel(action *livecapture.RecordedAction) string {
 	actionType := action.ActionType
 
 	// Try to create a descriptive label from element info

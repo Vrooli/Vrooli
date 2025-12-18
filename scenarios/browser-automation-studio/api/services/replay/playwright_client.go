@@ -12,11 +12,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // captureFrame represents a single captured frame.
@@ -159,19 +161,17 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 		{
 			Index:  0,
 			NodeID: "navigate",
-			Type:   "navigate",
-			Params: map[string]any{
+			Action: mustBuildAction("navigate", map[string]any{
 				"url":       exportPageURL,
 				"timeoutMs": 45000,
-			},
+			}),
 		},
 		{
 			Index:  1,
 			NodeID: "inject",
-			Type:   "evaluate",
-			Params: map[string]any{
+			Action: mustBuildAction("evaluate", map[string]any{
 				"script": script,
-			},
+			}),
 		},
 	}
 
@@ -180,24 +180,32 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 		instr = append(instr, autocontracts.CompiledInstruction{
 			Index:  idx,
 			NodeID: fmt.Sprintf("wait-%d", i),
-			Type:   "wait",
-			Params: map[string]any{
+			Action: mustBuildAction("wait", map[string]any{
 				"ms": captureInterval,
-			},
+			}),
 		})
 		idx++
 		instr = append(instr, autocontracts.CompiledInstruction{
 			Index:  idx,
 			NodeID: fmt.Sprintf("screenshot-%d", i),
-			Type:   "screenshot",
-			Params: map[string]any{
+			Action: mustBuildAction("screenshot", map[string]any{
 				"fullPage": true,
-			},
+			}),
 		})
 		idx++
 	}
 
 	return instr
+}
+
+// mustBuildAction creates a typed ActionDefinition from step type and params.
+// Panics if the action type is invalid (should never happen with hardcoded types).
+func mustBuildAction(stepType string, params map[string]any) *basactions.ActionDefinition {
+	action, err := autocompiler.BuildActionDefinition(stepType, params)
+	if err != nil {
+		panic(fmt.Sprintf("mustBuildAction: invalid action type %q: %v", stepType, err))
+	}
+	return action
 }
 
 // inMemoryCaptureRecorder captures outcomes without touching the database.

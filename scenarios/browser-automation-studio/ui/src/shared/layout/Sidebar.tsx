@@ -3,17 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const NodePalette = lazy(() => import('@features/workflows/builder/NodePalette'));
 
-interface SidebarProps {
-  selectedFolder: string;
-  onFolderSelect: (folder: string) => void;
-  projectId?: string;
-}
-
-function Sidebar({
-  selectedFolder: _selectedFolder,
-  onFolderSelect: _onFolderSelect,
-  projectId: _projectId,
-}: SidebarProps) {
+function Sidebar() {
   const COLLAPSED_WIDTH = 48;
   const MIN_WIDTH = 220;
   const MAX_WIDTH = 420;

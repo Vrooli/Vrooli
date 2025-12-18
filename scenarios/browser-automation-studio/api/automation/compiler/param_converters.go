@@ -6,7 +6,7 @@ import (
 )
 
 // Parameter builder functions delegate to internal/params for implementation.
-// These thin wrappers maintain backward compatibility with existing callers.
+// These convert flat parameter maps to typed proto messages.
 
 func buildNavigateParams(data map[string]any) *basactions.NavigateParams {
 	return params.BuildNavigateParams(data)

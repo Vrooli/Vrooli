@@ -13,6 +13,7 @@
 export { default as ExecutionViewer } from "./ExecutionViewer";
 export { default as ExecutionHistory } from "./ExecutionHistory";
 export { default as ReplayPlayer } from "./ReplayPlayer";
+export { ExecutionPaneLayout } from "./ExecutionPaneLayout";
 
 // Replay theming configuration
 export * from "./replay";

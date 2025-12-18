@@ -2,7 +2,6 @@ package executor
 
 import (
 	"encoding/json"
-	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -10,367 +9,31 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/state"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
-// flow_utils.go holds small helpers for graph traversal and value coercion.
+// flow_utils.go holds helpers for graph traversal, instruction processing,
+// and action type conversion.
 //
-// MIGRATION NOTE: State management has been extracted to the automation/state package.
-// The flowState type below is now a thin wrapper around state.ExecutionState for
-// backward compatibility. New code should use state.ExecutionState directly.
-//
+// NOTE: State management has been moved to the automation/state package.
 // See: automation/state/execution_state.go for the canonical implementation.
-
-// executionState is an alias to the canonical state.ExecutionState type.
-// Deprecated: Use state.ExecutionState directly for new code.
-type executionState = state.ExecutionState
-
-// newExecutionState creates a new ExecutionState with the given initial values.
-// Deprecated: Use state.New() directly for new code.
-func newExecutionState(initialStore, initialParams, env map[string]any) *executionState {
-	return state.New(initialStore, initialParams, env)
-}
-
-// resolvePath resolves a dot-notation path against a map.
-// Deprecated: This is now available in the state package.
-func resolvePath(m map[string]any, path string) (any, bool) {
-	if m == nil || path == "" {
-		return nil, false
-	}
-
-	// Try direct lookup first
-	if v, ok := m[path]; ok {
-		return v, true
-	}
-
-	// Handle dot notation
-	parts := strings.Split(path, ".")
-	if len(parts) == 0 {
-		return nil, false
-	}
-
-	current, ok := m[parts[0]]
-	if !ok {
-		return nil, false
-	}
-
-	for _, part := range parts[1:] {
-		switch val := current.(type) {
-		case map[string]any:
-			current, ok = val[part]
-		case []any:
-			idx, err := strconv.Atoi(part)
-			if err != nil || idx < 0 || idx >= len(val) {
-				return nil, false
-			}
-			current = val[idx]
-			ok = true
-		default:
-			return nil, false
-		}
-		if !ok {
-			return nil, false
-		}
-	}
-	return current, true
-}
-
-// flowState is the legacy state container used for backward compatibility.
-// Deprecated: Use state.ExecutionState directly for new code.
-//
-// MIGRATION STRATEGY:
-// flowState now wraps state.ExecutionState internally. The legacy 'vars' map
-// is no longer used directly; all operations delegate to the underlying
-// ExecutionState. This provides backward compatibility while the codebase
-// migrates to using state.ExecutionState directly.
-type flowState struct {
-	// state is the underlying namespace-aware state management.
-	// All operations delegate to this instance.
-	state *state.ExecutionState
-}
-
-// newFlowState creates a flowState from seed values.
-// Deprecated: Use state.NewFromStore() directly for new code.
-func newFlowState(seed map[string]any) *flowState {
-	return &flowState{
-		state: state.NewFromStore(seed),
-	}
-}
-
-// newFlowStateWithNamespaces creates a flowState with namespace-aware state management.
-// Deprecated: Use state.New() directly for new code.
-func newFlowStateWithNamespaces(initialStore, initialParams, env map[string]any) *flowState {
-	return &flowState{
-		state: state.New(initialStore, initialParams, env),
-	}
-}
-
-// hasNamespaces returns true if this flowState has namespace-aware state.
-// Always returns true for the refactored implementation.
-func (s *flowState) hasNamespaces() bool {
-	return s != nil && s.state != nil
-}
-
-// ExecutionState returns the underlying state.ExecutionState.
-// Use this when migrating code to use the new state package directly.
-func (s *flowState) ExecutionState() *state.ExecutionState {
-	if s == nil {
-		return nil
-	}
-	return s.state
-}
-
-func (s *flowState) markEntryChecked() {
-	if s == nil || s.state == nil {
-		return
-	}
-	s.state.MarkEntryChecked()
-}
-
-func (s *flowState) hasCheckedEntry() bool {
-	if s == nil || s.state == nil {
-		return false
-	}
-	return s.state.HasCheckedEntry()
-}
-
-func (s *flowState) get(key string) (any, bool) {
-	if s == nil || s.state == nil {
-		return nil, false
-	}
-	return s.state.Get(key)
-}
-
-// resolve supports dot/index path resolution (e.g., user.name, items.0) and
-// falls back to a direct lookup for raw keys.
-func (s *flowState) resolve(path string) (any, bool) {
-	if s == nil || s.state == nil {
-		return nil, false
-	}
-	return s.state.Resolve(path)
-}
-
-func (s *flowState) set(key string, value any) {
-	if s == nil || s.state == nil {
-		return
-	}
-	s.state.Set(key, value)
-}
-
-// setNamespaced sets a value in the specified namespace.
-// Only @store/ is writable; attempts to write to @params/ or @env/ are silently ignored.
-func (s *flowState) setNamespaced(namespace, key string, value any) {
-	if s == nil || s.state == nil {
-		return
-	}
-	if namespace != "store" {
-		return // Only store is writable
-	}
-	s.state.Set(key, value)
-}
-
-func (s *flowState) merge(vars map[string]any) {
-	if s == nil || s.state == nil || vars == nil {
-		return
-	}
-	s.state.Merge(vars)
-}
-
-// mergeNamespacedStore merges vars into the @store/ namespace.
-func (s *flowState) mergeNamespacedStore(vars map[string]any) {
-	if s == nil || s.state == nil || vars == nil {
-		return
-	}
-	s.state.Merge(vars)
-}
-
-// getNamespacedState returns the underlying executionState.
-// Deprecated: Use ExecutionState() instead.
-func (s *flowState) getNamespacedState() *executionState {
-	if s == nil {
-		return nil
-	}
-	return s.state
-}
-
-func (s *flowState) setNextIndexFromPlan(plan contracts.ExecutionPlan) {
-	if s == nil || s.state == nil {
-		return
-	}
-	s.state.SetNextIndexFromPlan(plan)
-}
-
-func (s *flowState) allocateIndexRange(count int) int {
-	if s == nil || s.state == nil {
-		return 0
-	}
-	return s.state.AllocateIndexRange(count)
-}
-
-// getNamespace returns the namespace map for the given name.
-// Used when resolving @namespace without a path.
-func (s *flowState) getNamespace(namespace string) map[string]any {
-	if s == nil || s.state == nil {
-		return nil
-	}
-	return s.state.GetNamespace(namespace)
-}
-
-// extractLoopItems extracts loop items from params.
-// Deprecated: Use state.ExtractLoopItems() for new code.
-func extractLoopItems(params map[string]any, fs *flowState) []any {
-	if fs == nil || fs.state == nil {
-		return nil
-	}
-	return state.ExtractLoopItems(params, fs.state)
-}
-
-// evaluateLoopCondition evaluates a loop condition.
-// Deprecated: Use state.EvaluateLoopCondition() for new code.
-func evaluateLoopCondition(params map[string]any, fs *flowState) bool {
-	if fs == nil || fs.state == nil {
-		return false
-	}
-	return state.EvaluateLoopCondition(params, fs.state)
-}
-
-// compareValues compares two values using the specified operator.
-// Deprecated: Use state.CompareValues() for new code.
-func compareValues(current any, expected any, op string) bool {
-	return state.CompareValues(current, expected, op)
-}
-
-// toFloat converts a value to float64 if possible.
-// Deprecated: Use state.ToFloat() for new code.
-func toFloat(v any) (float64, bool) {
-	return state.ToFloat(v)
-}
 
 // interpolateInstruction performs variable substitution on instruction
 // params/strings using ${var} tokens.
-// Deprecated: Use state.NewInterpolator(fs.state).InterpolateInstruction() for new code.
-func (e *SimpleExecutor) interpolateInstruction(instr contracts.CompiledInstruction, fs *flowState) contracts.CompiledInstruction {
-	if fs == nil || fs.state == nil {
+func (e *SimpleExecutor) interpolateInstruction(instr contracts.CompiledInstruction, execState *state.ExecutionState) contracts.CompiledInstruction {
+	if execState == nil {
 		return instr
 	}
-	interp := state.NewInterpolator(fs.state)
+	interp := state.NewInterpolator(execState)
 	return interp.InterpolateInstruction(instr)
 }
 
 // interpolatePlanStep performs variable substitution on a plan step.
-// Deprecated: Use state.NewInterpolator(fs.state).InterpolatePlanStep() for new code.
-func (e *SimpleExecutor) interpolatePlanStep(step contracts.PlanStep, fs *flowState) contracts.PlanStep {
-	if fs == nil || fs.state == nil {
+func (e *SimpleExecutor) interpolatePlanStep(step contracts.PlanStep, execState *state.ExecutionState) contracts.PlanStep {
+	if execState == nil {
 		return step
 	}
-	interp := state.NewInterpolator(fs.state)
+	interp := state.NewInterpolator(execState)
 	return interp.InterpolatePlanStep(step)
-}
-
-// interpolateActionDefinition is kept for backward compatibility.
-// Deprecated: Use state.NewInterpolator().
-func interpolateActionDefinition(action *basactions.ActionDefinition, fs *flowState) *basactions.ActionDefinition {
-	if action == nil || fs == nil || fs.state == nil {
-		return action
-	}
-
-	raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(action)
-	if err != nil {
-		return action
-	}
-
-	var doc any
-	if err := json.Unmarshal(raw, &doc); err != nil {
-		return action
-	}
-
-	interp := state.NewInterpolator(fs.state)
-	updated := interp.InterpolateValue(doc)
-	updatedMap, ok := updated.(map[string]any)
-	if !ok || updatedMap == nil {
-		return action
-	}
-	updatedBytes, err := json.Marshal(updatedMap)
-	if err != nil {
-		return action
-	}
-
-	var out basactions.ActionDefinition
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(updatedBytes, &out); err != nil {
-		return action
-	}
-
-	return proto.Clone(&out).(*basactions.ActionDefinition)
-}
-
-// interpolateValue performs variable substitution recursively on any value.
-// Deprecated: Use state.NewInterpolator(fs.state).InterpolateValue() for new code.
-func interpolateValue(v any, fs *flowState) any {
-	if fs == nil || fs.state == nil {
-		return v
-	}
-	interp := state.NewInterpolator(fs.state)
-	return interp.InterpolateValue(v)
-}
-
-// interpolateStringTyped performs interpolation with type preservation.
-// Deprecated: Use state.NewInterpolator(fs.state).InterpolateValue() for new code.
-func interpolateStringTyped(s string, fs *flowState) any {
-	if fs == nil || fs.state == nil {
-		return s
-	}
-	interp := state.NewInterpolator(fs.state)
-	return interp.InterpolateValue(s)
-}
-
-// isSingleInterpolation returns true if the string contains exactly one interpolation
-// that spans the entire value (after trimming).
-// Deprecated: This is now internal to the state package.
-func isSingleInterpolation(s string) bool {
-	s = strings.TrimSpace(s)
-	if strings.HasPrefix(s, "${") && strings.HasSuffix(s, "}") {
-		// Check there's no nested ${
-		inner := s[2 : len(s)-1]
-		return !strings.Contains(inner, "${") && !strings.Contains(inner, "{{")
-	}
-	if strings.HasPrefix(s, "{{") && strings.HasSuffix(s, "}}") {
-		inner := s[2 : len(s)-2]
-		return !strings.Contains(inner, "${") && !strings.Contains(inner, "{{")
-	}
-	return false
-}
-
-// extractSingleToken extracts the token from a single interpolation string.
-// Deprecated: This is now internal to the state package.
-func extractSingleToken(s string) string {
-	s = strings.TrimSpace(s)
-	if strings.HasPrefix(s, "${") && strings.HasSuffix(s, "}") {
-		return s[2 : len(s)-1]
-	}
-	if strings.HasPrefix(s, "{{") && strings.HasSuffix(s, "}}") {
-		return s[2 : len(s)-2]
-	}
-	return s
-}
-
-// interpolateString performs string interpolation, always returning a string.
-// Deprecated: Use state.NewInterpolator(fs.state).InterpolateString() for new code.
-func interpolateString(s string, fs *flowState) string {
-	if fs == nil || fs.state == nil {
-		return s
-	}
-	interp := state.NewInterpolator(fs.state)
-	return interp.InterpolateString(s)
-}
-
-// evaluateExpression supports simple boolean expressions.
-// Deprecated: Use state.NewInterpolator(fs.state).EvaluateExpression() for new code.
-func evaluateExpression(expr string, fs *flowState) (bool, bool) {
-	if fs == nil || fs.state == nil {
-		return false, false
-	}
-	interp := state.NewInterpolator(fs.state)
-	return interp.EvaluateExpression(expr)
 }
 
 func indexGraph(graph *contracts.PlanGraph) map[string]*contracts.PlanStep {
@@ -522,42 +185,6 @@ func normalizeEdgeCondition(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
-// stringValue safely extracts a string from params.
-// Deprecated: Use state.StringValue() for new code.
-func stringValue(m map[string]any, key string) string {
-	return state.StringValue(m, key)
-}
-
-// intValue safely extracts an integer from params.
-// Deprecated: Use state.IntValue() for new code.
-func intValue(m map[string]any, key string) int {
-	return state.IntValue(m, key)
-}
-
-// coerceToInt converts various types to int.
-// Deprecated: Use state.CoerceToInt() for new code.
-func coerceToInt(v any) int {
-	return state.CoerceToInt(v)
-}
-
-// floatValue safely extracts a float64 from params.
-// Deprecated: Use state.FloatValue() for new code.
-func floatValue(m map[string]any, key string) float64 {
-	return state.FloatValue(m, key)
-}
-
-// coerceToFloat converts various types to float64.
-// Deprecated: Use state.CoerceToFloat() for new code.
-func coerceToFloat(v any) (float64, bool) {
-	return state.CoerceToFloat(v)
-}
-
-// boolValue safely extracts a boolean from params.
-// Deprecated: Use state.BoolValue() for new code.
-func boolValue(m map[string]any, key string) bool {
-	return state.BoolValue(m, key)
-}
-
 func intPtr(v int) *int {
 	return &v
 }
@@ -581,18 +208,6 @@ func uuidOrDefault(value, fallback uuid.UUID) uuid.UUID {
 		return value
 	}
 	return fallback
-}
-
-// coerceArray converts various types to []any.
-// Deprecated: Use state.CoerceArray() for new code.
-func coerceArray(raw any) []any {
-	return state.CoerceArray(raw)
-}
-
-// normalizeVariableValue normalizes a variable value based on its declared type.
-// Deprecated: Use state.NormalizeVariableValue() for new code.
-func normalizeVariableValue(value any, valueType string) any {
-	return state.NormalizeVariableValue(value, valueType)
 }
 
 // firstPresent returns the first present value for the given keys.
@@ -689,6 +304,12 @@ func IsPlanStepActionType(step contracts.PlanStep, actionType basactions.ActionT
 }
 
 // actionTypeToString converts an ActionType enum to its string representation.
+//
+// NOTE: This is intentionally separate from typeconv.ActionTypeToString because it returns
+// legacy string representations (e.g., "type" instead of "input" for ACTION_TYPE_INPUT)
+// that match what legacy workflows stored in the Type field. This is necessary for
+// backward compatibility when comparing against legacy Type fields in IsActionType etc.
+// For new code that doesn't need legacy compatibility, use typeconv.ActionTypeToString.
 func actionTypeToString(at basactions.ActionType) string {
 	switch at {
 	case basactions.ActionType_ACTION_TYPE_NAVIGATE:

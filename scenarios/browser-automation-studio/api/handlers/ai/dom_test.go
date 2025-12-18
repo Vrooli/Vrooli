@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 )
 
 // =============================================================================
@@ -94,8 +95,8 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, capturedInstructions)
 
-		// Verify URL was normalized
-		navigateParams := capturedInstructions[0].Params
+		// Verify URL was normalized (use helper to extract from Action or Params)
+		navigateParams := autoexecutor.InstructionParams(capturedInstructions[0])
 		assert.Equal(t, "https://example.com", navigateParams["url"])
 	})
 
@@ -121,7 +122,7 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, capturedInstructions)
 
-		navigateParams := capturedInstructions[0].Params
+		navigateParams := autoexecutor.InstructionParams(capturedInstructions[0])
 		assert.Equal(t, "http://example.com", navigateParams["url"])
 	})
 
@@ -147,7 +148,7 @@ func TestExtractDOMTree_URLNormalization(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, capturedInstructions)
 
-		navigateParams := capturedInstructions[0].Params
+		navigateParams := autoexecutor.InstructionParams(capturedInstructions[0])
 		assert.Equal(t, "https://example.com", navigateParams["url"])
 	})
 }
@@ -369,14 +370,14 @@ func TestExtractDOMTree_Success(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, capturedInstructions, 3)
 
-		// Verify instruction sequence
-		assert.Equal(t, "navigate", capturedInstructions[0].Type)
+		// Verify instruction sequence (use helpers for typed Action field)
+		assert.Equal(t, "navigate", autoexecutor.InstructionStepType(capturedInstructions[0]))
 		assert.Equal(t, "dom.navigate", capturedInstructions[0].NodeID)
 
-		assert.Equal(t, "wait", capturedInstructions[1].Type)
+		assert.Equal(t, "wait", autoexecutor.InstructionStepType(capturedInstructions[1]))
 		assert.Equal(t, "dom.wait", capturedInstructions[1].NodeID)
 
-		assert.Equal(t, "evaluate", capturedInstructions[2].Type)
+		assert.Equal(t, "evaluate", autoexecutor.InstructionStepType(capturedInstructions[2]))
 		assert.Equal(t, "dom.extract", capturedInstructions[2].NodeID)
 	})
 }

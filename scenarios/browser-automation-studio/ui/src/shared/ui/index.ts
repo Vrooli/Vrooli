@@ -11,3 +11,5 @@ export { default as UsageMeter } from './UsageMeter';
 export type { UsageMeterProps } from './UsageMeter';
 export { default as TierBadge } from './TierBadge';
 export type { TierBadgeProps } from './TierBadge';
+export { ConfirmDialog } from './ConfirmDialog';
+export { PromptDialog } from './PromptDialog';

@@ -16,13 +16,20 @@ export const normalizeNodes = (nodes: unknown[] | undefined | null): Node[] => {
       y: Number(positionData?.y ?? 100 + index * 120) || 0,
     };
     const data = nodeData?.data && typeof nodeData.data === 'object' ? nodeData.data : {};
-    return {
+    // Preserve V2 action field if present (from API responses)
+    const action = nodeData?.action && typeof nodeData.action === 'object' ? nodeData.action : undefined;
+    const result: Record<string, unknown> = {
       ...nodeData,
       id,
       type,
       position,
       data,
-    } as Node;
+    };
+    // Only include action if it exists
+    if (action) {
+      result.action = action;
+    }
+    return result as Node;
   });
 };
 

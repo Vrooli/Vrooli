@@ -515,7 +515,7 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 // convertRecordedActionToTimelineEntry converts a livecapture.RecordedAction to a TimelineEntry proto,
 // then to a map for JSON serialization over WebSocket.
 func (h *Handler) convertRecordedActionToTimelineEntry(action *livecapture.RecordedAction) map[string]any {
-	// livecapture.RecordedAction is compatible with events.RecordedAction, so we can pass it directly
+	// Convert the livecapture.RecordedAction to a unified TimelineEntry proto
 	timelineEntry := events.RecordedActionToTimelineEntry(action)
 	if timelineEntry == nil {
 		return nil

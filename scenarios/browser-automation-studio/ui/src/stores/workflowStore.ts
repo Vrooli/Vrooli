@@ -23,6 +23,7 @@ import { WorkflowDefinitionV2Schema } from '@vrooli/proto-types/browser-automati
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
 import { normalizeNodes, normalizeEdges } from '../utils/workflowNormalizers';
+import { buildActionDefinition } from '../utils/actionBuilder';
 import { parseProtoStrict, protoMessageToJson } from '../utils/proto';
 
 const AUTOSAVE_DELAY_MS = 2500;
@@ -282,6 +283,11 @@ const sanitizeNodesForPersistence = (nodes: Node[] | undefined | null): unknown[
         cleaned[key] = JSON.parse(JSON.stringify(value));
         continue;
       }
+      // Preserve V2 action field for type-safe execution
+      if (key === 'action' && value && typeof value === 'object') {
+        cleaned[key] = JSON.parse(JSON.stringify(value));
+        continue;
+      }
       if (key === 'position' && value && typeof value === 'object') {
         const pos = value as Record<string, unknown>;
         cleaned[key] = {
@@ -309,6 +315,12 @@ const sanitizeNodesForPersistence = (nodes: Node[] | undefined | null): unknown[
         y: typeof pos?.y === 'number' ? pos.y : Number(pos?.y ?? 0) || 0,
       };
     }
+
+    // Rebuild V2 action field from type and data for consistency
+    // This ensures action is always in sync with data, even after node edits
+    const nodeType = typeof cleaned.type === 'string' ? cleaned.type : 'navigate';
+    const nodeData = cleaned.data && typeof cleaned.data === 'object' ? cleaned.data as Record<string, unknown> : {};
+    cleaned.action = buildActionDefinition(nodeType, nodeData);
 
     return JSON.parse(JSON.stringify(cleaned));
   });

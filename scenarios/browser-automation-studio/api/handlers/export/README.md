@@ -4,33 +4,32 @@ This package provides configuration, validation, and building utilities for work
 
 ## Architecture
 
-The package is organized into five focused modules:
+The package is organized into four focused modules plus imports from `services/export`:
 
-### 1. `presets.go` - Theme & Cursor Presets
-- **Purpose**: Defines visual configuration presets for chrome themes, background themes, and cursor styles
-- **Key Types**: `ChromeThemePreset`, `BackgroundThemePreset`, `CursorThemePreset`
-- **Key Functions**: `ClampCursorScale()`
-- **Data**: Predefined preset maps for various visual themes (aurora, chromium, midnight, etc.)
+### Shared from `services/export`
+- **Preset definitions**: `ChromeThemePresets`, `BackgroundThemePresets`, `CursorThemePresets`
+- **Helper functions**: `ClampCursorScale()`, `DefaultAccentColor`
+- **Domain types**: `ReplayMovieSpec`, `ExportTheme`, `ExportCursorSpec`, etc.
 
-### 2. `types.go` - Request/Response Types
+### 1. `types.go` - Request/Response Types
 - **Purpose**: Defines JSON payload structures for export API endpoints
 - **Key Types**: `Request`, `Overrides`, `ThemePreset`, `CursorPreset`
 - **Usage**: Request parsing and validation in HTTP handlers
 
-### 3. `builder.go` - Theme & Cursor Builders
+### 2. `builder.go` - Theme & Cursor Builders
 - **Purpose**: Constructs export themes and cursor specs by applying preset configurations
 - **Key Functions**:
   - `BuildThemeFromPreset()` - Applies chrome and background presets to build an ExportTheme
   - `BuildCursorSpec()` - Applies cursor preset configurations and defaults
 
-### 4. `overrides.go` - Override Application
+### 3. `overrides.go` - Override Application
 - **Purpose**: Applies client-provided overrides to movie specs
 - **Key Functions**:
   - `Apply()` - Main entry point for applying all overrides
   - `applyDecorOverrides()` - Applies preset names for provenance tracking
   - `syncCursorFields()` - Synchronizes cursor-related fields across spec structures
 
-### 5. `spec_builder.go` - Movie Spec Construction
+### 4. `spec_builder.go` - Movie Spec Construction
 - **Purpose**: Validates and harmonizes ReplayMovieSpec structures for export
 - **Key Functions**:
   - `BuildSpec()` - Main entry point for building validated specs
@@ -78,7 +77,7 @@ export.Apply(spec, overrides)
 
 ## Benefits of This Refactoring
 
-- **Reduced Complexity**: 969-line file → 5 focused modules
+- **Reduced Complexity**: 969-line file → 4 focused modules + shared presets
 - **Improved Testability**: Each module can be tested independently
 - **Better Documentation**: Clear module boundaries and responsibilities
 - **Easier Maintenance**: Changes are localized to specific modules

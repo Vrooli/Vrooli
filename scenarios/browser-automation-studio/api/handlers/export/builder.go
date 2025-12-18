@@ -17,7 +17,7 @@ func BuildThemeFromPreset(baseline *exportservices.ReplayMovieSpec, preset *Them
 
 	// Apply chrome theme preset
 	if chromeID := strings.TrimSpace(preset.ChromeTheme); chromeID != "" {
-		if chrome, ok := ChromeThemePresets[chromeID]; ok {
+		if chrome, ok := exportservices.ChromeThemePresets[chromeID]; ok {
 			theme.BrowserChrome.Visible = chrome.Visible
 			if chrome.Variant != "" {
 				theme.BrowserChrome.Variant = chrome.Variant
@@ -35,7 +35,7 @@ func BuildThemeFromPreset(baseline *exportservices.ReplayMovieSpec, preset *Them
 
 	// Apply background theme preset
 	if backgroundID := strings.TrimSpace(preset.BackgroundTheme); backgroundID != "" {
-		if background, ok := BackgroundThemePresets[backgroundID]; ok {
+		if background, ok := exportservices.BackgroundThemePresets[backgroundID]; ok {
 			if len(background.Gradient) > 0 {
 				theme.BackgroundGradient = append([]string{}, background.Gradient...)
 			}
@@ -60,7 +60,7 @@ func BuildThemeFromPreset(baseline *exportservices.ReplayMovieSpec, preset *Them
 		}
 	}
 	if theme.AccentColor == "" {
-		theme.AccentColor = DefaultAccentColor
+		theme.AccentColor = exportservices.DefaultAccentColor
 	}
 	if theme.BrowserChrome.AccentColor == "" {
 		theme.BrowserChrome.AccentColor = theme.AccentColor
@@ -100,7 +100,7 @@ func BuildCursorSpec(existing exportservices.ExportCursorSpec, preset *CursorPre
 	// Apply preset if provided
 	if preset != nil {
 		if themeKey := strings.TrimSpace(preset.Theme); themeKey != "" {
-			if cfg, ok := CursorThemePresets[themeKey]; ok {
+			if cfg, ok := exportservices.CursorThemePresets[themeKey]; ok {
 				if cfg.Style != "" {
 					cursor.Style = cfg.Style
 				}
@@ -126,7 +126,7 @@ func BuildCursorSpec(existing exportservices.ExportCursorSpec, preset *CursorPre
 
 		// Apply override values from preset
 		if preset.Scale > 0 {
-			cursor.Scale = ClampCursorScale(preset.Scale)
+			cursor.Scale = exportservices.ClampCursorScale(preset.Scale)
 		}
 		if pos := strings.TrimSpace(preset.InitialPosition); pos != "" {
 			cursor.InitialPos = pos
@@ -143,7 +143,7 @@ func BuildCursorSpec(existing exportservices.ExportCursorSpec, preset *CursorPre
 
 	// Fill in remaining defaults
 	if cursor.AccentColor == "" {
-		cursor.AccentColor = DefaultAccentColor
+		cursor.AccentColor = exportservices.DefaultAccentColor
 	}
 	if cursor.Trail.Enabled && cursor.Trail.Opacity <= 0 {
 		cursor.Trail.Opacity = 0.55

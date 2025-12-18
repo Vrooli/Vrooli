@@ -580,6 +580,8 @@ When adding new dependencies:
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2025-12-17 | Claude | Export package consolidation: Deleted duplicate handlers/export/presets.go (identical to services/export/presets.go); documented remaining export package duplication for future cleanup |
+| 2025-12-17 | Claude | Action type mapping clarification: Completed typeconv.ActionTypeToString with all action types; documented intentional separation from flow_utils.actionTypeToString (legacy compatibility) |
 | 2025-12-17 | Claude | WorkflowService decomposition Phase 1: Created CatalogService, ExecutionService, WorkflowResolver interfaces; refactored Handler to use interface types instead of concrete *WorkflowService; updated HandlerDeps for clean dependency injection |
 | 2025-12-17 | Claude | Architectural consolidation: Merged duplicate async execution runners; centralized eventBufferLimits(); consolidated ExecutionPlan types via compiler/contracts_adapter.go |
 | 2025-12-16 | Claude | Architecture refactoring: Added internal/wire package, services/recordmode, services/recordingimport; documented new responsibility boundaries |
@@ -835,6 +837,69 @@ deps := handlers.HandlerDeps{
 }
 handler := handlers.NewHandlerWithDeps(repo, wsHub, log, allowAll, origins, deps)
 ```
+
+### Export Package Boundary Clarification (2025-12-17)
+
+The export functionality has **two packages with overlapping responsibilities**:
+
+| Package | Intended Role | Current State |
+|---------|---------------|---------------|
+| `handlers/export/` | HTTP request types, presentation-layer preset application | Contains full business logic (builders, harmonizers, overrides) |
+| `services/export/` | Domain types, export service, format strategies | Contains unused duplicate implementations |
+
+**Duplication Audit Results:**
+
+| handlers/export | services/export | Status |
+|-----------------|-----------------|--------|
+| presets.go | presets.go | ✅ **FIXED** - handlers copy deleted, uses services/export |
+| builder.go | preset_builder.go | ⚠️ **DUPLICATE** - Identical implementations |
+| spec_builder.go | spec_harmonizer.go | ⚠️ **DUPLICATE** - Identical implementations |
+| overrides.go | spec_overrides.go | ⚠️ **DUPLICATE** - Identical implementations |
+| types.go | types_overrides.go | ⚠️ **DUPLICATE** - ThemePreset, CursorPreset identical |
+
+**Which implementations are actually used:**
+- `handlers/export.BuildSpec`, `Apply`, `Clone`, `BuildThemeFromPreset`, `BuildCursorSpec` - **USED** by `handlers/execution_export_helpers.go`
+- `services/export.BuildSpec`, `Apply`, etc. - **UNUSED** (only covered by internal tests)
+
+**Recommended Cleanup (Future Work):**
+
+1. **Delete unused services/export implementations:**
+   - `preset_builder.go` (handlers/export/builder.go is used)
+   - `spec_harmonizer.go` (handlers/export/spec_builder.go is used)
+   - `spec_overrides.go` (handlers/export/overrides.go is used)
+   - `builder_test.go`, `spec_builder_test.go` (tests for deleted code)
+
+2. **Delete duplicate type definitions from handlers/export/types.go:**
+   - `ThemePreset` → use `services/export.ThemePreset`
+   - `CursorPreset` → use `services/export.CursorPreset`
+
+3. **Keep services/export for:**
+   - Types (`ReplayMovieSpec`, `ExportTheme`, `ExportCursorSpec`, etc.)
+   - Presets (`ChromeThemePresets`, `CursorThemePresets`, etc.)
+   - Export service (`Service`, format strategies)
+   - Timeline types and markdown generation
+
+**Why this duplication exists:**
+The packages evolved independently when export functionality was extracted to handlers/export.
+The services/export package got its own implementations without realizing handlers/export already had them.
+The handlers/export versions became the de facto standard since they're wired into the HTTP layer.
+
+### Action Type Mapping Boundary (2025-12-17)
+
+**Two separate action type converters exist intentionally:**
+
+| Function | Location | Returns for INPUT | Default |
+|----------|----------|-------------------|---------|
+| `ActionTypeToString()` | `internal/typeconv/primitives.go` | "input" | "unknown" |
+| `actionTypeToString()` | `automation/executor/flow_utils.go` | "type" | "custom" |
+
+**Why separate:**
+- `typeconv.ActionTypeToString` is the **canonical form** for new code
+- `flow_utils.actionTypeToString` is for **legacy workflow compatibility** when comparing against Type fields
+
+**Usage:**
+- New code should use `typeconv.ActionTypeToString()`
+- The flow_utils version is private and only used internally for `IsActionType()` checks against legacy workflows
 
 ### Future Restructuring: `handlers/ai`
 The `handlers/ai/` package currently contains both HTTP handling AND domain logic:

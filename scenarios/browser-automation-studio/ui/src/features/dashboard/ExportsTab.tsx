@@ -21,7 +21,9 @@ import { useExportStore, type Export } from '@stores/exportStore';
 import { useDashboardStore } from '@stores/dashboardStore';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'react-hot-toast';
-import { ResponsiveDialog } from '@shared/layout';
+import { useConfirmDialog } from '@hooks/useConfirmDialog';
+import { usePromptDialog } from '@hooks/usePromptDialog';
+import { ConfirmDialog, PromptDialog } from '@shared/ui';
 import { TabEmptyState } from './TabEmptyState';
 import { ExportsEmptyPreview } from './ExportsEmptyPreview';
 
@@ -119,7 +121,6 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
   const {
     exports,
     isLoading,
-    isDeleting,
     fetchExports,
     deleteExport,
     updateExport,
@@ -130,11 +131,21 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
     runningExecutions,
   } = useDashboardStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedExport, setSelectedExport] = useState<Export | null>(null);
-  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [exportToDelete, setExportToDelete] = useState<Export | null>(null);
+
+  // Dialog hooks
+  const {
+    dialogState: confirmDialogState,
+    confirm,
+    close: closeConfirm,
+  } = useConfirmDialog();
+  const {
+    dialogState: promptDialogState,
+    prompt,
+    setValue: setPromptValue,
+    close: closePrompt,
+    submit: submitPrompt,
+  } = usePromptDialog();
+
   const hasExecutions = recentExecutions.length > 0 || runningExecutions.length > 0;
   const totalRuns = recentExecutions.length + runningExecutions.length;
   const hasWorkflows = recentWorkflows.length > 0;
@@ -175,29 +186,6 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
     }
   }, []);
 
-  const handleRename = useCallback(async () => {
-    if (!selectedExport || !newName.trim()) return;
-
-    const result = await updateExport(selectedExport.id, { name: newName.trim() });
-    if (result) {
-      toast.success('Export renamed');
-      setIsRenameDialogOpen(false);
-      setSelectedExport(null);
-      setNewName('');
-    }
-  }, [selectedExport, newName, updateExport]);
-
-  const handleDelete = useCallback(async () => {
-    if (!exportToDelete) return;
-
-    const success = await deleteExport(exportToDelete.id);
-    if (success) {
-      toast.success('Export deleted');
-      setIsDeleteDialogOpen(false);
-      setExportToDelete(null);
-    }
-  }, [exportToDelete, deleteExport]);
-
   const handleCopyCaption = useCallback(async (caption: string) => {
     try {
       await navigator.clipboard.writeText(caption);
@@ -220,16 +208,44 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
     }
   }, []);
 
-  const openRenameDialog = useCallback((export_: Export) => {
-    setSelectedExport(export_);
-    setNewName(export_.name);
-    setIsRenameDialogOpen(true);
-  }, []);
+  const openRenameDialog = useCallback(async (export_: Export) => {
+    const newName = await prompt(
+      {
+        title: 'Rename Export',
+        label: 'Export name',
+        defaultValue: export_.name,
+        placeholder: 'Enter export name...',
+        submitLabel: 'Save',
+      },
+      {
+        validate: (value) => value.trim() ? null : 'Name is required',
+        normalize: (value) => value.trim(),
+      }
+    );
 
-  const openDeleteDialog = useCallback((export_: Export) => {
-    setExportToDelete(export_);
-    setIsDeleteDialogOpen(true);
-  }, []);
+    if (newName) {
+      const result = await updateExport(export_.id, { name: newName });
+      if (result) {
+        toast.success('Export renamed');
+      }
+    }
+  }, [prompt, updateExport]);
+
+  const openDeleteDialog = useCallback(async (export_: Export) => {
+    const confirmed = await confirm({
+      title: 'Delete Export',
+      message: `Are you sure you want to delete "${export_.name}"? This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+
+    if (confirmed) {
+      const success = await deleteExport(export_.id);
+      if (success) {
+        toast.success('Export deleted');
+      }
+    }
+  }, [confirm, deleteExport]);
 
   const renderExportCard = (export_: Export) => {
     const formatCfg = formatConfig[export_.format] ?? formatConfig.json;
@@ -531,84 +547,14 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
         </div>
       )}
 
-      {/* Rename Dialog */}
-      <ResponsiveDialog
-        isOpen={isRenameDialogOpen}
-        onDismiss={() => {
-          setIsRenameDialogOpen(false);
-          setSelectedExport(null);
-          setNewName('');
-        }}
-        ariaLabel="Rename Export"
-      >
-        <div className="space-y-4">
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Export name"
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-surface placeholder:text-gray-500 focus:border-flow-accent focus:outline-none"
-            autoFocus
-          />
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => {
-                setIsRenameDialogOpen(false);
-                setSelectedExport(null);
-                setNewName('');
-              }}
-              className="px-4 py-2 text-gray-400 hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleRename}
-              disabled={!newName.trim()}
-              className="px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      </ResponsiveDialog>
-
-      {/* Delete Confirmation Dialog */}
-      <ResponsiveDialog
-        isOpen={isDeleteDialogOpen}
-        onDismiss={() => {
-          setIsDeleteDialogOpen(false);
-          setExportToDelete(null);
-        }}
-        ariaLabel="Delete Export"
-      >
-        <div className="space-y-4">
-          <p className="text-gray-300">
-            Are you sure you want to delete "{exportToDelete?.name}"? This action cannot be undone.
-          </p>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => {
-                setIsDeleteDialogOpen(false);
-                setExportToDelete(null);
-              }}
-              className="px-4 py-2 text-gray-400 hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-            >
-              {isDeleting ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                'Delete'
-              )}
-            </button>
-          </div>
-        </div>
-      </ResponsiveDialog>
+      {/* Dialogs */}
+      <ConfirmDialog state={confirmDialogState} onClose={closeConfirm} />
+      <PromptDialog
+        state={promptDialogState}
+        onValueChange={setPromptValue}
+        onClose={closePrompt}
+        onSubmit={submitPrompt}
+      />
     </div>
   );
 };

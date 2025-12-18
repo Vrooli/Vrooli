@@ -23,6 +23,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { selectors } from "@constants/selectors";
 import { useRegisterShortcuts } from "@hooks/useKeyboardShortcuts";
+import { useReactFlowReady } from "@hooks/useReactFlowReady";
 import type {
   ExecutionViewportSettings,
   ViewportPreset,
@@ -35,6 +36,7 @@ import type {
 } from "@/types/workflow";
 import { logger } from "@utils/logger";
 import { autoLayoutNodes, normalizeEdges, normalizeNodes } from "@utils/workflowNormalizers";
+import { buildActionDefinition } from "@utils/actionBuilder";
 import { validateWorkflowDefinition } from "@utils/workflowValidation";
 import { CustomConnectionLine } from "../components";
 import AssertNode from "../nodes/AssertNode";
@@ -346,141 +348,12 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
   const [isValidatingCode, setIsValidatingCode] = useState(false);
 
   // React Flow ready state for test automation
-  const [isReactFlowReady, setIsReactFlowReady] = useState(false);
-
-  // Reset ready state when workflow changes
-  // Removed problematic useEffect that resets ready state on workflow change
-  // This was causing ready state to be reset AFTER being set for empty workflows
-
-  // Detect when React Flow is truly interactive (not just mounted)
-  useEffect(() => {
-    // Only check readiness in visual mode
-    if (viewMode !== "visual") {
-      setIsReactFlowReady(false);
-      return;
-    }
-
-    // TEMPORARY DEBUG: Force ready immediately for empty workflows to unblock tests
-    logger.info("DEBUG: Checking workflow node count", {
-      component: "WorkflowBuilder",
-      nodeCount: nodes.length,
-      viewMode,
-      hasCurrentWorkflow: !!currentWorkflow,
-      workflowId: currentWorkflow?.id,
-    });
-
-    if (nodes.length === 0) {
-      logger.info("DEBUG: Empty workflow detected, forcing ready state immediately", {
-        component: "WorkflowBuilder",
-        nodeCount: nodes.length,
-      });
-      setIsReactFlowReady(true);
-      return;
-    }
-
-    logger.info("DEBUG: Workflow has nodes, using normal ready state logic", {
-      component: "WorkflowBuilder",
-      nodeCount: nodes.length,
-    });
-
-    const checkReadiness = (): boolean => {
-      try {
-        // Critical checks for React Flow interactivity:
-
-        // 1. Instance must exist
-        if (!reactFlowInstance) return false;
-
-        // 2. Core methods must be available (required for drag-drop)
-        if (typeof reactFlowInstance.project !== "function") return false;
-        if (typeof reactFlowInstance.getViewport !== "function") return false;
-
-        // 3. Try to get viewport
-        const viewport = reactFlowInstance.getViewport();
-
-        const hasNodes = nodes.length > 0;
-
-        // For empty workflows, having a valid viewport object is sufficient
-        // fitView is a no-op when there are no nodes, so viewport won't transform
-        if (!hasNodes) {
-          // Empty workflow: just verify viewport exists (don't check its values)
-          return viewport !== null && viewport !== undefined;
-        }
-
-        // For non-empty workflows, viewport must exist
-        if (!viewport) return false;
-
-        // 4. For non-empty workflows, ensure fitView has completed
-        // fitView changes viewport from initial state
-        const isDefaultViewport =
-          viewport.x === 0 &&
-          viewport.y === 0 &&
-          viewport.zoom === 1;
-
-        if (isDefaultViewport) return false;
-
-        return true;
-      } catch (e) {
-        // React Flow may throw if not fully initialized
-        return false;
-      }
-    };
-
-    // Don't re-run if already ready
-    if (isReactFlowReady) {
-      return;
-    }
-
-    // Check immediately
-    if (checkReadiness()) {
-      setIsReactFlowReady(true);
-      return;
-    }
-
-    const hasNodes = nodes.length > 0;
-
-    // React Flow initializes asynchronously - check at intervals
-    // Empty workflows initialize faster (no fitView animation), but still need time
-    // Non-empty workflows need longer for fitView animation to complete
-    const timers = [
-      setTimeout(() => {
-        if (checkReadiness()) setIsReactFlowReady(true);
-      }, 100),
-      setTimeout(() => {
-        if (checkReadiness()) setIsReactFlowReady(true);
-      }, 300),
-      setTimeout(() => {
-        if (checkReadiness()) setIsReactFlowReady(true);
-      }, 600),
-      setTimeout(() => {
-        // Final check - after fitView animation should complete for non-empty workflows
-        if (checkReadiness()) setIsReactFlowReady(true);
-      }, hasNodes ? 1200 : 800),
-      // Fallback: For empty workflows, force ready after 2s if still not ready
-      // This handles edge cases where React Flow takes longer to initialize
-      setTimeout(() => {
-        if (!hasNodes && reactFlowInstance) {
-          logger.warn("Forcing ready state for empty workflow after timeout", {
-            component: "WorkflowBuilder",
-            hasInstance: !!reactFlowInstance,
-            hasViewport: !!reactFlowInstance?.getViewport(),
-          });
-          setIsReactFlowReady(true);
-        }
-      }, 2000),
-      // EMERGENCY FALLBACK: Force ready after 4s regardless (for tests)
-      // This ensures tests don't timeout waiting for builder
-      setTimeout(() => {
-        logger.info("Emergency fallback: forcing ready state", {
-          component: "WorkflowBuilder",
-          hasNodes,
-          hasInstance: !!reactFlowInstance,
-        });
-        setIsReactFlowReady(true);
-      }, 4000),
-    ];
-
-    return () => timers.forEach(clearTimeout);
-  }, [reactFlowInstance, viewMode, nodes.length]); // Removed isReactFlowReady - guard above prevents issues
+  const isReactFlowReady = useReactFlowReady({
+    reactFlowInstance,
+    viewMode,
+    nodeCount: nodes.length,
+    workflowId: currentWorkflow?.id,
+  });
 
   useEffect(() => {
     if (viewMode !== "visual") {
@@ -960,12 +833,15 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
           : canvasPosition;
 
       const newNodeId = `node-${Date.now()}`;
+      const nodeData = { label: type.charAt(0).toUpperCase() + type.slice(1) };
       const newNode: Node = {
         id: newNodeId,
         type,
         position,
-        data: { label: type.charAt(0).toUpperCase() + type.slice(1) },
-      };
+        data: nodeData,
+        // V2 action field for type-safe execution
+        action: buildActionDefinition(type, nodeData),
+      } as Node;
 
       // Auto-connect: Find nodes that have no outgoing edges (end of chain)
       // If there's exactly one such node, auto-connect to the new node
@@ -1089,6 +965,46 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
           elementsSelectable={!locked}
           edgesUpdatable={!locked}
         >
+          {/* Empty canvas guidance overlay */}
+          {nodes.length === 0 && (
+            <div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+              data-testid="workflow-empty-state"
+            >
+              <div className="text-center max-w-md px-6">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-flow-node/80 border border-flow-border/60 flex items-center justify-center">
+                  <svg
+                    className="w-8 h-8 text-flow-text-muted"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-flow-text mb-2">
+                  Start building your workflow
+                </h3>
+                <p className="text-sm text-flow-text-muted mb-4">
+                  Drag a <span className="text-blue-400 font-medium">Navigate</span> node from the
+                  sidebar to begin, then chain additional actions like Click, Type, or Screenshot.
+                </p>
+                <div className="flex items-center justify-center gap-2 text-xs text-flow-text-secondary">
+                  <kbd className="px-2 py-1 bg-flow-node rounded border border-flow-border/60 font-mono">
+                    Drag
+                  </kbd>
+                  <span>from sidebar</span>
+                  <span className="text-flow-text-muted">→</span>
+                  <span>drop here</span>
+                </div>
+              </div>
+            </div>
+          )}
           <MiniMap
             nodeStrokeColor={(node) => {
               switch (node.type) {

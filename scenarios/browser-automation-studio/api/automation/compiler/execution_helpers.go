@@ -1,8 +1,6 @@
 package compiler
 
 import (
-	"strings"
-
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -83,217 +81,6 @@ func WorkflowDefinitionV2ToExecutionPlan(def *basworkflows.WorkflowDefinitionV2)
 	return instructions, graph
 }
 
-// actionDefinitionToParams extracts params from an ActionDefinition to a map.
-func actionDefinitionToParams(action *basactions.ActionDefinition) map[string]any {
-	if action == nil {
-		return make(map[string]any)
-	}
-
-	params := make(map[string]any)
-
-	switch p := action.Params.(type) {
-	case *basactions.ActionDefinition_Navigate:
-		if p.Navigate != nil {
-			params["url"] = p.Navigate.Url
-			if p.Navigate.WaitForSelector != nil {
-				params["waitForSelector"] = *p.Navigate.WaitForSelector
-			}
-			if p.Navigate.TimeoutMs != nil {
-				params["timeoutMs"] = *p.Navigate.TimeoutMs
-			}
-			if p.Navigate.WaitUntil != nil {
-				params["waitUntil"] = *p.Navigate.WaitUntil
-			}
-		}
-	case *basactions.ActionDefinition_Click:
-		if p.Click != nil {
-			params["selector"] = p.Click.Selector
-			if p.Click.Button != nil {
-				params["button"] = *p.Click.Button
-			}
-			if p.Click.ClickCount != nil {
-				params["clickCount"] = int(*p.Click.ClickCount)
-			}
-			if p.Click.DelayMs != nil {
-				params["delayMs"] = int(*p.Click.DelayMs)
-			}
-			if len(p.Click.Modifiers) > 0 {
-				params["modifiers"] = p.Click.Modifiers
-			}
-			if p.Click.Force != nil {
-				params["force"] = *p.Click.Force
-			}
-		}
-	case *basactions.ActionDefinition_Input:
-		if p.Input != nil {
-			params["selector"] = p.Input.Selector
-			params["value"] = p.Input.Value
-			if p.Input.IsSensitive != nil {
-				params["isSensitive"] = *p.Input.IsSensitive
-			}
-			if p.Input.Submit != nil {
-				params["submit"] = *p.Input.Submit
-			}
-			if p.Input.ClearFirst != nil {
-				params["clearFirst"] = *p.Input.ClearFirst
-			}
-			if p.Input.DelayMs != nil {
-				params["delayMs"] = int(*p.Input.DelayMs)
-			}
-		}
-	case *basactions.ActionDefinition_Wait:
-		if p.Wait != nil {
-			switch w := p.Wait.WaitFor.(type) {
-			case *basactions.WaitParams_DurationMs:
-				params["durationMs"] = int(w.DurationMs)
-			case *basactions.WaitParams_Selector:
-				params["selector"] = w.Selector
-			}
-			if p.Wait.State != nil {
-				params["state"] = *p.Wait.State
-			}
-			if p.Wait.TimeoutMs != nil {
-				params["timeoutMs"] = int(*p.Wait.TimeoutMs)
-			}
-		}
-	case *basactions.ActionDefinition_Assert:
-		if p.Assert != nil {
-			params["selector"] = p.Assert.Selector
-			params["mode"] = p.Assert.Mode
-			if p.Assert.Expected != nil {
-				params["expected"] = jsonValueToAny(p.Assert.Expected)
-			}
-			if p.Assert.Negated != nil {
-				params["negated"] = *p.Assert.Negated
-			}
-			if p.Assert.CaseSensitive != nil {
-				params["caseSensitive"] = *p.Assert.CaseSensitive
-			}
-			if p.Assert.AttributeName != nil {
-				params["attributeName"] = *p.Assert.AttributeName
-			}
-		}
-	case *basactions.ActionDefinition_Scroll:
-		if p.Scroll != nil {
-			if p.Scroll.Selector != nil {
-				params["selector"] = *p.Scroll.Selector
-			}
-			if p.Scroll.X != nil {
-				params["x"] = int(*p.Scroll.X)
-			}
-			if p.Scroll.Y != nil {
-				params["y"] = int(*p.Scroll.Y)
-			}
-			if p.Scroll.DeltaX != nil {
-				params["deltaX"] = int(*p.Scroll.DeltaX)
-			}
-			if p.Scroll.DeltaY != nil {
-				params["deltaY"] = int(*p.Scroll.DeltaY)
-			}
-			if p.Scroll.Behavior != nil {
-				params["behavior"] = *p.Scroll.Behavior
-			}
-		}
-	case *basactions.ActionDefinition_SelectOption:
-		if p.SelectOption != nil {
-			params["selector"] = p.SelectOption.Selector
-			switch s := p.SelectOption.SelectBy.(type) {
-			case *basactions.SelectParams_Value:
-				params["value"] = s.Value
-			case *basactions.SelectParams_Label:
-				params["label"] = s.Label
-			case *basactions.SelectParams_Index:
-				params["index"] = int(s.Index)
-			}
-			if p.SelectOption.TimeoutMs != nil {
-				params["timeoutMs"] = int(*p.SelectOption.TimeoutMs)
-			}
-		}
-	case *basactions.ActionDefinition_Evaluate:
-		if p.Evaluate != nil {
-			params["expression"] = p.Evaluate.Expression
-			if p.Evaluate.StoreResult != nil {
-				params["storeResult"] = *p.Evaluate.StoreResult
-			}
-		}
-	case *basactions.ActionDefinition_Keyboard:
-		if p.Keyboard != nil {
-			if p.Keyboard.Key != nil {
-				params["key"] = *p.Keyboard.Key
-			}
-			if len(p.Keyboard.Keys) > 0 {
-				params["keys"] = p.Keyboard.Keys
-			}
-			if len(p.Keyboard.Modifiers) > 0 {
-				params["modifiers"] = p.Keyboard.Modifiers
-			}
-			if p.Keyboard.Action != nil {
-				params["action"] = *p.Keyboard.Action
-			}
-		}
-	case *basactions.ActionDefinition_Hover:
-		if p.Hover != nil {
-			params["selector"] = p.Hover.Selector
-			if p.Hover.TimeoutMs != nil {
-				params["timeoutMs"] = int(*p.Hover.TimeoutMs)
-			}
-		}
-	case *basactions.ActionDefinition_Screenshot:
-		if p.Screenshot != nil {
-			if p.Screenshot.FullPage != nil {
-				params["fullPage"] = *p.Screenshot.FullPage
-			}
-			if p.Screenshot.Selector != nil {
-				params["selector"] = *p.Screenshot.Selector
-			}
-			if p.Screenshot.Quality != nil {
-				params["quality"] = int(*p.Screenshot.Quality)
-			}
-		}
-	case *basactions.ActionDefinition_Focus:
-		if p.Focus != nil {
-			params["selector"] = p.Focus.Selector
-			if p.Focus.TimeoutMs != nil {
-				params["timeoutMs"] = int(*p.Focus.TimeoutMs)
-			}
-		}
-	case *basactions.ActionDefinition_Blur:
-		if p.Blur != nil {
-			if p.Blur.Selector != nil {
-				params["selector"] = *p.Blur.Selector
-			}
-			if p.Blur.TimeoutMs != nil {
-				params["timeoutMs"] = int(*p.Blur.TimeoutMs)
-			}
-		}
-	case *basactions.ActionDefinition_Subflow:
-		if p.Subflow != nil {
-			switch target := p.Subflow.Target.(type) {
-			case *basactions.SubflowParams_WorkflowId:
-				if strings.TrimSpace(target.WorkflowId) != "" {
-					params["workflowId"] = strings.TrimSpace(target.WorkflowId)
-				}
-			case *basactions.SubflowParams_WorkflowPath:
-				if strings.TrimSpace(target.WorkflowPath) != "" {
-					params["workflowPath"] = strings.TrimSpace(target.WorkflowPath)
-				}
-			}
-			if p.Subflow.WorkflowVersion != nil {
-				params["workflowVersion"] = int(*p.Subflow.WorkflowVersion)
-			}
-			if len(p.Subflow.Args) > 0 {
-				args := make(map[string]any, len(p.Subflow.Args))
-				for k, v := range p.Subflow.Args {
-					args[k] = jsonValueToAny(v)
-				}
-				params["parameters"] = args
-			}
-		}
-	}
-
-	return params
-}
-
 // executionSettingsToContext converts NodeExecutionSettings to a context map.
 func executionSettingsToContext(settings *basworkflows.NodeExecutionSettings) map[string]any {
 	if settings == nil {
@@ -335,6 +122,7 @@ func executionSettingsToContext(settings *basworkflows.NodeExecutionSettings) ma
 		if settings.Resilience.SuccessTimeoutMs != nil {
 			res["successTimeoutMs"] = int(*settings.Resilience.SuccessTimeoutMs)
 		}
+
 		if len(res) > 0 {
 			ctx["resilience"] = res
 		}
@@ -377,12 +165,12 @@ func CompiledInstructionToWorkflowNodeV2(instr contracts.CompiledInstruction) (*
 		Id: instr.NodeID,
 	}
 
-	// Prefer Action field if already set; otherwise fall back to deprecated Type/Params
+	// Prefer Action field if already set; otherwise build from type and params
 	if instr.Action != nil && instr.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
 		node.Action = instr.Action
 	} else {
-		// Fallback: Build ActionDefinition from deprecated type and params
-		action, err := V1DataToActionDefinition(instr.Type, instr.Params)
+		// Fallback: Build ActionDefinition from type and params
+		action, err := BuildActionDefinition(instr.Type, instr.Params)
 		if err != nil {
 			return nil, err
 		}

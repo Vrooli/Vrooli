@@ -66,7 +66,7 @@ func applyDecorOverrides(spec *exportservices.ReplayMovieSpec, overrides *Overri
 			spec.Decor.CursorClickAnimation = anim
 		}
 		if cursorPreset.Scale > 0 {
-			spec.Decor.CursorScale = ClampCursorScale(cursorPreset.Scale)
+			spec.Decor.CursorScale = exportservices.ClampCursorScale(cursorPreset.Scale)
 		}
 	}
 
@@ -79,7 +79,7 @@ func applyDecorOverrides(spec *exportservices.ReplayMovieSpec, overrides *Overri
 			spec.Decor.CursorClickAnimation = cursorOverride.ClickAnim
 		}
 		if cursorOverride.Scale > 0 {
-			spec.Decor.CursorScale = ClampCursorScale(cursorOverride.Scale)
+			spec.Decor.CursorScale = exportservices.ClampCursorScale(cursorOverride.Scale)
 		}
 	}
 }
@@ -115,14 +115,14 @@ func syncCursorFields(spec *exportservices.ReplayMovieSpec) {
 		spec.Decor.CursorScale = 1
 	}
 	if spec.Decor.CursorScale > 0 {
-		clamped := ClampCursorScale(spec.Decor.CursorScale)
+		clamped := exportservices.ClampCursorScale(spec.Decor.CursorScale)
 		spec.Decor.CursorScale = clamped
 		if spec.Cursor.Scale <= 0 {
 			spec.Cursor.Scale = clamped
 		}
 	}
 	if spec.Cursor.Scale > 0 {
-		spec.Cursor.Scale = ClampCursorScale(spec.Cursor.Scale)
+		spec.Cursor.Scale = exportservices.ClampCursorScale(spec.Cursor.Scale)
 	}
 
 	// Sync to CursorMotion
@@ -133,9 +133,9 @@ func syncCursorFields(spec *exportservices.ReplayMovieSpec) {
 		spec.CursorMotion.ClickAnimation = spec.Decor.CursorClickAnimation
 	}
 	if spec.Decor.CursorScale > 0 {
-		spec.CursorMotion.CursorScale = ClampCursorScale(spec.Decor.CursorScale)
+		spec.CursorMotion.CursorScale = exportservices.ClampCursorScale(spec.Decor.CursorScale)
 	} else if spec.Cursor.Scale > 0 {
-		spec.CursorMotion.CursorScale = ClampCursorScale(spec.Cursor.Scale)
+		spec.CursorMotion.CursorScale = exportservices.ClampCursorScale(spec.Cursor.Scale)
 	}
 
 	// Apply final defaults to CursorMotion
@@ -146,7 +146,7 @@ func syncCursorFields(spec *exportservices.ReplayMovieSpec) {
 		spec.CursorMotion.ClickAnimation = spec.Cursor.ClickAnim
 	}
 	if spec.CursorMotion.CursorScale <= 0 {
-		spec.CursorMotion.CursorScale = ClampCursorScale(spec.Cursor.Scale)
+		spec.CursorMotion.CursorScale = exportservices.ClampCursorScale(spec.Cursor.Scale)
 	}
 
 	// Ensure Decor.CursorScale is set from CursorMotion if still missing

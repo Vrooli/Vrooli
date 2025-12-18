@@ -181,7 +181,7 @@ func ensureTheme(spec, baseline *exportservices.ReplayMovieSpec) {
 		spec.Theme.BackgroundPattern = "orbits"
 	}
 	if spec.Theme.AccentColor == "" {
-		spec.Theme.AccentColor = DefaultAccentColor
+		spec.Theme.AccentColor = exportservices.DefaultAccentColor
 	}
 	if spec.Theme.SurfaceColor == "" {
 		spec.Theme.SurfaceColor = "rgba(15,23,42,0.72)"
@@ -294,7 +294,7 @@ func ensureCursor(spec, baseline *exportservices.ReplayMovieSpec) {
 			spec.Cursor.Style = "halo"
 		}
 		if spec.Cursor.AccentColor == "" {
-			spec.Cursor.AccentColor = DefaultAccentColor
+			spec.Cursor.AccentColor = exportservices.DefaultAccentColor
 		}
 		if spec.Cursor.InitialPos == "" {
 			spec.Cursor.InitialPos = "center"
@@ -329,7 +329,7 @@ func ensureCursor(spec, baseline *exportservices.ReplayMovieSpec) {
 	}
 
 	// Clamp cursor scale
-	spec.Cursor.Scale = ClampCursorScale(spec.Cursor.Scale)
+	spec.Cursor.Scale = exportservices.ClampCursorScale(spec.Cursor.Scale)
 
 	// Fill cursor motion fields
 	if spec.CursorMotion.SpeedProfile == "" && baseline != nil {

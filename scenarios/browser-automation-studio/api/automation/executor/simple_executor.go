@@ -15,7 +15,9 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
+	"github.com/vrooli/browser-automation-studio/automation/state"
 	"github.com/vrooli/browser-automation-studio/config"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // SimpleExecutor provides a minimal sequential executor that delegates step
@@ -168,7 +170,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 	//   1. req.InitialStore (explicit namespace-aware seed)
 	//   2. req.InitialVariables (resume support, backward compat)
 	//   3. req.Plan.Metadata["variables"] (legacy plan-embedded variables)
-	var state *flowState
+	var execState *state.ExecutionState
 	if req.InitialStore != nil || req.InitialParams != nil || req.Env != nil {
 		// Namespace-aware execution: build initial store from multiple sources
 		initialStore := map[string]any{}
@@ -190,7 +192,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 				initialStore[k] = v
 			}
 		}
-		state = newFlowStateWithNamespaces(initialStore, req.InitialParams, req.Env)
+		execState = state.New(initialStore, req.InitialParams, req.Env)
 	} else {
 		// Legacy execution: use flat variable map
 		seedVars := map[string]any{}
@@ -205,12 +207,12 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 				seedVars[k] = v
 			}
 		}
-		state = newFlowState(seedVars)
+		execState = state.NewFromStore(seedVars)
 	}
 
 	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
 	}
-	state.setNextIndexFromPlan(req.Plan)
+	execState.SetNextIndexFromPlan(req.Plan)
 
 	execCtx := executionContext{
 		caps:     *caps,
@@ -225,11 +227,11 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		}(),
 	}
 
-	session, err = e.runPlan(ctx, req, execCtx, eng, spec, session, state, reuseMode)
+	session, err = e.runPlan(ctx, req, execCtx, eng, spec, session, execState, reuseMode)
 	return err
 }
 
-func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, state *flowState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
+func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, execState *state.ExecutionState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
 	var err error
 
 	// Log resume context if resuming from a previous execution
@@ -242,13 +244,13 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 		}).Info("Resuming execution from checkpoint")
 	}
 
-	session, err = e.maybeRunEntrypointProbe(ctx, req.Plan, eng, spec, session, state)
+	session, err = e.maybeRunEntrypointProbe(ctx, req.Plan, eng, spec, session, execState)
 	if err != nil {
 		return session, err
 	}
 
 	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
-		return e.executeGraph(ctx, req, execCtx, eng, spec, session, state, reuseMode)
+		return e.executeGraph(ctx, req, execCtx, eng, spec, session, execState, reuseMode)
 	}
 
 	for idx := range req.Plan.Instructions {
@@ -274,7 +276,7 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			}
 			session = s
 		}
-		instruction = e.interpolateInstruction(instruction, state)
+		instruction = e.interpolateInstruction(instruction, execState)
 		instrStepType = InstructionStepType(instruction) // Refresh after interpolation
 
 		if strings.EqualFold(strings.TrimSpace(instrStepType), "workflowcall") {
@@ -283,7 +285,7 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 
 		if isSubflowInstruction(instruction) {
 			step := planStepToInstructionStep(instruction)
-			outcome, updatedSession, err := e.executeSubflow(ctx, req, execCtx, eng, spec, session, step, state, reuseMode)
+			outcome, updatedSession, err := e.executeSubflow(ctx, req, execCtx, eng, spec, session, step, execState, reuseMode)
 			session = updatedSession
 			if err != nil {
 				return session, err
@@ -296,7 +298,7 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 
 		if isSetVariableInstruction(instruction) {
 			instrParams := InstructionParams(instruction)
-			outcome, setErr := e.applySetVariable(ctx, req, instruction.Index, instrStepType, instruction.NodeID, instrParams, state)
+			outcome, setErr := e.applySetVariable(ctx, req, instruction.Index, instrStepType, instruction.NodeID, instrParams, execState)
 			if setErr != nil {
 				return session, setErr
 			}
@@ -366,13 +368,13 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			}
 		}
 
-		// Store extracted data to flowState if storeResult is specified
+		// Store extracted data to execState if storeResult is specified
 		if normalized.Success && normalized.ExtractedData != nil {
 			instrParams := InstructionParams(instruction)
-			if storeKey := stringValue(instrParams, "storeResult"); storeKey != "" {
+			if storeKey := state.StringValue(instrParams, "storeResult"); storeKey != "" {
 				// Store the raw ExtractedData directly - it's not wrapped at this point
 				// (wrapping only happens when creating database artifacts in db_recorder)
-				state.set(storeKey, normalized.ExtractedData)
+				execState.Set(storeKey, normalized.ExtractedData)
 			}
 		}
 
@@ -552,12 +554,12 @@ const (
 	minEntryTimeoutMs     = 250
 )
 
-func (e *SimpleExecutor) maybeRunEntrypointProbe(ctx context.Context, plan contracts.ExecutionPlan, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, state *flowState) (engine.EngineSession, error) {
-	if state == nil || state.hasCheckedEntry() {
+func (e *SimpleExecutor) maybeRunEntrypointProbe(ctx context.Context, plan contracts.ExecutionPlan, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, execState *state.ExecutionState) (engine.EngineSession, error) {
+	if execState == nil || execState.HasCheckedEntry() {
 		return session, nil
 	}
 	selector, timeoutMs := entrySelectorFromPlan(plan)
-	state.markEntryChecked()
+	execState.MarkEntryChecked()
 	if strings.TrimSpace(selector) == "" {
 		return session, nil
 	}
@@ -590,10 +592,13 @@ func (e *SimpleExecutor) maybeRunEntrypointProbe(ctx context.Context, plan contr
 	instr := contracts.CompiledInstruction{
 		Index:  -1,
 		NodeID: entryProbeNodeID,
-		Type:   "wait",
-		Params: map[string]any{
-			"selector":  selector,
-			"timeoutMs": timeoutMs,
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_WAIT,
+			Params: &basactions.ActionDefinition_Wait{
+				Wait: &basactions.WaitParams{
+					WaitFor: &basactions.WaitParams_Selector{Selector: selector},
+				},
+			},
 		},
 	}
 
@@ -927,8 +932,8 @@ func extractViewport(metadata map[string]any) (int, int) {
 		}).Warn("extractViewport: executionViewport not found or wrong type")
 		return 0, 0
 	}
-	width := intValue(raw, "width")
-	height := intValue(raw, "height")
+	width := state.IntValue(raw, "width")
+	height := state.IntValue(raw, "height")
 	logrus.WithFields(logrus.Fields{
 		"raw":    raw,
 		"width":  width,

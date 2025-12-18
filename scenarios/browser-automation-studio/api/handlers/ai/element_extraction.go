@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // elementExtractionExpression is the client-side JavaScript that extracts
@@ -213,40 +215,36 @@ func (h *ElementAnalysisHandler) extractPageElements(ctx context.Context, url st
 		{
 			Index:  0,
 			NodeID: "analysis.navigate",
-			Type:   "navigate",
-			Params: map[string]any{
+			Action: mustBuildAction("navigate", map[string]any{
 				"url":       url,
 				"waitUntil": defaultPreviewWaitUntil,
 				"timeoutMs": defaultPreviewTimeoutMilliseconds,
-			},
+			}),
 		},
 		{
 			Index:  1,
 			NodeID: "analysis.wait",
-			Type:   "wait",
-			Params: map[string]any{
+			Action: mustBuildAction("wait", map[string]any{
 				"waitType":   "time",
 				"durationMs": defaultPreviewWaitMilliseconds,
-			},
+			}),
 		},
 		{
 			Index:  2,
 			NodeID: "analysis.evaluate",
-			Type:   "evaluate",
-			Params: map[string]any{
+			Action: mustBuildAction("evaluate", map[string]any{
 				"expression": elementExtractionExpression,
 				"timeoutMs":  defaultPreviewTimeoutMilliseconds,
-			},
+			}),
 		},
 		{
 			Index:  3,
 			NodeID: "analysis.screenshot",
-			Type:   "screenshot",
-			Params: map[string]any{
+			Action: mustBuildAction("screenshot", map[string]any{
 				"fullPage":  true,
 				"waitForMs": defaultPreviewWaitMilliseconds,
 				"timeoutMs": defaultPreviewTimeoutMilliseconds,
-			},
+			}),
 		},
 	}
 
@@ -301,4 +299,14 @@ func (h *ElementAnalysisHandler) extractPageElements(ctx context.Context, url st
 
 	base64Screenshot := fmt.Sprintf("data:%s;base64,%s", "image/png", base64.StdEncoding.EncodeToString(screenshotData))
 	return resultElements, resultContext, base64Screenshot, nil
+}
+
+// mustBuildAction creates a typed ActionDefinition from step type and params.
+// Panics if the action type is invalid (should never happen with hardcoded types).
+func mustBuildAction(stepType string, params map[string]any) *basactions.ActionDefinition {
+	action, err := autocompiler.BuildActionDefinition(stepType, params)
+	if err != nil {
+		panic(fmt.Sprintf("mustBuildAction: invalid action type %q: %v", stepType, err))
+	}
+	return action
 }
