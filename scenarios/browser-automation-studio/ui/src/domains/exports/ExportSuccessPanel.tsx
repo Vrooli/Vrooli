@@ -10,7 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useExportStore, type Export } from '@stores/exportStore';
+import { useExportStore, type Export } from './store';
 import { getConfig } from '@/config';
 
 interface ExportSuccessPanelProps {

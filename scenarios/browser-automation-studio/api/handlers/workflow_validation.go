@@ -3,12 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
-	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -120,10 +118,8 @@ func (h *Handler) ValidateWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If the client is already sending a canonical WorkflowDefinitionV2 proto JSON payload,
-	// validate it via proto decoding and return a compatible validation response. This keeps
-	// playbooks and proto-first clients unblocked while the legacy map-based validator is phased out.
+	// validate it via proto decoding + semantic lint and return a compatible validation response.
 	if looksLikeWorkflowDefinitionV2(req.Workflow) {
-		start := time.Now()
 		normalizeWorkflowDefinitionV2Compat(req.Workflow)
 		body, err := json.Marshal(req.Workflow)
 		if err != nil {
@@ -135,11 +131,9 @@ func (h *Handler) ValidateWorkflow(w http.ResponseWriter, r *http.Request) {
 			h.respondError(w, ErrInvalidWorkflowPayload.WithDetails(map[string]string{"error": err.Error()}))
 			return
 		}
-		h.respondProto(w, http.StatusOK, &basapi.WorkflowValidationResult{
-			Valid:         true,
-			SchemaVersion: "workflow_definition_v2",
-			DurationMs:    time.Since(start).Milliseconds(),
-		})
+		// Run semantic validation on V2 workflows
+		v2Result := h.workflowValidator.ValidateV2(&parsed)
+		h.respondProto(w, http.StatusOK, protoconv.WorkflowValidationResultToProto(v2Result))
 		return
 	}
 
@@ -186,7 +180,6 @@ func (h *Handler) ValidateResolvedWorkflow(w http.ResponseWriter, r *http.Reques
 
 	// See ValidateWorkflow() for rationale. Allow proto-first WorkflowDefinitionV2 payloads.
 	if looksLikeWorkflowDefinitionV2(req.Workflow) {
-		start := time.Now()
 		normalizeWorkflowDefinitionV2Compat(req.Workflow)
 		body, err := json.Marshal(req.Workflow)
 		if err != nil {
@@ -198,11 +191,9 @@ func (h *Handler) ValidateResolvedWorkflow(w http.ResponseWriter, r *http.Reques
 			h.respondError(w, ErrInvalidWorkflowPayload.WithDetails(map[string]string{"error": err.Error()}))
 			return
 		}
-		h.respondProto(w, http.StatusOK, &basapi.WorkflowValidationResult{
-			Valid:         true,
-			SchemaVersion: "workflow_definition_v2",
-			DurationMs:    time.Since(start).Milliseconds(),
-		})
+		// Run semantic validation on V2 workflows
+		v2Result := h.workflowValidator.ValidateV2(&parsed)
+		h.respondProto(w, http.StatusOK, protoconv.WorkflowValidationResultToProto(v2Result))
 		return
 	}
 

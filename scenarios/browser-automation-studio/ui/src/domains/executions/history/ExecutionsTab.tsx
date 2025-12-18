@@ -15,7 +15,7 @@ import {
   LineChart,
 } from 'lucide-react';
 import { useDashboardStore, type RecentExecution } from '@stores/dashboardStore';
-import { useExecutionStore } from '@stores/executionStore';
+import { useExecutionStore } from '../store';
 import { formatDistanceToNow } from 'date-fns';
 import { TabEmptyState, ExecutionsEmptyPreview } from '@/views/DashboardView/previews';
 

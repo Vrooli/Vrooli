@@ -6,7 +6,7 @@
 import { useEffect } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { useDashboardStore } from '@stores/dashboardStore';
-import { useExecutionStore } from '@stores/executionStore';
+import { useExecutionStore } from '@/domains/executions';
 import { logger } from '@utils/logger';
 
 export function useExecutionUpdates() {

@@ -14,7 +14,7 @@ import {
   Workflow,
   Image,
 } from "lucide-react";
-import { useProjectStore, Project } from "@stores/projectStore";
+import { useProjectStore, type Project } from "./store";
 import { ResponsiveDialog } from "@shared/layout";
 import { selectors } from "@constants/selectors";
 

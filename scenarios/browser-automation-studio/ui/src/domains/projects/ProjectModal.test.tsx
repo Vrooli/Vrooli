@@ -3,10 +3,10 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test-utils/testHelpers';
 import ProjectModal from './ProjectModal';
-import { useProjectStore } from '@stores/projectStore';
+import { useProjectStore } from './store';
 
 // Mock the project store
-vi.mock('@stores/projectStore', () => ({
+vi.mock('./store', () => ({
   useProjectStore: vi.fn(),
 }));
 

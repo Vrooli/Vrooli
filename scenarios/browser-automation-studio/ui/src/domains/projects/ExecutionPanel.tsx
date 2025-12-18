@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { ExecutionHistory, ExecutionViewer } from "@/domains/executions";
-import { useExecutionStore } from "@stores/executionStore";
+import { useExecutionStore } from "@/domains/executions";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
 import { useProjectDetailStore } from "./hooks/useProjectDetailStore";

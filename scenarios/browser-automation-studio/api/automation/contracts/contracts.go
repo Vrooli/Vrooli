@@ -318,6 +318,9 @@ type ConsoleLogEntry struct {
 	Location  string    `json:"location,omitempty"` // Source location when available.
 }
 
+// ProtoConsoleLogEntry is the proto type for console log entries (timeline streaming).
+type ProtoConsoleLogEntry = basdomain.ConsoleLogEntry
+
 // NetworkEvent captures network activity for a step.
 type NetworkEvent struct {
 	Type                string            `json:"type"` // request|response|failure
@@ -334,6 +337,9 @@ type NetworkEvent struct {
 	ResponseBodyPreview string            `json:"response_body_preview,omitempty"`
 	Truncated           bool              `json:"truncated,omitempty"` // True when previews truncated.
 }
+
+// ProtoNetworkEvent is the proto type for network events (timeline streaming).
+type ProtoNetworkEvent = basdomain.NetworkEvent
 
 // AssertionOutcome captures the outcome of an assert step.
 type AssertionOutcome struct {

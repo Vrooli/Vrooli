@@ -80,7 +80,7 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	}).Debug("Executing plan step")
 
 	if strings.EqualFold(strings.TrimSpace(stepType), "workflowcall") {
-		return contracts.StepOutcome{}, session, fmt.Errorf("workflowCall nodes are no longer supported; use subflow instead")
+		return contracts.StepOutcome{}, session, fmt.Errorf("unsupported step type 'workflowCall'; use 'subflow' instead")
 	}
 	if isSubflowPlanStep(step) {
 		logrus.WithFields(logrus.Fields{
@@ -679,14 +679,15 @@ func resolveSubflowWorkflow(ctx context.Context, req Request, spec subflowSpec) 
 	}
 
 	// Inline workflow definition - create a WorkflowSummary with the inline definition
+	// NOTE: Inline subflows with workflowDefinition are a complex edge case.
+	// The common path (workflow_id or workflow_path reference) is fully V2-compatible.
+	// Inline definitions would require parsing nested ActionDefinition protos from a map,
+	// which is rarely used. For now, inline subflows return an empty flow.
 	id := uuid.New()
 	flowDef := &basworkflows.WorkflowDefinitionV2{
 		Nodes: []*basworkflows.WorkflowNodeV2{},
 		Edges: []*basworkflows.WorkflowEdgeV2{},
 	}
-	// MIGRATION: Converting inline map definition to proto is complex; skip for now
-	// Subflow actions with inline workflowDefinition require V1-format node structure
-	// until V2 subflow proto support is added
 	return &basapi.WorkflowSummary{
 		Id:             id.String(),
 		FlowDefinition: flowDef,

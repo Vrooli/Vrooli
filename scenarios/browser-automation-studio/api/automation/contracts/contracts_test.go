@@ -18,7 +18,7 @@ import (
 func TestEngineCapabilitiesValidate(t *testing.T) {
 	valid := EngineCapabilities{
 		SchemaVersion:         CapabilitiesSchemaVersion,
-		Engine:                "browserless",
+		Engine:                "playwright",
 		MaxConcurrentSessions: 2,
 	}
 
@@ -51,7 +51,7 @@ func TestEngineCapabilitiesValidate_SchemaVersion(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] rejects empty schema version", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         "",
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1,
 		}
 		err := caps.Validate()
@@ -62,7 +62,7 @@ func TestEngineCapabilitiesValidate_SchemaVersion(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] rejects wrong schema version", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         "wrong-version",
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1,
 		}
 		err := caps.Validate()
@@ -73,7 +73,7 @@ func TestEngineCapabilitiesValidate_SchemaVersion(t *testing.T) {
 	t.Run("accepts current schema version", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         CapabilitiesSchemaVersion,
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1,
 		}
 		err := caps.Validate()
@@ -85,7 +85,7 @@ func TestEngineCapabilitiesValidate_MaxConcurrentSessions(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] rejects negative max_concurrent_sessions", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         CapabilitiesSchemaVersion,
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: -5,
 		}
 		err := caps.Validate()
@@ -96,7 +96,7 @@ func TestEngineCapabilitiesValidate_MaxConcurrentSessions(t *testing.T) {
 	t.Run("accepts high max_concurrent_sessions", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         CapabilitiesSchemaVersion,
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1000,
 		}
 		err := caps.Validate()
@@ -108,7 +108,7 @@ func TestEngineCapabilitiesValidate_ViewportDimensions(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] allows zero max_viewport_width", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         CapabilitiesSchemaVersion,
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1,
 			MaxViewportWidth:      0, // Zero means unknown/unbounded
 		}
@@ -119,7 +119,7 @@ func TestEngineCapabilitiesValidate_ViewportDimensions(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] allows zero max_viewport_height", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         CapabilitiesSchemaVersion,
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1,
 			MaxViewportHeight:     0,
 		}
@@ -130,7 +130,7 @@ func TestEngineCapabilitiesValidate_ViewportDimensions(t *testing.T) {
 	t.Run("rejects negative max_viewport_height", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         CapabilitiesSchemaVersion,
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1,
 			MaxViewportHeight:     -1,
 		}
@@ -142,7 +142,7 @@ func TestEngineCapabilitiesValidate_ViewportDimensions(t *testing.T) {
 	t.Run("accepts large viewport dimensions", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         CapabilitiesSchemaVersion,
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1,
 			MaxViewportWidth:      4096,
 			MaxViewportHeight:     2160,
@@ -159,7 +159,7 @@ func TestEngineCapabilitiesValidate_ViewportDimensions(t *testing.T) {
 func TestEngineCapabilitiesCheckCompatibility(t *testing.T) {
 	caps := EngineCapabilities{
 		SchemaVersion:         CapabilitiesSchemaVersion,
-		Engine:                "browserless",
+		Engine:                "playwright",
 		MaxConcurrentSessions: 1,
 		AllowsParallelTabs:    false,
 		SupportsHAR:           false,
@@ -201,7 +201,7 @@ func TestEngineCapabilitiesCheckCompatibility_AllFeatures(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] reports missing file_uploads", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         CapabilitiesSchemaVersion,
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1,
 			SupportsFileUploads:   false,
 		}
@@ -215,7 +215,7 @@ func TestEngineCapabilitiesCheckCompatibility_AllFeatures(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] reports missing downloads", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         CapabilitiesSchemaVersion,
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1,
 			SupportsDownloads:     false,
 		}
@@ -229,7 +229,7 @@ func TestEngineCapabilitiesCheckCompatibility_AllFeatures(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] reports missing tracing", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         CapabilitiesSchemaVersion,
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1,
 			SupportsTracing:       false,
 		}
@@ -243,7 +243,7 @@ func TestEngineCapabilitiesCheckCompatibility_AllFeatures(t *testing.T) {
 	t.Run("reports missing iframes", func(t *testing.T) {
 		caps := EngineCapabilities{
 			SchemaVersion:         CapabilitiesSchemaVersion,
-			Engine:                "browserless",
+			Engine:                "playwright",
 			MaxConcurrentSessions: 1,
 			SupportsIframes:       false,
 		}
@@ -310,7 +310,7 @@ func TestEngineCapabilitiesCheckCompatibility_NoRequirements(t *testing.T) {
 func TestEngineCapabilitiesViewportWarningsWhenUnknownBounds(t *testing.T) {
 	caps := EngineCapabilities{
 		SchemaVersion:         CapabilitiesSchemaVersion,
-		Engine:                "browserless",
+		Engine:                "playwright",
 		MaxConcurrentSessions: 1,
 		AllowsParallelTabs:    true,
 		SupportsHAR:           true,

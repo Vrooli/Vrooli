@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Image } from 'lucide-react';
 import clsx from 'clsx';
-import type { Screenshot } from '@stores/executionEventProcessor';
+import type { Screenshot } from '../../store';
 import { selectors } from '@constants/selectors';
 
 interface ScreenshotsPanelProps {

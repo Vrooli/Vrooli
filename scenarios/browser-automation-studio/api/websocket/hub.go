@@ -116,7 +116,6 @@ func (h *Hub) BroadcastEnvelope(event any) {
 }
 
 // BroadcastRecordingAction sends a recording action to clients subscribed to a specific session.
-// The action should include a timeline_event field for unified V2 format (added by the handler).
 func (h *Hub) BroadcastRecordingAction(sessionID string, action any) {
 	message := map[string]any{
 		"type":       "recording_action",
@@ -140,8 +139,8 @@ func (h *Hub) BroadcastRecordingAction(sessionID string, action any) {
 	}
 }
 
-// BroadcastRecordingActionWithTimeline sends a recording action with a unified TimelineEntry.
-// This is the V2 format that includes both the legacy action and the timeline_entry field.
+// BroadcastRecordingActionWithTimeline sends a recording action with a TimelineEntry.
+// The message includes both the action (for compatibility) and the timeline_entry field.
 func (h *Hub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any) {
 	message := map[string]any{
 		"type":           "recording_action",

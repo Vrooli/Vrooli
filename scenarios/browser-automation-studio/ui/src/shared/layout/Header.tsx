@@ -16,8 +16,8 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
-import { useExecutionStore } from "@stores/executionStore";
-import { useProjectStore, type Project } from "@stores/projectStore";
+import { useExecutionStore } from "@/domains/executions";
+import { useProjectStore, type Project } from "@/domains/projects";
 import { AIEditModal } from "@/domains/ai";
 import toast from "react-hot-toast";
 import { usePopoverPosition } from "@hooks/usePopoverPosition";

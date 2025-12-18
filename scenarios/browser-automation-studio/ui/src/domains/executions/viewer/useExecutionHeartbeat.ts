@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Execution } from "@stores/executionStore";
+import type { Execution } from "../store";
 
 export type HeartbeatState =
   | "idle"

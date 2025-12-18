@@ -37,7 +37,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, act, type RenderResult } from '@testing-library/react';
-import type { Execution } from '@stores/executionStore';
+import type { Execution } from '../store';
 import { createMockExecutionStoreState, resetMockExecutionStoreState } from '../testUtils/mockExecutionStore';
 
 // Mock modules
@@ -90,7 +90,7 @@ const createMockExecution = (overrides: Partial<Execution> = {}): Execution => (
 // Mock executionStore at module level
 const mockExecutionStoreState = createMockExecutionStoreState();
 
-vi.mock('@stores/executionStore', () => ({
+vi.mock('../store', () => ({
   useExecutionStore: vi.fn((selector) => {
     return selector ? selector(mockExecutionStoreState) : mockExecutionStoreState;
   }),

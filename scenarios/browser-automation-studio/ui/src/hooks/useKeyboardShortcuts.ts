@@ -21,9 +21,19 @@ export type { ShortcutContext, ShortcutDefinition as KeyboardShortcut };
  * All other components should use useRegisterShortcut to add their actions.
  */
 export function useKeyboardShortcutHandler() {
-  const store = useKeyboardShortcutsStore();
-  const storeRef = useRef(store);
-  storeRef.current = store;
+  // IMPORTANT: Use getState() instead of the hook to avoid subscribing to store updates.
+  // The hook subscription was causing infinite re-render loops because any state change
+  // (like registerAction) would re-render this component, triggering cleanup/re-registration.
+  // Since we only need to read state when handling keydown events, getState() is sufficient.
+  const storeRef = useRef(useKeyboardShortcutsStore.getState());
+
+  // Keep the ref updated when store changes (without triggering re-renders)
+  useEffect(() => {
+    const unsubscribe = useKeyboardShortcutsStore.subscribe((state) => {
+      storeRef.current = state;
+    });
+    return unsubscribe;
+  }, []);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     const {

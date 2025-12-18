@@ -1,4 +1,4 @@
-import { useExecutionStore } from '@stores/executionStore';
+import { useExecutionStore } from '../store';
 
 export const useExecutionActions = () =>
   useExecutionStore((state) => ({

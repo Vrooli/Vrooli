@@ -22,7 +22,7 @@ import {
   Circle,
 } from 'lucide-react';
 import { useDashboardStore, type RecentWorkflow, type FavoriteWorkflow } from '@stores/dashboardStore';
-import { useExecutionStore } from '@stores/executionStore';
+import { useExecutionStore } from '@/domains/executions';
 import { useAICapability } from '@stores/aiCapabilityStore';
 import { formatDistanceToNow } from 'date-fns';
 import { TemplatesGallery } from './widgets/TemplatesGallery';

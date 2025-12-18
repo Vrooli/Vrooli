@@ -747,12 +747,12 @@ func TestValidatorKeyboardNodeValidation(t *testing.T) {
 			errorCode:   "WF_KEYBOARD_INPUT_REQUIRED",
 		},
 		{
-			name: "deprecated key field",
+			name: "removed key field",
 			data: map[string]any{
 				"key": "Enter",
 			},
-			expectValid: true,
-			warningCode: "WF_KEYBOARD_KEY_FIELD",
+			expectValid: false,
+			errorCode:   "WF_KEYBOARD_KEY_FIELD_REMOVED",
 		},
 		{
 			name: "valid with keys array",

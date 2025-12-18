@@ -17,7 +17,7 @@ import {
   Sparkles,
   Share2,
 } from 'lucide-react';
-import { useExportStore, type Export } from '@stores/exportStore';
+import { useExportStore, type Export } from './store';
 import { useDashboardStore } from '@stores/dashboardStore';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'react-hot-toast';

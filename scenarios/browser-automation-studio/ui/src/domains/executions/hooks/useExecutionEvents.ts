@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-import { useExecutionStore } from '@stores/executionStore';
-import type { Execution } from '@stores/executionStore';
+import { useExecutionStore, type Execution } from '../store';
 
 /**
  * Ensures a WebSocket connection is established for the active execution

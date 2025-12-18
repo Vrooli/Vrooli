@@ -1,10 +1,8 @@
-// Package events provides conversion utilities between legacy contracts.StepOutcome
+// Package events provides conversion utilities between contracts.StepOutcome
 // and the unified bastimeline.TimelineEntry proto format.
 //
 // This enables the execution engine to produce TimelineEntry messages that can be
 // streamed to the UI via WebSocket, supporting the shared Record/Execute UX.
-//
-// See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for design rationale.
 package events
 
 import (
@@ -21,42 +19,26 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// StepOutcomeToTimelineEntry converts a legacy StepOutcome to the unified TimelineEntry format.
-// This enables execution telemetry to use the same data structure as recording telemetry.
+// StepOutcomeToTimelineEntry converts a StepOutcome to the unified TimelineEntry format.
 func StepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.UUID) *bastimeline.TimelineEntry {
-	// Generate entry ID from execution and step
 	entryID := fmt.Sprintf("%s-step-%d-attempt-%d", executionID.String(), outcome.StepIndex, outcome.Attempt)
-
-	// Build action definition from step outcome
-	action := buildActionDefinition(outcome)
-
-	// Build telemetry from step outcome
-	telemetry := buildActionTelemetry(outcome)
-
-	// Build event context (unified for recording/execution)
-	context := buildEventContext(outcome, executionID)
-
 	stepIndex := int32(outcome.StepIndex)
+
 	entry := &bastimeline.TimelineEntry{
 		Id:          entryID,
 		SequenceNum: int32(outcome.StepIndex),
 		StepIndex:   &stepIndex,
-		Action:      action,
-		Telemetry:   telemetry,
-		Context:     context,
+		Action:      buildActionDefinition(outcome),
+		Telemetry:   buildActionTelemetry(outcome),
+		Context:     buildEventContext(outcome, executionID),
 	}
 
-	// Set node_id if available
 	if outcome.NodeID != "" {
 		entry.NodeId = &outcome.NodeID
 	}
-
-	// Set timestamp
 	if !outcome.StartedAt.IsZero() {
 		entry.Timestamp = timestamppb.New(outcome.StartedAt)
 	}
-
-	// Set duration
 	if outcome.DurationMs > 0 {
 		durationMs := int32(outcome.DurationMs)
 		entry.DurationMs = &durationMs
@@ -65,36 +47,25 @@ func StepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 	return entry
 }
 
-// buildActionDefinition creates an ActionDefinition from the step outcome's type and params.
+// buildActionDefinition creates an ActionDefinition from the step outcome.
+// Only params that can be reconstructed from outcome data are populated.
 func buildActionDefinition(outcome contracts.StepOutcome) *basactions.ActionDefinition {
-	actionType := mapStepTypeToActionType(outcome.StepType)
+	actionType := typeconv.StringToActionType(outcome.StepType)
 
 	def := &basactions.ActionDefinition{
 		Type: actionType,
+		Metadata: &basactions.ActionMetadata{
+			Label: &outcome.NodeID,
+		},
 	}
 
-	// Set params based on action type
-	// Note: For execution, we don't have full params - the instruction params were
-	// consumed by the engine. We reconstruct what we can from the outcome.
+	// Only set params when we have meaningful data from the outcome
 	switch actionType {
 	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
-		def.Params = &basactions.ActionDefinition_Navigate{
-			Navigate: &basactions.NavigateParams{
-				Url: outcome.FinalURL,
-			},
-		}
-	case basactions.ActionType_ACTION_TYPE_CLICK:
-		// Click params come from instruction, but we can note position from outcome
-		def.Params = &basactions.ActionDefinition_Click{
-			Click: &basactions.ClickParams{},
-		}
-	case basactions.ActionType_ACTION_TYPE_INPUT:
-		def.Params = &basactions.ActionDefinition_Input{
-			Input: &basactions.InputParams{},
-		}
-	case basactions.ActionType_ACTION_TYPE_WAIT:
-		def.Params = &basactions.ActionDefinition_Wait{
-			Wait: &basactions.WaitParams{},
+		if outcome.FinalURL != "" {
+			def.Params = &basactions.ActionDefinition_Navigate{
+				Navigate: &basactions.NavigateParams{Url: outcome.FinalURL},
+			}
 		}
 	case basactions.ActionType_ACTION_TYPE_ASSERT:
 		if outcome.Assertion != nil {
@@ -106,43 +77,6 @@ func buildActionDefinition(outcome contracts.StepOutcome) *basactions.ActionDefi
 				},
 			}
 		}
-	case basactions.ActionType_ACTION_TYPE_SCROLL:
-		def.Params = &basactions.ActionDefinition_Scroll{
-			Scroll: &basactions.ScrollParams{},
-		}
-	case basactions.ActionType_ACTION_TYPE_HOVER:
-		def.Params = &basactions.ActionDefinition_Hover{
-			Hover: &basactions.HoverParams{},
-		}
-	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
-		def.Params = &basactions.ActionDefinition_Keyboard{
-			Keyboard: &basactions.KeyboardParams{},
-		}
-	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
-		def.Params = &basactions.ActionDefinition_Screenshot{
-			Screenshot: &basactions.ScreenshotParams{},
-		}
-	case basactions.ActionType_ACTION_TYPE_SELECT:
-		def.Params = &basactions.ActionDefinition_SelectOption{
-			SelectOption: &basactions.SelectParams{},
-		}
-	case basactions.ActionType_ACTION_TYPE_EVALUATE:
-		def.Params = &basactions.ActionDefinition_Evaluate{
-			Evaluate: &basactions.EvaluateParams{},
-		}
-	case basactions.ActionType_ACTION_TYPE_FOCUS:
-		def.Params = &basactions.ActionDefinition_Focus{
-			Focus: &basactions.FocusParams{},
-		}
-	case basactions.ActionType_ACTION_TYPE_BLUR:
-		def.Params = &basactions.ActionDefinition_Blur{
-			Blur: &basactions.BlurParams{},
-		}
-	}
-
-	// Add metadata with node info
-	def.Metadata = &basactions.ActionMetadata{
-		Label: &outcome.NodeID,
 	}
 
 	return def
@@ -154,11 +88,7 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basdomain.ActionTeleme
 		Url: outcome.FinalURL,
 	}
 
-	// Add screenshot if present
-	// Note: TimelineScreenshot is the proto type which has ArtifactId, Url, etc.
-	// The contracts.Screenshot has raw Data, MediaType, etc.
-	// For real-time streaming, we don't have artifact URLs yet - those come from storage.
-	// We include what we can (dimensions, content type).
+	// Screenshot (contracts.Screenshot has []byte Data not in proto, so partial conversion)
 	if outcome.Screenshot != nil {
 		tel.Screenshot = &basdomain.TimelineScreenshot{
 			Width:       int32(outcome.Screenshot.Width),
@@ -167,7 +97,7 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basdomain.ActionTeleme
 		}
 	}
 
-	// Add DOM snapshot preview
+	// DOM snapshot
 	if outcome.DOMSnapshot != nil {
 		if outcome.DOMSnapshot.Preview != "" {
 			tel.DomSnapshotPreview = &outcome.DOMSnapshot.Preview
@@ -177,118 +107,95 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basdomain.ActionTeleme
 		}
 	}
 
-	// Add bounding box
-	if outcome.ElementBoundingBox != nil {
-		tel.ElementBoundingBox = convertBoundingBoxToProto(outcome.ElementBoundingBox)
+	// Geometry types are already proto aliases - direct assignment
+	tel.ElementBoundingBox = outcome.ElementBoundingBox
+	tel.ClickPosition = outcome.ClickPosition
+
+	// Cursor trail (needs Point extraction from CursorPosition)
+	if len(outcome.CursorTrail) > 0 {
+		tel.CursorTrail = make([]*basbase.Point, 0, len(outcome.CursorTrail))
+		for i := range outcome.CursorTrail {
+			if outcome.CursorTrail[i].Point != nil {
+				tel.CursorTrail = append(tel.CursorTrail, outcome.CursorTrail[i].Point)
+			}
+		}
 	}
 
-	// Add click position
-	if outcome.ClickPosition != nil {
-		tel.ClickPosition = convertPointToProto(outcome.ClickPosition)
-	}
+	// Region types are already proto aliases - direct assignment
+	tel.HighlightRegions = outcome.HighlightRegions
+	tel.MaskRegions = outcome.MaskRegions
 
-		// Add cursor trail
-		if len(outcome.CursorTrail) > 0 {
-			tel.CursorTrail = make([]*basbase.Point, 0, len(outcome.CursorTrail))
-			for i := range outcome.CursorTrail {
-				if outcome.CursorTrail[i].Point == nil {
-					continue
-				}
-				tel.CursorTrail = append(tel.CursorTrail, convertPointToProto(outcome.CursorTrail[i].Point))
-			}
-		}
-
-		// Add highlight regions
-		if len(outcome.HighlightRegions) > 0 {
-			tel.HighlightRegions = make([]*basdomain.HighlightRegion, 0, len(outcome.HighlightRegions))
-			for _, r := range outcome.HighlightRegions {
-				if r == nil {
-					continue
-				}
-				region := &basdomain.HighlightRegion{
-					Selector:       r.Selector,
-					BoundingBox:    convertBoundingBoxToProto(r.BoundingBox),
-					Padding:        r.Padding,
-					HighlightColor: r.HighlightColor,
-					CustomRgba:     r.CustomRgba,
-				}
-				tel.HighlightRegions = append(tel.HighlightRegions, region)
-			}
-		}
-
-		// Add mask regions
-		if len(outcome.MaskRegions) > 0 {
-			tel.MaskRegions = make([]*basdomain.MaskRegion, 0, len(outcome.MaskRegions))
-			for _, r := range outcome.MaskRegions {
-				if r == nil {
-					continue
-				}
-				tel.MaskRegions = append(tel.MaskRegions, &basdomain.MaskRegion{
-					Selector:    r.Selector,
-					BoundingBox: convertBoundingBoxToProto(r.BoundingBox),
-					Opacity:     r.Opacity,
-				})
-			}
-		}
-
-	// Add zoom factor
 	if outcome.ZoomFactor != 0 {
 		tel.ZoomFactor = &outcome.ZoomFactor
 	}
 
-	// Add console logs
-	if len(outcome.ConsoleLogs) > 0 {
-		tel.ConsoleLogs = make([]*basdomain.ConsoleLogEntry, 0, len(outcome.ConsoleLogs))
-		for _, log := range outcome.ConsoleLogs {
-			entry := &basdomain.ConsoleLogEntry{
-				Level: typeconv.StringToLogLevel(log.Type),
-				Text:  log.Text,
-			}
-			if log.Stack != "" {
-				entry.Stack = &log.Stack
-			}
-			if log.Location != "" {
-				entry.Location = &log.Location
-			}
-			if !log.Timestamp.IsZero() {
-				entry.Timestamp = timestamppb.New(log.Timestamp)
-			}
-			tel.ConsoleLogs = append(tel.ConsoleLogs, entry)
-		}
-	}
+	// Console logs (need time.Time → proto Timestamp conversion)
+	tel.ConsoleLogs = convertConsoleLogs(outcome.ConsoleLogs)
 
-	// Add network events
-	if len(outcome.Network) > 0 {
-		tel.NetworkEvents = make([]*basdomain.NetworkEvent, 0, len(outcome.Network))
-		for _, net := range outcome.Network {
-			event := &basdomain.NetworkEvent{
-				Type: typeconv.StringToNetworkEventType(net.Type),
-				Url:  net.URL,
-			}
-			if net.Method != "" {
-				event.Method = &net.Method
-			}
-			if net.ResourceType != "" {
-				event.ResourceType = &net.ResourceType
-			}
-			if net.Status != 0 {
-				status := int32(net.Status)
-				event.Status = &status
-			}
-			if net.OK {
-				event.Ok = &net.OK
-			}
-			if net.Failure != "" {
-				event.Failure = &net.Failure
-			}
-			if !net.Timestamp.IsZero() {
-				event.Timestamp = timestamppb.New(net.Timestamp)
-			}
-			tel.NetworkEvents = append(tel.NetworkEvents, event)
-		}
-	}
+	// Network events (need time.Time → proto Timestamp conversion)
+	tel.NetworkEvents = convertNetworkEvents(outcome.Network)
 
 	return tel
+}
+
+// convertConsoleLogs converts Go ConsoleLogEntry slice to proto format.
+func convertConsoleLogs(logs []contracts.ConsoleLogEntry) []*basdomain.ConsoleLogEntry {
+	if len(logs) == 0 {
+		return nil
+	}
+	result := make([]*basdomain.ConsoleLogEntry, 0, len(logs))
+	for _, log := range logs {
+		entry := &basdomain.ConsoleLogEntry{
+			Level: typeconv.StringToLogLevel(log.Type),
+			Text:  log.Text,
+		}
+		if log.Stack != "" {
+			entry.Stack = &log.Stack
+		}
+		if log.Location != "" {
+			entry.Location = &log.Location
+		}
+		if !log.Timestamp.IsZero() {
+			entry.Timestamp = timestamppb.New(log.Timestamp)
+		}
+		result = append(result, entry)
+	}
+	return result
+}
+
+// convertNetworkEvents converts Go NetworkEvent slice to proto format.
+func convertNetworkEvents(events []contracts.NetworkEvent) []*basdomain.NetworkEvent {
+	if len(events) == 0 {
+		return nil
+	}
+	result := make([]*basdomain.NetworkEvent, 0, len(events))
+	for _, net := range events {
+		event := &basdomain.NetworkEvent{
+			Type: typeconv.StringToNetworkEventType(net.Type),
+			Url:  net.URL,
+		}
+		if net.Method != "" {
+			event.Method = &net.Method
+		}
+		if net.ResourceType != "" {
+			event.ResourceType = &net.ResourceType
+		}
+		if net.Status != 0 {
+			status := int32(net.Status)
+			event.Status = &status
+		}
+		if net.OK {
+			event.Ok = &net.OK
+		}
+		if net.Failure != "" {
+			event.Failure = &net.Failure
+		}
+		if !net.Timestamp.IsZero() {
+			event.Timestamp = timestamppb.New(net.Timestamp)
+		}
+		result = append(result, event)
+	}
+	return result
 }
 
 // buildEventContext creates the unified EventContext for a timeline entry.
@@ -350,36 +257,6 @@ func buildEventContext(outcome contracts.StepOutcome, executionID uuid.UUID) *ba
 	}
 
 	return ctx
-}
-
-// mapStepTypeToActionType converts a step type string to ActionType enum.
-// Delegates to typeconv.StringToActionType for the canonical implementation.
-func mapStepTypeToActionType(stepType string) basactions.ActionType {
-	return typeconv.StringToActionType(stepType)
-}
-
-// convertBoundingBoxToProto converts a contracts.BoundingBox to proto format.
-func convertBoundingBoxToProto(b *contracts.BoundingBox) *basbase.BoundingBox {
-	if b == nil {
-		return nil
-	}
-	return &basbase.BoundingBox{
-		X:      b.X,
-		Y:      b.Y,
-		Width:  b.Width,
-		Height: b.Height,
-	}
-}
-
-// convertPointToProto converts a contracts.Point to proto format.
-func convertPointToProto(p *contracts.Point) *basbase.Point {
-	if p == nil {
-		return nil
-	}
-	return &basbase.Point{
-		X: p.X,
-		Y: p.Y,
-	}
 }
 
 // CompiledInstructionToActionDefinition converts a CompiledInstruction to ActionDefinition.

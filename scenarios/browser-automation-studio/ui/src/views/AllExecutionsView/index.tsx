@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
-import { useExecutionStore } from '@stores/executionStore';
+import { useExecutionStore } from '@/domains/executions';
 
 const GlobalExecutionsView = lazy(() =>
   import('./GlobalExecutionsView').then((m) => ({

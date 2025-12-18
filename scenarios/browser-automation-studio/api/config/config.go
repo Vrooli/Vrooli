@@ -237,7 +237,6 @@ type ExecutionConfig struct {
 	// instructions are running. Set to 0 to disable heartbeats (not recommended
 	// unless running in extremely constrained environments).
 	// Env: BAS_EXECUTION_HEARTBEAT_INTERVAL_MS (default: 2000)
-	// Alias: BROWSERLESS_HEARTBEAT_INTERVAL (Go duration string, e.g., "2s")
 	HeartbeatInterval time.Duration
 }
 
@@ -582,7 +581,7 @@ func loadFromEnv() *Config {
 			CompletionPollInterval: parseDurationMs("BAS_EXECUTION_COMPLETION_POLL_INTERVAL_MS", 250),
 			AdhocCleanupInterval:   parseDurationMs("BAS_EXECUTION_ADHOC_CLEANUP_INTERVAL_MS", 5000),
 			AdhocRetentionPeriod:   parseDurationMs("BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS", 600000),
-			HeartbeatInterval:      parseDurationMsWithAlt("BAS_EXECUTION_HEARTBEAT_INTERVAL_MS", 2000, "BROWSERLESS_HEARTBEAT_INTERVAL"),
+			HeartbeatInterval:      parseDurationMs("BAS_EXECUTION_HEARTBEAT_INTERVAL_MS", 2000),
 		},
 		WebSocket: WebSocketConfig{
 			ClientSendBufferSize:   parseInt("BAS_WS_CLIENT_SEND_BUFFER_SIZE", 256),
@@ -811,30 +810,6 @@ func parseDurationMs(envVar string, defaultMs int) time.Duration {
 		return time.Duration(defaultMs) * time.Millisecond
 	}
 	return time.Duration(ms) * time.Millisecond
-}
-
-// parseDurationMsWithAlt parses a millisecond env var, falling back to an
-// alternate Go duration env var when the primary is unset.
-func parseDurationMsWithAlt(envVar string, defaultMs int, altDurationVar string) time.Duration {
-	value := strings.TrimSpace(os.Getenv(envVar))
-	if value != "" {
-		if ms, err := strconv.Atoi(value); err == nil && ms >= 0 {
-			return time.Duration(ms) * time.Millisecond
-		}
-	}
-
-	if altDurationVar != "" {
-		if alt := strings.TrimSpace(os.Getenv(altDurationVar)); alt != "" {
-			if d, err := time.ParseDuration(alt); err == nil && d >= 0 {
-				return d
-			}
-			if ms, err := strconv.Atoi(alt); err == nil && ms >= 0 {
-				return time.Duration(ms) * time.Millisecond
-			}
-		}
-	}
-
-	return time.Duration(defaultMs) * time.Millisecond
 }
 
 // parseInt parses an environment variable as an integer.

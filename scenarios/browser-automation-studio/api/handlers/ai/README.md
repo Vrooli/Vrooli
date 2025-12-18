@@ -14,8 +14,8 @@ flowchart TD
         PB[Plan & instructions\n(navigate → wait → evaluate → screenshot)]
         EX[SimpleExecutor]
     end
-    subgraph Engine["BrowserlessEngine"]
-        CDP[CDP session\n(per execution)]
+    subgraph Engine["PlaywrightEngine"]
+        PW[Playwright session\n(per execution)]
     end
     subgraph Recorder["Recorder / Sinks"]
         MEM[In-memory Recorder\n(tests + helpers)]
@@ -32,6 +32,6 @@ flowchart TD
 ```
 
 ## Notes
-- All helpers compile direct `CompiledInstruction` arrays (navigate → optional wait → evaluate/screenshot) and execute via `automationRunner` with the Browserless engine.
-- DOM and element analysis now avoid the legacy `resource-browserless` CLI, ensuring heartbeats, retries, and capability checks flow through the new automation stack.
-- The runner defaults to the configured engine selection; if unset, it falls back to localhost Browserless for local development.***
+- All helpers compile direct `CompiledInstruction` arrays (navigate → optional wait → evaluate/screenshot) and execute via `automationRunner` with the Playwright engine.
+- DOM and element analysis flow through the automation stack, ensuring heartbeats, retries, and capability checks are applied consistently.
+- The runner defaults to the configured engine selection (Playwright by default).

@@ -35,8 +35,8 @@ type HubInterface interface {
 	// BroadcastRecordingAction sends a recording action to clients subscribed to a specific session.
 	BroadcastRecordingAction(sessionID string, action any)
 
-	// BroadcastRecordingActionWithTimeline sends a recording action with a unified TimelineEntry.
-	// This is the V2 format that includes both the legacy action and the timeline_entry field.
+	// BroadcastRecordingActionWithTimeline sends a recording action with a TimelineEntry.
+	// The message includes both the action (for compatibility) and the timeline_entry field.
 	BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any)
 
 	// BroadcastRecordingFrame sends a frame to clients subscribed to a specific recording session.

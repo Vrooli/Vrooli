@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act } from '@testing-library/react';
-import { useProjectStore, Project } from '@stores/projectStore';
+import { useProjectStore, type Project } from '@/domains/projects';
 
 // Mock fetch globally
 global.fetch = vi.fn();

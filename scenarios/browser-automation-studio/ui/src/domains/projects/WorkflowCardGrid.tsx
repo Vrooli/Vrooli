@@ -15,7 +15,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
-import { useExecutionStore } from "@stores/executionStore";
+import { useExecutionStore } from "@/domains/executions";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { selectors } from "@constants/selectors";
 import { ConfirmDialog } from "@shared/ui";

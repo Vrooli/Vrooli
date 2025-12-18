@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Execution } from "@stores/executionStore";
+import type { Execution } from "../store";
 import type { ReplayMovieSpec } from "@/types/export";
 import {
   describePreviewStatusMessage,

@@ -8,7 +8,7 @@ import {
   Command,
   Circle,
 } from "lucide-react";
-import { useProjectStore, Project } from "@stores/projectStore";
+import { useProjectStore, type Project } from "@/domains/projects";
 import { useDashboardStore } from "@stores/dashboardStore";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { selectors } from "@constants/selectors";

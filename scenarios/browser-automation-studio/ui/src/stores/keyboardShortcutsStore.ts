@@ -314,6 +314,16 @@ export const useKeyboardShortcutsStore = create<KeyboardShortcutsState>((set, ge
 
   registerAction: (shortcutId, action) => {
     const { actions } = get();
+    // If shortcut is already registered, update the action in place WITHOUT
+    // triggering a Zustand state update. This prevents React error #185
+    // (Maximum update depth exceeded) when components re-register on re-render.
+    // The action reference may change between renders, but we don't need to
+    // notify subscribers - they'll get the latest action when executeShortcut is called.
+    if (actions.has(shortcutId)) {
+      actions.set(shortcutId, action);
+      return;
+    }
+    // First registration - create new Map and trigger state update
     const newActions = new Map(actions);
     newActions.set(shortcutId, action);
     set({ actions: newActions });

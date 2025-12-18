@@ -6,7 +6,7 @@
  * App.tsx should use this hook instead of managing its own navigation state.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useProjectStore, Project } from "../stores/projectStore";
+import { useProjectStore, type Project } from "@/domains/projects";
 import { useWorkflowStore, Workflow } from "../stores/workflowStore";
 import { useDashboardStore, type RecentWorkflow } from "../stores/dashboardStore";
 import { logger } from "../utils/logger";
@@ -445,6 +445,8 @@ export function useAppNavigation(): NavigationState & NavigationActions {
         { component: "useAppNavigation", action: "resolvePath" },
         error
       );
+      // Fallback to dashboard if route resolution fails
+      setCurrentView("dashboard");
     });
 
     const popHandler = () => {
@@ -454,6 +456,8 @@ export function useAppNavigation(): NavigationState & NavigationActions {
           { component: "useAppNavigation", action: "handlePopState" },
           error
         );
+        // Fallback to dashboard if route resolution fails
+        setCurrentView("dashboard");
       });
     };
 

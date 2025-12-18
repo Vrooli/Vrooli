@@ -26,8 +26,8 @@ const GlobalExecutionsView = lazy(() => import("@/views/AllExecutionsView/Global
 const RecordModePage = lazy(() => import("@/domains/recording/RecordingSession").then(m => ({ default: m.RecordModePage })));
 
 // Stores and hooks
-import { useExecutionStore } from "@stores/executionStore";
-import { useProjectStore, type Project, buildProjectFolderPath } from "@stores/projectStore";
+import { useExecutionStore } from "@/domains/executions";
+import { useProjectStore, type Project, buildProjectFolderPath } from "@/domains/projects";
 import { useScenarioStore } from "@stores/scenarioStore";
 import { useMediaQuery } from "@hooks/useMediaQuery";
 import { useEntitlementInit } from "@hooks/useEntitlement";

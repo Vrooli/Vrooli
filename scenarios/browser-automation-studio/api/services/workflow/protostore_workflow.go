@@ -55,13 +55,13 @@ func ReadWorkflowSummaryFile(ctx context.Context, project *database.ProjectIndex
 		}, nil
 	}
 
-	// Legacy fallback: parse flexible JSON and convert to proto.
+	// Fallback: parse flexible JSON and convert to proto (handles non-protojson files).
 	var payload map[string]any
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return nil, fmt.Errorf("invalid workflow JSON in %s: %w", rel, err)
 	}
 
-	converted, needsWrite, err := legacyWorkflowPayloadToProto(project, payload)
+	converted, needsWrite, err := flexibleWorkflowPayloadToProto(project, payload)
 	if err != nil {
 		return nil, fmt.Errorf("workflow file %s: %w", rel, err)
 	}
@@ -74,7 +74,9 @@ func ReadWorkflowSummaryFile(ctx context.Context, project *database.ProjectIndex
 	}, nil
 }
 
-func legacyWorkflowPayloadToProto(project *database.ProjectIndex, payload map[string]any) (*basapi.WorkflowSummary, bool, error) {
+// flexibleWorkflowPayloadToProto converts a loose JSON workflow map to proto format.
+// This handles workflow files that aren't strict protojson (e.g., missing IDs, different casing).
+func flexibleWorkflowPayloadToProto(project *database.ProjectIndex, payload map[string]any) (*basapi.WorkflowSummary, bool, error) {
 	if project == nil {
 		return nil, false, errors.New("project is nil")
 	}
@@ -108,7 +110,7 @@ func legacyWorkflowPayloadToProto(project *database.ProjectIndex, payload map[st
 		version = 1
 	}
 
-	// Parse V2 definition - V1 format is no longer supported for disk storage.
+	// Parse definition from definition_v2 field if present.
 	var def *basworkflows.WorkflowDefinitionV2
 	if v2Raw, ok := payload["definition_v2"].(map[string]any); ok {
 		v2Bytes, _ := json.Marshal(v2Raw)

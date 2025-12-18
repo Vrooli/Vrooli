@@ -21,10 +21,14 @@ const AllExecutionsView = lazy(() => import('@/views/AllExecutionsView'));
 // Import the root layout that provides shared context and UI
 import RootLayout from '@/views/RootLayout';
 
+// Import error boundary for route-level error handling
+import ErrorBoundary from '@/shared/components/ErrorBoundary';
+
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
+    errorElement: <ErrorBoundary />,
     children: [
       {
         index: true,

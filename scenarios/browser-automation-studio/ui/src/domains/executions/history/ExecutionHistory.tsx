@@ -11,7 +11,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import { useExecutionStore } from "@stores/executionStore";
+import { useExecutionStore } from "../store";
 import { logger } from "@utils/logger";
 import { usePopoverPosition } from "@hooks/usePopoverPosition";
 import { selectors } from "@constants/selectors";

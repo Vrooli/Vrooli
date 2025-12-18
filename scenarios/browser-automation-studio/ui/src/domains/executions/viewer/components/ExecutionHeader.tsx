@@ -12,7 +12,7 @@ import {
   Download,
   Pencil,
 } from 'lucide-react';
-import type { Execution } from '@stores/executionStore';
+import type { Execution } from '../../store';
 import { selectors } from '@constants/selectors';
 import type { HeartbeatDescriptor } from '../useExecutionHeartbeat';
 

@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { useProjectStore, type Project } from '@/stores/projectStore';
+import { useProjectStore, type Project } from '@/domains/projects';
 import type { RecordedAction, RecordingSessionProfile, ReplayPreviewResponse } from '../types/types';
 
 /** Describes a contiguous range of selected steps */

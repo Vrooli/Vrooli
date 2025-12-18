@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Loader2, Square, Eye, ChevronDown } from 'lucide-react';
 import { useDashboardStore } from '@stores/dashboardStore';
-import { useExecutionStore } from '@stores/executionStore';
+import { useExecutionStore } from '@/domains/executions';
 import { formatDistanceToNow } from 'date-fns';
 
 interface RunningExecutionsBadgeProps {

@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import type { LogEntry } from '@stores/executionEventProcessor';
+import type { LogEntry } from '../../store';
 import { selectors } from '@constants/selectors';
 
 function getLogColor(level: LogEntry['level']) {

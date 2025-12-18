@@ -18,7 +18,7 @@ import {
   Layers,
   Activity,
 } from 'lucide-react';
-import { useProjectStore, type Project } from '@stores/projectStore';
+import { useProjectStore, type Project } from './store';
 import { useDashboardStore, type FavoriteWorkflow } from '@stores/dashboardStore';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';

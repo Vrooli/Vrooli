@@ -22,7 +22,7 @@ import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { selectors } from "@constants/selectors";
 import { Breadcrumbs } from "@shared/layout";
 import { ConfirmDialog, PromptDialog } from "@shared/ui";
-import type { Project } from "@stores/projectStore";
+import type { Project } from "./store";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
 import toast from "react-hot-toast";
 import {

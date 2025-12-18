@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -68,8 +67,6 @@ func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
 	}
 	workflowName := workflow.GetName()
 
-	log.Printf("[COMPILER_DEBUG] CompileWorkflow called for workflow: %s (ID: %s)", workflowName, workflowID)
-
 	flowDef := workflow.GetFlowDefinition()
 	if flowDef == nil {
 		return nil, errors.New("workflow has no flow_definition")
@@ -82,12 +79,10 @@ func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal workflow definition: %w", err)
 	}
-	log.Printf("[COMPILER_DEBUG] Workflow definition marshalled, size: %d bytes", len(data))
 
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("invalid workflow definition: %w", err)
 	}
-	log.Printf("[COMPILER_DEBUG] Workflow definition parsed: %d nodes, %d edges", len(raw.Nodes), len(raw.Edges))
 
 	if len(raw.Nodes) == 0 {
 		return &ExecutionPlan{
@@ -98,7 +93,6 @@ func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
 		}, nil
 	}
 
-	log.Printf("[COMPILER_DEBUG] Calling compileFlow for workflow: %s", workflowName)
 	plan, err := compileFlow(flowFragment{definition: raw}, workflowID, workflowName)
 	if err != nil {
 		return nil, err
@@ -193,43 +187,41 @@ type flowFragment struct {
 }
 
 // rawNode mirrors protojson WorkflowNodeV2.
-// V2 format: has Action field with nested type and params.
 type rawNode struct {
 	ID           string         `json:"id"`
-	Type         string         `json:"type,omitempty"`   // legacy (rejected)
-	Data         map[string]any `json:"data,omitempty"`   // legacy (rejected)
-	Action       map[string]any `json:"action,omitempty"` // V2 format
+	Type         string         `json:"type,omitempty"`
+	Data         map[string]any `json:"data,omitempty"`
+	Action       map[string]any `json:"action,omitempty"`
 	Position     map[string]any `json:"position,omitempty"`
-	ExecSettings map[string]any `json:"execution_settings,omitempty"` // V2 format
+	ExecSettings map[string]any `json:"execution_settings,omitempty"`
 }
 
-// isV2Format returns true if the node uses V2 proto-native format
-func (n rawNode) isV2Format() bool {
+// hasAction returns true if the node has an action field (required for all nodes).
+func (n rawNode) hasAction() bool {
 	return n.Action != nil
 }
 
-// getStepType extracts the step type from either V1 or V2 format
+// getStepType extracts the step type from the action field.
 func (n rawNode) getStepType() (string, error) {
-	if !n.isV2Format() {
-		return "", fmt.Errorf("legacy workflow node %s missing action; v1 node.type/node.data is no longer accepted", n.ID)
+	if !n.hasAction() {
+		return "", fmt.Errorf("workflow node %s missing required action field", n.ID)
 	}
-	// V2 format: action.type contains "ACTION_TYPE_CLICK" etc.
 	actionType, ok := n.Action["type"].(string)
 	if !ok || actionType == "" {
-		return "", fmt.Errorf("V2 node %s missing action.type", n.ID)
+		return "", fmt.Errorf("node %s missing action.type", n.ID)
 	}
 	return v2ActionTypeToStepType(actionType), nil
 }
 
-// getParams extracts params from either V1 or V2 format
+// getParams extracts params from the action field.
 func (n rawNode) getParams() map[string]any {
-	if n.isV2Format() {
-		return extractV2Params(n.Action)
+	if !n.hasAction() {
+		return nil
 	}
-	return nil
+	return extractV2Params(n.Action)
 }
 
-// v2ActionTypeToStepType converts V2 action type enum to V1 step type string
+// v2ActionTypeToStepType converts proto action type enum to step type string.
 func v2ActionTypeToStepType(actionType string) string {
 	switch actionType {
 	case "ACTION_TYPE_NAVIGATE":
@@ -293,7 +285,7 @@ func v2ActionTypeToStepType(actionType string) string {
 	}
 }
 
-// extractV2Params extracts params from V2 action structure.
+// extractV2Params extracts params from an action structure.
 func extractV2Params(action map[string]any) map[string]any {
 	params := make(map[string]any)
 
@@ -326,31 +318,20 @@ func extractV2Params(action map[string]any) map[string]any {
 	return params
 }
 
-// snakeToCamel converts snake_case to camelCase
-func snakeToCamel(s string) string {
-	parts := strings.Split(s, "_")
-	for i := 1; i < len(parts); i++ {
-		if len(parts[i]) > 0 {
-			parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
-		}
-	}
-	return strings.Join(parts, "")
-}
-
 type rawEdge struct {
 	ID             string         `json:"id"`
 	Source         string         `json:"source"`
 	Target         string         `json:"target"`
-	SourceHandle   string         `json:"sourceHandle,omitempty"`  // protojson (json_name, legacy)
-	TargetHandle   string         `json:"targetHandle,omitempty"`  // protojson (json_name, legacy)
-	SourceHandleV2 string         `json:"source_handle,omitempty"` // protojson (proto_name)
-	TargetHandleV2 string         `json:"target_handle,omitempty"` // protojson (proto_name)
+	SourceHandle   string         `json:"sourceHandle,omitempty"`  // camelCase (json_name)
+	TargetHandle   string         `json:"targetHandle,omitempty"`  // camelCase (json_name)
+	SourceHandleV2 string         `json:"source_handle,omitempty"` // snake_case (proto_name)
+	TargetHandleV2 string         `json:"target_handle,omitempty"` // snake_case (proto_name)
 	Data           map[string]any `json:"data,omitempty"`
-	Type           string         `json:"type,omitempty"`  // V2 format edge type
-	Label          string         `json:"label,omitempty"` // V2 format edge label
+	Type           string         `json:"type,omitempty"`
+	Label          string         `json:"label,omitempty"`
 }
 
-// getSourceHandle returns the source handle from either V1 or V2 format
+// getSourceHandle returns the source handle, preferring camelCase over snake_case.
 func (e rawEdge) getSourceHandle() string {
 	if e.SourceHandle != "" {
 		return e.SourceHandle
@@ -358,7 +339,7 @@ func (e rawEdge) getSourceHandle() string {
 	return e.SourceHandleV2
 }
 
-// getTargetHandle returns the target handle from either V1 or V2 format
+// getTargetHandle returns the target handle, preferring camelCase over snake_case.
 func (e rawEdge) getTargetHandle() string {
 	if e.TargetHandle != "" {
 		return e.TargetHandle
@@ -405,22 +386,21 @@ func extractViewportFromSettings(settings map[string]any) (int, int) {
 		return 0, 0
 	}
 
-	// Try V2 format first (proto fields; may be snake_case when UseProtoNames is enabled,
-	// or lowerCamel when using default protojson marshaling).
+	// Try snake_case (UseProtoNames: true).
 	width := toPositiveInt(settings["viewport_width"])
 	height := toPositiveInt(settings["viewport_height"])
 	if width > 0 && height > 0 {
 		return width, height
 	}
 
-	// Default protojson uses lowerCamel.
+	// Try camelCase (default protojson).
 	width = toPositiveInt(settings["viewportWidth"])
 	height = toPositiveInt(settings["viewportHeight"])
 	if width > 0 && height > 0 {
 		return width, height
 	}
 
-	// Fall back to V1 format (nested executionViewport object)
+	// Fall back to nested executionViewport object.
 	viewportValue, ok := settings["executionViewport"]
 	if !ok {
 		return 0, 0
@@ -442,7 +422,7 @@ func extractEntryFromSettings(settings map[string]any) (string, int) {
 		return "", 0
 	}
 
-	// Try V2 format first (snake_case)
+	// Try snake_case first.
 	if raw, ok := settings["entry_selector"]; ok {
 		if selector, ok := raw.(string); ok && strings.TrimSpace(selector) != "" {
 			timeout := toPositiveInt(settings["entry_selector_timeout_ms"])
@@ -450,7 +430,7 @@ func extractEntryFromSettings(settings map[string]any) (string, int) {
 		}
 	}
 
-	// Fall back to V1 format (camelCase)
+	// Fall back to camelCase.
 	raw, ok := settings["entrySelector"]
 	if !ok {
 		return "", 0
@@ -985,10 +965,10 @@ func loadSelectorManifest() error {
 		manifestPaths := []string{
 			filepath.Join(scenarioDir, "ui", "src", "consts", "selectors.manifest.json"),
 			filepath.Join(scenarioDir, "ui", "src", "constants", "selectors.manifest.json"),
-			"ui/src/consts/selectors.manifest.json",       // When running from scenario root (legacy)
-			"ui/src/constants/selectors.manifest.json",    // When running from scenario root (current)
-			"../ui/src/consts/selectors.manifest.json",    // When running from api/ subdirectory
-			"../ui/src/constants/selectors.manifest.json", // When running from api/ subdirectory
+			"ui/src/consts/selectors.manifest.json",
+			"ui/src/constants/selectors.manifest.json",
+			"../ui/src/consts/selectors.manifest.json",
+			"../ui/src/constants/selectors.manifest.json",
 		}
 
 		var data []byte
@@ -1021,7 +1001,6 @@ func loadSelectorManifest() error {
 
 // resolveSelectors resolves @selector/ references in step parameters to actual CSS selectors
 func resolveSelectors(step *ExecutionStep) error {
-	log.Printf("[SELECTOR_RESOLVE] resolveSelectors called for step type=%s nodeID=%s", step.Type, step.NodeID)
 	if step == nil || step.Params == nil {
 		return nil
 	}
@@ -1045,14 +1024,12 @@ func resolveSelectors(step *ExecutionStep) error {
 
 	for _, paramName := range selectorParams {
 		if selectorRef, ok := step.Params[paramName].(string); ok {
-			log.Printf("[SELECTOR_RESOLVE] checking param=%s value='%s' hasPrefix=%v", paramName, selectorRef, strings.HasPrefix(selectorRef, "@selector/"))
 			if strings.HasPrefix(selectorRef, "@selector/") {
 				hasSelectorsRefs = true
 				break
 			}
 		}
 	}
-	log.Printf("[SELECTOR_RESOLVE] hasSelectorsRefs=%v (will %s manifest loading)", hasSelectorsRefs, map[bool]string{true: "proceed with", false: "skip"}[hasSelectorsRefs])
 
 	// Only load manifest if we found @selector/ references
 	if !hasSelectorsRefs {
@@ -1073,19 +1050,12 @@ func resolveSelectors(step *ExecutionStep) error {
 				cleanedRef = cleanedRef[:idx]
 			}
 
-			// Debug logging - ALWAYS log selector processing
-			log.Printf("[SELECTOR_RESOLVE] param=%s original='%s' cleaned='%s'", paramName, selectorRef, cleanedRef)
-
 			// Try to resolve @selector/ references
 			if resolved := resolveSelectorReference(cleanedRef); resolved != "" {
-				log.Printf("[SELECTOR_RESOLVE] param=%s resolved='%s'", paramName, resolved)
 				step.Params[paramName] = resolved
 			} else if cleanedRef != selectorRef {
 				// No @selector/ reference, but we cleaned the /*dup-N*/ suffix
-				log.Printf("[SELECTOR_RESOLVE] param=%s no_manifest using_cleaned='%s'", paramName, cleanedRef)
 				step.Params[paramName] = cleanedRef
-			} else {
-				log.Printf("[SELECTOR_RESOLVE] param=%s unchanged='%s'", paramName, selectorRef)
 			}
 		}
 	}

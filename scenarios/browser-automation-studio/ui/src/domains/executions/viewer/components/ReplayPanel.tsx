@@ -1,5 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
-import type { TimelineFrame } from '@stores/executionStore';
+import type { TimelineFrame } from '../../store';
 import { selectors } from '@constants/selectors';
 import { formatCapturedLabel } from '../../utils/exportHelpers';
 import { formatSeconds } from '../useExecutionHeartbeat';

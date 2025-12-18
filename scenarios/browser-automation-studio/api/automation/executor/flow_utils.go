@@ -257,13 +257,8 @@ func IsPlanStepActionType(step contracts.PlanStep, actionType basactions.ActionT
 	return false
 }
 
-// actionTypeToString converts an ActionType enum to its string representation.
-//
-// NOTE: This is intentionally separate from typeconv.ActionTypeToString because it returns
-// legacy string representations (e.g., "type" instead of "input" for ACTION_TYPE_INPUT)
-// that match what legacy workflows stored in the Type field. This is necessary for
-// backward compatibility when comparing against legacy Type fields in IsActionType etc.
-// For new code that doesn't need legacy compatibility, use typeconv.ActionTypeToString.
+// actionTypeToString converts an ActionType enum to its canonical string representation.
+// This matches the strings defined in automation/actions (e.g., "type" for ACTION_TYPE_INPUT).
 func actionTypeToString(at basactions.ActionType) string {
 	switch at {
 	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
@@ -354,6 +349,7 @@ func actionToParams(action *basactions.ActionDefinition) map[string]any {
 
 // flattenActionParams flattens nested action params to top level.
 // e.g., {"click": {"selector": "x"}} → {"selector": "x"}
+// Also normalizes proto field names (snake_case) to executor-expected names (camelCase).
 func flattenActionParams(m map[string]any) map[string]any {
 	result := make(map[string]any)
 
@@ -367,7 +363,9 @@ func flattenActionParams(m map[string]any) map[string]any {
 			// Check if this is an action params object (e.g., click, input, navigate)
 			if isActionParamsKey(k) {
 				for nk, nv := range nested {
-					result[nk] = nv
+					// Normalize proto field names to executor-expected names
+					normalizedKey, normalizedValue := normalizeProtoParam(k, nk, nv)
+					result[normalizedKey] = normalizedValue
 				}
 				continue
 			}
@@ -375,6 +373,122 @@ func flattenActionParams(m map[string]any) map[string]any {
 		result[k] = v
 	}
 
+	return result
+}
+
+// normalizeProtoParam converts proto field names to executor-expected names.
+// This handles the mismatch between proto snake_case and executor camelCase conventions.
+func normalizeProtoParam(actionKey, paramKey string, value any) (string, any) {
+	// Loop action normalizations
+	if actionKey == "loop" {
+		return normalizeLoopParam(paramKey, value)
+	}
+	// Subflow action normalizations
+	if actionKey == "subflow" {
+		return normalizeSubflowParam(paramKey, value)
+	}
+	// Default: convert snake_case to camelCase
+	return snakeToCamel(paramKey), value
+}
+
+// normalizeLoopParam normalizes loop-specific proto params to executor-expected format.
+func normalizeLoopParam(key string, value any) (string, any) {
+	switch key {
+	case "loop_type":
+		// Convert "LOOP_TYPE_FOREACH" → "foreach"
+		if s, ok := value.(string); ok {
+			normalized := strings.ToLower(strings.TrimPrefix(s, "LOOP_TYPE_"))
+			return "loopType", normalized
+		}
+		return "loopType", value
+	case "count":
+		return "loopCount", value
+	case "max_iterations":
+		return "loopMaxIterations", value
+	case "array_source":
+		return "arraySource", value
+	case "item_variable":
+		return "itemVariable", value
+	case "index_variable":
+		return "indexVariable", value
+	case "iteration_timeout_ms":
+		return "iterationTimeoutMs", value
+	case "total_timeout_ms":
+		return "totalTimeoutMs", value
+	case "condition":
+		// Normalize nested condition object
+		if cond, ok := value.(map[string]any); ok {
+			return "condition", normalizeLoopCondition(cond)
+		}
+		return "condition", value
+	default:
+		return snakeToCamel(key), value
+	}
+}
+
+// normalizeLoopCondition normalizes loop condition params.
+func normalizeLoopCondition(cond map[string]any) map[string]any {
+	result := make(map[string]any, len(cond))
+	for k, v := range cond {
+		switch k {
+		case "type":
+			// Convert "LOOP_CONDITION_TYPE_VARIABLE" → "variable"
+			if s, ok := v.(string); ok {
+				result["conditionType"] = strings.ToLower(strings.TrimPrefix(s, "LOOP_CONDITION_TYPE_"))
+			} else {
+				result["conditionType"] = v
+			}
+		case "operator":
+			// Convert "LOOP_CONDITION_OPERATOR_EQUALS" → "equals"
+			if s, ok := v.(string); ok {
+				result["conditionOperator"] = strings.ToLower(strings.TrimPrefix(s, "LOOP_CONDITION_OPERATOR_"))
+			} else {
+				result["conditionOperator"] = v
+			}
+		case "variable":
+			result["conditionVariable"] = v
+		case "value":
+			result["conditionValue"] = v
+		case "expression":
+			result["conditionExpression"] = v
+		default:
+			result[snakeToCamel(k)] = v
+		}
+	}
+	return result
+}
+
+// normalizeSubflowParam normalizes subflow-specific proto params.
+func normalizeSubflowParam(key string, value any) (string, any) {
+	switch key {
+	case "workflow_id":
+		return "workflowId", value
+	case "workflow_path":
+		return "workflowPath", value
+	case "workflow_version":
+		return "workflowVersion", value
+	case "workflow_definition":
+		return "workflowDefinition", value
+	case "args":
+		// Convert args to parameters for executor compatibility
+		return "parameters", value
+	default:
+		return snakeToCamel(key), value
+	}
+}
+
+// snakeToCamel converts snake_case to camelCase.
+func snakeToCamel(s string) string {
+	parts := strings.Split(s, "_")
+	if len(parts) == 1 {
+		return s
+	}
+	result := parts[0]
+	for _, part := range parts[1:] {
+		if len(part) > 0 {
+			result += strings.ToUpper(part[:1]) + part[1:]
+		}
+	}
 	return result
 }
 

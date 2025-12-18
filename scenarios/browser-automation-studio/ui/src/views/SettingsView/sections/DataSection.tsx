@@ -11,8 +11,8 @@ import {
   Check,
 } from 'lucide-react';
 import { useSettingsStore } from '@stores/settingsStore';
-import { useProjectStore } from '@stores/projectStore';
-import { useExportStore } from '@stores/exportStore';
+import { useProjectStore } from '@/domains/projects';
+import { useExportStore } from '@/domains/exports';
 import { SettingSection } from './shared';
 
 export function DataSection() {

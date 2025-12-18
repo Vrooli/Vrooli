@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { Execution } from '@stores/executionStore';
+import type { Execution } from '../store';
 
 export type MockExecutionStoreState = {
   currentExecution: Execution | null;

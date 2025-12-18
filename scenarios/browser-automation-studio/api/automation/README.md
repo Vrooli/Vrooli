@@ -1,6 +1,6 @@
-# Automation Engine Refactor
+# Automation Engine
 
-This folder hosts the engine-agnostic automation stack we are building to replace the monolithic `browserless/client.go`. It introduces clear seams (engine / executor / recorder / events / contracts) so multiple automation engines (Browserless today, Desktop/Playwright next) can plug in without changing API or replay contracts.
+This folder hosts the engine-agnostic automation stack. It provides clear seams (engine / executor / recorder / events / contracts) so automation engines can plug in without changing API or replay contracts.
 
 ## Architecture at a Glance
 ```mermaid
@@ -42,8 +42,7 @@ Key invariants:
 
 ## Layout
 - `contracts/` — Stable payload shapes (`StepOutcome`, telemetry, capabilities, event envelopes) plus size limits and schema versions. Keep these backward-compatible; bump versions when shapes change.
-- `engine/` — `AutomationEngine` interface, env-based selection, static factory, and the `BrowserlessEngine` adapter around the existing CDP session.
-- Playwright desktop engine: local driver over HTTP; supports downloads/uploads/tracing/video flags for desktop bundles.
+- `engine/` — `AutomationEngine` interface, env-based selection, and static factory. The `PlaywrightEngine` drives a local Playwright driver over HTTP, supporting downloads/uploads/tracing/video for desktop bundles.
 - `executor/` — Orchestration (`SimpleExecutor`) that drives engines, emits heartbeats/telemetry, and enforces capability checks. `plan_builder.go` compiles workflows into the contract plan shape.
 - `execution-writer/` — Persists normalized outcomes/telemetry (`FileWriter`) while owning IDs/dedupe and storage uploads.
 - `events/` — Event sinks and sequencing/backpressure helpers. `ws_sink` bridges to the websocket hub; `memory_sink` supports tests.
@@ -54,11 +53,10 @@ Key invariants:
   - [recorder/README.md](recorder/README.md)
   - [events/README.md](events/README.md)
 
-### Legacy isolation
-- The legacy Browserless client (`browserless/client.go`) has been removed. Runtime execution flows exclusively through `automation/executor` + `PlaywrightEngine` + `FileWriter` + `WSHubSink`.
-- There is no feature-flag fallback to the legacy executor; `executeWithAutomationEngine` is the sole workflow execution path.
-- Subflows: only `subflow` nodes are supported for child execution; legacy `workflowCall` is rejected.
-- Engines: Playwright (local driver) is the only supported engine behind the `AutomationEngine` interface; select via `ENGINE` / `ENGINE_OVERRIDE` (defaults to `playwright`).
+### Engine Configuration
+- Runtime execution flows through `automation/executor` + `PlaywrightEngine` + `FileWriter` + `WSHubSink`.
+- Only `subflow` nodes are supported for child workflow execution.
+- Playwright (local driver) is the only supported engine; select via `ENGINE` / `ENGINE_OVERRIDE` env vars (defaults to `playwright`).
 
 ### Flow navigation (where complex orchestration lives)
 - Planning/compilation: `executor/plan_builder.go`
@@ -68,11 +66,10 @@ Key invariants:
 - Retry/heartbeat/normalization shell: `executor/simple_executor.go`
 - Future variable interpolation/cancellation/session policy should also land in `executor/` alongside these files so flow logic stays discoverable.
 
-## Feature Flags / Selection
+## Environment Variables
 - `ENGINE` sets the default engine (defaults to `playwright`).
 - `ENGINE_OVERRIDE` forces all executions to use a specific engine.
-- The automation executor is now the only execution path; `ENGINE_FEATURE_FLAG` / shadow mode are ignored for routing.
-- Playwright driver: set `PLAYWRIGHT_DRIVER_URL` to point at the local driver (defaults to `http://127.0.0.1:39400` for dev).
+- `PLAYWRIGHT_DRIVER_URL` points at the local driver (defaults to `http://127.0.0.1:39400` for dev).
 
 ## Current Coverage
 - Covered: linear + graph execution (repeat/forEach/while loops with executor-owned `set_variable`), `${var}` interpolation, heartbeats, retries, capability preflight, DB persistence of step outcomes/console/network/assert/assertion/screenshot artifacts, websocket event emission, clean reuse mode (session reset between steps).
@@ -85,14 +82,11 @@ Key invariants:
   - Artifact shaping: DOM truncation/dedupe, cursor trails/timeline framing payloads, screenshot handling parity, backpressure/drop counters.
   - Crash handling/recovery markers.
 
-## How to Gain Confidence (post-legacy removal)
-1. Grow executor/recorder contract tests (artifact shaping, capability gaps, telemetry/drop counters) to stand on their own without legacy comparisons.
-2. Expand executor parity features (variable interpolation, cancellation/timeout, reuse modes) until the suites are green.
-3. Codify capability matrix + artifact shaping and add targeted contract tests for truncation/dedupe/backpressure so the executor+recorder path stands on its own.
-
 ## Testing
 - Unit tests live alongside packages (`contracts_test.go`, `selection_test.go`, `simple_executor_test.go`, etc.).
-- Integration tests should prefer `testcontainers-go` + `FileWriter` + `MemorySink` so we exercise real persistence and event sequencing without relying on Browserless.
+- Integration tests should use `testcontainers-go` + `FileWriter` + `MemorySink` to exercise real persistence and event sequencing.
+- Grow executor/recorder contract tests (artifact shaping, capability gaps, telemetry/drop counters).
+- Codify capability matrix + artifact shaping and add targeted contract tests for truncation/dedupe/backpressure.
 ## What to Tackle Next
 1) Executor parity: fill gaps for variable interpolation, retry taxonomy, reuse/clean/fresh, cancellation/timeout, cursor trails/timeline framing, DOM truncation/dedupe.
 2) Capability matrix: codify workflow feature → capability requirements (HAR, multi-tab, upload/download) and fail fast when unsupported.

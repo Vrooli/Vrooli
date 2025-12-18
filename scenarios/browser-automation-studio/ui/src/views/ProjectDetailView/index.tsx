@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
-import { useProjectStore, type Project } from '@stores/projectStore';
+import { useProjectStore, type Project } from '@/domains/projects';
 import { useWorkflowStore } from '@stores/workflowStore';
 import { useModals } from '@shared/modals';
 import { logger } from '@utils/logger';

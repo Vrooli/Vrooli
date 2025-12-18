@@ -5,8 +5,8 @@ import {
   useRef,
   useState,
 } from "react";
-import type { Execution, TimelineFrame } from "@stores/executionStore";
-import type { Export } from "@stores/exportStore";
+import type { Execution, TimelineFrame } from "../store";
+import type { Export } from "@/domains/exports";
 import type {
   ReplayMovieFrameRect,
   ReplayMoviePresentation,

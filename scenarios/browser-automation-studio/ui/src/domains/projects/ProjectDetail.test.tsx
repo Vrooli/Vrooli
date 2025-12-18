@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "@/test-utils/testHelpers";
-import type { Project } from "@stores/projectStore";
+import type { Project } from "./store";
 import ProjectDetail from "./ProjectDetail";
 import { selectors } from "@constants/selectors";
 
@@ -18,7 +18,7 @@ const executionStoreState = {
   executions: [],
 };
 
-vi.mock("@stores/projectStore", () => ({
+vi.mock("./store", () => ({
   __esModule: true,
   useProjectStore: vi.fn(
     (
@@ -46,7 +46,7 @@ vi.mock("@stores/workflowStore", () => ({
   ),
 }));
 
-vi.mock("@stores/executionStore", () => {
+vi.mock("@/domains/executions", () => {
   const mockUseExecutionStore = vi.fn(
     (selector?: (state: typeof executionStoreState) => unknown) => {
       return typeof selector === "function"
@@ -59,6 +59,8 @@ vi.mock("@stores/executionStore", () => {
   return {
     __esModule: true,
     useExecutionStore: mockUseExecutionStore,
+    ExecutionHistory: () => null,
+    ExecutionViewer: () => null,
   };
 });
 

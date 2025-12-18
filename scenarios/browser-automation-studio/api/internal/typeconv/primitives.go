@@ -392,13 +392,13 @@ func StringToActionType(actionType string) basactions.ActionType {
 	}
 }
 
-// ActionTypeToString converts an ActionType enum to its canonical string representation.
+// ActionTypeToString converts an ActionType enum to a proto-aligned string representation.
 // Returns "unknown" for unrecognized types.
 //
 // NOTE: automation/executor/flow_utils.go has a local actionTypeToString that returns
-// "type" instead of "input" for ACTION_TYPE_INPUT. This is intentional for backward
-// compatibility with legacy workflows that stored "type" in the Type field.
-// Use this function for new code; the legacy version is only for Type field comparisons.
+// the canonical action type strings (e.g., "type" for ACTION_TYPE_INPUT) matching
+// the constants in automation/actions. This function returns proto-aligned names
+// (e.g., "input" for ACTION_TYPE_INPUT). Use the appropriate version based on context.
 func ActionTypeToString(actionType basactions.ActionType) string {
 	switch actionType {
 	case basactions.ActionType_ACTION_TYPE_NAVIGATE:

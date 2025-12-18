@@ -4,9 +4,9 @@ import {
   FileTreeItem,
   type FileTreeNode,
 } from "./FileTree";
-import type { Project } from "@stores/projectStore";
+import type { Project } from "./store";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
-import { useExecutionStore } from "@stores/executionStore";
+import { useExecutionStore } from "@/domains/executions";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { usePromptDialog } from "@hooks/usePromptDialog";
 import { ConfirmDialog, PromptDialog } from "@shared/ui";

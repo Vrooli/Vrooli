@@ -22,7 +22,7 @@ import { useAppShortcuts } from '@shared/hooks/useAppShortcuts';
 import { useEntitlementInit } from '@hooks/useEntitlement';
 import { useScheduleNotifications } from '@hooks/useScheduleNotifications';
 import { useScenarioStore } from '@stores/scenarioStore';
-import { useProjectStore, type Project } from '@stores/projectStore';
+import { useProjectStore, type Project } from '@/domains/projects';
 
 // Shared UI
 import { LoadingSpinner } from '@shared/ui';

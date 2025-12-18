@@ -102,7 +102,6 @@ func lintSelectorValue(selector, pointer, nodeID, nodeType string, registry map[
 
 // lintKeyboardNode validates keyboard input node configuration.
 func lintKeyboardNode(node map[string]any, data map[string]any, idx int) ([]Issue, []Issue) {
-	var warnings []Issue
 	nodeID := getString(node["id"])
 	nodeType := getString(node["type"])
 	pointer := fmt.Sprintf("/nodes/%d/data", idx)
@@ -115,15 +114,15 @@ func lintKeyboardNode(node map[string]any, data map[string]any, idx int) ([]Issu
 	}
 
 	if key := strings.TrimSpace(getString(data["key"])); key != "" {
-		warnings = append(warnings, Issue{
-			Severity: SeverityWarning,
-			Code:     "WF_KEYBOARD_KEY_FIELD",
-			Message:  "Keyboard node uses deprecated 'key' field; prefer 'keys' array",
+		return []Issue{{
+			Severity: SeverityError,
+			Code:     "WF_KEYBOARD_KEY_FIELD_REMOVED",
+			Message:  "Keyboard node uses removed 'key' field; migrate to 'keys' array",
 			NodeID:   nodeID,
 			NodeType: nodeType,
 			Pointer:  pointer + "/key",
-		})
-		return nil, warnings
+			Hint:     "Replace {\"key\": \"" + key + "\"} with {\"keys\": [\"" + key + "\"]}",
+		}}, nil
 	}
 
 	return []Issue{{

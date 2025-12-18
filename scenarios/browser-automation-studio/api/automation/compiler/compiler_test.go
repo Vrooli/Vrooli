@@ -128,11 +128,77 @@ func TestCompileWorkflowUnsupportedType(t *testing.T) {
 }
 
 func TestCompileWorkflowLoopExtractsBody(t *testing.T) {
-	// Note: Loop actions don't have a direct proto ActionType - they use a custom internal type.
-	// The compiler handles "loop" as a special V1-format step type.
-	// For proto-based tests, we'd need to skip or rework this test.
-	// For now, skip until V2 loop actions are defined in proto.
-	t.Skip("Loop actions require V1-format node structure - skip until V2 loop proto support is added")
+	// Create a workflow with a loop node using proper V2 ActionDefinition.
+	// The loop node connects to body nodes via edges with "loopbody" source handle.
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"loop-test",
+		[]*basworkflows.WorkflowNodeV2{
+			{
+				Id: "loop-1",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_LOOP,
+					Params: &basactions.ActionDefinition_Loop{
+						Loop: &basactions.LoopParams{
+							LoopType:      basactions.LoopType_LOOP_TYPE_FOREACH,
+							ArraySource:   ptr("${items}"),
+							ItemVariable:  ptr("item"),
+							MaxIterations: ptr(int32(100)),
+						},
+					},
+				},
+				Position: &basbase.NodePosition{X: 0, Y: 0},
+			},
+			{
+				Id: "body-click",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_CLICK,
+					Params: &basactions.ActionDefinition_Click{
+						Click: &basactions.ClickParams{
+							Selector: "#item-btn",
+						},
+					},
+				},
+				Position: &basbase.NodePosition{X: 100, Y: 100},
+			},
+		},
+		[]*basworkflows.WorkflowEdgeV2{
+			{
+				Id:           "e-loop-body",
+				Source:       "loop-1",
+				Target:       "body-click",
+				SourceHandle: ptr("loopbody"), // Special handle indicating loop body connection
+			},
+			{
+				Id:           "e-body-continue",
+				Source:       "body-click",
+				Target:       "loop-1",
+				TargetHandle: ptr("loopcontinue"), // Return to loop for next iteration
+			},
+		},
+	)
+
+	plan, err := CompileWorkflow(workflow)
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+
+	// The main plan should have exactly 1 step (the loop itself)
+	// because body nodes are extracted into the loop's sub-plan
+	require.Len(t, plan.Steps, 1, "main plan should have 1 step (the loop)")
+
+	loopStep := plan.Steps[0]
+	assert.Equal(t, "loop-1", loopStep.NodeID)
+	assert.Equal(t, StepLoop, loopStep.Type)
+
+	// Verify loop body was extracted
+	require.NotNil(t, loopStep.LoopPlan, "loop step should have a body plan")
+	require.Len(t, loopStep.LoopPlan.Steps, 1, "loop body should have 1 step")
+	assert.Equal(t, "body-click", loopStep.LoopPlan.Steps[0].NodeID)
+	assert.Equal(t, StepClick, loopStep.LoopPlan.Steps[0].Type)
+
+	// Verify loop params were extracted
+	assert.Equal(t, "${items}", loopStep.Params["array_source"])
+	assert.Equal(t, "item", loopStep.Params["item_variable"])
 }
 
 func TestCompileWorkflowEntryMetadata(t *testing.T) {
@@ -383,8 +449,7 @@ func TestCompileWorkflow_MissingActionRejected(t *testing.T) {
 
 	_, err := CompileWorkflow(workflow)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "missing action")
-	require.Contains(t, err.Error(), "no longer accepted")
+	require.Contains(t, err.Error(), "missing required action field")
 }
 
 func TestCompileWorkflow_WhitespaceOnlyStepTypeError(t *testing.T) {
@@ -778,13 +843,149 @@ func TestUniqueStrings(t *testing.T) {
 // =============================================================================
 
 func TestCompileWorkflow_LoopWithNoBody(t *testing.T) {
-	// Loop actions require V1-format node structure until V2 loop proto support is added
-	t.Skip("Loop actions require V1-format node structure - skip until V2 loop proto support is added")
+	// A loop node without any body connections should produce an error.
+	// The compiler requires at least one edge with "loopbody" source handle.
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"loop-no-body",
+		[]*basworkflows.WorkflowNodeV2{
+			{
+				Id: "loop-orphan",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_LOOP,
+					Params: &basactions.ActionDefinition_Loop{
+						Loop: &basactions.LoopParams{
+							LoopType:      basactions.LoopType_LOOP_TYPE_REPEAT,
+							Count:         ptr(int32(5)),
+							MaxIterations: ptr(int32(10)),
+						},
+					},
+				},
+				Position: &basbase.NodePosition{X: 0, Y: 0},
+			},
+		},
+		[]*basworkflows.WorkflowEdgeV2{}, // No edges - no body connection
+	)
+
+	_, err := CompileWorkflow(workflow)
+	require.Error(t, err, "loop without body should produce an error")
+	assert.Contains(t, err.Error(), "requires at least one body connection")
 }
 
 func TestCompileWorkflow_LoopWithMultipleBodySteps(t *testing.T) {
-	// Loop actions require V1-format node structure until V2 loop proto support is added
-	t.Skip("Loop actions require V1-format node structure - skip until V2 loop proto support is added")
+	// A loop with multiple body steps chained together.
+	// Loop → body-step-1 → body-step-2 → body-step-3 → (continue back to loop)
+	workflow := makeTestWorkflow(
+		uuid.New(),
+		"loop-multi-body",
+		[]*basworkflows.WorkflowNodeV2{
+			{
+				Id: "loop-main",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_LOOP,
+					Params: &basactions.ActionDefinition_Loop{
+						Loop: &basactions.LoopParams{
+							LoopType:      basactions.LoopType_LOOP_TYPE_FOREACH,
+							ArraySource:   ptr("${users}"),
+							ItemVariable:  ptr("user"),
+							IndexVariable: ptr("idx"),
+							MaxIterations: ptr(int32(50)),
+						},
+					},
+				},
+				Position: &basbase.NodePosition{X: 0, Y: 0},
+			},
+			{
+				Id: "body-step-1",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_CLICK,
+					Params: &basactions.ActionDefinition_Click{
+						Click: &basactions.ClickParams{Selector: "#user-${idx}"},
+					},
+				},
+				Position: &basbase.NodePosition{X: 100, Y: 100},
+			},
+			{
+				Id: "body-step-2",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_WAIT,
+					Params: &basactions.ActionDefinition_Wait{
+						Wait: &basactions.WaitParams{
+							WaitFor: &basactions.WaitParams_DurationMs{DurationMs: 500},
+						},
+					},
+				},
+				Position: &basbase.NodePosition{X: 200, Y: 100},
+			},
+			{
+				Id: "body-step-3",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_SCREENSHOT,
+					Params: &basactions.ActionDefinition_Screenshot{
+						Screenshot: &basactions.ScreenshotParams{},
+					},
+				},
+				Position: &basbase.NodePosition{X: 300, Y: 100},
+			},
+		},
+		[]*basworkflows.WorkflowEdgeV2{
+			// Loop to first body step
+			{
+				Id:           "e-loop-to-body1",
+				Source:       "loop-main",
+				Target:       "body-step-1",
+				SourceHandle: ptr("loopbody"),
+			},
+			// Chain body steps together
+			{
+				Id:     "e-body1-to-body2",
+				Source: "body-step-1",
+				Target: "body-step-2",
+			},
+			{
+				Id:     "e-body2-to-body3",
+				Source: "body-step-2",
+				Target: "body-step-3",
+			},
+			// Last body step returns to loop
+			{
+				Id:           "e-body3-continue",
+				Source:       "body-step-3",
+				Target:       "loop-main",
+				TargetHandle: ptr("loopcontinue"),
+			},
+		},
+	)
+
+	plan, err := CompileWorkflow(workflow)
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+
+	// Main plan should have only the loop step
+	require.Len(t, plan.Steps, 1, "main plan should have 1 step (the loop)")
+
+	loopStep := plan.Steps[0]
+	assert.Equal(t, "loop-main", loopStep.NodeID)
+	assert.Equal(t, StepLoop, loopStep.Type)
+
+	// Loop body should have all 3 steps in correct order
+	require.NotNil(t, loopStep.LoopPlan, "loop step should have a body plan")
+	require.Len(t, loopStep.LoopPlan.Steps, 3, "loop body should have 3 steps")
+
+	// Verify step order (topological sort should maintain edge order)
+	assert.Equal(t, "body-step-1", loopStep.LoopPlan.Steps[0].NodeID)
+	assert.Equal(t, StepClick, loopStep.LoopPlan.Steps[0].Type)
+
+	assert.Equal(t, "body-step-2", loopStep.LoopPlan.Steps[1].NodeID)
+	assert.Equal(t, StepWait, loopStep.LoopPlan.Steps[1].Type)
+
+	assert.Equal(t, "body-step-3", loopStep.LoopPlan.Steps[2].NodeID)
+	assert.Equal(t, StepScreenshot, loopStep.LoopPlan.Steps[2].Type)
+
+	// Verify loop params
+	assert.Equal(t, "${users}", loopStep.Params["array_source"])
+	assert.Equal(t, "user", loopStep.Params["item_variable"])
+	assert.Equal(t, "idx", loopStep.Params["index_variable"])
 }
 
 // =============================================================================

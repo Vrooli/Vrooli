@@ -890,10 +890,7 @@ func ProtoToExecutionPlan(pb *basexecution.ExecutionPlan) *autocontracts.Executi
 }
 
 // CompiledInstructionToProto converts a native CompiledInstruction to proto.
-//
-// The typed Action field is the canonical representation. Legacy Type/Params fields
-// are no longer populated - all consumers have migrated to the typed action system.
-// The proto schema retains these fields for wire compatibility but they are not used.
+// The typed Action field is the canonical representation.
 func CompiledInstructionToProto(instr *autocontracts.CompiledInstruction) *basexecution.CompiledInstruction {
 	if instr == nil {
 		return nil
@@ -908,10 +905,6 @@ func CompiledInstructionToProto(instr *autocontracts.CompiledInstruction) *basex
 	if instr.Action != nil {
 		pb.Action = instr.Action
 	}
-
-	// NOTE: Legacy Type/Params fields are intentionally not populated.
-	// All consumers now use the typed Action field. Keeping them empty
-	// reduces JSON payload size and avoids expensive toJsonValueMap() calls.
 
 	if instr.PreloadHTML != "" {
 		pb.PreloadHtml = &instr.PreloadHTML
@@ -983,9 +976,7 @@ func ProtoToPlanGraph(pb *basexecution.PlanGraph) *autocontracts.PlanGraph {
 }
 
 // PlanStepToProto converts a native PlanStep to proto.
-//
-// The typed Action field is the canonical representation. Legacy Type/Params fields
-// are no longer populated - all consumers have migrated to the typed action system.
+// The typed Action field is the canonical representation.
 func PlanStepToProto(step *autocontracts.PlanStep) *basexecution.PlanStep {
 	if step == nil {
 		return nil
@@ -996,13 +987,9 @@ func PlanStepToProto(step *autocontracts.PlanStep) *basexecution.PlanStep {
 		NodeId: step.NodeID,
 	}
 
-	// Typed action field - the canonical representation
 	if step.Action != nil {
 		pb.Action = step.Action
 	}
-
-	// NOTE: Legacy Type/Params fields are intentionally not populated.
-	// All consumers now use the typed Action field.
 
 	for _, edge := range step.Outgoing {
 		pb.Outgoing = append(pb.Outgoing, PlanEdgeToProto(&edge))
