@@ -236,21 +236,21 @@ func (c *Collector) Snapshot() map[string]interface{} {
 	defer c.mu.RUnlock()
 
 	snapshot := map[string]interface{}{
-		"sandbox_created_total":       atomic.LoadInt64(&c.sandboxCreatedTotal),
-		"sandbox_stopped_total":       atomic.LoadInt64(&c.sandboxStoppedTotal),
-		"sandbox_approved_total":      atomic.LoadInt64(&c.sandboxApprovedTotal),
-		"sandbox_rejected_total":      atomic.LoadInt64(&c.sandboxRejectedTotal),
-		"sandbox_deleted_total":       atomic.LoadInt64(&c.sandboxDeletedTotal),
-		"sandbox_errors_total":        atomic.LoadInt64(&c.sandboxErrorsTotal),
-		"gc_runs_total":               atomic.LoadInt64(&c.gcRunsTotal),
-		"gc_sandboxes_deleted_total":  atomic.LoadInt64(&c.gcSandboxesDeleted),
-		"diff_generations_total":      atomic.LoadInt64(&c.diffGenerationsTotal),
-		"patch_applications_total":    atomic.LoadInt64(&c.patchApplicationTotal),
-		"active_sandboxes":            atomic.LoadInt64(&c.activeSandboxes),
-		"total_disk_usage_bytes":      atomic.LoadInt64(&c.totalDiskUsageBytes),
-		"process_count":               atomic.LoadInt64(&c.processCount),
-		"create_latency_samples":      len(c.createLatencies),
-		"diff_latency_samples":        len(c.diffLatencies),
+		"sandbox_created_total":      atomic.LoadInt64(&c.sandboxCreatedTotal),
+		"sandbox_stopped_total":      atomic.LoadInt64(&c.sandboxStoppedTotal),
+		"sandbox_approved_total":     atomic.LoadInt64(&c.sandboxApprovedTotal),
+		"sandbox_rejected_total":     atomic.LoadInt64(&c.sandboxRejectedTotal),
+		"sandbox_deleted_total":      atomic.LoadInt64(&c.sandboxDeletedTotal),
+		"sandbox_errors_total":       atomic.LoadInt64(&c.sandboxErrorsTotal),
+		"gc_runs_total":              atomic.LoadInt64(&c.gcRunsTotal),
+		"gc_sandboxes_deleted_total": atomic.LoadInt64(&c.gcSandboxesDeleted),
+		"diff_generations_total":     atomic.LoadInt64(&c.diffGenerationsTotal),
+		"patch_applications_total":   atomic.LoadInt64(&c.patchApplicationTotal),
+		"active_sandboxes":           atomic.LoadInt64(&c.activeSandboxes),
+		"total_disk_usage_bytes":     atomic.LoadInt64(&c.totalDiskUsageBytes),
+		"process_count":              atomic.LoadInt64(&c.processCount),
+		"create_latency_samples":     len(c.createLatencies),
+		"diff_latency_samples":       len(c.diffLatencies),
 	}
 
 	if len(c.createLatencies) > 0 {

@@ -16,10 +16,10 @@ import (
 type DriverOptionID string
 
 const (
-	DriverOptionOverlayfsUserNS   DriverOptionID = "overlayfs-userns"
-	DriverOptionOverlayfsRoot     DriverOptionID = "overlayfs-root"
-	DriverOptionFuseOverlayfs     DriverOptionID = "fuse-overlayfs"
-	DriverOptionCopy              DriverOptionID = "copy"
+	DriverOptionOverlayfsUserNS DriverOptionID = "overlayfs-userns"
+	DriverOptionOverlayfsRoot   DriverOptionID = "overlayfs-root"
+	DriverOptionFuseOverlayfs   DriverOptionID = "fuse-overlayfs"
+	DriverOptionCopy            DriverOptionID = "copy"
 )
 
 // Requirement represents a single requirement for a driver option.
@@ -185,8 +185,8 @@ func buildOverlayfsUserNSOption() DriverOption {
 	// Requirement 2: User namespaces enabled
 	usernsOK := canCreateUserNamespace()
 	opt.Requirements = append(opt.Requirements, Requirement{
-		Name:    "User namespaces enabled",
-		Met:     usernsOK,
+		Name: "User namespaces enabled",
+		Met:  usernsOK,
 		Current: func() string {
 			if usernsOK {
 				return "enabled"
@@ -204,8 +204,8 @@ func buildOverlayfsUserNSOption() DriverOption {
 	// Requirement 3: unshare command available
 	unshareOK := commandExists("unshare")
 	opt.Requirements = append(opt.Requirements, Requirement{
-		Name:    "unshare command",
-		Met:     unshareOK,
+		Name: "unshare command",
+		Met:  unshareOK,
 		Current: func() string {
 			if unshareOK {
 				return "installed"
@@ -252,8 +252,8 @@ func buildFuseOverlayfsOption() DriverOption {
 	// Requirement 1: fuse-overlayfs installed
 	fuseOverlayfsOK := commandExists("fuse-overlayfs")
 	opt.Requirements = append(opt.Requirements, Requirement{
-		Name:    "fuse-overlayfs installed",
-		Met:     fuseOverlayfsOK,
+		Name: "fuse-overlayfs installed",
+		Met:  fuseOverlayfsOK,
 		Current: func() string {
 			if fuseOverlayfsOK {
 				return getCommandVersion("fuse-overlayfs", "--version")
@@ -271,8 +271,8 @@ func buildFuseOverlayfsOption() DriverOption {
 	// Requirement 2: FUSE available
 	fuseOK := fuseAvailable()
 	opt.Requirements = append(opt.Requirements, Requirement{
-		Name:    "FUSE available",
-		Met:     fuseOK,
+		Name: "FUSE available",
+		Met:  fuseOK,
 		Current: func() string {
 			if fuseOK {
 				return "/dev/fuse exists"
@@ -290,8 +290,8 @@ func buildFuseOverlayfsOption() DriverOption {
 	// Requirement 3: fusermount available
 	fusermountOK := commandExists("fusermount") || commandExists("fusermount3")
 	opt.Requirements = append(opt.Requirements, Requirement{
-		Name:    "fusermount command",
-		Met:     fusermountOK,
+		Name: "fusermount command",
+		Met:  fusermountOK,
 		Current: func() string {
 			if fusermountOK {
 				return "installed"
@@ -352,8 +352,8 @@ func buildOverlayfsRootOption() DriverOption {
 	privilegedOK := isRoot || hasCapSysAdmin
 
 	opt.Requirements = append(opt.Requirements, Requirement{
-		Name:    "Root or CAP_SYS_ADMIN",
-		Met:     privilegedOK,
+		Name: "Root or CAP_SYS_ADMIN",
+		Met:  privilegedOK,
 		Current: func() string {
 			if isRoot {
 				return "running as root"
@@ -374,8 +374,8 @@ func buildOverlayfsRootOption() DriverOption {
 	// Requirement 2: Overlayfs module available
 	overlayOK := overlayfsModuleAvailable()
 	opt.Requirements = append(opt.Requirements, Requirement{
-		Name:    "Overlayfs kernel module",
-		Met:     overlayOK,
+		Name: "Overlayfs kernel module",
+		Met:  overlayOK,
 		Current: func() string {
 			if overlayOK {
 				return "loaded"
@@ -515,7 +515,7 @@ func testMountOverlayfs() bool {
 	merged := tmpDir + "/merged"
 
 	for _, dir := range []string{lower, upper, work, merged} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return false
 		}
 	}

@@ -30,19 +30,19 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input, Label } from "./ui/input";
-import type { Sandbox } from "../lib/api";
+import type { Sandbox, IsolationProfile } from "../lib/api";
+import { useProfiles, useExecutionConfig } from "../lib/hooks";
 import { SELECTORS } from "../consts/selectors";
 
 // --- Types ---
 
 export type ExecutionMode = "exec" | "run" | "interactive";
-export type IsolationLevel = "full" | "vrooli-aware";
 
 export interface LaunchConfig {
   mode: ExecutionMode;
   command: string;
   args: string[];
-  isolationLevel: IsolationLevel;
+  isolationProfile: string; // Profile ID
   memoryLimitMB?: number;
   cpuTimeSec?: number;
   timeoutSec?: number;
@@ -98,38 +98,49 @@ const EXECUTION_MODES: Array<{
   },
 ];
 
-const ISOLATION_LEVELS: Array<{
-  id: IsolationLevel;
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  access: string[];
-  blocked: string[];
-}> = [
-  {
-    id: "full",
-    icon: Lock,
-    title: "Full Isolation",
-    description: "Agent only sees /workspace. Maximum safety.",
-    access: ["/workspace (read/write)", "/workspace-readonly (read-only)", "System binaries"],
-    blocked: ["Network", "Home directory", "Vrooli CLIs", "Other sandboxes"],
-  },
-  {
-    id: "vrooli-aware",
-    icon: Link,
-    title: "Vrooli-Aware",
-    description: "Can access Vrooli CLIs, configs, and localhost APIs.",
-    access: [
-      "/workspace (read/write)",
-      "~/.local/bin/ (Vrooli CLIs)",
-      "~/.config/vrooli/ (configs)",
-      "Localhost network",
-    ],
-    blocked: ["External network", "Other sandboxes", "Home directory (rest)"],
-  },
-];
-
 // --- Helper Components ---
+
+// Get icon for profile based on network access and builtin status
+function getProfileIcon(profile: IsolationProfile): React.ElementType {
+  if (profile.networkAccess === "none") return Lock;
+  if (profile.networkAccess === "localhost") return Link;
+  return Network;
+}
+
+// Generate access/blocked summary for profile display
+function getProfileSummary(profile: IsolationProfile): { access: string[]; blocked: string[] } {
+  const access: string[] = ["/workspace (read/write)"];
+  const blocked: string[] = [];
+
+  // Add read-only binds to access
+  const roBinds = Object.values(profile.readOnlyBinds || {});
+  if (roBinds.length > 0) {
+    access.push(...roBinds.slice(0, 3).map(p => `${p} (ro)`));
+    if (roBinds.length > 3) access.push(`+${roBinds.length - 3} more paths`);
+  }
+
+  // Add read-write binds to access
+  const rwBinds = Object.values(profile.readWriteBinds || {});
+  if (rwBinds.length > 0) {
+    access.push(...rwBinds.slice(0, 2).map(p => `${p} (rw)`));
+    if (rwBinds.length > 2) access.push(`+${rwBinds.length - 2} more paths`);
+  }
+
+  // Network access
+  if (profile.networkAccess === "none") {
+    blocked.push("Network access");
+  } else if (profile.networkAccess === "localhost") {
+    access.push("Localhost network");
+    blocked.push("External network");
+  } else {
+    access.push("Full network access");
+  }
+
+  // Common blocked items
+  blocked.push("Other sandboxes");
+
+  return { access, blocked };
+}
 
 function ModeCard({
   mode,
@@ -181,22 +192,22 @@ function ModeCard({
 }
 
 function IsolationCard({
-  level,
+  profile,
   selected,
   onSelect,
 }: {
-  level: (typeof ISOLATION_LEVELS)[0];
+  profile: IsolationProfile;
   selected: boolean;
   onSelect: () => void;
 }) {
-  const Icon = level.icon;
+  const Icon = getProfileIcon(profile);
 
   return (
     <button
       type="button"
       onClick={onSelect}
       className={`
-        flex-1 flex flex-col p-3 rounded-lg border transition-all text-left
+        flex-1 flex flex-col p-3 rounded-lg border transition-all text-left min-w-0
         ${
           selected
             ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500"
@@ -206,17 +217,22 @@ function IsolationCard({
     >
       <div className="flex items-center gap-2 mb-2">
         <Icon
-          className={`h-4 w-4 ${selected ? "text-emerald-400" : "text-slate-400"}`}
+          className={`h-4 w-4 flex-shrink-0 ${selected ? "text-emerald-400" : "text-slate-400"}`}
         />
         <span
-          className={`text-sm font-medium ${
+          className={`text-sm font-medium truncate ${
             selected ? "text-emerald-200" : "text-slate-200"
           }`}
         >
-          {level.title}
+          {profile.name}
         </span>
+        {profile.builtin && (
+          <span className="text-[10px] px-1 py-0.5 rounded bg-slate-700 text-slate-400 flex-shrink-0">
+            Built-in
+          </span>
+        )}
       </div>
-      <span className="text-xs text-slate-500">{level.description}</span>
+      <span className="text-xs text-slate-500 line-clamp-2">{profile.description}</span>
     </button>
   );
 }
@@ -314,12 +330,35 @@ export function LaunchAgentDialog({
   onLaunch,
   isLaunching,
 }: LaunchAgentDialogProps) {
-  // Form state
+  // Fetch profiles and execution config from API
+  const profilesQuery = useProfiles();
+  const execConfigQuery = useExecutionConfig();
+  const profiles = profilesQuery.data || [];
+  const execConfig = execConfigQuery.data;
+
+  // Get configured defaults for display
+  const configuredDefaults = execConfig?.defaultResourceLimits;
+  const configuredMaxes = execConfig?.maxResourceLimits;
+
+  // Form state - use configured default profile if available
   const [mode, setMode] = useState<ExecutionMode>("exec");
-  const [isolationLevel, setIsolationLevel] = useState<IsolationLevel>("full");
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [commandInput, setCommandInput] = useState("");
   const [name, setName] = useState("");
   const [workingDir, setWorkingDir] = useState("/workspace");
+
+  // Set default profile from config when it loads
+  useEffect(() => {
+    if (execConfig?.defaultIsolationProfile && !selectedProfileId) {
+      setSelectedProfileId(execConfig.defaultIsolationProfile);
+    }
+  }, [execConfig?.defaultIsolationProfile, selectedProfileId]);
+
+  // Fallback to "full" if no profile selected and no config
+  const effectiveProfileId = selectedProfileId || execConfig?.defaultIsolationProfile || "full";
+
+  // Get the currently selected profile
+  const selectedProfile = profiles.find(p => p.id === effectiveProfileId) || profiles[0];
 
   // Resource limits
   const [memoryMB, setMemoryMB] = useState("");
@@ -356,13 +395,13 @@ export function LaunchAgentDialog({
       mode,
       command,
       args,
-      isolationLevel,
+      isolationProfile: effectiveProfileId,
       memoryLimitMB: memoryMB ? parseInt(memoryMB, 10) : undefined,
       cpuTimeSec: cpuTimeSec ? parseInt(cpuTimeSec, 10) : undefined,
       timeoutSec: timeoutSec ? parseInt(timeoutSec, 10) : undefined,
       maxProcesses: maxProcs ? parseInt(maxProcs, 10) : undefined,
       maxOpenFiles: maxFiles ? parseInt(maxFiles, 10) : undefined,
-      allowNetwork: isolationLevel === "vrooli-aware" ? true : allowNetwork,
+      allowNetwork: selectedProfile?.networkAccess !== "none" ? true : allowNetwork,
       env: {},
       workingDir,
       name: name || undefined,
@@ -371,7 +410,8 @@ export function LaunchAgentDialog({
       mode,
       command,
       args,
-      isolationLevel,
+      effectiveProfileId,
+      selectedProfile,
       memoryMB,
       cpuTimeSec,
       timeoutSec,
@@ -403,8 +443,8 @@ export function LaunchAgentDialog({
     if (timeoutSec && mode === "exec") parts.push(`--timeout=${timeoutSec}`);
     if (maxProcs) parts.push(`--max-procs=${maxProcs}`);
     if (maxFiles) parts.push(`--max-files=${maxFiles}`);
-    if (isolationLevel === "vrooli-aware") parts.push("--vrooli-aware");
-    if (allowNetwork && isolationLevel !== "vrooli-aware") parts.push("--network");
+    if (effectiveProfileId !== "full") parts.push(`--profile=${effectiveProfileId}`);
+    if (allowNetwork && selectedProfile?.networkAccess === "none") parts.push("--network");
     if (workingDir !== "/workspace") parts.push(`--workdir=${workingDir}`);
 
     // For shell command without explicit command, don't add --
@@ -425,7 +465,8 @@ export function LaunchAgentDialog({
     timeoutSec,
     maxProcs,
     maxFiles,
-    isolationLevel,
+    effectiveProfileId,
+    selectedProfile,
     allowNetwork,
     workingDir,
     commandInput,
@@ -439,7 +480,7 @@ export function LaunchAgentDialog({
       const wsBody: Record<string, unknown> = {
         command: command || "/bin/sh",
         args: args.length > 0 ? args : undefined,
-        isolationLevel,
+        isolationProfile: effectiveProfileId,
         cols: 80,
         rows: 24,
       };
@@ -448,7 +489,7 @@ export function LaunchAgentDialog({
       if (cpuTimeSec) wsBody.cpuTimeSec = parseInt(cpuTimeSec, 10);
       if (maxProcs) wsBody.maxProcesses = parseInt(maxProcs, 10);
       if (maxFiles) wsBody.maxOpenFiles = parseInt(maxFiles, 10);
-      if (allowNetwork || isolationLevel === "vrooli-aware") wsBody.allowNetwork = true;
+      if (allowNetwork || selectedProfile?.networkAccess !== "none") wsBody.allowNetwork = true;
       if (workingDir !== "/workspace") wsBody.workingDir = workingDir;
 
       // Clean up undefined values
@@ -471,7 +512,7 @@ ${JSON.stringify(wsBody, null, 2)}`;
     const body: Record<string, unknown> = {
       command,
       args: args.length > 0 ? args : undefined,
-      isolationLevel,
+      isolationProfile: effectiveProfileId,
     };
 
     if (name && mode === "run") body.name = name;
@@ -480,7 +521,7 @@ ${JSON.stringify(wsBody, null, 2)}`;
     if (timeoutSec && mode === "exec") body.timeoutSec = parseInt(timeoutSec, 10);
     if (maxProcs) body.maxProcesses = parseInt(maxProcs, 10);
     if (maxFiles) body.maxOpenFiles = parseInt(maxFiles, 10);
-    if (allowNetwork || isolationLevel === "vrooli-aware") body.allowNetwork = true;
+    if (allowNetwork || selectedProfile?.networkAccess !== "none") body.allowNetwork = true;
     if (workingDir !== "/workspace") body.workingDir = workingDir;
 
     // Clean up undefined values
@@ -502,13 +543,14 @@ ${JSON.stringify(wsBody, null, 2)}`;
     timeoutSec,
     maxProcs,
     maxFiles,
-    isolationLevel,
+    effectiveProfileId,
+    selectedProfile,
     allowNetwork,
     workingDir,
   ]);
 
-  // Get selected isolation level details
-  const selectedIsolation = ISOLATION_LEVELS.find((l) => l.id === isolationLevel)!;
+  // Get selected profile summary for display
+  const profileSummary = selectedProfile ? getProfileSummary(selectedProfile) : { access: [], blocked: [] };
 
   // For exec/run: need command and not launching
   // For interactive: can't launch from web UI, must use CLI
@@ -530,7 +572,7 @@ ${JSON.stringify(wsBody, null, 2)}`;
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
-        className="max-w-3xl max-h-[90vh] overflow-y-auto"
+        className="max-w-6xl max-h-[90vh] overflow-y-auto"
         data-testid={SELECTORS.launchDialog}
       >
         <DialogClose onClose={handleClose} />
@@ -561,19 +603,30 @@ ${JSON.stringify(wsBody, null, 2)}`;
             </div>
           </div>
 
-          {/* Isolation Level Selection */}
+          {/* Isolation Profile Selection */}
           <div className="space-y-2">
-            <Label>Isolation Level</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {ISOLATION_LEVELS.map((l) => (
-                <IsolationCard
-                  key={l.id}
-                  level={l}
-                  selected={isolationLevel === l.id}
-                  onSelect={() => setIsolationLevel(l.id)}
-                />
-              ))}
-            </div>
+            <Label>Isolation Profile</Label>
+            {profilesQuery.isLoading ? (
+              <div className="flex items-center gap-2 text-sm text-slate-500 py-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading profiles...
+              </div>
+            ) : profilesQuery.error ? (
+              <div className="text-sm text-red-400 py-2">
+                Failed to load profiles
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {profiles.map((p) => (
+                  <IsolationCard
+                    key={p.id}
+                    profile={p}
+                    selected={effectiveProfileId === p.id}
+                    onSelect={() => setSelectedProfileId(p.id)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Command Input */}
@@ -637,21 +690,26 @@ ${JSON.stringify(wsBody, null, 2)}`;
 
             {showResources && (
               <div className="space-y-3 pl-4 border-l-2 border-slate-700 py-2">
+                {configuredDefaults && (
+                  <p className="text-xs text-slate-500 mb-2">
+                    Leave empty to use defaults. Max values in parentheses.
+                  </p>
+                )}
                 <ResourceInput
                   icon={HardDrive}
                   label="Memory"
                   value={memoryMB}
                   onChange={setMemoryMB}
-                  placeholder="512"
-                  unit="MB"
+                  placeholder={configuredDefaults?.memoryLimitMB ? String(configuredDefaults.memoryLimitMB) : "0"}
+                  unit={`MB${configuredMaxes?.memoryLimitMB ? ` (max: ${configuredMaxes.memoryLimitMB})` : ""}`}
                 />
                 <ResourceInput
                   icon={Cpu}
                   label="CPU Time"
                   value={cpuTimeSec}
                   onChange={setCpuTimeSec}
-                  placeholder="300"
-                  unit="sec"
+                  placeholder={configuredDefaults?.cpuTimeSec ? String(configuredDefaults.cpuTimeSec) : "0"}
+                  unit={`sec${configuredMaxes?.cpuTimeSec ? ` (max: ${configuredMaxes.cpuTimeSec})` : ""}`}
                 />
                 {mode === "exec" && (
                   <ResourceInput
@@ -659,8 +717,8 @@ ${JSON.stringify(wsBody, null, 2)}`;
                     label="Timeout"
                     value={timeoutSec}
                     onChange={setTimeoutSec}
-                    placeholder="3600"
-                    unit="sec"
+                    placeholder={configuredDefaults?.timeoutSec ? String(configuredDefaults.timeoutSec) : "0"}
+                    unit={`sec${configuredMaxes?.timeoutSec ? ` (max: ${configuredMaxes.timeoutSec})` : ""}`}
                   />
                 )}
                 <ResourceInput
@@ -668,14 +726,16 @@ ${JSON.stringify(wsBody, null, 2)}`;
                   label="Max Procs"
                   value={maxProcs}
                   onChange={setMaxProcs}
-                  placeholder="100"
+                  placeholder={configuredDefaults?.maxProcesses ? String(configuredDefaults.maxProcesses) : "0"}
+                  unit={configuredMaxes?.maxProcesses ? `(max: ${configuredMaxes.maxProcesses})` : undefined}
                 />
                 <ResourceInput
                   icon={FileText}
                   label="Max Files"
                   value={maxFiles}
                   onChange={setMaxFiles}
-                  placeholder="1024"
+                  placeholder={configuredDefaults?.maxOpenFiles ? String(configuredDefaults.maxOpenFiles) : "0"}
+                  unit={configuredMaxes?.maxOpenFiles ? `(max: ${configuredMaxes.maxOpenFiles})` : undefined}
                 />
               </div>
             )}
@@ -698,8 +758,8 @@ ${JSON.stringify(wsBody, null, 2)}`;
 
             {showAdvanced && (
               <div className="space-y-3 pl-4 border-l-2 border-slate-700 py-2">
-                {/* Network checkbox (only for full isolation) */}
-                {isolationLevel === "full" && (
+                {/* Network checkbox (only for profiles with no network access) */}
+                {selectedProfile?.networkAccess === "none" && (
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -737,18 +797,18 @@ ${JSON.stringify(wsBody, null, 2)}`;
             </div>
             <div className="text-xs text-slate-400 space-y-1">
               <p>
-                Your agent will run in a{" "}
-                <span className="text-slate-200">{selectedIsolation.title.toLowerCase()}</span>{" "}
-                container with:
+                Your agent will run with the{" "}
+                <span className="text-slate-200">{selectedProfile?.name || "default"}</span>{" "}
+                profile:
               </p>
               <ul className="space-y-0.5 mt-2">
-                {selectedIsolation.access.map((item) => (
+                {profileSummary.access.map((item) => (
                   <li key={item} className="flex items-center gap-1.5">
                     <Check className="h-3 w-3 text-emerald-400" />
                     <span>{item}</span>
                   </li>
                 ))}
-                {selectedIsolation.blocked.map((item) => (
+                {profileSummary.blocked.map((item) => (
                   <li key={item} className="flex items-center gap-1.5">
                     <span className="h-3 w-3 text-red-400 font-bold text-center">×</span>
                     <span className="text-slate-500">{item}</span>

@@ -90,10 +90,10 @@ func (s *Service) Run(ctx context.Context, req *types.GCRequest) (*types.GCResul
 	startedAt := time.Now()
 
 	result := &types.GCResult{
-		Collected:   []*types.GCCollectedSandbox{},
-		DryRun:      req.DryRun,
-		StartedAt:   startedAt,
-		Reasons:     make(map[string][]string),
+		Collected: []*types.GCCollectedSandbox{},
+		DryRun:    req.DryRun,
+		StartedAt: startedAt,
+		Reasons:   make(map[string][]string),
 	}
 
 	// Use default policy if not specified

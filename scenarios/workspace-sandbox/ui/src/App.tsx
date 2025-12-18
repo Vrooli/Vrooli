@@ -153,7 +153,7 @@ export default function App() {
       const request = {
         command: config.command,
         args: config.args.length > 0 ? config.args : undefined,
-        isolationLevel: config.isolationLevel,
+        isolationLevel: config.isolationProfile, // Backend expects isolationLevel but accepts profile IDs
         memoryLimitMB: config.memoryLimitMB,
         cpuTimeSec: config.cpuTimeSec,
         maxProcesses: config.maxProcesses,

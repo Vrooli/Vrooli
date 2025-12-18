@@ -270,7 +270,7 @@ func (e *ValidationHookError) Hint() string {
 
 // Verify interfaces are implemented.
 var (
-	_ ValidationPolicy   = (*NoOpValidationPolicy)(nil)
-	_ ValidationPolicy   = (*HookValidationPolicy)(nil)
-	_ types.DomainError  = (*ValidationHookError)(nil)
+	_ ValidationPolicy  = (*NoOpValidationPolicy)(nil)
+	_ ValidationPolicy  = (*HookValidationPolicy)(nil)
+	_ types.DomainError = (*ValidationHookError)(nil)
 )

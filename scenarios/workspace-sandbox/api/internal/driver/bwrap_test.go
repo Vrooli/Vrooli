@@ -181,7 +181,7 @@ func TestCreateSafeGitWrapper(t *testing.T) {
 	}
 
 	// Verify executable
-	if info.Mode().Perm()&0100 == 0 {
+	if info.Mode().Perm()&0o100 == 0 {
 		t.Error("wrapper should be executable")
 	}
 
@@ -336,11 +336,11 @@ func TestResourceLimitsHasLimits(t *testing.T) {
 // [REQ:OT-P2-008] Test prlimit argument building
 func TestBuildPrlimitArgs(t *testing.T) {
 	tests := []struct {
-		name       string
-		limits     ResourceLimits
-		wantNil    bool
-		wantArgs   []string
-		dontWant   []string
+		name     string
+		limits   ResourceLimits
+		wantNil  bool
+		wantArgs []string
+		dontWant []string
 	}{
 		{
 			name:    "no limits returns nil",

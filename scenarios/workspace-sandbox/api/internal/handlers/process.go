@@ -9,12 +9,79 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
 // --- Process Management Endpoints (OT-P0-003, OT-P0-008) ---
+
+// applyResourceLimitDefaults applies default resource limits from ExecutionConfig
+// when request values are 0, and clamps to maximum allowed values.
+func applyResourceLimitDefaults(
+	req driver.ResourceLimits,
+	execCfg config.ExecutionConfig,
+) driver.ResourceLimits {
+	defaults := execCfg.DefaultResourceLimits
+	maxes := execCfg.MaxResourceLimits
+
+	result := req
+
+	// Apply defaults for zero values
+	if result.MemoryLimitMB == 0 && defaults.MemoryLimitMB > 0 {
+		result.MemoryLimitMB = defaults.MemoryLimitMB
+	}
+	if result.CPUTimeSec == 0 && defaults.CPUTimeSec > 0 {
+		result.CPUTimeSec = defaults.CPUTimeSec
+	}
+	if result.MaxProcesses == 0 && defaults.MaxProcesses > 0 {
+		result.MaxProcesses = defaults.MaxProcesses
+	}
+	if result.MaxOpenFiles == 0 && defaults.MaxOpenFiles > 0 {
+		result.MaxOpenFiles = defaults.MaxOpenFiles
+	}
+	if result.TimeoutSec == 0 && defaults.TimeoutSec > 0 {
+		result.TimeoutSec = defaults.TimeoutSec
+	}
+
+	// Clamp to maximums (0 = no maximum)
+	if maxes.MemoryLimitMB > 0 && result.MemoryLimitMB > maxes.MemoryLimitMB {
+		result.MemoryLimitMB = maxes.MemoryLimitMB
+	}
+	if maxes.CPUTimeSec > 0 && result.CPUTimeSec > maxes.CPUTimeSec {
+		result.CPUTimeSec = maxes.CPUTimeSec
+	}
+	if maxes.MaxProcesses > 0 && result.MaxProcesses > maxes.MaxProcesses {
+		result.MaxProcesses = maxes.MaxProcesses
+	}
+	if maxes.MaxOpenFiles > 0 && result.MaxOpenFiles > maxes.MaxOpenFiles {
+		result.MaxOpenFiles = maxes.MaxOpenFiles
+	}
+	if maxes.TimeoutSec > 0 && result.TimeoutSec > maxes.TimeoutSec {
+		result.TimeoutSec = maxes.TimeoutSec
+	}
+
+	return result
+}
+
+// convertProfileToDriver converts a config.IsolationProfile to driver.IsolationProfile.
+func convertProfileToDriver(p *config.IsolationProfile) *driver.IsolationProfile {
+	if p == nil {
+		return nil
+	}
+	return &driver.IsolationProfile{
+		ID:             p.ID,
+		Name:           p.Name,
+		Description:    p.Description,
+		Builtin:        p.Builtin,
+		NetworkAccess:  p.NetworkAccess,
+		ReadOnlyBinds:  p.ReadOnlyBinds,
+		ReadWriteBinds: p.ReadWriteBinds,
+		Environment:    p.Environment,
+		Hostname:       p.Hostname,
+	}
+}
 
 // ExecRequest represents a request to execute a command in a sandbox.
 type ExecRequest struct {
@@ -88,21 +155,42 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	// Set isolation level and related config
-	if req.IsolationLevel == "vrooli-aware" {
+	// Determine isolation profile to use
+	isolationLevel := req.IsolationLevel
+	if isolationLevel == "" {
+		isolationLevel = h.Config.Execution.DefaultIsolationProfile
+	}
+	if isolationLevel == "" {
+		isolationLevel = "full" // Ultimate fallback
+	}
+
+	// Look up and apply isolation profile
+	if h.ProfileStore != nil {
+		profile, profErr := h.ProfileStore.Get(isolationLevel)
+		if profErr == nil {
+			driver.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
+		} else if isolationLevel == "vrooli-aware" {
+			// Fallback for legacy "vrooli-aware" if not found in store
+			driver.ApplyVrooliAwareConfig(&cfg)
+		}
+	} else if isolationLevel == "vrooli-aware" {
 		driver.ApplyVrooliAwareConfig(&cfg)
-	} else if req.AllowNetwork {
+	}
+
+	// Override network if explicitly requested
+	if req.AllowNetwork {
 		cfg.AllowNetwork = true
 	}
 
-	// Set resource limits
-	cfg.ResourceLimits = driver.ResourceLimits{
+	// Set resource limits with defaults and clamping from ExecutionConfig
+	requestedLimits := driver.ResourceLimits{
 		MemoryLimitMB: req.MemoryLimitMB,
 		CPUTimeSec:    req.CPUTimeSec,
 		MaxProcesses:  req.MaxProcesses,
 		MaxOpenFiles:  req.MaxOpenFiles,
 		TimeoutSec:    req.TimeoutSec,
 	}
+	cfg.ResourceLimits = applyResourceLimitDefaults(requestedLimits, h.Config.Execution)
 
 	// Execute the command (all drivers implement Exec via the Driver interface)
 	result, err := h.Driver().Exec(r.Context(), sb, cfg, req.Command, req.Args...)
@@ -193,20 +281,44 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	// Set isolation level and related config
-	if req.IsolationLevel == "vrooli-aware" {
+	// Determine isolation profile to use
+	isolationLevel := req.IsolationLevel
+	if isolationLevel == "" {
+		isolationLevel = h.Config.Execution.DefaultIsolationProfile
+	}
+	if isolationLevel == "" {
+		isolationLevel = "full" // Ultimate fallback
+	}
+
+	// Look up and apply isolation profile
+	if h.ProfileStore != nil {
+		profile, profErr := h.ProfileStore.Get(isolationLevel)
+		if profErr == nil {
+			driver.ApplyIsolationProfile(&cfg, convertProfileToDriver(profile))
+		} else if isolationLevel == "vrooli-aware" {
+			// Fallback for legacy "vrooli-aware" if not found in store
+			driver.ApplyVrooliAwareConfig(&cfg)
+		}
+	} else if isolationLevel == "vrooli-aware" {
 		driver.ApplyVrooliAwareConfig(&cfg)
-	} else if req.AllowNetwork {
+	}
+
+	// Override network if explicitly requested
+	if req.AllowNetwork {
 		cfg.AllowNetwork = true
 	}
 
-	// Set resource limits (TimeoutSec not used for background processes)
-	cfg.ResourceLimits = driver.ResourceLimits{
+	// Set resource limits with defaults and clamping from ExecutionConfig
+	// Note: TimeoutSec is not used for background processes - use manual kill
+	requestedLimits := driver.ResourceLimits{
 		MemoryLimitMB: req.MemoryLimitMB,
 		CPUTimeSec:    req.CPUTimeSec,
 		MaxProcesses:  req.MaxProcesses,
 		MaxOpenFiles:  req.MaxOpenFiles,
+		TimeoutSec:    0, // Not applicable for background processes
 	}
+	cfg.ResourceLimits = applyResourceLimitDefaults(requestedLimits, h.Config.Execution)
+	cfg.ResourceLimits.TimeoutSec = 0 // Ensure timeout is never applied to background processes
 
 	// Create pending log BEFORE starting process to capture stdout/stderr
 	var pendingLog *process.PendingLog

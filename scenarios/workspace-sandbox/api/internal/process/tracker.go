@@ -298,18 +298,18 @@ func (t *Tracker) GetAllStats() ProcessStats {
 
 // ProcessStats contains aggregate process statistics.
 type ProcessStats struct {
-	TotalTracked           int              `json:"totalTracked"`
-	TotalRunning           int              `json:"totalRunning"`
-	SandboxesWithProcesses int              `json:"sandboxesWithProcesses"`
+	TotalTracked           int               `json:"totalTracked"`
+	TotalRunning           int               `json:"totalRunning"`
+	SandboxesWithProcesses int               `json:"sandboxesWithProcesses"`
 	SandboxCounts          map[uuid.UUID]int `json:"sandboxCounts,omitempty"`
 }
 
 // Session represents a group of related processes within a sandbox.
 type Session struct {
-	ID        string    `json:"id"`
-	SandboxID uuid.UUID `json:"sandboxId"`
-	StartedAt time.Time `json:"startedAt"`
-	EndedAt   *time.Time `json:"endedAt,omitempty"`
+	ID        string            `json:"id"`
+	SandboxID uuid.UUID         `json:"sandboxId"`
+	StartedAt time.Time         `json:"startedAt"`
+	EndedAt   *time.Time        `json:"endedAt,omitempty"`
 	Processes []*TrackedProcess `json:"processes"`
 }
 

@@ -35,15 +35,16 @@ type StatsGetter interface {
 // Handlers contains dependencies for HTTP handlers.
 // Dependencies are expressed as interfaces to enable testing with mocks.
 type Handlers struct {
-	Service         sandbox.ServiceAPI  // Service interface for testability
-	DriverManager   *driver.Manager     // Driver manager for hot-swapping drivers
+	Service         sandbox.ServiceAPI // Service interface for testability
+	DriverManager   *driver.Manager    // Driver manager for hot-swapping drivers
 	DB              Pinger
-	Config          config.Config           // Unified configuration for accessing levers
-	StatsGetter     StatsGetter             // For retrieving sandbox statistics
-	ProcessTracker  *process.Tracker        // For tracking sandbox processes (OT-P0-008)
-	ProcessLogger   *process.Logger         // For capturing process logs (Phase 2)
-	GCService       GCService               // For garbage collection operations (OT-P1-003)
-	InUserNamespace bool                    // Whether API is running in a user namespace
+	Config          config.Config       // Unified configuration for accessing levers
+	StatsGetter     StatsGetter         // For retrieving sandbox statistics
+	ProcessTracker  *process.Tracker    // For tracking sandbox processes (OT-P0-008)
+	ProcessLogger   *process.Logger     // For capturing process logs (Phase 2)
+	GCService       GCService           // For garbage collection operations (OT-P1-003)
+	ProfileStore    config.ProfileStore // For isolation profile storage
+	InUserNamespace bool                // Whether API is running in a user namespace
 }
 
 // Driver returns the current driver from the manager.
@@ -228,6 +229,14 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	// --- Admin: Stats ---
 	api.HandleFunc("/stats", h.Stats).Methods("GET")
 	api.HandleFunc("/stats/processes", h.ProcessStats).Methods("GET")
+
+	// --- Config: Execution and Isolation Profiles ---
+	api.HandleFunc("/config/execution", h.GetExecutionConfig).Methods("GET")
+	api.HandleFunc("/config/execution", h.UpdateExecutionConfig).Methods("PUT")
+	api.HandleFunc("/config/profiles", h.ListProfiles).Methods("GET")
+	api.HandleFunc("/config/profiles/{id}", h.GetProfile).Methods("GET")
+	api.HandleFunc("/config/profiles/{id}", h.SaveProfile).Methods("PUT")
+	api.HandleFunc("/config/profiles/{id}", h.DeleteProfile).Methods("DELETE")
 
 	// --- Admin: Garbage Collection (OT-P1-003) ---
 	api.HandleFunc("/gc", h.GC).Methods("POST")

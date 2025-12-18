@@ -47,6 +47,9 @@ type Config struct {
 	// Driver controls filesystem driver settings.
 	Driver DriverConfig
 
+	// Execution controls sandbox execution defaults and constraints.
+	Execution ExecutionConfig
+
 	// Database connection settings.
 	Database DatabaseConfig
 }
@@ -229,6 +232,42 @@ type DriverConfig struct {
 	ProjectRoot string
 }
 
+// ExecutionConfig controls sandbox execution defaults and constraints.
+// These levers allow operators to set sensible defaults for resource limits
+// and isolation behavior, with enforcement ceilings to prevent abuse.
+type ExecutionConfig struct {
+	// DefaultResourceLimits are applied when no limits are specified per-request.
+	// Zero values mean unlimited.
+	DefaultResourceLimits ResourceLimitsConfig `json:"defaultResourceLimits"`
+
+	// MaxResourceLimits are the maximum values users can request.
+	// Zero values mean no maximum (unlimited allowed).
+	MaxResourceLimits ResourceLimitsConfig `json:"maxResourceLimits"`
+
+	// DefaultIsolationProfile is the profile used when none is specified.
+	// Default: "full"
+	DefaultIsolationProfile string `json:"defaultIsolationProfile"`
+}
+
+// ResourceLimitsConfig defines resource limit settings.
+// Zero values mean unlimited (no limit applied).
+type ResourceLimitsConfig struct {
+	// MemoryLimitMB sets the virtual memory limit in megabytes.
+	MemoryLimitMB int `json:"memoryLimitMB"`
+
+	// CPUTimeSec sets the CPU time limit in seconds.
+	CPUTimeSec int `json:"cpuTimeSec"`
+
+	// MaxProcesses sets the maximum number of child processes.
+	MaxProcesses int `json:"maxProcesses"`
+
+	// MaxOpenFiles sets the maximum number of open file descriptors.
+	MaxOpenFiles int `json:"maxOpenFiles"`
+
+	// TimeoutSec sets the wall-clock timeout in seconds.
+	TimeoutSec int `json:"timeoutSec"`
+}
+
 // DatabaseConfig controls database connection settings.
 type DatabaseConfig struct {
 	// URL is the full database connection URL.
@@ -311,6 +350,19 @@ func Default() Config {
 			BaseDir:          DefaultBaseDir(),
 			UseFuseOverlayfs: false,
 		},
+		Execution: ExecutionConfig{
+			DefaultResourceLimits: ResourceLimitsConfig{
+				// All zeros = unlimited by default
+			},
+			MaxResourceLimits: ResourceLimitsConfig{
+				MemoryLimitMB: 16384, // 16 GB max
+				CPUTimeSec:    3600,  // 1 hour max
+				MaxProcesses:  1000,  // 1000 processes max
+				MaxOpenFiles:  65536, // 64K files max
+				TimeoutSec:    7200,  // 2 hours max
+			},
+			DefaultIsolationProfile: "full",
+		},
 		Database: DatabaseConfig{
 			Schema:  "workspace-sandbox",
 			SSLMode: "disable",
@@ -374,6 +426,24 @@ func LoadFromEnv() (Config, error) {
 		cfg.Driver.BaseDir = baseDir
 	}
 	cfg.Driver.UseFuseOverlayfs = envBool("WORKSPACE_SANDBOX_USE_FUSE", cfg.Driver.UseFuseOverlayfs)
+
+	// Execution config - defaults
+	cfg.Execution.DefaultResourceLimits.MemoryLimitMB = envInt("WORKSPACE_SANDBOX_DEFAULT_MEMORY_MB", cfg.Execution.DefaultResourceLimits.MemoryLimitMB)
+	cfg.Execution.DefaultResourceLimits.CPUTimeSec = envInt("WORKSPACE_SANDBOX_DEFAULT_CPU_SEC", cfg.Execution.DefaultResourceLimits.CPUTimeSec)
+	cfg.Execution.DefaultResourceLimits.MaxProcesses = envInt("WORKSPACE_SANDBOX_DEFAULT_MAX_PROCS", cfg.Execution.DefaultResourceLimits.MaxProcesses)
+	cfg.Execution.DefaultResourceLimits.MaxOpenFiles = envInt("WORKSPACE_SANDBOX_DEFAULT_MAX_FILES", cfg.Execution.DefaultResourceLimits.MaxOpenFiles)
+	cfg.Execution.DefaultResourceLimits.TimeoutSec = envInt("WORKSPACE_SANDBOX_DEFAULT_TIMEOUT_SEC", cfg.Execution.DefaultResourceLimits.TimeoutSec)
+
+	// Execution config - maximums
+	cfg.Execution.MaxResourceLimits.MemoryLimitMB = envInt("WORKSPACE_SANDBOX_MAX_MEMORY_MB", cfg.Execution.MaxResourceLimits.MemoryLimitMB)
+	cfg.Execution.MaxResourceLimits.CPUTimeSec = envInt("WORKSPACE_SANDBOX_MAX_CPU_SEC", cfg.Execution.MaxResourceLimits.CPUTimeSec)
+	cfg.Execution.MaxResourceLimits.MaxProcesses = envInt("WORKSPACE_SANDBOX_MAX_PROCS", cfg.Execution.MaxResourceLimits.MaxProcesses)
+	cfg.Execution.MaxResourceLimits.MaxOpenFiles = envInt("WORKSPACE_SANDBOX_MAX_FILES", cfg.Execution.MaxResourceLimits.MaxOpenFiles)
+	cfg.Execution.MaxResourceLimits.TimeoutSec = envInt("WORKSPACE_SANDBOX_MAX_TIMEOUT_SEC", cfg.Execution.MaxResourceLimits.TimeoutSec)
+
+	if profile := os.Getenv("WORKSPACE_SANDBOX_DEFAULT_PROFILE"); profile != "" {
+		cfg.Execution.DefaultIsolationProfile = profile
+	}
 
 	// Database config
 	cfg.Database.URL = os.Getenv("DATABASE_URL")

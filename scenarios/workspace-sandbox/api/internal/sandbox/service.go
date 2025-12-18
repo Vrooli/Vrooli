@@ -641,8 +641,8 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 			currentHash = currentHash[:8]
 		}
 		s.logAuditEvent(ctx, sandbox, "sandbox.info", "system", "system", map[string]interface{}{
-			"message":    "repo changed since sandbox creation but no conflicting files",
-			"baseHash":   baseHash,
+			"message":     "repo changed since sandbox creation but no conflicting files",
+			"baseHash":    baseHash,
 			"currentHash": currentHash,
 		})
 	}
@@ -755,10 +755,10 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 
 		// Log partial approval event
 		s.logAuditEvent(ctx, sandbox, "partial_approved", req.Actor, "", map[string]interface{}{
-			"filesApplied":    len(changes),
-			"filesRemaining":  remainingChanges,
-			"commitHash":      applyResult.CommitHash,
-			"mode":            req.Mode,
+			"filesApplied":   len(changes),
+			"filesRemaining": remainingChanges,
+			"commitHash":     applyResult.CommitHash,
+			"mode":           req.Mode,
 		})
 	} else {
 		// Full approval: transition to StatusApproved
@@ -1061,11 +1061,11 @@ func (s *Service) Rebase(ctx context.Context, req *types.RebaseRequest) (*types.
 
 	// Log audit event
 	s.logAuditEvent(ctx, sandbox, "rebased", req.Actor, "", map[string]interface{}{
-		"previousBaseHash":  result.PreviousBaseHash,
-		"newBaseHash":       result.NewBaseHash,
-		"strategy":          string(result.Strategy),
-		"repoChangedFiles":  len(result.RepoChangedFiles),
-		"conflictingFiles":  len(result.ConflictingFiles),
+		"previousBaseHash": result.PreviousBaseHash,
+		"newBaseHash":      result.NewBaseHash,
+		"strategy":         string(result.Strategy),
+		"repoChangedFiles": len(result.RepoChangedFiles),
+		"conflictingFiles": len(result.ConflictingFiles),
 	})
 
 	return result, nil

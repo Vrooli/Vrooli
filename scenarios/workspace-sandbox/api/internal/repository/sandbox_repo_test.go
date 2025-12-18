@@ -68,7 +68,9 @@ func sandboxRow(s *types.Sandbox) []driver.Value {
 		s.ID, s.ScopePath, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
 		s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 		s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
-		s.SizeBytes, s.FileCount, pq.Int64Array{}, s.SessionCount,
+		s.SizeBytes, s.FileCount,
+		pq.Int64Array{},
+		s.SessionCount,
 		pq.StringArray(s.Tags), metadataJSON,
 		s.IdempotencyKey, s.UpdatedAt, s.Version, s.BaseCommitHash,
 	}

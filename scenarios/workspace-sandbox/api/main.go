@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -135,6 +136,17 @@ func NewServer() (*Server, error) {
 	// Initialize process logger (Phase 2)
 	processLogger := process.NewLogger(process.DefaultLogConfig(cfg.Driver.BaseDir))
 
+	// Initialize profile store for isolation profiles
+	// Determine scenario base directory from VROOLI_ROOT
+	scenarioDir := os.Getenv("VROOLI_ROOT")
+	if scenarioDir != "" {
+		scenarioDir = filepath.Join(scenarioDir, "scenarios", "workspace-sandbox")
+	} else {
+		// Fallback to current directory
+		scenarioDir, _ = os.Getwd()
+	}
+	profileStore := config.NewFileProfileStore(scenarioDir)
+
 	// Initialize GC service (OT-P1-003)
 	gcCfg := gc.Config{
 		DefaultMaxAge:        cfg.Lifecycle.DefaultTTL,
@@ -158,6 +170,7 @@ func NewServer() (*Server, error) {
 		ProcessTracker:  processTracker,
 		ProcessLogger:   processLogger,
 		GCService:       gcService,
+		ProfileStore:    profileStore,
 		InUserNamespace: inUserNS,
 	}
 

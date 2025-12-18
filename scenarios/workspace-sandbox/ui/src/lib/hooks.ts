@@ -21,11 +21,18 @@ import {
   killAllProcesses,
   getProcessLogs,
   listLogs,
+  fetchExecutionConfig,
+  updateExecutionConfig,
+  fetchProfiles,
+  saveProfile,
+  deleteProfile,
   type ListFilter,
   type CreateRequest,
   type ApprovalRequest,
   type ExecRequest,
   type StartProcessRequest,
+  type ExecutionConfig,
+  type IsolationProfile,
 } from "./api";
 
 // Query keys for cache management
@@ -39,6 +46,8 @@ export const queryKeys = {
   processes: (sandboxId: string) => ["processes", sandboxId] as const,
   logs: (sandboxId: string) => ["logs", sandboxId] as const,
   processLog: (sandboxId: string, pid: number) => ["processLog", sandboxId, pid] as const,
+  executionConfig: ["executionConfig"] as const,
+  profiles: ["profiles"] as const,
 };
 
 // Health check
@@ -314,5 +323,59 @@ export function useLogs(sandboxId: string | undefined) {
     queryFn: () => listLogs(sandboxId!),
     enabled: !!sandboxId,
     refetchInterval: 5000,
+  });
+}
+
+// --- Execution Config and Isolation Profile Hooks ---
+
+// Get execution config
+export function useExecutionConfig() {
+  return useQuery({
+    queryKey: queryKeys.executionConfig,
+    queryFn: fetchExecutionConfig,
+  });
+}
+
+// Update execution config
+export function useUpdateExecutionConfig() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (config: ExecutionConfig) => updateExecutionConfig(config),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.executionConfig });
+    },
+  });
+}
+
+// List isolation profiles
+export function useProfiles() {
+  return useQuery({
+    queryKey: queryKeys.profiles,
+    queryFn: fetchProfiles,
+  });
+}
+
+// Save isolation profile
+export function useSaveProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (profile: IsolationProfile) => saveProfile(profile),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.profiles });
+    },
+  });
+}
+
+// Delete isolation profile
+export function useDeleteProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deleteProfile(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.profiles });
+    },
   });
 }

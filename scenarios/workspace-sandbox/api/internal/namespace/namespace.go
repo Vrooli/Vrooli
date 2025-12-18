@@ -201,7 +201,7 @@ func testOverlayfsMount() bool {
 	merged := filepath.Join(tmpDir, "merged")
 
 	for _, dir := range []string{lower, upper, work, merged} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return false
 		}
 	}
@@ -263,5 +263,7 @@ func IsKernelAtLeast(major, minor int) bool {
 }
 
 // RequiredKernelVersion is the minimum kernel version for unprivileged overlayfs
-const RequiredKernelMajor = 5
-const RequiredKernelMinor = 11 // 5.13 recommended for SELinux support
+const (
+	RequiredKernelMajor = 5
+	RequiredKernelMinor = 11 // 5.13 recommended for SELinux support
+)

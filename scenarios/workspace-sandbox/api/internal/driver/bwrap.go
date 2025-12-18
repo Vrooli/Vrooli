@@ -397,13 +397,13 @@ func GetVrooliEnvVars() map[string]string {
 
 	// Pass through common Vrooli-related environment variables
 	envsToCopy := []string{
-		"VROOLI_ENV",              // Environment (development, production, etc.)
-		"VROOLI_LOG_LEVEL",        // Logging level
-		"API_MANAGER_URL",         // API manager endpoint
-		"SCENARIO_REGISTRY_URL",   // Scenario registry endpoint
-		"RESOURCE_REGISTRY_URL",   // Resource registry endpoint
-		"XDG_CONFIG_HOME",         // Config directory standard
-		"XDG_DATA_HOME",           // Data directory standard
+		"VROOLI_ENV",            // Environment (development, production, etc.)
+		"VROOLI_LOG_LEVEL",      // Logging level
+		"API_MANAGER_URL",       // API manager endpoint
+		"SCENARIO_REGISTRY_URL", // Scenario registry endpoint
+		"RESOURCE_REGISTRY_URL", // Resource registry endpoint
+		"XDG_CONFIG_HOME",       // Config directory standard
+		"XDG_DATA_HOME",         // Data directory standard
 	}
 
 	for _, env := range envsToCopy {
@@ -430,6 +430,109 @@ func ApplyVrooliAwareConfig(cfg *BwrapConfig) {
 
 	// Vrooli-aware always allows network (for localhost API access)
 	cfg.AllowNetwork = true
+}
+
+// IsolationProfile mirrors config.IsolationProfile for driver-level use.
+// This avoids a circular import between driver and config packages.
+type IsolationProfile struct {
+	ID             string
+	Name           string
+	Description    string
+	Builtin        bool
+	NetworkAccess  string            // "none", "localhost", "full"
+	ReadOnlyBinds  map[string]string // host path -> sandbox path
+	ReadWriteBinds map[string]string // host path -> sandbox path
+	Environment    map[string]string // env var -> value (supports $VAR expansion)
+	Hostname       string
+}
+
+// ApplyIsolationProfile configures BwrapConfig based on an IsolationProfile.
+// This replaces the hardcoded IsolationLevel logic with profile-driven configuration.
+// Profile binds are added to the existing ReadOnlyPaths/ReadWritePaths arrays,
+// which are then processed by buildBwrapArgs.
+func ApplyIsolationProfile(cfg *BwrapConfig, profile *IsolationProfile) {
+	if profile == nil {
+		return
+	}
+
+	// Apply network access
+	switch profile.NetworkAccess {
+	case "none":
+		cfg.AllowNetwork = false
+	case "localhost", "full":
+		cfg.AllowNetwork = true
+	}
+
+	// Apply hostname
+	if profile.Hostname != "" {
+		cfg.Hostname = profile.Hostname
+	}
+
+	// Apply read-only binds (expand placeholders)
+	for src := range profile.ReadOnlyBinds {
+		expandedSrc := expandPathPlaceholders(src)
+		if expandedSrc != "" {
+			cfg.ReadOnlyPaths = append(cfg.ReadOnlyPaths, expandedSrc)
+		}
+	}
+
+	// Apply read-write binds
+	for src := range profile.ReadWriteBinds {
+		expandedSrc := expandPathPlaceholders(src)
+		if expandedSrc != "" {
+			cfg.ReadWritePaths = append(cfg.ReadWritePaths, expandedSrc)
+		}
+	}
+
+	// Apply environment variables
+	if cfg.Env == nil {
+		cfg.Env = make(map[string]string)
+	}
+	for k, v := range profile.Environment {
+		cfg.Env[k] = expandEnvPlaceholders(v)
+	}
+}
+
+// expandPathPlaceholders expands $HOME, $USER, $VROOLI_ROOT in paths.
+// Returns empty string if any placeholder cannot be resolved.
+func expandPathPlaceholders(path string) string {
+	if path == "" {
+		return ""
+	}
+
+	home := os.Getenv("HOME")
+	user := os.Getenv("USER")
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+
+	result := path
+	result = strings.ReplaceAll(result, "$HOME", home)
+	result = strings.ReplaceAll(result, "$USER", user)
+	result = strings.ReplaceAll(result, "$VROOLI_ROOT", vrooliRoot)
+
+	// Skip if placeholder wasn't resolved (e.g., $VROOLI_ROOT when not set)
+	if strings.Contains(result, "$") {
+		return ""
+	}
+
+	return result
+}
+
+// expandEnvPlaceholders expands $VAR references in environment values.
+func expandEnvPlaceholders(value string) string {
+	return os.ExpandEnv(value)
+}
+
+// MapIsolationLevelToProfile returns the profile ID for a legacy IsolationLevel.
+// This maintains backwards compatibility with existing code using IsolationLevel.
+func MapIsolationLevelToProfile(level IsolationLevel) string {
+	switch level {
+	case IsolationVrooliAware:
+		return "vrooli-aware"
+	case IsolationFull:
+		fallthrough
+	default:
+		return "full"
+	}
 }
 
 // BuildExecCommand builds the full command line for executing in a sandbox.

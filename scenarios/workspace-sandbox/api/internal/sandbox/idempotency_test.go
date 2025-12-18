@@ -337,9 +337,9 @@ func TestIdempotencyKeyFormat(t *testing.T) {
 
 	// Examples of good keys:
 	goodKeys := []string{
-		uuid.New().String(),                                   // UUID
-		"agent-123-task-456-run-789",                          // Composite identifier
-		"request-2024-01-15T10:30:00Z-abc123",                 // Timestamp + random
+		uuid.New().String(),                   // UUID
+		"agent-123-task-456-run-789",          // Composite identifier
+		"request-2024-01-15T10:30:00Z-abc123", // Timestamp + random
 	}
 
 	for _, key := range goodKeys {

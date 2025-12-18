@@ -34,7 +34,7 @@ func DefaultLogConfig(baseDir string) LogConfig {
 	return LogConfig{
 		BaseDir:    baseDir,
 		MaxLogSize: 50 * 1024 * 1024, // 50 MB per log
-		RetainLogs: 0,                 // Keep until sandbox deletion
+		RetainLogs: 0,                // Keep until sandbox deletion
 	}
 }
 
@@ -107,12 +107,12 @@ func (l *Logger) LogPath(sandboxID uuid.UUID, pid int) string {
 // The writer should be used as stdout/stderr for the process.
 func (l *Logger) CreateLog(sandboxID uuid.UUID, pid int) (io.WriteCloser, error) {
 	logDir := l.LogDir(sandboxID)
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
 	logPath := l.LogPath(sandboxID, pid)
-	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create log file: %w", err)
 	}
@@ -152,7 +152,7 @@ func (l *Logger) writerKey(sandboxID uuid.UUID, pid int) string {
 // for the process via BwrapConfig.LogWriter.
 func (l *Logger) CreatePendingLog(sandboxID uuid.UUID) (*PendingLog, error) {
 	logDir := l.LogDir(sandboxID)
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
@@ -160,7 +160,7 @@ func (l *Logger) CreatePendingLog(sandboxID uuid.UUID) (*PendingLog, error) {
 	tempID := uuid.New().String()[:8] // Short UUID prefix for temp name
 	tempPath := filepath.Join(logDir, fmt.Sprintf("pending_%s.log", tempID))
 
-	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pending log file: %w", err)
 	}

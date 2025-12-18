@@ -291,13 +291,13 @@ func (h *Handlers) WriteFile(w http.ResponseWriter, r *http.Request) {
 
 	// Create parent directories if needed
 	dir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		h.JSONError(w, fmt.Sprintf("failed to create directory: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	// Set file mode
-	mode := os.FileMode(0644)
+	mode := os.FileMode(0o644)
 	if req.Mode != 0 {
 		mode = os.FileMode(req.Mode)
 	}
@@ -440,7 +440,7 @@ func (h *Handlers) Mkdir(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create directory (and parents)
-	if err := os.MkdirAll(fullPath, 0755); err != nil {
+	if err := os.MkdirAll(fullPath, 0o755); err != nil {
 		h.JSONError(w, fmt.Sprintf("failed to create directory: %v", err), http.StatusInternalServerError)
 		return
 	}

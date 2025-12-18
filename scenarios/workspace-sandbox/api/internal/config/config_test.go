@@ -493,6 +493,164 @@ func TestEnvHelpers(t *testing.T) {
 	})
 }
 
+func TestExecutionConfigDefaults(t *testing.T) {
+	cfg := Default()
+
+	t.Run("DefaultResourceLimits are all zero", func(t *testing.T) {
+		defaults := cfg.Execution.DefaultResourceLimits
+		if defaults.MemoryLimitMB != 0 {
+			t.Errorf("expected MemoryLimitMB 0, got %d", defaults.MemoryLimitMB)
+		}
+		if defaults.CPUTimeSec != 0 {
+			t.Errorf("expected CPUTimeSec 0, got %d", defaults.CPUTimeSec)
+		}
+		if defaults.MaxProcesses != 0 {
+			t.Errorf("expected MaxProcesses 0, got %d", defaults.MaxProcesses)
+		}
+		if defaults.MaxOpenFiles != 0 {
+			t.Errorf("expected MaxOpenFiles 0, got %d", defaults.MaxOpenFiles)
+		}
+		if defaults.TimeoutSec != 0 {
+			t.Errorf("expected TimeoutSec 0, got %d", defaults.TimeoutSec)
+		}
+	})
+
+	t.Run("MaxResourceLimits have sane defaults", func(t *testing.T) {
+		maxes := cfg.Execution.MaxResourceLimits
+		if maxes.MemoryLimitMB != 16384 {
+			t.Errorf("expected MemoryLimitMB 16384, got %d", maxes.MemoryLimitMB)
+		}
+		if maxes.CPUTimeSec != 3600 {
+			t.Errorf("expected CPUTimeSec 3600, got %d", maxes.CPUTimeSec)
+		}
+		if maxes.MaxProcesses != 1000 {
+			t.Errorf("expected MaxProcesses 1000, got %d", maxes.MaxProcesses)
+		}
+		if maxes.MaxOpenFiles != 65536 {
+			t.Errorf("expected MaxOpenFiles 65536, got %d", maxes.MaxOpenFiles)
+		}
+		if maxes.TimeoutSec != 7200 {
+			t.Errorf("expected TimeoutSec 7200, got %d", maxes.TimeoutSec)
+		}
+	})
+
+	t.Run("DefaultIsolationProfile is full", func(t *testing.T) {
+		if cfg.Execution.DefaultIsolationProfile != "full" {
+			t.Errorf("expected DefaultIsolationProfile 'full', got %s", cfg.Execution.DefaultIsolationProfile)
+		}
+	})
+}
+
+func TestExecutionConfigFromEnv(t *testing.T) {
+	// Save original environment and restore after test
+	envVars := []string{
+		"API_PORT",
+		"WORKSPACE_SANDBOX_DEFAULT_MEMORY_MB",
+		"WORKSPACE_SANDBOX_DEFAULT_CPU_SEC",
+		"WORKSPACE_SANDBOX_DEFAULT_MAX_PROCS",
+		"WORKSPACE_SANDBOX_DEFAULT_MAX_FILES",
+		"WORKSPACE_SANDBOX_DEFAULT_TIMEOUT_SEC",
+		"WORKSPACE_SANDBOX_MAX_MEMORY_MB",
+		"WORKSPACE_SANDBOX_MAX_CPU_SEC",
+		"WORKSPACE_SANDBOX_MAX_PROCS",
+		"WORKSPACE_SANDBOX_MAX_FILES",
+		"WORKSPACE_SANDBOX_MAX_TIMEOUT_SEC",
+		"WORKSPACE_SANDBOX_DEFAULT_PROFILE",
+	}
+	originalEnv := make(map[string]string)
+	for _, key := range envVars {
+		originalEnv[key] = os.Getenv(key)
+	}
+	defer func() {
+		for key, val := range originalEnv {
+			if val == "" {
+				os.Unsetenv(key)
+			} else {
+				os.Setenv(key, val)
+			}
+		}
+	}()
+
+	// Clear all
+	for _, key := range envVars {
+		os.Unsetenv(key)
+	}
+	os.Setenv("API_PORT", "8080")
+
+	t.Run("loads default resource limits from env", func(t *testing.T) {
+		os.Setenv("WORKSPACE_SANDBOX_DEFAULT_MEMORY_MB", "512")
+		os.Setenv("WORKSPACE_SANDBOX_DEFAULT_CPU_SEC", "60")
+		os.Setenv("WORKSPACE_SANDBOX_DEFAULT_MAX_PROCS", "50")
+		os.Setenv("WORKSPACE_SANDBOX_DEFAULT_MAX_FILES", "1024")
+		os.Setenv("WORKSPACE_SANDBOX_DEFAULT_TIMEOUT_SEC", "120")
+
+		cfg, err := LoadFromEnv()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		defaults := cfg.Execution.DefaultResourceLimits
+		if defaults.MemoryLimitMB != 512 {
+			t.Errorf("expected MemoryLimitMB 512, got %d", defaults.MemoryLimitMB)
+		}
+		if defaults.CPUTimeSec != 60 {
+			t.Errorf("expected CPUTimeSec 60, got %d", defaults.CPUTimeSec)
+		}
+		if defaults.MaxProcesses != 50 {
+			t.Errorf("expected MaxProcesses 50, got %d", defaults.MaxProcesses)
+		}
+		if defaults.MaxOpenFiles != 1024 {
+			t.Errorf("expected MaxOpenFiles 1024, got %d", defaults.MaxOpenFiles)
+		}
+		if defaults.TimeoutSec != 120 {
+			t.Errorf("expected TimeoutSec 120, got %d", defaults.TimeoutSec)
+		}
+	})
+
+	t.Run("loads max resource limits from env", func(t *testing.T) {
+		os.Setenv("WORKSPACE_SANDBOX_MAX_MEMORY_MB", "8192")
+		os.Setenv("WORKSPACE_SANDBOX_MAX_CPU_SEC", "1800")
+		os.Setenv("WORKSPACE_SANDBOX_MAX_PROCS", "500")
+		os.Setenv("WORKSPACE_SANDBOX_MAX_FILES", "32768")
+		os.Setenv("WORKSPACE_SANDBOX_MAX_TIMEOUT_SEC", "3600")
+
+		cfg, err := LoadFromEnv()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		maxes := cfg.Execution.MaxResourceLimits
+		if maxes.MemoryLimitMB != 8192 {
+			t.Errorf("expected MemoryLimitMB 8192, got %d", maxes.MemoryLimitMB)
+		}
+		if maxes.CPUTimeSec != 1800 {
+			t.Errorf("expected CPUTimeSec 1800, got %d", maxes.CPUTimeSec)
+		}
+		if maxes.MaxProcesses != 500 {
+			t.Errorf("expected MaxProcesses 500, got %d", maxes.MaxProcesses)
+		}
+		if maxes.MaxOpenFiles != 32768 {
+			t.Errorf("expected MaxOpenFiles 32768, got %d", maxes.MaxOpenFiles)
+		}
+		if maxes.TimeoutSec != 3600 {
+			t.Errorf("expected TimeoutSec 3600, got %d", maxes.TimeoutSec)
+		}
+	})
+
+	t.Run("loads default isolation profile from env", func(t *testing.T) {
+		os.Setenv("WORKSPACE_SANDBOX_DEFAULT_PROFILE", "vrooli-aware")
+
+		cfg, err := LoadFromEnv()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if cfg.Execution.DefaultIsolationProfile != "vrooli-aware" {
+			t.Errorf("expected DefaultIsolationProfile 'vrooli-aware', got %s", cfg.Execution.DefaultIsolationProfile)
+		}
+	})
+}
+
 func TestRequireEnv(t *testing.T) {
 	t.Run("returns value when set", func(t *testing.T) {
 		os.Setenv("TEST_REQUIRED", "myvalue")

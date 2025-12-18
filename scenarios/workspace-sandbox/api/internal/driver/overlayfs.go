@@ -395,7 +395,7 @@ func (d *OverlayfsDriver) VerifyMountIntegrity(ctx context.Context, s *types.San
 
 		// Try to verify write access by checking directory is writable
 		// Note: We don't actually write a test file to avoid side effects
-		if upperInfo.Mode().Perm()&0200 == 0 {
+		if upperInfo.Mode().Perm()&0o200 == 0 {
 			return fmt.Errorf("upper directory appears not writable: %s", s.UpperDir)
 		}
 	}

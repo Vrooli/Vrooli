@@ -53,6 +53,7 @@ func (m *MockRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, 
 
 // Unused methods - implement interface
 func (m *MockRepository) Create(ctx context.Context, s *types.Sandbox) error { return nil }
+
 func (m *MockRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 	return nil, nil
 }
@@ -60,18 +61,23 @@ func (m *MockRepository) Update(ctx context.Context, s *types.Sandbox) error { r
 func (m *MockRepository) List(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
 	return nil, nil
 }
+
 func (m *MockRepository) CheckScopeOverlap(ctx context.Context, scopePath, projectRoot string, excludeID *uuid.UUID) ([]types.PathConflict, error) {
 	return nil, nil
 }
+
 func (m *MockRepository) GetActiveSandboxes(ctx context.Context, projectRoot string) ([]*types.Sandbox, error) {
 	return nil, nil
 }
+
 func (m *MockRepository) FindByIdempotencyKey(ctx context.Context, key string) (*types.Sandbox, error) {
 	return nil, nil
 }
+
 func (m *MockRepository) UpdateWithVersionCheck(ctx context.Context, s *types.Sandbox, expectedVersion int64) error {
 	return nil
 }
+
 func (m *MockRepository) BeginTx(ctx context.Context) (repository.TxRepository, error) {
 	return &MockTxRepository{MockRepository: m}, nil
 }
@@ -100,31 +106,40 @@ func (m *MockDriver) Version() string         { return "1.0.0" }
 func (m *MockDriver) IsAvailable(ctx context.Context) (bool, error) {
 	return true, nil
 }
+
 func (m *MockDriver) Mount(ctx context.Context, sandbox *types.Sandbox) (*driver.MountPaths, error) {
 	return &driver.MountPaths{}, nil
 }
+
 func (m *MockDriver) Unmount(ctx context.Context, sandbox *types.Sandbox) error {
 	return nil
 }
+
 func (m *MockDriver) Cleanup(ctx context.Context, sandbox *types.Sandbox) error {
 	m.cleanupCalled = append(m.cleanupCalled, sandbox.ID)
 	return nil
 }
+
 func (m *MockDriver) GetChangedFiles(ctx context.Context, sandbox *types.Sandbox) ([]*types.FileChange, error) {
 	return nil, nil
 }
+
 func (m *MockDriver) IsMounted(ctx context.Context, sandbox *types.Sandbox) (bool, error) {
 	return false, nil
 }
+
 func (m *MockDriver) VerifyMountIntegrity(ctx context.Context, sandbox *types.Sandbox) error {
 	return nil
 }
+
 func (m *MockDriver) Exec(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (*driver.ExecResult, error) {
 	return &driver.ExecResult{}, nil
 }
+
 func (m *MockDriver) StartProcess(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (int, error) {
 	return 0, nil
 }
+
 func (m *MockDriver) RemoveFromUpper(ctx context.Context, sandbox *types.Sandbox, filePath string) error {
 	return nil
 }
@@ -155,7 +170,6 @@ func TestGCService_DryRun_ReturnsWithoutDeleting(t *testing.T) {
 			MaxAge: 24 * time.Hour,
 		},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -199,7 +213,6 @@ func TestGCService_ActualRun_DeletesSandboxes(t *testing.T) {
 			MaxAge: 24 * time.Hour,
 		},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -246,7 +259,6 @@ func TestGCService_NoCandidates_ReturnsEmpty(t *testing.T) {
 			MaxAge: 24 * time.Hour,
 		},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -278,7 +290,6 @@ func TestGCService_IdleTimeout_CollectsIdleSandboxes(t *testing.T) {
 			IdleTimeout: 4 * time.Hour, // 4 hour idle timeout
 		},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -312,7 +323,6 @@ func TestGCService_TerminalState_CollectsApprovedRejected(t *testing.T) {
 			TerminalDelay:   1 * time.Hour, // Clean up after 1 hour
 		},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -347,7 +357,6 @@ func TestGCService_Limit_RespectsMaxCount(t *testing.T) {
 			MaxAge: 24 * time.Hour,
 		},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -378,7 +387,6 @@ func TestGCService_DefaultPolicy_UsedWhenNil(t *testing.T) {
 		DryRun: true,
 		// No policy - should use default
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -405,7 +413,6 @@ func TestGCService_Preview_IsDryRun(t *testing.T) {
 
 	policy := types.DefaultGCPolicy()
 	result, err := svc.Preview(context.Background(), &policy, 100)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -440,7 +447,6 @@ func TestGCService_Reasons_ArePopulated(t *testing.T) {
 			MaxAge: 24 * time.Hour,
 		},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

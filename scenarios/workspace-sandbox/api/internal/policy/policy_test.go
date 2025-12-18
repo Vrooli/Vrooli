@@ -668,9 +668,9 @@ func TestHookValidationPolicy_ValidateBeforeApply(t *testing.T) {
 		// Note: Use /tmp as working dir which always exists
 		hooks := []ValidationHook{
 			{
-				Name:    "check-env",
-				Command: "sh",
-				Args:    []string{"-c", "test -n \"$SANDBOX_ID\""},
+				Name:     "check-env",
+				Command:  "sh",
+				Args:     []string{"-c", "test -n \"$SANDBOX_ID\""},
 				Required: true,
 			},
 		}

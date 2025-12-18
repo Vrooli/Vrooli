@@ -2,9 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
+
+	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 )
 
@@ -233,4 +237,174 @@ func join(strs []string, sep string) string {
 		result += sep + strs[i]
 	}
 	return result
+}
+
+// --- Execution Config Endpoints ---
+
+// GetExecutionConfig returns the current execution configuration.
+// GET /api/v1/config/execution
+func (h *Handlers) GetExecutionConfig(w http.ResponseWriter, r *http.Request) {
+	h.JSONSuccess(w, h.Config.Execution)
+}
+
+// UpdateExecutionConfig updates execution configuration.
+// PUT /api/v1/config/execution
+// Note: This is an in-memory update. For persistence, the caller should
+// also update environment variables or a config file.
+func (h *Handlers) UpdateExecutionConfig(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		DefaultResourceLimits   config.ResourceLimitsConfig `json:"defaultResourceLimits"`
+		MaxResourceLimits       config.ResourceLimitsConfig `json:"maxResourceLimits"`
+		DefaultIsolationProfile string                      `json:"defaultIsolationProfile"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate limits (defaults don't exceed maximums)
+	if err := validateResourceLimits(req.DefaultResourceLimits, req.MaxResourceLimits); err != nil {
+		h.JSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Validate profile exists
+	if h.ProfileStore != nil {
+		if _, err := h.ProfileStore.Get(req.DefaultIsolationProfile); err != nil {
+			h.JSONError(w, "invalid default profile: "+req.DefaultIsolationProfile, http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Update in-memory config
+	h.Config.Execution.DefaultResourceLimits = req.DefaultResourceLimits
+	h.Config.Execution.MaxResourceLimits = req.MaxResourceLimits
+	h.Config.Execution.DefaultIsolationProfile = req.DefaultIsolationProfile
+
+	h.JSONSuccess(w, h.Config.Execution)
+}
+
+// validateResourceLimits checks that defaults don't exceed maximums.
+func validateResourceLimits(defaults, maxes config.ResourceLimitsConfig) error {
+	if maxes.MemoryLimitMB > 0 && defaults.MemoryLimitMB > maxes.MemoryLimitMB {
+		return fmt.Errorf("default memory limit (%d MB) exceeds maximum (%d MB)",
+			defaults.MemoryLimitMB, maxes.MemoryLimitMB)
+	}
+	if maxes.CPUTimeSec > 0 && defaults.CPUTimeSec > maxes.CPUTimeSec {
+		return fmt.Errorf("default CPU time (%d sec) exceeds maximum (%d sec)",
+			defaults.CPUTimeSec, maxes.CPUTimeSec)
+	}
+	if maxes.MaxProcesses > 0 && defaults.MaxProcesses > maxes.MaxProcesses {
+		return fmt.Errorf("default max processes (%d) exceeds maximum (%d)",
+			defaults.MaxProcesses, maxes.MaxProcesses)
+	}
+	if maxes.MaxOpenFiles > 0 && defaults.MaxOpenFiles > maxes.MaxOpenFiles {
+		return fmt.Errorf("default max open files (%d) exceeds maximum (%d)",
+			defaults.MaxOpenFiles, maxes.MaxOpenFiles)
+	}
+	if maxes.TimeoutSec > 0 && defaults.TimeoutSec > maxes.TimeoutSec {
+		return fmt.Errorf("default timeout (%d sec) exceeds maximum (%d sec)",
+			defaults.TimeoutSec, maxes.TimeoutSec)
+	}
+	return nil
+}
+
+// --- Isolation Profile Endpoints ---
+
+// ListProfiles returns all isolation profiles (builtin + custom).
+// GET /api/v1/config/profiles
+func (h *Handlers) ListProfiles(w http.ResponseWriter, r *http.Request) {
+	if h.ProfileStore == nil {
+		// Return just the defaults if no store configured
+		h.JSONSuccess(w, config.DefaultProfiles())
+		return
+	}
+
+	profiles, err := h.ProfileStore.List()
+	if err != nil {
+		h.JSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	h.JSONSuccess(w, profiles)
+}
+
+// GetProfile returns a single profile by ID.
+// GET /api/v1/config/profiles/{id}
+func (h *Handlers) GetProfile(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	if h.ProfileStore == nil {
+		// Check builtin profiles only
+		for _, p := range config.DefaultProfiles() {
+			if p.ID == id {
+				h.JSONSuccess(w, p)
+				return
+			}
+		}
+		h.JSONError(w, "profile not found: "+id, http.StatusNotFound)
+		return
+	}
+
+	profile, err := h.ProfileStore.Get(id)
+	if err != nil {
+		h.JSONError(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	h.JSONSuccess(w, profile)
+}
+
+// SaveProfile creates or updates a custom profile.
+// PUT /api/v1/config/profiles/{id}
+func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
+	if h.ProfileStore == nil {
+		h.JSONError(w, "profile store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	var profile config.IsolationProfile
+	if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Ensure ID matches URL and can't be marked as builtin via API
+	profile.ID = id
+	profile.Builtin = false
+
+	// Validate network access value
+	validNetworkAccess := map[string]bool{"none": true, "localhost": true, "full": true}
+	if !validNetworkAccess[profile.NetworkAccess] {
+		h.JSONError(w, "networkAccess must be one of: none, localhost, full", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.ProfileStore.Save(profile); err != nil {
+		h.JSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	h.JSONSuccess(w, profile)
+}
+
+// DeleteProfile removes a custom profile.
+// DELETE /api/v1/config/profiles/{id}
+func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
+	if h.ProfileStore == nil {
+		h.JSONError(w, "profile store not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	if err := h.ProfileStore.Delete(id); err != nil {
+		h.JSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

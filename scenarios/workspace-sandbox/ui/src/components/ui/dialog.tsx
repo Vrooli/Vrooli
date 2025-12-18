@@ -44,7 +44,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       }}
     >
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" />
-      <div className="relative z-50 w-full max-w-lg">{children}</div>
+      <div className="relative z-50 w-full max-w-[90vw] mx-auto">{children}</div>
     </div>
   );
 }
@@ -55,7 +55,7 @@ export function DialogContent({ className, children, ...props }: DialogContentPr
   return (
     <div
       className={cn(
-        "relative rounded-lg border border-slate-800 bg-slate-900 p-6 shadow-xl",
+        "relative mx-auto rounded-lg border border-slate-800 bg-slate-900 p-6 shadow-xl",
         "animate-in fade-in-0 zoom-in-95",
         className
       )}

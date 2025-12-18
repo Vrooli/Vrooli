@@ -461,8 +461,6 @@ export async function validatePath(
 
 // --- Process Execution Types ---
 
-export type IsolationLevel = "full" | "vrooli-aware";
-
 export interface ExecRequest {
   command: string;
   args?: string[];
@@ -470,7 +468,7 @@ export interface ExecRequest {
   env?: Record<string, string>;
   workingDir?: string;
   sessionId?: string;
-  isolationLevel?: IsolationLevel;
+  isolationLevel?: string; // Profile ID (e.g., "full", "vrooli-aware", or custom profile IDs)
   memoryLimitMB?: number;
   cpuTimeSec?: number;
   timeoutSec?: number;
@@ -493,7 +491,7 @@ export interface StartProcessRequest {
   allowNetwork?: boolean;
   env?: Record<string, string>;
   workingDir?: string;
-  isolationLevel?: IsolationLevel;
+  isolationLevel?: string; // Profile ID (e.g., "full", "vrooli-aware", or custom profile IDs)
   memoryLimitMB?: number;
   cpuTimeSec?: number;
   maxProcesses?: number;
@@ -600,4 +598,76 @@ export async function getProcessLogs(
 // List all logs for a sandbox
 export async function listLogs(sandboxId: string): Promise<LogListResponse> {
   return apiRequest<LogListResponse>(`/sandboxes/${sandboxId}/logs`);
+}
+
+// --- Execution Config and Isolation Profiles ---
+
+export interface ResourceLimitsConfig {
+  memoryLimitMB: number;
+  cpuTimeSec: number;
+  maxProcesses: number;
+  maxOpenFiles: number;
+  timeoutSec: number;
+}
+
+export interface ExecutionConfig {
+  defaultResourceLimits: ResourceLimitsConfig;
+  maxResourceLimits: ResourceLimitsConfig;
+  defaultIsolationProfile: string;
+}
+
+export type NetworkAccess = "none" | "localhost" | "full";
+
+export interface IsolationProfile {
+  id: string;
+  name: string;
+  description: string;
+  builtin: boolean;
+  networkAccess: NetworkAccess;
+  readOnlyBinds: Record<string, string>;
+  readWriteBinds: Record<string, string>;
+  environment: Record<string, string>;
+  hostname: string;
+}
+
+// Get execution config
+export async function fetchExecutionConfig(): Promise<ExecutionConfig> {
+  return apiRequest<ExecutionConfig>("/config/execution");
+}
+
+// Update execution config
+export async function updateExecutionConfig(
+  config: ExecutionConfig
+): Promise<ExecutionConfig> {
+  return apiRequest<ExecutionConfig>("/config/execution", {
+    method: "PUT",
+    body: JSON.stringify(config),
+  });
+}
+
+// List all isolation profiles
+export async function fetchProfiles(): Promise<IsolationProfile[]> {
+  return apiRequest<IsolationProfile[]>("/config/profiles");
+}
+
+// Get a single profile
+export async function fetchProfile(id: string): Promise<IsolationProfile> {
+  return apiRequest<IsolationProfile>(`/config/profiles/${id}`);
+}
+
+// Save (create/update) a profile
+export async function saveProfile(
+  profile: IsolationProfile
+): Promise<IsolationProfile> {
+  return apiRequest<IsolationProfile>(`/config/profiles/${profile.id}`, {
+    method: "PUT",
+    body: JSON.stringify(profile),
+  });
+}
+
+// Delete a profile
+export async function deleteProfile(id: string): Promise<void> {
+  await apiRequest<void>(`/config/profiles/${id}`, {
+    method: "DELETE",
+  });
 }

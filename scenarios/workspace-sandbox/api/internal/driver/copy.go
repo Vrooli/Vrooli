@@ -435,7 +435,6 @@ func (d *CopyDriver) StartProcess(ctx context.Context, s *types.Sandbox, cfg Bwr
 	return execCmd.Process.Pid, nil
 }
 
-
 // --- Helper Functions ---
 
 // copyDirectory recursively copies a directory tree.

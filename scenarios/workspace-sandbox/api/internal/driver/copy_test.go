@@ -52,10 +52,10 @@ func TestCopyDriverMount(t *testing.T) {
 
 	// Create a source directory with content
 	sourceDir := filepath.Join(tmpDir, "source")
-	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(sourceDir, "test.txt"), []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(sourceDir, "test.txt"), []byte("test content"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -117,13 +117,13 @@ func TestCopyDriverGetChangedFiles(t *testing.T) {
 
 	// Create source with a file
 	sourceDir := filepath.Join(tmpDir, "source")
-	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(sourceDir, "existing.txt"), []byte("original"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(sourceDir, "existing.txt"), []byte("original"), 0o644); err != nil {
 		t.Fatalf("failed to create existing file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(sourceDir, "toDelete.txt"), []byte("will be deleted"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(sourceDir, "toDelete.txt"), []byte("will be deleted"), 0o644); err != nil {
 		t.Fatalf("failed to create toDelete file: %v", err)
 	}
 
@@ -149,11 +149,11 @@ func TestCopyDriverGetChangedFiles(t *testing.T) {
 
 	// Make changes in workspace
 	// 1. Add a new file
-	if err := os.WriteFile(filepath.Join(paths.UpperDir, "newfile.txt"), []byte("new"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(paths.UpperDir, "newfile.txt"), []byte("new"), 0o644); err != nil {
 		t.Fatalf("failed to create new file: %v", err)
 	}
 	// 2. Modify existing file
-	if err := os.WriteFile(filepath.Join(paths.UpperDir, "existing.txt"), []byte("modified"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(paths.UpperDir, "existing.txt"), []byte("modified"), 0o644); err != nil {
 		t.Fatalf("failed to modify existing file: %v", err)
 	}
 	// 3. Delete a file
@@ -191,7 +191,7 @@ func TestCopyDriverIsMounted(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	sourceDir := filepath.Join(tmpDir, "source")
-	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 
@@ -245,7 +245,7 @@ func TestCopyDriverVerifyMountIntegrity(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	sourceDir := filepath.Join(tmpDir, "source")
-	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 
@@ -285,7 +285,7 @@ func TestCopyDriverRemoveFromUpper(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	sourceDir := filepath.Join(tmpDir, "source")
-	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
 		t.Fatalf("failed to create source dir: %v", err)
 	}
 
@@ -307,7 +307,7 @@ func TestCopyDriverRemoveFromUpper(t *testing.T) {
 
 	// Create a file in workspace
 	testFile := filepath.Join(paths.UpperDir, "toremove.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -501,9 +501,9 @@ func BenchmarkCopyDriverMount(b *testing.B) {
 
 	// Create source with a few files
 	sourceDir := filepath.Join(tmpDir, "source")
-	os.MkdirAll(sourceDir, 0755)
+	os.MkdirAll(sourceDir, 0o755)
 	for i := 0; i < 10; i++ {
-		os.WriteFile(filepath.Join(sourceDir, "file"+string(rune('0'+i))+".txt"), []byte("content"), 0644)
+		os.WriteFile(filepath.Join(sourceDir, "file"+string(rune('0'+i))+".txt"), []byte("content"), 0o644)
 	}
 
 	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
