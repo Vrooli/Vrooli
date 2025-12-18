@@ -520,6 +520,31 @@ type ConflictCheckRequest struct {
 	SandboxID uuid.UUID `json:"sandboxId"`
 }
 
+// PathValidationResult contains the result of validating a filesystem path.
+// Used by the UI to check paths before creating sandboxes.
+type PathValidationResult struct {
+	// Path is the validated path (echoed back).
+	Path string `json:"path"`
+
+	// ProjectRoot is the project root used for validation (echoed back).
+	ProjectRoot string `json:"projectRoot,omitempty"`
+
+	// Valid is true if the path passes all validation checks.
+	Valid bool `json:"valid"`
+
+	// Exists is true if the path exists on the filesystem.
+	Exists bool `json:"exists,omitempty"`
+
+	// IsDirectory is true if the path is a directory.
+	IsDirectory bool `json:"isDirectory,omitempty"`
+
+	// WithinProjectRoot is true if the path is within the project root.
+	WithinProjectRoot bool `json:"withinProjectRoot,omitempty"`
+
+	// Error contains a human-readable error message if validation failed.
+	Error string `json:"error,omitempty"`
+}
+
 // ConflictCheckResponse contains the result of a conflict check.
 type ConflictCheckResponse struct {
 	// HasConflict is true if the canonical repo has changed since sandbox creation.

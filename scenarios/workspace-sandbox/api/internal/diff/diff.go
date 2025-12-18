@@ -53,12 +53,36 @@ import (
 	"workspace-sandbox/internal/types"
 )
 
-// Generator creates unified diffs from sandbox changes.
-type Generator struct{}
+// GeneratorConfig holds configuration for diff generation.
+type GeneratorConfig struct {
+	// BinaryDetectionThreshold is the number of bytes to scan for binary detection.
+	// Default: 8000
+	BinaryDetectionThreshold int
+}
 
-// NewGenerator creates a new diff generator.
+// DefaultGeneratorConfig returns sensible defaults.
+func DefaultGeneratorConfig() GeneratorConfig {
+	return GeneratorConfig{
+		BinaryDetectionThreshold: 8000,
+	}
+}
+
+// Generator creates unified diffs from sandbox changes.
+type Generator struct {
+	config GeneratorConfig
+}
+
+// NewGenerator creates a new diff generator with default config.
 func NewGenerator() *Generator {
-	return &Generator{}
+	return &Generator{config: DefaultGeneratorConfig()}
+}
+
+// NewGeneratorWithConfig creates a new diff generator with custom config.
+func NewGeneratorWithConfig(cfg GeneratorConfig) *Generator {
+	if cfg.BinaryDetectionThreshold <= 0 {
+		cfg.BinaryDetectionThreshold = 8000
+	}
+	return &Generator{config: cfg}
 }
 
 // GenerateDiff creates a unified diff for all changes in a sandbox.
@@ -163,7 +187,7 @@ func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath string) (
 	}
 
 	// Check if binary
-	if isBinary(content) {
+	if g.isBinary(content) {
 		return fmt.Sprintf("diff --git a/%s b/%s\nnew file mode %06o\nBinary file %s\n",
 			relPath, relPath, info.Mode().Perm(), relPath), nil
 	}
@@ -206,7 +230,7 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath strin
 		return "", err
 	}
 
-	if isBinary(content) {
+	if g.isBinary(content) {
 		return fmt.Sprintf("diff --git a/%s b/%s\ndeleted file mode %06o\nBinary file %s\n",
 			relPath, relPath, info.Mode().Perm(), relPath), nil
 	}
@@ -258,8 +282,19 @@ func (g *Generator) diffModifiedFile(ctx context.Context, lowerDir, upperDir, re
 }
 
 // isBinary checks if content appears to be binary.
-func isBinary(content []byte) bool {
-	// Check for null bytes in first 8000 bytes
+func (g *Generator) isBinary(content []byte) bool {
+	// Check for null bytes in first N bytes (configurable threshold)
+	threshold := g.config.BinaryDetectionThreshold
+	checkLen := len(content)
+	if checkLen > threshold {
+		checkLen = threshold
+	}
+	return bytes.Contains(content[:checkLen], []byte{0})
+}
+
+// isBinaryDefault is a package-level helper for code that doesn't have a Generator.
+func isBinaryDefault(content []byte) bool {
+	// Check for null bytes in first 8000 bytes (default threshold)
 	checkLen := len(content)
 	if checkLen > 8000 {
 		checkLen = 8000

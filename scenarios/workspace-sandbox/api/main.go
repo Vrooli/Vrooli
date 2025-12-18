@@ -124,7 +124,10 @@ func NewServer() (*Server, error) {
 	)
 
 	// Initialize process tracker (OT-P0-008)
-	processTracker := process.NewTracker()
+	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{
+		GracePeriod: cfg.Lifecycle.ProcessGracePeriod,
+		KillWait:    cfg.Lifecycle.ProcessKillWait,
+	})
 
 	// Initialize GC service (OT-P1-003)
 	gcCfg := gc.Config{
@@ -177,72 +180,13 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
+	// Apply middleware
 	s.router.Use(s.structuredLoggingMiddleware)
 	s.router.Use(s.corsMiddleware)
 
-	h := s.handlers
-
-	// Health endpoints
-	s.router.HandleFunc("/health", h.Health).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", h.Health).Methods("GET")
-
-	// Sandbox CRUD
-	api := s.router.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/sandboxes", h.CreateSandbox).Methods("POST")
-	api.HandleFunc("/sandboxes", h.ListSandboxes).Methods("GET")
-	api.HandleFunc("/sandboxes/{id}", h.GetSandbox).Methods("GET")
-	api.HandleFunc("/sandboxes/{id}", h.DeleteSandbox).Methods("DELETE")
-	api.HandleFunc("/sandboxes/{id}/stop", h.StopSandbox).Methods("POST")
-
-	// Diff and approval
-	api.HandleFunc("/sandboxes/{id}/diff", h.GetDiff).Methods("GET")
-	api.HandleFunc("/sandboxes/{id}/approve", h.Approve).Methods("POST")
-	api.HandleFunc("/sandboxes/{id}/reject", h.Reject).Methods("POST")
-
-	// Conflict detection and rebase (OT-P2-003)
-	api.HandleFunc("/sandboxes/{id}/conflicts", h.CheckConflicts).Methods("GET")
-	api.HandleFunc("/sandboxes/{id}/rebase", h.Rebase).Methods("POST")
-
-	// Workspace path helper
-	api.HandleFunc("/sandboxes/{id}/workspace", h.GetWorkspace).Methods("GET")
-
-	// Process isolation and execution (OT-P0-003)
-	api.HandleFunc("/sandboxes/{id}/exec", h.Exec).Methods("POST")
-	api.HandleFunc("/sandboxes/{id}/processes", h.StartProcess).Methods("POST")
-	api.HandleFunc("/sandboxes/{id}/processes", h.ListProcesses).Methods("GET")
-	api.HandleFunc("/sandboxes/{id}/processes/{pid}", h.KillProcess).Methods("DELETE")
-	api.HandleFunc("/sandboxes/{id}/processes/kill-all", h.KillAllProcesses).Methods("POST")
-
-	// Driver and system info
-	api.HandleFunc("/driver/info", h.DriverInfo).Methods("GET")
-	api.HandleFunc("/driver/bwrap", h.BwrapInfo).Methods("GET")
-
-	// Path validation for UI
-	api.HandleFunc("/validate-path", h.ValidatePath).Methods("GET")
-
-	// Stats endpoints for dashboard metrics
-	api.HandleFunc("/stats", h.Stats).Methods("GET")
-	api.HandleFunc("/stats/processes", h.ProcessStats).Methods("GET")
-
-	// Garbage collection endpoints (OT-P1-003)
-	api.HandleFunc("/gc", h.GC).Methods("POST")
-	api.HandleFunc("/gc/preview", h.GCPreview).Methods("POST")
-
-	// Audit log endpoints (OT-P1-004)
-	api.HandleFunc("/audit", h.GetAuditLog).Methods("GET")
-	api.HandleFunc("/sandboxes/{id}/audit", h.GetSandboxAuditLog).Methods("GET")
-
-	// Metrics endpoint (OT-P1-008)
-	// Supports Prometheus format (default) and JSON (?format=json)
-	metricsCollector := s.metricsCollector
-	api.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-		h.Metrics(w, r, metricsCollector)
-	}).Methods("GET")
-
-	// Also expose at root /metrics for standard Prometheus scraping
-	s.router.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-		h.Metrics(w, r, metricsCollector)
-	}).Methods("GET")
+	// Delegate route registration to handlers package
+	// This centralizes route knowledge with the handlers and makes the API surface explicit
+	s.handlers.RegisterRoutes(s.router, s.metricsCollector)
 }
 
 // Start launches the HTTP server with graceful shutdown.

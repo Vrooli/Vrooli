@@ -3,6 +3,9 @@ package sandbox
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -61,6 +64,10 @@ type ServiceAPI interface {
 	// This allows the sandbox to be aware of new changes in the canonical repo
 	// and enables accurate conflict detection for subsequent approvals.
 	Rebase(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error)
+
+	// ValidatePath checks if a path is valid for use as a sandbox scope.
+	// This enables the UI to validate paths before attempting to create a sandbox.
+	ValidatePath(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error)
 }
 
 // Verify Service implements ServiceAPI interface at compile time.
@@ -162,42 +169,61 @@ func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig
 // Returns ValidationError for invalid input, ScopeConflictError if the scope
 // overlaps with an existing sandbox, or DriverError if mounting fails.
 func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error) {
-	// --- Idempotency Check ---
-	// If an idempotency key is provided, check if we already processed this request.
-	// This enables safe retries: if a client retries a create request, they get
-	// the same sandbox back instead of an error or a duplicate.
-	if req.IdempotencyKey != "" {
-		existing, err := s.repo.FindByIdempotencyKey(ctx, req.IdempotencyKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check idempotency key: %w", err)
-		}
-		if existing != nil {
-			// Found existing sandbox with this key - return it (idempotent success)
-			// Note: We don't verify parameters match because the idempotency key
-			// is the authoritative indicator that this is the "same" request.
-			return existing, nil
-		}
+	// Check for idempotent request (safe retries)
+	if existing, ok := s.checkIdempotency(ctx, req); ok {
+		return existing, nil
 	}
 
-	// ASSUMPTION: Either request or config provides project root
-	// GUARD: Check this explicitly and provide helpful error message
+	// Validate and normalize the request
+	projectRoot, normalizedPath, err := s.validateCreateRequest(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create and mount the sandbox
+	return s.createAndMountSandbox(ctx, req, projectRoot, normalizedPath)
+}
+
+// checkIdempotency checks if a sandbox was already created with the given idempotency key.
+// Returns (existing sandbox, true) if found, or (nil, false) if not.
+func (s *Service) checkIdempotency(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, bool) {
+	if req.IdempotencyKey == "" {
+		return nil, false
+	}
+
+	existing, err := s.repo.FindByIdempotencyKey(ctx, req.IdempotencyKey)
+	if err != nil {
+		// Log error but don't block - idempotency is a convenience, not required
+		fmt.Printf("warning: failed to check idempotency key: %v\n", err)
+		return nil, false
+	}
+	if existing != nil {
+		// Found existing sandbox with this key - return it (idempotent success)
+		return existing, true
+	}
+	return nil, false
+}
+
+// validateCreateRequest validates the create request and returns the resolved project root
+// and normalized scope path. Returns an error if validation fails.
+func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRequest) (string, string, error) {
+	// Resolve project root from request or config
 	projectRoot := req.ProjectRoot
 	if projectRoot == "" {
 		projectRoot = s.config.DefaultProjectRoot
 	}
 	if projectRoot == "" {
-		return nil, types.NewValidationErrorWithHint(
+		return "", "", types.NewValidationErrorWithHint(
 			"projectRoot",
 			"project root is required but not provided",
 			"Set projectRoot in the request body, or configure PROJECT_ROOT environment variable",
 		)
 	}
 
-	// ASSUMPTION: Project root is a valid, accessible directory
-	// GUARD: Validate this before proceeding
+	// Validate and normalize scope path
 	normalizedPath, err := ValidateScopePath(req.ScopePath, projectRoot)
 	if err != nil {
-		return nil, types.NewValidationErrorWithHint(
+		return "", "", types.NewValidationErrorWithHint(
 			"scopePath",
 			fmt.Sprintf("invalid scope path: %v", err),
 			"Ensure the path exists within the project root and contains no invalid characters",
@@ -207,12 +233,17 @@ func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.
 	// Check for overlapping sandboxes
 	conflicts, err := s.repo.CheckScopeOverlap(ctx, normalizedPath, projectRoot, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check scope overlap: %w", err)
+		return "", "", fmt.Errorf("failed to check scope overlap: %w", err)
 	}
 	if len(conflicts) > 0 {
-		return nil, &types.ScopeConflictError{Conflicts: conflicts}
+		return "", "", &types.ScopeConflictError{Conflicts: conflicts}
 	}
 
+	return projectRoot, normalizedPath, nil
+}
+
+// createAndMountSandbox creates the sandbox record, mounts the overlay, and returns the sandbox.
+func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRequest, projectRoot, normalizedPath string) (*types.Sandbox, error) {
 	// Create sandbox record
 	sandbox := &types.Sandbox{
 		ID:             uuid.New(),
@@ -238,7 +269,6 @@ func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.
 	}
 
 	// Capture the base commit hash for conflict detection (OT-P2-002)
-	// This enables detecting when the canonical repo has changed since sandbox creation
 	baseCommitHash, err := diff.GetGitCommitHash(ctx, projectRoot)
 	if err != nil {
 		// Log but don't fail - repo might not be a git repo
@@ -924,6 +954,88 @@ func (s *Service) logAuditEvent(ctx context.Context, sandbox *types.Sandbox, eve
 		// Log the error but don't fail the operation
 		fmt.Printf("warning: failed to log audit event: %v\n", err)
 	}
+}
+
+// ValidatePath checks if a path is valid for use as a sandbox scope.
+//
+// This method centralizes all path validation logic that was previously scattered
+// in the handler. It checks:
+//   - Path is absolute
+//   - Path is not a dangerous system directory
+//   - Path exists on the filesystem
+//   - Path is a directory (not a file)
+//   - Path is within the project root
+//
+// The result always includes the path and projectRoot for echo-back, and sets
+// Valid=true only if all checks pass.
+func (s *Service) ValidatePath(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
+	result := &types.PathValidationResult{
+		Path:        path,
+		ProjectRoot: projectRoot,
+	}
+
+	// Use default project root if not specified
+	if projectRoot == "" {
+		projectRoot = s.config.DefaultProjectRoot
+		result.ProjectRoot = projectRoot
+	}
+
+	// Check if path is absolute
+	if !filepath.IsAbs(path) {
+		result.Valid = false
+		result.Error = "Path must be absolute"
+		return result, nil
+	}
+
+	// Check for dangerous system paths
+	cleanPath := filepath.Clean(path)
+	dangerousPaths := []string{"/", "/bin", "/sbin", "/usr", "/etc", "/var", "/tmp", "/root", "/home"}
+	for _, dangerous := range dangerousPaths {
+		if cleanPath == dangerous {
+			result.Valid = false
+			result.Error = "Cannot use system directories"
+			return result, nil
+		}
+	}
+
+	// Check if path exists
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		result.Valid = false
+		result.Exists = false
+		result.Error = "Path does not exist"
+		return result, nil
+	}
+	if err != nil {
+		result.Valid = false
+		result.Error = fmt.Sprintf("Cannot access path: %v", err)
+		return result, nil
+	}
+
+	result.Exists = true
+	result.IsDirectory = info.IsDir()
+
+	// Check if it's a directory
+	if !info.IsDir() {
+		result.Valid = false
+		result.Error = "Path must be a directory"
+		return result, nil
+	}
+
+	// Check if path is within project root (if project root is set)
+	if projectRoot != "" {
+		cleanProjectRoot := filepath.Clean(projectRoot)
+		if cleanPath != cleanProjectRoot && !strings.HasPrefix(cleanPath, cleanProjectRoot+string(filepath.Separator)) {
+			result.Valid = false
+			result.Error = fmt.Sprintf("Path must be within %s", projectRoot)
+			result.WithinProjectRoot = false
+			return result, nil
+		}
+		result.WithinProjectRoot = true
+	}
+
+	result.Valid = true
+	return result, nil
 }
 
 // Legacy error type aliases for backwards compatibility.

@@ -237,8 +237,8 @@ export function SandboxDetail({
             </div>
           )}
 
-          {/* Actions */}
-          {!isTerminal && (
+          {/* Actions - show workflow actions for non-terminal, delete for non-deleted */}
+          {(sandbox.status !== "deleted") && (
             <div className="mt-4 flex flex-wrap gap-2">
               {canStop && (
                 <Button
@@ -345,7 +345,7 @@ export function SandboxDetail({
                 </>
               )}
 
-              {/* Delete button with confirmation */}
+              {/* Delete button with confirmation - available for all non-deleted sandboxes */}
               <div className="ml-auto">
                 {showDeleteConfirm ? (
                   <div className="flex items-center gap-1">

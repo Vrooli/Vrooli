@@ -563,7 +563,7 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata,
-			COALESCE(idempotency_key, ''), updated_at, version
+			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
 		FROM sandboxes
 		WHERE idempotency_key = $1`
 
@@ -577,7 +577,7 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
-		&s.IdempotencyKey, &s.UpdatedAt, &s.Version,
+		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -709,7 +709,7 @@ func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.San
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata,
-			COALESCE(idempotency_key, ''), updated_at, version
+			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
 		FROM sandboxes
 		WHERE id = $1`
 
@@ -723,7 +723,7 @@ func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.San
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
-		&s.IdempotencyKey, &s.UpdatedAt, &s.Version,
+		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -901,7 +901,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata,
-			COALESCE(idempotency_key, ''), updated_at, version
+			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
 		FROM sandboxes
 		WHERE idempotency_key = $1
 		FOR UPDATE`
@@ -916,7 +916,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
-		&s.IdempotencyKey, &s.UpdatedAt, &s.Version,
+		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil

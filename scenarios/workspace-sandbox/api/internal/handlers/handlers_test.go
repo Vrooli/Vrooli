@@ -202,15 +202,18 @@ func TestHealthContentType(t *testing.T) {
 
 // mockService implements sandbox.ServiceAPI for testing.
 type mockService struct {
-	createFn         func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error)
-	getFn            func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	listFn           func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
-	stopFn           func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	deleteFn         func(ctx context.Context, id uuid.UUID) error
-	getDiffFn        func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
-	approveFn        func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
-	rejectFn         func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
-	getWorkspaceFn   func(ctx context.Context, id uuid.UUID) (string, error)
+	createFn          func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error)
+	getFn             func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	listFn            func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
+	stopFn            func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	deleteFn          func(ctx context.Context, id uuid.UUID) error
+	getDiffFn         func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
+	approveFn         func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
+	rejectFn          func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
+	getWorkspaceFn    func(ctx context.Context, id uuid.UUID) (string, error)
+	checkConflictsFn  func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error)
+	rebaseFn          func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error)
+	validatePathFn    func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error)
 }
 
 // Verify mockService implements ServiceAPI
@@ -277,6 +280,27 @@ func (m *mockService) GetWorkspacePath(ctx context.Context, id uuid.UUID) (strin
 		return m.getWorkspaceFn(ctx, id)
 	}
 	return "", fmt.Errorf("not implemented")
+}
+
+func (m *mockService) CheckConflicts(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
+	if m.checkConflictsFn != nil {
+		return m.checkConflictsFn(ctx, id)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockService) Rebase(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
+	if m.rebaseFn != nil {
+		return m.rebaseFn(ctx, req)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockService) ValidatePath(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
+	if m.validatePathFn != nil {
+		return m.validatePathFn(ctx, path, projectRoot)
+	}
+	return nil, fmt.Errorf("not implemented")
 }
 
 // --- CreateSandbox Handler Tests ---

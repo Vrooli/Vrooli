@@ -60,16 +60,51 @@ func (p *TrackedProcess) IsRunning() bool {
 	return process.Signal(syscall.Signal(0)) == nil
 }
 
+// TrackerConfig holds configuration for process tracking.
+type TrackerConfig struct {
+	// GracePeriod is how long to wait after SIGTERM before sending SIGKILL.
+	// Default: 100ms
+	GracePeriod time.Duration
+
+	// KillWait is how long to wait after SIGKILL for process to die.
+	// Default: 50ms
+	KillWait time.Duration
+}
+
+// DefaultTrackerConfig returns sensible defaults.
+func DefaultTrackerConfig() TrackerConfig {
+	return TrackerConfig{
+		GracePeriod: 100 * time.Millisecond,
+		KillWait:    50 * time.Millisecond,
+	}
+}
+
 // Tracker manages process tracking for sandboxes.
 type Tracker struct {
 	mu        sync.RWMutex
 	processes map[uuid.UUID][]*TrackedProcess // sandboxID -> processes
+	config    TrackerConfig
 }
 
-// NewTracker creates a new process tracker.
+// NewTracker creates a new process tracker with default config.
 func NewTracker() *Tracker {
 	return &Tracker{
 		processes: make(map[uuid.UUID][]*TrackedProcess),
+		config:    DefaultTrackerConfig(),
+	}
+}
+
+// NewTrackerWithConfig creates a new process tracker with custom config.
+func NewTrackerWithConfig(cfg TrackerConfig) *Tracker {
+	if cfg.GracePeriod <= 0 {
+		cfg.GracePeriod = 100 * time.Millisecond
+	}
+	if cfg.KillWait <= 0 {
+		cfg.KillWait = 50 * time.Millisecond
+	}
+	return &Tracker{
+		processes: make(map[uuid.UUID][]*TrackedProcess),
+		config:    cfg,
 	}
 }
 
@@ -146,8 +181,8 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 		// Try graceful termination first (SIGTERM)
 		t.killProcess(proc, syscall.SIGTERM)
 
-		// Wait briefly for graceful shutdown
-		time.Sleep(100 * time.Millisecond)
+		// Wait for graceful shutdown (configurable)
+		time.Sleep(t.config.GracePeriod)
 
 		// If still running, force kill (SIGKILL)
 		if proc.IsRunning() {
@@ -157,8 +192,8 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 			}
 		}
 
-		// Give a moment for the process to die
-		time.Sleep(50 * time.Millisecond)
+		// Give time for the process to die (configurable)
+		time.Sleep(t.config.KillWait)
 
 		// Check if actually dead now
 		if !proc.IsRunning() {
@@ -212,16 +247,16 @@ func (t *Tracker) KillProcess(ctx context.Context, sandboxID uuid.UUID, pid int)
 	// SIGTERM first (ignore errors, try anyway)
 	t.killProcess(target, syscall.SIGTERM)
 
-	// Wait and SIGKILL if needed
-	time.Sleep(100 * time.Millisecond)
+	// Wait for graceful shutdown (configurable)
+	time.Sleep(t.config.GracePeriod)
 	if target.IsRunning() {
 		t.killProcess(target, syscall.SIGKILL)
 		// Also try direct PID kill as last resort
 		syscall.Kill(pid, syscall.SIGKILL)
 	}
 
-	// Give time for cleanup
-	time.Sleep(50 * time.Millisecond)
+	// Give time for cleanup (configurable)
+	time.Sleep(t.config.KillWait)
 
 	if !target.IsRunning() {
 		now := time.Now()

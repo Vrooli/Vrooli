@@ -57,9 +57,9 @@ func TestIsBinary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isBinary(tt.content)
+			result := isBinaryDefault(tt.content)
 			if result != tt.expected {
-				t.Errorf("isBinary() = %v, want %v", result, tt.expected)
+				t.Errorf("isBinaryDefault() = %v, want %v", result, tt.expected)
 			}
 		})
 	}
@@ -75,14 +75,14 @@ func TestIsBinaryLargeFile(t *testing.T) {
 	// Place null byte after the 8KB check window
 	content[9000] = 0x00
 
-	if isBinary(content) {
-		t.Error("isBinary should not detect null byte after 8KB window")
+	if isBinaryDefault(content) {
+		t.Error("isBinaryDefault should not detect null byte after 8KB window")
 	}
 
 	// Place null byte within the 8KB check window
 	content[7000] = 0x00
-	if !isBinary(content) {
-		t.Error("isBinary should detect null byte within 8KB window")
+	if !isBinaryDefault(content) {
+		t.Error("isBinaryDefault should detect null byte within 8KB window")
 	}
 }
 
@@ -756,13 +756,13 @@ func TestNewPatcher(t *testing.T) {
 	}
 }
 
-// Benchmark for isBinary detection
-func BenchmarkIsBinary(b *testing.B) {
+// Benchmark for isBinaryDefault detection
+func BenchmarkIsBinaryDefault(b *testing.B) {
 	content := []byte(strings.Repeat("This is a line of text.\n", 500))
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		isBinary(content)
+		isBinaryDefault(content)
 	}
 }
 

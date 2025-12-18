@@ -133,6 +133,15 @@ type LifecycleConfig struct {
 	// approved/rejected sandboxes.
 	// Default: 1h
 	TerminalCleanupDelay time.Duration
+
+	// ProcessGracePeriod is how long to wait after SIGTERM before sending SIGKILL.
+	// Higher = more time for graceful shutdown but slower cleanup.
+	// Default: 100ms
+	ProcessGracePeriod time.Duration
+
+	// ProcessKillWait is how long to wait after SIGKILL for process to die.
+	// Default: 50ms
+	ProcessKillWait time.Duration
 }
 
 // PolicyConfig controls approval and attribution rules.
@@ -172,6 +181,12 @@ type PolicyConfig struct {
 	// ValidationTimeout is the maximum time to wait for all validation hooks.
 	// Default: 5m
 	ValidationTimeout time.Duration
+
+	// BinaryDetectionThreshold is the number of bytes to scan when detecting
+	// binary files. Files with null bytes in this range are treated as binary.
+	// Higher = more accurate detection but slower for large files.
+	// Default: 8000
+	BinaryDetectionThreshold int
 }
 
 // ValidationHookConfig defines a single validation hook.
@@ -279,6 +294,8 @@ func Default() Config {
 			GCInterval:           15 * time.Minute,
 			AutoCleanupTerminal:  true,
 			TerminalCleanupDelay: 1 * time.Hour,
+			ProcessGracePeriod:   100 * time.Millisecond,
+			ProcessKillWait:      50 * time.Millisecond,
 		},
 		Policy: PolicyConfig{
 			RequireHumanApproval:      true,
@@ -288,6 +305,7 @@ func Default() Config {
 			CommitAuthorMode:          "agent",
 			ValidationHooks:           nil, // No hooks by default
 			ValidationTimeout:         5 * time.Minute,
+			BinaryDetectionThreshold:  8000,
 		},
 		Driver: DriverConfig{
 			BaseDir:          DefaultBaseDir(),
@@ -331,11 +349,14 @@ func LoadFromEnv() (Config, error) {
 	cfg.Lifecycle.GCInterval = envDuration("WORKSPACE_SANDBOX_GC_INTERVAL", cfg.Lifecycle.GCInterval)
 	cfg.Lifecycle.AutoCleanupTerminal = envBool("WORKSPACE_SANDBOX_AUTO_CLEANUP_TERMINAL", cfg.Lifecycle.AutoCleanupTerminal)
 	cfg.Lifecycle.TerminalCleanupDelay = envDuration("WORKSPACE_SANDBOX_TERMINAL_CLEANUP_DELAY", cfg.Lifecycle.TerminalCleanupDelay)
+	cfg.Lifecycle.ProcessGracePeriod = envDuration("WORKSPACE_SANDBOX_PROCESS_GRACE_PERIOD", cfg.Lifecycle.ProcessGracePeriod)
+	cfg.Lifecycle.ProcessKillWait = envDuration("WORKSPACE_SANDBOX_PROCESS_KILL_WAIT", cfg.Lifecycle.ProcessKillWait)
 
 	// Policy config
 	cfg.Policy.RequireHumanApproval = envBool("WORKSPACE_SANDBOX_REQUIRE_HUMAN_APPROVAL", cfg.Policy.RequireHumanApproval)
 	cfg.Policy.AutoApproveThresholdFiles = envInt("WORKSPACE_SANDBOX_AUTO_APPROVE_FILES", cfg.Policy.AutoApproveThresholdFiles)
 	cfg.Policy.AutoApproveThresholdLines = envInt("WORKSPACE_SANDBOX_AUTO_APPROVE_LINES", cfg.Policy.AutoApproveThresholdLines)
+	cfg.Policy.BinaryDetectionThreshold = envInt("WORKSPACE_SANDBOX_BINARY_THRESHOLD", cfg.Policy.BinaryDetectionThreshold)
 	if tmpl := os.Getenv("WORKSPACE_SANDBOX_COMMIT_TEMPLATE"); tmpl != "" {
 		cfg.Policy.CommitMessageTemplate = tmpl
 	}

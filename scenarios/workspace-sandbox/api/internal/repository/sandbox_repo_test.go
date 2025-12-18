@@ -57,7 +57,7 @@ func sandboxColumns() []string {
 		"created_at", "last_used_at", "stopped_at", "approved_at", "deleted_at",
 		"driver", "driver_version", "lower_dir", "upper_dir", "work_dir", "merged_dir",
 		"size_bytes", "file_count", "active_pids", "session_count", "tags", "metadata",
-		"idempotency_key", "updated_at", "version",
+		"idempotency_key", "updated_at", "version", "base_commit_hash",
 	}
 }
 
@@ -70,7 +70,7 @@ func sandboxRow(s *types.Sandbox) []driver.Value {
 		s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 		s.SizeBytes, s.FileCount, pq.Int64Array{}, s.SessionCount,
 		pq.StringArray(s.Tags), metadataJSON,
-		s.IdempotencyKey, s.UpdatedAt, s.Version,
+		s.IdempotencyKey, s.UpdatedAt, s.Version, s.BaseCommitHash,
 	}
 }
 
@@ -117,7 +117,7 @@ func TestSandboxRepository_Create(t *testing.T) {
 					WithArgs(
 						s.ID, s.ScopePath, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(),
-						s.IdempotencyKey, int64(1),
+						s.IdempotencyKey, int64(1), s.BaseCommitHash,
 					).
 					WillReturnRows(sqlmock.NewRows([]string{"created_at", "last_used_at", "updated_at"}).
 						AddRow(now, now, now))
@@ -133,7 +133,7 @@ func TestSandboxRepository_Create(t *testing.T) {
 					WithArgs(
 						s.ID, s.ScopePath, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(),
-						s.IdempotencyKey, int64(1),
+						s.IdempotencyKey, int64(1), s.BaseCommitHash,
 					).
 					WillReturnRows(sqlmock.NewRows([]string{"created_at", "last_used_at", "updated_at"}).
 						AddRow(now, now, now))
@@ -283,7 +283,7 @@ func TestSandboxRepository_Get_ParsesMetadataAndTags(t *testing.T) {
 				s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 				s.SizeBytes, s.FileCount, pq.Int64Array{123, 456}, s.SessionCount,
 				pq.StringArray(s.Tags), metadataJSON,
-				s.IdempotencyKey, s.UpdatedAt, s.Version,
+				s.IdempotencyKey, s.UpdatedAt, s.Version, s.BaseCommitHash,
 			))
 
 	result, err := repo.Get(context.Background(), id)
@@ -1547,7 +1547,7 @@ func TestSandboxRepository_Get_WithEmptyMetadata(t *testing.T) {
 				s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 				s.SizeBytes, s.FileCount, pq.Int64Array{}, s.SessionCount,
 				pq.StringArray{}, []byte{}, // Empty tags and metadata
-				s.IdempotencyKey, s.UpdatedAt, s.Version,
+				s.IdempotencyKey, s.UpdatedAt, s.Version, s.BaseCommitHash,
 			))
 
 	result, err := repo.Get(context.Background(), id)
