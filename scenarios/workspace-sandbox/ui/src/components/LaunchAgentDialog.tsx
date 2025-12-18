@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Zap,
   Clock,
@@ -94,7 +94,7 @@ const EXECUTION_MODES: Array<{
     title: "Interactive Session",
     description: "Real-time I/O, streaming output",
     details: "Full PTY support for REPLs and interactive tools.",
-    available: false,
+    available: true,
   },
 ];
 
@@ -334,6 +334,13 @@ export function LaunchAgentDialog({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showCommands, setShowCommands] = useState(false);
 
+  // Auto-expand commands section for interactive mode
+  useEffect(() => {
+    if (mode === "interactive") {
+      setShowCommands(true);
+    }
+  }, [mode]);
+
   // Parse command into command + args
   const { command, args } = useMemo(() => {
     const parts = commandInput.trim().split(/\s+/);
@@ -378,7 +385,17 @@ export function LaunchAgentDialog({
 
   // Generate CLI command
   const cliCommand = useMemo(() => {
-    const parts = ["workspace-sandbox", mode === "run" ? "run" : "exec", sandbox.id];
+    // For interactive mode, use shell (if no command) or attach (with command)
+    let cliMode: string;
+    if (mode === "interactive") {
+      cliMode = command ? "attach" : "shell";
+    } else if (mode === "run") {
+      cliMode = "run";
+    } else {
+      cliMode = "exec";
+    }
+
+    const parts = ["workspace-sandbox", cliMode, sandbox.id];
 
     if (name && mode === "run") parts.push(`--name=${name}`);
     if (memoryMB) parts.push(`--memory=${memoryMB}`);
@@ -390,8 +407,13 @@ export function LaunchAgentDialog({
     if (allowNetwork && isolationLevel !== "vrooli-aware") parts.push("--network");
     if (workingDir !== "/workspace") parts.push(`--workdir=${workingDir}`);
 
-    parts.push("--");
-    parts.push(commandInput.trim());
+    // For shell command without explicit command, don't add --
+    if (mode === "interactive" && !command) {
+      // Shell opens default shell, no command needed
+    } else {
+      parts.push("--");
+      parts.push(commandInput.trim());
+    }
 
     return parts.join(" \\\n  ");
   }, [
@@ -407,10 +429,40 @@ export function LaunchAgentDialog({
     allowNetwork,
     workingDir,
     commandInput,
+    command,
   ]);
 
-  // Generate curl command
+  // Generate curl command (or WebSocket URL for interactive)
   const curlCommand = useMemo(() => {
+    // For interactive mode, show WebSocket connection info
+    if (mode === "interactive") {
+      const wsBody: Record<string, unknown> = {
+        command: command || "/bin/sh",
+        args: args.length > 0 ? args : undefined,
+        isolationLevel,
+        cols: 80,
+        rows: 24,
+      };
+
+      if (memoryMB) wsBody.memoryLimitMB = parseInt(memoryMB, 10);
+      if (cpuTimeSec) wsBody.cpuTimeSec = parseInt(cpuTimeSec, 10);
+      if (maxProcs) wsBody.maxProcesses = parseInt(maxProcs, 10);
+      if (maxFiles) wsBody.maxOpenFiles = parseInt(maxFiles, 10);
+      if (allowNetwork || isolationLevel === "vrooli-aware") wsBody.allowNetwork = true;
+      if (workingDir !== "/workspace") wsBody.workingDir = workingDir;
+
+      // Clean up undefined values
+      Object.keys(wsBody).forEach((key) => {
+        if (wsBody[key] === undefined) delete wsBody[key];
+      });
+
+      return `# WebSocket URL (connect and send start message):
+ws://localhost:15427/api/v1/sandboxes/${sandbox.id}/exec-interactive
+
+# First message to send after connecting:
+${JSON.stringify(wsBody, null, 2)}`;
+    }
+
     const endpoint =
       mode === "run"
         ? `/api/v1/sandboxes/${sandbox.id}/processes`
@@ -458,7 +510,10 @@ export function LaunchAgentDialog({
   // Get selected isolation level details
   const selectedIsolation = ISOLATION_LEVELS.find((l) => l.id === isolationLevel)!;
 
+  // For exec/run: need command and not launching
+  // For interactive: can't launch from web UI, must use CLI
   const canSubmit = command.trim() && !isLaunching && mode !== "interactive";
+  const isInteractiveMode = mode === "interactive";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -475,7 +530,7 @@ export function LaunchAgentDialog({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
-        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="max-w-3xl max-h-[90vh] overflow-y-auto"
         data-testid={SELECTORS.launchDialog}
       >
         <DialogClose onClose={handleClose} />
@@ -524,18 +579,28 @@ export function LaunchAgentDialog({
           {/* Command Input */}
           <div className="space-y-2">
             <Label htmlFor="command">
-              Command <span className="text-red-400">*</span>
+              Command{" "}
+              {mode !== "interactive" && <span className="text-red-400">*</span>}
+              {mode === "interactive" && (
+                <span className="text-slate-500 font-normal">(optional)</span>
+              )}
             </Label>
             <Input
               id="command"
-              placeholder="python agent.py --task fix-bug"
+              placeholder={
+                mode === "interactive"
+                  ? "Leave empty for shell, or specify command..."
+                  : "python agent.py --task fix-bug"
+              }
               value={commandInput}
               onChange={(e) => setCommandInput(e.target.value)}
-              required
+              required={mode !== "interactive"}
               data-testid={SELECTORS.launchCommandInput}
             />
             <p className="text-xs text-slate-500">
-              The command to execute. Arguments will be parsed automatically.
+              {mode === "interactive"
+                ? "Leave empty to open a shell, or specify a command for attach mode."
+                : "The command to execute. Arguments will be parsed automatically."}
             </p>
           </div>
 
@@ -705,7 +770,9 @@ export function LaunchAgentDialog({
               <p className="mt-2 pt-2 border-t border-slate-700">
                 {mode === "exec"
                   ? "Output will be returned after the command completes."
-                  : "Process will run in background. Monitor via logs."}
+                  : mode === "run"
+                  ? "Process will run in background. Monitor via logs."
+                  : "Opens an interactive terminal session via CLI. Use the commands below."}
               </p>
             </div>
           </div>
@@ -725,10 +792,13 @@ export function LaunchAgentDialog({
               Commands
             </button>
 
-            {showCommands && command && (
+            {showCommands && (command || mode === "interactive") && (
               <div className="space-y-3 pl-4 border-l-2 border-slate-700 py-2">
                 <CopyableCommand label="CLI" command={cliCommand} />
-                <CopyableCommand label="API (curl)" command={curlCommand} />
+                <CopyableCommand
+                  label={mode === "interactive" ? "WebSocket" : "API (curl)"}
+                  command={curlCommand}
+                />
               </div>
             )}
           </div>
@@ -741,25 +811,37 @@ export function LaunchAgentDialog({
               onClick={handleClose}
               disabled={isLaunching}
             >
-              Cancel
+              {isInteractiveMode ? "Close" : "Cancel"}
             </Button>
-            <Button
-              type="submit"
-              disabled={!canSubmit}
-              data-testid={SELECTORS.launchSubmit}
-            >
-              {isLaunching ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Launching...
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  {mode === "run" ? "Start Process" : "Execute"}
-                </>
-              )}
-            </Button>
+            {isInteractiveMode ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowCommands(true)}
+                data-testid={SELECTORS.launchSubmit}
+              >
+                <Terminal className="h-4 w-4 mr-2" />
+                Show CLI Commands
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={!canSubmit}
+                data-testid={SELECTORS.launchSubmit}
+              >
+                {isLaunching ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Launching...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    {mode === "run" ? "Start Process" : "Execute"}
+                  </>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

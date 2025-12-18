@@ -278,6 +278,61 @@ workspace-sandbox logs abc123 --pid=12345 --follow
 workspace-sandbox logs abc123 --pid=12345 --tail=50
 ```
 
+### shell
+
+Open an interactive shell in the sandbox.
+
+```
+workspace-sandbox shell <sandbox-id> [OPTIONS]
+
+Options:
+  --memory=<MB>        Memory limit in MB (0 = unlimited)
+  --vrooli-aware       Use Vrooli-aware isolation
+  --network            Allow network access (default: blocked)
+```
+
+**Examples:**
+
+```bash
+# Open default shell
+workspace-sandbox shell abc123
+
+# Shell with Vrooli CLI access
+workspace-sandbox shell abc123 --vrooli-aware
+
+# Memory-limited shell
+workspace-sandbox shell abc123 --memory=512
+```
+
+### attach
+
+Run a command interactively with full PTY support.
+
+```
+workspace-sandbox attach <sandbox-id> [OPTIONS] -- <command> [args...]
+
+Options:
+  --memory=<MB>        Memory limit in MB (0 = unlimited)
+  --vrooli-aware       Use Vrooli-aware isolation
+  --network            Allow network access (default: blocked)
+```
+
+**Examples:**
+
+```bash
+# Python REPL
+workspace-sandbox attach abc123 -- python
+
+# Node.js REPL
+workspace-sandbox attach abc123 -- node
+
+# Edit file with vim
+workspace-sandbox attach abc123 -- vim myfile.py
+
+# Interactive tool with Vrooli access
+workspace-sandbox attach abc123 --vrooli-aware -- htop
+```
+
 ## API Reference
 
 ### Execute Command
@@ -371,6 +426,57 @@ Events:
 - `data: <log content>` - New log content
 - `event: error, data: <message>` - Error occurred
 - `event: end, data: stream closed` - Process ended
+
+### Interactive Session (WebSocket)
+
+```http
+GET /api/v1/sandboxes/{id}/exec-interactive
+Upgrade: websocket
+Connection: Upgrade
+```
+
+**Protocol:**
+
+1. Client connects via WebSocket
+2. Client sends start request as first message:
+
+```json
+{
+  "command": "/bin/bash",
+  "args": [],
+  "isolationLevel": "full",
+  "allowNetwork": false,
+  "memoryLimitMB": 512,
+  "cols": 80,
+  "rows": 24
+}
+```
+
+3. Server allocates PTY and starts process
+4. Messages flow bidirectionally:
+
+```json
+// Client → Server: stdin
+{"type": "stdin", "data": "ls -la\n"}
+
+// Server → Client: stdout
+{"type": "stdout", "data": "total 12\ndrwxr-xr-x ..."}
+
+// Client → Server: terminal resize
+{"type": "resize", "cols": 120, "rows": 40}
+
+// Server → Client: process exit
+{"type": "exit", "code": 0}
+
+// Server → Client: error
+{"type": "error", "data": "failed to start process"}
+
+// Client → Server: ping (keepalive)
+{"type": "ping"}
+
+// Server → Client: pong
+{"type": "pong"}
+```
 
 ### List All Logs
 
