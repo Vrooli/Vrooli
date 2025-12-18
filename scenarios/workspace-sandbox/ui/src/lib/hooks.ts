@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchHealth,
   fetchDriverInfo,
+  fetchDriverOptions,
   listSandboxes,
   getSandbox,
   createSandbox,
@@ -21,6 +22,7 @@ import {
 export const queryKeys = {
   health: ["health"] as const,
   driver: ["driver"] as const,
+  driverOptions: ["driverOptions"] as const,
   sandboxes: (filter?: ListFilter) => ["sandboxes", filter] as const,
   sandbox: (id: string) => ["sandbox", id] as const,
   diff: (id: string) => ["diff", id] as const,
@@ -40,6 +42,14 @@ export function useDriverInfo() {
   return useQuery({
     queryKey: queryKeys.driver,
     queryFn: fetchDriverInfo,
+  });
+}
+
+// Driver options (for Settings dialog)
+export function useDriverOptions() {
+  return useQuery({
+    queryKey: queryKeys.driverOptions,
+    queryFn: fetchDriverOptions,
   });
 }
 

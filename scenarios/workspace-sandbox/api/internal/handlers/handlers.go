@@ -42,6 +42,7 @@ type Handlers struct {
 	StatsGetter    StatsGetter             // For retrieving sandbox statistics
 	ProcessTracker *process.Tracker        // For tracking sandbox processes (OT-P0-008)
 	GCService      GCService               // For garbage collection operations (OT-P1-003)
+	InUserNamespace bool                   // Whether API is running in a user namespace
 }
 
 // Version is the API version string.
@@ -180,8 +181,14 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/sandboxes/{id}/conflicts", h.CheckConflicts).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/rebase", h.Rebase).Methods("POST")
 
-	// --- Workspace ---
+	// --- Workspace and File Operations ---
 	api.HandleFunc("/sandboxes/{id}/workspace", h.GetWorkspace).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/files", h.ListFiles).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/files/content", h.ReadFile).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/files/content", h.WriteFile).Methods("PUT")
+	api.HandleFunc("/sandboxes/{id}/files/content", h.DeleteFile).Methods("DELETE")
+	api.HandleFunc("/sandboxes/{id}/files/mkdir", h.Mkdir).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/files/download", h.DownloadFile).Methods("GET")
 
 	// --- Process Isolation and Execution (OT-P0-003) ---
 	api.HandleFunc("/sandboxes/{id}/exec", h.Exec).Methods("POST")
@@ -192,6 +199,7 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 
 	// --- Admin: Driver and System Info ---
 	api.HandleFunc("/driver/info", h.DriverInfo).Methods("GET")
+	api.HandleFunc("/driver/options", h.DriverOptions).Methods("GET")
 	api.HandleFunc("/driver/bwrap", h.BwrapInfo).Methods("GET")
 	api.HandleFunc("/validate-path", h.ValidatePath).Methods("GET")
 

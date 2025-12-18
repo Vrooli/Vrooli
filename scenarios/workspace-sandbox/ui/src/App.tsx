@@ -4,6 +4,7 @@ import { StatusHeader } from "./components/StatusHeader";
 import { SandboxList } from "./components/SandboxList";
 import { SandboxDetail } from "./components/SandboxDetail";
 import { CreateSandboxDialog } from "./components/CreateSandboxDialog";
+import { SettingsDialog } from "./components/SettingsDialog";
 import {
   useHealth,
   useSandboxes,
@@ -26,6 +27,7 @@ export default function App() {
   // Local state
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
   // Queries
   const healthQuery = useHealth();
@@ -168,6 +170,7 @@ export default function App() {
         isLoading={healthQuery.isLoading || sandboxesQuery.isLoading}
         onRefresh={handleRefresh}
         onCreateClick={() => setCreateDialogOpen(true)}
+        onSettingsClick={() => setSettingsDialogOpen(true)}
       />
 
       {/* Main Content */}
@@ -214,6 +217,12 @@ export default function App() {
         recentSandboxes={sandboxes}
         existingScopePaths={existingScopePaths}
         defaultProjectRoot={healthQuery.data?.config?.projectRoot}
+      />
+
+      {/* Settings Dialog */}
+      <SettingsDialog
+        open={settingsDialogOpen}
+        onOpenChange={setSettingsDialogOpen}
       />
 
       {/* Error Toast */}

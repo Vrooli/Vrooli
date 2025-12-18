@@ -8,6 +8,7 @@ import {
   XCircle,
   AlertCircle,
   Loader2,
+  Settings,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -21,6 +22,7 @@ interface StatusHeaderProps {
   isLoading: boolean;
   onRefresh: () => void;
   onCreateClick: () => void;
+  onSettingsClick: () => void;
 }
 
 export function StatusHeader({
@@ -29,6 +31,7 @@ export function StatusHeader({
   isLoading,
   onRefresh,
   onCreateClick,
+  onSettingsClick,
 }: StatusHeaderProps) {
   const isHealthy = health?.status === "healthy";
   const driverAvailable = health?.dependencies?.driver === "available";
@@ -131,6 +134,15 @@ export function StatusHeader({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onSettingsClick}
+          title="Settings"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+
         <Button
           variant="ghost"
           size="icon"

@@ -93,6 +93,32 @@ export interface DriverInfo {
   error?: string;
 }
 
+// Driver Options types for Settings dialog
+export interface DriverRequirement {
+  name: string;
+  met: boolean;
+  current?: string;
+  howToFix?: string;
+}
+
+export interface DriverOption {
+  id: string;
+  name: string;
+  description: string;
+  directAccess: boolean;
+  requirements: DriverRequirement[];
+  available: boolean;
+  recommended?: boolean;
+}
+
+export interface DriverOptionsResponse {
+  os: string;
+  kernel?: string;
+  currentDriver: string;
+  inUserNamespace: boolean;
+  options: DriverOption[];
+}
+
 export interface ListResult {
   sandboxes: Sandbox[];
   totalCount: number;
@@ -183,7 +209,12 @@ export async function fetchHealth(): Promise<HealthResponse> {
 
 // Driver info
 export async function fetchDriverInfo(): Promise<DriverInfo> {
-  return apiRequest<DriverInfo>("/driver");
+  return apiRequest<DriverInfo>("/driver/info");
+}
+
+// Driver options (for Settings dialog)
+export async function fetchDriverOptions(): Promise<DriverOptionsResponse> {
+  return apiRequest<DriverOptionsResponse>("/driver/options");
 }
 
 // List sandboxes

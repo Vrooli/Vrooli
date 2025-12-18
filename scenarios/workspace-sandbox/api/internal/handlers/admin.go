@@ -64,6 +64,13 @@ func (h *Handlers) DriverInfo(w http.ResponseWriter, r *http.Request) {
 	h.JSONSuccess(w, response)
 }
 
+// DriverOptions handles getting all available driver options with their requirements.
+// This endpoint is used by the UI settings dialog to show driver configuration options.
+func (h *Handlers) DriverOptions(w http.ResponseWriter, r *http.Request) {
+	resp := driver.GetDriverOptions(r.Context(), h.Driver.Type(), h.InUserNamespace)
+	h.JSONSuccess(w, resp)
+}
+
 // Stats handles getting aggregate sandbox statistics.
 // This endpoint supports dashboard metrics and monitoring.
 func (h *Handlers) Stats(w http.ResponseWriter, r *http.Request) {

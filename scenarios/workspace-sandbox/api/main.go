@@ -139,15 +139,19 @@ func NewServer() (*Server, error) {
 	}
 	gcService := gc.NewService(repo, drv, gcCfg)
 
+	// Check if we're in a user namespace
+	inUserNS := namespace.Check().InUserNamespace
+
 	// Create handlers with injected dependencies
 	h := &handlers.Handlers{
-		Service:        svc,
-		Driver:         drv,
-		DB:             db,
-		Config:         cfg,
-		StatsGetter:    repo, // Repository implements StatsGetter
-		ProcessTracker: processTracker,
-		GCService:      gcService,
+		Service:         svc,
+		Driver:          drv,
+		DB:              db,
+		Config:          cfg,
+		StatsGetter:     repo, // Repository implements StatsGetter
+		ProcessTracker:  processTracker,
+		GCService:       gcService,
+		InUserNamespace: inUserNS,
 	}
 
 	// Initialize structured logger
