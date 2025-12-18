@@ -76,11 +76,13 @@ func NewServer() (*Server, error) {
 		MaxSizeMB:        cfg.Limits.MaxSandboxSizeMB,
 		UseFuseOverlayfs: cfg.Driver.UseFuseOverlayfs,
 	}
-	drv, err := driver.SelectDriverWithPreference(context.Background(), driverCfg)
+	initialDriver, err := driver.SelectDriverWithPreference(context.Background(), driverCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize driver: %w", err)
 	}
-	log.Printf("driver selected | type=%s version=%s", drv.Type(), drv.Version())
+	// Wrap in Manager for hot-swap support
+	driverManager := driver.NewManager(initialDriver, driverCfg)
+	log.Printf("driver selected | type=%s version=%s", driverManager.Type(), driverManager.Version())
 
 	// Initialize policies
 	approvalPolicy := policy.NewDefaultApprovalPolicy(cfg.Policy)
@@ -118,7 +120,7 @@ func NewServer() (*Server, error) {
 		MaxSandboxes:       cfg.Limits.MaxSandboxes,
 		DefaultTTL:         cfg.Lifecycle.DefaultTTL,
 	}
-	svc := sandbox.NewService(repo, drv, svcCfg,
+	svc := sandbox.NewService(repo, driverManager, svcCfg,
 		sandbox.WithApprovalPolicy(approvalPolicy),
 		sandbox.WithAttributionPolicy(attributionPolicy),
 		sandbox.WithValidationPolicy(validationPolicy),
@@ -138,7 +140,7 @@ func NewServer() (*Server, error) {
 		DefaultLimit:         100,
 		MaxTotalSizeBytes:    cfg.Limits.MaxTotalSizeMB * 1024 * 1024,
 	}
-	gcService := gc.NewService(repo, drv, gcCfg)
+	gcService := gc.NewService(repo, driverManager, gcCfg)
 
 	// Check if we're in a user namespace
 	inUserNS := namespace.Check().InUserNamespace
@@ -146,7 +148,7 @@ func NewServer() (*Server, error) {
 	// Create handlers with injected dependencies
 	h := &handlers.Handlers{
 		Service:         svc,
-		Driver:          drv,
+		DriverManager:   driverManager,
 		DB:              db,
 		Config:          cfg,
 		StatsGetter:     repo, // Repository implements StatsGetter
@@ -165,7 +167,7 @@ func NewServer() (*Server, error) {
 		config:           cfg,
 		db:               db,
 		router:           mux.NewRouter(),
-		driver:           drv,
+		driver:           driverManager,
 		handlers:         h,
 		logger:           logger,
 		processTracker:   processTracker,
@@ -177,7 +179,7 @@ func NewServer() (*Server, error) {
 
 	logger.Info("server.initialized", "Server initialized successfully", map[string]interface{}{
 		"port":         cfg.Server.Port,
-		"driver":       drv.Type(),
+		"driver":       driverManager.Type(),
 		"maxSandboxes": cfg.Limits.MaxSandboxes,
 	})
 

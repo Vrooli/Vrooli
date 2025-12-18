@@ -35,14 +35,20 @@ type StatsGetter interface {
 // Handlers contains dependencies for HTTP handlers.
 // Dependencies are expressed as interfaces to enable testing with mocks.
 type Handlers struct {
-	Service        sandbox.ServiceAPI // Service interface for testability
-	Driver         driver.Driver
-	DB             Pinger
-	Config         config.Config           // Unified configuration for accessing levers
-	StatsGetter    StatsGetter             // For retrieving sandbox statistics
-	ProcessTracker *process.Tracker        // For tracking sandbox processes (OT-P0-008)
-	GCService      GCService               // For garbage collection operations (OT-P1-003)
-	InUserNamespace bool                   // Whether API is running in a user namespace
+	Service         sandbox.ServiceAPI  // Service interface for testability
+	DriverManager   *driver.Manager     // Driver manager for hot-swapping drivers
+	DB              Pinger
+	Config          config.Config           // Unified configuration for accessing levers
+	StatsGetter     StatsGetter             // For retrieving sandbox statistics
+	ProcessTracker  *process.Tracker        // For tracking sandbox processes (OT-P0-008)
+	GCService       GCService               // For garbage collection operations (OT-P1-003)
+	InUserNamespace bool                    // Whether API is running in a user namespace
+}
+
+// Driver returns the current driver from the manager.
+// This is a convenience method that maintains backward compatibility.
+func (h *Handlers) Driver() driver.Driver {
+	return h.DriverManager
 }
 
 // Version is the API version string.

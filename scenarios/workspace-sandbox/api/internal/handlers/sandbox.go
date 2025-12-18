@@ -82,7 +82,7 @@ func (h *Handlers) ListSandboxes(w http.ResponseWriter, r *http.Request) {
 		if sb.Status == types.StatusActive {
 			health := &MountHealthInfo{Verified: true}
 
-			if err := h.Driver.VerifyMountIntegrity(r.Context(), sb); err != nil {
+			if err := h.Driver().VerifyMountIntegrity(r.Context(), sb); err != nil {
 				health.Healthy = false
 				health.Error = err.Error()
 				health.Hint = "The sandbox mount is not accessible. Stop and Start to remount it."
@@ -158,7 +158,7 @@ func (h *Handlers) GetSandbox(w http.ResponseWriter, r *http.Request) {
 	if sb.Status == types.StatusActive {
 		health := &MountHealthInfo{Verified: true}
 
-		if err := h.Driver.VerifyMountIntegrity(r.Context(), sb); err != nil {
+		if err := h.Driver().VerifyMountIntegrity(r.Context(), sb); err != nil {
 			health.Healthy = false
 			health.Error = err.Error()
 			health.Hint = "The sandbox mount is not accessible. This can happen if the API was restarted. Stop and Start to remount it."

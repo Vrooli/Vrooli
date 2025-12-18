@@ -19,7 +19,7 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check driver availability using injected driver
-	driverAvailable, _ := h.Driver.IsAvailable(r.Context())
+	driverAvailable, _ := h.Driver().IsAvailable(r.Context())
 	driverStatus := "available"
 	if !driverAvailable {
 		driverStatus = "unavailable"
@@ -45,11 +45,11 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 
 // DriverInfo handles getting driver information.
 func (h *Handlers) DriverInfo(w http.ResponseWriter, r *http.Request) {
-	available, availErr := h.Driver.IsAvailable(r.Context())
+	available, availErr := h.Driver().IsAvailable(r.Context())
 
 	info := driver.Info{
-		Type:        h.Driver.Type(),
-		Version:     h.Driver.Version(),
+		Type:        h.Driver().Type(),
+		Version:     h.Driver().Version(),
 		Description: "Linux overlayfs driver for copy-on-write sandboxes",
 		Available:   available,
 	}
@@ -68,7 +68,7 @@ func (h *Handlers) DriverInfo(w http.ResponseWriter, r *http.Request) {
 // DriverOptions handles getting all available driver options with their requirements.
 // This endpoint is used by the UI settings dialog to show driver configuration options.
 func (h *Handlers) DriverOptions(w http.ResponseWriter, r *http.Request) {
-	resp := driver.GetDriverOptions(r.Context(), h.Driver.Type(), h.InUserNamespace)
+	resp := driver.GetDriverOptions(r.Context(), h.Driver().Type(), h.InUserNamespace)
 	h.JSONSuccess(w, resp)
 }
 
@@ -110,7 +110,8 @@ type SelectDriverResponse struct {
 
 // SelectDriver handles setting the preferred driver.
 // This endpoint allows users to select which driver to use.
-// Note: The change takes effect on API restart since drivers are initialized at startup.
+// The driver is hot-swapped immediately without requiring an API restart.
+// In-flight operations continue with the old driver; new operations use the new driver.
 func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 	var req SelectDriverRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -124,7 +125,7 @@ func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get available options to validate the request
-	options := driver.GetDriverOptions(r.Context(), h.Driver.Type(), h.InUserNamespace)
+	options := driver.GetDriverOptions(r.Context(), h.Driver().Type(), h.InUserNamespace)
 
 	// Find the requested driver option
 	var selectedOption *driver.DriverOption
@@ -143,38 +144,43 @@ func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 	if !selectedOption.Available {
 		// Build helpful error message
 		var unmetReqs []string
-		for _, req := range selectedOption.Requirements {
-			if !req.Met {
-				unmetReqs = append(unmetReqs, req.Name)
+		for _, r := range selectedOption.Requirements {
+			if !r.Met {
+				unmetReqs = append(unmetReqs, r.Name)
 			}
 		}
 		h.JSONError(w, "driver not available - unmet requirements: "+join(unmetReqs, ", "), http.StatusBadRequest)
 		return
 	}
 
-	// Save the preference
-	if err := driver.SaveDriverPreference(h.Config.Driver.BaseDir, req.DriverID); err != nil {
-		h.JSONError(w, "failed to save driver preference: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Determine if this is a change from current
+	// Check if this is a change from current
 	currentDriverID := string(options.CurrentDriver)
 	isChange := currentDriverID != req.DriverID
 
-	response := SelectDriverResponse{
-		Success:         true,
-		SelectedDriver:  req.DriverID,
-		RequiresRestart: isChange,
-		Message: func() string {
-			if isChange {
-				return "Driver preference saved. Restart the API for the change to take effect."
-			}
-			return "Driver preference saved. Already using " + req.DriverID + "."
-		}(),
+	if !isChange {
+		// Already using this driver
+		h.JSONSuccess(w, SelectDriverResponse{
+			Success:         true,
+			SelectedDriver:  req.DriverID,
+			RequiresRestart: false,
+			Message:         "Already using " + req.DriverID + ".",
+		})
+		return
 	}
 
-	h.JSONSuccess(w, response)
+	// Hot-swap the driver using the manager
+	// This atomically switches to the new driver and saves the preference
+	if err := h.DriverManager.Switch(r.Context(), driver.DriverOptionID(req.DriverID)); err != nil {
+		h.JSONError(w, "failed to switch driver: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	h.JSONSuccess(w, SelectDriverResponse{
+		Success:         true,
+		SelectedDriver:  req.DriverID,
+		RequiresRestart: false,
+		Message:         "Driver switched to " + req.DriverID + ". Change is active immediately.",
+	})
 }
 
 // GetDriverPreference handles getting the current driver preference.
@@ -182,10 +188,10 @@ func (h *Handlers) GetDriverPreference(w http.ResponseWriter, r *http.Request) {
 	pref, err := driver.LoadDriverPreference(h.Config.Driver.BaseDir)
 	if err != nil {
 		// No preference set - return current driver
-		pref = string(h.Driver.Type())
+		pref = string(h.Driver().Type())
 	}
 
-	options := driver.GetDriverOptions(r.Context(), h.Driver.Type(), h.InUserNamespace)
+	options := driver.GetDriverOptions(r.Context(), h.Driver().Type(), h.InUserNamespace)
 
 	response := map[string]interface{}{
 		"preference":    pref,

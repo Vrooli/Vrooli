@@ -64,13 +64,6 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get overlayfs driver for exec
-	overlayDriver, ok := h.Driver.(*driver.OverlayfsDriver)
-	if !ok {
-		h.JSONError(w, "exec requires overlayfs driver", http.StatusServiceUnavailable)
-		return
-	}
-
 	// Build bwrap config
 	cfg := driver.DefaultBwrapConfig()
 	cfg.AllowNetwork = req.AllowNetwork
@@ -81,8 +74,8 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	// Execute the command
-	result, err := overlayDriver.Exec(r.Context(), sb, cfg, req.Command, req.Args...)
+	// Execute the command (all drivers implement Exec via the Driver interface)
+	result, err := h.Driver().Exec(r.Context(), sb, cfg, req.Command, req.Args...)
 	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -144,13 +137,6 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get overlayfs driver
-	overlayDriver, ok := h.Driver.(*driver.OverlayfsDriver)
-	if !ok {
-		h.JSONError(w, "process start requires overlayfs driver", http.StatusServiceUnavailable)
-		return
-	}
-
 	// Build bwrap config
 	cfg := driver.DefaultBwrapConfig()
 	cfg.AllowNetwork = req.AllowNetwork
@@ -161,8 +147,8 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	// Start the process
-	pid, err := overlayDriver.StartProcess(r.Context(), sb, cfg, req.Command, req.Args...)
+	// Start the process (all drivers implement StartProcess via the Driver interface)
+	pid, err := h.Driver().StartProcess(r.Context(), sb, cfg, req.Command, req.Args...)
 	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
