@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
@@ -21,9 +22,18 @@ type PlanCompiler interface {
 	Compile(ctx context.Context, executionID uuid.UUID, workflow *basapi.WorkflowSummary) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error)
 }
 
+// PlanCompilerFunc is a function adapter that implements PlanCompiler.
+// This allows using a simple function as a PlanCompiler without a wrapper struct.
+type PlanCompilerFunc func(ctx context.Context, executionID uuid.UUID, workflow *basapi.WorkflowSummary) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error)
+
+// Compile implements PlanCompiler by calling the underlying function.
+func (f PlanCompilerFunc) Compile(ctx context.Context, executionID uuid.UUID, workflow *basapi.WorkflowSummary) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
+	return f(ctx, executionID, workflow)
+}
+
 // DefaultPlanCompiler supplies the contract-native compiler so multiple engines
-// can share the same plan shape.
-var DefaultPlanCompiler PlanCompiler = &ContractPlanCompiler{}
+// can share the same plan shape. It delegates to compiler.CompileWorkflowToContracts.
+var DefaultPlanCompiler PlanCompiler = PlanCompilerFunc(autocompiler.CompileWorkflowToContracts)
 
 // BuildContractsPlan compiles a workflow into the engine-agnostic plan +
 // instructions expected by the executor path.
@@ -67,6 +77,8 @@ func PlanCompilerForEngine(engineName string) PlanCompiler {
 
 func init() {
 	// Contract-native compiler is default; browserless runtime shaping was removed.
+	// Both "browserless" and "browserless-contract" map to the same compiler since
+	// there's only one compilation strategy now.
 	RegisterPlanCompiler("browserless", DefaultPlanCompiler)
-	RegisterPlanCompiler("browserless-contract", &ContractPlanCompiler{})
+	RegisterPlanCompiler("browserless-contract", DefaultPlanCompiler)
 }

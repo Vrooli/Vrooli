@@ -80,40 +80,24 @@ func maxGraphIndex(graph *contracts.PlanGraph) int {
 }
 
 func planStepToInstruction(step contracts.PlanStep) contracts.CompiledInstruction {
-	instrType := step.Type
-	instrParams := step.Params
-	if step.Action != nil && step.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
-		instrType = ""
-		instrParams = nil
-	}
 	return contracts.CompiledInstruction{
 		Index:       step.Index,
 		NodeID:      step.NodeID,
-		Type:        instrType,
-		Params:      instrParams,
 		PreloadHTML: step.Preload,
 		Context:     step.Context,
 		Metadata:    step.Metadata,
-		Action:      step.Action, // NEW: Preserve typed Action field
+		Action:      step.Action,
 	}
 }
 
 func planStepToInstructionStep(instr contracts.CompiledInstruction) contracts.PlanStep {
-	stepType := instr.Type
-	stepParams := instr.Params
-	if instr.Action != nil && instr.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
-		stepType = ""
-		stepParams = nil
-	}
 	return contracts.PlanStep{
 		Index:    instr.Index,
 		NodeID:   instr.NodeID,
-		Type:     stepType,
-		Params:   stepParams,
 		Metadata: instr.Metadata,
 		Context:  instr.Context,
 		Preload:  instr.PreloadHTML,
-		Action:   instr.Action, // NEW: Preserve typed Action field
+		Action:   instr.Action,
 	}
 }
 
@@ -137,7 +121,7 @@ func (e *SimpleExecutor) nextNodeID(step contracts.PlanStep, outcome contracts.S
 }
 
 func conditionalBranchTarget(step contracts.PlanStep, outcome contracts.StepOutcome) string {
-	isConditional := strings.EqualFold(step.Type, "conditional") || (step.Action != nil && step.Action.Type == basactions.ActionType_ACTION_TYPE_CONDITIONAL)
+	isConditional := step.Action != nil && step.Action.Type == basactions.ActionType_ACTION_TYPE_CONDITIONAL
 	if !isConditional || outcome.Condition == nil {
 		return ""
 	}
@@ -223,84 +207,54 @@ func firstPresent(params map[string]any, keys ...string) any {
 // =============================================================================
 // ACTION-AWARE STEP TYPE HELPERS
 // =============================================================================
-// These helpers support the Type/Params → Action migration by preferring
-// the typed Action field when available, falling back to deprecated Type/Params.
+// These helpers extract step type and params from the typed Action field.
 
 // InstructionStepType returns the step type string from a CompiledInstruction.
-// Prefers Action.Type over the deprecated Type field.
 func InstructionStepType(instr contracts.CompiledInstruction) string {
 	if instr.Action != nil && instr.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
 		return actionTypeToString(instr.Action.Type)
 	}
-	// Deprecated: Using legacy Type field. Migrate to Action field.
-	if instr.Type != "" {
-		DeprecationTracker.RecordTypeUsage("InstructionStepType:" + instr.NodeID)
-	}
-	return instr.Type
+	return ""
 }
 
 // PlanStepType returns the step type string from a PlanStep.
-// Prefers Action.Type over the deprecated Type field.
 func PlanStepType(step contracts.PlanStep) string {
 	if step.Action != nil && step.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
 		return actionTypeToString(step.Action.Type)
 	}
-	// Deprecated: Using legacy Type field. Migrate to Action field.
-	if step.Type != "" {
-		DeprecationTracker.RecordTypeUsage("PlanStepType:" + step.NodeID)
-	}
-	return step.Type
+	return ""
 }
 
 // InstructionParams returns the params map from a CompiledInstruction.
-// If Action is set, extracts params from the typed action; otherwise uses deprecated Params.
 func InstructionParams(instr contracts.CompiledInstruction) map[string]any {
 	if instr.Action != nil && instr.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
 		return actionToParams(instr.Action)
 	}
-	// Deprecated: Using legacy Params field. Migrate to Action field.
-	if len(instr.Params) > 0 {
-		DeprecationTracker.RecordParamsUsage("InstructionParams:" + instr.NodeID)
-	}
-	return instr.Params
+	return nil
 }
 
 // PlanStepParams returns the params map from a PlanStep.
-// If Action is set, extracts params from the typed action; otherwise uses deprecated Params.
 func PlanStepParams(step contracts.PlanStep) map[string]any {
 	if step.Action != nil && step.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
 		return actionToParams(step.Action)
 	}
-	// Deprecated: Using legacy Params field. Migrate to Action field.
-	if len(step.Params) > 0 {
-		DeprecationTracker.RecordParamsUsage("PlanStepParams:" + step.NodeID)
-	}
-	return step.Params
+	return nil
 }
 
 // IsActionType checks if an instruction matches the given action type.
-// Supports both enum and string comparisons.
 func IsActionType(instr contracts.CompiledInstruction, actionType basactions.ActionType) bool {
-	if instr.Action != nil && instr.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
+	if instr.Action != nil {
 		return instr.Action.Type == actionType
 	}
-	// Deprecated: Falling back to string comparison on legacy Type field.
-	if instr.Type != "" {
-		DeprecationTracker.RecordTypeUsage("IsActionType:" + instr.NodeID)
-	}
-	return strings.EqualFold(strings.TrimSpace(instr.Type), actionTypeToString(actionType))
+	return false
 }
 
 // IsPlanStepActionType checks if a plan step matches the given action type.
 func IsPlanStepActionType(step contracts.PlanStep, actionType basactions.ActionType) bool {
-	if step.Action != nil && step.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
+	if step.Action != nil {
 		return step.Action.Type == actionType
 	}
-	// Deprecated: Falling back to string comparison on legacy Type field.
-	if step.Type != "" {
-		DeprecationTracker.RecordTypeUsage("IsPlanStepActionType:" + step.NodeID)
-	}
-	return strings.EqualFold(strings.TrimSpace(step.Type), actionTypeToString(actionType))
+	return false
 }
 
 // actionTypeToString converts an ActionType enum to its string representation.

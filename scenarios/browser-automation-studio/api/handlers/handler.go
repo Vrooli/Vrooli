@@ -138,7 +138,7 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 		log.WithError(engErr).Warn("Failed to initialize automation engine; automation executor will be disabled")
 	}
 	// Persist execution artifacts under recordingsRoot so file-truth execution data is durable and discoverable.
-	autoRecorder := executionwriter.NewFileRecorder(repo, storageClient, log, recordingsRoot)
+	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, recordingsRoot)
 
 	// Configure event sink factory - optionally wrap with UX metrics collector
 	var eventSinkFactory func() autoevents.Sink

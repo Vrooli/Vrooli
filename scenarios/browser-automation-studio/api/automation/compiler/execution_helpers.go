@@ -1,6 +1,8 @@
 package compiler
 
 import (
+	"fmt"
+
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -165,16 +167,11 @@ func CompiledInstructionToWorkflowNodeV2(instr contracts.CompiledInstruction) (*
 		Id: instr.NodeID,
 	}
 
-	// Prefer Action field if already set; otherwise build from type and params
+	// Use the Action field directly
 	if instr.Action != nil && instr.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
 		node.Action = instr.Action
 	} else {
-		// Fallback: Build ActionDefinition from type and params
-		action, err := BuildActionDefinition(instr.Type, instr.Params)
-		if err != nil {
-			return nil, err
-		}
-		node.Action = action
+		return nil, fmt.Errorf("instruction %s has no Action defined", instr.NodeID)
 	}
 
 	// Add metadata from instruction (merge with existing action metadata)

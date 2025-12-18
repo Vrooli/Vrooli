@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	"github.com/vrooli/browser-automation-studio/internal/params"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -102,7 +101,7 @@ func buildActionDefinition(outcome contracts.StepOutcome) *basactions.ActionDefi
 			def.Params = &basactions.ActionDefinition_Assert{
 				Assert: &basactions.AssertParams{
 					Selector: outcome.Assertion.Selector,
-					Mode:     params.StringToAssertionMode(outcome.Assertion.Mode),
+					Mode:     typeconv.StringToAssertionMode(outcome.Assertion.Mode),
 					Negated:  &outcome.Assertion.Negated,
 				},
 			}
@@ -384,74 +383,16 @@ func convertPointToProto(p *contracts.Point) *basbase.Point {
 }
 
 // CompiledInstructionToActionDefinition converts a CompiledInstruction to ActionDefinition.
-// This is used when we have the original instruction params available.
+// Since instructions now contain the Action field directly, this simply returns it.
 func CompiledInstructionToActionDefinition(instr contracts.CompiledInstruction) *basactions.ActionDefinition {
-	actionType := mapStepTypeToActionType(instr.Type)
-
-	def := &basactions.ActionDefinition{
-		Type: actionType,
+	if instr.Action != nil {
+		return instr.Action
 	}
-
-	// Build params based on action type using instruction params
-	switch actionType {
-	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
-		def.Params = &basactions.ActionDefinition_Navigate{
-			Navigate: params.BuildNavigateParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_CLICK:
-		def.Params = &basactions.ActionDefinition_Click{
-			Click: params.BuildClickParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_INPUT:
-		def.Params = &basactions.ActionDefinition_Input{
-			Input: params.BuildInputParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_WAIT:
-		def.Params = &basactions.ActionDefinition_Wait{
-			Wait: params.BuildWaitParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_ASSERT:
-		def.Params = &basactions.ActionDefinition_Assert{
-			Assert: params.BuildAssertParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_SCROLL:
-		def.Params = &basactions.ActionDefinition_Scroll{
-			Scroll: params.BuildScrollParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_SELECT:
-		def.Params = &basactions.ActionDefinition_SelectOption{
-			SelectOption: params.BuildSelectParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_EVALUATE:
-		def.Params = &basactions.ActionDefinition_Evaluate{
-			Evaluate: params.BuildEvaluateParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
-		def.Params = &basactions.ActionDefinition_Keyboard{
-			Keyboard: params.BuildKeyboardParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_HOVER:
-		def.Params = &basactions.ActionDefinition_Hover{
-			Hover: params.BuildHoverParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
-		def.Params = &basactions.ActionDefinition_Screenshot{
-			Screenshot: params.BuildScreenshotParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_FOCUS:
-		def.Params = &basactions.ActionDefinition_Focus{
-			Focus: params.BuildFocusParams(instr.Params),
-		}
-	case basactions.ActionType_ACTION_TYPE_BLUR:
-		def.Params = &basactions.ActionDefinition_Blur{
-			Blur: params.BuildBlurParams(instr.Params),
-		}
+	// Return an empty action definition for instructions without an action
+	return &basactions.ActionDefinition{
+		Type: basactions.ActionType_ACTION_TYPE_UNSPECIFIED,
+		Metadata: &basactions.ActionMetadata{
+			Label: &instr.NodeID,
+		},
 	}
-
-	// Add metadata with node info
-	def.Metadata = &basactions.ActionMetadata{
-		Label: &instr.NodeID,
-	}
-
-	return def
 }

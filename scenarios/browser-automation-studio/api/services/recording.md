@@ -13,7 +13,7 @@ flowchart LR
         OUT["Frame → contracts.StepOutcome\n(screenshot, DOM, console,\nnetwork, cursor trail)"]
     end
 
-    subgraph Recorder["automation/recorder.DBRecorder"]
+    subgraph Writer["automation/execution-writer.FileWriter"]
         STEPS["execution_steps"]
         ART["execution_artifacts\n(timeline_frame, screenshot,\nconsole, network, dom_snapshot)"]
     end

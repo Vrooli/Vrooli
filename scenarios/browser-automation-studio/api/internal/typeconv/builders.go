@@ -1,11 +1,14 @@
-// Package params provides parameter builder functions for converting
-// map-based data to typed proto parameter messages.
-package params
+// Parameter builder functions for converting map-based data to typed proto parameter messages.
+// Consolidates parameter building logic that was previously in internal/params.
+//
+// Field Aliases (both names are actively used and supported):
+// - InputParams: "text" and "value" are equivalent (docs/UI use "text", proto uses "value")
+// - WaitParams: "duration" and "durationMs" are equivalent
+// - AssertParams: "assertMode" and "mode" are equivalent
+package typeconv
 
 import (
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
-	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 )
 
@@ -23,35 +26,8 @@ func StringToNavigateWaitEvent(s string) basactions.NavigateWaitEvent {
 	}
 }
 
-// StringToMouseButton converts a string to MouseButton enum.
-func StringToMouseButton(s string) basactions.MouseButton {
-	switch s {
-	case "left":
-		return basactions.MouseButton_MOUSE_BUTTON_LEFT
-	case "right":
-		return basactions.MouseButton_MOUSE_BUTTON_RIGHT
-	case "middle":
-		return basactions.MouseButton_MOUSE_BUTTON_MIDDLE
-	default:
-		return basactions.MouseButton_MOUSE_BUTTON_UNSPECIFIED
-	}
-}
-
-// StringToKeyboardModifier converts a string to KeyboardModifier enum.
-func StringToKeyboardModifier(s string) basactions.KeyboardModifier {
-	switch s {
-	case "Alt":
-		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_ALT
-	case "Control", "Ctrl":
-		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_CTRL
-	case "Meta":
-		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_META
-	case "Shift":
-		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_SHIFT
-	default:
-		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_UNSPECIFIED
-	}
-}
+// Note: StringToMouseButton and StringToKeyboardModifier are defined in primitives.go
+// with input normalization (lowercase + trim). Use those implementations.
 
 // StringToWaitState converts a string to WaitState enum.
 func StringToWaitState(s string) basactions.WaitState {
@@ -69,29 +45,7 @@ func StringToWaitState(s string) basactions.WaitState {
 	}
 }
 
-// StringToAssertionMode converts a string to AssertionMode enum.
-func StringToAssertionMode(s string) basbase.AssertionMode {
-	switch s {
-	case "exists":
-		return basbase.AssertionMode_ASSERTION_MODE_EXISTS
-	case "not_exists":
-		return basbase.AssertionMode_ASSERTION_MODE_NOT_EXISTS
-	case "visible":
-		return basbase.AssertionMode_ASSERTION_MODE_VISIBLE
-	case "hidden":
-		return basbase.AssertionMode_ASSERTION_MODE_HIDDEN
-	case "text_equals":
-		return basbase.AssertionMode_ASSERTION_MODE_TEXT_EQUALS
-	case "text_contains":
-		return basbase.AssertionMode_ASSERTION_MODE_TEXT_CONTAINS
-	case "attribute_equals":
-		return basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS
-	case "attribute_contains":
-		return basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS
-	default:
-		return basbase.AssertionMode_ASSERTION_MODE_UNSPECIFIED
-	}
-}
+// Note: StringToAssertionMode is defined in primitives.go with input normalization.
 
 // StringToScrollBehavior converts a string to ScrollBehavior enum.
 func StringToScrollBehavior(s string) basactions.ScrollBehavior {
@@ -128,7 +82,7 @@ func BuildNavigateParams(data map[string]any) *basactions.NavigateParams {
 	if wfs, ok := data["waitForSelector"].(string); ok {
 		p.WaitForSelector = &wfs
 	}
-	if tm, ok := typeconv.ToInt32(data["timeoutMs"]); ok {
+	if tm, ok := ToInt32(data["timeoutMs"]); ok {
 		p.TimeoutMs = &tm
 	}
 	if wu, ok := data["waitUntil"].(string); ok {
@@ -148,10 +102,10 @@ func BuildClickParams(data map[string]any) *basactions.ClickParams {
 		btn := StringToMouseButton(button)
 		p.Button = &btn
 	}
-	if cc, ok := typeconv.ToInt32(data["clickCount"]); ok {
+	if cc, ok := ToInt32(data["clickCount"]); ok {
 		p.ClickCount = &cc
 	}
-	if dm, ok := typeconv.ToInt32(data["delayMs"]); ok {
+	if dm, ok := ToInt32(data["delayMs"]); ok {
 		p.DelayMs = &dm
 	}
 	if mods, ok := data["modifiers"].([]any); ok {
@@ -168,7 +122,7 @@ func BuildClickParams(data map[string]any) *basactions.ClickParams {
 }
 
 // BuildInputParams converts a data map to InputParams proto.
-// Supports legacy field "text" as alias for "value".
+// Supports "text" as alias for "value" (both are actively used).
 func BuildInputParams(data map[string]any) *basactions.InputParams {
 	p := &basactions.InputParams{}
 	if selector, ok := data["selector"].(string); ok {
@@ -178,7 +132,7 @@ func BuildInputParams(data map[string]any) *basactions.InputParams {
 		p.Value = value
 	}
 	if text, ok := data["text"].(string); ok && p.Value == "" {
-		p.Value = text // Legacy field name
+		p.Value = text // "text" alias (used by docs/UI)
 	}
 	if sensitive, ok := data["isSensitive"].(bool); ok {
 		p.IsSensitive = &sensitive
@@ -189,20 +143,20 @@ func BuildInputParams(data map[string]any) *basactions.InputParams {
 	if clear, ok := data["clearFirst"].(bool); ok {
 		p.ClearFirst = &clear
 	}
-	if dm, ok := typeconv.ToInt32(data["delayMs"]); ok {
+	if dm, ok := ToInt32(data["delayMs"]); ok {
 		p.DelayMs = &dm
 	}
 	return p
 }
 
 // BuildWaitParams converts a data map to WaitParams proto.
-// Supports legacy field "duration" as alias for "durationMs".
+// Supports "duration" as alias for "durationMs".
 func BuildWaitParams(data map[string]any) *basactions.WaitParams {
 	p := &basactions.WaitParams{}
-	if dm, ok := typeconv.ToInt32(data["durationMs"]); ok {
+	if dm, ok := ToInt32(data["durationMs"]); ok {
 		p.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: dm}
-	} else if dur, ok := typeconv.ToInt32(data["duration"]); ok {
-		p.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: dur} // Legacy field name
+	} else if dur, ok := ToInt32(data["duration"]); ok {
+		p.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: dur} // "duration" alias
 	} else if selector, ok := data["selector"].(string); ok && selector != "" {
 		p.WaitFor = &basactions.WaitParams_Selector{Selector: selector}
 	}
@@ -210,14 +164,14 @@ func BuildWaitParams(data map[string]any) *basactions.WaitParams {
 		ws := StringToWaitState(state)
 		p.State = &ws
 	}
-	if tm, ok := typeconv.ToInt32(data["timeoutMs"]); ok {
+	if tm, ok := ToInt32(data["timeoutMs"]); ok {
 		p.TimeoutMs = &tm
 	}
 	return p
 }
 
 // BuildAssertParams converts a data map to AssertParams proto.
-// Supports legacy field "assertMode" as alias for "mode".
+// Supports "assertMode" as alias for "mode".
 func BuildAssertParams(data map[string]any) *basactions.AssertParams {
 	p := &basactions.AssertParams{}
 	if selector, ok := data["selector"].(string); ok {
@@ -226,10 +180,10 @@ func BuildAssertParams(data map[string]any) *basactions.AssertParams {
 	if mode, ok := data["mode"].(string); ok {
 		p.Mode = StringToAssertionMode(mode)
 	} else if mode, ok := data["assertMode"].(string); ok {
-		p.Mode = StringToAssertionMode(mode) // Legacy field name
+		p.Mode = StringToAssertionMode(mode) // "assertMode" alias
 	}
 	if exp := data["expected"]; exp != nil {
-		p.Expected = typeconv.AnyToJsonValue(exp)
+		p.Expected = AnyToJsonValue(exp)
 	}
 	if negated, ok := data["negated"].(bool); ok {
 		p.Negated = &negated
@@ -252,16 +206,16 @@ func BuildScrollParams(data map[string]any) *basactions.ScrollParams {
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = &selector
 	}
-	if x, ok := typeconv.ToInt32(data["x"]); ok {
+	if x, ok := ToInt32(data["x"]); ok {
 		p.X = &x
 	}
-	if y, ok := typeconv.ToInt32(data["y"]); ok {
+	if y, ok := ToInt32(data["y"]); ok {
 		p.Y = &y
 	}
-	if dx, ok := typeconv.ToInt32(data["deltaX"]); ok {
+	if dx, ok := ToInt32(data["deltaX"]); ok {
 		p.DeltaX = &dx
 	}
-	if dy, ok := typeconv.ToInt32(data["deltaY"]); ok {
+	if dy, ok := ToInt32(data["deltaY"]); ok {
 		p.DeltaY = &dy
 	}
 	if behavior, ok := data["behavior"].(string); ok {
@@ -281,10 +235,10 @@ func BuildSelectParams(data map[string]any) *basactions.SelectParams {
 		p.SelectBy = &basactions.SelectParams_Value{Value: value}
 	} else if label, ok := data["label"].(string); ok {
 		p.SelectBy = &basactions.SelectParams_Label{Label: label}
-	} else if idx, ok := typeconv.ToInt32(data["index"]); ok {
+	} else if idx, ok := ToInt32(data["index"]); ok {
 		p.SelectBy = &basactions.SelectParams_Index{Index: idx}
 	}
-	if tm, ok := typeconv.ToInt32(data["timeoutMs"]); ok {
+	if tm, ok := ToInt32(data["timeoutMs"]); ok {
 		p.TimeoutMs = &tm
 	}
 	return p
@@ -335,7 +289,7 @@ func BuildHoverParams(data map[string]any) *basactions.HoverParams {
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = selector
 	}
-	if tm, ok := typeconv.ToInt32(data["timeoutMs"]); ok {
+	if tm, ok := ToInt32(data["timeoutMs"]); ok {
 		p.TimeoutMs = &tm
 	}
 	return p
@@ -350,7 +304,7 @@ func BuildScreenshotParams(data map[string]any) *basactions.ScreenshotParams {
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = &selector
 	}
-	if quality, ok := typeconv.ToInt32(data["quality"]); ok {
+	if quality, ok := ToInt32(data["quality"]); ok {
 		p.Quality = &quality
 	}
 	return p
@@ -365,7 +319,7 @@ func BuildFocusParams(data map[string]any) *basactions.FocusParams {
 	if scroll, ok := data["scroll"].(bool); ok {
 		p.Scroll = &scroll
 	}
-	if tm, ok := typeconv.ToInt32(data["timeoutMs"]); ok {
+	if tm, ok := ToInt32(data["timeoutMs"]); ok {
 		p.TimeoutMs = &tm
 	}
 	return p
@@ -377,7 +331,7 @@ func BuildBlurParams(data map[string]any) *basactions.BlurParams {
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = &selector
 	}
-	if tm, ok := typeconv.ToInt32(data["timeoutMs"]); ok {
+	if tm, ok := ToInt32(data["timeoutMs"]); ok {
 		p.TimeoutMs = &tm
 	}
 	return p
@@ -394,7 +348,7 @@ func BuildActionMetadata(data map[string]any) *basactions.ActionMetadata {
 		hasData = true
 	}
 
-	if confidence, ok := typeconv.ToFloat64(data["confidence"]); ok {
+	if confidence, ok := ToFloat64(data["confidence"]); ok {
 		meta.Confidence = &confidence
 		hasData = true
 	}
@@ -405,15 +359,15 @@ func BuildActionMetadata(data map[string]any) *basactions.ActionMetadata {
 			if cm, ok := c.(map[string]any); ok {
 				candidate := &basdomain.SelectorCandidate{}
 				if t, ok := cm["type"].(string); ok {
-					candidate.Type = typeconv.StringToSelectorType(t)
+					candidate.Type = StringToSelectorType(t)
 				}
 				if v, ok := cm["value"].(string); ok {
 					candidate.Value = v
 				}
-				if conf, ok := typeconv.ToFloat64(cm["confidence"]); ok {
+				if conf, ok := ToFloat64(cm["confidence"]); ok {
 					candidate.Confidence = conf
 				}
-				if spec, ok := typeconv.ToInt32(cm["specificity"]); ok {
+				if spec, ok := ToInt32(cm["specificity"]); ok {
 					candidate.Specificity = spec
 				}
 				meta.SelectorCandidates = append(meta.SelectorCandidates, candidate)

@@ -2,36 +2,38 @@ package livecapture
 
 import (
 	"testing"
+
+	"github.com/vrooli/browser-automation-studio/automation/actions"
 )
 
-func TestGetActionConfig_KnownTypes(t *testing.T) {
-	knownTypes := []string{"click", "type", "navigate", "scroll", "select", "focus", "hover", "keypress", "dragDrop"}
+func TestGetActionNodeConfig_KnownTypes(t *testing.T) {
+	knownTypes := []actions.ActionType{
+		actions.Click, actions.TypeInput, actions.Navigate, actions.Scroll,
+		actions.Select, actions.Focus, actions.Hover, actions.Keyboard, actions.DragDrop,
+	}
 
 	for _, actionType := range knownTypes {
-		t.Run(actionType, func(t *testing.T) {
-			cfg := GetActionConfig(actionType)
+		t.Run(string(actionType), func(t *testing.T) {
+			cfg := GetActionNodeConfig(actionType)
 			if cfg.NodeType == "" {
-				t.Errorf("GetActionConfig(%q) returned empty NodeType", actionType)
+				t.Errorf("GetActionNodeConfig(%q) returned empty NodeType", actionType)
 			}
 			if cfg.BuildNode == nil {
-				t.Errorf("GetActionConfig(%q) returned nil BuildNode", actionType)
+				t.Errorf("GetActionNodeConfig(%q) returned nil BuildNode", actionType)
 			}
 			if cfg.GenerateLabel == nil {
-				t.Errorf("GetActionConfig(%q) returned nil GenerateLabel", actionType)
+				t.Errorf("GetActionNodeConfig(%q) returned nil GenerateLabel", actionType)
 			}
 		})
 	}
 }
 
-func TestGetActionConfig_UnknownType(t *testing.T) {
-	cfg := GetActionConfig("unknown_action_type")
+func TestGetActionNodeConfig_UnknownType(t *testing.T) {
+	cfg := GetActionNodeConfig(actions.ActionType("unknown_action_type"))
 
 	// Should return default config
 	if cfg.NodeType != "click" {
 		t.Errorf("Expected default NodeType 'click', got %q", cfg.NodeType)
-	}
-	if cfg.NeedsSelectorWait != false {
-		t.Errorf("Expected default NeedsSelectorWait false, got %v", cfg.NeedsSelectorWait)
 	}
 }
 

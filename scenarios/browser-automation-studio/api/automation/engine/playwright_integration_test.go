@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // Requires a running Playwright driver (PLAYWRIGHT_DRIVER_URL). Skipped otherwise.
@@ -34,8 +35,12 @@ func TestPlaywrightEngine_IntegrationSmoke(t *testing.T) {
 	out, err := sess.Run(context.Background(), contracts.CompiledInstruction{
 		Index:  0,
 		NodeID: "nav-1",
-		Type:   "navigate",
-		Params: map[string]any{"url": "https://example.com"},
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+			Params: &basactions.ActionDefinition_Navigate{
+				Navigate: &basactions.NavigateParams{Url: "https://example.com"},
+			},
+		},
 	})
 	if err != nil {
 		t.Fatalf("run navigate: %v", err)

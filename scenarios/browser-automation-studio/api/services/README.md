@@ -14,7 +14,7 @@ flowchart LR
         PLAN["Plan Compiler\nworkflow → ExecutionPlan"]
         EXEC["SimpleExecutor\n(retries, heartbeats,\nbranching)"]
         ENG["Engine Factory\n(BrowserlessEngine)"]
-        REC["DBRecorder\nartifacts/telemetry"]
+        REC["FileWriter\nartifacts/telemetry"]
         EVT["Event sinks\nSequencer + WSHubSink"]
     end
 

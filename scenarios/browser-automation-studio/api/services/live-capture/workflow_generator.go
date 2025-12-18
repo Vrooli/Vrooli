@@ -5,6 +5,8 @@ package livecapture
 import (
 	"fmt"
 	"time"
+
+	"github.com/vrooli/browser-automation-studio/automation/actions"
 )
 
 // WorkflowGenerator converts recorded actions into workflow definitions.
@@ -202,7 +204,7 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 	posY := float64(100 + index*120)
 
 	// Get action configuration from registry
-	cfg := GetActionConfig(action.ActionType)
+	cfg := GetActionNodeConfig(actions.ActionType(action.ActionType))
 
 	// Build node data using registry builder
 	data, _ := cfg.BuildNode(action)

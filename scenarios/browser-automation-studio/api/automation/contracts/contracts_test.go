@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // =============================================================================
@@ -837,14 +838,23 @@ func TestExecutionPlan_Structure(t *testing.T) {
 			ExecutionID:    uuid.New(),
 			WorkflowID:     uuid.New(),
 			Instructions: []CompiledInstruction{
-				{Index: 0, NodeID: "nav-1", Type: "navigate", Params: map[string]any{"url": "https://example.com"}},
+				{
+					Index:  0,
+					NodeID: "nav-1",
+					Action: &basactions.ActionDefinition{
+						Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+						Params: &basactions.ActionDefinition_Navigate{
+							Navigate: &basactions.NavigateParams{Url: "https://example.com"},
+						},
+					},
+				},
 			},
 			CreatedAt: time.Now().UTC(),
 		}
 
 		assert.Equal(t, ExecutionPlanSchemaVersion, plan.SchemaVersion)
 		assert.Len(t, plan.Instructions, 1)
-		assert.Equal(t, "navigate", plan.Instructions[0].Type)
+		assert.Equal(t, basactions.ActionType_ACTION_TYPE_NAVIGATE, plan.Instructions[0].Action.Type)
 	})
 
 	t.Run("can include graph with branching", func(t *testing.T) {
@@ -859,7 +869,9 @@ func TestExecutionPlan_Structure(t *testing.T) {
 					{
 						Index:  0,
 						NodeID: "branch-1",
-						Type:   "branch",
+						Action: &basactions.ActionDefinition{
+							Type: basactions.ActionType_ACTION_TYPE_CONDITIONAL,
+						},
 						Outgoing: []PlanEdge{
 							{ID: "e1", Target: "step-2", Condition: "true"},
 							{ID: "e2", Target: "step-3", Condition: "false"},
@@ -902,24 +914,29 @@ func TestCompiledInstruction_Structure(t *testing.T) {
 		instr := CompiledInstruction{
 			Index:  0,
 			NodeID: "nav-1",
-			Type:   "navigate",
-			Params: map[string]any{
-				"url":     "https://example.com",
-				"timeout": 30000,
+			Action: &basactions.ActionDefinition{
+				Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{
+					Navigate: &basactions.NavigateParams{Url: "https://example.com"},
+				},
 			},
 		}
 
 		assert.Equal(t, 0, instr.Index)
-		assert.Equal(t, "navigate", instr.Type)
-		assert.Equal(t, "https://example.com", instr.Params["url"])
+		assert.Equal(t, basactions.ActionType_ACTION_TYPE_NAVIGATE, instr.Action.Type)
+		assert.Equal(t, "https://example.com", instr.Action.GetNavigate().Url)
 	})
 
 	t.Run("can include preload HTML", func(t *testing.T) {
 		instr := CompiledInstruction{
-			Index:       0,
-			NodeID:      "click-1",
-			Type:        "click",
-			Params:      map[string]any{"selector": "#button"},
+			Index:  0,
+			NodeID: "click-1",
+			Action: &basactions.ActionDefinition{
+				Type: basactions.ActionType_ACTION_TYPE_CLICK,
+				Params: &basactions.ActionDefinition_Click{
+					Click: &basactions.ClickParams{Selector: "#button"},
+				},
+			},
 			PreloadHTML: "<button id=\"button\">Click</button>",
 		}
 
@@ -928,10 +945,14 @@ func TestCompiledInstruction_Structure(t *testing.T) {
 
 	t.Run("can include context and metadata", func(t *testing.T) {
 		instr := CompiledInstruction{
-			Index:    0,
-			NodeID:   "type-1",
-			Type:     "type",
-			Params:   map[string]any{"selector": "#input", "text": "hello"},
+			Index:  0,
+			NodeID: "type-1",
+			Action: &basactions.ActionDefinition{
+				Type: basactions.ActionType_ACTION_TYPE_INPUT,
+				Params: &basactions.ActionDefinition_Input{
+					Input: &basactions.InputParams{Selector: "#input", Value: "hello"},
+				},
+			},
 			Context:  map[string]any{"previousStep": "nav-1"},
 			Metadata: map[string]string{"source": "recording"},
 		}

@@ -38,11 +38,6 @@ func (i *Interpolator) InterpolateInstruction(instr contracts.CompiledInstructio
 		return instr
 	}
 
-	if instr.Params != nil {
-		if params, ok := i.interpolateValue(instr.Params).(map[string]any); ok {
-			instr.Params = params
-		}
-	}
 	if instr.Context != nil {
 		if ctx, ok := i.interpolateValue(instr.Context).(map[string]any); ok {
 			instr.Context = ctx
@@ -68,11 +63,6 @@ func (i *Interpolator) InterpolatePlanStep(step contracts.PlanStep) contracts.Pl
 		return step
 	}
 
-	if step.Params != nil {
-		if params, ok := i.interpolateValue(step.Params).(map[string]any); ok {
-			step.Params = params
-		}
-	}
 	if step.Context != nil {
 		if ctx, ok := i.interpolateValue(step.Context).(map[string]any); ok {
 			step.Context = ctx

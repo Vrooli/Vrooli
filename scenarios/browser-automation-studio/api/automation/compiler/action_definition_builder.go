@@ -9,7 +9,7 @@ import (
 // BuildActionDefinition creates a typed ActionDefinition proto from step type and params.
 // This converts flat parameter maps (extracted from V2 action fields during compilation)
 // into fully typed proto messages for type-safe execution.
-// Used by ContractPlanCompiler to populate CompiledInstruction.Action.
+// Used by CompileWorkflowToContracts to populate CompiledInstruction.Action.
 func BuildActionDefinition(stepType string, params map[string]any) (*basactions.ActionDefinition, error) {
 	action := &basactions.ActionDefinition{}
 

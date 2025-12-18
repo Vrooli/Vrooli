@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/browser-automation-studio/internal/params"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -95,7 +94,7 @@ func buildRecordingActionDefinition(action *livecapture.RecordedAction) *basacti
 			Selector: selector,
 		}
 		if button, ok := action.Payload["button"].(string); ok {
-			btn := params.StringToMouseButton(button)
+			btn := typeconv.StringToMouseButton(button)
 			clickParams.Button = &btn
 		}
 		if clickCount, ok := extractInt32FromPayload(action.Payload, "clickCount"); ok {
@@ -104,7 +103,7 @@ func buildRecordingActionDefinition(action *livecapture.RecordedAction) *basacti
 		if modifiers, ok := action.Payload["modifiers"].([]any); ok {
 			for _, m := range modifiers {
 				if s, ok := m.(string); ok {
-					clickParams.Modifiers = append(clickParams.Modifiers, params.StringToKeyboardModifier(s))
+					clickParams.Modifiers = append(clickParams.Modifiers, typeconv.StringToKeyboardModifier(s))
 				}
 			}
 		}
@@ -180,7 +179,7 @@ func buildRecordingActionDefinition(action *livecapture.RecordedAction) *basacti
 		if modifiers, ok := action.Payload["modifiers"].([]any); ok {
 			for _, m := range modifiers {
 				if s, ok := m.(string); ok {
-					keyboardParams.Modifiers = append(keyboardParams.Modifiers, params.StringToKeyboardModifier(s))
+					keyboardParams.Modifiers = append(keyboardParams.Modifiers, typeconv.StringToKeyboardModifier(s))
 				}
 			}
 		}

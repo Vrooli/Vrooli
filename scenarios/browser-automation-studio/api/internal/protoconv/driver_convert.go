@@ -940,17 +940,9 @@ func ProtoToCompiledInstruction(pb *basexecution.CompiledInstruction) *autocontr
 		NodeID: pb.NodeId,
 	}
 
-	// NEW: Preserve typed action field if present
+	// Populate typed action field from proto
 	if pb.Action != nil {
 		instr.Action = pb.Action
-	}
-
-	// DEPRECATED: Still read legacy fields for backward compatibility
-	if pb.Type != "" {
-		instr.Type = pb.Type
-	}
-	if len(pb.Params) > 0 {
-		instr.Params = fromJsonValueMap(pb.Params)
 	}
 
 	if pb.PreloadHtml != nil {
@@ -1052,14 +1044,6 @@ func ProtoToPlanStep(pb *basexecution.PlanStep) *autocontracts.PlanStep {
 	// NEW: Preserve typed action field if present
 	if pb.Action != nil {
 		step.Action = pb.Action
-	}
-
-	// DEPRECATED: Still read legacy fields for backward compatibility
-	if pb.Type != "" {
-		step.Type = pb.Type
-	}
-	if len(pb.Params) > 0 {
-		step.Params = fromJsonValueMap(pb.Params)
 	}
 
 	for _, edge := range pb.Outgoing {

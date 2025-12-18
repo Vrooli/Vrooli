@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 func TestPlaywrightEngine_Run_DecodesScreenshotAndDOM(t *testing.T) {
@@ -74,7 +75,9 @@ func TestPlaywrightEngine_Run_DecodesScreenshotAndDOM(t *testing.T) {
 	outcome, err := session.Run(context.Background(), contracts.CompiledInstruction{
 		Index:  1,
 		NodeID: "node-1",
-		Type:   "navigate",
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+		},
 	})
 	if err != nil {
 		t.Fatalf("run: %v", err)
@@ -515,7 +518,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 		_, err := session.Run(context.Background(), contracts.CompiledInstruction{
 			Index:  0,
 			NodeID: "node-1",
-			Type:   "navigate",
+			Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
 		})
 		if err == nil {
 			t.Fatal("expected error when run fails")
@@ -551,7 +554,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 		_, err := session.Run(context.Background(), contracts.CompiledInstruction{
 			Index:  0,
 			NodeID: "node-1",
-			Type:   "invalid",
+			Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_UNSPECIFIED},
 		})
 		if err == nil {
 			t.Fatal("expected error for bad request")
@@ -587,7 +590,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 		_, err := session.Run(context.Background(), contracts.CompiledInstruction{
 			Index:  0,
 			NodeID: "node-1",
-			Type:   "navigate",
+			Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
 		})
 		if err == nil {
 			t.Fatal("expected error for invalid JSON")
@@ -624,7 +627,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 		_, err := session.Run(context.Background(), contracts.CompiledInstruction{
 			Index:  0,
 			NodeID: "node-1",
-			Type:   "screenshot",
+			Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_SCREENSHOT},
 		})
 		if err == nil {
 			t.Fatal("expected error for invalid base64")
@@ -780,7 +783,7 @@ func TestPlaywrightEngine_Run_VideoAndTracePaths(t *testing.T) {
 	outcome, err := session.Run(context.Background(), contracts.CompiledInstruction{
 		Index:  0,
 		NodeID: "node-1",
-		Type:   "navigate",
+		Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
 	})
 	if err != nil {
 		t.Fatalf("run: %v", err)
@@ -834,7 +837,7 @@ func TestPlaywrightEngine_Run_ContextCancellation(t *testing.T) {
 		_, err := session.Run(ctx, contracts.CompiledInstruction{
 			Index:  0,
 			NodeID: "node-1",
-			Type:   "navigate",
+			Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
 		})
 		if err == nil {
 			t.Fatal("expected error for cancelled context")

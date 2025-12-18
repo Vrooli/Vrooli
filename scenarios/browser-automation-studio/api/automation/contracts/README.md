@@ -20,7 +20,7 @@ flowchart TB
     Engine["AutomationEngine\n(PlaywrightEngine)"]
     Executor["SimpleExecutor"]
     Outcome["StepOutcome\n(schema_version, payload_version,\nsize limits applied)"]
-    Recorder["DBRecorder"]
+    Writer["FileWriter"]
     Events["EventEnvelope\n(EventKind*, DropCounters,\nTelemetry)"]
 
     Plan --> Executor

@@ -126,14 +126,15 @@ svc.RegisterFormat(&myCustomFormat{})
 ## File Structure
 
 - `service.go` - Unified export service and format registry
-- `exporter.go` - Movie spec builder (`BuildReplayMovieSpec`)
+- `exporter.go` - Movie spec builder (`BuildReplayMovieSpec`) and core types
 - `types_timeline.go` - Timeline data types
-- `types_overrides.go` - Override/preset types for customization
 - `markdown.go` - Markdown report generators
 - `markdown_helpers.go` - Markdown formatting utilities
-- `presets.go` - Export preset configurations
-- `spec_overrides.go` - Spec customization logic
-- `spec_harmonizer.go` - Spec validation/harmonization
+- `presets.go` - Export preset configurations (theme/cursor presets)
+
+**Note:** Spec customization logic (overrides, harmonization, preset application) lives in
+`handlers/export/` to keep the HTTP layer self-contained. This package provides core types
+and format strategies; `handlers/export/` provides request handling and spec building.
 
 ## Design Principles
 

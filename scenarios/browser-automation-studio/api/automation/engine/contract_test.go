@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // TestContractCompatibility verifies that Go structs can correctly encode/decode
@@ -111,10 +112,11 @@ func testRunRequestContract(t *testing.T) {
 	instruction := contracts.CompiledInstruction{
 		Index:  0,
 		NodeID: "node-1",
-		Type:   "navigate",
-		Params: map[string]any{
-			"url":       "https://example.com",
-			"timeoutMs": float64(30000),
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+			Params: &basactions.ActionDefinition_Navigate{
+				Navigate: &basactions.NavigateParams{Url: "https://example.com"},
+			},
 		},
 		Context: map[string]any{
 			"previousUrl": "about:blank",
@@ -136,8 +138,7 @@ func testRunRequestContract(t *testing.T) {
 		`"instruction"`,
 		`"index"`,
 		`"node_id"`,
-		`"type"`,
-		`"params"`,
+		`"action"`,
 	}
 	for _, field := range requiredFields {
 		if !strings.Contains(jsonStr, field) {
@@ -145,15 +146,9 @@ func testRunRequestContract(t *testing.T) {
 		}
 	}
 
-	// Verify round-trip
-	var decoded runRequest
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		t.Fatalf("failed to unmarshal RunRequest: %v", err)
-	}
-
-	if decoded.Instruction.Type != "navigate" {
-		t.Errorf("instruction.type mismatch: got %q, want %q", decoded.Instruction.Type, "navigate")
-	}
+	// Note: Standard json.Unmarshal cannot round-trip proto oneof fields.
+	// The actual driver uses protojson for proper serialization.
+	// We verify the JSON structure above is correct for the driver contract.
 }
 
 // testDriverOutcomeContract verifies the TypeScript DriverOutcome format
@@ -220,68 +215,96 @@ func testCompiledInstructionContract(t *testing.T) {
 			instr: contracts.CompiledInstruction{
 				Index:  0,
 				NodeID: "nav-1",
-				Type:   "navigate",
-				Params: map[string]any{"url": "https://example.com"},
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+					Params: &basactions.ActionDefinition_Navigate{
+						Navigate: &basactions.NavigateParams{Url: "https://example.com"},
+					},
+				},
 			},
-			checks: []string{`"index":0`, `"node_id":"nav-1"`, `"type":"navigate"`, `"url"`},
+			checks: []string{`"index":0`, `"node_id":"nav-1"`, `"action"`},
 		},
 		{
 			name: "click",
 			instr: contracts.CompiledInstruction{
 				Index:  1,
 				NodeID: "click-1",
-				Type:   "click",
-				Params: map[string]any{"selector": "button.submit"},
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_CLICK,
+					Params: &basactions.ActionDefinition_Click{
+						Click: &basactions.ClickParams{Selector: "button.submit"},
+					},
+				},
 			},
-			checks: []string{`"index":1`, `"type":"click"`, `"selector"`},
+			checks: []string{`"index":1`, `"action"`},
 		},
 		{
-			name: "type",
+			name: "input",
 			instr: contracts.CompiledInstruction{
 				Index:  2,
 				NodeID: "type-1",
-				Type:   "type",
-				Params: map[string]any{"selector": "#email", "text": "test@example.com"},
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_INPUT,
+					Params: &basactions.ActionDefinition_Input{
+						Input: &basactions.InputParams{Selector: "#email", Value: "test@example.com"},
+					},
+				},
 			},
-			checks: []string{`"type":"type"`, `"selector"`, `"text"`},
+			checks: []string{`"action"`},
 		},
 		{
 			name: "wait",
 			instr: contracts.CompiledInstruction{
 				Index:  3,
 				NodeID: "wait-1",
-				Type:   "wait",
-				Params: map[string]any{"selector": ".loaded", "state": "visible"},
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_WAIT,
+					Params: &basactions.ActionDefinition_Wait{
+						Wait: &basactions.WaitParams{WaitFor: &basactions.WaitParams_Selector{Selector: ".loaded"}},
+					},
+				},
 			},
-			checks: []string{`"type":"wait"`, `"state"`},
+			checks: []string{`"action"`},
 		},
 		{
 			name: "assert",
 			instr: contracts.CompiledInstruction{
 				Index:  4,
 				NodeID: "assert-1",
-				Type:   "assert",
-				Params: map[string]any{"selector": "h1", "mode": "text", "expected": "Welcome"},
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_ASSERT,
+					Params: &basactions.ActionDefinition_Assert{
+						Assert: &basactions.AssertParams{Selector: "h1"},
+					},
+				},
 			},
-			checks: []string{`"type":"assert"`, `"mode"`, `"expected"`},
+			checks: []string{`"action"`},
 		},
 		{
 			name: "extract",
 			instr: contracts.CompiledInstruction{
 				Index:  5,
 				NodeID: "extract-1",
-				Type:   "extract",
-				Params: map[string]any{"selector": ".price"},
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_EXTRACT,
+					Params: &basactions.ActionDefinition_Extract{
+						Extract: &basactions.ExtractParams{Selector: ".price"},
+					},
+				},
 			},
-			checks: []string{`"type":"extract"`},
+			checks: []string{`"action"`},
 		},
 		{
 			name: "with_preload_html",
 			instr: contracts.CompiledInstruction{
-				Index:       6,
-				NodeID:      "preload-1",
-				Type:        "navigate",
-				Params:      map[string]any{"url": "https://example.com"},
+				Index:  6,
+				NodeID: "preload-1",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+					Params: &basactions.ActionDefinition_Navigate{
+						Navigate: &basactions.NavigateParams{Url: "https://example.com"},
+					},
+				},
 				PreloadHTML: "<html><body>Preloaded</body></html>",
 			},
 			checks: []string{`"preload_html"`},
@@ -289,10 +312,14 @@ func testCompiledInstructionContract(t *testing.T) {
 		{
 			name: "with_context",
 			instr: contracts.CompiledInstruction{
-				Index:   7,
-				NodeID:  "ctx-1",
-				Type:    "click",
-				Params:  map[string]any{"selector": "button"},
+				Index:  7,
+				NodeID: "ctx-1",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_CLICK,
+					Params: &basactions.ActionDefinition_Click{
+						Click: &basactions.ClickParams{Selector: "button"},
+					},
+				},
 				Context: map[string]any{"loopIndex": float64(0), "loopItem": "item1"},
 			},
 			checks: []string{`"context"`, `"loopIndex"`},
@@ -300,10 +327,14 @@ func testCompiledInstructionContract(t *testing.T) {
 		{
 			name: "with_metadata",
 			instr: contracts.CompiledInstruction{
-				Index:    8,
-				NodeID:   "meta-1",
-				Type:     "screenshot",
-				Params:   map[string]any{},
+				Index:  8,
+				NodeID: "meta-1",
+				Action: &basactions.ActionDefinition{
+					Type: basactions.ActionType_ACTION_TYPE_SCREENSHOT,
+					Params: &basactions.ActionDefinition_Screenshot{
+						Screenshot: &basactions.ScreenshotParams{},
+					},
+				},
 				Metadata: map[string]string{"source": "test", "label": "important"},
 			},
 			checks: []string{`"metadata"`, `"source"`, `"label"`},

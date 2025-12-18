@@ -104,7 +104,7 @@ func BuildDependencies(repo database.Repository, hub *wsHub.Hub, log *logrus.Log
 	}
 
 	// Persist execution artifacts under recordingsRoot
-	autoRecorder := executionwriter.NewFileRecorder(repo, storageClient, log, recordingsRoot)
+	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, recordingsRoot)
 
 	// Configure event sink factory - optionally wrap with UX metrics collector
 	var eventSinkFactory func() autoevents.Sink

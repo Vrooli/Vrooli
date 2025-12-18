@@ -16,8 +16,8 @@ flowchart LR
         SEL["selection.go\nENV: ENGINE/ENGINE_OVERRIDE"]
         ENG["AutomationEngine (PlaywrightEngine)\nStartSession/Run/Reset/Close"]
     end
-    subgraph Recorder["automation/recorder"]
-        REC["DBRecorder\nstep rows, artifacts, screenshots, DOM\ntruncation/dedupe"]
+    subgraph Writer["automation/execution-writer"]
+        REC["FileWriter\nstep rows, artifacts, screenshots, DOM\ntruncation/dedupe"]
     end
     subgraph Events["automation/events"]
         SEQ["Sequencer\nper-execution ordering + backpressure limits"]
@@ -45,7 +45,7 @@ Key invariants:
 - `engine/` — `AutomationEngine` interface, env-based selection, static factory, and the `BrowserlessEngine` adapter around the existing CDP session.
 - Playwright desktop engine: local driver over HTTP; supports downloads/uploads/tracing/video flags for desktop bundles.
 - `executor/` — Orchestration (`SimpleExecutor`) that drives engines, emits heartbeats/telemetry, and enforces capability checks. `plan_builder.go` compiles workflows into the contract plan shape.
-- `recorder/` — Persists normalized outcomes/telemetry into the DB (`DBRecorder`) while owning IDs/dedupe and storage uploads.
+- `execution-writer/` — Persists normalized outcomes/telemetry (`FileWriter`) while owning IDs/dedupe and storage uploads.
 - `events/` — Event sinks and sequencing/backpressure helpers. `ws_sink` bridges to the websocket hub; `memory_sink` supports tests.
 - See also:
   - [contracts/README.md](contracts/README.md)
@@ -55,7 +55,7 @@ Key invariants:
   - [events/README.md](events/README.md)
 
 ### Legacy isolation
-- The legacy Browserless client (`browserless/client.go`) has been removed. Runtime execution flows exclusively through `automation/executor` + `PlaywrightEngine` + `DBRecorder` + `WSHubSink`.
+- The legacy Browserless client (`browserless/client.go`) has been removed. Runtime execution flows exclusively through `automation/executor` + `PlaywrightEngine` + `FileWriter` + `WSHubSink`.
 - There is no feature-flag fallback to the legacy executor; `executeWithAutomationEngine` is the sole workflow execution path.
 - Subflows: only `subflow` nodes are supported for child execution; legacy `workflowCall` is rejected.
 - Engines: Playwright (local driver) is the only supported engine behind the `AutomationEngine` interface; select via `ENGINE` / `ENGINE_OVERRIDE` (defaults to `playwright`).
@@ -92,7 +92,7 @@ Key invariants:
 
 ## Testing
 - Unit tests live alongside packages (`contracts_test.go`, `selection_test.go`, `simple_executor_test.go`, etc.).
-- Integration tests should prefer `testcontainers-go` + `DBRecorder` + `MemorySink` so we exercise real persistence and event sequencing without relying on Browserless.
+- Integration tests should prefer `testcontainers-go` + `FileWriter` + `MemorySink` so we exercise real persistence and event sequencing without relying on Browserless.
 ## What to Tackle Next
 1) Executor parity: fill gaps for variable interpolation, retry taxonomy, reuse/clean/fresh, cancellation/timeout, cursor trails/timeline framing, DOM truncation/dedupe.
 2) Capability matrix: codify workflow feature → capability requirements (HAR, multi-tab, upload/download) and fail fast when unsupported.

@@ -116,41 +116,6 @@ var defaultActionNodeConfig = ActionNodeConfig{
 	},
 }
 
-// ActionTypeConfig provides backwards compatibility.
-// New code should use GetActionNodeConfig and the unified actions package.
-//
-// Deprecated: Use ActionNodeConfig and actions.GetMetadata instead.
-type ActionTypeConfig struct {
-	NodeType           string
-	NeedsSelectorWait  bool
-	TriggersDOMChanges bool
-	BuildNode          func(action RecordedAction) (data map[string]any, config map[string]any)
-	GenerateLabel      func(action RecordedAction) string
-}
-
-// GetActionConfig returns the combined configuration for an action type.
-// This merges node config with unified behavioral metadata.
-//
-// Deprecated: Use GetActionNodeConfig for node conversion behavior and
-// actions.GetMetadata for behavioral metadata.
-func GetActionConfig(actionType string) ActionTypeConfig {
-	at := actions.ActionType(actionType)
-	meta := actions.GetMetadata(at)
-
-	nodeConfig := defaultActionNodeConfig
-	if cfg, ok := actionNodeRegistry[at]; ok {
-		nodeConfig = cfg
-	}
-
-	return ActionTypeConfig{
-		NodeType:           nodeConfig.NodeType,
-		NeedsSelectorWait:  meta.NeedsSelectorWait,
-		TriggersDOMChanges: meta.TriggersDOMChanges,
-		BuildNode:          nodeConfig.BuildNode,
-		GenerateLabel:      nodeConfig.GenerateLabel,
-	}
-}
-
 // GetActionNodeConfig returns the node conversion configuration for an action type.
 // Use actions.GetMetadata for behavioral metadata (NeedsSelectorWait, etc.).
 func GetActionNodeConfig(actionType actions.ActionType) ActionNodeConfig {

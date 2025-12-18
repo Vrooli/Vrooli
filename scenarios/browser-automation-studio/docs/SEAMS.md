@@ -838,51 +838,37 @@ deps := handlers.HandlerDeps{
 handler := handlers.NewHandlerWithDeps(repo, wsHub, log, allowAll, origins, deps)
 ```
 
-### Export Package Boundary Clarification (2025-12-17)
+### Export Package Boundary Clarification (COMPLETED 2025-12-17)
 
-The export functionality has **two packages with overlapping responsibilities**:
+The export functionality now has clean separation:
 
-| Package | Intended Role | Current State |
-|---------|---------------|---------------|
-| `handlers/export/` | HTTP request types, presentation-layer preset application | Contains full business logic (builders, harmonizers, overrides) |
-| `services/export/` | Domain types, export service, format strategies | Contains unused duplicate implementations |
+| Package | Role |
+|---------|------|
+| `handlers/export/` | HTTP request types, spec building, preset application |
+| `services/export/` | Core types, export service, format strategies, presets |
 
-**Duplication Audit Results:**
+**Cleanup Completed:**
 
 | handlers/export | services/export | Status |
 |-----------------|-----------------|--------|
-| presets.go | presets.go | ✅ **FIXED** - handlers copy deleted, uses services/export |
-| builder.go | preset_builder.go | ⚠️ **DUPLICATE** - Identical implementations |
-| spec_builder.go | spec_harmonizer.go | ⚠️ **DUPLICATE** - Identical implementations |
-| overrides.go | spec_overrides.go | ⚠️ **DUPLICATE** - Identical implementations |
-| types.go | types_overrides.go | ⚠️ **DUPLICATE** - ThemePreset, CursorPreset identical |
+| presets.go | presets.go | ✅ handlers copy deleted, uses services/export |
+| builder.go | ~~preset_builder.go~~ | ✅ services duplicate DELETED |
+| spec_builder.go | ~~spec_harmonizer.go~~ | ✅ services duplicate DELETED |
+| overrides.go | ~~spec_overrides.go~~ | ✅ services duplicate DELETED |
+| types.go | ~~types_overrides.go~~ | ✅ services duplicate DELETED |
 
-**Which implementations are actually used:**
-- `handlers/export.BuildSpec`, `Apply`, `Clone`, `BuildThemeFromPreset`, `BuildCursorSpec` - **USED** by `handlers/execution_export_helpers.go`
-- `services/export.BuildSpec`, `Apply`, etc. - **UNUSED** (only covered by internal tests)
+**Deleted files (2025-12-17):**
+- `services/export/preset_builder.go`
+- `services/export/spec_harmonizer.go`
+- `services/export/spec_overrides.go`
+- `services/export/types_overrides.go`
+- `services/export/builder_test.go`
+- `services/export/spec_builder_test.go`
+- `services/export/overrides_test.go`
 
-**Recommended Cleanup (Future Work):**
-
-1. **Delete unused services/export implementations:**
-   - `preset_builder.go` (handlers/export/builder.go is used)
-   - `spec_harmonizer.go` (handlers/export/spec_builder.go is used)
-   - `spec_overrides.go` (handlers/export/overrides.go is used)
-   - `builder_test.go`, `spec_builder_test.go` (tests for deleted code)
-
-2. **Delete duplicate type definitions from handlers/export/types.go:**
-   - `ThemePreset` → use `services/export.ThemePreset`
-   - `CursorPreset` → use `services/export.CursorPreset`
-
-3. **Keep services/export for:**
-   - Types (`ReplayMovieSpec`, `ExportTheme`, `ExportCursorSpec`, etc.)
-   - Presets (`ChromeThemePresets`, `CursorThemePresets`, etc.)
-   - Export service (`Service`, format strategies)
-   - Timeline types and markdown generation
-
-**Why this duplication exists:**
-The packages evolved independently when export functionality was extracted to handlers/export.
-The services/export package got its own implementations without realizing handlers/export already had them.
-The handlers/export versions became the de facto standard since they're wired into the HTTP layer.
+**Current architecture:**
+- `handlers/export/` owns: `BuildSpec`, `Apply`, `Clone`, `BuildThemeFromPreset`, `BuildCursorSpec`
+- `services/export/` owns: Types, presets, export service, format strategies, markdown generation
 
 ### Action Type Mapping Boundary (2025-12-17)
 

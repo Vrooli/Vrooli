@@ -26,7 +26,7 @@ flowchart LR
         PLAN["executor.PlanCompiler\nengine-aware"]
         EXEC["executor.SimpleExecutor"]
         ENG["engine.Factory\n(DefaultFactory)"]
-        RECORDER["recorder.DBRecorder"]
+        RECORDER["execution-writer.FileWriter"]
         EVENTS["events.WSHubSink\nper-execution queues"]
     end
 

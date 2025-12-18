@@ -62,22 +62,15 @@ type ExecutionPlan struct {
 }
 
 // CompiledInstruction captures a single normalized instruction emitted by the
-// workflow compiler.
-//
-// MIGRATION NOTE: This struct is transitioning from untyped Params to typed Action.
-// During migration, both may be populated. Consumers should prefer Action when present.
-//
-// Deprecated: Type and Params are deprecated. Use Action instead for type safety.
+// workflow compiler. The Action field provides type-safe access to step type
+// and parameters via proto-generated types.
 type CompiledInstruction struct {
 	Index       int               `json:"index"`
 	NodeID      string            `json:"node_id"`
-	Type        string            `json:"type,omitempty"`   // Deprecated: use Action.Type
-	Params      map[string]any    `json:"params,omitempty"` // Deprecated: use Action's typed params
 	PreloadHTML string            `json:"preload_html,omitempty"`
 	Context     map[string]any    `json:"context,omitempty"`
 	Metadata    map[string]string `json:"metadata,omitempty"` // Freeform, engine-agnostic hints (e.g., labels).
 	// Action is the typed action definition with full type safety.
-	// When set, takes precedence over deprecated Type/Params fields.
 	Action *basactions.ActionDefinition `json:"action,omitempty"`
 }
 
@@ -87,14 +80,11 @@ type PlanGraph struct {
 	Steps []PlanStep `json:"steps"`
 }
 
-// PlanStep represents a node in the execution graph.
-//
-// MIGRATION NOTE: Same transition as CompiledInstruction - prefer Action over Type/Params.
+// PlanStep represents a node in the execution graph. The Action field provides
+// type-safe access to step type and parameters via proto-generated types.
 type PlanStep struct {
 	Index     int               `json:"index"`
 	NodeID    string            `json:"node_id"`
-	Type      string            `json:"type,omitempty"`   // Deprecated: use Action.Type
-	Params    map[string]any    `json:"params,omitempty"` // Deprecated: use Action's typed params
 	Outgoing  []PlanEdge        `json:"outgoing,omitempty"`
 	Loop      *PlanGraph        `json:"loop,omitempty"` // Populated for loop nodes only.
 	Metadata  map[string]string `json:"metadata,omitempty"`

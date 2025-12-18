@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -94,7 +95,7 @@ func normalizeWorkflowDefinitionV2Compat(doc map[string]any) {
 
 		normalized := make(map[string]any, len(args))
 		for k, v := range args {
-			normalized[k] = jsonValueWrapper(v)
+			normalized[k] = typeconv.WrapJsonValue(v)
 		}
 		subflow["args"] = normalized
 	}

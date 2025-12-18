@@ -32,22 +32,15 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 	// Convert steps to compiled instructions (flat representation)
 	instructions := make([]contracts.CompiledInstruction, 0, len(plan.Steps))
 	for _, step := range plan.Steps {
-		params := make(map[string]any, len(step.Params))
-		for k, v := range step.Params {
-			params[k] = v
-		}
-
 		instr := contracts.CompiledInstruction{
 			Index:       step.Index,
 			NodeID:      step.NodeID,
-			Type:        string(step.Type),
-			Params:      params,
 			PreloadHTML: "",
 			Context:     map[string]any{},
 			Metadata:    map[string]string{},
 		}
 
-		// Populate typed Action field from step type/params for type safety
+		// Build typed Action field from step type/params
 		action, actionErr := BuildActionDefinition(string(step.Type), step.Params)
 		if actionErr != nil {
 			log.Printf("[COMPILER] Warning: failed to build ActionDefinition for step %d (%s): %v", step.Index, step.Type, actionErr)
@@ -97,8 +90,6 @@ func toContractsGraph(plan *ExecutionPlan) *contracts.PlanGraph {
 		converted := contracts.PlanStep{
 			Index:     step.Index,
 			NodeID:    step.NodeID,
-			Type:      string(step.Type),
-			Params:    step.Params,
 			Outgoing:  edges,
 			Metadata:  map[string]string{},
 			Context:   map[string]any{},

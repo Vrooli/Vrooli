@@ -31,11 +31,13 @@ Tests: `file_writer_test.go` covers artifact shape and truncation; integration t
 
 ## Migration Notes
 
-This package was renamed from `automation/recorder` to better reflect its responsibility:
-- `Recorder` interface → `ExecutionWriter` (alias provided for compatibility)
-- `FileRecorder` → `FileWriter` (alias provided for compatibility)
-- `DBRecorder` → `FileWriter` (alias provided for compatibility)
-- `NewFileRecorder()` → `NewFileWriter()` (alias provided for compatibility)
-- `NewDBRecorder()` → `NewFileWriter()` (alias provided for compatibility)
+This package was renamed from `automation/recorder` to better reflect its responsibility.
+All legacy aliases have been removed (2025-12-17):
 
-The old names are preserved as type aliases for backward compatibility during migration.
+| Old Name | New Name |
+|----------|----------|
+| `Recorder` | `ExecutionWriter` |
+| `FileRecorder` | `FileWriter` |
+| `DBRecorder` | `FileWriter` |
+| `NewFileRecorder()` | `NewFileWriter()` |
+| `NewDBRecorder()` | `NewFileWriter()` |

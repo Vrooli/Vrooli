@@ -20,10 +20,6 @@ type ExecutionWriter interface {
 	UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error
 }
 
-// Recorder is an alias for ExecutionWriter for backward compatibility.
-// MIGRATION: Callers should migrate to ExecutionWriter.
-type Recorder = ExecutionWriter
-
 // ExecutionIndexRepository captures the minimal persistence surface needed by the writer.
 // This updates the database index only; detailed execution data is written to JSON files.
 type ExecutionIndexRepository interface {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -182,55 +183,8 @@ func normalizeV2Compat(doc map[string]any) {
 
 		normalized := make(map[string]any, len(args))
 		for k, v := range args {
-			normalized[k] = jsonValueWrapper(v)
+			normalized[k] = typeconv.WrapJsonValue(v)
 		}
 		subflow["args"] = normalized
-	}
-}
-
-// jsonValueWrapper wraps a value in the expected JsonValue oneof shape if needed.
-func jsonValueWrapper(v any) any {
-	if v == nil {
-		return map[string]any{"null_value": 0}
-	}
-	switch val := v.(type) {
-	case map[string]any:
-		// If already wrapped, return as-is.
-		if _, hasString := val["string_value"]; hasString {
-			return val
-		}
-		if _, hasBool := val["bool_value"]; hasBool {
-			return val
-		}
-		if _, hasNumber := val["number_value"]; hasNumber {
-			return val
-		}
-		if _, hasNull := val["null_value"]; hasNull {
-			return val
-		}
-		if _, hasObject := val["object_value"]; hasObject {
-			return val
-		}
-		if _, hasList := val["list_value"]; hasList {
-			return val
-		}
-		// Wrap object.
-		return map[string]any{"object_value": val}
-	case string:
-		return map[string]any{"string_value": val}
-	case bool:
-		return map[string]any{"bool_value": val}
-	case float64:
-		return map[string]any{"number_value": val}
-	case int:
-		return map[string]any{"number_value": float64(val)}
-	case int32:
-		return map[string]any{"number_value": float64(val)}
-	case int64:
-		return map[string]any{"number_value": float64(val)}
-	case []any:
-		return map[string]any{"list_value": val}
-	default:
-		return v
 	}
 }

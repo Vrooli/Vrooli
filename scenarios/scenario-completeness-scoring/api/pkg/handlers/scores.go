@@ -324,8 +324,22 @@ func (ctx *Context) HandleCalculateScore(w http.ResponseWriter, r *http.Request)
 	}
 	scoringOpts := configToScoringOptions(cfg) // configToScoringOptions handles nil safely
 
+	// Perform validation quality analysis (same as HandleGetScore)
+	scenarioRoot := ctx.Collector.GetScenarioRoot(scenarioName)
+	requirements := ctx.Collector.LoadRequirements(scenarioName)
+
+	validationAnalysis := validators.AnalyzeValidationQuality(
+		validators.ValidationInputCounts{
+			RequirementsTotal: metrics.Requirements.Total,
+			TestsTotal:        metrics.Tests.Total,
+		},
+		requirements,
+		nil, // No operational targets yet
+		scenarioRoot,
+	)
+
 	thresholds := scoring.GetThresholds(metrics.Category)
-	breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, 0, scoringOpts)
+	breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, validationAnalysis.TotalPenalty, scoringOpts)
 	recommendations := scoring.GenerateRecommendations(breakdown, thresholds)
 
 	// Save snapshot to history with source/tags for correlation [REQ:SCS-HIST-001]
@@ -348,16 +362,19 @@ func (ctx *Context) HandleCalculateScore(w http.ResponseWriter, r *http.Request)
 	}
 
 	response := map[string]interface{}{
-		"scenario":        scenarioName,
-		"category":        metrics.Category,
-		"score":           breakdown.Score,
-		"classification":  breakdown.Classification,
-		"breakdown":       breakdown,
-		"metrics":         metrics,
-		"recommendations": recommendations,
-		"calculated_at":   time.Now().UTC().Format(time.RFC3339),
-		"recalculated":    true,
-		"snapshot_id":     snapshotID,
+		"scenario":            scenarioName,
+		"category":            metrics.Category,
+		"score":               breakdown.Score,
+		"base_score":          breakdown.BaseScore,
+		"validation_penalty":  breakdown.ValidationPenalty,
+		"classification":      breakdown.Classification,
+		"breakdown":           breakdown,
+		"metrics":             metrics,
+		"validation_analysis": validationAnalysis,
+		"recommendations":     recommendations,
+		"calculated_at":       time.Now().UTC().Format(time.RFC3339),
+		"recalculated":        true,
+		"snapshot_id":         snapshotID,
 	}
 
 	// Include source/tags in response if provided

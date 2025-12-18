@@ -46,14 +46,6 @@ type FileWriter struct {
 	timelines sync.Map // executionID -> *executionTimelineData
 }
 
-// FileRecorder is an alias for FileWriter for backward compatibility.
-// MIGRATION: Callers should migrate to FileWriter.
-type FileRecorder = FileWriter
-
-// DBRecorder is an alias for FileWriter for backward compatibility.
-// MIGRATION: Callers should migrate to FileWriter.
-type DBRecorder = FileWriter
-
 // ExecutionResultData accumulates execution results to be written to disk.
 // This is the file format stored at ExecutionIndex.ResultPath.
 type ExecutionResultData struct {
@@ -141,18 +133,6 @@ func NewFileWriter(repo ExecutionIndexRepository, storage storage.StorageInterfa
 		log:     log,
 		dataDir: dataDir,
 	}
-}
-
-// NewFileRecorder is an alias for NewFileWriter for backward compatibility.
-// MIGRATION: Callers should migrate to NewFileWriter.
-func NewFileRecorder(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger, dataDir string) *FileWriter {
-	return NewFileWriter(repo, storage, log, dataDir)
-}
-
-// NewDBRecorder is an alias for NewFileWriter for backward compatibility.
-// MIGRATION: Callers should migrate to NewFileWriter.
-func NewDBRecorder(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger) *FileWriter {
-	return NewFileWriter(repo, storage, log, "")
 }
 
 const (
