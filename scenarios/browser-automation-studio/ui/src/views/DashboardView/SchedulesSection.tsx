@@ -29,7 +29,7 @@ import { TabEmptyState } from './previews/TabEmptyState';
 import { ScheduleModal } from '@/views/SettingsView/sections/schedules';
 
 interface SchedulesTabProps {
-  onNavigateToWorkflow?: (workflowId: string) => void;
+  onNavigateToWorkflow?: (projectId: string, workflowId: string) => void;
   onNavigateToExecution?: (executionId: string, workflowId: string) => void;
   onNavigateToHome?: () => void;
 }
@@ -62,13 +62,19 @@ const ScheduleCard: React.FC<{
           <div className="min-w-0 flex-1">
             <div className="font-medium text-surface truncate">{schedule.name}</div>
             {schedule.workflow_name && (
-              <button
-                onClick={onViewWorkflow}
-                className="text-xs text-gray-500 hover:text-gray-300 truncate flex items-center gap-1 transition-colors"
-              >
-                {schedule.workflow_name}
-                <ChevronRight size={12} />
-              </button>
+              onViewWorkflow ? (
+                <button
+                  onClick={onViewWorkflow}
+                  className="text-xs text-gray-500 hover:text-gray-300 truncate flex items-center gap-1 transition-colors"
+                >
+                  {schedule.workflow_name}
+                  <ChevronRight size={12} />
+                </button>
+              ) : (
+                <span className="text-xs text-gray-500 truncate">
+                  {schedule.workflow_name}
+                </span>
+              )
             )}
             {schedule.description && (
               <div className="text-xs text-gray-500 mt-1 line-clamp-1">
@@ -275,6 +281,15 @@ export const SchedulesTab: React.FC<SchedulesTabProps> = ({
   const activeSchedules = schedules.filter((s) => s.is_active);
   const inactiveSchedules = schedules.filter((s) => !s.is_active);
 
+  // Helper to navigate to a workflow from a schedule
+  const getWorkflowNavigator = useCallback((workflowId: string) => {
+    if (!onNavigateToWorkflow) return undefined;
+    const workflow = workflows.find(w => w.id === workflowId);
+    if (!workflow?.projectId) return undefined;
+    const projectId = workflow.projectId;
+    return () => onNavigateToWorkflow(projectId, workflowId);
+  }, [onNavigateToWorkflow, workflows]);
+
   return (
     <div className="space-y-6">
       {/* Header with stats */}
@@ -392,11 +407,7 @@ export const SchedulesTab: React.FC<SchedulesTabProps> = ({
                     onTrigger={() => handleTriggerSchedule(schedule.id)}
                     onEdit={() => handleEditSchedule(schedule)}
                     onDelete={() => setDeleteConfirm(schedule.id)}
-                    onViewWorkflow={
-                      onNavigateToWorkflow
-                        ? () => onNavigateToWorkflow(schedule.workflow_id)
-                        : undefined
-                    }
+                    onViewWorkflow={getWorkflowNavigator(schedule.workflow_id)}
                     isLoading={isLoading}
                   />
                 ))}
@@ -419,11 +430,7 @@ export const SchedulesTab: React.FC<SchedulesTabProps> = ({
                     onTrigger={() => handleTriggerSchedule(schedule.id)}
                     onEdit={() => handleEditSchedule(schedule)}
                     onDelete={() => setDeleteConfirm(schedule.id)}
-                    onViewWorkflow={
-                      onNavigateToWorkflow
-                        ? () => onNavigateToWorkflow(schedule.workflow_id)
-                        : undefined
-                    }
+                    onViewWorkflow={getWorkflowNavigator(schedule.workflow_id)}
                     isLoading={isLoading}
                   />
                 ))}

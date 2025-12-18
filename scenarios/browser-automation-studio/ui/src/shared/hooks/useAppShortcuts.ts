@@ -11,7 +11,7 @@ import {
   useShortcutContext,
 } from "@hooks/useKeyboardShortcuts";
 import { type ShortcutContext } from "@stores/keyboardShortcutsStore";
-import type { AppView } from "@/routing";
+import type { AppView } from "@/types/navigation";
 import type { Project } from "@/domains/projects";
 
 interface UseAppShortcutsParams {

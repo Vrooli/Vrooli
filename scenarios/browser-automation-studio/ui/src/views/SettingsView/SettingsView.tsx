@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, lazy, Suspense } from 'react';
+import { useMemo, useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import {
   ArrowLeft,
   Settings,
@@ -51,9 +51,10 @@ const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; icon: React.ReactNo
 
 interface SettingsViewProps {
   onBack: () => void;
+  initialTab?: string;
 }
 
-export function SettingsView({ onBack }: SettingsViewProps) {
+export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
   const {
     replay,
     resetReplaySettings,
@@ -64,8 +65,17 @@ export function SettingsView({ onBack }: SettingsViewProps) {
     saveAsPreset,
   } = useSettingsStore();
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('display');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    (initialTab as SettingsTab) || 'display'
+  );
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(true);
+
+  // Sync activeTab when initialTab prop changes (e.g., navigating from "Open export settings")
+  useEffect(() => {
+    if (initialTab && initialTab !== activeTab) {
+      setActiveTab(initialTab as SettingsTab);
+    }
+  }, [initialTab]); // eslint-disable-line react-hooks/exhaustive-deps -- Only sync when initialTab changes
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
 

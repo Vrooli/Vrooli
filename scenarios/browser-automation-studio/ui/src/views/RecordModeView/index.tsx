@@ -42,7 +42,13 @@ export default function RecordModeView() {
         );
       }
     }
-    navigate('/');
+    // Go back in history if possible, otherwise navigate home
+    // window.history.length > 2 accounts for the initial page load entry
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
   }, [sessionId, navigate]);
 
   const handleSessionReady = useCallback(

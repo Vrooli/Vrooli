@@ -32,7 +32,7 @@ interface ExportsTabProps {
   onNavigateToExecutions?: () => void;
   onNavigateToHome?: () => void;
   onCreateWorkflow?: () => void;
-  onOpenSettings?: () => void;
+  onOpenSettings?: (tab?: string) => void;
 }
 
 const formatConfig: Record<string, {
@@ -473,7 +473,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
           }}
           secondaryCta={
             !hasExecutions && !hasWorkflows && onOpenSettings
-              ? { label: 'Open export settings', onClick: onOpenSettings }
+              ? { label: 'Open export settings', onClick: () => onOpenSettings('replay') }
               : hasExecutions && onNavigateToHome
                 ? { label: 'Run another workflow', onClick: onNavigateToHome }
                 : hasWorkflows && onCreateWorkflow

@@ -18,7 +18,12 @@ export default function AllExecutionsView() {
   const loadExecution = useExecutionStore((state) => state.loadExecution);
 
   const handleBack = () => {
-    navigate('/');
+    // Go back in history if possible, otherwise navigate home
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
   };
 
   const handleViewExecution = useCallback(

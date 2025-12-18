@@ -406,9 +406,10 @@ function ProjectModal({
     try {
       if (isEditing && project) {
         const updated = await updateProject(project.id, formData);
-        onClose();
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Call onSuccess before closing to ensure navigation happens
+        // The parent component should handle both the modal close and navigation
         onSuccess?.(updated);
+        onClose();
       } else {
         const presetPaths =
           preset === "custom" ? parsePresetPaths(presetPathsText) : null;
@@ -420,9 +421,10 @@ function ProjectModal({
               ? presetPaths.paths
               : undefined,
         });
-        onClose();
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Call onSuccess before closing to ensure navigation happens
+        // The parent component should handle both the modal close and navigation
         onSuccess?.(newProject);
+        onClose();
       }
     } catch (err) {
       logger.error(

@@ -38,7 +38,7 @@ interface DashboardProps {
   onCreateWorkflow?: () => void;
   onCreateFirstWorkflow?: () => void;
   onStartRecording?: () => void;
-  onOpenSettings?: () => void;
+  onOpenSettings?: (tab?: string) => void;
   onOpenHelp?: () => void;
   onOpenTutorial?: () => void;
   onNavigateToWorkflow?: (projectId: string, workflowId: string) => void;
@@ -137,18 +137,6 @@ function Dashboard({
     return () => window.removeEventListener('open-global-search', handleOpenSearch);
   }, []);
 
-  // Listen for navigate-to-exports events from ExecutionViewer
-  useEffect(() => {
-    const handleNavigateToExports = () => {
-      setActiveTab('exports');
-      if (onTabChange) {
-        onTabChange('exports');
-      }
-    };
-    window.addEventListener('navigate-to-exports', handleNavigateToExports);
-    return () => window.removeEventListener('navigate-to-exports', handleNavigateToExports);
-  }, [onTabChange]);
-
   const handleNavigateToWorkflow = useCallback((projectId: string, workflowId: string) => {
     if (onNavigateToWorkflow) {
       onNavigateToWorkflow(projectId, workflowId);
@@ -179,26 +167,33 @@ function Dashboard({
     }
   }, [onRunWorkflow]);
 
-  const handleOpenSettings = useCallback(() => {
+  const handleOpenSettings = useCallback((tab?: string) => {
     if (onOpenSettings) {
-      onOpenSettings();
+      onOpenSettings(tab);
     }
   }, [onOpenSettings]);
 
-  const handleViewAllExecutions = useCallback(() => {
-    setActiveTab('executions');
-    if (onTabChange) {
-      onTabChange('executions');
-    }
-  }, [onTabChange]);
-
-  // Handle tab change
+  // Handle tab change - defined before callbacks and effects that depend on it
   const handleTabChange = useCallback((tab: DashboardTab) => {
     setActiveTab(tab);
     if (onTabChange) {
       onTabChange(tab);
     }
   }, [onTabChange]);
+
+  const handleViewAllExecutions = useCallback(() => {
+    handleTabChange('executions');
+  }, [handleTabChange]);
+
+  // Listen for navigate-to-exports events from ExecutionViewer
+  // NOTE: This effect must be defined after handleTabChange
+  useEffect(() => {
+    const handleNavigateToExports = () => {
+      handleTabChange('exports');
+    };
+    window.addEventListener('navigate-to-exports', handleNavigateToExports);
+    return () => window.removeEventListener('navigate-to-exports', handleNavigateToExports);
+  }, [handleTabChange]);
 
   // Status bar for API connection issues
   const StatusBar = () => {
@@ -259,7 +254,7 @@ function Dashboard({
           >
             <ExecutionsTab
               onViewExecution={handleViewExecution}
-              onNavigateToHome={() => setActiveTab('home')}
+              onNavigateToHome={() => handleTabChange('home')}
               onCreateWorkflow={onCreateWorkflow ?? onCreateProject}
             />
           </Suspense>
@@ -276,8 +271,8 @@ function Dashboard({
             <ExportsTab
               onViewExecution={handleViewExecution}
               onNavigateToWorkflow={handleNavigateToWorkflow}
-              onNavigateToExecutions={() => setActiveTab('executions')}
-              onNavigateToHome={() => setActiveTab('home')}
+              onNavigateToExecutions={() => handleTabChange('executions')}
+              onNavigateToHome={() => handleTabChange('home')}
               onCreateWorkflow={onCreateWorkflow ?? onCreateProject}
               onOpenSettings={handleOpenSettings}
             />
@@ -311,8 +306,9 @@ function Dashboard({
             }
           >
             <SchedulesTab
+              onNavigateToWorkflow={handleNavigateToWorkflow}
               onNavigateToExecution={handleViewExecution}
-              onNavigateToHome={() => setActiveTab('home')}
+              onNavigateToHome={() => handleTabChange('projects')}
             />
           </Suspense>
         );
@@ -418,7 +414,7 @@ function Dashboard({
               )}
               {onOpenSettings && (
                 <button
-                  onClick={onOpenSettings}
+                  onClick={() => onOpenSettings()}
                   className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                   title={`Settings (${getModifierKey()}+,)`}
                   aria-label="Open settings"

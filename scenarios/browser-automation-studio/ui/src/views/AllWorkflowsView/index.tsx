@@ -20,7 +20,12 @@ export default function AllWorkflowsView() {
   const startExecution = useExecutionStore((state) => state.startExecution);
 
   const handleBack = () => {
-    navigate('/');
+    // Go back in history if possible, otherwise navigate home
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
   };
 
   const handleNavigateToWorkflow = useCallback(

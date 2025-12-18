@@ -2,8 +2,8 @@
  * SettingsView - Route wrapper for the settings page.
  * Uses the refactored SettingsView component with extracted sections.
  */
-import { lazy, Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
 
@@ -11,10 +11,24 @@ const SettingsViewContent = lazy(() => import('./SettingsView'));
 
 export default function SettingsView() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const handleBack = () => {
-    navigate('/');
-  };
+  // Read initial tab from URL query parameter
+  const initialTab = useMemo(() => {
+    const tab = searchParams.get('tab');
+    // Validate it's a known tab, otherwise return undefined
+    const validTabs = ['display', 'replay', 'branding', 'workflow', 'apikeys', 'data', 'sessions', 'subscription', 'schedules'];
+    return tab && validTabs.includes(tab) ? tab : undefined;
+  }, [searchParams]);
+
+  const handleBack = useCallback(() => {
+    // Go back in history if possible, otherwise navigate home
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  }, [navigate]);
 
   return (
     <div data-testid={selectors.app.shell.ready}>
@@ -25,7 +39,7 @@ export default function SettingsView() {
           </div>
         }
       >
-        <SettingsViewContent onBack={handleBack} />
+        <SettingsViewContent onBack={handleBack} initialTab={initialTab} />
       </Suspense>
     </div>
   );

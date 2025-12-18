@@ -66,7 +66,12 @@ export default function ProjectDetailView() {
   }, [projectId, projects, getProject, setCurrentProject, navigate]);
 
   const handleBack = useCallback(() => {
-    navigate('/');
+    // Go back in history if possible, otherwise navigate home
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
   }, [navigate]);
 
   const handleWorkflowSelect = useCallback(

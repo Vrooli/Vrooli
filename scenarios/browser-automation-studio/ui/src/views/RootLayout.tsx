@@ -28,7 +28,7 @@ import { useProjectStore, type Project } from '@/domains/projects';
 import { LoadingSpinner } from '@shared/ui';
 
 // Types
-import type { AppView } from '@/routing';
+import type { AppView } from '@/types/navigation';
 
 // Map route paths to view names for keyboard shortcuts context
 function getViewFromPath(pathname: string): AppView {
