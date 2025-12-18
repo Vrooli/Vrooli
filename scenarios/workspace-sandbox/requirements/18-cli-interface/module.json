@@ -28,7 +28,7 @@
         },
         {
           "notes": "End-to-end CLI workflow test",
-          "phase": "integration",
+          "phase": "api",
           "ref": "",
           "status": "pending",
           "type": "test"

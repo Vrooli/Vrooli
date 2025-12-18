@@ -12,6 +12,7 @@ type DriverType string
 
 const (
 	DriverTypeOverlayfs DriverType = "overlayfs"
+	DriverTypeCopy      DriverType = "copy" // [OT-P2-004] Cross-platform fallback
 	DriverTypeNone      DriverType = "none"
 )
 
@@ -57,6 +58,14 @@ type Driver interface {
 	// Returns nil if the mount is valid, or an error describing the problem.
 	// This can detect issues like stale mounts or corrupted overlay state.
 	VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error
+
+	// --- Partial Approval Support (OT-P1-002) ---
+
+	// RemoveFromUpper removes a file from the upper (writable) layer.
+	// This is used after partial approval to clean up applied files
+	// while preserving unapproved changes for follow-up approvals.
+	// Returns nil if file doesn't exist (idempotent).
+	RemoveFromUpper(ctx context.Context, s *types.Sandbox, filePath string) error
 
 	// --- Process Isolation Methods (OT-P0-003) ---
 
@@ -110,4 +119,54 @@ type Info struct {
 	Version     string
 	Description string
 	Available   bool
+}
+
+// --- Driver Selection [OT-P2-004] ---
+
+// SelectDriver returns the best available driver for the current system.
+// It prefers overlayfs on Linux, falling back to copy driver on other platforms.
+//
+// Selection order:
+//  1. OverlayfsDriver - if on Linux and overlayfs is available
+//  2. CopyDriver - cross-platform fallback (always available)
+//
+// The cfg parameter is used to configure whichever driver is selected.
+func SelectDriver(ctx context.Context, cfg Config) (Driver, error) {
+	// Try overlayfs first
+	overlayDriver := NewOverlayfsDriver(cfg)
+	available, err := overlayDriver.IsAvailable(ctx)
+	if err == nil && available {
+		return overlayDriver, nil
+	}
+
+	// Fall back to copy driver
+	copyDriver := NewCopyDriver(cfg)
+	return copyDriver, nil
+}
+
+// DriverInfo returns information about available drivers on the current system.
+// [OT-P2-004] Cross-Platform Driver Interface
+func DriverInfo(ctx context.Context, cfg Config) []Info {
+	var info []Info
+
+	// Check overlayfs
+	overlayDriver := NewOverlayfsDriver(cfg)
+	overlayAvailable, _ := overlayDriver.IsAvailable(ctx)
+	info = append(info, Info{
+		Type:        DriverTypeOverlayfs,
+		Version:     overlayDriver.Version(),
+		Description: "Linux overlayfs driver - efficient copy-on-write using kernel overlayfs",
+		Available:   overlayAvailable,
+	})
+
+	// Copy driver is always available
+	copyDriver := NewCopyDriver(cfg)
+	info = append(info, Info{
+		Type:        DriverTypeCopy,
+		Version:     copyDriver.Version(),
+		Description: "Cross-platform copy driver - works on any OS using file copies",
+		Available:   true,
+	})
+
+	return info
 }

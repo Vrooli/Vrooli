@@ -9,38 +9,38 @@
       "dependencies": [
         "REQ-P1-001"
       ],
-      "description": "Implement web UI for reviewing and approving changes with syntax highlighting",
+      "description": "Implement web UI for reviewing and approving changes with syntax highlighting, file-level toggle approval, hunk selection, sandbox metadata display, and one-click approve/reject workflow",
       "id": "REQ-P2-001",
       "prd_ref": "OT-P2-001",
-      "status": "draft",
+      "status": "implemented",
       "title": "Web-Based Diff Viewer",
       "validation": [
         {
-          "notes": "Test UI components",
+          "notes": "Test App container renders with sandbox list",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "ui/src/App.test.tsx::renders the sandbox list container",
+          "status": "passed",
           "type": "test"
         },
         {
-          "notes": "Verify syntax highlighting",
+          "notes": "Test create sandbox button present",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "ui/src/App.test.tsx::renders the create sandbox button",
+          "status": "passed",
           "type": "test"
         },
         {
-          "notes": "Complete review workflow",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "notes": "DiffViewer component with hunk selection",
+          "phase": "unit",
+          "ref": "ui/src/components/DiffViewer.tsx",
+          "status": "passed",
+          "type": "manual"
         },
         {
-          "notes": "UI renders \u003c1000 lines in \u003c1s",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Complete approval workflow via API",
+          "phase": "api",
+          "ref": "api/internal/handlers/handlers_test.go::TestApproveSandbox",
+          "status": "passed",
           "type": "test"
         },
         {

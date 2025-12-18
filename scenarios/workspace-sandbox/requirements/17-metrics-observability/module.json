@@ -28,7 +28,7 @@
         },
         {
           "notes": "Monitor real usage patterns",
-          "phase": "integration",
+          "phase": "api",
           "ref": "",
           "status": "pending",
           "type": "test"

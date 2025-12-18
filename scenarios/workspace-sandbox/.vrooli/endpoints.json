@@ -155,13 +155,62 @@
       "request": {
         "type": "object",
         "properties": {
-          "older_than": "string",
-          "max_total_size": "number",
-          "dry_run": "boolean"
+          "policy": {
+            "type": "object",
+            "properties": {
+              "maxAge": "string",
+              "idleTimeout": "string",
+              "maxTotalSizeBytes": "number",
+              "includeTerminal": "boolean",
+              "terminalDelay": "string"
+            }
+          },
+          "dryRun": "boolean",
+          "limit": "number",
+          "actor": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "collected": "array",
+          "totalCollected": "number",
+          "totalBytesReclaimed": "number",
+          "errors": "array",
+          "dryRun": "boolean",
+          "startedAt": "string",
+          "completedAt": "string"
         }
       },
       "cli_mapping": {
         "command": "workspace-sandbox gc"
+      }
+    },
+    {
+      "id": "garbage-collect-preview",
+      "path": "/api/v1/gc/preview",
+      "method": "POST",
+      "summary": "Preview garbage collection",
+      "description": "Shows what would be collected without actually deleting (dry run)",
+      "category": "system",
+      "request": {
+        "type": "object",
+        "properties": {
+          "policy": "object",
+          "limit": "number"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "collected": "array",
+          "totalCollected": "number",
+          "totalBytesReclaimed": "number",
+          "dryRun": "boolean"
+        }
+      },
+      "cli_mapping": {
+        "command": "workspace-sandbox gc-preview"
       }
     }
   ],
@@ -210,6 +259,11 @@
       "name": "gc",
       "description": "Run garbage collection",
       "endpoint_id": "garbage-collect"
+    },
+    {
+      "name": "gc-preview",
+      "description": "Preview what GC would collect (dry run)",
+      "endpoint_id": "garbage-collect-preview"
     }
   ]
 }

@@ -125,6 +125,9 @@ func (m *MockDriver) Exec(ctx context.Context, sandbox *types.Sandbox, cfg drive
 func (m *MockDriver) StartProcess(ctx context.Context, sandbox *types.Sandbox, cfg driver.BwrapConfig, command string, args ...string) (int, error) {
 	return 0, nil
 }
+func (m *MockDriver) RemoveFromUpper(ctx context.Context, sandbox *types.Sandbox, filePath string) error {
+	return nil
+}
 
 // Ensure MockDriver implements Driver
 var _ driver.Driver = (*MockDriver)(nil)

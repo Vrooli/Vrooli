@@ -30,8 +30,8 @@
           "type": "test"
         },
         {
-          "notes": "e2e: Diff endpoint returns 404 with hint for unknown sandbox",
-          "phase": "e2e",
+          "notes": "integration: Diff endpoint returns 404 with hint for unknown sandbox",
+          "phase": "api",
           "ref": "bas/cases/diff-generation/api/diff_endpoint.bats::diff 404 response includes hint",
           "status": "implemented",
           "type": "test"

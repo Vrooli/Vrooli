@@ -42,6 +42,13 @@
           "ref": "api/internal/handlers/handlers_test.go::TestDriverInfoUnavailable",
           "status": "implemented",
           "type": "test"
+        },
+        {
+          "notes": "integration: Driver info endpoint returns driver status",
+          "phase": "api",
+          "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::driver info endpoint returns status",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     }

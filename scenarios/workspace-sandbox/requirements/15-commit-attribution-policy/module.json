@@ -9,32 +9,39 @@
       "description": "Allow customization of commit message format and author attribution for sandbox changes via templates and policy configuration.",
       "id": "REQ-P1-006",
       "prd_ref": "OT-P1-006",
-      "status": "draft",
+      "status": "implemented",
       "title": "Configurable Commit Attribution",
       "validation": [
         {
-          "notes": "Test template rendering",
+          "notes": "Test GetCommitAuthor with different author modes (reviewer, coauthored, agent)",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/policy/policy_test.go::TestDefaultAttributionPolicy_GetCommitAuthor",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify attribution rules",
+          "notes": "Test GetCommitMessage template rendering",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/policy/policy_test.go::TestDefaultAttributionPolicy_GetCommitMessage",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "End-to-end commit flow test",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test GetCoAuthors returns co-authors in coauthored mode",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestDefaultAttributionPolicy_GetCoAuthors",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Template processing \u003c100ms",
+          "notes": "Test FormatCommitMessage combines message with co-authors",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestFormatCommitMessage",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Template processing <100ms",
           "phase": "performance",
           "ref": "",
           "status": "pending",

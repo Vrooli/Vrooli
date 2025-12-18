@@ -24,7 +24,13 @@
     "16-safe-git-wrapper/module.json",
     "17-metrics-observability/module.json",
     "18-cli-interface/module.json",
-    "19-diff-viewer-ui/module.json"
+    "19-diff-viewer-ui/module.json",
+    "20-size-accounting/module.json",
+    "21-policy-guardrails/module.json",
+    "22-structured-event-logging/module.json",
+    "23-conflict-detection/module.json",
+    "24-retry-rebase-workflow/module.json",
+    "25-cross-platform-driver/module.json"
   ],
   "modules": [
     {
@@ -140,6 +146,42 @@
       "path": "19-diff-viewer-ui",
       "priority": "P2",
       "title": "Diff Viewer UI"
+    },
+    {
+      "id": "MOD-P2-020",
+      "path": "20-size-accounting",
+      "priority": "P2",
+      "title": "Size Accounting"
+    },
+    {
+      "id": "MOD-P2-021",
+      "path": "21-policy-guardrails",
+      "priority": "P2",
+      "title": "Policy Guardrails"
+    },
+    {
+      "id": "MOD-P2-022",
+      "path": "22-structured-event-logging",
+      "priority": "P2",
+      "title": "Structured Event Logging"
+    },
+    {
+      "id": "MOD-P2-023",
+      "path": "23-conflict-detection",
+      "priority": "P2",
+      "title": "Conflict Detection"
+    },
+    {
+      "id": "MOD-P2-024",
+      "path": "24-retry-rebase-workflow",
+      "priority": "P2",
+      "title": "Retry/Rebase Workflow"
+    },
+    {
+      "id": "MOD-P2-025",
+      "path": "25-cross-platform-driver",
+      "priority": "P2",
+      "title": "Cross-Platform Driver Interface"
     }
   ]
 }

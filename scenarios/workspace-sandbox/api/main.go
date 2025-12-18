@@ -193,6 +193,10 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/sandboxes/{id}/approve", h.Approve).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/reject", h.Reject).Methods("POST")
 
+	// Conflict detection and rebase (OT-P2-003)
+	api.HandleFunc("/sandboxes/{id}/conflicts", h.CheckConflicts).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/rebase", h.Rebase).Methods("POST")
+
 	// Workspace path helper
 	api.HandleFunc("/sandboxes/{id}/workspace", h.GetWorkspace).Methods("GET")
 

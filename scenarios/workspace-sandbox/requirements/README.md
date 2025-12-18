@@ -42,9 +42,9 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 | P2 | OT-P2-002 | Conflict Detection | 0 |
 | P2 | OT-P2-003 | Retry/Rebase Workflow | 0 |
 | P2 | OT-P2-004 | Cross-Platform Driver Interface | 0 |
-| P2 | OT-P2-005 | Size Accounting | 0 |
-| P2 | OT-P2-006 | Policy Guardrails | 0 |
-| P2 | OT-P2-007 | Structured Event Logging | 0 |
+| P2 | OT-P2-005 | Size Accounting | 1 |
+| P2 | OT-P2-006 | Policy Guardrails | 1 |
+| P2 | OT-P2-007 | Structured Event Logging | 1 |
 | P2 | OT-P2-008 | Agent-Manager Integration | 0 |
 
 ## Auto-sync Behavior

@@ -9,32 +9,46 @@
       "description": "Support configurable pre-commit hooks for running tests, linters and custom validation before finalizing sandbox changes. Must handle hook failures appropriately.",
       "id": "REQ-P1-005",
       "prd_ref": "OT-P1-005",
-      "status": "draft",
+      "status": "implemented",
       "title": "Pre-commit Validation Hooks",
       "validation": [
         {
-          "notes": "Test hook configuration",
+          "notes": "Test hook configuration and policy creation",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/policy/policy_test.go::TestHookValidationPolicy_ValidateBeforeApply",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify failure handling",
+          "notes": "Verify required/non-required hook failure behavior",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/policy/policy_test.go::TestHookValidationPolicy_GetValidationHooks",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Run actual validation tools",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test empty and configured hooks initialization",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestNewHookValidationPolicy_EmptyHooks,TestNewHookValidationPolicy_WithHooks",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Hook overhead \u003c500ms",
+          "notes": "Test ValidationHookError implements DomainError",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestValidationHookError",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test environment variable setup for hooks",
+          "phase": "unit",
+          "ref": "api/internal/policy/policy_test.go::TestBuildHookEnv",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Hook overhead <500ms",
           "phase": "performance",
           "ref": "",
           "status": "pending",

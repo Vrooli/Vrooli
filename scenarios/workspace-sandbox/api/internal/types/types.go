@@ -125,6 +125,11 @@ type Sandbox struct {
 	// Version is incremented on each update for optimistic locking.
 	// Callers can include this in update requests to detect concurrent modifications.
 	Version int64 `json:"version" db:"version"`
+
+	// BaseCommitHash stores the canonical repo's commit hash at sandbox creation time.
+	// Used for conflict detection (OT-P2-002): if the canonical repo has diverged,
+	// patch application may fail or produce unexpected results.
+	BaseCommitHash string `json:"baseCommitHash,omitempty" db:"base_commit_hash"`
 }
 
 // WorkspacePath returns the path where sandbox operations should occur.
@@ -225,6 +230,11 @@ type ApprovalRequest struct {
 	HunkRanges []HunkRange `json:"hunkRanges,omitempty"`
 	Actor      string      `json:"actor,omitempty"`
 	CommitMsg  string      `json:"commitMessage,omitempty"`
+
+	// Force bypasses conflict detection and applies changes even if the
+	// canonical repo has changed since sandbox creation. Use with caution.
+	// [OT-P2-002] Conflict Detection
+	Force bool `json:"force,omitempty"`
 }
 
 // HunkRange specifies a range of lines to approve within a file.
@@ -239,9 +249,34 @@ type ApprovalResult struct {
 	Success    bool      `json:"success"`
 	Applied    int       `json:"applied"`
 	Failed     int       `json:"failed"`
+	Remaining  int       `json:"remaining"`           // [OT-P1-002] Number of unapproved changes still in sandbox
+	IsPartial  bool      `json:"isPartial"`           // [OT-P1-002] True if sandbox preserved for follow-up approvals
 	CommitHash string    `json:"commitHash,omitempty"`
 	ErrorMsg   string    `json:"error,omitempty"`
 	AppliedAt  time.Time `json:"appliedAt"`
+
+	// ConflictInfo contains information about detected conflicts if any.
+	// [OT-P2-002] Conflict Detection
+	ConflictInfo *ConflictInfo `json:"conflictInfo,omitempty"`
+}
+
+// ConflictInfo contains information about detected repo conflicts.
+// [OT-P2-002] Conflict Detection
+type ConflictInfo struct {
+	// HasConflict is true if the canonical repo has changed since sandbox creation
+	HasConflict bool `json:"hasConflict"`
+
+	// BaseCommitHash is the commit hash at sandbox creation
+	BaseCommitHash string `json:"baseCommitHash,omitempty"`
+
+	// CurrentHash is the current commit hash in the canonical repo
+	CurrentHash string `json:"currentHash,omitempty"`
+
+	// ConflictingFiles lists files modified in both sandbox and canonical repo
+	ConflictingFiles []string `json:"conflictingFiles,omitempty"`
+
+	// RepoChangedFiles lists all files changed in repo since sandbox creation
+	RepoChangedFiles []string `json:"repoChangedFiles,omitempty"`
 }
 
 // PathConflict represents a scope path conflict between sandboxes.
@@ -427,4 +462,84 @@ func CheckPathOverlap(existingScope, newScope string) ConflictType {
 	}
 
 	return "" // No overlap - paths are independent
+}
+
+// --- Retry/Rebase Workflow Types (OT-P2-003) ---
+
+// RebaseRequest contains parameters for rebasing a sandbox against the current repo state.
+type RebaseRequest struct {
+	SandboxID uuid.UUID `json:"sandboxId"`
+
+	// Strategy determines how to handle conflicts during rebase.
+	// "regenerate": Regenerate diff only without merging (just update BaseCommitHash)
+	// This is the safest and most common option.
+	Strategy RebaseStrategy `json:"strategy"`
+
+	// Actor identifies who/what initiated the rebase.
+	Actor string `json:"actor,omitempty"`
+}
+
+// RebaseStrategy determines how conflicts are handled during rebase.
+type RebaseStrategy string
+
+const (
+	// RebaseStrategyRegenerate only updates BaseCommitHash without merging.
+	// The sandbox changes remain intact, but the diff will be regenerated
+	// against the new canonical repo state for accurate conflict detection.
+	RebaseStrategyRegenerate RebaseStrategy = "regenerate"
+)
+
+// RebaseResult contains the outcome of a rebase operation.
+type RebaseResult struct {
+	Success bool `json:"success"`
+
+	// PreviousBaseHash is the commit hash before rebase.
+	PreviousBaseHash string `json:"previousBaseHash,omitempty"`
+
+	// NewBaseHash is the commit hash after rebase.
+	NewBaseHash string `json:"newBaseHash,omitempty"`
+
+	// ConflictingFiles lists files with potential conflicts (changed in both sandbox and repo).
+	ConflictingFiles []string `json:"conflictingFiles,omitempty"`
+
+	// RepoChangedFiles lists files changed in repo since original sandbox creation.
+	RepoChangedFiles []string `json:"repoChangedFiles,omitempty"`
+
+	// Strategy used for the rebase.
+	Strategy RebaseStrategy `json:"strategy"`
+
+	// ErrorMsg contains error details if rebase failed.
+	ErrorMsg string `json:"error,omitempty"`
+
+	// RebasedAt is when the rebase was performed.
+	RebasedAt time.Time `json:"rebasedAt"`
+}
+
+// ConflictCheckRequest contains parameters for checking conflicts.
+type ConflictCheckRequest struct {
+	SandboxID uuid.UUID `json:"sandboxId"`
+}
+
+// ConflictCheckResponse contains the result of a conflict check.
+type ConflictCheckResponse struct {
+	// HasConflict is true if the canonical repo has changed since sandbox creation.
+	HasConflict bool `json:"hasConflict"`
+
+	// BaseCommitHash is the commit hash at sandbox creation.
+	BaseCommitHash string `json:"baseCommitHash,omitempty"`
+
+	// CurrentHash is the current commit hash in the canonical repo.
+	CurrentHash string `json:"currentHash,omitempty"`
+
+	// RepoChangedFiles lists all files changed in repo since sandbox creation.
+	RepoChangedFiles []string `json:"repoChangedFiles,omitempty"`
+
+	// SandboxChangedFiles lists all files changed in the sandbox.
+	SandboxChangedFiles []string `json:"sandboxChangedFiles,omitempty"`
+
+	// ConflictingFiles lists files modified in both sandbox and canonical repo.
+	ConflictingFiles []string `json:"conflictingFiles,omitempty"`
+
+	// CheckedAt is when the check was performed.
+	CheckedAt time.Time `json:"checkedAt"`
 }

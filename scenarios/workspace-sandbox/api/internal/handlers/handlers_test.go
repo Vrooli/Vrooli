@@ -58,6 +58,9 @@ func (m *mockDriver) Exec(ctx context.Context, s *types.Sandbox, cfg driver.Bwra
 func (m *mockDriver) StartProcess(ctx context.Context, s *types.Sandbox, cfg driver.BwrapConfig, cmd string, args ...string) (int, error) {
 	return 12345, nil
 }
+func (m *mockDriver) RemoveFromUpper(ctx context.Context, s *types.Sandbox, filePath string) error {
+	return nil
+}
 
 // TestHealthHandler tests the Health endpoint handler.
 // [REQ:REQ-P0-010] Health Check API Endpoint - unit test for status codes

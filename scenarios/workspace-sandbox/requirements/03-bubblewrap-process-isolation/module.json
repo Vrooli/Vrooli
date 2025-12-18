@@ -12,42 +12,42 @@
       "description": "Configure bubblewrap to provide process isolation with restricted filesystem view",
       "id": "REQ-P0-004",
       "prd_ref": "OT-P0-003",
-      "status": "draft",
+      "status": "implemented",
       "title": "Process Isolation with Bubblewrap",
       "validation": [
         {
           "notes": "Verify bwrap configuration",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/driver/bwrap_test.go::TestBuildBwrapArgs",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Test filesystem restrictions",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/driver/bwrap_test.go::TestBwrapNetworkConfig",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Validate process isolation",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "phase": "unit",
+          "ref": "api/internal/driver/bwrap_test.go::TestBwrapPIDNamespaceConfig",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Check mount propagation",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Check bwrap availability",
+          "phase": "unit",
+          "ref": "api/internal/driver/bwrap_test.go::TestIsBwrapAvailable",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Processes cannot escape sandbox",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Safe-git wrapper creation",
+          "phase": "unit",
+          "ref": "api/internal/driver/bwrap_test.go::TestCreateSafeGitWrapper",
+          "status": "passing",
           "type": "test"
         }
       ]

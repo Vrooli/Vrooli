@@ -48,8 +48,8 @@
           "type": "test"
         },
         {
-          "notes": "e2e: Create sandbox validates scope path",
-          "phase": "e2e",
+          "notes": "integration: Create sandbox validates scope path",
+          "phase": "api",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::create sandbox requires scope path",
           "status": "implemented",
           "type": "test"
@@ -107,8 +107,8 @@
           "type": "test"
         },
         {
-          "notes": "e2e: Get sandbox returns 404 with hint for unknown ID",
-          "phase": "e2e",
+          "notes": "integration: Get sandbox returns 404 with hint for unknown ID",
+          "phase": "api",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::get sandbox 404 response includes hint",
           "status": "implemented",
           "type": "test"

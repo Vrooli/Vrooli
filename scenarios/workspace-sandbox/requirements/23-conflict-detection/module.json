@@ -1,0 +1,61 @@
+{
+  "description": "Detect when canonical repo has changed since sandbox creation, surface patch application failures clearly",
+  "module_id": "MOD-P2-023",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "feature",
+      "description": "Track canonical repo commit hash at sandbox creation (BaseCommitHash), detect when repo has diverged before approval, identify conflicting files, support force flag to bypass conflict check. Surface RepoChangedError and PatchConflictError with actionable hints.",
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "implemented",
+      "title": "Canonical Repo Conflict Detection",
+      "validation": [
+        {
+          "notes": "Test GetGitCommitHash function",
+          "phase": "unit",
+          "ref": "api/internal/diff/diff.go::GetGitCommitHash",
+          "status": "pending",
+          "type": "manual"
+        },
+        {
+          "notes": "Test CheckForConflicts function",
+          "phase": "unit",
+          "ref": "api/internal/diff/diff.go::CheckForConflicts",
+          "status": "pending",
+          "type": "manual"
+        },
+        {
+          "notes": "Test RepoChangedError type",
+          "phase": "unit",
+          "ref": "api/internal/types/errors.go::RepoChangedError",
+          "status": "pending",
+          "type": "manual"
+        },
+        {
+          "notes": "API returns 409 for conflicting files",
+          "phase": "api",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can force-apply despite conflicts",
+          "phase": "api",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operators can detect and handle repo conflicts",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Conflict Detection"
+}

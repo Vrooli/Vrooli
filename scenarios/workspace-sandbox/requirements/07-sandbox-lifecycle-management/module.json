@@ -65,29 +65,29 @@
           "type": "test"
         },
         {
-          "notes": "e2e: List sandboxes returns valid response",
-          "phase": "e2e",
+          "notes": "integration: List sandboxes returns valid response",
+          "phase": "api",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::list sandboxes returns valid response",
           "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "e2e: List supports status filter",
-          "phase": "e2e",
+          "notes": "integration: List supports status filter",
+          "phase": "api",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::list sandboxes supports status filter",
           "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "e2e: Delete is idempotent",
-          "phase": "e2e",
+          "notes": "integration: Delete is idempotent",
+          "phase": "api",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::delete sandbox returns success for unknown ID",
           "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "e2e: Stats endpoint returns aggregate data",
-          "phase": "e2e",
+          "notes": "integration: Stats endpoint returns aggregate data",
+          "phase": "api",
           "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::stats endpoint returns valid counts",
           "status": "implemented",
           "type": "test"

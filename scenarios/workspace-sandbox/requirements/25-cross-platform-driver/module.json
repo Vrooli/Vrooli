@@ -1,0 +1,95 @@
+{
+  "description": "Pluggable SandboxDriver interface with cross-platform fallback for non-Linux environments",
+  "module_id": "MOD-P2-025",
+  "prd_ref": "OT-P2-004",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "feature",
+      "description": "Define a SandboxDriver interface with pluggable implementations. First-class Linux overlayfs driver, with clear fallback strategy for non-Linux environments without hardcoding Linux assumptions into APIs.",
+      "id": "REQ-P2-004-001",
+      "prd_ref": "OT-P2-004",
+      "status": "implemented",
+      "title": "SandboxDriver Interface Definition",
+      "validation": [
+        {
+          "notes": "Driver interface exists with all required methods",
+          "phase": "unit",
+          "ref": "api/internal/driver/driver.go::Driver",
+          "status": "pending",
+          "type": "manual"
+        },
+        {
+          "notes": "DriverType enum includes overlayfs and copy types",
+          "phase": "unit",
+          "ref": "api/internal/driver/driver.go::DriverType",
+          "status": "pending",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "category": "feature",
+      "description": "Cross-platform CopyDriver that works on any OS using file copies instead of overlayfs. Copies scope directory to create snapshot, compares workspace against original for diff generation. Higher disk usage but universal compatibility.",
+      "id": "REQ-P2-004-002",
+      "prd_ref": "OT-P2-004",
+      "status": "implemented",
+      "title": "CopyDriver Implementation",
+      "validation": [
+        {
+          "notes": "CopyDriver implements Driver interface",
+          "phase": "unit",
+          "ref": "api/internal/driver/copy.go::CopyDriver",
+          "status": "pending",
+          "type": "manual"
+        },
+        {
+          "notes": "CopyDriver.IsAvailable returns true on any platform",
+          "phase": "unit",
+          "ref": "api/internal/driver/copy.go::IsAvailable",
+          "status": "pending",
+          "type": "manual"
+        },
+        {
+          "notes": "CopyDriver correctly detects added, modified, deleted files",
+          "phase": "unit",
+          "ref": "api/internal/driver/copy.go::GetChangedFiles",
+          "status": "pending",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "category": "feature",
+      "description": "SelectDriver function automatically chooses the best available driver. Prefers overlayfs on Linux, falls back to CopyDriver on other platforms. DriverInfo provides information about available drivers.",
+      "id": "REQ-P2-004-003",
+      "prd_ref": "OT-P2-004",
+      "status": "implemented",
+      "title": "Automatic Driver Selection",
+      "validation": [
+        {
+          "notes": "SelectDriver returns overlayfs on Linux when available",
+          "phase": "unit",
+          "ref": "api/internal/driver/driver.go::SelectDriver",
+          "status": "pending",
+          "type": "manual"
+        },
+        {
+          "notes": "SelectDriver falls back to CopyDriver when overlayfs unavailable",
+          "phase": "unit",
+          "ref": "api/internal/driver/driver.go::SelectDriver",
+          "status": "pending",
+          "type": "manual"
+        },
+        {
+          "notes": "DriverInfo returns info about all available drivers",
+          "phase": "unit",
+          "ref": "api/internal/driver/driver.go::DriverInfo",
+          "status": "pending",
+          "type": "manual"
+        }
+      ]
+    }
+  ],
+  "title": "Cross-Platform Driver Interface"
+}

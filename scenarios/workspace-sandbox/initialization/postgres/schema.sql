@@ -67,6 +67,9 @@ CREATE TABLE sandboxes (
     version BIGINT NOT NULL DEFAULT 1,  -- Version number for optimistic concurrency control
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
+    -- Conflict detection (OT-P2-002)
+    base_commit_hash TEXT,              -- Git commit hash at sandbox creation for conflict detection
+
     -- Constraints
     CONSTRAINT valid_scope_path CHECK (scope_path != '' AND scope_path ~ '^/'),
     CONSTRAINT valid_project_root CHECK (project_root != '' AND project_root ~ '^/')

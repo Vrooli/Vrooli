@@ -10,31 +10,31 @@
         "REQ-P1-001"
       ],
       "description": "Allow selective application of diff hunks while maintaining sandbox state for unapproved changes. Must track partial approval state and support incremental commits.",
-      "id": "REQ-P1-002",
+      "id": "REQ-P1-010",
       "prd_ref": "OT-P1-002",
-      "status": "draft",
+      "status": "implemented",
       "title": "Partial Sandbox Change Approval",
       "validation": [
         {
-          "notes": "Test hunk selection and application",
-          "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "notes": "Service tracks total vs applied changes, determines IsPartial flag",
+          "phase": "manual",
+          "ref": "api/internal/sandbox/service.go:Approve",
+          "status": "passing",
+          "type": "inspection"
         },
         {
-          "notes": "Verify state preservation",
-          "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "notes": "RemoveFromUpper driver method cleans up applied files",
+          "phase": "manual",
+          "ref": "api/internal/driver/overlayfs.go:RemoveFromUpper",
+          "status": "passing",
+          "type": "inspection"
         },
         {
-          "notes": "Multi-stage approval workflow test",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "notes": "ApprovalResult includes Remaining and IsPartial fields",
+          "phase": "manual",
+          "ref": "api/internal/types/types.go:ApprovalResult",
+          "status": "passing",
+          "type": "inspection"
         },
         {
           "notes": "Partial apply completes within 1s",

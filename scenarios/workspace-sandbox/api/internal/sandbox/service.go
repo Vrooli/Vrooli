@@ -50,6 +50,17 @@ type ServiceAPI interface {
 	// GetWorkspacePath returns the path where sandbox operations should occur.
 	// Returns error if sandbox is not mounted.
 	GetWorkspacePath(ctx context.Context, id uuid.UUID) (string, error)
+
+	// --- Retry/Rebase Workflow (OT-P2-003) ---
+
+	// CheckConflicts checks if the canonical repo has changed since sandbox creation
+	// and identifies any conflicting files.
+	CheckConflicts(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error)
+
+	// Rebase updates the sandbox's BaseCommitHash to the current repo state.
+	// This allows the sandbox to be aware of new changes in the canonical repo
+	// and enables accurate conflict detection for subsequent approvals.
+	Rebase(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error)
 }
 
 // Verify Service implements ServiceAPI interface at compile time.
@@ -224,6 +235,18 @@ func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.
 	// Insert into database
 	if err := s.repo.Create(ctx, sandbox); err != nil {
 		return nil, fmt.Errorf("failed to create sandbox record: %w", err)
+	}
+
+	// Capture the base commit hash for conflict detection (OT-P2-002)
+	// This enables detecting when the canonical repo has changed since sandbox creation
+	baseCommitHash, err := diff.GetGitCommitHash(ctx, projectRoot)
+	if err != nil {
+		// Log but don't fail - repo might not be a git repo
+		s.logAuditEvent(ctx, sandbox, "sandbox.warning", "system", "system", map[string]interface{}{
+			"message": "failed to get base commit hash: " + err.Error(),
+		})
+	} else if baseCommitHash != "" {
+		sandbox.BaseCommitHash = baseCommitHash
 	}
 
 	// Mount the overlay
@@ -472,21 +495,66 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		}
 	}
 
-	// Get all changes
-	changes, err := s.driver.GetChangedFiles(ctx, sandbox)
+	// Get all changes - this is the total count before filtering
+	allChanges, err := s.driver.GetChangedFiles(ctx, sandbox)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get changes: %w", err)
 	}
 
+	// [OT-P2-002] Conflict Detection
+	// Check if the canonical repo has changed since sandbox creation
+	conflictCheck, err := diff.CheckForConflicts(ctx, sandbox, allChanges)
+	if err != nil {
+		// Log but don't fail - conflict check is advisory
+		s.logAuditEvent(ctx, sandbox, "sandbox.warning", "system", "system", map[string]interface{}{
+			"message": "failed to check for conflicts: " + err.Error(),
+		})
+	}
+
+	// If conflicts detected and not forced, return error with conflict info
+	if conflictCheck != nil && conflictCheck.HasChanged && !req.Force {
+		// If there are actual file conflicts, return an error
+		if len(conflictCheck.ConflictingFiles) > 0 {
+			return nil, types.NewRepoChangedErrorWithFiles(
+				sandbox.ID.String(),
+				conflictCheck.BaseCommitHash,
+				conflictCheck.CurrentHash,
+				conflictCheck.ConflictingFiles,
+			)
+		}
+
+		// No file conflicts but repo changed - warn but continue
+		// Include conflict info in result for visibility
+		baseHash := conflictCheck.BaseCommitHash
+		currentHash := conflictCheck.CurrentHash
+		if len(baseHash) > 8 {
+			baseHash = baseHash[:8]
+		}
+		if len(currentHash) > 8 {
+			currentHash = currentHash[:8]
+		}
+		s.logAuditEvent(ctx, sandbox, "sandbox.info", "system", "system", map[string]interface{}{
+			"message":    "repo changed since sandbox creation but no conflicting files",
+			"baseHash":   baseHash,
+			"currentHash": currentHash,
+		})
+	}
+
+	totalChanges := len(allChanges)
+
+	// [OT-P1-002] Track which changes will be applied (for partial approval)
+	changes := allChanges
+
 	// Filter changes if specific files requested
 	if req.Mode == "files" && len(req.FileIDs) > 0 {
-		changes = diff.FilterChanges(changes, req.FileIDs)
+		changes = diff.FilterChanges(allChanges, req.FileIDs)
 	}
 
 	if len(changes) == 0 {
 		return &types.ApprovalResult{
 			Success:   true,
 			Applied:   0,
+			Remaining: totalChanges,
 			AppliedAt: time.Now(),
 		}, nil
 	}
@@ -548,27 +616,62 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		return &types.ApprovalResult{
 			Success:   false,
 			Failed:    len(changes),
+			Remaining: totalChanges,
 			ErrorMsg:  fmt.Sprintf("patch application failed: %v", applyResult.Errors),
 			AppliedAt: time.Now(),
 		}, nil
 	}
 
-	// Update sandbox status
-	now := time.Now()
-	sandbox.Status = types.StatusApproved
-	sandbox.ApprovedAt = &now
-	s.repo.Update(ctx, sandbox)
+	// [OT-P1-002] Partial Approval Workflow
+	// Determine if this is a partial or full approval
+	remainingChanges := totalChanges - len(changes)
+	isPartial := remainingChanges > 0
 
-	// Log audit event [OT-P1-004]
-	s.logAuditEvent(ctx, sandbox, "approved", req.Actor, "", map[string]interface{}{
-		"filesApplied": len(changes),
-		"commitHash":   applyResult.CommitHash,
-		"mode":         req.Mode,
-	})
+	now := time.Now()
+
+	if isPartial {
+		// Partial approval: clean up only the applied files from upper layer,
+		// keep sandbox in current state for follow-up approvals
+		for _, change := range changes {
+			if err := s.driver.RemoveFromUpper(ctx, sandbox, change.FilePath); err != nil {
+				// Log but don't fail - the changes were successfully applied
+				// to the canonical repo, cleanup is best-effort
+				s.logAuditEvent(ctx, sandbox, "partial_cleanup_warning", req.Actor, "", map[string]interface{}{
+					"file":  change.FilePath,
+					"error": err.Error(),
+				})
+			}
+		}
+		// Update last_used_at to track activity
+		sandbox.LastUsedAt = now
+		s.repo.Update(ctx, sandbox)
+
+		// Log partial approval event
+		s.logAuditEvent(ctx, sandbox, "partial_approved", req.Actor, "", map[string]interface{}{
+			"filesApplied":    len(changes),
+			"filesRemaining":  remainingChanges,
+			"commitHash":      applyResult.CommitHash,
+			"mode":            req.Mode,
+		})
+	} else {
+		// Full approval: transition to StatusApproved
+		sandbox.Status = types.StatusApproved
+		sandbox.ApprovedAt = &now
+		s.repo.Update(ctx, sandbox)
+
+		// Log full approval event [OT-P1-004]
+		s.logAuditEvent(ctx, sandbox, "approved", req.Actor, "", map[string]interface{}{
+			"filesApplied": len(changes),
+			"commitHash":   applyResult.CommitHash,
+			"mode":         req.Mode,
+		})
+	}
 
 	return &types.ApprovalResult{
 		Success:    true,
 		Applied:    len(changes),
+		Remaining:  remainingChanges,
+		IsPartial:  isPartial,
 		CommitHash: applyResult.CommitHash,
 		AppliedAt:  now,
 	}, nil
@@ -623,6 +726,147 @@ func (s *Service) GetWorkspacePath(ctx context.Context, id uuid.UUID) (string, e
 	}
 
 	return sandbox.MergedDir, nil
+}
+
+// --- Retry/Rebase Workflow (OT-P2-003) ---
+
+// CheckConflicts checks if the canonical repo has changed since sandbox creation
+// and identifies any conflicting files.
+//
+// This operation is safe to call multiple times and doesn't modify the sandbox state.
+// Use this to determine if a rebase is needed before approving changes.
+func (s *Service) CheckConflicts(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
+	sandbox, err := s.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &types.ConflictCheckResponse{
+		BaseCommitHash: sandbox.BaseCommitHash,
+		CheckedAt:      time.Now(),
+	}
+
+	// Get sandbox changes
+	sandboxChanges, err := s.driver.GetChangedFiles(ctx, sandbox)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sandbox changes: %w", err)
+	}
+
+	// Extract file paths for the response
+	for _, change := range sandboxChanges {
+		response.SandboxChangedFiles = append(response.SandboxChangedFiles, change.FilePath)
+	}
+
+	// If no base commit hash, we can't detect conflicts (non-git repo)
+	if sandbox.BaseCommitHash == "" {
+		return response, nil
+	}
+
+	// Use existing conflict detection
+	conflictCheck, err := diff.CheckForConflicts(ctx, sandbox, sandboxChanges)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check for conflicts: %w", err)
+	}
+
+	response.HasConflict = conflictCheck.HasChanged
+	response.CurrentHash = conflictCheck.CurrentHash
+	response.RepoChangedFiles = conflictCheck.RepoChangedFiles
+	response.ConflictingFiles = conflictCheck.ConflictingFiles
+
+	return response, nil
+}
+
+// Rebase updates the sandbox's BaseCommitHash to the current repo state.
+//
+// This operation updates the sandbox's reference point for conflict detection.
+// After rebasing:
+//   - Future conflict checks will compare against the new base commit
+//   - The diff will be regenerated against the current canonical repo state
+//   - If there were conflicts before, they may be resolved (or new ones detected)
+//
+// Note: This does NOT merge changes from the canonical repo into the sandbox.
+// The sandbox's changes remain unchanged; only the baseline reference is updated.
+func (s *Service) Rebase(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
+	sandbox, err := s.Get(ctx, req.SandboxID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Only allow rebase for active or stopped sandboxes
+	if sandbox.Status != types.StatusActive && sandbox.Status != types.StatusStopped {
+		return nil, types.NewStateError(&types.InvalidTransitionError{
+			Current: sandbox.Status,
+			Reason:  fmt.Sprintf("cannot rebase sandbox in %s status", sandbox.Status),
+		})
+	}
+
+	result := &types.RebaseResult{
+		PreviousBaseHash: sandbox.BaseCommitHash,
+		Strategy:         req.Strategy,
+		RebasedAt:        time.Now(),
+	}
+
+	// If strategy is empty, default to regenerate
+	if req.Strategy == "" {
+		req.Strategy = types.RebaseStrategyRegenerate
+		result.Strategy = types.RebaseStrategyRegenerate
+	}
+
+	// Get the current commit hash
+	newHash, err := diff.GetGitCommitHash(ctx, sandbox.ProjectRoot)
+	if err != nil {
+		result.Success = false
+		result.ErrorMsg = fmt.Sprintf("failed to get current repo commit hash: %v", err)
+		return result, nil
+	}
+
+	if newHash == "" {
+		result.Success = false
+		result.ErrorMsg = "canonical repo is not a git repository"
+		return result, nil
+	}
+
+	result.NewBaseHash = newHash
+
+	// Check what files have changed in the repo since sandbox creation
+	if sandbox.BaseCommitHash != "" && sandbox.BaseCommitHash != newHash {
+		repoChangedFiles, err := diff.GetChangedFilesSinceCommit(ctx, sandbox.ProjectRoot, sandbox.BaseCommitHash)
+		if err != nil {
+			// Log but don't fail - we can still update the hash
+			s.logAuditEvent(ctx, sandbox, "rebase.warning", req.Actor, "", map[string]interface{}{
+				"message": "failed to get repo changed files: " + err.Error(),
+			})
+		} else {
+			result.RepoChangedFiles = repoChangedFiles
+
+			// Find conflicting files (changed in both sandbox and repo)
+			sandboxChanges, _ := s.driver.GetChangedFiles(ctx, sandbox)
+			result.ConflictingFiles = diff.FindConflictingFiles(sandboxChanges, repoChangedFiles)
+		}
+	}
+
+	// Update the sandbox's BaseCommitHash
+	sandbox.BaseCommitHash = newHash
+	sandbox.UpdatedAt = time.Now()
+
+	if err := s.repo.Update(ctx, sandbox); err != nil {
+		result.Success = false
+		result.ErrorMsg = fmt.Sprintf("failed to update sandbox: %v", err)
+		return result, nil
+	}
+
+	result.Success = true
+
+	// Log audit event
+	s.logAuditEvent(ctx, sandbox, "rebased", req.Actor, "", map[string]interface{}{
+		"previousBaseHash":  result.PreviousBaseHash,
+		"newBaseHash":       result.NewBaseHash,
+		"strategy":          string(result.Strategy),
+		"repoChangedFiles":  len(result.RepoChangedFiles),
+		"conflictingFiles":  len(result.ConflictingFiles),
+	})
+
+	return result, nil
 }
 
 // logAuditEvent creates and logs an audit event with full sandbox state.

@@ -301,3 +301,117 @@ type IdempotentSuccessResult struct {
 	Message       string `json:"message,omitempty"`
 	PriorResultID string `json:"priorResultId,omitempty"` // ID of the result from the original operation
 }
+
+// --- Conflict Detection Errors (OT-P2-002) ---
+
+// RepoChangedError indicates the canonical repository has changed since sandbox creation.
+// This is detected when the current commit hash differs from BaseCommitHash.
+type RepoChangedError struct {
+	SandboxID      string
+	BaseCommitHash string // Commit hash at sandbox creation
+	CurrentHash    string // Current commit hash in canonical repo
+	AffectedFiles  []string
+}
+
+func (e *RepoChangedError) Error() string {
+	return fmt.Sprintf("canonical repository has changed since sandbox %s was created (base: %s, current: %s). Patch application may fail or produce unexpected results.",
+		e.SandboxID, truncateHash(e.BaseCommitHash), truncateHash(e.CurrentHash))
+}
+
+func (e *RepoChangedError) HTTPStatus() int {
+	return http.StatusConflict
+}
+
+func (e *RepoChangedError) IsRetryable() bool {
+	return false // Requires manual intervention or sandbox recreation
+}
+
+// Hint returns actionable guidance for resolving this error.
+func (e *RepoChangedError) Hint() string {
+	return "The canonical repository has new commits since this sandbox was created. Options: " +
+		"(1) Review and force-apply the patch if changes don't overlap, " +
+		"(2) Regenerate the diff against the current state, " +
+		"(3) Create a new sandbox from the current repo state and re-apply your changes."
+}
+
+// HasAffectedFiles returns true if specific files are known to be affected by the conflict.
+func (e *RepoChangedError) HasAffectedFiles() bool {
+	return len(e.AffectedFiles) > 0
+}
+
+// NewRepoChangedError creates a RepoChangedError.
+func NewRepoChangedError(sandboxID, baseHash, currentHash string) *RepoChangedError {
+	return &RepoChangedError{
+		SandboxID:      sandboxID,
+		BaseCommitHash: baseHash,
+		CurrentHash:    currentHash,
+	}
+}
+
+// NewRepoChangedErrorWithFiles creates a RepoChangedError with affected file information.
+func NewRepoChangedErrorWithFiles(sandboxID, baseHash, currentHash string, files []string) *RepoChangedError {
+	return &RepoChangedError{
+		SandboxID:      sandboxID,
+		BaseCommitHash: baseHash,
+		CurrentHash:    currentHash,
+		AffectedFiles:  files,
+	}
+}
+
+// PatchConflictError indicates patch application failed due to conflicts.
+type PatchConflictError struct {
+	SandboxID       string
+	ConflictingFile string
+	RejectFile      string // Path to .rej file if generated
+	Details         string
+}
+
+func (e *PatchConflictError) Error() string {
+	if e.ConflictingFile != "" {
+		return fmt.Sprintf("patch conflict in file '%s' for sandbox %s: %s", e.ConflictingFile, e.SandboxID, e.Details)
+	}
+	return fmt.Sprintf("patch conflict for sandbox %s: %s", e.SandboxID, e.Details)
+}
+
+func (e *PatchConflictError) HTTPStatus() int {
+	return http.StatusConflict
+}
+
+func (e *PatchConflictError) IsRetryable() bool {
+	return false // Requires manual resolution
+}
+
+// Hint returns actionable guidance for resolving this error.
+func (e *PatchConflictError) Hint() string {
+	if e.RejectFile != "" {
+		return fmt.Sprintf("The patch could not be applied cleanly. Review the reject file at %s to see what couldn't be applied. "+
+			"Options: (1) Manually resolve conflicts and retry, (2) Create a new sandbox with the latest repo state.", e.RejectFile)
+	}
+	return "The patch could not be applied cleanly. Create a new sandbox with the latest repo state and re-apply your changes."
+}
+
+// NewPatchConflictError creates a PatchConflictError.
+func NewPatchConflictError(sandboxID, details string) *PatchConflictError {
+	return &PatchConflictError{
+		SandboxID: sandboxID,
+		Details:   details,
+	}
+}
+
+// NewPatchConflictErrorForFile creates a PatchConflictError for a specific file.
+func NewPatchConflictErrorForFile(sandboxID, file, rejectFile, details string) *PatchConflictError {
+	return &PatchConflictError{
+		SandboxID:       sandboxID,
+		ConflictingFile: file,
+		RejectFile:      rejectFile,
+		Details:         details,
+	}
+}
+
+// truncateHash returns a shortened version of a git hash for display.
+func truncateHash(hash string) string {
+	if len(hash) > 8 {
+		return hash[:8]
+	}
+	return hash
+}

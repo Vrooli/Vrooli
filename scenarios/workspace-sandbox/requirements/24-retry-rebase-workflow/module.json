@@ -1,0 +1,88 @@
+{
+  "description": "Support re-running sandbox or regenerating diff when conflicts occur with canonical repo",
+  "module_id": "MOD-P2-024",
+  "prd_ref": "OT-P2-003",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "feature",
+      "description": "Provide a rebase operation that updates sandbox's BaseCommitHash to current repo state. After rebase, conflict checks compare against the new base commit, and diffs are regenerated against current canonical repo state. Support 'regenerate' strategy that preserves sandbox changes while updating baseline.",
+      "id": "REQ-P2-003-001",
+      "prd_ref": "OT-P2-003",
+      "status": "implemented",
+      "title": "Rebase Sandbox to Current Repo State",
+      "validation": [
+        {
+          "notes": "Test Rebase service method",
+          "phase": "unit",
+          "ref": "api/internal/sandbox/service.go::Rebase",
+          "status": "pending",
+          "type": "manual"
+        },
+        {
+          "notes": "Test CheckConflicts service method",
+          "phase": "unit",
+          "ref": "api/internal/sandbox/service.go::CheckConflicts",
+          "status": "pending",
+          "type": "manual"
+        },
+        {
+          "notes": "POST /sandboxes/{id}/rebase updates BaseCommitHash",
+          "phase": "api",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "GET /sandboxes/{id}/conflicts returns conflict info",
+          "phase": "api",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "feature",
+      "description": "CLI commands for conflict checking (workspace-sandbox conflicts) and rebasing (workspace-sandbox rebase). Commands show conflict details, changed files, and actionable options.",
+      "id": "REQ-P2-003-002",
+      "prd_ref": "OT-P2-003",
+      "status": "implemented",
+      "title": "CLI Conflict and Rebase Commands",
+      "validation": [
+        {
+          "notes": "conflicts command shows conflict status",
+          "phase": "cli",
+          "ref": "cli/app.go::cmdConflicts",
+          "status": "pending",
+          "type": "manual"
+        },
+        {
+          "notes": "rebase command updates sandbox baseline",
+          "phase": "cli",
+          "ref": "cli/app.go::cmdRebase",
+          "status": "pending",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "category": "feature",
+      "description": "approve command supports --force flag to bypass conflict detection and apply changes even when canonical repo has changed. This enables operators to force-apply when they know changes don't overlap.",
+      "id": "REQ-P2-003-003",
+      "prd_ref": "OT-P2-003",
+      "status": "implemented",
+      "title": "Force Approve Option",
+      "validation": [
+        {
+          "notes": "approve --force bypasses conflict check",
+          "phase": "cli",
+          "ref": "cli/app.go::cmdApprove",
+          "status": "pending",
+          "type": "manual"
+        }
+      ]
+    }
+  ],
+  "title": "Retry/Rebase Workflow"
+}

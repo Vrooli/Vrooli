@@ -742,3 +742,130 @@ func GetHunksForFile(diff string, filePath string) []*ParsedHunk {
 	}
 	return nil
 }
+
+// --- Conflict Detection (OT-P2-002) ---
+
+// GetGitCommitHash returns the current HEAD commit hash for a git repository.
+// Returns empty string if the directory is not a git repo or git is unavailable.
+func GetGitCommitHash(ctx context.Context, repoDir string) (string, error) {
+	if !isGitRepo(repoDir) {
+		return "", nil // Not a git repo, no commit hash available
+	}
+
+	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "rev-parse", "HEAD")
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to get git commit hash: %w", err)
+	}
+
+	return strings.TrimSpace(stdout.String()), nil
+}
+
+// CheckRepoChanged compares the current repo commit hash against a base hash.
+// Returns true if the repo has changed since the base hash was recorded.
+// Returns false if either hash is empty (non-git repo) or they match.
+func CheckRepoChanged(ctx context.Context, repoDir, baseHash string) (bool, string, error) {
+	if baseHash == "" {
+		return false, "", nil // No base hash to compare against
+	}
+
+	currentHash, err := GetGitCommitHash(ctx, repoDir)
+	if err != nil {
+		return false, "", err
+	}
+
+	if currentHash == "" {
+		return false, "", nil // Not a git repo anymore
+	}
+
+	return currentHash != baseHash, currentHash, nil
+}
+
+// GetChangedFilesSinceCommit returns files changed in the repo since a specific commit.
+// This helps identify which files in a sandbox might have conflicts.
+func GetChangedFilesSinceCommit(ctx context.Context, repoDir, baseCommit string) ([]string, error) {
+	if !isGitRepo(repoDir) || baseCommit == "" {
+		return nil, nil
+	}
+
+	// Get list of files changed since base commit
+	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "diff", "--name-only", baseCommit+"..HEAD")
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("failed to get changed files: %w", err)
+	}
+
+	output := strings.TrimSpace(stdout.String())
+	if output == "" {
+		return nil, nil
+	}
+
+	return strings.Split(output, "\n"), nil
+}
+
+// FindConflictingFiles identifies files that have been modified both in the sandbox
+// and in the canonical repo since sandbox creation.
+func FindConflictingFiles(sandboxChanges []*types.FileChange, repoChangedFiles []string) []string {
+	sandboxFilePaths := make(map[string]bool)
+	for _, change := range sandboxChanges {
+		sandboxFilePaths[change.FilePath] = true
+	}
+
+	var conflicts []string
+	for _, repoFile := range repoChangedFiles {
+		if sandboxFilePaths[repoFile] {
+			conflicts = append(conflicts, repoFile)
+		}
+	}
+
+	return conflicts
+}
+
+// ConflictCheckResult contains the result of a conflict detection check.
+type ConflictCheckResult struct {
+	HasChanged       bool     // True if repo has changed since sandbox creation
+	BaseCommitHash   string   // Original commit hash at sandbox creation
+	CurrentHash      string   // Current commit hash in canonical repo
+	RepoChangedFiles []string // Files changed in repo since sandbox creation
+	ConflictingFiles []string // Files changed in both sandbox and repo
+}
+
+// CheckForConflicts performs a comprehensive conflict detection check.
+// This should be called before approving changes to detect potential issues.
+func CheckForConflicts(ctx context.Context, s *types.Sandbox, sandboxChanges []*types.FileChange) (*ConflictCheckResult, error) {
+	result := &ConflictCheckResult{
+		BaseCommitHash: s.BaseCommitHash,
+	}
+
+	// If no base commit hash, we can't detect conflicts
+	if s.BaseCommitHash == "" {
+		return result, nil
+	}
+
+	// Check if repo has changed
+	changed, currentHash, err := CheckRepoChanged(ctx, s.ProjectRoot, s.BaseCommitHash)
+	if err != nil {
+		return nil, err
+	}
+
+	result.HasChanged = changed
+	result.CurrentHash = currentHash
+
+	if !changed {
+		return result, nil
+	}
+
+	// Get list of files changed in repo
+	repoChangedFiles, err := GetChangedFilesSinceCommit(ctx, s.ProjectRoot, s.BaseCommitHash)
+	if err != nil {
+		return nil, err
+	}
+	result.RepoChangedFiles = repoChangedFiles
+
+	// Find conflicting files
+	result.ConflictingFiles = FindConflictingFiles(sandboxChanges, repoChangedFiles)
+
+	return result, nil
+}

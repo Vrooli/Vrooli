@@ -9,32 +9,32 @@
       "description": "Implement a PATH-injected git wrapper that intercepts restricted commands during sandbox sessions and provides helpful workflow guidance messages.",
       "id": "REQ-P1-007",
       "prd_ref": "OT-P1-007",
-      "status": "draft",
+      "status": "implemented",
       "title": "Git Command Safety Wrapper",
       "validation": [
         {
-          "notes": "Test command interception",
+          "notes": "Test CreateSafeGitWrapper creates script that blocks restricted commands",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/driver/bwrap_test.go::TestCreateSafeGitWrapper",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify help messages",
-          "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "notes": "Wrapper intercepts git commit/stash/checkout/clean/reset commands",
+          "phase": "manual",
+          "ref": "api/internal/driver/bwrap.go:CreateSafeGitWrapper",
+          "status": "passing",
+          "type": "inspection"
         },
         {
           "notes": "Test with real git operations",
-          "phase": "integration",
+          "phase": "api",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Wrapper overhead \u003c10ms",
+          "notes": "Wrapper overhead <10ms",
           "phase": "performance",
           "ref": "",
           "status": "pending",

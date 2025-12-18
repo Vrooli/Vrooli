@@ -11,6 +11,9 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { WatermarkSettings, IntroCardSettings, OutroCardSettings } from '@stores/settingsStore';
 
+// Re-export settings types for convenience
+export type { WatermarkSettings, IntroCardSettings, OutroCardSettings };
+
 // =============================================================================
 // Geometry Types
 // =============================================================================

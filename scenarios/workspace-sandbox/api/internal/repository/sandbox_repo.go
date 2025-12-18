@@ -99,13 +99,13 @@ func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error 
 	query := `
 		INSERT INTO sandboxes (
 			id, scope_path, project_root, owner, owner_type, status,
-			driver, driver_version, tags, metadata, idempotency_key, version
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULLIF($11, ''), $12)
+			driver, driver_version, tags, metadata, idempotency_key, version, base_commit_hash
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULLIF($11, ''), $12, NULLIF($13, ''))
 		RETURNING created_at, last_used_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
 		s.ID, s.ScopePath, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
-		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, s.IdempotencyKey, s.Version,
+		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, s.IdempotencyKey, s.Version, s.BaseCommitHash,
 	).Scan(&s.CreatedAt, &s.LastUsedAt, &s.UpdatedAt)
 }
 
@@ -116,7 +116,7 @@ func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandb
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata,
-			COALESCE(idempotency_key, ''), updated_at, version
+			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
 		FROM sandboxes
 		WHERE id = $1`
 
@@ -130,7 +130,7 @@ func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandb
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
-		&s.IdempotencyKey, &s.UpdatedAt, &s.Version,
+		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil

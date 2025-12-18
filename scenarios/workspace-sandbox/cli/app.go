@@ -86,8 +86,10 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		Title: "Diff & Approval",
 		Commands: []cliapp.Command{
 			{Name: "diff", NeedsAPI: true, Description: "Show changes in a sandbox ([--raw])", Run: a.cmdDiff},
-			{Name: "approve", NeedsAPI: true, Description: "Apply sandbox changes to the repo ([-m MESSAGE])", Run: a.cmdApprove},
+			{Name: "approve", NeedsAPI: true, Description: "Apply sandbox changes to the repo ([-m MESSAGE] [--force])", Run: a.cmdApprove},
 			{Name: "reject", NeedsAPI: true, Description: "Reject and discard sandbox changes", Run: a.cmdReject},
+			{Name: "conflicts", NeedsAPI: true, Description: "Check for conflicts with canonical repo [OT-P2-003]", Run: a.cmdConflicts},
+			{Name: "rebase", NeedsAPI: true, Description: "Update sandbox baseline to current repo state [OT-P2-003]", Run: a.cmdRebase},
 		},
 	}
 
@@ -480,6 +482,7 @@ func (a *App) cmdDiff(args []string) error {
 
 func (a *App) cmdApprove(args []string) error {
 	var sandboxID, message string
+	var force bool
 
 	for i, arg := range args {
 		switch {
@@ -489,6 +492,8 @@ func (a *App) cmdApprove(args []string) error {
 			message = strings.TrimPrefix(arg, "-m=")
 		case strings.HasPrefix(arg, "--message="):
 			message = strings.TrimPrefix(arg, "--message=")
+		case arg == "--force" || arg == "-f":
+			force = true
 		case !strings.HasPrefix(arg, "-") && (i == 0 || !strings.HasPrefix(args[i-1], "-m")):
 			if sandboxID == "" {
 				sandboxID = arg
@@ -497,7 +502,7 @@ func (a *App) cmdApprove(args []string) error {
 	}
 
 	if sandboxID == "" {
-		return fmt.Errorf("usage: workspace-sandbox approve <sandbox-id> [-m MESSAGE]")
+		return fmt.Errorf("usage: workspace-sandbox approve <sandbox-id> [-m MESSAGE] [--force]")
 	}
 
 	reqBody := map[string]interface{}{
@@ -505,6 +510,9 @@ func (a *App) cmdApprove(args []string) error {
 	}
 	if message != "" {
 		reqBody["commitMessage"] = message
+	}
+	if force {
+		reqBody["force"] = true
 	}
 
 	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+sandboxID+"/approve"), nil, reqBody)
@@ -719,4 +727,176 @@ func formatBytes(b int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// --- Conflict Detection and Rebase Commands [OT-P2-003] ---
+
+type conflictCheckResponse struct {
+	HasConflict         bool      `json:"hasConflict"`
+	BaseCommitHash      string    `json:"baseCommitHash,omitempty"`
+	CurrentHash         string    `json:"currentHash,omitempty"`
+	RepoChangedFiles    []string  `json:"repoChangedFiles,omitempty"`
+	SandboxChangedFiles []string  `json:"sandboxChangedFiles,omitempty"`
+	ConflictingFiles    []string  `json:"conflictingFiles,omitempty"`
+	CheckedAt           time.Time `json:"checkedAt"`
+}
+
+type rebaseResponse struct {
+	Success          bool      `json:"success"`
+	PreviousBaseHash string    `json:"previousBaseHash,omitempty"`
+	NewBaseHash      string    `json:"newBaseHash,omitempty"`
+	ConflictingFiles []string  `json:"conflictingFiles,omitempty"`
+	RepoChangedFiles []string  `json:"repoChangedFiles,omitempty"`
+	Strategy         string    `json:"strategy"`
+	ErrorMsg         string    `json:"error,omitempty"`
+	RebasedAt        time.Time `json:"rebasedAt"`
+}
+
+func (a *App) cmdConflicts(args []string) error {
+	var sandboxID string
+	var asJSON bool
+
+	for _, arg := range args {
+		switch {
+		case arg == "--json":
+			asJSON = true
+		case !strings.HasPrefix(arg, "-"):
+			if sandboxID == "" {
+				sandboxID = arg
+			}
+		}
+	}
+
+	if sandboxID == "" {
+		return fmt.Errorf("usage: workspace-sandbox conflicts <sandbox-id> [--json]")
+	}
+
+	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+sandboxID+"/conflicts"), nil)
+	if err != nil {
+		return err
+	}
+
+	if asJSON {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var resp conflictCheckResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	fmt.Println("=== Conflict Check ===\n")
+
+	if !resp.HasConflict {
+		fmt.Println("✓ No conflicts detected")
+		fmt.Printf("  Base commit:    %s\n", truncateHash(resp.BaseCommitHash))
+		fmt.Printf("  Current commit: %s\n", truncateHash(resp.CurrentHash))
+		return nil
+	}
+
+	fmt.Println("⚠ Conflicts detected!")
+	fmt.Printf("  Base commit:    %s\n", truncateHash(resp.BaseCommitHash))
+	fmt.Printf("  Current commit: %s\n", truncateHash(resp.CurrentHash))
+
+	if len(resp.ConflictingFiles) > 0 {
+		fmt.Printf("\nConflicting files (%d):\n", len(resp.ConflictingFiles))
+		for _, f := range resp.ConflictingFiles {
+			fmt.Printf("  ✗ %s\n", f)
+		}
+	}
+
+	if len(resp.RepoChangedFiles) > 0 {
+		fmt.Printf("\nRepo changed files (%d):\n", len(resp.RepoChangedFiles))
+		for _, f := range resp.RepoChangedFiles {
+			fmt.Printf("    %s\n", f)
+		}
+	}
+
+	if len(resp.SandboxChangedFiles) > 0 {
+		fmt.Printf("\nSandbox changed files (%d):\n", len(resp.SandboxChangedFiles))
+		for _, f := range resp.SandboxChangedFiles {
+			fmt.Printf("    %s\n", f)
+		}
+	}
+
+	fmt.Println("\nOptions:")
+	fmt.Println("  1. Rebase: workspace-sandbox rebase <sandbox-id>")
+	fmt.Println("  2. Force:  workspace-sandbox approve <sandbox-id> --force")
+
+	return nil
+}
+
+func (a *App) cmdRebase(args []string) error {
+	var sandboxID string
+	var asJSON bool
+
+	for _, arg := range args {
+		switch {
+		case arg == "--json":
+			asJSON = true
+		case !strings.HasPrefix(arg, "-"):
+			if sandboxID == "" {
+				sandboxID = arg
+			}
+		}
+	}
+
+	if sandboxID == "" {
+		return fmt.Errorf("usage: workspace-sandbox rebase <sandbox-id> [--json]")
+	}
+
+	reqBody := map[string]interface{}{
+		"strategy": "regenerate",
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+sandboxID+"/rebase"), nil, reqBody)
+	if err != nil {
+		return err
+	}
+
+	if asJSON {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var resp rebaseResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if !resp.Success {
+		fmt.Printf("Rebase failed: %s\n", resp.ErrorMsg)
+		return fmt.Errorf("rebase failed")
+	}
+
+	fmt.Println("=== Rebase Successful ===\n")
+	fmt.Printf("Previous base: %s\n", truncateHash(resp.PreviousBaseHash))
+	fmt.Printf("New base:      %s\n", truncateHash(resp.NewBaseHash))
+
+	if len(resp.RepoChangedFiles) > 0 {
+		fmt.Printf("\nRepo changed since sandbox creation (%d files):\n", len(resp.RepoChangedFiles))
+		for _, f := range resp.RepoChangedFiles {
+			fmt.Printf("    %s\n", f)
+		}
+	}
+
+	if len(resp.ConflictingFiles) > 0 {
+		fmt.Printf("\n⚠ Potential conflicts (%d files):\n", len(resp.ConflictingFiles))
+		for _, f := range resp.ConflictingFiles {
+			fmt.Printf("  ✗ %s\n", f)
+		}
+		fmt.Println("\nThese files were modified in both the sandbox and the repo.")
+		fmt.Println("Review carefully before approving.")
+	}
+
+	return nil
+}
+
+// truncateHash returns a shortened version of a git hash for display.
+func truncateHash(hash string) string {
+	if len(hash) > 8 {
+		return hash[:8]
+	}
+	return hash
 }

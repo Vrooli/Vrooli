@@ -46,6 +46,13 @@
           "ref": "api/internal/sandbox/pathutil_test.go::BenchmarkCheckPathOverlap",
           "status": "implemented",
           "type": "test"
+        },
+        {
+          "notes": "integration: Create sandbox validates scope path required",
+          "phase": "api",
+          "ref": "bas/cases/sandbox-lifecycle/api/sandbox_crud.bats::create sandbox requires scope path",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     }

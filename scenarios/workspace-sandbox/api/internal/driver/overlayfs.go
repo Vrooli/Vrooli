@@ -263,6 +263,62 @@ func (d *OverlayfsDriver) isWhiteout(path string) bool {
 	return false
 }
 
+// --- Partial Approval Support (OT-P1-002) ---
+
+// RemoveFromUpper removes a file from the upper (writable) layer.
+// This is used after partial approval to clean up applied files
+// while preserving unapproved changes for follow-up approvals.
+// Returns nil if file doesn't exist (idempotent).
+func (d *OverlayfsDriver) RemoveFromUpper(ctx context.Context, s *types.Sandbox, filePath string) error {
+	if s.UpperDir == "" {
+		return fmt.Errorf("sandbox has no upper directory configured")
+	}
+
+	// Security: ensure filePath is relative and doesn't escape the sandbox
+	cleanPath := filepath.Clean(filePath)
+	if filepath.IsAbs(cleanPath) {
+		// Strip leading slash for relative path construction
+		cleanPath = strings.TrimPrefix(cleanPath, "/")
+	}
+	if strings.HasPrefix(cleanPath, "..") {
+		return fmt.Errorf("path traversal not allowed: %s", filePath)
+	}
+
+	fullPath := filepath.Join(s.UpperDir, cleanPath)
+
+	// Verify fullPath is actually under UpperDir (defense in depth)
+	absFullPath, err := filepath.Abs(fullPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve path: %w", err)
+	}
+	absUpperDir, err := filepath.Abs(s.UpperDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve upper dir: %w", err)
+	}
+	if !strings.HasPrefix(absFullPath, absUpperDir) {
+		return fmt.Errorf("path escapes upper directory: %s", filePath)
+	}
+
+	// Remove the file - ignore not-exist errors (idempotent)
+	err = os.Remove(fullPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove file from upper layer: %w", err)
+	}
+
+	// Also remove empty parent directories up to UpperDir
+	// This prevents leftover empty directories after file removal
+	dir := filepath.Dir(fullPath)
+	for dir != absUpperDir && dir != "." && dir != "/" {
+		// Try to remove - will fail if not empty, which is fine
+		if rmErr := os.Remove(dir); rmErr != nil {
+			break // Directory not empty or error, stop
+		}
+		dir = filepath.Dir(dir)
+	}
+
+	return nil
+}
+
 // Cleanup removes all sandbox artifacts.
 func (d *OverlayfsDriver) Cleanup(ctx context.Context, s *types.Sandbox) error {
 	// Unmount first

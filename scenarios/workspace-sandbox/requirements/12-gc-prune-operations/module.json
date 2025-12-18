@@ -7,28 +7,35 @@
     {
       "category": "core",
       "description": "Implement configurable GC policies for sandbox cleanup based on age, total size limits, and inactivity period. Must handle concurrent GC operations safely.",
-      "id": "REQ-P1-003",
+      "id": "REQ-P1-011",
       "prd_ref": "OT-P1-003",
-      "status": "draft",
+      "status": "implemented",
       "title": "Sandbox Garbage Collection",
       "validation": [
         {
-          "notes": "Test policy evaluation logic",
+          "notes": "Test policy evaluation logic - dry run mode, actual deletion, terminal states",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/gc/gc_test.go::TestGCService_DryRun_ReturnsWithoutDeleting,TestGCService_ActualRun_DeletesSandboxes,TestGCService_TerminalState_CollectsApprovedRejected",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify cleanup operations",
+          "notes": "Verify cleanup operations - idle timeout, default policy, preview mode",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/gc/gc_test.go::TestGCService_IdleTimeout_CollectsIdleSandboxes,TestGCService_DefaultPolicy_UsedWhenNil,TestGCService_Preview_IsDryRun",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "End-to-end GC cycle test",
-          "phase": "integration",
+          "notes": "Test empty results, limit handling, reason population",
+          "phase": "unit",
+          "ref": "api/internal/gc/gc_test.go::TestGCService_NoCandidates_ReturnsEmpty,TestGCService_Limit_RespectsMaxCount,TestGCService_Reasons_ArePopulated",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end GC cycle test via API",
+          "phase": "api",
           "ref": "",
           "status": "pending",
           "type": "test"

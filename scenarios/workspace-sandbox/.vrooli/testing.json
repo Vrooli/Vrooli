@@ -15,7 +15,7 @@
       "go": {},
       "node": {},
       "shell": {
-        "exclude": ["cli/cli", "api/workspace-sandbox-api"]
+        "exclude": ["cli/workspace-sandbox"]
       }
     }
   },
