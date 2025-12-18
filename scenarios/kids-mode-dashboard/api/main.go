@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -31,6 +32,13 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "kids-mode-dashboard",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/", dashboardHandler)

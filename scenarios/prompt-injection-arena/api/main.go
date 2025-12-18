@@ -1,12 +1,12 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -1252,17 +1252,11 @@ func cleanupTestData(c *gin.Context) {
 }
 
 func main() {
-	// CRITICAL: Lifecycle check MUST be first - before any business logic
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start prompt-injection-arena
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "prompt-injection-arena",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize structured logger after lifecycle check

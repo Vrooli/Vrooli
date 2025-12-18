@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -563,16 +564,11 @@ func prepareTagsValue(tags []string, columnType string) (interface{}, error) {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start retro-game-launcher
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "retro-game-launcher",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Get port from environment - REQUIRED, no defaults

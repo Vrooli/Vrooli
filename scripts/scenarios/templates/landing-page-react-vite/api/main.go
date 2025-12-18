@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/preflight"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -1208,16 +1209,11 @@ func resolveDatabaseURL() (string, error) {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start landing-manager
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "{{SCENARIO_ID}}",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	server, err := NewServer()

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"github.com/vrooli/api-core/preflight"
 	"log/slog"
 	"net/http"
 	"os"
@@ -33,18 +33,11 @@ func init() {
 // Handlers are defined in handlers.go to maintain modularity
 
 func main() {
-	// NOTE: VROOLI_LIFECYCLE_MANAGED validation ensures proper environment setup
-	// The lifecycle system provides critical variables: API_PORT, UI_PORT, etc.
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start make-it-vegan
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "make-it-vegan",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	router := mux.NewRouter()

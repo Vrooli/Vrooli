@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"fmt"
@@ -673,16 +674,11 @@ func resolveDatabaseURL() (string, error) {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start git-control-tower
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "git-control-tower",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	server, err := NewServer()

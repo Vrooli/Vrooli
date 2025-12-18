@@ -10,10 +10,13 @@ require (
 	github.com/gorilla/sessions v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/testcontainers/testcontainers-go v0.31.0
+	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/crypto v0.45.0
 	google.golang.org/protobuf v1.36.9
 )
+
+replace github.com/vrooli/api-core => ../../../../../packages/api-core
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../../../packages/proto
 

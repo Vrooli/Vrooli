@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,13 @@ import (
 )
 
 func main() {
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "audio-tools",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
 	port := os.Getenv("API_PORT")
 	if port == "" {
 		port = "8080"

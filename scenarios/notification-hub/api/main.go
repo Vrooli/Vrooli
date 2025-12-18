@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -123,19 +124,11 @@ type Server struct {
 var startTime time.Time
 
 func main() {
-	// Lifecycle validation: Ensure binary is run through Vrooli (not directly)
-	// This environment variable is set by the lifecycle system and is intentionally optional
-	// (will not exist if running binary directly, which is what we're preventing)
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start notification-hub
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "notification-hub",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize structured logger

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -9,43 +8,16 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/vrooli/api-core/preflight"
 )
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start graph-studio
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "graph-studio",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
-
-	// Check if running through lifecycle (temporarily disabled for testing)
-	/*
-		if os.Getenv("VROOLI_LIFECYCLE") != "active" {
-			log.Println("⚠️  Not running through Vrooli lifecycle. Starting with lifecycle...")
-
-			// Get the scenario name from environment or use default
-			scenarioName := os.Getenv("SCENARIO_NAME")
-			if scenarioName == "" {
-				scenarioName = "graph-studio"
-			}
-
-			// Execute through lifecycle
-			cmd := exec.Command("bash", "-c", fmt.Sprintf("vrooli scenario run %s", scenarioName))
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-
-			if err := cmd.Run(); err != nil {
-				log.Fatalf("Failed to start through lifecycle: %v", err)
-			}
-			return
-		}
-	*/
 
 	// Load environment variables
 	port := os.Getenv("API_PORT")

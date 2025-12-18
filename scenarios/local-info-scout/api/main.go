@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -785,17 +786,11 @@ func trendingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// Lifecycle protection must be the absolute first check
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start local-info-scout
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "local-info-scout",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize loggers after lifecycle check

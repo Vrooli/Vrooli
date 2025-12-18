@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"bufio"
 	"context"
 	"errors"
@@ -16,6 +17,13 @@ import (
 )
 
 func main() {
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "web-console",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	cfg, err := loadConfig()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"context"
 	"log"
 	"net/http"
@@ -11,6 +12,13 @@ import (
 )
 
 func main() {
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "text-tools",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
 	log.Println("Text Tools API starting...")
 
 	// Initialize configuration

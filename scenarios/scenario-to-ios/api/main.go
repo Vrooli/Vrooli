@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -142,17 +143,11 @@ func (s *Server) logError(msg string, fields ...interface{}) {
 }
 
 func main() {
-	// Lifecycle protection check
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start scenario-to-ios
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "scenario-to-ios",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Get port from environment variable (fail fast if missing)

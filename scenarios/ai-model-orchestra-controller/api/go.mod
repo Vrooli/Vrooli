@@ -9,6 +9,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/redis/go-redis/v9 v9.3.0
 	github.com/stretchr/testify v1.11.1
+	github.com/vrooli/api-core v0.0.0
 )
 
 require (
@@ -34,3 +35,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 )
+
+replace github.com/vrooli/api-core => ../../../packages/api-core

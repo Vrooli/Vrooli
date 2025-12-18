@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -351,18 +352,11 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
-	// Validate required environment variables
-	lifecycleManaged := os.Getenv("VROOLI_LIFECYCLE_MANAGED")
-	if lifecycleManaged != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start privacy-terms-generator
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "privacy-terms-generator",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	port := os.Getenv("API_PORT")

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
 	"database/sql"
@@ -695,17 +696,11 @@ func (s *APIServer) startReportProcessing(reportID string, req ReportRequest) {
 }
 
 func main() {
-	// Lifecycle protection check MUST be first - before any business logic
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start research-assistant
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "research-assistant",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Initialize structured logger

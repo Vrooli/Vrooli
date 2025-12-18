@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -42,17 +42,11 @@ type Workflow struct {
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start secure-document-processing
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "secure-document-processing",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	port := getEnv("API_PORT", getEnv("PORT", ""))

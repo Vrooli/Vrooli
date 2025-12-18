@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"context"
 	"fmt"
 	"log"
@@ -198,18 +199,11 @@ func (s *Server) Start() error {
 
 // Main function
 func main() {
-	// SECURITY: Validate required environment variable - fail fast if not set
-	lifecycleManaged := os.Getenv("VROOLI_LIFECYCLE_MANAGED")
-	if lifecycleManaged != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start scenario-to-desktop
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "scenario-to-desktop",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// SECURITY: Validate port environment variables - prefer API_PORT, fallback to PORT

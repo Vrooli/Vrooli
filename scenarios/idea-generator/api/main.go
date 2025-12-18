@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"database/sql"
 	"fmt"
 	"log"
@@ -183,16 +184,11 @@ func initDB(postgresURL string) (*sql.DB, error) {
 // - handlers_idea.go: Idea generation, refinement, search, and document processing handlers
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start idea-generator
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "idea-generator",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Get port from environment - REQUIRED, no defaults

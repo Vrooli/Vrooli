@@ -8,9 +8,12 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/testcontainers/testcontainers-go v0.27.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.27.0
+	github.com/vrooli/api-core v0.0.0
 )
 
 replace github.com/testcontainers/testcontainers-go => github.com/testcontainers/testcontainers-go v0.27.0
+
+replace github.com/vrooli/api-core => ../../../packages/api-core
 
 require (
 	dario.cat/mergo v1.0.0 // indirect

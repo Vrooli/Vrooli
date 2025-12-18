@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"log"
 	"os"
 	"os/exec"
@@ -9,6 +10,13 @@ import (
 )
 
 func main() {
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "test-data-generator",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
 	cmd := exec.Command("node", "server.js")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

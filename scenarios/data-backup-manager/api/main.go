@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -332,16 +333,11 @@ func handleMaintenanceAgentToggle(w http.ResponseWriter, r *http.Request) {
 var backupManager *BackupManager
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start data-backup-manager
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "data-backup-manager",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	// Get port from environment with fallback for development

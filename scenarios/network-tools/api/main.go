@@ -6,12 +6,20 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
 func main() {
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "network-tools",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
 	// Get the directory of the current executable
 	exePath, err := os.Executable()
 	if err != nil {

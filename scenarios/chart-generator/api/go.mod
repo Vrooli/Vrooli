@@ -10,7 +10,10 @@ require (
 	github.com/johnfercher/maroto/v2 v2.3.1
 	github.com/lib/pq v1.10.9
 	github.com/rs/cors v1.10.1
+	github.com/vrooli/api-core v0.0.0
 )
+
+require github.com/kr/text v0.2.0 // indirect
 
 require (
 	github.com/boombuler/barcode v1.0.1 // indirect
@@ -20,7 +23,6 @@ require (
 	github.com/hhrutter/tiff v1.0.1 // indirect
 	github.com/johnfercher/go-tree v1.0.5 // indirect
 	github.com/jung-kurt/gofpdf v1.16.2 // indirect
-	github.com/jung-kurt/gofpdf/v2 v2.17.3 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/pdfcpu/pdfcpu v0.6.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -29,3 +31,5 @@ require (
 	golang.org/x/text v0.16.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+replace github.com/vrooli/api-core => ../../../packages/api-core

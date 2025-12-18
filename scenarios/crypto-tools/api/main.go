@@ -21,7 +21,15 @@
 // All development should occur in cmd/server/
 package main
 
+import "github.com/vrooli/api-core/preflight"
 func main() {
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "crypto-tools",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
 	// This function should never be called.
 	// The actual main() is in cmd/server/main.go
 	panic("This file is for documentation only. Use cmd/server/main.go")

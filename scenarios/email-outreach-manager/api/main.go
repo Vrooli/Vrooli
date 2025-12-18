@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"database/sql"
 	"fmt"
 	"log"
@@ -55,6 +56,13 @@ type GenerateTemplateRequest struct {
 }
 
 func main() {
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "email-outreach-manager",
+	}) {
+		return // Process was re-exec'd after rebuild
+	}
+
 	// Get port from environment or use default
 	port := os.Getenv("API_PORT")
 	if port == "" {

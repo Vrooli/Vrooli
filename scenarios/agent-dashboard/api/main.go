@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"bufio"
 	"context"
 	"encoding/json"
@@ -143,18 +144,11 @@ func newCodexAgentManager(logDir string, defaultTimeout time.Duration, scenarioR
 }
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
-
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start agent-dashboard
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "agent-dashboard",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	port := strings.TrimSpace(os.Getenv("API_PORT"))

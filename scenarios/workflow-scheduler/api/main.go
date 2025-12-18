@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/preflight"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -1141,16 +1142,11 @@ func respondError(w http.ResponseWriter, status int, message string) {
 }
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start workflow-scheduler
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// Preflight checks - must be first, before any initialization
+	if preflight.Run(preflight.Config{
+		ScenarioName: "workflow-scheduler",
+	}) {
+		return // Process was re-exec'd after rebuild
 	}
 
 	app := &App{}

@@ -15,12 +15,15 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.40.0
+	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/crypto v0.45.0
 	google.golang.org/protobuf v1.36.11
 )
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+
+replace github.com/vrooli/api-core => ../../../packages/api-core
 
 require (
 	dario.cat/mergo v1.0.2 // indirect

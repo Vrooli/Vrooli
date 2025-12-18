@@ -6,6 +6,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.10.9
 	github.com/shirou/gopsutil/v3 v3.24.5
+	github.com/vrooli/api-core v0.0.0
 )
 
 require (
@@ -18,3 +19,5 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 )
+
+replace github.com/vrooli/api-core => ../../../packages/api-core
