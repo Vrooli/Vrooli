@@ -12,7 +12,8 @@ import {
   Square,
   MoreVertical,
   Search,
-  Plus,
+  Circle,
+  Sparkles,
 } from "lucide-react";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
 import { useExecutionStore } from "@/domains/executions";
@@ -32,6 +33,7 @@ interface WorkflowCardGridProps {
   onWorkflowSelect: (workflow: Workflow) => Promise<void>;
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
+  onStartRecording?: () => void;
 }
 
 /**
@@ -42,6 +44,7 @@ export function WorkflowCardGrid({
   onWorkflowSelect,
   onCreateWorkflow,
   onCreateWorkflowDirect,
+  onStartRecording,
 }: WorkflowCardGridProps) {
   // Store state
   const isLoading = useProjectDetailStore((s) => s.isLoading);
@@ -208,15 +211,34 @@ export function WorkflowCardGrid({
 
           {!error && (
             <>
-              {/* Quick Actions */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+              {/* Quick Actions - Order: Record, AI-Assisted, Visual Builder */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                {/* Record - Primary workflow creation method */}
+                {onStartRecording && (
+                  <button
+                    onClick={onStartRecording}
+                    className="bg-flow-node border border-red-500/30 rounded-xl p-5 text-left hover:border-red-500/60 hover:shadow-lg hover:shadow-red-500/10 transition-all group"
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 bg-red-500/20 rounded-lg group-hover:bg-red-500/30 transition-colors">
+                        <Circle size={20} className="text-red-400 fill-red-400" />
+                      </div>
+                      <h4 className="font-medium text-surface">Record</h4>
+                    </div>
+                    <p className="text-sm text-gray-400">
+                      Record your browser actions and convert them into a reusable workflow.
+                    </p>
+                  </button>
+                )}
+
+                {/* AI-Assisted */}
                 <button
                   onClick={onCreateWorkflow}
-                  className="bg-flow-node border border-gray-700 rounded-xl p-5 text-left hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/10 transition-all group"
+                  className="bg-flow-node border border-gray-700 rounded-xl p-5 text-left hover:border-purple-500/60 hover:shadow-lg hover:shadow-purple-500/10 transition-all group"
                 >
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-amber-500/20 rounded-lg group-hover:bg-amber-500/30 transition-colors">
-                      <Plus size={20} className="text-amber-400" />
+                    <div className="p-2 bg-purple-500/20 rounded-lg group-hover:bg-purple-500/30 transition-colors">
+                      <Sparkles size={20} className="text-purple-400" />
                     </div>
                     <h4 className="font-medium text-surface">AI-Assisted</h4>
                   </div>
@@ -225,9 +247,10 @@ export function WorkflowCardGrid({
                   </p>
                 </button>
 
+                {/* Visual Builder */}
                 <button
                   onClick={onCreateWorkflowDirect ?? onCreateWorkflow}
-                  className="bg-flow-node border border-gray-700 rounded-xl p-5 text-left hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/10 transition-all group"
+                  className="bg-flow-node border border-gray-700 rounded-xl p-5 text-left hover:border-blue-500/60 hover:shadow-lg hover:shadow-blue-500/10 transition-all group"
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <div className="p-2 bg-blue-500/20 rounded-lg group-hover:bg-blue-500/30 transition-colors">

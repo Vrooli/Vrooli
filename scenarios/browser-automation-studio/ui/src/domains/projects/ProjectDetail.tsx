@@ -225,6 +225,7 @@ function ProjectDetail({
               onWorkflowSelect={onWorkflowSelect}
               onCreateWorkflow={onCreateWorkflow}
               onCreateWorkflowDirect={onCreateWorkflowDirect}
+              onStartRecording={onStartRecording}
             />
           )}
         </div>

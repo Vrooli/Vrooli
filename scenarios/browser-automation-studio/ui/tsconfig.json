@@ -18,7 +18,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@features/*": ["src/features/*"],
       "@shared/*": ["src/shared/*"],
       "@routing/*": ["src/routing/*"],
       "@hooks/*": ["src/hooks/*"],

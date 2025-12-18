@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Dashboard from './DashboardView';
 import { type DashboardTab } from './DashboardTabs';
 import { type Project, useProjectStore, buildProjectFolderPath } from '@/domains/projects';
+import { WorkflowCreationDialog, type WorkflowCreationType } from '@/domains/workflows';
 import { useWorkflowStore } from '@stores/workflowStore';
 import { useExecutionStore } from '@/domains/executions';
 import { useModals } from '@shared/modals';
@@ -26,7 +27,13 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
   const [isGeneratingWorkflow, setIsGeneratingWorkflow] = useState(false);
 
   const { projects, setCurrentProject } = useProjectStore();
-  const { openProjectModal, openDocs } = useModals();
+  const {
+    openProjectModal,
+    openDocs,
+    showWorkflowCreationModal,
+    openWorkflowCreationModal,
+    closeWorkflowCreationModal,
+  } = useModals();
   const { openTour } = useGuidedTour();
   const startExecution = useExecutionStore((state) => state.startExecution);
   const loadExecution = useExecutionStore((state) => state.loadExecution);
@@ -207,6 +214,53 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
     [setSearchParams]
   );
 
+  // Handler for opening the workflow creation dialog
+  const handleCreateWorkflow = useCallback(() => {
+    openWorkflowCreationModal();
+  }, [openWorkflowCreationModal]);
+
+  // Handler for workflow type selection from WorkflowCreationDialog
+  const handleWorkflowTypeSelected = useCallback(
+    async (type: WorkflowCreationType, project: Project) => {
+      setCurrentProject(project);
+
+      if (type === 'record') {
+        navigate('/record/new');
+      } else if (type === 'ai') {
+        // Navigate to project and open AI modal
+        navigate(`/projects/${project.id}?openAI=true`);
+      } else if (type === 'visual') {
+        // Create an empty workflow and navigate to builder
+        const workflowName = `new-workflow-${Date.now()}`;
+        const folderPath = '/';
+
+        try {
+          const workflow = await useWorkflowStore
+            .getState()
+            .createWorkflow(workflowName, folderPath, project.id);
+
+          if (workflow?.id) {
+            navigate(`/projects/${project.id}/workflows/${workflow.id}`);
+          } else {
+            toast.error('Failed to create workflow.');
+          }
+        } catch (error) {
+          logger.error(
+            'Failed to create workflow',
+            {
+              component: 'DashboardViewWrapper',
+              action: 'handleWorkflowTypeSelected',
+              projectId: project.id,
+            },
+            error
+          );
+          toast.error('Failed to create workflow. Please try again.');
+        }
+      }
+    },
+    [setCurrentProject, navigate]
+  );
+
   return (
     <div data-testid={selectors.app.shell.ready}>
       <Dashboard
@@ -214,6 +268,7 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
         onTabChange={handleTabChange}
         onProjectSelect={handleProjectSelect}
         onCreateProject={handleCreateProject}
+        onCreateWorkflow={handleCreateWorkflow}
         onCreateFirstWorkflow={handleCreateFirstWorkflow}
         onStartRecording={handleStartRecording}
         onOpenSettings={handleOpenSettings}
@@ -226,6 +281,13 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
         onViewAllWorkflows={handleViewAllWorkflows}
         onViewAllExecutions={handleViewAllExecutions}
         isGeneratingWorkflow={isGeneratingWorkflow}
+      />
+
+      <WorkflowCreationDialog
+        isOpen={showWorkflowCreationModal}
+        onClose={closeWorkflowCreationModal}
+        onSelectType={handleWorkflowTypeSelected}
+        onCreateProject={openProjectModal}
       />
     </div>
   );

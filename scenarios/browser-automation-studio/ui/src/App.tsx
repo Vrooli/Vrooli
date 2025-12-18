@@ -2,6 +2,7 @@ import { useCallback, useEffect, lazy, Suspense } from "react";
 
 // Shared layout components
 import { ProjectModal } from "@/domains/projects";
+import { WorkflowCreationDialog, type WorkflowCreationType } from "@/domains/workflows";
 import { GuidedTour, useGuidedTour } from "@shared/onboarding";
 import { DocsModal } from "@/domains/docs";
 
@@ -86,12 +87,15 @@ function AppContent() {
   const {
     showAIModal,
     showProjectModal,
+    showWorkflowCreationModal,
     showDocs,
     docsInitialTab,
     openAIModal,
     closeAIModal,
     openProjectModal,
     closeProjectModal,
+    openWorkflowCreationModal,
+    closeWorkflowCreationModal,
     openDocs,
     closeDocs,
   } = useModals();
@@ -300,8 +304,53 @@ function AppContent() {
   };
 
   const handleCreateWorkflow = () => {
-    openAIModal();
+    openWorkflowCreationModal();
   };
+
+  // Handler for workflow type selection from WorkflowCreationDialog
+  const handleWorkflowTypeSelected = useCallback(async (type: WorkflowCreationType, project: Project) => {
+    // Set the current project
+    setCurrentProject(project);
+
+    if (type === "record") {
+      // Start recording mode
+      navigateToRecordMode(null);
+    } else if (type === "ai") {
+      // Open AI modal
+      openProject(project);
+      openAIModal();
+    } else if (type === "visual") {
+      // Create an empty workflow and navigate to builder
+      const workflowName = `new-workflow-${Date.now()}`;
+      const folderPath = "/";
+
+      try {
+        const workflowStore = await import("@stores/workflowStore");
+        const workflow = await workflowStore.useWorkflowStore
+          .getState()
+          .createWorkflow(workflowName, folderPath, project.id);
+
+        if (workflow?.id) {
+          await openWorkflow(project, workflow.id, {
+            workflowData: workflow as Record<string, unknown>,
+          });
+        } else {
+          toast.error("Failed to create workflow.");
+        }
+      } catch (error) {
+        logger.error(
+          "Failed to create workflow",
+          {
+            component: "App",
+            action: "handleWorkflowTypeSelected",
+            projectId: project.id,
+          },
+          error,
+        );
+        toast.error("Failed to create workflow. Please try again.");
+      }
+    }
+  }, [setCurrentProject, navigateToRecordMode, openProject, openAIModal, openWorkflow]);
 
   const handleCreateWorkflowDirect = async () => {
     if (!currentProject?.id) {
@@ -453,6 +502,7 @@ function AppContent() {
             onTabChange={handleDashboardTabChange}
             onProjectSelect={handleProjectSelect}
             onCreateProject={handleCreateProject}
+            onCreateWorkflow={handleCreateWorkflow}
             onCreateFirstWorkflow={handleCreateFirstWorkflow}
           onStartRecording={handleStartRecording}
           onOpenSettings={navigateToSettings}
@@ -478,6 +528,13 @@ function AppContent() {
             closeProjectModal();
           }}
           onSuccess={handleProjectCreated}
+        />
+
+        <WorkflowCreationDialog
+          isOpen={showWorkflowCreationModal}
+          onClose={closeWorkflowCreationModal}
+          onSelectType={handleWorkflowTypeSelected}
+          onCreateProject={openProjectModal}
         />
 
         {docsModal}
@@ -646,6 +703,14 @@ function AppContent() {
             />
           </Suspense>
         )}
+
+        <WorkflowCreationDialog
+          isOpen={showWorkflowCreationModal}
+          onClose={closeWorkflowCreationModal}
+          onSelectType={handleWorkflowTypeSelected}
+          onCreateProject={openProjectModal}
+          preSelectedProject={currentProject}
+        />
 
         {docsModal}
 

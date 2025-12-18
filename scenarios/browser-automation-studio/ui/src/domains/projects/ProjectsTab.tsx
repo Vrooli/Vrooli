@@ -28,6 +28,7 @@ import { TabEmptyState, ProjectsEmptyPreview } from '@/views/DashboardView/previ
 interface ProjectsTabProps {
   onProjectSelect: (project: Project) => void;
   onCreateProject: () => void;
+  onCreateWorkflow?: () => void;
   onNavigateToWorkflow: (projectId: string, workflowId: string) => void;
   onRunWorkflow: (workflowId: string) => void;
   onTryDemo?: () => void;
@@ -47,6 +48,7 @@ interface ProjectWorkflow {
 export const ProjectsTab: React.FC<ProjectsTabProps> = ({
   onProjectSelect,
   onCreateProject,
+  onCreateWorkflow,
   onNavigateToWorkflow,
   onRunWorkflow,
   onTryDemo,
@@ -275,7 +277,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
             subtitle="Projects group workflows by client, product, or experiment so everything stays tidy."
             preview={<ProjectsEmptyPreview />}
             variant="polished"
-            primaryCta={{ label: 'Create your first workflow', onClick: onCreateProject }}
+            primaryCta={{ label: 'Create your first workflow', onClick: onCreateWorkflow ?? onCreateProject }}
             secondaryCta={onTryDemo ? { label: 'Try demo workflow', onClick: onTryDemo } : undefined}
             progressPath={[
               { label: 'Create project', completed: true },
@@ -552,9 +554,11 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onProjectSelect(project);
-                        // The onCreateProject would need to be called after navigating
-                        // For now, just navigate to project which has "New Workflow" button
+                        if (onCreateWorkflow) {
+                          onCreateWorkflow();
+                        } else {
+                          onProjectSelect(project);
+                        }
                       }}
                       className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-blue-300 hover:text-blue-200 bg-blue-900/30 hover:bg-blue-900/50 border border-blue-500/30 hover:border-blue-500/50 rounded-lg transition-colors"
                       title="Create new workflow in this project"

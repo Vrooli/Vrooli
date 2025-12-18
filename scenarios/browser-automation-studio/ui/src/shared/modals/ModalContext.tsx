@@ -13,6 +13,7 @@ interface ModalState {
   // Modal visibility
   showAIModal: boolean;
   showProjectModal: boolean;
+  showWorkflowCreationModal: boolean;
   showDocs: boolean;
   docsInitialTab: DocsTab;
 }
@@ -25,6 +26,10 @@ interface ModalActions {
   // Project Modal
   openProjectModal: () => void;
   closeProjectModal: () => void;
+
+  // Workflow Creation Modal
+  openWorkflowCreationModal: () => void;
+  closeWorkflowCreationModal: () => void;
 
   // Docs Modal
   openDocs: (tab?: DocsTab) => void;
@@ -51,6 +56,7 @@ interface ModalProviderProps {
 export function ModalProvider({ children, currentView }: ModalProviderProps) {
   const [showAIModal, setShowAIModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showWorkflowCreationModal, setShowWorkflowCreationModal] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
   const [docsInitialTab, setDocsInitialTab] = useState<DocsTab>("getting-started");
 
@@ -58,6 +64,7 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
   useEffect(() => {
     setShowAIModal(false);
     setShowProjectModal(false);
+    setShowWorkflowCreationModal(false);
     // Note: Docs modal intentionally stays open across navigation
     // as users may want to reference docs while navigating
   }, [currentView]);
@@ -80,6 +87,15 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
     setShowProjectModal(false);
   }, []);
 
+  // Workflow Creation Modal actions
+  const openWorkflowCreationModal = useCallback(() => {
+    setShowWorkflowCreationModal(true);
+  }, []);
+
+  const closeWorkflowCreationModal = useCallback(() => {
+    setShowWorkflowCreationModal(false);
+  }, []);
+
   // Docs Modal actions
   const openDocs = useCallback((tab: DocsTab = "getting-started") => {
     setDocsInitialTab(tab);
@@ -94,6 +110,7 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
   const closeAllModals = useCallback(() => {
     setShowAIModal(false);
     setShowProjectModal(false);
+    setShowWorkflowCreationModal(false);
     setShowDocs(false);
   }, []);
 
@@ -101,6 +118,7 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
     // State
     showAIModal,
     showProjectModal,
+    showWorkflowCreationModal,
     showDocs,
     docsInitialTab,
     // Actions
@@ -108,6 +126,8 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
     closeAIModal,
     openProjectModal,
     closeProjectModal,
+    openWorkflowCreationModal,
+    closeWorkflowCreationModal,
     openDocs,
     closeDocs,
     closeAllModals,
@@ -137,6 +157,6 @@ export function useModals(): ModalContextValue {
  * Useful for keyboard shortcut context detection.
  */
 export function useIsAnyModalOpen(): boolean {
-  const { showAIModal, showProjectModal, showDocs } = useModals();
-  return showAIModal || showProjectModal || showDocs;
+  const { showAIModal, showProjectModal, showWorkflowCreationModal, showDocs } = useModals();
+  return showAIModal || showProjectModal || showWorkflowCreationModal || showDocs;
 }

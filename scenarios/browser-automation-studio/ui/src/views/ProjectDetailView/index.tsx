@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
 import { useProjectStore, type Project } from '@/domains/projects';
+import { WorkflowCreationDialog, type WorkflowCreationType } from '@/domains/workflows';
 import { useWorkflowStore } from '@stores/workflowStore';
 import { useModals } from '@shared/modals';
 import { logger } from '@utils/logger';
@@ -22,7 +23,14 @@ export default function ProjectDetailView() {
   const [selectedFolder, setSelectedFolder] = useState('/');
 
   const { projects, getProject, setCurrentProject } = useProjectStore();
-  const { showAIModal, openAIModal, closeAIModal } = useModals();
+  const {
+    showAIModal,
+    openAIModal,
+    closeAIModal,
+    showWorkflowCreationModal,
+    openWorkflowCreationModal,
+    closeWorkflowCreationModal,
+  } = useModals();
 
   // Load project on mount
   useEffect(() => {
@@ -70,8 +78,8 @@ export default function ProjectDetailView() {
   );
 
   const handleCreateWorkflow = useCallback(() => {
-    openAIModal();
-  }, [openAIModal]);
+    openWorkflowCreationModal();
+  }, [openWorkflowCreationModal]);
 
   const handleCreateWorkflowDirect = useCallback(async () => {
     if (!project?.id) {
@@ -151,6 +159,56 @@ export default function ProjectDetailView() {
     [project, navigate]
   );
 
+  // Handler for workflow type selection from WorkflowCreationDialog
+  const handleWorkflowTypeSelected = useCallback(
+    async (type: WorkflowCreationType, selectedProject: Project) => {
+      // Since we're already on a project detail page, the selectedProject should be the current project
+      // But we use it for consistency with the dialog's interface
+
+      if (type === 'record') {
+        // Navigate to record mode
+        navigate('/record/new');
+      } else if (type === 'ai') {
+        // Open AI modal
+        openAIModal();
+      } else if (type === 'visual') {
+        // Create an empty workflow and navigate to builder
+        const workflowName = `new-workflow-${Date.now()}`;
+        const folderPath = selectedFolder || '/';
+
+        try {
+          const workflow = await useWorkflowStore
+            .getState()
+            .createWorkflow(workflowName, folderPath, selectedProject.id);
+
+          if (workflow?.id) {
+            navigate(`/projects/${selectedProject.id}/workflows/${workflow.id}`);
+          } else {
+            toast.error('Failed to create workflow.');
+          }
+        } catch (error) {
+          logger.error(
+            'Failed to create workflow',
+            {
+              component: 'ProjectDetailView',
+              action: 'handleWorkflowTypeSelected',
+              projectId: selectedProject.id,
+            },
+            error
+          );
+          toast.error('Failed to create workflow. Please try again.');
+        }
+      }
+    },
+    [navigate, openAIModal, selectedFolder]
+  );
+
+  // Handler for creating a new project from the WorkflowCreationDialog
+  const handleOpenProjectModal = useCallback(() => {
+    // Navigate to dashboard with project creation
+    navigate('/?createProject=true');
+  }, [navigate]);
+
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-flow-bg">
@@ -199,6 +257,14 @@ export default function ProjectDetailView() {
           />
         </Suspense>
       )}
+
+      <WorkflowCreationDialog
+        isOpen={showWorkflowCreationModal}
+        onClose={closeWorkflowCreationModal}
+        onSelectType={handleWorkflowTypeSelected}
+        onCreateProject={handleOpenProjectModal}
+        preSelectedProject={project}
+      />
     </div>
   );
 }

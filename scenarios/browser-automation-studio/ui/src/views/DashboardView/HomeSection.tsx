@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   Sparkles,
   Plus,
@@ -60,7 +60,53 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     removeFavorite,
     isFavorite,
     fetchRunningExecutions,
+    clearLastEdited,
   } = useDashboardStore();
+
+  // Track validated last edited workflow (null if validation pending or failed)
+  const [validatedLastEdited, setValidatedLastEdited] = useState<typeof lastEditedWorkflow>(null);
+
+  // Validate lastEditedWorkflow exists on mount and when it changes
+  useEffect(() => {
+    if (!lastEditedWorkflow) {
+      setValidatedLastEdited(null);
+      return;
+    }
+
+    // Check if the workflow and project still exist
+    const validateWorkflow = async () => {
+      try {
+        const { getConfig } = await import('@/config');
+        const config = await getConfig();
+
+        // Check if project exists
+        const projectResponse = await fetch(`${config.API_URL}/projects/${lastEditedWorkflow.projectId}`);
+        if (!projectResponse.ok) {
+          // Project doesn't exist, clear last edited
+          clearLastEdited();
+          setValidatedLastEdited(null);
+          return;
+        }
+
+        // Check if workflow exists
+        const workflowResponse = await fetch(`${config.API_URL}/workflows/${lastEditedWorkflow.id}`);
+        if (!workflowResponse.ok) {
+          // Workflow doesn't exist, clear last edited
+          clearLastEdited();
+          setValidatedLastEdited(null);
+          return;
+        }
+
+        // Both exist, workflow is validated
+        setValidatedLastEdited(lastEditedWorkflow);
+      } catch {
+        // On error, don't show the button (fail safe)
+        setValidatedLastEdited(null);
+      }
+    };
+
+    void validateWorkflow();
+  }, [lastEditedWorkflow, clearLastEdited]);
   const { stopExecution } = useExecutionStore();
   const aiCapability = useAICapability();
 
@@ -113,10 +159,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     const seen = new Set<string>();
     const result: Array<RecentWorkflow & { isLastEdited?: boolean; isStarred?: boolean }> = [];
 
-    // 1. Last edited workflow first (if exists)
-    if (lastEditedWorkflow) {
-      seen.add(lastEditedWorkflow.id);
-      result.push({ ...lastEditedWorkflow, isLastEdited: true, isStarred: isFavorite(lastEditedWorkflow.id) });
+    // 1. Last edited workflow first (if exists and validated)
+    if (validatedLastEdited) {
+      seen.add(validatedLastEdited.id);
+      result.push({ ...validatedLastEdited, isLastEdited: true, isStarred: isFavorite(validatedLastEdited.id) });
     }
 
     // 2. Starred workflows (not already added)
@@ -146,11 +192,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     }
 
     return result.slice(0, 8); // Show up to 8 items
-  }, [lastEditedWorkflow, favoriteWorkflows, recentWorkflows, isFavorite]);
+  }, [validatedLastEdited, favoriteWorkflows, recentWorkflows, isFavorite]);
 
   const heroPrimaryAction = useCallback(() => {
-    if (lastEditedWorkflow) {
-      onNavigateToWorkflow(lastEditedWorkflow.projectId, lastEditedWorkflow.id);
+    if (validatedLastEdited) {
+      onNavigateToWorkflow(validatedLastEdited.projectId, validatedLastEdited.id);
       return;
     }
     if (aiCapability.available) {
@@ -158,9 +204,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       return;
     }
     onCreateManual();
-  }, [aiCapability.available, lastEditedWorkflow, onAIGenerate, onCreateManual, onNavigateToWorkflow]);
+  }, [aiCapability.available, validatedLastEdited, onAIGenerate, onCreateManual, onNavigateToWorkflow]);
 
-  const heroPrimaryLabel = lastEditedWorkflow
+  const heroPrimaryLabel = validatedLastEdited
     ? 'Resume last workflow'
     : aiCapability.available
       ? 'Generate with AI'
@@ -444,16 +490,16 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <div className="space-y-2">
                 <div className="text-xs uppercase tracking-[0.08em] text-flow-text-muted">Welcome back</div>
                 <div className="text-2xl sm:text-3xl font-bold hero-gradient-text leading-tight">
-                  {lastEditedWorkflow ? 'Pick up where you left off' : 'Launch your next automation'}
+                  {validatedLastEdited ? 'Pick up where you left off' : 'Launch your next automation'}
                 </div>
               <div className="text-sm text-flow-text-secondary max-w-2xl">
                 Keep momentum with your latest workflow, jump into recording, or start a new build with AI.
               </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-flow-text-muted">
-                  {lastEditedWorkflow && (
+                  {validatedLastEdited && (
                     <div className="inline-flex items-center gap-1.5 text-flow-text-secondary">
                       <Sparkles size={12} className="text-flow-text-secondary" />
-                      <span className="text-flow-text">{lastEditedWorkflow.name}</span>
+                      <span className="text-flow-text">{validatedLastEdited.name}</span>
                       <span className="text-flow-text-muted">· last edited</span>
                     </div>
                   )}

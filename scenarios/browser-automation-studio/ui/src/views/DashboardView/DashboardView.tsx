@@ -35,6 +35,7 @@ const SchedulesTab = lazy(() =>
 interface DashboardProps {
   onProjectSelect: (project: Project) => void;
   onCreateProject: () => void;
+  onCreateWorkflow?: () => void;
   onCreateFirstWorkflow?: () => void;
   onStartRecording?: () => void;
   onOpenSettings?: () => void;
@@ -54,6 +55,7 @@ interface DashboardProps {
 function Dashboard({
   onProjectSelect,
   onCreateProject,
+  onCreateWorkflow,
   onCreateFirstWorkflow,
   onStartRecording,
   onOpenSettings,
@@ -236,7 +238,7 @@ function Dashboard({
         return (
           <HomeTab
             onAIGenerate={handleAIGenerate}
-            onCreateManual={onCreateProject}
+            onCreateManual={onCreateWorkflow ?? onCreateProject}
             onNavigateToWorkflow={handleNavigateToWorkflow}
             onRunWorkflow={handleRunWorkflow}
             onViewExecution={handleViewExecution}
@@ -258,7 +260,7 @@ function Dashboard({
             <ExecutionsTab
               onViewExecution={handleViewExecution}
               onNavigateToHome={() => setActiveTab('home')}
-              onCreateWorkflow={onCreateProject}
+              onCreateWorkflow={onCreateWorkflow ?? onCreateProject}
             />
           </Suspense>
         );
@@ -276,7 +278,7 @@ function Dashboard({
               onNavigateToWorkflow={handleNavigateToWorkflow}
               onNavigateToExecutions={() => setActiveTab('executions')}
               onNavigateToHome={() => setActiveTab('home')}
-              onCreateWorkflow={onCreateProject}
+              onCreateWorkflow={onCreateWorkflow ?? onCreateProject}
               onOpenSettings={handleOpenSettings}
             />
           </Suspense>
@@ -293,6 +295,7 @@ function Dashboard({
             <ProjectsTab
               onProjectSelect={onProjectSelect}
               onCreateProject={onCreateProject}
+              onCreateWorkflow={onCreateWorkflow ?? onCreateProject}
               onNavigateToWorkflow={handleNavigateToWorkflow}
               onRunWorkflow={handleRunWorkflow}
             />

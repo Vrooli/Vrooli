@@ -173,7 +173,6 @@ const healthEndpointPlugin = (): Plugin => ({
 
 const ALIASES = {
   '@': path.resolve(__dirname, './src'),
-  '@features': path.resolve(__dirname, './src/features'),
   '@shared': path.resolve(__dirname, './src/shared'),
   '@routing': path.resolve(__dirname, './src/routing'),
   '@hooks': path.resolve(__dirname, './src/hooks'),
@@ -261,12 +260,12 @@ export default defineConfig({
           ...PROJECT_BASE_TEST_CONFIG,
           name: 'features-core',
           include: [
-            'src/features/projects/ProjectModal.test.tsx',
-            'src/features/projects/ProjectDetail.test.tsx',
+            'src/domains/projects/ProjectModal.test.tsx',
+            'src/domains/projects/ProjectDetail.test.tsx',
             'src/shared/layout/ResponsiveDialog.test.tsx',
-            'src/shared/components/VariableSuggestionList.test.tsx',
-            'src/features/execution/ExecutionViewer.test.tsx',
-            'src/features/workflows/builder/WorkflowToolbar.test.tsx',
+            'src/domains/workflows/components/VariableSuggestionList.test.tsx',
+            'src/domains/executions/viewer/ExecutionViewer.test.tsx',
+            'src/domains/workflows/builder/WorkflowToolbar.test.tsx',
           ],
           pool: 'threads',
           poolOptions: THREADS_TWO,
@@ -277,7 +276,7 @@ export default defineConfig({
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
           name: 'workflow-palette',
-          include: ['src/features/workflows/builder/NodePalette.test.tsx'],
+          include: ['src/domains/workflows/builder/NodePalette.test.tsx'],
           pool: 'forks',
           poolOptions: FORKS_ONE,
           reuseWorkers: false,
@@ -288,7 +287,7 @@ export default defineConfig({
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
           name: 'workflow-builder',
-          include: ['src/features/workflows/builder/WorkflowBuilder.test.tsx'],
+          include: ['src/domains/workflows/builder/WorkflowBuilder.test.tsx'],
           pool: 'forks',
           poolOptions: FORKS_ONE,
           reuseWorkers: false,
@@ -309,7 +308,7 @@ export default defineConfig({
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
           name: 'record-mode',
-          include: ['src/features/record-mode/**/*.test.{ts,tsx}'],
+          include: ['src/domains/recording/**/*.test.{ts,tsx}'],
           pool: 'threads',
           poolOptions: THREADS_TWO,
         },
