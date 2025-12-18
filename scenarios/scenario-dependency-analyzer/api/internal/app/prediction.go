@@ -1,14 +1,19 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
+
+	"scenario-dependency-analyzer/internal/integrations/ollama"
+	"scenario-dependency-analyzer/internal/integrations/qdrant"
 )
 
 // normalizeName lowercases and trims whitespace for consistent name comparisons.
@@ -57,16 +62,68 @@ Format your response as structured analysis focusing on technical implementation
 
 // Integrate with Qdrant for semantic similarity matching
 func findSimilarScenariosQdrant(description string, existingScenarios []string) ([]map[string]interface{}, error) {
+	if strings.TrimSpace(os.Getenv("USE_RESOURCE_QDRANT_CLI")) == "true" {
+		return findSimilarScenariosQdrantViaCLI(description, existingScenarios)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	ollamaClient := ollama.NewEmbedderFromEnv(nil)
+	qdrantClient := qdrant.NewClientFromEnv(nil)
+
+	collection := strings.TrimSpace(os.Getenv("SCENARIO_EMBEDDINGS_COLLECTION"))
+	if collection == "" {
+		collection = "scenario_embeddings"
+	}
+
+	embedding, err := ollamaClient.Embed(ctx, description)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create embedding: %w", err)
+	}
+
+	if err := qdrantClient.EnsureCollection(ctx, collection, len(embedding)); err != nil {
+		return nil, fmt.Errorf("failed to ensure collection: %w", err)
+	}
+
+	results, err := qdrantClient.Search(ctx, collection, embedding, 5)
+	if err != nil {
+		// Qdrant search failed - return empty matches rather than error
+		// This allows the analysis to continue with other methods
+		return []map[string]interface{}{}, nil
+	}
+
 	var matches []map[string]interface{}
 
-	// Create embedding for the proposed scenario description
+	for _, result := range results {
+		if result.Score <= 0.7 {
+			continue
+		}
+
+		scenarioName, _ := result.Payload["scenario_name"].(string)
+		desc, _ := result.Payload["description"].(string)
+		resources := coerceStringSlice(result.Payload["resources"])
+
+		matches = append(matches, map[string]interface{}{
+			"scenario_name": scenarioName,
+			"similarity":    result.Score,
+			"resources":     resources,
+			"description":   desc,
+		})
+	}
+
+	return matches, nil
+}
+
+func findSimilarScenariosQdrantViaCLI(description string, existingScenarios []string) ([]map[string]interface{}, error) {
+	var matches []map[string]interface{}
+
 	embeddingCmd := exec.Command("resource-qdrant", "embed", description)
 	embeddingOutput, err := embeddingCmd.Output()
 	if err != nil {
 		return matches, fmt.Errorf("failed to create embedding: %w", err)
 	}
 
-	// Search for similar scenarios in the vector database
 	searchCmd := exec.Command("resource-qdrant", "search",
 		"--collection", "scenario_embeddings",
 		"--vector", string(embeddingOutput),
@@ -75,20 +132,16 @@ func findSimilarScenariosQdrant(description string, existingScenarios []string) 
 
 	searchOutput, err := searchCmd.Output()
 	if err != nil {
-		// Qdrant search failed - return empty matches rather than error
-		// This allows the analysis to continue with other methods
 		return matches, nil
 	}
 
-	// Parse Qdrant search results
 	var searchResults QdrantSearchResults
 	if err := json.Unmarshal(searchOutput, &searchResults); err != nil {
 		return matches, fmt.Errorf("failed to parse qdrant results: %w", err)
 	}
 
-	// Convert to our format
 	for _, result := range searchResults.Matches {
-		if result.Score > 0.7 { // Only include high-confidence matches
+		if result.Score > 0.7 {
 			matches = append(matches, map[string]interface{}{
 				"scenario_name": result.ScenarioName,
 				"similarity":    result.Score,
@@ -99,6 +152,23 @@ func findSimilarScenariosQdrant(description string, existingScenarios []string) 
 	}
 
 	return matches, nil
+}
+
+func coerceStringSlice(v interface{}) []string {
+	switch typed := v.(type) {
+	case []string:
+		return typed
+	case []interface{}:
+		out := make([]string, 0, len(typed))
+		for _, raw := range typed {
+			if s, ok := raw.(string); ok && strings.TrimSpace(s) != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
 }
 
 // Helper functions for analysis

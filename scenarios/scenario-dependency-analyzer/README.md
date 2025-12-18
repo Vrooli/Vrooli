@@ -17,6 +17,7 @@ This scenario provides Vrooli with **architectural self-awareness** by:
 ### Prerequisites
 - PostgreSQL resource running and accessible
 - Claude Code resource available (`resource-claude-code`)
+- Ollama resource available (`resource-ollama`)
 - Qdrant resource available (`resource-qdrant`)
 
 ### Setup

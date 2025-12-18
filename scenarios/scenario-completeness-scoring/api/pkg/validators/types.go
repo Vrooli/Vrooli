@@ -230,6 +230,60 @@ func DefaultPenaltyParameters() map[string]PenaltyParameters {
 	}
 }
 
+// PenaltyEnabledConfig controls which penalties are enabled/disabled.
+// This mirrors config.PenaltyConfig but is defined here to avoid import cycles.
+// The field names map to penalty types in DefaultPenaltyParameters().
+type PenaltyEnabledConfig struct {
+	Enabled                       bool `json:"enabled"`
+	InsufficientTestCoverage      bool `json:"insufficient_test_coverage"`
+	InvalidTestLocation           bool `json:"invalid_test_location"`
+	MonolithicTestFiles           bool `json:"monolithic_test_files"`
+	SingleLayerValidation         bool `json:"single_layer_validation"`          // Maps to "insufficient_validation_layers"
+	TargetMappingRatio            bool `json:"target_mapping_ratio"`             // Maps to "ungrouped_operational_targets"
+	SuperficialTestImplementation bool `json:"superficial_test_implementation"`
+	ManualValidations             bool `json:"manual_validations"`               // Maps to "missing_test_automation"
+}
+
+// DefaultPenaltyEnabledConfig returns config with all penalties enabled
+func DefaultPenaltyEnabledConfig() PenaltyEnabledConfig {
+	return PenaltyEnabledConfig{
+		Enabled:                       true,
+		InsufficientTestCoverage:      true,
+		InvalidTestLocation:           true,
+		MonolithicTestFiles:           true,
+		SingleLayerValidation:         true,
+		TargetMappingRatio:            true,
+		SuperficialTestImplementation: true,
+		ManualValidations:             true,
+	}
+}
+
+// IsPenaltyEnabled checks if a specific penalty type is enabled.
+// Maps penalty type names to config fields.
+func (c PenaltyEnabledConfig) IsPenaltyEnabled(penaltyType string) bool {
+	if !c.Enabled {
+		return false
+	}
+	switch penaltyType {
+	case "insufficient_test_coverage":
+		return c.InsufficientTestCoverage
+	case "invalid_test_location":
+		return c.InvalidTestLocation
+	case "monolithic_test_files":
+		return c.MonolithicTestFiles
+	case "insufficient_validation_layers":
+		return c.SingleLayerValidation
+	case "ungrouped_operational_targets":
+		return c.TargetMappingRatio
+	case "superficial_test_implementation":
+		return c.SuperficialTestImplementation
+	case "missing_test_automation":
+		return c.ManualValidations
+	default:
+		return true // Unknown penalties are enabled by default
+	}
+}
+
 // DefaultValidationConfig returns the default validation configuration
 func DefaultValidationConfig() ValidationConfig {
 	cfg := ValidationConfig{}

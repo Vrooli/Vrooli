@@ -17,12 +17,25 @@ type ValidationInputCounts struct {
 }
 
 // AnalyzeValidationQuality performs comprehensive validation quality analysis
-// This is the main entry point that detects all 7 anti-patterns
+// This is the main entry point that detects all 7 anti-patterns.
+// Uses default penalty config (all penalties enabled).
 func AnalyzeValidationQuality(
 	metrics ValidationInputCounts,
 	requirements []Requirement,
 	targets []OperationalTarget,
 	scenarioRoot string,
+) ValidationQualityAnalysis {
+	return AnalyzeValidationQualityWithConfig(metrics, requirements, targets, scenarioRoot, DefaultPenaltyEnabledConfig())
+}
+
+// AnalyzeValidationQualityWithConfig performs comprehensive validation quality analysis
+// with configurable penalty enablement. Penalties disabled in penaltyEnabled will be skipped.
+func AnalyzeValidationQualityWithConfig(
+	metrics ValidationInputCounts,
+	requirements []Requirement,
+	targets []OperationalTarget,
+	scenarioRoot string,
+	penaltyEnabled PenaltyEnabledConfig,
 ) ValidationQualityAnalysis {
 	var issues []ValidationIssue
 	patterns := make(map[string]interface{})
@@ -33,59 +46,73 @@ func AnalyzeValidationQuality(
 	components := DetectScenarioComponents(scenarioRoot)
 
 	// Issue 1: Insufficient test coverage (suspicious 1:1 ratio)
-	issue1, penalty1 := analyzeInsufficientTestCoverage(metrics, requirements, penaltyParams, validationConfig)
-	if issue1 != nil {
-		issues = append(issues, *issue1)
-		patterns["insufficient_test_coverage"] = issue1
-		totalPenalty += penalty1
+	if penaltyEnabled.IsPenaltyEnabled("insufficient_test_coverage") {
+		issue1, penalty1 := analyzeInsufficientTestCoverage(metrics, requirements, penaltyParams, validationConfig)
+		if issue1 != nil {
+			issues = append(issues, *issue1)
+			patterns["insufficient_test_coverage"] = issue1
+			totalPenalty += penalty1
+		}
 	}
 
 	// Issue 2: Invalid test location
-	issue2, penalty2 := analyzeInvalidTestLocations(requirements, metrics, scenarioRoot, components, penaltyParams)
-	if issue2 != nil {
-		issues = append(issues, *issue2)
-		patterns["invalid_test_location"] = issue2
-		totalPenalty += penalty2
+	if penaltyEnabled.IsPenaltyEnabled("invalid_test_location") {
+		issue2, penalty2 := analyzeInvalidTestLocations(requirements, metrics, scenarioRoot, components, penaltyParams)
+		if issue2 != nil {
+			issues = append(issues, *issue2)
+			patterns["invalid_test_location"] = issue2
+			totalPenalty += penalty2
+		}
 	}
 
 	// Issue 3: Monolithic test files
-	issue3, penalty3 := analyzeMonolithicTestFiles(requirements, penaltyParams)
-	if issue3 != nil {
-		issues = append(issues, *issue3)
-		patterns["monolithic_test_files"] = issue3
-		totalPenalty += penalty3
+	if penaltyEnabled.IsPenaltyEnabled("monolithic_test_files") {
+		issue3, penalty3 := analyzeMonolithicTestFiles(requirements, penaltyParams)
+		if issue3 != nil {
+			issues = append(issues, *issue3)
+			patterns["monolithic_test_files"] = issue3
+			totalPenalty += penalty3
+		}
 	}
 
 	// Issue 4: Ungrouped operational targets
-	issue4, penalty4 := analyzeUngroupedTargets(targets, requirements, penaltyParams, validationConfig)
-	if issue4 != nil {
-		issues = append(issues, *issue4)
-		patterns["ungrouped_operational_targets"] = issue4
-		totalPenalty += penalty4
+	if penaltyEnabled.IsPenaltyEnabled("ungrouped_operational_targets") {
+		issue4, penalty4 := analyzeUngroupedTargets(targets, requirements, penaltyParams, validationConfig)
+		if issue4 != nil {
+			issues = append(issues, *issue4)
+			patterns["ungrouped_operational_targets"] = issue4
+			totalPenalty += penalty4
+		}
 	}
 
 	// Issue 5: Insufficient validation layers
-	issue5, penalty5 := analyzeInsufficientLayers(requirements, scenarioRoot, components, penaltyParams, validationConfig)
-	if issue5 != nil {
-		issues = append(issues, *issue5)
-		patterns["insufficient_validation_layers"] = issue5
-		totalPenalty += penalty5
+	if penaltyEnabled.IsPenaltyEnabled("insufficient_validation_layers") {
+		issue5, penalty5 := analyzeInsufficientLayers(requirements, scenarioRoot, components, penaltyParams, validationConfig)
+		if issue5 != nil {
+			issues = append(issues, *issue5)
+			patterns["insufficient_validation_layers"] = issue5
+			totalPenalty += penalty5
+		}
 	}
 
 	// Issue 6: Superficial test implementation
-	issue6, penalty6 := analyzeSuperficialTests(requirements, scenarioRoot, penaltyParams)
-	if issue6 != nil {
-		issues = append(issues, *issue6)
-		patterns["superficial_test_implementation"] = issue6
-		totalPenalty += penalty6
+	if penaltyEnabled.IsPenaltyEnabled("superficial_test_implementation") {
+		issue6, penalty6 := analyzeSuperficialTests(requirements, scenarioRoot, penaltyParams)
+		if issue6 != nil {
+			issues = append(issues, *issue6)
+			patterns["superficial_test_implementation"] = issue6
+			totalPenalty += penalty6
+		}
 	}
 
 	// Issue 7: Missing test automation
-	issue7, penalty7 := analyzeMissingAutomation(requirements, penaltyParams, validationConfig)
-	if issue7 != nil {
-		issues = append(issues, *issue7)
-		patterns["missing_test_automation"] = issue7
-		totalPenalty += penalty7
+	if penaltyEnabled.IsPenaltyEnabled("missing_test_automation") {
+		issue7, penalty7 := analyzeMissingAutomation(requirements, penaltyParams, validationConfig)
+		if issue7 != nil {
+			issues = append(issues, *issue7)
+			patterns["missing_test_automation"] = issue7
+			totalPenalty += penalty7
+		}
 	}
 
 	// Determine overall severity

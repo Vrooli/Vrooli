@@ -43,7 +43,12 @@ INSERT INTO scenario_dependencies (
      'AI-powered analysis of scenario code, configurations, and proposed scenario descriptions',
      'resource-claude-code',
      '{"commands": ["analyze", "review"]}'::jsonb),
-    
+
+    ('scenario-dependency-analyzer', 'resource', 'ollama', true,
+     'Generate embeddings for semantic similarity matching against Qdrant',
+     'resource-ollama',
+     '{"endpoints": ["${OLLAMA_URL}/api/embeddings"]}'::jsonb),
+
     ('scenario-dependency-analyzer', 'resource', 'qdrant', true,
      'Semantic similarity matching for proposed scenarios and dependency pattern recognition',
      'resource-qdrant',

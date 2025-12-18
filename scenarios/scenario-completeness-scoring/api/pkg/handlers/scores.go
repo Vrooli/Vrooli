@@ -204,12 +204,13 @@ func (ctx *Context) HandleGetScore(w http.ResponseWriter, r *http.Request) {
 		log.Printf("config_load_warning | scenario=%s error=%v | using defaults", scenarioName, err)
 	}
 	scoringOpts := configToScoringOptions(cfg) // configToScoringOptions handles nil safely
+	penaltyEnabled := configToPenaltyEnabled(cfg) // configToPenaltyEnabled handles nil safely
 
 	// Perform validation quality analysis
 	scenarioRoot := ctx.Collector.GetScenarioRoot(scenarioName)
 	requirements := ctx.Collector.LoadRequirements(scenarioName)
 
-	validationAnalysis := validators.AnalyzeValidationQuality(
+	validationAnalysis := validators.AnalyzeValidationQualityWithConfig(
 		validators.ValidationInputCounts{
 			RequirementsTotal: metrics.Requirements.Total,
 			TestsTotal:        metrics.Tests.Total,
@@ -217,6 +218,7 @@ func (ctx *Context) HandleGetScore(w http.ResponseWriter, r *http.Request) {
 		requirements, // No conversion needed - both use domain.Requirement
 		nil,          // No operational targets yet
 		scenarioRoot,
+		penaltyEnabled,
 	)
 
 	// Pass penalty directly - the full analysis is included in response for details
@@ -323,12 +325,13 @@ func (ctx *Context) HandleCalculateScore(w http.ResponseWriter, r *http.Request)
 		log.Printf("config_load_warning | scenario=%s error=%v | using defaults", scenarioName, cfgErr)
 	}
 	scoringOpts := configToScoringOptions(cfg) // configToScoringOptions handles nil safely
+	penaltyEnabled := configToPenaltyEnabled(cfg) // configToPenaltyEnabled handles nil safely
 
 	// Perform validation quality analysis (same as HandleGetScore)
 	scenarioRoot := ctx.Collector.GetScenarioRoot(scenarioName)
 	requirements := ctx.Collector.LoadRequirements(scenarioName)
 
-	validationAnalysis := validators.AnalyzeValidationQuality(
+	validationAnalysis := validators.AnalyzeValidationQualityWithConfig(
 		validators.ValidationInputCounts{
 			RequirementsTotal: metrics.Requirements.Total,
 			TestsTotal:        metrics.Tests.Total,
@@ -336,6 +339,7 @@ func (ctx *Context) HandleCalculateScore(w http.ResponseWriter, r *http.Request)
 		requirements,
 		nil, // No operational targets yet
 		scenarioRoot,
+		penaltyEnabled,
 	)
 
 	thresholds := scoring.GetThresholds(metrics.Category)
@@ -425,11 +429,18 @@ func (ctx *Context) HandleValidationAnalysis(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Load config for penalty settings
+	cfg, cfgErr := ctx.ConfigLoader.LoadGlobal()
+	if cfgErr != nil {
+		log.Printf("config_load_warning | scenario=%s error=%v | using defaults", scenarioName, cfgErr)
+	}
+	penaltyEnabled := configToPenaltyEnabled(cfg)
+
 	// Perform validation quality analysis
 	scenarioRoot := ctx.Collector.GetScenarioRoot(scenarioName)
 	requirements := ctx.Collector.LoadRequirements(scenarioName)
 
-	analysis := validators.AnalyzeValidationQuality(
+	analysis := validators.AnalyzeValidationQualityWithConfig(
 		validators.ValidationInputCounts{
 			RequirementsTotal: metrics.Requirements.Total,
 			TestsTotal:        metrics.Tests.Total,
@@ -437,6 +448,7 @@ func (ctx *Context) HandleValidationAnalysis(w http.ResponseWriter, r *http.Requ
 		requirements, // No conversion needed - both use domain.Requirement
 		nil,          // No operational targets yet
 		scenarioRoot,
+		penaltyEnabled,
 	)
 
 	response := map[string]interface{}{
@@ -469,6 +481,25 @@ func configToScoringOptions(cfg *config.ScoringConfig) *scoring.ScoringOptions {
 		CoverageWeight:  normalizedWeights.Coverage,
 		QuantityWeight:  normalizedWeights.Quantity,
 		UIWeight:        normalizedWeights.UI,
+	}
+}
+
+// configToPenaltyEnabled converts config.PenaltyConfig to validators.PenaltyEnabledConfig
+// This allows the validation analyzer to skip penalties that are disabled in config.
+func configToPenaltyEnabled(cfg *config.ScoringConfig) validators.PenaltyEnabledConfig {
+	if cfg == nil {
+		return validators.DefaultPenaltyEnabledConfig()
+	}
+
+	return validators.PenaltyEnabledConfig{
+		Enabled:                       cfg.Penalties.Enabled,
+		InsufficientTestCoverage:      cfg.Penalties.InsufficientTestCoverage,
+		InvalidTestLocation:           cfg.Penalties.InvalidTestLocation,
+		MonolithicTestFiles:           cfg.Penalties.MonolithicTestFiles,
+		SingleLayerValidation:         cfg.Penalties.SingleLayerValidation,
+		TargetMappingRatio:            cfg.Penalties.TargetMappingRatio,
+		SuperficialTestImplementation: cfg.Penalties.SuperficialTestImplementation,
+		ManualValidations:             cfg.Penalties.ManualValidations,
 	}
 }
 

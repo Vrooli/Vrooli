@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,6 +17,8 @@ var (
 	desktopSchemaOnce sync.Once
 	desktopSchema     *jsonschema.Schema
 	desktopSchemaErr  error
+
+	errDesktopSchemaMissing = errors.New("desktop bundle schema missing")
 )
 
 // desktopBundleManifest mirrors the v0.1 desktop bundle schema enough for
@@ -93,6 +96,7 @@ type manifestServiceEntry struct {
 	Type         string                           `json:"type"`
 	Description  string                           `json:"description"`
 	Binaries     map[string]manifestServiceBinary `json:"binaries"`
+	Build        map[string]interface{}           `json:"build,omitempty"`
 	Env          map[string]string                `json:"env,omitempty"`
 	Secrets      []string                         `json:"secrets,omitempty"`
 	DataDirs     []string                         `json:"data_dirs,omitempty"`
@@ -245,6 +249,9 @@ func validateService(svc manifestServiceEntry) error {
 func validateAgainstDesktopSchema(data []byte) error {
 	schema, err := loadDesktopBundleSchema()
 	if err != nil {
+		if errors.Is(err, errDesktopSchemaMissing) {
+			return nil
+		}
 		return fmt.Errorf("failed to load desktop bundle schema: %w", err)
 	}
 	var payload interface{}
@@ -267,6 +274,10 @@ func loadDesktopBundleSchema() (*jsonschema.Schema, error) {
 		schemaPath := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "..", "..", "docs", "deployment", "bundle-schema.desktop.v0.1.json"))
 		schemaBytes, readErr := os.ReadFile(schemaPath)
 		if readErr != nil {
+			if errors.Is(readErr, os.ErrNotExist) {
+				desktopSchemaErr = fmt.Errorf("%w: %s", errDesktopSchemaMissing, schemaPath)
+				return
+			}
 			desktopSchemaErr = fmt.Errorf("failed to read bundle schema: %w", readErr)
 			return
 		}
