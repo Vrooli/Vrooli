@@ -5,6 +5,7 @@ import { SandboxList } from "./components/SandboxList";
 import { SandboxDetail } from "./components/SandboxDetail";
 import { CreateSandboxDialog } from "./components/CreateSandboxDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { LaunchAgentDialog, type LaunchConfig } from "./components/LaunchAgentDialog";
 import {
   useHealth,
   useSandboxes,
@@ -16,6 +17,8 @@ import {
   useApproveSandbox,
   useRejectSandbox,
   useDiscardFiles,
+  useExecCommand,
+  useStartProcess,
   queryKeys,
 } from "./lib/hooks";
 import { computeStats, type Sandbox, type CreateRequest } from "./lib/api";
@@ -28,6 +31,7 @@ export default function App() {
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
 
   // Queries
   const healthQuery = useHealth();
@@ -42,6 +46,8 @@ export default function App() {
   const approveMutation = useApproveSandbox();
   const rejectMutation = useRejectSandbox();
   const discardMutation = useDiscardFiles();
+  const execMutation = useExecCommand();
+  const startProcessMutation = useStartProcess();
 
   // Computed stats
   const stats = useMemo(() => {
@@ -140,6 +146,58 @@ export default function App() {
     [selectedSandbox, discardMutation]
   );
 
+  const handleLaunch = useCallback(
+    (config: LaunchConfig) => {
+      if (!selectedSandbox) return;
+
+      const request = {
+        command: config.command,
+        args: config.args.length > 0 ? config.args : undefined,
+        isolationLevel: config.isolationLevel,
+        memoryLimitMB: config.memoryLimitMB,
+        cpuTimeSec: config.cpuTimeSec,
+        maxProcesses: config.maxProcesses,
+        maxOpenFiles: config.maxOpenFiles,
+        allowNetwork: config.allowNetwork,
+        env: Object.keys(config.env).length > 0 ? config.env : undefined,
+        workingDir: config.workingDir !== "/workspace" ? config.workingDir : undefined,
+      };
+
+      if (config.mode === "run") {
+        startProcessMutation.mutate(
+          {
+            sandboxId: selectedSandbox.id,
+            request: {
+              ...request,
+              name: config.name,
+            },
+          },
+          {
+            onSuccess: () => {
+              setLaunchDialogOpen(false);
+            },
+          }
+        );
+      } else {
+        execMutation.mutate(
+          {
+            sandboxId: selectedSandbox.id,
+            request: {
+              ...request,
+              timeoutSec: config.timeoutSec,
+            },
+          },
+          {
+            onSuccess: () => {
+              setLaunchDialogOpen(false);
+            },
+          }
+        );
+      }
+    },
+    [selectedSandbox, execMutation, startProcessMutation]
+  );
+
   // Keep selected sandbox in sync with list updates
   const sandboxes = sandboxesQuery.data?.sandboxes || [];
 
@@ -198,6 +256,7 @@ export default function App() {
             onReject={handleReject}
             onDelete={handleDelete}
             onDiscardFile={handleDiscardFile}
+            onLaunchAgent={() => setLaunchDialogOpen(true)}
             isApproving={approveMutation.isPending}
             isRejecting={rejectMutation.isPending}
             isStopping={stopMutation.isPending}
@@ -225,6 +284,17 @@ export default function App() {
         onOpenChange={setSettingsDialogOpen}
       />
 
+      {/* Launch Agent Dialog */}
+      {currentSandbox && (
+        <LaunchAgentDialog
+          open={launchDialogOpen}
+          onOpenChange={setLaunchDialogOpen}
+          sandbox={currentSandbox}
+          onLaunch={handleLaunch}
+          isLaunching={execMutation.isPending || startProcessMutation.isPending}
+        />
+      )}
+
       {/* Error Toast */}
       {(createMutation.error ||
         deleteMutation.error ||
@@ -232,7 +302,9 @@ export default function App() {
         startMutation.error ||
         approveMutation.error ||
         rejectMutation.error ||
-        discardMutation.error) && (
+        discardMutation.error ||
+        execMutation.error ||
+        startProcessMutation.error) && (
         <div
           className="fixed bottom-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm max-w-md z-50"
           data-testid={SELECTORS.errorToast}
@@ -246,7 +318,9 @@ export default function App() {
               startMutation.error ||
               approveMutation.error ||
               rejectMutation.error ||
-              discardMutation.error
+              discardMutation.error ||
+              execMutation.error ||
+              startProcessMutation.error
             )?.message}
           </p>
         </div>

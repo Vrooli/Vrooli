@@ -41,6 +41,7 @@ type Handlers struct {
 	Config          config.Config           // Unified configuration for accessing levers
 	StatsGetter     StatsGetter             // For retrieving sandbox statistics
 	ProcessTracker  *process.Tracker        // For tracking sandbox processes (OT-P0-008)
+	ProcessLogger   *process.Logger         // For capturing process logs (Phase 2)
 	GCService       GCService               // For garbage collection operations (OT-P1-003)
 	InUserNamespace bool                    // Whether API is running in a user namespace
 }
@@ -207,6 +208,14 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/sandboxes/{id}/processes", h.ListProcesses).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/processes/{pid}", h.KillProcess).Methods("DELETE")
 	api.HandleFunc("/sandboxes/{id}/processes/kill-all", h.KillAllProcesses).Methods("POST")
+
+	// --- Process Logs (Phase 2) ---
+	api.HandleFunc("/sandboxes/{id}/processes/{pid}/logs", h.GetProcessLogs).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/processes/{pid}/logs/stream", h.StreamProcessLogs).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/logs", h.ListProcessLogs).Methods("GET")
+
+	// --- Interactive Sessions (Phase 6) ---
+	api.HandleFunc("/sandboxes/{id}/exec-interactive", h.ExecInteractive).Methods("GET")
 
 	// --- Admin: Driver and System Info ---
 	api.HandleFunc("/driver/info", h.DriverInfo).Methods("GET")

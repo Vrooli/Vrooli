@@ -15,6 +15,7 @@ import {
   Copy,
   Check,
   Trash2,
+  Terminal,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -35,6 +36,7 @@ interface SandboxDetailProps {
   onReject: () => void;
   onDelete: () => void;
   onDiscardFile?: (fileId: string) => void;
+  onLaunchAgent?: () => void;
   isApproving: boolean;
   isRejecting: boolean;
   isStopping: boolean;
@@ -137,6 +139,7 @@ export function SandboxDetail({
   onReject,
   onDelete,
   onDiscardFile,
+  onLaunchAgent,
   isApproving,
   isRejecting,
   isStopping,
@@ -298,6 +301,18 @@ export function SandboxDetail({
                     <Play className="h-3.5 w-3.5 mr-1.5" />
                   )}
                   Start
+                </Button>
+              )}
+
+              {sandbox.status === "active" && onLaunchAgent && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onLaunchAgent}
+                  data-testid={SELECTORS.launchAgentButton}
+                >
+                  <Terminal className="h-3.5 w-3.5 mr-1.5" />
+                  Launch Agent
                 </Button>
               )}
 

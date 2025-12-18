@@ -533,6 +533,12 @@ func (d *FuseOverlayfsDriver) startProcessWithBwrap(ctx context.Context, s *type
 		Setpgid: true,
 	}
 
+	// Redirect output to log writer if provided
+	if cfg.LogWriter != nil {
+		execCmd.Stdout = cfg.LogWriter
+		execCmd.Stderr = cfg.LogWriter
+	}
+
 	// Start the process
 	if err := execCmd.Start(); err != nil {
 		return 0, fmt.Errorf("failed to start process: %w", err)
@@ -556,6 +562,12 @@ func (d *FuseOverlayfsDriver) startProcessDirect(ctx context.Context, s *types.S
 	// Set up process group for cleanup
 	execCmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
+	}
+
+	// Redirect output to log writer if provided
+	if cfg.LogWriter != nil {
+		execCmd.Stdout = cfg.LogWriter
+		execCmd.Stderr = cfg.LogWriter
 	}
 
 	if err := execCmd.Start(); err != nil {

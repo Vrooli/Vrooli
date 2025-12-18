@@ -403,6 +403,9 @@ func (d *CopyDriver) Exec(ctx context.Context, s *types.Sandbox, cfg BwrapConfig
 //
 // Unlike OverlayfsDriver, this doesn't use bubblewrap for isolation.
 // The process runs directly in the workspace directory.
+//
+// If cfg.LogWriter is provided, stdout and stderr are redirected to it.
+// The caller is responsible for closing the LogWriter when the process exits.
 func (d *CopyDriver) StartProcess(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (int, error) {
 	if s.MergedDir == "" {
 		return 0, fmt.Errorf("sandbox workspace directory not set")
@@ -418,6 +421,12 @@ func (d *CopyDriver) StartProcess(ctx context.Context, s *types.Sandbox, cfg Bwr
 		env = append(env, k+"="+v)
 	}
 	execCmd.Env = env
+
+	// Redirect output to log writer if provided
+	if cfg.LogWriter != nil {
+		execCmd.Stdout = cfg.LogWriter
+		execCmd.Stderr = cfg.LogWriter
+	}
 
 	if err := execCmd.Start(); err != nil {
 		return 0, fmt.Errorf("failed to start process: %w", err)

@@ -132,6 +132,9 @@ func NewServer() (*Server, error) {
 		KillWait:    cfg.Lifecycle.ProcessKillWait,
 	})
 
+	// Initialize process logger (Phase 2)
+	processLogger := process.NewLogger(process.DefaultLogConfig(cfg.Driver.BaseDir))
+
 	// Initialize GC service (OT-P1-003)
 	gcCfg := gc.Config{
 		DefaultMaxAge:        cfg.Lifecycle.DefaultTTL,
@@ -153,6 +156,7 @@ func NewServer() (*Server, error) {
 		Config:          cfg,
 		StatsGetter:     repo, // Repository implements StatsGetter
 		ProcessTracker:  processTracker,
+		ProcessLogger:   processLogger,
 		GCService:       gcService,
 		InUserNamespace: inUserNS,
 	}

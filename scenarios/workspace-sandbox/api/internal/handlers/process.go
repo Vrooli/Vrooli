@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -22,6 +24,18 @@ type ExecRequest struct {
 	Env          map[string]string `json:"env,omitempty"`
 	WorkingDir   string            `json:"workingDir,omitempty"`
 	SessionID    string            `json:"sessionId,omitempty"`
+
+	// IsolationLevel controls filesystem access.
+	// "full" (default): maximum isolation, only /workspace accessible.
+	// "vrooli-aware": can access Vrooli CLIs, configs, and localhost APIs.
+	IsolationLevel string `json:"isolationLevel,omitempty"`
+
+	// Resource limits (0 = unlimited)
+	MemoryLimitMB int `json:"memoryLimitMB,omitempty"` // Max address space in MB
+	CPUTimeSec    int `json:"cpuTimeSec,omitempty"`    // Max CPU time in seconds
+	TimeoutSec    int `json:"timeoutSec,omitempty"`    // Wall-clock timeout in seconds
+	MaxProcesses  int `json:"maxProcesses,omitempty"`  // Max child processes
+	MaxOpenFiles  int `json:"maxOpenFiles,omitempty"`  // Max open file descriptors
 }
 
 // ExecResponse represents the result of executing a command.
@@ -30,6 +44,7 @@ type ExecResponse struct {
 	Stdout   string `json:"stdout"`
 	Stderr   string `json:"stderr"`
 	PID      int    `json:"pid,omitempty"`
+	TimedOut bool   `json:"timedOut,omitempty"` // True if process was killed due to timeout
 }
 
 // Exec handles executing a command inside a sandbox with bubblewrap isolation.
@@ -64,14 +79,29 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build bwrap config
+	// Build bwrap config with resource limits and isolation level
 	cfg := driver.DefaultBwrapConfig()
-	cfg.AllowNetwork = req.AllowNetwork
 	if req.WorkingDir != "" {
 		cfg.WorkingDir = req.WorkingDir
 	}
 	for k, v := range req.Env {
 		cfg.Env[k] = v
+	}
+
+	// Set isolation level and related config
+	if req.IsolationLevel == "vrooli-aware" {
+		driver.ApplyVrooliAwareConfig(&cfg)
+	} else if req.AllowNetwork {
+		cfg.AllowNetwork = true
+	}
+
+	// Set resource limits
+	cfg.ResourceLimits = driver.ResourceLimits{
+		MemoryLimitMB: req.MemoryLimitMB,
+		CPUTimeSec:    req.CPUTimeSec,
+		MaxProcesses:  req.MaxProcesses,
+		MaxOpenFiles:  req.MaxOpenFiles,
+		TimeoutSec:    req.TimeoutSec,
 	}
 
 	// Execute the command (all drivers implement Exec via the Driver interface)
@@ -86,11 +116,15 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 		h.ProcessTracker.Track(id, result.PID, req.Command, req.SessionID)
 	}
 
+	// Determine if process timed out
+	timedOut := result.ExitCode == 124 && result.Error != nil
+
 	h.JSONSuccess(w, ExecResponse{
 		ExitCode: result.ExitCode,
 		Stdout:   string(result.Stdout),
 		Stderr:   string(result.Stderr),
 		PID:      result.PID,
+		TimedOut: timedOut,
 	})
 }
 
@@ -102,6 +136,19 @@ type StartProcessRequest struct {
 	Env          map[string]string `json:"env,omitempty"`
 	WorkingDir   string            `json:"workingDir,omitempty"`
 	SessionID    string            `json:"sessionId,omitempty"`
+	Name         string            `json:"name,omitempty"` // Optional friendly name for the process
+
+	// IsolationLevel controls filesystem access.
+	// "full" (default): maximum isolation, only /workspace accessible.
+	// "vrooli-aware": can access Vrooli CLIs, configs, and localhost APIs.
+	IsolationLevel string `json:"isolationLevel,omitempty"`
+
+	// Resource limits (0 = unlimited)
+	// Note: TimeoutSec is not enforced for background processes; use manual kill.
+	MemoryLimitMB int `json:"memoryLimitMB,omitempty"` // Max address space in MB
+	CPUTimeSec    int `json:"cpuTimeSec,omitempty"`    // Max CPU time in seconds
+	MaxProcesses  int `json:"maxProcesses,omitempty"`  // Max child processes
+	MaxOpenFiles  int `json:"maxOpenFiles,omitempty"`  // Max open file descriptors
 }
 
 // StartProcess handles starting a background process in a sandbox.
@@ -137,9 +184,8 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build bwrap config
+	// Build bwrap config with resource limits and isolation level
 	cfg := driver.DefaultBwrapConfig()
-	cfg.AllowNetwork = req.AllowNetwork
 	if req.WorkingDir != "" {
 		cfg.WorkingDir = req.WorkingDir
 	}
@@ -147,17 +193,57 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	// Start the process (all drivers implement StartProcess via the Driver interface)
+	// Set isolation level and related config
+	if req.IsolationLevel == "vrooli-aware" {
+		driver.ApplyVrooliAwareConfig(&cfg)
+	} else if req.AllowNetwork {
+		cfg.AllowNetwork = true
+	}
+
+	// Set resource limits (TimeoutSec not used for background processes)
+	cfg.ResourceLimits = driver.ResourceLimits{
+		MemoryLimitMB: req.MemoryLimitMB,
+		CPUTimeSec:    req.CPUTimeSec,
+		MaxProcesses:  req.MaxProcesses,
+		MaxOpenFiles:  req.MaxOpenFiles,
+	}
+
+	// Create pending log BEFORE starting process to capture stdout/stderr
+	var pendingLog *process.PendingLog
+	if h.ProcessLogger != nil {
+		var logErr error
+		pendingLog, logErr = h.ProcessLogger.CreatePendingLog(id)
+		if logErr == nil {
+			// Pass the log writer to capture process output
+			cfg.LogWriter = pendingLog.Writer
+		}
+	}
+
+	// Start process
 	pid, err := h.Driver().StartProcess(r.Context(), sb, cfg, req.Command, req.Args...)
 	if err != nil {
+		// Clean up pending log if process failed to start
+		if pendingLog != nil {
+			h.ProcessLogger.AbortPendingLog(pendingLog)
+		}
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Track the process
+	// Finalize log with actual PID now that process has started
+	var logPath string
+	if pendingLog != nil {
+		logPath, _ = h.ProcessLogger.FinalizeLog(pendingLog, pid)
+	}
+
+	// Track the process with optional name
 	var trackedProc *process.TrackedProcess
 	if h.ProcessTracker != nil {
-		trackedProc, _ = h.ProcessTracker.Track(id, pid, req.Command, req.SessionID)
+		displayName := req.Command
+		if req.Name != "" {
+			displayName = req.Name
+		}
+		trackedProc, _ = h.ProcessTracker.Track(id, pid, displayName, req.SessionID)
 	}
 
 	response := map[string]interface{}{
@@ -165,8 +251,14 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		"sandboxId": id,
 		"command":   req.Command,
 	}
+	if req.Name != "" {
+		response["name"] = req.Name
+	}
 	if trackedProc != nil {
 		response["startedAt"] = trackedProc.StartedAt
+	}
+	if logPath != "" {
+		response["logPath"] = logPath
 	}
 
 	h.JSONCreated(w, response)
@@ -301,4 +393,167 @@ func (h *Handlers) BwrapInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.JSONSuccess(w, info)
+}
+
+// --- Process Log Endpoints (Phase 2) ---
+
+// GetProcessLogs returns logs for a specific process.
+// Query parameters:
+//   - tail: number of lines from end (default: all)
+//   - offset: byte offset to start reading from
+func (h *Handlers) GetProcessLogs(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := uuid.Parse(vars["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	pid, err := strconv.Atoi(vars["pid"])
+	if err != nil || pid <= 0 {
+		h.JSONError(w, "invalid PID", http.StatusBadRequest)
+		return
+	}
+
+	// Verify sandbox exists
+	_, err = h.Service.Get(r.Context(), id)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	if h.ProcessLogger == nil {
+		h.JSONError(w, "process logging not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse query parameters
+	var tail int
+	var offset int64
+	if tailStr := r.URL.Query().Get("tail"); tailStr != "" {
+		tail, _ = strconv.Atoi(tailStr)
+	}
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		offset, _ = strconv.ParseInt(offsetStr, 10, 64)
+	}
+
+	// Get log metadata
+	logInfo, err := h.ProcessLogger.GetLog(id, pid)
+	if err != nil {
+		h.JSONError(w, fmt.Sprintf("log not found: %v", err), http.StatusNotFound)
+		return
+	}
+
+	// Read log content
+	content, err := h.ProcessLogger.ReadLog(id, pid, tail, offset)
+	if err != nil {
+		h.JSONError(w, fmt.Sprintf("failed to read log: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	h.JSONSuccess(w, map[string]interface{}{
+		"pid":       pid,
+		"sandboxId": id,
+		"path":      logInfo.Path,
+		"sizeBytes": logInfo.SizeBytes,
+		"isActive":  logInfo.IsActive,
+		"content":   string(content),
+	})
+}
+
+// StreamProcessLogs streams logs for a specific process via Server-Sent Events (SSE).
+// Clients connect and receive log updates in real-time until the process exits
+// or the connection is closed.
+func (h *Handlers) StreamProcessLogs(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := uuid.Parse(vars["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	pid, err := strconv.Atoi(vars["pid"])
+	if err != nil || pid <= 0 {
+		h.JSONError(w, "invalid PID", http.StatusBadRequest)
+		return
+	}
+
+	// Verify sandbox exists
+	_, err = h.Service.Get(r.Context(), id)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	if h.ProcessLogger == nil {
+		h.JSONError(w, "process logging not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Verify log exists
+	_, err = h.ProcessLogger.GetLog(id, pid)
+	if err != nil {
+		h.JSONError(w, fmt.Sprintf("log not found: %v", err), http.StatusNotFound)
+		return
+	}
+
+	// Set up SSE headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		h.JSONError(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	// Stream logs until context is canceled or process ends
+	ctx := r.Context()
+	err = h.ProcessLogger.StreamLog(ctx, id, pid, func(chunk []byte) {
+		// Send SSE data event
+		fmt.Fprintf(w, "data: %s\n\n", string(chunk))
+		flusher.Flush()
+	})
+
+	if err != nil && err != ctx.Err() {
+		// Send error event before closing
+		fmt.Fprintf(w, "event: error\ndata: %s\n\n", err.Error())
+		flusher.Flush()
+	}
+
+	// Send end event
+	fmt.Fprintf(w, "event: end\ndata: stream closed\n\n")
+	flusher.Flush()
+}
+
+// ListProcessLogs returns all log files for a sandbox.
+func (h *Handlers) ListProcessLogs(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	// Verify sandbox exists
+	_, err = h.Service.Get(r.Context(), id)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	if h.ProcessLogger == nil {
+		h.JSONError(w, "process logging not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	logs, err := h.ProcessLogger.ListLogs(id)
+	if err != nil {
+		h.JSONError(w, fmt.Sprintf("failed to list logs: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	h.JSONSuccess(w, map[string]interface{}{
+		"logs":      logs,
+		"total":     len(logs),
+		"sandboxId": id,
+	})
 }

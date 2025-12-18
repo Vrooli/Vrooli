@@ -323,6 +323,16 @@ const literalSelectors: LiteralSelectorTree = {
     cancelButton: "cancel-create",
   },
 
+  // Launch agent dialog
+  launchDialog: {
+    root: "launch-agent-dialog",
+    commandInput: "launch-command-input",
+    modeSelector: "launch-mode-selector",
+    isolationSelector: "launch-isolation-selector",
+    submitButton: "launch-submit",
+    cancelButton: "launch-cancel",
+  },
+
   // Error/loading states
   loading: "loading-spinner",
   errorToast: "error-toast",
@@ -421,6 +431,15 @@ export const SELECTORS = {
   ownerTypeSelect: "owner-type-select",
   submitCreate: "submit-create",
   cancelCreate: "cancel-create",
+
+  // Launch agent dialog
+  launchDialog: "launch-agent-dialog",
+  launchCommandInput: "launch-command-input",
+  launchModeSelector: "launch-mode-selector",
+  launchIsolationSelector: "launch-isolation-selector",
+  launchSubmit: "launch-submit",
+  launchCancel: "launch-cancel",
+  launchAgentButton: "launch-agent-button",
 
   // Error/loading
   loading: "loading-spinner",

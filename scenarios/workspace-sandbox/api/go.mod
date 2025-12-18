@@ -11,6 +11,11 @@ require (
 )
 
 require (
+	github.com/creack/pty/v2 v2.0.1 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
+)
+
+require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 )

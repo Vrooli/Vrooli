@@ -458,3 +458,146 @@ export async function validatePath(
   }
   return apiRequest<PathValidationResult>(`/validate-path?${params.toString()}`);
 }
+
+// --- Process Execution Types ---
+
+export type IsolationLevel = "full" | "vrooli-aware";
+
+export interface ExecRequest {
+  command: string;
+  args?: string[];
+  allowNetwork?: boolean;
+  env?: Record<string, string>;
+  workingDir?: string;
+  sessionId?: string;
+  isolationLevel?: IsolationLevel;
+  memoryLimitMB?: number;
+  cpuTimeSec?: number;
+  timeoutSec?: number;
+  maxProcesses?: number;
+  maxOpenFiles?: number;
+}
+
+export interface ExecResponse {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  pid?: number;
+  timedOut?: boolean;
+}
+
+export interface StartProcessRequest {
+  command: string;
+  args?: string[];
+  name?: string;
+  allowNetwork?: boolean;
+  env?: Record<string, string>;
+  workingDir?: string;
+  isolationLevel?: IsolationLevel;
+  memoryLimitMB?: number;
+  cpuTimeSec?: number;
+  maxProcesses?: number;
+  maxOpenFiles?: number;
+}
+
+export interface ProcessInfo {
+  pid: number;
+  sandboxId: string;
+  command: string;
+  name?: string;
+  startedAt: string;
+  logPath?: string;
+}
+
+export interface ProcessListResponse {
+  processes: ProcessInfo[];
+}
+
+export interface LogResponse {
+  pid: number;
+  sandboxId: string;
+  path: string;
+  sizeBytes: number;
+  isActive: boolean;
+  content?: string;
+}
+
+export interface LogListResponse {
+  sandboxId: string;
+  logs: Array<{
+    pid: number;
+    path: string;
+    sizeBytes: number;
+    isActive: boolean;
+  }>;
+}
+
+// --- Process Execution Functions ---
+
+// Execute a command synchronously
+export async function execCommand(
+  sandboxId: string,
+  req: ExecRequest
+): Promise<ExecResponse> {
+  return apiRequest<ExecResponse>(`/sandboxes/${sandboxId}/exec`, {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
+}
+
+// Start a background process
+export async function startProcess(
+  sandboxId: string,
+  req: StartProcessRequest
+): Promise<ProcessInfo> {
+  return apiRequest<ProcessInfo>(`/sandboxes/${sandboxId}/processes`, {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
+}
+
+// List processes in a sandbox
+export async function listProcesses(
+  sandboxId: string,
+  runningOnly?: boolean
+): Promise<ProcessListResponse> {
+  const params = runningOnly ? "?running=true" : "";
+  return apiRequest<ProcessListResponse>(`/sandboxes/${sandboxId}/processes${params}`);
+}
+
+// Kill a process
+export async function killProcess(
+  sandboxId: string,
+  pid: number
+): Promise<void> {
+  await apiRequest<void>(`/sandboxes/${sandboxId}/processes/${pid}`, {
+    method: "DELETE",
+  });
+}
+
+// Kill all processes in a sandbox
+export async function killAllProcesses(sandboxId: string): Promise<void> {
+  await apiRequest<void>(`/sandboxes/${sandboxId}/processes`, {
+    method: "DELETE",
+  });
+}
+
+// Get process logs
+export async function getProcessLogs(
+  sandboxId: string,
+  pid: number,
+  options?: { tail?: number; offset?: number }
+): Promise<LogResponse> {
+  const params = new URLSearchParams();
+  if (options?.tail) params.set("tail", String(options.tail));
+  if (options?.offset) params.set("offset", String(options.offset));
+  const query = params.toString();
+  return apiRequest<LogResponse>(
+    `/sandboxes/${sandboxId}/processes/${pid}/logs${query ? `?${query}` : ""}`
+  );
+}
+
+// List all logs for a sandbox
+export async function listLogs(sandboxId: string): Promise<LogListResponse> {
+  return apiRequest<LogListResponse>(`/sandboxes/${sandboxId}/logs`);
+}

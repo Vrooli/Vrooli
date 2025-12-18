@@ -278,6 +278,286 @@ func TestGetBwrapInfo(t *testing.T) {
 		info.Available, info.Version, info.UserNamespaceEnabled, info.OverlayfsInUserNS)
 }
 
+// --- Resource Limits Tests (Phase 1) ---
+
+// [REQ:OT-P2-008] Test resource limits struct HasLimits method
+func TestResourceLimitsHasLimits(t *testing.T) {
+	tests := []struct {
+		name     string
+		limits   ResourceLimits
+		expected bool
+	}{
+		{
+			name:     "all zero",
+			limits:   ResourceLimits{},
+			expected: false,
+		},
+		{
+			name:     "memory set",
+			limits:   ResourceLimits{MemoryLimitMB: 512},
+			expected: true,
+		},
+		{
+			name:     "cpu time set",
+			limits:   ResourceLimits{CPUTimeSec: 60},
+			expected: true,
+		},
+		{
+			name:     "max processes set",
+			limits:   ResourceLimits{MaxProcesses: 100},
+			expected: true,
+		},
+		{
+			name:     "max files set",
+			limits:   ResourceLimits{MaxOpenFiles: 1024},
+			expected: true,
+		},
+		{
+			name:     "timeout only - not counted as prlimit",
+			limits:   ResourceLimits{TimeoutSec: 300},
+			expected: false, // TimeoutSec is handled via context, not prlimit
+		},
+		{
+			name:     "multiple limits",
+			limits:   ResourceLimits{MemoryLimitMB: 512, CPUTimeSec: 60, MaxProcesses: 100},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.limits.HasLimits(); got != tt.expected {
+				t.Errorf("HasLimits() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+// [REQ:OT-P2-008] Test prlimit argument building
+func TestBuildPrlimitArgs(t *testing.T) {
+	tests := []struct {
+		name       string
+		limits     ResourceLimits
+		wantNil    bool
+		wantArgs   []string
+		dontWant   []string
+	}{
+		{
+			name:    "no limits returns nil",
+			limits:  ResourceLimits{},
+			wantNil: true,
+		},
+		{
+			name:    "memory limit",
+			limits:  ResourceLimits{MemoryLimitMB: 512},
+			wantNil: false,
+			wantArgs: []string{
+				"--as=536870912", // 512 * 1024 * 1024
+				"--",
+			},
+		},
+		{
+			name:    "cpu time limit",
+			limits:  ResourceLimits{CPUTimeSec: 60},
+			wantNil: false,
+			wantArgs: []string{
+				"--cpu=60",
+				"--",
+			},
+		},
+		{
+			name:    "max processes",
+			limits:  ResourceLimits{MaxProcesses: 100},
+			wantNil: false,
+			wantArgs: []string{
+				"--nproc=100",
+				"--",
+			},
+		},
+		{
+			name:    "max open files",
+			limits:  ResourceLimits{MaxOpenFiles: 1024},
+			wantNil: false,
+			wantArgs: []string{
+				"--nofile=1024",
+				"--",
+			},
+		},
+		{
+			name:    "combined limits",
+			limits:  ResourceLimits{MemoryLimitMB: 256, CPUTimeSec: 30, MaxProcesses: 50},
+			wantNil: false,
+			wantArgs: []string{
+				"--as=268435456", // 256 MB
+				"--cpu=30",
+				"--nproc=50",
+				"--",
+			},
+		},
+		{
+			name:    "timeout not in prlimit args",
+			limits:  ResourceLimits{TimeoutSec: 300}, // timeout handled via context
+			wantNil: true,                            // no prlimit needed for timeout-only
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := buildPrlimitArgs(tt.limits)
+
+			if tt.wantNil {
+				if args != nil {
+					t.Errorf("expected nil, got %v", args)
+				}
+				return
+			}
+
+			if args == nil {
+				t.Fatal("expected non-nil args")
+			}
+
+			for _, want := range tt.wantArgs {
+				if !contains(args, want) {
+					t.Errorf("expected %q in args, got: %v", want, args)
+				}
+			}
+
+			for _, dontWant := range tt.dontWant {
+				if contains(args, dontWant) {
+					t.Errorf("did not expect %q in args, got: %v", dontWant, args)
+				}
+			}
+		})
+	}
+}
+
+// [REQ:OT-P2-008] Test BuildExecCommand with and without resource limits
+func TestBuildExecCommand(t *testing.T) {
+	sandbox := &types.Sandbox{
+		ID:        uuid.New(),
+		ScopePath: "/tmp/test",
+		LowerDir:  "/tmp/lower",
+		UpperDir:  "/tmp/upper",
+		WorkDir:   "/tmp/work",
+		MergedDir: "/tmp/merged",
+	}
+
+	tests := []struct {
+		name        string
+		cfg         BwrapConfig
+		cmd         string
+		args        []string
+		wantExe     string
+		wantContain []string
+	}{
+		{
+			name:    "no limits - bwrap directly",
+			cfg:     DefaultBwrapConfig(),
+			cmd:     "ls",
+			args:    []string{"-la"},
+			wantExe: "bwrap",
+			wantContain: []string{
+				"--unshare-user",
+				"--bind", "/tmp/merged", "/workspace",
+				"--",
+				"ls", "-la",
+			},
+		},
+		{
+			name: "with memory limit - prlimit wrapper",
+			cfg: BwrapConfig{
+				IsolationLevel: IsolationFull,
+				Hostname:       "sandbox",
+				Env:            map[string]string{"PATH": "/usr/bin"},
+				ResourceLimits: ResourceLimits{MemoryLimitMB: 512},
+			},
+			cmd:     "my-agent",
+			args:    []string{"--task", "fix"},
+			wantExe: "prlimit",
+			wantContain: []string{
+				"--as=536870912", // memory limit
+				"--",
+				"bwrap",
+				"--unshare-user",
+				"my-agent", "--task", "fix",
+			},
+		},
+		{
+			name: "with multiple limits",
+			cfg: BwrapConfig{
+				Hostname:       "sandbox",
+				Env:            map[string]string{},
+				ResourceLimits: ResourceLimits{MemoryLimitMB: 256, CPUTimeSec: 60},
+			},
+			cmd:     "build",
+			args:    nil,
+			wantExe: "prlimit",
+			wantContain: []string{
+				"--as=268435456",
+				"--cpu=60",
+				"bwrap",
+				"build",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exe, args := BuildExecCommand(sandbox, tt.cfg, tt.cmd, tt.args...)
+
+			if exe != tt.wantExe {
+				t.Errorf("executable = %q, want %q", exe, tt.wantExe)
+			}
+
+			for _, want := range tt.wantContain {
+				if !contains(args, want) {
+					t.Errorf("expected %q in args, got: %v", want, args)
+				}
+			}
+		})
+	}
+}
+
+// [REQ:OT-P2-008] Test Vrooli-aware isolation level affects network
+func TestVrooliAwareIsolation(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("bwrap tests require Linux")
+	}
+
+	sandbox := &types.Sandbox{
+		ID:        uuid.New(),
+		MergedDir: "/tmp/test",
+		LowerDir:  "/tmp/lower",
+	}
+
+	// Full isolation should unshare network
+	cfgFull := DefaultBwrapConfig()
+	cfgFull.IsolationLevel = IsolationFull
+	argsFull := buildBwrapArgs(sandbox, cfgFull)
+
+	if !contains(argsFull, "--unshare-net") {
+		t.Error("full isolation should include --unshare-net")
+	}
+
+	// Vrooli-aware should NOT unshare network (allow localhost)
+	cfgVrooli := DefaultBwrapConfig()
+	cfgVrooli.IsolationLevel = IsolationVrooliAware
+	argsVrooli := buildBwrapArgs(sandbox, cfgVrooli)
+
+	if contains(argsVrooli, "--unshare-net") {
+		t.Error("vrooli-aware isolation should NOT include --unshare-net")
+	}
+}
+
+// [REQ:OT-P2-008] Test default config includes isolation level
+func TestDefaultBwrapConfigIncludesIsolationLevel(t *testing.T) {
+	cfg := DefaultBwrapConfig()
+
+	if cfg.IsolationLevel != IsolationFull {
+		t.Errorf("default IsolationLevel = %q, want %q", cfg.IsolationLevel, IsolationFull)
+	}
+}
+
 // Helper functions
 
 func contains(slice []string, item string) bool {
@@ -300,4 +580,104 @@ func containsStringHelper(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// [REQ:OT-P2-008] Test GetVrooliEnvVars returns expected environment variables
+func TestGetVrooliEnvVars(t *testing.T) {
+	// Save original environment
+	origVrooliRoot := os.Getenv("VROOLI_ROOT")
+	origVrooliEnv := os.Getenv("VROOLI_ENV")
+	origApiManager := os.Getenv("API_MANAGER_URL")
+	defer func() {
+		restoreEnv("VROOLI_ROOT", origVrooliRoot)
+		restoreEnv("VROOLI_ENV", origVrooliEnv)
+		restoreEnv("API_MANAGER_URL", origApiManager)
+	}()
+
+	// Test with no environment variables set
+	os.Unsetenv("VROOLI_ROOT")
+	os.Unsetenv("VROOLI_ENV")
+	os.Unsetenv("API_MANAGER_URL")
+
+	vars := GetVrooliEnvVars()
+	if _, ok := vars["VROOLI_ROOT"]; ok {
+		t.Error("VROOLI_ROOT should not be set when environment variable is empty")
+	}
+
+	// Test with VROOLI_ROOT set
+	os.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
+	vars = GetVrooliEnvVars()
+	if vars["VROOLI_ROOT"] != "/vrooli" {
+		t.Errorf("VROOLI_ROOT = %q, want %q", vars["VROOLI_ROOT"], "/vrooli")
+	}
+
+	// Test with additional environment variables
+	os.Setenv("VROOLI_ENV", "development")
+	os.Setenv("API_MANAGER_URL", "http://localhost:8110")
+	vars = GetVrooliEnvVars()
+
+	if vars["VROOLI_ENV"] != "development" {
+		t.Errorf("VROOLI_ENV = %q, want %q", vars["VROOLI_ENV"], "development")
+	}
+	if vars["API_MANAGER_URL"] != "http://localhost:8110" {
+		t.Errorf("API_MANAGER_URL = %q, want %q", vars["API_MANAGER_URL"], "http://localhost:8110")
+	}
+}
+
+// [REQ:OT-P2-008] Test ApplyVrooliAwareConfig sets up config correctly
+func TestApplyVrooliAwareConfig(t *testing.T) {
+	// Save original environment
+	origVrooliRoot := os.Getenv("VROOLI_ROOT")
+	defer restoreEnv("VROOLI_ROOT", origVrooliRoot)
+
+	os.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
+
+	cfg := DefaultBwrapConfig()
+
+	// Verify default state
+	if cfg.IsolationLevel != IsolationFull {
+		t.Fatalf("default IsolationLevel = %q, want %q", cfg.IsolationLevel, IsolationFull)
+	}
+	if cfg.AllowNetwork {
+		t.Fatal("default AllowNetwork = true, want false")
+	}
+
+	// Apply Vrooli-aware config
+	ApplyVrooliAwareConfig(&cfg)
+
+	// Verify changes
+	if cfg.IsolationLevel != IsolationVrooliAware {
+		t.Errorf("IsolationLevel = %q, want %q", cfg.IsolationLevel, IsolationVrooliAware)
+	}
+	if !cfg.AllowNetwork {
+		t.Error("AllowNetwork = false, want true for Vrooli-aware isolation")
+	}
+	if cfg.Env["VROOLI_ROOT"] != "/vrooli" {
+		t.Errorf("Env[VROOLI_ROOT] = %q, want %q", cfg.Env["VROOLI_ROOT"], "/vrooli")
+	}
+}
+
+// [REQ:OT-P2-008] Test ApplyVrooliAwareConfig preserves existing env vars
+func TestApplyVrooliAwareConfigPreservesExistingEnv(t *testing.T) {
+	cfg := DefaultBwrapConfig()
+	cfg.Env["CUSTOM_VAR"] = "custom_value"
+
+	ApplyVrooliAwareConfig(&cfg)
+
+	if cfg.Env["CUSTOM_VAR"] != "custom_value" {
+		t.Errorf("Env[CUSTOM_VAR] = %q, want %q", cfg.Env["CUSTOM_VAR"], "custom_value")
+	}
+	// Default PATH should still be present
+	if cfg.Env["PATH"] == "" {
+		t.Error("Env[PATH] should not be empty")
+	}
+}
+
+// Helper to restore environment variable
+func restoreEnv(key, value string) {
+	if value == "" {
+		os.Unsetenv(key)
+	} else {
+		os.Setenv(key, value)
+	}
 }

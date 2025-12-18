@@ -14,9 +14,18 @@ import {
   approveSandbox,
   rejectSandbox,
   discardFiles,
+  execCommand,
+  startProcess,
+  listProcesses,
+  killProcess,
+  killAllProcesses,
+  getProcessLogs,
+  listLogs,
   type ListFilter,
   type CreateRequest,
   type ApprovalRequest,
+  type ExecRequest,
+  type StartProcessRequest,
 } from "./api";
 
 // Query keys for cache management
@@ -27,6 +36,9 @@ export const queryKeys = {
   sandboxes: (filter?: ListFilter) => ["sandboxes", filter] as const,
   sandbox: (id: string) => ["sandbox", id] as const,
   diff: (id: string) => ["diff", id] as const,
+  processes: (sandboxId: string) => ["processes", sandboxId] as const,
+  logs: (sandboxId: string) => ["logs", sandboxId] as const,
+  processLog: (sandboxId: string, pid: number) => ["processLog", sandboxId, pid] as const,
 };
 
 // Health check
@@ -198,5 +210,109 @@ export function useDiscardFiles() {
       queryClient.invalidateQueries({ queryKey: queryKeys.diff(sandboxId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.sandbox(sandboxId) });
     },
+  });
+}
+
+// --- Process Execution Hooks ---
+
+// Execute a command synchronously
+export function useExecCommand() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      sandboxId,
+      request,
+    }: {
+      sandboxId: string;
+      request: ExecRequest;
+    }) => execCommand(sandboxId, request),
+    onSuccess: (_, { sandboxId }) => {
+      // Refresh diff after exec in case files were modified
+      queryClient.invalidateQueries({ queryKey: queryKeys.diff(sandboxId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sandbox(sandboxId) });
+    },
+  });
+}
+
+// Start a background process
+export function useStartProcess() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      sandboxId,
+      request,
+    }: {
+      sandboxId: string;
+      request: StartProcessRequest;
+    }) => startProcess(sandboxId, request),
+    onSuccess: (_, { sandboxId }) => {
+      // Refresh process list
+      queryClient.invalidateQueries({ queryKey: queryKeys.processes(sandboxId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.logs(sandboxId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sandbox(sandboxId) });
+    },
+  });
+}
+
+// List processes in a sandbox
+export function useProcesses(sandboxId: string | undefined, runningOnly?: boolean) {
+  return useQuery({
+    queryKey: [...queryKeys.processes(sandboxId || ""), runningOnly] as const,
+    queryFn: () => listProcesses(sandboxId!, runningOnly),
+    enabled: !!sandboxId,
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
+}
+
+// Kill a process
+export function useKillProcess() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ sandboxId, pid }: { sandboxId: string; pid: number }) =>
+      killProcess(sandboxId, pid),
+    onSuccess: (_, { sandboxId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.processes(sandboxId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sandbox(sandboxId) });
+    },
+  });
+}
+
+// Kill all processes in a sandbox
+export function useKillAllProcesses() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sandboxId: string) => killAllProcesses(sandboxId),
+    onSuccess: (_, sandboxId) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.processes(sandboxId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sandbox(sandboxId) });
+    },
+  });
+}
+
+// Get process logs
+export function useProcessLogs(
+  sandboxId: string | undefined,
+  pid: number | undefined,
+  options?: { tail?: number; offset?: number }
+) {
+  return useQuery({
+    queryKey: [...queryKeys.processLog(sandboxId || "", pid || 0), options] as const,
+    queryFn: () => getProcessLogs(sandboxId!, pid!, options),
+    enabled: !!sandboxId && !!pid,
+    refetchInterval: 2000, // Refresh every 2 seconds for live log updates
+  });
+}
+
+// List all logs for a sandbox
+export function useLogs(sandboxId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.logs(sandboxId || ""),
+    queryFn: () => listLogs(sandboxId!),
+    enabled: !!sandboxId,
+    refetchInterval: 5000,
   });
 }
