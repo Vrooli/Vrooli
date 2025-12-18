@@ -9,22 +9,22 @@
       "description": "Define a SandboxDriver interface with pluggable implementations. First-class Linux overlayfs driver, with clear fallback strategy for non-Linux environments without hardcoding Linux assumptions into APIs.",
       "id": "REQ-P2-004-001",
       "prd_ref": "OT-P2-004",
-      "status": "implemented",
+      "status": "complete",
       "title": "SandboxDriver Interface Definition",
       "validation": [
         {
-          "notes": "Driver interface exists with all required methods",
+          "notes": "Driver interface exists with all required methods (Type, Version, IsAvailable, Mount, etc.)",
           "phase": "unit",
-          "ref": "api/internal/driver/driver.go::Driver",
-          "status": "pending",
-          "type": "manual"
+          "ref": "api/internal/driver/copy_test.go::TestDriverInterfaceMethods",
+          "status": "implemented",
+          "type": "test"
         },
         {
-          "notes": "DriverType enum includes overlayfs and copy types",
+          "notes": "DriverType enum includes overlayfs, copy, and none types",
           "phase": "unit",
-          "ref": "api/internal/driver/driver.go::DriverType",
-          "status": "pending",
-          "type": "manual"
+          "ref": "api/internal/driver/copy_test.go::TestDriverTypeConstants",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -33,29 +33,64 @@
       "description": "Cross-platform CopyDriver that works on any OS using file copies instead of overlayfs. Copies scope directory to create snapshot, compares workspace against original for diff generation. Higher disk usage but universal compatibility.",
       "id": "REQ-P2-004-002",
       "prd_ref": "OT-P2-004",
-      "status": "implemented",
+      "status": "complete",
       "title": "CopyDriver Implementation",
       "validation": [
         {
-          "notes": "CopyDriver implements Driver interface",
+          "notes": "CopyDriver returns correct driver type",
           "phase": "unit",
-          "ref": "api/internal/driver/copy.go::CopyDriver",
-          "status": "pending",
-          "type": "manual"
+          "ref": "api/internal/driver/copy_test.go::TestCopyDriverType",
+          "status": "implemented",
+          "type": "test"
         },
         {
           "notes": "CopyDriver.IsAvailable returns true on any platform",
           "phase": "unit",
-          "ref": "api/internal/driver/copy.go::IsAvailable",
-          "status": "pending",
-          "type": "manual"
+          "ref": "api/internal/driver/copy_test.go::TestCopyDriverIsAvailable",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "CopyDriver correctly creates workspace via Mount",
+          "phase": "unit",
+          "ref": "api/internal/driver/copy_test.go::TestCopyDriverMount",
+          "status": "implemented",
+          "type": "test"
         },
         {
           "notes": "CopyDriver correctly detects added, modified, deleted files",
           "phase": "unit",
-          "ref": "api/internal/driver/copy.go::GetChangedFiles",
-          "status": "pending",
-          "type": "manual"
+          "ref": "api/internal/driver/copy_test.go::TestCopyDriverGetChangedFiles",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "CopyDriver mount state tracking works correctly",
+          "phase": "unit",
+          "ref": "api/internal/driver/copy_test.go::TestCopyDriverIsMounted",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "CopyDriver mount integrity verification",
+          "phase": "unit",
+          "ref": "api/internal/driver/copy_test.go::TestCopyDriverVerifyMountIntegrity",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "CopyDriver file removal with path traversal protection",
+          "phase": "unit",
+          "ref": "api/internal/driver/copy_test.go::TestCopyDriverRemoveFromUpper",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "CopyDriver Unmount is a safe no-op",
+          "phase": "unit",
+          "ref": "api/internal/driver/copy_test.go::TestCopyDriverUnmount",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -64,29 +99,29 @@
       "description": "SelectDriver function automatically chooses the best available driver. Prefers overlayfs on Linux, falls back to CopyDriver on other platforms. DriverInfo provides information about available drivers.",
       "id": "REQ-P2-004-003",
       "prd_ref": "OT-P2-004",
-      "status": "implemented",
+      "status": "complete",
       "title": "Automatic Driver Selection",
       "validation": [
         {
-          "notes": "SelectDriver returns overlayfs on Linux when available",
+          "notes": "SelectDriver returns a valid driver",
           "phase": "unit",
-          "ref": "api/internal/driver/driver.go::SelectDriver",
-          "status": "pending",
-          "type": "manual"
+          "ref": "api/internal/driver/copy_test.go::TestSelectDriverReturnsDriver",
+          "status": "implemented",
+          "type": "test"
         },
         {
           "notes": "SelectDriver falls back to CopyDriver when overlayfs unavailable",
           "phase": "unit",
-          "ref": "api/internal/driver/driver.go::SelectDriver",
-          "status": "pending",
-          "type": "manual"
+          "ref": "api/internal/driver/copy_test.go::TestSelectDriverFallsBackToCopy",
+          "status": "implemented",
+          "type": "test"
         },
         {
           "notes": "DriverInfo returns info about all available drivers",
           "phase": "unit",
-          "ref": "api/internal/driver/driver.go::DriverInfo",
-          "status": "pending",
-          "type": "manual"
+          "ref": "api/internal/driver/copy_test.go::TestDriverInfoReturnsAllDrivers",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     }

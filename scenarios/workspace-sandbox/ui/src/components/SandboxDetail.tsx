@@ -33,10 +33,12 @@ interface SandboxDetailProps {
   onApprove: () => void;
   onReject: () => void;
   onDelete: () => void;
+  onDiscardFile?: (fileId: string) => void;
   isApproving: boolean;
   isRejecting: boolean;
   isStopping: boolean;
   isDeleting: boolean;
+  isDiscarding?: boolean;
 }
 
 const STATUS_CONFIG: Record<Status, { icon: React.ReactNode; label: string; variant: Status }> = {
@@ -131,10 +133,12 @@ export function SandboxDetail({
   onApprove,
   onReject,
   onDelete,
+  onDiscardFile,
   isApproving,
   isRejecting,
   isStopping,
   isDeleting,
+  isDiscarding,
 }: SandboxDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
@@ -397,6 +401,8 @@ export function SandboxDetail({
           diff={diff}
           isLoading={isDiffLoading}
           error={diffError}
+          showFileActions={canApproveReject && !!onDiscardFile}
+          onRejectFile={onDiscardFile}
         />
       </div>
     </div>

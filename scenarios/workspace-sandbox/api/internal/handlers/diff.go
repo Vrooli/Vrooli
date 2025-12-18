@@ -70,6 +70,36 @@ func (h *Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 	h.JSONSuccess(w, sb)
 }
 
+// Discard handles discarding specific files from a sandbox.
+// This allows rejecting individual files while keeping others pending.
+func (h *Handlers) Discard(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	var req types.DiscardRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	req.SandboxID = id
+
+	// Must have at least one file to discard
+	if len(req.FileIDs) == 0 && len(req.FilePaths) == 0 {
+		h.JSONError(w, "fileIds or filePaths required", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.Service.Discard(r.Context(), &req)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, result)
+}
+
 // GetWorkspace handles getting the workspace path.
 func (h *Handlers) GetWorkspace(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(mux.Vars(r)["id"])

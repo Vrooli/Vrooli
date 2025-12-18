@@ -101,6 +101,14 @@ export interface ApprovalResult {
   appliedAt: string;
 }
 
+export interface DiscardResult {
+  success: boolean;
+  discarded: number;
+  remaining: number;
+  error?: string;
+  files?: string[];
+}
+
 export interface CreateRequest {
   scopePath: string;
   projectRoot?: string;
@@ -239,6 +247,25 @@ export async function rejectSandbox(
   return apiRequest<Sandbox>(`/sandboxes/${id}/reject`, {
     method: "POST",
     body: JSON.stringify({ actor }),
+  });
+}
+
+// Discard specific files
+export async function discardFiles(
+  sandboxId: string,
+  options: {
+    fileIds?: string[];
+    filePaths?: string[];
+    actor?: string;
+  }
+): Promise<DiscardResult> {
+  return apiRequest<DiscardResult>(`/sandboxes/${sandboxId}/discard`, {
+    method: "POST",
+    body: JSON.stringify({
+      fileIds: options.fileIds,
+      filePaths: options.filePaths,
+      actor: options.actor,
+    }),
   });
 }
 

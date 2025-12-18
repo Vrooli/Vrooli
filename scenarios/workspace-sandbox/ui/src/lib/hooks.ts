@@ -10,6 +10,7 @@ import {
   getDiff,
   approveSandbox,
   rejectSandbox,
+  discardFiles,
   type ListFilter,
   type CreateRequest,
   type ApprovalRequest,
@@ -134,6 +135,30 @@ export function useRejectSandbox() {
     onSuccess: (sandbox) => {
       queryClient.setQueryData(queryKeys.sandbox(sandbox.id), sandbox);
       queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
+    },
+  });
+}
+
+// Discard specific files mutation
+export function useDiscardFiles() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      sandboxId,
+      fileIds,
+      filePaths,
+      actor,
+    }: {
+      sandboxId: string;
+      fileIds?: string[];
+      filePaths?: string[];
+      actor?: string;
+    }) => discardFiles(sandboxId, { fileIds, filePaths, actor }),
+    onSuccess: (_, { sandboxId }) => {
+      // Refresh the diff to show remaining files
+      queryClient.invalidateQueries({ queryKey: queryKeys.diff(sandboxId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sandbox(sandboxId) });
     },
   });
 }

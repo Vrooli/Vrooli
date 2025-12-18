@@ -50,6 +50,10 @@ type ServiceAPI interface {
 	// Returns StateError if sandbox cannot be rejected.
 	Reject(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
 
+	// Discard removes specific files from a sandbox without applying them.
+	// This allows rejecting individual files while keeping others pending.
+	Discard(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error)
+
 	// GetWorkspacePath returns the path where sandbox operations should occur.
 	// Returns error if sandbox is not mounted.
 	GetWorkspacePath(ctx context.Context, id uuid.UUID) (string, error)
@@ -741,6 +745,101 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*type
 	s.logAuditEvent(ctx, sandbox, "rejected", actor, "", nil)
 
 	return sandbox, nil
+}
+
+// Discard removes specific files from a sandbox without applying them.
+// This allows rejecting individual files while keeping others pending for review.
+func (s *Service) Discard(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
+	sandbox, err := s.Get(ctx, req.SandboxID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Can only discard from active or stopped sandboxes
+	if sandbox.Status != types.StatusActive && sandbox.Status != types.StatusStopped {
+		return nil, types.NewStateError(&types.InvalidTransitionError{
+			Current: sandbox.Status,
+			Reason:  fmt.Sprintf("cannot discard files from %s sandbox", sandbox.Status),
+		})
+	}
+
+	// Get current changes to map file IDs to paths
+	allChanges, err := s.driver.GetChangedFiles(ctx, sandbox)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get changed files: %w", err)
+	}
+
+	// Build lookup maps
+	idToPath := make(map[uuid.UUID]string)
+	pathToChange := make(map[string]*types.FileChange)
+	for _, change := range allChanges {
+		idToPath[change.ID] = change.FilePath
+		pathToChange[change.FilePath] = change
+	}
+
+	// Determine which files to discard
+	var filesToDiscard []string
+
+	// Process file IDs
+	for _, fileID := range req.FileIDs {
+		if path, ok := idToPath[fileID]; ok {
+			filesToDiscard = append(filesToDiscard, path)
+		}
+	}
+
+	// Process file paths (alternative input method)
+	for _, path := range req.FilePaths {
+		if _, ok := pathToChange[path]; ok {
+			// Avoid duplicates
+			found := false
+			for _, existing := range filesToDiscard {
+				if existing == path {
+					found = true
+					break
+				}
+			}
+			if !found {
+				filesToDiscard = append(filesToDiscard, path)
+			}
+		}
+	}
+
+	if len(filesToDiscard) == 0 {
+		return &types.DiscardResult{
+			Success:   true,
+			Discarded: 0,
+			Remaining: len(allChanges),
+		}, nil
+	}
+
+	// Remove each file from the upper layer
+	discardedCount := 0
+	var discardedFiles []string
+	for _, filePath := range filesToDiscard {
+		if err := s.driver.RemoveFromUpper(ctx, sandbox, filePath); err != nil {
+			// Log but continue - partial discard is acceptable
+			s.logAuditEvent(ctx, sandbox, "discard_warning", req.Actor, "", map[string]interface{}{
+				"file":  filePath,
+				"error": err.Error(),
+			})
+			continue
+		}
+		discardedCount++
+		discardedFiles = append(discardedFiles, filePath)
+	}
+
+	// Log audit event
+	s.logAuditEvent(ctx, sandbox, "discarded", req.Actor, "", map[string]interface{}{
+		"filesDiscarded": discardedCount,
+		"files":          discardedFiles,
+	})
+
+	return &types.DiscardResult{
+		Success:   true,
+		Discarded: discardedCount,
+		Remaining: len(allChanges) - discardedCount,
+		Files:     discardedFiles,
+	}, nil
 }
 
 // GetWorkspacePath returns the path where sandbox operations should occur.

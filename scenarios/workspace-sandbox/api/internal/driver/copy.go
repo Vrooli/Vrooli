@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
 )
 
@@ -188,7 +187,7 @@ func (d *CopyDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*
 		}
 
 		change := &types.FileChange{
-			ID:             uuid.New(),
+			ID:             StableFileID(s.ID, relPath),
 			SandboxID:      s.ID,
 			FilePath:       relPath,
 			ChangeType:     changeType,
@@ -233,7 +232,7 @@ func (d *CopyDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*
 		// File exists in original but not in workspace - deleted
 		if !info.IsDir() {
 			change := &types.FileChange{
-				ID:             uuid.New(),
+				ID:             StableFileID(s.ID, relPath),
 				SandboxID:      s.ID,
 				FilePath:       relPath,
 				ChangeType:     types.ChangeTypeDeleted,

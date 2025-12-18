@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
 )
 
@@ -196,7 +195,7 @@ func (d *OverlayfsDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox)
 		changeType := d.detectChangeType(s, relPath, info)
 
 		change := &types.FileChange{
-			ID:             uuid.New(),
+			ID:             StableFileID(s.ID, relPath),
 			SandboxID:      s.ID,
 			FilePath:       relPath,
 			ChangeType:     changeType,

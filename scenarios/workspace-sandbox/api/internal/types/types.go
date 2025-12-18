@@ -279,6 +279,24 @@ type ConflictInfo struct {
 	RepoChangedFiles []string `json:"repoChangedFiles,omitempty"`
 }
 
+// DiscardRequest contains the parameters for discarding specific changes.
+// This allows removing files from the sandbox without applying them.
+type DiscardRequest struct {
+	SandboxID uuid.UUID   `json:"sandboxId"`
+	FileIDs   []uuid.UUID `json:"fileIds"`           // Files to discard
+	FilePaths []string    `json:"filePaths,omitempty"` // Alternative: paths instead of IDs
+	Actor     string      `json:"actor,omitempty"`
+}
+
+// DiscardResult contains the outcome of a discard operation.
+type DiscardResult struct {
+	Success   bool      `json:"success"`
+	Discarded int       `json:"discarded"` // Number of files discarded
+	Remaining int       `json:"remaining"` // Number of changes still pending
+	ErrorMsg  string    `json:"error,omitempty"`
+	Files     []string  `json:"files,omitempty"` // Paths of discarded files
+}
+
 // PathConflict represents a scope path conflict between sandboxes.
 type PathConflict struct {
 	ExistingID    string

@@ -9,42 +9,49 @@
       "description": "Collect and expose metrics for sandbox count, disk usage, size distribution, operation latencies, and success rates. Support standard monitoring integrations.",
       "id": "REQ-P1-008",
       "prd_ref": "OT-P1-008",
-      "status": "draft",
+      "status": "complete",
       "title": "Sandbox Metrics Collection",
       "validation": [
         {
-          "notes": "Test metric collection",
+          "notes": "Test metric collection for counters (created, stopped, approved, rejected, deleted, errors, gc runs)",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/metrics/metrics_test.go::TestCollector_Counters",
+          "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "Verify data formats",
+          "notes": "Test gauge metrics (active sandboxes, disk usage, process count)",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/metrics/metrics_test.go::TestCollector_Gauges",
+          "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "Monitor real usage patterns",
-          "phase": "api",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test latency tracking for create and diff operations",
+          "phase": "unit",
+          "ref": "api/internal/metrics/metrics_test.go::TestCollector_Latencies",
+          "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "Collection overhead \u003c1%",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Verify Prometheus format export with correct metric types and help text",
+          "phase": "unit",
+          "ref": "api/internal/metrics/metrics_test.go::TestCollector_ExportPrometheus",
+          "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "Operations can monitor system health",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test latency ring buffer handles overflow correctly",
+          "phase": "unit",
+          "ref": "api/internal/metrics/metrics_test.go::TestCollector_LatencyRingBuffer",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Default collector singleton is available and functional",
+          "phase": "unit",
+          "ref": "api/internal/metrics/metrics_test.go::TestDefault",
+          "status": "implemented",
           "type": "test"
         }
       ]

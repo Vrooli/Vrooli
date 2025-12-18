@@ -7,8 +7,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
 )
+
+// StableFileID generates a deterministic UUID for a file within a sandbox.
+// This ensures the same file always gets the same ID across API calls,
+// enabling reliable file-based operations like approve and discard.
+func StableFileID(sandboxID uuid.UUID, filePath string) uuid.UUID {
+	return uuid.NewSHA1(sandboxID, []byte(filePath))
+}
 
 // DriverType identifies which driver implementation is in use.
 type DriverType string

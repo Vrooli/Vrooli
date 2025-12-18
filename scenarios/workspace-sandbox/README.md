@@ -182,6 +182,7 @@ If you see "falling back to copy driver", check:
 
 ## Documentation
 
+- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Start here! Comprehensive guide with diagrams explaining how everything works
 - [PRD.md](./PRD.md) - Product requirements and operational targets
 - [docs/RESEARCH.md](./docs/RESEARCH.md) - Research notes and external references
 - [docs/PROBLEMS.md](./docs/PROBLEMS.md) - Known issues and deferred ideas

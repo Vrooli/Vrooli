@@ -13,6 +13,7 @@ import {
   useStopSandbox,
   useApproveSandbox,
   useRejectSandbox,
+  useDiscardFiles,
   queryKeys,
 } from "./lib/hooks";
 import { computeStats, type Sandbox, type CreateRequest } from "./lib/api";
@@ -36,6 +37,7 @@ export default function App() {
   const stopMutation = useStopSandbox();
   const approveMutation = useApproveSandbox();
   const rejectMutation = useRejectSandbox();
+  const discardMutation = useDiscardFiles();
 
   // Computed stats
   const stats = useMemo(() => {
@@ -114,6 +116,17 @@ export default function App() {
     });
   }, [selectedSandbox, deleteMutation]);
 
+  const handleDiscardFile = useCallback(
+    (fileId: string) => {
+      if (!selectedSandbox) return;
+      discardMutation.mutate({
+        sandboxId: selectedSandbox.id,
+        fileIds: [fileId],
+      });
+    },
+    [selectedSandbox, discardMutation]
+  );
+
   // Keep selected sandbox in sync with list updates
   const sandboxes = sandboxesQuery.data?.sandboxes || [];
 
@@ -169,10 +182,12 @@ export default function App() {
             onApprove={handleApprove}
             onReject={handleReject}
             onDelete={handleDelete}
+            onDiscardFile={handleDiscardFile}
             isApproving={approveMutation.isPending}
             isRejecting={rejectMutation.isPending}
             isStopping={stopMutation.isPending}
             isDeleting={deleteMutation.isPending}
+            isDiscarding={discardMutation.isPending}
           />
         </div>
       </div>
@@ -193,7 +208,8 @@ export default function App() {
         deleteMutation.error ||
         stopMutation.error ||
         approveMutation.error ||
-        rejectMutation.error) && (
+        rejectMutation.error ||
+        discardMutation.error) && (
         <div
           className="fixed bottom-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm max-w-md z-50"
           data-testid={SELECTORS.errorToast}
@@ -205,7 +221,8 @@ export default function App() {
               deleteMutation.error ||
               stopMutation.error ||
               approveMutation.error ||
-              rejectMutation.error
+              rejectMutation.error ||
+              discardMutation.error
             )?.message}
           </p>
         </div>

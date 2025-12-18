@@ -210,6 +210,7 @@ type mockService struct {
 	getDiffFn         func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
 	approveFn         func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
 	rejectFn          func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
+	discardFn         func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error)
 	getWorkspaceFn    func(ctx context.Context, id uuid.UUID) (string, error)
 	checkConflictsFn  func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error)
 	rebaseFn          func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error)
@@ -271,6 +272,13 @@ func (m *mockService) Approve(ctx context.Context, req *types.ApprovalRequest) (
 func (m *mockService) Reject(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error) {
 	if m.rejectFn != nil {
 		return m.rejectFn(ctx, id, actor)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockService) Discard(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
+	if m.discardFn != nil {
+		return m.discardFn(ctx, req)
 	}
 	return nil, fmt.Errorf("not implemented")
 }
@@ -896,6 +904,140 @@ func TestRejectSuccess(t *testing.T) {
 
 	if resp.Status != types.StatusRejected {
 		t.Errorf("Reject() status = %v, want %v", resp.Status, types.StatusRejected)
+	}
+}
+
+// --- Discard Handler Tests ---
+
+// TestDiscardSuccess tests successfully discarding files from a sandbox.
+func TestDiscardSuccess(t *testing.T) {
+	testID := uuid.New()
+	fileID := uuid.New()
+	svc := &mockService{
+		discardFn: func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
+			return &types.DiscardResult{
+				Success:   true,
+				Discarded: 1,
+				Remaining: 2,
+				Files:     []string{"test.txt"},
+			}, nil
+		},
+	}
+
+	h := &Handlers{
+		Service: svc,
+		DB:      &mockPinger{},
+		Driver:  &mockDriver{available: true},
+		Config:  config.Config{},
+	}
+
+	body := fmt.Sprintf(`{"fileIds": ["%s"], "actor": "test-user"}`, fileID.String())
+	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/discard", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.Discard(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Discard() status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp types.DiscardResult
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Error("Discard() should return success=true")
+	}
+	if resp.Discarded != 1 {
+		t.Errorf("Discard() discarded = %d, want 1", resp.Discarded)
+	}
+	if resp.Remaining != 2 {
+		t.Errorf("Discard() remaining = %d, want 2", resp.Remaining)
+	}
+}
+
+// TestDiscardWithFilePaths tests discarding using file paths instead of IDs.
+func TestDiscardWithFilePaths(t *testing.T) {
+	testID := uuid.New()
+	svc := &mockService{
+		discardFn: func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error) {
+			if len(req.FilePaths) != 1 || req.FilePaths[0] != "path/to/file.txt" {
+				t.Errorf("Expected filePaths to contain path/to/file.txt, got %v", req.FilePaths)
+			}
+			return &types.DiscardResult{
+				Success:   true,
+				Discarded: 1,
+				Remaining: 0,
+				Files:     req.FilePaths,
+			}, nil
+		},
+	}
+
+	h := &Handlers{
+		Service: svc,
+		DB:      &mockPinger{},
+		Driver:  &mockDriver{available: true},
+		Config:  config.Config{},
+	}
+
+	body := `{"filePaths": ["path/to/file.txt"]}`
+	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/discard", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.Discard(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Discard() status = %d, want %d", rr.Code, http.StatusOK)
+	}
+}
+
+// TestDiscardMissingFiles tests that discard requires files to be specified.
+func TestDiscardMissingFiles(t *testing.T) {
+	testID := uuid.New()
+	h := &Handlers{
+		Service: &mockService{},
+		DB:      &mockPinger{},
+		Driver:  &mockDriver{available: true},
+		Config:  config.Config{},
+	}
+
+	body := `{"actor": "test-user"}`
+	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/discard", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.Discard(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Discard() with no files status = %d, want %d", rr.Code, http.StatusBadRequest)
+	}
+}
+
+// TestDiscardInvalidSandboxID tests that discard rejects invalid sandbox IDs.
+func TestDiscardInvalidSandboxID(t *testing.T) {
+	h := &Handlers{
+		Service: &mockService{},
+		DB:      &mockPinger{},
+		Driver:  &mockDriver{available: true},
+		Config:  config.Config{},
+	}
+
+	body := `{"filePaths": ["test.txt"]}`
+	req := httptest.NewRequest("POST", "/sandboxes/invalid-uuid/discard", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": "invalid-uuid"})
+	rr := httptest.NewRecorder()
+
+	h.Discard(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Discard() with invalid ID status = %d, want %d", rr.Code, http.StatusBadRequest)
 	}
 }
 
