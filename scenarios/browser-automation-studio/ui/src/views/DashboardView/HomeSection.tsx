@@ -33,7 +33,7 @@ interface HomeTabProps {
   onNavigateToWorkflow: (projectId: string, workflowId: string) => void;
   onRunWorkflow: (workflowId: string) => void;
   onViewExecution: (executionId: string, workflowId: string) => void;
-  onOpenSettings: () => void;
+  onOpenSettings: (tab?: string) => void;
   onUseTemplate: (prompt: string, templateName: string) => void;
   onStartRecording?: () => void;
   isGenerating?: boolean;
@@ -216,7 +216,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     if (aiCapability.available) {
       onUseTemplate(examplePrompts[0], 'Template jumpstart');
     } else {
-      onOpenSettings();
+      onOpenSettings('apikeys');
     }
   }, [aiCapability.available, onOpenSettings, onUseTemplate]);
 
@@ -309,7 +309,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
           </div>
           <button
-            onClick={onOpenSettings}
+            onClick={() => onOpenSettings(aiCapability.reason === 'no_credits' ? 'subscription' : 'apikeys')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-flow-text bg-white hover:bg-flow-node-hover rounded-lg transition-colors border border-flow-border"
           >
             {aiCapability.reason === 'no_credits' ? (
@@ -543,7 +543,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </button>
               <span className="h-3 w-px bg-flow-border/70" />
               <button
-                onClick={onOpenSettings}
+                onClick={() => onOpenSettings('apikeys')}
                 className="inline-flex items-center gap-1.5 text-flow-text-muted hover:text-flow-text transition-colors"
               >
                 <Key size={12} />

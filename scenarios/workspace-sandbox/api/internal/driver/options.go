@@ -95,6 +95,8 @@ func GetDriverOptions(ctx context.Context, currentDriverType DriverType, inUserN
 		} else {
 			resp.CurrentDriver = DriverOptionOverlayfsRoot
 		}
+	case DriverTypeFuseOverlayfs:
+		resp.CurrentDriver = DriverOptionFuseOverlayfs
 	case DriverTypeCopy:
 		resp.CurrentDriver = DriverOptionCopy
 	default:

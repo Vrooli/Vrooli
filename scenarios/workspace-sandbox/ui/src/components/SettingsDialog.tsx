@@ -8,8 +8,6 @@ import {
   ChevronDown,
   ChevronRight,
   Info,
-  ExternalLink,
-  Terminal,
   Cpu,
   HardDrive,
   Shield,
@@ -17,6 +15,7 @@ import {
   Copy,
   CheckCircle2,
   AlertTriangle,
+  Play,
 } from "lucide-react";
 import {
   Dialog,
@@ -28,9 +27,9 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { useDriverOptions } from "../lib/hooks";
+import { useDriverOptions, useSelectDriver } from "../lib/hooks";
 import { queryKeys } from "../lib/hooks";
-import type { DriverOption, DriverRequirement } from "../lib/api";
+import type { DriverOption, DriverRequirement, SelectDriverResponse } from "../lib/api";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -108,9 +107,13 @@ function RequirementItem({ requirement }: { requirement: DriverRequirement }) {
 function DriverOptionCard({
   option,
   isCurrentDriver,
+  onSelect,
+  isSelecting,
 }: {
   option: DriverOption;
   isCurrentDriver: boolean;
+  onSelect: (driverId: string) => void;
+  isSelecting: boolean;
 }) {
   const [expanded, setExpanded] = useState(!option.available || isCurrentDriver);
 
@@ -182,14 +185,44 @@ function DriverOptionCard({
         </div>
       </button>
 
-      {/* Requirements List */}
-      {expanded && option.requirements.length > 0 && (
+      {/* Requirements List and Select Button */}
+      {expanded && (
         <div className="px-4 pb-3 pt-0 border-t border-slate-700/50">
-          <div className="mt-3 space-y-1">
-            {option.requirements.map((req, i) => (
-              <RequirementItem key={i} requirement={req} />
-            ))}
-          </div>
+          {option.requirements.length > 0 && (
+            <div className="mt-3 space-y-1">
+              {option.requirements.map((req, i) => (
+                <RequirementItem key={i} requirement={req} />
+              ))}
+            </div>
+          )}
+
+          {/* Select Button */}
+          {option.available && !isCurrentDriver && (
+            <div className="mt-3 pt-3 border-t border-slate-700/50">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(option.id);
+                }}
+                disabled={isSelecting}
+                className="w-full"
+              >
+                {isSelecting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    Selecting...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3.5 w-3.5 mr-1.5" />
+                    Use this driver
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -199,10 +232,22 @@ function DriverOptionCard({
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const queryClient = useQueryClient();
   const driverOptionsQuery = useDriverOptions();
+  const selectDriverMutation = useSelectDriver();
   const data = driverOptionsQuery.data;
+  const [selectResult, setSelectResult] = useState<SelectDriverResponse | null>(null);
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.driverOptions });
+    setSelectResult(null);
+  };
+
+  const handleSelectDriver = (driverId: string) => {
+    setSelectResult(null);
+    selectDriverMutation.mutate(driverId, {
+      onSuccess: (result) => {
+        setSelectResult(result);
+      },
+    });
   };
 
   return (
@@ -300,6 +345,43 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </Button>
             </div>
 
+            {/* Success/Info Message */}
+            {selectResult && (
+              <div
+                className={`rounded-lg border p-3 mb-4 ${
+                  selectResult.requiresRestart
+                    ? "border-amber-700 bg-amber-950/30 text-amber-200"
+                    : "border-emerald-700 bg-emerald-950/30 text-emerald-200"
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  {selectResult.requiresRestart ? (
+                    <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  )}
+                  <div className="text-sm">
+                    <p>{selectResult.message}</p>
+                    {selectResult.requiresRestart && (
+                      <p className="text-xs mt-1 opacity-80">
+                        Restart the API server for the change to take effect.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {selectDriverMutation.error && (
+              <div className="rounded-lg border border-red-800 bg-red-950/50 p-3 mb-4 text-red-300 text-sm">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  {(selectDriverMutation.error as Error).message}
+                </div>
+              </div>
+            )}
+
             {driverOptionsQuery.isLoading ? (
               <div className="flex items-center justify-center py-8 text-slate-500">
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -322,6 +404,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     key={option.id}
                     option={option}
                     isCurrentDriver={option.id === data.currentDriver}
+                    onSelect={handleSelectDriver}
+                    isSelecting={selectDriverMutation.isPending}
                   />
                 ))}
               </div>
@@ -345,8 +429,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   or file operation APIs.
                 </p>
                 <p className="text-xs">
-                  Driver selection will be available in a future update. Currently,
-                  the driver is automatically selected based on system capabilities.
+                  Selected driver preferences are saved and will be used on the next API restart.
+                  If a driver becomes unavailable, the system will automatically fall back to the next best option.
                 </p>
               </div>
             </div>

@@ -3,6 +3,7 @@ package driver
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,9 +23,10 @@ func StableFileID(sandboxID uuid.UUID, filePath string) uuid.UUID {
 type DriverType string
 
 const (
-	DriverTypeOverlayfs DriverType = "overlayfs"
-	DriverTypeCopy      DriverType = "copy" // [OT-P2-004] Cross-platform fallback
-	DriverTypeNone      DriverType = "none"
+	DriverTypeOverlayfs     DriverType = "overlayfs"
+	DriverTypeFuseOverlayfs DriverType = "fuse-overlayfs" // Unprivileged with direct access
+	DriverTypeCopy          DriverType = "copy"           // [OT-P2-004] Cross-platform fallback
+	DriverTypeNone          DriverType = "none"
 )
 
 // MountPaths contains the paths used for overlay mounting.
@@ -146,15 +148,36 @@ type Info struct {
 // SelectDriver returns the best available driver for the current system.
 // It tests each driver in priority order and returns the first one that works.
 //
-// Selection order:
+// Selection order (when UseFuseOverlayfs is false):
 //  1. OverlayfsDriver - native kernel overlayfs (best performance)
 //     Works if: running in user namespace (kernel 5.11+) OR has CAP_SYS_ADMIN
-//  2. CopyDriver - cross-platform fallback (always works)
+//  2. FuseOverlayfsDriver - fuse-overlayfs (direct access, good performance)
+//     Works if: fuse-overlayfs installed, /dev/fuse available
+//  3. CopyDriver - cross-platform fallback (always works)
 //     Uses file copies instead of overlayfs, slower but universal
+//
+// Selection order (when UseFuseOverlayfs is true):
+//  1. FuseOverlayfsDriver - prioritized for direct filesystem access
+//  2. OverlayfsDriver - fallback to native overlayfs
+//  3. CopyDriver - cross-platform fallback
 //
 // The cfg parameter is used to configure whichever driver is selected.
 // Logs are emitted explaining which driver was selected and why fallbacks occurred.
 func SelectDriver(ctx context.Context, cfg Config) (Driver, error) {
+	// If fuse-overlayfs is explicitly requested, try it first
+	if cfg.UseFuseOverlayfs {
+		fuseDriver := NewFuseOverlayfsDriver(cfg)
+		available, err := fuseDriver.IsAvailable(ctx)
+		if err == nil && available {
+			log.Printf("driver: using fuse-overlayfs (direct access, configured preference)")
+			return fuseDriver, nil
+		}
+		if err != nil {
+			log.Printf("driver: fuse-overlayfs requested but not available: %v", err)
+		}
+		// Fall through to try other options
+	}
+
 	// Try native overlayfs first (best performance)
 	overlayDriver := NewOverlayfsDriver(cfg)
 	available, err := overlayDriver.IsAvailable(ctx)
@@ -170,9 +193,22 @@ func SelectDriver(ctx context.Context, cfg Config) (Driver, error) {
 		log.Printf("driver: overlayfs not available (mount test failed)")
 	}
 
+	// Try fuse-overlayfs if not explicitly requested but native isn't available
+	if !cfg.UseFuseOverlayfs {
+		fuseDriver := NewFuseOverlayfsDriver(cfg)
+		available, err := fuseDriver.IsAvailable(ctx)
+		if err == nil && available {
+			log.Printf("driver: using fuse-overlayfs (direct access, fallback from native overlayfs)")
+			return fuseDriver, nil
+		}
+		if err != nil {
+			log.Printf("driver: fuse-overlayfs not available: %v", err)
+		}
+	}
+
 	// Fall back to copy driver
 	log.Printf("driver: falling back to copy driver (slower but universal)")
-	log.Printf("driver: for better performance, ensure you're running on Linux kernel 5.11+ with user namespaces enabled")
+	log.Printf("driver: for better performance, install fuse-overlayfs or ensure Linux kernel 5.11+ with user namespaces")
 	copyDriver := NewCopyDriver(cfg)
 	return copyDriver, nil
 }
@@ -192,6 +228,16 @@ func DriverInfo(ctx context.Context, cfg Config) []Info {
 		Available:   overlayAvailable,
 	})
 
+	// Check fuse-overlayfs
+	fuseDriver := NewFuseOverlayfsDriver(cfg)
+	fuseAvailable, _ := fuseDriver.IsAvailable(ctx)
+	info = append(info, Info{
+		Type:        DriverTypeFuseOverlayfs,
+		Version:     fuseDriver.Version(),
+		Description: "FUSE overlayfs driver - unprivileged overlayfs with direct filesystem access",
+		Available:   fuseAvailable,
+	})
+
 	// Copy driver is always available
 	copyDriver := NewCopyDriver(cfg)
 	info = append(info, Info{
@@ -202,4 +248,70 @@ func DriverInfo(ctx context.Context, cfg Config) []Info {
 	})
 
 	return info
+}
+
+// --- Driver Preference Storage ---
+
+const preferenceFileName = "driver-preference.json"
+
+// DriverPreference stores the user's driver preference.
+type DriverPreference struct {
+	// DriverID is the selected driver option ID (e.g., "fuse-overlayfs", "overlayfs-userns")
+	DriverID string `json:"driverId"`
+}
+
+// SaveDriverPreference saves the driver preference to a file.
+func SaveDriverPreference(baseDir, driverID string) error {
+	// Ensure base directory exists
+	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+		return err
+	}
+
+	pref := DriverPreference{DriverID: driverID}
+	data, err := json.MarshalIndent(pref, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	prefPath := filepath.Join(baseDir, preferenceFileName)
+	return os.WriteFile(prefPath, data, 0o644)
+}
+
+// LoadDriverPreference loads the driver preference from a file.
+// Returns empty string and error if no preference is set.
+func LoadDriverPreference(baseDir string) (string, error) {
+	prefPath := filepath.Join(baseDir, preferenceFileName)
+	data, err := os.ReadFile(prefPath)
+	if err != nil {
+		return "", err
+	}
+
+	var pref DriverPreference
+	if err := json.Unmarshal(data, &pref); err != nil {
+		return "", err
+	}
+
+	return pref.DriverID, nil
+}
+
+// SelectDriverWithPreference returns the best available driver,
+// respecting any saved preference.
+func SelectDriverWithPreference(ctx context.Context, cfg Config) (Driver, error) {
+	// Check for saved preference
+	pref, err := LoadDriverPreference(cfg.BaseDir)
+	if err == nil && pref != "" {
+		// Map preference to config
+		switch pref {
+		case string(DriverOptionFuseOverlayfs):
+			cfg.UseFuseOverlayfs = true
+		case string(DriverOptionOverlayfsUserNS), string(DriverOptionOverlayfsRoot):
+			cfg.UseFuseOverlayfs = false
+		case string(DriverOptionCopy):
+			// Force copy driver
+			log.Printf("driver: using copy driver (saved preference)")
+			return NewCopyDriver(cfg), nil
+		}
+	}
+
+	return SelectDriver(ctx, cfg)
 }

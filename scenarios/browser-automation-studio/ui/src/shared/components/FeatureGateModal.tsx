@@ -64,7 +64,7 @@ interface FeatureGateModalProps {
   isOpen: boolean;
   onClose: () => void;
   feature: GatedFeature;
-  onOpenSettings?: () => void;
+  onOpenSettings?: (tab?: string) => void;
 }
 
 export function FeatureGateModal({ isOpen, onClose, feature, onOpenSettings }: FeatureGateModalProps) {
@@ -163,7 +163,7 @@ export function FeatureGateModal({ isOpen, onClose, feature, onOpenSettings }: F
             <button
               onClick={() => {
                 onClose();
-                onOpenSettings();
+                onOpenSettings('subscription');
               }}
               className="
                 w-full px-4 py-2 rounded-lg

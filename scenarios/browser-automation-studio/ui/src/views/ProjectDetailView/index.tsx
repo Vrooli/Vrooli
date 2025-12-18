@@ -1,8 +1,8 @@
 /**
  * ProjectDetailView - Route wrapper for project detail page.
  */
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useEffect, useState, useRef } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
 import { useProjectStore, type Project } from '@/domains/projects';
@@ -17,10 +17,12 @@ const AIPromptModal = lazy(() => import('@/domains/ai/AIPromptModal'));
 
 export default function ProjectDetailView() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState('/');
+  const hasHandledOpenAI = useRef(false);
 
   const { projects, getProject, setCurrentProject } = useProjectStore();
   const {
@@ -31,6 +33,16 @@ export default function ProjectDetailView() {
     openWorkflowCreationModal,
     closeWorkflowCreationModal,
   } = useModals();
+
+  // Handle ?openAI=true query parameter
+  useEffect(() => {
+    if (!loading && project && searchParams.get('openAI') === 'true' && !hasHandledOpenAI.current) {
+      hasHandledOpenAI.current = true;
+      // Clear the query param to avoid re-opening on refresh
+      setSearchParams({}, { replace: true });
+      openAIModal();
+    }
+  }, [loading, project, searchParams, setSearchParams, openAIModal]);
 
   // Load project on mount
   useEffect(() => {

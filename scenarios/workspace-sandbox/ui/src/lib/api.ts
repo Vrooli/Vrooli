@@ -217,6 +217,37 @@ export async function fetchDriverOptions(): Promise<DriverOptionsResponse> {
   return apiRequest<DriverOptionsResponse>("/driver/options");
 }
 
+// Driver selection types
+export interface SelectDriverRequest {
+  driverId: string;
+}
+
+export interface SelectDriverResponse {
+  success: boolean;
+  selectedDriver: string;
+  requiresRestart: boolean;
+  message: string;
+}
+
+export interface DriverPreferenceResponse {
+  preference: string;
+  currentDriver: string;
+  isActive: boolean;
+}
+
+// Select driver
+export async function selectDriver(driverId: string): Promise<SelectDriverResponse> {
+  return apiRequest<SelectDriverResponse>("/driver/select", {
+    method: "POST",
+    body: JSON.stringify({ driverId }),
+  });
+}
+
+// Get driver preference
+export async function fetchDriverPreference(): Promise<DriverPreferenceResponse> {
+  return apiRequest<DriverPreferenceResponse>("/driver/preference");
+}
+
 // List sandboxes
 export async function listSandboxes(filter?: ListFilter): Promise<ListResult> {
   const params = new URLSearchParams();

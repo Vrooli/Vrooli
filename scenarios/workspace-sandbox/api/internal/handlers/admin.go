@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -91,4 +92,118 @@ func (h *Handlers) Stats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.JSONSuccess(w, response)
+}
+
+// SelectDriverRequest is the request body for selecting a driver.
+type SelectDriverRequest struct {
+	// DriverID is the ID of the driver to select (e.g., "fuse-overlayfs", "overlayfs-userns")
+	DriverID string `json:"driverId"`
+}
+
+// SelectDriverResponse is the response from selecting a driver.
+type SelectDriverResponse struct {
+	Success         bool   `json:"success"`
+	SelectedDriver  string `json:"selectedDriver"`
+	RequiresRestart bool   `json:"requiresRestart"`
+	Message         string `json:"message"`
+}
+
+// SelectDriver handles setting the preferred driver.
+// This endpoint allows users to select which driver to use.
+// Note: The change takes effect on API restart since drivers are initialized at startup.
+func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
+	var req SelectDriverRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.DriverID == "" {
+		h.JSONError(w, "driverId is required", http.StatusBadRequest)
+		return
+	}
+
+	// Get available options to validate the request
+	options := driver.GetDriverOptions(r.Context(), h.Driver.Type(), h.InUserNamespace)
+
+	// Find the requested driver option
+	var selectedOption *driver.DriverOption
+	for i := range options.Options {
+		if string(options.Options[i].ID) == req.DriverID {
+			selectedOption = &options.Options[i]
+			break
+		}
+	}
+
+	if selectedOption == nil {
+		h.JSONError(w, "unknown driver: "+req.DriverID, http.StatusBadRequest)
+		return
+	}
+
+	if !selectedOption.Available {
+		// Build helpful error message
+		var unmetReqs []string
+		for _, req := range selectedOption.Requirements {
+			if !req.Met {
+				unmetReqs = append(unmetReqs, req.Name)
+			}
+		}
+		h.JSONError(w, "driver not available - unmet requirements: "+join(unmetReqs, ", "), http.StatusBadRequest)
+		return
+	}
+
+	// Save the preference
+	if err := driver.SaveDriverPreference(h.Config.Driver.BaseDir, req.DriverID); err != nil {
+		h.JSONError(w, "failed to save driver preference: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Determine if this is a change from current
+	currentDriverID := string(options.CurrentDriver)
+	isChange := currentDriverID != req.DriverID
+
+	response := SelectDriverResponse{
+		Success:         true,
+		SelectedDriver:  req.DriverID,
+		RequiresRestart: isChange,
+		Message: func() string {
+			if isChange {
+				return "Driver preference saved. Restart the API for the change to take effect."
+			}
+			return "Driver preference saved. Already using " + req.DriverID + "."
+		}(),
+	}
+
+	h.JSONSuccess(w, response)
+}
+
+// GetDriverPreference handles getting the current driver preference.
+func (h *Handlers) GetDriverPreference(w http.ResponseWriter, r *http.Request) {
+	pref, err := driver.LoadDriverPreference(h.Config.Driver.BaseDir)
+	if err != nil {
+		// No preference set - return current driver
+		pref = string(h.Driver.Type())
+	}
+
+	options := driver.GetDriverOptions(r.Context(), h.Driver.Type(), h.InUserNamespace)
+
+	response := map[string]interface{}{
+		"preference":    pref,
+		"currentDriver": string(options.CurrentDriver),
+		"isActive":      pref == string(options.CurrentDriver) || pref == "",
+	}
+
+	h.JSONSuccess(w, response)
+}
+
+// join is a simple helper to join strings with a separator.
+func join(strs []string, sep string) string {
+	if len(strs) == 0 {
+		return ""
+	}
+	result := strs[0]
+	for i := 1; i < len(strs); i++ {
+		result += sep + strs[i]
+	}
+	return result
 }

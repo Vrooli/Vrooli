@@ -9,7 +9,7 @@ const LANDING_PAGE_URL = import.meta.env.VITE_LANDING_PAGE_URL || 'https://brows
 interface ExecutionLimitModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenSettings?: () => void;
+  onOpenSettings?: (tab?: string) => void;
 }
 
 export function ExecutionLimitModal({ isOpen, onClose, onOpenSettings }: ExecutionLimitModalProps) {
@@ -98,7 +98,7 @@ export function ExecutionLimitModal({ isOpen, onClose, onOpenSettings }: Executi
             <button
               onClick={() => {
                 onClose();
-                onOpenSettings();
+                onOpenSettings('subscription');
               }}
               className="
                 w-full px-4 py-2 rounded-lg

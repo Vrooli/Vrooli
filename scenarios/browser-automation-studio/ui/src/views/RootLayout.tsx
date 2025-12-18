@@ -130,9 +130,9 @@ function RootLayoutContent() {
       <ProjectModal
         isOpen={showProjectModal}
         onClose={closeProjectModal}
-        onSuccess={() => {
+        onSuccess={(project) => {
           closeProjectModal();
-          // Navigation handled by the calling component
+          navigate(`/projects/${project.id}`);
         }}
       />
 

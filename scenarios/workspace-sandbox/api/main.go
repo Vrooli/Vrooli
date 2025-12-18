@@ -68,6 +68,7 @@ func NewServer() (*Server, error) {
 	}
 
 	// Initialize driver with automatic selection and fallback
+	// Respects saved preference if available, otherwise:
 	// Priority: native overlayfs (in user namespace) > fuse-overlayfs > copy driver
 	driverCfg := driver.Config{
 		BaseDir:          cfg.Driver.BaseDir,
@@ -75,7 +76,7 @@ func NewServer() (*Server, error) {
 		MaxSizeMB:        cfg.Limits.MaxSandboxSizeMB,
 		UseFuseOverlayfs: cfg.Driver.UseFuseOverlayfs,
 	}
-	drv, err := driver.SelectDriver(context.Background(), driverCfg)
+	drv, err := driver.SelectDriverWithPreference(context.Background(), driverCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize driver: %w", err)
 	}

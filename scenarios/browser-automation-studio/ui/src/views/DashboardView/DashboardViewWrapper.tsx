@@ -3,7 +3,7 @@
  *
  * This component wraps DashboardView and provides navigation callbacks using React Router.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Dashboard from './DashboardView';
 import { type DashboardTab } from './DashboardTabs';
@@ -25,6 +25,7 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isGeneratingWorkflow, setIsGeneratingWorkflow] = useState(false);
+  const hasHandledCreateProject = useRef(false);
 
   const { projects, setCurrentProject } = useProjectStore();
   const {
@@ -41,6 +42,16 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
   // Get tab from URL params or use initialTab or default to 'home'
   const tabParam = searchParams.get('tab') as DashboardTab | null;
   const activeTab = tabParam ?? initialTab ?? 'home';
+
+  // Handle ?createProject=true query parameter
+  useEffect(() => {
+    if (searchParams.get('createProject') === 'true' && !hasHandledCreateProject.current) {
+      hasHandledCreateProject.current = true;
+      // Clear the query param to avoid re-opening on refresh
+      setSearchParams({}, { replace: true });
+      openProjectModal();
+    }
+  }, [searchParams, setSearchParams, openProjectModal]);
 
   const handleProjectSelect = useCallback(
     (project: Project) => {
@@ -89,8 +100,12 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
     navigate('/record/new');
   }, [navigate]);
 
-  const handleOpenSettings = useCallback(() => {
-    navigate('/settings');
+  const handleOpenSettings = useCallback((tab?: string) => {
+    if (tab) {
+      navigate(`/settings?tab=${tab}`);
+    } else {
+      navigate('/settings');
+    }
   }, [navigate]);
 
   const handleOpenHelp = useCallback(() => {

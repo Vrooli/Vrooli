@@ -200,6 +200,8 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	// --- Admin: Driver and System Info ---
 	api.HandleFunc("/driver/info", h.DriverInfo).Methods("GET")
 	api.HandleFunc("/driver/options", h.DriverOptions).Methods("GET")
+	api.HandleFunc("/driver/select", h.SelectDriver).Methods("POST")
+	api.HandleFunc("/driver/preference", h.GetDriverPreference).Methods("GET")
 	api.HandleFunc("/driver/bwrap", h.BwrapInfo).Methods("GET")
 	api.HandleFunc("/validate-path", h.ValidatePath).Methods("GET")
 

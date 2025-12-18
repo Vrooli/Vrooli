@@ -3,6 +3,7 @@ import {
   fetchHealth,
   fetchDriverInfo,
   fetchDriverOptions,
+  selectDriver,
   listSandboxes,
   getSandbox,
   createSandbox,
@@ -50,6 +51,19 @@ export function useDriverOptions() {
   return useQuery({
     queryKey: queryKeys.driverOptions,
     queryFn: fetchDriverOptions,
+  });
+}
+
+// Select driver mutation
+export function useSelectDriver() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (driverId: string) => selectDriver(driverId),
+    onSuccess: () => {
+      // Refresh driver options to show updated state
+      queryClient.invalidateQueries({ queryKey: queryKeys.driverOptions });
+    },
   });
 }
 
