@@ -144,6 +144,31 @@ flowchart TB
 - **Fast creation**: Just create empty directories, no file copying
 - **Easy diff**: Compare upper layer against lower layer
 
+### The Work Directory
+
+When you look at a sandbox's storage, you'll see four directories:
+
+```
+~/.local/share/workspace-sandbox/{sandbox-id}/
+├── lower/   → (symlink or reference to original repo)
+├── upper/   → Changed/new files stored here
+├── work/    → Kernel scratch space (don't touch!)
+└── merged/  → Combined view (mount point)
+```
+
+The `work/` directory is **internal to the overlayfs kernel driver** - you should never modify it. It serves several purposes:
+
+| Purpose | Explanation |
+|---------|-------------|
+| **Atomic copy-up** | When copying a file from lower to upper, the kernel first writes to work/, then atomically moves it to upper/. This prevents partial files if the system crashes mid-operation. |
+| **Rename operations** | Complex renames across layers use work/ as scratch space for temporary files. |
+| **Whiteout handling** | When deleting files, work/ helps manage the whiteout markers that hide lower-layer files. |
+| **Crash recovery** | Incomplete operations can be detected and cleaned up on next mount. |
+
+The empty `work/work/` subfolder you might see inside is normal - it's the actual scratch area the kernel uses. The outer `work/` directory must exist and be on the same filesystem as `upper/` for overlayfs to function.
+
+**Important:** If you delete or corrupt the work/ directory while a sandbox is mounted, the overlayfs mount will become unstable. Always unmount before cleanup.
+
 ---
 
 ## The User Namespace Pattern

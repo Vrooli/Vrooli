@@ -99,6 +99,15 @@ export interface DriverRequirement {
   met: boolean;
   current?: string;
   howToFix?: string;
+  optional?: boolean;
+}
+
+export interface DriverCapabilities {
+  filesystemIsolation: boolean;
+  processIsolation: boolean;
+  networkIsolation: boolean;
+  directAccess: boolean;
+  notes?: string;
 }
 
 export interface DriverOption {
@@ -106,6 +115,7 @@ export interface DriverOption {
   name: string;
   description: string;
   directAccess: boolean;
+  capabilities: DriverCapabilities;
   requirements: DriverRequirement[];
   available: boolean;
   recommended?: boolean;

@@ -35,6 +35,27 @@ type Requirement struct {
 
 	// HowToFix provides actionable steps to satisfy the requirement
 	HowToFix string `json:"howToFix,omitempty"`
+
+	// Optional indicates this requirement enhances functionality but isn't required
+	Optional bool `json:"optional,omitempty"`
+}
+
+// Capabilities describes what isolation/protection features a driver provides.
+type Capabilities struct {
+	// FilesystemIsolation indicates copy-on-write protection for the canonical repo
+	FilesystemIsolation bool `json:"filesystemIsolation"`
+
+	// ProcessIsolation indicates bwrap namespace isolation for spawned processes
+	ProcessIsolation bool `json:"processIsolation"`
+
+	// NetworkIsolation indicates ability to restrict network access
+	NetworkIsolation bool `json:"networkIsolation"`
+
+	// DirectAccess indicates if merged directory is accessible outside the API
+	DirectAccess bool `json:"directAccess"`
+
+	// Notes provides additional context about capabilities
+	Notes string `json:"notes,omitempty"`
 }
 
 // DriverOption represents a single driver option with its requirements.
@@ -50,6 +71,9 @@ type DriverOption struct {
 
 	// DirectAccess indicates if the merged directory is accessible outside the API process
 	DirectAccess bool `json:"directAccess"`
+
+	// Capabilities describes what isolation features this driver provides
+	Capabilities Capabilities `json:"capabilities"`
 
 	// Requirements lists what's needed to use this driver
 	Requirements []Requirement `json:"requirements"`
@@ -132,6 +156,13 @@ func buildOverlayfsUserNSOption() DriverOption {
 		Name:         "Overlayfs (User Namespace)",
 		Description:  "Secure unprivileged overlayfs using Linux user namespaces. Best performance, no root required. Mounted files are only accessible via the API (exec endpoint or file operations API).",
 		DirectAccess: false,
+		Capabilities: Capabilities{
+			FilesystemIsolation: true,
+			ProcessIsolation:    true,
+			NetworkIsolation:    true,
+			DirectAccess:        false,
+			Notes:               "Full isolation via bwrap. Processes see restricted filesystem view.",
+		},
 		Requirements: make([]Requirement, 0),
 	}
 
@@ -195,11 +226,26 @@ func buildOverlayfsUserNSOption() DriverOption {
 
 // buildFuseOverlayfsOption checks requirements for fuse-overlayfs.
 func buildFuseOverlayfsOption() DriverOption {
+	// Check if bwrap is available for process isolation
+	bwrapOK := commandExists("bwrap")
+
 	opt := DriverOption{
 		ID:           DriverOptionFuseOverlayfs,
 		Name:         "FUSE Overlayfs",
-		Description:  "Unprivileged overlayfs via FUSE. Direct filesystem access without root. Slightly lower performance than kernel overlayfs.",
+		Description:  "Unprivileged overlayfs via FUSE. Direct filesystem access without root. Process isolation via bwrap when available.",
 		DirectAccess: true,
+		Capabilities: Capabilities{
+			FilesystemIsolation: true,
+			ProcessIsolation:    bwrapOK,
+			NetworkIsolation:    bwrapOK,
+			DirectAccess:        true,
+			Notes: func() string {
+				if bwrapOK {
+					return "Full isolation with bwrap. Direct access to merged directory."
+				}
+				return "Filesystem isolation only. Install bwrap for process/network isolation."
+			}(),
+		},
 		Requirements: make([]Requirement, 0),
 	}
 
@@ -260,6 +306,25 @@ func buildFuseOverlayfsOption() DriverOption {
 		}(),
 	})
 
+	// Requirement 4: bwrap for process isolation (optional but recommended)
+	opt.Requirements = append(opt.Requirements, Requirement{
+		Name:     "bubblewrap (bwrap) for process isolation",
+		Met:      bwrapOK,
+		Optional: true,
+		Current: func() string {
+			if bwrapOK {
+				return getCommandVersion("bwrap", "--version")
+			}
+			return "not installed"
+		}(),
+		HowToFix: func() string {
+			if !bwrapOK {
+				return "sudo apt install bubblewrap"
+			}
+			return ""
+		}(),
+	})
+
 	opt.Available = fuseOverlayfsOK && fuseOK && fusermountOK
 	return opt
 }
@@ -271,6 +336,13 @@ func buildOverlayfsRootOption() DriverOption {
 		Name:         "Overlayfs (Privileged)",
 		Description:  "Native kernel overlayfs with root privileges. Best performance, direct filesystem access. Requires running the API as root or with CAP_SYS_ADMIN.",
 		DirectAccess: true,
+		Capabilities: Capabilities{
+			FilesystemIsolation: true,
+			ProcessIsolation:    true,
+			NetworkIsolation:    true,
+			DirectAccess:        true,
+			Notes:               "Full isolation with bwrap. Requires elevated privileges.",
+		},
 		Requirements: make([]Requirement, 0),
 	}
 
@@ -329,6 +401,13 @@ func buildCopyDriverOption() DriverOption {
 		Name:         "Copy Driver (Fallback)",
 		Description:  "Cross-platform fallback using file copies. Works on any OS, direct filesystem access. Higher disk usage (2x), slower for large directories.",
 		DirectAccess: true,
+		Capabilities: Capabilities{
+			FilesystemIsolation: true,
+			ProcessIsolation:    false,
+			NetworkIsolation:    false,
+			DirectAccess:        true,
+			Notes:               "Filesystem isolation via file copy. No process isolation (cross-platform).",
+		},
 		Requirements: []Requirement{}, // No requirements - always available
 		Available:    true,
 	}

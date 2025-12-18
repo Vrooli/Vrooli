@@ -18,7 +18,6 @@ func TestBuildBwrapArgs(t *testing.T) {
 		t.Skip("bwrap tests require Linux")
 	}
 
-	driver := NewOverlayfsDriver(DefaultConfig())
 	sandbox := &types.Sandbox{
 		ID:        uuid.New(),
 		ScopePath: "/tmp/test",
@@ -29,7 +28,7 @@ func TestBuildBwrapArgs(t *testing.T) {
 	}
 
 	cfg := DefaultBwrapConfig()
-	args := driver.buildBwrapArgs(sandbox, cfg)
+	args := buildBwrapArgs(sandbox, cfg)
 
 	// Verify essential arguments are present
 	tests := []struct {
@@ -86,7 +85,6 @@ func TestBwrapNetworkConfig(t *testing.T) {
 		t.Skip("bwrap tests require Linux")
 	}
 
-	driver := NewOverlayfsDriver(DefaultConfig())
 	sandbox := &types.Sandbox{
 		ID:        uuid.New(),
 		MergedDir: "/tmp/test",
@@ -95,14 +93,14 @@ func TestBwrapNetworkConfig(t *testing.T) {
 
 	// Network disabled (default)
 	cfg := DefaultBwrapConfig()
-	args := driver.buildBwrapArgs(sandbox, cfg)
+	args := buildBwrapArgs(sandbox, cfg)
 	if !contains(args, "--unshare-net") {
 		t.Error("expected --unshare-net when AllowNetwork=false")
 	}
 
 	// Network enabled
 	cfg.AllowNetwork = true
-	args = driver.buildBwrapArgs(sandbox, cfg)
+	args = buildBwrapArgs(sandbox, cfg)
 	if contains(args, "--unshare-net") {
 		t.Error("did not expect --unshare-net when AllowNetwork=true")
 	}
@@ -114,7 +112,6 @@ func TestBwrapPIDNamespaceConfig(t *testing.T) {
 		t.Skip("bwrap tests require Linux")
 	}
 
-	driver := NewOverlayfsDriver(DefaultConfig())
 	sandbox := &types.Sandbox{
 		ID:        uuid.New(),
 		MergedDir: "/tmp/test",
@@ -123,14 +120,14 @@ func TestBwrapPIDNamespaceConfig(t *testing.T) {
 
 	// PID isolated (default)
 	cfg := DefaultBwrapConfig()
-	args := driver.buildBwrapArgs(sandbox, cfg)
+	args := buildBwrapArgs(sandbox, cfg)
 	if !contains(args, "--unshare-pid") {
 		t.Error("expected --unshare-pid when SharePID=false")
 	}
 
 	// PID shared
 	cfg.SharePID = true
-	args = driver.buildBwrapArgs(sandbox, cfg)
+	args = buildBwrapArgs(sandbox, cfg)
 	if contains(args, "--unshare-pid") {
 		t.Error("did not expect --unshare-pid when SharePID=true")
 	}

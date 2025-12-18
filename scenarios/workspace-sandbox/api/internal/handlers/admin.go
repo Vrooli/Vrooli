@@ -8,6 +8,27 @@ import (
 	"workspace-sandbox/internal/driver"
 )
 
+// APIInfo handles requests to the root and /api paths with helpful API documentation.
+// This improves discoverability for developers who don't know the versioned API path.
+func (h *Handlers) APIInfo(w http.ResponseWriter, r *http.Request) {
+	response := map[string]interface{}{
+		"service":     "Workspace Sandbox API",
+		"version":     Version,
+		"description": "Copy-on-write workspaces for safe code modification",
+		"apiVersion":  "v1",
+		"basePath":    "/api/v1",
+		"endpoints": map[string]string{
+			"health":    "/api/v1/health",
+			"sandboxes": "/api/v1/sandboxes",
+			"driver":    "/api/v1/driver/info",
+			"stats":     "/api/v1/stats",
+			"metrics":   "/api/v1/metrics",
+		},
+		"documentation": "https://github.com/vrooli/workspace-sandbox",
+	}
+	h.JSONSuccess(w, response)
+}
+
 // Health handles health check requests.
 func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	status := "healthy"

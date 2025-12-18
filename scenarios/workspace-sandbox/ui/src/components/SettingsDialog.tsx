@@ -16,6 +16,11 @@ import {
   CheckCircle2,
   AlertTriangle,
   Play,
+  FileStack,
+  Container,
+  Wifi,
+  FolderOpen,
+  Minus,
 } from "lucide-react";
 import {
   Dialog,
@@ -29,7 +34,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { useDriverOptions, useSelectDriver } from "../lib/hooks";
 import { queryKeys } from "../lib/hooks";
-import type { DriverOption, DriverRequirement, SelectDriverResponse } from "../lib/api";
+import type { DriverOption, DriverRequirement, DriverCapabilities, SelectDriverResponse } from "../lib/api";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -57,10 +62,15 @@ function RequirementItem({ requirement }: { requirement: DriverRequirement }) {
     }
   };
 
+  // For optional requirements, show different styling
+  const isOptionalUnmet = requirement.optional && !requirement.met;
+
   return (
     <div className="flex items-start gap-2 py-1.5">
       {requirement.met ? (
         <Check className="h-4 w-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+      ) : requirement.optional ? (
+        <Minus className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
       ) : (
         <X className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
       )}
@@ -68,11 +78,16 @@ function RequirementItem({ requirement }: { requirement: DriverRequirement }) {
         <div className="flex items-center gap-2 flex-wrap">
           <span
             className={`text-sm ${
-              requirement.met ? "text-slate-300" : "text-slate-400"
+              requirement.met ? "text-slate-300" : isOptionalUnmet ? "text-slate-400" : "text-slate-400"
             }`}
           >
             {requirement.name}
           </span>
+          {requirement.optional && (
+            <Badge variant="default" className="text-[9px] bg-slate-700 text-slate-400">
+              Optional
+            </Badge>
+          )}
           {requirement.current && (
             <span className="text-xs text-slate-500 font-mono">
               ({requirement.current})
@@ -81,7 +96,9 @@ function RequirementItem({ requirement }: { requirement: DriverRequirement }) {
         </div>
         {!requirement.met && requirement.howToFix && (
           <div className="mt-1.5 flex items-start gap-2 group">
-            <code className="flex-1 text-xs bg-slate-800 px-2 py-1 rounded text-amber-300 font-mono break-all">
+            <code className={`flex-1 text-xs bg-slate-800 px-2 py-1 rounded font-mono break-all ${
+              requirement.optional ? "text-blue-300" : "text-amber-300"
+            }`}>
               {requirement.howToFix}
             </code>
             <Button
@@ -100,6 +117,70 @@ function RequirementItem({ requirement }: { requirement: DriverRequirement }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Capability indicator component
+function CapabilityIndicator({ enabled, label }: { enabled: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5" title={label}>
+      {enabled ? (
+        <Check className="h-3.5 w-3.5 text-emerald-400" />
+      ) : (
+        <X className="h-3.5 w-3.5 text-slate-600" />
+      )}
+    </div>
+  );
+}
+
+// Capability matrix for comparing drivers
+function CapabilityMatrix({ options }: { options: DriverOption[] }) {
+  const capabilities = [
+    { key: "filesystemIsolation", label: "Filesystem", icon: FileStack, description: "Copy-on-write protection" },
+    { key: "processIsolation", label: "Process", icon: Container, description: "Namespace isolation via bwrap" },
+    { key: "networkIsolation", label: "Network", icon: Wifi, description: "Network access control" },
+    { key: "directAccess", label: "Direct Access", icon: FolderOpen, description: "Merged dir accessible to tools" },
+  ] as const;
+
+  return (
+    <div className="rounded-lg border border-slate-700 bg-slate-800/30 overflow-hidden">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-slate-700">
+            <th className="text-left py-2 px-3 text-slate-400 font-medium">Driver</th>
+            {capabilities.map((cap) => (
+              <th key={cap.key} className="py-2 px-2 text-center" title={cap.description}>
+                <div className="flex flex-col items-center gap-0.5">
+                  <cap.icon className="h-3.5 w-3.5 text-slate-500" />
+                  <span className="text-slate-500 font-normal">{cap.label}</span>
+                </div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {options.map((option) => (
+            <tr key={option.id} className="border-b border-slate-800 last:border-0">
+              <td className="py-2 px-3">
+                <span className={`font-medium ${option.available ? "text-slate-300" : "text-slate-500"}`}>
+                  {option.name.replace(" (Fallback)", "")}
+                </span>
+              </td>
+              {capabilities.map((cap) => (
+                <td key={cap.key} className="py-2 px-2 text-center">
+                  <div className="flex justify-center">
+                    <CapabilityIndicator
+                      enabled={option.capabilities?.[cap.key] ?? false}
+                      label={cap.description}
+                    />
+                  </div>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -319,6 +400,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   </div>
                 </div>
               </div>
+            </section>
+          )}
+
+          {/* Capability Matrix */}
+          {data?.options && data.options.length > 0 && (
+            <section>
+              <h3 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
+                <Shield className="h-4 w-4 text-slate-500" />
+                Capability Comparison
+              </h3>
+              <CapabilityMatrix options={data.options} />
+              <p className="text-xs text-slate-500 mt-2">
+                Hover over column headers for details. Process and network isolation require bubblewrap (bwrap).
+              </p>
             </section>
           )}
 

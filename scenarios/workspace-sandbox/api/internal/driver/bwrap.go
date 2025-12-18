@@ -101,7 +101,7 @@ func (d *OverlayfsDriver) Exec(ctx context.Context, s *types.Sandbox, cfg BwrapC
 	}
 
 	// Build bwrap command arguments
-	bwrapArgs := d.buildBwrapArgs(s, cfg)
+	bwrapArgs := buildBwrapArgs(s, cfg)
 
 	// Add the command to execute
 	bwrapArgs = append(bwrapArgs, cmd)
@@ -146,7 +146,8 @@ func (d *OverlayfsDriver) Exec(ctx context.Context, s *types.Sandbox, cfg BwrapC
 }
 
 // buildBwrapArgs constructs the bubblewrap argument list.
-func (d *OverlayfsDriver) buildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
+// This is a package-level function so it can be shared across drivers.
+func buildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 	args := []string{}
 
 	// Unshare namespaces for isolation
@@ -264,7 +265,7 @@ func (d *OverlayfsDriver) StartProcess(ctx context.Context, s *types.Sandbox, cf
 	}
 
 	// Build bwrap args
-	bwrapArgs := d.buildBwrapArgs(s, cfg)
+	bwrapArgs := buildBwrapArgs(s, cfg)
 	bwrapArgs = append(bwrapArgs, cmd)
 	bwrapArgs = append(bwrapArgs, args...)
 

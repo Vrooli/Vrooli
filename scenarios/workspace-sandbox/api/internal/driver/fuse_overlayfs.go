@@ -53,12 +53,22 @@ func (d *FuseOverlayfsDriver) Version() string {
 	output, err := cmd.Output()
 	if err == nil {
 		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-		if len(lines) > 0 {
-			// Extract version from output like "fuse-overlayfs: version 1.13"
-			parts := strings.Split(lines[0], "version")
-			if len(parts) > 1 {
-				return strings.TrimSpace(parts[1])
+		// Look for the line containing "fuse-overlayfs" specifically
+		// Output format:
+		//   fusermount3 version: 3.14.0
+		//   fuse-overlayfs: version 1.13-dev
+		//   FUSE library version 3.14.0
+		for _, line := range lines {
+			if strings.HasPrefix(line, "fuse-overlayfs") {
+				// Extract version from "fuse-overlayfs: version 1.13-dev"
+				parts := strings.Split(line, "version")
+				if len(parts) > 1 {
+					return strings.TrimSpace(parts[1])
+				}
 			}
+		}
+		// Fallback to first line if fuse-overlayfs line not found
+		if len(lines) > 0 {
 			return strings.TrimSpace(lines[0])
 		}
 	}
@@ -380,15 +390,73 @@ func (d *FuseOverlayfsDriver) VerifyMountIntegrity(ctx context.Context, s *types
 
 // --- Process Execution Methods ---
 
-// Exec executes a command in the sandbox.
-// Since fuse-overlayfs provides direct filesystem access, we can run commands
-// directly in the merged directory without needing bwrap for namespace isolation.
+// Exec executes a command in the sandbox with process isolation via bubblewrap.
+// When bwrap is available, provides namespace isolation (network, PID, filesystem view).
+// Falls back to direct execution if bwrap is unavailable, with a warning logged.
 func (d *FuseOverlayfsDriver) Exec(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (*ExecResult, error) {
 	if s.MergedDir == "" {
 		return nil, fmt.Errorf("sandbox merged directory not set")
 	}
 
-	// Run command directly in the merged directory
+	// Try to use bwrap for process isolation
+	bwrapPath, err := exec.LookPath("bwrap")
+	if err == nil {
+		return d.execWithBwrap(ctx, s, cfg, bwrapPath, cmd, args...)
+	}
+
+	// Fallback to direct execution (no isolation)
+	return d.execDirect(ctx, s, cfg, cmd, args...)
+}
+
+// execWithBwrap runs a command with bubblewrap isolation.
+func (d *FuseOverlayfsDriver) execWithBwrap(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, bwrapPath, cmd string, args ...string) (*ExecResult, error) {
+	// Build bwrap command arguments using shared function
+	bwrapArgs := buildBwrapArgs(s, cfg)
+
+	// Add the command to execute
+	bwrapArgs = append(bwrapArgs, cmd)
+	bwrapArgs = append(bwrapArgs, args...)
+
+	// Create the command
+	execCmd := exec.CommandContext(ctx, bwrapPath, bwrapArgs...)
+
+	// Set up environment
+	for k, v := range cfg.Env {
+		execCmd.Env = append(execCmd.Env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	// Capture output
+	var stdout, stderr strings.Builder
+	execCmd.Stdout = &stdout
+	execCmd.Stderr = &stderr
+
+	// Execute
+	err := execCmd.Run()
+
+	result := &ExecResult{
+		Stdout: []byte(stdout.String()),
+		Stderr: []byte(stderr.String()),
+	}
+
+	if execCmd.Process != nil {
+		result.PID = execCmd.Process.Pid
+	}
+
+	// Determine exit code
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			result.ExitCode = exitErr.ExitCode()
+		} else {
+			result.ExitCode = -1
+			result.Error = err
+		}
+	}
+
+	return result, nil
+}
+
+// execDirect runs a command directly without isolation (fallback when bwrap unavailable).
+func (d *FuseOverlayfsDriver) execDirect(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (*ExecResult, error) {
 	execCmd := exec.CommandContext(ctx, cmd, args...)
 	execCmd.Dir = s.MergedDir
 
@@ -427,12 +495,54 @@ func (d *FuseOverlayfsDriver) Exec(ctx context.Context, s *types.Sandbox, cfg Bw
 	return result, nil
 }
 
-// StartProcess starts a background process in the sandbox.
+// StartProcess starts a background process in the sandbox with process isolation.
+// When bwrap is available, provides namespace isolation.
+// Falls back to direct execution if bwrap is unavailable.
 func (d *FuseOverlayfsDriver) StartProcess(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (int, error) {
 	if s.MergedDir == "" {
 		return 0, fmt.Errorf("sandbox merged directory not set")
 	}
 
+	// Try to use bwrap for process isolation
+	bwrapPath, err := exec.LookPath("bwrap")
+	if err == nil {
+		return d.startProcessWithBwrap(ctx, s, cfg, bwrapPath, cmd, args...)
+	}
+
+	// Fallback to direct execution (no isolation)
+	return d.startProcessDirect(ctx, s, cfg, cmd, args...)
+}
+
+// startProcessWithBwrap starts a background process with bubblewrap isolation.
+func (d *FuseOverlayfsDriver) startProcessWithBwrap(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, bwrapPath, cmd string, args ...string) (int, error) {
+	// Build bwrap args using shared function
+	bwrapArgs := buildBwrapArgs(s, cfg)
+	bwrapArgs = append(bwrapArgs, cmd)
+	bwrapArgs = append(bwrapArgs, args...)
+
+	// Create command but don't wait for it
+	execCmd := exec.Command(bwrapPath, bwrapArgs...)
+
+	// Set environment
+	for k, v := range cfg.Env {
+		execCmd.Env = append(execCmd.Env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	// Set up process group so we can kill all children
+	execCmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+
+	// Start the process
+	if err := execCmd.Start(); err != nil {
+		return 0, fmt.Errorf("failed to start process: %w", err)
+	}
+
+	return execCmd.Process.Pid, nil
+}
+
+// startProcessDirect starts a background process without isolation.
+func (d *FuseOverlayfsDriver) startProcessDirect(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (int, error) {
 	execCmd := exec.Command(cmd, args...)
 	execCmd.Dir = s.MergedDir
 

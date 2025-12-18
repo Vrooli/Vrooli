@@ -107,9 +107,9 @@ func TestHealthHandler(t *testing.T) {
 			}
 
 			h := &Handlers{
-				DB:     &mockPinger{err: dbErr},
-				Driver: &mockDriver{available: tc.driverAvail},
-				Config: config.Config{},
+				DB:            &mockPinger{err: dbErr},
+				DriverManager: driver.NewManager(&mockDriver{available: tc.driverAvail}, driver.Config{}),
+				Config:        config.Config{},
 			}
 
 			req := httptest.NewRequest("GET", "/health", nil)
@@ -141,9 +141,9 @@ func TestHealthHandler(t *testing.T) {
 // [REQ:REQ-P0-010] Health Check API Endpoint - JSON response schema validation
 func TestHealthResponseSchema(t *testing.T) {
 	h := &Handlers{
-		DB:     &mockPinger{err: nil},
-		Driver: &mockDriver{available: true},
-		Config: config.Config{},
+		DB:            &mockPinger{err: nil},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
 	}
 
 	req := httptest.NewRequest("GET", "/health", nil)
@@ -182,9 +182,9 @@ func TestHealthResponseSchema(t *testing.T) {
 // [REQ:REQ-P0-010] Health Check API Endpoint - content type validation
 func TestHealthContentType(t *testing.T) {
 	h := &Handlers{
-		DB:     &mockPinger{err: nil},
-		Driver: &mockDriver{available: true},
-		Config: config.Config{},
+		DB:            &mockPinger{err: nil},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
 	}
 
 	req := httptest.NewRequest("GET", "/health", nil)
@@ -346,7 +346,7 @@ func TestCreateSandboxSuccess(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -383,7 +383,7 @@ func TestCreateSandboxInvalidJSON(t *testing.T) {
 	h := &Handlers{
 		Service: &mockService{},
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -429,7 +429,7 @@ func TestCreateSandboxScopeConflict(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -464,7 +464,7 @@ func TestListSandboxesEmpty(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -506,7 +506,7 @@ func TestListSandboxesWithFilter(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -558,7 +558,7 @@ func TestListSandboxesWithResults(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -604,7 +604,7 @@ func TestGetSandboxSuccess(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -641,7 +641,7 @@ func TestGetSandboxNotFound(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -662,7 +662,7 @@ func TestGetSandboxInvalidID(t *testing.T) {
 	h := &Handlers{
 		Service: &mockService{},
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -692,7 +692,7 @@ func TestDeleteSandboxSuccess(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -720,7 +720,7 @@ func TestDeleteSandboxNotFound(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -755,7 +755,7 @@ func TestStopSandboxSuccess(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -799,7 +799,7 @@ func TestGetDiffSuccess(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -842,7 +842,7 @@ func TestApproveAllSuccess(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -889,7 +889,7 @@ func TestRejectSuccess(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -935,7 +935,7 @@ func TestDiscardSuccess(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -987,7 +987,7 @@ func TestDiscardWithFilePaths(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -1010,7 +1010,7 @@ func TestDiscardMissingFiles(t *testing.T) {
 	h := &Handlers{
 		Service: &mockService{},
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -1032,7 +1032,7 @@ func TestDiscardInvalidSandboxID(t *testing.T) {
 	h := &Handlers{
 		Service: &mockService{},
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -1065,7 +1065,7 @@ func TestGetWorkspaceSuccess(t *testing.T) {
 	h := &Handlers{
 		Service: svc,
 		DB:      &mockPinger{},
-		Driver:  &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config:  config.Config{},
 	}
 
@@ -1096,7 +1096,7 @@ func TestGetWorkspaceSuccess(t *testing.T) {
 func TestDriverInfoAvailable(t *testing.T) {
 	h := &Handlers{
 		DB:     &mockPinger{},
-		Driver: &mockDriver{available: true},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
 		Config: config.Config{},
 	}
 
@@ -1124,7 +1124,7 @@ func TestDriverInfoAvailable(t *testing.T) {
 func TestDriverInfoUnavailable(t *testing.T) {
 	h := &Handlers{
 		DB:     &mockPinger{},
-		Driver: &mockDriver{available: false, err: fmt.Errorf("overlayfs not supported")},
+		DriverManager: driver.NewManager(&mockDriver{available: false, err: fmt.Errorf("overlayfs not supported")}, driver.Config{}),
 		Config: config.Config{},
 	}
 

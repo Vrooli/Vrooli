@@ -161,6 +161,11 @@ func (h *Handlers) JSONDomainError(w http.ResponseWriter, err types.DomainError)
 //   - Admin: Driver info, stats, GC, audit
 //   - Metrics: Prometheus metrics
 func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.Collector) {
+	// --- API Info Endpoints ---
+	// Exposed at root and /api for discoverability
+	router.HandleFunc("/", h.APIInfo).Methods("GET")
+	router.HandleFunc("/api", h.APIInfo).Methods("GET")
+
 	// --- Health Endpoints ---
 	// Exposed at both root and API paths for flexibility
 	router.HandleFunc("/health", h.Health).Methods("GET")
