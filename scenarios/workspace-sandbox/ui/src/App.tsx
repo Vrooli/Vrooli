@@ -11,6 +11,7 @@ import {
   useCreateSandbox,
   useDeleteSandbox,
   useStopSandbox,
+  useStartSandbox,
   useApproveSandbox,
   useRejectSandbox,
   useDiscardFiles,
@@ -35,6 +36,7 @@ export default function App() {
   const createMutation = useCreateSandbox();
   const deleteMutation = useDeleteSandbox();
   const stopMutation = useStopSandbox();
+  const startMutation = useStartSandbox();
   const approveMutation = useApproveSandbox();
   const rejectMutation = useRejectSandbox();
   const discardMutation = useDiscardFiles();
@@ -78,6 +80,15 @@ export default function App() {
       },
     });
   }, [selectedSandbox, stopMutation]);
+
+  const handleStart = useCallback(() => {
+    if (!selectedSandbox) return;
+    startMutation.mutate(selectedSandbox.id, {
+      onSuccess: (updated) => {
+        setSelectedSandbox(updated);
+      },
+    });
+  }, [selectedSandbox, startMutation]);
 
   const handleApprove = useCallback(() => {
     if (!selectedSandbox) return;
@@ -179,6 +190,7 @@ export default function App() {
             isDiffLoading={diffQuery.isLoading}
             diffError={diffQuery.error}
             onStop={handleStop}
+            onStart={handleStart}
             onApprove={handleApprove}
             onReject={handleReject}
             onDelete={handleDelete}
@@ -186,6 +198,7 @@ export default function App() {
             isApproving={approveMutation.isPending}
             isRejecting={rejectMutation.isPending}
             isStopping={stopMutation.isPending}
+            isStarting={startMutation.isPending}
             isDeleting={deleteMutation.isPending}
             isDiscarding={discardMutation.isPending}
           />
@@ -207,6 +220,7 @@ export default function App() {
       {(createMutation.error ||
         deleteMutation.error ||
         stopMutation.error ||
+        startMutation.error ||
         approveMutation.error ||
         rejectMutation.error ||
         discardMutation.error) && (
@@ -220,6 +234,7 @@ export default function App() {
               createMutation.error ||
               deleteMutation.error ||
               stopMutation.error ||
+              startMutation.error ||
               approveMutation.error ||
               rejectMutation.error ||
               discardMutation.error

@@ -30,6 +30,7 @@ interface SandboxDetailProps {
   isDiffLoading: boolean;
   diffError?: Error | null;
   onStop: () => void;
+  onStart: () => void;
   onApprove: () => void;
   onReject: () => void;
   onDelete: () => void;
@@ -37,6 +38,7 @@ interface SandboxDetailProps {
   isApproving: boolean;
   isRejecting: boolean;
   isStopping: boolean;
+  isStarting: boolean;
   isDeleting: boolean;
   isDiscarding?: boolean;
 }
@@ -130,6 +132,7 @@ export function SandboxDetail({
   isDiffLoading,
   diffError,
   onStop,
+  onStart,
   onApprove,
   onReject,
   onDelete,
@@ -137,6 +140,7 @@ export function SandboxDetail({
   isApproving,
   isRejecting,
   isStopping,
+  isStarting,
   isDeleting,
   isDiscarding,
 }: SandboxDetailProps) {
@@ -162,6 +166,7 @@ export function SandboxDetail({
 
   const statusConfig = STATUS_CONFIG[sandbox.status];
   const canStop = sandbox.status === "active";
+  const canStart = sandbox.status === "stopped";
   const canApproveReject = sandbox.status === "active" || sandbox.status === "stopped";
   const isTerminal =
     sandbox.status === "approved" ||
@@ -241,6 +246,24 @@ export function SandboxDetail({
             </div>
           )}
 
+          {/* Mount health warning */}
+          {sandbox.mountHealth && !sandbox.mountHealth.healthy && (
+            <div className="mt-3 p-3 rounded-lg bg-amber-950/30 border border-amber-800/50">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm text-amber-300 font-medium">Mount Unhealthy</p>
+                  {sandbox.mountHealth.error && (
+                    <p className="text-xs text-amber-400/80 mt-1">{sandbox.mountHealth.error}</p>
+                  )}
+                  {sandbox.mountHealth.hint && (
+                    <p className="text-xs text-amber-200 mt-1">{sandbox.mountHealth.hint}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Actions - show workflow actions for non-terminal, delete for non-deleted */}
           {(sandbox.status !== "deleted") && (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -258,6 +281,23 @@ export function SandboxDetail({
                     <Square className="h-3.5 w-3.5 mr-1.5" />
                   )}
                   Stop
+                </Button>
+              )}
+
+              {canStart && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onStart}
+                  disabled={isStarting}
+                  data-testid={SELECTORS.startButton}
+                >
+                  {isStarting ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  Start
                 </Button>
               )}
 

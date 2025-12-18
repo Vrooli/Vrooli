@@ -104,6 +104,19 @@ func CanStop(status Status) error {
 	}
 }
 
+// CanStart checks if a sandbox can be started (remounted) from its current status.
+// Start means remounting the overlay to resume work.
+func CanStart(status Status) error {
+	if status == StatusStopped {
+		return nil
+	}
+	return &InvalidTransitionError{
+		Current:   status,
+		Attempted: StatusActive,
+		Reason:    "only stopped sandboxes can be started",
+	}
+}
+
 // CanApprove checks if a sandbox's changes can be approved.
 // Approval applies the changes to the canonical repo.
 func CanApprove(status Status) error {

@@ -9,6 +9,13 @@ export type OwnerType = "agent" | "user" | "task" | "system";
 export type ChangeType = "added" | "modified" | "deleted";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
+export interface MountHealth {
+  healthy: boolean;
+  verified: boolean;
+  error?: string;
+  hint?: string;
+}
+
 export interface Sandbox {
   id: string;
   scopePath: string;
@@ -17,6 +24,7 @@ export interface Sandbox {
   ownerType: OwnerType;
   status: Status;
   errorMessage?: string;
+  mountHealth?: MountHealth;
   createdAt: string;
   lastUsedAt: string;
   stoppedAt?: string;
@@ -217,6 +225,11 @@ export async function stopSandbox(id: string): Promise<Sandbox> {
   return apiRequest<Sandbox>(`/sandboxes/${id}/stop`, { method: "POST" });
 }
 
+// Start sandbox (remount a stopped sandbox)
+export async function startSandbox(id: string): Promise<Sandbox> {
+  return apiRequest<Sandbox>(`/sandboxes/${id}/start`, { method: "POST" });
+}
+
 // Get diff
 export async function getDiff(id: string): Promise<DiffResult> {
   return apiRequest<DiffResult>(`/sandboxes/${id}/diff`);
@@ -291,6 +304,10 @@ export interface SandboxStats {
 export function computeStats(sandboxes: Sandbox[]): SandboxStats {
   return sandboxes.reduce(
     (acc, sb) => {
+      // Skip deleted sandboxes from stats - they shouldn't be shown in UI
+      if (sb.status === "deleted") {
+        return acc;
+      }
       acc.total++;
       acc.totalSizeBytes += sb.sizeBytes || 0;
       switch (sb.status) {

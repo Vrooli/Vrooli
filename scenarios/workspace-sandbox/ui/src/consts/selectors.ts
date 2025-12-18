@@ -407,6 +407,7 @@ export const SELECTORS = {
   approveButton: "approve-button",
   rejectButton: "reject-button",
   stopButton: "stop-button",
+  startButton: "start-button",
   deleteButton: "delete-button",
   confirmApprove: "confirm-approve",
   confirmReject: "confirm-reject",

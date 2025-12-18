@@ -85,7 +85,7 @@ func (h *Handlers) ListSandboxes(w http.ResponseWriter, r *http.Request) {
 			if err := h.Driver.VerifyMountIntegrity(r.Context(), sb); err != nil {
 				health.Healthy = false
 				health.Error = err.Error()
-				health.Hint = "The sandbox mount is not accessible. Try stopping and recreating."
+				health.Hint = "The sandbox mount is not accessible. Stop and Start to remount it."
 			} else {
 				health.Healthy = true
 			}
@@ -161,7 +161,7 @@ func (h *Handlers) GetSandbox(w http.ResponseWriter, r *http.Request) {
 		if err := h.Driver.VerifyMountIntegrity(r.Context(), sb); err != nil {
 			health.Healthy = false
 			health.Error = err.Error()
-			health.Hint = "The sandbox mount is not accessible. This can happen if the API was restarted. Try stopping and recreating the sandbox."
+			health.Hint = "The sandbox mount is not accessible. This can happen if the API was restarted. Stop and Start to remount it."
 		} else {
 			health.Healthy = true
 		}
@@ -196,6 +196,22 @@ func (h *Handlers) StopSandbox(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sb, err := h.Service.Stop(r.Context(), id)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, sb)
+}
+
+// StartSandbox handles starting (remounting) a stopped sandbox.
+func (h *Handlers) StartSandbox(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	sb, err := h.Service.Start(r.Context(), id)
 	if h.HandleDomainError(w, err) {
 		return
 	}

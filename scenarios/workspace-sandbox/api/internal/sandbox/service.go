@@ -36,6 +36,10 @@ type ServiceAPI interface {
 	// Returns StateError if sandbox cannot be stopped.
 	Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
 
+	// Start remounts a stopped sandbox to resume work.
+	// Returns StateError if sandbox cannot be started.
+	Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+
 	// Delete removes a sandbox and all its data.
 	Delete(ctx context.Context, id uuid.UUID) error
 
@@ -378,6 +382,58 @@ func (s *Service) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error
 	return sandbox, nil
 }
 
+// Start remounts a stopped sandbox to resume work.
+//
+// # Idempotency
+//
+// This operation is idempotent: calling Start on an already-active sandbox
+// returns success with the current sandbox state. This enables safe retries
+// without requiring callers to check the status first.
+func (s *Service) Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	sandbox, err := s.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// --- Idempotency Check ---
+	// If already active, return success (no-op)
+	// This makes Start safe to retry without error
+	if sandbox.Status == types.StatusActive {
+		return sandbox, nil
+	}
+
+	// Use explicit state transition check for other states
+	if err := types.CanStart(sandbox.Status); err != nil {
+		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
+	}
+
+	// Remount the overlay
+	paths, err := s.driver.Mount(ctx, sandbox)
+	if err != nil {
+		return nil, fmt.Errorf("failed to remount sandbox: %w", err)
+	}
+
+	// Update with mount paths (they may have changed)
+	sandbox.LowerDir = paths.LowerDir
+	sandbox.UpperDir = paths.UpperDir
+	sandbox.WorkDir = paths.WorkDir
+	sandbox.MergedDir = paths.MergedDir
+	sandbox.Status = types.StatusActive
+	sandbox.StoppedAt = nil // Clear stopped timestamp
+	sandbox.LastUsedAt = time.Now()
+
+	if err := s.repo.Update(ctx, sandbox); err != nil {
+		// Attempt to cleanup on failure
+		s.driver.Unmount(ctx, sandbox)
+		return nil, fmt.Errorf("failed to update sandbox: %w", err)
+	}
+
+	// Log audit event [OT-P1-004]
+	s.logAuditEvent(ctx, sandbox, "started", "", "", nil)
+
+	return sandbox, nil
+}
+
 // Delete removes a sandbox and all its data.
 //
 // # Idempotency
@@ -476,6 +532,23 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 	changes, err := s.driver.GetChangedFiles(ctx, sandbox)
 	if err != nil {
 		return nil, types.NewDriverError("getChangedFiles", err)
+	}
+
+	// Calculate and update sandbox size metrics from the changes
+	var totalSizeBytes int64
+	for _, change := range changes {
+		// Only count added and modified files for size (deleted files don't take space)
+		if change.ChangeType == types.ChangeTypeAdded || change.ChangeType == types.ChangeTypeModified {
+			totalSizeBytes += change.FileSize
+		}
+	}
+
+	// Update sandbox metrics if they've changed
+	if sandbox.SizeBytes != totalSizeBytes || sandbox.FileCount != len(changes) {
+		sandbox.SizeBytes = totalSizeBytes
+		sandbox.FileCount = len(changes)
+		// Best-effort update - don't fail diff generation on metrics update failure
+		s.repo.Update(ctx, sandbox)
 	}
 
 	// Handle the case of no changes gracefully

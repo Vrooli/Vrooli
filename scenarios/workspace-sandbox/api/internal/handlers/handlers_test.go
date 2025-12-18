@@ -206,6 +206,7 @@ type mockService struct {
 	getFn             func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
 	listFn            func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
 	stopFn            func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	startFn           func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
 	deleteFn          func(ctx context.Context, id uuid.UUID) error
 	getDiffFn         func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
 	approveFn         func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
@@ -244,6 +245,13 @@ func (m *mockService) List(ctx context.Context, filter *types.ListFilter) (*type
 func (m *mockService) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 	if m.stopFn != nil {
 		return m.stopFn(ctx, id)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockService) Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	if m.startFn != nil {
+		return m.startFn(ctx, id)
 	}
 	return nil, fmt.Errorf("not implemented")
 }

@@ -131,6 +131,19 @@ function SandboxGroup({
                     {sandbox.errorMessage}
                   </div>
                 )}
+
+                {/* Mount health warning */}
+                {sandbox.mountHealth && !sandbox.mountHealth.healthy && (
+                  <div
+                    className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-400"
+                    title={sandbox.mountHealth.hint || sandbox.mountHealth.error}
+                  >
+                    <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">
+                      {sandbox.mountHealth.hint || sandbox.mountHealth.error || "Mount unhealthy"}
+                    </span>
+                  </div>
+                )}
               </li>
             );
           })}

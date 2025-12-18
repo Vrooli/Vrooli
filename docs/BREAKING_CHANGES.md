@@ -54,30 +54,19 @@ resources/postgres/
 **Compatibility**: No backward compatibility - must migrate.
 <!-- EMBED:PYTHON_ORCHESTRATION:END -->
 
-### Unified Embedding Service API
+### Qdrant Embeddings Knowledge System Removal
 
 <!-- EMBED:EMBEDDING_API:START -->
-**Change**: Consolidated duplicate embedding functions into unified service.
+**Change**: Removed the `resource-qdrant embeddings ...` semantic knowledge-system implementation from the Qdrant resource.
 
-**Before**:
-```bash
-qdrant::embeddings::process_workflows()  # In manage.sh
-qdrant::embeddings::process_scenarios()  # In manage.sh
-# Each with duplicate logic
-```
-
-**After**:
-```bash
-qdrant::embedding::process_item()  # In embedding-service.sh
-# Single unified function for all content types
-```
+**Why**: Knowledge generation/ingest is now centralized in `knowledge-observatory` (canonical control-plane), while Qdrant remains a shared vector DB resource.
 
 **Migration Steps**:
-1. Update any custom extractors to use new API
-2. Change function calls in scripts
-3. Update test mocks to new signatures
+1. Stop calling `resource-qdrant embeddings ...` (init/refresh/search-all/patterns/gc/etc.).
+2. Call `knowledge-observatory` HTTP/CLI ingest endpoints instead (and keep Qdrant as a dependency/resource).
+3. If you had custom scripts around `resources/qdrant/embeddings/`, move them into the owning scenario (or a dedicated scenario) and route writes through the canonical API.
 
-**Compatibility**: Old functions redirect to new API (deprecated).
+**Compatibility**: No backward compatibility for `resource-qdrant embeddings` (command removed).
 <!-- EMBED:EMBEDDING_API:END -->
 
 ## Version 1.5.0 (July 2025)
@@ -91,14 +80,12 @@ qdrant::embedding::process_item()  # In embedding-service.sh
 ```bash
 vrooli develop start
 vrooli test all
-resource-qdrant embeddings init
 ```
 
 **After**:
 ```bash
 vrooli develop
 vrooli test all
-vrooli resource qdrant embeddings init
 ```
 
 **Migration Steps**:

@@ -7,6 +7,7 @@ import {
   createSandbox,
   deleteSandbox,
   stopSandbox,
+  startSandbox,
   getDiff,
   approveSandbox,
   rejectSandbox,
@@ -99,6 +100,19 @@ export function useStopSandbox() {
 
   return useMutation({
     mutationFn: (id: string) => stopSandbox(id),
+    onSuccess: (sandbox) => {
+      queryClient.setQueryData(queryKeys.sandbox(sandbox.id), sandbox);
+      queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
+    },
+  });
+}
+
+// Start sandbox mutation (remount a stopped sandbox)
+export function useStartSandbox() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => startSandbox(id),
     onSuccess: (sandbox) => {
       queryClient.setQueryData(queryKeys.sandbox(sandbox.id), sandbox);
       queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
