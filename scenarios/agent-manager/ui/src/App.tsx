@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
+import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import {
   Activity,
   AlertCircle,
@@ -11,22 +12,34 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Badge } from "./components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { Card, CardContent } from "./components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { useHealth, useProfiles, useRuns, useRunners, useTasks } from "./hooks/useApi";
-import { useWebSocket, type WebSocketMessage, type MessageHandler } from "./hooks/useWebSocket";
+import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ProfilesPage } from "./pages/ProfilesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { RunsPage } from "./pages/RunsPage";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const navigate = useNavigate();
+  const location = useLocation();
   const health = useHealth();
   const profiles = useProfiles();
   const tasks = useTasks();
   const runs = useRuns();
   const runners = useRunners();
+
+  // Derive active tab from current path
+  const getActiveTab = useCallback(() => {
+    const path = location.pathname;
+    if (path.startsWith("/profiles")) return "profiles";
+    if (path.startsWith("/tasks")) return "tasks";
+    if (path.startsWith("/runs")) return "runs";
+    return "dashboard";
+  }, [location.pathname]);
+
+  const activeTab = getActiveTab();
 
   // WebSocket connection for real-time updates
   const handleWebSocketMessage = useCallback(
@@ -58,8 +71,8 @@ export default function App() {
   });
 
   const handleTabChange = useCallback((value: string) => {
-    setActiveTab(value);
-  }, []);
+    navigate(`/${value === "dashboard" ? "" : value}`);
+  }, [navigate]);
 
   const isHealthy = health.data?.status === "healthy";
 
@@ -178,78 +191,92 @@ export default function App() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="dashboard">
-            <DashboardPage
-              health={health.data}
-              profiles={profiles.data || []}
-              tasks={tasks.data || []}
-              runs={runs.data || []}
-              runners={runners.data ?? undefined}
-              onRefresh={() => {
-                health.refetch();
-                profiles.refetch();
-                tasks.refetch();
-                runs.refetch();
-              }}
-              onCreateTask={tasks.createTask}
-              onCreateRun={runs.createRun}
-              onRunCreated={() => {
-                runs.refetch();
-                tasks.refetch();
-                setActiveTab("runs");
-              }}
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <DashboardPage
+                  health={health.data}
+                  profiles={profiles.data || []}
+                  tasks={tasks.data || []}
+                  runs={runs.data || []}
+                  runners={runners.data ?? undefined}
+                  onRefresh={() => {
+                    health.refetch();
+                    profiles.refetch();
+                    tasks.refetch();
+                    runs.refetch();
+                  }}
+                  onCreateTask={tasks.createTask}
+                  onCreateRun={runs.createRun}
+                  onRunCreated={(run) => {
+                    runs.refetch();
+                    tasks.refetch();
+                    navigate(`/runs/${run.id}`);
+                  }}
+                  onNavigateToRun={(runId) => navigate(`/runs/${runId}`)}
+                />
+              }
             />
-          </TabsContent>
-
-          <TabsContent value="profiles">
-            <ProfilesPage
-              profiles={profiles.data || []}
-              loading={profiles.loading}
-              error={profiles.error}
-              onCreateProfile={profiles.createProfile}
-              onUpdateProfile={profiles.updateProfile}
-              onDeleteProfile={profiles.deleteProfile}
-              onRefresh={profiles.refetch}
-              runners={runners.data ?? undefined}
+            <Route
+              path="/profiles"
+              element={
+                <ProfilesPage
+                  profiles={profiles.data || []}
+                  loading={profiles.loading}
+                  error={profiles.error}
+                  onCreateProfile={profiles.createProfile}
+                  onUpdateProfile={profiles.updateProfile}
+                  onDeleteProfile={profiles.deleteProfile}
+                  onRefresh={profiles.refetch}
+                  runners={runners.data ?? undefined}
+                />
+              }
             />
-          </TabsContent>
-
-          <TabsContent value="tasks">
-            <TasksPage
-              tasks={tasks.data || []}
-              profiles={profiles.data || []}
-              loading={tasks.loading}
-              error={tasks.error}
-              onCreateTask={tasks.createTask}
-              onCancelTask={tasks.cancelTask}
-              onDeleteTask={tasks.deleteTask}
-              onCreateRun={runs.createRun}
-              onCreateProfile={profiles.createProfile}
-              onRefresh={tasks.refetch}
-              runners={runners.data ?? undefined}
+            <Route
+              path="/tasks"
+              element={
+                <TasksPage
+                  tasks={tasks.data || []}
+                  profiles={profiles.data || []}
+                  loading={tasks.loading}
+                  error={tasks.error}
+                  onCreateTask={tasks.createTask}
+                  onCancelTask={tasks.cancelTask}
+                  onDeleteTask={tasks.deleteTask}
+                  onCreateRun={runs.createRun}
+                  onCreateProfile={profiles.createProfile}
+                  onRefresh={tasks.refetch}
+                  runners={runners.data ?? undefined}
+                />
+              }
             />
-          </TabsContent>
-
-          <TabsContent value="runs">
-            <RunsPage
-              runs={runs.data || []}
-              tasks={tasks.data || []}
-              profiles={profiles.data || []}
-              loading={runs.loading}
-              error={runs.error}
-              onStopRun={runs.stopRun}
-              onRetryRun={runs.retryRun}
-              onGetEvents={runs.getRunEvents}
-              onGetDiff={runs.getRunDiff}
-              onApproveRun={runs.approveRun}
-              onRejectRun={runs.rejectRun}
-              onRefresh={runs.refetch}
-              wsSubscribe={ws.subscribe}
-              wsUnsubscribe={ws.unsubscribe}
-              wsAddMessageHandler={ws.addMessageHandler}
-              wsRemoveMessageHandler={ws.removeMessageHandler}
+            <Route
+              path="/runs/:runId?"
+              element={
+                <RunsPage
+                  runs={runs.data || []}
+                  tasks={tasks.data || []}
+                  profiles={profiles.data || []}
+                  loading={runs.loading}
+                  error={runs.error}
+                  onStopRun={runs.stopRun}
+                  onRetryRun={runs.retryRun}
+                  onGetEvents={runs.getRunEvents}
+                  onGetDiff={runs.getRunDiff}
+                  onApproveRun={runs.approveRun}
+                  onRejectRun={runs.rejectRun}
+                  onRefresh={runs.refetch}
+                  wsSubscribe={ws.subscribe}
+                  wsUnsubscribe={ws.unsubscribe}
+                  wsAddMessageHandler={ws.addMessageHandler}
+                  wsRemoveMessageHandler={ws.removeMessageHandler}
+                />
+              }
             />
-          </TabsContent>
+            {/* Redirect unknown paths to dashboard */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </Tabs>
       </main>
     </div>

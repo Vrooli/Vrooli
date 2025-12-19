@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Activity,
   AlertCircle,
@@ -75,6 +76,8 @@ export function RunsPage({
   wsAddMessageHandler,
   wsRemoveMessageHandler,
 }: RunsPageProps) {
+  const { runId } = useParams<{ runId?: string }>();
+  const navigate = useNavigate();
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [diff, setDiff] = useState<DiffResult | null>(null);
@@ -183,6 +186,20 @@ export function RunsPage({
       setSelectedRun(updatedRun);
     }
   }, [runs, selectedRun]);
+
+  // Load run from URL params when component mounts or runId changes
+  useEffect(() => {
+    if (!runId || runs.length === 0) return;
+
+    // Check if we already have this run selected
+    if (selectedRun?.id === runId) return;
+
+    // Find the run in our list
+    const run = runs.find((r) => r.id === runId);
+    if (run) {
+      loadRunDetails(run);
+    }
+  }, [runId, runs, selectedRun?.id, loadRunDetails]);
 
   const handleStop = async (runId: string) => {
     if (!confirm("Are you sure you want to stop this run?")) return;
@@ -296,7 +313,10 @@ export function RunsPage({
                           ? "border-primary bg-primary/5"
                           : "border-border hover:bg-muted/50"
                       )}
-                      onClick={() => loadRunDetails(run)}
+                      onClick={() => {
+                        navigate(`/runs/${run.id}`);
+                        loadRunDetails(run);
+                      }}
                     >
                       <div className="flex items-center gap-3">
                         <RunStatusIcon status={run.status} />

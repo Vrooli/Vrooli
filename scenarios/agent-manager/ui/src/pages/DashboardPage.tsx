@@ -34,6 +34,7 @@ interface DashboardPageProps {
   onCreateTask: (task: CreateTaskRequest) => Promise<Task>;
   onCreateRun: (run: CreateRunRequest) => Promise<Run>;
   onRunCreated?: (run: Run) => void;
+  onNavigateToRun?: (runId: string) => void;
 }
 
 export function DashboardPage({
@@ -46,6 +47,7 @@ export function DashboardPage({
   onCreateTask,
   onCreateRun,
   onRunCreated,
+  onNavigateToRun,
 }: DashboardPageProps) {
   const [showQuickRun, setShowQuickRun] = useState(false);
   const activeRuns = runs.filter(
@@ -183,7 +185,12 @@ export function DashboardPage({
               ) : (
                 <div className="space-y-3">
                   {recentRuns.map((run) => (
-                    <RunActivityItem key={run.id} run={run} tasks={tasks} />
+                    <RunActivityItem
+                      key={run.id}
+                      run={run}
+                      tasks={tasks}
+                      onClick={() => onNavigateToRun?.(run.id)}
+                    />
                   ))}
                 </div>
               )}
@@ -211,7 +218,11 @@ export function DashboardPage({
                 return (
                   <div
                     key={run.id}
-                    className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3"
+                    className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => onNavigateToRun?.(run.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === "Enter" && onNavigateToRun?.(run.id)}
                   >
                     <div>
                       <p className="font-medium">{task?.title || "Unknown Task"}</p>
@@ -451,11 +462,25 @@ function HealthItem({
   );
 }
 
-function RunActivityItem({ run, tasks }: { run: Run; tasks: Task[] }) {
+function RunActivityItem({
+  run,
+  tasks,
+  onClick,
+}: {
+  run: Run;
+  tasks: Task[];
+  onClick?: () => void;
+}) {
   const task = tasks.find((t) => t.id === run.taskId);
 
   return (
-    <div className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3">
+    <div
+      className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick?.()}
+    >
       <div className="flex items-center gap-3">
         <RunStatusIcon status={run.status} />
         <div>
