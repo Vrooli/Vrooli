@@ -3,21 +3,21 @@ package executionwriter
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
-
-	"crypto/sha256"
-	"encoding/hex"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -32,6 +32,9 @@ import (
 // FileWriter persists step outcomes and telemetry to JSON files on disk.
 // The database stores only execution index data (status, progress, result_path).
 // Detailed execution data lives in JSON files at the result_path location.
+//
+// Artifact collection is controlled by ArtifactCollectionSettings which can be set
+// via SetArtifactConfig(). When not set, defaults to "full" profile (all artifacts).
 type FileWriter struct {
 	repo    ExecutionIndexRepository
 	storage storage.StorageInterface
@@ -44,6 +47,10 @@ type FileWriter struct {
 	results sync.Map // executionID -> *ExecutionResultData
 	// Cache of proto timeline data being built up (preferred on-disk format).
 	timelines sync.Map // executionID -> *executionTimelineData
+
+	// Artifact collection configuration - controls what artifacts are persisted.
+	// Protected by mu for thread-safe access.
+	artifactConfig config.ArtifactCollectionSettings
 }
 
 // ExecutionResultData accumulates execution results to be written to disk.
@@ -123,16 +130,45 @@ type ExecutionSummary struct {
 }
 
 // NewFileWriter constructs an ExecutionWriter that writes to files and updates the DB index.
+// By default, uses the "full" artifact profile (all artifacts collected).
+// Call SetArtifactConfig() to customize artifact collection before starting execution.
 func NewFileWriter(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger, dataDir string) *FileWriter {
 	if dataDir == "" {
 		dataDir = "/tmp/bas-executions"
 	}
 	return &FileWriter{
-		repo:    repo,
-		storage: storage,
-		log:     log,
-		dataDir: dataDir,
+		repo:           repo,
+		storage:        storage,
+		log:            log,
+		dataDir:        dataDir,
+		artifactConfig: config.DefaultArtifactSettings(),
 	}
+}
+
+// SetArtifactConfig updates the artifact collection settings for this writer.
+// Call this before starting execution to configure what artifacts are collected.
+// Pass nil to reset to default "full" profile.
+func (r *FileWriter) SetArtifactConfig(cfg *config.ArtifactCollectionSettings) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if cfg == nil {
+		r.artifactConfig = config.DefaultArtifactSettings()
+	} else {
+		r.artifactConfig = *cfg
+	}
+}
+
+// GetArtifactConfig returns the current artifact collection settings.
+func (r *FileWriter) GetArtifactConfig() config.ArtifactCollectionSettings {
+	if r == nil {
+		return config.DefaultArtifactSettings()
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.artifactConfig
 }
 
 const (
@@ -250,12 +286,17 @@ func (r *FileWriter) writeProtoTimelineFile(executionID uuid.UUID, timeline *exe
 }
 
 // RecordStepOutcome stores the execution step and key artifacts to files.
+// Respects the artifact collection settings configured via SetArtifactConfig().
 func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error) {
 	if r == nil {
 		return RecordResult{}, nil
 	}
 
-	outcome = sanitizeOutcome(outcome)
+	// Get current artifact config (thread-safe copy)
+	cfg := r.GetArtifactConfig()
+
+	// Apply configurable limits during sanitization
+	outcome = r.sanitizeOutcomeWithConfig(outcome, cfg)
 	result := r.getOrCreateResult(plan)
 	timeline := r.getOrCreateTimeline(plan)
 
@@ -263,7 +304,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	artifactIDs := make([]uuid.UUID, 0, 8)
 	protoArtifacts := make([]*bastimeline.TimelineArtifact, 0, 8)
 
-	// Build step result
+	// Build step result (always recorded - core execution data)
 	step := StepResultData{
 		StepID:      stepID.String(),
 		StepIndex:   outcome.StepIndex,
@@ -294,7 +335,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	result.Summary.TotalDurationMs += outcome.DurationMs
 	result.mu.Unlock()
 
-	// Store core outcome payload as artifact
+	// Store core outcome payload as artifact (always recorded - essential for debugging)
 	outcomeArtifactID := uuid.New()
 	outcomeArtifact := ArtifactData{
 		ArtifactID:   outcomeArtifactID.String(),
@@ -309,8 +350,8 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	artifactIDs = append(artifactIDs, outcomeArtifactID)
 	protoArtifacts = append(protoArtifacts, artifactDataToProto(&outcomeArtifact))
 
-	// Console logs
-	if len(outcome.ConsoleLogs) > 0 {
+	// Console logs - controlled by CollectConsoleLogs
+	if cfg.CollectConsoleLogs && len(outcome.ConsoleLogs) > 0 {
 		id := uuid.New()
 		artifact := ArtifactData{
 			ArtifactID:   id.String(),
@@ -327,8 +368,8 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 	}
 
-	// Network events
-	if len(outcome.Network) > 0 {
+	// Network events - controlled by CollectNetworkEvents
+	if cfg.CollectNetworkEvents && len(outcome.Network) > 0 {
 		id := uuid.New()
 		artifact := ArtifactData{
 			ArtifactID:   id.String(),
@@ -345,8 +386,8 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 	}
 
-	// Assertion result
-	if outcome.Assertion != nil {
+	// Assertion result - controlled by CollectAssertions
+	if cfg.CollectAssertions && outcome.Assertion != nil {
 		id := uuid.New()
 		artifact := ArtifactData{
 			ArtifactID:   id.String(),
@@ -363,8 +404,8 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 	}
 
-	// Extracted data
-	if outcome.ExtractedData != nil && len(outcome.ExtractedData) > 0 {
+	// Extracted data - controlled by CollectExtractedData
+	if cfg.CollectExtractedData && outcome.ExtractedData != nil && len(outcome.ExtractedData) > 0 {
 		id := uuid.New()
 		artifact := ArtifactData{
 			ArtifactID:   id.String(),
@@ -381,7 +422,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 	}
 
-	// Engine-provided metadata (video/trace/HAR paths)
+	// Engine-provided metadata (video/trace/HAR paths) - always collected if present
 	if outcome.Notes != nil {
 		for _, key := range []string{"video_path", "trace_path", "har_path"} {
 			if path := strings.TrimSpace(outcome.Notes[key]); path != "" {
@@ -395,8 +436,8 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	var timelineScreenshotURL string
 	var timelineScreenshotID *uuid.UUID
 
-	// Persist screenshot if available
-	if outcome.Screenshot != nil && len(outcome.Screenshot.Data) > 0 {
+	// Persist screenshot if available - controlled by CollectScreenshots
+	if cfg.CollectScreenshots && outcome.Screenshot != nil && len(outcome.Screenshot.Data) > 0 {
 		screenshotInfo, err := r.persistScreenshot(ctx, plan.ExecutionID, outcome)
 		if err != nil && r.log != nil {
 			r.log.WithError(err).Warn("Failed to persist screenshot artifact")
@@ -452,12 +493,16 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	var domSnapshotArtifactID *uuid.UUID
 	var domSnapshotPreview string
 
-	// DOM snapshot
-	if outcome.DOMSnapshot != nil && outcome.DOMSnapshot.HTML != "" {
+	// DOM snapshot - controlled by CollectDOMSnapshots
+	if cfg.CollectDOMSnapshots && outcome.DOMSnapshot != nil && outcome.DOMSnapshot.HTML != "" {
 		html := outcome.DOMSnapshot.HTML
 		truncated := false
-		if len(html) > contracts.DOMSnapshotMaxBytes {
-			html = html[:contracts.DOMSnapshotMaxBytes]
+		maxBytes := cfg.MaxDOMSnapshotBytes
+		if maxBytes <= 0 {
+			maxBytes = contracts.DOMSnapshotMaxBytes
+		}
+		if len(html) > maxBytes {
+			html = html[:maxBytes]
 			truncated = true
 			outcome.DOMSnapshot.Truncated = true
 		}
@@ -706,10 +751,17 @@ func (r *FileWriter) persistExternalFile(result *ExecutionResultData, stepID str
 	return &id
 }
 
-// RecordTelemetry persists telemetry data to the result file.
+// RecordTelemetry persists real-time telemetry events (heartbeats, console logs, etc.).
+// Respects CollectTelemetry setting in artifact config.
 func (r *FileWriter) RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error {
 	if r == nil {
 		return nil
+	}
+
+	// Check if telemetry collection is enabled
+	cfg := r.GetArtifactConfig()
+	if !cfg.CollectTelemetry {
+		return nil // Skip telemetry recording when disabled
 	}
 
 	result := r.getOrCreateResult(plan)
@@ -1054,16 +1106,44 @@ func deriveStepLabel(outcome contracts.StepOutcome) string {
 	return "step"
 }
 
+// sanitizeOutcome applies default size limits to outcome fields.
+// For configurable limits, use sanitizeOutcomeWithConfig instead.
 func sanitizeOutcome(out contracts.StepOutcome) contracts.StepOutcome {
+	return sanitizeOutcomeWithLimits(out, contracts.ScreenshotMaxBytes, contracts.DOMSnapshotMaxBytes, contracts.ConsoleEntryMaxBytes, contracts.NetworkPayloadPreviewMaxBytes)
+}
+
+// sanitizeOutcomeWithConfig applies configurable size limits from ArtifactCollectionSettings.
+func (r *FileWriter) sanitizeOutcomeWithConfig(out contracts.StepOutcome, cfg config.ArtifactCollectionSettings) contracts.StepOutcome {
+	maxScreenshot := cfg.MaxScreenshotBytes
+	if maxScreenshot <= 0 {
+		maxScreenshot = contracts.ScreenshotMaxBytes
+	}
+	maxDOM := cfg.MaxDOMSnapshotBytes
+	if maxDOM <= 0 {
+		maxDOM = contracts.DOMSnapshotMaxBytes
+	}
+	maxConsole := cfg.MaxConsoleEntryBytes
+	if maxConsole <= 0 {
+		maxConsole = contracts.ConsoleEntryMaxBytes
+	}
+	maxNetwork := cfg.MaxNetworkPreviewBytes
+	if maxNetwork <= 0 {
+		maxNetwork = contracts.NetworkPayloadPreviewMaxBytes
+	}
+	return sanitizeOutcomeWithLimits(out, maxScreenshot, maxDOM, maxConsole, maxNetwork)
+}
+
+// sanitizeOutcomeWithLimits applies specified size limits to outcome fields.
+func sanitizeOutcomeWithLimits(out contracts.StepOutcome, maxScreenshot, maxDOM, maxConsole, maxNetwork int) contracts.StepOutcome {
 	if out.Notes == nil {
 		out.Notes = map[string]string{}
 	}
 
 	// Screenshot shaping: clamp size and ensure defaults.
 	if out.Screenshot != nil {
-		if len(out.Screenshot.Data) > contracts.ScreenshotMaxBytes {
-			out.Screenshot.Data = out.Screenshot.Data[:contracts.ScreenshotMaxBytes]
-			out.Notes["screenshot_truncated"] = fmt.Sprintf("%d_bytes", contracts.ScreenshotMaxBytes)
+		if len(out.Screenshot.Data) > maxScreenshot {
+			out.Screenshot.Data = out.Screenshot.Data[:maxScreenshot]
+			out.Notes["screenshot_truncated"] = fmt.Sprintf("%d_bytes", maxScreenshot)
 		}
 		if out.Screenshot.MediaType == "" {
 			out.Screenshot.MediaType = "image/png"
@@ -1075,57 +1155,69 @@ func sanitizeOutcome(out contracts.StepOutcome) contracts.StepOutcome {
 	}
 
 	// DOM truncation
-	if out.DOMSnapshot != nil && len(out.DOMSnapshot.HTML) > contracts.DOMSnapshotMaxBytes {
+	if out.DOMSnapshot != nil && len(out.DOMSnapshot.HTML) > maxDOM {
 		hash := hashString(out.DOMSnapshot.HTML)
-		out.DOMSnapshot.HTML = out.DOMSnapshot.HTML[:contracts.DOMSnapshotMaxBytes]
+		out.DOMSnapshot.HTML = out.DOMSnapshot.HTML[:maxDOM]
 		out.DOMSnapshot.Truncated = true
 		out.DOMSnapshot.Hash = hash
 		out.Notes["dom_truncated_hash"] = hash
 	}
 
-	out.ConsoleLogs = sanitizeConsole(out.ConsoleLogs)
-	out.Network = sanitizeNetwork(out.Network)
+	out.ConsoleLogs = sanitizeConsoleWithLimit(out.ConsoleLogs, maxConsole)
+	out.Network = sanitizeNetworkWithLimit(out.Network, maxNetwork)
 
 	return out
 }
 
+// sanitizeConsole applies default size limits to console log entries.
 func sanitizeConsole(entries []contracts.ConsoleLogEntry) []contracts.ConsoleLogEntry {
+	return sanitizeConsoleWithLimit(entries, contracts.ConsoleEntryMaxBytes)
+}
+
+// sanitizeConsoleWithLimit applies configurable size limits to console log entries.
+func sanitizeConsoleWithLimit(entries []contracts.ConsoleLogEntry, maxEntryBytes int) []contracts.ConsoleLogEntry {
 	if len(entries) == 0 {
 		return entries
 	}
 	sanitized := make([]contracts.ConsoleLogEntry, 0, len(entries))
 	for idx, entry := range entries {
-		if len(entry.Text) > contracts.ConsoleEntryMaxBytes {
+		if len(entry.Text) > maxEntryBytes {
 			hash := hashString(entry.Text)
-			entry.Text = entry.Text[:contracts.ConsoleEntryMaxBytes] + "[truncated]"
+			entry.Text = entry.Text[:maxEntryBytes] + "[truncated]"
 			entry.Location = appendHash(entry.Location, hash)
 		}
 		entry.Timestamp = entry.Timestamp.UTC()
 		sanitized = append(sanitized, entry)
-		if idx >= contracts.ConsoleEntryMaxBytes {
+		if idx >= maxEntryBytes {
 			break
 		}
 	}
 	return sanitized
 }
 
+// sanitizeNetwork applies default size limits to network events.
 func sanitizeNetwork(events []contracts.NetworkEvent) []contracts.NetworkEvent {
+	return sanitizeNetworkWithLimit(events, contracts.NetworkPayloadPreviewMaxBytes)
+}
+
+// sanitizeNetworkWithLimit applies configurable size limits to network events.
+func sanitizeNetworkWithLimit(events []contracts.NetworkEvent, maxPreviewBytes int) []contracts.NetworkEvent {
 	if len(events) == 0 {
 		return events
 	}
 	sanitized := make([]contracts.NetworkEvent, 0, len(events))
 	for idx, ev := range events {
-		if len(ev.RequestBodyPreview) > contracts.NetworkPayloadPreviewMaxBytes {
+		if len(ev.RequestBodyPreview) > maxPreviewBytes {
 			ev.Truncated = true
-			ev.RequestBodyPreview = ev.RequestBodyPreview[:contracts.NetworkPayloadPreviewMaxBytes]
+			ev.RequestBodyPreview = ev.RequestBodyPreview[:maxPreviewBytes]
 		}
-		if len(ev.ResponseBodyPreview) > contracts.NetworkPayloadPreviewMaxBytes {
+		if len(ev.ResponseBodyPreview) > maxPreviewBytes {
 			ev.Truncated = true
-			ev.ResponseBodyPreview = ev.ResponseBodyPreview[:contracts.NetworkPayloadPreviewMaxBytes]
+			ev.ResponseBodyPreview = ev.ResponseBodyPreview[:maxPreviewBytes]
 		}
 		ev.Timestamp = ev.Timestamp.UTC()
 		sanitized = append(sanitized, ev)
-		if idx >= contracts.NetworkPayloadPreviewMaxBytes {
+		if idx >= maxPreviewBytes {
 			break
 		}
 	}

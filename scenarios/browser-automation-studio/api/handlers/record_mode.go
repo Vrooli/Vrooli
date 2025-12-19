@@ -167,7 +167,7 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 	if err := h.recordModeService.CloseSession(ctx, sessionID); err != nil {
 		h.log.WithError(err).Error("Failed to close recording session")
 		// Check for not found error
-		if driverErr, ok := err.(*livecapture.DriverError); ok && driverErr.StatusCode == 404 {
+		if driverErr, ok := err.(*livecapture.DriverError); ok && driverErr.Status == 404 {
 			h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
 			return
 		}
@@ -225,7 +225,7 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 		h.log.WithError(err).Error("Failed to start recording")
 		// Check for specific error types
 		if driverErr, ok := err.(*livecapture.DriverError); ok {
-			if strings.Contains(driverErr.Body, "RECORDING_IN_PROGRESS") {
+			if strings.Contains(driverErr.Message, "RECORDING_IN_PROGRESS") {
 				h.respondError(w, ErrConflict.WithMessage("Recording is already in progress for this session"))
 				return
 			}
@@ -268,7 +268,7 @@ func (h *Handler) StopLiveRecording(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.log.WithError(err).Error("Failed to stop recording")
 		// Check for not found error
-		if driverErr, ok := err.(*livecapture.DriverError); ok && driverErr.StatusCode == 404 {
+		if driverErr, ok := err.(*livecapture.DriverError); ok && driverErr.Status == 404 {
 			h.respondError(w, ErrExecutionNotFound.WithMessage("No recording in progress for this session"))
 			return
 		}

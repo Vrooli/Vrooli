@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -78,8 +78,8 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *base
 		FolderPath:    "/",
 		Description:   strings.TrimSpace(req.GetMetadata().GetDescription()),
 		Version:       1,
-		CreatedAt:     timestamppb.New(now),
-		UpdatedAt:     timestamppb.New(now),
+		CreatedAt:     autocontracts.TimeToTimestamp(now),
+		UpdatedAt:     autocontracts.TimeToTimestamp(now),
 		FlowDefinition: req.FlowDefinition,
 		LastChangeSource: basbase.ChangeSource_CHANGE_SOURCE_MANUAL,
 		LastChangeDescription: "Adhoc execution",
@@ -88,7 +88,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *base
 		wf.Name = "adhoc"
 	}
 
-	store, params, env := executionParametersToMaps(req.Parameters)
+	store, params, env, artifactCfg := executionParametersToMaps(req.Parameters)
 
 	execIndex := &database.ExecutionIndex{
 		ID:        executionID,
@@ -103,7 +103,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *base
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
-	s.startExecutionRunnerWithNamespaces(wf, executionID, store, params, env)
+	s.startExecutionRunnerWithNamespaces(wf, executionID, store, params, env, artifactCfg)
 
 	if !req.WaitForCompletion {
 		return &basexecution.ExecuteAdhocResponse{
@@ -130,9 +130,9 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *base
 
 			resp := &basexecution.ExecuteAdhocResponse{
 				ExecutionId: latest.ID.String(),
-				Status:      typeconv.StringToExecutionStatus(latest.Status),
+				Status:      enums.StringToExecutionStatus(latest.Status),
 				Message:     "Execution completed",
-				CompletedAt: timestamppb.New(*latest.CompletedAt),
+				CompletedAt: autocontracts.TimePtrToTimestamp(latest.CompletedAt),
 			}
 			if strings.TrimSpace(latest.ErrorMessage) != "" {
 				msg := latest.ErrorMessage

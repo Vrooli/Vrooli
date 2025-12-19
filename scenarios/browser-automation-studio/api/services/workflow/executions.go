@@ -8,15 +8,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // ExecuteWorkflow starts a workflow execution and returns the DB index record.
@@ -51,11 +53,11 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 	_ = s.writeExecutionSnapshot(ctx, exec, &basexecution.Execution{
 		ExecutionId: exec.ID.String(),
 		WorkflowId:  workflowID.String(),
-		Status:      typeconv.StringToExecutionStatus(exec.Status),
+		Status:      enums.StringToExecutionStatus(exec.Status),
 		TriggerType: basbase.TriggerType_TRIGGER_TYPE_MANUAL,
-		StartedAt:   timestamppb.New(now),
-		CreatedAt:   timestamppb.New(now),
-		UpdatedAt:   timestamppb.New(now),
+		StartedAt:   autocontracts.TimeToTimestamp(now),
+		CreatedAt:   autocontracts.TimeToTimestamp(now),
+		UpdatedAt:   autocontracts.TimeToTimestamp(now),
 	})
 
 	s.startExecutionRunner(getResp.Workflow, exec.ID, parameters)
@@ -78,7 +80,7 @@ func (s *WorkflowService) ExecuteWorkflowAPI(ctx context.Context, req *basapi.Ex
 		return nil, err
 	}
 
-	initialStore, initialParams, env := executionParametersToMaps(req.Parameters)
+	initialStore, initialParams, env, artifactCfg := executionParametersToMaps(req.Parameters)
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
@@ -99,16 +101,16 @@ func (s *WorkflowService) ExecuteWorkflowAPI(ctx context.Context, req *basapi.Ex
 		ExecutionId: exec.ID.String(),
 		WorkflowId:  workflowID.String(),
 		WorkflowVersion: int32(version),
-		Status:      typeconv.StringToExecutionStatus(exec.Status),
+		Status:      enums.StringToExecutionStatus(exec.Status),
 		TriggerType: basbase.TriggerType_TRIGGER_TYPE_API,
-		StartedAt:   timestamppb.New(now),
-		CreatedAt:   timestamppb.New(now),
-		UpdatedAt:   timestamppb.New(now),
+		StartedAt:   autocontracts.TimeToTimestamp(now),
+		CreatedAt:   autocontracts.TimeToTimestamp(now),
+		UpdatedAt:   autocontracts.TimeToTimestamp(now),
 		Parameters:  req.Parameters,
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
-	s.startExecutionRunnerWithNamespaces(workflowSummary, exec.ID, initialStore, initialParams, env)
+	s.startExecutionRunnerWithNamespaces(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg)
 
 	if req.WaitForCompletion {
 		// Poll for completion; execution updates are persisted to the DB index by the runner.
@@ -126,8 +128,8 @@ func (s *WorkflowService) ExecuteWorkflowAPI(ctx context.Context, req *basapi.Ex
 				if latest.CompletedAt != nil {
 					resp := &basapi.ExecuteWorkflowResponse{
 						ExecutionId: latest.ID.String(),
-						Status:      typeconv.StringToExecutionStatus(latest.Status),
-						CompletedAt: timestamppb.New(*latest.CompletedAt),
+						Status:      enums.StringToExecutionStatus(latest.Status),
+						CompletedAt: autocontracts.TimePtrToTimestamp(latest.CompletedAt),
 					}
 					if strings.TrimSpace(latest.ErrorMessage) != "" {
 						msg := latest.ErrorMessage
@@ -141,7 +143,7 @@ func (s *WorkflowService) ExecuteWorkflowAPI(ctx context.Context, req *basapi.Ex
 
 	return &basapi.ExecuteWorkflowResponse{
 		ExecutionId: exec.ID.String(),
-		Status:      typeconv.StringToExecutionStatus(exec.Status),
+		Status:      enums.StringToExecutionStatus(exec.Status),
 	}, nil
 }
 
@@ -159,12 +161,14 @@ func (s *WorkflowService) resolveWorkflowForExecution(ctx context.Context, workf
 	return getResp.Workflow, nil
 }
 
-func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any) {
+// executionParametersToMaps extracts namespace maps and artifact config from ExecutionParameters.
+// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), and artifact config.
+func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
 	store = map[string]any{}
 	params = map[string]any{}
 	env = map[string]any{}
 	if p == nil {
-		return store, params, env
+		return store, params, env, nil
 	}
 
 	for k, v := range p.InitialStore {
@@ -182,7 +186,14 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 			store[k] = v
 		}
 	}
-	return store, params, env
+
+	// Extract artifact collection config if provided
+	if p.ArtifactConfig != nil {
+		settings := config.ResolveArtifactSettings(p.ArtifactConfig)
+		artifactCfg = &settings
+	}
+
+	return store, params, env, artifactCfg
 }
 
 func jsonValueToAny(v *commonv1.JsonValue) any {
@@ -192,18 +203,20 @@ func jsonValueToAny(v *commonv1.JsonValue) any {
 func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary, executionID uuid.UUID, parameters map[string]any) {
 	// Normalize legacy flat parameters into the namespaced model.
 	// All legacy parameters go to @store/ namespace for backward compatibility.
-	s.startExecutionRunnerWithNamespaces(workflow, executionID, parameters, nil, nil)
+	// Use default artifact config (full profile).
+	s.startExecutionRunnerWithNamespaces(workflow, executionID, parameters, nil, nil, nil)
 }
 
-func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any) {
+func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.storeExecutionCancel(executionID, cancel)
-	go s.executeWorkflowAsync(ctx, workflow, executionID, store, params, env)
+	go s.executeWorkflowAsync(ctx, workflow, executionID, store, params, env, artifactCfg)
 }
 
 // executeWorkflowAsync is the single implementation for running workflows asynchronously.
 // It handles both legacy (flat parameters in store) and new (namespaced store/params/env) callers.
-func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any) {
+// artifactCfg controls what artifacts are collected; nil means use default (full profile).
+func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
 	defer s.cancelExecutionByID(executionID)
 
 	persistenceCtx := context.Background()
@@ -218,14 +231,20 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *ba
 	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
 		ExecutionId: execIndex.ID.String(),
 		WorkflowId:  execIndex.WorkflowID.String(),
-		Status:      typeconv.StringToExecutionStatus(execIndex.Status),
-		StartedAt:   timestamppb.New(execIndex.StartedAt),
-		CreatedAt:   timestamppb.New(execIndex.CreatedAt),
-		UpdatedAt:   timestamppb.New(execIndex.UpdatedAt),
+		Status:      enums.StringToExecutionStatus(execIndex.Status),
+		StartedAt:   autocontracts.TimeToTimestamp(execIndex.StartedAt),
+		CreatedAt:   autocontracts.TimeToTimestamp(execIndex.CreatedAt),
+		UpdatedAt:   autocontracts.TimeToTimestamp(execIndex.UpdatedAt),
 	})
 
 	engineName := autoengine.FromEnv().Resolve("")
 	eventSink := s.newEventSink()
+
+	// Configure artifact collection settings on the recorder before execution starts.
+	// This allows per-execution customization of what artifacts are collected.
+	if s.artifactRecorder != nil {
+		s.artifactRecorder.SetArtifactConfig(artifactCfg)
+	}
 
 	plan, _, err := autoexecutor.BuildContractsPlan(ctx, executionID, workflow)
 	if err != nil {
@@ -239,20 +258,21 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *ba
 	}
 
 	req := autoexecutor.Request{
-		Plan:              plan,
-		EngineName:        engineName,
-		EngineFactory:     s.engineFactory,
-		Recorder:          s.artifactRecorder,
-		EventSink:         eventSink,
-		HeartbeatInterval: 2 * time.Second,
-		ReuseMode:         autoengine.ReuseModeReuse,
-		WorkflowResolver:  s,
-		PlanCompiler:      s.planCompiler,
-		MaxSubflowDepth:   5,
+		Plan:               plan,
+		EngineName:         engineName,
+		EngineFactory:      s.engineFactory,
+		Recorder:           s.artifactRecorder,
+		EventSink:          eventSink,
+		HeartbeatInterval:  2 * time.Second,
+		ReuseMode:          autoengine.ReuseModeReuse,
+		WorkflowResolver:   s,
+		PlanCompiler:       s.planCompiler,
+		MaxSubflowDepth:    5,
 		StartFromStepIndex: -1,
-		InitialStore:      store,
-		InitialParams:     params,
-		Env:              env,
+		InitialStore:       store,
+		InitialParams:      params,
+		Env:                env,
+		ArtifactConfig:     artifactCfg,
 	}
 
 	executor := s.executor
@@ -282,11 +302,11 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *ba
 	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
 		ExecutionId: execIndex.ID.String(),
 		WorkflowId:  execIndex.WorkflowID.String(),
-		Status:      typeconv.StringToExecutionStatus(execIndex.Status),
-		StartedAt:   timestamppb.New(execIndex.StartedAt),
-		CreatedAt:   timestamppb.New(execIndex.CreatedAt),
-		UpdatedAt:   timestamppb.New(execIndex.UpdatedAt),
-		CompletedAt: timestamppb.New(now),
+		Status:      enums.StringToExecutionStatus(execIndex.Status),
+		StartedAt:   autocontracts.TimeToTimestamp(execIndex.StartedAt),
+		CreatedAt:   autocontracts.TimeToTimestamp(execIndex.CreatedAt),
+		UpdatedAt:   autocontracts.TimeToTimestamp(execIndex.UpdatedAt),
+		CompletedAt: autocontracts.TimeToTimestamp(now),
 		Error: func() *string {
 			if strings.TrimSpace(execIndex.ErrorMessage) == "" {
 				return nil

@@ -153,6 +153,57 @@ export interface Execution {
   };
 }
 
+/**
+ * Artifact collection profile names.
+ * These map to preset configurations on the backend.
+ */
+export type ArtifactProfile = 'full' | 'standard' | 'minimal' | 'debug' | 'none' | 'custom';
+
+/**
+ * Artifact collection configuration.
+ * Controls what artifacts are collected during workflow execution.
+ */
+export interface ArtifactCollectionConfig {
+  /** Preset profile: "full" (default), "standard", "minimal", "debug", "none", "custom" */
+  profile?: ArtifactProfile;
+  /** Capture screenshots at each step (only used when profile is "custom") */
+  collectScreenshots?: boolean;
+  /** Capture DOM snapshots (only used when profile is "custom") */
+  collectDomSnapshots?: boolean;
+  /** Capture browser console logs (only used when profile is "custom") */
+  collectConsoleLogs?: boolean;
+  /** Capture network events (only used when profile is "custom") */
+  collectNetworkEvents?: boolean;
+  /** Capture extracted data (only used when profile is "custom") */
+  collectExtractedData?: boolean;
+  /** Capture assertion results (only used when profile is "custom") */
+  collectAssertions?: boolean;
+  /** Capture cursor trail positions (only used when profile is "custom") */
+  collectCursorTrails?: boolean;
+  /** Emit real-time telemetry events (only used when profile is "custom") */
+  collectTelemetry?: boolean;
+}
+
+/**
+ * Options for starting a workflow execution.
+ */
+export interface StartExecutionOptions {
+  /** Artifact collection configuration */
+  artifactConfig?: ArtifactCollectionConfig;
+  /** Function to save the workflow before execution */
+  saveWorkflowFn?: () => Promise<void>;
+}
+
+/** Profile descriptions for UI display */
+export const ARTIFACT_PROFILE_DESCRIPTIONS: Record<ArtifactProfile, { label: string; description: string }> = {
+  full: { label: 'Full', description: 'Collect all artifacts (screenshots, DOM, console, network, etc.)' },
+  standard: { label: 'Standard', description: 'Screenshots, console logs, extracted data, and assertions' },
+  minimal: { label: 'Minimal', description: 'Screenshots and assertions only (fastest)' },
+  debug: { label: 'Debug', description: 'All artifacts with larger size limits for troubleshooting' },
+  none: { label: 'None', description: 'No artifacts collected (execution status only)' },
+  custom: { label: 'Custom', description: 'Customize individual artifact settings' },
+};
+
 interface ExecutionStore {
   executions: Execution[];
   currentExecution: Execution | null;
@@ -161,10 +212,13 @@ interface ExecutionStore {
   socketListeners: Map<string, EventListener>;
   websocketStatus: 'idle' | 'connecting' | 'connected' | 'error';
   websocketAttempts: number;
+  /** Current artifact collection profile (persisted in localStorage) */
+  artifactProfile: ArtifactProfile;
 
   openViewer: (workflowId: string) => void;
   closeViewer: () => void;
-  startExecution: (workflowId: string, saveWorkflowFn?: () => Promise<void>) => Promise<void>;
+  startExecution: (workflowId: string, options?: StartExecutionOptions) => Promise<void>;
+  setArtifactProfile: (profile: ArtifactProfile) => void;
   stopExecution: (executionId: string) => Promise<void>;
   loadExecutions: (workflowId?: string) => Promise<void>;
   loadExecution: (executionId: string) => Promise<void>;
@@ -385,6 +439,19 @@ const mapScreenshotsFromProto = (raw: unknown): Screenshot[] => {
     .filter((screenshot): screenshot is Screenshot => screenshot !== null);
 };
 
+// Load artifact profile from localStorage
+const loadArtifactProfile = (): ArtifactProfile => {
+  try {
+    const stored = localStorage.getItem('bas_artifact_profile');
+    if (stored && ['full', 'standard', 'minimal', 'debug', 'none', 'custom'].includes(stored)) {
+      return stored as ArtifactProfile;
+    }
+  } catch {
+    // Ignore localStorage errors
+  }
+  return 'full'; // Default to full collection
+};
+
 export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   executions: [],
   currentExecution: null,
@@ -393,6 +460,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   socketListeners: new Map(),
   websocketStatus: 'idle',
   websocketAttempts: 0,
+  artifactProfile: loadArtifactProfile(),
 
   openViewer: (workflowId: string) => {
     const state = get();
@@ -408,11 +476,20 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     set({ currentExecution: null, viewerWorkflowId: null });
   },
 
-  startExecution: async (workflowId: string, saveWorkflowFn?: () => Promise<void>) => {
+  setArtifactProfile: (profile: ArtifactProfile) => {
+    try {
+      localStorage.setItem('bas_artifact_profile', profile);
+    } catch {
+      // Ignore localStorage errors
+    }
+    set({ artifactProfile: profile });
+  },
+
+  startExecution: async (workflowId: string, options?: StartExecutionOptions) => {
     try {
       // Save workflow first if save function provided (to ensure latest changes are used)
-      if (saveWorkflowFn) {
-        await saveWorkflowFn();
+      if (options?.saveWorkflowFn) {
+        await options.saveWorkflowFn();
       }
 
       const state = get();
@@ -422,6 +499,11 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       set({ viewerWorkflowId: workflowId });
 
       const config = await getConfig();
+
+      // Build artifact config for the request
+      // Use provided config, fall back to store's profile, or default to 'full'
+      const artifactConfig = options?.artifactConfig ?? { profile: state.artifactProfile };
+
       const response = await fetch(`${config.API_URL}/workflows/${workflowId}/execute`, {
         method: 'POST',
         headers: {
@@ -429,6 +511,21 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         },
         body: JSON.stringify({
           wait_for_completion: false,
+          parameters: {
+            artifact_config: {
+              profile: artifactConfig.profile ?? 'full',
+              ...(artifactConfig.profile === 'custom' && {
+                collect_screenshots: artifactConfig.collectScreenshots,
+                collect_dom_snapshots: artifactConfig.collectDomSnapshots,
+                collect_console_logs: artifactConfig.collectConsoleLogs,
+                collect_network_events: artifactConfig.collectNetworkEvents,
+                collect_extracted_data: artifactConfig.collectExtractedData,
+                collect_assertions: artifactConfig.collectAssertions,
+                collect_cursor_trails: artifactConfig.collectCursorTrails,
+                collect_telemetry: artifactConfig.collectTelemetry,
+              }),
+            },
+          },
         }),
       });
 

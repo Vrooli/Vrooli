@@ -64,8 +64,8 @@ func TestSeams_AutomationRunnerMock(t *testing.T) {
 		}
 
 		instructions := []autocontracts.CompiledInstruction{
-			{Index: 0, NodeID: "navigate", Type: "navigate"},
-			{Index: 1, NodeID: "screenshot", Type: "screenshot"},
+			{Index: 0, NodeID: "navigate"},
+			{Index: 1, NodeID: "screenshot"},
 		}
 
 		outcomes, events, err := mockRunner.Run(context.Background(), 1920, 1080, instructions)

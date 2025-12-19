@@ -18,6 +18,7 @@ import (
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/config"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
@@ -230,4 +231,12 @@ func (r *inMemoryCaptureRecorder) MarkCrash(_ context.Context, _ uuid.UUID, _ au
 
 func (r *inMemoryCaptureRecorder) UpdateCheckpoint(_ context.Context, _ uuid.UUID, _ int, _ int) error {
 	return nil // In-memory recorder doesn't persist checkpoints
+}
+
+func (r *inMemoryCaptureRecorder) SetArtifactConfig(_ *config.ArtifactCollectionSettings) {
+	// In-memory recorder ignores artifact config - collects everything
+}
+
+func (r *inMemoryCaptureRecorder) GetArtifactConfig() config.ArtifactCollectionSettings {
+	return config.DefaultArtifactSettings() // In-memory recorder uses default (collect all)
 }

@@ -8,6 +8,7 @@
 package typeconv
 
 import (
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 )
@@ -26,8 +27,8 @@ func StringToNavigateWaitEvent(s string) basactions.NavigateWaitEvent {
 	}
 }
 
-// Note: StringToMouseButton and StringToKeyboardModifier are defined in primitives.go
-// with input normalization (lowercase + trim). Use those implementations.
+// Note: StringToMouseButton, StringToKeyboardModifier, StringToAssertionMode, and
+// StringToSelectorType are defined in internal/enums package.
 
 // StringToWaitState converts a string to WaitState enum.
 func StringToWaitState(s string) basactions.WaitState {
@@ -99,7 +100,7 @@ func BuildClickParams(data map[string]any) *basactions.ClickParams {
 		p.Selector = selector
 	}
 	if button, ok := data["button"].(string); ok {
-		btn := StringToMouseButton(button)
+		btn := enums.StringToMouseButton(button)
 		p.Button = &btn
 	}
 	if cc, ok := ToInt32(data["clickCount"]); ok {
@@ -111,7 +112,7 @@ func BuildClickParams(data map[string]any) *basactions.ClickParams {
 	if mods, ok := data["modifiers"].([]any); ok {
 		for _, m := range mods {
 			if s, ok := m.(string); ok {
-				p.Modifiers = append(p.Modifiers, StringToKeyboardModifier(s))
+				p.Modifiers = append(p.Modifiers, enums.StringToKeyboardModifier(s))
 			}
 		}
 	}
@@ -178,9 +179,9 @@ func BuildAssertParams(data map[string]any) *basactions.AssertParams {
 		p.Selector = selector
 	}
 	if mode, ok := data["mode"].(string); ok {
-		p.Mode = StringToAssertionMode(mode)
+		p.Mode = enums.StringToAssertionMode(mode)
 	} else if mode, ok := data["assertMode"].(string); ok {
-		p.Mode = StringToAssertionMode(mode) // "assertMode" alias
+		p.Mode = enums.StringToAssertionMode(mode) // "assertMode" alias
 	}
 	if exp := data["expected"]; exp != nil {
 		p.Expected = AnyToJsonValue(exp)
@@ -272,7 +273,7 @@ func BuildKeyboardParams(data map[string]any) *basactions.KeyboardParams {
 	if mods, ok := data["modifiers"].([]any); ok {
 		for _, m := range mods {
 			if s, ok := m.(string); ok {
-				p.Modifiers = append(p.Modifiers, StringToKeyboardModifier(s))
+				p.Modifiers = append(p.Modifiers, enums.StringToKeyboardModifier(s))
 			}
 		}
 	}
@@ -359,7 +360,7 @@ func BuildActionMetadata(data map[string]any) *basactions.ActionMetadata {
 			if cm, ok := c.(map[string]any); ok {
 				candidate := &basdomain.SelectorCandidate{}
 				if t, ok := cm["type"].(string); ok {
-					candidate.Type = StringToSelectorType(t)
+					candidate.Type = enums.StringToSelectorType(t)
 				}
 				if v, ok := cm["value"].(string); ok {
 					candidate.Value = v

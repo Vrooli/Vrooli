@@ -9,13 +9,15 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/internal/compat"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
+	"github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -54,67 +56,15 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": fmt.Sprintf("read body: %v", err)}))
 		return
 	}
-	if len(body) == 0 {
-		body = []byte("{}")
+
+	// Apply backwards compatibility transformations via centralized compat adapter.
+	normalizedBody, err := compat.NormalizeExecuteAdhocRequest(body)
+	if err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": fmt.Sprintf("normalize: %v", err)}))
+		return
 	}
 
-	// Backwards compatibility: older playbooks clients used `execution_params` instead of `parameters`.
-	// Keep proto as the source-of-truth by translating into the canonical proto field name.
-	var raw map[string]any
-	if jsonErr := json.Unmarshal(body, &raw); jsonErr == nil {
-		if execParams, ok := raw["execution_params"]; ok {
-			if _, has := raw["parameters"]; !has {
-				raw["parameters"] = execParams
-			}
-			delete(raw, "execution_params")
-		}
-
-		// Compatibility for clients that send plain JSON primitives into ExecutionParameters.{initial_params,initial_store,env}.
-		// The proto expects map<string, common.v1.JsonValue> (i.e. {"string_value": "..."} wrappers).
-		if params, ok := raw["parameters"].(map[string]any); ok && params != nil {
-			typeconv.NormalizeJsonValueMaps(params, "initial_params", "initial_store", "env")
-		}
-
-		// Compatibility for test-genie's injected execution defaults (camelCase UI settings).
-		if flowDef, ok := raw["flow_definition"].(map[string]any); ok && flowDef != nil {
-			if settings, ok := flowDef["settings"].(map[string]any); ok && settings != nil {
-				if viewport, ok := settings["executionViewport"].(map[string]any); ok && viewport != nil {
-					if width, ok := viewport["width"]; ok {
-						switch v := width.(type) {
-						case float64:
-							settings["viewport_width"] = int32(v)
-						case int:
-							settings["viewport_width"] = int32(v)
-						case int32:
-							settings["viewport_width"] = v
-						case int64:
-							settings["viewport_width"] = int32(v)
-						}
-					}
-					if height, ok := viewport["height"]; ok {
-						switch v := height.(type) {
-						case float64:
-							settings["viewport_height"] = int32(v)
-						case int:
-							settings["viewport_height"] = int32(v)
-						case int32:
-							settings["viewport_height"] = v
-						case int64:
-							settings["viewport_height"] = int32(v)
-						}
-					}
-					delete(settings, "executionViewport")
-				}
-				delete(settings, "defaultStepTimeoutMs")
-			}
-		}
-
-		if remapped, marshalErr := json.Marshal(raw); marshalErr == nil {
-			body = remapped
-		}
-	}
-
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, &req); err != nil {
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(normalizedBody, &req); err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
@@ -257,4 +207,46 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 
 	// Keep response shape consistent with proto UpdateWorkflowResponse.
 	h.respondProto(w, http.StatusOK, resp)
+}
+
+// ReceiveExecutionFrame receives frames from the playwright-driver during workflow execution.
+// This endpoint is called by the driver when frame streaming is enabled for an execution.
+// Frames are broadcast to WebSocket clients subscribed to the execution's frame stream.
+func (h *Handler) ReceiveExecutionFrame(w http.ResponseWriter, r *http.Request) {
+	executionID := chi.URLParam(r, "executionId")
+	if executionID == "" {
+		http.Error(w, "missing execution_id", http.StatusBadRequest)
+		return
+	}
+
+	// Check if anyone is subscribed to this execution's frames
+	// This optimization avoids decoding frames when no one is watching
+	if !h.wsHub.HasExecutionFrameSubscribers(executionID) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	// Decode frame data from driver
+	var frame struct {
+		Data      string `json:"data"`       // Base64 encoded image data
+		MediaType string `json:"media_type"` // e.g., "image/jpeg"
+		Width     int    `json:"width"`
+		Height    int    `json:"height"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&frame); err != nil {
+		http.Error(w, "invalid frame data", http.StatusBadRequest)
+		return
+	}
+
+	// Broadcast to subscribers
+	h.wsHub.BroadcastExecutionFrame(executionID, &websocket.ExecutionFrame{
+		ExecutionID: executionID,
+		Data:        frame.Data,
+		MediaType:   frame.MediaType,
+		Width:       frame.Width,
+		Height:      frame.Height,
+		CapturedAt:  time.Now().UTC().Format(time.RFC3339Nano),
+	})
+
+	w.WriteHeader(http.StatusOK)
 }

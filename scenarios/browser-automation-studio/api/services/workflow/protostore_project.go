@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const projectMetadataDirName = ".bas"
@@ -39,8 +39,8 @@ func hydrateProjectProto(ctx context.Context, project *database.ProjectIndex) (*
 		Id:         project.ID.String(),
 		Name:       project.Name,
 		FolderPath: project.FolderPath,
-		CreatedAt:  timestamppb.New(project.CreatedAt),
-		UpdatedAt:  timestamppb.New(project.UpdatedAt),
+		CreatedAt:  autocontracts.TimeToTimestamp(project.CreatedAt),
+		UpdatedAt:  autocontracts.TimeToTimestamp(project.UpdatedAt),
 	}
 
 	metaPath := projectMetadataPath(project.FolderPath)
@@ -82,8 +82,8 @@ func persistProjectProto(project *database.ProjectIndex, description string) err
 		Name:        project.Name,
 		Description: strings.TrimSpace(description),
 		FolderPath:  project.FolderPath,
-		CreatedAt:   timestamppb.New(project.CreatedAt),
-		UpdatedAt:   timestamppb.New(now),
+		CreatedAt:   autocontracts.TimeToTimestamp(project.CreatedAt),
+		UpdatedAt:   autocontracts.TimeToTimestamp(now),
 	}
 
 	raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(pb)

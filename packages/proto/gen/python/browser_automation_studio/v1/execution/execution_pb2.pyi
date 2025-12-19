@@ -14,6 +14,36 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ArtifactCollectionConfig(_message.Message):
+    __slots__ = ()
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
+    COLLECT_SCREENSHOTS_FIELD_NUMBER: _ClassVar[int]
+    COLLECT_DOM_SNAPSHOTS_FIELD_NUMBER: _ClassVar[int]
+    COLLECT_CONSOLE_LOGS_FIELD_NUMBER: _ClassVar[int]
+    COLLECT_NETWORK_EVENTS_FIELD_NUMBER: _ClassVar[int]
+    COLLECT_EXTRACTED_DATA_FIELD_NUMBER: _ClassVar[int]
+    COLLECT_ASSERTIONS_FIELD_NUMBER: _ClassVar[int]
+    COLLECT_CURSOR_TRAILS_FIELD_NUMBER: _ClassVar[int]
+    COLLECT_TELEMETRY_FIELD_NUMBER: _ClassVar[int]
+    MAX_SCREENSHOT_BYTES_FIELD_NUMBER: _ClassVar[int]
+    MAX_DOM_SNAPSHOT_BYTES_FIELD_NUMBER: _ClassVar[int]
+    MAX_CONSOLE_ENTRY_BYTES_FIELD_NUMBER: _ClassVar[int]
+    MAX_NETWORK_PREVIEW_BYTES_FIELD_NUMBER: _ClassVar[int]
+    profile: str
+    collect_screenshots: bool
+    collect_dom_snapshots: bool
+    collect_console_logs: bool
+    collect_network_events: bool
+    collect_extracted_data: bool
+    collect_assertions: bool
+    collect_cursor_trails: bool
+    collect_telemetry: bool
+    max_screenshot_bytes: int
+    max_dom_snapshot_bytes: int
+    max_console_entry_bytes: int
+    max_network_preview_bytes: int
+    def __init__(self, profile: _Optional[str] = ..., collect_screenshots: _Optional[bool] = ..., collect_dom_snapshots: _Optional[bool] = ..., collect_console_logs: _Optional[bool] = ..., collect_network_events: _Optional[bool] = ..., collect_extracted_data: _Optional[bool] = ..., collect_assertions: _Optional[bool] = ..., collect_cursor_trails: _Optional[bool] = ..., collect_telemetry: _Optional[bool] = ..., max_screenshot_bytes: _Optional[int] = ..., max_dom_snapshot_bytes: _Optional[int] = ..., max_console_entry_bytes: _Optional[int] = ..., max_network_preview_bytes: _Optional[int] = ...) -> None: ...
+
 class ExecutionParameters(_message.Message):
     __slots__ = ()
     class VariablesEntry(_message.Message):
@@ -56,6 +86,7 @@ class ExecutionParameters(_message.Message):
     INITIAL_PARAMS_FIELD_NUMBER: _ClassVar[int]
     INITIAL_STORE_FIELD_NUMBER: _ClassVar[int]
     ENV_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_CONFIG_FIELD_NUMBER: _ClassVar[int]
     start_url: str
     variables: _containers.ScalarMap[str, str]
     viewport_width: int
@@ -68,7 +99,8 @@ class ExecutionParameters(_message.Message):
     initial_params: _containers.MessageMap[str, _types_pb2.JsonValue]
     initial_store: _containers.MessageMap[str, _types_pb2.JsonValue]
     env: _containers.MessageMap[str, _types_pb2.JsonValue]
-    def __init__(self, start_url: _Optional[str] = ..., variables: _Optional[_Mapping[str, str]] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., headless: _Optional[bool] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., project_root: _Optional[str] = ..., initial_params: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., initial_store: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., env: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
+    artifact_config: ArtifactCollectionConfig
+    def __init__(self, start_url: _Optional[str] = ..., variables: _Optional[_Mapping[str, str]] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., headless: _Optional[bool] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., project_root: _Optional[str] = ..., initial_params: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., initial_store: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., env: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., artifact_config: _Optional[_Union[ArtifactCollectionConfig, _Mapping]] = ...) -> None: ...
 
 class ExecutionResult(_message.Message):
     __slots__ = ()

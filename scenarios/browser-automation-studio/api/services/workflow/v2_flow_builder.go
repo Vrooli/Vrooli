@@ -12,7 +12,6 @@ import (
 
 // ErrInvalidWorkflowFormat is returned when a workflow is missing required V2 structure.
 // All workflows must use V2 format where nodes have an "action" field with typed action definitions.
-// Legacy V1 format (nodes with type+data instead of action field) is rejected.
 var ErrInvalidWorkflowFormat = errors.New("invalid workflow format: nodes must have 'action' field with typed action definitions")
 
 // BuildFlowDefinitionV2ForWrite converts an incoming flow definition map to a WorkflowDefinitionV2.
@@ -40,8 +39,8 @@ func BuildFlowDefinitionV2ForWrite(flow map[string]any, metadata map[string]any,
 		return nil, ErrInvalidWorkflowFormat
 	}
 
-	// Parse V2 format.
-	normalizeV2Compat(merged)
+	// Normalize for proto serialization.
+	normalizeForProto(merged)
 	body, err := json.Marshal(merged)
 	if err != nil {
 		return nil, fmt.Errorf("marshal flow definition: %w", err)
@@ -107,12 +106,11 @@ func validateFlowDefinitionV2OnWrite(def *basworkflows.WorkflowDefinitionV2) err
 
 // isV2Format validates that a flow definition uses V2 format.
 // V2 format requires nodes to have "action" fields with typed action definitions.
-// Returns false for empty workflows or workflows missing the action field.
+// Returns true for empty workflows (valid V2) or workflows with action fields.
 func isV2Format(doc map[string]any) bool {
 	nodes, ok := doc["nodes"].([]any)
 	if !ok || len(nodes) == 0 {
-		// Empty workflow is technically valid V2, but we check first node for non-empty
-		return true
+		return true // Empty workflow is valid V2
 	}
 	first, ok := nodes[0].(map[string]any)
 	if !ok || first == nil {
@@ -122,9 +120,11 @@ func isV2Format(doc map[string]any) bool {
 	return hasAction
 }
 
-// normalizeV2Compat normalizes a V2 flow definition for proto compatibility.
-// Handles UI-oriented execution defaults and JsonValue wrapping for subflow args.
-func normalizeV2Compat(doc map[string]any) {
+// normalizeForProto normalizes a V2 flow definition for proto serialization.
+// Handles:
+//   - UI-oriented viewport settings -> proto field names
+//   - Primitive subflow args -> JsonValue wrappers
+func normalizeForProto(doc map[string]any) {
 	settings, ok := doc["settings"].(map[string]any)
 	if ok && settings != nil {
 		// Translate UI-oriented viewport settings to proto field names.

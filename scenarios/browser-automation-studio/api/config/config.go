@@ -73,6 +73,10 @@ type Config struct {
 	// Storage controls screenshot and artifact storage limits.
 	Storage StorageConfig
 
+	// ArtifactLimits controls size limits for collected artifacts.
+	// These are global defaults that can be overridden per-execution.
+	ArtifactLimits ArtifactLimitsConfig
+
 	// HTTP controls API request limits and pagination defaults.
 	HTTP HTTPConfig
 
@@ -420,6 +424,31 @@ type StorageConfig struct {
 	MaxEmbeddedExternalBytes int64
 }
 
+// ArtifactLimitsConfig controls size limits for collected artifacts.
+// These are global defaults that can be overridden per-execution via ArtifactCollectionConfig.
+type ArtifactLimitsConfig struct {
+	// MaxScreenshotBytes is the maximum screenshot size before truncation.
+	// Env: BAS_ARTIFACT_MAX_SCREENSHOT_BYTES (default: 524288, 512KB)
+	MaxScreenshotBytes int
+
+	// MaxDOMSnapshotBytes is the maximum DOM snapshot HTML size before truncation.
+	// Env: BAS_ARTIFACT_MAX_DOM_SNAPSHOT_BYTES (default: 524288, 512KB)
+	MaxDOMSnapshotBytes int
+
+	// MaxConsoleEntryBytes is the maximum size per console log entry.
+	// Env: BAS_ARTIFACT_MAX_CONSOLE_ENTRY_BYTES (default: 16384, 16KB)
+	MaxConsoleEntryBytes int
+
+	// MaxNetworkPreviewBytes is the maximum request/response body preview size.
+	// Env: BAS_ARTIFACT_MAX_NETWORK_PREVIEW_BYTES (default: 65536, 64KB)
+	MaxNetworkPreviewBytes int
+
+	// DefaultProfile is the default artifact collection profile when not specified.
+	// Valid values: "full", "standard", "minimal", "debug", "none"
+	// Env: BAS_ARTIFACT_DEFAULT_PROFILE (default: "full")
+	DefaultProfile string
+}
+
 // HTTPConfig controls API request limits and pagination defaults.
 // These settings balance usability against resource consumption.
 type HTTPConfig struct {
@@ -629,6 +658,13 @@ func loadFromEnv() *Config {
 		Storage: StorageConfig{
 			MaxEmbeddedExternalBytes: parseInt64("BAS_STORAGE_MAX_EMBEDDED_EXTERNAL_BYTES", 5242880),
 		},
+		ArtifactLimits: ArtifactLimitsConfig{
+			MaxScreenshotBytes:     parseInt("BAS_ARTIFACT_MAX_SCREENSHOT_BYTES", 524288),
+			MaxDOMSnapshotBytes:    parseInt("BAS_ARTIFACT_MAX_DOM_SNAPSHOT_BYTES", 524288),
+			MaxConsoleEntryBytes:   parseInt("BAS_ARTIFACT_MAX_CONSOLE_ENTRY_BYTES", 16384),
+			MaxNetworkPreviewBytes: parseInt("BAS_ARTIFACT_MAX_NETWORK_PREVIEW_BYTES", 65536),
+			DefaultProfile:         parseString("BAS_ARTIFACT_DEFAULT_PROFILE", "full"),
+		},
 		HTTP: HTTPConfig{
 			MaxBodyBytes:     parseInt64("BAS_HTTP_MAX_BODY_BYTES", 1048576),
 			DefaultPageLimit: parseInt("BAS_HTTP_DEFAULT_PAGE_LIMIT", 100),
@@ -748,6 +784,24 @@ func (c *Config) Validate() error {
 	// Storage validation
 	if c.Storage.MaxEmbeddedExternalBytes < 1024 {
 		return fmt.Errorf("MaxEmbeddedExternalBytes must be at least 1024, got %d", c.Storage.MaxEmbeddedExternalBytes)
+	}
+
+	// ArtifactLimits validation
+	if c.ArtifactLimits.MaxScreenshotBytes < 1024 {
+		return fmt.Errorf("ArtifactLimits.MaxScreenshotBytes must be at least 1024, got %d", c.ArtifactLimits.MaxScreenshotBytes)
+	}
+	if c.ArtifactLimits.MaxDOMSnapshotBytes < 1024 {
+		return fmt.Errorf("ArtifactLimits.MaxDOMSnapshotBytes must be at least 1024, got %d", c.ArtifactLimits.MaxDOMSnapshotBytes)
+	}
+	if c.ArtifactLimits.MaxConsoleEntryBytes < 256 {
+		return fmt.Errorf("ArtifactLimits.MaxConsoleEntryBytes must be at least 256, got %d", c.ArtifactLimits.MaxConsoleEntryBytes)
+	}
+	if c.ArtifactLimits.MaxNetworkPreviewBytes < 256 {
+		return fmt.Errorf("ArtifactLimits.MaxNetworkPreviewBytes must be at least 256, got %d", c.ArtifactLimits.MaxNetworkPreviewBytes)
+	}
+	validProfiles := map[string]bool{"full": true, "standard": true, "minimal": true, "debug": true, "none": true}
+	if c.ArtifactLimits.DefaultProfile != "" && !validProfiles[c.ArtifactLimits.DefaultProfile] {
+		return fmt.Errorf("ArtifactLimits.DefaultProfile must be one of: full, standard, minimal, debug, none; got %q", c.ArtifactLimits.DefaultProfile)
 	}
 
 	// HTTP validation

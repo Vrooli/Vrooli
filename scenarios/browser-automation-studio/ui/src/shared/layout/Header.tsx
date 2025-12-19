@@ -510,14 +510,16 @@ function Header({
 
     try {
       setIsExecuting(true);
-      await startExecution(currentWorkflow.id, async () => {
-        if (!isDirty) {
-          return;
-        }
-        await saveWorkflow({
-          source: "execute",
-          changeDescription: "Autosave before execution",
-        });
+      await startExecution(currentWorkflow.id, {
+        saveWorkflowFn: async () => {
+          if (!isDirty) {
+            return;
+          }
+          await saveWorkflow({
+            source: "execute",
+            changeDescription: "Autosave before execution",
+          });
+        },
       });
     } catch (error) {
       toast.error("Failed to start execution");

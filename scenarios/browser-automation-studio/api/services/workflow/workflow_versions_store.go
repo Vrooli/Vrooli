@@ -11,13 +11,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const workflowVersionsDirName = ".bas/versions"
@@ -62,7 +61,7 @@ func persistWorkflowVersionSnapshot(project *database.ProjectIndex, wf *basapi.W
 		CreatedAt:         wf.UpdatedAt,
 	}
 	if versionMsg.CreatedAt == nil {
-		versionMsg.CreatedAt = timestamppb.New(time.Now().UTC())
+		versionMsg.CreatedAt = autocontracts.NowTimestamp()
 	}
 
 	target := workflowVersionFilePath(project.FolderPath, workflowID, wf.Version)

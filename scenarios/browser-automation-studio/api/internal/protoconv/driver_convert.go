@@ -1,16 +1,10 @@
 package protoconv
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
-	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
-	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
-	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // =============================================================================
@@ -32,7 +26,7 @@ func StepOutcomeToProto(outcome *autocontracts.StepOutcome) *basexecution.StepOu
 		NodeId:         outcome.NodeID,
 		StepType:       outcome.StepType,
 		Success:        outcome.Success,
-		StartedAt:      timestamppb.New(outcome.StartedAt),
+		StartedAt:      autocontracts.TimeToTimestamp(outcome.StartedAt),
 	}
 
 	// Optional string fields
@@ -51,9 +45,7 @@ func StepOutcomeToProto(outcome *autocontracts.StepOutcome) *basexecution.StepOu
 	}
 
 	// Optional time fields
-	if outcome.CompletedAt != nil {
-		pb.CompletedAt = timestamppb.New(*outcome.CompletedAt)
-	}
+	pb.CompletedAt = autocontracts.TimePtrToTimestamp(outcome.CompletedAt)
 	if outcome.DurationMs > 0 {
 		durationMs := int32(outcome.DurationMs)
 		pb.DurationMs = &durationMs
@@ -81,7 +73,7 @@ func StepOutcomeToProto(outcome *autocontracts.StepOutcome) *basexecution.StepOu
 
 	// Extracted data
 	if len(outcome.ExtractedData) > 0 {
-		pb.ExtractedData = toJsonValueMap(outcome.ExtractedData)
+		pb.ExtractedData = typeconv.ToJsonValueMap(outcome.ExtractedData)
 	}
 
 	// Assertion outcome
@@ -96,7 +88,7 @@ func StepOutcomeToProto(outcome *autocontracts.StepOutcome) *basexecution.StepOu
 
 	// Probe result
 	if len(outcome.ProbeResult) > 0 {
-		pb.ProbeResult = toJsonValueMap(outcome.ProbeResult)
+		pb.ProbeResult = typeconv.ToJsonValueMap(outcome.ProbeResult)
 	}
 
 	// Element interaction
@@ -110,27 +102,27 @@ func StepOutcomeToProto(outcome *autocontracts.StepOutcome) *basexecution.StepOu
 		pb.FocusedElement = outcome.FocusedElement
 	}
 
-		// Visual regions (direct proto pointer types via aliases)
-		for _, region := range outcome.HighlightRegions {
-			if region != nil {
-				pb.HighlightRegions = append(pb.HighlightRegions, region)
-			}
+	// Visual regions (direct proto pointer types via aliases)
+	for _, region := range outcome.HighlightRegions {
+		if region != nil {
+			pb.HighlightRegions = append(pb.HighlightRegions, region)
 		}
-		for _, region := range outcome.MaskRegions {
-			if region != nil {
-				pb.MaskRegions = append(pb.MaskRegions, region)
-			}
+	}
+	for _, region := range outcome.MaskRegions {
+		if region != nil {
+			pb.MaskRegions = append(pb.MaskRegions, region)
 		}
+	}
 
 	// Zoom factor
 	if outcome.ZoomFactor > 0 {
 		pb.ZoomFactor = &outcome.ZoomFactor
 	}
 
-		// Cursor trail
-		for i := range outcome.CursorTrail {
-			pb.CursorTrail = append(pb.CursorTrail, CursorPositionToProto(&outcome.CursorTrail[i]))
-		}
+	// Cursor trail
+	for i := range outcome.CursorTrail {
+		pb.CursorTrail = append(pb.CursorTrail, CursorPositionToProto(&outcome.CursorTrail[i]))
+	}
 
 	// Notes
 	if len(outcome.Notes) > 0 {
@@ -160,7 +152,7 @@ func ProtoToStepOutcome(pb *basexecution.StepOutcome) *autocontracts.StepOutcome
 		NodeID:         pb.NodeId,
 		StepType:       pb.StepType,
 		Success:        pb.Success,
-		StartedAt:      pb.StartedAt.AsTime(),
+		StartedAt:      autocontracts.TimestampToTime(pb.StartedAt),
 	}
 
 	// Optional string fields
@@ -180,10 +172,7 @@ func ProtoToStepOutcome(pb *basexecution.StepOutcome) *autocontracts.StepOutcome
 	}
 
 	// Optional time fields
-	if pb.CompletedAt != nil {
-		t := pb.CompletedAt.AsTime()
-		outcome.CompletedAt = &t
-	}
+	outcome.CompletedAt = autocontracts.TimestampToTimePtr(pb.CompletedAt)
 	if pb.DurationMs != nil {
 		outcome.DurationMs = int(*pb.DurationMs)
 	}
@@ -210,7 +199,7 @@ func ProtoToStepOutcome(pb *basexecution.StepOutcome) *autocontracts.StepOutcome
 
 	// Extracted data
 	if len(pb.ExtractedData) > 0 {
-		outcome.ExtractedData = fromJsonValueMap(pb.ExtractedData)
+		outcome.ExtractedData = typeconv.JsonValueMapToAny(pb.ExtractedData)
 	}
 
 	// Assertion outcome
@@ -225,7 +214,7 @@ func ProtoToStepOutcome(pb *basexecution.StepOutcome) *autocontracts.StepOutcome
 
 	// Probe result
 	if len(pb.ProbeResult) > 0 {
-		outcome.ProbeResult = fromJsonValueMap(pb.ProbeResult)
+		outcome.ProbeResult = typeconv.JsonValueMapToAny(pb.ProbeResult)
 	}
 
 	// Element interaction (direct proto types via aliases)
@@ -233,17 +222,17 @@ func ProtoToStepOutcome(pb *basexecution.StepOutcome) *autocontracts.StepOutcome
 	outcome.ClickPosition = pb.ClickPosition
 	outcome.FocusedElement = pb.FocusedElement
 
-		// Visual regions (direct proto pointer types via aliases)
-		for _, region := range pb.HighlightRegions {
-			if region != nil {
-				outcome.HighlightRegions = append(outcome.HighlightRegions, region)
-			}
+	// Visual regions (direct proto pointer types via aliases)
+	for _, region := range pb.HighlightRegions {
+		if region != nil {
+			outcome.HighlightRegions = append(outcome.HighlightRegions, region)
 		}
-		for _, region := range pb.MaskRegions {
-			if region != nil {
-				outcome.MaskRegions = append(outcome.MaskRegions, region)
-			}
+	}
+	for _, region := range pb.MaskRegions {
+		if region != nil {
+			outcome.MaskRegions = append(outcome.MaskRegions, region)
 		}
+	}
 
 	// Zoom factor
 	if pb.ZoomFactor != nil {
@@ -291,11 +280,9 @@ func StepFailureToProto(failure *autocontracts.StepFailure) *basexecution.StepFa
 	if failure.Message != "" {
 		pb.Message = &failure.Message
 	}
-	if failure.OccurredAt != nil {
-		pb.OccurredAt = timestamppb.New(*failure.OccurredAt)
-	}
+	pb.OccurredAt = autocontracts.TimePtrToTimestamp(failure.OccurredAt)
 	if len(failure.Details) > 0 {
-		pb.Details = toJsonValueMap(failure.Details)
+		pb.Details = typeconv.ToJsonValueMap(failure.Details)
 	}
 
 	return pb
@@ -320,12 +307,9 @@ func ProtoToStepFailure(pb *basexecution.StepFailure) *autocontracts.StepFailure
 	if pb.Message != nil {
 		failure.Message = *pb.Message
 	}
-	if pb.OccurredAt != nil {
-		t := pb.OccurredAt.AsTime()
-		failure.OccurredAt = &t
-	}
+	failure.OccurredAt = autocontracts.TimestampToTimePtr(pb.OccurredAt)
 	if len(pb.Details) > 0 {
-		failure.Details = fromJsonValueMap(pb.Details)
+		failure.Details = typeconv.JsonValueMapToAny(pb.Details)
 	}
 
 	return failure
@@ -418,9 +402,7 @@ func ScreenshotToProtoDriver(shot *autocontracts.Screenshot) *basexecution.Drive
 		Truncated: shot.Truncated,
 	}
 
-	if !shot.CaptureTime.IsZero() {
-		pb.CaptureTime = timestamppb.New(shot.CaptureTime)
-	}
+	pb.CaptureTime = autocontracts.TimeToTimestamp(shot.CaptureTime)
 	if shot.Hash != "" {
 		pb.Hash = &shot.Hash
 	}
@@ -446,9 +428,7 @@ func ProtoDriverToScreenshot(pb *basexecution.DriverScreenshot) *autocontracts.S
 		Truncated: pb.Truncated,
 	}
 
-	if pb.CaptureTime != nil {
-		shot.CaptureTime = pb.CaptureTime.AsTime()
-	}
+	shot.CaptureTime = autocontracts.TimestampToTime(pb.CaptureTime)
 	if pb.Hash != nil {
 		shot.Hash = *pb.Hash
 	}
@@ -478,9 +458,7 @@ func DOMSnapshotToProto(dom *autocontracts.DOMSnapshot) *basexecution.DOMSnapsho
 	if dom.Hash != "" {
 		pb.Hash = &dom.Hash
 	}
-	if !dom.CollectedAt.IsZero() {
-		pb.CollectedAt = timestamppb.New(dom.CollectedAt)
-	}
+	pb.CollectedAt = autocontracts.TimeToTimestamp(dom.CollectedAt)
 
 	return pb
 }
@@ -504,9 +482,7 @@ func ProtoToDOMSnapshot(pb *basexecution.DOMSnapshot) *autocontracts.DOMSnapshot
 	if pb.Hash != nil {
 		dom.Hash = *pb.Hash
 	}
-	if pb.CollectedAt != nil {
-		dom.CollectedAt = pb.CollectedAt.AsTime()
-	}
+	dom.CollectedAt = autocontracts.TimestampToTime(pb.CollectedAt)
 
 	return dom
 }
@@ -520,7 +496,7 @@ func ConsoleLogEntryToProto(log *autocontracts.ConsoleLogEntry) *basexecution.Dr
 	pb := &basexecution.DriverConsoleLogEntry{
 		Type:      log.Type,
 		Text:      log.Text,
-		Timestamp: timestamppb.New(log.Timestamp),
+		Timestamp: autocontracts.TimeToTimestamp(log.Timestamp),
 	}
 
 	if log.Stack != "" {
@@ -542,7 +518,7 @@ func ProtoToConsoleLogEntry(pb *basexecution.DriverConsoleLogEntry) *autocontrac
 	log := &autocontracts.ConsoleLogEntry{
 		Type:      pb.Type,
 		Text:      pb.Text,
-		Timestamp: pb.Timestamp.AsTime(),
+		Timestamp: autocontracts.TimestampToTime(pb.Timestamp),
 	}
 
 	if pb.Stack != nil {
@@ -564,7 +540,7 @@ func NetworkEventToProto(event *autocontracts.NetworkEvent) *basexecution.Driver
 	pb := &basexecution.DriverNetworkEvent{
 		Type:      event.Type,
 		Url:       event.URL,
-		Timestamp: timestamppb.New(event.Timestamp),
+		Timestamp: autocontracts.TimeToTimestamp(event.Timestamp),
 		Truncated: event.Truncated,
 	}
 
@@ -609,7 +585,7 @@ func ProtoToNetworkEvent(pb *basexecution.DriverNetworkEvent) *autocontracts.Net
 	event := &autocontracts.NetworkEvent{
 		Type:      pb.Type,
 		URL:       pb.Url,
-		Timestamp: pb.Timestamp.AsTime(),
+		Timestamp: autocontracts.TimestampToTime(pb.Timestamp),
 		Truncated: pb.Truncated,
 	}
 
@@ -655,9 +631,7 @@ func CursorPositionToProto(pos *autocontracts.CursorPosition) *basexecution.Curs
 		pb.Point = pos.Point
 	}
 
-	if !pos.RecordedAt.IsZero() {
-		pb.RecordedAt = timestamppb.New(pos.RecordedAt)
-	}
+	pb.RecordedAt = autocontracts.TimeToTimestamp(pos.RecordedAt)
 	if pos.ElapsedMs != 0 {
 		pb.ElapsedMs = &pos.ElapsedMs
 	}
@@ -672,9 +646,7 @@ func ProtoToCursorPosition(pb *basexecution.CursorPosition) *autocontracts.Curso
 	}
 
 	pos := &autocontracts.CursorPosition{Point: pb.Point}
-	if pb.RecordedAt != nil {
-		pos.RecordedAt = pb.RecordedAt.AsTime()
-	}
+	pos.RecordedAt = autocontracts.TimestampToTime(pb.RecordedAt)
 	if pb.ElapsedMs != nil {
 		pos.ElapsedMs = *pb.ElapsedMs
 	}
@@ -701,10 +673,10 @@ func AssertionOutcomeToProto(assertion *autocontracts.AssertionOutcome) *basexec
 		pb.Selector = &assertion.Selector
 	}
 	if assertion.Expected != nil {
-		pb.Expected = toJsonValue(assertion.Expected)
+		pb.Expected = typeconv.AnyToJsonValue(assertion.Expected)
 	}
 	if assertion.Actual != nil {
-		pb.Actual = toJsonValue(assertion.Actual)
+		pb.Actual = typeconv.AnyToJsonValue(assertion.Actual)
 	}
 	if assertion.Message != "" {
 		pb.Message = &assertion.Message
@@ -732,10 +704,10 @@ func ProtoToAssertionOutcome(pb *basexecution.AssertionOutcome) *autocontracts.A
 		assertion.Selector = *pb.Selector
 	}
 	if pb.Expected != nil {
-		assertion.Expected = fromJsonValue(pb.Expected)
+		assertion.Expected = typeconv.JsonValueToAny(pb.Expected)
 	}
 	if pb.Actual != nil {
-		assertion.Actual = fromJsonValue(pb.Actual)
+		assertion.Actual = typeconv.JsonValueToAny(pb.Actual)
 	}
 	if pb.Message != nil {
 		assertion.Message = *pb.Message
@@ -771,10 +743,10 @@ func ConditionOutcomeToProto(condition *autocontracts.ConditionOutcome) *basexec
 		pb.Expression = &condition.Expression
 	}
 	if condition.Actual != nil {
-		pb.Actual = toJsonValue(condition.Actual)
+		pb.Actual = typeconv.AnyToJsonValue(condition.Actual)
 	}
 	if condition.Expected != nil {
-		pb.Expected = toJsonValue(condition.Expected)
+		pb.Expected = typeconv.AnyToJsonValue(condition.Expected)
 	}
 
 	return pb
@@ -807,10 +779,10 @@ func ProtoToConditionOutcome(pb *basexecution.ConditionOutcome) *autocontracts.C
 		condition.Expression = *pb.Expression
 	}
 	if pb.Actual != nil {
-		condition.Actual = fromJsonValue(pb.Actual)
+		condition.Actual = typeconv.JsonValueToAny(pb.Actual)
 	}
 	if pb.Expected != nil {
-		condition.Expected = fromJsonValue(pb.Expected)
+		condition.Expected = typeconv.JsonValueToAny(pb.Expected)
 	}
 
 	return condition
@@ -831,7 +803,7 @@ func ExecutionPlanToProto(plan *autocontracts.ExecutionPlan) *basexecution.Execu
 		PayloadVersion: plan.PayloadVersion,
 		ExecutionId:    plan.ExecutionID.String(),
 		WorkflowId:     plan.WorkflowID.String(),
-		CreatedAt:      timestamppb.New(plan.CreatedAt),
+		CreatedAt:      autocontracts.TimeToTimestamp(plan.CreatedAt),
 	}
 
 	// Instructions
@@ -846,7 +818,7 @@ func ExecutionPlanToProto(plan *autocontracts.ExecutionPlan) *basexecution.Execu
 
 	// Metadata
 	if len(plan.Metadata) > 0 {
-		pb.Metadata = toJsonValueMap(plan.Metadata)
+		pb.Metadata = typeconv.ToJsonValueMap(plan.Metadata)
 	}
 
 	return pb
@@ -861,7 +833,7 @@ func ProtoToExecutionPlan(pb *basexecution.ExecutionPlan) *autocontracts.Executi
 	plan := &autocontracts.ExecutionPlan{
 		SchemaVersion:  pb.SchemaVersion,
 		PayloadVersion: pb.PayloadVersion,
-		CreatedAt:      pb.CreatedAt.AsTime(),
+		CreatedAt:      autocontracts.TimestampToTime(pb.CreatedAt),
 	}
 
 	if id, err := uuid.Parse(pb.ExecutionId); err == nil {
@@ -883,7 +855,7 @@ func ProtoToExecutionPlan(pb *basexecution.ExecutionPlan) *autocontracts.Executi
 
 	// Metadata
 	if len(pb.Metadata) > 0 {
-		plan.Metadata = fromJsonValueMap(pb.Metadata)
+		plan.Metadata = typeconv.JsonValueMapToAny(pb.Metadata)
 	}
 
 	return plan
@@ -910,7 +882,7 @@ func CompiledInstructionToProto(instr *autocontracts.CompiledInstruction) *basex
 		pb.PreloadHtml = &instr.PreloadHTML
 	}
 	if len(instr.Context) > 0 {
-		pb.Context = toJsonValueMap(instr.Context)
+		pb.Context = typeconv.ToJsonValueMap(instr.Context)
 	}
 	if len(instr.Metadata) > 0 {
 		pb.Metadata = instr.Metadata
@@ -940,7 +912,7 @@ func ProtoToCompiledInstruction(pb *basexecution.CompiledInstruction) *autocontr
 		instr.PreloadHTML = *pb.PreloadHtml
 	}
 	if len(pb.Context) > 0 {
-		instr.Context = fromJsonValueMap(pb.Context)
+		instr.Context = typeconv.JsonValueMapToAny(pb.Context)
 	}
 	if len(pb.Metadata) > 0 {
 		instr.Metadata = pb.Metadata
@@ -1001,13 +973,13 @@ func PlanStepToProto(step *autocontracts.PlanStep) *basexecution.PlanStep {
 		pb.Metadata = step.Metadata
 	}
 	if len(step.Context) > 0 {
-		pb.Context = toJsonValueMap(step.Context)
+		pb.Context = typeconv.ToJsonValueMap(step.Context)
 	}
 	if step.Preload != "" {
 		pb.PreloadHtml = &step.Preload
 	}
 	if len(step.SourcePos) > 0 {
-		pb.SourcePosition = toJsonValueMap(step.SourcePos)
+		pb.SourcePosition = typeconv.ToJsonValueMap(step.SourcePos)
 	}
 
 	return pb
@@ -1040,13 +1012,13 @@ func ProtoToPlanStep(pb *basexecution.PlanStep) *autocontracts.PlanStep {
 		step.Metadata = pb.Metadata
 	}
 	if len(pb.Context) > 0 {
-		step.Context = fromJsonValueMap(pb.Context)
+		step.Context = typeconv.JsonValueMapToAny(pb.Context)
 	}
 	if pb.PreloadHtml != nil {
 		step.Preload = *pb.PreloadHtml
 	}
 	if len(pb.SourcePosition) > 0 {
-		step.SourcePos = fromJsonValueMap(pb.SourcePosition)
+		step.SourcePos = typeconv.JsonValueMapToAny(pb.SourcePosition)
 	}
 
 	return step
@@ -1100,68 +1072,3 @@ func ProtoToPlanEdge(pb *basexecution.PlanEdge) *autocontracts.PlanEdge {
 	return edge
 }
 
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
-
-// fromJsonValueMap converts a map of proto JsonValues to native Go map[string]any.
-func fromJsonValueMap(source map[string]*commonv1.JsonValue) map[string]any {
-	if len(source) == 0 {
-		return nil
-	}
-	result := make(map[string]any, len(source))
-	for key, value := range source {
-		result[key] = fromJsonValue(value)
-	}
-	return result
-}
-
-// fromJsonValue converts a proto JsonValue to native Go any.
-func fromJsonValue(value *commonv1.JsonValue) any {
-	if value == nil {
-		return nil
-	}
-
-	switch v := value.Kind.(type) {
-	case *commonv1.JsonValue_NullValue:
-		return nil
-	case *commonv1.JsonValue_BoolValue:
-		return v.BoolValue
-	case *commonv1.JsonValue_IntValue:
-		return v.IntValue
-	case *commonv1.JsonValue_DoubleValue:
-		return v.DoubleValue
-	case *commonv1.JsonValue_StringValue:
-		return v.StringValue
-	case *commonv1.JsonValue_BytesValue:
-		return v.BytesValue
-	case *commonv1.JsonValue_ObjectValue:
-		if v.ObjectValue == nil {
-			return nil
-		}
-		result := make(map[string]any, len(v.ObjectValue.Fields))
-		for key, val := range v.ObjectValue.Fields {
-			result[key] = fromJsonValue(val)
-		}
-		return result
-	case *commonv1.JsonValue_ListValue:
-		if v.ListValue == nil {
-			return nil
-		}
-		result := make([]any, 0, len(v.ListValue.Values))
-		for _, val := range v.ListValue.Values {
-			result = append(result, fromJsonValue(val))
-		}
-		return result
-	default:
-		return nil
-	}
-}
-
-// Unused variables to satisfy imports
-var (
-	_ = time.Time{}
-	_ = bastimeline.TimelineEntry{}
-	_ = basdomain.ActionTelemetry{}
-	_ = basbase.BoundingBox{}
-)

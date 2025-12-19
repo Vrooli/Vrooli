@@ -13,13 +13,14 @@ import (
 
 // Client represents a WebSocket client
 type Client struct {
-	ID                 uuid.UUID
-	Conn               *websocket.Conn
-	Send               chan any
-	BinarySend         chan []byte // For binary frame data (recording frames)
-	Hub                *Hub
-	ExecutionID        *uuid.UUID // Optional: client can subscribe to specific execution
-	RecordingSessionID *string    // Optional: client can subscribe to recording session updates
+	ID                     uuid.UUID
+	Conn                   *websocket.Conn
+	Send                   chan any
+	BinarySend             chan []byte // For binary frame data (recording frames)
+	Hub                    *Hub
+	ExecutionID            *uuid.UUID // Optional: client can subscribe to specific execution timeline events
+	RecordingSessionID     *string    // Optional: client can subscribe to recording session updates
+	ExecutionFrameStreamID *string    // Optional: client can subscribe to execution frame streaming
 }
 
 // InputForwarder is a function that forwards input events to the playwright-driver.
@@ -241,6 +242,61 @@ func (h *Hub) HasRecordingSubscribers(sessionID string) bool {
 	return false
 }
 
+// ExecutionFrame represents a frame pushed from the playwright-driver during workflow execution.
+// This enables live preview of workflow execution in the UI.
+type ExecutionFrame struct {
+	ExecutionID string `json:"execution_id"`
+	Data        string `json:"data"`       // Base64 encoded image data
+	MediaType   string `json:"media_type"` // e.g., "image/jpeg"
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	CapturedAt  string `json:"captured_at"`
+}
+
+// HasExecutionFrameSubscribers returns true if any clients are subscribed to execution frame streaming.
+// Used to avoid processing frames when no one is watching.
+func (h *Hub) HasExecutionFrameSubscribers(executionID string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		if client.ExecutionFrameStreamID != nil && *client.ExecutionFrameStreamID == executionID {
+			return true
+		}
+	}
+	return false
+}
+
+// BroadcastExecutionFrame sends a frame to clients subscribed to execution frame streaming.
+// This enables live preview of workflow execution.
+func (h *Hub) BroadcastExecutionFrame(executionID string, frame *ExecutionFrame) {
+	message := map[string]any{
+		"type":         "execution_frame",
+		"execution_id": executionID,
+		"data":         frame.Data,
+		"media_type":   frame.MediaType,
+		"width":        frame.Width,
+		"height":       frame.Height,
+		"captured_at":  frame.CapturedAt,
+		"timestamp":    getCurrentTimestamp(),
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		// Only send to clients subscribed to this execution's frame stream
+		if client.ExecutionFrameStreamID != nil && *client.ExecutionFrameStreamID == executionID {
+			select {
+			case client.Send <- message:
+			default:
+				// Client buffer full, skip frame (non-blocking)
+				// Missing a frame is better than blocking the broadcast
+			}
+		}
+	}
+}
+
 // BroadcastPerfStats sends performance statistics to clients subscribed to a recording session.
 // Used by the debug performance mode to stream aggregated timing data.
 func (h *Hub) BroadcastPerfStats(sessionID string, stats any) {
@@ -358,6 +414,27 @@ func (c *Client) readPump() {
 			case "unsubscribe_recording":
 				c.RecordingSessionID = nil
 				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from recording updates")
+			case "subscribe_execution_frames":
+				// Subscribe to execution frame streaming (live preview)
+				if execID, ok := msg["execution_id"].(string); ok && execID != "" {
+					c.ExecutionFrameStreamID = &execID
+					c.Hub.log.WithFields(logrus.Fields{
+						"client_id":    c.ID,
+						"execution_id": execID,
+					}).Info("Client subscribed to execution frame streaming")
+					// Send confirmation
+					select {
+					case c.Send <- map[string]any{
+						"type":         "execution_frame_subscribed",
+						"execution_id": execID,
+						"timestamp":    getCurrentTimestamp(),
+					}:
+					default:
+					}
+				}
+			case "unsubscribe_execution_frames":
+				c.ExecutionFrameStreamID = nil
+				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from execution frame streaming")
 			case "recording_input":
 				// Forward input event to playwright-driver via the hub's forwarder
 				// This is much faster than HTTP POST for each input event

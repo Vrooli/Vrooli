@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type workflowProtoSnapshot struct {
@@ -125,17 +125,17 @@ func flexibleWorkflowPayloadToProto(project *database.ProjectIndex, payload map[
 		needsWrite = true
 	}
 
-	now := timestamppb.New(time.Now().UTC())
+	now := autocontracts.NowTimestamp()
 	createdAt := now
 	updatedAt := now
 	if ts, ok := payload["created_at"].(string); ok {
 		if parsed, err := time.Parse(time.RFC3339, ts); err == nil {
-			createdAt = timestamppb.New(parsed)
+			createdAt = autocontracts.TimeToTimestamp(parsed)
 		}
 	}
 	if ts, ok := payload["updated_at"].(string); ok {
 		if parsed, err := time.Parse(time.RFC3339, ts); err == nil {
-			updatedAt = timestamppb.New(parsed)
+			updatedAt = autocontracts.TimeToTimestamp(parsed)
 		}
 	}
 

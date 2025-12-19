@@ -55,6 +55,14 @@ type HubInterface interface {
 	// Used by the debug performance mode to stream aggregated timing data.
 	BroadcastPerfStats(sessionID string, stats any)
 
+	// HasExecutionFrameSubscribers returns true if any clients are subscribed to execution frame streaming.
+	// Used to avoid processing frames when no one is watching.
+	HasExecutionFrameSubscribers(executionID string) bool
+
+	// BroadcastExecutionFrame sends a frame to clients subscribed to execution frame streaming.
+	// This enables live preview of workflow execution.
+	BroadcastExecutionFrame(executionID string, frame *ExecutionFrame)
+
 	// GetClientCount returns the number of currently connected clients
 	GetClientCount() int
 

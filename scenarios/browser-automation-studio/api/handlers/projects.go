@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
@@ -18,7 +19,6 @@ import (
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // CreateProjectRequest represents the request to create a project
@@ -438,9 +438,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 			WorkflowCount:  int32(stats.WorkflowCount),
 			ExecutionCount: int32(stats.ExecutionCount),
 		}
-		if stats.LastExecution != nil {
-			statsProto.LastExecution = timestamppb.New(*stats.LastExecution)
-		}
+		statsProto.LastExecution = autocontracts.TimePtrToTimestamp(stats.LastExecution)
 		items = append(items, &basprojects.ProjectWithStats{
 			Project: projectProto,
 			Stats:   statsProto,
@@ -484,9 +482,7 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 		WorkflowCount:  int32(stats.WorkflowCount),
 		ExecutionCount: int32(stats.ExecutionCount),
 	}
-	if stats.LastExecution != nil {
-		statsProto.LastExecution = timestamppb.New(*stats.LastExecution)
-	}
+	statsProto.LastExecution = autocontracts.TimePtrToTimestamp(stats.LastExecution)
 	h.respondProto(w, http.StatusOK, &basprojects.ProjectWithStats{
 		Project: projectProto,
 		Stats:   statsProto,

@@ -148,6 +148,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 	}
 
 	viewportWidth, viewportHeight := extractViewport(req.Plan.Metadata)
+	frameStreamingConfig := extractFrameStreamingConfig(req.Plan.Metadata, req.Plan.ExecutionID)
 	spec := engine.SessionSpec{
 		ExecutionID:    req.Plan.ExecutionID,
 		WorkflowID:     req.Plan.WorkflowID,
@@ -156,6 +157,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		ViewportHeight: viewportHeight,
 		Labels:         map[string]string{},
 		Capabilities:   requirements,
+		FrameStreaming: frameStreamingConfig,
 	}
 
 	var session engine.EngineSession
@@ -940,6 +942,64 @@ func extractViewport(metadata map[string]any) (int, int) {
 		"height": height,
 	}).Info("extractViewport: extracted viewport dimensions")
 	return width, height
+}
+
+// extractFrameStreamingConfig extracts frame streaming configuration from plan metadata.
+// Returns nil if frame streaming is not enabled or not configured.
+// Frame streaming enables live preview during workflow execution.
+func extractFrameStreamingConfig(metadata map[string]any, executionID uuid.UUID) *engine.FrameStreamingConfig {
+	raw, ok := metadata["frameStreaming"].(map[string]any)
+	if !ok || raw == nil {
+		return nil
+	}
+
+	// Check if explicitly enabled
+	enabled, _ := raw["enabled"].(bool)
+	if !enabled {
+		return nil
+	}
+
+	// Build callback URL for this execution
+	apiHost := os.Getenv("API_HOST")
+	if apiHost == "" {
+		apiHost = "127.0.0.1"
+	}
+	apiPort := os.Getenv("API_PORT")
+	if apiPort == "" {
+		apiPort = "8080"
+	}
+
+	// Extract quality, fps, scale with defaults
+	quality := state.IntValue(raw, "quality")
+	if quality <= 0 {
+		quality = 55 // Default JPEG quality
+	}
+	fps := state.IntValue(raw, "fps")
+	if fps <= 0 {
+		fps = 6 // Default FPS
+	}
+	scale := "css"
+	if s, ok := raw["scale"].(string); ok && s != "" {
+		scale = s
+	}
+
+	config := &engine.FrameStreamingConfig{
+		CallbackURL: fmt.Sprintf("http://%s:%s/api/v1/executions/%s/frames",
+			apiHost, apiPort, executionID.String()),
+		Quality: quality,
+		FPS:     fps,
+		Scale:   scale,
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"execution_id": executionID,
+		"callback_url": config.CallbackURL,
+		"quality":      quality,
+		"fps":          fps,
+		"scale":        scale,
+	}).Info("extractFrameStreamingConfig: enabled live frame streaming")
+
+	return config
 }
 
 func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, session engine.EngineSession, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {

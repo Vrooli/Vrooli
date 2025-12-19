@@ -164,11 +164,21 @@ const (
 )
 
 // =============================================================================
-// NATIVE GO TYPES (Backward Compatibility)
+// NATIVE GO TYPES (Backward Compatibility - DEPRECATED)
 // =============================================================================
 // The following types are native Go structs with time.Time fields. They are
 // kept for backward compatibility with existing code. For new code that needs
 // proto interoperability, prefer the Proto* types above with conversion helpers.
+//
+// DEPRECATION NOTICE: These native Go types are being phased out in favor of
+// proto-native types. New code should use the Proto* type aliases (e.g.,
+// ProtoStepOutcome instead of StepOutcome) with the time helper functions in
+// proto_time_helpers.go. The native types will be removed in a future version.
+//
+// Migration guide:
+//  1. Use Proto* types for new code
+//  2. Use GetStepOutcomeStartedAt/SetStepOutcomeStartedAt for timestamp access
+//  3. Use TimestampToTime/TimeToTimestamp for manual conversions
 
 const (
 	// StepOutcomeSchemaVersion tracks the shape of StepOutcome and its nested
@@ -189,19 +199,42 @@ const (
 	PayloadVersion = "1"
 )
 
+// =============================================================================
+// ARTIFACT SIZE LIMITS (Static Defaults)
+// =============================================================================
+//
+// These constants define the static default size limits for artifact collection.
+// They can be overridden per-execution via ArtifactCollectionConfig in ExecutionParameters,
+// or globally via environment variables (BAS_ARTIFACT_MAX_*).
+//
+// The FileWriter uses ArtifactCollectionSettings which merges:
+//   1. Per-execution config (ExecutionParameters.ArtifactConfig)
+//   2. Global config (config.ArtifactLimits from environment)
+//   3. These static defaults (fallback)
+//
+// See: config/artifact_profiles.go for profile definitions
+// See: config/config.go ArtifactLimitsConfig for environment variable configuration
+
 const (
 	// DOMSnapshotMaxBytes caps the HTML snapshot length before truncation.
+	// Override via ArtifactCollectionConfig.max_dom_snapshot_bytes or BAS_ARTIFACT_MAX_DOM_SNAPSHOT_BYTES.
 	DOMSnapshotMaxBytes = 512 * 1024
+
 	// ScreenshotMaxBytes caps inline screenshot payload size to prevent oversized artifacts.
+	// Override via ArtifactCollectionConfig.max_screenshot_bytes or BAS_ARTIFACT_MAX_SCREENSHOT_BYTES.
 	ScreenshotMaxBytes = 512 * 1024
+
 	// Default screenshot dimensions when engine omits them.
 	DefaultScreenshotWidth  = 800
 	DefaultScreenshotHeight = 600
-	// ConsoleEntryMaxBytes caps the size of a single console entry before
-	// truncation.
+
+	// ConsoleEntryMaxBytes caps the size of a single console entry before truncation.
+	// Override via ArtifactCollectionConfig.max_console_entry_bytes or BAS_ARTIFACT_MAX_CONSOLE_ENTRY_BYTES.
 	ConsoleEntryMaxBytes = 16 * 1024
+
 	// NetworkPayloadPreviewMaxBytes caps request/response previews stored for
 	// parity checks; engines should annotate truncation explicitly.
+	// Override via ArtifactCollectionConfig.max_network_preview_bytes or BAS_ARTIFACT_MAX_NETWORK_PREVIEW_BYTES.
 	NetworkPayloadPreviewMaxBytes = 64 * 1024
 )
 
@@ -242,6 +275,7 @@ type StepOutcome struct {
 	ElementBoundingBox *BoundingBox      `json:"element_bounding_box,omitempty"` // Target element bounding box (viewport coords).
 	ClickPosition      *Point            `json:"click_position,omitempty"`       // Actual click coordinates used (viewport coords).
 	FocusedElement     *ElementFocus     `json:"focused_element,omitempty"`      // Focus metadata for framing.
+	ElementSnapshot    *ElementMeta      `json:"element_snapshot,omitempty"`     // Target element metadata (tag, id, class, role, aria-label, etc.) for debugging.
 	HighlightRegions   []*HighlightRegion `json:"highlight_regions,omitempty"`   // Overlay regions applied for emphasis.
 	MaskRegions        []*MaskRegion      `json:"mask_regions,omitempty"`        // Regions masked/dimmed during capture.
 	ZoomFactor         float64           `json:"zoom_factor,omitempty"`          // Applied zoom for the attempt.

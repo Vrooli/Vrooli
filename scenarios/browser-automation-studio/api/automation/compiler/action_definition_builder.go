@@ -2,7 +2,7 @@
 package compiler
 
 import (
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
@@ -14,7 +14,7 @@ func BuildActionDefinition(stepType string, params map[string]any) (*basactions.
 	action := &basactions.ActionDefinition{}
 
 	// Map step type to ActionType enum
-	actionType := mapStepTypeToActionType(stepType)
+	actionType := enums.StringToActionType(stepType)
 	action.Type = actionType
 
 	// Build typed params based on action type
@@ -79,8 +79,3 @@ func BuildActionDefinition(stepType string, params map[string]any) (*basactions.
 	return action, nil
 }
 
-// mapStepTypeToActionType converts step type string to ActionType enum.
-// Delegates to typeconv.StringToActionType for the canonical implementation.
-func mapStepTypeToActionType(stepType string) basactions.ActionType {
-	return typeconv.StringToActionType(stepType)
-}

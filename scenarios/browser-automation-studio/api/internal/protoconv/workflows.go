@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -37,11 +36,11 @@ func WorkflowValidationResultToProto(result *workflowvalidator.Result) *basapi.W
 	}
 	issueToProto := func(issue workflowvalidator.Issue) *basapi.WorkflowValidationIssue {
 		return &basapi.WorkflowValidationIssue{
-			Severity: typeconv.StringToValidationSeverity(string(issue.Severity)),
+			Severity: StringToValidationSeverity(string(issue.Severity)),
 			Code:     issue.Code,
 			Message:  issue.Message,
 			NodeId:   issue.NodeID,
-			NodeType: typeconv.StringToActionType(issue.NodeType),
+			NodeType: StringToActionType(issue.NodeType),
 			Field:    issue.Field,
 			Pointer:  issue.Pointer,
 			Hint:     issue.Hint,

@@ -27,6 +27,174 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ArtifactCollectionConfig defines what artifacts to collect during execution.
+type ArtifactCollectionConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Preset profile name. When set, individual toggles are derived from the profile.
+	// Valid values: "full" (default), "standard", "minimal", "debug", "none", "custom"
+	// Use "custom" to enable individual toggle fields below.
+	Profile *string `protobuf:"bytes,1,opt,name=profile,proto3,oneof" json:"profile,omitempty"`
+	// Capture screenshots at each step completion.
+	// Screenshots provide visual verification but increase storage and bandwidth.
+	CollectScreenshots *bool `protobuf:"varint,2,opt,name=collect_screenshots,json=collectScreenshots,proto3,oneof" json:"collect_screenshots,omitempty"`
+	// Capture DOM snapshots (HTML content) at each step.
+	// Useful for debugging element selectors but can be large for complex pages.
+	CollectDomSnapshots *bool `protobuf:"varint,3,opt,name=collect_dom_snapshots,json=collectDomSnapshots,proto3,oneof" json:"collect_dom_snapshots,omitempty"`
+	// Capture browser console logs (log, warn, error, info, debug).
+	// Essential for debugging JavaScript issues in automated workflows.
+	CollectConsoleLogs *bool `protobuf:"varint,4,opt,name=collect_console_logs,json=collectConsoleLogs,proto3,oneof" json:"collect_console_logs,omitempty"`
+	// Capture network events (requests, responses, failures).
+	// Useful for API testing and debugging network-dependent workflows.
+	CollectNetworkEvents *bool `protobuf:"varint,5,opt,name=collect_network_events,json=collectNetworkEvents,proto3,oneof" json:"collect_network_events,omitempty"`
+	// Capture extracted data from evaluate/extract steps.
+	// Required for data scraping workflows; disable only if not needed.
+	CollectExtractedData *bool `protobuf:"varint,6,opt,name=collect_extracted_data,json=collectExtractedData,proto3,oneof" json:"collect_extracted_data,omitempty"`
+	// Capture assertion results for assert/verify steps.
+	// Required for test validation; disable only for pure automation workflows.
+	CollectAssertions *bool `protobuf:"varint,7,opt,name=collect_assertions,json=collectAssertions,proto3,oneof" json:"collect_assertions,omitempty"`
+	// Capture cursor trail positions for replay visualization.
+	// Enhances visual replay quality but adds overhead.
+	CollectCursorTrails *bool `protobuf:"varint,8,opt,name=collect_cursor_trails,json=collectCursorTrails,proto3,oneof" json:"collect_cursor_trails,omitempty"`
+	// Emit real-time telemetry events (heartbeats, progress updates).
+	// Required for live execution monitoring in the UI.
+	CollectTelemetry *bool `protobuf:"varint,9,opt,name=collect_telemetry,json=collectTelemetry,proto3,oneof" json:"collect_telemetry,omitempty"`
+	// Maximum screenshot size in bytes (default: 524288 = 512KB).
+	// Larger screenshots provide more detail but increase storage costs.
+	MaxScreenshotBytes *int32 `protobuf:"varint,20,opt,name=max_screenshot_bytes,json=maxScreenshotBytes,proto3,oneof" json:"max_screenshot_bytes,omitempty"`
+	// Maximum DOM snapshot size in bytes (default: 524288 = 512KB).
+	// Larger snapshots capture more page content but increase storage costs.
+	MaxDomSnapshotBytes *int32 `protobuf:"varint,21,opt,name=max_dom_snapshot_bytes,json=maxDomSnapshotBytes,proto3,oneof" json:"max_dom_snapshot_bytes,omitempty"`
+	// Maximum size per console log entry in bytes (default: 16384 = 16KB).
+	// Larger entries capture full stack traces but may include noise.
+	MaxConsoleEntryBytes *int32 `protobuf:"varint,22,opt,name=max_console_entry_bytes,json=maxConsoleEntryBytes,proto3,oneof" json:"max_console_entry_bytes,omitempty"`
+	// Maximum network payload preview size in bytes (default: 65536 = 64KB).
+	// Larger previews capture more request/response body content.
+	MaxNetworkPreviewBytes *int32 `protobuf:"varint,23,opt,name=max_network_preview_bytes,json=maxNetworkPreviewBytes,proto3,oneof" json:"max_network_preview_bytes,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *ArtifactCollectionConfig) Reset() {
+	*x = ArtifactCollectionConfig{}
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArtifactCollectionConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArtifactCollectionConfig) ProtoMessage() {}
+
+func (x *ArtifactCollectionConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArtifactCollectionConfig.ProtoReflect.Descriptor instead.
+func (*ArtifactCollectionConfig) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ArtifactCollectionConfig) GetProfile() string {
+	if x != nil && x.Profile != nil {
+		return *x.Profile
+	}
+	return ""
+}
+
+func (x *ArtifactCollectionConfig) GetCollectScreenshots() bool {
+	if x != nil && x.CollectScreenshots != nil {
+		return *x.CollectScreenshots
+	}
+	return false
+}
+
+func (x *ArtifactCollectionConfig) GetCollectDomSnapshots() bool {
+	if x != nil && x.CollectDomSnapshots != nil {
+		return *x.CollectDomSnapshots
+	}
+	return false
+}
+
+func (x *ArtifactCollectionConfig) GetCollectConsoleLogs() bool {
+	if x != nil && x.CollectConsoleLogs != nil {
+		return *x.CollectConsoleLogs
+	}
+	return false
+}
+
+func (x *ArtifactCollectionConfig) GetCollectNetworkEvents() bool {
+	if x != nil && x.CollectNetworkEvents != nil {
+		return *x.CollectNetworkEvents
+	}
+	return false
+}
+
+func (x *ArtifactCollectionConfig) GetCollectExtractedData() bool {
+	if x != nil && x.CollectExtractedData != nil {
+		return *x.CollectExtractedData
+	}
+	return false
+}
+
+func (x *ArtifactCollectionConfig) GetCollectAssertions() bool {
+	if x != nil && x.CollectAssertions != nil {
+		return *x.CollectAssertions
+	}
+	return false
+}
+
+func (x *ArtifactCollectionConfig) GetCollectCursorTrails() bool {
+	if x != nil && x.CollectCursorTrails != nil {
+		return *x.CollectCursorTrails
+	}
+	return false
+}
+
+func (x *ArtifactCollectionConfig) GetCollectTelemetry() bool {
+	if x != nil && x.CollectTelemetry != nil {
+		return *x.CollectTelemetry
+	}
+	return false
+}
+
+func (x *ArtifactCollectionConfig) GetMaxScreenshotBytes() int32 {
+	if x != nil && x.MaxScreenshotBytes != nil {
+		return *x.MaxScreenshotBytes
+	}
+	return 0
+}
+
+func (x *ArtifactCollectionConfig) GetMaxDomSnapshotBytes() int32 {
+	if x != nil && x.MaxDomSnapshotBytes != nil {
+		return *x.MaxDomSnapshotBytes
+	}
+	return 0
+}
+
+func (x *ArtifactCollectionConfig) GetMaxConsoleEntryBytes() int32 {
+	if x != nil && x.MaxConsoleEntryBytes != nil {
+		return *x.MaxConsoleEntryBytes
+	}
+	return 0
+}
+
+func (x *ArtifactCollectionConfig) GetMaxNetworkPreviewBytes() int32 {
+	if x != nil && x.MaxNetworkPreviewBytes != nil {
+		return *x.MaxNetworkPreviewBytes
+	}
+	return 0
+}
+
 // ExecutionParameters captures typed runtime parameters for workflow execution.
 type ExecutionParameters struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -61,14 +229,19 @@ type ExecutionParameters struct {
 	// Environment values - project/user configuration.
 	// Read-only, inherited by all subflows unchanged.
 	// Intended for project-wide settings like API endpoints, feature flags.
-	Env           map[string]*v1.JsonValue `protobuf:"bytes,13,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Env map[string]*v1.JsonValue `protobuf:"bytes,13,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Artifact collection configuration - controls what data is captured during execution.
+	// When not set, defaults to "full" profile (all artifacts collected).
+	// Use profiles for common configurations: "full", "standard", "minimal", "debug", "none"
+	// Or set profile to "custom" and configure individual toggles.
+	ArtifactConfig *ArtifactCollectionConfig `protobuf:"bytes,20,opt,name=artifact_config,json=artifactConfig,proto3" json:"artifact_config,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ExecutionParameters) Reset() {
 	*x = ExecutionParameters{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[0]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -80,7 +253,7 @@ func (x *ExecutionParameters) String() string {
 func (*ExecutionParameters) ProtoMessage() {}
 
 func (x *ExecutionParameters) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[0]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -93,7 +266,7 @@ func (x *ExecutionParameters) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionParameters.ProtoReflect.Descriptor instead.
 func (*ExecutionParameters) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{0}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ExecutionParameters) GetStartUrl() string {
@@ -180,6 +353,13 @@ func (x *ExecutionParameters) GetEnv() map[string]*v1.JsonValue {
 	return nil
 }
 
+func (x *ExecutionParameters) GetArtifactConfig() *ArtifactCollectionConfig {
+	if x != nil {
+		return x.ArtifactConfig
+	}
+	return nil
+}
+
 // ExecutionResult captures typed execution outcomes.
 // Use this instead of map<string, JsonValue> result for type safety.
 type ExecutionResult struct {
@@ -206,7 +386,7 @@ type ExecutionResult struct {
 
 func (x *ExecutionResult) Reset() {
 	*x = ExecutionResult{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[1]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -218,7 +398,7 @@ func (x *ExecutionResult) String() string {
 func (*ExecutionResult) ProtoMessage() {}
 
 func (x *ExecutionResult) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[1]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -231,7 +411,7 @@ func (x *ExecutionResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionResult.ProtoReflect.Descriptor instead.
 func (*ExecutionResult) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{1}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ExecutionResult) GetSuccess() bool {
@@ -317,7 +497,7 @@ type TriggerMetadata struct {
 
 func (x *TriggerMetadata) Reset() {
 	*x = TriggerMetadata{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -329,7 +509,7 @@ func (x *TriggerMetadata) String() string {
 func (*TriggerMetadata) ProtoMessage() {}
 
 func (x *TriggerMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -342,7 +522,7 @@ func (x *TriggerMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerMetadata.ProtoReflect.Descriptor instead.
 func (*TriggerMetadata) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{2}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *TriggerMetadata) GetUserId() string {
@@ -444,7 +624,7 @@ type Execution struct {
 
 func (x *Execution) Reset() {
 	*x = Execution{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -456,7 +636,7 @@ func (x *Execution) String() string {
 func (*Execution) ProtoMessage() {}
 
 func (x *Execution) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -469,7 +649,7 @@ func (x *Execution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Execution.ProtoReflect.Descriptor instead.
 func (*Execution) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{3}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Execution) GetExecutionId() string {
@@ -622,7 +802,7 @@ type ExecuteAdhocRequest struct {
 
 func (x *ExecuteAdhocRequest) Reset() {
 	*x = ExecuteAdhocRequest{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -634,7 +814,7 @@ func (x *ExecuteAdhocRequest) String() string {
 func (*ExecuteAdhocRequest) ProtoMessage() {}
 
 func (x *ExecuteAdhocRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -647,7 +827,7 @@ func (x *ExecuteAdhocRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteAdhocRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteAdhocRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{4}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ExecuteAdhocRequest) GetFlowDefinition() *workflows.WorkflowDefinitionV2 {
@@ -691,7 +871,7 @@ type ExecutionMetadata struct {
 
 func (x *ExecutionMetadata) Reset() {
 	*x = ExecutionMetadata{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[5]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -703,7 +883,7 @@ func (x *ExecutionMetadata) String() string {
 func (*ExecutionMetadata) ProtoMessage() {}
 
 func (x *ExecutionMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[5]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -716,7 +896,7 @@ func (x *ExecutionMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionMetadata.ProtoReflect.Descriptor instead.
 func (*ExecutionMetadata) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{5}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ExecutionMetadata) GetName() string {
@@ -756,7 +936,7 @@ type ExecuteAdhocResponse struct {
 
 func (x *ExecuteAdhocResponse) Reset() {
 	*x = ExecuteAdhocResponse{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -768,7 +948,7 @@ func (x *ExecuteAdhocResponse) String() string {
 func (*ExecuteAdhocResponse) ProtoMessage() {}
 
 func (x *ExecuteAdhocResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -781,7 +961,7 @@ func (x *ExecuteAdhocResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteAdhocResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteAdhocResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{6}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ExecuteAdhocResponse) GetExecutionId() string {
@@ -847,7 +1027,7 @@ type ExecutionScreenshot struct {
 
 func (x *ExecutionScreenshot) Reset() {
 	*x = ExecutionScreenshot{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -859,7 +1039,7 @@ func (x *ExecutionScreenshot) String() string {
 func (*ExecutionScreenshot) ProtoMessage() {}
 
 func (x *ExecutionScreenshot) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -872,7 +1052,7 @@ func (x *ExecutionScreenshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionScreenshot.ProtoReflect.Descriptor instead.
 func (*ExecutionScreenshot) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{7}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ExecutionScreenshot) GetScreenshot() *domain.TimelineScreenshot {
@@ -926,7 +1106,7 @@ type GetScreenshotsResponse struct {
 
 func (x *GetScreenshotsResponse) Reset() {
 	*x = GetScreenshotsResponse{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -938,7 +1118,7 @@ func (x *GetScreenshotsResponse) String() string {
 func (*GetScreenshotsResponse) ProtoMessage() {}
 
 func (x *GetScreenshotsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -951,7 +1131,7 @@ func (x *GetScreenshotsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScreenshotsResponse.ProtoReflect.Descriptor instead.
 func (*GetScreenshotsResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{8}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetScreenshotsResponse) GetExecutionId() string {
@@ -1002,7 +1182,7 @@ type ExecutionExportPreview struct {
 
 func (x *ExecutionExportPreview) Reset() {
 	*x = ExecutionExportPreview{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1014,7 +1194,7 @@ func (x *ExecutionExportPreview) String() string {
 func (*ExecutionExportPreview) ProtoMessage() {}
 
 func (x *ExecutionExportPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1027,7 +1207,7 @@ func (x *ExecutionExportPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionExportPreview.ProtoReflect.Descriptor instead.
 func (*ExecutionExportPreview) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{9}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ExecutionExportPreview) GetExecutionId() string {
@@ -1101,7 +1281,7 @@ type ExecutorMetrics struct {
 
 func (x *ExecutorMetrics) Reset() {
 	*x = ExecutorMetrics{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1113,7 +1293,7 @@ func (x *ExecutorMetrics) String() string {
 func (*ExecutorMetrics) ProtoMessage() {}
 
 func (x *ExecutorMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1126,7 +1306,7 @@ func (x *ExecutorMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutorMetrics.ProtoReflect.Descriptor instead.
 func (*ExecutorMetrics) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{10}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ExecutorMetrics) GetMemoryBytes() int64 {
@@ -1175,7 +1355,7 @@ type PerformanceMetrics struct {
 
 func (x *PerformanceMetrics) Reset() {
 	*x = PerformanceMetrics{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1187,7 +1367,7 @@ func (x *PerformanceMetrics) String() string {
 func (*PerformanceMetrics) ProtoMessage() {}
 
 func (x *PerformanceMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1200,7 +1380,7 @@ func (x *PerformanceMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PerformanceMetrics.ProtoReflect.Descriptor instead.
 func (*PerformanceMetrics) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{11}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *PerformanceMetrics) GetNetworkRequests() int32 {
@@ -1263,7 +1443,36 @@ var File_browser_automation_studio_v1_execution_execution_proto protoreflect.Fil
 
 const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
-	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\"\x81\t\n" +
+	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\"\xa3\b\n" +
+	"\x18ArtifactCollectionConfig\x12\x1d\n" +
+	"\aprofile\x18\x01 \x01(\tH\x00R\aprofile\x88\x01\x01\x124\n" +
+	"\x13collect_screenshots\x18\x02 \x01(\bH\x01R\x12collectScreenshots\x88\x01\x01\x127\n" +
+	"\x15collect_dom_snapshots\x18\x03 \x01(\bH\x02R\x13collectDomSnapshots\x88\x01\x01\x125\n" +
+	"\x14collect_console_logs\x18\x04 \x01(\bH\x03R\x12collectConsoleLogs\x88\x01\x01\x129\n" +
+	"\x16collect_network_events\x18\x05 \x01(\bH\x04R\x14collectNetworkEvents\x88\x01\x01\x129\n" +
+	"\x16collect_extracted_data\x18\x06 \x01(\bH\x05R\x14collectExtractedData\x88\x01\x01\x122\n" +
+	"\x12collect_assertions\x18\a \x01(\bH\x06R\x11collectAssertions\x88\x01\x01\x127\n" +
+	"\x15collect_cursor_trails\x18\b \x01(\bH\aR\x13collectCursorTrails\x88\x01\x01\x120\n" +
+	"\x11collect_telemetry\x18\t \x01(\bH\bR\x10collectTelemetry\x88\x01\x01\x125\n" +
+	"\x14max_screenshot_bytes\x18\x14 \x01(\x05H\tR\x12maxScreenshotBytes\x88\x01\x01\x128\n" +
+	"\x16max_dom_snapshot_bytes\x18\x15 \x01(\x05H\n" +
+	"R\x13maxDomSnapshotBytes\x88\x01\x01\x12:\n" +
+	"\x17max_console_entry_bytes\x18\x16 \x01(\x05H\vR\x14maxConsoleEntryBytes\x88\x01\x01\x12>\n" +
+	"\x19max_network_preview_bytes\x18\x17 \x01(\x05H\fR\x16maxNetworkPreviewBytes\x88\x01\x01B\n" +
+	"\n" +
+	"\b_profileB\x16\n" +
+	"\x14_collect_screenshotsB\x18\n" +
+	"\x16_collect_dom_snapshotsB\x17\n" +
+	"\x15_collect_console_logsB\x19\n" +
+	"\x17_collect_network_eventsB\x19\n" +
+	"\x17_collect_extracted_dataB\x15\n" +
+	"\x13_collect_assertionsB\x18\n" +
+	"\x16_collect_cursor_trailsB\x14\n" +
+	"\x12_collect_telemetryB\x17\n" +
+	"\x15_max_screenshot_bytesB\x19\n" +
+	"\x17_max_dom_snapshot_bytesB\x1a\n" +
+	"\x18_max_console_entry_bytesB\x1c\n" +
+	"\x1a_max_network_preview_bytes\"\xe2\t\n" +
 	"\x13ExecutionParameters\x12 \n" +
 	"\tstart_url\x18\x01 \x01(\tH\x00R\bstartUrl\x88\x01\x01\x12^\n" +
 	"\tvariables\x18\x02 \x03(\v2@.browser_automation_studio.v1.ExecutionParameters.VariablesEntryR\tvariables\x12*\n" +
@@ -1279,7 +1488,8 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	" \x01(\tH\aR\vprojectRoot\x88\x01\x01\x12k\n" +
 	"\x0einitial_params\x18\v \x03(\v2D.browser_automation_studio.v1.ExecutionParameters.InitialParamsEntryR\rinitialParams\x12h\n" +
 	"\rinitial_store\x18\f \x03(\v2C.browser_automation_studio.v1.ExecutionParameters.InitialStoreEntryR\finitialStore\x12L\n" +
-	"\x03env\x18\r \x03(\v2:.browser_automation_studio.v1.ExecutionParameters.EnvEntryR\x03env\x1a<\n" +
+	"\x03env\x18\r \x03(\v2:.browser_automation_studio.v1.ExecutionParameters.EnvEntryR\x03env\x12_\n" +
+	"\x0fartifact_config\x18\x14 \x01(\v26.browser_automation_studio.v1.ArtifactCollectionConfigR\x0eartifactConfig\x1a<\n" +
 	"\x0eVariablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aV\n" +
@@ -1461,71 +1671,73 @@ func file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP() [
 	return file_browser_automation_studio_v1_execution_execution_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_execution_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_browser_automation_studio_v1_execution_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_browser_automation_studio_v1_execution_execution_proto_goTypes = []any{
-	(*ExecutionParameters)(nil),            // 0: browser_automation_studio.v1.ExecutionParameters
-	(*ExecutionResult)(nil),                // 1: browser_automation_studio.v1.ExecutionResult
-	(*TriggerMetadata)(nil),                // 2: browser_automation_studio.v1.TriggerMetadata
-	(*Execution)(nil),                      // 3: browser_automation_studio.v1.Execution
-	(*ExecuteAdhocRequest)(nil),            // 4: browser_automation_studio.v1.ExecuteAdhocRequest
-	(*ExecutionMetadata)(nil),              // 5: browser_automation_studio.v1.ExecutionMetadata
-	(*ExecuteAdhocResponse)(nil),           // 6: browser_automation_studio.v1.ExecuteAdhocResponse
-	(*ExecutionScreenshot)(nil),            // 7: browser_automation_studio.v1.ExecutionScreenshot
-	(*GetScreenshotsResponse)(nil),         // 8: browser_automation_studio.v1.GetScreenshotsResponse
-	(*ExecutionExportPreview)(nil),         // 9: browser_automation_studio.v1.ExecutionExportPreview
-	(*ExecutorMetrics)(nil),                // 10: browser_automation_studio.v1.ExecutorMetrics
-	(*PerformanceMetrics)(nil),             // 11: browser_automation_studio.v1.PerformanceMetrics
-	nil,                                    // 12: browser_automation_studio.v1.ExecutionParameters.VariablesEntry
-	nil,                                    // 13: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry
-	nil,                                    // 14: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry
-	nil,                                    // 15: browser_automation_studio.v1.ExecutionParameters.EnvEntry
-	nil,                                    // 16: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
-	nil,                                    // 17: browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
-	(base.ExecutionStatus)(0),              // 18: browser_automation_studio.v1.ExecutionStatus
-	(base.TriggerType)(0),                  // 19: browser_automation_studio.v1.TriggerType
-	(*timestamppb.Timestamp)(nil),          // 20: google.protobuf.Timestamp
-	(*workflows.WorkflowDefinitionV2)(nil), // 21: browser_automation_studio.v1.WorkflowDefinitionV2
-	(*domain.TimelineScreenshot)(nil),      // 22: browser_automation_studio.v1.TimelineScreenshot
-	(base.ExportStatus)(0),                 // 23: browser_automation_studio.v1.ExportStatus
-	(*v1.JsonObject)(nil),                  // 24: common.v1.JsonObject
-	(*v1.JsonValue)(nil),                   // 25: common.v1.JsonValue
+	(*ArtifactCollectionConfig)(nil),       // 0: browser_automation_studio.v1.ArtifactCollectionConfig
+	(*ExecutionParameters)(nil),            // 1: browser_automation_studio.v1.ExecutionParameters
+	(*ExecutionResult)(nil),                // 2: browser_automation_studio.v1.ExecutionResult
+	(*TriggerMetadata)(nil),                // 3: browser_automation_studio.v1.TriggerMetadata
+	(*Execution)(nil),                      // 4: browser_automation_studio.v1.Execution
+	(*ExecuteAdhocRequest)(nil),            // 5: browser_automation_studio.v1.ExecuteAdhocRequest
+	(*ExecutionMetadata)(nil),              // 6: browser_automation_studio.v1.ExecutionMetadata
+	(*ExecuteAdhocResponse)(nil),           // 7: browser_automation_studio.v1.ExecuteAdhocResponse
+	(*ExecutionScreenshot)(nil),            // 8: browser_automation_studio.v1.ExecutionScreenshot
+	(*GetScreenshotsResponse)(nil),         // 9: browser_automation_studio.v1.GetScreenshotsResponse
+	(*ExecutionExportPreview)(nil),         // 10: browser_automation_studio.v1.ExecutionExportPreview
+	(*ExecutorMetrics)(nil),                // 11: browser_automation_studio.v1.ExecutorMetrics
+	(*PerformanceMetrics)(nil),             // 12: browser_automation_studio.v1.PerformanceMetrics
+	nil,                                    // 13: browser_automation_studio.v1.ExecutionParameters.VariablesEntry
+	nil,                                    // 14: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry
+	nil,                                    // 15: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry
+	nil,                                    // 16: browser_automation_studio.v1.ExecutionParameters.EnvEntry
+	nil,                                    // 17: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
+	nil,                                    // 18: browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
+	(base.ExecutionStatus)(0),              // 19: browser_automation_studio.v1.ExecutionStatus
+	(base.TriggerType)(0),                  // 20: browser_automation_studio.v1.TriggerType
+	(*timestamppb.Timestamp)(nil),          // 21: google.protobuf.Timestamp
+	(*workflows.WorkflowDefinitionV2)(nil), // 22: browser_automation_studio.v1.WorkflowDefinitionV2
+	(*domain.TimelineScreenshot)(nil),      // 23: browser_automation_studio.v1.TimelineScreenshot
+	(base.ExportStatus)(0),                 // 24: browser_automation_studio.v1.ExportStatus
+	(*v1.JsonObject)(nil),                  // 25: common.v1.JsonObject
+	(*v1.JsonValue)(nil),                   // 26: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_execution_execution_proto_depIdxs = []int32{
-	12, // 0: browser_automation_studio.v1.ExecutionParameters.variables:type_name -> browser_automation_studio.v1.ExecutionParameters.VariablesEntry
-	13, // 1: browser_automation_studio.v1.ExecutionParameters.initial_params:type_name -> browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry
-	14, // 2: browser_automation_studio.v1.ExecutionParameters.initial_store:type_name -> browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry
-	15, // 3: browser_automation_studio.v1.ExecutionParameters.env:type_name -> browser_automation_studio.v1.ExecutionParameters.EnvEntry
-	16, // 4: browser_automation_studio.v1.ExecutionResult.extracted_data:type_name -> browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
-	17, // 5: browser_automation_studio.v1.ExecutionResult.screenshot_artifacts:type_name -> browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
-	18, // 6: browser_automation_studio.v1.Execution.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	19, // 7: browser_automation_studio.v1.Execution.trigger_type:type_name -> browser_automation_studio.v1.TriggerType
-	20, // 8: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
-	20, // 9: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
-	20, // 10: browser_automation_studio.v1.Execution.last_heartbeat_at:type_name -> google.protobuf.Timestamp
-	20, // 11: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
-	20, // 12: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 13: browser_automation_studio.v1.Execution.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
-	1,  // 14: browser_automation_studio.v1.Execution.result:type_name -> browser_automation_studio.v1.ExecutionResult
-	2,  // 15: browser_automation_studio.v1.Execution.trigger_metadata:type_name -> browser_automation_studio.v1.TriggerMetadata
-	21, // 16: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
-	5,  // 17: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
-	0,  // 18: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
-	18, // 19: browser_automation_studio.v1.ExecuteAdhocResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	20, // 20: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
-	22, // 21: browser_automation_studio.v1.ExecutionScreenshot.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
-	20, // 22: browser_automation_studio.v1.ExecutionScreenshot.timestamp:type_name -> google.protobuf.Timestamp
-	7,  // 23: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.ExecutionScreenshot
-	23, // 24: browser_automation_studio.v1.ExecutionExportPreview.status:type_name -> browser_automation_studio.v1.ExportStatus
-	24, // 25: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> common.v1.JsonObject
-	25, // 26: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry.value:type_name -> common.v1.JsonValue
-	25, // 27: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry.value:type_name -> common.v1.JsonValue
-	25, // 28: browser_automation_studio.v1.ExecutionParameters.EnvEntry.value:type_name -> common.v1.JsonValue
-	25, // 29: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
-	30, // [30:30] is the sub-list for method output_type
-	30, // [30:30] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	13, // 0: browser_automation_studio.v1.ExecutionParameters.variables:type_name -> browser_automation_studio.v1.ExecutionParameters.VariablesEntry
+	14, // 1: browser_automation_studio.v1.ExecutionParameters.initial_params:type_name -> browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry
+	15, // 2: browser_automation_studio.v1.ExecutionParameters.initial_store:type_name -> browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry
+	16, // 3: browser_automation_studio.v1.ExecutionParameters.env:type_name -> browser_automation_studio.v1.ExecutionParameters.EnvEntry
+	0,  // 4: browser_automation_studio.v1.ExecutionParameters.artifact_config:type_name -> browser_automation_studio.v1.ArtifactCollectionConfig
+	17, // 5: browser_automation_studio.v1.ExecutionResult.extracted_data:type_name -> browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
+	18, // 6: browser_automation_studio.v1.ExecutionResult.screenshot_artifacts:type_name -> browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
+	19, // 7: browser_automation_studio.v1.Execution.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	20, // 8: browser_automation_studio.v1.Execution.trigger_type:type_name -> browser_automation_studio.v1.TriggerType
+	21, // 9: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
+	21, // 10: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
+	21, // 11: browser_automation_studio.v1.Execution.last_heartbeat_at:type_name -> google.protobuf.Timestamp
+	21, // 12: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
+	21, // 13: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
+	1,  // 14: browser_automation_studio.v1.Execution.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
+	2,  // 15: browser_automation_studio.v1.Execution.result:type_name -> browser_automation_studio.v1.ExecutionResult
+	3,  // 16: browser_automation_studio.v1.Execution.trigger_metadata:type_name -> browser_automation_studio.v1.TriggerMetadata
+	22, // 17: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	6,  // 18: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
+	1,  // 19: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
+	19, // 20: browser_automation_studio.v1.ExecuteAdhocResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	21, // 21: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
+	23, // 22: browser_automation_studio.v1.ExecutionScreenshot.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
+	21, // 23: browser_automation_studio.v1.ExecutionScreenshot.timestamp:type_name -> google.protobuf.Timestamp
+	8,  // 24: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.ExecutionScreenshot
+	24, // 25: browser_automation_studio.v1.ExecutionExportPreview.status:type_name -> browser_automation_studio.v1.ExportStatus
+	25, // 26: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> common.v1.JsonObject
+	26, // 27: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry.value:type_name -> common.v1.JsonValue
+	26, // 28: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry.value:type_name -> common.v1.JsonValue
+	26, // 29: browser_automation_studio.v1.ExecutionParameters.EnvEntry.value:type_name -> common.v1.JsonValue
+	26, // 30: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
+	31, // [31:31] is the sub-list for method output_type
+	31, // [31:31] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_execution_execution_proto_init() }
@@ -1537,17 +1749,18 @@ func file_browser_automation_studio_v1_execution_execution_proto_init() {
 	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[1].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[2].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[3].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[6].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[4].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[7].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[10].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[8].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[11].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_execution_execution_proto_rawDesc), len(file_browser_automation_studio_v1_execution_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

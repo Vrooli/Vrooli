@@ -86,7 +86,7 @@ export default function RecordModeView() {
   );
 
   return (
-    <div data-testid={selectors.app.shell.ready}>
+    <div data-testid={selectors.app.shell.ready} className="h-screen">
       <Suspense
         fallback={
           <div className="h-screen flex items-center justify-center bg-flow-bg">

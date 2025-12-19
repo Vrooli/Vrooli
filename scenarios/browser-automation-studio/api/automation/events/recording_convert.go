@@ -8,16 +8,16 @@
 package events
 
 import (
-	"strings"
 	"time"
 
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // RecordedActionToTimelineEntry converts a RecordedAction from the recording
@@ -47,9 +47,9 @@ func RecordedActionToTimelineEntry(action *livecapture.RecordedAction) *bastimel
 	// Parse and set timestamp
 	if action.Timestamp != "" {
 		if ts, err := time.Parse(time.RFC3339Nano, action.Timestamp); err == nil {
-			entry.Timestamp = timestamppb.New(ts)
+			entry.Timestamp = contracts.TimeToTimestamp(ts)
 		} else if ts, err := time.Parse(time.RFC3339, action.Timestamp); err == nil {
-			entry.Timestamp = timestamppb.New(ts)
+			entry.Timestamp = contracts.TimeToTimestamp(ts)
 		}
 	}
 
@@ -63,169 +63,157 @@ func RecordedActionToTimelineEntry(action *livecapture.RecordedAction) *bastimel
 }
 
 // buildRecordingActionDefinition creates an ActionDefinition from a RecordedAction.
+// Uses typeconv builders to avoid code duplication with the compiler package.
 func buildRecordingActionDefinition(action *livecapture.RecordedAction) *basactions.ActionDefinition {
-	actionType := mapRecordingActionType(action.ActionType)
+	actionType := enums.StringToActionType(action.ActionType)
 
 	def := &basactions.ActionDefinition{
 		Type: actionType,
 	}
 
-	// Get selector from the action
-	selector := ""
-	if action.Selector != nil && action.Selector.Primary != "" {
-		selector = action.Selector.Primary
-	}
+	// Convert RecordedAction to params map format expected by typeconv builders
+	params := buildParamsFromRecordedAction(action)
 
-	// Build params based on action type
+	// Build typed params using shared typeconv builders
 	switch actionType {
 	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
-		url := action.URL
-		if targetURL, ok := action.Payload["targetUrl"].(string); ok {
-			url = targetURL
-		}
 		def.Params = &basactions.ActionDefinition_Navigate{
-			Navigate: &basactions.NavigateParams{
-				Url: url,
-			},
+			Navigate: typeconv.BuildNavigateParams(params),
 		}
-
 	case basactions.ActionType_ACTION_TYPE_CLICK:
-		clickParams := &basactions.ClickParams{
-			Selector: selector,
+		def.Params = &basactions.ActionDefinition_Click{
+			Click: typeconv.BuildClickParams(params),
 		}
-		if button, ok := action.Payload["button"].(string); ok {
-			btn := typeconv.StringToMouseButton(button)
-			clickParams.Button = &btn
-		}
-		if clickCount, ok := extractInt32FromPayload(action.Payload, "clickCount"); ok {
-			clickParams.ClickCount = &clickCount
-		}
-		if modifiers, ok := action.Payload["modifiers"].([]any); ok {
-			for _, m := range modifiers {
-				if s, ok := m.(string); ok {
-					clickParams.Modifiers = append(clickParams.Modifiers, typeconv.StringToKeyboardModifier(s))
-				}
-			}
-		}
-		def.Params = &basactions.ActionDefinition_Click{Click: clickParams}
-
 	case basactions.ActionType_ACTION_TYPE_INPUT:
-		inputParams := &basactions.InputParams{
-			Selector: selector,
+		def.Params = &basactions.ActionDefinition_Input{
+			Input: typeconv.BuildInputParams(params),
 		}
-		if text, ok := action.Payload["text"].(string); ok {
-			inputParams.Value = text
-		}
-		if clearFirst, ok := action.Payload["clearFirst"].(bool); ok {
-			inputParams.ClearFirst = &clearFirst
-		}
-		if delay, ok := extractInt32FromPayload(action.Payload, "delay"); ok {
-			inputParams.DelayMs = &delay
-		}
-		def.Params = &basactions.ActionDefinition_Input{Input: inputParams}
-
 	case basactions.ActionType_ACTION_TYPE_SCROLL:
-		scrollParams := &basactions.ScrollParams{}
-		if selector != "" {
-			scrollParams.Selector = &selector
+		def.Params = &basactions.ActionDefinition_Scroll{
+			Scroll: typeconv.BuildScrollParams(params),
 		}
-		if x, ok := extractInt32FromPayload(action.Payload, "scrollX"); ok {
-			scrollParams.X = &x
-		}
-		if y, ok := extractInt32FromPayload(action.Payload, "scrollY"); ok {
-			scrollParams.Y = &y
-		}
-		if deltaX, ok := extractInt32FromPayload(action.Payload, "deltaX"); ok {
-			scrollParams.DeltaX = &deltaX
-		}
-		if deltaY, ok := extractInt32FromPayload(action.Payload, "deltaY"); ok {
-			scrollParams.DeltaY = &deltaY
-		}
-		def.Params = &basactions.ActionDefinition_Scroll{Scroll: scrollParams}
-
 	case basactions.ActionType_ACTION_TYPE_HOVER:
 		def.Params = &basactions.ActionDefinition_Hover{
-			Hover: &basactions.HoverParams{Selector: selector},
+			Hover: typeconv.BuildHoverParams(params),
 		}
-
 	case basactions.ActionType_ACTION_TYPE_FOCUS:
 		def.Params = &basactions.ActionDefinition_Focus{
-			Focus: &basactions.FocusParams{Selector: selector},
+			Focus: typeconv.BuildFocusParams(params),
 		}
-
 	case basactions.ActionType_ACTION_TYPE_BLUR:
-		blurParams := &basactions.BlurParams{}
-		if selector != "" {
-			blurParams.Selector = &selector
+		def.Params = &basactions.ActionDefinition_Blur{
+			Blur: typeconv.BuildBlurParams(params),
 		}
-		def.Params = &basactions.ActionDefinition_Blur{Blur: blurParams}
-
 	case basactions.ActionType_ACTION_TYPE_SELECT:
-		selectParams := &basactions.SelectParams{Selector: selector}
-		if value, ok := action.Payload["value"].(string); ok {
-			selectParams.SelectBy = &basactions.SelectParams_Value{Value: value}
-		} else if label, ok := action.Payload["selectedText"].(string); ok {
-			selectParams.SelectBy = &basactions.SelectParams_Label{Label: label}
-		} else if index, ok := extractInt32FromPayload(action.Payload, "selectedIndex"); ok {
-			selectParams.SelectBy = &basactions.SelectParams_Index{Index: index}
+		def.Params = &basactions.ActionDefinition_SelectOption{
+			SelectOption: typeconv.BuildSelectParams(params),
 		}
-		def.Params = &basactions.ActionDefinition_SelectOption{SelectOption: selectParams}
-
 	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
-		keyboardParams := &basactions.KeyboardParams{}
-		if key, ok := action.Payload["key"].(string); ok {
-			keyboardParams.Key = &key
+		def.Params = &basactions.ActionDefinition_Keyboard{
+			Keyboard: typeconv.BuildKeyboardParams(params),
 		}
-		if modifiers, ok := action.Payload["modifiers"].([]any); ok {
-			for _, m := range modifiers {
-				if s, ok := m.(string); ok {
-					keyboardParams.Modifiers = append(keyboardParams.Modifiers, typeconv.StringToKeyboardModifier(s))
-				}
-			}
-		}
-		def.Params = &basactions.ActionDefinition_Keyboard{Keyboard: keyboardParams}
-
 	case basactions.ActionType_ACTION_TYPE_WAIT:
-		waitParams := &basactions.WaitParams{}
-		if ms, ok := extractInt32FromPayload(action.Payload, "ms"); ok {
-			waitParams.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: ms}
-		} else if waitSelector, ok := action.Payload["selector"].(string); ok {
-			waitParams.WaitFor = &basactions.WaitParams_Selector{Selector: waitSelector}
+		def.Params = &basactions.ActionDefinition_Wait{
+			Wait: typeconv.BuildWaitParams(params),
 		}
-		def.Params = &basactions.ActionDefinition_Wait{Wait: waitParams}
-
 	case basactions.ActionType_ACTION_TYPE_ASSERT:
-		assertParams := &basactions.AssertParams{
-			Selector: selector,
-			Mode:     basbase.AssertionMode_ASSERTION_MODE_EXISTS,
+		def.Params = &basactions.ActionDefinition_Assert{
+			Assert: typeconv.BuildAssertParams(params),
 		}
-		def.Params = &basactions.ActionDefinition_Assert{Assert: assertParams}
-
 	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
-		screenshotParams := &basactions.ScreenshotParams{}
-		if fullPage, ok := action.Payload["fullPage"].(bool); ok {
-			screenshotParams.FullPage = &fullPage
+		def.Params = &basactions.ActionDefinition_Screenshot{
+			Screenshot: typeconv.BuildScreenshotParams(params),
 		}
-		def.Params = &basactions.ActionDefinition_Screenshot{Screenshot: screenshotParams}
-
 	case basactions.ActionType_ACTION_TYPE_EVALUATE:
-		evalParams := &basactions.EvaluateParams{}
-		if expr, ok := action.Payload["expression"].(string); ok {
-			evalParams.Expression = expr
+		def.Params = &basactions.ActionDefinition_Evaluate{
+			Evaluate: typeconv.BuildEvaluateParams(params),
 		}
-		def.Params = &basactions.ActionDefinition_Evaluate{Evaluate: evalParams}
-
 	default:
 		// Default to click for unknown types
 		def.Params = &basactions.ActionDefinition_Click{
-			Click: &basactions.ClickParams{Selector: selector},
+			Click: typeconv.BuildClickParams(params),
 		}
 	}
 
-	// Add metadata
+	// Add metadata (recording-specific, not delegated to typeconv)
 	def.Metadata = buildRecordingMetadata(action)
 
 	return def
+}
+
+// buildParamsFromRecordedAction normalizes a RecordedAction into the params map
+// format expected by typeconv builders. This handles recording-specific field
+// names and aliases.
+func buildParamsFromRecordedAction(action *livecapture.RecordedAction) map[string]any {
+	params := make(map[string]any)
+
+	// Copy all payload fields
+	for k, v := range action.Payload {
+		params[k] = v
+	}
+
+	// Add selector if present
+	if action.Selector != nil && action.Selector.Primary != "" {
+		params["selector"] = action.Selector.Primary
+	}
+
+	// Normalize recording-specific field names to typeconv-expected names:
+
+	// Navigate: prefer targetUrl from payload, fall back to action.URL
+	if _, hasURL := params["url"]; !hasURL {
+		if targetURL, ok := params["targetUrl"].(string); ok {
+			params["url"] = targetURL
+		} else {
+			params["url"] = action.URL
+		}
+	}
+
+	// Select: normalize "selectedText" → "label", "selectedIndex" → "index"
+	if selectedText, ok := params["selectedText"].(string); ok && selectedText != "" {
+		if _, hasLabel := params["label"]; !hasLabel {
+			params["label"] = selectedText
+		}
+	}
+	if selectedIndex, ok := params["selectedIndex"]; ok {
+		if _, hasIndex := params["index"]; !hasIndex {
+			params["index"] = selectedIndex
+		}
+	}
+
+	// Scroll: normalize "scrollX" → "x", "scrollY" → "y"
+	if scrollX, ok := params["scrollX"]; ok {
+		if _, hasX := params["x"]; !hasX {
+			params["x"] = scrollX
+		}
+	}
+	if scrollY, ok := params["scrollY"]; ok {
+		if _, hasY := params["y"]; !hasY {
+			params["y"] = scrollY
+		}
+	}
+
+	// Wait: normalize "ms" → "durationMs"
+	if ms, ok := params["ms"]; ok {
+		if _, hasDuration := params["durationMs"]; !hasDuration {
+			params["durationMs"] = ms
+		}
+	}
+
+	// Input: normalize "delay" → "delayMs"
+	if delay, ok := params["delay"]; ok {
+		if _, hasDelayMs := params["delayMs"]; !hasDelayMs {
+			params["delayMs"] = delay
+		}
+	}
+
+	// Assert: default mode to "exists" if not specified (recording behavior)
+	if _, hasMode := params["mode"]; !hasMode {
+		if _, hasAssertMode := params["assertMode"]; !hasAssertMode {
+			params["mode"] = "exists"
+		}
+	}
+
+	return params
 }
 
 // buildRecordingMetadata creates ActionMetadata from a RecordedAction.
@@ -244,9 +232,9 @@ func buildRecordingMetadata(action *livecapture.RecordedAction) *basactions.Acti
 	// Add captured timestamp (renamed from recorded_at)
 	if action.Timestamp != "" {
 		if ts, err := time.Parse(time.RFC3339Nano, action.Timestamp); err == nil {
-			meta.CapturedAt = timestamppb.New(ts)
+			meta.CapturedAt = contracts.TimeToTimestamp(ts)
 		} else if ts, err := time.Parse(time.RFC3339, action.Timestamp); err == nil {
-			meta.CapturedAt = timestamppb.New(ts)
+			meta.CapturedAt = contracts.TimeToTimestamp(ts)
 		}
 	}
 
@@ -265,7 +253,7 @@ func buildRecordingMetadata(action *livecapture.RecordedAction) *basactions.Acti
 		meta.SelectorCandidates = make([]*basdomain.SelectorCandidate, 0, len(action.Selector.Candidates))
 		for _, c := range action.Selector.Candidates {
 			meta.SelectorCandidates = append(meta.SelectorCandidates, &basdomain.SelectorCandidate{
-				Type:        typeconv.StringToSelectorType(c.Type),
+				Type:        enums.StringToSelectorType(c.Type),
 				Value:       c.Value,
 				Confidence:  c.Confidence,
 				Specificity: int32(c.Specificity),
@@ -343,11 +331,6 @@ func buildRecordingEventContext(action *livecapture.RecordedAction) *basbase.Eve
 	return ctx
 }
 
-// mapRecordingActionType converts an action type string to ActionType enum.
-// Delegates to typeconv.StringToActionType for the canonical implementation.
-func mapRecordingActionType(actionType string) basactions.ActionType {
-	return typeconv.StringToActionType(actionType)
-}
 
 // generateRecordingLabel creates a human-readable label for an action.
 func generateRecordingLabel(action *livecapture.RecordedAction) string {
@@ -361,62 +344,30 @@ func generateRecordingLabel(action *livecapture.RecordedAction) string {
 		ariaLabel := action.ElementMeta.AriaLabel
 
 		if ariaLabel != "" {
-			return capitalize(actionType) + ": " + truncate(ariaLabel, 30)
+			return Capitalize(actionType) + ": " + Truncate(ariaLabel, 30)
 		}
 		if text != "" {
-			return capitalize(actionType) + ": \"" + truncate(text, 30) + "\""
+			return Capitalize(actionType) + ": \"" + Truncate(text, 30) + "\""
 		}
 		if id != "" {
-			return capitalize(actionType) + ": #" + id
+			return Capitalize(actionType) + ": #" + id
 		}
-		return capitalize(actionType) + ": " + tag
+		return Capitalize(actionType) + ": " + tag
 	}
 
 	// Special case for navigate
 	if actionType == "navigate" {
 		if targetURL, ok := action.Payload["targetUrl"].(string); ok {
-			return "Navigate to " + truncate(targetURL, 40)
+			return "Navigate to " + Truncate(targetURL, 40)
 		}
-		return "Navigate to " + truncate(action.URL, 40)
+		return "Navigate to " + Truncate(action.URL, 40)
 	}
 
-	return capitalize(actionType)
+	return Capitalize(actionType)
 }
 
-// capitalize capitalizes the first letter of a string.
-func capitalize(s string) string {
-	if s == "" {
-		return s
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
-}
-
-// truncate truncates a string to maxLen and adds "..." if truncated.
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
-}
-
-// extractInt32FromPayload extracts an int32 value from a payload map.
+// extractInt32FromPayload wraps the shared helper for backward compatibility.
+// Deprecated: Use ExtractInt32FromPayload directly.
 func extractInt32FromPayload(payload map[string]any, key string) (int32, bool) {
-	raw, ok := payload[key]
-	if !ok {
-		return 0, false
-	}
-	switch v := raw.(type) {
-	case int:
-		return int32(v), true
-	case int32:
-		return v, true
-	case int64:
-		return int32(v), true
-	case float64:
-		return int32(v), true
-	case float32:
-		return int32(v), true
-	default:
-		return 0, false
-	}
+	return ExtractInt32FromPayload(payload, key)
 }

@@ -240,6 +240,7 @@ func main() {
 		r.Post("/executions/{id}/stop", handler.StopExecution)
 		r.Post("/executions/{id}/resume", handler.ResumeExecution)
 		r.Get("/executions/{id}/screenshots", handler.GetExecutionScreenshots)
+		r.Post("/executions/{executionId}/frames", handler.ReceiveExecutionFrame) // Frame streaming callback from playwright-driver
 
 		// Export library routes
 		r.Get("/exports", handler.ListExports)

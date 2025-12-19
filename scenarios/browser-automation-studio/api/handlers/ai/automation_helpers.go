@@ -12,6 +12,7 @@ import (
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/config"
 )
 
 // AutomationRunner provides an interface for running ephemeral automation sequences.
@@ -48,6 +49,14 @@ func (r *inMemoryRecorder) MarkCrash(_ context.Context, _ uuid.UUID, _ autocontr
 
 func (r *inMemoryRecorder) UpdateCheckpoint(_ context.Context, _ uuid.UUID, _ int, _ int) error {
 	return nil // In-memory recorder doesn't persist checkpoints
+}
+
+func (r *inMemoryRecorder) SetArtifactConfig(_ *config.ArtifactCollectionSettings) {
+	// In-memory recorder ignores artifact config - collects everything
+}
+
+func (r *inMemoryRecorder) GetArtifactConfig() config.ArtifactCollectionSettings {
+	return config.DefaultArtifactSettings() // In-memory recorder uses default (collect all)
 }
 
 func (r *inMemoryRecorder) Outcomes() []autocontracts.StepOutcome {

@@ -9,14 +9,13 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ProjectFileTreeResponse struct {
@@ -419,7 +418,7 @@ func (h *Handler) WriteProjectWorkflowFile(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	now := timestamppb.New(time.Now().UTC())
+	now := autocontracts.NowTimestamp()
 	workflowID := uuid.New()
 	summary := &basapi.WorkflowSummary{
 		Id:             workflowID.String(),

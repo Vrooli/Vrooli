@@ -17,6 +17,7 @@ import {
   PlayCircle,
   ListTree,
 } from "lucide-react";
+import { ArtifactProfileSelector } from "../components/ArtifactProfileSelector";
 import { ExecutionHeader } from "./components/ExecutionHeader";
 import { ScreenshotsPanel } from "./components/ScreenshotsPanel";
 import { LogsPanel } from "./components/LogsPanel";
@@ -880,12 +881,13 @@ function EmptyExecutionViewer({
 
     setIsStarting(true);
     try {
-      await startExecution(workflowId, () =>
-        saveWorkflow({
-          source: "execution-run",
-          changeDescription: "Autosave before execution",
-        }),
-      );
+      await startExecution(workflowId, {
+        saveWorkflowFn: () =>
+          saveWorkflow({
+            source: "execution-run",
+            changeDescription: "Autosave before execution",
+          }),
+      });
       toast.success("Workflow execution started");
     } catch (error) {
       const message =
@@ -963,6 +965,7 @@ function EmptyExecutionViewer({
         </div>
 
         <div className="flex items-center gap-2">
+          <ArtifactProfileSelector compact />
           {renderStartButton()}
           {onClose && (
             <button

@@ -10,13 +10,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // StepOutcomeToTimelineEntry converts a StepOutcome to the unified TimelineEntry format.
@@ -37,7 +37,7 @@ func StepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 		entry.NodeId = &outcome.NodeID
 	}
 	if !outcome.StartedAt.IsZero() {
-		entry.Timestamp = timestamppb.New(outcome.StartedAt)
+		entry.Timestamp = contracts.TimeToTimestamp(outcome.StartedAt)
 	}
 	if outcome.DurationMs > 0 {
 		durationMs := int32(outcome.DurationMs)
@@ -50,7 +50,7 @@ func StepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 // buildActionDefinition creates an ActionDefinition from the step outcome.
 // Only params that can be reconstructed from outcome data are populated.
 func buildActionDefinition(outcome contracts.StepOutcome) *basactions.ActionDefinition {
-	actionType := typeconv.StringToActionType(outcome.StepType)
+	actionType := enums.StringToActionType(outcome.StepType)
 
 	def := &basactions.ActionDefinition{
 		Type: actionType,
@@ -72,7 +72,7 @@ func buildActionDefinition(outcome contracts.StepOutcome) *basactions.ActionDefi
 			def.Params = &basactions.ActionDefinition_Assert{
 				Assert: &basactions.AssertParams{
 					Selector: outcome.Assertion.Selector,
-					Mode:     typeconv.StringToAssertionMode(outcome.Assertion.Mode),
+					Mode:     enums.StringToAssertionMode(outcome.Assertion.Mode),
 					Negated:  &outcome.Assertion.Negated,
 				},
 			}
@@ -130,72 +130,12 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basdomain.ActionTeleme
 	}
 
 	// Console logs (need time.Time → proto Timestamp conversion)
-	tel.ConsoleLogs = convertConsoleLogs(outcome.ConsoleLogs)
+	tel.ConsoleLogs = ConvertConsoleLogs(outcome.ConsoleLogs)
 
 	// Network events (need time.Time → proto Timestamp conversion)
-	tel.NetworkEvents = convertNetworkEvents(outcome.Network)
+	tel.NetworkEvents = ConvertNetworkEvents(outcome.Network)
 
 	return tel
-}
-
-// convertConsoleLogs converts Go ConsoleLogEntry slice to proto format.
-func convertConsoleLogs(logs []contracts.ConsoleLogEntry) []*basdomain.ConsoleLogEntry {
-	if len(logs) == 0 {
-		return nil
-	}
-	result := make([]*basdomain.ConsoleLogEntry, 0, len(logs))
-	for _, log := range logs {
-		entry := &basdomain.ConsoleLogEntry{
-			Level: typeconv.StringToLogLevel(log.Type),
-			Text:  log.Text,
-		}
-		if log.Stack != "" {
-			entry.Stack = &log.Stack
-		}
-		if log.Location != "" {
-			entry.Location = &log.Location
-		}
-		if !log.Timestamp.IsZero() {
-			entry.Timestamp = timestamppb.New(log.Timestamp)
-		}
-		result = append(result, entry)
-	}
-	return result
-}
-
-// convertNetworkEvents converts Go NetworkEvent slice to proto format.
-func convertNetworkEvents(events []contracts.NetworkEvent) []*basdomain.NetworkEvent {
-	if len(events) == 0 {
-		return nil
-	}
-	result := make([]*basdomain.NetworkEvent, 0, len(events))
-	for _, net := range events {
-		event := &basdomain.NetworkEvent{
-			Type: typeconv.StringToNetworkEventType(net.Type),
-			Url:  net.URL,
-		}
-		if net.Method != "" {
-			event.Method = &net.Method
-		}
-		if net.ResourceType != "" {
-			event.ResourceType = &net.ResourceType
-		}
-		if net.Status != 0 {
-			status := int32(net.Status)
-			event.Status = &status
-		}
-		if net.OK {
-			event.Ok = &net.OK
-		}
-		if net.Failure != "" {
-			event.Failure = &net.Failure
-		}
-		if !net.Timestamp.IsZero() {
-			event.Timestamp = timestamppb.New(net.Timestamp)
-		}
-		result = append(result, event)
-	}
-	return result
 }
 
 // buildEventContext creates the unified EventContext for a timeline entry.
@@ -230,7 +170,7 @@ func buildEventContext(outcome contracts.StepOutcome, executionID uuid.UUID) *ba
 		assertionMsg := outcome.Assertion.Message
 		ctx.Assertion = &basbase.AssertionResult{
 			Success:       outcome.Assertion.Success,
-			Mode:          typeconv.StringToAssertionMode(outcome.Assertion.Mode),
+			Mode:          enums.StringToAssertionMode(outcome.Assertion.Mode),
 			Selector:      outcome.Assertion.Selector,
 			Negated:       outcome.Assertion.Negated,
 			CaseSensitive: outcome.Assertion.CaseSensitive,

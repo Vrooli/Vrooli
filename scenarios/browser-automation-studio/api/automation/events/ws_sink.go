@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -20,7 +20,6 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // WSHubSink bridges contract event envelopes to the websocket hub while
@@ -318,7 +317,7 @@ func convertEventToProto(ev contracts.EventEnvelope) (*bastimeline.TimelineStrea
 					Type: bastimeline.TimelineMessageType_TIMELINE_MESSAGE_TYPE_HEARTBEAT,
 					Payload: &bastimeline.TimelineStreamMessage_Heartbeat{
 						Heartbeat: &bastimeline.TimelineHeartbeat{
-							Timestamp: timestamppb.New(telemetryPayload.Timestamp),
+							Timestamp: contracts.TimeToTimestamp(telemetryPayload.Timestamp),
 							SessionId: ev.ExecutionID.String(),
 						},
 					},
@@ -355,7 +354,7 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.Tim
 		Id:          entryID,
 		SequenceNum: int32(ev.Sequence),
 		StepIndex:   &stepIndex,
-		Timestamp:   timestampFromTime(outcomeStart(outcome)),
+		Timestamp:   contracts.TimeToTimestamp(outcomeStart(outcome)),
 	}
 
 	// Set node_id if available
@@ -374,7 +373,7 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.Tim
 	stepType := extractStepType(outcome, payloadMap)
 	if stepType != "" {
 		entry.Action = &basactions.ActionDefinition{
-			Type: typeconv.StringToActionType(stepType),
+			Type: enums.StringToActionType(stepType),
 		}
 	}
 
@@ -609,20 +608,6 @@ func extractDuration(outcome *contracts.StepOutcome) int {
 	return 0
 }
 
-func timestampFromTime(t time.Time) *timestamppb.Timestamp {
-	if t.IsZero() {
-		return nil
-	}
-	return timestamppb.New(t)
-}
-
-func timestampFromPtr(t *time.Time) *timestamppb.Timestamp {
-	if t == nil || t.IsZero() {
-		return nil
-	}
-	return timestamppb.New(*t)
-}
-
 func structpbMetrics(values map[string]any) map[string]*structpb.Value {
 	if len(values) == 0 {
 		return nil
@@ -706,7 +691,7 @@ func convertAssertionOutcome(assertion *contracts.AssertionOutcome) *basbase.Ass
 		return nil
 	}
 	result := &basbase.AssertionResult{
-		Mode:          typeconv.StringToAssertionMode(assertion.Mode),
+		Mode:          enums.StringToAssertionMode(assertion.Mode),
 		Selector:      assertion.Selector,
 		Success:       assertion.Success,
 		Negated:       assertion.Negated,

@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const executionSnapshotFileName = "execution.proto.json"
@@ -74,12 +74,12 @@ func (s *WorkflowService) writeExecutionSnapshot(ctx context.Context, execIndex 
 		pb.WorkflowId = execIndex.WorkflowID.String()
 	}
 	if pb.StartedAt == nil && !execIndex.StartedAt.IsZero() {
-		pb.StartedAt = timestamppb.New(execIndex.StartedAt)
+		pb.StartedAt = autocontracts.TimeToTimestamp(execIndex.StartedAt)
 	}
 	if pb.CreatedAt == nil && !execIndex.CreatedAt.IsZero() {
-		pb.CreatedAt = timestamppb.New(execIndex.CreatedAt)
+		pb.CreatedAt = autocontracts.TimeToTimestamp(execIndex.CreatedAt)
 	}
-	pb.UpdatedAt = timestamppb.New(now)
+	pb.UpdatedAt = autocontracts.TimeToTimestamp(now)
 
 	path := s.executionSnapshotPath(execIndex.ID)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -116,13 +116,13 @@ func (s *WorkflowService) HydrateExecutionProto(ctx context.Context, execIndex *
 	base := &basexecution.Execution{
 		ExecutionId: execIndex.ID.String(),
 		WorkflowId:  execIndex.WorkflowID.String(),
-		Status:      typeconv.StringToExecutionStatus(execIndex.Status),
-		StartedAt:   timestamppb.New(execIndex.StartedAt),
-		CreatedAt:   timestamppb.New(execIndex.CreatedAt),
-		UpdatedAt:   timestamppb.New(execIndex.UpdatedAt),
+		Status:      enums.StringToExecutionStatus(execIndex.Status),
+		StartedAt:   autocontracts.TimeToTimestamp(execIndex.StartedAt),
+		CreatedAt:   autocontracts.TimeToTimestamp(execIndex.CreatedAt),
+		UpdatedAt:   autocontracts.TimeToTimestamp(execIndex.UpdatedAt),
 	}
 	if execIndex.CompletedAt != nil {
-		base.CompletedAt = timestamppb.New(*execIndex.CompletedAt)
+		base.CompletedAt = autocontracts.TimePtrToTimestamp(execIndex.CompletedAt)
 	}
 	if strings.TrimSpace(execIndex.ErrorMessage) != "" {
 		msg := execIndex.ErrorMessage

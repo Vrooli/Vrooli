@@ -9,12 +9,13 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Type aliases for backward compatibility with existing workflow package code.
@@ -38,12 +39,12 @@ func (s *WorkflowService) GetExecutionTimelineProto(ctx context.Context, executi
 	pb := &bastimeline.ExecutionTimeline{
 		ExecutionId: execution.ID.String(),
 		WorkflowId:  execution.WorkflowID.String(),
-		Status:      typeconv.StringToExecutionStatus(execution.Status),
+		Status:      enums.StringToExecutionStatus(execution.Status),
 		Progress:    0,
-		StartedAt:   timestamppb.New(execution.StartedAt),
+		StartedAt:   autocontracts.TimeToTimestamp(execution.StartedAt),
 	}
 	if execution.CompletedAt != nil {
-		pb.CompletedAt = timestamppb.New(*execution.CompletedAt)
+		pb.CompletedAt = autocontracts.TimePtrToTimestamp(execution.CompletedAt)
 	}
 
 	if strings.TrimSpace(execution.ResultPath) == "" {

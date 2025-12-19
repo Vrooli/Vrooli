@@ -8,15 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.CreateWorkflowRequest) (*basapi.CreateWorkflowResponse, error) {
@@ -43,7 +42,7 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.Create
 		return nil, fmt.Errorf("check workflow name: %w", err)
 	}
 
-	now := timestamppb.New(time.Now().UTC())
+	now := autocontracts.NowTimestamp()
 	workflowID := uuid.New()
 	folderPath := normalizeFolderPath(req.FolderPath)
 	def := req.FlowDefinition
@@ -256,7 +255,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 		updated.FlowDefinition = req.FlowDefinition
 	}
 	updated.Version = currentSummary.Version + 1
-	updated.UpdatedAt = timestamppb.New(time.Now().UTC())
+	updated.UpdatedAt = autocontracts.NowTimestamp()
 	updated.LastChangeDescription = strings.TrimSpace(req.ChangeDescription)
 	updated.LastChangeSource = req.Source
 	if updated.LastChangeSource == basbase.ChangeSource_CHANGE_SOURCE_UNSPECIFIED {
@@ -349,7 +348,7 @@ func (s *WorkflowService) hydrateWorkflowSummary(ctx context.Context, wf *databa
 		snapshot.Workflow.FlowDefinition = &basworkflows.WorkflowDefinitionV2{}
 	}
 	if snapshot.Workflow.CreatedAt == nil {
-		snapshot.Workflow.CreatedAt = timestamppb.New(time.Now().UTC())
+		snapshot.Workflow.CreatedAt = autocontracts.NowTimestamp()
 	}
 	if snapshot.Workflow.UpdatedAt == nil {
 		snapshot.Workflow.UpdatedAt = snapshot.Workflow.CreatedAt

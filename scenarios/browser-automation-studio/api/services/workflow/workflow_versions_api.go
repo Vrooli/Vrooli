@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (s *WorkflowService) ListWorkflowVersionsAPI(ctx context.Context, workflowID uuid.UUID) (*basapi.WorkflowVersionList, error) {
@@ -92,7 +91,7 @@ func (s *WorkflowService) RestoreWorkflowVersionAPI(ctx context.Context, workflo
 	updated := proto.Clone(current).(*basapi.WorkflowSummary)
 	updated.FlowDefinition = ver.FlowDefinition
 	updated.Version = current.Version + 1
-	updated.UpdatedAt = timestamppb.New(time.Now().UTC())
+	updated.UpdatedAt = autocontracts.NowTimestamp()
 	updated.LastChangeSource = basbase.ChangeSource_CHANGE_SOURCE_MANUAL
 	updated.LastChangeDescription = desc
 

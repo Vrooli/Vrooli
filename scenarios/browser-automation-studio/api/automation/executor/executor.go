@@ -10,6 +10,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/config"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
 
@@ -36,10 +37,15 @@ type Request struct {
 
 	// Namespace-aware variable support (Phase 2).
 	// These fields map to ExecutionParameters proto fields.
-	ProjectRoot  string         // Absolute path to project root for workflowPath resolution.
-	InitialStore map[string]any // Initial @store/ values - pre-seeded runtime state.
+	ProjectRoot   string         // Absolute path to project root for workflowPath resolution.
+	InitialStore  map[string]any // Initial @store/ values - pre-seeded runtime state.
 	InitialParams map[string]any // Initial @params/ values - workflow input contract.
-	Env          map[string]any // Environment values - project/user configuration.
+	Env           map[string]any // Environment values - project/user configuration.
+
+	// ArtifactConfig controls what artifacts are collected during execution.
+	// When nil, defaults to "full" profile (all artifacts collected).
+	// See: config/artifact_profiles.go for available profiles and settings.
+	ArtifactConfig *config.ArtifactCollectionSettings
 }
 
 // Executor orchestrates plan execution using an engine, recorder, and event sink.

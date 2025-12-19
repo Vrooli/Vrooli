@@ -21,6 +21,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // @stability stable
 //
 // This file defines the runtime state of workflow executions:
+//   - ArtifactCollectionConfig: Controls what artifacts are collected during execution
 //   - ExecutionParameters: Typed runtime parameters for workflow execution
 //   - ExecutionResult: Typed result data from completed executions
 //   - Execution: The main execution entity returned by APIs
@@ -33,6 +34,88 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 //
 // @see shared.proto ExecutionStatus for lifecycle states
 // =============================================================================
+
+// =============================================================================
+// ARTIFACT COLLECTION CONFIGURATION
+// =============================================================================
+//
+// ArtifactCollectionConfig controls what data is captured during workflow execution.
+// Use preset profiles for common configurations, or customize individual settings.
+//
+// Profiles:
+//   - "full": Collect all artifacts (default, backward compatible)
+//   - "standard": Screenshots, console logs, extracted data, assertions
+//   - "minimal": Screenshots and assertions only (fastest)
+//   - "debug": Everything plus larger size limits for troubleshooting
+//   - "none": Disable all artifact collection (execution status only)
+//
+// When profile is set, individual toggles are ignored unless profile is "custom".
+// =============================================================================
+
+// ArtifactCollectionConfig defines what artifacts to collect during execution.
+message ArtifactCollectionConfig {
+  // Preset profile name. When set, individual toggles are derived from the profile.
+  // Valid values: "full" (default), "standard", "minimal", "debug", "none", "custom"
+  // Use "custom" to enable individual toggle fields below.
+  optional string profile = 1;
+
+  // =============================================================================
+  // Individual artifact toggles (only used when profile = "custom" or unset)
+  // All default to true for backward compatibility.
+  // =============================================================================
+
+  // Capture screenshots at each step completion.
+  // Screenshots provide visual verification but increase storage and bandwidth.
+  optional bool collect_screenshots = 2;
+
+  // Capture DOM snapshots (HTML content) at each step.
+  // Useful for debugging element selectors but can be large for complex pages.
+  optional bool collect_dom_snapshots = 3;
+
+  // Capture browser console logs (log, warn, error, info, debug).
+  // Essential for debugging JavaScript issues in automated workflows.
+  optional bool collect_console_logs = 4;
+
+  // Capture network events (requests, responses, failures).
+  // Useful for API testing and debugging network-dependent workflows.
+  optional bool collect_network_events = 5;
+
+  // Capture extracted data from evaluate/extract steps.
+  // Required for data scraping workflows; disable only if not needed.
+  optional bool collect_extracted_data = 6;
+
+  // Capture assertion results for assert/verify steps.
+  // Required for test validation; disable only for pure automation workflows.
+  optional bool collect_assertions = 7;
+
+  // Capture cursor trail positions for replay visualization.
+  // Enhances visual replay quality but adds overhead.
+  optional bool collect_cursor_trails = 8;
+
+  // Emit real-time telemetry events (heartbeats, progress updates).
+  // Required for live execution monitoring in the UI.
+  optional bool collect_telemetry = 9;
+
+  // =============================================================================
+  // Size limit overrides (optional, uses system defaults if not set)
+  // =============================================================================
+
+  // Maximum screenshot size in bytes (default: 524288 = 512KB).
+  // Larger screenshots provide more detail but increase storage costs.
+  optional int32 max_screenshot_bytes = 20;
+
+  // Maximum DOM snapshot size in bytes (default: 524288 = 512KB).
+  // Larger snapshots capture more page content but increase storage costs.
+  optional int32 max_dom_snapshot_bytes = 21;
+
+  // Maximum size per console log entry in bytes (default: 16384 = 16KB).
+  // Larger entries capture full stack traces but may include noise.
+  optional int32 max_console_entry_bytes = 22;
+
+  // Maximum network payload preview size in bytes (default: 65536 = 64KB).
+  // Larger previews capture more request/response body content.
+  optional int32 max_network_preview_bytes = 23;
+}
 
 // ExecutionParameters captures typed runtime parameters for workflow execution.
 message ExecutionParameters {
@@ -86,6 +169,16 @@ message ExecutionParameters {
   // Read-only, inherited by all subflows unchanged.
   // Intended for project-wide settings like API endpoints, feature flags.
   map<string, common.v1.JsonValue> env = 13;
+
+  // =============================================================================
+  // ARTIFACT COLLECTION SETTINGS
+  // =============================================================================
+
+  // Artifact collection configuration - controls what data is captured during execution.
+  // When not set, defaults to "full" profile (all artifacts collected).
+  // Use profiles for common configurations: "full", "standard", "minimal", "debug", "none"
+  // Or set profile to "custom" and configure individual toggles.
+  ArtifactCollectionConfig artifact_config = 20;
 }
 
 // ExecutionResult captures typed execution outcomes.

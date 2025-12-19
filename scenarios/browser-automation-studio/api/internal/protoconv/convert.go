@@ -1,7 +1,6 @@
 package protoconv
 
 import (
-	"encoding/json"
 	"fmt"
 
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -14,9 +13,6 @@ import (
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	"google.golang.org/protobuf/types/known/structpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // ExecutionToProto converts a database.ExecutionIndex (DB index-only row) into the generated proto message.
@@ -29,15 +25,13 @@ func ExecutionToProto(execution *database.ExecutionIndex) (*basexecution.Executi
 	pb := &basexecution.Execution{
 		ExecutionId:     execution.ID.String(),
 		WorkflowId:      execution.WorkflowID.String(),
-		Status:          typeconv.StringToExecutionStatus(execution.Status),
-		StartedAt:       timestamppb.New(execution.StartedAt),
-		CreatedAt:       timestamppb.New(execution.CreatedAt),
-		UpdatedAt:       timestamppb.New(execution.UpdatedAt),
+		Status:          StringToExecutionStatus(execution.Status),
+		StartedAt:       autocontracts.TimeToTimestamp(execution.StartedAt),
+		CreatedAt:       autocontracts.TimeToTimestamp(execution.CreatedAt),
+		UpdatedAt:       autocontracts.TimeToTimestamp(execution.UpdatedAt),
 	}
 
-	if execution.CompletedAt != nil {
-		pb.CompletedAt = timestamppb.New(*execution.CompletedAt)
-	}
+	pb.CompletedAt = autocontracts.TimePtrToTimestamp(execution.CompletedAt)
 	if execution.ErrorMessage != "" {
 		errMsg := execution.ErrorMessage
 		pb.Error = &errMsg
@@ -55,12 +49,12 @@ func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*b
 	return &basexecution.ExecutionExportPreview{
 		ExecutionId:         preview.ExecutionID.String(),
 		SpecId:              preview.SpecID,
-		Status:              typeconv.StringToExportStatus(preview.Status),
+		Status:              StringToExportStatus(preview.Status),
 		Message:             preview.Message,
 		CapturedFrameCount:  int32(preview.CapturedFrameCount),
 		AvailableAssetCount: int32(preview.AvailableAssetCount),
 		TotalDurationMs:     int32(preview.TotalDurationMs),
-		Package:             toJsonObjectFromAny(preview.Package),
+		Package:             typeconv.ToJsonObjectFromAny(preview.Package),
 	}, nil
 }
 
@@ -73,14 +67,12 @@ func TimelineToProto(timeline *export.ExecutionTimeline) (*bastimeline.Execution
 	pb := &bastimeline.ExecutionTimeline{
 		ExecutionId: timeline.ExecutionID.String(),
 		WorkflowId:  timeline.WorkflowID.String(),
-		Status:      typeconv.StringToExecutionStatus(timeline.Status),
+		Status:      StringToExecutionStatus(timeline.Status),
 		Progress:    int32(timeline.Progress),
-		StartedAt:   timestamppb.New(timeline.StartedAt),
+		StartedAt:   autocontracts.TimeToTimestamp(timeline.StartedAt),
 	}
 
-	if timeline.CompletedAt != nil {
-		pb.CompletedAt = timestamppb.New(*timeline.CompletedAt)
-	}
+	pb.CompletedAt = autocontracts.TimePtrToTimestamp(timeline.CompletedAt)
 
 	for idx, frame := range timeline.Frames {
 		pbEntry, err := timelineFrameToEntry(frame)
@@ -116,9 +108,7 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 	}
 
 	// Set timestamp from StartedAt
-	if frame.StartedAt != nil {
-		entry.Timestamp = timestamppb.New(*frame.StartedAt)
-	}
+	entry.Timestamp = autocontracts.TimePtrToTimestamp(frame.StartedAt)
 
 	// Set duration
 	durationMs := int32(frame.DurationMs)
@@ -133,7 +123,7 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 	// Build ActionDefinition with action type
 	if frame.StepType != "" {
 		entry.Action = &basactions.ActionDefinition{
-			Type: typeconv.StringToActionType(frame.StepType),
+			Type: StringToActionType(frame.StepType),
 		}
 	}
 
@@ -175,7 +165,7 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 	// Build aggregates for batch data
 	progress := int32(frame.Progress)
 	entry.Aggregates = &bastimeline.TimelineEntryAggregates{
-		Status:            typeconv.StringToStepStatus(frame.Status),
+		Status:            StringToStepStatus(frame.Status),
 		ConsoleLogCount:   int32(frame.ConsoleLogCount),
 		NetworkEventCount: int32(frame.NetworkEventCount),
 		Progress:          &progress,
@@ -190,7 +180,7 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 	}
 
 	if frame.ExtractedDataPreview != nil {
-		entry.Aggregates.ExtractedDataPreview = toJsonValue(frame.ExtractedDataPreview)
+		entry.Aggregates.ExtractedDataPreview = typeconv.AnyToJsonValue(frame.ExtractedDataPreview)
 	}
 
 	if frame.FocusedElement != nil {
@@ -262,9 +252,9 @@ func buildTelemetryFromFrame(frame export.TimelineFrame) *basdomain.ActionTeleme
 func timelineLogToProto(log export.TimelineLog) *bastimeline.TimelineLog {
 	pb := &bastimeline.TimelineLog{
 		Id:        log.ID,
-		Level:     typeconv.StringToLogLevel(log.Level),
+		Level:     StringToLogLevel(log.Level),
 		Message:   log.Message,
-		Timestamp: timestamppb.New(log.Timestamp),
+		Timestamp: autocontracts.TimeToTimestamp(log.Timestamp),
 	}
 	if log.StepName != "" {
 		stepName := log.StepName
@@ -375,7 +365,7 @@ func convertScreenshot(screenshot *typeconv.TimelineScreenshot) *basdomain.Timel
 func convertArtifact(artifact typeconv.TimelineArtifact) (*bastimeline.TimelineArtifact, error) {
 	pb := &bastimeline.TimelineArtifact{
 		Id:          artifact.ID,
-		Type:        typeconv.StringToArtifactType(artifact.Type),
+		Type:        StringToArtifactType(artifact.Type),
 		StorageUrl:  artifact.StorageURL,
 		ContentType: artifact.ContentType,
 	}
@@ -394,7 +384,7 @@ func convertArtifact(artifact typeconv.TimelineArtifact) (*bastimeline.TimelineA
 		stepIndex := int32(*artifact.StepIndex)
 		pb.StepIndex = &stepIndex
 	}
-	if payload := toJsonValueMap(artifact.Payload); len(payload) > 0 {
+	if payload := typeconv.ToJsonValueMap(artifact.Payload); len(payload) > 0 {
 		pb.Payload = payload
 	}
 	return pb, nil
@@ -405,7 +395,7 @@ func convertAssertion(assertion *autocontracts.AssertionOutcome) (*basbase.Asser
 		return nil, nil
 	}
 	pb := &basbase.AssertionResult{
-		Mode:          typeconv.StringToAssertionMode(assertion.Mode),
+		Mode:          StringToAssertionMode(assertion.Mode),
 		Selector:      assertion.Selector,
 		Success:       assertion.Success,
 		Negated:       assertion.Negated,
@@ -416,28 +406,16 @@ func convertAssertion(assertion *autocontracts.AssertionOutcome) (*basbase.Asser
 	}
 
 	if assertion.Expected != nil {
-		pb.Expected = toJsonValue(assertion.Expected)
+		pb.Expected = typeconv.AnyToJsonValue(assertion.Expected)
 	}
 
 	if assertion.Actual != nil {
-		pb.Actual = toJsonValue(assertion.Actual)
+		pb.Actual = typeconv.AnyToJsonValue(assertion.Actual)
 	}
 
 	return pb, nil
 }
 
-func toJsonValueMap(source map[string]any) map[string]*commonv1.JsonValue {
-	if len(source) == 0 {
-		return nil
-	}
-	result := make(map[string]*commonv1.JsonValue, len(source))
-	for key, value := range source {
-		if jsonVal := toJsonValue(value); jsonVal != nil {
-			result[key] = jsonVal
-		}
-	}
-	return result
-}
 
 // mapToTriggerMetadata converts a map to the typed TriggerMetadata proto.
 func mapToTriggerMetadata(source map[string]any) *basexecution.TriggerMetadata {
@@ -487,17 +465,17 @@ func mapToExecutionParameters(source map[string]any) *basexecution.ExecutionPara
 		}
 	}
 	if v, ok := source["viewport_width"]; ok {
-		if i := toInt32Val(v); i != 0 {
+		if i := typeconv.ToInt32Val(v); i != 0 {
 			params.ViewportWidth = &i
 		}
 	}
 	if v, ok := source["viewport_height"]; ok {
-		if i := toInt32Val(v); i != 0 {
+		if i := typeconv.ToInt32Val(v); i != 0 {
 			params.ViewportHeight = &i
 		}
 	}
 	if v, ok := source["timeout_ms"]; ok {
-		if i := toInt32Val(v); i != 0 {
+		if i := typeconv.ToInt32Val(v); i != 0 {
 			params.TimeoutMs = &i
 		}
 	}
@@ -523,10 +501,10 @@ func mapToExecutionResult(source map[string]any) *basexecution.ExecutionResult {
 		result.Success = v
 	}
 	if v, ok := source["steps_executed"]; ok {
-		result.StepsExecuted = toInt32Val(v)
+		result.StepsExecuted = typeconv.ToInt32Val(v)
 	}
 	if v, ok := source["steps_failed"]; ok {
-		result.StepsFailed = toInt32Val(v)
+		result.StepsFailed = typeconv.ToInt32Val(v)
 	}
 	if v, ok := source["final_url"].(string); ok && v != "" {
 		result.FinalUrl = &v
@@ -538,7 +516,7 @@ func mapToExecutionResult(source map[string]any) *basexecution.ExecutionResult {
 		result.ErrorCode = &v
 	}
 	if v, ok := source["extracted_data"].(map[string]any); ok {
-		result.ExtractedData = toJsonValueMap(v)
+		result.ExtractedData = typeconv.ToJsonValueMap(v)
 	}
 	if v, ok := source["screenshot_artifacts"].(map[string]any); ok {
 		result.ScreenshotArtifacts = make(map[int32]string)
@@ -555,119 +533,3 @@ func mapToExecutionResult(source map[string]any) *basexecution.ExecutionResult {
 	return result
 }
 
-// toInt32Val converts various numeric types to int32.
-func toInt32Val(v any) int32 {
-	switch t := v.(type) {
-	case int:
-		return int32(t)
-	case int32:
-		return t
-	case int64:
-		return int32(t)
-	case float64:
-		return int32(t)
-	case float32:
-		return int32(t)
-	}
-	return 0
-}
-
-func toJsonValue(value any) *commonv1.JsonValue {
-	switch v := value.(type) {
-	case nil:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
-	case *structpb.Value:
-		return toJsonValue(v.AsInterface())
-	case bool:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: v}}
-	case int:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
-	case int8:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
-	case int16:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
-	case int32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
-	case int64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: v}}
-	case uint:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
-	case uint32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
-	case uint64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
-	case float32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: float64(v)}}
-	case float64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: v}}
-	case string:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: v}}
-	case json.Number:
-		if i, err := v.Int64(); err == nil {
-			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: i}}
-		}
-		if f, err := v.Float64(); err == nil {
-			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: f}}
-		}
-		return nil
-	case []byte:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BytesValue{BytesValue: v}}
-	case map[string]any:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{ObjectValue: toJsonObject(v)}}
-	case []any:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{ListValue: toJsonList(v)}}
-	default:
-		// Attempt to JSON round-trip unknown types into a generic shape.
-		raw, err := json.Marshal(v)
-		if err != nil {
-			return nil
-		}
-		var tmp any
-		if err := json.Unmarshal(raw, &tmp); err != nil {
-			return nil
-		}
-		return toJsonValue(tmp)
-	}
-}
-
-func toJsonObjectFromAny(value any) *commonv1.JsonObject {
-	switch v := value.(type) {
-	case map[string]any:
-		return toJsonObject(v)
-	default:
-		if jsonVal := toJsonValue(v); jsonVal != nil {
-			return jsonVal.GetObjectValue()
-		}
-		return nil
-	}
-}
-
-func toJsonObject(source map[string]any) *commonv1.JsonObject {
-	if len(source) == 0 {
-		return nil
-	}
-	result := &commonv1.JsonObject{
-		Fields: make(map[string]*commonv1.JsonValue, len(source)),
-	}
-	for key, value := range source {
-		if jsonVal := toJsonValue(value); jsonVal != nil {
-			result.Fields[key] = jsonVal
-		}
-	}
-	return result
-}
-
-func toJsonList(items []any) *commonv1.JsonList {
-	if len(items) == 0 {
-		return nil
-	}
-	result := &commonv1.JsonList{
-		Values: make([]*commonv1.JsonValue, 0, len(items)),
-	}
-	for _, item := range items {
-		if jsonVal := toJsonValue(item); jsonVal != nil {
-			result.Values = append(result.Values, jsonVal)
-		}
-	}
-	return result
-}
