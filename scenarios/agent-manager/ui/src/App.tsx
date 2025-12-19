@@ -212,6 +212,7 @@ export default function App() {
               error={tasks.error}
               onCreateTask={tasks.createTask}
               onCancelTask={tasks.cancelTask}
+              onDeleteTask={tasks.deleteTask}
               onCreateRun={runs.createRun}
               onCreateProfile={profiles.createProfile}
               onRefresh={tasks.refetch}

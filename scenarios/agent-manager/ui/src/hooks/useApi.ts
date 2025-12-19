@@ -209,6 +209,14 @@ export function useTasks() {
     [fetchTasks]
   );
 
+  const deleteTask = useCallback(
+    async (id: string): Promise<void> => {
+      await apiRequest<void>("/tasks/" + id, { method: "DELETE" });
+      await fetchTasks();
+    },
+    [fetchTasks]
+  );
+
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
@@ -219,6 +227,7 @@ export function useTasks() {
     createTask,
     getTask,
     cancelTask,
+    deleteTask,
   };
 }
 

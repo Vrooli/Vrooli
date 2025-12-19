@@ -80,6 +80,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/tasks", h.ListTasks).Methods("GET")
 	r.HandleFunc("/api/v1/tasks/{id}", h.GetTask).Methods("GET")
 	r.HandleFunc("/api/v1/tasks/{id}", h.UpdateTask).Methods("PUT")
+	r.HandleFunc("/api/v1/tasks/{id}", h.DeleteTask).Methods("DELETE")
 	r.HandleFunc("/api/v1/tasks/{id}/cancel", h.CancelTask).Methods("POST")
 
 	// Run endpoints
@@ -450,6 +451,22 @@ func (h *Handler) CancelTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})
+}
+
+// DeleteTask permanently removes a cancelled task.
+func (h *Handler) DeleteTask(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for task ID")
+		return
+	}
+
+	if err := h.svc.DeleteTask(r.Context(), id); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // =============================================================================

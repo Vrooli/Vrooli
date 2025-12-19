@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertCircle,
   ClipboardList,
@@ -6,7 +6,9 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Search,
   Settings2,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
@@ -38,6 +40,7 @@ interface TasksPageProps {
   error: string | null;
   onCreateTask: (task: CreateTaskRequest) => Promise<Task>;
   onCancelTask: (id: string) => Promise<void>;
+  onDeleteTask: (id: string) => Promise<void>;
   onCreateRun: (run: CreateRunRequest) => Promise<Run>;
   onCreateProfile: (profile: CreateProfileRequest) => Promise<AgentProfile>;
   onRefresh: () => void;
@@ -62,6 +65,7 @@ export function TasksPage({
   error,
   onCreateTask,
   onCancelTask,
+  onDeleteTask,
   onCreateRun,
   onCreateProfile,
   onRefresh,
@@ -96,6 +100,11 @@ export function TasksPage({
   });
   const [profileTimeoutMinutes, setProfileTimeoutMinutes] = useState(30);
   const [submitting, setSubmitting] = useState(false);
+
+  // Filter/sort/search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "title">("newest");
 
   const resetForm = () => {
     setFormData({
@@ -198,9 +207,46 @@ export function TasksPage({
     }
   };
 
-  const sortedTasks = [...tasks].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  const handleDelete = async (taskId: string) => {
+    if (!confirm("Permanently delete this task? This cannot be undone.")) return;
+    try {
+      await onDeleteTask(taskId);
+    } catch (err) {
+      console.error("Failed to delete task:", err);
+    }
+  };
+
+  const filteredAndSortedTasks = useMemo(() => {
+    let result = [...tasks];
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      result = result.filter((t) => t.status === statusFilter);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.title.toLowerCase().includes(query) ||
+          t.description?.toLowerCase().includes(query)
+      );
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      if (sortBy === "newest") {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      } else if (sortBy === "oldest") {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      } else {
+        return a.title.localeCompare(b.title);
+      }
+    });
+
+    return result;
+  }, [tasks, statusFilter, searchQuery, sortBy]);
 
   return (
     <div className="space-y-6">
@@ -232,6 +278,42 @@ export function TasksPage({
           </CardContent>
         </Card>
       )}
+
+      {/* Filter/Sort/Search */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-9 pl-9"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="all">All Status</option>
+          <option value="queued">Queued</option>
+          <option value="running">Running</option>
+          <option value="needs_review">Needs Review</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="failed">Failed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "title")}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="title">Title A-Z</option>
+        </select>
+      </div>
 
       {/* Create Task Modal */}
       <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
@@ -671,22 +753,30 @@ export function TasksPage({
             Loading tasks...
           </CardContent>
         </Card>
-      ) : sortedTasks.length === 0 ? (
+      ) : filteredAndSortedTasks.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <ClipboardList className="h-16 w-16 mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold mb-1">No Tasks</h3>
-            <p className="text-sm mb-4">Create your first task to get started</p>
-            <Button onClick={() => setShowForm(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create Task
-            </Button>
+            <h3 className="text-lg font-semibold mb-1">
+              {tasks.length === 0 ? "No Tasks" : "No Matching Tasks"}
+            </h3>
+            <p className="text-sm mb-4">
+              {tasks.length === 0
+                ? "Create your first task to get started"
+                : "Try adjusting your filters"}
+            </p>
+            {tasks.length === 0 && (
+              <Button onClick={() => setShowForm(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Create Task
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
         <ScrollArea className="h-[600px]">
           <div className="space-y-4">
-            {sortedTasks.map((task) => (
+            {filteredAndSortedTasks.map((task) => (
               <Card key={task.id}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
@@ -722,6 +812,17 @@ export function TasksPage({
                             <XCircle className="h-4 w-4" />
                           </Button>
                         </>
+                      )}
+                      {task.status === "cancelled" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(task.id)}
+                          className="text-destructive hover:text-destructive gap-1"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </Button>
                       )}
                     </div>
                   </div>

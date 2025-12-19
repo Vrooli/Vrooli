@@ -49,6 +49,7 @@ type Service interface {
 	ListTasks(ctx context.Context, opts ListOptions) ([]*domain.Task, error)
 	UpdateTask(ctx context.Context, task *domain.Task) (*domain.Task, error)
 	CancelTask(ctx context.Context, id uuid.UUID) error
+	DeleteTask(ctx context.Context, id uuid.UUID) error
 
 	// --- Run Operations ---
 	CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error)
@@ -489,6 +490,19 @@ func (o *Orchestrator) CancelTask(ctx context.Context, id uuid.UUID) error {
 	task.Status = domain.TaskStatusCancelled
 	task.UpdatedAt = time.Now()
 	return o.tasks.Update(ctx, task)
+}
+
+func (o *Orchestrator) DeleteTask(ctx context.Context, id uuid.UUID) error {
+	task, err := o.GetTask(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if task.Status != domain.TaskStatusCancelled {
+		return domain.NewStateError("Task", string(task.Status), "delete", "can only delete cancelled tasks")
+	}
+
+	return o.tasks.Delete(ctx, id)
 }
 
 // -----------------------------------------------------------------------------
