@@ -13,7 +13,7 @@ import {
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { useHealth, useProfiles, useRuns, useTasks } from "./hooks/useApi";
+import { useHealth, useProfiles, useRuns, useRunners, useTasks } from "./hooks/useApi";
 import { useWebSocket, WebSocketMessage } from "./hooks/useWebSocket";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ProfilesPage } from "./pages/ProfilesPage";
@@ -26,6 +26,7 @@ export default function App() {
   const profiles = useProfiles();
   const tasks = useTasks();
   const runs = useRuns();
+  const runners = useRunners();
 
   // WebSocket connection for real-time updates
   const handleWebSocketMessage = useCallback(
@@ -201,6 +202,7 @@ export default function App() {
               onUpdateProfile={profiles.updateProfile}
               onDeleteProfile={profiles.deleteProfile}
               onRefresh={profiles.refetch}
+              runners={runners.data ?? undefined}
             />
           </TabsContent>
 
@@ -216,6 +218,7 @@ export default function App() {
               onCreateRun={runs.createRun}
               onCreateProfile={profiles.createProfile}
               onRefresh={tasks.refetch}
+              runners={runners.data ?? undefined}
             />
           </TabsContent>
 

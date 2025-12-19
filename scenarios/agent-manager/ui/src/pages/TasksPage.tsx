@@ -25,11 +25,12 @@ import {
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { ModelSelector } from "../components/ModelSelector";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
 import { formatRelativeTime } from "../lib/utils";
-import type { AgentProfile, CreateProfileRequest, CreateRunRequest, CreateTaskRequest, Run, RunnerType, Task } from "../types";
+import type { AgentProfile, CreateProfileRequest, CreateRunRequest, CreateTaskRequest, Run, RunnerStatus, RunnerType, Task } from "../types";
 
 const RUNNER_TYPES: RunnerType[] = ["claude-code", "codex", "opencode"];
 
@@ -44,7 +45,15 @@ interface TasksPageProps {
   onCreateRun: (run: CreateRunRequest) => Promise<Run>;
   onCreateProfile: (profile: CreateProfileRequest) => Promise<AgentProfile>;
   onRefresh: () => void;
+  runners?: Record<string, RunnerStatus>;
 }
+
+// Default models for each runner type
+const DEFAULT_MODELS: Record<RunnerType, string> = {
+  "claude-code": "sonnet",
+  "codex": "o4-mini",
+  "opencode": "anthropic/claude-sonnet-4-5",
+};
 
 interface InlineRunConfig {
   runnerType: RunnerType;
@@ -69,7 +78,18 @@ export function TasksPage({
   onCreateRun,
   onCreateProfile,
   onRefresh,
+  runners,
 }: TasksPageProps) {
+  // Helper to get models for a runner type from capabilities
+  const getModelsForRunner = (runnerType: RunnerType): string[] => {
+    const runner = runners?.[runnerType];
+    return runner?.capabilities?.SupportedModels ?? [];
+  };
+
+  // Helper to get default model for a runner type
+  const getDefaultModelForRunner = (runnerType: RunnerType): string => {
+    return DEFAULT_MODELS[runnerType] ?? "";
+  };
   const [showForm, setShowForm] = useState(false);
   const [showRunDialog, setShowRunDialog] = useState<Task | null>(null);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
@@ -83,7 +103,7 @@ export function TasksPage({
   const [runConfigMode, setRunConfigMode] = useState<"profile" | "custom">("profile");
   const [inlineConfig, setInlineConfig] = useState<InlineRunConfig>({
     runnerType: "claude-code",
-    model: "claude-sonnet-4-20250514",
+    model: "sonnet",
     maxTurns: 100,
     timeoutMinutes: 30,
     runMode: "sandboxed",
@@ -93,7 +113,7 @@ export function TasksPage({
     name: "",
     description: "",
     runnerType: "claude-code",
-    model: "claude-sonnet-4-20250514",
+    model: "sonnet",
     maxTurns: 100,
     requiresSandbox: true,
     requiresApproval: true,
@@ -481,12 +501,14 @@ export function TasksPage({
                   <select
                     id="runnerType"
                     value={inlineConfig.runnerType}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newRunnerType = e.target.value as RunnerType;
                       setInlineConfig({
                         ...inlineConfig,
-                        runnerType: e.target.value as RunnerType,
-                      })
-                    }
+                        runnerType: newRunnerType,
+                        model: getDefaultModelForRunner(newRunnerType),
+                      });
+                    }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
                     {RUNNER_TYPES.map((type) => (
@@ -497,17 +519,13 @@ export function TasksPage({
                   </select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="model">Model</Label>
-                  <Input
-                    id="model"
-                    value={inlineConfig.model}
-                    onChange={(e) =>
-                      setInlineConfig({ ...inlineConfig, model: e.target.value })
-                    }
-                    placeholder="e.g., claude-sonnet-4-20250514"
-                  />
-                </div>
+                <ModelSelector
+                  value={inlineConfig.model}
+                  onChange={(model) => setInlineConfig({ ...inlineConfig, model })}
+                  models={getModelsForRunner(inlineConfig.runnerType)}
+                  label="Model"
+                  placeholder="Enter custom model..."
+                />
 
                 <div className="grid gap-4 grid-cols-2">
                   <div className="space-y-2">
@@ -635,12 +653,14 @@ export function TasksPage({
                   <select
                     id="profileRunnerType"
                     value={profileFormData.runnerType}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newRunnerType = e.target.value as RunnerType;
                       setProfileFormData({
                         ...profileFormData,
-                        runnerType: e.target.value as RunnerType,
-                      })
-                    }
+                        runnerType: newRunnerType,
+                        model: getDefaultModelForRunner(newRunnerType),
+                      });
+                    }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
                     {RUNNER_TYPES.map((type) => (
@@ -665,17 +685,13 @@ export function TasksPage({
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="profileModel">Model</Label>
-                <Input
-                  id="profileModel"
-                  value={profileFormData.model}
-                  onChange={(e) =>
-                    setProfileFormData({ ...profileFormData, model: e.target.value })
-                  }
-                  placeholder="e.g., claude-sonnet-4-20250514"
-                />
-              </div>
+              <ModelSelector
+                value={profileFormData.model}
+                onChange={(model) => setProfileFormData({ ...profileFormData, model })}
+                models={getModelsForRunner(profileFormData.runnerType)}
+                label="Model"
+                placeholder="Enter custom model..."
+              />
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">

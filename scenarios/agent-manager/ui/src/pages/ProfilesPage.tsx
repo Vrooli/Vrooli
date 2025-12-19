@@ -22,10 +22,11 @@ import {
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { ModelSelector } from "../components/ModelSelector";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Textarea } from "../components/ui/textarea";
 import { formatDate } from "../lib/utils";
-import type { AgentProfile, CreateProfileRequest, RunnerType } from "../types";
+import type { AgentProfile, CreateProfileRequest, RunnerStatus, RunnerType } from "../types";
 
 interface ProfilesPageProps {
   profiles: AgentProfile[];
@@ -35,6 +36,7 @@ interface ProfilesPageProps {
   onUpdateProfile: (id: string, profile: Partial<CreateProfileRequest>) => Promise<AgentProfile>;
   onDeleteProfile: (id: string) => Promise<void>;
   onRefresh: () => void;
+  runners?: Record<string, RunnerStatus>;
 }
 
 const RUNNER_TYPES: RunnerType[] = ["claude-code", "codex", "opencode"];
@@ -44,6 +46,13 @@ const minutesToNanoseconds = (minutes: number): number => minutes * 60 * 1_000_0
 // Convert nanoseconds to minutes for display
 const nanosecondsToMinutes = (ns: number | undefined): number => ns ? Math.round(ns / (60 * 1_000_000_000)) : 30;
 
+// Default models for each runner type
+const DEFAULT_MODELS: Record<RunnerType, string> = {
+  "claude-code": "sonnet",
+  "codex": "o4-mini",
+  "opencode": "anthropic/claude-sonnet-4-5",
+};
+
 export function ProfilesPage({
   profiles,
   loading,
@@ -52,14 +61,26 @@ export function ProfilesPage({
   onUpdateProfile,
   onDeleteProfile,
   onRefresh,
+  runners,
 }: ProfilesPageProps) {
+  // Helper to get models for a runner type from capabilities
+  const getModelsForRunner = (runnerType: RunnerType): string[] => {
+    const runner = runners?.[runnerType];
+    return runner?.capabilities?.SupportedModels ?? [];
+  };
+
+  // Helper to get default model for a runner type
+  const getDefaultModelForRunner = (runnerType: RunnerType): string => {
+    return DEFAULT_MODELS[runnerType] ?? "";
+  };
+
   const [showForm, setShowForm] = useState(false);
   const [editingProfile, setEditingProfile] = useState<AgentProfile | null>(null);
   const [formData, setFormData] = useState<CreateProfileRequest>({
     name: "",
     description: "",
     runnerType: "claude-code",
-    model: "claude-sonnet-4-20250514",
+    model: "sonnet",
     maxTurns: 100,
     requiresSandbox: true,
     requiresApproval: true,
@@ -72,7 +93,7 @@ export function ProfilesPage({
       name: "",
       description: "",
       runnerType: "claude-code",
-      model: "claude-sonnet-4-20250514",
+      model: "sonnet",
       maxTurns: 100,
       requiresSandbox: true,
       requiresApproval: true,
@@ -193,12 +214,14 @@ export function ProfilesPage({
                   <select
                     id="runnerType"
                     value={formData.runnerType}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newRunnerType = e.target.value as RunnerType;
                       setFormData({
                         ...formData,
-                        runnerType: e.target.value as RunnerType,
-                      })
-                    }
+                        runnerType: newRunnerType,
+                        model: getDefaultModelForRunner(newRunnerType),
+                      });
+                    }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
                     {RUNNER_TYPES.map((type) => (
@@ -223,17 +246,13 @@ export function ProfilesPage({
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="model">Model</Label>
-                <Input
-                  id="model"
-                  value={formData.model}
-                  onChange={(e) =>
-                    setFormData({ ...formData, model: e.target.value })
-                  }
-                  placeholder="e.g., claude-sonnet-4-20250514"
-                />
-              </div>
+              <ModelSelector
+                value={formData.model}
+                onChange={(model) => setFormData({ ...formData, model })}
+                models={getModelsForRunner(formData.runnerType)}
+                label="Model"
+                placeholder="Enter custom model..."
+              />
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">

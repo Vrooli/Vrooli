@@ -133,8 +133,9 @@ func (r *CodexRunner) Capabilities() Capabilities {
 		SupportsCancellation: true,
 		MaxTurns:             0, // unlimited
 		SupportedModels: []string{
-			"codex",
-			"o3-mini",
+			"o4-mini",
+			"o3",
+			"codex-mini-latest",
 		},
 	}
 }

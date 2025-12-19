@@ -225,6 +225,8 @@ export interface RunnerStatus {
     SupportsCostTracking: boolean;
     SupportsStreaming: boolean;
     SupportsCancellation: boolean;
+    SupportedModels: string[];
+    MaxTurns: number;
   };
 }
 

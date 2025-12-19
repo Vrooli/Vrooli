@@ -103,10 +103,12 @@ func (r *OpenCodeRunner) Capabilities() Capabilities {
 		SupportsCancellation: true,
 		MaxTurns:             0, // unlimited
 		SupportedModels: []string{
-			"gpt-4o",
-			"gpt-4o-mini",
-			"claude-3-5-sonnet",
-			"gemini-2.0-flash",
+			"anthropic/claude-sonnet-4-5",
+			"anthropic/claude-opus-4-5",
+			"openai/gpt-4o",
+			"openai/o4-mini",
+			"google/gemini-2.0-flash",
+			"deepseek/deepseek-chat",
 		},
 	}
 }

@@ -331,8 +331,13 @@ export function useRunners() {
     state.setLoading(true);
     state.setError(null);
     try {
-      const data = await apiRequest<Record<string, RunnerStatus>>("/runners");
-      state.setData(data || {});
+      // API returns an array, convert to record keyed by runner type
+      const data = await apiRequest<RunnerStatus[]>("/runners");
+      const record: Record<string, RunnerStatus> = {};
+      for (const runner of data || []) {
+        record[runner.type] = runner;
+      }
+      state.setData(record);
     } catch (err) {
       state.setError((err as Error).message);
     } finally {
