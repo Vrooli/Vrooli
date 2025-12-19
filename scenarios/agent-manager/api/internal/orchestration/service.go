@@ -635,8 +635,14 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	// Mark idempotency as complete
 	o.markIdempotencyComplete(ctx, req.IdempotencyKey, run.ID, "Run")
 
+	// Determine the prompt: use override if provided, otherwise fall back to task description
+	prompt := req.Prompt
+	if prompt == "" {
+		prompt = task.Description
+	}
+
 	// Start execution asynchronously
-	go o.executeRun(context.Background(), run, task, profile, req.Prompt)
+	go o.executeRun(context.Background(), run, task, profile, prompt)
 
 	return run, nil
 }
