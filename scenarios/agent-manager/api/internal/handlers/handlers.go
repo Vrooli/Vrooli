@@ -4,14 +4,27 @@
 // - HTTP request parsing and validation
 // - Response formatting (JSON)
 // - Error translation to HTTP status codes
+// - Request ID tracking for observability
 // - Authentication/authorization checks (when implemented)
 //
 // Handlers do NOT contain business logic - they delegate to the orchestration layer.
+//
+// ERROR HANDLING DESIGN:
+// All errors are converted to domain.ErrorResponse for consistent API responses.
+// Each response includes:
+// - code: Machine-readable error identifier
+// - message: Technical description
+// - userMessage: Human-friendly explanation
+// - recovery: Recommended action (retry, fix_input, wait, escalate)
+// - retryable: Whether automatic retry may succeed
+// - details: Structured context for debugging
+// - requestId: Correlation ID for log aggregation
 package handlers
 
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
@@ -32,6 +45,9 @@ func New(svc orchestration.Service) *Handler {
 
 // RegisterRoutes registers all API routes on the given router.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
+	// Apply request ID middleware to all routes
+	r.Use(requestIDMiddleware)
+
 	// Health endpoints
 	r.HandleFunc("/health", h.Health).Methods("GET")
 	r.HandleFunc("/api/v1/health", h.Health).Methods("GET")
@@ -64,70 +80,177 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
 }
 
-// -----------------------------------------------------------------------------
-// Response Helpers
-// -----------------------------------------------------------------------------
+// =============================================================================
+// MIDDLEWARE
+// =============================================================================
 
+// requestIDMiddleware ensures each request has a unique ID for tracing.
+func requestIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := r.Header.Get("X-Request-ID")
+		if requestID == "" {
+			requestID = uuid.New().String()
+		}
+		w.Header().Set("X-Request-ID", requestID)
+		next.ServeHTTP(w, r)
+	})
+}
+
+// =============================================================================
+// RESPONSE HELPERS
+// =============================================================================
+
+// writeJSON writes a JSON response with the given status code.
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
 }
 
-func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
+// writeError writes a structured error response using domain.ErrorResponse.
+// This provides consistent error handling across all endpoints with:
+// - Machine-readable error codes
+// - User-friendly messages
+// - Recovery guidance
+// - Request ID for log correlation
+func writeError(w http.ResponseWriter, r *http.Request, err error) {
+	requestID := w.Header().Get("X-Request-ID")
+	if requestID == "" {
+		requestID = uuid.New().String()
+	}
+
+	// Convert to structured error response
+	errResp := domain.ToErrorResponse(err, requestID)
+
+	// Map to HTTP status code
+	status := mapErrorCodeToStatus(errResp.Code)
+
+	// Add retry hint header for retryable errors
+	if errResp.Retryable {
+		w.Header().Set("X-Retryable", "true")
+		if errResp.Recovery == domain.RecoveryRetryBackoff {
+			w.Header().Set("Retry-After", "5")
+		}
+	}
+
+	writeJSON(w, status, errResp)
 }
 
+// writeSimpleError creates a simple validation error for request parsing issues.
+func writeSimpleError(w http.ResponseWriter, r *http.Request, field, message string) {
+	err := domain.NewValidationError(field, message)
+	writeError(w, r, err)
+}
+
+// parseUUID extracts and parses a UUID from the request path.
 func parseUUID(r *http.Request, param string) (uuid.UUID, error) {
 	return uuid.Parse(mux.Vars(r)[param])
 }
 
-func mapDomainError(err error) int {
-	switch err.(type) {
-	case *domain.NotFoundError:
+// mapErrorCodeToStatus maps domain error codes to HTTP status codes.
+// This centralizes the error-to-status mapping based on error semantics.
+func mapErrorCodeToStatus(code domain.ErrorCode) int {
+	category := code.Category()
+
+	switch category {
+	case "NOT":
+		// NOT_FOUND_* errors
 		return http.StatusNotFound
-	case *domain.ValidationError:
+
+	case "VALIDATION":
+		// VALIDATION_* errors
 		return http.StatusBadRequest
-	case *domain.StateError:
+
+	case "STATE":
+		// STATE_* errors (conflict)
 		return http.StatusConflict
-	case *domain.PolicyViolationError:
+
+	case "POLICY":
+		// POLICY_* errors (forbidden)
 		return http.StatusForbidden
-	case *domain.CapacityExceededError:
+
+	case "CAPACITY":
+		// CAPACITY_* errors (temporarily unavailable)
 		return http.StatusServiceUnavailable
+
+	case "RUNNER":
+		// RUNNER_* errors
+		if code == domain.ErrCodeRunnerTimeout {
+			return http.StatusGatewayTimeout
+		}
+		if code == domain.ErrCodeRunnerUnavailable {
+			return http.StatusServiceUnavailable
+		}
+		return http.StatusBadGateway
+
+	case "SANDBOX":
+		// SANDBOX_* errors
+		if strings.Contains(string(code), "CREATE") {
+			return http.StatusServiceUnavailable
+		}
+		return http.StatusBadGateway
+
+	case "DATABASE":
+		// DATABASE_* errors
+		if code == domain.ErrCodeDatabaseConnection {
+			return http.StatusServiceUnavailable
+		}
+		return http.StatusInternalServerError
+
+	case "CONFIG":
+		// CONFIG_* errors
+		return http.StatusInternalServerError
+
+	case "INTERNAL":
+		// INTERNAL_* errors
+		return http.StatusInternalServerError
+
 	default:
 		return http.StatusInternalServerError
 	}
 }
 
-// -----------------------------------------------------------------------------
-// Health Handlers
-// -----------------------------------------------------------------------------
+// mapDomainError maps domain errors to HTTP status codes.
+// Kept for backwards compatibility; prefer writeError() for new code.
+func mapDomainError(err error) int {
+	return mapErrorCodeToStatus(domain.GetErrorCode(err))
+}
+
+// =============================================================================
+// HEALTH HANDLERS
+// =============================================================================
 
 // Health returns system health status.
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	status, err := h.svc.GetHealth(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, status)
 }
 
-// -----------------------------------------------------------------------------
-// Profile Handlers
-// -----------------------------------------------------------------------------
+// =============================================================================
+// PROFILE HANDLERS
+// =============================================================================
 
 // CreateProfile creates a new agent profile.
 func (h *Handler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	var profile domain.AgentProfile
 	if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+
+	// Validate before sending to service
+	if err := profile.Validate(); err != nil {
+		writeError(w, r, err)
 		return
 	}
 
 	result, err := h.svc.CreateProfile(r.Context(), &profile)
 	if err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -138,13 +261,13 @@ func (h *Handler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid profile ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for profile ID")
 		return
 	}
 
 	profile, err := h.svc.GetProfile(r.Context(), id)
 	if err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -155,7 +278,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListProfiles(w http.ResponseWriter, r *http.Request) {
 	profiles, err := h.svc.ListProfiles(r.Context(), orchestration.ListOptions{})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -166,20 +289,26 @@ func (h *Handler) ListProfiles(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid profile ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for profile ID")
 		return
 	}
 
 	var profile domain.AgentProfile
 	if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
 	profile.ID = id
 
+	// Validate before sending to service
+	if err := profile.Validate(); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
 	result, err := h.svc.UpdateProfile(r.Context(), &profile)
 	if err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -190,33 +319,39 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid profile ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for profile ID")
 		return
 	}
 
 	if err := h.svc.DeleteProfile(r.Context(), id); err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// -----------------------------------------------------------------------------
-// Task Handlers
-// -----------------------------------------------------------------------------
+// =============================================================================
+// TASK HANDLERS
+// =============================================================================
 
 // CreateTask creates a new task.
 func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	var task domain.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+
+	// Validate before sending to service
+	if err := task.Validate(); err != nil {
+		writeError(w, r, err)
 		return
 	}
 
 	result, err := h.svc.CreateTask(r.Context(), &task)
 	if err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -227,13 +362,13 @@ func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetTask(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid task ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for task ID")
 		return
 	}
 
 	task, err := h.svc.GetTask(r.Context(), id)
 	if err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -244,7 +379,7 @@ func (h *Handler) GetTask(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListTasks(w http.ResponseWriter, r *http.Request) {
 	tasks, err := h.svc.ListTasks(r.Context(), orchestration.ListOptions{})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -255,20 +390,26 @@ func (h *Handler) ListTasks(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid task ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for task ID")
 		return
 	}
 
 	var task domain.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
 	task.ID = id
 
+	// Validate before sending to service
+	if err := task.Validate(); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
 	result, err := h.svc.UpdateTask(r.Context(), &task)
 	if err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -279,33 +420,33 @@ func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CancelTask(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid task ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for task ID")
 		return
 	}
 
 	if err := h.svc.CancelTask(r.Context(), id); err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})
 }
 
-// -----------------------------------------------------------------------------
-// Run Handlers
-// -----------------------------------------------------------------------------
+// =============================================================================
+// RUN HANDLERS
+// =============================================================================
 
 // CreateRun creates a new run.
 func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	var req orchestration.CreateRunRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
 
 	run, err := h.svc.CreateRun(r.Context(), req)
 	if err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -316,13 +457,13 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid run ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
 		return
 	}
 
 	run, err := h.svc.GetRun(r.Context(), id)
 	if err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -333,7 +474,7 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	runs, err := h.svc.ListRuns(r.Context(), orchestration.RunListOptions{})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -344,12 +485,12 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid run ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
 		return
 	}
 
 	if err := h.svc.StopRun(r.Context(), id); err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -360,13 +501,13 @@ func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid run ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
 		return
 	}
 
 	events, err := h.svc.GetRunEvents(r.Context(), id, event.GetOptions{})
 	if err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -377,13 +518,13 @@ func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetRunDiff(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid run ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
 		return
 	}
 
 	diff, err := h.svc.GetRunDiff(r.Context(), id)
 	if err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -394,7 +535,7 @@ func (h *Handler) GetRunDiff(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid run ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
 		return
 	}
 
@@ -404,7 +545,7 @@ func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 		Force     bool   `json:"force"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
 
@@ -415,7 +556,7 @@ func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 		Force:     req.Force,
 	})
 	if err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -426,7 +567,7 @@ func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid run ID")
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
 		return
 	}
 
@@ -435,12 +576,12 @@ func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 		Reason string `json:"reason"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
 
 	if err := h.svc.RejectRun(r.Context(), id, req.Actor, req.Reason); err != nil {
-		writeError(w, mapDomainError(err), err.Error())
+		writeError(w, r, err)
 		return
 	}
 
@@ -451,7 +592,7 @@ func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetRunnerStatus(w http.ResponseWriter, r *http.Request) {
 	statuses, err := h.svc.GetRunnerStatus(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, r, err)
 		return
 	}
 

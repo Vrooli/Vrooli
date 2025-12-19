@@ -216,15 +216,26 @@ type RunSummary struct {
 // -----------------------------------------------------------------------------
 // RunEvent - Append-only event stream
 // -----------------------------------------------------------------------------
+//
+// TAGGED UNION PATTERN:
+// RunEvent uses a tagged union for type-safe event payloads. Each event type
+// has a specific payload struct, ensuring you can only set relevant fields.
+//
+// Usage:
+//   event := NewLogEvent(runID, "info", "Starting execution")
+//   event := NewToolCallEvent(runID, "Read", map[string]interface{}{"path": "/foo"})
+//
+// The Data field contains a type-specific payload that can be type-asserted:
+//   if log, ok := event.Data.(*LogEventData); ok { ... }
 
 // RunEvent represents a single event in a run's event stream.
 type RunEvent struct {
-	ID        uuid.UUID     `json:"id" db:"id"`
-	RunID     uuid.UUID     `json:"runId" db:"run_id"`
-	Sequence  int64         `json:"sequence" db:"sequence"`
-	EventType RunEventType  `json:"eventType" db:"event_type"`
-	Timestamp time.Time     `json:"timestamp" db:"timestamp"`
-	Data      RunEventData  `json:"data" db:"data"`
+	ID        uuid.UUID    `json:"id" db:"id"`
+	RunID     uuid.UUID    `json:"runId" db:"run_id"`
+	Sequence  int64        `json:"sequence" db:"sequence"`
+	EventType RunEventType `json:"eventType" db:"event_type"`
+	Timestamp time.Time    `json:"timestamp" db:"timestamp"`
+	Data      EventPayload `json:"data" db:"data"`
 }
 
 // RunEventType categorizes the event.
@@ -241,7 +252,254 @@ const (
 	EventTypeError      RunEventType = "error"
 )
 
-// RunEventData contains the event-specific payload.
+// =============================================================================
+// EVENT PAYLOAD INTERFACE (Tagged Union)
+// =============================================================================
+
+// EventPayload is the interface for all event-specific data.
+// Each event type has a corresponding struct implementing this interface.
+type EventPayload interface {
+	// EventType returns the type of this payload for serialization.
+	EventType() RunEventType
+
+	// isEventPayload is a marker method to prevent external implementations.
+	isEventPayload()
+}
+
+// =============================================================================
+// LOG EVENT
+// =============================================================================
+
+// LogEventData contains data for log events (debug, info, warn, error messages).
+type LogEventData struct {
+	Level   string `json:"level"`   // debug, info, warn, error
+	Message string `json:"message"` // The log message
+}
+
+func (d *LogEventData) EventType() RunEventType { return EventTypeLog }
+func (d *LogEventData) isEventPayload()         {}
+
+// NewLogEvent creates a new log event.
+func NewLogEvent(runID uuid.UUID, level, message string) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeLog,
+		Timestamp: time.Now(),
+		Data:      &LogEventData{Level: level, Message: message},
+	}
+}
+
+// =============================================================================
+// MESSAGE EVENT
+// =============================================================================
+
+// MessageEventData contains data for conversation messages (user, assistant, system).
+type MessageEventData struct {
+	Role    string `json:"role"`    // user, assistant, system
+	Content string `json:"content"` // Message content
+}
+
+func (d *MessageEventData) EventType() RunEventType { return EventTypeMessage }
+func (d *MessageEventData) isEventPayload()         {}
+
+// NewMessageEvent creates a new message event.
+func NewMessageEvent(runID uuid.UUID, role, content string) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeMessage,
+		Timestamp: time.Now(),
+		Data:      &MessageEventData{Role: role, Content: content},
+	}
+}
+
+// =============================================================================
+// TOOL CALL EVENT
+// =============================================================================
+
+// ToolCallEventData contains data for tool invocation events.
+type ToolCallEventData struct {
+	ToolName string                 `json:"toolName"` // Name of the tool being called
+	Input    map[string]interface{} `json:"input"`    // Tool input parameters
+}
+
+func (d *ToolCallEventData) EventType() RunEventType { return EventTypeToolCall }
+func (d *ToolCallEventData) isEventPayload()         {}
+
+// NewToolCallEvent creates a new tool call event.
+func NewToolCallEvent(runID uuid.UUID, toolName string, input map[string]interface{}) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeToolCall,
+		Timestamp: time.Now(),
+		Data:      &ToolCallEventData{ToolName: toolName, Input: input},
+	}
+}
+
+// =============================================================================
+// TOOL RESULT EVENT
+// =============================================================================
+
+// ToolResultEventData contains data for tool result events.
+type ToolResultEventData struct {
+	ToolName string `json:"toolName"`        // Name of the tool that was called
+	Output   string `json:"output"`          // Tool output (success)
+	Error    string `json:"error,omitempty"` // Error message (if failed)
+	Success  bool   `json:"success"`         // Whether the tool call succeeded
+}
+
+func (d *ToolResultEventData) EventType() RunEventType { return EventTypeToolResult }
+func (d *ToolResultEventData) isEventPayload()         {}
+
+// NewToolResultEvent creates a new tool result event.
+func NewToolResultEvent(runID uuid.UUID, toolName, output string, err error) *RunEvent {
+	data := &ToolResultEventData{
+		ToolName: toolName,
+		Output:   output,
+		Success:  err == nil,
+	}
+	if err != nil {
+		data.Error = err.Error()
+	}
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeToolResult,
+		Timestamp: time.Now(),
+		Data:      data,
+	}
+}
+
+// =============================================================================
+// STATUS EVENT
+// =============================================================================
+
+// StatusEventData contains data for status transition events.
+type StatusEventData struct {
+	OldStatus string `json:"oldStatus"` // Previous status
+	NewStatus string `json:"newStatus"` // New status
+	Reason    string `json:"reason,omitempty"` // Why the transition happened
+}
+
+func (d *StatusEventData) EventType() RunEventType { return EventTypeStatus }
+func (d *StatusEventData) isEventPayload()         {}
+
+// NewStatusEvent creates a new status change event.
+func NewStatusEvent(runID uuid.UUID, oldStatus, newStatus, reason string) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeStatus,
+		Timestamp: time.Now(),
+		Data:      &StatusEventData{OldStatus: oldStatus, NewStatus: newStatus, Reason: reason},
+	}
+}
+
+// =============================================================================
+// METRIC EVENT
+// =============================================================================
+
+// MetricEventData contains data for metric/telemetry events.
+type MetricEventData struct {
+	Name  string            `json:"name"`            // Metric name (e.g., "tokens_used")
+	Value float64           `json:"value"`           // Metric value
+	Unit  string            `json:"unit,omitempty"`  // Unit (e.g., "tokens", "ms", "bytes")
+	Tags  map[string]string `json:"tags,omitempty"`  // Additional tags for grouping
+}
+
+func (d *MetricEventData) EventType() RunEventType { return EventTypeMetric }
+func (d *MetricEventData) isEventPayload()         {}
+
+// NewMetricEvent creates a new metric event.
+func NewMetricEvent(runID uuid.UUID, name string, value float64, unit string) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeMetric,
+		Timestamp: time.Now(),
+		Data:      &MetricEventData{Name: name, Value: value, Unit: unit},
+	}
+}
+
+// =============================================================================
+// ARTIFACT EVENT
+// =============================================================================
+
+// ArtifactEventData contains data for artifact creation events.
+type ArtifactEventData struct {
+	Type     string `json:"type"`               // Artifact type (diff, log, screenshot, etc.)
+	Path     string `json:"path"`               // Path to the artifact
+	Size     int64  `json:"size,omitempty"`     // Size in bytes
+	MimeType string `json:"mimeType,omitempty"` // MIME type
+}
+
+func (d *ArtifactEventData) EventType() RunEventType { return EventTypeArtifact }
+func (d *ArtifactEventData) isEventPayload()         {}
+
+// NewArtifactEvent creates a new artifact event.
+func NewArtifactEvent(runID uuid.UUID, artifactType, path string, size int64) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeArtifact,
+		Timestamp: time.Now(),
+		Data:      &ArtifactEventData{Type: artifactType, Path: path, Size: size},
+	}
+}
+
+// =============================================================================
+// ERROR EVENT
+// =============================================================================
+
+// ErrorEventData contains data for error events.
+type ErrorEventData struct {
+	Code       string         `json:"code"`                 // Machine-readable error code
+	Message    string         `json:"message"`              // Human-readable error message
+	Retryable  bool           `json:"retryable"`            // Whether the error is retryable
+	Recovery   RecoveryAction `json:"recovery,omitempty"`   // Suggested recovery action
+	StackTrace string         `json:"stackTrace,omitempty"` // Optional stack trace
+}
+
+func (d *ErrorEventData) EventType() RunEventType { return EventTypeError }
+func (d *ErrorEventData) isEventPayload()         {}
+
+// NewErrorEvent creates a new error event.
+func NewErrorEvent(runID uuid.UUID, code, message string, retryable bool) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeError,
+		Timestamp: time.Now(),
+		Data:      &ErrorEventData{Code: code, Message: message, Retryable: retryable},
+	}
+}
+
+// NewErrorEventFromDomainError creates an error event from a DomainError.
+func NewErrorEventFromDomainError(runID uuid.UUID, err DomainError) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeError,
+		Timestamp: time.Now(),
+		Data: &ErrorEventData{
+			Code:      string(err.Code()),
+			Message:   err.Error(),
+			Retryable: err.Retryable(),
+			Recovery:  err.Recovery(),
+		},
+	}
+}
+
+// =============================================================================
+// LEGACY SUPPORT (RunEventData)
+// =============================================================================
+// RunEventData is kept for backward compatibility during migration.
+// New code should use the specific event data types above.
+
+// RunEventData contains the event-specific payload (DEPRECATED: use specific types).
+// This struct is retained for JSON unmarshaling compatibility with existing data.
 type RunEventData struct {
 	// For log events
 	Level   string `json:"level,omitempty"`
@@ -274,6 +532,65 @@ type RunEventData struct {
 	// For error events
 	ErrorCode    string `json:"errorCode,omitempty"`
 	ErrorMessage string `json:"errorMessage,omitempty"`
+}
+
+// Implement EventPayload interface for backward compatibility
+func (d RunEventData) EventType() RunEventType {
+	// Infer type from which fields are populated
+	if d.Level != "" || (d.Message != "" && d.Role == "") {
+		return EventTypeLog
+	}
+	if d.Role != "" {
+		return EventTypeMessage
+	}
+	if d.ToolName != "" && d.ToolInput != nil {
+		return EventTypeToolCall
+	}
+	if d.ToolOutput != "" || d.ToolError != "" {
+		return EventTypeToolResult
+	}
+	if d.OldStatus != "" || d.NewStatus != "" {
+		return EventTypeStatus
+	}
+	if d.MetricName != "" {
+		return EventTypeMetric
+	}
+	if d.ArtifactType != "" {
+		return EventTypeArtifact
+	}
+	if d.ErrorCode != "" || d.ErrorMessage != "" {
+		return EventTypeError
+	}
+	return EventTypeLog // default fallback
+}
+func (d RunEventData) isEventPayload() {}
+
+// ToTypedPayload converts legacy RunEventData to the appropriate typed payload.
+func (d RunEventData) ToTypedPayload() EventPayload {
+	switch d.EventType() {
+	case EventTypeLog:
+		return &LogEventData{Level: d.Level, Message: d.Message}
+	case EventTypeMessage:
+		return &MessageEventData{Role: d.Role, Content: d.Content}
+	case EventTypeToolCall:
+		return &ToolCallEventData{ToolName: d.ToolName, Input: d.ToolInput}
+	case EventTypeToolResult:
+		var err string
+		if d.ToolError != "" {
+			err = d.ToolError
+		}
+		return &ToolResultEventData{ToolName: d.ToolName, Output: d.ToolOutput, Error: err, Success: err == ""}
+	case EventTypeStatus:
+		return &StatusEventData{OldStatus: d.OldStatus, NewStatus: d.NewStatus}
+	case EventTypeMetric:
+		return &MetricEventData{Name: d.MetricName, Value: d.MetricValue}
+	case EventTypeArtifact:
+		return &ArtifactEventData{Type: d.ArtifactType, Path: d.ArtifactPath}
+	case EventTypeError:
+		return &ErrorEventData{Code: d.ErrorCode, Message: d.ErrorMessage}
+	default:
+		return &LogEventData{Message: d.Message}
+	}
 }
 
 // -----------------------------------------------------------------------------

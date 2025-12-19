@@ -2,23 +2,41 @@
 
 This document describes the architectural seams (deliberate boundaries) in agent-manager that enable testing, extensibility, and safe evolution.
 
+## Architectural Principles
+
+The codebase follows three key architectural principles:
+
+1. **Decision Boundary Extraction** - Key decisions are explicit, named, and testable
+2. **Cognitive Load Reduction** - Code is organized to minimize mental overhead
+3. **Control Surface Design** - Tunable levers are organized, validated, and documented
+
 ## Overview
 
 Agent-manager uses a **screaming architecture** where the folder structure and naming clearly express the domain:
 
 ```
 api/internal/
-├── domain/          # Core domain entities (Task, Run, AgentProfile, Policy)
-├── orchestration/   # Coordination layer (wires components together)
-├── adapters/        # External integration seams
-│   ├── runner/      # Agent runner implementations
-│   ├── sandbox/     # workspace-sandbox integration
-│   ├── event/       # Event streaming and storage
-│   └── artifact/    # Diff and artifact collection
-├── policy/          # Policy evaluation logic
-├── repository/      # Persistence interfaces
-├── handlers/        # HTTP handlers (thin presentation layer)
-└── config/          # Configuration management
+├── domain/              # Core domain entities and decisions
+│   ├── types.go         # Task, Run, AgentProfile, Policy entities
+│   ├── errors.go        # Domain-specific error types
+│   ├── decisions.go     # Explicit decision helpers (state machines, classification)
+│   └── validation.go    # Entity validation logic
+├── orchestration/       # Coordination layer (wires components together)
+│   ├── service.go       # Main orchestration service and interface
+│   ├── run_executor.go  # Run lifecycle execution (extracted for clarity)
+│   └── approval.go      # Approval workflow operations
+├── adapters/            # External integration seams
+│   ├── runner/          # Agent runner implementations
+│   ├── sandbox/         # workspace-sandbox integration
+│   ├── event/           # Event streaming and storage
+│   └── artifact/        # Diff and artifact collection
+├── policy/              # Policy evaluation logic
+├── repository/          # Persistence interfaces
+├── handlers/            # HTTP handlers (thin presentation layer)
+└── config/              # Configuration management
+    ├── config.go        # Legacy config (being deprecated)
+    ├── levers.go        # Control surface definition
+    └── loader.go        # Configuration loading
 ```
 
 ## Core Seams
@@ -289,32 +307,180 @@ Each seam enables specific testing patterns:
 
 ---
 
+## Decision Boundaries (`domain/decisions.go`)
+
+Key decisions are extracted into explicit, testable functions. This makes behavior predictable and easy to locate.
+
+### State Transitions
+
+State machine logic for Tasks and Runs is centralized:
+
+```go
+// Check if a transition is valid
+ok, reason := TaskStatusQueued.CanTransitionTo(TaskStatusRunning)
+ok, reason := RunStatusRunning.CanTransitionTo(RunStatusNeedsReview)
+```
+
+### Approval Decisions
+
+```go
+// Check if a run can be approved
+ok, reason := run.IsApprovable()
+ok, reason := run.IsRejectable()
+```
+
+### Run Mode Decisions
+
+The decision of whether to use sandbox or in-place execution is explicit:
+
+```go
+decision := DecideRunMode(
+    requestedMode,         // Explicit request (highest priority)
+    forceInPlace,          // Override flag
+    policyAllowsInPlace,   // Policy permission
+    profileRequiresSandbox, // Profile requirement
+)
+// Returns: Mode, Reason, PolicyOverride, ExplicitChoice
+```
+
+### Result Classification
+
+```go
+outcome := ClassifyRunOutcome(err, exitCode, cancelled, timedOut)
+if outcome.RequiresReview() { ... }
+if outcome.IsTerminalFailure() { ... }
+```
+
+### Scope Conflict Detection
+
+```go
+if ScopesOverlap("src/", "src/foo/bar") {
+    // Parent-child relationship detected
+}
+```
+
+---
+
+## Control Surface (`config/levers.go`)
+
+The control surface is the set of tunable parameters operators can adjust without code changes.
+
+### Categories
+
+| Category | What It Controls |
+|----------|------------------|
+| **Execution** | Timeouts, max turns, event buffering |
+| **Safety** | Sandbox requirements, file limits, deny patterns |
+| **Concurrency** | Max runs, scope locks, queue timeouts |
+| **Approval** | Review requirements, auto-approve patterns |
+| **Runners** | Binary paths, health checks |
+| **Server** | Port, timeouts, request limits |
+| **Storage** | Database settings, retention policies |
+
+### Key Levers
+
+**Safety Levers** (accident prevention):
+- `RequireSandboxByDefault` - Sandbox-first philosophy
+- `MaxFilesPerRun` - Blast radius control (default: 500)
+- `MaxBytesPerRun` - Size limit (default: 50MB)
+- `DenyPathPatterns` - Hard guardrails (`.git/**`, `.env*`, etc.)
+
+**Concurrency Levers**:
+- `MaxConcurrentRuns` - Global parallelism (default: 10)
+- `MaxConcurrentPerScope` - Scope-level exclusivity (default: 1)
+- `ScopeLockTTL` - Lock timeout (default: 30m)
+
+**Execution Levers**:
+- `DefaultTimeout` - Run timeout (default: 30m, range: 1m-4h)
+- `DefaultMaxTurns` - Agent turns (default: 100, range: 1-1000)
+
+### Profiles
+
+Pre-configured lever sets for common scenarios:
+
+```go
+levers := LeversForProfile(ProfileDevelopment) // Faster, smaller limits
+levers := LeversForProfile(ProfileTesting)     // Fast, deterministic
+levers := LeversForProfile(ProfileProduction)  // Conservative defaults
+```
+
+### Configuration Loading
+
+Priority (highest to lowest):
+1. Environment variables (`AGENT_MANAGER_SAFETY_MAX_FILES_PER_RUN`)
+2. Config file (via `AGENT_MANAGER_CONFIG` path)
+3. Default values
+
+All values are validated with safe bounds to prevent catastrophic misconfiguration.
+
+---
+
+## Cognitive Load Reduction
+
+### Run Executor (`orchestration/run_executor.go`)
+
+The execution flow is extracted into a dedicated, step-by-step executor:
+
+```
+1. UpdateStatusToStarting()
+2. SetupWorkspace()     - Creates sandbox if needed
+3. AcquireRunner()      - Gets and validates runner
+4. Execute()            - Runs the agent
+5. HandleResult()       - Processes outcome
+```
+
+Each step is independently testable and clearly named.
+
+### Approval Operations (`orchestration/approval.go`)
+
+Approval workflow is grouped into one file:
+- `ApproveRun()` - Full approval
+- `RejectRun()` - Rejection
+- `PartialApprove()` - File-level approval
+
+### Validation (`domain/validation.go`)
+
+Entity validation is centralized:
+- `profile.Validate()` - AgentProfile validation
+- `task.Validate()` - Task validation
+- `run.ValidateForCreation()` - Run creation validation
+- `policy.Validate()` - Policy validation
+
+---
+
 ## File Structure Reference
 
 ```
 api/internal/
 ├── domain/
-│   ├── types.go         # Core entities (Task, Run, AgentProfile, etc.)
-│   └── errors.go        # Domain error types
+│   ├── types.go           # Core entities (Task, Run, AgentProfile, etc.)
+│   ├── errors.go          # Domain error types
+│   ├── decisions.go       # Decision helpers (state machines, classification)
+│   ├── decisions_test.go  # Decision helper tests
+│   └── validation.go      # Entity validation logic
 ├── orchestration/
-│   └── service.go       # Main orchestration service
+│   ├── service.go         # Main orchestration service and interface
+│   ├── run_executor.go    # Run lifecycle execution
+│   └── approval.go        # Approval workflow operations
 ├── adapters/
 │   ├── runner/
-│   │   └── interface.go # Runner interface and registry
+│   │   └── interface.go   # Runner interface and registry
 │   ├── sandbox/
-│   │   └── interface.go # Sandbox provider and lock manager
+│   │   └── interface.go   # Sandbox provider and lock manager
 │   ├── event/
-│   │   └── interface.go # Event store and collector
+│   │   └── interface.go   # Event store and collector
 │   └── artifact/
-│       └── interface.go # Artifact collector and validation
+│       └── interface.go   # Artifact collector and validation
 ├── policy/
-│   └── interface.go     # Policy evaluator interface
+│   └── interface.go       # Policy evaluator interface
 ├── repository/
-│   └── interface.go     # All repository interfaces
+│   └── interface.go       # All repository interfaces
 ├── handlers/
-│   └── (HTTP handlers)
+│   └── handlers.go        # HTTP handlers (thin presentation layer)
 └── config/
-    └── (Configuration)
+    ├── config.go          # Legacy config (deprecated)
+    ├── levers.go          # Control surface definition
+    └── loader.go          # Configuration loading
 ```
 
 ---
