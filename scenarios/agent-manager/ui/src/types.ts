@@ -269,8 +269,22 @@ export interface CreateTaskRequest {
 
 export interface CreateRunRequest {
   taskId: string;
-  agentProfileId: string;
+  // Profile-based config (optional - can be omitted if inline config provided)
+  agentProfileId?: string;
+  // Custom tag for identification
+  tag?: string;
+  // Inline config (optional - used if no profile, or overrides profile)
+  runnerType?: RunnerType;
+  model?: string;
+  maxTurns?: number;
+  timeout?: number;
+  allowedTools?: string[];
+  deniedTools?: string[];
+  skipPermissionPrompt?: boolean;
+  // Execution options
+  prompt?: string;
   runMode?: RunMode;
+  forceInPlace?: boolean;
   idempotencyKey?: string;
 }
 

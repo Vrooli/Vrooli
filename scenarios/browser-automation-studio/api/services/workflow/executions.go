@@ -96,7 +96,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		return nil, err
 	}
 
-	initialStore, initialParams, env, artifactCfg := executionParametersToMaps(req.Parameters)
+	initialStore, initialParams, env, artifactCfg, projectRoot := executionParametersToMaps(req.Parameters)
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
@@ -126,7 +126,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
-	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, opts)
+	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, opts, projectRoot)
 
 	if req.WaitForCompletion {
 		// Poll for completion; execution updates are persisted to the DB index by the runner.
@@ -177,14 +177,15 @@ func (s *WorkflowService) resolveWorkflowForExecution(ctx context.Context, workf
 	return getResp.Workflow, nil
 }
 
-// executionParametersToMaps extracts namespace maps and artifact config from ExecutionParameters.
-// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), and artifact config.
-func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
+// executionParametersToMaps extracts namespace maps, artifact config, and project root from ExecutionParameters.
+// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, and projectRoot.
+// projectRoot is used for filesystem-based subflow resolution when the calling workflow has no database project.
+func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
 	store = map[string]any{}
 	params = map[string]any{}
 	env = map[string]any{}
 	if p == nil {
-		return store, params, env, nil
+		return store, params, env, nil, ""
 	}
 
 	for k, v := range p.InitialStore {
@@ -209,7 +210,13 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 		artifactCfg = &settings
 	}
 
-	return store, params, env, artifactCfg
+	// Extract project_root for filesystem-based subflow resolution.
+	// Used by adhoc workflows that need to resolve workflowPath references.
+	if p.ProjectRoot != nil {
+		projectRoot = strings.TrimSpace(*p.ProjectRoot)
+	}
+
+	return store, params, env, artifactCfg, projectRoot
 }
 
 func jsonValueToAny(v *commonv1.JsonValue) any {
@@ -219,29 +226,30 @@ func jsonValueToAny(v *commonv1.JsonValue) any {
 func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary, executionID uuid.UUID, parameters map[string]any) {
 	// Normalize legacy flat parameters into the namespaced model.
 	// All legacy parameters go to @store/ namespace for backward compatibility.
-	// Use default artifact config (full profile).
-	s.startExecutionRunnerWithNamespaces(workflow, executionID, parameters, nil, nil, nil)
+	// Use default artifact config (full profile) and no projectRoot (legacy callers don't use subflows).
+	s.startExecutionRunnerWithNamespaces(workflow, executionID, parameters, nil, nil, nil, "")
 }
 
-func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
-	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil)
+func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
+	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, projectRoot)
 }
 
-func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions) {
+func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions, projectRoot string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.storeExecutionCancel(executionID, cancel)
-	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, opts)
+	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, opts, projectRoot)
 }
 
 // executeWorkflowAsync is the single implementation for running workflows asynchronously.
 // It handles both legacy (flat parameters in store) and new (namespaced store/params/env) callers.
 // artifactCfg controls what artifacts are collected; nil means use default (full profile).
 func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
-	s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, nil)
+	s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, nil, "")
 }
 
 // executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
-func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions) {
+// projectRoot is the absolute path to the project root for filesystem-based subflow resolution.
+func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions, projectRoot string) {
 	defer s.cancelExecutionByID(executionID)
 
 	persistenceCtx := context.Background()
@@ -315,6 +323,7 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		PlanCompiler:       s.planCompiler,
 		MaxSubflowDepth:    5,
 		StartFromStepIndex: -1,
+		ProjectRoot:        projectRoot,
 		InitialStore:       store,
 		InitialParams:      params,
 		Env:                env,

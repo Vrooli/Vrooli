@@ -39,6 +39,11 @@ interface ProfilesPageProps {
 
 const RUNNER_TYPES: RunnerType[] = ["claude-code", "codex", "opencode"];
 
+// Convert minutes to nanoseconds for Go's time.Duration
+const minutesToNanoseconds = (minutes: number): number => minutes * 60 * 1_000_000_000;
+// Convert nanoseconds to minutes for display
+const nanosecondsToMinutes = (ns: number | undefined): number => ns ? Math.round(ns / (60 * 1_000_000_000)) : 30;
+
 export function ProfilesPage({
   profiles,
   loading,
@@ -59,6 +64,7 @@ export function ProfilesPage({
     requiresSandbox: true,
     requiresApproval: true,
   });
+  const [timeoutMinutes, setTimeoutMinutes] = useState(30);
   const [submitting, setSubmitting] = useState(false);
 
   const resetForm = () => {
@@ -71,6 +77,7 @@ export function ProfilesPage({
       requiresSandbox: true,
       requiresApproval: true,
     });
+    setTimeoutMinutes(30);
     setEditingProfile(null);
     setShowForm(false);
   };
@@ -88,6 +95,7 @@ export function ProfilesPage({
       allowedTools: profile.allowedTools,
       deniedTools: profile.deniedTools,
     });
+    setTimeoutMinutes(nanosecondsToMinutes(profile.timeout));
     setShowForm(true);
   };
 
@@ -95,10 +103,14 @@ export function ProfilesPage({
     e.preventDefault();
     setSubmitting(true);
     try {
+      const dataWithTimeout: CreateProfileRequest = {
+        ...formData,
+        timeout: minutesToNanoseconds(timeoutMinutes),
+      };
       if (editingProfile) {
-        await onUpdateProfile(editingProfile.id, formData);
+        await onUpdateProfile(editingProfile.id, dataWithTimeout);
       } else {
-        await onCreateProfile(formData);
+        await onCreateProfile(dataWithTimeout);
       }
       resetForm();
     } catch (err) {
@@ -211,18 +223,19 @@ export function ProfilesPage({
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="model">Model</Label>
+                <Input
+                  id="model"
+                  value={formData.model}
+                  onChange={(e) =>
+                    setFormData({ ...formData, model: e.target.value })
+                  }
+                  placeholder="e.g., claude-sonnet-4-20250514"
+                />
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="model">Model</Label>
-                  <Input
-                    id="model"
-                    value={formData.model}
-                    onChange={(e) =>
-                      setFormData({ ...formData, model: e.target.value })
-                    }
-                    placeholder="e.g., claude-sonnet-4-20250514"
-                  />
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="maxTurns">Max Turns</Label>
                   <Input
@@ -234,6 +247,19 @@ export function ProfilesPage({
                     }
                     min={1}
                     max={1000}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="timeout">Timeout (minutes)</Label>
+                  <Input
+                    id="timeout"
+                    type="number"
+                    value={timeoutMinutes}
+                    onChange={(e) =>
+                      setTimeoutMinutes(parseInt(e.target.value) || 30)
+                    }
+                    min={1}
+                    max={1440}
                   />
                 </div>
               </div>

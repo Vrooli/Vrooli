@@ -6,14 +6,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	"github.com/vrooli/browser-automation-studio/internal/enums"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
-	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
@@ -333,7 +330,8 @@ func convertEventToProto(ev contracts.EventEnvelope) (*bastimeline.TimelineStrea
 }
 
 // buildTimelineEntryFromEnvelope creates a TimelineEntry from a contracts.EventEnvelope.
-// This is the unified format for timeline data used in both streaming and batch contexts.
+// This delegates to the telemetry package for core conversion, then augments with
+// envelope-specific fields (sequence, status, progress aggregates).
 func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.TimelineEntry {
 	var outcome *contracts.StepOutcome
 	var payloadMap map[string]any
@@ -346,48 +344,34 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.Tim
 		outcome = &out
 	}
 
-	// Build entry ID from execution and step
-	entryID := fmt.Sprintf("%s-step-%d", ev.ExecutionID.String(), ptrOrZero(ev.StepIndex))
-
-	stepIndex := int32(ptrOrZero(ev.StepIndex))
-	entry := &bastimeline.TimelineEntry{
-		Id:          entryID,
-		SequenceNum: int32(ev.Sequence),
-		StepIndex:   &stepIndex,
-		Timestamp:   contracts.TimeToTimestamp(outcomeStart(outcome)),
+	// Use the unified telemetry conversion when we have a StepOutcome
+	var entry *bastimeline.TimelineEntry
+	if outcome != nil {
+		entry = StepOutcomeToTimelineEntry(*outcome, ev.ExecutionID)
 	}
 
-	// Set node_id if available
-	nodeID := extractNodeID(outcome, payloadMap)
-	if nodeID != "" {
-		entry.NodeId = &nodeID
-	}
-
-	// Set duration
-	durationMs := int32(extractDuration(outcome))
-	if durationMs > 0 {
-		entry.DurationMs = &durationMs
-	}
-
-	// Build ActionDefinition with action type
-	stepType := extractStepType(outcome, payloadMap)
-	if stepType != "" {
-		entry.Action = &basactions.ActionDefinition{
-			Type: enums.StringToActionType(stepType),
+	// Fallback: create minimal entry if no outcome or conversion failed
+	if entry == nil {
+		stepIndex := int32(ptrOrZero(ev.StepIndex))
+		entry = &bastimeline.TimelineEntry{
+			Id:          fmt.Sprintf("%s-step-%d", ev.ExecutionID.String(), ptrOrZero(ev.StepIndex)),
+			SequenceNum: int32(ev.Sequence),
+			StepIndex:   &stepIndex,
+			Telemetry:   &basdomain.ActionTelemetry{},
+			Context: &basbase.EventContext{
+				Origin: &basbase.EventContext_ExecutionId{ExecutionId: ev.ExecutionID.String()},
+			},
 		}
 	}
 
-	// Build telemetry
-	if outcome != nil {
-		entry.Telemetry = buildTelemetryFromOutcome(outcome)
-	}
-	if entry.Telemetry == nil {
-		entry.Telemetry = &basdomain.ActionTelemetry{}
-	}
+	// Override sequence number with envelope's sequence (preserves event ordering)
+	entry.SequenceNum = int32(ev.Sequence)
 
-	// Build EventContext with execution origin
-	entry.Context = &basbase.EventContext{
-		Origin: &basbase.EventContext_ExecutionId{ExecutionId: ev.ExecutionID.String()},
+	// Ensure context exists and set success based on event kind
+	if entry.Context == nil {
+		entry.Context = &basbase.EventContext{
+			Origin: &basbase.EventContext_ExecutionId{ExecutionId: ev.ExecutionID.String()},
+		}
 	}
 	switch ev.Kind {
 	case contracts.EventKindStepCompleted:
@@ -398,20 +382,7 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.Tim
 		entry.Context.Success = &success
 	}
 
-	// Add error to context if present
-	if outcome != nil && outcome.Failure != nil && outcome.Failure.Message != "" {
-		entry.Context.Error = &outcome.Failure.Message
-		if outcome.Failure.Code != "" {
-			entry.Context.ErrorCode = &outcome.Failure.Code
-		}
-	}
-
-	// Add assertion to context if present
-	if outcome != nil && outcome.Assertion != nil {
-		entry.Context.Assertion = convertAssertionOutcome(outcome.Assertion)
-	}
-
-	// Build aggregates for batch data (status, progress, final_url, etc.)
+	// Build aggregates for streaming context (status, progress)
 	status := mapStepStatus(ev.Kind)
 	progress := int32(extractInt(payloadMap, "progress"))
 	entry.Aggregates = &bastimeline.TimelineEntryAggregates{
@@ -429,47 +400,6 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.Tim
 	}
 
 	return entry
-}
-
-// buildTelemetryFromOutcome creates ActionTelemetry from a StepOutcome.
-func buildTelemetryFromOutcome(outcome *contracts.StepOutcome) *basdomain.ActionTelemetry {
-	if outcome == nil {
-		return nil
-	}
-
-	tel := &basdomain.ActionTelemetry{
-		Url: outcome.FinalURL,
-	}
-
-	if outcome.ElementBoundingBox != nil {
-		tel.ElementBoundingBox = convertBoundingBox(outcome.ElementBoundingBox)
-	}
-
-	if outcome.ClickPosition != nil {
-		tel.ClickPosition = convertPoint(outcome.ClickPosition)
-	}
-
-	if len(outcome.CursorTrail) > 0 {
-		points := make([]*basbase.Point, 0, len(outcome.CursorTrail))
-		for i := range outcome.CursorTrail {
-			points = append(points, convertPoint(outcome.CursorTrail[i].Point))
-		}
-		tel.CursorTrail = points
-	}
-
-	if len(outcome.HighlightRegions) > 0 {
-		tel.HighlightRegions = convertHighlightRegions(outcome.HighlightRegions)
-	}
-
-	if len(outcome.MaskRegions) > 0 {
-		tel.MaskRegions = convertMaskRegions(outcome.MaskRegions)
-	}
-
-	if outcome.ZoomFactor != 0 {
-		tel.ZoomFactor = &outcome.ZoomFactor
-	}
-
-	return tel
 }
 
 func mapExecutionStatus(kind contracts.EventKind, payload any) basbase.ExecutionStatus {
@@ -514,36 +444,6 @@ func mapStepStatus(kind contracts.EventKind) basbase.StepStatus {
 	}
 }
 
-func extractStepType(outcome *contracts.StepOutcome, payload map[string]any) string {
-	if outcome != nil && outcome.StepType != "" {
-		return outcome.StepType
-	}
-	if payload != nil {
-		if v, ok := payload["step_type"].(string); ok {
-			return v
-		}
-		if v, ok := payload["stepType"].(string); ok {
-			return v
-		}
-	}
-	return ""
-}
-
-func extractNodeID(outcome *contracts.StepOutcome, payload map[string]any) string {
-	if outcome != nil && outcome.NodeID != "" {
-		return outcome.NodeID
-	}
-	if payload != nil {
-		if v, ok := payload["node_id"].(string); ok {
-			return v
-		}
-		if v, ok := payload["nodeId"].(string); ok {
-			return v
-		}
-	}
-	return ""
-}
-
 func extractInt(payload any, keys ...string) int {
 	asMap, ok := payload.(map[string]any)
 	if !ok || asMap == nil {
@@ -586,26 +486,6 @@ func ptrOrZero(v *int) int {
 		return 0
 	}
 	return *v
-}
-
-func outcomeStart(outcome *contracts.StepOutcome) time.Time {
-	if outcome == nil {
-		return time.Time{}
-	}
-	return outcome.StartedAt
-}
-
-func extractDuration(outcome *contracts.StepOutcome) int {
-	if outcome == nil {
-		return 0
-	}
-	if outcome.DurationMs > 0 {
-		return outcome.DurationMs
-	}
-	if !outcome.StartedAt.IsZero() && outcome.CompletedAt != nil {
-		return int(outcome.CompletedAt.Sub(outcome.StartedAt).Milliseconds())
-	}
-	return 0
 }
 
 func structpbMetrics(values map[string]any) map[string]*structpb.Value {
@@ -686,98 +566,12 @@ func toJsonValue(v any) *commonv1.JsonValue {
 	}
 }
 
-func convertAssertionOutcome(assertion *contracts.AssertionOutcome) *basbase.AssertionResult {
-	if assertion == nil {
-		return nil
-	}
-	result := &basbase.AssertionResult{
-		Mode:          enums.StringToAssertionMode(assertion.Mode),
-		Selector:      assertion.Selector,
-		Success:       assertion.Success,
-		Negated:       assertion.Negated,
-		CaseSensitive: assertion.CaseSensitive,
-	}
-	if assertion.Message != "" {
-		result.Message = &assertion.Message
-	}
-	if assertion.Expected != nil {
-		result.Expected = toJsonValue(assertion.Expected)
-	}
-	if assertion.Actual != nil {
-		result.Actual = toJsonValue(assertion.Actual)
-	}
-	return result
-}
-
-func convertBoundingBox(b *contracts.BoundingBox) *basbase.BoundingBox {
-	if b == nil {
-		return nil
-	}
-	return &basbase.BoundingBox{
-		X:      b.X,
-		Y:      b.Y,
-		Width:  b.Width,
-		Height: b.Height,
-	}
-}
-
-func convertPoint(pt *contracts.Point) *basbase.Point {
-	if pt == nil {
-		return nil
-	}
-	return &basbase.Point{
-		X: pt.X,
-		Y: pt.Y,
-	}
-}
-
+// convertElementFocus converts a contracts.ElementFocus to the proto type.
+// Since contracts.ElementFocus is an alias for bastimeline.ElementFocus,
+// this is a direct pass-through (kept for nil-safety and code clarity).
 func convertElementFocus(f *contracts.ElementFocus) *bastimeline.ElementFocus {
-	if f == nil {
-		return nil
-	}
-	return &bastimeline.ElementFocus{
-		Selector:    f.Selector,
-		BoundingBox: convertBoundingBox(f.BoundingBox),
-	}
-}
-
-func convertHighlightRegions(regions []*contracts.HighlightRegion) []*basdomain.HighlightRegion {
-	if len(regions) == 0 {
-		return nil
-	}
-	out := make([]*basdomain.HighlightRegion, 0, len(regions))
-	for _, r := range regions {
-		if r == nil {
-			continue
-		}
-		region := &basdomain.HighlightRegion{
-			Selector:       r.Selector,
-			BoundingBox:    convertBoundingBox(r.BoundingBox),
-			Padding:        r.Padding,
-			HighlightColor: r.HighlightColor,
-			CustomRgba:     r.CustomRgba,
-		}
-		out = append(out, region)
-	}
-	return out
-}
-
-func convertMaskRegions(regions []*contracts.MaskRegion) []*basdomain.MaskRegion {
-	if len(regions) == 0 {
-		return nil
-	}
-	out := make([]*basdomain.MaskRegion, 0, len(regions))
-	for _, r := range regions {
-		if r == nil {
-			continue
-		}
-		out = append(out, &basdomain.MaskRegion{
-			Selector:    r.Selector,
-			BoundingBox: convertBoundingBox(r.BoundingBox),
-			Opacity:     r.Opacity,
-		})
-	}
-	return out
+	// contracts.ElementFocus = bastimeline.ElementFocus (type alias)
+	return f
 }
 
 func convertStructValue(v any) *structpb.Value {

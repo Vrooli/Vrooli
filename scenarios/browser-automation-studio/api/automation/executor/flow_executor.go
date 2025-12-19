@@ -670,7 +670,7 @@ func resolveSubflowWorkflow(ctx context.Context, req Request, spec subflowSpec) 
 		if req.WorkflowResolver == nil {
 			return nil, uuid.Nil, fmt.Errorf("subflow requires workflow resolver to fetch %q", spec.workflowPath)
 		}
-		wf, err := req.WorkflowResolver.GetWorkflowByProjectPath(ctx, req.Plan.WorkflowID, spec.workflowPath)
+		wf, err := req.WorkflowResolver.GetWorkflowByProjectPath(ctx, req.Plan.WorkflowID, spec.workflowPath, req.ProjectRoot)
 		if err != nil {
 			return nil, uuid.Nil, err
 		}

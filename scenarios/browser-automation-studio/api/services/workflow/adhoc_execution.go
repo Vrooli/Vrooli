@@ -88,7 +88,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *base
 		wf.Name = "adhoc"
 	}
 
-	store, params, env, artifactCfg := executionParametersToMaps(req.Parameters)
+	store, params, env, artifactCfg, projectRoot := executionParametersToMaps(req.Parameters)
 
 	execIndex := &database.ExecutionIndex{
 		ID:        executionID,
@@ -103,7 +103,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *base
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
-	s.startExecutionRunnerWithNamespaces(wf, executionID, store, params, env, artifactCfg)
+	s.startExecutionRunnerWithNamespaces(wf, executionID, store, params, env, artifactCfg, projectRoot)
 
 	if !req.WaitForCompletion {
 		return &basexecution.ExecuteAdhocResponse{

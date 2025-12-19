@@ -213,6 +213,7 @@ export default function App() {
               onCreateTask={tasks.createTask}
               onCancelTask={tasks.cancelTask}
               onCreateRun={runs.createRun}
+              onCreateProfile={profiles.createProfile}
               onRefresh={tasks.refetch}
             />
           </TabsContent>
