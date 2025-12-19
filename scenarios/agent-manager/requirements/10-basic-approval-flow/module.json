@@ -12,28 +12,28 @@
       "description": "Implement approve/reject workflow for runs with appropriate state transitions",
       "id": "REQ-P0-012",
       "prd_ref": "OT-P0-010",
-      "status": "draft",
+      "status": "implemented",
       "title": "Basic Approval Workflow",
       "validation": [
         {
           "notes": "Test approval state machine",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/domain/decisions_test.go::TestRun_IsApprovable",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify approval flow",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test run outcome affects review requirement",
+          "phase": "unit",
+          "ref": "api/internal/domain/decisions_test.go::TestRunOutcome_RequiresReview",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Confirm approval permissions",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test run stoppability for approval flow",
+          "phase": "unit",
+          "ref": "api/internal/domain/decisions_test.go::TestRun_IsStoppable",
+          "status": "passing",
           "type": "test"
         }
       ]

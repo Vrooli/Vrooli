@@ -9,35 +9,35 @@
       "description": "Implement REST API endpoint for creating tasks with required metadata and validation",
       "id": "REQ-P0-003",
       "prd_ref": "OT-P0-002",
-      "status": "draft",
+      "status": "implemented",
       "title": "Task Creation API",
       "validation": [
         {
           "notes": "Test task creation with valid payload",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestCreateTask_Success",
+          "status": "passing",
           "type": "test"
         },
         {
           "notes": "Verify validation errors for invalid data",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestCreateTask_ValidationError",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "End-to-end task creation flow",
+          "notes": "Test task retrieval by ID",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestGetTask_Success",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify task appears in management views",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test listing tasks",
+          "phase": "integration",
+          "ref": "api/internal/handlers/handlers_test.go::TestListTasks",
+          "status": "passing",
           "type": "test"
         }
       ]
@@ -50,35 +50,28 @@
       "description": "System must track and persist task status changes with timestamps",
       "id": "REQ-P0-004",
       "prd_ref": "OT-P0-002",
-      "status": "draft",
+      "status": "implemented",
       "title": "Task Status Updates",
       "validation": [
         {
-          "notes": "Test status transition rules",
+          "notes": "Test task cancellation (status transition)",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestCancelTask_Success",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify timestamp accuracy",
+          "notes": "Test orchestrator-level task CRUD and status",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_TaskCRUD",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify status history logging",
+          "notes": "Verify repository-level task operations",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Confirm status visibility in UI",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/repository/memory_test.go::TestMemoryTaskRepository_CRUD",
+          "status": "passing",
           "type": "test"
         }
       ]

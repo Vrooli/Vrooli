@@ -104,18 +104,18 @@ export function DashboardPage({
             {/* Sandbox Status */}
             <HealthItem
               name="Workspace Sandbox"
-              available={health?.sandbox?.available ?? false}
-              message={health?.sandbox?.message}
+              available={health?.dependencies?.sandbox?.connected ?? false}
+              message={health?.dependencies?.sandbox?.error}
             />
 
             {/* Runner Status */}
-            {health?.runners &&
-              Object.entries(health.runners).map(([name, runner]) => (
+            {health?.dependencies?.runners &&
+              Object.entries(health.dependencies.runners).map(([name, runner]) => (
                 <HealthItem
                   key={name}
-                  name={name.replace("-", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                  available={runner.available}
-                  capabilities={runner.capabilities}
+                  name={formatRunnerName(name)}
+                  available={runner.connected}
+                  message={runner.error}
                 />
               ))}
 
@@ -231,22 +231,22 @@ function StatusCard({
   );
 }
 
+// Format runner name for display (e.g., "claude-code" -> "Claude Code")
+function formatRunnerName(name: string): string {
+  return name
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 function HealthItem({
   name,
   available,
   message,
-  capabilities,
 }: {
   name: string;
   available: boolean;
   message?: string;
-  capabilities?: {
-    SupportsMessages: boolean;
-    SupportsToolEvents: boolean;
-    SupportsCostTracking: boolean;
-    SupportsStreaming: boolean;
-    SupportsCancellation: boolean;
-  };
 }) {
   return (
     <div className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3">
@@ -258,19 +258,10 @@ function HealthItem({
         )}
         <div>
           <p className="font-medium">{name}</p>
-          {message && <p className="text-xs text-muted-foreground">{message}</p>}
-          {capabilities && (
-            <div className="flex gap-1 mt-1 flex-wrap">
-              {capabilities.SupportsMessages && (
-                <Badge variant="outline" className="text-[10px] px-1 py-0">Messages</Badge>
-              )}
-              {capabilities.SupportsToolEvents && (
-                <Badge variant="outline" className="text-[10px] px-1 py-0">Tools</Badge>
-              )}
-              {capabilities.SupportsStreaming && (
-                <Badge variant="outline" className="text-[10px] px-1 py-0">Streaming</Badge>
-              )}
-            </div>
+          {message && (
+            <p className="text-xs text-muted-foreground max-w-md truncate" title={message}>
+              {message}
+            </p>
           )}
         </div>
       </div>

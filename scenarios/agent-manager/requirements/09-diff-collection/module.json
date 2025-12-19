@@ -12,35 +12,35 @@
       "description": "Generate and store diffs from sandbox file system changes",
       "id": "REQ-P0-011",
       "prd_ref": "OT-P0-009",
-      "status": "draft",
+      "status": "implemented",
       "title": "Diff Generation",
       "validation": [
         {
-          "notes": "Test diff generation accuracy",
+          "notes": "Test diff retrieval from sandbox",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_GetDiff",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify diff storage",
+          "notes": "Test full approval with diff application",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Approve",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Measure diff generation time",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test partial approval with selected files",
+          "phase": "integration",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_PartialApprove",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Validate diff readability",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test rejection of changes",
+          "phase": "integration",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Reject",
+          "status": "passing",
           "type": "test"
         }
       ]

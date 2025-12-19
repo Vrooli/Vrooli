@@ -1,23 +1,15 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { resolveApiBase } from "@vrooli/api-base";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export function getApiBaseUrl(): string {
-  // Check for environment variable first
-  if (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-
-  // Default to same origin with /api/v1 prefix
-  if (typeof window !== "undefined") {
-    const port = (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_PORT) || "15425";
-    return "http://localhost:" + port + "/api/v1";
-  }
-
-  return "http://localhost:15425/api/v1";
+  // Use api-base resolution which handles localhost/proxy scenarios correctly
+  // The UI server proxies /api/* to the actual API server
+  return resolveApiBase({ appendSuffix: true });
 }
 
 export function formatDate(date: string | Date | undefined): string {

@@ -7,11 +7,14 @@ import {
   ClipboardList,
   Play,
   Settings2,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { useHealth, useProfiles, useRuns, useTasks } from "./hooks/useApi";
+import { useWebSocket, WebSocketMessage } from "./hooks/useWebSocket";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ProfilesPage } from "./pages/ProfilesPage";
 import { TasksPage } from "./pages/TasksPage";
@@ -23,6 +26,35 @@ export default function App() {
   const profiles = useProfiles();
   const tasks = useTasks();
   const runs = useRuns();
+
+  // WebSocket connection for real-time updates
+  const handleWebSocketMessage = useCallback(
+    (message: WebSocketMessage) => {
+      console.log("[WS] Received:", message.type);
+
+      switch (message.type) {
+        case "run_event":
+        case "run_status":
+          // Refresh runs when we receive run updates
+          runs.refetch();
+          break;
+        case "task_status":
+          // Refresh tasks when we receive task updates
+          tasks.refetch();
+          break;
+        case "connected":
+          // Subscribe to all events on connect
+          ws.subscribeAll();
+          break;
+      }
+    },
+    [runs, tasks]
+  );
+
+  const ws = useWebSocket({
+    enabled: true,
+    onMessage: handleWebSocketMessage,
+  });
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
@@ -56,6 +88,19 @@ export default function App() {
                     <AlertCircle className="h-3 w-3" />
                   )}
                   {isHealthy ? "Healthy" : "Degraded"}
+                </Badge>
+                <Badge
+                  variant={ws.status === "connected" ? "success" : ws.status === "connecting" ? "secondary" : "outline"}
+                  className="gap-1 cursor-pointer"
+                  onClick={() => ws.status !== "connected" && ws.reconnect()}
+                  title={ws.status === "connected" ? "WebSocket connected" : "Click to reconnect"}
+                >
+                  {ws.status === "connected" ? (
+                    <Wifi className="h-3 w-3" />
+                  ) : (
+                    <WifiOff className="h-3 w-3" />
+                  )}
+                  {ws.status === "connected" ? "Live" : ws.status === "connecting" ? "Connecting..." : "Offline"}
                 </Badge>
               </div>
               <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">

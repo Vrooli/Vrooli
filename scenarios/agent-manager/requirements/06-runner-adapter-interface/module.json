@@ -9,35 +9,42 @@
       "description": "Define standard interface that all runner implementations must implement",
       "id": "REQ-P0-008",
       "prd_ref": "OT-P0-006",
-      "status": "draft",
+      "status": "implemented",
       "title": "Runner Adapter Interface Definition",
       "validation": [
         {
-          "notes": "Verify interface completeness",
+          "notes": "Test runner registry registration",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/adapters/runner/registry_test.go::TestDefaultRegistry_Register",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test with mock implementation",
+          "notes": "Test duplicate runner registration handling",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/adapters/runner/registry_test.go::TestDefaultRegistry_Register_Duplicate",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Validate with real runner",
+          "notes": "Test mock runner interface compliance",
+          "phase": "unit",
+          "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Defaults",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test stub runner for unavailable runners",
+          "phase": "unit",
+          "ref": "api/internal/adapters/runner/registry_test.go::TestStubRunner",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Verify runner status API endpoint",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Confirm interface meets runner needs",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestGetRunnerStatus",
+          "status": "passing",
           "type": "test"
         }
       ]

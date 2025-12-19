@@ -12,35 +12,35 @@
       "description": "Track and update run status through defined lifecycle states with timestamps",
       "id": "REQ-P0-006",
       "prd_ref": "OT-P0-004",
-      "status": "draft",
+      "status": "implemented",
       "title": "Run Status Lifecycle",
       "validation": [
         {
-          "notes": "Test status transitions",
+          "notes": "Test run status transitions",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/domain/decisions_test.go::TestRunStatus_CanTransitionTo",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify timestamp tracking",
+          "notes": "Test run stoppability based on status",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/domain/decisions_test.go::TestRun_IsStoppable",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify status updates propagate correctly",
+          "notes": "Test run outcome classification",
+          "phase": "unit",
+          "ref": "api/internal/domain/decisions_test.go::TestClassifyRunOutcome",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Verify run listing reflects status",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Confirm status visibility",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestListRuns",
+          "status": "passing",
           "type": "test"
         }
       ]

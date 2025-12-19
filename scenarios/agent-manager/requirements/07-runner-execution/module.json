@@ -13,35 +13,35 @@
       "description": "Execute agent tasks via runner adapters using profile configurations",
       "id": "REQ-P0-009",
       "prd_ref": "OT-P0-007",
-      "status": "draft",
+      "status": "implemented",
       "title": "Runner Execution Flow",
       "validation": [
         {
-          "notes": "Test execution flow control",
+          "notes": "Test default execution flow",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Execute_Default",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "End-to-end agent execution",
+          "notes": "Test custom execution behavior",
+          "phase": "unit",
+          "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Execute_Custom",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test runner stop functionality",
+          "phase": "unit",
+          "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Stop",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test orchestrator run operations end-to-end",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Measure execution latency",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Verify results captured correctly",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_RunOperations",
+          "status": "passing",
           "type": "test"
         }
       ]

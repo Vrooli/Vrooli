@@ -9,35 +9,49 @@
       "description": "Implement append-only event stream for capturing all run activities",
       "id": "REQ-P0-010",
       "prd_ref": "OT-P0-008",
-      "status": "draft",
+      "status": "implemented",
       "title": "Event Stream Implementation",
       "validation": [
         {
-          "notes": "Test event persistence",
+          "notes": "Test event append and persistence",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Append",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify event ordering",
+          "notes": "Test multiple event append with ordering",
+          "phase": "unit",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Append_MultipleEvents",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test event filtering by type",
+          "phase": "unit",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Get_WithFilters",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test event ordering with AfterSequence",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Get_AfterSequence",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test high-volume event handling",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test event streaming",
+          "phase": "integration",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_Stream",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Confirm event completeness",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test run isolation for events",
+          "phase": "integration",
+          "ref": "api/internal/adapters/event/memory_test.go::TestMemoryStore_IsolatesByRunID",
+          "status": "passing",
           "type": "test"
         }
       ]

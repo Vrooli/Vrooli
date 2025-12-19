@@ -1105,9 +1105,22 @@ type StepOutcome struct {
 	Notes map[string]string `protobuf:"bytes,30,rep,name=notes,proto3" json:"notes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// === FAILURE ===
 	// Failure details when success=false.
-	Failure       *StepFailure `protobuf:"bytes,31,opt,name=failure,proto3,oneof" json:"failure,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Failure *StepFailure `protobuf:"bytes,31,opt,name=failure,proto3,oneof" json:"failure,omitempty"`
+	// === ELEMENT CONTEXT ===
+	// Element targeting context captured BEFORE action execution.
+	// These fields provide recording-quality telemetry for executed actions.
+	//
+	// Element metadata snapshot (tag, id, class, aria attributes).
+	// Captured before the action executes, providing "before" state.
+	ElementSnapshot *domain.ElementMeta `protobuf:"bytes,32,opt,name=element_snapshot,json=elementSnapshot,proto3,oneof" json:"element_snapshot,omitempty"`
+	// The selector that was used to find the element.
+	UsedSelector *string `protobuf:"bytes,33,opt,name=used_selector,json=usedSelector,proto3,oneof" json:"used_selector,omitempty"`
+	// Match confidence: 1.0 = unique match, lower = ambiguous (multiple matches).
+	SelectorConfidence *float64 `protobuf:"fixed64,34,opt,name=selector_confidence,json=selectorConfidence,proto3,oneof" json:"selector_confidence,omitempty"`
+	// Number of elements that matched the selector.
+	SelectorMatchCount *int32 `protobuf:"varint,35,opt,name=selector_match_count,json=selectorMatchCount,proto3,oneof" json:"selector_match_count,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *StepOutcome) Reset() {
@@ -1355,6 +1368,34 @@ func (x *StepOutcome) GetFailure() *StepFailure {
 		return x.Failure
 	}
 	return nil
+}
+
+func (x *StepOutcome) GetElementSnapshot() *domain.ElementMeta {
+	if x != nil {
+		return x.ElementSnapshot
+	}
+	return nil
+}
+
+func (x *StepOutcome) GetUsedSelector() string {
+	if x != nil && x.UsedSelector != nil {
+		return *x.UsedSelector
+	}
+	return ""
+}
+
+func (x *StepOutcome) GetSelectorConfidence() float64 {
+	if x != nil && x.SelectorConfidence != nil {
+		return *x.SelectorConfidence
+	}
+	return 0
+}
+
+func (x *StepOutcome) GetSelectorMatchCount() int32 {
+	if x != nil && x.SelectorMatchCount != nil {
+		return *x.SelectorMatchCount
+	}
+	return 0
 }
 
 // CompiledInstruction is sent TO the driver to execute a single action.
@@ -2008,7 +2049,7 @@ const file_browser_automation_studio_v1_execution_driver_proto_rawDesc = "" +
 	"\t_expectedB\t\n" +
 	"\a_actualB\n" +
 	"\n" +
-	"\b_message\"\x91\x13\n" +
+	"\b_message\"\xdb\x15\n" +
 	"\vStepOutcome\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12'\n" +
 	"\x0fpayload_version\x18\x02 \x01(\tR\x0epayloadVersion\x12&\n" +
@@ -2048,7 +2089,11 @@ const file_browser_automation_studio_v1_execution_driver_proto_rawDesc = "" +
 	"zoomFactor\x88\x01\x01\x12O\n" +
 	"\fcursor_trail\x18\x1d \x03(\v2,.browser_automation_studio.v1.CursorPositionR\vcursorTrail\x12J\n" +
 	"\x05notes\x18\x1e \x03(\v24.browser_automation_studio.v1.StepOutcome.NotesEntryR\x05notes\x12H\n" +
-	"\afailure\x18\x1f \x01(\v2).browser_automation_studio.v1.StepFailureH\x0eR\afailure\x88\x01\x01\x1aV\n" +
+	"\afailure\x18\x1f \x01(\v2).browser_automation_studio.v1.StepFailureH\x0eR\afailure\x88\x01\x01\x12Y\n" +
+	"\x10element_snapshot\x18  \x01(\v2).browser_automation_studio.v1.ElementMetaH\x0fR\x0felementSnapshot\x88\x01\x01\x12(\n" +
+	"\rused_selector\x18! \x01(\tH\x10R\fusedSelector\x88\x01\x01\x124\n" +
+	"\x13selector_confidence\x18\" \x01(\x01H\x11R\x12selectorConfidence\x88\x01\x01\x125\n" +
+	"\x14selector_match_count\x18# \x01(\x05H\x12R\x12selectorMatchCount\x88\x01\x01\x1aV\n" +
 	"\x12ExtractedDataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aT\n" +
@@ -2077,7 +2122,11 @@ const file_browser_automation_studio_v1_execution_driver_proto_rawDesc = "" +
 	"\x10_focused_elementB\x0e\n" +
 	"\f_zoom_factorB\n" +
 	"\n" +
-	"\b_failure\"\xdf\x05\n" +
+	"\b_failureB\x13\n" +
+	"\x11_element_snapshotB\x10\n" +
+	"\x0e_used_selectorB\x16\n" +
+	"\x14_selector_confidenceB\x17\n" +
+	"\x15_selector_match_count\"\xdf\x05\n" +
 	"\x13CompiledInstruction\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x16\n" +
@@ -2222,7 +2271,8 @@ var file_browser_automation_studio_v1_execution_driver_proto_goTypes = []any{
 	(*timeline.ElementFocus)(nil),    // 34: browser_automation_studio.v1.ElementFocus
 	(*domain.HighlightRegion)(nil),   // 35: browser_automation_studio.v1.HighlightRegion
 	(*domain.MaskRegion)(nil),        // 36: browser_automation_studio.v1.MaskRegion
-	(*actions.ActionDefinition)(nil), // 37: browser_automation_studio.v1.ActionDefinition
+	(*domain.ElementMeta)(nil),       // 37: browser_automation_studio.v1.ElementMeta
+	(*actions.ActionDefinition)(nil), // 38: browser_automation_studio.v1.ActionDefinition
 }
 var file_browser_automation_studio_v1_execution_driver_proto_depIdxs = []int32{
 	0,  // 0: browser_automation_studio.v1.StepFailure.kind:type_name -> browser_automation_studio.v1.FailureKind
@@ -2259,36 +2309,37 @@ var file_browser_automation_studio_v1_execution_driver_proto_depIdxs = []int32{
 	7,  // 31: browser_automation_studio.v1.StepOutcome.cursor_trail:type_name -> browser_automation_studio.v1.CursorPosition
 	21, // 32: browser_automation_studio.v1.StepOutcome.notes:type_name -> browser_automation_studio.v1.StepOutcome.NotesEntry
 	2,  // 33: browser_automation_studio.v1.StepOutcome.failure:type_name -> browser_automation_studio.v1.StepFailure
-	22, // 34: browser_automation_studio.v1.CompiledInstruction.params:type_name -> browser_automation_studio.v1.CompiledInstruction.ParamsEntry
-	23, // 35: browser_automation_studio.v1.CompiledInstruction.context:type_name -> browser_automation_studio.v1.CompiledInstruction.ContextEntry
-	24, // 36: browser_automation_studio.v1.CompiledInstruction.metadata:type_name -> browser_automation_studio.v1.CompiledInstruction.MetadataEntry
-	37, // 37: browser_automation_studio.v1.CompiledInstruction.action:type_name -> browser_automation_studio.v1.ActionDefinition
-	25, // 38: browser_automation_studio.v1.PlanStep.params:type_name -> browser_automation_studio.v1.PlanStep.ParamsEntry
-	12, // 39: browser_automation_studio.v1.PlanStep.outgoing:type_name -> browser_automation_studio.v1.PlanEdge
-	14, // 40: browser_automation_studio.v1.PlanStep.loop:type_name -> browser_automation_studio.v1.PlanGraph
-	26, // 41: browser_automation_studio.v1.PlanStep.metadata:type_name -> browser_automation_studio.v1.PlanStep.MetadataEntry
-	27, // 42: browser_automation_studio.v1.PlanStep.context:type_name -> browser_automation_studio.v1.PlanStep.ContextEntry
-	28, // 43: browser_automation_studio.v1.PlanStep.source_position:type_name -> browser_automation_studio.v1.PlanStep.SourcePositionEntry
-	37, // 44: browser_automation_studio.v1.PlanStep.action:type_name -> browser_automation_studio.v1.ActionDefinition
-	13, // 45: browser_automation_studio.v1.PlanGraph.steps:type_name -> browser_automation_studio.v1.PlanStep
-	11, // 46: browser_automation_studio.v1.ExecutionPlan.instructions:type_name -> browser_automation_studio.v1.CompiledInstruction
-	14, // 47: browser_automation_studio.v1.ExecutionPlan.graph:type_name -> browser_automation_studio.v1.PlanGraph
-	29, // 48: browser_automation_studio.v1.ExecutionPlan.metadata:type_name -> browser_automation_studio.v1.ExecutionPlan.MetadataEntry
-	30, // 49: browser_automation_studio.v1.ExecutionPlan.created_at:type_name -> google.protobuf.Timestamp
-	32, // 50: browser_automation_studio.v1.StepFailure.DetailsEntry.value:type_name -> common.v1.JsonValue
-	32, // 51: browser_automation_studio.v1.StepOutcome.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
-	32, // 52: browser_automation_studio.v1.StepOutcome.ProbeResultEntry.value:type_name -> common.v1.JsonValue
-	32, // 53: browser_automation_studio.v1.CompiledInstruction.ParamsEntry.value:type_name -> common.v1.JsonValue
-	32, // 54: browser_automation_studio.v1.CompiledInstruction.ContextEntry.value:type_name -> common.v1.JsonValue
-	32, // 55: browser_automation_studio.v1.PlanStep.ParamsEntry.value:type_name -> common.v1.JsonValue
-	32, // 56: browser_automation_studio.v1.PlanStep.ContextEntry.value:type_name -> common.v1.JsonValue
-	32, // 57: browser_automation_studio.v1.PlanStep.SourcePositionEntry.value:type_name -> common.v1.JsonValue
-	32, // 58: browser_automation_studio.v1.ExecutionPlan.MetadataEntry.value:type_name -> common.v1.JsonValue
-	59, // [59:59] is the sub-list for method output_type
-	59, // [59:59] is the sub-list for method input_type
-	59, // [59:59] is the sub-list for extension type_name
-	59, // [59:59] is the sub-list for extension extendee
-	0,  // [0:59] is the sub-list for field type_name
+	37, // 34: browser_automation_studio.v1.StepOutcome.element_snapshot:type_name -> browser_automation_studio.v1.ElementMeta
+	22, // 35: browser_automation_studio.v1.CompiledInstruction.params:type_name -> browser_automation_studio.v1.CompiledInstruction.ParamsEntry
+	23, // 36: browser_automation_studio.v1.CompiledInstruction.context:type_name -> browser_automation_studio.v1.CompiledInstruction.ContextEntry
+	24, // 37: browser_automation_studio.v1.CompiledInstruction.metadata:type_name -> browser_automation_studio.v1.CompiledInstruction.MetadataEntry
+	38, // 38: browser_automation_studio.v1.CompiledInstruction.action:type_name -> browser_automation_studio.v1.ActionDefinition
+	25, // 39: browser_automation_studio.v1.PlanStep.params:type_name -> browser_automation_studio.v1.PlanStep.ParamsEntry
+	12, // 40: browser_automation_studio.v1.PlanStep.outgoing:type_name -> browser_automation_studio.v1.PlanEdge
+	14, // 41: browser_automation_studio.v1.PlanStep.loop:type_name -> browser_automation_studio.v1.PlanGraph
+	26, // 42: browser_automation_studio.v1.PlanStep.metadata:type_name -> browser_automation_studio.v1.PlanStep.MetadataEntry
+	27, // 43: browser_automation_studio.v1.PlanStep.context:type_name -> browser_automation_studio.v1.PlanStep.ContextEntry
+	28, // 44: browser_automation_studio.v1.PlanStep.source_position:type_name -> browser_automation_studio.v1.PlanStep.SourcePositionEntry
+	38, // 45: browser_automation_studio.v1.PlanStep.action:type_name -> browser_automation_studio.v1.ActionDefinition
+	13, // 46: browser_automation_studio.v1.PlanGraph.steps:type_name -> browser_automation_studio.v1.PlanStep
+	11, // 47: browser_automation_studio.v1.ExecutionPlan.instructions:type_name -> browser_automation_studio.v1.CompiledInstruction
+	14, // 48: browser_automation_studio.v1.ExecutionPlan.graph:type_name -> browser_automation_studio.v1.PlanGraph
+	29, // 49: browser_automation_studio.v1.ExecutionPlan.metadata:type_name -> browser_automation_studio.v1.ExecutionPlan.MetadataEntry
+	30, // 50: browser_automation_studio.v1.ExecutionPlan.created_at:type_name -> google.protobuf.Timestamp
+	32, // 51: browser_automation_studio.v1.StepFailure.DetailsEntry.value:type_name -> common.v1.JsonValue
+	32, // 52: browser_automation_studio.v1.StepOutcome.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
+	32, // 53: browser_automation_studio.v1.StepOutcome.ProbeResultEntry.value:type_name -> common.v1.JsonValue
+	32, // 54: browser_automation_studio.v1.CompiledInstruction.ParamsEntry.value:type_name -> common.v1.JsonValue
+	32, // 55: browser_automation_studio.v1.CompiledInstruction.ContextEntry.value:type_name -> common.v1.JsonValue
+	32, // 56: browser_automation_studio.v1.PlanStep.ParamsEntry.value:type_name -> common.v1.JsonValue
+	32, // 57: browser_automation_studio.v1.PlanStep.ContextEntry.value:type_name -> common.v1.JsonValue
+	32, // 58: browser_automation_studio.v1.PlanStep.SourcePositionEntry.value:type_name -> common.v1.JsonValue
+	32, // 59: browser_automation_studio.v1.ExecutionPlan.MetadataEntry.value:type_name -> common.v1.JsonValue
+	60, // [60:60] is the sub-list for method output_type
+	60, // [60:60] is the sub-list for method input_type
+	60, // [60:60] is the sub-list for extension type_name
+	60, // [60:60] is the sub-list for extension extendee
+	0,  // [0:60] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_execution_driver_proto_init() }

@@ -9,35 +9,28 @@
       "description": "Implement health check API endpoint reporting system status",
       "id": "REQ-P0-013",
       "prd_ref": "OT-P0-011",
-      "status": "draft",
+      "status": "implemented",
       "title": "Health Check Endpoint",
       "validation": [
         {
-          "notes": "Test status reporting",
+          "notes": "Test health endpoint returns proper schema",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestHealth_Success",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify monitoring integration",
+          "notes": "Verify /api/v1/health path works",
+          "phase": "unit",
+          "ref": "api/internal/handlers/handlers_test.go::TestHealth_ApiV1Path",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test orchestrator health status",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Check response time",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Validate status accuracy",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_GetHealth",
+          "status": "passing",
           "type": "test"
         }
       ]

@@ -9,42 +9,42 @@
       "description": "Integrate with workspace-sandbox API to create and manage sandboxed environments",
       "id": "REQ-P0-007",
       "prd_ref": "OT-P0-005",
-      "status": "draft",
+      "status": "implemented",
       "title": "Sandbox Creation Integration",
       "validation": [
         {
-          "notes": "Test sandbox client implementation",
+          "notes": "Test sandbox client create operation",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Create",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify sandbox creation",
+          "notes": "Test sandbox client get operation",
+          "phase": "unit",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Get",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test sandbox not found handling",
+          "phase": "unit",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Get_NotFound",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test sandbox cleanup/deletion",
+          "phase": "unit",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Delete",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test sandbox availability check",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Test sandbox cleanup",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Measure sandbox provisioning time",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Validate sandbox isolation",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_IsAvailable",
+          "status": "passing",
           "type": "test"
         }
       ]

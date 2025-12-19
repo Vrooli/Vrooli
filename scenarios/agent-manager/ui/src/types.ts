@@ -198,20 +198,21 @@ export interface DiffStats {
 // API response types
 export interface HealthStatus {
   status: "healthy" | "degraded" | "unhealthy";
-  sandbox?: {
-    available: boolean;
-    message?: string;
-  };
-  runners?: Record<string, {
-    available: boolean;
-    capabilities?: {
-      SupportsMessages: boolean;
-      SupportsToolEvents: boolean;
-      SupportsCostTracking: boolean;
-      SupportsStreaming: boolean;
-      SupportsCancellation: boolean;
+  service: string;
+  timestamp: string;
+  readiness: boolean;
+  dependencies: {
+    sandbox: {
+      connected: boolean;
+      error?: string;
     };
-  }>;
+    runners: Record<string, {
+      connected: boolean;
+      error?: string;
+    }>;
+  };
+  activeRuns: number;
+  queuedTasks: number;
 }
 
 export interface RunnerStatus {

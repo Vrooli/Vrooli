@@ -370,6 +370,20 @@ message StepOutcome {
   // === FAILURE ===
   // Failure details when success=false.
   optional StepFailure failure = 31;
+
+  // === ELEMENT CONTEXT ===
+  // Element targeting context captured BEFORE action execution.
+  // These fields provide recording-quality telemetry for executed actions.
+  //
+  // Element metadata snapshot (tag, id, class, aria attributes).
+  // Captured before the action executes, providing "before" state.
+  optional ElementMeta element_snapshot = 32;
+  // The selector that was used to find the element.
+  optional string used_selector = 33;
+  // Match confidence: 1.0 = unique match, lower = ambiguous (multiple matches).
+  optional double selector_confidence = 34;
+  // Number of elements that matched the selector.
+  optional int32 selector_match_count = 35;
 }
 
 // =============================================================================

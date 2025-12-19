@@ -13,42 +13,35 @@
       "description": "Enable creation of runs with sandbox allocation and execution mode selection",
       "id": "REQ-P0-005",
       "prd_ref": "OT-P0-003",
-      "status": "draft",
+      "status": "implemented",
       "title": "Run Creation Flow",
       "validation": [
         {
-          "notes": "Test run creation parameters",
+          "notes": "Test run creation with valid parameters",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestCreateRun_Success",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify mode validation",
+          "notes": "Test orchestrator-level run operations",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_RunOperations",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "End-to-end run creation with sandbox",
+          "notes": "Test listing runs",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/handlers/handlers_test.go::TestListRuns",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Run creation under load",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Verify run appears in task context",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Verify repository-level run operations",
+          "phase": "integration",
+          "ref": "api/internal/repository/memory_test.go::TestMemoryRunRepository_CRUD",
+          "status": "passing",
           "type": "test"
         }
       ]
