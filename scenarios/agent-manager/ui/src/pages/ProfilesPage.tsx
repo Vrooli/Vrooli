@@ -7,11 +7,19 @@ import {
   RefreshCw,
   Settings2,
   Trash2,
-  X,
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { ScrollArea } from "../components/ui/scroll-area";
@@ -140,26 +148,21 @@ export function ProfilesPage({
         </Card>
       )}
 
-      {/* Create/Edit Form */}
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>
-                {editingProfile ? "Edit Profile" : "Create New Profile"}
-              </CardTitle>
-              <Button variant="ghost" size="icon" onClick={resetForm}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <CardDescription>
+      {/* Create/Edit Profile Modal */}
+      <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
+        <DialogContent>
+          <DialogHeader onClose={resetForm}>
+            <DialogTitle>
+              {editingProfile ? "Edit Profile" : "Create New Profile"}
+            </DialogTitle>
+            <DialogDescription>
               {editingProfile
                 ? "Update the agent profile configuration"
                 : "Define how the agent should execute tasks"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <DialogBody className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name *</Label>
@@ -259,23 +262,22 @@ export function ProfilesPage({
                   <span className="text-sm">Require Approval</span>
                 </label>
               </div>
-
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={resetForm}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting
-                    ? "Saving..."
-                    : editingProfile
-                    ? "Update Profile"
-                    : "Create Profile"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+            </DialogBody>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting
+                  ? "Saving..."
+                  : editingProfile
+                  ? "Update Profile"
+                  : "Create Profile"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Profiles List */}
       {loading ? (

@@ -6,17 +6,25 @@ import {
   Play,
   Plus,
   RefreshCw,
-  X,
   XCircle,
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Textarea } from "../components/ui/textarea";
-import { formatDate, formatRelativeTime } from "../lib/utils";
+import { formatRelativeTime } from "../lib/utils";
 import type { AgentProfile, CreateRunRequest, CreateTaskRequest, Run, Task } from "../types";
 
 interface TasksPageProps {
@@ -135,22 +143,17 @@ export function TasksPage({
         </Card>
       )}
 
-      {/* Create Task Form */}
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Create New Task</CardTitle>
-              <Button variant="ghost" size="icon" onClick={resetForm}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <CardDescription>
+      {/* Create Task Modal */}
+      <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
+        <DialogContent>
+          <DialogHeader onClose={resetForm}>
+            <DialogTitle>Create New Task</DialogTitle>
+            <DialogDescription>
               Define the work that an agent should perform
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <DialogBody className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title *</Label>
                 <Input
@@ -205,78 +208,80 @@ export function TasksPage({
                   />
                 </div>
               </div>
-
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={resetForm}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? "Creating..." : "Create Task"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Start Run Dialog */}
-      {showRunDialog && (
-        <Card className="border-primary/50">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Start Run</CardTitle>
-              <Button variant="ghost" size="icon" onClick={() => setShowRunDialog(null)}>
-                <X className="h-4 w-4" />
+            </DialogBody>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Cancel
               </Button>
-            </div>
-            <CardDescription>
-              Select an agent profile to execute: {showRunDialog.title}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Creating..." : "Create Task"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Start Run Modal */}
+      <Dialog
+        open={showRunDialog !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowRunDialog(null);
+            setSelectedProfileId("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader onClose={() => setShowRunDialog(null)}>
+            <DialogTitle>Start Run</DialogTitle>
+            <DialogDescription>
+              Select an agent profile to execute: {showRunDialog?.title}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
             {profiles.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No agent profiles available. Create a profile first.
               </p>
             ) : (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="profile">Agent Profile *</Label>
-                  <select
-                    id="profile"
-                    value={selectedProfileId}
-                    onChange={(e) => setSelectedProfileId(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Select a profile...</option>
-                    {profiles.map((profile) => (
-                      <option key={profile.id} value={profile.id}>
-                        {profile.name} ({profile.runnerType})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowRunDialog(null)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleStartRun}
-                    disabled={!selectedProfileId || submitting}
-                    className="gap-2"
-                  >
-                    <Play className="h-4 w-4" />
-                    {submitting ? "Starting..." : "Start Run"}
-                  </Button>
-                </div>
-              </>
+              <div className="space-y-2">
+                <Label htmlFor="profile">Agent Profile *</Label>
+                <select
+                  id="profile"
+                  value={selectedProfileId}
+                  onChange={(e) => setSelectedProfileId(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select a profile...</option>
+                  {profiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name} ({profile.runnerType})
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowRunDialog(null)}
+            >
+              Cancel
+            </Button>
+            {profiles.length > 0 && (
+              <Button
+                onClick={handleStartRun}
+                disabled={!selectedProfileId || submitting}
+                className="gap-2"
+              >
+                <Play className="h-4 w-4" />
+                {submitting ? "Starting..." : "Start Run"}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Tasks List */}
       {loading ? (

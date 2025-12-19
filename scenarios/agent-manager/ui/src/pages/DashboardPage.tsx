@@ -1,9 +1,12 @@
+import { useState } from "react";
 import {
   Activity,
   AlertCircle,
   Bot,
   CheckCircle2,
   Clock,
+  Copy,
+  Check,
   RefreshCw,
   Server,
   Shield,
@@ -248,24 +251,51 @@ function HealthItem({
   available: boolean;
   message?: string;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!message) return;
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
   return (
     <div className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         {available ? (
-          <CheckCircle2 className="h-5 w-5 text-success" />
+          <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
         ) : (
-          <XCircle className="h-5 w-5 text-destructive" />
+          <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
         )}
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="font-medium">{name}</p>
           {message && (
-            <p className="text-xs text-muted-foreground max-w-md truncate" title={message}>
-              {message}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground max-w-md truncate" title={message}>
+                {message}
+              </p>
+              <button
+                onClick={handleCopy}
+                className="flex-shrink-0 p-1 rounded hover:bg-muted transition-colors"
+                title="Copy full error message"
+                aria-label="Copy error message"
+              >
+                {copied ? (
+                  <Check className="h-3 w-3 text-success" />
+                ) : (
+                  <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>
-      <Badge variant={available ? "success" : "destructive"}>
+      <Badge variant={available ? "success" : "destructive"} className="flex-shrink-0 ml-2">
         {available ? "Available" : "Unavailable"}
       </Badge>
     </div>
