@@ -8,6 +8,7 @@ import {
   Copy,
   Check,
   Loader2,
+  Play,
   RefreshCw,
   Server,
   Shield,
@@ -18,16 +19,21 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { ScrollArea } from "../components/ui/scroll-area";
+import { QuickRunDialog } from "../components/QuickRunDialog";
 import { probeRunner } from "../hooks/useApi";
 import { formatRelativeTime } from "../lib/utils";
-import type { AgentProfile, HealthStatus, ProbeResult, Run, RunnerType, Task } from "../types";
+import type { AgentProfile, CreateRunRequest, CreateTaskRequest, HealthStatus, ProbeResult, Run, RunnerStatus, RunnerType, Task } from "../types";
 
 interface DashboardPageProps {
   health: HealthStatus | null;
   profiles: AgentProfile[];
   tasks: Task[];
   runs: Run[];
+  runners?: Record<string, RunnerStatus>;
   onRefresh: () => void;
+  onCreateTask: (task: CreateTaskRequest) => Promise<Task>;
+  onCreateRun: (run: CreateRunRequest) => Promise<Run>;
+  onRunCreated?: (run: Run) => void;
 }
 
 export function DashboardPage({
@@ -35,8 +41,13 @@ export function DashboardPage({
   profiles,
   tasks,
   runs,
+  runners,
   onRefresh,
+  onCreateTask,
+  onCreateRun,
+  onRunCreated,
 }: DashboardPageProps) {
+  const [showQuickRun, setShowQuickRun] = useState(false);
   const activeRuns = runs.filter(
     (r) => r.status === "running" || r.status === "starting"
   );
@@ -55,11 +66,28 @@ export function DashboardPage({
             Overview of agent orchestration system status
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={onRefresh} className="gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onRefresh} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+          <Button size="sm" onClick={() => setShowQuickRun(true)} className="gap-2">
+            <Play className="h-4 w-4" />
+            Quick Run
+          </Button>
+        </div>
       </div>
+
+      {/* Quick Run Dialog */}
+      <QuickRunDialog
+        open={showQuickRun}
+        onOpenChange={setShowQuickRun}
+        profiles={profiles}
+        runners={runners}
+        onCreateTask={onCreateTask}
+        onCreateRun={onCreateRun}
+        onRunCreated={onRunCreated}
+      />
 
       {/* Status Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

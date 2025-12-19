@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Play,
   RefreshCw,
+  RotateCcw,
   Square,
   Terminal,
   Wrench,
@@ -35,6 +36,7 @@ import type {
   RunEvent,
   Task,
 } from "../types";
+import type { MessageHandler, WebSocketMessage } from "../hooks/useWebSocket";
 
 interface RunsPageProps {
   runs: Run[];
@@ -43,11 +45,16 @@ interface RunsPageProps {
   loading: boolean;
   error: string | null;
   onStopRun: (id: string) => Promise<void>;
+  onRetryRun: (run: Run) => Promise<Run>;
   onGetEvents: (id: string) => Promise<RunEvent[]>;
   onGetDiff: (id: string) => Promise<DiffResult>;
   onApproveRun: (id: string, req: ApproveRequest) => Promise<ApprovalResult>;
   onRejectRun: (id: string, req: RejectRequest) => Promise<void>;
   onRefresh: () => void;
+  wsSubscribe: (runId: string) => void;
+  wsUnsubscribe: (runId: string) => void;
+  wsAddMessageHandler: (handler: MessageHandler) => void;
+  wsRemoveMessageHandler: (handler: MessageHandler) => void;
 }
 
 export function RunsPage({
@@ -57,11 +64,16 @@ export function RunsPage({
   loading,
   error,
   onStopRun,
+  onRetryRun,
   onGetEvents,
   onGetDiff,
   onApproveRun,
   onRejectRun,
   onRefresh,
+  wsSubscribe,
+  wsUnsubscribe,
+  wsAddMessageHandler,
+  wsRemoveMessageHandler,
 }: RunsPageProps) {
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [events, setEvents] = useState<RunEvent[]>([]);
@@ -72,6 +84,54 @@ export function RunsPage({
   const [approvalForm, setApprovalForm] = useState({ actor: "", commitMsg: "" });
   const [rejectForm, setRejectForm] = useState({ actor: "", reason: "" });
   const [submitting, setSubmitting] = useState(false);
+
+  // Subscribe to WebSocket events for the selected run
+  useEffect(() => {
+    if (!selectedRun) return;
+
+    // Subscribe to this specific run's events
+    wsSubscribe(selectedRun.id);
+
+    return () => {
+      // Unsubscribe when run is deselected or component unmounts
+      wsUnsubscribe(selectedRun.id);
+    };
+  }, [selectedRun?.id, wsSubscribe, wsUnsubscribe]);
+
+  // Handle WebSocket messages for real-time updates
+  useEffect(() => {
+    const handleMessage: MessageHandler = (message: WebSocketMessage) => {
+      // Only handle messages for the selected run
+      if (!selectedRun || message.runId !== selectedRun.id) return;
+
+      switch (message.type) {
+        case "run_event": {
+          // Append new event to the list
+          const newEvent = message.payload as RunEvent;
+          setEvents((prev) => {
+            // Avoid duplicates by checking sequence number
+            if (prev.some((e) => e.id === newEvent.id || e.sequence === newEvent.sequence)) {
+              return prev;
+            }
+            return [...prev, newEvent];
+          });
+          break;
+        }
+        case "run_status": {
+          // Update the selected run's status
+          const statusUpdate = message.payload as Partial<Run>;
+          setSelectedRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
+          break;
+        }
+      }
+    };
+
+    wsAddMessageHandler(handleMessage);
+
+    return () => {
+      wsRemoveMessageHandler(handleMessage);
+    };
+  }, [selectedRun?.id, wsAddMessageHandler, wsRemoveMessageHandler]);
 
   const loadRunDetails = useCallback(
     async (run: Run) => {
@@ -110,26 +170,19 @@ export function RunsPage({
     [onGetEvents, onGetDiff]
   );
 
-  // Auto-refresh events for running runs
+  // Note: Real-time updates are handled via WebSocket subscription above.
+  // HTTP polling has been removed in favor of WebSocket-based updates.
+
+  // Sync selectedRun with the runs list when it updates
   useEffect(() => {
-    if (
-      !selectedRun ||
-      (selectedRun.status !== "running" && selectedRun.status !== "starting")
-    ) {
-      return;
+    if (!selectedRun) return;
+
+    const updatedRun = runs.find((r) => r.id === selectedRun.id);
+    if (updatedRun && updatedRun !== selectedRun) {
+      // Update selectedRun with latest data from the runs list
+      setSelectedRun(updatedRun);
     }
-
-    const interval = setInterval(async () => {
-      try {
-        const evts = await onGetEvents(selectedRun.id);
-        setEvents(evts || []);
-      } catch (err) {
-        console.error("Failed to refresh events:", err);
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [selectedRun, onGetEvents]);
+  }, [runs, selectedRun]);
 
   const handleStop = async (runId: string) => {
     if (!confirm("Are you sure you want to stop this run?")) return;
@@ -315,17 +368,33 @@ export function RunsPage({
                     <h3 className="font-semibold">
                       {getTaskTitle(selectedRun.taskId)}
                     </h3>
-                    <Badge
-                      variant={
-                        selectedRun.status as
-                          | "running"
-                          | "complete"
-                          | "failed"
-                          | "pending"
-                      }
-                    >
-                      {selectedRun.status.replace("_", " ")}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={
+                          selectedRun.status as
+                            | "running"
+                            | "complete"
+                            | "failed"
+                            | "pending"
+                        }
+                      >
+                        {selectedRun.status.replace("_", " ")}
+                      </Badge>
+                      {["failed", "cancelled", "complete", "approved", "rejected"].includes(selectedRun.status) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            const newRun = await onRetryRun(selectedRun);
+                            loadRunDetails(newRun);
+                          }}
+                          className="gap-1"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Re-run
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>

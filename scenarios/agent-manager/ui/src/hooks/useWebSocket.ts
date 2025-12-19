@@ -13,6 +13,8 @@ export interface WebSocketMessage {
   runId?: string;
 }
 
+export type MessageHandler = (message: WebSocketMessage) => void;
+
 interface UseWebSocketOptions {
   enabled?: boolean;
   reconnectInterval?: number;
@@ -30,6 +32,8 @@ interface UseWebSocketReturn {
   subscribeAll: () => void;
   unsubscribeAll: () => void;
   reconnect: () => void;
+  addMessageHandler: (handler: MessageHandler) => void;
+  removeMessageHandler: (handler: MessageHandler) => void;
 }
 
 export function useWebSocket(
@@ -51,6 +55,7 @@ export function useWebSocket(
   const reconnectAttemptsRef = useRef(0);
   const onMessageRef = useRef(onMessage);
   const onStatusChangeRef = useRef(onStatusChange);
+  const messageHandlersRef = useRef<Set<MessageHandler>>(new Set());
 
   // Keep refs fresh
   useEffect(() => {
@@ -60,6 +65,14 @@ export function useWebSocket(
   useEffect(() => {
     onStatusChangeRef.current = onStatusChange;
   }, [onStatusChange]);
+
+  const addMessageHandler = useCallback((handler: MessageHandler) => {
+    messageHandlersRef.current.add(handler);
+  }, []);
+
+  const removeMessageHandler = useCallback((handler: MessageHandler) => {
+    messageHandlersRef.current.delete(handler);
+  }, []);
 
   // Resolve WebSocket URL
   const wsUrl = resolveWsBase({
@@ -95,7 +108,16 @@ export function useWebSocket(
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data) as WebSocketMessage;
+          // Call the main onMessage handler
           onMessageRef.current?.(data);
+          // Call all registered message handlers
+          messageHandlersRef.current.forEach((handler) => {
+            try {
+              handler(data);
+            } catch (handlerErr) {
+              console.error("[WebSocket] Handler error:", handlerErr);
+            }
+          });
         } catch (err) {
           console.error("[WebSocket] Failed to parse message:", err);
         }
@@ -217,5 +239,7 @@ export function useWebSocket(
     subscribeAll,
     unsubscribeAll,
     reconnect,
+    addMessageHandler,
+    removeMessageHandler,
   };
 }

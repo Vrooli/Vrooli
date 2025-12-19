@@ -14,7 +14,7 @@ import { Badge } from "./components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { useHealth, useProfiles, useRuns, useRunners, useTasks } from "./hooks/useApi";
-import { useWebSocket, WebSocketMessage } from "./hooks/useWebSocket";
+import { useWebSocket, type WebSocketMessage, type MessageHandler } from "./hooks/useWebSocket";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ProfilesPage } from "./pages/ProfilesPage";
 import { TasksPage } from "./pages/TasksPage";
@@ -184,11 +184,19 @@ export default function App() {
               profiles={profiles.data || []}
               tasks={tasks.data || []}
               runs={runs.data || []}
+              runners={runners.data ?? undefined}
               onRefresh={() => {
                 health.refetch();
                 profiles.refetch();
                 tasks.refetch();
                 runs.refetch();
+              }}
+              onCreateTask={tasks.createTask}
+              onCreateRun={runs.createRun}
+              onRunCreated={() => {
+                runs.refetch();
+                tasks.refetch();
+                setActiveTab("runs");
               }}
             />
           </TabsContent>
@@ -230,11 +238,16 @@ export default function App() {
               loading={runs.loading}
               error={runs.error}
               onStopRun={runs.stopRun}
+              onRetryRun={runs.retryRun}
               onGetEvents={runs.getRunEvents}
               onGetDiff={runs.getRunDiff}
               onApproveRun={runs.approveRun}
               onRejectRun={runs.rejectRun}
               onRefresh={runs.refetch}
+              wsSubscribe={ws.subscribe}
+              wsUnsubscribe={ws.unsubscribe}
+              wsAddMessageHandler={ws.addMessageHandler}
+              wsRemoveMessageHandler={ws.removeMessageHandler}
             />
           </TabsContent>
         </Tabs>

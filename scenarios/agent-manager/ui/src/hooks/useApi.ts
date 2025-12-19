@@ -260,6 +260,17 @@ export function useRuns() {
     [fetchRuns]
   );
 
+  const retryRun = useCallback(
+    async (run: Run): Promise<Run> => {
+      const request: CreateRunRequest = {
+        taskId: run.taskId,
+        agentProfileId: run.agentProfileId,
+      };
+      return createRun(request);
+    },
+    [createRun]
+  );
+
   const getRun = useCallback(async (id: string): Promise<Run> => {
     return apiRequest<Run>("/runs/" + id);
   }, []);
@@ -314,6 +325,7 @@ export function useRuns() {
     ...state,
     refetch: fetchRuns,
     createRun,
+    retryRun,
     getRun,
     stopRun,
     getRunEvents,
