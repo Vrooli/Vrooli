@@ -10,6 +10,7 @@ import {
 } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
+import { captureElementContext, type ElementContext } from '../telemetry';
 import type winston from 'winston';
 
 // =============================================================================
@@ -29,11 +30,21 @@ function missingSelectorError(instructionType: string): HandlerResult {
   };
 }
 
-/** Create a success result with focus info */
-function successWithFocus(selector: string, boundingBox: { x: number; y: number; width: number; height: number } | null): HandlerResult {
+/** Create a success result with element context */
+function successWithElementContext(elementContext: ElementContext): HandlerResult {
   return {
     success: true,
-    focus: { selector, bounding_box: boundingBox || undefined },
+    elementContext,
+    // Also set focus for backward compatibility
+    focus: {
+      selector: elementContext.selector,
+      bounding_box: elementContext.boundingBox ? {
+        x: elementContext.boundingBox.x,
+        y: elementContext.boundingBox.y,
+        width: elementContext.boundingBox.width,
+        height: elementContext.boundingBox.height,
+      } : undefined,
+    },
   };
 }
 
@@ -94,11 +105,12 @@ export class InteractionHandler extends BaseHandler {
     const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
     logger.debug('instruction: click starting', { selector: params.selector, timeout });
 
-    const boundingBox = await this.getBoundingBox(page, params.selector).catch(() => null);
+    // Capture element context BEFORE the action (recording-quality telemetry)
+    const elementContext = await captureElementContext(page, params.selector, { timeout });
     await page.click(params.selector, { timeout });
 
     logger.debug('instruction: click completed', { selector: params.selector });
-    return successWithFocus(params.selector, boundingBox);
+    return successWithElementContext(elementContext);
   }
 
   private async handleHover(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
@@ -113,11 +125,12 @@ export class InteractionHandler extends BaseHandler {
     const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
     logger.debug('instruction: hover starting', { selector: params.selector, timeout });
 
-    const boundingBox = await this.getBoundingBox(page, params.selector).catch(() => null);
+    // Capture element context BEFORE the action (recording-quality telemetry)
+    const elementContext = await captureElementContext(page, params.selector, { timeout });
     await page.hover(params.selector, { timeout });
 
     logger.debug('instruction: hover completed', { selector: params.selector });
-    return successWithFocus(params.selector, boundingBox);
+    return successWithElementContext(elementContext);
   }
 
   private async handleType(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
@@ -132,11 +145,12 @@ export class InteractionHandler extends BaseHandler {
     const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
     logger.debug('instruction: type starting', { selector: params.selector, textLength: params.value.length, timeout });
 
-    const boundingBox = await this.getBoundingBox(page, params.selector).catch(() => null);
+    // Capture element context BEFORE the action (recording-quality telemetry)
+    const elementContext = await captureElementContext(page, params.selector, { timeout });
     await page.fill(params.selector, params.value, { timeout });
 
     logger.debug('instruction: type completed', { selector: params.selector, textLength: params.value.length });
-    return successWithFocus(params.selector, boundingBox);
+    return successWithElementContext(elementContext);
   }
 
   private async handleFocus(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
@@ -151,11 +165,12 @@ export class InteractionHandler extends BaseHandler {
     const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
     logger.debug('instruction: focus starting', { selector: params.selector, timeout });
 
-    const boundingBox = await this.getBoundingBox(page, params.selector).catch(() => null);
+    // Capture element context BEFORE the action (recording-quality telemetry)
+    const elementContext = await captureElementContext(page, params.selector, { timeout });
     await page.focus(params.selector, { timeout });
 
     logger.debug('instruction: focus completed', { selector: params.selector });
-    return successWithFocus(params.selector, boundingBox);
+    return successWithElementContext(elementContext);
   }
 
   private async handleBlur(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {

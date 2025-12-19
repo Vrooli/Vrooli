@@ -48,7 +48,8 @@ func StepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 }
 
 // buildActionDefinition creates an ActionDefinition from the step outcome.
-// Only params that can be reconstructed from outcome data are populated.
+// Now that execution captures element context, we can include the used selector
+// for element-targeting actions, providing recording-quality timeline entries.
 func buildActionDefinition(outcome contracts.StepOutcome) *basactions.ActionDefinition {
 	actionType := enums.StringToActionType(outcome.StepType)
 
@@ -59,7 +60,20 @@ func buildActionDefinition(outcome contracts.StepOutcome) *basactions.ActionDefi
 		},
 	}
 
-	// Only set params when we have meaningful data from the outcome
+	// Add element context to metadata if available (recording-quality telemetry)
+	if outcome.SelectorConfidence > 0 {
+		def.Metadata.Confidence = &outcome.SelectorConfidence
+	}
+	if outcome.ElementSnapshot != nil {
+		def.Metadata.ElementSnapshot = outcome.ElementSnapshot
+	}
+	if outcome.ElementBoundingBox != nil {
+		def.Metadata.CapturedBoundingBox = outcome.ElementBoundingBox
+	}
+
+	// Populate params based on action type
+	// Now that we have UsedSelector from element context, we can populate
+	// selector params for element-targeting actions
 	switch actionType {
 	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
 		if outcome.FinalURL != "" {
@@ -75,6 +89,42 @@ func buildActionDefinition(outcome contracts.StepOutcome) *basactions.ActionDefi
 					Mode:     enums.StringToAssertionMode(outcome.Assertion.Mode),
 					Negated:  &outcome.Assertion.Negated,
 				},
+			}
+		}
+	case basactions.ActionType_ACTION_TYPE_CLICK:
+		if outcome.UsedSelector != "" {
+			def.Params = &basactions.ActionDefinition_Click{
+				Click: &basactions.ClickParams{Selector: outcome.UsedSelector},
+			}
+		}
+	case basactions.ActionType_ACTION_TYPE_INPUT:
+		if outcome.UsedSelector != "" {
+			def.Params = &basactions.ActionDefinition_Input{
+				Input: &basactions.InputParams{Selector: outcome.UsedSelector},
+			}
+		}
+	case basactions.ActionType_ACTION_TYPE_HOVER:
+		if outcome.UsedSelector != "" {
+			def.Params = &basactions.ActionDefinition_Hover{
+				Hover: &basactions.HoverParams{Selector: outcome.UsedSelector},
+			}
+		}
+	case basactions.ActionType_ACTION_TYPE_FOCUS:
+		if outcome.UsedSelector != "" {
+			def.Params = &basactions.ActionDefinition_Focus{
+				Focus: &basactions.FocusParams{Selector: outcome.UsedSelector},
+			}
+		}
+	case basactions.ActionType_ACTION_TYPE_SCROLL:
+		if outcome.UsedSelector != "" {
+			def.Params = &basactions.ActionDefinition_Scroll{
+				Scroll: &basactions.ScrollParams{Selector: &outcome.UsedSelector},
+			}
+		}
+	case basactions.ActionType_ACTION_TYPE_SELECT:
+		if outcome.UsedSelector != "" {
+			def.Params = &basactions.ActionDefinition_SelectOption{
+				SelectOption: &basactions.SelectParams{Selector: outcome.UsedSelector},
 			}
 		}
 	}

@@ -4,6 +4,7 @@ import type { HandlerInstruction } from '../types';
 import { getDragDropParams, getGestureParams } from '../types';
 import { normalizeError } from '../utils/errors';
 import { DEFAULT_DRAG_ANIMATION_STEPS } from '../constants';
+import { captureElementContext } from '../telemetry';
 
 /** Internal gesture params type for handler use */
 interface GestureParams {
@@ -150,6 +151,9 @@ export class GestureHandler extends BaseHandler {
       timeout,
     });
 
+    // Capture element context for source element BEFORE the drag (recording-quality telemetry)
+    const sourceElementContext = await captureElementContext(page, validated.sourceSelector, { timeout });
+
     // Get source element with explicit timeout and wait for visible state
     const sourceElement = await page.waitForSelector(validated.sourceSelector, {
       timeout,
@@ -289,6 +293,7 @@ export class GestureHandler extends BaseHandler {
 
     return {
       success: true,
+      elementContext: sourceElementContext,
       extracted_data: {
         source: {
           selector: validated.sourceSelector,
@@ -303,8 +308,13 @@ export class GestureHandler extends BaseHandler {
         clickPosition: { x: targetX, y: targetY },
       },
       focus: {
-        selector: validated.sourceSelector,
-        bounding_box: sourceBoundingBox,
+        selector: sourceElementContext.selector,
+        bounding_box: sourceElementContext.boundingBox ? {
+          x: sourceElementContext.boundingBox.x,
+          y: sourceElementContext.boundingBox.y,
+          width: sourceElementContext.boundingBox.width,
+          height: sourceElementContext.boundingBox.height,
+        } : undefined,
       },
     };
   }
@@ -472,6 +482,9 @@ export class GestureHandler extends BaseHandler {
         },
       };
     } else {
+      // Capture element context BEFORE the zoom (recording-quality telemetry)
+      const elementContext = await captureElementContext(page, selector);
+
       // Apply zoom to specific element
       const element = await page.$(selector);
       if (!element) {
@@ -491,12 +504,11 @@ export class GestureHandler extends BaseHandler {
         el.style.transformOrigin = 'center center';
       }, scale);
 
-      const boundingBox = await element.boundingBox();
-
       logger.info('Element zoom applied', { selector, scale });
 
       return {
         success: true,
+        elementContext,
         extracted_data: {
           zoom: {
             scale,
@@ -504,9 +516,14 @@ export class GestureHandler extends BaseHandler {
             selector,
           },
         },
-        focus: boundingBox ? {
-          selector,
-          bounding_box: boundingBox,
+        focus: elementContext.boundingBox ? {
+          selector: elementContext.selector,
+          bounding_box: {
+            x: elementContext.boundingBox.x,
+            y: elementContext.boundingBox.y,
+            width: elementContext.boundingBox.width,
+            height: elementContext.boundingBox.height,
+          },
         } : undefined,
       };
     }

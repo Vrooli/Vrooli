@@ -31,3 +31,4 @@ export * from './collector';
 export * from './screenshot';
 export * from './dom';
 export * from './orchestrator';
+export * from './element-context';

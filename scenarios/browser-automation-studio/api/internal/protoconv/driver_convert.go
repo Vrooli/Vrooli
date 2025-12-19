@@ -124,6 +124,21 @@ func StepOutcomeToProto(outcome *autocontracts.StepOutcome) *basexecution.StepOu
 		pb.CursorTrail = append(pb.CursorTrail, CursorPositionToProto(&outcome.CursorTrail[i]))
 	}
 
+	// Element context (recording-quality telemetry for execution)
+	if outcome.ElementSnapshot != nil {
+		pb.ElementSnapshot = outcome.ElementSnapshot
+	}
+	if outcome.UsedSelector != "" {
+		pb.UsedSelector = &outcome.UsedSelector
+	}
+	if outcome.SelectorConfidence > 0 {
+		pb.SelectorConfidence = &outcome.SelectorConfidence
+	}
+	if outcome.SelectorMatchCount > 0 {
+		matchCount := int32(outcome.SelectorMatchCount)
+		pb.SelectorMatchCount = &matchCount
+	}
+
 	// Notes
 	if len(outcome.Notes) > 0 {
 		pb.Notes = outcome.Notes
@@ -242,6 +257,18 @@ func ProtoToStepOutcome(pb *basexecution.StepOutcome) *autocontracts.StepOutcome
 	// Cursor trail
 	for _, pos := range pb.CursorTrail {
 		outcome.CursorTrail = append(outcome.CursorTrail, *ProtoToCursorPosition(pos))
+	}
+
+	// Element context (recording-quality telemetry for execution)
+	outcome.ElementSnapshot = pb.ElementSnapshot
+	if pb.UsedSelector != nil {
+		outcome.UsedSelector = *pb.UsedSelector
+	}
+	if pb.SelectorConfidence != nil {
+		outcome.SelectorConfidence = *pb.SelectorConfidence
+	}
+	if pb.SelectorMatchCount != nil {
+		outcome.SelectorMatchCount = int(*pb.SelectorMatchCount)
 	}
 
 	// Notes

@@ -3,6 +3,7 @@ import type { HandlerInstruction } from '../types';
 import { getWaitParams } from '../types';
 import { DEFAULT_WAIT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
+import { captureElementContext } from '../telemetry';
 
 /**
  * Wait handler
@@ -44,14 +45,20 @@ export class WaitHandler extends BaseHandler {
           selector: params.selector,
         });
 
-        // Get bounding box of found element
-        const boundingBox = await this.getBoundingBox(page, params.selector).catch(() => null);
+        // Capture element context AFTER the wait completes (element now exists)
+        const elementContext = await captureElementContext(page, params.selector);
 
         return {
           success: true,
+          elementContext,
           focus: {
-            selector: params.selector,
-            bounding_box: boundingBox || undefined,
+            selector: elementContext.selector,
+            bounding_box: elementContext.boundingBox ? {
+              x: elementContext.boundingBox.x,
+              y: elementContext.boundingBox.y,
+              width: elementContext.boundingBox.width,
+              height: elementContext.boundingBox.height,
+            } : undefined,
           },
         };
       } else {

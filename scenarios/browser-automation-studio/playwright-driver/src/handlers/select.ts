@@ -3,6 +3,7 @@ import type { HandlerInstruction } from '../types';
 import { getSelectParams } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
+import { captureElementContext } from '../telemetry';
 
 /**
  * Select handler
@@ -62,8 +63,8 @@ export class SelectHandler extends BaseHandler {
       // Wait for select element
       await page.waitForSelector(params.selector, { timeout });
 
-      // Get bounding box
-      const boundingBox = await this.getBoundingBox(page, params.selector).catch(() => null);
+      // Capture element context BEFORE the action (recording-quality telemetry)
+      const elementContext = await captureElementContext(page, params.selector, { timeout });
 
       let selectedValue: string | string[] | null = null;
 
@@ -99,9 +100,15 @@ export class SelectHandler extends BaseHandler {
 
       return {
         success: true,
+        elementContext,
         focus: {
-          selector: params.selector,
-          bounding_box: boundingBox || undefined,
+          selector: elementContext.selector,
+          bounding_box: elementContext.boundingBox ? {
+            x: elementContext.boundingBox.x,
+            y: elementContext.boundingBox.y,
+            width: elementContext.boundingBox.width,
+            height: elementContext.boundingBox.height,
+          } : undefined,
         },
         extracted_data: {
           selectedValue,

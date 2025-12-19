@@ -32,6 +32,9 @@ import {
 import {
   ElementFocusSchema,
 } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
+import {
+  ElementMetaSchema,
+} from '@vrooli/proto-types/browser-automation-studio/v1/domain/selectors_pb';
 
 import { safeDuration, validateStepIndex, safeSerializable } from '../utils';
 import type { BaseExecutionResult, HandlerError } from './types';
@@ -333,6 +336,29 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
         ? create(BoundingBoxSchema, result.focus.bounding_box)
         : undefined,
     });
+  }
+
+  // Add element context (recording-quality telemetry for execution)
+  // This provides "before action" state like recording does
+  if (result.elementContext) {
+    const ctx = result.elementContext;
+
+    // Set selector info
+    if (ctx.selector) {
+      outcome.usedSelector = ctx.selector;
+    }
+    outcome.selectorConfidence = ctx.confidence;
+    outcome.selectorMatchCount = ctx.matchCount;
+
+    // Set element snapshot if not already set from focus
+    if (ctx.elementMeta) {
+      outcome.elementSnapshot = ctx.elementMeta;
+    }
+
+    // Set bounding box if not already set
+    if (ctx.boundingBox && !outcome.elementBoundingBox) {
+      outcome.elementBoundingBox = ctx.boundingBox;
+    }
   }
 
   // Add failure details

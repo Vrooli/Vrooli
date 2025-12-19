@@ -4,6 +4,7 @@ import type { HandlerInstruction, AssertionOutcome } from '../types';
 import { getAssertParams } from '../types';
 import { DEFAULT_ASSERTION_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
+import { captureElementContext } from '../telemetry';
 
 /**
  * Assertion handler
@@ -56,6 +57,9 @@ export class AssertionHandler extends BaseHandler {
         mode: normalizedMode,
         timeout,
       });
+
+      // Capture element context BEFORE the assertion (recording-quality telemetry)
+      const elementContext = await captureElementContext(page, selector, { timeout });
 
       let assertion: AssertionOutcome;
 
@@ -148,9 +152,19 @@ export class AssertionHandler extends BaseHandler {
 
       return {
         success: assertion.success,
+        elementContext,
         extracted_data: {
           assertion,
         },
+        focus: elementContext.boundingBox ? {
+          selector: elementContext.selector,
+          bounding_box: {
+            x: elementContext.boundingBox.x,
+            y: elementContext.boundingBox.y,
+            width: elementContext.boundingBox.width,
+            height: elementContext.boundingBox.height,
+          },
+        } : undefined,
       };
     } catch (error) {
       logger.error('Assertion failed', {

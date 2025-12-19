@@ -275,8 +275,11 @@ type StepOutcome struct {
 	ElementBoundingBox *BoundingBox      `json:"element_bounding_box,omitempty"` // Target element bounding box (viewport coords).
 	ClickPosition      *Point            `json:"click_position,omitempty"`       // Actual click coordinates used (viewport coords).
 	FocusedElement     *ElementFocus     `json:"focused_element,omitempty"`      // Focus metadata for framing.
-	ElementSnapshot    *ElementMeta      `json:"element_snapshot,omitempty"`     // Target element metadata (tag, id, class, role, aria-label, etc.) for debugging.
-	HighlightRegions   []*HighlightRegion `json:"highlight_regions,omitempty"`   // Overlay regions applied for emphasis.
+	ElementSnapshot      *ElementMeta       `json:"element_snapshot,omitempty"`       // Target element metadata (tag, id, class, role, aria-label, etc.) for debugging.
+	UsedSelector         string             `json:"used_selector,omitempty"`          // The selector that was used to find the element.
+	SelectorConfidence   float64            `json:"selector_confidence,omitempty"`    // Match confidence: 1.0 = unique match, lower = ambiguous.
+	SelectorMatchCount   int                `json:"selector_match_count,omitempty"`   // Number of elements that matched the selector.
+	HighlightRegions     []*HighlightRegion `json:"highlight_regions,omitempty"`      // Overlay regions applied for emphasis.
 	MaskRegions        []*MaskRegion      `json:"mask_regions,omitempty"`        // Regions masked/dimmed during capture.
 	ZoomFactor         float64           `json:"zoom_factor,omitempty"`          // Applied zoom for the attempt.
 	CursorTrail        []CursorPosition  `json:"cursor_trail,omitempty"`         // Ordered cursor path for timeline playback.

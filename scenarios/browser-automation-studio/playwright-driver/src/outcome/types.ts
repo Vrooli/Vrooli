@@ -91,6 +91,10 @@
  */
 
 import { FailureKind } from '@vrooli/proto-types/browser-automation-studio/v1/execution/driver_pb';
+import type { ElementContext } from '../telemetry/element-context';
+
+// Re-export ElementContext for convenient access
+export type { ElementContext } from '../telemetry/element-context';
 
 // =============================================================================
 // ERROR CODES
@@ -281,6 +285,12 @@ export interface BaseExecutionResult {
   durationMs?: number;
   /** Error details if execution failed */
   error?: ExecutionError;
+  /**
+   * Element context captured before action execution.
+   * Provides recording-quality telemetry for element-targeting actions.
+   * @see telemetry/element-context.ts
+   */
+  elementContext?: ElementContext;
 }
 
 // =============================================================================
