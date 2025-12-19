@@ -50,8 +50,11 @@ type Service interface {
 	// --- Run Operations ---
 	CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error)
 	GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
+	GetRunByTag(ctx context.Context, tag string) (*domain.Run, error)
 	ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error)
 	StopRun(ctx context.Context, id uuid.UUID) error
+	StopRunByTag(ctx context.Context, tag string) error
+	StopAllRuns(ctx context.Context, opts StopAllOptions) (*StopAllResult, error)
 
 	// --- Run Resumption Operations (Interruption Resilience) ---
 	ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
@@ -91,20 +94,53 @@ type RunListOptions struct {
 	TaskID         *uuid.UUID
 	AgentProfileID *uuid.UUID
 	Status         *domain.RunStatus
+	TagPrefix      string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
 }
 
 // CreateRunRequest contains parameters for creating a new run.
 type CreateRunRequest struct {
-	TaskID         uuid.UUID
-	AgentProfileID uuid.UUID
-	Prompt         string          // Optional override prompt
-	RunMode        *domain.RunMode // nil = let policy decide
-	ForceInPlace   bool            // Request in-place execution
+	TaskID uuid.UUID `json:"taskId"`
+
+	// Profile-based config (optional - can be nil if inline config provided)
+	AgentProfileID *uuid.UUID `json:"agentProfileId,omitempty"`
+
+	// Custom tag for identification (defaults to run ID if not set)
+	// Used for agent tracking, log filtering, and external process identification
+	// Example: "ecosystem-task-123", "test-genie-abc"
+	Tag string `json:"tag,omitempty"`
+
+	// Inline config (optional - used if no profile, or overrides profile)
+	RunnerType           *domain.RunnerType `json:"runnerType,omitempty"`
+	Model                *string            `json:"model,omitempty"`
+	MaxTurns             *int               `json:"maxTurns,omitempty"`
+	Timeout              *time.Duration     `json:"timeout,omitempty"`
+	AllowedTools         []string           `json:"allowedTools,omitempty"`
+	DeniedTools          []string           `json:"deniedTools,omitempty"`
+	SkipPermissionPrompt *bool              `json:"skipPermissionPrompt,omitempty"`
+
+	// Execution options
+	Prompt       string          `json:"prompt,omitempty"` // Optional override prompt
+	RunMode      *domain.RunMode `json:"runMode,omitempty"`
+	ForceInPlace bool            `json:"forceInPlace,omitempty"`
 
 	// IdempotencyKey enables safe retries of run creation.
 	// If provided and a run with this key already exists, the existing run is returned.
 	// Format suggestion: "run:{taskID}:{timestamp}" or caller-defined unique string.
-	IdempotencyKey string
+	IdempotencyKey string `json:"idempotencyKey,omitempty"`
+}
+
+// StopAllOptions specifies which runs to stop in a bulk operation.
+type StopAllOptions struct {
+	TagPrefix string // Only stop runs with this tag prefix (empty = all)
+	Force     bool   // Force termination even if graceful stop fails
+}
+
+// StopAllResult contains the outcome of a bulk stop operation.
+type StopAllResult struct {
+	Stopped   int      `json:"stopped"`   // Number of runs successfully stopped
+	Failed    int      `json:"failed"`    // Number of runs that failed to stop
+	Skipped   int      `json:"skipped"`   // Number of runs that were already stopped
+	FailedIDs []string `json:"failedIds"` // IDs of runs that failed to stop
 }
 
 // ApproveRequest contains parameters for approving a run.
@@ -202,6 +238,9 @@ type Orchestrator struct {
 	// Real-time event broadcasting (WebSocket)
 	broadcaster EventBroadcaster
 
+	// Robust termination (Phase 2)
+	terminator *Terminator
+
 	// Configuration
 	config OrchestratorConfig
 }
@@ -293,6 +332,13 @@ func WithIdempotency(i repository.IdempotencyRepository) Option {
 func WithBroadcaster(b EventBroadcaster) Option {
 	return func(o *Orchestrator) {
 		o.broadcaster = b
+	}
+}
+
+// WithTerminator sets the terminator for robust process termination.
+func WithTerminator(t *Terminator) Option {
+	return func(o *Orchestrator) {
+		o.terminator = t
 	}
 }
 
@@ -460,14 +506,15 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		}
 	}
 
-	// Get task and profile
+	// Get task
 	task, err := o.GetTask(ctx, req.TaskID)
 	if err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
 	}
 
-	profile, err := o.GetProfile(ctx, req.AgentProfileID)
+	// Resolve configuration: profile (if provided) + inline overrides
+	resolvedConfig, profile, err := o.resolveRunConfig(ctx, req)
 	if err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
@@ -503,19 +550,23 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		runMode = *req.RunMode
 	} else if policyDecision != nil && !policyDecision.RequiresSandbox {
 		runMode = domain.RunModeInPlace
+	} else if resolvedConfig != nil && !resolvedConfig.RequiresSandbox {
+		runMode = domain.RunModeInPlace
 	}
 
 	// Create the run with progress tracking initialized
 	run := &domain.Run{
 		ID:              uuid.New(),
 		TaskID:          task.ID,
-		AgentProfileID:  profile.ID,
+		AgentProfileID:  req.AgentProfileID, // May be nil if inline config used
+		Tag:             req.Tag,            // Custom tag for identification
 		RunMode:         runMode,
 		Status:          domain.RunStatusPending,
 		Phase:           domain.RunPhaseQueued,
 		ProgressPercent: 0,
 		IdempotencyKey:  req.IdempotencyKey,
 		ApprovalState:   domain.ApprovalStateNone,
+		ResolvedConfig:  resolvedConfig,
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
@@ -550,6 +601,53 @@ func (o *Orchestrator) markIdempotencyComplete(ctx context.Context, key string, 
 	o.idempotency.Complete(ctx, key, entityID, entityType, nil)
 }
 
+// resolveRunConfig resolves the run configuration from profile and/or inline config.
+// Returns the resolved config and the profile (if loaded, may be nil for pure inline config).
+func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunRequest) (*domain.RunConfig, *domain.AgentProfile, error) {
+	cfg := domain.DefaultRunConfig()
+	var profile *domain.AgentProfile
+
+	// Load profile if provided
+	if req.AgentProfileID != nil {
+		var err error
+		profile, err = o.GetProfile(ctx, *req.AgentProfileID)
+		if err != nil {
+			return nil, nil, err
+		}
+		cfg.ApplyProfile(profile)
+	}
+
+	// Apply inline overrides
+	if req.RunnerType != nil {
+		cfg.RunnerType = *req.RunnerType
+	}
+	if req.Model != nil {
+		cfg.Model = *req.Model
+	}
+	if req.MaxTurns != nil {
+		cfg.MaxTurns = *req.MaxTurns
+	}
+	if req.Timeout != nil {
+		cfg.Timeout = *req.Timeout
+	}
+	if len(req.AllowedTools) > 0 {
+		cfg.AllowedTools = req.AllowedTools
+	}
+	if len(req.DeniedTools) > 0 {
+		cfg.DeniedTools = req.DeniedTools
+	}
+	if req.SkipPermissionPrompt != nil {
+		cfg.SkipPermissionPrompt = *req.SkipPermissionPrompt
+	}
+
+	// Validate the resolved config
+	if !cfg.RunnerType.IsValid() {
+		return nil, nil, domain.NewValidationError("runnerType", "invalid runner type: "+string(cfg.RunnerType))
+	}
+
+	return cfg, profile, nil
+}
+
 func (o *Orchestrator) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
 	run, err := o.runs.Get(ctx, id)
 	if err != nil {
@@ -570,10 +668,95 @@ func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*do
 		TaskID:         opts.TaskID,
 		AgentProfileID: opts.AgentProfileID,
 		Status:         opts.Status,
+		TagPrefix:      opts.TagPrefix,
 	})
 }
 
+// GetRunByTag retrieves a run by its custom tag.
+// Returns NotFoundError if no run with that tag exists.
+func (o *Orchestrator) GetRunByTag(ctx context.Context, tag string) (*domain.Run, error) {
+	// List all runs with matching tag prefix and find exact match
+	runs, err := o.runs.List(ctx, repository.RunListFilter{
+		TagPrefix: tag,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Find exact match
+	for _, run := range runs {
+		if run.GetTag() == tag {
+			return run, nil
+		}
+	}
+
+	return nil, domain.NewNotFoundError("Run", uuid.Nil)
+}
+
+// StopRunByTag stops a run identified by its custom tag.
+func (o *Orchestrator) StopRunByTag(ctx context.Context, tag string) error {
+	run, err := o.GetRunByTag(ctx, tag)
+	if err != nil {
+		return err
+	}
+	return o.StopRun(ctx, run.ID)
+}
+
+// StopAllRuns stops all running runs, optionally filtered by tag prefix.
+func (o *Orchestrator) StopAllRuns(ctx context.Context, opts StopAllOptions) (*StopAllResult, error) {
+	result := &StopAllResult{
+		FailedIDs: []string{},
+	}
+
+	// Get all running or starting runs
+	runningStatus := domain.RunStatusRunning
+	runs, err := o.runs.List(ctx, repository.RunListFilter{
+		Status:    &runningStatus,
+		TagPrefix: opts.TagPrefix,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list running runs: %w", err)
+	}
+
+	// Also get starting runs
+	startingStatus := domain.RunStatusStarting
+	startingRuns, err := o.runs.List(ctx, repository.RunListFilter{
+		Status:    &startingStatus,
+		TagPrefix: opts.TagPrefix,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list starting runs: %w", err)
+	}
+	runs = append(runs, startingRuns...)
+
+	// Stop each run
+	for _, run := range runs {
+		// Skip already stopped runs
+		if run.Status == domain.RunStatusComplete ||
+			run.Status == domain.RunStatusFailed ||
+			run.Status == domain.RunStatusCancelled {
+			result.Skipped++
+			continue
+		}
+
+		if err := o.StopRun(ctx, run.ID); err != nil {
+			result.Failed++
+			result.FailedIDs = append(result.FailedIDs, run.ID.String())
+		} else {
+			result.Stopped++
+		}
+	}
+
+	return result, nil
+}
+
 func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
+	// Use the robust terminator if available (Phase 2)
+	if o.terminator != nil {
+		return o.terminator.StopRunWithRetry(ctx, id)
+	}
+
+	// Fallback to simple implementation
 	run, err := o.GetRun(ctx, id)
 	if err != nil {
 		return err
@@ -583,14 +766,21 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		return domain.NewStateError("Run", string(run.Status), "stop", "can only stop running or starting runs")
 	}
 
-	// Get the runner and stop execution
-	if o.runners != nil {
-		profile, _ := o.GetProfile(ctx, run.AgentProfileID)
-		if profile != nil {
-			if r, err := o.runners.Get(profile.RunnerType); err == nil {
-				if err := r.Stop(ctx, run.ID); err != nil {
-					return fmt.Errorf("failed to stop runner: %w", err)
-				}
+	// Get the runner type from resolved config or profile
+	var runnerType domain.RunnerType
+	if run.ResolvedConfig != nil {
+		runnerType = run.ResolvedConfig.RunnerType
+	} else if run.AgentProfileID != nil {
+		if profile, err := o.GetProfile(ctx, *run.AgentProfileID); err == nil && profile != nil {
+			runnerType = profile.RunnerType
+		}
+	}
+
+	// Stop execution if we have a runner type
+	if o.runners != nil && runnerType != "" {
+		if r, err := o.runners.Get(runnerType); err == nil {
+			if err := r.Stop(ctx, run.ID); err != nil {
+				return fmt.Errorf("failed to stop runner: %w", err)
 			}
 		}
 	}
@@ -669,9 +859,13 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 		return nil, fmt.Errorf("failed to get task for resume: %w", err)
 	}
 
-	profile, err := o.GetProfile(ctx, run.AgentProfileID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get profile for resume: %w", err)
+	// Get profile if available (may be nil for inline config runs)
+	var profile *domain.AgentProfile
+	if run.AgentProfileID != nil {
+		profile, err = o.GetProfile(ctx, *run.AgentProfileID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get profile for resume: %w", err)
+		}
 	}
 
 	// Update status to running

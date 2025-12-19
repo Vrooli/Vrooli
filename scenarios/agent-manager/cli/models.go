@@ -91,6 +91,7 @@ type Run struct {
 	ID              string      `json:"id"`
 	TaskID          string      `json:"taskId"`
 	AgentProfileID  string      `json:"agentProfileId"`
+	Tag             string      `json:"tag,omitempty"`
 	SandboxID       string      `json:"sandboxId,omitempty"`
 	RunMode         string      `json:"runMode"`
 	Status          string      `json:"status"`

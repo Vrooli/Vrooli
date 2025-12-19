@@ -306,24 +306,27 @@ func (r *OpenCodeRunner) buildEnv(req ExecuteRequest) []string {
 	// Non-interactive mode
 	env = append(env, "OPENCODE_NON_INTERACTIVE=true")
 
+	// Get the resolved config (handles profile + inline overrides)
+	cfg := req.GetConfig()
+
 	// Model selection via environment
-	if req.Profile != nil && req.Profile.Model != "" {
-		env = append(env, fmt.Sprintf("OPENCODE_MODEL=%s", req.Profile.Model))
+	if cfg.Model != "" {
+		env = append(env, fmt.Sprintf("OPENCODE_MODEL=%s", cfg.Model))
 	}
 
 	// Max turns
-	if req.Profile != nil && req.Profile.MaxTurns > 0 {
-		env = append(env, fmt.Sprintf("MAX_TURNS=%d", req.Profile.MaxTurns))
+	if cfg.MaxTurns > 0 {
+		env = append(env, fmt.Sprintf("MAX_TURNS=%d", cfg.MaxTurns))
 	}
 
 	// Timeout in seconds
-	if req.Profile != nil && req.Profile.Timeout > 0 {
-		env = append(env, fmt.Sprintf("TIMEOUT=%d", int(req.Profile.Timeout.Seconds())))
+	if cfg.Timeout > 0 {
+		env = append(env, fmt.Sprintf("TIMEOUT=%d", int(cfg.Timeout.Seconds())))
 	}
 
 	// Allowed tools
-	if req.Profile != nil && len(req.Profile.AllowedTools) > 0 {
-		env = append(env, fmt.Sprintf("ALLOWED_TOOLS=%s", strings.Join(req.Profile.AllowedTools, ",")))
+	if len(cfg.AllowedTools) > 0 {
+		env = append(env, fmt.Sprintf("ALLOWED_TOOLS=%s", strings.Join(cfg.AllowedTools, ",")))
 	}
 
 	// Add any custom environment from the request

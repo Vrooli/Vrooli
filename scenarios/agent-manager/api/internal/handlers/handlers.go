@@ -85,6 +85,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Run endpoints
 	r.HandleFunc("/api/v1/runs", h.CreateRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs", h.ListRuns).Methods("GET")
+	r.HandleFunc("/api/v1/runs/stop-all", h.StopAllRuns).Methods("POST") // Must be before /{id}
+	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
+	r.HandleFunc("/api/v1/runs/tag/{tag}/stop", h.StopRunByTag).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/events", h.GetRunEvents).Methods("GET")
@@ -486,9 +489,41 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, run)
 }
 
-// ListRuns returns all runs.
+// ListRuns returns all runs, with optional filtering.
+// Query parameters:
+//   - status: Filter by run status (e.g., "running", "pending", "complete")
+//   - taskId: Filter by task ID
+//   - profileId: Filter by agent profile ID
+//   - tagPrefix: Filter by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
 func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
-	runs, err := h.svc.ListRuns(r.Context(), orchestration.RunListOptions{})
+	opts := orchestration.RunListOptions{}
+
+	// Parse status filter
+	if statusStr := r.URL.Query().Get("status"); statusStr != "" {
+		status := domain.RunStatus(statusStr)
+		opts.Status = &status
+	}
+
+	// Parse task ID filter
+	if taskIDStr := r.URL.Query().Get("taskId"); taskIDStr != "" {
+		if taskID, err := uuid.Parse(taskIDStr); err == nil {
+			opts.TaskID = &taskID
+		}
+	}
+
+	// Parse profile ID filter
+	if profileIDStr := r.URL.Query().Get("profileId"); profileIDStr != "" {
+		if profileID, err := uuid.Parse(profileIDStr); err == nil {
+			opts.AgentProfileID = &profileID
+		}
+	}
+
+	// Parse tag prefix filter
+	if tagPrefix := r.URL.Query().Get("tagPrefix"); tagPrefix != "" {
+		opts.TagPrefix = tagPrefix
+	}
+
+	runs, err := h.svc.ListRuns(r.Context(), opts)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -511,6 +546,64 @@ func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "stopped"})
+}
+
+// GetRunByTag retrieves a run by its custom tag.
+func (h *Handler) GetRunByTag(w http.ResponseWriter, r *http.Request) {
+	tag := mux.Vars(r)["tag"]
+	if tag == "" {
+		writeSimpleError(w, r, "tag", "tag is required")
+		return
+	}
+
+	run, err := h.svc.GetRunByTag(r.Context(), tag)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, run)
+}
+
+// StopRunByTag stops a run identified by its custom tag.
+func (h *Handler) StopRunByTag(w http.ResponseWriter, r *http.Request) {
+	tag := mux.Vars(r)["tag"]
+	if tag == "" {
+		writeSimpleError(w, r, "tag", "tag is required")
+		return
+	}
+
+	if err := h.svc.StopRunByTag(r.Context(), tag); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "stopped", "tag": tag})
+}
+
+// StopAllRuns stops all running runs, optionally filtered by tag prefix.
+// POST /api/v1/runs/stop-all
+// Body: {"tagPrefix": "ecosystem-", "force": true}
+func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TagPrefix string `json:"tagPrefix"`
+		Force     bool   `json:"force"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+
+	result, err := h.svc.StopAllRuns(r.Context(), orchestration.StopAllOptions{
+		TagPrefix: req.TagPrefix,
+		Force:     req.Force,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }
 
 // GetRunEvents returns events for a run.

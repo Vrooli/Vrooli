@@ -184,7 +184,7 @@ type RunService struct {
 }
 
 // List retrieves runs with optional filters.
-func (s *RunService) List(limit, offset int, taskID, profileID, status string) ([]byte, []Run, error) {
+func (s *RunService) List(limit, offset int, taskID, profileID, status, tagPrefix string) ([]byte, []Run, error) {
 	query := url.Values{}
 	if limit > 0 {
 		query.Set("limit", fmt.Sprintf("%d", limit))
@@ -200,6 +200,9 @@ func (s *RunService) List(limit, offset int, taskID, profileID, status string) (
 	}
 	if status != "" {
 		query.Set("status", status)
+	}
+	if tagPrefix != "" {
+		query.Set("tagPrefix", tagPrefix)
 	}
 
 	body, err := s.api.Get("/api/v1/runs", query)
@@ -245,6 +248,53 @@ func (s *RunService) Create(req CreateRunRequest) ([]byte, *Run, error) {
 // Stop stops a running execution.
 func (s *RunService) Stop(id string) ([]byte, error) {
 	return s.api.Request("POST", "/api/v1/runs/"+id+"/stop", nil, nil)
+}
+
+// GetByTag retrieves a run by its custom tag.
+func (s *RunService) GetByTag(tag string) ([]byte, *Run, error) {
+	body, err := s.api.Get("/api/v1/runs/tag/"+tag, nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var run Run
+	if err := json.Unmarshal(body, &run); err != nil {
+		return body, nil, nil
+	}
+	return body, &run, nil
+}
+
+// StopByTag stops a run identified by its custom tag.
+func (s *RunService) StopByTag(tag string) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/tag/"+tag+"/stop", nil, nil)
+}
+
+// StopAllRequest is the request body for the stop-all endpoint.
+type StopAllRequest struct {
+	TagPrefix string `json:"tagPrefix,omitempty"`
+	Force     bool   `json:"force,omitempty"`
+}
+
+// StopAllResult is the result of a bulk stop operation.
+type StopAllResult struct {
+	Stopped   int      `json:"stopped"`
+	Failed    int      `json:"failed"`
+	Skipped   int      `json:"skipped"`
+	FailedIDs []string `json:"failedIds"`
+}
+
+// StopAll stops all running runs, optionally filtered by tag prefix.
+func (s *RunService) StopAll(req StopAllRequest) ([]byte, *StopAllResult, error) {
+	body, err := s.api.Request("POST", "/api/v1/runs/stop-all", nil, req)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var result StopAllResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		return body, nil, nil
+	}
+	return body, &result, nil
 }
 
 // Approve approves a run.

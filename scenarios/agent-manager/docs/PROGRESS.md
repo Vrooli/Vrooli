@@ -9,6 +9,7 @@
 | 2025-12-19 | Claude Opus 4.5   | Handler integration tests | Added comprehensive API endpoint tests with [REQ:ID] tags for profiles, tasks, runs, health |
 | 2025-12-18 | Claude Opus 4.5   | Requirement validation wiring | Linked 11 P0 module.json files to passing tests with proper ::TestFunc format |
 | 2025-12-18 | Claude Opus 4.5   | Resource wrapper integration | All runners now use resource-claude-code, resource-codex, resource-opencode instead of raw CLIs |
+| 2025-12-18 | Claude Opus 4.5   | Production-ready agent features | Rate limit awareness, cost tracking, real-time progress streaming via WebSocket |
 
 ## Implementation Summary
 
@@ -116,7 +117,32 @@
 - Subscription management (subscribe/unsubscribe per run) ✅
 - Exponential backoff with jitter for reconnection ✅
 
-### Phase 4: Quality & Testing (In Progress)
+### Phase 4: Production-Ready Agent Features (Completed)
+
+**Rate Limit Awareness (100%)**
+- ClaudeCodeRunner detects and parses rate limit errors from Claude CLI ✅
+- Supports multiple limit types: 5-hour rolling, daily, weekly, token ✅
+- Parses reset timestamps and retry-after durations ✅
+- Emits RateLimitEventData via event stream ✅
+- Domain types: RateLimitEventData, NewRateLimitEvent() ✅
+
+**Cost Tracking (100%)**
+- ClaudeCodeRunner parses `total_cost_usd` from Claude result event ✅
+- Detailed token tracking: input, output, cache creation, cache read ✅
+- Server tool usage tracking (web search requests) ✅
+- Cost populated in RunSummary.CostEstimate ✅
+- Domain types: CostEventData, NewCostEvent() ✅
+- Metrics tracked: ExecutionMetrics.CostEstimateUSD ✅
+
+**Real-Time Progress Streaming (100%)**
+- WebSocket hub implements orchestration.EventBroadcaster interface ✅
+- BroadcastingEventSink stores events AND broadcasts to WebSocket ✅
+- Progress events emitted: run_event, run_status, run_progress ✅
+- Domain types: ProgressEventData, NewProgressEvent() ✅
+- Phase tracking with percent completion ✅
+- Wired from orchestrator → executor → event sink → WebSocket hub ✅
+
+### Phase 5: Quality & Testing (In Progress)
 
 **API Health Compliance (100%)**
 - Health endpoint returns schema-compliant JSON ✅

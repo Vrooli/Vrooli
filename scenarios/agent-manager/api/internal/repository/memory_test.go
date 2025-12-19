@@ -182,7 +182,7 @@ func TestMemoryRunRepository_CRUD(t *testing.T) {
 	run := &domain.Run{
 		ID:             uuid.New(),
 		TaskID:         taskID,
-		AgentProfileID: profileID,
+		AgentProfileID: &profileID,
 		Status:         domain.RunStatusPending,
 		RunMode:        domain.RunModeSandboxed,
 		CreatedAt:      time.Now(),

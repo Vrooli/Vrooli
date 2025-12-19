@@ -238,7 +238,7 @@ func TestRun_Validate(t *testing.T) {
 			name: "valid run",
 			run: &Run{
 				TaskID:         validTaskID,
-				AgentProfileID: validProfileID,
+				AgentProfileID: &validProfileID,
 				RunMode:        RunModeSandboxed,
 			},
 			wantErr: false,
@@ -247,27 +247,38 @@ func TestRun_Validate(t *testing.T) {
 			name: "nil task ID",
 			run: &Run{
 				TaskID:         uuid.Nil,
-				AgentProfileID: validProfileID,
+				AgentProfileID: &validProfileID,
 				RunMode:        RunModeSandboxed,
 			},
 			wantErr: true,
 			errMsg:  "taskId",
 		},
 		{
-			name: "nil profile ID",
+			name: "nil profile ID and no config",
 			run: &Run{
 				TaskID:         validTaskID,
-				AgentProfileID: uuid.Nil,
+				AgentProfileID: nil, // No profile
+				ResolvedConfig: nil, // No inline config either
 				RunMode:        RunModeSandboxed,
 			},
 			wantErr: true,
 			errMsg:  "agentProfileId",
 		},
 		{
+			name: "valid with resolved config instead of profile",
+			run: &Run{
+				TaskID:         validTaskID,
+				AgentProfileID: nil,                // No profile
+				ResolvedConfig: DefaultRunConfig(), // Inline config provided
+				RunMode:        RunModeSandboxed,
+			},
+			wantErr: false,
+		},
+		{
 			name: "invalid run mode",
 			run: &Run{
 				TaskID:         validTaskID,
-				AgentProfileID: validProfileID,
+				AgentProfileID: &validProfileID,
 				RunMode:        "invalid",
 			},
 			wantErr: true,
@@ -277,7 +288,7 @@ func TestRun_Validate(t *testing.T) {
 			name: "in_place mode is valid",
 			run: &Run{
 				TaskID:         validTaskID,
-				AgentProfileID: validProfileID,
+				AgentProfileID: &validProfileID,
 				RunMode:        RunModeInPlace,
 			},
 			wantErr: false,
@@ -286,7 +297,7 @@ func TestRun_Validate(t *testing.T) {
 			name: "invalid status",
 			run: &Run{
 				TaskID:         validTaskID,
-				AgentProfileID: validProfileID,
+				AgentProfileID: &validProfileID,
 				RunMode:        RunModeSandboxed,
 				Status:         "invalid_status",
 			},
@@ -297,7 +308,7 @@ func TestRun_Validate(t *testing.T) {
 			name: "valid status",
 			run: &Run{
 				TaskID:         validTaskID,
-				AgentProfileID: validProfileID,
+				AgentProfileID: &validProfileID,
 				RunMode:        RunModeSandboxed,
 				Status:         RunStatusPending,
 			},
@@ -307,7 +318,7 @@ func TestRun_Validate(t *testing.T) {
 			name: "progress percent out of range",
 			run: &Run{
 				TaskID:          validTaskID,
-				AgentProfileID:  validProfileID,
+				AgentProfileID:  &validProfileID,
 				RunMode:         RunModeSandboxed,
 				ProgressPercent: 150,
 			},
@@ -339,7 +350,7 @@ func TestRun_ValidateForCreation(t *testing.T) {
 			name: "valid new run",
 			run: &Run{
 				TaskID:         validTaskID,
-				AgentProfileID: validProfileID,
+				AgentProfileID: &validProfileID,
 				RunMode:        RunModeSandboxed,
 				Status:         RunStatusPending,
 				Phase:          RunPhaseQueued,
@@ -350,7 +361,7 @@ func TestRun_ValidateForCreation(t *testing.T) {
 			name: "non-pending status",
 			run: &Run{
 				TaskID:         validTaskID,
-				AgentProfileID: validProfileID,
+				AgentProfileID: &validProfileID,
 				RunMode:        RunModeSandboxed,
 				Status:         RunStatusRunning,
 			},
@@ -360,7 +371,7 @@ func TestRun_ValidateForCreation(t *testing.T) {
 			name: "non-queued phase",
 			run: &Run{
 				TaskID:         validTaskID,
-				AgentProfileID: validProfileID,
+				AgentProfileID: &validProfileID,
 				RunMode:        RunModeSandboxed,
 				Phase:          RunPhaseExecuting,
 			},

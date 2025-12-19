@@ -22,10 +22,16 @@ func (a *App) cmdRun(args []string) error {
 		return a.runList(args[1:])
 	case "get":
 		return a.runGet(args[1:])
+	case "get-by-tag":
+		return a.runGetByTag(args[1:])
 	case "create":
 		return a.runCreate(args[1:])
 	case "stop":
 		return a.runStop(args[1:])
+	case "stop-by-tag":
+		return a.runStopByTag(args[1:])
+	case "stop-all":
+		return a.runStopAll(args[1:])
 	case "approve":
 		return a.runApprove(args[1:])
 	case "reject":
@@ -45,29 +51,36 @@ func (a *App) runHelp() error {
 	fmt.Println(`Usage: agent-manager run <subcommand> [options]
 
 Subcommands:
-  list              List runs
-  get <id>          Get run details and progress
+  list              List runs (with optional filters)
+  get <id>          Get run details by UUID
+  get-by-tag <tag>  Get run details by custom tag
   create            Create and start a new run
-  stop <id>         Stop a running execution
+  stop <id>         Stop a run by UUID
+  stop-by-tag <tag> Stop a run by custom tag
+  stop-all          Stop all running runs (with optional tag prefix filter)
   approve <id>      Approve run changes
   reject <id>       Reject run changes
   diff <id>         Show sandbox diff
   events <id>       Get run events (--follow for streaming)
 
+Filters (for 'list'):
+  --task-id         Filter by task ID
+  --profile-id      Filter by profile ID
+  --status          Filter by status (running, pending, complete, etc.)
+  --tag-prefix      Filter by tag prefix (e.g., "ecosystem-")
+
 Options:
   --json            Output raw JSON
   --quiet           Output only IDs (for piping)
-  --task-id         Filter by task ID
-  --profile-id      Filter by profile ID
-  --status          Filter by status
 
 Examples:
   agent-manager run list
   agent-manager run list --status running
+  agent-manager run list --tag-prefix ecosystem-
+  agent-manager run get-by-tag ecosystem-task-123
+  agent-manager run stop-all --tag-prefix ecosystem-
   agent-manager run create --task-id abc123 --profile-id def456
-  agent-manager run get xyz789
-  agent-manager run events xyz789 --follow
-  agent-manager run approve xyz789 --actor "user@example.com"`)
+  agent-manager run events xyz789 --follow`)
 	return nil
 }
 
@@ -84,12 +97,13 @@ func (a *App) runList(args []string) error {
 	taskID := fs.String("task-id", "", "Filter by task ID")
 	profileID := fs.String("profile-id", "", "Filter by profile ID")
 	status := fs.String("status", "", "Filter by status")
+	tagPrefix := fs.String("tag-prefix", "", "Filter by tag prefix")
 
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	body, runs, err := a.services.Runs.List(*limit, *offset, *taskID, *profileID, *status)
+	body, runs, err := a.services.Runs.List(*limit, *offset, *taskID, *profileID, *status, *tagPrefix)
 	if err != nil {
 		return err
 	}
@@ -296,6 +310,128 @@ func (a *App) runStop(args []string) error {
 	}
 
 	fmt.Printf("Stopped run: %s\n", id)
+	return nil
+}
+
+// =============================================================================
+// Run Get By Tag
+// =============================================================================
+
+func (a *App) runGetByTag(args []string) error {
+	fs := flag.NewFlagSet("run get-by-tag", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+
+	// Parse with positional tag first
+	var tag string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		tag = args[0]
+		args = args[1:]
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if tag == "" {
+		return fmt.Errorf("usage: agent-manager run get-by-tag <tag>")
+	}
+
+	body, run, err := a.services.Runs.GetByTag(tag)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput || run == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("ID:              %s\n", run.ID)
+	fmt.Printf("Tag:             %s\n", run.Tag)
+	fmt.Printf("Task ID:         %s\n", run.TaskID)
+	fmt.Printf("Status:          %s\n", run.Status)
+	fmt.Printf("Phase:           %s\n", run.Phase)
+	fmt.Printf("Progress:        %d%%\n", run.ProgressPercent)
+	if run.StartedAt != "" {
+		fmt.Printf("Started:         %s\n", run.StartedAt)
+	}
+	if run.ErrorMsg != "" {
+		fmt.Printf("Error:           %s\n", run.ErrorMsg)
+	}
+
+	return nil
+}
+
+// =============================================================================
+// Run Stop By Tag
+// =============================================================================
+
+func (a *App) runStopByTag(args []string) error {
+	fs := flag.NewFlagSet("run stop-by-tag", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+
+	// Parse with positional tag first
+	var tag string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		tag = args[0]
+		args = args[1:]
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if tag == "" {
+		return fmt.Errorf("usage: agent-manager run stop-by-tag <tag>")
+	}
+
+	body, err := a.services.Runs.StopByTag(tag)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Stopped run with tag: %s\n", tag)
+	return nil
+}
+
+// =============================================================================
+// Run Stop All
+// =============================================================================
+
+func (a *App) runStopAll(args []string) error {
+	fs := flag.NewFlagSet("run stop-all", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	tagPrefix := fs.String("tag-prefix", "", "Only stop runs with this tag prefix")
+	force := fs.Bool("force", false, "Force termination even if graceful stop fails")
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	body, result, err := a.services.Runs.StopAll(StopAllRequest{
+		TagPrefix: *tagPrefix,
+		Force:     *force,
+	})
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput || result == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Stopped:  %d\n", result.Stopped)
+	fmt.Printf("Failed:   %d\n", result.Failed)
+	fmt.Printf("Skipped:  %d\n", result.Skipped)
+	if len(result.FailedIDs) > 0 {
+		fmt.Printf("Failed IDs: %v\n", result.FailedIDs)
+	}
 	return nil
 }
 

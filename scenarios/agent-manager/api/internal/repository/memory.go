@@ -8,6 +8,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -304,11 +305,21 @@ func (r *MemoryRunRepository) List(ctx context.Context, filter RunListFilter) ([
 		if filter.TaskID != nil && run.TaskID != *filter.TaskID {
 			continue
 		}
-		if filter.AgentProfileID != nil && run.AgentProfileID != *filter.AgentProfileID {
-			continue
+		if filter.AgentProfileID != nil {
+			// Skip if run has no profile or profile doesn't match
+			if run.AgentProfileID == nil || *run.AgentProfileID != *filter.AgentProfileID {
+				continue
+			}
 		}
 		if filter.Status != nil && run.Status != *filter.Status {
 			continue
+		}
+		// Apply tag prefix filter
+		if filter.TagPrefix != "" {
+			tag := run.GetTag()
+			if !strings.HasPrefix(tag, filter.TagPrefix) {
+				continue
+			}
 		}
 
 		copy := *run

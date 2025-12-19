@@ -613,12 +613,14 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 
 	// Build execution request
 	req := runner.ExecuteRequest{
-		RunID:      e.run.ID,
-		Profile:    e.profile,
-		Task:       e.task,
-		WorkingDir: e.workDir,
-		Prompt:     e.prompt,
-		EventSink:  eventSink,
+		RunID:          e.run.ID,
+		Tag:            e.run.GetTag(), // Custom tag or defaults to ID
+		Profile:        e.profile,
+		ResolvedConfig: e.run.ResolvedConfig, // Merged config from profile + inline
+		Task:           e.task,
+		WorkingDir:     e.workDir,
+		Prompt:         e.prompt,
+		EventSink:      eventSink,
 	}
 
 	// Execute

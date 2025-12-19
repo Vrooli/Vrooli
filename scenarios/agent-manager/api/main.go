@@ -19,6 +19,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/handlers"
+	"agent-manager/internal/metrics"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
 
@@ -42,6 +43,7 @@ type Server struct {
 	router       *mux.Router
 	orchestrator orchestration.Service
 	wsHub        *handlers.WebSocketHub
+	reconciler   *orchestration.Reconciler
 }
 
 // NewServer initializes configuration, database, and routes
@@ -79,22 +81,36 @@ func NewServer() (*Server, error) {
 	go wsHub.Run()
 
 	// Create the orchestrator with appropriate repositories and broadcaster
-	orch := createOrchestrator(cfg.UseInMemory, wsHub)
+	deps := createOrchestrator(cfg.UseInMemory, wsHub)
 
 	srv := &Server{
 		config:       cfg,
 		db:           db,
 		router:       mux.NewRouter(),
-		orchestrator: orch,
+		orchestrator: deps.orchestrator,
 		wsHub:        wsHub,
+		reconciler:   deps.reconciler,
+	}
+
+	// Start the reconciler for orphan detection and stale run recovery
+	if srv.reconciler != nil {
+		if err := srv.reconciler.Start(context.Background()); err != nil {
+			log.Printf("Warning: Failed to start reconciler: %v", err)
+		}
 	}
 
 	srv.setupRoutes()
 	return srv, nil
 }
 
+// orchestratorDeps holds the orchestrator and related services
+type orchestratorDeps struct {
+	orchestrator orchestration.Service
+	reconciler   *orchestration.Reconciler
+}
+
 // createOrchestrator creates the orchestration service with all dependencies
-func createOrchestrator(useInMemory bool, wsHub *handlers.WebSocketHub) orchestration.Service {
+func createOrchestrator(useInMemory bool, wsHub *handlers.WebSocketHub) orchestratorDeps {
 	// Create repositories
 	var (
 		profileRepo     repository.ProfileRepository
@@ -180,7 +196,14 @@ func createOrchestrator(useInMemory bool, wsHub *handlers.WebSocketHub) orchestr
 	}
 	sandboxProvider := sandbox.NewWorkspaceSandboxProvider(sandboxURL)
 
-	// Build orchestrator with all dependencies including WebSocket broadcaster
+	// Create terminator for robust process termination (Phase 2)
+	terminator := orchestration.NewTerminator(
+		runRepo,
+		runnerRegistry,
+		orchestration.DefaultTerminatorConfig(),
+	)
+
+	// Build orchestrator with all dependencies including WebSocket broadcaster and terminator
 	orch := orchestration.New(
 		profileRepo,
 		taskRepo,
@@ -196,10 +219,29 @@ func createOrchestrator(useInMemory bool, wsHub *handlers.WebSocketHub) orchestr
 		orchestration.WithCheckpoints(checkpointRepo),
 		orchestration.WithIdempotency(idempotencyRepo),
 		orchestration.WithBroadcaster(wsHub),
+		orchestration.WithTerminator(terminator),
+	)
+
+	// Create reconciler for orphan detection and stale run recovery (Phase 2)
+	reconciler := orchestration.NewReconciler(
+		runRepo,
+		runnerRegistry,
+		orchestration.WithReconcilerConfig(orchestration.ReconcilerConfig{
+			Interval:          30 * time.Second,
+			StaleThreshold:    2 * time.Minute,
+			OrphanGracePeriod: 5 * time.Minute,
+			MaxStaleRuns:      10,
+			KillOrphans:       false, // Conservative default
+			AutoRecover:       false, // Conservative default
+		}),
+		orchestration.WithReconcilerBroadcaster(wsHub),
 	)
 
 	log.Printf("Orchestrator initialized (in-memory: %v, sandbox: %s)", useInMemory, sandboxURL)
-	return orch
+	return orchestratorDeps{
+		orchestrator: orch,
+		reconciler:   reconciler,
+	}
 }
 
 func (s *Server) setupRoutes() {
@@ -212,7 +254,11 @@ func (s *Server) setupRoutes() {
 	handler.SetWebSocketHub(s.wsHub)
 	handler.RegisterRoutes(s.router)
 
+	// Prometheus metrics endpoint
+	s.router.Handle("/metrics", metrics.Handler()).Methods("GET")
+
 	log.Printf("WebSocket endpoint available at /api/v1/ws")
+	log.Printf("Prometheus metrics available at /metrics")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -246,6 +292,13 @@ func (s *Server) Start() error {
 
 	if err := httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("server shutdown failed: %w", err)
+	}
+
+	// Stop the reconciler
+	if s.reconciler != nil {
+		if err := s.reconciler.Stop(); err != nil {
+			s.log("reconciler shutdown failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 
 	// Clean up database connection

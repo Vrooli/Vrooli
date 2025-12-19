@@ -47,7 +47,6 @@ func TestWorkspaceSandboxProvider_Create(t *testing.T) {
 		Owner:       "test-run",
 		OwnerType:   "run",
 	})
-
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -86,7 +85,6 @@ func TestWorkspaceSandboxProvider_Get(t *testing.T) {
 	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	result, err := provider.Get(context.Background(), sandboxID)
-
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
@@ -130,7 +128,6 @@ func TestWorkspaceSandboxProvider_Delete(t *testing.T) {
 	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	err := provider.Delete(context.Background(), sandboxID)
-
 	if err != nil {
 		t.Errorf("Delete failed: %v", err)
 	}
@@ -175,7 +172,6 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	result, err := provider.GetDiff(context.Background(), sandboxID)
-
 	if err != nil {
 		t.Fatalf("GetDiff failed: %v", err)
 	}
@@ -218,7 +214,6 @@ func TestWorkspaceSandboxProvider_Approve(t *testing.T) {
 		Actor:     "test-user",
 		CommitMsg: "Apply changes",
 	})
-
 	if err != nil {
 		t.Fatalf("Approve failed: %v", err)
 	}
@@ -250,7 +245,6 @@ func TestWorkspaceSandboxProvider_Reject(t *testing.T) {
 	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	err := provider.Reject(context.Background(), sandboxID, "test-user")
-
 	if err != nil {
 		t.Errorf("Reject failed: %v", err)
 	}
@@ -341,7 +335,6 @@ func TestWorkspaceSandboxProvider_PartialApprove(t *testing.T) {
 		FileIDs:   []uuid.UUID{fileID1, fileID2},
 		CommitMsg: "Apply selected files",
 	})
-
 	if err != nil {
 		t.Fatalf("PartialApprove failed: %v", err)
 	}

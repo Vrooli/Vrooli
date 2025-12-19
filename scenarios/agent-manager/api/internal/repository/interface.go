@@ -31,6 +31,7 @@ type RunListFilter struct {
 	TaskID         *uuid.UUID
 	AgentProfileID *uuid.UUID
 	Status         *domain.RunStatus
+	TagPrefix      string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
 }
 
 // -----------------------------------------------------------------------------

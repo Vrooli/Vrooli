@@ -72,8 +72,16 @@ type ExecuteRequest struct {
 	// RunID identifies this execution for tracking and cancellation.
 	RunID uuid.UUID
 
-	// Profile contains the agent configuration.
+	// Tag is a custom identifier for this run (used in logs, process names).
+	// If empty, defaults to RunID.String().
+	Tag string
+
+	// Profile contains the agent configuration (may be nil if using ResolvedConfig).
 	Profile *domain.AgentProfile
+
+	// ResolvedConfig contains the merged config (profile + inline overrides).
+	// This takes precedence over Profile when set.
+	ResolvedConfig *domain.RunConfig
 
 	// Task contains the work to be performed.
 	Task *domain.Task
@@ -91,6 +99,27 @@ type ExecuteRequest struct {
 
 	// Environment contains additional environment variables.
 	Environment map[string]string
+}
+
+// GetTag returns the tag for this request, defaulting to RunID if not set.
+func (r *ExecuteRequest) GetTag() string {
+	if r.Tag != "" {
+		return r.Tag
+	}
+	return r.RunID.String()
+}
+
+// GetConfig returns the effective configuration, preferring ResolvedConfig over Profile.
+func (r *ExecuteRequest) GetConfig() *domain.RunConfig {
+	if r.ResolvedConfig != nil {
+		return r.ResolvedConfig
+	}
+	if r.Profile != nil {
+		cfg := domain.DefaultRunConfig()
+		cfg.ApplyProfile(r.Profile)
+		return cfg
+	}
+	return domain.DefaultRunConfig()
 }
 
 // ExecuteResult contains the outcome of an agent execution.

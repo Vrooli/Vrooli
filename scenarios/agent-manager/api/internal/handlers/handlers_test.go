@@ -593,8 +593,8 @@ func TestCreateRun_Success(t *testing.T) {
 	if createdRun.TaskID != createdTask.ID {
 		t.Errorf("expected task ID %s, got %s", createdTask.ID, createdRun.TaskID)
 	}
-	if createdRun.AgentProfileID != createdProfile.ID {
-		t.Errorf("expected profile ID %s, got %s", createdProfile.ID, createdRun.AgentProfileID)
+	if createdRun.AgentProfileID == nil || *createdRun.AgentProfileID != createdProfile.ID {
+		t.Errorf("expected profile ID %s, got %v", createdProfile.ID, createdRun.AgentProfileID)
 	}
 }
 
@@ -744,5 +744,7 @@ func createTestTask(t *testing.T, router *mux.Router) *domain.Task {
 }
 
 // Compile-time interface check
-var _ context.Context
-var _ time.Time
+var (
+	_ context.Context
+	_ time.Time
+)

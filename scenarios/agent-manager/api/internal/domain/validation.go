@@ -265,9 +265,12 @@ func (r *Run) Validate() error {
 		return NewValidationError("taskId", "field is required")
 	}
 
-	// AgentProfileID is required
-	if r.AgentProfileID == uuid.Nil {
-		return NewValidationError("agentProfileId", "field is required")
+	// Either AgentProfileID or ResolvedConfig is required
+	hasProfile := r.AgentProfileID != nil && *r.AgentProfileID != uuid.Nil
+	hasConfig := r.ResolvedConfig != nil
+	if !hasProfile && !hasConfig {
+		return NewValidationErrorWithHint("agentProfileId", "either agentProfileId or inline config is required",
+			"provide agentProfileId or inline config fields (runnerType, maxTurns, etc.)")
 	}
 
 	// RunMode must be valid

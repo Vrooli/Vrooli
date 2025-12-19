@@ -136,9 +136,13 @@ type ContextAttachment struct {
 
 // Run represents a single execution attempt of a task using a specific agent profile.
 type Run struct {
-	ID             uuid.UUID `json:"id" db:"id"`
-	TaskID         uuid.UUID `json:"taskId" db:"task_id"`
-	AgentProfileID uuid.UUID `json:"agentProfileId" db:"agent_profile_id"`
+	ID             uuid.UUID  `json:"id" db:"id"`
+	TaskID         uuid.UUID  `json:"taskId" db:"task_id"`
+	AgentProfileID *uuid.UUID `json:"agentProfileId,omitempty" db:"agent_profile_id"` // Optional if inline config provided
+
+	// Custom tag for identification (defaults to ID if not set)
+	// Used for agent tracking, log filtering, and external process identification
+	Tag string `json:"tag,omitempty" db:"tag"`
 
 	// Sandbox integration
 	SandboxID *uuid.UUID `json:"sandboxId,omitempty" db:"sandbox_id"`
@@ -168,6 +172,9 @@ type Run struct {
 	ApprovedBy    string        `json:"approvedBy,omitempty" db:"approved_by"`
 	ApprovedAt    *time.Time    `json:"approvedAt,omitempty" db:"approved_at"`
 
+	// Inline config (used when no profile provided, or to store resolved config)
+	ResolvedConfig *RunConfig `json:"resolvedConfig,omitempty" db:"resolved_config"`
+
 	// Artifacts
 	DiffPath       string `json:"diffPath,omitempty" db:"diff_path"`
 	LogPath        string `json:"logPath,omitempty" db:"log_path"`
@@ -177,6 +184,14 @@ type Run struct {
 	// Metadata
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
+}
+
+// GetTag returns the tag for this run, defaulting to the run ID if no custom tag is set.
+func (r *Run) GetTag() string {
+	if r.Tag != "" {
+		return r.Tag
+	}
+	return r.ID.String()
 }
 
 // IsResumable returns whether this run can be resumed from its current state.
@@ -252,6 +267,60 @@ type RunSummary struct {
 	TokensUsed    int      `json:"tokensUsed,omitempty"`
 	TurnsUsed     int      `json:"turnsUsed,omitempty"`
 	CostEstimate  float64  `json:"costEstimate,omitempty"`
+}
+
+// RunConfig contains the resolved configuration for a run.
+// This can be loaded from a profile, provided inline, or a combination of both.
+type RunConfig struct {
+	// Runner configuration
+	RunnerType RunnerType    `json:"runnerType"`
+	Model      string        `json:"model,omitempty"`
+	MaxTurns   int           `json:"maxTurns,omitempty"`
+	Timeout    time.Duration `json:"timeout,omitempty"`
+
+	// Tool permissions
+	AllowedTools []string `json:"allowedTools,omitempty"`
+	DeniedTools  []string `json:"deniedTools,omitempty"`
+
+	// Execution flags
+	SkipPermissionPrompt bool `json:"skipPermissionPrompt,omitempty"`
+
+	// Policy flags
+	RequiresSandbox  bool `json:"requiresSandbox"`
+	RequiresApproval bool `json:"requiresApproval"`
+
+	// Path restrictions
+	AllowedPaths []string `json:"allowedPaths,omitempty"`
+	DeniedPaths  []string `json:"deniedPaths,omitempty"`
+}
+
+// ApplyProfile applies values from an AgentProfile as the base configuration.
+func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
+	if profile == nil {
+		return
+	}
+	c.RunnerType = profile.RunnerType
+	c.Model = profile.Model
+	c.MaxTurns = profile.MaxTurns
+	c.Timeout = profile.Timeout
+	c.AllowedTools = profile.AllowedTools
+	c.DeniedTools = profile.DeniedTools
+	c.SkipPermissionPrompt = profile.SkipPermissionPrompt
+	c.RequiresSandbox = profile.RequiresSandbox
+	c.RequiresApproval = profile.RequiresApproval
+	c.AllowedPaths = profile.AllowedPaths
+	c.DeniedPaths = profile.DeniedPaths
+}
+
+// DefaultRunConfig returns sensible defaults for run configuration.
+func DefaultRunConfig() *RunConfig {
+	return &RunConfig{
+		RunnerType:       RunnerTypeClaudeCode,
+		MaxTurns:         30,
+		Timeout:          30 * time.Minute,
+		RequiresSandbox:  true,
+		RequiresApproval: true,
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -542,15 +611,15 @@ func NewRateLimitEvent(runID uuid.UUID, limitType, message string, resetTime *ti
 
 // CostEventData contains data for cost/usage tracking events.
 type CostEventData struct {
-	InputTokens             int     `json:"inputTokens"`
-	OutputTokens            int     `json:"outputTokens"`
-	CacheCreationTokens     int     `json:"cacheCreationTokens,omitempty"`
-	CacheReadTokens         int     `json:"cacheReadTokens,omitempty"`
-	TotalCostUSD            float64 `json:"totalCostUsd"`
-	ServiceTier             string  `json:"serviceTier,omitempty"` // e.g., "standard", "priority"
-	Model                   string  `json:"model,omitempty"`
-	WebSearchRequests       int     `json:"webSearchRequests,omitempty"`
-	ServerToolUseRequests   int     `json:"serverToolUseRequests,omitempty"`
+	InputTokens           int     `json:"inputTokens"`
+	OutputTokens          int     `json:"outputTokens"`
+	CacheCreationTokens   int     `json:"cacheCreationTokens,omitempty"`
+	CacheReadTokens       int     `json:"cacheReadTokens,omitempty"`
+	TotalCostUSD          float64 `json:"totalCostUsd"`
+	ServiceTier           string  `json:"serviceTier,omitempty"` // e.g., "standard", "priority"
+	Model                 string  `json:"model,omitempty"`
+	WebSearchRequests     int     `json:"webSearchRequests,omitempty"`
+	ServerToolUseRequests int     `json:"serverToolUseRequests,omitempty"`
 }
 
 func (d *CostEventData) EventType() RunEventType { return EventTypeMetric }

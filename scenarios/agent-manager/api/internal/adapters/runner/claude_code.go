@@ -30,12 +30,12 @@ const ClaudeCodeResourceCommand = "resource-claude-code"
 
 // ClaudeCodeRunner implements the Runner interface for Claude Code CLI.
 type ClaudeCodeRunner struct {
-	binaryPath       string
-	available        bool
-	message          string
-	installHint      string
-	mu               sync.Mutex
-	runs             map[uuid.UUID]*exec.Cmd
+	binaryPath  string
+	available   bool
+	message     string
+	installHint string
+	mu          sync.Mutex
+	runs        map[uuid.UUID]*exec.Cmd
 }
 
 // NewClaudeCodeRunner creates a new Claude Code runner.
@@ -325,9 +325,10 @@ func (r *ClaudeCodeRunner) InstallHint() string {
 // buildArgs constructs command-line arguments for resource-claude-code run.
 func (r *ClaudeCodeRunner) buildArgs(req ExecuteRequest) []string {
 	// Use the "run" subcommand with --tag for agent tracking
+	// Tag defaults to RunID if not set, but can be customized for readability
 	args := []string{
 		"run",
-		"--tag", req.RunID.String(),
+		"--tag", req.GetTag(),
 		"-", // Read prompt from stdin
 	}
 	return args
@@ -343,30 +344,33 @@ func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
 	// Non-interactive mode for autonomous execution
 	env = append(env, "CLAUDE_NON_INTERACTIVE=true")
 
+	// Get the resolved config (handles profile + inline overrides)
+	cfg := req.GetConfig()
+
 	// Model selection via environment
-	if req.Profile != nil && req.Profile.Model != "" {
-		env = append(env, fmt.Sprintf("CLAUDE_MODEL=%s", req.Profile.Model))
+	if cfg.Model != "" {
+		env = append(env, fmt.Sprintf("CLAUDE_MODEL=%s", cfg.Model))
 	}
 
 	// Max turns
-	if req.Profile != nil && req.Profile.MaxTurns > 0 {
-		env = append(env, fmt.Sprintf("MAX_TURNS=%d", req.Profile.MaxTurns))
+	if cfg.MaxTurns > 0 {
+		env = append(env, fmt.Sprintf("MAX_TURNS=%d", cfg.MaxTurns))
 	} else {
 		env = append(env, "MAX_TURNS=30") // Default
 	}
 
 	// Timeout in seconds
-	if req.Profile != nil && req.Profile.Timeout > 0 {
-		env = append(env, fmt.Sprintf("TIMEOUT=%d", int(req.Profile.Timeout.Seconds())))
+	if cfg.Timeout > 0 {
+		env = append(env, fmt.Sprintf("TIMEOUT=%d", int(cfg.Timeout.Seconds())))
 	}
 
 	// Allowed tools
-	if req.Profile != nil && len(req.Profile.AllowedTools) > 0 {
-		env = append(env, fmt.Sprintf("ALLOWED_TOOLS=%s", strings.Join(req.Profile.AllowedTools, ",")))
+	if len(cfg.AllowedTools) > 0 {
+		env = append(env, fmt.Sprintf("ALLOWED_TOOLS=%s", strings.Join(cfg.AllowedTools, ",")))
 	}
 
 	// Skip permission prompts if configured (for sandboxed environments)
-	if req.Profile != nil && req.Profile.SkipPermissionPrompt {
+	if cfg.SkipPermissionPrompt {
 		env = append(env, "SKIP_PERMISSIONS=yes")
 	}
 
@@ -380,22 +384,22 @@ func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
 
 // ClaudeStreamEvent represents a single event from Claude Code's stream-json output.
 type ClaudeStreamEvent struct {
-	Type         string             `json:"type"`
-	Subtype      string             `json:"subtype,omitempty"` // e.g., "success", "error"
-	Message      *ClaudeMessage     `json:"message,omitempty"`
-	Usage        *ClaudeUsage       `json:"usage,omitempty"`
-	ToolUse      *ClaudeToolUse     `json:"tool_use,omitempty"`
-	Result       json.RawMessage    `json:"result,omitempty"`
-	Error        *ClaudeError       `json:"error,omitempty"`
-	SessionID    string             `json:"session_id,omitempty"`
-	IsError      bool               `json:"is_error,omitempty"`
-	DurationMs   int                `json:"duration_ms,omitempty"`
-	DurationAPI  int                `json:"duration_api_ms,omitempty"`
-	NumTurns     int                `json:"num_turns,omitempty"`
-	TotalCostUSD float64            `json:"total_cost_usd,omitempty"`
-	ServiceTier  string             `json:"service_tier,omitempty"` // e.g., "standard"
+	Type         string              `json:"type"`
+	Subtype      string              `json:"subtype,omitempty"` // e.g., "success", "error"
+	Message      *ClaudeMessage      `json:"message,omitempty"`
+	Usage        *ClaudeUsage        `json:"usage,omitempty"`
+	ToolUse      *ClaudeToolUse      `json:"tool_use,omitempty"`
+	Result       json.RawMessage     `json:"result,omitempty"`
+	Error        *ClaudeError        `json:"error,omitempty"`
+	SessionID    string              `json:"session_id,omitempty"`
+	IsError      bool                `json:"is_error,omitempty"`
+	DurationMs   int                 `json:"duration_ms,omitempty"`
+	DurationAPI  int                 `json:"duration_api_ms,omitempty"`
+	NumTurns     int                 `json:"num_turns,omitempty"`
+	TotalCostUSD float64             `json:"total_cost_usd,omitempty"`
+	ServiceTier  string              `json:"service_tier,omitempty"` // e.g., "standard"
 	ContentBlock *ClaudeContentBlock `json:"content_block,omitempty"`
-	Delta        *ClaudeDelta       `json:"delta,omitempty"`
+	Delta        *ClaudeDelta        `json:"delta,omitempty"`
 }
 
 // ClaudeMessage represents a message in the Claude stream.
@@ -406,11 +410,11 @@ type ClaudeMessage struct {
 
 // ClaudeUsage represents detailed token usage information.
 type ClaudeUsage struct {
-	InputTokens             int               `json:"input_tokens"`
-	OutputTokens            int               `json:"output_tokens"`
-	CacheCreationInputTokens int              `json:"cache_creation_input_tokens,omitempty"`
-	CacheReadInputTokens    int               `json:"cache_read_input_tokens,omitempty"`
-	ServerToolUse           *ClaudeServerTool `json:"server_tool_use,omitempty"`
+	InputTokens              int               `json:"input_tokens"`
+	OutputTokens             int               `json:"output_tokens"`
+	CacheCreationInputTokens int               `json:"cache_creation_input_tokens,omitempty"`
+	CacheReadInputTokens     int               `json:"cache_read_input_tokens,omitempty"`
+	ServerToolUse            *ClaudeServerTool `json:"server_tool_use,omitempty"`
 }
 
 // ClaudeServerTool represents server-side tool usage.
@@ -433,10 +437,10 @@ type ClaudeError struct {
 
 // ClaudeContentBlock represents a content block in streaming.
 type ClaudeContentBlock struct {
-	Type  string `json:"type"` // "text", "tool_use"
-	ID    string `json:"id,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Text  string `json:"text,omitempty"`
+	Type string `json:"type"` // "text", "tool_use"
+	ID   string `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+	Text string `json:"text,omitempty"`
 }
 
 // ClaudeDelta represents incremental updates in streaming.
@@ -448,11 +452,11 @@ type ClaudeDelta struct {
 
 // RateLimitInfo contains parsed rate limit information.
 type RateLimitInfo struct {
-	Detected    bool
-	LimitType   string // "5_hour", "daily", "weekly", "token"
-	ResetTime   *time.Time
-	RetryAfter  int // seconds
-	Message     string
+	Detected   bool
+	LimitType  string // "5_hour", "daily", "weekly", "token"
+	ResetTime  *time.Time
+	RetryAfter int // seconds
+	Message    string
 }
 
 // parseStreamEvent parses a single line from Claude's stream-json output.

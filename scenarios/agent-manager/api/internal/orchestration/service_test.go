@@ -195,19 +195,19 @@ func TestOrchestrator_RunOperations(t *testing.T) {
 	svc.CreateProfile(ctx, profile)
 
 	task := &domain.Task{
-		ID:          uuid.New(),
-		Title:       "Run Test Task",
-		ScopePath:   "src/",
-		Status:      domain.TaskStatusQueued,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:        uuid.New(),
+		Title:     "Run Test Task",
+		ScopePath: "src/",
+		Status:    domain.TaskStatusQueued,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	svc.CreateTask(ctx, task)
 
 	// Create run (will fail due to missing sandbox, but we can test the creation logic)
 	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
 		TaskID:         task.ID,
-		AgentProfileID: profile.ID,
+		AgentProfileID: &profile.ID,
 		Prompt:         "Test prompt",
 	})
 	if err != nil {
