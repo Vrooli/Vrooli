@@ -228,6 +228,14 @@ export interface RunnerStatus {
   };
 }
 
+export interface ProbeResult {
+  runnerType: RunnerType;
+  success: boolean;
+  message: string;
+  response?: string;
+  durationMs: number;
+}
+
 export interface ApprovalResult {
   success: boolean;
   commitHash?: string;

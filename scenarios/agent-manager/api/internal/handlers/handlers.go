@@ -97,6 +97,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 	// Status endpoints
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
+	r.HandleFunc("/api/v1/runners/{type}/probe", h.ProbeRunner).Methods("POST")
 }
 
 // =============================================================================
@@ -706,4 +707,21 @@ func (h *Handler) GetRunnerStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, statuses)
+}
+
+// ProbeRunner sends a test request to verify a runner can respond.
+func (h *Handler) ProbeRunner(w http.ResponseWriter, r *http.Request) {
+	runnerType := mux.Vars(r)["type"]
+	if runnerType == "" {
+		writeSimpleError(w, r, "type", "runner type is required")
+		return
+	}
+
+	result, err := h.svc.ProbeRunner(r.Context(), domain.RunnerType(runnerType))
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }

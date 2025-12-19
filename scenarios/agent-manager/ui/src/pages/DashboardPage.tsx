@@ -7,17 +7,20 @@ import {
   Clock,
   Copy,
   Check,
+  Loader2,
   RefreshCw,
   Server,
   Shield,
+  Zap,
   XCircle,
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { ScrollArea } from "../components/ui/scroll-area";
+import { probeRunner } from "../hooks/useApi";
 import { formatRelativeTime } from "../lib/utils";
-import type { AgentProfile, HealthStatus, Run, Task } from "../types";
+import type { AgentProfile, HealthStatus, ProbeResult, Run, RunnerType, Task } from "../types";
 
 interface DashboardPageProps {
   health: HealthStatus | null;
@@ -119,6 +122,7 @@ export function DashboardPage({
                   name={formatRunnerName(name)}
                   available={runner.connected}
                   message={runner.error}
+                  runnerType={name as RunnerType}
                 />
               ))}
 
@@ -246,12 +250,16 @@ function HealthItem({
   name,
   available,
   message,
+  runnerType,
 }: {
   name: string;
   available: boolean;
   message?: string;
+  runnerType?: RunnerType;
 }) {
   const [copied, setCopied] = useState(false);
+  const [probing, setProbing] = useState(false);
+  const [probeResult, setProbeResult] = useState<ProbeResult | null>(null);
 
   const handleCopy = async () => {
     if (!message) return;
@@ -264,40 +272,106 @@ function HealthItem({
     }
   };
 
+  const handleProbe = async () => {
+    if (!runnerType || probing) return;
+    setProbing(true);
+    setProbeResult(null);
+    try {
+      const result = await probeRunner(runnerType);
+      setProbeResult(result);
+      // Auto-clear result after 10 seconds
+      setTimeout(() => setProbeResult(null), 10000);
+    } catch (err) {
+      setProbeResult({
+        runnerType,
+        success: false,
+        message: (err as Error).message,
+        durationMs: 0,
+      });
+    } finally {
+      setProbing(false);
+    }
+  };
+
   return (
-    <div className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3">
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        {available ? (
-          <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
-        ) : (
-          <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="font-medium">{name}</p>
-          {message && (
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground max-w-md truncate" title={message}>
-                {message}
-              </p>
-              <button
-                onClick={handleCopy}
-                className="flex-shrink-0 p-1 rounded hover:bg-muted transition-colors"
-                title="Copy full error message"
-                aria-label="Copy error message"
-              >
-                {copied ? (
-                  <Check className="h-3 w-3 text-success" />
-                ) : (
-                  <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                )}
-              </button>
-            </div>
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-card/50 p-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {available ? (
+            <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
+          ) : (
+            <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
           )}
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">{name}</p>
+            {message && (
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground max-w-md truncate" title={message}>
+                  {message}
+                </p>
+                <button
+                  onClick={handleCopy}
+                  className="flex-shrink-0 p-1 rounded hover:bg-muted transition-colors"
+                  title="Copy full error message"
+                  aria-label="Copy error message"
+                >
+                  {copied ? (
+                    <Check className="h-3 w-3 text-success" />
+                  ) : (
+                    <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+          {runnerType && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleProbe}
+              disabled={probing}
+              className="h-7 px-2 text-xs gap-1"
+              title="Send a test request to verify the agent responds"
+            >
+              {probing ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Zap className="h-3 w-3" />
+              )}
+              Probe
+            </Button>
+          )}
+          <Badge variant={available ? "success" : "destructive"}>
+            {available ? "Available" : "Unavailable"}
+          </Badge>
         </div>
       </div>
-      <Badge variant={available ? "success" : "destructive"} className="flex-shrink-0 ml-2">
-        {available ? "Available" : "Unavailable"}
-      </Badge>
+      {probeResult && (
+        <div
+          className={`text-xs p-2 rounded border ${
+            probeResult.success
+              ? "bg-success/10 border-success/20 text-success"
+              : "bg-destructive/10 border-destructive/20 text-destructive"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-medium">
+              {probeResult.success ? "✓ Probe successful" : "✗ Probe failed"}
+            </span>
+            <span className="text-muted-foreground">{probeResult.durationMs}ms</span>
+          </div>
+          {probeResult.response && (
+            <p className="mt-1 font-mono text-[10px] opacity-80 truncate" title={probeResult.response}>
+              {probeResult.response}
+            </p>
+          )}
+          {!probeResult.success && probeResult.message && (
+            <p className="mt-1 opacity-80">{probeResult.message}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

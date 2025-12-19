@@ -65,6 +65,22 @@ func NewCodexRunner() (*CodexRunner, error) {
 	cmd := exec.CommandContext(ctx, binaryPath, "status", "--format", "json")
 	output, err := cmd.Output()
 	if err != nil {
+		// Exit code 1 = running but not healthy, 2 = stopped
+		// Check if we can still parse the JSON for more details
+		var statusData map[string]interface{}
+		if jsonErr := json.Unmarshal(output, &statusData); jsonErr == nil {
+			// Got JSON, check the healthy field
+			if healthyStr, ok := statusData["healthy"].(string); ok && healthyStr == "unknown" {
+				// Unknown status - still allow usage but note the uncertainty
+				runner.available = true
+				if msg, ok := statusData["message"].(string); ok {
+					runner.message = msg
+				} else {
+					runner.message = "Codex CLI installed, login status unknown"
+				}
+				return runner, nil
+			}
+		}
 		runner.available = false
 		runner.message = fmt.Sprintf("resource-codex status check failed: %v", err)
 		runner.installHint = "Run: resource-codex manage install"
@@ -74,14 +90,28 @@ func NewCodexRunner() (*CodexRunner, error) {
 	// Parse JSON status to check health
 	var statusData map[string]interface{}
 	if err := json.Unmarshal(output, &statusData); err == nil {
-		if healthy, ok := statusData["healthy"].(bool); ok && !healthy {
-			runner.available = false
-			if msg, ok := statusData["message"].(string); ok {
-				runner.message = msg
-			} else {
-				runner.message = "resource-codex is not healthy"
+		// Handle different healthy values
+		switch healthy := statusData["healthy"].(type) {
+		case bool:
+			if !healthy {
+				runner.available = false
+				if msg, ok := statusData["message"].(string); ok {
+					runner.message = msg
+				} else {
+					runner.message = "resource-codex is not healthy"
+				}
+				runner.installHint = "Run: resource-codex manage install"
 			}
-			runner.installHint = "Run: resource-codex manage install"
+		case string:
+			// "unknown" or other string value - allow usage but note uncertainty
+			if healthy == "unknown" {
+				runner.available = true
+				if msg, ok := statusData["message"].(string); ok {
+					runner.message = msg
+				} else {
+					runner.message = "Codex CLI installed, login status unknown"
+				}
+			}
 		}
 	}
 

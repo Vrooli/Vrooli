@@ -14,6 +14,8 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"os/exec"
+	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/artifact"
@@ -76,6 +78,7 @@ type Service interface {
 	// --- Status Operations ---
 	GetHealth(ctx context.Context) (*HealthStatus, error)
 	GetRunnerStatus(ctx context.Context) ([]*RunnerStatus, error)
+	ProbeRunner(ctx context.Context, runnerType domain.RunnerType) (*ProbeResult, error)
 }
 
 // -----------------------------------------------------------------------------
@@ -212,6 +215,15 @@ type RunnerStatus struct {
 	Available    bool                `json:"available"`
 	Message      string              `json:"message,omitempty"`
 	Capabilities runner.Capabilities `json:"capabilities"`
+}
+
+// ProbeResult contains the result of probing a runner.
+type ProbeResult struct {
+	RunnerType domain.RunnerType `json:"runnerType"`
+	Success    bool              `json:"success"`
+	Message    string            `json:"message"`
+	Response   string            `json:"response,omitempty"`
+	DurationMs int64             `json:"durationMs"`
 }
 
 // -----------------------------------------------------------------------------
@@ -1118,6 +1130,99 @@ func (o *Orchestrator) GetRunnerStatus(ctx context.Context) ([]*RunnerStatus, er
 		})
 	}
 	return statuses, nil
+}
+
+// ProbeRunner sends a lightweight test request to a runner to verify it can respond.
+func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.RunnerType) (*ProbeResult, error) {
+	if o.runners == nil {
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    false,
+			Message:    "no runner registry configured",
+		}, nil
+	}
+
+	r, err := o.runners.Get(runnerType)
+	if err != nil {
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    false,
+			Message:    fmt.Sprintf("runner not found: %v", err),
+		}, nil
+	}
+
+	// First check if the runner is available
+	available, msg := r.IsAvailable(ctx)
+	if !available {
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    false,
+			Message:    msg,
+		}, nil
+	}
+
+	// Run a lightweight probe command based on runner type
+	start := time.Now()
+	var probeCmd *exec.Cmd
+	var cmdName string
+
+	switch runnerType {
+	case domain.RunnerTypeClaudeCode:
+		cmdName = "claude"
+		probeCmd = exec.CommandContext(ctx, cmdName, "--version")
+	case domain.RunnerTypeCodex:
+		cmdName = "codex"
+		probeCmd = exec.CommandContext(ctx, cmdName, "--version")
+	case domain.RunnerTypeOpenCode:
+		cmdName = "opencode"
+		probeCmd = exec.CommandContext(ctx, cmdName, "--version")
+	default:
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    false,
+			Message:    fmt.Sprintf("unknown runner type: %s", runnerType),
+		}, nil
+	}
+
+	output, err := probeCmd.CombinedOutput()
+	duration := time.Since(start)
+	outputStr := strings.TrimSpace(string(output))
+
+	// Check for command execution error (non-zero exit code)
+	if err != nil {
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    false,
+			Message:    fmt.Sprintf("%s probe failed: %v", cmdName, err),
+			Response:   outputStr,
+			DurationMs: duration.Milliseconds(),
+		}, nil
+	}
+
+	// Some CLIs return exit code 0 but print error messages - detect these
+	// by checking for common error patterns in the output
+	outputLower := strings.ToLower(outputStr)
+	if strings.Contains(outputLower, "error:") ||
+		strings.Contains(outputLower, "failed") ||
+		strings.Contains(outputLower, "command not found") ||
+		strings.Contains(outputLower, "no such file") ||
+		strings.Contains(outputLower, "permission denied") {
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    false,
+			Message:    fmt.Sprintf("%s returned error in output despite exit code 0", cmdName),
+			Response:   outputStr,
+			DurationMs: duration.Milliseconds(),
+		}, nil
+	}
+
+	return &ProbeResult{
+		RunnerType: runnerType,
+		Success:    true,
+		Message:    fmt.Sprintf("%s responded successfully", cmdName),
+		Response:   outputStr,
+		DurationMs: duration.Milliseconds(),
+	}, nil
 }
 
 // -----------------------------------------------------------------------------

@@ -9,10 +9,12 @@ import type {
   CreateTaskRequest,
   DiffResult,
   HealthStatus,
+  ProbeResult,
   RejectRequest,
   Run,
   RunEvent,
   RunnerStatus,
+  RunnerType,
   Task,
 } from "../types";
 
@@ -334,4 +336,11 @@ export function useRunners() {
   }, [fetchRunners]);
 
   return { ...state, refetch: fetchRunners };
+}
+
+// Probe runner function (standalone for use in components)
+export async function probeRunner(runnerType: RunnerType): Promise<ProbeResult> {
+  return apiRequest<ProbeResult>(`/runners/${runnerType}/probe`, {
+    method: "POST",
+  });
 }
