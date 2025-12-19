@@ -1,0 +1,43 @@
+{
+  "description": "Support sequential agent prompts",
+  "module_id": "MOD-P2-021",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-005"
+      ],
+      "description": "Enable runs with multiple sequential agent interaction phases",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "draft",
+      "title": "Multi-Phase Run Support",
+      "validation": [
+        {
+          "notes": "Test phase transitions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify multi-phase flow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm phase integrity",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Multi-phase Runs"
+}

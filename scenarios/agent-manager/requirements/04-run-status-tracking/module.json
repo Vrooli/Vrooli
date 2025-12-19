@@ -1,0 +1,50 @@
+{
+  "description": "Track and update run status with timestamps",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-005"
+      ],
+      "description": "Track and update run status through defined lifecycle states with timestamps",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "Run Status Lifecycle",
+      "validation": [
+        {
+          "notes": "Test status transitions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify timestamp tracking",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify status updates propagate correctly",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm status visibility",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Run Status Tracking"
+}

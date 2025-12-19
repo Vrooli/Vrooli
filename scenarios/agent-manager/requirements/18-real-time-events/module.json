@@ -1,0 +1,61 @@
+{
+  "description": "Add WebSocket streaming for run events",
+  "module_id": "MOD-P1-018",
+  "prd_ref": "OT-P1-007",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Implement real-time event streaming via WebSocket connections for run status updates, logs, and metrics. Include reconnection handling and event buffering capabilities.",
+      "id": "REQ-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "draft",
+      "title": "WebSocket Event Streaming",
+      "validation": [
+        {
+          "notes": "Test WebSocket connection handling",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test event serialization",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify end-to-end event delivery",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Support 1000+ concurrent connections",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Event latency under 100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Real-time updates visible to users",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Real-time Events"
+}

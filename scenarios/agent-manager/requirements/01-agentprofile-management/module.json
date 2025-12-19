@@ -1,0 +1,95 @@
+{
+  "description": "Create and manage agent profiles with runner configurations and permissions",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "System must allow creation of agent profiles with name, description, runner configuration settings, and permission scopes",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Create Agent Profile",
+      "validation": [
+        {
+          "notes": "Verify profile creation with valid data",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify validation of required fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test permission scope assignment",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify profile persistence in database",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm profiles can be assigned to tasks",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "System must allow updating existing agent profile fields while maintaining referential integrity",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Update Agent Profile",
+      "validation": [
+        {
+          "notes": "Verify profile updates persist correctly",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test concurrent update handling",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify cascade updates to related entities",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate change audit trail",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "AgentProfile Management"
+}

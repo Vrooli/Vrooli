@@ -1,0 +1,47 @@
+{
+  "description": "Implement path-scoped exclusive locks",
+  "module_id": "MOD-P1-012",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Implement exclusive locks on file system paths to prevent conflicts",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Path-Scoped Locking",
+      "validation": [
+        {
+          "notes": "Test lock acquisition/release",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify concurrent access control",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Measure lock overhead",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm conflict prevention",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Scope Locks"
+}

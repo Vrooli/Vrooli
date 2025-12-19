@@ -1,0 +1,43 @@
+{
+  "description": "Enable selective file/hunk approval",
+  "module_id": "MOD-P1-014",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-012"
+      ],
+      "description": "Enable approval of individual files and hunks within runs",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "Selective Approval Flow",
+      "validation": [
+        {
+          "notes": "Test partial approval logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify selective changes",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm approval granularity",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Partial Approval"
+}

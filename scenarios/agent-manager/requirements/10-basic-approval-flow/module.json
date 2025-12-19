@@ -1,0 +1,43 @@
+{
+  "description": "Support approve/reject workflows for runs",
+  "module_id": "MOD-P0-010",
+  "prd_ref": "OT-P0-010",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-011"
+      ],
+      "description": "Implement approve/reject workflow for runs with appropriate state transitions",
+      "id": "REQ-P0-012",
+      "prd_ref": "OT-P0-010",
+      "status": "draft",
+      "title": "Basic Approval Workflow",
+      "validation": [
+        {
+          "notes": "Test approval state machine",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify approval flow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm approval permissions",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Basic Approval Flow"
+}

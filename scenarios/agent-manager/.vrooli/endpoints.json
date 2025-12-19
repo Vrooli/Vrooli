@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "agent-manager status"
+      }
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    }
+  ]
+}

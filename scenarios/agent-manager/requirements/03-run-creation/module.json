@@ -1,0 +1,58 @@
+{
+  "description": "Enable run creation with sandbox allocation and mode selection",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-003"
+      ],
+      "description": "Enable creation of runs with sandbox allocation and execution mode selection",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-003",
+      "status": "draft",
+      "title": "Run Creation Flow",
+      "validation": [
+        {
+          "notes": "Test run creation parameters",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify mode validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end run creation with sandbox",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run creation under load",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify run appears in task context",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Run Creation"
+}

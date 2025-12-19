@@ -1,0 +1,510 @@
+{
+  "scenario": "agent-inbox",
+  "report_version": 1,
+  "generated_at": "2025-12-18T04:03:57.015708755Z",
+  "dependencies": [
+    {
+      "name": "ollama",
+      "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.6
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0,
+          "reason": "Resource-intensive AI not supported on mobile"
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.3,
+          "notes": "Consider using managed AI API for SaaS deployment",
+          "alternatives": [
+            "openai",
+            "anthropic",
+            "openrouter"
+          ]
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
+      "source": "declared"
+    },
+    {
+      "name": "openrouter",
+      "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.9
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": true,
+          "fitness_score": 0.4
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.85
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.6
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0.2,
+          "reason": "Database should be remote for mobile deployments",
+          "alternatives": [
+            "saas-variant",
+            "cloud-variant"
+          ]
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.95
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
+      "source": "declared"
+    }
+  ],
+  "aggregates": {
+    "desktop": {
+      "fitness_score": 0.7000000000000001,
+      "dependency_count": 3,
+      "blocking_dependencies": [
+        "ollama",
+        "postgres"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "enterprise": {
+      "fitness_score": 0.98,
+      "dependency_count": 3,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "local": {
+      "fitness_score": 1,
+      "dependency_count": 3,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "mobile": {
+      "fitness_score": 0.20000000000000004,
+      "dependency_count": 3,
+      "blocking_dependencies": [
+        "ollama",
+        "openrouter",
+        "postgres"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "saas": {
+      "fitness_score": 0.6999999999999998,
+      "dependency_count": 3,
+      "blocking_dependencies": [
+        "ollama"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "server": {
+      "fitness_score": 0.9499999999999998,
+      "dependency_count": 3,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    }
+  },
+  "bundle_manifest": {
+    "scenario": "agent-inbox",
+    "generated_at": "2025-12-18T04:03:57.015708755Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/agent-inbox-api",
+        "type": "api-binary",
+        "exists": false
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": false
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": false
+      },
+      {
+        "path": "cli/agent-inbox",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "ollama",
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.6
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0,
+            "reason": "Resource-intensive AI not supported on mobile"
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.3,
+            "notes": "Consider using managed AI API for SaaS deployment",
+            "alternatives": [
+              "openai",
+              "anthropic",
+              "openrouter"
+            ]
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
+      },
+      {
+        "name": "openrouter",
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.9
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": true,
+            "fitness_score": 0.4
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.85
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
+      },
+      {
+        "name": "postgres",
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.6
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0.2,
+            "reason": "Database should be remote for mobile deployments",
+            "alternatives": [
+              "saas-variant",
+              "cloud-variant"
+            ]
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.95
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
+      }
+    ],
+    "skeleton": {
+      "schema_version": "v0.1",
+      "target": "desktop",
+      "app": {
+        "name": "agent-inbox",
+        "version": "0.0.1",
+        "description": "AI chat inbox for managing conversations with multiple AI models and coding agents"
+      },
+      "ipc": {
+        "mode": "loopback-http",
+        "host": "127.0.0.1",
+        "port": 39200,
+        "auth_token_path": "runtime/auth_token"
+      },
+      "telemetry": {
+        "file": "telemetry/deployment-telemetry.jsonl"
+      },
+      "ports": {
+        "default_range": {
+          "min": 20000,
+          "max": 24000
+        }
+      },
+      "services": [
+        {
+          "id": "agent-inbox-api",
+          "type": "api-binary",
+          "description": "Bundled API process for agent-inbox",
+          "binaries": {
+            "darwin-x64": {
+              "path": "api/server"
+            },
+            "linux-x64": {
+              "path": "api/server"
+            },
+            "win-x64": {
+              "path": "api/server.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "api",
+            "entry_point": ".",
+            "output_pattern": "bin/{{platform}}/agent-inbox-api{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "API_PORT": "${agent-inbox-api.api}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "data_dirs": [
+            "data/api"
+          ],
+          "log_dir": "logs/api",
+          "ports": {
+            "requested": [
+              {
+                "name": "api",
+                "range": {
+                  "min": 23100,
+                  "max": 23200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "api",
+            "interval_ms": 2000,
+            "timeout_ms": 15000,
+            "retries": 5
+          },
+          "readiness": {
+            "type": "port_open",
+            "port_name": "api",
+            "timeout_ms": 30000
+          }
+        },
+        {
+          "id": "agent-inbox-cli",
+          "type": "resource",
+          "description": "CLI for agent-inbox scenario",
+          "binaries": {
+            "darwin-x64": {
+              "path": "cli/agent-inbox"
+            },
+            "linux-x64": {
+              "path": "cli/agent-inbox"
+            },
+            "win-x64": {
+              "path": "cli/agent-inbox.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "cli",
+            "entry_point": ".",
+            "output_pattern": "bin/{{platform}}/agent-inbox{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "health": {
+            "type": "command",
+            "command": [
+              "echo",
+              "healthy"
+            ],
+            "interval_ms": 10000,
+            "timeout_ms": 5000,
+            "retries": 1
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "http",
+            "timeout_ms": 5000
+          },
+          "assets": [
+            {
+              "path": "cli/agent-inbox",
+              "sha256": "pending"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "metadata_gaps": {
+    "total_gaps": 0,
+    "scenarios_missing_all": 0,
+    "gaps_by_scenario": {},
+    "missing_tiers": null,
+    "secret_requirements": [
+      {
+        "dependency_name": "postgres",
+        "dependency_type": "resource",
+        "secret_type": "database_credentials",
+        "required_secrets": [
+          "postgres_password",
+          "postgres_user"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/database-credentials.md",
+        "priority": "required"
+      }
+    ],
+    "resource_swap_suggestions": [
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "openrouter",
+        "reason": "Lighter alternative for SaaS/mobile deployments",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Reduces deployment size and resource requirements"
+      },
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "anthropic",
+        "reason": "Managed AI API for production deployments",
+        "applicable_tiers": [
+          "saas",
+          "enterprise"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Better scalability and reliability"
+      },
+      {
+        "original_resource": "postgres",
+        "alternative_resource": "supabase",
+        "reason": "Managed PostgreSQL with built-in APIs",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "managed_service",
+        "impact_description": "Eliminates database management overhead"
+      }
+    ],
+    "recommendations": [
+      "Configure 1 secret(s) for dependencies - see secrets-manager playbooks",
+      "Consider 3 resource swap(s) for deployment optimization"
+    ]
+  }
+}

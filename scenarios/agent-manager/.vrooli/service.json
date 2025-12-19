@@ -1,0 +1,227 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "agent-manager",
+    "displayName": "Agent Manager",
+    "description": "Central orchestration and governance layer for running AI agents against the codebase in a controlled, reviewable, and extensible way",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api",
+      "agent-orchestration",
+      "sandbox-first",
+      "policy-driven",
+      "event-native",
+      "task-management",
+      "approval-workflow"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/agent-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "35000-39999"
+    },
+    "websocket": {
+      "env_var": "WS_PORT",
+      "description": "WebSocket channel",
+      "range": "25000-29999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": ["api/agent-manager-api"]
+          },
+          {
+            "type": "cli",
+            "command": "agent-manager"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o agent-manager-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./agent-manager-api",
+          "background": true,
+          "description": "Start Go API server in background",
+          "condition": {
+            "file_exists": "api/agent-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "description": "Serve production UI bundle",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "test-genie execute agent-manager --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'agent-manager-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Primary relational data store for tasks, runs, events, agent profiles, policies",
+        "schema": "agent-manager"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false,
+        "description": "Runner adapter for Claude Code agent execution"
+      },
+      "codex": {
+        "type": "codex",
+        "enabled": true,
+        "required": false,
+        "description": "Runner adapter for OpenAI Codex agent execution"
+      },
+      "opencode": {
+        "type": "opencode",
+        "enabled": true,
+        "required": false,
+        "description": "Runner adapter for open-source code model execution"
+      }
+    },
+    "scenarios": {
+      "workspace-sandbox": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "description": "Provides sandbox creation, diff generation, and patch application for isolated agent execution"
+      }
+    }
+  }
+}
