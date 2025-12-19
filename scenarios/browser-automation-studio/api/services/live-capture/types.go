@@ -11,4 +11,17 @@ type (
 	SelectorSet       = driver.SelectorSet
 	SelectorCandidate = driver.SelectorCandidate
 	ElementMeta       = driver.ElementMeta
+
+	// Error type alias
+	DriverError = driver.Error
+
+	// Request/Response type aliases for handler backward compatibility
+	NavigateRequest              = driver.NavigateRequest
+	NavigateResponse             = driver.NavigateResponse
+	ReplayPreviewRequest         = driver.ReplayPreviewRequest
+	ReplayPreviewResponse        = driver.ReplayPreviewResponse
+	CaptureScreenshotRequest     = driver.CaptureScreenshotRequest
+	CaptureScreenshotResponse    = driver.CaptureScreenshotResponse
+	UpdateStreamSettingsRequest  = driver.UpdateStreamSettingsRequest
+	UpdateStreamSettingsResponse = driver.UpdateStreamSettingsResponse
 )

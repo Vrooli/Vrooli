@@ -10,31 +10,32 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/automation/session"
 )
 
 // PlaywrightEngine talks to a local Playwright driver (Node) over HTTP/Unix
 // sockets. The driver is responsible for translating CompiledInstructions into
 // Playwright actions and returning contract StepOutcome payloads.
 type PlaywrightEngine struct {
-	client *driver.Client
-	log    *logrus.Logger
+	sessions *session.Manager
+	log      *logrus.Logger
 }
 
 // NewPlaywrightEngine constructs an engine using environment configuration.
 // It requires PLAYWRIGHT_DRIVER_URL unless allowDefault is true, in which case
 // it falls back to localhost for developer setups.
 func NewPlaywrightEngine(log *logrus.Logger) (*PlaywrightEngine, error) {
-	client, err := driver.NewClient(driver.WithLogger(log))
+	mgr, err := session.NewManager(session.WithLogger(log))
 	if err != nil {
 		return nil, err
 	}
-	return &PlaywrightEngine{client: client, log: log}, nil
+	return &PlaywrightEngine{sessions: mgr, log: log}, nil
 }
 
 // NewPlaywrightEngineWithDefault allows the localhost fallback when explicit
 // configuration is absent (useful for local development and tests).
 func NewPlaywrightEngineWithDefault(log *logrus.Logger) (*PlaywrightEngine, error) {
-	// NewClient already allows default, so this is the same as NewPlaywrightEngine
+	// NewManager already allows default, so this is the same as NewPlaywrightEngine
 	return NewPlaywrightEngine(log)
 }
 
@@ -45,7 +46,8 @@ func NewPlaywrightEngineWithHTTPClient(driverURL string, httpClient HTTPDoer, lo
 	if err != nil {
 		return nil, err
 	}
-	return &PlaywrightEngine{client: client, log: log}, nil
+	mgr := session.NewManagerWithClient(client, session.WithLogger(log))
+	return &PlaywrightEngine{sessions: mgr, log: log}, nil
 }
 
 // Name returns the engine identifier.
@@ -54,7 +56,7 @@ func (e *PlaywrightEngine) Name() string { return "playwright" }
 // Capabilities returns a conservative capability descriptor for the local
 // Playwright driver. Update when driver gains richer support (HAR/video, etc.).
 func (e *PlaywrightEngine) Capabilities(ctx context.Context) (contracts.EngineCapabilities, error) {
-	if err := e.client.Health(ctx); err != nil {
+	if err := e.sessions.Client().Health(ctx); err != nil {
 		return contracts.EngineCapabilities{}, err
 	}
 	return contracts.EngineCapabilities{
@@ -78,32 +80,32 @@ func (e *PlaywrightEngine) Capabilities(ctx context.Context) (contracts.EngineCa
 
 // StartSession asks the driver to create a new browser/context/page tuple.
 func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (EngineSession, error) {
-	req := &driver.CreateSessionRequest{
-		ExecutionID: spec.ExecutionID.String(),
-		WorkflowID:  spec.WorkflowID.String(),
-		Viewport: driver.Viewport{
-			Width:  spec.ViewportWidth,
-			Height: spec.ViewportHeight,
-		},
-		ReuseMode: string(spec.ReuseMode),
-		BaseURL:   spec.BaseURL,
-		Labels:    spec.Labels,
-		RequiredCapabilities: &driver.CapabilityRequest{
-			Tabs:      spec.Capabilities.NeedsParallelTabs,
-			Iframes:   spec.Capabilities.NeedsIframes,
-			Uploads:   spec.Capabilities.NeedsFileUploads,
-			Downloads: spec.Capabilities.NeedsDownloads,
-			HAR:       spec.Capabilities.NeedsHAR,
-			Video:     spec.Capabilities.NeedsVideo,
-			Tracing:   spec.Capabilities.NeedsTracing,
-			ViewportW: spec.Capabilities.MinViewportWidth,
-			ViewportH: spec.Capabilities.MinViewportHeight,
+	// Convert engine.SessionSpec to session.Spec
+	sessionSpec := session.Spec{
+		ExecutionID:    spec.ExecutionID,
+		WorkflowID:     spec.WorkflowID,
+		Mode:           session.ModeExecution,
+		ViewportWidth:  spec.ViewportWidth,
+		ViewportHeight: spec.ViewportHeight,
+		ReuseMode:      string(spec.ReuseMode),
+		BaseURL:        spec.BaseURL,
+		Labels:         spec.Labels,
+		Capabilities: session.CapabilityRequirement{
+			NeedsParallelTabs: spec.Capabilities.NeedsParallelTabs,
+			NeedsIframes:      spec.Capabilities.NeedsIframes,
+			NeedsFileUploads:  spec.Capabilities.NeedsFileUploads,
+			NeedsDownloads:    spec.Capabilities.NeedsDownloads,
+			NeedsHAR:          spec.Capabilities.NeedsHAR,
+			NeedsVideo:        spec.Capabilities.NeedsVideo,
+			NeedsTracing:      spec.Capabilities.NeedsTracing,
+			MinViewportWidth:  spec.Capabilities.MinViewportWidth,
+			MinViewportHeight: spec.Capabilities.MinViewportHeight,
 		},
 	}
 
 	// Add frame streaming config if enabled (for live execution preview)
 	if spec.FrameStreaming != nil {
-		req.FrameStreaming = &driver.FrameStreamingConfig{
+		sessionSpec.FrameStreaming = &session.FrameStreamingConfig{
 			CallbackURL: spec.FrameStreaming.CallbackURL,
 			Quality:     spec.FrameStreaming.Quality,
 			FPS:         spec.FrameStreaming.FPS,
@@ -117,32 +119,13 @@ func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (
 		"viewport_height": spec.ViewportHeight,
 	}).Info("Starting playwright session with viewport")
 
-	resp, err := e.client.CreateSession(ctx, req)
+	// Create session via Manager - the returned *session.Session satisfies EngineSession
+	sess, err := e.sessions.Create(ctx, sessionSpec)
 	if err != nil {
 		return nil, err
 	}
 
-	return &playwrightSession{
-		sessionID: resp.SessionID,
-		client:    e.client,
-	}, nil
-}
-
-type playwrightSession struct {
-	sessionID string
-	client    *driver.Client
-}
-
-func (s *playwrightSession) Run(ctx context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
-	return s.client.RunInstruction(ctx, s.sessionID, instruction)
-}
-
-func (s *playwrightSession) Reset(ctx context.Context) error {
-	return s.client.ResetSession(ctx, s.sessionID)
-}
-
-func (s *playwrightSession) Close(ctx context.Context) error {
-	return s.client.CloseSession(ctx, s.sessionID)
+	return sess, nil
 }
 
 // PlaywrightDriverError provides structured error information for driver issues.

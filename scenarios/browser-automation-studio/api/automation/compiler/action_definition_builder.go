@@ -3,6 +3,7 @@ package compiler
 
 import (
 	"github.com/vrooli/browser-automation-studio/internal/enums"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
@@ -17,64 +18,64 @@ func BuildActionDefinition(stepType string, params map[string]any) (*basactions.
 	actionType := enums.StringToActionType(stepType)
 	action.Type = actionType
 
-	// Build typed params based on action type
+	// Build typed params based on action type using shared typeconv builders
 	switch actionType {
 	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
 		action.Params = &basactions.ActionDefinition_Navigate{
-			Navigate: buildNavigateParams(params),
+			Navigate: typeconv.BuildNavigateParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_CLICK:
 		action.Params = &basactions.ActionDefinition_Click{
-			Click: buildClickParams(params),
+			Click: typeconv.BuildClickParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_INPUT:
 		action.Params = &basactions.ActionDefinition_Input{
-			Input: buildInputParams(params),
+			Input: typeconv.BuildInputParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_WAIT:
 		action.Params = &basactions.ActionDefinition_Wait{
-			Wait: buildWaitParams(params),
+			Wait: typeconv.BuildWaitParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_ASSERT:
 		action.Params = &basactions.ActionDefinition_Assert{
-			Assert: buildAssertParams(params),
+			Assert: typeconv.BuildAssertParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_SCROLL:
 		action.Params = &basactions.ActionDefinition_Scroll{
-			Scroll: buildScrollParams(params),
+			Scroll: typeconv.BuildScrollParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_SELECT:
 		action.Params = &basactions.ActionDefinition_SelectOption{
-			SelectOption: buildSelectParams(params),
+			SelectOption: typeconv.BuildSelectParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_EVALUATE:
 		action.Params = &basactions.ActionDefinition_Evaluate{
-			Evaluate: buildEvaluateParams(params),
+			Evaluate: typeconv.BuildEvaluateParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
 		action.Params = &basactions.ActionDefinition_Keyboard{
-			Keyboard: buildKeyboardParams(params),
+			Keyboard: typeconv.BuildKeyboardParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_HOVER:
 		action.Params = &basactions.ActionDefinition_Hover{
-			Hover: buildHoverParams(params),
+			Hover: typeconv.BuildHoverParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
 		action.Params = &basactions.ActionDefinition_Screenshot{
-			Screenshot: buildScreenshotParams(params),
+			Screenshot: typeconv.BuildScreenshotParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_FOCUS:
 		action.Params = &basactions.ActionDefinition_Focus{
-			Focus: buildFocusParams(params),
+			Focus: typeconv.BuildFocusParams(params),
 		}
 	case basactions.ActionType_ACTION_TYPE_BLUR:
 		action.Params = &basactions.ActionDefinition_Blur{
-			Blur: buildBlurParams(params),
+			Blur: typeconv.BuildBlurParams(params),
 		}
 	}
 
 	// Build metadata if present in params
-	action.Metadata = buildActionMetadata(params)
+	action.Metadata = typeconv.BuildActionMetadata(params)
 
 	return action, nil
 }

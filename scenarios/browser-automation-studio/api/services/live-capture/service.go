@@ -8,37 +8,66 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/automation/session"
 )
 
 // Service provides high-level operations for live capture mode.
-// It orchestrates the driver client and workflow generator.
+// It orchestrates the session manager and workflow generator.
 type Service struct {
-	driver    *DriverClient
+	sessions  *session.Manager
 	generator *WorkflowGenerator
 	log       *logrus.Logger
 }
 
 // NewService creates a new live capture service.
 func NewService(log *logrus.Logger) *Service {
+	mgr, err := session.NewManager(session.WithLogger(log))
+	if err != nil {
+		log.WithError(err).Warn("Failed to create session manager, service will fail on first use")
+		return &Service{
+			sessions:  nil,
+			generator: NewWorkflowGenerator(),
+			log:       log,
+		}
+	}
 	return &Service{
-		driver:    NewDriverClient(),
+		sessions:  mgr,
+		generator: NewWorkflowGenerator(),
+		log:       log,
+	}
+}
+
+// NewServiceWithManager creates a service with a custom session manager (for testing).
+func NewServiceWithManager(mgr *session.Manager, log *logrus.Logger) *Service {
+	return &Service{
+		sessions:  mgr,
 		generator: NewWorkflowGenerator(),
 		log:       log,
 	}
 }
 
 // NewServiceWithClient creates a service with a custom driver client (for testing).
-func NewServiceWithClient(driver *DriverClient, log *logrus.Logger) *Service {
+// Deprecated: Use NewServiceWithManager instead.
+func NewServiceWithClient(client *driver.Client, log *logrus.Logger) *Service {
 	return &Service{
-		driver:    driver,
+		sessions:  session.NewManagerWithClient(client, session.WithLogger(log)),
 		generator: NewWorkflowGenerator(),
 		log:       log,
 	}
 }
 
 // GetDriverClient returns the underlying driver client for advanced operations.
-func (s *Service) GetDriverClient() *DriverClient {
-	return s.driver
+func (s *Service) GetDriverClient() *driver.Client {
+	if s.sessions == nil {
+		return nil
+	}
+	return s.sessions.Client()
+}
+
+// GetSessionManager returns the session manager.
+func (s *Service) GetSessionManager() *session.Manager {
+	return s.sessions
 }
 
 // SessionConfig configures a new capture session.
@@ -62,15 +91,11 @@ type SessionResult struct {
 
 // CreateSession creates a new browser session for live capture.
 func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*SessionResult, error) {
-	// Set defaults
-	width := cfg.ViewportWidth
-	height := cfg.ViewportHeight
-	if width <= 0 {
-		width = 1280
+	if s.sessions == nil {
+		return nil, fmt.Errorf("session manager not initialized")
 	}
-	if height <= 0 {
-		height = 720
-	}
+
+	// Set defaults for frame streaming
 	quality := cfg.StreamQuality
 	if quality <= 0 || quality > 100 {
 		quality = 55
@@ -84,72 +109,55 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 		scale = "css"
 	}
 
-	// Generate ephemeral IDs for the capture session
-	executionID := uuid.New().String()
-	workflowID := uuid.New().String()
-
-	// Construct frame callback URL
-	apiHost := cfg.APIHost
-	if apiHost == "" {
-		apiHost = "127.0.0.1"
-	}
-	apiPort := cfg.APIPort
-	if apiPort == "" {
-		apiPort = "8080"
-	}
-	frameCallbackURL := fmt.Sprintf("http://%s:%s/api/v1/recordings/live/placeholder/frame", apiHost, apiPort)
-
-	req := &CreateSessionRequest{
-		ExecutionID: executionID,
-		WorkflowID:  workflowID,
-		Viewport: Viewport{
-			Width:  width,
-			Height: height,
+	// Build session spec for recording mode
+	spec := session.Spec{
+		ExecutionID:    uuid.New(),
+		WorkflowID:     uuid.New(),
+		Mode:           session.ModeRecording,
+		ViewportWidth:  cfg.ViewportWidth,
+		ViewportHeight: cfg.ViewportHeight,
+		ReuseMode:      "fresh",
+		StorageState:   cfg.StorageState,
+		FrameStreaming: &session.FrameStreamingConfig{
+			Quality: quality,
+			FPS:     fps,
+			Scale:   scale,
 		},
-		ReuseMode: "fresh",
 		Labels: map[string]string{
 			"purpose": "record-mode",
 		},
-		FrameStreaming: &FrameStreamingConfig{
-			CallbackURL: frameCallbackURL,
-			Quality:     quality,
-			FPS:         fps,
-			Scale:       scale,
-		},
 	}
 
-	if len(cfg.StorageState) > 0 {
-		req.StorageState = cfg.StorageState
-	}
-
-	resp, err := s.driver.CreateSession(ctx, req)
+	sess, err := s.sessions.Create(ctx, spec)
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
 
 	// Navigate to initial URL if provided
 	if cfg.InitialURL != "" {
-		if err := s.driver.RunInstruction(ctx, resp.SessionID, []map[string]interface{}{
-			{"op": "navigate", "url": cfg.InitialURL},
-		}); err != nil {
+		if _, err := sess.Navigate(ctx, cfg.InitialURL); err != nil {
 			s.log.WithError(err).Warn("Failed to navigate to initial URL")
 		}
 	}
 
 	return &SessionResult{
-		SessionID: resp.SessionID,
+		SessionID: sess.ID(),
 		CreatedAt: time.Now().UTC(),
 	}, nil
 }
 
 // CloseSession closes a capture session.
 func (s *Service) CloseSession(ctx context.Context, sessionID string) error {
-	return s.driver.CloseSession(ctx, sessionID)
+	return s.sessions.Close(ctx, sessionID)
 }
 
 // GetStorageState retrieves storage state before closing (for session profiles).
 func (s *Service) GetStorageState(ctx context.Context, sessionID string) (json.RawMessage, error) {
-	return s.driver.GetStorageState(ctx, sessionID)
+	sess, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	return sess.GetStorageState(ctx)
 }
 
 // RecordingConfig configures recording start.
@@ -159,7 +167,7 @@ type RecordingConfig struct {
 }
 
 // StartRecording starts recording user actions.
-func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *RecordingConfig) (*StartRecordingResponse, error) {
+func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *RecordingConfig) (*driver.StartRecordingResponse, error) {
 	apiHost := cfg.APIHost
 	if apiHost == "" {
 		apiHost = "127.0.0.1"
@@ -169,29 +177,29 @@ func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *Rec
 		apiPort = "8080"
 	}
 
-	req := &StartRecordingRequest{
+	req := &driver.StartRecordingRequest{
 		CallbackURL:      fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/action", apiHost, apiPort, sessionID),
 		FrameCallbackURL: fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/frame", apiHost, apiPort, sessionID),
 		FrameQuality:     65,
 		FrameFPS:         6,
 	}
 
-	return s.driver.StartRecording(ctx, sessionID, req)
+	return s.sessions.Client().StartRecording(ctx, sessionID, req)
 }
 
 // StopRecording stops recording user actions.
-func (s *Service) StopRecording(ctx context.Context, sessionID string) (*StopRecordingResponse, error) {
-	return s.driver.StopRecording(ctx, sessionID)
+func (s *Service) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
+	return s.sessions.Client().StopRecording(ctx, sessionID)
 }
 
 // GetRecordingStatus gets the current recording status.
-func (s *Service) GetRecordingStatus(ctx context.Context, sessionID string) (*RecordingStatusResponse, error) {
-	return s.driver.GetRecordingStatus(ctx, sessionID)
+func (s *Service) GetRecordingStatus(ctx context.Context, sessionID string) (*driver.RecordingStatusResponse, error) {
+	return s.sessions.Client().GetRecordingStatus(ctx, sessionID)
 }
 
 // GetRecordedActions retrieves all recorded actions.
-func (s *Service) GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*GetActionsResponse, error) {
-	return s.driver.GetRecordedActions(ctx, sessionID, clear)
+func (s *Service) GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*driver.GetActionsResponse, error) {
+	return s.sessions.Client().GetRecordedActions(ctx, sessionID, clear)
 }
 
 // GenerateWorkflowConfig configures workflow generation.
@@ -218,11 +226,11 @@ type GenerateWorkflowResult struct {
 func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *GenerateWorkflowConfig) (*GenerateWorkflowResult, error) {
 	var actions []RecordedAction
 
-	// Use provided actions or fetch from driver
+	// Use provided actions or fetch from session
 	if len(cfg.Actions) > 0 {
 		actions = cfg.Actions
 	} else {
-		resp, err := s.driver.GetRecordedActions(ctx, sessionID, false)
+		resp, err := s.sessions.Client().GetRecordedActions(ctx, sessionID, false)
 		if err != nil {
 			return nil, fmt.Errorf("get actions: %w", err)
 		}
@@ -255,46 +263,46 @@ func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *G
 }
 
 // Navigate navigates the session to a URL.
-func (s *Service) Navigate(ctx context.Context, sessionID string, req *NavigateRequest) (*NavigateResponse, error) {
-	return s.driver.Navigate(ctx, sessionID, req)
+func (s *Service) Navigate(ctx context.Context, sessionID string, req *driver.NavigateRequest) (*driver.NavigateResponse, error) {
+	return s.sessions.Client().Navigate(ctx, sessionID, req)
 }
 
 // UpdateViewport updates the viewport dimensions.
-func (s *Service) UpdateViewport(ctx context.Context, sessionID string, width, height int) (*UpdateViewportResponse, error) {
-	return s.driver.UpdateViewport(ctx, sessionID, &UpdateViewportRequest{
+func (s *Service) UpdateViewport(ctx context.Context, sessionID string, width, height int) (*driver.UpdateViewportResponse, error) {
+	return s.sessions.Client().UpdateViewport(ctx, sessionID, &driver.UpdateViewportRequest{
 		Width:  width,
 		Height: height,
 	})
 }
 
 // ValidateSelector validates a selector on the current page.
-func (s *Service) ValidateSelector(ctx context.Context, sessionID, selector string) (*ValidateSelectorResponse, error) {
-	return s.driver.ValidateSelector(ctx, sessionID, &ValidateSelectorRequest{
+func (s *Service) ValidateSelector(ctx context.Context, sessionID, selector string) (*driver.ValidateSelectorResponse, error) {
+	return s.sessions.Client().ValidateSelector(ctx, sessionID, &driver.ValidateSelectorRequest{
 		Selector: selector,
 	})
 }
 
 // ReplayPreview replays recorded actions for testing.
-func (s *Service) ReplayPreview(ctx context.Context, sessionID string, req *ReplayPreviewRequest) (*ReplayPreviewResponse, error) {
-	return s.driver.ReplayPreview(ctx, sessionID, req)
+func (s *Service) ReplayPreview(ctx context.Context, sessionID string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
+	return s.sessions.Client().ReplayPreview(ctx, sessionID, req)
 }
 
 // UpdateStreamSettings updates stream settings for a session.
-func (s *Service) UpdateStreamSettings(ctx context.Context, sessionID string, req *UpdateStreamSettingsRequest) (*UpdateStreamSettingsResponse, error) {
-	return s.driver.UpdateStreamSettings(ctx, sessionID, req)
+func (s *Service) UpdateStreamSettings(ctx context.Context, sessionID string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
+	return s.sessions.Client().UpdateStreamSettings(ctx, sessionID, req)
 }
 
 // CaptureScreenshot captures a screenshot from the current page.
-func (s *Service) CaptureScreenshot(ctx context.Context, sessionID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error) {
-	return s.driver.CaptureScreenshot(ctx, sessionID, req)
+func (s *Service) CaptureScreenshot(ctx context.Context, sessionID string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
+	return s.sessions.Client().CaptureScreenshot(ctx, sessionID, req)
 }
 
 // GetFrame retrieves the current frame from the session.
-func (s *Service) GetFrame(ctx context.Context, sessionID, queryParams string) (*GetFrameResponse, error) {
-	return s.driver.GetFrame(ctx, sessionID, queryParams)
+func (s *Service) GetFrame(ctx context.Context, sessionID, queryParams string) (*driver.GetFrameResponse, error) {
+	return s.sessions.Client().GetFrame(ctx, sessionID, queryParams)
 }
 
 // ForwardInput forwards pointer/keyboard/wheel events to the driver.
 func (s *Service) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
-	return s.driver.ForwardInput(ctx, sessionID, body)
+	return s.sessions.Client().ForwardInput(ctx, sessionID, body)
 }
