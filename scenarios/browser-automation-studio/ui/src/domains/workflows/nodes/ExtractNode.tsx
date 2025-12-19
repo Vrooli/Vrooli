@@ -1,123 +1,68 @@
-import { memo, FC, useState, useEffect, useMemo, useCallback } from 'react';
-import type { KeyboardEvent } from 'react';
-import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
+import { memo, FC, useState } from 'react';
+import type { NodeProps } from 'reactflow';
 import { Database, Globe, Target } from 'lucide-react';
-import { useUpstreamUrl } from '@hooks/useUpstreamUrl';
+import { useActionParams } from '@hooks/useActionParams';
+import { useNodeData } from '@hooks/useNodeData';
+import { useUrlInheritance } from '@hooks/useUrlInheritance';
+import {
+  useSyncedString,
+  useSyncedSelect,
+  textInputHandler,
+  selectInputHandler,
+} from '@hooks/useSyncedField';
 import { ElementPickerModal } from '../components';
 import type { ElementInfo } from '@/types/elements';
+import BaseNode from './BaseNode';
 
-const ExtractNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const upstreamUrl = useUpstreamUrl(id);
+// ExtractParams interface for V2 native action params
+interface ExtractParams {
+  selector?: string;
+  extractType?: string;
+  attribute?: string;
+}
+
+const ExtractNode: FC<NodeProps> = ({ selected, id }) => {
+  // URL inheritance hook handles URL state and handlers
+  const {
+    urlDraft,
+    setUrlDraft,
+    effectiveUrl,
+    hasCustomUrl,
+    upstreamUrl,
+    commitUrl,
+    resetUrl,
+    handleUrlKeyDown,
+  } = useUrlInheritance(id);
+
+  // Node data hook for UI-specific fields
+  const { updateData } = useNodeData(id);
+
+  // V2 Native: Use action params as source of truth
+  const { params, updateParams } = useActionParams<ExtractParams>(id);
+
+  // Action params fields using useSyncedField
+  const selector = useSyncedString(params?.selector ?? '', {
+    onCommit: (v) => updateParams({ selector: v || undefined }),
+  });
+  const extractType = useSyncedSelect(params?.extractType ?? 'text', {
+    onCommit: (v) => updateParams({ extractType: v }),
+  });
+  const attribute = useSyncedString(params?.attribute ?? '', {
+    onCommit: (v) => updateParams({ attribute: v || undefined }),
+  });
+
+  // UI state
   const [showElementPicker, setShowElementPicker] = useState(false);
-  const { getNodes, setNodes } = useReactFlow();
 
-  const nodeData = data as Record<string, unknown> | undefined;
-  const storedUrl = typeof nodeData?.url === 'string' ? nodeData.url : '';
-  const [urlDraft, setUrlDraft] = useState<string>(storedUrl);
-
-  useEffect(() => {
-    setUrlDraft(storedUrl);
-  }, [storedUrl]);
-
-  const trimmedStoredUrl = useMemo(() => storedUrl.trim(), [storedUrl]);
-  const effectiveUrl = useMemo(() => {
-    if (trimmedStoredUrl.length > 0) {
-      return trimmedStoredUrl;
-    }
-    return upstreamUrl ?? null;
-  }, [trimmedStoredUrl, upstreamUrl]);
-  const hasCustomUrl = trimmedStoredUrl.length > 0;
-
-  const [selector, setSelector] = useState(data.selector || '');
-  const [extractType, setExtractType] = useState(data.extractType || 'text');
-  const [attribute, setAttribute] = useState(data.attribute || '');
-
-  useEffect(() => {
-    setSelector(data.selector || '');
-  }, [data.selector]);
-
-  useEffect(() => {
-    setExtractType(data.extractType || 'text');
-  }, [data.extractType]);
-
-  useEffect(() => {
-    setAttribute(data.attribute || '');
-  }, [data.attribute]);
-
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    const updatedNodes = nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-
-      for (const [key, value] of Object.entries(updates)) {
-        if (key === 'url') {
-          const trimmed = typeof value === 'string' ? value.trim() : '';
-          if (trimmed) {
-            nextData.url = trimmed;
-          } else {
-            delete nextData.url;
-          }
-          continue;
-        }
-
-        if (value === undefined || value === null) {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      }
-
-      return {
-        ...node,
-        data: nextData,
-      };
-    });
-    setNodes(updatedNodes);
-  }, [getNodes, id, setNodes]);
-
-  const commitUrl = useCallback((raw: string) => {
-    const trimmed = raw.trim();
-    updateNodeData({ url: trimmed.length > 0 ? trimmed : null });
-  }, [updateNodeData]);
-
-  const handleUrlCommit = useCallback(() => {
-    commitUrl(urlDraft);
-  }, [commitUrl, urlDraft]);
-
-  const handleUrlKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      commitUrl(urlDraft);
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      setUrlDraft(storedUrl);
-    }
-  }, [commitUrl, storedUrl, urlDraft]);
-
-  const resetUrl = useCallback(() => {
-    setUrlDraft('');
-    updateNodeData({ url: null });
-  }, [updateNodeData]);
-
-  const handleElementSelection = (selector: string, elementInfo: ElementInfo) => {
-    setSelector(selector);
-    updateNodeData({ selector, elementInfo });
+  const handleElementSelection = (newSelector: string, elementInfo: ElementInfo) => {
+    selector.setValue(newSelector);
+    updateParams({ selector: newSelector });
+    updateData({ elementInfo });
   };
 
   return (
     <>
-      <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-        <Handle type="target" position={Position.Top} className="node-handle" />
-        
-        <div className="flex items-center gap-2 mb-2">
-          <Database size={16} className="text-pink-400" />
-          <span className="font-semibold text-sm">Extract Data</span>
-        </div>
-        
+      <BaseNode selected={selected} icon={Database} iconClassName="text-pink-400" title="Extract Data">
         <div className="mb-2">
           <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
             <Globe size={12} className="text-blue-400" />
@@ -130,7 +75,7 @@ const ExtractNode: FC<NodeProps> = ({ data, selected, id }) => {
               className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
               value={urlDraft}
               onChange={(event) => setUrlDraft(event.target.value)}
-              onBlur={handleUrlCommit}
+              onBlur={commitUrl}
               onKeyDown={handleUrlKeyDown}
             />
             {hasCustomUrl && (
@@ -152,19 +97,19 @@ const ExtractNode: FC<NodeProps> = ({ data, selected, id }) => {
             <p className="mt-1 text-[10px] text-red-400">Provide a URL to target this node.</p>
           )}
         </div>
-        
+
         <div className="flex items-center gap-1 mb-2">
           <input
             type="text"
             placeholder="CSS Selector..."
             className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            value={selector}
-            onChange={(e) => setSelector(e.target.value)}
-            onBlur={() => updateNodeData({ selector })}
+            value={selector.value}
+            onChange={textInputHandler(selector.setValue)}
+            onBlur={selector.commit}
           />
-          <div 
+          <div
             className="inline-block"
-            title={!effectiveUrl ? "Set a page URL before picking elements" : ""}
+            title={!effectiveUrl ? 'Set a page URL before picking elements' : ''}
           >
             <button
               onClick={() => effectiveUrl && setShowElementPicker(true)}
@@ -174,47 +119,41 @@ const ExtractNode: FC<NodeProps> = ({ data, selected, id }) => {
               title={effectiveUrl ? `Pick element from ${effectiveUrl}` : undefined}
               disabled={!effectiveUrl}
             >
-              <Target size={14} className={effectiveUrl ? "text-gray-400" : "text-gray-600"} />
+              <Target size={14} className={effectiveUrl ? 'text-gray-400' : 'text-gray-600'} />
             </button>
           </div>
         </div>
-        
+
         <select
           className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none mb-2"
-          value={extractType}
-          onChange={(e) => {
-            const newType = e.target.value;
-            setExtractType(newType);
-            updateNodeData({ extractType: newType });
-          }}
+          value={extractType.value}
+          onChange={selectInputHandler(extractType.setValue, extractType.commit)}
         >
           <option value="text">Text Content</option>
           <option value="attribute">Attribute</option>
           <option value="html">Inner HTML</option>
           <option value="value">Input Value</option>
         </select>
-        
-        {extractType === 'attribute' && (
+
+        {extractType.value === 'attribute' && (
           <input
             type="text"
             placeholder="Attribute name..."
             className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            value={attribute}
-            onChange={(e) => setAttribute(e.target.value)}
-            onBlur={() => updateNodeData({ attribute })}
+            value={attribute.value}
+            onChange={textInputHandler(attribute.setValue)}
+            onBlur={attribute.commit}
           />
         )}
-        
-        <Handle type="source" position={Position.Bottom} className="node-handle" />
-      </div>
-      
+      </BaseNode>
+
       {showElementPicker && effectiveUrl && (
         <ElementPickerModal
           isOpen={showElementPicker}
           onClose={() => setShowElementPicker(false)}
-          url={effectiveUrl!}
+          url={effectiveUrl}
           onSelectElement={handleElementSelection}
-          selectedSelector={selector}
+          selectedSelector={selector.value}
         />
       )}
     </>

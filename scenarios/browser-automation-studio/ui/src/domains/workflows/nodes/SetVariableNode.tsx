@@ -1,9 +1,11 @@
-import { memo, FC, useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { memo, FC, useState, useEffect } from 'react';
+import type { NodeProps } from 'reactflow';
 import { Variable, Settings2, Target } from 'lucide-react';
-import { useUpstreamUrl } from '@hooks/useUpstreamUrl';
+import { useNodeData } from '@hooks/useNodeData';
+import { useUrlInheritance } from '@hooks/useUrlInheritance';
 import { ElementPickerModal } from '../components';
 import type { ElementInfo } from '@/types/elements';
+import BaseNode from './BaseNode';
 
 const SOURCE_OPTIONS = [
   { value: 'static', label: 'Static Value' },
@@ -35,99 +37,82 @@ function coerceBoolean(value: unknown): boolean {
   return Boolean(value);
 }
 
-const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const nodeRef = useRef<HTMLDivElement>(null);
-  const nodeData = (data ?? {}) as Record<string, unknown>;
-  const upstreamUrl = useUpstreamUrl(id);
-  const { getNodes, setNodes } = useReactFlow();
+const SetVariableNode: FC<NodeProps> = ({ selected, id }) => {
+  // URL inheritance hook handles URL state and handlers (for extract mode)
+  const {
+    urlDraft,
+    setUrlDraft,
+    effectiveUrl,
+    hasCustomUrl,
+    upstreamUrl,
+    commitUrl,
+  } = useUrlInheritance(id);
 
-  const [name, setName] = useState<string>(String(nodeData.name ?? ''));
-  const [sourceType, setSourceType] = useState<string>(String(nodeData.sourceType ?? 'static'));
-  const [valueType, setValueType] = useState<string>(String(nodeData.valueType ?? 'text'));
-  const [staticValue, setStaticValue] = useState<string>(String(nodeData.value ?? ''));
-  const [expression, setExpression] = useState<string>(String(nodeData.expression ?? ''));
-  const [selector, setSelector] = useState<string>(String(nodeData.selector ?? ''));
-  const [extractType, setExtractType] = useState<string>(String(nodeData.extractType ?? 'text'));
-  const [attribute, setAttribute] = useState<string>(String(nodeData.attribute ?? ''));
-  const [storeAs, setStoreAs] = useState<string>(String(nodeData.storeAs ?? ''));
-  const [timeoutMs, setTimeoutMs] = useState<number>(Number(nodeData.timeoutMs ?? 0));
-  const [allMatches, setAllMatches] = useState<boolean>(coerceBoolean(nodeData.allMatches));
+  // Node data hook for fields (set variable doesn't have a proto type, so all stored in node.data)
+  const { getValue, updateData } = useNodeData(id);
+
+  // Local state - all fields are UI-specific for this node
+  const [name, setName] = useState<string>(getValue<string>('name') ?? '');
+  const [sourceType, setSourceType] = useState<string>(getValue<string>('sourceType') ?? 'static');
+  const [valueType, setValueType] = useState<string>(getValue<string>('valueType') ?? 'text');
+  const [staticValue, setStaticValue] = useState<string>(getValue<string>('value') ?? '');
+  const [expression, setExpression] = useState<string>(getValue<string>('expression') ?? '');
+  const [selector, setSelector] = useState<string>(getValue<string>('selector') ?? '');
+  const [extractType, setExtractType] = useState<string>(getValue<string>('extractType') ?? 'text');
+  const [attribute, setAttribute] = useState<string>(getValue<string>('attribute') ?? '');
+  const [storeAs, setStoreAs] = useState<string>(getValue<string>('storeAs') ?? '');
+  const [timeoutMs, setTimeoutMs] = useState<number>(getValue<number>('timeoutMs') ?? 0);
+  const [allMatches, setAllMatches] = useState<boolean>(coerceBoolean(getValue<boolean>('allMatches')));
   const [showElementPicker, setShowElementPicker] = useState(false);
-  const [urlDraft, setUrlDraft] = useState<string>(String(nodeData.url ?? ''));
 
-  const storedUrl = typeof nodeData.url === 'string' ? nodeData.url : '';
+  // Sync node.data fields
   useEffect(() => {
-    setUrlDraft(storedUrl);
-  }, [storedUrl]);
+    setName(getValue<string>('name') ?? '');
+  }, [getValue]);
 
   useEffect(() => {
-    setName(String(nodeData.name ?? ''));
-  }, [nodeData.name]);
-  useEffect(() => {
-    setSourceType(String(nodeData.sourceType ?? 'static'));
-  }, [nodeData.sourceType]);
-  useEffect(() => {
-    setValueType(String(nodeData.valueType ?? 'text'));
-  }, [nodeData.valueType]);
-  useEffect(() => {
-    setStaticValue(String(nodeData.value ?? ''));
-  }, [nodeData.value]);
-  useEffect(() => {
-    setExpression(String(nodeData.expression ?? ''));
-  }, [nodeData.expression]);
-  useEffect(() => {
-    setSelector(String(nodeData.selector ?? ''));
-  }, [nodeData.selector]);
-  useEffect(() => {
-    setExtractType(String(nodeData.extractType ?? 'text'));
-  }, [nodeData.extractType]);
-  useEffect(() => {
-    setAttribute(String(nodeData.attribute ?? ''));
-  }, [nodeData.attribute]);
-  useEffect(() => {
-    setStoreAs(String(nodeData.storeAs ?? ''));
-  }, [nodeData.storeAs]);
-  useEffect(() => {
-    setTimeoutMs(Number(nodeData.timeoutMs ?? 0));
-  }, [nodeData.timeoutMs]);
-  useEffect(() => {
-    setAllMatches(coerceBoolean(nodeData.allMatches));
-  }, [nodeData.allMatches]);
+    setSourceType(getValue<string>('sourceType') ?? 'static');
+  }, [getValue]);
 
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '') {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      });
-      return { ...node, data: nextData };
-    }));
-  }, [getNodes, setNodes, id]);
+  useEffect(() => {
+    setValueType(getValue<string>('valueType') ?? 'text');
+  }, [getValue]);
 
-  const effectiveUrl = useMemo(() => {
-    const explicitUrl = typeof nodeData.url === 'string' ? nodeData.url.trim() : '';
-    if (explicitUrl) {
-      return explicitUrl;
-    }
-    return upstreamUrl ?? null;
-  }, [nodeData.url, upstreamUrl]);
+  useEffect(() => {
+    setStaticValue(getValue<string>('value') ?? '');
+  }, [getValue]);
 
-  const handleUrlCommit = useCallback(() => {
-    const trimmed = urlDraft.trim();
-    updateNodeData({ url: trimmed || undefined });
-  }, [updateNodeData, urlDraft]);
+  useEffect(() => {
+    setExpression(getValue<string>('expression') ?? '');
+  }, [getValue]);
+
+  useEffect(() => {
+    setSelector(getValue<string>('selector') ?? '');
+  }, [getValue]);
+
+  useEffect(() => {
+    setExtractType(getValue<string>('extractType') ?? 'text');
+  }, [getValue]);
+
+  useEffect(() => {
+    setAttribute(getValue<string>('attribute') ?? '');
+  }, [getValue]);
+
+  useEffect(() => {
+    setStoreAs(getValue<string>('storeAs') ?? '');
+  }, [getValue]);
+
+  useEffect(() => {
+    setTimeoutMs(getValue<number>('timeoutMs') ?? 0);
+  }, [getValue]);
+
+  useEffect(() => {
+    setAllMatches(coerceBoolean(getValue<boolean>('allMatches')));
+  }, [getValue]);
 
   const handleElementSelection = (newSelector: string, elementInfo: ElementInfo) => {
     setSelector(newSelector);
-    updateNodeData({ selector: newSelector, elementInfo });
+    updateData({ selector: newSelector, elementInfo });
   };
 
   const renderSourceFields = () => {
@@ -142,11 +127,13 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
               onChange={(event) => {
                 const next = event.target.value;
                 setValueType(next);
-                updateNodeData({ valueType: next });
+                updateData({ valueType: next });
               }}
             >
               {VALUE_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
               ))}
             </select>
           </div>
@@ -157,7 +144,7 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
               rows={3}
               value={staticValue}
               onChange={(event) => setStaticValue(event.target.value)}
-              onBlur={() => updateNodeData({ value: staticValue })}
+              onBlur={() => updateData({ value: staticValue })}
               placeholder={valueType === 'json' ? '{"key": "value"}' : 'Value to store'}
             />
           </div>
@@ -174,14 +161,17 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
             rows={4}
             value={expression}
             onChange={(event) => setExpression(event.target.value)}
-            onBlur={() => updateNodeData({ expression })}
+            onBlur={() => updateData({ expression })}
             placeholder="return document.querySelector('#title').textContent;"
           />
-          <p className="text-[10px] text-gray-500 mt-1">Runs inside the page context. Return a value to store in the variable.</p>
+          <p className="text-[10px] text-gray-500 mt-1">
+            Runs inside the page context. Return a value to store in the variable.
+          </p>
         </div>
       );
     }
 
+    // Extract mode
     return (
       <div className="space-y-2">
         <div>
@@ -192,10 +182,12 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
             className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
             value={urlDraft}
             onChange={(event) => setUrlDraft(event.target.value)}
-            onBlur={handleUrlCommit}
+            onBlur={commitUrl}
           />
-          {!storedUrl && upstreamUrl && (
-            <p className="text-[10px] text-gray-500 mt-1" title={upstreamUrl}>Inherits {upstreamUrl}</p>
+          {!hasCustomUrl && upstreamUrl && (
+            <p className="text-[10px] text-gray-500 mt-1" title={upstreamUrl}>
+              Inherits {upstreamUrl}
+            </p>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -205,7 +197,7 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
             placeholder="CSS selector..."
             value={selector}
             onChange={(event) => setSelector(event.target.value)}
-            onBlur={() => updateNodeData({ selector })}
+            onBlur={() => updateData({ selector })}
           />
           <button
             type="button"
@@ -225,11 +217,13 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
             onChange={(event) => {
               const next = event.target.value;
               setExtractType(next);
-              updateNodeData({ extractType: next });
+              updateData({ extractType: next });
             }}
           >
             {EXTRACT_TYPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </div>
@@ -241,7 +235,7 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
               className="w-full px-2 py-1 mt-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
               value={attribute}
               onChange={(event) => setAttribute(event.target.value)}
-              onBlur={() => updateNodeData({ attribute })}
+              onBlur={() => updateData({ attribute })}
               placeholder="data-testid"
             />
           </div>
@@ -253,7 +247,7 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
               checked={allMatches}
               onChange={(event) => {
                 setAllMatches(event.target.checked);
-                updateNodeData({ allMatches: event.target.checked });
+                updateData({ allMatches: event.target.checked });
               }}
             />
             Capture all matches
@@ -268,7 +262,7 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
               onChange={(event) => {
                 const next = Math.max(0, Number(event.target.value));
                 setTimeoutMs(next);
-                updateNodeData({ timeoutMs: next || undefined });
+                updateData({ timeoutMs: next || undefined });
               }}
             />
           </div>
@@ -277,26 +271,9 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
     );
   };
 
-  // Add data-type attribute to React Flow wrapper div for test automation
-  useEffect(() => {
-    if (nodeRef.current) {
-      const reactFlowNode = nodeRef.current.closest('.react-flow__node');
-      if (reactFlowNode) {
-        reactFlowNode.setAttribute('data-type', 'setVariable');
-      }
-    }
-  }, []);
-
   return (
     <>
-      <div ref={nodeRef} className={`workflow-node ${selected ? 'selected' : ''}`}>
-        <Handle type="target" position={Position.Top} className="node-handle" />
-
-        <div className="flex items-center gap-2 mb-2">
-          <Variable size={16} className="text-emerald-300" />
-          <span className="font-semibold text-sm">Set Variable</span>
-        </div>
-
+      <BaseNode selected={selected} icon={Variable} iconClassName="text-emerald-300" title="Set Variable">
         <div className="space-y-2 text-xs">
           <div>
             <label className="text-[11px] font-semibold text-gray-400">Variable Name</label>
@@ -305,7 +282,7 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
               className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              onBlur={() => updateNodeData({ name })}
+              onBlur={() => updateData({ name })}
               placeholder="variableName"
             />
           </div>
@@ -316,31 +293,33 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
               className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               value={storeAs}
               onChange={(event) => setStoreAs(event.target.value)}
-              onBlur={() => updateNodeData({ storeAs })}
+              onBlur={() => updateData({ storeAs })}
               placeholder="friendly alias"
             />
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-gray-400 flex items-center gap-1"><Settings2 size={12} /> Source</label>
+            <label className="text-[11px] font-semibold text-gray-400 flex items-center gap-1">
+              <Settings2 size={12} /> Source
+            </label>
             <select
               className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               value={sourceType}
               onChange={(event) => {
                 const next = event.target.value;
                 setSourceType(next);
-                updateNodeData({ sourceType: next });
+                updateData({ sourceType: next });
               }}
             >
               {SOURCE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
               ))}
             </select>
           </div>
           {renderSourceFields()}
         </div>
-
-        <Handle type="source" position={Position.Bottom} className="node-handle" />
-      </div>
+      </BaseNode>
 
       {showElementPicker && effectiveUrl && (
         <ElementPickerModal

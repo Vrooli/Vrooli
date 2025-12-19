@@ -1,33 +1,31 @@
-import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { FC, memo, useMemo } from 'react';
+import type { NodeProps } from 'reactflow';
 import { UploadCloud, FileWarning } from 'lucide-react';
+import { useActionParams } from '@hooks/useActionParams';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  textInputHandler,
+  numberInputHandler,
+} from '@hooks/useSyncedField';
 import { selectors } from '@constants/selectors';
+import BaseNode from './BaseNode';
 
-const normalizeTimeout = (value: unknown, fallback: number): number => {
-  const numeric = Number(value);
-  if (Number.isFinite(numeric) && numeric > 0) {
-    return Math.round(numeric);
-  }
-  return fallback;
-};
+// UploadFileParams interface for V2 native action params
+interface UploadFileParams {
+  selector?: string;
+  filePaths?: string[];
+  filePath?: string;
+  timeoutMs?: number;
+  waitForMs?: number;
+}
 
-const normalizeWait = (value: unknown): number => {
-  const numeric = Number(value);
-  if (Number.isFinite(numeric) && numeric >= 0) {
-    return Math.round(numeric);
+const deriveFileText = (filePaths?: string[], filePath?: string): string => {
+  if (filePaths && filePaths.length > 0) {
+    return filePaths.join('\n');
   }
-  return 0;
-};
-
-const deriveFileText = (nodeData: Record<string, unknown>): string => {
-  const rawPaths = Array.isArray(nodeData.filePaths)
-    ? (nodeData.filePaths as unknown[]).filter((entry): entry is string => typeof entry === 'string')
-    : [];
-  if (rawPaths.length > 0) {
-    return rawPaths.join('\n');
-  }
-  if (typeof nodeData.filePath === 'string') {
-    return nodeData.filePath;
+  if (filePath) {
+    return filePath;
   }
   return '';
 };
@@ -39,104 +37,56 @@ const parseFilePaths = (value: string): string[] => {
     .filter(Boolean);
 };
 
-const UploadFileNode: FC<NodeProps> = ({ id, data, selected }) => {
-  const nodeData = (data ?? {}) as Record<string, unknown>;
-  const { getNodes, setNodes } = useReactFlow();
+const MIN_TIMEOUT = 500;
 
-  const [selector, setSelector] = useState<string>(typeof nodeData.selector === 'string' ? nodeData.selector : '');
-  const [fileText, setFileText] = useState<string>(() => deriveFileText(nodeData));
-  const [timeoutMs, setTimeoutMs] = useState<number>(() => normalizeTimeout(nodeData.timeoutMs, 30000));
-  const [waitForMs, setWaitForMs] = useState<number>(() => normalizeWait(nodeData.waitForMs));
+const UploadFileNode: FC<NodeProps> = ({ id, selected }) => {
+  const { params, updateParams } = useActionParams<UploadFileParams>(id);
 
-  useEffect(() => {
-    setSelector(typeof nodeData.selector === 'string' ? nodeData.selector : '');
-  }, [nodeData.selector]);
+  // String field
+  const selector = useSyncedString(params?.selector ?? '', {
+    onCommit: (v) => updateParams({ selector: v || undefined }),
+  });
 
-  useEffect(() => {
-    setFileText(deriveFileText(nodeData));
-  }, [nodeData.filePaths, nodeData.filePath]);
-
-  useEffect(() => {
-    setTimeoutMs(normalizeTimeout(nodeData.timeoutMs, 30000));
-  }, [nodeData.timeoutMs]);
-
-  useEffect(() => {
-    setWaitForMs(normalizeWait(nodeData.waitForMs));
-  }, [nodeData.waitForMs]);
-
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
+  // File paths as text (special handling for array)
+  const fileText = useSyncedString(deriveFileText(params?.filePaths, params?.filePath), {
+    trim: false,
+    onCommit: (v) => {
+      const parsed = parseFilePaths(v);
+      if (parsed.length === 0) {
+        updateParams({ filePaths: undefined, filePath: undefined });
+      } else if (parsed.length === 1) {
+        updateParams({ filePaths: parsed, filePath: parsed[0] });
+      } else {
+        updateParams({ filePaths: parsed, filePath: undefined });
       }
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === undefined || value === null || (typeof value === 'string' && value === '')) {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      });
-      return { ...node, data: nextData };
-    }));
-  }, [getNodes, setNodes, id]);
+    },
+  });
 
-  const commitSelector = useCallback(() => {
-    const trimmed = selector.trim();
-    setSelector(trimmed);
-    updateNodeData({ selector: trimmed || undefined });
-  }, [selector, updateNodeData]);
+  // Number fields
+  const timeoutMs = useSyncedNumber(params?.timeoutMs ?? 30000, {
+    min: MIN_TIMEOUT,
+    fallback: 30000,
+    onCommit: (v) => updateParams({ timeoutMs: v }),
+  });
+  const waitForMs = useSyncedNumber(params?.waitForMs ?? 0, {
+    min: 0,
+    onCommit: (v) => updateParams({ waitForMs: v || undefined }),
+  });
 
-  const commitTimeout = useCallback(() => {
-    const normalized = Math.max(500, Math.round(timeoutMs) || 500);
-    setTimeoutMs(normalized);
-    updateNodeData({ timeoutMs: normalized });
-  }, [timeoutMs, updateNodeData]);
-
-  const commitWait = useCallback(() => {
-    const normalized = Math.max(0, Math.round(waitForMs) || 0);
-    setWaitForMs(normalized);
-    updateNodeData({ waitForMs: normalized });
-  }, [waitForMs, updateNodeData]);
-
-  const commitFilePaths = useCallback(() => {
-    const parsed = parseFilePaths(fileText);
-    const updates: Record<string, unknown> = {};
-    if (parsed.length === 0) {
-      updates.filePaths = undefined;
-      updates.filePath = undefined;
-    } else if (parsed.length === 1) {
-      updates.filePaths = parsed;
-      updates.filePath = parsed[0];
-    } else {
-      updates.filePaths = parsed;
-      updates.filePath = undefined;
-    }
-    updateNodeData(updates);
-  }, [fileText, updateNodeData]);
-
-  const activePaths = useMemo(() => parseFilePaths(fileText), [fileText]);
+  const activePaths = useMemo(() => parseFilePaths(fileText.value), [fileText.value]);
 
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`} data-node-id={id}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-      <div className="flex items-start gap-2 mb-3">
-        <UploadCloud size={16} className="text-pink-300" />
-        <div>
-          <div className="font-semibold text-sm">Upload File</div>
-          <p className="text-[11px] text-gray-500">Attach local files to file inputs</p>
-        </div>
-      </div>
+    <BaseNode selected={selected} icon={UploadCloud} iconClassName="text-pink-300" title="Upload File">
+      <p className="text-[11px] text-gray-500 mb-3">Attach local files to file inputs</p>
 
       <div className="space-y-3 text-xs">
         <div>
           <label className="text-[11px] font-semibold text-gray-400">Target selector</label>
           <input
             type="text"
-            value={selector}
-            onChange={(event) => setSelector(event.target.value)}
-            onBlur={commitSelector}
+            value={selector.value}
+            onChange={textInputHandler(selector.setValue)}
+            onBlur={selector.commit}
             placeholder="#upload"
             className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
@@ -146,9 +96,9 @@ const UploadFileNode: FC<NodeProps> = ({ id, data, selected }) => {
         <div>
           <label className="text-[11px] font-semibold text-gray-400">File paths</label>
           <textarea
-            value={fileText}
-            onChange={(event) => setFileText(event.target.value)}
-            onBlur={commitFilePaths}
+            value={fileText.value}
+            onChange={textInputHandler(fileText.setValue)}
+            onBlur={fileText.commit}
             placeholder="/home/me/Documents/example.pdf"
             rows={3}
             className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
@@ -172,10 +122,10 @@ const UploadFileNode: FC<NodeProps> = ({ id, data, selected }) => {
             <label className="text-[11px] font-semibold text-gray-400">Timeout (ms)</label>
             <input
               type="number"
-              min={100}
-              value={timeoutMs}
-              onChange={(event) => setTimeoutMs(Number(event.target.value))}
-              onBlur={commitTimeout}
+              min={MIN_TIMEOUT}
+              value={timeoutMs.value}
+              onChange={numberInputHandler(timeoutMs.setValue)}
+              onBlur={timeoutMs.commit}
               className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -184,17 +134,15 @@ const UploadFileNode: FC<NodeProps> = ({ id, data, selected }) => {
             <input
               type="number"
               min={0}
-              value={waitForMs}
-              onChange={(event) => setWaitForMs(Number(event.target.value))}
-              onBlur={commitWait}
+              value={waitForMs.value}
+              onChange={numberInputHandler(waitForMs.setValue)}
+              onBlur={waitForMs.commit}
               className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
         </div>
       </div>
-
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

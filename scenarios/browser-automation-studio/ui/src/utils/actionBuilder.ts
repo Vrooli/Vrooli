@@ -134,10 +134,16 @@ export interface ActionDefinition {
 }
 
 export interface NavigateParams {
-  url: string;
+  url?: string;
   waitForSelector?: string;
   timeoutMs?: number;
   waitUntil?: string;
+  /** Navigate destination type: 'url' or 'scenario' */
+  destinationType?: string;
+  /** Scenario name for scenario-based navigation */
+  scenario?: string;
+  /** Path within scenario (e.g., '/dashboard') */
+  scenarioPath?: string;
 }
 
 export interface ClickParams {
@@ -277,10 +283,13 @@ function getStringArray(data: Record<string, unknown>, key: string): string[] | 
  */
 function buildNavigateParams(data: Record<string, unknown>): NavigateParams {
   return {
-    url: getString(data, 'url') ?? '',
+    url: getString(data, 'url'),
     waitForSelector: getString(data, 'waitForSelector'),
     timeoutMs: getNumber(data, 'timeoutMs'),
     waitUntil: getString(data, 'waitUntil'),
+    destinationType: getString(data, 'destinationType'),
+    scenario: getString(data, 'scenario') ?? getString(data, 'scenarioName'),
+    scenarioPath: getString(data, 'scenarioPath'),
   };
 }
 

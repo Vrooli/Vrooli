@@ -1,8 +1,18 @@
-import { memo, FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { FC, memo, useMemo } from 'react';
+import type { NodeProps } from 'reactflow';
 import { MousePointer } from 'lucide-react';
-import ResiliencePanel from './ResiliencePanel';
+import { useActionParams } from '@hooks/useActionParams';
+import { useNodeData } from '@hooks/useNodeData';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  textInputHandler,
+  numberInputHandler,
+} from '@hooks/useSyncedField';
+import type { HoverParams } from '@utils/actionBuilder';
 import type { ResilienceSettings } from '@/types/workflow';
+import BaseNode from './BaseNode';
+import ResiliencePanel from './ResiliencePanel';
 
 const MIN_STEPS = 1;
 const MAX_STEPS = 50;
@@ -11,122 +21,61 @@ const MIN_DURATION = 50;
 const MAX_DURATION = 10000;
 const DEFAULT_DURATION = 350;
 
-const clampNumber = (value: number, min: number, max: number, fallback: number): number => {
-  if (!Number.isFinite(value)) {
-    return fallback;
-  }
-  return Math.min(Math.max(Math.round(value), min), max);
-};
+const HoverNode: FC<NodeProps> = ({ selected, id }) => {
+  const { getValue, updateData } = useNodeData(id);
+  const { params, updateParams } = useActionParams<HoverParams>(id);
 
-const HoverNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const nodeData = (data ?? {}) as Record<string, unknown>;
-  const { getNodes, setNodes } = useReactFlow();
+  // Action params fields
+  const selector = useSyncedString(params?.selector ?? '', {
+    onCommit: (v) => updateParams({ selector: v || undefined }),
+  });
+  const timeoutMs = useSyncedNumber(params?.timeoutMs ?? 5000, {
+    min: 100,
+    fallback: 5000,
+    onCommit: (v) => updateParams({ timeoutMs: v }),
+  });
 
-  const [selector, setSelector] = useState<string>(() => typeof nodeData.selector === 'string' ? nodeData.selector : '');
-  const [timeoutMs, setTimeoutMs] = useState<number>(() => Number(nodeData.timeoutMs ?? 5000) || 5000);
-  const [waitForMs, setWaitForMs] = useState<number>(() => Number(nodeData.waitForMs ?? 0) || 0);
-  const [steps, setSteps] = useState<number>(() => clampNumber(Number(nodeData.steps ?? DEFAULT_STEPS), MIN_STEPS, MAX_STEPS, DEFAULT_STEPS));
-  const [durationMs, setDurationMs] = useState<number>(() => clampNumber(Number(nodeData.durationMs ?? DEFAULT_DURATION), MIN_DURATION, MAX_DURATION, DEFAULT_DURATION));
+  // UI-specific fields (stored in node.data for now)
+  const waitForMs = useSyncedNumber(getValue<number>('waitForMs') ?? 0, {
+    min: 0,
+    onCommit: (v) => updateData({ waitForMs: v }),
+  });
+  const steps = useSyncedNumber(getValue<number>('steps') ?? DEFAULT_STEPS, {
+    min: MIN_STEPS,
+    max: MAX_STEPS,
+    fallback: DEFAULT_STEPS,
+    onCommit: (v) => updateData({ steps: v }),
+  });
+  const durationMs = useSyncedNumber(getValue<number>('durationMs') ?? DEFAULT_DURATION, {
+    min: MIN_DURATION,
+    max: MAX_DURATION,
+    fallback: DEFAULT_DURATION,
+    onCommit: (v) => updateData({ durationMs: v }),
+  });
 
-  useEffect(() => {
-    setSelector(typeof nodeData.selector === 'string' ? nodeData.selector : '');
-  }, [nodeData.selector]);
-
-  useEffect(() => {
-    setTimeoutMs(Number(nodeData.timeoutMs ?? 5000) || 5000);
-  }, [nodeData.timeoutMs]);
-
-  useEffect(() => {
-    setWaitForMs(Number(nodeData.waitForMs ?? 0) || 0);
-  }, [nodeData.waitForMs]);
-
-  useEffect(() => {
-    setSteps(clampNumber(Number(nodeData.steps ?? DEFAULT_STEPS), MIN_STEPS, MAX_STEPS, DEFAULT_STEPS));
-  }, [nodeData.steps]);
-
-  useEffect(() => {
-    setDurationMs(clampNumber(Number(nodeData.durationMs ?? DEFAULT_DURATION), MIN_DURATION, MAX_DURATION, DEFAULT_DURATION));
-  }, [nodeData.durationMs]);
-
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-      for (const [key, value] of Object.entries(updates)) {
-        if (value === undefined || value === null) {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      }
-      return {
-        ...node,
-        data: nextData,
-      };
-    }));
-  }, [getNodes, setNodes, id]);
-
-  const resilienceConfig = nodeData.resilience as ResilienceSettings | undefined;
+  const resilienceConfig = getValue<ResilienceSettings>('resilience');
 
   const stepsHint = useMemo(() => {
-    if (steps <= 3) {
+    if (steps.value <= 3) {
       return 'Instant';
     }
-    if (steps <= 10) {
+    if (steps.value <= 10) {
       return 'Smooth';
     }
     return 'Very smooth';
-  }, [steps]);
-
-  const handleSelectorBlur = useCallback(() => {
-    updateNodeData({ selector: selector.trim() });
-  }, [selector, updateNodeData]);
-
-  const handleTimeoutBlur = useCallback(() => {
-    const clamped = Math.max(100, Math.round(timeoutMs) || 100);
-    setTimeoutMs(clamped);
-    updateNodeData({ timeoutMs: clamped });
-  }, [timeoutMs, updateNodeData]);
-
-  const handleWaitBlur = useCallback(() => {
-    const normalized = Math.max(0, Math.round(waitForMs) || 0);
-    setWaitForMs(normalized);
-    updateNodeData({ waitForMs: normalized });
-  }, [waitForMs, updateNodeData]);
-
-  const handleStepsBlur = useCallback(() => {
-    const normalized = clampNumber(steps, MIN_STEPS, MAX_STEPS, DEFAULT_STEPS);
-    setSteps(normalized);
-    updateNodeData({ steps: normalized });
-  }, [steps, updateNodeData]);
-
-  const handleDurationBlur = useCallback(() => {
-    const normalized = clampNumber(durationMs, MIN_DURATION, MAX_DURATION, DEFAULT_DURATION);
-    setDurationMs(normalized);
-    updateNodeData({ durationMs: normalized });
-  }, [durationMs, updateNodeData]);
+  }, [steps.value]);
 
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-
-      <div className="flex items-center gap-2 mb-3">
-        <MousePointer size={16} className="text-sky-300" />
-        <span className="font-semibold text-sm">Hover</span>
-      </div>
-
+    <BaseNode selected={selected} icon={MousePointer} iconClassName="text-sky-300" title="Hover">
       <div className="space-y-3 text-xs">
         <div>
           <label className="text-gray-400 block mb-1">Target selector</label>
           <input
             type="text"
-            value={selector}
+            value={selector.value}
             placeholder=".menu-item > button"
-            onChange={(event) => setSelector(event.target.value)}
-            onBlur={handleSelectorBlur}
+            onChange={textInputHandler(selector.setValue)}
+            onBlur={selector.commit}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
         </div>
@@ -137,9 +86,9 @@ const HoverNode: FC<NodeProps> = ({ data, selected, id }) => {
             <input
               type="number"
               min={100}
-              value={timeoutMs}
-              onChange={(event) => setTimeoutMs(Number(event.target.value))}
-              onBlur={handleTimeoutBlur}
+              value={timeoutMs.value}
+              onChange={numberInputHandler(timeoutMs.setValue)}
+              onBlur={timeoutMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -148,9 +97,9 @@ const HoverNode: FC<NodeProps> = ({ data, selected, id }) => {
             <input
               type="number"
               min={0}
-              value={waitForMs}
-              onChange={(event) => setWaitForMs(Number(event.target.value))}
-              onBlur={handleWaitBlur}
+              value={waitForMs.value}
+              onChange={numberInputHandler(waitForMs.setValue)}
+              onBlur={waitForMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -163,9 +112,9 @@ const HoverNode: FC<NodeProps> = ({ data, selected, id }) => {
               type="number"
               min={MIN_STEPS}
               max={MAX_STEPS}
-              value={steps}
-              onChange={(event) => setSteps(Number(event.target.value))}
-              onBlur={handleStepsBlur}
+              value={steps.value}
+              onChange={numberInputHandler(steps.setValue)}
+              onBlur={steps.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
             <p className="text-gray-500 mt-1">{stepsHint} cursor glide</p>
@@ -176,9 +125,9 @@ const HoverNode: FC<NodeProps> = ({ data, selected, id }) => {
               type="number"
               min={MIN_DURATION}
               max={MAX_DURATION}
-              value={durationMs}
-              onChange={(event) => setDurationMs(Number(event.target.value))}
-              onBlur={handleDurationBlur}
+              value={durationMs.value}
+              onChange={numberInputHandler(durationMs.setValue)}
+              onBlur={durationMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
             <p className="text-gray-500 mt-1">Controls how long the pointer glides.</p>
@@ -186,17 +135,16 @@ const HoverNode: FC<NodeProps> = ({ data, selected, id }) => {
         </div>
 
         <p className="text-gray-500">
-          Hover nodes move the cursor without clicking so menus, tooltips, and other hover-only UI remain open for following nodes.
+          Hover nodes move the cursor without clicking so menus, tooltips, and other hover-only UI
+          remain open for following nodes.
         </p>
       </div>
 
       <ResiliencePanel
         value={resilienceConfig}
-        onChange={(next) => updateNodeData({ resilience: next ?? null })}
+        onChange={(next) => updateData({ resilience: next ?? null })}
       />
-
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

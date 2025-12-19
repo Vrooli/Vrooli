@@ -1,8 +1,21 @@
-import { memo, FC, useState, useEffect, useCallback, ChangeEvent } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { memo, FC, useState, useEffect, useCallback } from 'react';
+import type { NodeProps } from 'reactflow';
 import { ListFilter } from 'lucide-react';
-import ResiliencePanel from './ResiliencePanel';
+import { useActionParams } from '@hooks/useActionParams';
+import { useNodeData } from '@hooks/useNodeData';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  useSyncedBoolean,
+  useSyncedSelect,
+  textInputHandler,
+  numberInputHandler,
+  selectInputHandler,
+} from '@hooks/useSyncedField';
+import type { SelectParams } from '@utils/actionBuilder';
 import type { ResilienceSettings } from '@/types/workflow';
+import BaseNode from './BaseNode';
+import ResiliencePanel from './ResiliencePanel';
 
 const SELECT_BY_OPTIONS = [
   { value: 'value', label: 'Option value' },
@@ -24,146 +37,81 @@ const formatValues = (values?: unknown): string => {
   return values.join('\n');
 };
 
-const SelectNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const nodeData = (data ?? {}) as Record<string, unknown>;
-  const { getNodes, setNodes } = useReactFlow();
+const SelectNode: FC<NodeProps> = ({ selected, id }) => {
+  // Node data hook for UI-specific fields
+  const { getValue, updateData } = useNodeData(id);
 
-  const [selector, setSelector] = useState<string>(() => typeof nodeData.selector === 'string' ? nodeData.selector : '');
-  const [selectBy, setSelectBy] = useState<string>(() => typeof nodeData.selectBy === 'string' ? nodeData.selectBy : 'value');
-  const [value, setValue] = useState<string>(() => typeof nodeData.value === 'string' ? nodeData.value : '');
-  const [text, setText] = useState<string>(() => typeof nodeData.text === 'string' ? nodeData.text : '');
-  const [index, setIndex] = useState<number>(() => {
-    const raw = Number((nodeData.index ?? 0));
-    return Number.isFinite(raw) && raw >= 0 ? raw : 0;
+  // V2 Native: Use action params as source of truth
+  const { params, updateParams } = useActionParams<SelectParams>(id);
+
+  // Action params fields
+  const selector = useSyncedString(params?.selector ?? '', {
+    onCommit: (v) => updateParams({ selector: v || undefined }),
   });
-  const [multiple, setMultiple] = useState<boolean>(() => Boolean(nodeData.multiple));
-  const [valuesDraft, setValuesDraft] = useState<string>(() => formatValues(nodeData.values));
-  const [timeoutMs, setTimeoutMs] = useState<number>(() => Number(nodeData.timeoutMs ?? 5000) || 5000);
-  const [waitForMs, setWaitForMs] = useState<number>(() => Number(nodeData.waitForMs ?? 0) || 0);
+  const optionValue = useSyncedString(params?.value ?? '', {
+    onCommit: (v) => updateParams({ value: v || undefined }),
+  });
+  const label = useSyncedString(params?.label ?? '', {
+    onCommit: (v) => updateParams({ label: v || undefined }),
+  });
+  const index = useSyncedNumber(params?.index ?? 0, {
+    min: 0,
+    onCommit: (v) => updateParams({ index: v }),
+  });
+  const timeoutMs = useSyncedNumber(params?.timeoutMs ?? 5000, {
+    min: 100,
+    fallback: 5000,
+    onCommit: (v) => updateParams({ timeoutMs: v }),
+  });
+
+  // UI-specific fields (stored in node.data)
+  const selectBy = useSyncedSelect(getValue<string>('selectBy') ?? 'value', {
+    onCommit: (v) => updateData({ selectBy: v }),
+  });
+  const multiple = useSyncedBoolean(getValue<boolean>('multiple') ?? false, {
+    onCommit: (v) => updateData({ multiple: v }),
+  });
+  const waitForMs = useSyncedNumber(getValue<number>('waitForMs') ?? 0, {
+    min: 0,
+    onCommit: (v) => updateData({ waitForMs: v || undefined }),
+  });
+
+  // Special handling for values array (textarea)
+  const [valuesDraft, setValuesDraft] = useState<string>(formatValues(getValue<string[]>('values')));
 
   useEffect(() => {
-    setSelector(typeof nodeData.selector === 'string' ? nodeData.selector : '');
-  }, [nodeData.selector]);
+    setValuesDraft(formatValues(getValue<string[]>('values')));
+  }, [getValue]);
 
+  const resilienceConfig = getValue<ResilienceSettings>('resilience');
+
+  // If multiple mode and index is selected, switch to value
   useEffect(() => {
-    setSelectBy(typeof nodeData.selectBy === 'string' ? nodeData.selectBy : 'value');
-  }, [nodeData.selectBy]);
-
-  useEffect(() => {
-    setValue(typeof nodeData.value === 'string' ? nodeData.value : '');
-  }, [nodeData.value]);
-
-  useEffect(() => {
-    setText(typeof nodeData.text === 'string' ? nodeData.text : '');
-  }, [nodeData.text]);
-
-  useEffect(() => {
-    const raw = Number(nodeData.index ?? 0);
-    setIndex(Number.isFinite(raw) && raw >= 0 ? raw : 0);
-  }, [nodeData.index]);
-
-  useEffect(() => {
-    setMultiple(Boolean(nodeData.multiple));
-  }, [nodeData.multiple]);
-
-  useEffect(() => {
-    setValuesDraft(formatValues(nodeData.values));
-  }, [nodeData.values]);
-
-  useEffect(() => {
-    setTimeoutMs(Number(nodeData.timeoutMs ?? 5000) || 5000);
-  }, [nodeData.timeoutMs]);
-
-  useEffect(() => {
-    setWaitForMs(Number(nodeData.waitForMs ?? 0) || 0);
-  }, [nodeData.waitForMs]);
-
-  const resilienceConfig = nodeData.resilience as ResilienceSettings | undefined;
-
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-      for (const [key, val] of Object.entries(updates)) {
-        if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
-          delete nextData[key];
-        } else {
-          nextData[key] = val;
-        }
-      }
-      return { ...node, data: nextData };
-    }));
-  }, [getNodes, id, setNodes]);
-
-  useEffect(() => {
-    if (multiple && selectBy === 'index') {
-      setSelectBy('value');
-      updateNodeData({ selectBy: 'value' });
+    if (multiple.value && selectBy.value === 'index') {
+      selectBy.setValue('value');
+      updateData({ selectBy: 'value' });
     }
-  }, [multiple, selectBy, updateNodeData]);
-
-  const handleSelectorBlur = useCallback(() => {
-    updateNodeData({ selector: selector.trim() });
-  }, [selector, updateNodeData]);
-
-  const handleValueBlur = useCallback(() => {
-    updateNodeData({ value: value.trim() });
-  }, [updateNodeData, value]);
-
-  const handleTextBlur = useCallback(() => {
-    updateNodeData({ text: text.trim() });
-  }, [text, updateNodeData]);
-
-  const handleIndexBlur = useCallback(() => {
-    const normalized = Math.max(0, Math.round(index) || 0);
-    setIndex(normalized);
-    updateNodeData({ index: normalized });
-  }, [index, updateNodeData]);
+  }, [multiple.value, selectBy, updateData]);
 
   const handleValuesBlur = useCallback(() => {
     const parsed = parseValuesInput(valuesDraft);
     setValuesDraft(parsed.join('\n'));
-    updateNodeData({ values: parsed });
-  }, [updateNodeData, valuesDraft]);
-
-  const handleTimeoutBlur = useCallback(() => {
-    const normalized = Math.max(100, Math.round(timeoutMs) || 100);
-    setTimeoutMs(normalized);
-    updateNodeData({ timeoutMs: normalized });
-  }, [timeoutMs, updateNodeData]);
-
-  const handleWaitBlur = useCallback(() => {
-    const normalized = Math.max(0, Math.round(waitForMs) || 0);
-    setWaitForMs(normalized);
-    updateNodeData({ waitForMs: normalized });
-  }, [updateNodeData, waitForMs]);
-
-  const handleSelectByChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    const value = event.target.value;
-    setSelectBy(value);
-    updateNodeData({ selectBy: value });
-  }, [updateNodeData]);
-
-  const toggleMultiple = useCallback(() => {
-    const next = !multiple;
-    setMultiple(next);
-    updateNodeData({ multiple: next });
-  }, [multiple, updateNodeData]);
+    updateData({ values: parsed });
+  }, [updateData, valuesDraft]);
 
   const renderSelectionField = () => {
-    if (multiple) {
+    if (multiple.value) {
       return (
         <div>
-          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">Values (one per line)</label>
+          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
+            Values (one per line)
+          </label>
           <textarea
             rows={3}
             value={valuesDraft}
             onChange={(event) => setValuesDraft(event.target.value)}
             onBlur={handleValuesBlur}
-            placeholder={selectBy === 'text' ? 'Primary\nSecondary' : 'value-a\nvalue-b'}
+            placeholder={selectBy.value === 'text' ? 'Primary\nSecondary' : 'value-a\nvalue-b'}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 text-xs focus:border-flow-accent focus:outline-none resize-none"
           />
           <p className="text-[10px] text-gray-500 mt-1">All matching options will be selected.</p>
@@ -171,16 +119,18 @@ const SelectNode: FC<NodeProps> = ({ data, selected, id }) => {
       );
     }
 
-    if (selectBy === 'index') {
+    if (selectBy.value === 'index') {
       return (
         <div>
-          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">Option index</label>
+          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
+            Option index
+          </label>
           <input
             type="number"
             min={0}
-            value={index}
-            onChange={(event) => setIndex(Number(event.target.value))}
-            onBlur={handleIndexBlur}
+            value={index.value}
+            onChange={numberInputHandler(index.setValue)}
+            onBlur={index.commit}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 text-xs focus:border-flow-accent focus:outline-none"
           />
           <p className="text-[10px] text-gray-500 mt-1">Uses zero-based indexing (0 = first option).</p>
@@ -188,15 +138,17 @@ const SelectNode: FC<NodeProps> = ({ data, selected, id }) => {
       );
     }
 
-    if (selectBy === 'text') {
+    if (selectBy.value === 'text') {
       return (
         <div>
-          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">Text to match</label>
+          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
+            Text to match
+          </label>
           <input
             type="text"
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            onBlur={handleTextBlur}
+            value={label.value}
+            onChange={textInputHandler(label.setValue)}
+            onBlur={label.commit}
             placeholder="Contains..."
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 text-xs focus:border-flow-accent focus:outline-none"
           />
@@ -207,12 +159,14 @@ const SelectNode: FC<NodeProps> = ({ data, selected, id }) => {
 
     return (
       <div>
-        <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">Option value</label>
+        <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
+          Option value
+        </label>
         <input
           type="text"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          onBlur={handleValueBlur}
+          value={optionValue.value}
+          onChange={textInputHandler(optionValue.setValue)}
+          onBlur={optionValue.commit}
           placeholder="Option value attribute"
           className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 text-xs focus:border-flow-accent focus:outline-none"
         />
@@ -220,51 +174,64 @@ const SelectNode: FC<NodeProps> = ({ data, selected, id }) => {
     );
   };
 
+  const toggleMultiple = useCallback(() => {
+    const next = !multiple.value;
+    multiple.setValue(next);
+    updateData({ multiple: next });
+  }, [multiple, updateData]);
+
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-
-      <div className="flex items-center gap-2 mb-3">
-        <ListFilter size={16} className="text-teal-300" />
-        <span className="font-semibold text-sm">Select Option</span>
-      </div>
-
+    <BaseNode selected={selected} icon={ListFilter} iconClassName="text-teal-300" title="Select Option">
       <div className="space-y-3 text-xs">
         <div>
-          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">Target selector</label>
+          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
+            Target selector
+          </label>
           <input
             type="text"
-            value={selector}
-            onChange={(event) => setSelector(event.target.value)}
-            onBlur={handleSelectorBlur}
-          placeholder={'select[name="country"]'}
+            value={selector.value}
+            onChange={textInputHandler(selector.setValue)}
+            onBlur={selector.commit}
+            placeholder={'select[name="country"]'}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">Select by</label>
+            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
+              Select by
+            </label>
             <select
-              value={selectBy}
-              onChange={handleSelectByChange}
+              value={selectBy.value}
+              onChange={selectInputHandler(selectBy.setValue, selectBy.commit)}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             >
               {SELECT_BY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value} disabled={option.value === 'index' && multiple}>
+                <option
+                  key={option.value}
+                  value={option.value}
+                  disabled={option.value === 'index' && multiple.value}
+                >
                   {option.label}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">Allow multiple</label>
+            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
+              Allow multiple
+            </label>
             <button
               type="button"
               onClick={toggleMultiple}
-              className={`w-full px-2 py-1 rounded border text-xs transition-colors ${multiple ? 'border-teal-400 text-teal-200 bg-teal-400/10' : 'border-gray-700 text-gray-300 hover:border-gray-500'}`}
+              className={`w-full px-2 py-1 rounded border text-xs transition-colors ${
+                multiple.value
+                  ? 'border-teal-400 text-teal-200 bg-teal-400/10'
+                  : 'border-gray-700 text-gray-300 hover:border-gray-500'
+              }`}
             >
-              {multiple ? 'Enabled' : 'Disabled'}
+              {multiple.value ? 'Enabled' : 'Disabled'}
             </button>
           </div>
         </div>
@@ -273,41 +240,44 @@ const SelectNode: FC<NodeProps> = ({ data, selected, id }) => {
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">Timeout (ms)</label>
+            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
+              Timeout (ms)
+            </label>
             <input
               type="number"
               min={100}
-              value={timeoutMs}
-              onChange={(event) => setTimeoutMs(Number(event.target.value))}
-              onBlur={handleTimeoutBlur}
+              value={timeoutMs.value}
+              onChange={numberInputHandler(timeoutMs.setValue)}
+              onBlur={timeoutMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
           <div>
-            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">Post-change wait (ms)</label>
+            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
+              Post-change wait (ms)
+            </label>
             <input
               type="number"
               min={0}
-              value={waitForMs}
-              onChange={(event) => setWaitForMs(Number(event.target.value))}
-              onBlur={handleWaitBlur}
+              value={waitForMs.value}
+              onChange={numberInputHandler(waitForMs.setValue)}
+              onBlur={waitForMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
         </div>
 
         <p className="text-[11px] text-gray-500">
-          Dispatches change/input events after updating the element so downstream nodes can rely on the new value.
+          Dispatches change/input events after updating the element so downstream nodes can rely on
+          the new value.
         </p>
       </div>
 
       <ResiliencePanel
         value={resilienceConfig}
-        onChange={(next) => updateNodeData({ resilience: next ?? null })}
+        onChange={(next) => updateData({ resilience: next ?? null })}
       />
-
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

@@ -1,124 +1,69 @@
-import { memo, FC, useState, useEffect, useMemo, useCallback } from 'react';
-import type { KeyboardEvent } from 'react';
-import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
+import { memo, FC, useState, useCallback } from 'react';
+import type { NodeProps } from 'reactflow';
 import { Keyboard, Globe, Target } from 'lucide-react';
-import { useUpstreamUrl } from '@hooks/useUpstreamUrl';
+import { useActionParams } from '@hooks/useActionParams';
+import { useNodeData } from '@hooks/useNodeData';
+import { useUrlInheritance } from '@hooks/useUrlInheritance';
+import { useSyncedString, textInputHandler } from '@hooks/useSyncedField';
 import { ElementPickerModal } from '../components';
 import type { ElementInfo } from '@/types/elements';
-import ResiliencePanel from './ResiliencePanel';
+import type { InputParams } from '@utils/actionBuilder';
 import type { ResilienceSettings } from '@/types/workflow';
+import BaseNode from './BaseNode';
+import ResiliencePanel from './ResiliencePanel';
 
-const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const upstreamUrl = useUpstreamUrl(id);
+const TypeNode: FC<NodeProps> = ({ selected, id }) => {
+  // URL inheritance hook handles all URL state and handlers
+  const {
+    urlDraft,
+    setUrlDraft,
+    effectiveUrl,
+    hasCustomUrl,
+    upstreamUrl,
+    commitUrl,
+    resetUrl,
+    handleUrlKeyDown,
+  } = useUrlInheritance(id);
+
+  // Node data hook for non-action fields
+  const { updateData, getValue } = useNodeData(id);
+
+  // V2 Native: Use action params as source of truth
+  const { params, updateParams } = useActionParams<InputParams>(id);
+
+  // Action params fields using useSyncedField
+  const selector = useSyncedString(params?.selector ?? '', {
+    onCommit: (v) => updateParams({ selector: v || undefined }),
+  });
+  const text = useSyncedString(params?.value ?? '', {
+    trim: false, // Don't trim text input
+    onCommit: (v) => updateParams({ value: v }),
+  });
+
+  // UI state
   const [showElementPicker, setShowElementPicker] = useState(false);
-  const { getNodes, setNodes } = useReactFlow();
 
-  const nodeData = data as Record<string, unknown> | undefined;
-  const storedUrl = typeof nodeData?.url === 'string' ? nodeData.url : '';
-  const [urlDraft, setUrlDraft] = useState<string>(storedUrl);
+  const handleElementSelection = useCallback(
+    (newSelector: string, elementInfo: ElementInfo) => {
+      selector.setValue(newSelector);
+      // V2 Native: Update selector in action params
+      updateParams({ selector: newSelector });
+      // Keep elementInfo in data for now (not part of InputParams proto)
+      updateData({ elementInfo });
+    },
+    [selector, updateParams, updateData],
+  );
 
-  useEffect(() => {
-    setUrlDraft(storedUrl);
-  }, [storedUrl]);
-
-  const trimmedStoredUrl = useMemo(() => storedUrl.trim(), [storedUrl]);
-  const effectiveUrl = useMemo(() => {
-    if (trimmedStoredUrl.length > 0) {
-      return trimmedStoredUrl;
-    }
-    return upstreamUrl ?? null;
-  }, [trimmedStoredUrl, upstreamUrl]);
-  const hasCustomUrl = trimmedStoredUrl.length > 0;
-
-  // Local state for inputs to avoid re-renders on every keystroke
-  const [selector, setSelector] = useState(data.selector || '');
-  const [text, setText] = useState(data.text || '');
-
-  // Sync local state when data changes from external sources
-  useEffect(() => {
-    setSelector(data.selector || '');
-  }, [data.selector]);
-
-  useEffect(() => {
-    setText(data.text || '');
-  }, [data.text]);
-
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    const updatedNodes = nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-
-      for (const [key, value] of Object.entries(updates)) {
-        if (key === 'url') {
-          const trimmed = typeof value === 'string' ? value.trim() : '';
-          if (trimmed) {
-            nextData.url = trimmed;
-          } else {
-            delete nextData.url;
-          }
-          continue;
-        }
-
-        if (value === undefined || value === null) {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      }
-
-      return {
-        ...node,
-        data: nextData,
-      };
-    });
-    setNodes(updatedNodes);
-  }, [getNodes, id, setNodes]);
-
-  const commitUrl = useCallback((raw: string) => {
-    const trimmed = raw.trim();
-    updateNodeData({ url: trimmed.length > 0 ? trimmed : null });
-  }, [updateNodeData]);
-
-  const handleUrlCommit = useCallback(() => {
-    commitUrl(urlDraft);
-  }, [commitUrl, urlDraft]);
-
-  const handleUrlKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      commitUrl(urlDraft);
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      setUrlDraft(storedUrl);
-    }
-  }, [commitUrl, storedUrl, urlDraft]);
-
-  const resetUrl = useCallback(() => {
-    setUrlDraft('');
-    updateNodeData({ url: null });
-  }, [updateNodeData]);
-
-  const handleElementSelection = (selector: string, elementInfo: ElementInfo) => {
-    setSelector(selector);
-    updateNodeData({ selector, elementInfo });
-  };
-
-  const resilienceConfig = data?.resilience as ResilienceSettings | undefined;
+  const resilienceConfig = getValue<ResilienceSettings>('resilience');
 
   return (
     <>
-      <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-        <Handle type="target" position={Position.Top} className="node-handle" />
-        
-        <div className="flex items-center gap-2 mb-2">
-          <Keyboard size={16} className="text-yellow-400" />
-          <span className="font-semibold text-sm">Type Text</span>
-        </div>
-        
+      <BaseNode
+        selected={selected}
+        icon={Keyboard}
+        iconClassName="text-yellow-400"
+        title="Type Text"
+      >
         <div className="mb-2">
           <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
             <Globe size={12} className="text-blue-400" />
@@ -131,7 +76,7 @@ const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
               className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
               value={urlDraft}
               onChange={(event) => setUrlDraft(event.target.value)}
-              onBlur={handleUrlCommit}
+              onBlur={commitUrl}
               onKeyDown={handleUrlKeyDown}
             />
             {hasCustomUrl && (
@@ -153,19 +98,19 @@ const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
             <p className="mt-1 text-[10px] text-red-400">Provide a URL to target this node.</p>
           )}
         </div>
-        
+
         <div className="flex items-center gap-1 mb-2">
           <input
             type="text"
             placeholder="CSS Selector..."
             className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            value={selector}
-            onChange={(e) => setSelector(e.target.value)}
-            onBlur={() => updateNodeData({ selector })}
+            value={selector.value}
+            onChange={textInputHandler(selector.setValue)}
+            onBlur={selector.commit}
           />
-          <div 
+          <div
             className="inline-block"
-            title={!effectiveUrl ? "Set a page URL before picking elements" : ""}
+            title={!effectiveUrl ? 'Set a page URL before picking elements' : ''}
           >
             <button
               onClick={() => effectiveUrl && setShowElementPicker(true)}
@@ -175,35 +120,33 @@ const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
               title={effectiveUrl ? `Pick element from ${effectiveUrl}` : undefined}
               disabled={!effectiveUrl}
             >
-              <Target size={14} className={effectiveUrl ? "text-gray-400" : "text-gray-600"} />
+              <Target size={14} className={effectiveUrl ? 'text-gray-400' : 'text-gray-600'} />
             </button>
           </div>
         </div>
-        
+
         <textarea
           placeholder="Text to type..."
           className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none resize-none"
           rows={2}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={() => updateNodeData({ text })}
-        />
-        
-        <ResiliencePanel
-          value={resilienceConfig}
-          onChange={(next) => updateNodeData({ resilience: next ?? null })}
+          value={text.value}
+          onChange={textInputHandler(text.setValue)}
+          onBlur={text.commit}
         />
 
-        <Handle type="source" position={Position.Bottom} className="node-handle" />
-      </div>
-      
+        <ResiliencePanel
+          value={resilienceConfig}
+          onChange={(next) => updateData({ resilience: next ?? null })}
+        />
+      </BaseNode>
+
       {showElementPicker && effectiveUrl && (
         <ElementPickerModal
           isOpen={showElementPicker}
           onClose={() => setShowElementPicker(false)}
-          url={effectiveUrl!}
+          url={effectiveUrl}
           onSelectElement={handleElementSelection}
-          selectedSelector={selector}
+          selectedSelector={selector.value}
         />
       )}
     </>

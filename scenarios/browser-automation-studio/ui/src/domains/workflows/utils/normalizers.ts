@@ -1,35 +1,63 @@
 import type { Edge, Node } from 'reactflow';
+import { actionTypeToNodeType, buildActionDefinition, type ActionDefinition } from '@utils/actionBuilder';
+
+/**
+ * Extended Node type that includes the V2 action field.
+ */
+export type NodeWithAction = Node & { action?: ActionDefinition };
 
 /**
  * Normalizes raw node data from API/storage into valid ReactFlow Node objects.
  * Ensures all required fields exist with proper defaults.
+ *
+ * V2 Native Format:
+ * - If node.action exists, it is the source of truth
+ * - node.type is derived from action.type for ReactFlow routing
+ * - If node.action is missing (legacy), it's built from node.type + node.data
+ * - After normalization, action is always present
  */
-export const normalizeNodes = (nodes: unknown[] | undefined | null): Node[] => {
+export const normalizeNodes = (nodes: unknown[] | undefined | null): NodeWithAction[] => {
   if (!Array.isArray(nodes)) return [];
   return nodes.map((node, index) => {
     const nodeData = node as Record<string, unknown>;
     const id = nodeData?.id ? String(nodeData.id) : `node-${index + 1}`;
-    const type = nodeData?.type ? String(nodeData.type) : 'navigate';
     const positionData = nodeData?.position as Record<string, unknown> | undefined;
     const position = {
       x: Number(positionData?.x ?? 100 + index * 200) || 0,
       y: Number(positionData?.y ?? 100 + index * 120) || 0,
     };
     const data = nodeData?.data && typeof nodeData.data === 'object' ? nodeData.data : {};
-    // Preserve V2 action field if present (from API responses)
-    const action = nodeData?.action && typeof nodeData.action === 'object' ? nodeData.action : undefined;
-    const result: Record<string, unknown> = {
+
+    // Get existing action if present
+    let action = nodeData?.action && typeof nodeData.action === 'object'
+      ? (nodeData.action as ActionDefinition)
+      : undefined;
+
+    // Get type from nodeData (may be overridden if action exists)
+    let type = nodeData?.type ? String(nodeData.type) : 'navigate';
+
+    // V2 Native: If action exists, derive type from action.type
+    if (action?.type) {
+      const derivedType = actionTypeToNodeType(action.type);
+      if (derivedType !== 'unknown') {
+        type = derivedType;
+      }
+    } else if (type) {
+      // Legacy: Build action from type + data for backward compatibility
+      const dataRecord = data as Record<string, unknown>;
+      action = buildActionDefinition(type, dataRecord);
+    }
+
+    const result: NodeWithAction = {
       ...nodeData,
       id,
       type,
       position,
       data,
-    };
-    // Only include action if it exists
-    if (action) {
-      result.action = action;
-    }
-    return result as Node;
+      action,
+    } as NodeWithAction;
+
+    return result;
   });
 };
 

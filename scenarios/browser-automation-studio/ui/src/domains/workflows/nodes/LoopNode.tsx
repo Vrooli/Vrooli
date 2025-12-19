@@ -1,6 +1,7 @@
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { Handle, NodeProps, Position } from 'reactflow';
 import { RefreshCcw } from 'lucide-react';
+import { useNodeData } from '@hooks/useNodeData';
 
 const LOOP_TYPES = [
   { value: 'foreach', label: 'For Each (array variable)' },
@@ -28,47 +29,36 @@ const MAX_ITERATION_TIMEOUT_MS = 600000;
 const MIN_TOTAL_TIMEOUT_MS = 1000;
 const MAX_TOTAL_TIMEOUT_MS = 1800000;
 
-const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
-  const { getNodes, setNodes } = useReactFlow();
-  const nodeData = (data ?? {}) as Record<string, unknown>;
+const LoopNode: FC<NodeProps> = ({ id, selected }) => {
+  const { getValue, updateData } = useNodeData(id);
 
-  const [loopType, setLoopType] = useState(() => String(nodeData.loopType ?? 'foreach'));
-  const [arraySource, setArraySource] = useState(() => String(nodeData.arraySource ?? ''));
-  const [repeatCount, setRepeatCount] = useState(() => Number(nodeData.count ?? 1) || 1);
-  const [maxIterations, setMaxIterations] = useState(() => Number(nodeData.maxIterations ?? DEFAULT_MAX_ITERATIONS) || DEFAULT_MAX_ITERATIONS);
-  const [itemVariable, setItemVariable] = useState(() => String(nodeData.itemVariable ?? 'loop.item'));
-  const [indexVariable, setIndexVariable] = useState(() => String(nodeData.indexVariable ?? 'loop.index'));
-  const [conditionType, setConditionType] = useState(() => String(nodeData.conditionType ?? 'variable'));
-  const [conditionVariable, setConditionVariable] = useState(() => String(nodeData.conditionVariable ?? ''));
-  const [conditionOperator, setConditionOperator] = useState(() => String(nodeData.conditionOperator ?? 'truthy'));
-  const [conditionValue, setConditionValue] = useState(() => String(nodeData.conditionValue ?? ''));
-  const [conditionExpression, setConditionExpression] = useState(() => String(nodeData.conditionExpression ?? ''));
-  const [iterationTimeoutMs, setIterationTimeoutMs] = useState(() => Number(nodeData.iterationTimeoutMs ?? DEFAULT_ITERATION_TIMEOUT_MS) || DEFAULT_ITERATION_TIMEOUT_MS);
-  const [totalTimeoutMs, setTotalTimeoutMs] = useState(() => Number(nodeData.totalTimeoutMs ?? DEFAULT_TOTAL_TIMEOUT_MS) || DEFAULT_TOTAL_TIMEOUT_MS);
+  const [loopType, setLoopType] = useState<string>(getValue<string>('loopType') ?? 'foreach');
+  const [arraySource, setArraySource] = useState<string>(getValue<string>('arraySource') ?? '');
+  const [repeatCount, setRepeatCount] = useState<number>(getValue<number>('count') ?? 1);
+  const [maxIterations, setMaxIterations] = useState<number>(getValue<number>('maxIterations') ?? DEFAULT_MAX_ITERATIONS);
+  const [itemVariable, setItemVariable] = useState<string>(getValue<string>('itemVariable') ?? 'loop.item');
+  const [indexVariable, setIndexVariable] = useState<string>(getValue<string>('indexVariable') ?? 'loop.index');
+  const [conditionType, setConditionType] = useState<string>(getValue<string>('conditionType') ?? 'variable');
+  const [conditionVariable, setConditionVariable] = useState<string>(getValue<string>('conditionVariable') ?? '');
+  const [conditionOperator, setConditionOperator] = useState<string>(getValue<string>('conditionOperator') ?? 'truthy');
+  const [conditionValue, setConditionValue] = useState<string>(getValue<string>('conditionValue') ?? '');
+  const [conditionExpression, setConditionExpression] = useState<string>(getValue<string>('conditionExpression') ?? '');
+  const [iterationTimeoutMs, setIterationTimeoutMs] = useState<number>(getValue<number>('iterationTimeoutMs') ?? DEFAULT_ITERATION_TIMEOUT_MS);
+  const [totalTimeoutMs, setTotalTimeoutMs] = useState<number>(getValue<number>('totalTimeoutMs') ?? DEFAULT_TOTAL_TIMEOUT_MS);
 
-  useEffect(() => setLoopType(String(nodeData.loopType ?? 'foreach')), [nodeData.loopType]);
-  useEffect(() => setArraySource(String(nodeData.arraySource ?? '')), [nodeData.arraySource]);
-  useEffect(() => setRepeatCount(Number(nodeData.count ?? 1) || 1), [nodeData.count]);
-  useEffect(() => setMaxIterations(Number(nodeData.maxIterations ?? DEFAULT_MAX_ITERATIONS) || DEFAULT_MAX_ITERATIONS), [nodeData.maxIterations]);
-  useEffect(() => setItemVariable(String(nodeData.itemVariable ?? 'loop.item')), [nodeData.itemVariable]);
-  useEffect(() => setIndexVariable(String(nodeData.indexVariable ?? 'loop.index')), [nodeData.indexVariable]);
-  useEffect(() => setConditionType(String(nodeData.conditionType ?? 'variable')), [nodeData.conditionType]);
-  useEffect(() => setConditionVariable(String(nodeData.conditionVariable ?? '')), [nodeData.conditionVariable]);
-  useEffect(() => setConditionOperator(String(nodeData.conditionOperator ?? 'truthy')), [nodeData.conditionOperator]);
-  useEffect(() => setConditionValue(String(nodeData.conditionValue ?? '')), [nodeData.conditionValue]);
-  useEffect(() => setConditionExpression(String(nodeData.conditionExpression ?? '')), [nodeData.conditionExpression]);
-  useEffect(() => setIterationTimeoutMs(Number(nodeData.iterationTimeoutMs ?? DEFAULT_ITERATION_TIMEOUT_MS) || DEFAULT_ITERATION_TIMEOUT_MS), [nodeData.iterationTimeoutMs]);
-  useEffect(() => setTotalTimeoutMs(Number(nodeData.totalTimeoutMs ?? DEFAULT_TOTAL_TIMEOUT_MS) || DEFAULT_TOTAL_TIMEOUT_MS), [nodeData.totalTimeoutMs]);
-
-  const updateNode = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      return { ...node, data: { ...(node.data ?? {}), ...updates } };
-    }));
-  }, [getNodes, setNodes, id]);
+  useEffect(() => setLoopType(getValue<string>('loopType') ?? 'foreach'), [getValue]);
+  useEffect(() => setArraySource(getValue<string>('arraySource') ?? ''), [getValue]);
+  useEffect(() => setRepeatCount(getValue<number>('count') ?? 1), [getValue]);
+  useEffect(() => setMaxIterations(getValue<number>('maxIterations') ?? DEFAULT_MAX_ITERATIONS), [getValue]);
+  useEffect(() => setItemVariable(getValue<string>('itemVariable') ?? 'loop.item'), [getValue]);
+  useEffect(() => setIndexVariable(getValue<string>('indexVariable') ?? 'loop.index'), [getValue]);
+  useEffect(() => setConditionType(getValue<string>('conditionType') ?? 'variable'), [getValue]);
+  useEffect(() => setConditionVariable(getValue<string>('conditionVariable') ?? ''), [getValue]);
+  useEffect(() => setConditionOperator(getValue<string>('conditionOperator') ?? 'truthy'), [getValue]);
+  useEffect(() => setConditionValue(getValue<string>('conditionValue') ?? ''), [getValue]);
+  useEffect(() => setConditionExpression(getValue<string>('conditionExpression') ?? ''), [getValue]);
+  useEffect(() => setIterationTimeoutMs(getValue<number>('iterationTimeoutMs') ?? DEFAULT_ITERATION_TIMEOUT_MS), [getValue]);
+  useEffect(() => setTotalTimeoutMs(getValue<number>('totalTimeoutMs') ?? DEFAULT_TOTAL_TIMEOUT_MS), [getValue]);
 
   const showArraySource = loopType === 'foreach';
   const showRepeatCount = loopType === 'repeat';
@@ -90,14 +80,14 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
   const commitMaxIterations = useCallback(() => {
     const normalized = Math.max(1, Math.min(1000, Math.round(maxIterations) || DEFAULT_MAX_ITERATIONS));
     setMaxIterations(normalized);
-    updateNode({ maxIterations: normalized });
-  }, [maxIterations, updateNode]);
+    updateData({ maxIterations: normalized });
+  }, [maxIterations, updateData]);
 
   const commitRepeatCount = useCallback(() => {
     const normalized = Math.max(1, Math.round(repeatCount) || 1);
     setRepeatCount(normalized);
-    updateNode({ count: normalized });
-  }, [repeatCount, updateNode]);
+    updateData({ count: normalized });
+  }, [repeatCount, updateData]);
 
   const commitIterationTimeout = useCallback(() => {
     const normalized = Math.max(
@@ -105,8 +95,8 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
       Math.min(MAX_ITERATION_TIMEOUT_MS, Math.round(iterationTimeoutMs) || DEFAULT_ITERATION_TIMEOUT_MS),
     );
     setIterationTimeoutMs(normalized);
-    updateNode({ iterationTimeoutMs: normalized });
-  }, [iterationTimeoutMs, updateNode]);
+    updateData({ iterationTimeoutMs: normalized });
+  }, [iterationTimeoutMs, updateData]);
 
   const commitTotalTimeout = useCallback(() => {
     const normalized = Math.max(
@@ -114,8 +104,8 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
       Math.min(MAX_TOTAL_TIMEOUT_MS, Math.round(totalTimeoutMs) || DEFAULT_TOTAL_TIMEOUT_MS),
     );
     setTotalTimeoutMs(normalized);
-    updateNode({ totalTimeoutMs: normalized });
-  }, [totalTimeoutMs, updateNode]);
+    updateData({ totalTimeoutMs: normalized });
+  }, [totalTimeoutMs, updateData]);
 
   return (
     <div className={`workflow-node ${selected ? 'selected' : ''}`}>
@@ -138,7 +128,7 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
             onChange={(event) => {
               const value = event.target.value;
               setLoopType(value);
-              updateNode({ loopType: value });
+              updateData({ loopType: value });
             }}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           >
@@ -156,7 +146,7 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
               type="text"
               value={arraySource}
               onChange={(event) => setArraySource(event.target.value)}
-              onBlur={() => updateNode({ arraySource: arraySource.trim() })}
+              onBlur={() => updateData({ arraySource: arraySource.trim() })}
               placeholder="rows"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -186,7 +176,7 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
                 onChange={(event) => {
                   const value = event.target.value;
                   setConditionType(value);
-                  updateNode({ conditionType: value });
+                  updateData({ conditionType: value });
                 }}
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               >
@@ -204,7 +194,7 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
                     type="text"
                     value={conditionVariable}
                     onChange={(event) => setConditionVariable(event.target.value)}
-                    onBlur={() => updateNode({ conditionVariable: conditionVariable.trim() })}
+                    onBlur={() => updateData({ conditionVariable: conditionVariable.trim() })}
                     placeholder="continueProcessing"
                     className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                   />
@@ -216,7 +206,7 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
                     onChange={(event) => {
                       const value = event.target.value;
                       setConditionOperator(value);
-                      updateNode({ conditionOperator: value });
+                      updateData({ conditionOperator: value });
                     }}
                     className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                   >
@@ -232,7 +222,7 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
                       type="text"
                       value={conditionValue}
                       onChange={(event) => setConditionValue(event.target.value)}
-                      onBlur={() => updateNode({ conditionValue: conditionValue })}
+                      onBlur={() => updateData({ conditionValue: conditionValue })}
                       className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                     />
                   </div>
@@ -247,7 +237,7 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
                   rows={3}
                   value={conditionExpression}
                   onChange={(event) => setConditionExpression(event.target.value)}
-                  onBlur={() => updateNode({ conditionExpression: conditionExpression.trim() })}
+                  onBlur={() => updateData({ conditionExpression: conditionExpression.trim() })}
                   placeholder="return window.isReady === true;"
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 />
@@ -274,7 +264,7 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
               type="text"
               value={itemVariable}
               onChange={(event) => setItemVariable(event.target.value)}
-              onBlur={() => updateNode({ itemVariable: itemVariable.trim() })}
+              onBlur={() => updateData({ itemVariable: itemVariable.trim() })}
               placeholder="loop.item"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -316,7 +306,7 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
             type="text"
             value={indexVariable}
             onChange={(event) => setIndexVariable(event.target.value)}
-            onBlur={() => updateNode({ indexVariable: indexVariable.trim() })}
+            onBlur={() => updateData({ indexVariable: indexVariable.trim() })}
             placeholder="loop.index"
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />

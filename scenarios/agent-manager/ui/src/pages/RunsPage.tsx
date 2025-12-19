@@ -548,6 +548,11 @@ function EventItem({ event }: { event: RunEvent }) {
   const [expanded, setExpanded] = useState(false);
   const data = event.data;
 
+  // Check if this is a sandbox conflict error
+  const hasConflicts = event.eventType === "error" &&
+    data.details?.conflicts &&
+    data.details.conflicts.length > 0;
+
   const getIcon = () => {
     switch (event.eventType) {
       case "log":
@@ -579,6 +584,9 @@ function EventItem({ event }: { event: RunEvent }) {
       case "status":
         return (data.oldStatus || "?") + " -> " + (data.newStatus || "?");
       case "error":
+        if (hasConflicts) {
+          return `Sandbox conflict: ${data.details!.conflicts!.length} conflicting sandbox(es)`;
+        }
         return data.message || data.code || "Error occurred";
       default:
         return event.eventType;
@@ -608,9 +616,48 @@ function EventItem({ event }: { event: RunEvent }) {
         )}
       </div>
       {expanded && (
-        <pre className="mt-2 p-2 bg-muted rounded text-[10px] overflow-x-auto">
-          {JSON.stringify(data, null, 2)}
-        </pre>
+        <div className="mt-2 space-y-2">
+          {/* Show conflict details in a user-friendly format */}
+          {hasConflicts && (
+            <div className="p-2 bg-destructive/10 rounded border border-destructive/20">
+              <div className="font-medium text-destructive mb-2">
+                Conflicting Sandboxes
+              </div>
+              <div className="space-y-2">
+                {data.details!.conflicts!.map((conflict) => (
+                  <div
+                    key={conflict.sandboxId}
+                    className="p-2 bg-background rounded border border-border"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] font-mono">
+                        {conflict.sandboxId.slice(0, 8)}...
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        {conflict.conflictType === "new_contains_existing"
+                          ? "Your scope contains this sandbox"
+                          : "This sandbox contains your scope"}
+                      </span>
+                    </div>
+                    <div className="mt-1 font-mono text-[10px] text-muted-foreground truncate">
+                      {conflict.scope}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 text-[10px] text-muted-foreground">
+                To resolve: Delete or stop the conflicting sandbox(es) using the workspace-sandbox CLI:
+                <code className="block mt-1 p-1 bg-muted rounded font-mono">
+                  workspace-sandbox delete {data.details!.conflicts![0]?.sandboxId || "<sandbox-id>"}
+                </code>
+              </div>
+            </div>
+          )}
+          {/* Show raw JSON data */}
+          <pre className="p-2 bg-muted rounded text-[10px] overflow-x-auto">
+            {JSON.stringify(data, null, 2)}
+          </pre>
+        </div>
       )}
     </div>
   );

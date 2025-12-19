@@ -1,61 +1,40 @@
-import { memo, FC, useState, useEffect, useCallback, useId } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { memo, FC, useState, useEffect, useId } from 'react';
+import type { NodeProps } from 'reactflow';
 import { Recycle, Sparkles } from 'lucide-react';
+import { useNodeData } from '@hooks/useNodeData';
 import { useWorkflowVariables } from '@hooks/useWorkflowVariables';
 import { VariableSuggestionList } from '../components';
+import BaseNode from './BaseNode';
 
-const UseVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const nodeData = (data ?? {}) as Record<string, unknown>;
-  const { getNodes, setNodes } = useReactFlow();
+const UseVariableNode: FC<NodeProps> = ({ selected, id }) => {
+  const { getValue, updateData } = useNodeData(id);
   const availableVariables = useWorkflowVariables(id);
   const nameDatalistId = useId();
   const aliasDatalistId = useId();
 
-  const [name, setName] = useState<string>(String(nodeData.name ?? ''));
-  const [storeAs, setStoreAs] = useState<string>(String(nodeData.storeAs ?? ''));
-  const [transform, setTransform] = useState<string>(String(nodeData.transform ?? ''));
-  const [required, setRequired] = useState<boolean>(Boolean(nodeData.required));
+  const [name, setName] = useState<string>(getValue<string>('name') ?? '');
+  const [storeAs, setStoreAs] = useState<string>(getValue<string>('storeAs') ?? '');
+  const [transform, setTransform] = useState<string>(getValue<string>('transform') ?? '');
+  const [required, setRequired] = useState<boolean>(getValue<boolean>('required') ?? false);
 
   useEffect(() => {
-    setName(String(nodeData.name ?? ''));
-  }, [nodeData.name]);
-  useEffect(() => {
-    setStoreAs(String(nodeData.storeAs ?? ''));
-  }, [nodeData.storeAs]);
-  useEffect(() => {
-    setTransform(String(nodeData.transform ?? ''));
-  }, [nodeData.transform]);
-  useEffect(() => {
-    setRequired(Boolean(nodeData.required));
-  }, [nodeData.required]);
+    setName(getValue<string>('name') ?? '');
+  }, [getValue]);
 
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '') {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      });
-      return { ...node, data: nextData };
-    }));
-  }, [getNodes, setNodes, id]);
+  useEffect(() => {
+    setStoreAs(getValue<string>('storeAs') ?? '');
+  }, [getValue]);
+
+  useEffect(() => {
+    setTransform(getValue<string>('transform') ?? '');
+  }, [getValue]);
+
+  useEffect(() => {
+    setRequired(getValue<boolean>('required') ?? false);
+  }, [getValue]);
 
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-
-      <div className="flex items-center gap-2 mb-2">
-        <Recycle size={16} className="text-sky-300" />
-        <span className="font-semibold text-sm">Use Variable</span>
-      </div>
-
+    <BaseNode selected={selected} icon={Recycle} iconClassName="text-sky-300" title="Use Variable">
       <div className="space-y-2 text-xs">
         <div>
           <label className="text-[11px] font-semibold text-gray-400">Variable Name</label>
@@ -64,7 +43,7 @@ const UseVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
             className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            onBlur={() => updateNodeData({ name })}
+            onBlur={() => updateData({ name })}
             placeholder="loginToken"
             list={availableVariables.length > 0 ? nameDatalistId : undefined}
           />
@@ -82,7 +61,7 @@ const UseVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
             emptyHint="Add a Set Variable or store a result earlier in the workflow to reference it here."
             onSelect={(value) => {
               setName(value);
-              updateNodeData({ name: value });
+              updateData({ name: value });
             }}
           />
         </div>
@@ -93,7 +72,7 @@ const UseVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
             className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             value={storeAs}
             onChange={(event) => setStoreAs(event.target.value)}
-            onBlur={() => updateNodeData({ storeAs })}
+            onBlur={() => updateData({ storeAs })}
             placeholder="Optional alias"
             list={availableVariables.length > 0 ? aliasDatalistId : undefined}
           />
@@ -111,7 +90,7 @@ const UseVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
             emptyHint="Aliases become new variables future nodes can reuse."
             onSelect={(value) => {
               setStoreAs(value);
-              updateNodeData({ storeAs: value });
+              updateData({ storeAs: value });
             }}
           />
         </div>
@@ -124,10 +103,12 @@ const UseVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
             rows={3}
             value={transform}
             onChange={(event) => setTransform(event.target.value)}
-            onBlur={() => updateNodeData({ transform })}
+            onBlur={() => updateData({ transform })}
             placeholder="Hello, {{value}}!"
           />
-          <p className="text-[10px] text-gray-500 mt-1">Use {`{{value}}`} to reference the current variable contents.</p>
+          <p className="text-[10px] text-gray-500 mt-1">
+            Use {`{{value}}`} to reference the current variable contents.
+          </p>
         </div>
         <label className="flex items-center gap-2 text-gray-400">
           <input
@@ -135,15 +116,13 @@ const UseVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
             checked={required}
             onChange={(event) => {
               setRequired(event.target.checked);
-              updateNodeData({ required: event.target.checked });
+              updateData({ required: event.target.checked });
             }}
           />
           Fail if variable is missing
         </label>
       </div>
-
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

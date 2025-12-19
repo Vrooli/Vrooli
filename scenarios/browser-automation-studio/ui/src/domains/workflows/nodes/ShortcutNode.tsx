@@ -1,11 +1,29 @@
-import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import type { KeyboardEvent } from 'react';
-import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
+import { FC, memo, useMemo, useState } from 'react';
+import type { NodeProps } from 'reactflow';
 import { Command, Globe, Target, Clock, X as XIcon } from 'lucide-react';
 import clsx from 'clsx';
-import { useUpstreamUrl } from '@hooks/useUpstreamUrl';
+import { useActionParams } from '@hooks/useActionParams';
+import { useNodeData } from '@hooks/useNodeData';
+import { useUrlInheritance } from '@hooks/useUrlInheritance';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  textInputHandler,
+  numberInputHandler,
+} from '@hooks/useSyncedField';
 import { ElementPickerModal } from '../components';
 import type { ElementInfo } from '@/types/elements';
+import BaseNode from './BaseNode';
+
+// ShortcutParams interface for V2 native action params
+interface ShortcutParams {
+  shortcuts?: string[];
+  shortcut?: string;
+  focusSelector?: string;
+  focusElement?: ElementInfo;
+  shortcutDelayMs?: number;
+  delayMs?: number;
+}
 
 const KEY_ALIASES: Record<string, string> = {
   ctrl: 'Control',
@@ -106,146 +124,68 @@ const formatShortcutText = (shortcuts: unknown): string => {
   return normalized.join('\n');
 };
 
-const sanitizeDelay = (value: number | string): number => {
-  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value), 10);
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    return 0;
-  }
-  return parsed;
-};
+const ShortcutNode: FC<NodeProps> = ({ selected, id }) => {
+  // URL inheritance hook handles URL state and handlers
+  const {
+    urlDraft,
+    setUrlDraft,
+    effectiveUrl,
+    hasCustomUrl,
+    upstreamUrl,
+    commitUrl,
+    resetUrl,
+    handleUrlKeyDown,
+  } = useUrlInheritance(id);
 
-const ShortcutNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const upstreamUrl = useUpstreamUrl(id);
-  const { getNodes, setNodes } = useReactFlow();
+  // Action params and node data hooks
+  const { params, updateParams } = useActionParams<ShortcutParams>(id);
+  const { updateData } = useNodeData(id);
 
-  const nodeData = data as Record<string, unknown> | undefined;
-  const storedUrl = typeof nodeData?.url === 'string' ? nodeData.url : '';
-  const [urlDraft, setUrlDraft] = useState<string>(storedUrl);
+  // Shortcuts as text (special handling for array)
+  const shortcutText = useSyncedString(formatShortcutText(params?.shortcuts ?? params?.shortcut), {
+    trim: false,
+    onCommit: (v) => {
+      const sanitized = parseShortcutText(v);
+      updateParams({ shortcuts: sanitized });
+    },
+  });
 
-  useEffect(() => {
-    setUrlDraft(storedUrl);
-  }, [storedUrl]);
+  // Focus selector
+  const focusSelector = useSyncedString(params?.focusSelector ?? '', {
+    onCommit: (v) => updateParams({ focusSelector: v || undefined }),
+  });
 
-  const trimmedStoredUrl = useMemo(() => storedUrl.trim(), [storedUrl]);
-  const effectiveUrl = useMemo(() => {
-    if (trimmedStoredUrl.length > 0) {
-      return trimmedStoredUrl;
-    }
-    return upstreamUrl ?? null;
-  }, [trimmedStoredUrl, upstreamUrl]);
-  const hasCustomUrl = trimmedStoredUrl.length > 0;
+  // Delay
+  const delayMs = useSyncedNumber(params?.shortcutDelayMs ?? params?.delayMs ?? 0, {
+    min: 0,
+    onCommit: (v) => updateParams({ shortcutDelayMs: v || undefined }),
+  });
 
   const [showPicker, setShowPicker] = useState(false);
-  const [shortcutText, setShortcutText] = useState<string>(() => formatShortcutText(data.shortcuts ?? data.shortcut));
-  const [focusSelector, setFocusSelector] = useState<string>(data.focusSelector || '');
-  const [delayMs, setDelayMs] = useState<number>(() => sanitizeDelay(data.shortcutDelayMs ?? data.delayMs));
 
-  useEffect(() => {
-    setShortcutText(formatShortcutText(data.shortcuts ?? data.shortcut));
-  }, [data.shortcuts, data.shortcut]);
-
-  useEffect(() => {
-    setFocusSelector(data.focusSelector || '');
-  }, [data.focusSelector]);
-
-  useEffect(() => {
-    setDelayMs(sanitizeDelay(data.shortcutDelayMs ?? data.delayMs));
-  }, [data.shortcutDelayMs, data.delayMs]);
-
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    const updatedNodes = nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-
-      for (const [key, value] of Object.entries(updates)) {
-        if (key === 'url') {
-          const trimmed = typeof value === 'string' ? value.trim() : '';
-          if (trimmed) {
-            nextData.url = trimmed;
-          } else {
-            delete nextData.url;
-          }
-          continue;
-        }
-
-        if (value === undefined || value === null) {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      }
-
-      return {
-        ...node,
-        data: nextData,
-      };
-    });
-    setNodes(updatedNodes);
-  }, [getNodes, id, setNodes]);
-
-  const shortcutsPreview = useMemo(() => parseShortcutText(shortcutText), [shortcutText]);
-
-  const commitUrl = useCallback((raw: string) => {
-    const trimmed = raw.trim();
-    updateNodeData({ url: trimmed.length > 0 ? trimmed : null });
-  }, [updateNodeData]);
-
-  const handleUrlCommit = useCallback(() => {
-    commitUrl(urlDraft);
-  }, [commitUrl, urlDraft]);
-
-  const handleUrlKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      commitUrl(urlDraft);
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      setUrlDraft(storedUrl);
-    }
-  }, [commitUrl, storedUrl, urlDraft]);
-
-  const resetUrl = useCallback(() => {
-    setUrlDraft('');
-    updateNodeData({ url: null });
-  }, [updateNodeData]);
+  const shortcutsPreview = useMemo(() => parseShortcutText(shortcutText.value), [shortcutText.value]);
 
   const handleElementSelection = (selector: string, elementInfo: ElementInfo) => {
     const normalizedSelector = selector.trim();
-    setFocusSelector(normalizedSelector);
-    updateNodeData({ focusSelector: normalizedSelector, focusElement: elementInfo });
-  };
-
-  const handleShortcutsBlur = () => {
-    const sanitized = parseShortcutText(shortcutText);
-    updateNodeData({ shortcuts: sanitized });
-    setShortcutText(sanitized.join('\n'));
-  };
-
-  const handleDelayBlur = () => {
-    const sanitized = sanitizeDelay(delayMs);
-    setDelayMs(sanitized);
-    updateNodeData({ shortcutDelayMs: sanitized });
+    focusSelector.setValue(normalizedSelector);
+    updateParams({ focusSelector: normalizedSelector });
+    updateData({ focusElement: elementInfo });
   };
 
   const clearFocus = () => {
-    setFocusSelector('');
-    updateNodeData({ focusSelector: '', focusElement: undefined });
+    focusSelector.setValue('');
+    updateParams({ focusSelector: undefined });
+    updateData({ focusElement: undefined });
   };
 
   return (
     <>
-      <div className={clsx('workflow-node', selected && 'selected')}>
-        <Handle type="target" position={Position.Top} className="node-handle" />
-
-        <div className="flex items-center gap-2 mb-2">
-          <Command size={16} className="text-indigo-400" />
-          <span className="font-semibold text-sm">Keyboard Shortcut</span>
-        </div>
-
+      <BaseNode
+        selected={selected}
+        icon={Command}
+        iconClassName="text-indigo-400"
+        title="Keyboard Shortcut"
+      >
         <div className="mb-2">
           <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
             <Globe size={12} className="text-blue-400" />
@@ -258,7 +198,7 @@ const ShortcutNode: FC<NodeProps> = ({ data, selected, id }) => {
               className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
               value={urlDraft}
               onChange={(event) => setUrlDraft(event.target.value)}
-              onBlur={handleUrlCommit}
+              onBlur={commitUrl}
               onKeyDown={handleUrlKeyDown}
             />
             {hasCustomUrl && (
@@ -284,15 +224,17 @@ const ShortcutNode: FC<NodeProps> = ({ data, selected, id }) => {
         <label className="block mb-2">
           <span className="text-[11px] uppercase tracking-wide text-gray-500 flex items-center justify-between">
             Shortcuts
-            <span className="text-gray-600 normal-case font-normal">Separate combinations by new lines</span>
+            <span className="text-gray-600 normal-case font-normal">
+              Separate combinations by new lines
+            </span>
           </span>
           <textarea
             className="mt-1 w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none resize-none"
             rows={3}
             placeholder="Ctrl+Shift+P\nAlt+Tab"
-            value={shortcutText}
-            onChange={(event) => setShortcutText(event.target.value)}
-            onBlur={handleShortcutsBlur}
+            value={shortcutText.value}
+            onChange={textInputHandler(shortcutText.setValue)}
+            onBlur={shortcutText.commit}
           />
         </label>
 
@@ -304,22 +246,27 @@ const ShortcutNode: FC<NodeProps> = ({ data, selected, id }) => {
             <div className="flex items-center gap-1">
               <input
                 type="text"
-                value={focusSelector}
-                onChange={(event) => setFocusSelector(event.target.value)}
-                onBlur={() => updateNodeData({ focusSelector: focusSelector.trim() })}
+                value={focusSelector.value}
+                onChange={textInputHandler(focusSelector.setValue)}
+                onBlur={focusSelector.commit}
                 placeholder="CSS selector to focus before shortcut"
                 className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
               <button
                 type="button"
-                className={clsx('p-1.5 rounded border transition-colors', effectiveUrl ? 'border-gray-700 bg-flow-bg hover:bg-gray-700 text-gray-300' : 'border-gray-800 bg-flow-bg text-gray-600 cursor-not-allowed')}
+                className={clsx(
+                  'p-1.5 rounded border transition-colors',
+                  effectiveUrl
+                    ? 'border-gray-700 bg-flow-bg hover:bg-gray-700 text-gray-300'
+                    : 'border-gray-800 bg-flow-bg text-gray-600 cursor-not-allowed'
+                )}
                 onClick={() => effectiveUrl && setShowPicker(true)}
                 disabled={!effectiveUrl}
                 title={effectiveUrl ? 'Pick focus element' : 'Set a page URL to pick elements'}
               >
                 <Target size={14} />
               </button>
-              {focusSelector && (
+              {focusSelector.value && (
                 <button
                   type="button"
                   className="p-1.5 rounded border border-gray-700 bg-flow-bg text-gray-300 hover:bg-gray-700"
@@ -345,9 +292,9 @@ const ShortcutNode: FC<NodeProps> = ({ data, selected, id }) => {
                 min={0}
                 step={50}
                 className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={delayMs}
-                onChange={(event) => setDelayMs(sanitizeDelay(event.target.value))}
-                onBlur={handleDelayBlur}
+                value={delayMs.value}
+                onChange={numberInputHandler(delayMs.setValue)}
+                onBlur={delayMs.commit}
               />
             </div>
           </div>
@@ -358,22 +305,22 @@ const ShortcutNode: FC<NodeProps> = ({ data, selected, id }) => {
             <span className="block mb-1 text-gray-500 uppercase tracking-wide">Will trigger</span>
             <ul className="space-y-1">
               {shortcutsPreview.map((combo) => (
-                <li key={combo} className="font-mono text-gray-200">{combo}</li>
+                <li key={combo} className="font-mono text-gray-200">
+                  {combo}
+                </li>
               ))}
             </ul>
           </div>
         )}
-
-        <Handle type="source" position={Position.Bottom} className="node-handle" />
-      </div>
+      </BaseNode>
 
       {showPicker && effectiveUrl && (
         <ElementPickerModal
           isOpen={showPicker}
           onClose={() => setShowPicker(false)}
-          url={effectiveUrl!}
+          url={effectiveUrl}
           onSelectElement={handleElementSelection}
-          selectedSelector={focusSelector}
+          selectedSelector={focusSelector.value}
         />
       )}
     </>

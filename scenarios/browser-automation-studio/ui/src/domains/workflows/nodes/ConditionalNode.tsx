@@ -1,6 +1,7 @@
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { Handle, NodeProps, Position } from 'reactflow';
 import { GitBranch, ToggleLeft } from 'lucide-react';
+import { useNodeData } from '@hooks/useNodeData';
 
 const CONDITION_TYPES = [
   { value: 'expression', label: 'Expression (JS)' },
@@ -23,75 +24,54 @@ const VARIABLE_OPERATORS = [
 const DEFAULT_TIMEOUT = 10000;
 const DEFAULT_POLL_INTERVAL = 250;
 
-type ConditionalData = Record<string, unknown>;
+const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
+  const { getValue, updateData } = useNodeData(id);
 
-const ConditionalNode: FC<NodeProps> = ({ id, data, selected }) => {
-  const nodeData = (data ?? {}) as ConditionalData;
-  const { getNodes, setNodes } = useReactFlow();
-
-  const [conditionType, setConditionType] = useState(() => String(nodeData.conditionType ?? 'expression'));
-  const [expression, setExpression] = useState(() => String(nodeData.expression ?? ''));
-  const [selector, setSelector] = useState(() => String(nodeData.selector ?? ''));
-  const [variableName, setVariableName] = useState(() => String(nodeData.variable ?? ''));
-  const [operator, setOperator] = useState(() => String(nodeData.operator ?? 'equals'));
-  const [comparisonValue, setComparisonValue] = useState(() => String(nodeData.value ?? ''));
-  const [negate, setNegate] = useState(() => Boolean(nodeData.negate));
-  const [timeoutMs, setTimeoutMs] = useState(() => Number(nodeData.timeoutMs ?? DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT);
-  const [pollIntervalMs, setPollIntervalMs] = useState(() => Number(nodeData.pollIntervalMs ?? DEFAULT_POLL_INTERVAL) || DEFAULT_POLL_INTERVAL);
+  const [conditionType, setConditionType] = useState<string>(getValue<string>('conditionType') ?? 'expression');
+  const [expression, setExpression] = useState<string>(getValue<string>('expression') ?? '');
+  const [selector, setSelector] = useState<string>(getValue<string>('selector') ?? '');
+  const [variableName, setVariableName] = useState<string>(getValue<string>('variable') ?? '');
+  const [operator, setOperator] = useState<string>(getValue<string>('operator') ?? 'equals');
+  const [comparisonValue, setComparisonValue] = useState<string>(getValue<string>('value') ?? '');
+  const [negate, setNegate] = useState<boolean>(getValue<boolean>('negate') ?? false);
+  const [timeoutMs, setTimeoutMs] = useState<number>(getValue<number>('timeoutMs') ?? DEFAULT_TIMEOUT);
+  const [pollIntervalMs, setPollIntervalMs] = useState<number>(getValue<number>('pollIntervalMs') ?? DEFAULT_POLL_INTERVAL);
 
   useEffect(() => {
-    setConditionType(String(nodeData.conditionType ?? 'expression'));
-  }, [nodeData.conditionType]);
+    setConditionType(getValue<string>('conditionType') ?? 'expression');
+  }, [getValue]);
 
   useEffect(() => {
-    setExpression(String(nodeData.expression ?? ''));
-  }, [nodeData.expression]);
+    setExpression(getValue<string>('expression') ?? '');
+  }, [getValue]);
 
   useEffect(() => {
-    setSelector(String(nodeData.selector ?? ''));
-  }, [nodeData.selector]);
+    setSelector(getValue<string>('selector') ?? '');
+  }, [getValue]);
 
   useEffect(() => {
-    setVariableName(String(nodeData.variable ?? ''));
-  }, [nodeData.variable]);
+    setVariableName(getValue<string>('variable') ?? '');
+  }, [getValue]);
 
   useEffect(() => {
-    setOperator(String(nodeData.operator ?? 'equals'));
-  }, [nodeData.operator]);
+    setOperator(getValue<string>('operator') ?? 'equals');
+  }, [getValue]);
 
   useEffect(() => {
-    setComparisonValue(String(nodeData.value ?? ''));
-  }, [nodeData.value]);
+    setComparisonValue(getValue<string>('value') ?? '');
+  }, [getValue]);
 
   useEffect(() => {
-    setNegate(Boolean(nodeData.negate));
-  }, [nodeData.negate]);
+    setNegate(getValue<boolean>('negate') ?? false);
+  }, [getValue]);
 
   useEffect(() => {
-    setTimeoutMs(Number(nodeData.timeoutMs ?? DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT);
-  }, [nodeData.timeoutMs]);
+    setTimeoutMs(getValue<number>('timeoutMs') ?? DEFAULT_TIMEOUT);
+  }, [getValue]);
 
   useEffect(() => {
-    setPollIntervalMs(Number(nodeData.pollIntervalMs ?? DEFAULT_POLL_INTERVAL) || DEFAULT_POLL_INTERVAL);
-  }, [nodeData.pollIntervalMs]);
-
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      const nextData = { ...(node.data ?? {}) } as ConditionalData;
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '') {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      });
-      return { ...node, data: nextData };
-    }));
-  }, [getNodes, setNodes, id]);
+    setPollIntervalMs(getValue<number>('pollIntervalMs') ?? DEFAULT_POLL_INTERVAL);
+  }, [getValue]);
 
   const showExpressionField = conditionType === 'expression';
   const showSelectorField = conditionType === 'element';
@@ -111,20 +91,20 @@ const ConditionalNode: FC<NodeProps> = ({ id, data, selected }) => {
   const handleTimeoutCommit = useCallback(() => {
     const normalized = Math.min(Math.max(Math.round(timeoutMs) || DEFAULT_TIMEOUT, 100), 60000);
     setTimeoutMs(normalized);
-    updateNodeData({ timeoutMs: normalized });
-  }, [timeoutMs, updateNodeData]);
+    updateData({ timeoutMs: normalized });
+  }, [timeoutMs, updateData]);
 
   const handlePollIntervalCommit = useCallback(() => {
     const normalized = Math.min(Math.max(Math.round(pollIntervalMs) || DEFAULT_POLL_INTERVAL, 50), 2000);
     setPollIntervalMs(normalized);
-    updateNodeData({ pollIntervalMs: normalized });
-  }, [pollIntervalMs, updateNodeData]);
+    updateData({ pollIntervalMs: normalized });
+  }, [pollIntervalMs, updateData]);
 
   const toggleNegate = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const next = event.target.checked;
     setNegate(next);
-    updateNodeData({ negate: next });
-  }, [updateNodeData]);
+    updateData({ negate: next });
+  }, [updateData]);
 
   return (
     <div className={`workflow-node ${selected ? 'selected' : ''}`}>
@@ -142,7 +122,7 @@ const ConditionalNode: FC<NodeProps> = ({ id, data, selected }) => {
             onChange={(event) => {
               const value = event.target.value;
               setConditionType(value);
-              updateNodeData({ conditionType: value });
+              updateData({ conditionType: value });
             }}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           >
@@ -160,7 +140,7 @@ const ConditionalNode: FC<NodeProps> = ({ id, data, selected }) => {
               rows={3}
               value={expression}
               onChange={(event) => setExpression(event.target.value)}
-              onBlur={() => updateNodeData({ expression: expression.trim() })}
+              onBlur={() => updateData({ expression: expression.trim() })}
               placeholder="return document.querySelector('#status') !== null;"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -174,7 +154,7 @@ const ConditionalNode: FC<NodeProps> = ({ id, data, selected }) => {
               type="text"
               value={selector}
               onChange={(event) => setSelector(event.target.value)}
-              onBlur={() => updateNodeData({ selector: selector.trim() })}
+              onBlur={() => updateData({ selector: selector.trim() })}
               placeholder="#status-badge"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -189,7 +169,7 @@ const ConditionalNode: FC<NodeProps> = ({ id, data, selected }) => {
                 type="text"
                 value={variableName}
                 onChange={(event) => setVariableName(event.target.value)}
-                onBlur={() => updateNodeData({ variable: variableName.trim() })}
+                onBlur={() => updateData({ variable: variableName.trim() })}
                 placeholder="loginStatus"
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
@@ -202,7 +182,7 @@ const ConditionalNode: FC<NodeProps> = ({ id, data, selected }) => {
                   onChange={(event) => {
                     const next = event.target.value;
                     setOperator(next);
-                    updateNodeData({ operator: next });
+                    updateData({ operator: next });
                   }}
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 >
@@ -217,7 +197,7 @@ const ConditionalNode: FC<NodeProps> = ({ id, data, selected }) => {
                   type="text"
                   value={comparisonValue}
                   onChange={(event) => setComparisonValue(event.target.value)}
-                  onBlur={() => updateNodeData({ value: comparisonValue })}
+                  onBlur={() => updateData({ value: comparisonValue })}
                   placeholder="success"
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 />

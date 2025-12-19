@@ -1,19 +1,13 @@
 import { memo, FC, useState, useMemo, useEffect } from 'react';
-import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
+import type { NodeProps } from 'reactflow';
 import { Play, ChevronDown, Settings, AlertCircle } from 'lucide-react';
+import { useNodeData } from '@hooks/useNodeData';
 import { useWorkflowStore } from '@stores/workflowStore';
+import BaseNode from './BaseNode';
 
-interface SubflowData {
-  workflowId?: string;
-  workflowName?: string;
-  parameters?: Record<string, any>;
-  waitForCompletion?: boolean;
-  outputMapping?: Record<string, string>;
-}
-
-const SubflowNode: FC<NodeProps> = ({ data, selected, id }) => {
+const SubflowNode: FC<NodeProps> = ({ selected, id }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { getNodes, setNodes } = useReactFlow();
+  const { getValue, updateData } = useNodeData(id);
   const workflows = useWorkflowStore((state) => state.workflows);
   const loadWorkflows = useWorkflowStore((state) => state.loadWorkflows);
 
@@ -32,56 +26,34 @@ const SubflowNode: FC<NodeProps> = ({ data, selected, id }) => {
       .map((workflow) => ({ id: workflow.id, name: workflow.name }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [workflows]);
-  
-  const updateNodeData = (updates: Partial<SubflowData>) => {
-    const nodes = getNodes();
-    const updatedNodes = nodes.map(node => {
-      if (node.id === id) {
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            ...updates
-          }
-        };
-      }
-      return node;
-    });
-    setNodes(updatedNodes);
-  };
-  
+
+  const workflowId = getValue<string>('workflowId') ?? '';
+  const parameters = getValue<Record<string, unknown>>('parameters');
+  const outputMapping = getValue<Record<string, string>>('outputMapping');
+
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''} w-80`}>
-      <Handle 
-        type="target" 
-        position={Position.Top} 
-        className="node-handle" 
-      />
-      
-      <div className="flex items-center gap-2 mb-3">
-        <Play size={16} className="text-violet-400" />
-        <span className="font-semibold text-sm">Subflow</span>
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="ml-auto p-1 hover:bg-gray-700 rounded"
-          title={isExpanded ? "Show less" : "Show more"}
-        >
-          <ChevronDown 
-            size={14} 
-            className={`transform transition-transform text-gray-400 ${isExpanded ? 'rotate-180' : ''}`}
-          />
-        </button>
-      </div>
+    <BaseNode selected={selected} icon={Play} iconClassName="text-violet-400" title="Subflow" className="w-80">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="absolute top-3 right-3 p-1 hover:bg-gray-700 rounded"
+        title={isExpanded ? 'Show less' : 'Show more'}
+      >
+        <ChevronDown
+          size={14}
+          className={`transform transition-transform text-gray-400 ${isExpanded ? 'rotate-180' : ''}`}
+        />
+      </button>
+
       <div className="space-y-3">
         <div className="space-y-1">
           <label className="text-xs text-gray-400">Target workflow</label>
           <select
-            value={data.workflowId || ''}
+            value={workflowId}
             className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
             onChange={(event) => {
               const selectedId = event.target.value;
               const match = sortedWorkflows.find((workflow) => workflow.id === selectedId);
-              updateNodeData({
+              updateData({
                 workflowId: selectedId || undefined,
                 workflowName: match?.name,
               });
@@ -105,11 +77,11 @@ const SubflowNode: FC<NodeProps> = ({ data, selected, id }) => {
           <label className="text-xs text-gray-400">Workflow ID</label>
           <input
             type="text"
-            value={data.workflowId || ''}
+            value={workflowId}
             onChange={(event) => {
               const value = event.target.value.trim();
               const match = sortedWorkflows.find((workflow) => workflow.id === value);
-              updateNodeData({
+              updateData({
                 workflowId: value || undefined,
                 workflowName: match?.name,
               });
@@ -123,14 +95,18 @@ const SubflowNode: FC<NodeProps> = ({ data, selected, id }) => {
           <input
             type="checkbox"
             id={`wait-${id}`}
-            checked={data.waitForCompletion ?? true}
+            checked={true}
             disabled
             readOnly
             className="rounded border-gray-600 bg-flow-bg text-violet-500 opacity-60"
           />
-          <label htmlFor={`wait-${id}`} className="text-xs text-gray-300">Wait for completion</label>
+          <label htmlFor={`wait-${id}`} className="text-xs text-gray-300">
+            Wait for completion
+          </label>
         </div>
-        <p className="text-xs text-gray-500 -mt-2">Async subflows coming soon; current implementation always waits.</p>
+        <p className="text-xs text-gray-500 -mt-2">
+          Async subflows coming soon; current implementation always waits.
+        </p>
 
         {isExpanded && (
           <div className="space-y-3 pt-3 border-t border-gray-700">
@@ -140,12 +116,12 @@ const SubflowNode: FC<NodeProps> = ({ data, selected, id }) => {
                 Parameters (JSON)
               </label>
               <textarea
-                value={data.parameters ? JSON.stringify(data.parameters, null, 2) : '{}'}
+                value={parameters ? JSON.stringify(parameters, null, 2) : '{}'}
                 onChange={(e) => {
                   try {
                     const parsed = JSON.parse(e.target.value);
-                    updateNodeData({ parameters: parsed });
-                  } catch (err) {
+                    updateData({ parameters: parsed });
+                  } catch {
                     // Invalid JSON - don't update
                   }
                 }}
@@ -160,12 +136,12 @@ const SubflowNode: FC<NodeProps> = ({ data, selected, id }) => {
                 Output mapping (JSON)
               </label>
               <textarea
-                value={data.outputMapping ? JSON.stringify(data.outputMapping, null, 2) : '{}'}
+                value={outputMapping ? JSON.stringify(outputMapping, null, 2) : '{}'}
                 onChange={(e) => {
                   try {
                     const parsed = JSON.parse(e.target.value);
-                    updateNodeData({ outputMapping: parsed });
-                  } catch (err) {
+                    updateData({ outputMapping: parsed });
+                  } catch {
                     // Invalid JSON - don't update
                   }
                 }}
@@ -176,13 +152,7 @@ const SubflowNode: FC<NodeProps> = ({ data, selected, id }) => {
           </div>
         )}
       </div>
-      
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        className="node-handle" 
-      />
-    </div>
+    </BaseNode>
   );
 };
 

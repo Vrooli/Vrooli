@@ -1,8 +1,35 @@
-import { FC, memo, useCallback, useEffect, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { FC, memo } from 'react';
+import type { NodeProps } from 'reactflow';
 import { ScrollText } from 'lucide-react';
-import ResiliencePanel from './ResiliencePanel';
+import { useActionParams } from '@hooks/useActionParams';
+import { useNodeData } from '@hooks/useNodeData';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  useSyncedSelect,
+  textInputHandler,
+  numberInputHandler,
+  selectInputHandler,
+} from '@hooks/useSyncedField';
 import type { ResilienceSettings } from '@/types/workflow';
+import BaseNode from './BaseNode';
+import ResiliencePanel from './ResiliencePanel';
+
+// ScrollParams interface for V2 native action params
+interface ScrollParams {
+  selector?: string;
+  x?: number;
+  y?: number;
+  behavior?: string;
+  // UI-specific fields stored in action params for V2 native
+  scrollType?: string;
+  targetSelector?: string;
+  direction?: string;
+  amount?: number;
+  maxScrolls?: number;
+  timeoutMs?: number;
+  waitForMs?: number;
+}
 
 const MIN_AMOUNT = 10;
 const MAX_AMOUNT = 5000;
@@ -14,184 +41,80 @@ const MIN_COORDINATE = -500000;
 const MAX_COORDINATE = 500000;
 const MIN_TIMEOUT = 100;
 
-const clampNumber = (value: number, min: number, max: number, fallback: number): number => {
-  if (!Number.isFinite(value)) {
-    return fallback;
-  }
-  return Math.min(Math.max(Math.round(value), min), max);
-};
+const ScrollNode: FC<NodeProps> = ({ selected, id }) => {
+  const { getValue, updateData } = useNodeData(id);
+  const { params, updateParams } = useActionParams<ScrollParams>(id);
 
-const normalizeCoordinate = (value: number): number => {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.min(Math.max(Math.round(value), MIN_COORDINATE), MAX_COORDINATE);
-};
+  // Select fields
+  const scrollType = useSyncedSelect(params?.scrollType ?? 'page', {
+    onCommit: (v) => updateParams({ scrollType: v }),
+  });
+  const direction = useSyncedSelect(params?.direction ?? 'down', {
+    onCommit: (v) => updateParams({ direction: v }),
+  });
+  const behavior = useSyncedSelect(params?.behavior ?? 'auto', {
+    onCommit: (v) => updateParams({ behavior: v }),
+  });
 
-const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const nodeData = (data ?? {}) as Record<string, unknown>;
-  const { getNodes, setNodes } = useReactFlow();
+  // String fields
+  const selector = useSyncedString(params?.selector ?? '', {
+    onCommit: (v) => updateParams({ selector: v || undefined }),
+  });
+  const targetSelector = useSyncedString(params?.targetSelector ?? '', {
+    onCommit: (v) => updateParams({ targetSelector: v || undefined }),
+  });
 
-  const [scrollType, setScrollType] = useState<string>(() => typeof nodeData.scrollType === 'string' ? nodeData.scrollType : 'page');
-  const [selector, setSelector] = useState<string>(() => typeof nodeData.selector === 'string' ? nodeData.selector : '');
-  const [targetSelector, setTargetSelector] = useState<string>(() => typeof nodeData.targetSelector === 'string' ? nodeData.targetSelector : '');
-  const [direction, setDirection] = useState<string>(() => typeof nodeData.direction === 'string' ? nodeData.direction : 'down');
-  const [behavior, setBehavior] = useState<string>(() => typeof nodeData.behavior === 'string' ? nodeData.behavior : 'auto');
-  const [amount, setAmount] = useState<number>(() => clampNumber(Number(nodeData.amount ?? DEFAULT_AMOUNT), MIN_AMOUNT, MAX_AMOUNT, DEFAULT_AMOUNT));
-  const [maxScrolls, setMaxScrolls] = useState<number>(() => clampNumber(Number(nodeData.maxScrolls ?? DEFAULT_SCROLLS), MIN_SCROLLS, MAX_SCROLLS, DEFAULT_SCROLLS));
-  const [x, setX] = useState<number>(() => normalizeCoordinate(Number(nodeData.x ?? 0)));
-  const [y, setY] = useState<number>(() => normalizeCoordinate(Number(nodeData.y ?? 0)));
-  const [timeoutMs, setTimeoutMs] = useState<number>(() => clampNumber(Number(nodeData.timeoutMs ?? 5000), MIN_TIMEOUT, 120000, 5000));
-  const [waitForMs, setWaitForMs] = useState<number>(() => Math.max(0, Math.round(Number(nodeData.waitForMs ?? 0)) || 0));
+  // Number fields
+  const x = useSyncedNumber(params?.x ?? 0, {
+    min: MIN_COORDINATE,
+    max: MAX_COORDINATE,
+    onCommit: (v) => updateParams({ x: v }),
+  });
+  const y = useSyncedNumber(params?.y ?? 0, {
+    min: MIN_COORDINATE,
+    max: MAX_COORDINATE,
+    onCommit: (v) => updateParams({ y: v }),
+  });
+  const amount = useSyncedNumber(params?.amount ?? DEFAULT_AMOUNT, {
+    min: MIN_AMOUNT,
+    max: MAX_AMOUNT,
+    fallback: DEFAULT_AMOUNT,
+    onCommit: (v) => updateParams({ amount: v }),
+  });
+  const maxScrolls = useSyncedNumber(params?.maxScrolls ?? DEFAULT_SCROLLS, {
+    min: MIN_SCROLLS,
+    max: MAX_SCROLLS,
+    fallback: DEFAULT_SCROLLS,
+    onCommit: (v) => updateParams({ maxScrolls: v }),
+  });
+  const timeoutMs = useSyncedNumber(params?.timeoutMs ?? 5000, {
+    min: MIN_TIMEOUT,
+    max: 120000,
+    fallback: 5000,
+    onCommit: (v) => updateParams({ timeoutMs: v }),
+  });
+  const waitForMs = useSyncedNumber(params?.waitForMs ?? 0, {
+    min: 0,
+    onCommit: (v) => updateParams({ waitForMs: v || undefined }),
+  });
 
-  useEffect(() => {
-    setScrollType(typeof nodeData.scrollType === 'string' ? nodeData.scrollType : 'page');
-  }, [nodeData.scrollType]);
+  const resilienceConfig = getValue<ResilienceSettings>('resilience');
 
-  useEffect(() => {
-    setSelector(typeof nodeData.selector === 'string' ? nodeData.selector : '');
-  }, [nodeData.selector]);
-
-  useEffect(() => {
-    setTargetSelector(typeof nodeData.targetSelector === 'string' ? nodeData.targetSelector : '');
-  }, [nodeData.targetSelector]);
-
-  useEffect(() => {
-    setDirection(typeof nodeData.direction === 'string' ? nodeData.direction : 'down');
-  }, [nodeData.direction]);
-
-  useEffect(() => {
-    setBehavior(typeof nodeData.behavior === 'string' ? nodeData.behavior : 'auto');
-  }, [nodeData.behavior]);
-
-  useEffect(() => {
-    setAmount(clampNumber(Number(nodeData.amount ?? DEFAULT_AMOUNT), MIN_AMOUNT, MAX_AMOUNT, DEFAULT_AMOUNT));
-  }, [nodeData.amount]);
-
-  useEffect(() => {
-    setMaxScrolls(clampNumber(Number(nodeData.maxScrolls ?? DEFAULT_SCROLLS), MIN_SCROLLS, MAX_SCROLLS, DEFAULT_SCROLLS));
-  }, [nodeData.maxScrolls]);
-
-  useEffect(() => {
-    setX(normalizeCoordinate(Number(nodeData.x ?? 0)));
-  }, [nodeData.x]);
-
-  useEffect(() => {
-    setY(normalizeCoordinate(Number(nodeData.y ?? 0)));
-  }, [nodeData.y]);
-
-  useEffect(() => {
-    setTimeoutMs(clampNumber(Number(nodeData.timeoutMs ?? 5000), MIN_TIMEOUT, 120000, 5000));
-  }, [nodeData.timeoutMs]);
-
-  useEffect(() => {
-    setWaitForMs(Math.max(0, Math.round(Number(nodeData.waitForMs ?? 0)) || 0));
-  }, [nodeData.waitForMs]);
-
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-      for (const [key, value] of Object.entries(updates)) {
-        if (value === undefined || value === null) {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      }
-      return {
-        ...node,
-        data: nextData,
-      };
-    }));
-  }, [getNodes, setNodes, id]);
-
-  const resilienceConfig = nodeData.resilience as ResilienceSettings | undefined;
-
-  const handleTypeChange = (value: string) => {
-    setScrollType(value);
-    updateNodeData({ scrollType: value });
-  };
-
-  const handleSelectorBlur = () => {
-    updateNodeData({ selector: selector.trim() });
-  };
-
-  const handleTargetSelectorBlur = () => {
-    updateNodeData({ targetSelector: targetSelector.trim() });
-  };
-
-  const handleDirectionChange = (value: string) => {
-    setDirection(value);
-    updateNodeData({ direction: value });
-  };
-
-  const handleBehaviorChange = (value: string) => {
-    setBehavior(value);
-    updateNodeData({ behavior: value });
-  };
-
-  const handleAmountBlur = () => {
-    const clamped = clampNumber(amount, MIN_AMOUNT, MAX_AMOUNT, DEFAULT_AMOUNT);
-    setAmount(clamped);
-    updateNodeData({ amount: clamped });
-  };
-
-  const handleMaxScrollsBlur = () => {
-    const clamped = clampNumber(maxScrolls, MIN_SCROLLS, MAX_SCROLLS, DEFAULT_SCROLLS);
-    setMaxScrolls(clamped);
-    updateNodeData({ maxScrolls: clamped });
-  };
-
-  const handleXBlur = () => {
-    const normalized = normalizeCoordinate(x);
-    setX(normalized);
-    updateNodeData({ x: normalized });
-  };
-
-  const handleYBlur = () => {
-    const normalized = normalizeCoordinate(y);
-    setY(normalized);
-    updateNodeData({ y: normalized });
-  };
-
-  const handleTimeoutBlur = () => {
-    const normalized = clampNumber(timeoutMs, MIN_TIMEOUT, 120000, 5000);
-    setTimeoutMs(normalized);
-    updateNodeData({ timeoutMs: normalized });
-  };
-
-  const handleWaitBlur = () => {
-    const normalized = Math.max(0, Math.round(waitForMs) || 0);
-    setWaitForMs(normalized);
-    updateNodeData({ waitForMs: normalized });
-  };
-
-  const showDirection = scrollType === 'page' || scrollType === 'untilVisible';
-  const showAmount = scrollType === 'page' || scrollType === 'untilVisible';
-  const showBehavior = scrollType !== 'untilVisible' && scrollType === 'page';
-  const showSelector = scrollType === 'element';
-  const showTargetSelector = scrollType === 'untilVisible';
-  const showPosition = scrollType === 'position';
+  const showDirection = scrollType.value === 'page' || scrollType.value === 'untilVisible';
+  const showAmount = scrollType.value === 'page' || scrollType.value === 'untilVisible';
+  const showBehavior = scrollType.value !== 'untilVisible' && scrollType.value === 'page';
+  const showSelector = scrollType.value === 'element';
+  const showTargetSelector = scrollType.value === 'untilVisible';
+  const showPosition = scrollType.value === 'position';
 
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-
-      <div className="flex items-center gap-2 mb-3">
-        <ScrollText size={16} className="text-amber-300" />
-        <span className="font-semibold text-sm">Scroll</span>
-      </div>
-
+    <BaseNode selected={selected} icon={ScrollText} iconClassName="text-amber-300" title="Scroll">
       <div className="space-y-3 text-xs">
         <div>
           <label className="text-gray-400 block mb-1">Scroll type</label>
           <select
-            value={scrollType}
-            onChange={(event) => handleTypeChange(event.target.value)}
+            value={scrollType.value}
+            onChange={selectInputHandler(scrollType.setValue, scrollType.commit)}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           >
             <option value="page">Page (window)</option>
@@ -205,8 +128,8 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
           <div>
             <label className="text-gray-400 block mb-1">Behavior</label>
             <select
-              value={behavior}
-              onChange={(event) => handleBehaviorChange(event.target.value)}
+              value={behavior.value}
+              onChange={selectInputHandler(behavior.setValue, behavior.commit)}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             >
               <option value="auto">Instant</option>
@@ -219,8 +142,8 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
           <div>
             <label className="text-gray-400 block mb-1">Direction</label>
             <select
-              value={direction}
-              onChange={(event) => handleDirectionChange(event.target.value)}
+              value={direction.value}
+              onChange={selectInputHandler(direction.setValue, direction.commit)}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             >
               <option value="down">Down</option>
@@ -240,9 +163,9 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
               type="number"
               min={MIN_AMOUNT}
               max={MAX_AMOUNT}
-              value={amount}
-              onChange={(event) => setAmount(Number(event.target.value))}
-              onBlur={handleAmountBlur}
+              value={amount.value}
+              onChange={numberInputHandler(amount.setValue)}
+              onBlur={amount.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
             <p className="text-gray-500 mt-1">Pixels per scroll step.</p>
@@ -254,10 +177,10 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
             <label className="text-gray-400 block mb-1">Element selector</label>
             <input
               type="text"
-              value={selector}
+              value={selector.value}
               placeholder=".list-panel"
-              onChange={(event) => setSelector(event.target.value)}
-              onBlur={handleSelectorBlur}
+              onChange={textInputHandler(selector.setValue)}
+              onBlur={selector.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -269,9 +192,9 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
             <input
               type="text"
               placeholder="#lazy-card"
-              value={targetSelector}
-              onChange={(event) => setTargetSelector(event.target.value)}
-              onBlur={handleTargetSelectorBlur}
+              value={targetSelector.value}
+              onChange={textInputHandler(targetSelector.setValue)}
+              onBlur={targetSelector.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
             <p className="text-gray-500 mt-1">Page scroll repeats until this element is visible.</p>
@@ -285,9 +208,9 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
               type="number"
               min={MIN_SCROLLS}
               max={MAX_SCROLLS}
-              value={maxScrolls}
-              onChange={(event) => setMaxScrolls(Number(event.target.value))}
-              onBlur={handleMaxScrollsBlur}
+              value={maxScrolls.value}
+              onChange={numberInputHandler(maxScrolls.setValue)}
+              onBlur={maxScrolls.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -299,9 +222,9 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
               <label className="text-gray-400 block mb-1">X (px)</label>
               <input
                 type="number"
-                value={x}
-                onChange={(event) => setX(Number(event.target.value))}
-                onBlur={handleXBlur}
+                value={x.value}
+                onChange={numberInputHandler(x.setValue)}
+                onBlur={x.commit}
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
             </div>
@@ -309,9 +232,9 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
               <label className="text-gray-400 block mb-1">Y (px)</label>
               <input
                 type="number"
-                value={y}
-                onChange={(event) => setY(Number(event.target.value))}
-                onBlur={handleYBlur}
+                value={y.value}
+                onChange={numberInputHandler(y.setValue)}
+                onBlur={y.commit}
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
             </div>
@@ -324,9 +247,9 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
             <input
               type="number"
               min={MIN_TIMEOUT}
-              value={timeoutMs}
-              onChange={(event) => setTimeoutMs(Number(event.target.value))}
-              onBlur={handleTimeoutBlur}
+              value={timeoutMs.value}
+              onChange={numberInputHandler(timeoutMs.setValue)}
+              onBlur={timeoutMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -335,26 +258,25 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
             <input
               type="number"
               min={0}
-              value={waitForMs}
-              onChange={(event) => setWaitForMs(Number(event.target.value))}
-              onBlur={handleWaitBlur}
+              value={waitForMs.value}
+              onChange={numberInputHandler(waitForMs.setValue)}
+              onBlur={waitForMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
         </div>
 
         <p className="text-gray-500">
-          Scroll nodes unlock lazy-loaded content, infinite lists, and stable viewport positioning for assertions and screenshots.
+          Scroll nodes unlock lazy-loaded content, infinite lists, and stable viewport positioning
+          for assertions and screenshots.
         </p>
       </div>
 
       <ResiliencePanel
         value={resilienceConfig}
-        onChange={(next) => updateNodeData({ resilience: next ?? null })}
+        onChange={(next) => updateData({ resilience: next ?? null })}
       />
-
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

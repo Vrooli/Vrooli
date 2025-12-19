@@ -41,7 +41,7 @@ type runRow struct {
 	LastCheckpointID NullableUUID       `db:"last_checkpoint_id"`
 	LastHeartbeat    NullableTime       `db:"last_heartbeat"`
 	ProgressPercent  int                `db:"progress_percent"`
-	IdempotencyKey   string             `db:"idempotency_key"`
+	IdempotencyKey   sql.NullString     `db:"idempotency_key"`
 	Summary          NullableRunSummary `db:"summary"`
 	ErrorMsg         string             `db:"error_msg"`
 	ExitCode         sql.NullInt32      `db:"exit_code"`
@@ -72,7 +72,7 @@ func (row *runRow) toDomain() *domain.Run {
 		LastCheckpointID: row.LastCheckpointID.ToPtr(),
 		LastHeartbeat:    row.LastHeartbeat.ToPtr(),
 		ProgressPercent:  row.ProgressPercent,
-		IdempotencyKey:   row.IdempotencyKey,
+		IdempotencyKey:   row.IdempotencyKey.String, // Empty string if NULL
 		Summary:          row.Summary.V,
 		ErrorMsg:         row.ErrorMsg,
 		ApprovalState:    domain.ApprovalState(row.ApprovalState),
@@ -108,7 +108,7 @@ func runFromDomain(r *domain.Run) *runRow {
 		LastCheckpointID: NewNullableUUID(r.LastCheckpointID),
 		LastHeartbeat:    NewNullableTime(r.LastHeartbeat),
 		ProgressPercent:  r.ProgressPercent,
-		IdempotencyKey:   r.IdempotencyKey,
+		IdempotencyKey:   sql.NullString{String: r.IdempotencyKey, Valid: r.IdempotencyKey != ""},
 		Summary:          NullableRunSummary{V: r.Summary},
 		ErrorMsg:         r.ErrorMsg,
 		ApprovalState:    string(r.ApprovalState),

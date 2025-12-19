@@ -1,10 +1,14 @@
-import { memo, FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { memo, FC, useEffect, useMemo, useState } from 'react';
+import type { NodeProps } from 'reactflow';
 import { Crosshair, EyeOff, Target } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ElementPickerModal } from '../components';
-import { useUpstreamUrl } from '@hooks/useUpstreamUrl';
+import { useActionParams } from '@hooks/useActionParams';
+import { useNodeData } from '@hooks/useNodeData';
+import { useUrlInheritance } from '@hooks/useUrlInheritance';
+import type { FocusParams, BlurParams } from '@utils/actionBuilder';
 import type { ElementInfo } from '@/types/elements';
+import BaseNode from './BaseNode';
 
 type FocusBlurMode = 'focus' | 'blur';
 
@@ -15,19 +19,6 @@ interface FocusBlurNodeProps extends NodeProps {
   helperText: string;
   icon: LucideIcon;
 }
-
-const deriveTimeout = (value: unknown): number => {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : 5000;
-};
-
-const deriveWait = (value: unknown, mode: FocusBlurMode): number => {
-  const numeric = Number(value);
-  if (Number.isFinite(numeric) && numeric >= 0) {
-    return Math.round(numeric);
-  }
-  return mode === 'blur' ? 150 : 0;
-};
 
 const summarizeElement = (element: ElementInfo | null): string => {
   if (!element) {
@@ -44,122 +35,105 @@ const summarizeElement = (element: ElementInfo | null): string => {
   return base || snippet;
 };
 
-const FocusBlurNode: FC<FocusBlurNodeProps> = ({ data, selected, id, mode, label, description, helperText, icon: Icon }) => {
-  const nodeData = (data ?? {}) as Record<string, unknown>;
-  const { getNodes, setNodes } = useReactFlow();
-  const upstreamUrl = useUpstreamUrl(id);
+const FocusBlurNode: FC<FocusBlurNodeProps> = ({
+  selected,
+  id,
+  mode,
+  label,
+  description,
+  helperText,
+  icon: Icon,
+}) => {
+  // URL inheritance hook handles URL state and handlers
+  const {
+    urlDraft,
+    setUrlDraft,
+    effectiveUrl,
+    upstreamUrl,
+    commitUrl,
+  } = useUrlInheritance(id);
 
-  const storedUrl = typeof nodeData.url === 'string' ? nodeData.url : '';
-  const [urlDraft, setUrlDraft] = useState<string>(storedUrl);
-  const [selector, setSelector] = useState<string>(() => typeof nodeData.selector === 'string' ? nodeData.selector : '');
-  const [timeoutMs, setTimeoutMs] = useState<number>(() => deriveTimeout(nodeData.timeoutMs));
-  const [waitForMs, setWaitForMs] = useState<number>(() => deriveWait(nodeData.waitForMs, mode));
+  // Node data hook for UI-specific fields
+  const { getValue, updateData } = useNodeData(id);
+
+  // V2 Native: Use action params as source of truth
+  // FocusParams and BlurParams have same shape (selector, timeoutMs)
+  const { params, updateParams } = useActionParams<FocusParams | BlurParams>(id);
+
+  // Local state - action params fields
+  const [selector, setSelector] = useState<string>(params?.selector ?? '');
+  const [timeoutMs, setTimeoutMs] = useState<number>(params?.timeoutMs ?? 5000);
+
+  // Local state - UI-specific fields
+  const [waitForMs, setWaitForMs] = useState<number>(() => {
+    const value = getValue<number>('waitForMs');
+    if (value !== undefined && value >= 0) return value;
+    return mode === 'blur' ? 150 : 0;
+  });
   const [showPicker, setShowPicker] = useState(false);
-  const [selectedElementInfo, setSelectedElementInfo] = useState<ElementInfo | null>(() =>
-    nodeData.elementInfo ? (nodeData.elementInfo as ElementInfo) : null
+  const [selectedElementInfo, setSelectedElementInfo] = useState<ElementInfo | null>(
+    getValue<ElementInfo>('elementInfo') ?? null
   );
 
+  // Sync action params fields
   useEffect(() => {
-    setSelector(typeof nodeData.selector === 'string' ? nodeData.selector : '');
-  }, [nodeData.selector]);
+    setSelector(params?.selector ?? '');
+  }, [params?.selector]);
 
   useEffect(() => {
-    setTimeoutMs(deriveTimeout(nodeData.timeoutMs));
-  }, [nodeData.timeoutMs]);
+    setTimeoutMs(params?.timeoutMs ?? 5000);
+  }, [params?.timeoutMs]);
 
+  // Sync node.data fields
   useEffect(() => {
-    setWaitForMs(deriveWait(nodeData.waitForMs, mode));
-  }, [nodeData.waitForMs, mode]);
-
-  useEffect(() => {
-    setUrlDraft(storedUrl);
-  }, [storedUrl]);
-
-  useEffect(() => {
-    setSelectedElementInfo(nodeData.elementInfo ? (nodeData.elementInfo as ElementInfo) : null);
-  }, [nodeData.elementInfo]);
-
-  const effectiveUrl = useMemo(() => {
-    const trimmed = storedUrl.trim();
-    if (trimmed.length > 0) {
-      return trimmed;
+    const value = getValue<number>('waitForMs');
+    if (value !== undefined && value >= 0) {
+      setWaitForMs(value);
     }
-    if (upstreamUrl && upstreamUrl.trim().length > 0) {
-      return upstreamUrl.trim();
-    }
-    return '';
-  }, [storedUrl, upstreamUrl]);
+  }, [getValue]);
+
+  useEffect(() => {
+    setSelectedElementInfo(getValue<ElementInfo>('elementInfo') ?? null);
+  }, [getValue]);
 
   const elementSummary = useMemo(() => summarizeElement(selectedElementInfo), [selectedElementInfo]);
   const accentClass = mode === 'focus' ? 'text-emerald-300' : 'text-amber-300';
-  const canPickElement = effectiveUrl.length > 0;
+  const canPickElement = (effectiveUrl?.length ?? 0) > 0;
 
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === undefined) {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      });
-      return { ...node, data: nextData };
-    }));
-  }, [getNodes, setNodes, id]);
-
-  const handleSelectorBlur = useCallback(() => {
+  const handleSelectorBlur = () => {
     const trimmed = selector.trim();
     setSelector(trimmed);
-    const updates: Record<string, unknown> = { selector: trimmed || undefined };
+    updateParams({ selector: trimmed || undefined });
     if (!trimmed) {
-      updates.elementInfo = undefined;
+      updateData({ elementInfo: undefined });
       setSelectedElementInfo(null);
     }
-    updateNodeData(updates);
-  }, [selector, updateNodeData]);
+  };
 
-  const handleTimeoutBlur = useCallback(() => {
+  const handleTimeoutBlur = () => {
     const normalized = Math.max(100, Math.round(timeoutMs) || 100);
     setTimeoutMs(normalized);
-    updateNodeData({ timeoutMs: normalized });
-  }, [timeoutMs, updateNodeData]);
+    updateParams({ timeoutMs: normalized });
+  };
 
-  const handleWaitBlur = useCallback(() => {
+  const handleWaitBlur = () => {
     const normalized = Math.max(0, Math.round(waitForMs) || 0);
     setWaitForMs(normalized);
-    updateNodeData({ waitForMs: normalized });
-  }, [waitForMs, updateNodeData]);
+    updateData({ waitForMs: normalized });
+  };
 
-  const handleUrlCommit = useCallback(() => {
-    const trimmed = urlDraft.trim();
-    setUrlDraft(trimmed);
-    updateNodeData({ url: trimmed || undefined });
-  }, [updateNodeData, urlDraft]);
-
-  const handleElementSelection = useCallback((newSelector: string, elementInfo: ElementInfo) => {
+  const handleElementSelection = (newSelector: string, elementInfo: ElementInfo) => {
     setSelector(newSelector);
     setSelectedElementInfo(elementInfo);
-    updateNodeData({ selector: newSelector, elementInfo });
+    updateParams({ selector: newSelector });
+    updateData({ elementInfo });
     setShowPicker(false);
-  }, [updateNodeData]);
+  };
 
   return (
     <>
-      <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-        <Handle type="target" position={Position.Top} className="node-handle" />
-
-        <div className="flex items-start gap-2 mb-3">
-          <Icon size={16} className={accentClass} />
-          <div>
-            <div className="font-semibold text-sm">{label}</div>
-            <p className="text-[11px] text-gray-500">{description}</p>
-          </div>
-        </div>
+      <BaseNode selected={selected} icon={Icon} iconClassName={accentClass} title={label}>
+        <p className="text-[11px] text-gray-500 mb-3">{description}</p>
 
         <div className="space-y-3 text-xs">
           <div>
@@ -170,10 +144,12 @@ const FocusBlurNode: FC<FocusBlurNodeProps> = ({ data, selected, id, mode, label
               className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               value={urlDraft}
               onChange={(event) => setUrlDraft(event.target.value)}
-              onBlur={handleUrlCommit}
+              onBlur={commitUrl}
             />
-            {!storedUrl && upstreamUrl && (
-              <p className="text-[10px] text-gray-500 mt-1" title={upstreamUrl}>Inherits {upstreamUrl}</p>
+            {!urlDraft && upstreamUrl && (
+              <p className="text-[10px] text-gray-500 mt-1" title={upstreamUrl}>
+                Inherits {upstreamUrl}
+              </p>
             )}
           </div>
 
@@ -193,9 +169,15 @@ const FocusBlurNode: FC<FocusBlurNodeProps> = ({ data, selected, id, mode, label
                 onClick={() => canPickElement && setShowPicker(true)}
                 disabled={!canPickElement}
                 className={`p-1.5 rounded border border-gray-700 transition-colors ${
-                  canPickElement ? 'bg-flow-bg hover:bg-gray-700 cursor-pointer' : 'bg-flow-bg opacity-50 cursor-not-allowed'
+                  canPickElement
+                    ? 'bg-flow-bg hover:bg-gray-700 cursor-pointer'
+                    : 'bg-flow-bg opacity-50 cursor-not-allowed'
                 }`}
-                title={canPickElement ? `Pick element from ${effectiveUrl}` : 'Navigate first or set a page URL'}
+                title={
+                  canPickElement
+                    ? `Pick element from ${effectiveUrl}`
+                    : 'Navigate first or set a page URL'
+                }
               >
                 <Target size={14} className={canPickElement ? 'text-gray-300' : 'text-gray-600'} />
               </button>
@@ -232,11 +214,9 @@ const FocusBlurNode: FC<FocusBlurNodeProps> = ({ data, selected, id, mode, label
 
           <p className="text-[11px] text-gray-500">{helperText}</p>
         </div>
+      </BaseNode>
 
-        <Handle type="source" position={Position.Bottom} className="node-handle" />
-      </div>
-
-      {showPicker && canPickElement && (
+      {showPicker && canPickElement && effectiveUrl && (
         <ElementPickerModal
           isOpen={showPicker}
           onClose={() => setShowPicker(false)}

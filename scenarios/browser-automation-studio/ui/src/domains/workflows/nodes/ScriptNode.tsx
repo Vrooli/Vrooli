@@ -1,95 +1,75 @@
-import { memo, FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { memo, FC, useEffect, useMemo, useState } from 'react';
+import type { NodeProps } from 'reactflow';
 import { TerminalSquare } from 'lucide-react';
 import Editor from '@monaco-editor/react';
+import { useActionParams } from '@hooks/useActionParams';
+import { useNodeData } from '@hooks/useNodeData';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  textInputHandler,
+  numberInputHandler,
+} from '@hooks/useSyncedField';
+import type { EvaluateParams } from '@utils/actionBuilder';
+import BaseNode from './BaseNode';
 
 const DEFAULT_EXPRESSION = 'return document.title;';
 const DEFAULT_TIMEOUT_MS = 30000;
 const MIN_TIMEOUT_MS = 100;
 const MAX_TIMEOUT_MS = 120000;
 
-const clampTimeout = (value: number): number => {
-  if (!Number.isFinite(value)) {
-    return DEFAULT_TIMEOUT_MS;
-  }
-  return Math.min(Math.max(Math.round(value), MIN_TIMEOUT_MS), MAX_TIMEOUT_MS);
-};
+const ScriptNode: FC<NodeProps> = ({ selected, id }) => {
+  // Node data hook for UI-specific fields
+  const { getValue, updateData } = useNodeData(id);
 
-const ScriptNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const { getNodes, setNodes } = useReactFlow();
-  const nodeData = (data ?? {}) as Record<string, unknown>;
+  // V2 Native: Use action params as source of truth
+  const { params, updateParams } = useActionParams<EvaluateParams>(id);
 
-  const initialExpression = typeof nodeData.expression === 'string' && nodeData.expression.trim().length > 0
-    ? (nodeData.expression as string)
-    : DEFAULT_EXPRESSION;
-  const initialTimeout = clampTimeout(Number(nodeData.timeoutMs ?? DEFAULT_TIMEOUT_MS));
-  const initialStoreResult = typeof nodeData.storeResult === 'string' ? nodeData.storeResult : '';
+  // Expression needs special handling (debounced update)
+  const [expression, setExpression] = useState<string>(() => {
+    const value = params?.expression;
+    return typeof value === 'string' && value.trim().length > 0 ? value : DEFAULT_EXPRESSION;
+  });
 
-  const [expression, setExpression] = useState<string>(initialExpression);
-  const [timeoutMs, setTimeoutMs] = useState<number>(initialTimeout);
-  const [storeResult, setStoreResult] = useState<string>(initialStoreResult);
-
+  // Sync expression from params
   useEffect(() => {
-    setExpression(initialExpression);
-  }, [initialExpression]);
+    const value = params?.expression;
+    setExpression(typeof value === 'string' && value.trim().length > 0 ? value : DEFAULT_EXPRESSION);
+  }, [params?.expression]);
 
-  useEffect(() => {
-    setTimeoutMs(initialTimeout);
-  }, [initialTimeout]);
-
-  useEffect(() => {
-    setStoreResult(initialStoreResult);
-  }, [initialStoreResult]);
-
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      return {
-        ...node,
-        data: {
-          ...(node.data ?? {}),
-          ...updates,
-        },
-      };
-    }));
-  }, [getNodes, setNodes, id]);
-
+  // Debounced expression update
   useEffect(() => {
     const handle = setTimeout(() => {
-      updateNodeData({ expression });
+      updateParams({ expression });
     }, 250);
     return () => clearTimeout(handle);
-  }, [expression, updateNodeData]);
+  }, [expression, updateParams]);
 
-  const editorOptions = useMemo(() => ({
-    minimap: { enabled: false },
-    scrollBeyondLastLine: false,
-    automaticLayout: true,
-    fontSize: 13,
-    wordWrap: 'on' as const,
-    lineNumbers: 'off' as const,
-  }), []);
+  // UI-specific fields
+  const timeoutMs = useSyncedNumber(getValue<number>('timeoutMs') ?? DEFAULT_TIMEOUT_MS, {
+    min: MIN_TIMEOUT_MS,
+    max: MAX_TIMEOUT_MS,
+    fallback: DEFAULT_TIMEOUT_MS,
+    onCommit: (v) => updateData({ timeoutMs: v }),
+  });
+  const storeResult = useSyncedString(getValue<string>('storeResult') ?? '', {
+    onCommit: (v) => updateData({ storeResult: v || undefined }),
+  });
 
-  const handleTimeoutBlur = useCallback(() => {
-    updateNodeData({ timeoutMs: timeoutMs });
-  }, [timeoutMs, updateNodeData]);
-
-  const handleStoreResultBlur = useCallback(() => {
-    updateNodeData({ storeResult: storeResult.trim() });
-  }, [storeResult, updateNodeData]);
+  const editorOptions = useMemo(
+    () => ({
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      fontSize: 13,
+      wordWrap: 'on' as const,
+      lineNumbers: 'off' as const,
+    }),
+    [],
+  );
 
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-
-      <div className="flex items-center gap-2 mb-2">
-        <TerminalSquare size={16} className="text-teal-300" />
-        <span className="font-semibold text-sm">Script</span>
-      </div>
-
+    <BaseNode selected={selected} icon={TerminalSquare} iconClassName="text-teal-300" title="Script">
       <div className="rounded border border-gray-700 overflow-hidden mb-3">
         <Editor
           height="180px"
@@ -108,9 +88,9 @@ const ScriptNode: FC<NodeProps> = ({ data, selected, id }) => {
             type="number"
             min={MIN_TIMEOUT_MS}
             max={MAX_TIMEOUT_MS}
-            value={timeoutMs}
-            onChange={(event) => setTimeoutMs(clampTimeout(Number(event.target.value)))}
-            onBlur={handleTimeoutBlur}
+            value={timeoutMs.value}
+            onChange={numberInputHandler(timeoutMs.setValue)}
+            onBlur={timeoutMs.commit}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
         </div>
@@ -120,17 +100,17 @@ const ScriptNode: FC<NodeProps> = ({ data, selected, id }) => {
           <input
             type="text"
             placeholder="Optional variable name"
-            value={storeResult}
-            onChange={(event) => setStoreResult(event.target.value)}
-            onBlur={handleStoreResultBlur}
+            value={storeResult.value}
+            onChange={textInputHandler(storeResult.setValue)}
+            onBlur={storeResult.commit}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
-          <p className="text-gray-500 mt-1">Result is available to future nodes via the upcoming variable system.</p>
+          <p className="text-gray-500 mt-1">
+            Result is available to future nodes via the upcoming variable system.
+          </p>
         </div>
       </div>
-
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

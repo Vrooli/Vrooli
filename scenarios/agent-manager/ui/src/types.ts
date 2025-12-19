@@ -131,6 +131,23 @@ export interface Run {
   updatedAt: string;
 }
 
+// Conflict information for sandbox scope conflicts
+export interface ConflictingSandbox {
+  sandboxId: string;
+  scope: string;
+  conflictType: string;
+}
+
+// Structured error details (e.g., for sandbox conflicts)
+export interface ErrorDetails {
+  operation?: string;
+  is_transient?: boolean;
+  can_retry?: boolean;
+  sandbox_id?: string;
+  cause?: string;
+  conflicts?: ConflictingSandbox[];
+}
+
 export interface RunEventData {
   // Log events
   level?: string;
@@ -164,6 +181,7 @@ export interface RunEventData {
   retryable?: boolean;
   recovery?: string;
   stackTrace?: string;
+  details?: ErrorDetails; // Structured error details (e.g., conflicting sandboxes)
 }
 
 export interface RunEvent {

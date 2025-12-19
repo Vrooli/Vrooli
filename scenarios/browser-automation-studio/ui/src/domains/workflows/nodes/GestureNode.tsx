@@ -1,6 +1,33 @@
-import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { FC, memo, useMemo } from 'react';
+import type { NodeProps } from 'reactflow';
 import { Hand } from 'lucide-react';
+import { useActionParams } from '@hooks/useActionParams';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  useSyncedSelect,
+  textInputHandler,
+  numberInputHandler,
+  selectInputHandler,
+} from '@hooks/useSyncedField';
+import BaseNode from './BaseNode';
+
+// GestureParams interface for V2 native action params
+interface GestureParams {
+  gestureType?: string;
+  selector?: string;
+  direction?: string;
+  distance?: number;
+  durationMs?: number;
+  steps?: number;
+  holdMs?: number;
+  scale?: number;
+  startX?: number;
+  startY?: number;
+  endX?: number;
+  endY?: number;
+  timeoutMs?: number;
+}
 
 const GESTURE_TYPES = [
   { value: 'tap', label: 'Tap (single touch)' },
@@ -23,30 +50,14 @@ const DEFAULT_STEPS = 15;
 const DEFAULT_HOLD = 800;
 const DEFAULT_SCALE = 0.6;
 
-const clampNumber = (value: number, min: number, max: number): number => {
+const formatCoordinate = (value?: number): string => {
+  if (value === undefined || value === null) {
+    return '';
+  }
   if (!Number.isFinite(value)) {
-    return min;
-  }
-  return Math.min(Math.max(Math.round(value), min), max);
-};
-
-const clampScale = (raw: number): number => {
-  if (!Number.isFinite(raw) || raw <= 0) {
-    return DEFAULT_SCALE;
-  }
-  const normalized = Math.max(0.2, Math.min(4, raw));
-  return Number(normalized.toFixed(2));
-};
-
-const formatCoordinate = (value: unknown): string => {
-  if (value === undefined || value === null || value === '') {
     return '';
   }
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return '';
-  }
-  return String(Math.round(numeric));
+  return String(Math.round(value));
 };
 
 const parseCoordinate = (raw: string): number | undefined => {
@@ -61,108 +72,78 @@ const parseCoordinate = (raw: string): number | undefined => {
   return Math.round(numeric);
 };
 
-const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
-  const { getNodes, setNodes } = useReactFlow();
-  const nodeData = (data ?? {}) as Record<string, unknown>;
+const GestureNode: FC<NodeProps> = ({ id, selected }) => {
+  const { params, updateParams } = useActionParams<GestureParams>(id);
 
-  const [gestureType, setGestureType] = useState(() => String(nodeData.gestureType ?? 'tap'));
-  const [selector, setSelector] = useState(() => String(nodeData.selector ?? ''));
-  const [direction, setDirection] = useState(() => String(nodeData.direction ?? 'down'));
-  const [distance, setDistance] = useState(() => Number(nodeData.distance ?? DEFAULT_DISTANCE));
-  const [durationMs, setDurationMs] = useState(() => Number(nodeData.durationMs ?? DEFAULT_DURATION));
-  const [steps, setSteps] = useState(() => Number(nodeData.steps ?? DEFAULT_STEPS));
-  const [holdMs, setHoldMs] = useState(() => Number(nodeData.holdMs ?? DEFAULT_HOLD));
-  const [scale, setScale] = useState(() => Number(nodeData.scale ?? DEFAULT_SCALE));
-  const [startX, setStartX] = useState(() => formatCoordinate(nodeData.startX));
-  const [startY, setStartY] = useState(() => formatCoordinate(nodeData.startY));
-  const [endX, setEndX] = useState(() => formatCoordinate(nodeData.endX));
-  const [endY, setEndY] = useState(() => formatCoordinate(nodeData.endY));
-  const [timeoutMs, setTimeoutMs] = useState(() => Number(nodeData.timeoutMs ?? 0));
+  // Select fields
+  const gestureType = useSyncedSelect(params?.gestureType ?? 'tap', {
+    onCommit: (v) => updateParams({ gestureType: v }),
+  });
+  const direction = useSyncedSelect(params?.direction ?? 'down', {
+    onCommit: (v) => updateParams({ direction: v }),
+  });
 
-  useEffect(() => setGestureType(String(nodeData.gestureType ?? 'tap')), [nodeData.gestureType]);
-  useEffect(() => setSelector(String(nodeData.selector ?? '')), [nodeData.selector]);
-  useEffect(() => setDirection(String(nodeData.direction ?? 'down')), [nodeData.direction]);
-  useEffect(() => setDistance(Number(nodeData.distance ?? DEFAULT_DISTANCE)), [nodeData.distance]);
-  useEffect(() => setDurationMs(Number(nodeData.durationMs ?? DEFAULT_DURATION)), [nodeData.durationMs]);
-  useEffect(() => setSteps(Number(nodeData.steps ?? DEFAULT_STEPS)), [nodeData.steps]);
-  useEffect(() => setHoldMs(Number(nodeData.holdMs ?? DEFAULT_HOLD)), [nodeData.holdMs]);
-  useEffect(() => setScale(Number(nodeData.scale ?? DEFAULT_SCALE)), [nodeData.scale]);
-  useEffect(() => setStartX(formatCoordinate(nodeData.startX)), [nodeData.startX]);
-  useEffect(() => setStartY(formatCoordinate(nodeData.startY)), [nodeData.startY]);
-  useEffect(() => setEndX(formatCoordinate(nodeData.endX)), [nodeData.endX]);
-  useEffect(() => setEndY(formatCoordinate(nodeData.endY)), [nodeData.endY]);
-  useEffect(() => setTimeoutMs(Number(nodeData.timeoutMs ?? 0)), [nodeData.timeoutMs]);
+  // String fields
+  const selector = useSyncedString(params?.selector ?? '', {
+    onCommit: (v) => updateParams({ selector: v || undefined }),
+  });
 
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '') {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      });
-      return { ...node, data: nextData };
-    }));
-  }, [getNodes, setNodes, id]);
+  // Number fields
+  const distance = useSyncedNumber(params?.distance ?? DEFAULT_DISTANCE, {
+    min: 25,
+    max: 2000,
+    fallback: DEFAULT_DISTANCE,
+    onCommit: (v) => updateParams({ distance: v }),
+  });
+  const durationMs = useSyncedNumber(params?.durationMs ?? DEFAULT_DURATION, {
+    min: 50,
+    max: 10000,
+    fallback: DEFAULT_DURATION,
+    onCommit: (v) => updateParams({ durationMs: v }),
+  });
+  const steps = useSyncedNumber(params?.steps ?? DEFAULT_STEPS, {
+    min: 2,
+    max: 60,
+    fallback: DEFAULT_STEPS,
+    onCommit: (v) => updateParams({ steps: v }),
+  });
+  const holdMs = useSyncedNumber(params?.holdMs ?? DEFAULT_HOLD, {
+    min: 200,
+    max: 10000,
+    fallback: DEFAULT_HOLD,
+    onCommit: (v) => updateParams({ holdMs: v }),
+  });
+  const scale = useSyncedNumber(params?.scale ?? DEFAULT_SCALE, {
+    min: 0.2,
+    max: 4,
+    fallback: DEFAULT_SCALE,
+    onCommit: (v) => updateParams({ scale: v }),
+  });
+  const timeoutMs = useSyncedNumber(params?.timeoutMs ?? 0, {
+    min: 0,
+    onCommit: (v) => updateParams({ timeoutMs: v || undefined }),
+  });
 
-  const handleGestureChange = useCallback((value: string) => {
-    setGestureType(value);
-    updateNodeData({ gestureType: value });
-  }, [updateNodeData]);
+  // Coordinate fields (as strings for optional handling)
+  const startX = useSyncedString(formatCoordinate(params?.startX), {
+    onCommit: (v) => updateParams({ startX: parseCoordinate(v) }),
+  });
+  const startY = useSyncedString(formatCoordinate(params?.startY), {
+    onCommit: (v) => updateParams({ startY: parseCoordinate(v) }),
+  });
+  const endX = useSyncedString(formatCoordinate(params?.endX), {
+    onCommit: (v) => updateParams({ endX: parseCoordinate(v) }),
+  });
+  const endY = useSyncedString(formatCoordinate(params?.endY), {
+    onCommit: (v) => updateParams({ endY: parseCoordinate(v) }),
+  });
 
-  const commitDistance = useCallback(() => {
-    const normalized = clampNumber(distance || DEFAULT_DISTANCE, 25, 2000);
-    setDistance(normalized);
-    updateNodeData({ distance: normalized });
-  }, [distance, updateNodeData]);
-
-  const commitDuration = useCallback(() => {
-    const normalized = clampNumber(durationMs || DEFAULT_DURATION, 50, 10000);
-    setDurationMs(normalized);
-    updateNodeData({ durationMs: normalized });
-  }, [durationMs, updateNodeData]);
-
-  const commitSteps = useCallback(() => {
-    const normalized = clampNumber(steps || DEFAULT_STEPS, 2, 60);
-    setSteps(normalized);
-    updateNodeData({ steps: normalized });
-  }, [steps, updateNodeData]);
-
-  const commitHold = useCallback(() => {
-    const normalized = clampNumber(holdMs || DEFAULT_HOLD, 200, 10000);
-    setHoldMs(normalized);
-    updateNodeData({ holdMs: normalized });
-  }, [holdMs, updateNodeData]);
-
-  const commitScale = useCallback(() => {
-    const normalized = clampScale(scale || DEFAULT_SCALE);
-    setScale(normalized);
-    updateNodeData({ scale: normalized });
-  }, [scale, updateNodeData]);
-
-  const commitTimeout = useCallback(() => {
-    const normalized = Math.max(0, Math.round(timeoutMs) || 0);
-    setTimeoutMs(normalized);
-    updateNodeData({ timeoutMs: normalized || undefined });
-  }, [timeoutMs, updateNodeData]);
-
-  const commitCoordinate = useCallback((key: 'startX' | 'startY' | 'endX' | 'endY', raw: string) => {
-    const parsed = parseCoordinate(raw);
-    updateNodeData({ [key]: parsed });
-  }, [updateNodeData]);
-
-  const showSwipeFields = gestureType === 'swipe';
-  const showPinchFields = gestureType === 'pinch';
-  const showHoldField = gestureType === 'longPress';
+  const showSwipeFields = gestureType.value === 'swipe';
+  const showPinchFields = gestureType.value === 'pinch';
+  const showHoldField = gestureType.value === 'longPress';
 
   const gestureHint = useMemo(() => {
-    switch (gestureType) {
+    switch (gestureType.value) {
       case 'swipe':
         return 'Simulate a directional swipe to reveal new content or dismiss UI elements.';
       case 'pinch':
@@ -174,27 +155,18 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
       default:
         return 'Single tap gestures cover the majority of mobile interactions.';
     }
-  }, [gestureType]);
+  }, [gestureType.value]);
 
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-
-      <div className="flex items-center gap-2 mb-3">
-        <Hand size={16} className="text-rose-300" />
-        <div>
-          <div className="font-semibold text-sm">Gesture</div>
-          <p className="text-[11px] text-gray-500">Recreate mobile touch interactions mid-run.</p>
-        </div>
-      </div>
+    <BaseNode selected={selected} icon={Hand} iconClassName="text-rose-300" title="Gesture">
+      <p className="text-[11px] text-gray-500 mb-3">Recreate mobile touch interactions mid-run.</p>
 
       <div className="space-y-3 text-xs">
         <div>
           <label className="text-gray-400 block mb-1">Gesture Type</label>
           <select
-            value={gestureType}
-            onChange={(event) => handleGestureChange(event.target.value)}
+            value={gestureType.value}
+            onChange={selectInputHandler(gestureType.setValue, gestureType.commit)}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           >
             {GESTURE_TYPES.map((option) => (
@@ -208,9 +180,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
           <label className="text-gray-400 block mb-1">Target Selector (optional)</label>
           <input
             type="text"
-            value={selector}
-            onChange={(event) => setSelector(event.target.value)}
-            onBlur={() => updateNodeData({ selector: selector.trim() })}
+            value={selector.value}
+            onChange={textInputHandler(selector.setValue)}
+            onBlur={selector.commit}
             placeholder="#mobile-card"
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
@@ -222,11 +194,8 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
               <div>
                 <label className="text-gray-400 block mb-1">Direction</label>
                 <select
-                  value={direction}
-                  onChange={(event) => {
-                    setDirection(event.target.value);
-                    updateNodeData({ direction: event.target.value });
-                  }}
+                  value={direction.value}
+                  onChange={selectInputHandler(direction.setValue, direction.commit)}
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 >
                   {SWIPE_DIRECTIONS.map((option) => (
@@ -240,9 +209,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
                   type="number"
                   min={25}
                   max={2000}
-                  value={distance}
-                  onChange={(event) => setDistance(Number(event.target.value))}
-                  onBlur={commitDistance}
+                  value={distance.value}
+                  onChange={numberInputHandler(distance.setValue)}
+                  onBlur={distance.commit}
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 />
               </div>
@@ -254,9 +223,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
                   type="number"
                   min={50}
                   max={10000}
-                  value={durationMs}
-                  onChange={(event) => setDurationMs(Number(event.target.value))}
-                  onBlur={commitDuration}
+                  value={durationMs.value}
+                  onChange={numberInputHandler(durationMs.setValue)}
+                  onBlur={durationMs.commit}
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 />
               </div>
@@ -266,9 +235,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
                   type="number"
                   min={2}
                   max={60}
-                  value={steps}
-                  onChange={(event) => setSteps(Number(event.target.value))}
-                  onBlur={commitSteps}
+                  value={steps.value}
+                  onChange={numberInputHandler(steps.setValue)}
+                  onBlur={steps.commit}
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 />
               </div>
@@ -286,9 +255,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
                   step={0.1}
                   min={0.2}
                   max={4}
-                  value={scale}
-                  onChange={(event) => setScale(Number(event.target.value))}
-                  onBlur={commitScale}
+                  value={scale.value}
+                  onChange={numberInputHandler(scale.setValue)}
+                  onBlur={scale.commit}
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 />
               </div>
@@ -298,9 +267,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
                   type="number"
                   min={2}
                   max={60}
-                  value={steps}
-                  onChange={(event) => setSteps(Number(event.target.value))}
-                  onBlur={commitSteps}
+                  value={steps.value}
+                  onChange={numberInputHandler(steps.setValue)}
+                  onBlur={steps.commit}
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 />
               </div>
@@ -311,9 +280,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
                 type="number"
                 min={50}
                 max={10000}
-                value={durationMs}
-                onChange={(event) => setDurationMs(Number(event.target.value))}
-                onBlur={commitDuration}
+                value={durationMs.value}
+                onChange={numberInputHandler(durationMs.setValue)}
+                onBlur={durationMs.commit}
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
             </div>
@@ -327,9 +296,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
               type="number"
               min={200}
               max={10000}
-              value={holdMs}
-              onChange={(event) => setHoldMs(Number(event.target.value))}
-              onBlur={commitHold}
+              value={holdMs.value}
+              onChange={numberInputHandler(holdMs.setValue)}
+              onBlur={holdMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -340,9 +309,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
             <label className="text-gray-400 block mb-1">Start X (px)</label>
             <input
               type="number"
-              value={startX}
-              onChange={(event) => setStartX(event.target.value)}
-              onBlur={() => commitCoordinate('startX', startX)}
+              value={startX.value}
+              onChange={textInputHandler(startX.setValue)}
+              onBlur={startX.commit}
               placeholder="auto"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -351,9 +320,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
             <label className="text-gray-400 block mb-1">Start Y (px)</label>
             <input
               type="number"
-              value={startY}
-              onChange={(event) => setStartY(event.target.value)}
-              onBlur={() => commitCoordinate('startY', startY)}
+              value={startY.value}
+              onChange={textInputHandler(startY.setValue)}
+              onBlur={startY.commit}
               placeholder="auto"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -366,9 +335,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
               <label className="text-gray-400 block mb-1">End X (px)</label>
               <input
                 type="number"
-                value={endX}
-                onChange={(event) => setEndX(event.target.value)}
-                onBlur={() => commitCoordinate('endX', endX)}
+                value={endX.value}
+                onChange={textInputHandler(endX.setValue)}
+                onBlur={endX.commit}
                 placeholder="auto"
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
@@ -377,9 +346,9 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
               <label className="text-gray-400 block mb-1">End Y (px)</label>
               <input
                 type="number"
-                value={endY}
-                onChange={(event) => setEndY(event.target.value)}
-                onBlur={() => commitCoordinate('endY', endY)}
+                value={endY.value}
+                onChange={textInputHandler(endY.setValue)}
+                onBlur={endY.commit}
                 placeholder="auto"
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
@@ -392,15 +361,15 @@ const GestureNode: FC<NodeProps> = ({ id, data, selected }) => {
           <input
             type="number"
             min={0}
-            value={timeoutMs}
-            onChange={(event) => setTimeoutMs(Number(event.target.value))}
-            onBlur={commitTimeout}
+            value={timeoutMs.value}
+            onChange={numberInputHandler(timeoutMs.setValue)}
+            onBlur={timeoutMs.commit}
             placeholder="15000"
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
         </div>
       </div>
-    </div>
+    </BaseNode>
   );
 };
 

@@ -1,6 +1,29 @@
-import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { FC, memo, useMemo } from 'react';
+import type { NodeProps } from 'reactflow';
 import { PanelsTopLeft } from 'lucide-react';
+import { useActionParams } from '@hooks/useActionParams';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  useSyncedBoolean,
+  useSyncedSelect,
+  textInputHandler,
+  numberInputHandler,
+  checkboxInputHandler,
+  selectInputHandler,
+} from '@hooks/useSyncedField';
+import BaseNode from './BaseNode';
+
+// TabSwitchParams interface for V2 native action params
+interface TabSwitchParams {
+  switchBy?: string;
+  index?: number;
+  titleMatch?: string;
+  urlMatch?: string;
+  waitForNew?: boolean;
+  closeOld?: boolean;
+  timeoutMs?: number;
+}
 
 const MODES = [
   { value: 'newest', label: 'Newest tab' },
@@ -12,68 +35,47 @@ const MODES = [
 
 const DEFAULT_TIMEOUT = 30000;
 
-const TabSwitchNode: FC<NodeProps> = ({ id, data, selected }) => {
-  const nodeData = (data ?? {}) as Record<string, unknown>;
-  const { getNodes, setNodes } = useReactFlow();
+const TabSwitchNode: FC<NodeProps> = ({ id, selected }) => {
+  const { params, updateParams } = useActionParams<TabSwitchParams>(id);
 
-  const [mode, setMode] = useState<string>(() => typeof nodeData.switchBy === 'string' ? nodeData.switchBy : 'newest');
-  const [index, setIndex] = useState<number>(() => Number(nodeData.index ?? 0) || 0);
-  const [titleMatch, setTitleMatch] = useState<string>(() => typeof nodeData.titleMatch === 'string' ? nodeData.titleMatch : '');
-  const [urlMatch, setUrlMatch] = useState<string>(() => typeof nodeData.urlMatch === 'string' ? nodeData.urlMatch : '');
-  const [waitForNew, setWaitForNew] = useState<boolean>(() => Boolean(nodeData.waitForNew));
-  const [closeOld, setCloseOld] = useState<boolean>(() => Boolean(nodeData.closeOld));
-  const [timeoutMs, setTimeoutMs] = useState<number>(() => Number(nodeData.timeoutMs ?? DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT);
+  // Select field
+  const mode = useSyncedSelect(params?.switchBy ?? 'newest', {
+    onCommit: (v) => updateParams({ switchBy: v }),
+  });
 
-  useEffect(() => {
-    setMode(typeof nodeData.switchBy === 'string' ? nodeData.switchBy : 'newest');
-  }, [nodeData.switchBy]);
+  // Number fields
+  const index = useSyncedNumber(params?.index ?? 0, {
+    min: 0,
+    onCommit: (v) => updateParams({ index: v }),
+  });
+  const timeoutMs = useSyncedNumber(params?.timeoutMs ?? DEFAULT_TIMEOUT, {
+    min: 1000,
+    fallback: DEFAULT_TIMEOUT,
+    onCommit: (v) => updateParams({ timeoutMs: v }),
+  });
 
-  useEffect(() => {
-    setIndex(Number(nodeData.index ?? 0) || 0);
-  }, [nodeData.index]);
+  // String fields
+  const titleMatch = useSyncedString(params?.titleMatch ?? '', {
+    onCommit: (v) => updateParams({ titleMatch: v || undefined }),
+  });
+  const urlMatch = useSyncedString(params?.urlMatch ?? '', {
+    onCommit: (v) => updateParams({ urlMatch: v || undefined }),
+  });
 
-  useEffect(() => {
-    setTitleMatch(typeof nodeData.titleMatch === 'string' ? nodeData.titleMatch : '');
-  }, [nodeData.titleMatch]);
+  // Boolean fields
+  const waitForNew = useSyncedBoolean(params?.waitForNew ?? false, {
+    onCommit: (v) => updateParams({ waitForNew: v }),
+  });
+  const closeOld = useSyncedBoolean(params?.closeOld ?? false, {
+    onCommit: (v) => updateParams({ closeOld: v }),
+  });
 
-  useEffect(() => {
-    setUrlMatch(typeof nodeData.urlMatch === 'string' ? nodeData.urlMatch : '');
-  }, [nodeData.urlMatch]);
-
-  useEffect(() => {
-    setWaitForNew(Boolean(nodeData.waitForNew));
-  }, [nodeData.waitForNew]);
-
-  useEffect(() => {
-    setCloseOld(Boolean(nodeData.closeOld));
-  }, [nodeData.closeOld]);
-
-  useEffect(() => {
-    setTimeoutMs(Number(nodeData.timeoutMs ?? DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT);
-  }, [nodeData.timeoutMs]);
-
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      return {
-        ...node,
-        data: {
-          ...(node.data ?? {}),
-          ...updates,
-        },
-      };
-    }));
-  }, [getNodes, setNodes, id]);
-
-  const requiresIndex = mode === 'index';
-  const requiresTitle = mode === 'title';
-  const requiresUrl = mode === 'url';
+  const requiresIndex = mode.value === 'index';
+  const requiresTitle = mode.value === 'title';
+  const requiresUrl = mode.value === 'url';
 
   const modeDescription = useMemo(() => {
-    switch (mode) {
+    switch (mode.value) {
       case 'oldest':
         return 'Selects the first tab that was opened in this workflow.';
       case 'index':
@@ -85,64 +87,22 @@ const TabSwitchNode: FC<NodeProps> = ({ id, data, selected }) => {
       default:
         return 'Switches to the most recently opened tab.';
     }
-  }, [mode]);
-
-  const handleModeChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = event.target.value || 'newest';
-    setMode(value);
-    updateNodeData({ switchBy: value });
-  }, [updateNodeData]);
-
-  const handleIndexBlur = useCallback(() => {
-    const normalized = Math.max(0, Math.round(index) || 0);
-    setIndex(normalized);
-    updateNodeData({ index: normalized });
-  }, [index, updateNodeData]);
-
-  const handleTimeoutBlur = useCallback(() => {
-    const normalized = Math.max(1000, Math.round(timeoutMs) || DEFAULT_TIMEOUT);
-    setTimeoutMs(normalized);
-    updateNodeData({ timeoutMs: normalized });
-  }, [timeoutMs, updateNodeData]);
-
-  const handleTitleBlur = useCallback(() => {
-    updateNodeData({ titleMatch: titleMatch.trim() });
-  }, [titleMatch, updateNodeData]);
-
-  const handleUrlBlur = useCallback(() => {
-    updateNodeData({ urlMatch: urlMatch.trim() });
-  }, [urlMatch, updateNodeData]);
-
-  const handleWaitToggle = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const next = event.target.checked;
-    setWaitForNew(next);
-    updateNodeData({ waitForNew: next });
-  }, [updateNodeData]);
-
-  const handleCloseToggle = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const next = event.target.checked;
-    setCloseOld(next);
-    updateNodeData({ closeOld: next });
-  }, [updateNodeData]);
+  }, [mode.value]);
 
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-      <div className="flex items-center gap-2 mb-3">
-        <PanelsTopLeft size={16} className="text-violet-300" />
-        <span className="font-semibold text-sm">Tab Switch</span>
-      </div>
-
+    <BaseNode selected={selected} icon={PanelsTopLeft} iconClassName="text-violet-300" title="Tab Switch">
       <div className="space-y-3 text-xs">
         <div>
           <label className="text-gray-400 block mb-1">Switch strategy</label>
           <select
-            value={mode}
-            onChange={handleModeChange}
+            value={mode.value}
+            onChange={selectInputHandler(mode.setValue, mode.commit)}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           >
             {MODES.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
           <p className="text-gray-500 mt-1">{modeDescription}</p>
@@ -154,9 +114,9 @@ const TabSwitchNode: FC<NodeProps> = ({ id, data, selected }) => {
             <input
               type="number"
               min={0}
-              value={index}
-              onChange={(event) => setIndex(Number(event.target.value))}
-              onBlur={handleIndexBlur}
+              value={index.value}
+              onChange={numberInputHandler(index.setValue)}
+              onBlur={index.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -167,10 +127,10 @@ const TabSwitchNode: FC<NodeProps> = ({ id, data, selected }) => {
             <label className="text-gray-400 block mb-1">Title pattern</label>
             <input
               type="text"
-              value={titleMatch}
+              value={titleMatch.value}
               placeholder="/Invoice/ or Dashboard"
-              onChange={(event) => setTitleMatch(event.target.value)}
-              onBlur={handleTitleBlur}
+              onChange={textInputHandler(titleMatch.setValue)}
+              onBlur={titleMatch.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -181,10 +141,10 @@ const TabSwitchNode: FC<NodeProps> = ({ id, data, selected }) => {
             <label className="text-gray-400 block mb-1">URL pattern</label>
             <input
               type="text"
-              value={urlMatch}
+              value={urlMatch.value}
               placeholder="/auth\\/callback/ or /settings"
-              onChange={(event) => setUrlMatch(event.target.value)}
-              onBlur={handleUrlBlur}
+              onChange={textInputHandler(urlMatch.setValue)}
+              onBlur={urlMatch.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -192,11 +152,21 @@ const TabSwitchNode: FC<NodeProps> = ({ id, data, selected }) => {
 
         <div className="grid grid-cols-2 gap-2">
           <label className="flex items-center gap-2">
-            <input type="checkbox" className="accent-flow-accent" checked={waitForNew} onChange={handleWaitToggle} />
+            <input
+              type="checkbox"
+              className="accent-flow-accent"
+              checked={waitForNew.value}
+              onChange={checkboxInputHandler(waitForNew.setValue, waitForNew.commit)}
+            />
             <span className="text-gray-400">Wait for new tab</span>
           </label>
           <label className="flex items-center gap-2">
-            <input type="checkbox" className="accent-flow-accent" checked={closeOld} onChange={handleCloseToggle} />
+            <input
+              type="checkbox"
+              className="accent-flow-accent"
+              checked={closeOld.value}
+              onChange={checkboxInputHandler(closeOld.setValue, closeOld.commit)}
+            />
             <span className="text-gray-400">Close previous tab</span>
           </label>
         </div>
@@ -206,20 +176,19 @@ const TabSwitchNode: FC<NodeProps> = ({ id, data, selected }) => {
           <input
             type="number"
             min={1000}
-            value={timeoutMs}
-            onChange={(event) => setTimeoutMs(Number(event.target.value))}
-            onBlur={handleTimeoutBlur}
+            value={timeoutMs.value}
+            onChange={numberInputHandler(timeoutMs.setValue)}
+            onBlur={timeoutMs.commit}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
         </div>
 
         <p className="text-gray-500">
-          Switch workflows between pop-ups, OAuth flows, or background tabs. Pattern fields accept plain text or full regular expressions.
+          Switch workflows between pop-ups, OAuth flows, or background tabs. Pattern fields accept plain text
+          or full regular expressions.
         </p>
       </div>
-
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

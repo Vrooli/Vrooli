@@ -1,68 +1,73 @@
-import { memo, FC, useState, useEffect } from 'react';
-import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
+import { FC, memo } from 'react';
+import type { NodeProps } from 'reactflow';
 import { CheckCircle, Globe } from 'lucide-react';
 import { useUpstreamUrl } from '@hooks/useUpstreamUrl';
+import { useActionParams } from '@hooks/useActionParams';
+import { useNodeData } from '@hooks/useNodeData';
+import {
+  useSyncedString,
+  useSyncedBoolean,
+  useSyncedSelect,
+  textInputHandler,
+  checkboxInputHandler,
+  selectInputHandler,
+} from '@hooks/useSyncedField';
+import type { AssertParams } from '@utils/actionBuilder';
+import BaseNode from './BaseNode';
 
-const AssertNode: FC<NodeProps> = ({ data, selected, id }) => {
+const assertModes = [
+  { value: 'exists', label: 'Element Exists' },
+  { value: 'not_exists', label: 'Element Does Not Exist' },
+  { value: 'visible', label: 'Element Visible' },
+  { value: 'text_equals', label: 'Text Equals' },
+  { value: 'text_contains', label: 'Text Contains' },
+  { value: 'attribute_equals', label: 'Attribute Equals' },
+];
+
+const AssertNode: FC<NodeProps> = ({ selected, id }) => {
   const upstreamUrl = useUpstreamUrl(id);
-  const { getNodes, setNodes } = useReactFlow();
+  const { getValue, updateData } = useNodeData(id);
+  const { params, updateParams } = useActionParams<AssertParams>(id);
 
-  const assertModes = [
-    { value: 'exists', label: 'Element Exists' },
-    { value: 'not_exists', label: 'Element Does Not Exist' },
-    { value: 'visible', label: 'Element Visible' },
-    { value: 'text_equals', label: 'Text Equals' },
-    { value: 'text_contains', label: 'Text Contains' },
-    { value: 'attribute_equals', label: 'Attribute Equals' },
-  ];
+  // Action params fields
+  const selector = useSyncedString(params?.selector ?? '', {
+    onCommit: (v) => updateParams({ selector: v || undefined }),
+  });
+  const mode = useSyncedSelect(params?.mode ?? 'exists', {
+    onCommit: (v) => updateParams({ mode: v }),
+  });
+  const expectedValue = useSyncedString(
+    typeof params?.expected === 'string' ? params.expected : '',
+    { onCommit: (v) => updateParams({ expected: v || undefined }) },
+  );
+  const attributeName = useSyncedString(params?.attributeName ?? '', {
+    onCommit: (v) => updateParams({ attributeName: v || undefined }),
+  });
+  const caseSensitive = useSyncedBoolean(params?.caseSensitive ?? false, {
+    onCommit: (v) => updateParams({ caseSensitive: v }),
+  });
 
-  const [label, setLabel] = useState(data.label || '');
-  const [selector, setSelector] = useState(data.selector || '');
-  const [expectedValue, setExpectedValue] = useState(data.expectedValue || '');
-  const [attributeName, setAttributeName] = useState(data.attributeName || '');
+  // UI-specific fields (stored in node.data)
+  const label = useSyncedString(getValue<string>('label') ?? '', {
+    onCommit: (v) => updateData({ label: v || undefined }),
+  });
+  const continueOnFailure = useSyncedBoolean(getValue<boolean>('continueOnFailure') ?? false, {
+    onCommit: (v) => updateData({ continueOnFailure: v }),
+  });
 
-  useEffect(() => {
-    setLabel(data.label || '');
-  }, [data.label]);
-
-  useEffect(() => {
-    setSelector(data.selector || '');
-  }, [data.selector]);
-
-  useEffect(() => {
-    setExpectedValue(data.expectedValue || '');
-  }, [data.expectedValue]);
-
-  useEffect(() => {
-    setAttributeName(data.attributeName || '');
-  }, [data.attributeName]);
-
-  const updateNodeData = (updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    const updatedNodes = nodes.map(node => {
-      if (node.id === id) {
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            ...updates
-          }
-        };
-      }
-      return node;
-    });
-    setNodes(updatedNodes);
-  };
+  const showExpectedValue =
+    mode.value === 'text_equals' || mode.value === 'text_contains' || mode.value === 'attribute_equals';
+  const showAttributeName = mode.value === 'attribute_equals';
+  const showCaseSensitive = mode.value === 'text_equals' || mode.value === 'text_contains';
 
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''} max-w-[280px]`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-
-      <div className="flex items-center gap-2 mb-2">
-        <CheckCircle size={16} className="text-orange-400" />
-        <span className="font-semibold text-sm">Assert</span>
-      </div>
-
+    <BaseNode
+      selected={selected}
+      icon={CheckCircle}
+      iconClassName="text-orange-400"
+      title="Assert"
+      className="max-w-[280px]"
+    >
       {upstreamUrl && (
         <div className="flex items-center gap-1 mb-2 p-1 bg-flow-bg/50 rounded text-xs border border-gray-700">
           <Globe size={12} className="text-blue-400 flex-shrink-0" />
@@ -77,19 +82,19 @@ const AssertNode: FC<NodeProps> = ({ data, selected, id }) => {
           type="text"
           placeholder="Label (optional)"
           className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          onBlur={() => updateNodeData({ label })}
+          value={label.value}
+          onChange={textInputHandler(label.setValue)}
+          onBlur={label.commit}
         />
 
         <select
           className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-          value={data.mode || 'exists'}
-          onChange={(e) => updateNodeData({ mode: e.target.value })}
+          value={mode.value}
+          onChange={selectInputHandler(mode.setValue, mode.commit)}
         >
-          {assertModes.map(mode => (
-            <option key={mode.value} value={mode.value}>
-              {mode.label}
+          {assertModes.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
             </option>
           ))}
         </select>
@@ -98,30 +103,32 @@ const AssertNode: FC<NodeProps> = ({ data, selected, id }) => {
           type="text"
           placeholder="CSS Selector..."
           className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-          value={selector}
-          onChange={(e) => setSelector(e.target.value)}
-          onBlur={() => updateNodeData({ selector })}
+          value={selector.value}
+          onChange={textInputHandler(selector.setValue)}
+          onBlur={selector.commit}
         />
 
-        {(data.mode === 'text_equals' || data.mode === 'text_contains' || data.mode === 'attribute_equals') && (
+        {showExpectedValue && (
           <input
             type="text"
-            placeholder={data.mode === 'attribute_equals' ? 'Expected attribute value...' : 'Expected text...'}
+            placeholder={
+              mode.value === 'attribute_equals' ? 'Expected attribute value...' : 'Expected text...'
+            }
             className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            value={expectedValue}
-            onChange={(e) => setExpectedValue(e.target.value)}
-            onBlur={() => updateNodeData({ expectedValue })}
+            value={expectedValue.value}
+            onChange={textInputHandler(expectedValue.setValue)}
+            onBlur={expectedValue.commit}
           />
         )}
 
-        {data.mode === 'attribute_equals' && (
+        {showAttributeName && (
           <input
             type="text"
             placeholder="Attribute name..."
             className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            value={attributeName}
-            onChange={(e) => setAttributeName(e.target.value)}
-            onBlur={() => updateNodeData({ attributeName })}
+            value={attributeName.value}
+            onChange={textInputHandler(attributeName.setValue)}
+            onBlur={attributeName.commit}
           />
         )}
 
@@ -129,21 +136,21 @@ const AssertNode: FC<NodeProps> = ({ data, selected, id }) => {
           <label className="flex items-center gap-1 cursor-pointer">
             <input
               type="checkbox"
-              checked={data.continueOnFailure || false}
-              onChange={(e) => updateNodeData({ continueOnFailure: e.target.checked })}
+              checked={continueOnFailure.value}
+              onChange={checkboxInputHandler(continueOnFailure.setValue, continueOnFailure.commit)}
               className="rounded border-gray-700 bg-flow-bg text-flow-accent focus:ring-flow-accent focus:ring-offset-0"
             />
             <span className="text-gray-400">Continue on failure</span>
           </label>
         </div>
 
-        {(data.mode === 'text_equals' || data.mode === 'text_contains') && (
+        {showCaseSensitive && (
           <div className="flex items-center gap-2 text-xs">
             <label className="flex items-center gap-1 cursor-pointer">
               <input
                 type="checkbox"
-                checked={data.caseSensitive || false}
-                onChange={(e) => updateNodeData({ caseSensitive: e.target.checked })}
+                checked={caseSensitive.value}
+                onChange={checkboxInputHandler(caseSensitive.setValue, caseSensitive.commit)}
                 className="rounded border-gray-700 bg-flow-bg text-flow-accent focus:ring-flow-accent focus:ring-offset-0"
               />
               <span className="text-gray-400">Case sensitive</span>
@@ -151,9 +158,7 @@ const AssertNode: FC<NodeProps> = ({ data, selected, id }) => {
           </div>
         )}
       </div>
-
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

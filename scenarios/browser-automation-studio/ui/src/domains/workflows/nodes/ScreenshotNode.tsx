@@ -1,6 +1,5 @@
-import { memo, FC, useCallback, useEffect, useMemo, useState } from 'react';
-import type { KeyboardEvent } from 'react';
-import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
+import { memo, FC, useState, useCallback } from 'react';
+import type { NodeProps } from 'reactflow';
 import {
   Camera,
   Globe,
@@ -12,134 +11,137 @@ import {
   Palette,
   Timer,
 } from 'lucide-react';
-import { useUpstreamUrl } from '@hooks/useUpstreamUrl';
+import { useActionParams } from '@hooks/useActionParams';
+import { useNodeData } from '@hooks/useNodeData';
+import { useUrlInheritance } from '@hooks/useUrlInheritance';
+import {
+  useSyncedString,
+  useSyncedBoolean,
+  useSyncedField,
+  textInputHandler,
+  checkboxInputHandler,
+} from '@hooks/useSyncedField';
+import type { ScreenshotParams } from '@utils/actionBuilder';
+import BaseNode from './BaseNode';
 
-const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const upstreamUrl = useUpstreamUrl(id);
-  const { getNodes, setNodes } = useReactFlow();
-  const nodeData = data as Record<string, unknown> | undefined;
-  const storedUrl = typeof nodeData?.url === 'string' ? nodeData.url : '';
-  const [urlDraft, setUrlDraft] = useState<string>(storedUrl);
+// Helper to parse selector lists from comma/newline separated string
+const parseSelectorList = (raw: string): string[] =>
+  raw
+    .split(/[\n,]+/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 
-  useEffect(() => {
-    setUrlDraft(storedUrl);
-  }, [storedUrl]);
+// Helper to format selector lists to comma-separated string
+const formatSelectorList = (selectors: string[] | undefined): string =>
+  Array.isArray(selectors) ? selectors.join(', ') : '';
 
-  const trimmedStoredUrl = useMemo(() => storedUrl.trim(), [storedUrl]);
-  const effectiveUrl = useMemo(() => {
-    if (trimmedStoredUrl.length > 0) {
-      return trimmedStoredUrl;
-    }
-    return upstreamUrl ?? null;
-  }, [trimmedStoredUrl, upstreamUrl]);
-  const hasCustomUrl = trimmedStoredUrl.length > 0;
-  const [highlightInput, setHighlightInput] = useState<string>(() =>
-    Array.isArray(data.highlightSelectors) ? data.highlightSelectors.join(', ') : ''
-  );
-  const [maskInput, setMaskInput] = useState<string>(() =>
-    Array.isArray(data.maskSelectors) ? data.maskSelectors.join(', ') : ''
-  );
+// Helper to parse optional number from string
+const parseOptionalNumber = (
+  value: string,
+  options: { float?: boolean; min?: number; max?: number } = {},
+): number | undefined => {
+  if (value === '') return undefined;
+  const parsed = options.float ? Number.parseFloat(value) : Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) return undefined;
+  let result = parsed;
+  if (options.min !== undefined) result = Math.max(options.min, result);
+  if (options.max !== undefined) result = Math.min(options.max, result);
+  return result;
+};
 
-  useEffect(() => {
-    setHighlightInput(Array.isArray(data.highlightSelectors) ? data.highlightSelectors.join(', ') : '');
-  }, [data.highlightSelectors]);
+const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
+  // URL inheritance hook handles URL state and handlers
+  const {
+    urlDraft,
+    setUrlDraft,
+    effectiveUrl,
+    hasCustomUrl,
+    upstreamUrl,
+    commitUrl,
+    resetUrl,
+    handleUrlKeyDown,
+  } = useUrlInheritance(id);
 
-  useEffect(() => {
-    setMaskInput(Array.isArray(data.maskSelectors) ? data.maskSelectors.join(', ') : '');
-  }, [data.maskSelectors]);
+  // Node data hook for UI-specific fields
+  const { getValue, updateData } = useNodeData(id);
 
+  // V2 Native: Use action params as source of truth
+  const { params, updateParams } = useActionParams<ScreenshotParams>(id);
+
+  // Action params fields
+  const fullPage = useSyncedBoolean(params?.fullPage ?? false, {
+    onCommit: (v) => updateParams({ fullPage: v }),
+  });
+
+  // String fields (node.data)
+  const name = useSyncedString(getValue<string>('name') ?? '', {
+    onCommit: (v) => updateData({ name: v || undefined }),
+  });
+  const focusSelector = useSyncedString(getValue<string>('focusSelector') ?? '', {
+    onCommit: (v) => updateData({ focusSelector: v || undefined }),
+  });
+  const highlightColor = useSyncedString(getValue<string>('highlightColor') ?? '', {
+    onCommit: (v) => updateData({ highlightColor: v || undefined }),
+  });
+  const background = useSyncedString(getValue<string>('background') ?? '', {
+    onCommit: (v) => updateData({ background: v || undefined }),
+  });
+
+  // Selector list fields (stored as arrays, edited as strings)
+  const highlightInput = useSyncedField(formatSelectorList(getValue<string[]>('highlightSelectors')), {
+    onCommit: (v) => {
+      const selectors = parseSelectorList(v);
+      updateData({ highlightSelectors: selectors.length > 0 ? selectors : undefined });
+    },
+  });
+  const maskInput = useSyncedField(formatSelectorList(getValue<string[]>('maskSelectors')), {
+    onCommit: (v) => {
+      const selectors = parseSelectorList(v);
+      updateData({ maskSelectors: selectors.length > 0 ? selectors : undefined });
+    },
+  });
+
+  // Optional number fields (stored as numbers, edited as strings)
+  const highlightPadding = useSyncedField(getValue<number>('highlightPadding')?.toString() ?? '', {
+    onCommit: (v) => updateData({ highlightPadding: parseOptionalNumber(v, { min: 0 }) }),
+  });
+  const maskOpacity = useSyncedField(getValue<number>('maskOpacity')?.toString() ?? '', {
+    onCommit: (v) => updateData({ maskOpacity: parseOptionalNumber(v, { float: true, min: 0, max: 1 }) }),
+  });
+  const zoomFactor = useSyncedField(getValue<number>('zoomFactor')?.toString() ?? '', {
+    onCommit: (v) => updateData({ zoomFactor: parseOptionalNumber(v, { float: true, min: 0 }) }),
+  });
+  const viewportWidth = useSyncedField(getValue<number>('viewportWidth')?.toString() ?? '', {
+    onCommit: (v) => updateData({ viewportWidth: parseOptionalNumber(v, { min: 320 }) }),
+  });
+  const viewportHeight = useSyncedField(getValue<number>('viewportHeight')?.toString() ?? '', {
+    onCommit: (v) => updateData({ viewportHeight: parseOptionalNumber(v, { min: 320 }) }),
+  });
+  const waitForMs = useSyncedField(getValue<number>('waitForMs')?.toString() ?? '', {
+    onCommit: (v) => updateData({ waitForMs: parseOptionalNumber(v, { min: 0 }) }),
+  });
+
+  // UI state (not persisted)
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
-  const updateNodeData = useCallback(
-    (updates: Record<string, any>) => {
-      const nodes = getNodes();
-      const updatedNodes = nodes.map((node) => {
-        if (node.id !== id) {
-          return node;
-        }
-        const nextData = { ...node.data } as Record<string, any>;
-        Object.entries(updates).forEach(([key, value]) => {
-          if (key === 'url') {
-            if (typeof value === 'string') {
-              const trimmed = value.trim();
-              if (trimmed.length > 0) {
-                nextData[key] = trimmed;
-              } else {
-                delete nextData[key];
-              }
-              return;
-            }
-            if (value === null || value === undefined) {
-              delete nextData[key];
-              return;
-            }
-          }
-
-          const shouldRemove =
-            value === undefined ||
-            value === null ||
-            (Array.isArray(value) && value.length === 0) ||
-            (typeof value === 'string' && value.trim() === '');
-          if (shouldRemove) {
-            delete nextData[key];
-          } else {
-            nextData[key] = value;
-          }
-        });
-        return {
-          ...node,
-          data: nextData,
-        };
-      });
-      setNodes(updatedNodes);
-    },
-    [getNodes, setNodes, id]
-  );
-
-  const commitUrl = useCallback((raw: string) => {
-    const trimmed = raw.trim();
-    updateNodeData({ url: trimmed.length > 0 ? trimmed : null });
-  }, [updateNodeData]);
-
-  const handleUrlCommit = useCallback(() => {
-    commitUrl(urlDraft);
-  }, [commitUrl, urlDraft]);
-
-  const handleUrlKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      commitUrl(urlDraft);
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      setUrlDraft(storedUrl);
-    }
-  }, [commitUrl, storedUrl, urlDraft]);
-
-  const resetUrl = useCallback(() => {
-    setUrlDraft('');
-    updateNodeData({ url: null });
-  }, [updateNodeData]);
-
+  // Handler for immediate update of selector lists on change
   const handleSelectorListChange = useCallback(
-    (rawValue: string, key: 'highlightSelectors' | 'maskSelectors') => {
-      const selectors = rawValue
-        .split(/[\n,]+/)
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0);
-      updateNodeData({ [key]: selectors.length > 0 ? selectors : undefined });
-    },
-    [updateNodeData]
+    (setter: React.Dispatch<React.SetStateAction<string>>, commit: () => void) =>
+      (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setter(e.target.value);
+        commit();
+      },
+    [],
   );
 
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''} w-80`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-      
-      <div className="flex items-center gap-2 mb-2">
-        <Camera size={16} className="text-purple-400" />
-        <span className="font-semibold text-sm">Screenshot</span>
-      </div>
-      
+    <BaseNode
+      selected={selected}
+      icon={Camera}
+      iconClassName="text-purple-400"
+      title="Screenshot"
+      className="w-80"
+    >
       <div className="mb-2">
         <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
           <Globe size={12} className="text-blue-400" />
@@ -152,7 +154,7 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
             className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
             value={urlDraft}
             onChange={(event) => setUrlDraft(event.target.value)}
-            onBlur={handleUrlCommit}
+            onBlur={commitUrl}
             onKeyDown={handleUrlKeyDown}
           />
           {hasCustomUrl && (
@@ -174,26 +176,22 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
           <p className="mt-1 text-[10px] text-red-400">Provide a URL to capture screenshots from.</p>
         )}
       </div>
-      
+
       <input
         type="text"
         placeholder="Screenshot name..."
         className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none mb-2"
-        value={data.name ?? ''}
-        onChange={(e) => {
-          updateNodeData({ name: e.target.value });
-        }}
+        value={name.value}
+        onChange={textInputHandler(name.setValue)}
+        onBlur={name.commit}
       />
-      
+
       <label className="flex items-center gap-2 text-xs">
         <input
           type="checkbox"
           className="rounded"
-          defaultChecked={data.fullPage || false}
-          onChange={(e) => {
-            const isFullPage = e.target.checked;
-            updateNodeData({ fullPage: isFullPage });
-          }}
+          checked={fullPage.value}
+          onChange={checkboxInputHandler(fullPage.setValue, fullPage.commit)}
         />
         <span>Full page</span>
       </label>
@@ -217,8 +215,9 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
               type="text"
               placeholder="CSS selector to focus before capture"
               className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-              value={data.focusSelector ?? ''}
-              onChange={(e) => updateNodeData({ focusSelector: e.target.value })}
+              value={focusSelector.value}
+              onChange={textInputHandler(focusSelector.setValue)}
+              onBlur={focusSelector.commit}
             />
           </div>
 
@@ -233,12 +232,8 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
               rows={2}
               className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
               placeholder="e.g. h1, .cta-button"
-              value={highlightInput}
-              onChange={(e) => {
-                const value = e.target.value;
-                setHighlightInput(value);
-                handleSelectorListChange(value, 'highlightSelectors');
-              }}
+              value={highlightInput.value}
+              onChange={handleSelectorListChange(highlightInput.setValue, highlightInput.commit)}
             />
           </div>
 
@@ -251,8 +246,9 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
                 type="text"
                 placeholder="#00E5FF"
                 className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={data.highlightColor ?? ''}
-                onChange={(e) => updateNodeData({ highlightColor: e.target.value })}
+                value={highlightColor.value}
+                onChange={textInputHandler(highlightColor.setValue)}
+                onBlur={highlightColor.commit}
               />
             </div>
             <div className="space-y-1">
@@ -263,12 +259,9 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
                 type="number"
                 min={0}
                 className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={typeof data.highlightPadding === 'number' ? data.highlightPadding : ''}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  const parsed = Number.parseInt(raw, 10);
-                  updateNodeData({ highlightPadding: raw === '' || Number.isNaN(parsed) ? undefined : parsed });
-                }}
+                value={highlightPadding.value}
+                onChange={(e) => highlightPadding.setValue(e.target.value)}
+                onBlur={highlightPadding.commit}
               />
             </div>
           </div>
@@ -284,12 +277,8 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
               rows={2}
               className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
               placeholder="e.g. .ads, .cookie-banner"
-              value={maskInput}
-              onChange={(e) => {
-                const value = e.target.value;
-                setMaskInput(value);
-                handleSelectorListChange(value, 'maskSelectors');
-              }}
+              value={maskInput.value}
+              onChange={handleSelectorListChange(maskInput.setValue, maskInput.commit)}
             />
           </div>
 
@@ -304,13 +293,9 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
                 max={1}
                 step={0.05}
                 className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={typeof data.maskOpacity === 'number' ? data.maskOpacity : ''}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  const parsed = Number.parseFloat(raw);
-                  const clamped = Number.isNaN(parsed) ? undefined : Math.min(Math.max(parsed, 0), 1);
-                  updateNodeData({ maskOpacity: raw === '' ? undefined : clamped });
-                }}
+                value={maskOpacity.value}
+                onChange={(e) => maskOpacity.setValue(e.target.value)}
+                onBlur={maskOpacity.commit}
               />
             </div>
             <div className="space-y-1">
@@ -322,12 +307,9 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
                 min={0}
                 step={0.05}
                 className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={typeof data.zoomFactor === 'number' ? data.zoomFactor : ''}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  const parsed = Number.parseFloat(raw);
-                  updateNodeData({ zoomFactor: raw === '' || Number.isNaN(parsed) ? undefined : parsed });
-                }}
+                value={zoomFactor.value}
+                onChange={(e) => zoomFactor.setValue(e.target.value)}
+                onBlur={zoomFactor.commit}
               />
             </div>
           </div>
@@ -341,12 +323,9 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
                 type="number"
                 min={320}
                 className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={typeof data.viewportWidth === 'number' ? data.viewportWidth : ''}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  const parsed = Number.parseInt(raw, 10);
-                  updateNodeData({ viewportWidth: raw === '' || Number.isNaN(parsed) ? undefined : parsed });
-                }}
+                value={viewportWidth.value}
+                onChange={(e) => viewportWidth.setValue(e.target.value)}
+                onBlur={viewportWidth.commit}
               />
             </div>
             <div className="space-y-1">
@@ -357,12 +336,9 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
                 type="number"
                 min={320}
                 className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={typeof data.viewportHeight === 'number' ? data.viewportHeight : ''}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  const parsed = Number.parseInt(raw, 10);
-                  updateNodeData({ viewportHeight: raw === '' || Number.isNaN(parsed) ? undefined : parsed });
-                }}
+                value={viewportHeight.value}
+                onChange={(e) => viewportHeight.setValue(e.target.value)}
+                onBlur={viewportHeight.commit}
               />
             </div>
           </div>
@@ -376,8 +352,9 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
                 type="text"
                 placeholder="#0f172a or linear-gradient(...)"
                 className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={data.background ?? ''}
-                onChange={(e) => updateNodeData({ background: e.target.value })}
+                value={background.value}
+                onChange={textInputHandler(background.setValue)}
+                onBlur={background.commit}
               />
             </div>
             <div className="space-y-1">
@@ -388,20 +365,15 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
                 type="number"
                 min={0}
                 className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={typeof data.waitForMs === 'number' ? data.waitForMs : ''}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  const parsed = Number.parseInt(raw, 10);
-                  updateNodeData({ waitForMs: raw === '' || Number.isNaN(parsed) ? undefined : parsed });
-                }}
+                value={waitForMs.value}
+                onChange={(e) => waitForMs.setValue(e.target.value)}
+                onBlur={waitForMs.commit}
               />
             </div>
           </div>
         </div>
       )}
-      
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

@@ -1,125 +1,78 @@
-import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { FC, memo, useMemo } from 'react';
+import type { NodeProps } from 'reactflow';
 import { Smartphone } from 'lucide-react';
+import { useActionParams } from '@hooks/useActionParams';
+import {
+  useSyncedNumber,
+  useSyncedSelect,
+  numberInputHandler,
+  selectInputHandler,
+} from '@hooks/useSyncedField';
+import BaseNode from './BaseNode';
+
+// RotateParams interface for V2 native action params
+interface RotateParams {
+  orientation?: string;
+  angle?: number;
+  waitForMs?: number;
+}
 
 const ORIENTATION_PORTRAIT = 'portrait';
 const ORIENTATION_LANDSCAPE = 'landscape';
 const PORTRAIT_ANGLES: readonly number[] = [0, 180];
 const LANDSCAPE_ANGLES: readonly number[] = [90, 270];
 
-const normalizeOrientation = (value: unknown): string => {
-  const text = typeof value === 'string' ? value.toLowerCase() : '';
-  if (text === ORIENTATION_LANDSCAPE) {
-    return ORIENTATION_LANDSCAPE;
-  }
-  return ORIENTATION_PORTRAIT;
-};
+const allowedAnglesForOrientation = (orientation: string): readonly number[] =>
+  orientation === ORIENTATION_LANDSCAPE ? LANDSCAPE_ANGLES : PORTRAIT_ANGLES;
 
-const allowedAnglesForOrientation = (orientation: string): readonly number[] => (
-  orientation === ORIENTATION_LANDSCAPE ? LANDSCAPE_ANGLES : PORTRAIT_ANGLES
-);
+const RotateNode: FC<NodeProps> = ({ selected, id }) => {
+  const { params, updateParams } = useActionParams<RotateParams>(id);
 
-const deriveAngle = (raw: unknown, orientation: string): number => {
-  const numeric = Number(raw);
-  const allowed = allowedAnglesForOrientation(orientation);
-  if (Number.isFinite(numeric) && allowed.includes(Number(numeric))) {
-    return Number(numeric);
-  }
-  return allowed[0];
-};
+  // Select field for orientation
+  const orientation = useSyncedSelect(params?.orientation ?? ORIENTATION_PORTRAIT, {
+    onCommit: (v) => {
+      const nextAllowedAngles = allowedAnglesForOrientation(v);
+      const currentAngle = angle.value;
+      const nextAngle = nextAllowedAngles.includes(currentAngle) ? currentAngle : nextAllowedAngles[0];
+      updateParams({ orientation: v, angle: nextAngle });
+      angle.setValue(nextAngle);
+    },
+  });
 
-const clampWait = (value: unknown): number => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return 0;
-  }
-  return Math.max(0, Math.round(numeric));
-};
+  // Number field for angle - handled specially since options depend on orientation
+  const angle = useSyncedNumber(params?.angle ?? allowedAnglesForOrientation(params?.orientation ?? ORIENTATION_PORTRAIT)[0], {
+    onCommit: (v) => updateParams({ angle: v }),
+  });
 
-const RotateNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const nodeData = (data ?? {}) as Record<string, unknown>;
-  const { getNodes, setNodes } = useReactFlow();
+  // Number field for wait
+  const waitForMs = useSyncedNumber(params?.waitForMs ?? 0, {
+    min: 0,
+    onCommit: (v) => updateParams({ waitForMs: v || undefined }),
+  });
 
-  const dataOrientation = normalizeOrientation(nodeData.orientation);
-  const [orientation, setOrientation] = useState<string>(dataOrientation);
-  const [angle, setAngle] = useState<number>(() => deriveAngle(nodeData.angle, dataOrientation));
-  const [waitForMs, setWaitForMs] = useState<number>(() => clampWait(nodeData.waitForMs));
+  const allowedAngles = useMemo(() => allowedAnglesForOrientation(orientation.value), [orientation.value]);
 
-  useEffect(() => {
-    setOrientation(dataOrientation);
-  }, [dataOrientation]);
-
-  useEffect(() => {
-    setAngle(deriveAngle(nodeData.angle, dataOrientation));
-  }, [nodeData.angle, dataOrientation]);
-
-  useEffect(() => {
-    setWaitForMs(clampWait(nodeData.waitForMs));
-  }, [nodeData.waitForMs]);
-
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === undefined) {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      });
-      return { ...node, data: nextData };
-    }));
-  }, [getNodes, setNodes, id]);
-
-  const allowedAngles = useMemo(() => allowedAnglesForOrientation(orientation), [orientation]);
-
-  const handleOrientationChange = useCallback((value: string) => {
-    const normalized = value === ORIENTATION_LANDSCAPE ? ORIENTATION_LANDSCAPE : ORIENTATION_PORTRAIT;
-    const nextAllowedAngles = allowedAnglesForOrientation(normalized);
-    const nextAngle = nextAllowedAngles.includes(angle) ? angle : nextAllowedAngles[0];
-    setOrientation(normalized);
-    setAngle(nextAngle);
-    updateNodeData({ orientation: normalized, angle: nextAngle });
-  }, [angle, updateNodeData]);
-
-  const handleAngleChange = useCallback((value: string) => {
+  // Custom handler for angle since it's a select with numeric values
+  const handleAngleChange = (value: string) => {
     const parsed = Number(value);
-    if (!Number.isFinite(parsed)) {
-      return;
+    if (Number.isFinite(parsed) && allowedAngles.includes(parsed)) {
+      angle.setValue(parsed);
+      updateParams({ angle: parsed });
     }
-    const normalized = allowedAngles.includes(parsed) ? parsed : allowedAngles[0];
-    setAngle(normalized);
-    updateNodeData({ angle: normalized });
-  }, [allowedAngles, updateNodeData]);
-
-  const handleWaitBlur = useCallback(() => {
-    const normalized = clampWait(waitForMs);
-    setWaitForMs(normalized);
-    updateNodeData({ waitForMs: normalized || undefined });
-  }, [waitForMs, updateNodeData]);
+  };
 
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-
-      <div className="flex items-start gap-2 mb-3">
-        <Smartphone size={16} className="text-sky-300" />
-        <div>
-          <div className="font-semibold text-sm">Rotate</div>
-          <p className="text-[11px] text-gray-500">Swap between portrait & landscape during mobile flows.</p>
-        </div>
-      </div>
+    <BaseNode selected={selected} icon={Smartphone} iconClassName="text-sky-300" title="Rotate">
+      <p className="text-[11px] text-gray-500 mb-3">
+        Swap between portrait & landscape during mobile flows.
+      </p>
 
       <div className="space-y-3 text-xs">
         <div>
           <label className="text-gray-400 block mb-1">Orientation</label>
           <select
-            value={orientation}
-            onChange={(event) => handleOrientationChange(event.target.value)}
+            value={orientation.value}
+            onChange={selectInputHandler(orientation.setValue, orientation.commit)}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           >
             <option value={ORIENTATION_PORTRAIT}>Portrait (default)</option>
@@ -130,7 +83,7 @@ const RotateNode: FC<NodeProps> = ({ data, selected, id }) => {
         <div>
           <label className="text-gray-400 block mb-1">Angle</label>
           <select
-            value={String(angle)}
+            value={String(angle.value)}
             onChange={(event) => handleAngleChange(event.target.value)}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           >
@@ -152,18 +105,18 @@ const RotateNode: FC<NodeProps> = ({ data, selected, id }) => {
             type="number"
             min={0}
             step={50}
-            value={waitForMs}
-            onChange={(event) => setWaitForMs(Number(event.target.value))}
-            onBlur={handleWaitBlur}
+            value={waitForMs.value}
+            onChange={numberInputHandler(waitForMs.setValue)}
+            onBlur={waitForMs.commit}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             placeholder="250"
           />
-          <p className="text-[10px] text-gray-500 mt-1">Give responsive layouts time to settle after orientation changes.</p>
+          <p className="text-[10px] text-gray-500 mt-1">
+            Give responsive layouts time to settle after orientation changes.
+          </p>
         </div>
       </div>
-
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

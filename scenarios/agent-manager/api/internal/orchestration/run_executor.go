@@ -472,12 +472,21 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
-		return &domain.SandboxError{
+		sandboxErr := &domain.SandboxError{
 			Operation:   "create",
 			Cause:       err,
 			IsTransient: true, // sandbox service might be temporarily unavailable
 			CanRetry:    true,
 		}
+		// Extract rich error details if available (e.g., conflicting sandboxes)
+		if apiErr, ok := err.(*sandbox.SandboxAPIError); ok {
+			sandboxErr.CanRetry = apiErr.Retryable
+			sandboxErr.IsTransient = apiErr.Retryable
+			if apiErr.Details != nil {
+				sandboxErr.ExtraDetails = apiErr.Details
+			}
+		}
+		return sandboxErr
 	}
 
 	e.sandboxID = &sbx.ID

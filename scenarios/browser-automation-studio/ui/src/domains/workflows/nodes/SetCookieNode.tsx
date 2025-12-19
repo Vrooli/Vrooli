@@ -1,6 +1,34 @@
-import { FC, memo, useCallback, useEffect, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { FC, memo } from 'react';
+import type { NodeProps } from 'reactflow';
 import { Cookie } from 'lucide-react';
+import { useActionParams } from '@hooks/useActionParams';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  useSyncedBoolean,
+  useSyncedSelect,
+  textInputHandler,
+  numberInputHandler,
+  checkboxInputHandler,
+  selectInputHandler,
+} from '@hooks/useSyncedField';
+import BaseNode from './BaseNode';
+
+// CookieParams interface for V2 native action params
+interface CookieParams {
+  name?: string;
+  value?: string;
+  url?: string;
+  domain?: string;
+  path?: string;
+  sameSite?: string;
+  secure?: boolean;
+  httpOnly?: boolean;
+  ttlSeconds?: number;
+  expiresAt?: string;
+  timeoutMs?: number;
+  waitForMs?: number;
+}
 
 const SAME_SITE_OPTIONS = [
   { label: 'Browser default', value: '' },
@@ -11,98 +39,69 @@ const SAME_SITE_OPTIONS = [
 
 const MIN_TIMEOUT = 100;
 
-const sanitizeNumber = (value: number, fallback = 0): number => {
-  if (!Number.isFinite(value)) {
-    return fallback;
-  }
-  return Math.max(0, Math.round(value));
-};
+const SetCookieNode: FC<NodeProps> = ({ selected, id }) => {
+  const { params, updateParams } = useActionParams<CookieParams>(id);
 
-const SetCookieNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const nodeData = (data ?? {}) as Record<string, unknown>;
-  const { getNodes, setNodes } = useReactFlow();
+  // String fields with trim normalization
+  const name = useSyncedString(params?.name ?? '', {
+    onCommit: (v) => updateParams({ name: v || undefined }),
+  });
+  const value = useSyncedString(params?.value ?? '', {
+    trim: false, // Don't trim cookie value
+    onCommit: (v) => updateParams({ value: v }),
+  });
+  const url = useSyncedString(params?.url ?? '', {
+    onCommit: (v) => updateParams({ url: v || undefined }),
+  });
+  const domain = useSyncedString(params?.domain ?? '', {
+    onCommit: (v) => updateParams({ domain: v || undefined }),
+  });
+  const path = useSyncedString(params?.path ?? '', {
+    onCommit: (v) => updateParams({ path: v || undefined }),
+  });
+  const expiresAt = useSyncedString(params?.expiresAt ?? '', {
+    onCommit: (v) => updateParams({ expiresAt: v || undefined }),
+  });
 
-  const [name, setName] = useState<string>(String(nodeData.name ?? ''));
-  const [value, setValue] = useState<string>(String(nodeData.value ?? ''));
-  const [url, setUrl] = useState<string>(String(nodeData.url ?? ''));
-  const [domain, setDomain] = useState<string>(String(nodeData.domain ?? ''));
-  const [path, setPath] = useState<string>(String(nodeData.path ?? ''));
-  const [sameSite, setSameSite] = useState<string>(String(nodeData.sameSite ?? ''));
-  const [secure, setSecure] = useState<boolean>(Boolean(nodeData.secure));
-  const [httpOnly, setHttpOnly] = useState<boolean>(Boolean(nodeData.httpOnly));
-  const [ttlSeconds, setTtlSeconds] = useState<number>(sanitizeNumber(Number(nodeData.ttlSeconds ?? 0)));
-  const [expiresAt, setExpiresAt] = useState<string>(String(nodeData.expiresAt ?? ''));
-  const [timeoutMs, setTimeoutMs] = useState<number>(sanitizeNumber(Number(nodeData.timeoutMs ?? 30000), 30000));
-  const [waitForMs, setWaitForMs] = useState<number>(sanitizeNumber(Number(nodeData.waitForMs ?? 0)));
+  // Select field (commits immediately on change)
+  const sameSite = useSyncedSelect(params?.sameSite ?? '', {
+    onCommit: (v) => updateParams({ sameSite: v || undefined }),
+  });
 
-  useEffect(() => setName(String(nodeData.name ?? '')), [nodeData.name]);
-  useEffect(() => setValue(String(nodeData.value ?? '')), [nodeData.value]);
-  useEffect(() => setUrl(String(nodeData.url ?? '')), [nodeData.url]);
-  useEffect(() => setDomain(String(nodeData.domain ?? '')), [nodeData.domain]);
-  useEffect(() => setPath(String(nodeData.path ?? '')), [nodeData.path]);
-  useEffect(() => setSameSite(String(nodeData.sameSite ?? '')), [nodeData.sameSite]);
-  useEffect(() => setSecure(Boolean(nodeData.secure)), [nodeData.secure]);
-  useEffect(() => setHttpOnly(Boolean(nodeData.httpOnly)), [nodeData.httpOnly]);
-  useEffect(() => setTtlSeconds(sanitizeNumber(Number(nodeData.ttlSeconds ?? 0))), [nodeData.ttlSeconds]);
-  useEffect(() => setExpiresAt(String(nodeData.expiresAt ?? '')), [nodeData.expiresAt]);
-  useEffect(() => setTimeoutMs(sanitizeNumber(Number(nodeData.timeoutMs ?? 30000), 30000)), [nodeData.timeoutMs]);
-  useEffect(() => setWaitForMs(sanitizeNumber(Number(nodeData.waitForMs ?? 0))), [nodeData.waitForMs]);
+  // Boolean fields (commit immediately on change)
+  const secure = useSyncedBoolean(params?.secure ?? false, {
+    onCommit: (v) => updateParams({ secure: v || undefined }),
+  });
+  const httpOnly = useSyncedBoolean(params?.httpOnly ?? false, {
+    onCommit: (v) => updateParams({ httpOnly: v || undefined }),
+  });
 
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '') {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      });
-      return { ...node, data: nextData };
-    }));
-  }, [getNodes, setNodes, id]);
-
-  const commitNumber = useCallback((field: 'ttlSeconds' | 'timeoutMs' | 'waitForMs', value: number, fallback = 0) => {
-    const normalized = sanitizeNumber(value, fallback);
-    switch (field) {
-      case 'ttlSeconds':
-        setTtlSeconds(normalized);
-        updateNodeData({ ttlSeconds: normalized || undefined });
-        return;
-      case 'timeoutMs': {
-        const safe = Math.max(MIN_TIMEOUT, normalized || MIN_TIMEOUT);
-        setTimeoutMs(safe);
-        updateNodeData({ timeoutMs: safe });
-        return;
-      }
-      default:
-        setWaitForMs(normalized);
-        updateNodeData({ waitForMs: normalized || undefined });
-    }
-  }, [updateNodeData]);
+  // Number fields with validation
+  const ttlSeconds = useSyncedNumber(params?.ttlSeconds ?? 0, {
+    min: 0,
+    onCommit: (v) => updateParams({ ttlSeconds: v || undefined }),
+  });
+  const timeoutMs = useSyncedNumber(params?.timeoutMs ?? 30000, {
+    min: MIN_TIMEOUT,
+    fallback: 30000,
+    onCommit: (v) => updateParams({ timeoutMs: v }),
+  });
+  const waitForMs = useSyncedNumber(params?.waitForMs ?? 0, {
+    min: 0,
+    onCommit: (v) => updateParams({ waitForMs: v || undefined }),
+  });
 
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-
-      <div className="flex items-center gap-2 mb-3">
-        <Cookie size={16} className="text-amber-300" />
-        <span className="font-semibold text-sm">Set Cookie</span>
-      </div>
-
+    <BaseNode selected={selected} icon={Cookie} iconClassName="text-amber-300" title="Set Cookie">
       <div className="space-y-3 text-xs">
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-gray-400 block mb-1">Cookie name</label>
             <input
               type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              onBlur={() => updateNodeData({ name: name.trim() })}
+              value={name.value}
+              onChange={textInputHandler(name.setValue)}
+              onBlur={name.commit}
               placeholder="sessionId"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -111,9 +110,9 @@ const SetCookieNode: FC<NodeProps> = ({ data, selected, id }) => {
             <label className="text-gray-400 block mb-1">Path</label>
             <input
               type="text"
-              value={path}
-              onChange={(event) => setPath(event.target.value)}
-              onBlur={() => updateNodeData({ path: path.trim() })}
+              value={path.value}
+              onChange={textInputHandler(path.setValue)}
+              onBlur={path.commit}
               placeholder="/"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -124,9 +123,9 @@ const SetCookieNode: FC<NodeProps> = ({ data, selected, id }) => {
           <label className="text-gray-400 block mb-1">Value</label>
           <textarea
             rows={2}
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            onBlur={() => updateNodeData({ value })}
+            value={value.value}
+            onChange={textInputHandler(value.setValue)}
+            onBlur={value.commit}
             placeholder="Cookie payload"
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
@@ -137,9 +136,9 @@ const SetCookieNode: FC<NodeProps> = ({ data, selected, id }) => {
             <label className="text-gray-400 block mb-1">Target URL</label>
             <input
               type="text"
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-              onBlur={() => updateNodeData({ url: url.trim() })}
+              value={url.value}
+              onChange={textInputHandler(url.setValue)}
+              onBlur={url.commit}
               placeholder="https://example.com/app"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -149,9 +148,9 @@ const SetCookieNode: FC<NodeProps> = ({ data, selected, id }) => {
             <label className="text-gray-400 block mb-1">Domain</label>
             <input
               type="text"
-              value={domain}
-              onChange={(event) => setDomain(event.target.value)}
-              onBlur={() => updateNodeData({ domain: domain.trim() })}
+              value={domain.value}
+              onChange={textInputHandler(domain.setValue)}
+              onBlur={domain.commit}
               placeholder=".example.com"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -162,15 +161,14 @@ const SetCookieNode: FC<NodeProps> = ({ data, selected, id }) => {
           <div>
             <label className="text-gray-400 block mb-1">SameSite</label>
             <select
-              value={sameSite}
-              onChange={(event) => {
-                setSameSite(event.target.value);
-                updateNodeData({ sameSite: event.target.value || undefined });
-              }}
+              value={sameSite.value}
+              onChange={selectInputHandler(sameSite.setValue, sameSite.commit)}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             >
               {SAME_SITE_OPTIONS.map((option) => (
-                <option key={option.value || 'default'} value={option.value}>{option.label}</option>
+                <option key={option.value || 'default'} value={option.value}>
+                  {option.label}
+                </option>
               ))}
             </select>
           </div>
@@ -178,22 +176,16 @@ const SetCookieNode: FC<NodeProps> = ({ data, selected, id }) => {
             <label className="flex items-center gap-2 text-gray-400">
               <input
                 type="checkbox"
-                checked={secure}
-                onChange={(event) => {
-                  setSecure(event.target.checked);
-                  updateNodeData({ secure: event.target.checked || undefined });
-                }}
+                checked={secure.value}
+                onChange={checkboxInputHandler(secure.setValue, secure.commit)}
               />
               Secure
             </label>
             <label className="flex items-center gap-2 text-gray-400">
               <input
                 type="checkbox"
-                checked={httpOnly}
-                onChange={(event) => {
-                  setHttpOnly(event.target.checked);
-                  updateNodeData({ httpOnly: event.target.checked || undefined });
-                }}
+                checked={httpOnly.value}
+                onChange={checkboxInputHandler(httpOnly.setValue, httpOnly.commit)}
               />
               HTTP only
             </label>
@@ -206,9 +198,9 @@ const SetCookieNode: FC<NodeProps> = ({ data, selected, id }) => {
             <input
               type="number"
               min={0}
-              value={ttlSeconds}
-              onChange={(event) => setTtlSeconds(Number(event.target.value))}
-              onBlur={() => commitNumber('ttlSeconds', ttlSeconds)}
+              value={ttlSeconds.value}
+              onChange={numberInputHandler(ttlSeconds.setValue)}
+              onBlur={ttlSeconds.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -216,9 +208,9 @@ const SetCookieNode: FC<NodeProps> = ({ data, selected, id }) => {
             <label className="text-gray-400 block mb-1">Expires at (RFC3339)</label>
             <input
               type="text"
-              value={expiresAt}
-              onChange={(event) => setExpiresAt(event.target.value)}
-              onBlur={() => updateNodeData({ expiresAt: expiresAt.trim() })}
+              value={expiresAt.value}
+              onChange={textInputHandler(expiresAt.setValue)}
+              onBlur={expiresAt.commit}
               placeholder="2025-12-31T23:59:59Z"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -231,9 +223,9 @@ const SetCookieNode: FC<NodeProps> = ({ data, selected, id }) => {
             <input
               type="number"
               min={MIN_TIMEOUT}
-              value={timeoutMs}
-              onChange={(event) => setTimeoutMs(Number(event.target.value))}
-              onBlur={() => commitNumber('timeoutMs', timeoutMs, MIN_TIMEOUT)}
+              value={timeoutMs.value}
+              onChange={numberInputHandler(timeoutMs.setValue)}
+              onBlur={timeoutMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -242,17 +234,15 @@ const SetCookieNode: FC<NodeProps> = ({ data, selected, id }) => {
             <input
               type="number"
               min={0}
-              value={waitForMs}
-              onChange={(event) => setWaitForMs(Number(event.target.value))}
-              onBlur={() => commitNumber('waitForMs', waitForMs)}
+              value={waitForMs.value}
+              onChange={numberInputHandler(waitForMs.setValue)}
+              onBlur={waitForMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
         </div>
       </div>
-
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

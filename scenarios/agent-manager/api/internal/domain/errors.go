@@ -622,11 +622,12 @@ func (e *RunnerError) Details() map[string]interface{} {
 
 // SandboxError indicates a problem with sandbox operations.
 type SandboxError struct {
-	SandboxID   *uuid.UUID
-	Operation   string
-	Cause       error
-	IsTransient bool // true for connection issues
-	CanRetry    bool // true if the operation can be safely retried
+	SandboxID    *uuid.UUID
+	Operation    string
+	Cause        error
+	IsTransient  bool                   // true for connection issues
+	CanRetry     bool                   // true if the operation can be safely retried
+	ExtraDetails map[string]interface{} // Additional details from the underlying error (e.g., conflicting sandboxes)
 }
 
 func (e *SandboxError) Error() string {
@@ -691,6 +692,10 @@ func (e *SandboxError) Details() map[string]interface{} {
 	}
 	if e.Cause != nil {
 		d["cause"] = e.Cause.Error()
+	}
+	// Merge extra details (e.g., conflicting sandbox info)
+	for k, v := range e.ExtraDetails {
+		d[k] = v
 	}
 	return d
 }

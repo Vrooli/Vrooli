@@ -565,11 +565,12 @@ func NewArtifactEvent(runID uuid.UUID, artifactType, path string, size int64) *R
 
 // ErrorEventData contains data for error events.
 type ErrorEventData struct {
-	Code       string         `json:"code"`                 // Machine-readable error code
-	Message    string         `json:"message"`              // Human-readable error message
-	Retryable  bool           `json:"retryable"`            // Whether the error is retryable
-	Recovery   RecoveryAction `json:"recovery,omitempty"`   // Suggested recovery action
-	StackTrace string         `json:"stackTrace,omitempty"` // Optional stack trace
+	Code       string                 `json:"code"`                 // Machine-readable error code
+	Message    string                 `json:"message"`              // Human-readable error message
+	Retryable  bool                   `json:"retryable"`            // Whether the error is retryable
+	Recovery   RecoveryAction         `json:"recovery,omitempty"`   // Suggested recovery action
+	StackTrace string                 `json:"stackTrace,omitempty"` // Optional stack trace
+	Details    map[string]interface{} `json:"details,omitempty"`    // Structured error details (e.g., conflicting sandboxes)
 }
 
 // =============================================================================
@@ -700,6 +701,7 @@ func NewErrorEventFromDomainError(runID uuid.UUID, err DomainError) *RunEvent {
 			Message:   err.Error(),
 			Retryable: err.Retryable(),
 			Recovery:  err.Recovery(),
+			Details:   err.Details(),
 		},
 	}
 }

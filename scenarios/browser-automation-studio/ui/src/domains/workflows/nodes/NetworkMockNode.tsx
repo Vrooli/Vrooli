@@ -1,6 +1,28 @@
-import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
+import { FC, memo, useMemo } from 'react';
+import type { NodeProps } from 'reactflow';
 import { Network } from 'lucide-react';
+import { useActionParams } from '@hooks/useActionParams';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  useSyncedSelect,
+  textInputHandler,
+  numberInputHandler,
+  selectInputHandler,
+} from '@hooks/useSyncedField';
+import BaseNode from './BaseNode';
+
+// NetworkMockParams interface for V2 native action params
+interface NetworkMockParams {
+  urlPattern?: string;
+  method?: string;
+  mockType?: string;
+  statusCode?: number;
+  delayMs?: number;
+  headers?: Record<string, string>;
+  body?: string;
+  abortReason?: string;
+}
 
 const MOCK_TYPES = [
   { label: 'Stub response', value: 'response' },
@@ -19,19 +41,11 @@ const ABORT_REASONS = [
   { label: 'Connection refused', value: 'ConnectionRefused' },
 ];
 
-const sanitizeNumber = (value: unknown, fallback = 0, min = 0, max = 1_000_000): number => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return fallback;
-  }
-  return Math.min(Math.max(Math.round(numeric), min), max);
-};
-
-const headersToText = (headers: unknown): string => {
+const headersToText = (headers?: Record<string, string>): string => {
   if (!headers || typeof headers !== 'object') {
     return '';
   }
-  return Object.entries(headers as Record<string, unknown>)
+  return Object.entries(headers)
     .map(([key, value]) => `${key}: ${value ?? ''}`.trim())
     .join('\n');
 };
@@ -55,90 +69,66 @@ const textToHeaders = (text: string): Record<string, string> | undefined => {
   return Object.keys(headers).length ? headers : undefined;
 };
 
-const NetworkMockNode: FC<NodeProps> = ({ data, selected, id }) => {
-  const nodeData = (data ?? {}) as Record<string, unknown>;
-  const { getNodes, setNodes } = useReactFlow();
+const NetworkMockNode: FC<NodeProps> = ({ selected, id }) => {
+  const { params, updateParams } = useActionParams<NetworkMockParams>(id);
 
-  const [urlPattern, setUrlPattern] = useState<string>(String(nodeData.urlPattern ?? ''));
-  const [method, setMethod] = useState<string>(String(nodeData.method ?? ''));
-  const [mockType, setMockType] = useState<string>(String(nodeData.mockType ?? 'response'));
-  const [statusCode, setStatusCode] = useState<number>(sanitizeNumber(nodeData.statusCode ?? 200, 200, 100, 599));
-  const [delayMs, setDelayMs] = useState<number>(sanitizeNumber(nodeData.delayMs ?? 0));
-  const [headersText, setHeadersText] = useState<string>(headersToText(nodeData.headers));
-  const [body, setBody] = useState<string>(String(nodeData.body ?? ''));
-  const [abortReason, setAbortReason] = useState<string>(String(nodeData.abortReason ?? 'Failed'));
+  // String fields
+  const urlPattern = useSyncedString(params?.urlPattern ?? '', {
+    onCommit: (v) => updateParams({ urlPattern: v || undefined }),
+  });
 
-  useEffect(() => setUrlPattern(String(nodeData.urlPattern ?? '')), [nodeData.urlPattern]);
-  useEffect(() => setMethod(String(nodeData.method ?? '')), [nodeData.method]);
-  useEffect(() => setMockType(String(nodeData.mockType ?? 'response')), [nodeData.mockType]);
-  useEffect(() => setStatusCode(sanitizeNumber(nodeData.statusCode ?? 200, 200, 100, 599)), [nodeData.statusCode]);
-  useEffect(() => setDelayMs(sanitizeNumber(nodeData.delayMs ?? 0)), [nodeData.delayMs]);
-  useEffect(() => setHeadersText(headersToText(nodeData.headers)), [nodeData.headers]);
-  useEffect(() => setBody(String(nodeData.body ?? '')), [nodeData.body]);
-  useEffect(() => setAbortReason(String(nodeData.abortReason ?? 'Failed')), [nodeData.abortReason]);
+  // Select fields
+  const method = useSyncedSelect(params?.method ?? '', {
+    onCommit: (v) => updateParams({ method: v || undefined }),
+  });
+  const mockType = useSyncedSelect(params?.mockType ?? 'response', {
+    onCommit: (v) => updateParams({ mockType: v }),
+  });
+  const abortReason = useSyncedSelect(params?.abortReason ?? 'Failed', {
+    onCommit: (v) => updateParams({ abortReason: v }),
+  });
 
-  const updateNodeData = useCallback((updates: Record<string, unknown>) => {
-    const nodes = getNodes();
-    setNodes(nodes.map((node) => {
-      if (node.id !== id) {
-        return node;
-      }
-      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '' || (typeof value === 'number' && Number.isNaN(value))) {
-          delete nextData[key];
-        } else {
-          nextData[key] = value;
-        }
-      });
-      return { ...node, data: nextData };
-    }));
-  }, [getNodes, setNodes, id]);
+  // Number fields
+  const statusCode = useSyncedNumber(params?.statusCode ?? 200, {
+    min: 100,
+    max: 599,
+    fallback: 200,
+    onCommit: (v) => updateParams({ statusCode: v }),
+  });
+  const delayMs = useSyncedNumber(params?.delayMs ?? 0, {
+    min: 0,
+    max: 600000,
+    onCommit: (v) => updateParams({ delayMs: v || undefined }),
+  });
 
-  const isResponse = mockType === 'response' || mockType === '';
-  const isDelay = mockType === 'delay';
-  const isAbort = mockType === 'abort';
+  // Headers as text (special handling for object)
+  const headersText = useSyncedString(headersToText(params?.headers), {
+    trim: false,
+    onCommit: (v) => updateParams({ headers: textToHeaders(v) }),
+  });
+
+  // Body field
+  const body = useSyncedString(params?.body ?? '', {
+    trim: false,
+    onCommit: (v) => updateParams({ body: v.trim() ? v : undefined }),
+  });
+
+  const isResponse = mockType.value === 'response' || mockType.value === '';
+  const isDelay = mockType.value === 'delay';
+  const isAbort = mockType.value === 'abort';
 
   const methodOptions = useMemo(() => METHODS.map((label) => ({ label, value: label === 'Any' ? '' : label })), []);
 
-  const handleHeadersBlur = useCallback((value: string) => {
-    const parsed = textToHeaders(value);
-    updateNodeData({ headers: parsed });
-  }, [updateNodeData]);
-
-  const handleBodyBlur = useCallback((value: string) => {
-    updateNodeData({ body: value.trim() ? value : undefined });
-  }, [updateNodeData]);
-
-  const handleStatusBlur = useCallback((value: number) => {
-    const normalized = sanitizeNumber(value, 200, 100, 599);
-    setStatusCode(normalized);
-    updateNodeData({ statusCode: normalized });
-  }, [updateNodeData]);
-
-  const handleDelayBlur = useCallback((value: number) => {
-    const normalized = sanitizeNumber(value, 0, 0, 600000);
-    setDelayMs(normalized);
-    updateNodeData({ delayMs: normalized || undefined });
-  }, [updateNodeData]);
-
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} className="node-handle" />
-
-      <div className="flex items-center gap-2 mb-3">
-        <Network size={16} className="text-fuchsia-300" />
-        <span className="font-semibold text-sm">Network Mock</span>
-      </div>
-
+    <BaseNode selected={selected} icon={Network} iconClassName="text-fuchsia-300" title="Network Mock">
       <div className="space-y-3 text-xs">
         <div>
           <label className="text-gray-400 block mb-1">URL pattern</label>
           <input
             type="text"
-            value={urlPattern}
-            onChange={(event) => setUrlPattern(event.target.value)}
-            onBlur={() => updateNodeData({ urlPattern: urlPattern.trim() })}
+            value={urlPattern.value}
+            onChange={textInputHandler(urlPattern.setValue)}
+            onBlur={urlPattern.commit}
             placeholder="https://api.example.com/* or regex:^https://api/.+"
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
@@ -149,11 +139,8 @@ const NetworkMockNode: FC<NodeProps> = ({ data, selected, id }) => {
           <div>
             <label className="text-gray-400 block mb-1">HTTP method</label>
             <select
-              value={method}
-              onChange={(event) => {
-                setMethod(event.target.value);
-                updateNodeData({ method: event.target.value || undefined });
-              }}
+              value={method.value}
+              onChange={selectInputHandler(method.setValue, method.commit)}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             >
               {methodOptions.map((option) => (
@@ -164,12 +151,8 @@ const NetworkMockNode: FC<NodeProps> = ({ data, selected, id }) => {
           <div>
             <label className="text-gray-400 block mb-1">Mock type</label>
             <select
-              value={mockType}
-              onChange={(event) => {
-                const value = event.target.value || 'response';
-                setMockType(value);
-                updateNodeData({ mockType: value });
-              }}
+              value={mockType.value}
+              onChange={selectInputHandler(mockType.setValue, mockType.commit)}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             >
               {MOCK_TYPES.map((option) => (
@@ -183,11 +166,8 @@ const NetworkMockNode: FC<NodeProps> = ({ data, selected, id }) => {
           <div>
             <label className="text-gray-400 block mb-1">Abort reason</label>
             <select
-              value={abortReason}
-              onChange={(event) => {
-                setAbortReason(event.target.value);
-                updateNodeData({ abortReason: event.target.value });
-              }}
+              value={abortReason.value}
+              onChange={selectInputHandler(abortReason.setValue, abortReason.commit)}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             >
               {ABORT_REASONS.map((option) => (
@@ -205,9 +185,9 @@ const NetworkMockNode: FC<NodeProps> = ({ data, selected, id }) => {
                 type="number"
                 min={100}
                 max={599}
-                value={statusCode}
-                onChange={(event) => setStatusCode(Number(event.target.value))}
-                onBlur={(event) => handleStatusBlur(Number(event.target.value))}
+                value={statusCode.value}
+                onChange={numberInputHandler(statusCode.setValue)}
+                onBlur={statusCode.commit}
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
             </div>
@@ -216,9 +196,9 @@ const NetworkMockNode: FC<NodeProps> = ({ data, selected, id }) => {
               <input
                 type="number"
                 min={0}
-                value={delayMs}
-                onChange={(event) => setDelayMs(Number(event.target.value))}
-                onBlur={(event) => handleDelayBlur(Number(event.target.value))}
+                value={delayMs.value}
+                onChange={numberInputHandler(delayMs.setValue)}
+                onBlur={delayMs.commit}
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
             </div>
@@ -231,9 +211,9 @@ const NetworkMockNode: FC<NodeProps> = ({ data, selected, id }) => {
             <input
               type="number"
               min={1}
-              value={delayMs}
-              onChange={(event) => setDelayMs(Number(event.target.value))}
-              onBlur={(event) => handleDelayBlur(Number(event.target.value))}
+              value={delayMs.value}
+              onChange={numberInputHandler(delayMs.setValue)}
+              onBlur={delayMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
             <p className="text-[10px] text-gray-500 mt-1">Required for delay mocks.</p>
@@ -246,9 +226,9 @@ const NetworkMockNode: FC<NodeProps> = ({ data, selected, id }) => {
               <label className="text-gray-400 block mb-1">Headers</label>
               <textarea
                 rows={3}
-                value={headersText}
-                onChange={(event) => setHeadersText(event.target.value)}
-                onBlur={(event) => handleHeadersBlur(event.target.value)}
+                value={headersText.value}
+                onChange={textInputHandler(headersText.setValue)}
+                onBlur={headersText.commit}
                 placeholder={'Content-Type: application/json\nX-Feature: mock'}
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
@@ -257,9 +237,9 @@ const NetworkMockNode: FC<NodeProps> = ({ data, selected, id }) => {
               <label className="text-gray-400 block mb-1">Body</label>
               <textarea
                 rows={4}
-                value={body}
-                onChange={(event) => setBody(event.target.value)}
-                onBlur={(event) => handleBodyBlur(event.target.value)}
+                value={body.value}
+                onChange={textInputHandler(body.setValue)}
+                onBlur={body.commit}
                 placeholder='{"ok": true}'
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
@@ -268,9 +248,7 @@ const NetworkMockNode: FC<NodeProps> = ({ data, selected, id }) => {
           </>
         )}
       </div>
-
-      <Handle type="source" position={Position.Bottom} className="node-handle" />
-    </div>
+    </BaseNode>
   );
 };
 

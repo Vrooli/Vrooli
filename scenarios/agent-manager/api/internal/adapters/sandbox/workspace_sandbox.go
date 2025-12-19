@@ -294,17 +294,70 @@ func (p *WorkspaceSandboxProvider) doRequest(ctx context.Context, method, path s
 	return p.httpClient.Do(req)
 }
 
+// SandboxAPIError represents a structured error response from the workspace-sandbox API.
+type SandboxAPIError struct {
+	ErrorMsg  string                 `json:"error"`
+	Code      int                    `json:"code"`
+	Hint      string                 `json:"hint,omitempty"`
+	Retryable bool                   `json:"retryable,omitempty"`
+	Details   map[string]interface{} `json:"details,omitempty"`
+}
+
+func (e *SandboxAPIError) Error() string {
+	return e.ErrorMsg
+}
+
+// ConflictingSandbox represents a sandbox that conflicts with a requested operation.
+type ConflictingSandbox struct {
+	SandboxID    string `json:"sandboxId"`
+	Scope        string `json:"scope"`
+	ConflictType string `json:"conflictType"`
+}
+
+// GetConflicts extracts conflict details if this is a scope conflict error.
+func (e *SandboxAPIError) GetConflicts() []ConflictingSandbox {
+	if e.Details == nil {
+		return nil
+	}
+	conflictsRaw, ok := e.Details["conflicts"]
+	if !ok {
+		return nil
+	}
+	conflictsSlice, ok := conflictsRaw.([]interface{})
+	if !ok {
+		return nil
+	}
+
+	conflicts := make([]ConflictingSandbox, 0, len(conflictsSlice))
+	for _, c := range conflictsSlice {
+		cMap, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		conflict := ConflictingSandbox{}
+		if id, ok := cMap["sandboxId"].(string); ok {
+			conflict.SandboxID = id
+		}
+		if scope, ok := cMap["scope"].(string); ok {
+			conflict.Scope = scope
+		}
+		if ct, ok := cMap["conflictType"].(string); ok {
+			conflict.ConflictType = ct
+		}
+		conflicts = append(conflicts, conflict)
+	}
+	return conflicts
+}
+
 func (p *WorkspaceSandboxProvider) parseError(resp *http.Response) error {
 	body, _ := io.ReadAll(resp.Body)
-	var errResp struct {
-		Error   string `json:"error"`
-		Message string `json:"message"`
-	}
+	var errResp SandboxAPIError
 	if err := json.Unmarshal(body, &errResp); err != nil {
 		return fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
 	}
-	if errResp.Error != "" {
-		return fmt.Errorf("%s: %s", errResp.Error, errResp.Message)
+	errResp.Code = resp.StatusCode
+	if errResp.ErrorMsg != "" {
+		return &errResp
 	}
 	return fmt.Errorf("request failed with status %d", resp.StatusCode)
 }
