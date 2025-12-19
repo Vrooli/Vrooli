@@ -18,12 +18,18 @@
 // - Events are flushed before marking failure
 // - Errors are classified for actionable recovery hints
 // - Partial work is captured in run summary
+//
+// RESILIENCE PATTERNS (see architectural guides):
+// - Idempotency: Operations are idempotent via checkpoint tracking
+// - Temporal Flow: Heartbeats, timeouts, and cancellation propagation
+// - Progress Continuity: Checkpoints enable safe interruption and resumption
 
 package orchestration
 
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"agent-manager/internal/adapters/event"
@@ -34,15 +40,55 @@ import (
 	"github.com/google/uuid"
 )
 
+// ExecutorConfig holds configuration for run execution.
+type ExecutorConfig struct {
+	// Timeout is the maximum execution time
+	Timeout time.Duration
+
+	// HeartbeatInterval is how often to update heartbeat
+	HeartbeatInterval time.Duration
+
+	// CheckpointInterval is how often to save checkpoints
+	CheckpointInterval time.Duration
+
+	// MaxRetries is the maximum retries per phase
+	MaxRetries int
+
+	// StaleThreshold is how long without heartbeat before considering stale
+	StaleThreshold time.Duration
+}
+
+// DefaultExecutorConfig returns sensible defaults for execution.
+func DefaultExecutorConfig() ExecutorConfig {
+	return ExecutorConfig{
+		Timeout:            30 * time.Minute,
+		HeartbeatInterval:  30 * time.Second,
+		CheckpointInterval: 1 * time.Minute,
+		MaxRetries:         3,
+		StaleThreshold:     2 * time.Minute,
+	}
+}
+
 // RunExecutor handles the execution lifecycle of a single run.
 // It encapsulates all the steps needed to execute an agent run,
 // making the flow explicit and each step independently testable.
+//
+// RESILIENCE FEATURES:
+// - Checkpoints: Saves progress at each phase transition
+// - Heartbeats: Regular updates to detect stalled runs
+// - Timeout handling: Enforces maximum execution time
+// - Cancellation: Responds to context cancellation
+// - Resumption: Can resume from last checkpoint after interruption
 type RunExecutor struct {
 	// Dependencies
-	runs     repository.RunRepository
-	runners  runner.Registry
-	sandbox  sandbox.Provider
-	events   event.Store
+	runs        repository.RunRepository
+	runners     runner.Registry
+	sandbox     sandbox.Provider
+	events      event.Store
+	checkpoints repository.CheckpointRepository // optional: for checkpoint persistence
+
+	// Configuration
+	config ExecutorConfig
 
 	// Execution context
 	run     *domain.Run
@@ -53,11 +99,23 @@ type RunExecutor struct {
 	// Workspace state
 	sandboxID *uuid.UUID
 	workDir   string
+	lockID    *uuid.UUID
+
+	// Progress tracking
+	checkpoint *domain.RunCheckpoint
+	mu         sync.Mutex // protects checkpoint updates
+
+	// Heartbeat management
+	heartbeatStop chan struct{}
+	heartbeatDone chan struct{}
 
 	// Result state
 	outcome domain.RunOutcome
 	result  *runner.ExecuteResult
 	execErr error
+
+	// Resumption state
+	isResuming bool
 }
 
 // NewRunExecutor creates a new executor for the given run.
@@ -72,15 +130,46 @@ func NewRunExecutor(
 	prompt string,
 ) *RunExecutor {
 	return &RunExecutor{
-		runs:    runs,
-		runners: runners,
-		sandbox: sandbox,
-		events:  events,
-		run:     run,
-		task:    task,
-		profile: profile,
-		prompt:  prompt,
+		runs:          runs,
+		runners:       runners,
+		sandbox:       sandbox,
+		events:        events,
+		run:           run,
+		task:          task,
+		profile:       profile,
+		prompt:        prompt,
+		config:        DefaultExecutorConfig(),
+		checkpoint:    domain.NewCheckpoint(run.ID, domain.RunPhaseQueued),
+		heartbeatStop: make(chan struct{}),
+		heartbeatDone: make(chan struct{}),
 	}
+}
+
+// WithConfig sets custom executor configuration.
+func (e *RunExecutor) WithConfig(config ExecutorConfig) *RunExecutor {
+	e.config = config
+	return e
+}
+
+// WithCheckpointRepository enables checkpoint persistence.
+func (e *RunExecutor) WithCheckpointRepository(repo repository.CheckpointRepository) *RunExecutor {
+	e.checkpoints = repo
+	return e
+}
+
+// WithResumeFrom configures the executor to resume from a checkpoint.
+func (e *RunExecutor) WithResumeFrom(checkpoint *domain.RunCheckpoint) *RunExecutor {
+	e.checkpoint = checkpoint
+	e.isResuming = true
+	// Restore state from checkpoint
+	if checkpoint.SandboxID != nil {
+		e.sandboxID = checkpoint.SandboxID
+		e.workDir = checkpoint.WorkDir
+	}
+	if checkpoint.LockID != nil {
+		e.lockID = checkpoint.LockID
+	}
+	return e
 }
 
 // Execute runs the full execution lifecycle.
@@ -89,41 +178,247 @@ func NewRunExecutor(
 // GRACEFUL DEGRADATION: Each step is wrapped with proper error handling.
 // On failure, we capture the error with full context and preserve
 // the sandbox for inspection.
+//
+// RESILIENCE:
+// - Context cancellation is propagated to all steps
+// - Timeout is enforced via context deadline
+// - Heartbeats run in background to detect stalls
+// - Checkpoints are saved at each phase transition
+// - Resumption skips already-completed phases
 func (e *RunExecutor) Execute(ctx context.Context) {
-	// Step 1: Update to starting
-	if err := e.updateStatusToStarting(ctx); err != nil {
-		e.failWithError(ctx, &domain.DatabaseError{
-			Operation:   "update",
-			EntityType:  "Run",
-			EntityID:    e.run.ID.String(),
-			Cause:       err,
-			IsTransient: true, // Status updates are retryable
-		})
+	// Apply timeout to context
+	execCtx, cancel := context.WithTimeout(ctx, e.config.Timeout)
+	defer cancel()
+
+	// Start heartbeat goroutine
+	go e.heartbeatLoop(ctx)
+	defer e.stopHeartbeat()
+
+	// Determine starting phase (for resumption)
+	startPhase := e.checkpoint.Phase
+	if e.isResuming {
+		e.emitSystemEvent(ctx, "info", fmt.Sprintf("resuming from phase: %s", startPhase))
+	}
+
+	// Step 1: Update to starting (skip if resuming past this phase)
+	if !e.shouldSkipPhase(domain.RunPhaseInitializing) {
+		if err := e.updateStatusToStarting(execCtx); err != nil {
+			e.failWithError(execCtx, &domain.DatabaseError{
+				Operation:   "update",
+				EntityType:  "Run",
+				EntityID:    e.run.ID.String(),
+				Cause:       err,
+				IsTransient: true, // Status updates are retryable
+			})
+			return
+		}
+		e.advancePhase(execCtx, domain.RunPhaseInitializing)
+	}
+
+	// Check for cancellation between phases
+	if err := execCtx.Err(); err != nil {
+		e.handleContextError(ctx, err)
 		return
 	}
 
-	// Step 2: Setup workspace
-	if err := e.setupWorkspace(ctx); err != nil {
-		// setupWorkspace already returns domain errors
-		e.failWithError(ctx, err)
-		e.cleanupOnFailure(ctx)
+	// Step 2: Setup workspace (skip if resuming with existing sandbox)
+	if !e.shouldSkipPhase(domain.RunPhaseSandboxCreating) || e.sandboxID == nil {
+		e.advancePhase(execCtx, domain.RunPhaseSandboxCreating)
+		if err := e.setupWorkspace(execCtx); err != nil {
+			// setupWorkspace already returns domain errors
+			e.failWithError(execCtx, err)
+			e.cleanupOnFailure(execCtx)
+			return
+		}
+	} else {
+		e.emitSystemEvent(ctx, "info", "reusing existing sandbox from checkpoint")
+	}
+
+	// Check for cancellation between phases
+	if err := execCtx.Err(); err != nil {
+		e.handleContextError(ctx, err)
 		return
 	}
 
 	// Step 3: Acquire runner
-	agentRunner, err := e.acquireRunner(ctx)
+	e.advancePhase(execCtx, domain.RunPhaseRunnerAcquiring)
+	agentRunner, err := e.acquireRunner(execCtx)
 	if err != nil {
 		// acquireRunner already returns domain errors
-		e.failWithError(ctx, err)
-		e.cleanupOnFailure(ctx)
+		e.failWithError(execCtx, err)
+		e.cleanupOnFailure(execCtx)
+		return
+	}
+
+	// Check for cancellation between phases
+	if err := execCtx.Err(); err != nil {
+		e.handleContextError(ctx, err)
 		return
 	}
 
 	// Step 4: Execute agent
-	e.executeAgent(ctx, agentRunner)
+	e.advancePhase(execCtx, domain.RunPhaseExecuting)
+	e.executeAgent(execCtx, agentRunner)
+
+	// Check for timeout or cancellation
+	if err := execCtx.Err(); err != nil {
+		e.handleContextError(ctx, err)
+		return
+	}
 
 	// Step 5: Handle result
-	e.handleResult(ctx)
+	e.advancePhase(execCtx, domain.RunPhaseCollectingResults)
+	e.handleResult(execCtx)
+}
+
+// =============================================================================
+// PHASE MANAGEMENT & CHECKPOINTING
+// =============================================================================
+
+// shouldSkipPhase returns true if we're resuming and have already completed this phase.
+func (e *RunExecutor) shouldSkipPhase(phase domain.RunPhase) bool {
+	if !e.isResuming {
+		return false
+	}
+	// Compare phase ordinals
+	return phaseOrdinal(e.checkpoint.Phase) > phaseOrdinal(phase)
+}
+
+// phaseOrdinal returns the numeric order of a phase for comparison.
+func phaseOrdinal(phase domain.RunPhase) int {
+	switch phase {
+	case domain.RunPhaseQueued:
+		return 0
+	case domain.RunPhaseInitializing:
+		return 1
+	case domain.RunPhaseSandboxCreating:
+		return 2
+	case domain.RunPhaseRunnerAcquiring:
+		return 3
+	case domain.RunPhaseExecuting:
+		return 4
+	case domain.RunPhaseCollectingResults:
+		return 5
+	case domain.RunPhaseAwaitingReview:
+		return 6
+	case domain.RunPhaseApplying:
+		return 7
+	case domain.RunPhaseCleaningUp:
+		return 8
+	case domain.RunPhaseCompleted:
+		return 9
+	default:
+		return 0
+	}
+}
+
+// advancePhase updates the checkpoint to a new phase and persists it.
+func (e *RunExecutor) advancePhase(ctx context.Context, phase domain.RunPhase) {
+	e.mu.Lock()
+	e.checkpoint = e.checkpoint.Update(phase, 0)
+	e.run.UpdateProgress(phase, domain.PhaseToProgress(phase))
+	e.mu.Unlock()
+
+	// Persist checkpoint if repository is available
+	e.saveCheckpoint(ctx)
+
+	// Update run in database
+	e.runs.Update(ctx, e.run)
+
+	// Emit phase change event
+	e.emitSystemEvent(ctx, "info", fmt.Sprintf("phase: %s", phase.Description()))
+}
+
+// saveCheckpoint persists the current checkpoint if a repository is configured.
+func (e *RunExecutor) saveCheckpoint(ctx context.Context) {
+	if e.checkpoints == nil {
+		return
+	}
+
+	e.mu.Lock()
+	cp := *e.checkpoint // copy
+	e.mu.Unlock()
+
+	if err := e.checkpoints.Save(ctx, &cp); err != nil {
+		// Log but don't fail - checkpoint is best-effort
+		e.emitSystemEvent(ctx, "warn", "failed to save checkpoint: "+err.Error())
+	}
+}
+
+// =============================================================================
+// HEARTBEAT MANAGEMENT
+// =============================================================================
+
+// heartbeatLoop sends periodic heartbeats to indicate the run is still active.
+func (e *RunExecutor) heartbeatLoop(ctx context.Context) {
+	defer close(e.heartbeatDone)
+
+	ticker := time.NewTicker(e.config.HeartbeatInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-e.heartbeatStop:
+			return
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			e.sendHeartbeat(ctx)
+		}
+	}
+}
+
+// sendHeartbeat updates the run's last heartbeat time.
+func (e *RunExecutor) sendHeartbeat(ctx context.Context) {
+	e.mu.Lock()
+	now := time.Now()
+	e.run.LastHeartbeat = &now
+	e.checkpoint.LastHeartbeat = now
+	e.mu.Unlock()
+
+	// Update run in database (best-effort)
+	if err := e.runs.Update(ctx, e.run); err != nil {
+		e.emitSystemEvent(ctx, "warn", "heartbeat update failed: "+err.Error())
+	}
+
+	// Update checkpoint in database (best-effort)
+	if e.checkpoints != nil {
+		e.checkpoints.Heartbeat(ctx, e.run.ID)
+	}
+}
+
+// stopHeartbeat signals the heartbeat loop to stop.
+func (e *RunExecutor) stopHeartbeat() {
+	close(e.heartbeatStop)
+	<-e.heartbeatDone
+}
+
+// =============================================================================
+// CONTEXT ERROR HANDLING
+// =============================================================================
+
+// handleContextError handles context cancellation or timeout.
+func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
+	if err == context.DeadlineExceeded {
+		e.failWithError(ctx, &domain.RunnerError{
+			RunnerType:  e.profile.RunnerType,
+			Operation:   "timeout",
+			Cause:       fmt.Errorf("execution exceeded timeout of %v", e.config.Timeout),
+			IsTransient: false,
+		})
+		e.outcome = domain.RunOutcomeTimeout
+	} else if err == context.Canceled {
+		// Graceful cancellation - not an error
+		e.emitSystemEvent(ctx, "info", "execution cancelled")
+		e.outcome = domain.RunOutcomeCancelled
+		now := time.Now()
+		e.run.Status = domain.RunStatusCancelled
+		e.run.EndedAt = &now
+		e.run.UpdatedAt = now
+		e.runs.Update(ctx, e.run)
+	}
+
+	e.cleanupOnFailure(ctx)
 }
 
 // =============================================================================
@@ -159,11 +454,15 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 		}
 	}
 
+	// Use idempotency key to allow safe retries of sandbox creation
+	idempotencyKey := fmt.Sprintf("sandbox:run:%s", e.run.ID.String())
+
 	sbx, err := e.sandbox.Create(ctx, sandbox.CreateRequest{
-		ScopePath:   e.task.ScopePath,
-		ProjectRoot: e.task.ProjectRoot,
-		Owner:       e.run.ID.String(),
-		OwnerType:   "run",
+		ScopePath:      e.task.ScopePath,
+		ProjectRoot:    e.task.ProjectRoot,
+		Owner:          e.run.ID.String(),
+		OwnerType:      "run",
+		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
 		return &domain.SandboxError{
@@ -197,6 +496,12 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 		}
 	}
 	e.workDir = workDir
+
+	// Update checkpoint with sandbox information for resumption
+	e.mu.Lock()
+	e.checkpoint = e.checkpoint.WithSandbox(sbx.ID, workDir)
+	e.mu.Unlock()
+	e.saveCheckpoint(ctx)
 
 	return nil
 }

@@ -53,6 +53,11 @@ type Service interface {
 	ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error)
 	StopRun(ctx context.Context, id uuid.UUID) error
 
+	// --- Run Resumption Operations (Interruption Resilience) ---
+	ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
+	GetRunProgress(ctx context.Context, id uuid.UUID) (*domain.RunProgress, error)
+	ListStaleRuns(ctx context.Context, staleDuration time.Duration) ([]*domain.Run, error)
+
 	// --- Approval Operations ---
 	ApproveRun(ctx context.Context, req ApproveRequest) (*ApproveResult, error)
 	RejectRun(ctx context.Context, id uuid.UUID, actor, reason string) error
@@ -92,9 +97,14 @@ type RunListOptions struct {
 type CreateRunRequest struct {
 	TaskID         uuid.UUID
 	AgentProfileID uuid.UUID
-	Prompt         string // Optional override prompt
+	Prompt         string          // Optional override prompt
 	RunMode        *domain.RunMode // nil = let policy decide
-	ForceInPlace   bool // Request in-place execution
+	ForceInPlace   bool            // Request in-place execution
+
+	// IdempotencyKey enables safe retries of run creation.
+	// If provided and a run with this key already exists, the existing run is returned.
+	// Format suggestion: "run:{taskID}:{timestamp}" or caller-defined unique string.
+	IdempotencyKey string
 }
 
 // ApproveRequest contains parameters for approving a run.
@@ -126,12 +136,12 @@ type ApproveResult struct {
 
 // HealthStatus contains system health information.
 type HealthStatus struct {
-	Status       string                   `json:"status"`
-	Database     ComponentStatus          `json:"database"`
-	Sandbox      ComponentStatus          `json:"sandbox"`
-	Runners      map[string]RunnerStatus  `json:"runners"`
-	ActiveRuns   int                      `json:"activeRuns"`
-	QueuedTasks  int                      `json:"queuedTasks"`
+	Status      string                  `json:"status"`
+	Database    ComponentStatus         `json:"database"`
+	Sandbox     ComponentStatus         `json:"sandbox"`
+	Runners     map[string]RunnerStatus `json:"runners"`
+	ActiveRuns  int                     `json:"activeRuns"`
+	QueuedTasks int                     `json:"queuedTasks"`
 }
 
 // ComponentStatus describes a component's health.
@@ -142,10 +152,10 @@ type ComponentStatus struct {
 
 // RunnerStatus describes a runner's availability.
 type RunnerStatus struct {
-	Type         domain.RunnerType    `json:"type"`
-	Available    bool                 `json:"available"`
-	Message      string               `json:"message,omitempty"`
-	Capabilities runner.Capabilities  `json:"capabilities"`
+	Type         domain.RunnerType   `json:"type"`
+	Available    bool                `json:"available"`
+	Message      string              `json:"message,omitempty"`
+	Capabilities runner.Capabilities `json:"capabilities"`
 }
 
 // -----------------------------------------------------------------------------
@@ -155,9 +165,11 @@ type RunnerStatus struct {
 // Orchestrator coordinates agent execution using injected dependencies.
 type Orchestrator struct {
 	// Repositories (persistence)
-	profiles repository.ProfileRepository
-	tasks    repository.TaskRepository
-	runs     repository.RunRepository
+	profiles    repository.ProfileRepository
+	tasks       repository.TaskRepository
+	runs        repository.RunRepository
+	checkpoints repository.CheckpointRepository  // For resumption support
+	idempotency repository.IdempotencyRepository // For replay safety
 
 	// Adapters (external integrations)
 	runners   runner.Registry
@@ -177,9 +189,9 @@ type Orchestrator struct {
 
 // OrchestratorConfig holds service configuration.
 type OrchestratorConfig struct {
-	DefaultTimeout       time.Duration
-	MaxConcurrentRuns    int
-	DefaultProjectRoot   string
+	DefaultTimeout          time.Duration
+	MaxConcurrentRuns       int
+	DefaultProjectRoot      string
 	RequireSandboxByDefault bool
 }
 
@@ -241,6 +253,20 @@ func WithArtifacts(a artifact.Collector) Option {
 func WithLocks(l sandbox.LockManager) Option {
 	return func(o *Orchestrator) {
 		o.locks = l
+	}
+}
+
+// WithCheckpoints sets the checkpoint repository for resumption support.
+func WithCheckpoints(c repository.CheckpointRepository) Option {
+	return func(o *Orchestrator) {
+		o.checkpoints = c
+	}
+}
+
+// WithIdempotency sets the idempotency repository for replay safety.
+func WithIdempotency(i repository.IdempotencyRepository) Option {
+	return func(o *Orchestrator) {
+		o.idempotency = i
 	}
 }
 
@@ -381,14 +407,43 @@ func (o *Orchestrator) CancelTask(ctx context.Context, id uuid.UUID) error {
 // -----------------------------------------------------------------------------
 
 func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error) {
+	// IDEMPOTENCY: Check if this request has already been processed
+	if req.IdempotencyKey != "" && o.idempotency != nil {
+		existing, err := o.idempotency.Check(ctx, req.IdempotencyKey)
+		if err != nil {
+			return nil, fmt.Errorf("idempotency check failed: %w", err)
+		}
+		if existing != nil {
+			// Request already processed - return cached result
+			if existing.Status == domain.IdempotencyStatusComplete && existing.EntityID != nil {
+				return o.GetRun(ctx, *existing.EntityID)
+			}
+			if existing.Status == domain.IdempotencyStatusPending {
+				// Another request is in progress with this key
+				return nil, domain.NewStateError("Run", "creating", "create",
+					"a run creation with this idempotency key is already in progress")
+			}
+			// Failed status - allow retry by falling through
+		}
+
+		// Reserve the idempotency key for this operation
+		if _, err := o.idempotency.Reserve(ctx, req.IdempotencyKey, 1*time.Hour); err != nil {
+			// If reservation fails, another request beat us to it
+			return nil, domain.NewStateError("Run", "creating", "create",
+				"a run creation with this idempotency key is already in progress")
+		}
+	}
+
 	// Get task and profile
 	task, err := o.GetTask(ctx, req.TaskID)
 	if err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
 	}
 
 	profile, err := o.GetProfile(ctx, req.AgentProfileID)
 	if err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
 	}
 
@@ -396,15 +451,17 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	var policyDecision *policy.Decision
 	if o.policy != nil {
 		policyDecision, err = o.policy.EvaluateRunRequest(ctx, policy.EvaluateRequest{
-			Task:         task,
-			Profile:      profile,
+			Task:          task,
+			Profile:       profile,
 			RequestedMode: valueOrDefault(req.RunMode, domain.RunModeSandboxed),
-			ForceInPlace: req.ForceInPlace,
+			ForceInPlace:  req.ForceInPlace,
 		})
 		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 			return nil, fmt.Errorf("policy evaluation failed: %w", err)
 		}
 		if !policyDecision.Allowed {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 			return nil, &domain.PolicyViolationError{
 				PolicyID:   policyDecision.DenialPolicy.ID,
 				PolicyName: policyDecision.DenialPolicy.Name,
@@ -422,26 +479,49 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		runMode = domain.RunModeInPlace
 	}
 
-	// Create the run
+	// Create the run with progress tracking initialized
 	run := &domain.Run{
-		ID:             uuid.New(),
-		TaskID:         task.ID,
-		AgentProfileID: profile.ID,
-		RunMode:        runMode,
-		Status:         domain.RunStatusPending,
-		ApprovalState:  domain.ApprovalStateNone,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		ID:              uuid.New(),
+		TaskID:          task.ID,
+		AgentProfileID:  profile.ID,
+		RunMode:         runMode,
+		Status:          domain.RunStatusPending,
+		Phase:           domain.RunPhaseQueued,
+		ProgressPercent: 0,
+		IdempotencyKey:  req.IdempotencyKey,
+		ApprovalState:   domain.ApprovalStateNone,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 
 	if err := o.runs.Create(ctx, run); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, fmt.Errorf("failed to create run: %w", err)
 	}
+
+	// Mark idempotency as complete
+	o.markIdempotencyComplete(ctx, req.IdempotencyKey, run.ID, "Run")
 
 	// Start execution asynchronously
 	go o.executeRun(context.Background(), run, task, profile, req.Prompt)
 
 	return run, nil
+}
+
+// markIdempotencyFailed marks an idempotency key as failed (allows retry).
+func (o *Orchestrator) markIdempotencyFailed(ctx context.Context, key string) {
+	if key == "" || o.idempotency == nil {
+		return
+	}
+	o.idempotency.Fail(ctx, key)
+}
+
+// markIdempotencyComplete marks an idempotency key as successfully completed.
+func (o *Orchestrator) markIdempotencyComplete(ctx context.Context, key string, entityID uuid.UUID, entityType string) {
+	if key == "" || o.idempotency == nil {
+		return
+	}
+	o.idempotency.Complete(ctx, key, entityID, entityType, nil)
 }
 
 func (o *Orchestrator) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
@@ -510,7 +590,149 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		profile,
 		prompt,
 	)
+	// Configure executor with checkpoint repository if available
+	if o.checkpoints != nil {
+		executor.WithCheckpointRepository(o.checkpoints)
+	}
 	executor.Execute(ctx)
+}
+
+// -----------------------------------------------------------------------------
+// Run Resumption Operations (Interruption Resilience)
+// -----------------------------------------------------------------------------
+
+// ResumeRun attempts to resume a stalled or interrupted run from its last checkpoint.
+// This enables safe recovery from crashes, network issues, or intentional pauses.
+//
+// IDEMPOTENCY: Resuming an already-running or completed run is a no-op.
+// TEMPORAL FLOW: Validates the run hasn't exceeded its stale threshold.
+// PROGRESS CONTINUITY: Uses checkpoints to skip completed phases.
+func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
+	run, err := o.GetRun(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate resumability using domain decision helper
+	if !run.IsResumable() {
+		return nil, domain.NewStateError("Run", string(run.Status), "resume",
+			fmt.Sprintf("run in %s state cannot be resumed", run.Status))
+	}
+
+	// Get the last checkpoint
+	var checkpoint *domain.RunCheckpoint
+	if o.checkpoints != nil {
+		checkpoint, err = o.checkpoints.Get(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get checkpoint: %w", err)
+		}
+	}
+
+	// If no checkpoint, start from the beginning
+	if checkpoint == nil {
+		checkpoint = domain.NewCheckpoint(id, domain.RunPhaseQueued)
+	}
+
+	// Get associated entities
+	task, err := o.GetTask(ctx, run.TaskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task for resume: %w", err)
+	}
+
+	profile, err := o.GetProfile(ctx, run.AgentProfileID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get profile for resume: %w", err)
+	}
+
+	// Update status to running
+	run.Status = domain.RunStatusRunning
+	run.UpdatedAt = time.Now()
+	if err := o.runs.Update(ctx, run); err != nil {
+		return nil, fmt.Errorf("failed to update run status: %w", err)
+	}
+
+	// Start execution asynchronously with resumption
+	go o.resumeRun(context.Background(), run, task, profile, checkpoint)
+
+	return run, nil
+}
+
+// resumeRun handles the actual agent resumption (runs in background).
+func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, checkpoint *domain.RunCheckpoint) {
+	executor := NewRunExecutor(
+		o.runs,
+		o.runners,
+		o.sandbox,
+		o.events,
+		run,
+		task,
+		profile,
+		"", // No new prompt for resume
+	)
+
+	// Configure for resumption
+	if o.checkpoints != nil {
+		executor.WithCheckpointRepository(o.checkpoints)
+	}
+	executor.WithResumeFrom(checkpoint)
+
+	executor.Execute(ctx)
+}
+
+// GetRunProgress returns the current progress of a run for display.
+// This provides visibility into what phase a run is in and estimated completion.
+func (o *Orchestrator) GetRunProgress(ctx context.Context, id uuid.UUID) (*domain.RunProgress, error) {
+	run, err := o.GetRun(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	progress := &domain.RunProgress{
+		Phase:            run.Phase,
+		PhaseDescription: run.Phase.Description(),
+		PercentComplete:  run.ProgressPercent,
+		LastUpdate:       run.UpdatedAt,
+	}
+
+	// Calculate elapsed time
+	if run.StartedAt != nil {
+		progress.ElapsedTime = time.Since(*run.StartedAt)
+	}
+
+	// Add current action description based on phase
+	switch run.Phase {
+	case domain.RunPhaseExecuting:
+		progress.CurrentAction = "Agent is working on the task"
+	case domain.RunPhaseAwaitingReview:
+		progress.CurrentAction = "Changes ready for review"
+	case domain.RunPhaseApplying:
+		progress.CurrentAction = "Applying approved changes"
+	}
+
+	return progress, nil
+}
+
+// ListStaleRuns returns runs that appear to have stalled based on their last heartbeat.
+// This enables monitoring and automatic recovery of stuck runs.
+func (o *Orchestrator) ListStaleRuns(ctx context.Context, staleDuration time.Duration) ([]*domain.Run, error) {
+	// Get all running runs
+	runningStatus := domain.RunStatusRunning
+	runs, err := o.runs.List(ctx, repository.RunListFilter{
+		Status: &runningStatus,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list running runs: %w", err)
+	}
+
+	// Filter to stale runs
+	var staleRuns []*domain.Run
+	for _, run := range runs {
+		if run.IsStale(staleDuration) {
+			staleRuns = append(staleRuns, run)
+		}
+	}
+
+	return staleRuns, nil
 }
 
 // NOTE: Approval operations (ApproveRun, RejectRun, PartialApprove)

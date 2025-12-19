@@ -6,6 +6,8 @@
 
 package domain
 
+import "time"
+
 // =============================================================================
 // STATE TRANSITION DECISIONS
 // =============================================================================
@@ -287,14 +289,14 @@ func (o RunOutcome) IsTerminalFailure() bool {
 //   - ScopesOverlap("src/", "tests/") → false (siblings)
 //   - ScopesOverlap("src/foo", "src/foo") → true (identical)
 func ScopesOverlap(scopeA, scopeB string) bool {
-	// Identical scopes overlap
-	if scopeA == scopeB {
-		return true
-	}
-
-	// Normalize paths (ensure consistent trailing slash handling)
+	// Normalize paths first (ensure consistent slash handling)
 	normA := normalizeScopePath(scopeA)
 	normB := normalizeScopePath(scopeB)
+
+	// Identical scopes overlap
+	if normA == normB {
+		return true
+	}
 
 	// Check if A is ancestor of B or vice versa
 	return isAncestorOf(normA, normB) || isAncestorOf(normB, normA)
@@ -323,4 +325,166 @@ func isAncestorOf(ancestor, descendant string) bool {
 		return false
 	}
 	return descendant[:len(ancestor)] == ancestor && descendant[len(ancestor)] == '/'
+}
+
+// =============================================================================
+// RESUMPTION DECISIONS
+// =============================================================================
+// These functions determine when and how runs can be resumed after interruption.
+
+// ResumptionDecision captures the decision about whether a run can be resumed.
+type ResumptionDecision struct {
+	CanResume     bool
+	Reason        string
+	ResumePhase   RunPhase
+	SkippedPhases []RunPhase
+}
+
+// DecideResumption determines whether a run can be resumed and from which phase.
+// This is a pure function that makes resumption logic explicit and testable.
+//
+// Decision criteria:
+// 1. Run must be in non-terminal status (not complete, failed, cancelled)
+// 2. Run's phase must support resumption
+// 3. Checkpoint must be available if run was past initialization
+func DecideResumption(
+	run *Run,
+	checkpoint *RunCheckpoint,
+	staleDuration time.Duration,
+) ResumptionDecision {
+	// Check terminal status
+	if run.Status == RunStatusComplete {
+		return ResumptionDecision{
+			CanResume: false,
+			Reason:    "run is already complete",
+		}
+	}
+	if run.Status == RunStatusFailed {
+		return ResumptionDecision{
+			CanResume: false,
+			Reason:    "run has failed - create a new run instead",
+		}
+	}
+	if run.Status == RunStatusCancelled {
+		return ResumptionDecision{
+			CanResume: false,
+			Reason:    "run was cancelled - create a new run instead",
+		}
+	}
+
+	// Check if phase supports resumption
+	phase := run.Phase
+	if checkpoint != nil {
+		phase = checkpoint.Phase
+	}
+
+	if !phase.CanResumeFromPhase() {
+		return ResumptionDecision{
+			CanResume: false,
+			Reason:    "phase " + string(phase) + " does not support resumption",
+		}
+	}
+
+	// Calculate which phases can be skipped
+	var skipped []RunPhase
+	switch phase {
+	case RunPhaseExecuting:
+		skipped = []RunPhase{RunPhaseQueued, RunPhaseInitializing, RunPhaseSandboxCreating, RunPhaseRunnerAcquiring}
+	case RunPhaseRunnerAcquiring:
+		skipped = []RunPhase{RunPhaseQueued, RunPhaseInitializing, RunPhaseSandboxCreating}
+	case RunPhaseSandboxCreating:
+		skipped = []RunPhase{RunPhaseQueued, RunPhaseInitializing}
+	case RunPhaseInitializing:
+		skipped = []RunPhase{RunPhaseQueued}
+	}
+
+	return ResumptionDecision{
+		CanResume:     true,
+		Reason:        "run can be resumed from " + string(phase),
+		ResumePhase:   phase,
+		SkippedPhases: skipped,
+	}
+}
+
+// =============================================================================
+// STALE RUN DECISIONS
+// =============================================================================
+
+// StaleRunDecision captures the decision about what to do with a stale run.
+type StaleRunDecision struct {
+	IsStale        bool
+	TimeSinceHeart time.Duration
+	Action         StaleRunAction
+	Reason         string
+}
+
+// StaleRunAction indicates what action should be taken for a stale run.
+type StaleRunAction string
+
+const (
+	StaleRunActionNone   StaleRunAction = "none"   // Not stale, no action needed
+	StaleRunActionResume StaleRunAction = "resume" // Try to resume the run
+	StaleRunActionFail   StaleRunAction = "fail"   // Mark as failed
+	StaleRunActionAlert  StaleRunAction = "alert"  // Alert operator but don't change state
+)
+
+// DecideStaleRunAction determines what action to take for a potentially stale run.
+//
+// Decision priority:
+// 1. If not stale, no action
+// 2. If resumable, try to resume
+// 3. If retries exhausted, mark as failed
+// 4. Otherwise, alert operator
+func DecideStaleRunAction(
+	run *Run,
+	checkpoint *RunCheckpoint,
+	staleDuration time.Duration,
+	maxRetries int,
+) StaleRunDecision {
+	// Check if actually stale
+	if !run.IsStale(staleDuration) {
+		return StaleRunDecision{
+			IsStale: false,
+			Action:  StaleRunActionNone,
+			Reason:  "run is not stale",
+		}
+	}
+
+	timeSinceHeart := time.Duration(0)
+	if run.LastHeartbeat != nil {
+		timeSinceHeart = time.Since(*run.LastHeartbeat)
+	}
+
+	// Check retry count
+	retryCount := 0
+	if checkpoint != nil {
+		retryCount = checkpoint.RetryCount
+	}
+
+	if retryCount >= maxRetries {
+		return StaleRunDecision{
+			IsStale:        true,
+			TimeSinceHeart: timeSinceHeart,
+			Action:         StaleRunActionFail,
+			Reason:         "max retries exceeded",
+		}
+	}
+
+	// Check if resumable
+	if run.IsResumable() {
+		return StaleRunDecision{
+			IsStale:        true,
+			TimeSinceHeart: timeSinceHeart,
+			Action:         StaleRunActionResume,
+			Reason:         "run is stale but can be resumed",
+		}
+	}
+
+	// Otherwise alert
+	return StaleRunDecision{
+		IsStale:        true,
+		TimeSinceHeart: timeSinceHeart,
+		Action:         StaleRunActionAlert,
+		Reason:         "run is stale and cannot be resumed automatically",
+	}
 }

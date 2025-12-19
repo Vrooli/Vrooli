@@ -1,44 +1,213 @@
-import { useQuery } from "@tanstack/react-query";
-import { ArrowRight } from "lucide-react";
-import { Button } from "./components/ui/button";
-import { fetchHealth } from "./lib/api";
+import { useCallback, useState } from "react";
+import {
+  Activity,
+  AlertCircle,
+  Bot,
+  CheckCircle2,
+  ClipboardList,
+  Play,
+  Settings2,
+} from "lucide-react";
+import { Badge } from "./components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { useHealth, useProfiles, useRuns, useTasks } from "./hooks/useApi";
+import { DashboardPage } from "./pages/DashboardPage";
+import { ProfilesPage } from "./pages/ProfilesPage";
+import { TasksPage } from "./pages/TasksPage";
+import { RunsPage } from "./pages/RunsPage";
 
 export default function App() {
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["health"],
-    queryFn: fetchHealth
-  });
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const health = useHealth();
+  const profiles = useProfiles();
+  const tasks = useTasks();
+  const runs = useRuns();
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+  }, []);
+
+  const isHealthy = health.data?.status === "healthy";
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur">
-        <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Scenario Template</p>
-        <h1 className="mt-3 text-3xl font-semibold">Agent Manager</h1>
-        <p className="mt-2 text-slate-300">
-          This starter UI is intentionally minimal. Replace it with your scenario-specific
-          experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.
-        </p>
-
-        <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4">
-          <p className="text-sm font-medium text-slate-400">API Health</p>
-          {isLoading && <p className="mt-2 text-slate-200">Checking API status…</p>}
-          {error && (
-            <p className="mt-2 text-red-400">
-              Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.
-            </p>
-          )}
-          {data && (
-            <div className="mt-2 text-sm text-slate-200">
-              <p>Status: {data.status}</p>
-              <p>Service: {data.service}</p>
-              <p>Timestamp: {new Date(data.timestamp).toLocaleString()}</p>
-            </div>
-          )}
-          <Button className="mt-4" onClick={() => refetch()}>
-            Refresh
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+    <div className="min-h-screen bg-transparent text-foreground">
+      {/* Header */}
+      <div className="relative overflow-hidden border-b border-border/50 backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-0 opacity-40">
+          <div className="absolute -left-32 top-24 h-72 w-72 rounded-full bg-primary/30 blur-3xl" />
+          <div className="absolute -top-20 right-0 h-96 w-96 rounded-full bg-purple-500/20 blur-3xl" />
         </div>
+        <header className="z-10 px-6 pb-4 pt-8 sm:px-10">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <Bot className="h-8 w-8 text-primary" />
+                <Badge className="uppercase tracking-wide" variant="secondary">
+                  Agent Manager
+                </Badge>
+                <Badge
+                  variant={isHealthy ? "success" : "destructive"}
+                  className="gap-1"
+                >
+                  {isHealthy ? (
+                    <CheckCircle2 className="h-3 w-3" />
+                  ) : (
+                    <AlertCircle className="h-3 w-3" />
+                  )}
+                  {isHealthy ? "Healthy" : "Degraded"}
+                </Badge>
+              </div>
+              <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
+                AI Agent Orchestration & Control
+              </h1>
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Manage agent profiles, create tasks, execute runs in sandboxed environments,
+                and review changes with approve/reject workflows.
+              </p>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="flex gap-4">
+              <QuickStat
+                icon={<Settings2 className="h-4 w-4" />}
+                label="Profiles"
+                value={profiles.data?.length ?? 0}
+              />
+              <QuickStat
+                icon={<ClipboardList className="h-4 w-4" />}
+                label="Tasks"
+                value={tasks.data?.length ?? 0}
+              />
+              <QuickStat
+                icon={<Play className="h-4 w-4" />}
+                label="Runs"
+                value={runs.data?.length ?? 0}
+              />
+              <QuickStat
+                icon={<Activity className="h-4 w-4" />}
+                label="Active"
+                value={
+                  runs.data?.filter(
+                    (r) => r.status === "running" || r.status === "starting"
+                  ).length ?? 0
+                }
+              />
+            </div>
+          </div>
+        </header>
+      </div>
+
+      {/* Main Content */}
+      <main className="flex flex-1 flex-col gap-6 px-6 py-6 sm:px-10">
+        {health.error && (
+          <Card className="border border-destructive/40 bg-destructive/10 text-sm">
+            <CardContent className="flex items-center gap-3 py-4">
+              <AlertCircle className="h-4 w-4 text-destructive" aria-hidden="true" />
+              <div>
+                <p className="font-semibold text-destructive">API Connection Error</p>
+                <p className="text-xs text-destructive/80">{health.error}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="mb-6 grid w-full max-w-[600px] grid-cols-4">
+            <TabsTrigger value="dashboard" className="gap-2">
+              <Activity className="h-4 w-4" />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="profiles" className="gap-2">
+              <Settings2 className="h-4 w-4" />
+              Profiles
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Tasks
+            </TabsTrigger>
+            <TabsTrigger value="runs" className="gap-2">
+              <Play className="h-4 w-4" />
+              Runs
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dashboard">
+            <DashboardPage
+              health={health.data}
+              profiles={profiles.data || []}
+              tasks={tasks.data || []}
+              runs={runs.data || []}
+              onRefresh={() => {
+                health.refetch();
+                profiles.refetch();
+                tasks.refetch();
+                runs.refetch();
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="profiles">
+            <ProfilesPage
+              profiles={profiles.data || []}
+              loading={profiles.loading}
+              error={profiles.error}
+              onCreateProfile={profiles.createProfile}
+              onUpdateProfile={profiles.updateProfile}
+              onDeleteProfile={profiles.deleteProfile}
+              onRefresh={profiles.refetch}
+            />
+          </TabsContent>
+
+          <TabsContent value="tasks">
+            <TasksPage
+              tasks={tasks.data || []}
+              profiles={profiles.data || []}
+              loading={tasks.loading}
+              error={tasks.error}
+              onCreateTask={tasks.createTask}
+              onCancelTask={tasks.cancelTask}
+              onCreateRun={runs.createRun}
+              onRefresh={tasks.refetch}
+            />
+          </TabsContent>
+
+          <TabsContent value="runs">
+            <RunsPage
+              runs={runs.data || []}
+              tasks={tasks.data || []}
+              profiles={profiles.data || []}
+              loading={runs.loading}
+              error={runs.error}
+              onStopRun={runs.stopRun}
+              onGetEvents={runs.getRunEvents}
+              onGetDiff={runs.getRunDiff}
+              onApproveRun={runs.approveRun}
+              onRejectRun={runs.rejectRun}
+              onRefresh={runs.refetch}
+            />
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  );
+}
+
+function QuickStat({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg bg-card/50 px-4 py-2 border border-border/50">
+      <div className="text-muted-foreground">{icon}</div>
+      <div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-lg font-semibold">{value}</p>
       </div>
     </div>
   );

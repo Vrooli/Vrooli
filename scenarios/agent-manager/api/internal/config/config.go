@@ -52,9 +52,9 @@ type DatabaseConfig struct {
 
 // SandboxConfig holds workspace-sandbox integration settings.
 type SandboxConfig struct {
-	URL             string
-	DefaultTimeout  time.Duration
-	ProjectRoot     string
+	URL            string
+	DefaultTimeout time.Duration
+	ProjectRoot    string
 }
 
 // RunnerConfig holds runner settings.
@@ -68,11 +68,11 @@ type RunnerConfig struct {
 
 // PolicyDefaults holds default policy values.
 type PolicyDefaults struct {
-	RequireSandbox       bool
-	RequireApproval      bool
-	MaxConcurrentRuns    int
+	RequireSandbox        bool
+	RequireApproval       bool
+	MaxConcurrentRuns     int
 	MaxConcurrentPerScope int
-	DefaultLockTTL       time.Duration
+	DefaultLockTTL        time.Duration
 }
 
 // Load reads configuration from environment variables with sensible defaults.

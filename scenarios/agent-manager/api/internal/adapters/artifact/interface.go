@@ -106,9 +106,9 @@ type ValidationRunner interface {
 
 // ValidationRequest specifies what to validate.
 type ValidationRequest struct {
-	RunID       uuid.UUID
-	WorkDir     string
-	Types       []ValidationType
+	RunID        uuid.UUID
+	WorkDir      string
+	Types        []ValidationType
 	FilePatterns []string // Limit to specific file patterns
 }
 

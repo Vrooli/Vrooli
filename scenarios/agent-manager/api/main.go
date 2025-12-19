@@ -14,61 +14,165 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/handlers"
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/handlers"
+	"agent-manager/internal/orchestration"
+	"agent-manager/internal/repository"
+
+	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/preflight"
 )
 
-// Config holds minimal runtime configuration
+// Config holds runtime configuration
 type Config struct {
 	Port        string
 	DatabaseURL string
+	UseInMemory bool
 }
 
-// Server wires the HTTP router and database connection
+// Server wires the HTTP router, database, and orchestration service
 type Server struct {
-	config *Config
-	db     *sql.DB
-	router *mux.Router
+	config       *Config
+	db           *sql.DB
+	router       *mux.Router
+	orchestrator orchestration.Service
 }
 
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
-	dbURL, err := resolveDatabaseURL()
-	if err != nil {
-		return nil, err
-	}
-
 	cfg := &Config{
 		Port:        requireEnv("API_PORT"),
-		DatabaseURL: dbURL,
+		UseInMemory: strings.ToLower(os.Getenv("USE_IN_MEMORY")) == "true",
 	}
 
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	var db *sql.DB
+	var err error
+
+	// Database connection (optional for in-memory mode)
+	if !cfg.UseInMemory {
+		cfg.DatabaseURL, err = resolveDatabaseURL()
+		if err != nil {
+			log.Printf("Database URL not configured, using in-memory storage: %v", err)
+			cfg.UseInMemory = true
+		} else {
+			db, err = sql.Open("postgres", cfg.DatabaseURL)
+			if err != nil {
+				log.Printf("Failed to connect to database, using in-memory: %v", err)
+				cfg.UseInMemory = true
+			} else if err := db.Ping(); err != nil {
+				log.Printf("Failed to ping database, using in-memory: %v", err)
+				db.Close()
+				db = nil
+				cfg.UseInMemory = true
+			}
+		}
 	}
 
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
+	// Create the orchestrator with appropriate repositories
+	orch := createOrchestrator(cfg.UseInMemory)
 
 	srv := &Server{
-		config: cfg,
-		db:     db,
-		router: mux.NewRouter(),
+		config:       cfg,
+		db:           db,
+		router:       mux.NewRouter(),
+		orchestrator: orch,
 	}
 
 	srv.setupRoutes()
 	return srv, nil
 }
 
+// createOrchestrator creates the orchestration service with all dependencies
+func createOrchestrator(useInMemory bool) orchestration.Service {
+	// Create repositories
+	var (
+		profileRepo     repository.ProfileRepository
+		taskRepo        repository.TaskRepository
+		runRepo         repository.RunRepository
+		checkpointRepo  repository.CheckpointRepository
+		idempotencyRepo repository.IdempotencyRepository
+	)
+
+	// Always use in-memory for now (PostgreSQL implementations would go here)
+	profileRepo = repository.NewMemoryProfileRepository()
+	taskRepo = repository.NewMemoryTaskRepository()
+	runRepo = repository.NewMemoryRunRepository()
+	checkpointRepo = repository.NewMemoryCheckpointRepository()
+	idempotencyRepo = repository.NewMemoryIdempotencyRepository()
+
+	// Create event store
+	eventStore := event.NewMemoryStore()
+
+	// Create runner registry
+	runnerRegistry := runner.NewRegistry()
+
+	// Register Claude Code runner (real implementation)
+	claudeRunner, err := runner.NewClaudeCodeRunner()
+	if err != nil {
+		log.Printf("Warning: Failed to create Claude Code runner: %v", err)
+		runnerRegistry.Register(runner.NewStubRunner(
+			domain.RunnerTypeClaudeCode,
+			fmt.Sprintf("claude-code runner failed to initialize: %v", err),
+		))
+	} else {
+		runnerRegistry.Register(claudeRunner)
+	}
+
+	// Register stub runners for other types (real implementations would go here)
+	runnerRegistry.Register(runner.NewStubRunner(
+		domain.RunnerTypeCodex,
+		"codex runner not configured",
+	))
+	runnerRegistry.Register(runner.NewStubRunner(
+		domain.RunnerTypeOpenCode,
+		"opencode runner not configured",
+	))
+
+	// Create workspace-sandbox provider
+	sandboxURL := os.Getenv("WORKSPACE_SANDBOX_URL")
+	if sandboxURL == "" {
+		// Try to get from port allocation
+		port := os.Getenv("WORKSPACE_SANDBOX_API_PORT")
+		if port == "" {
+			port = "15427" // Default workspace-sandbox port
+		}
+		sandboxURL = fmt.Sprintf("http://localhost:%s", port)
+	}
+	sandboxProvider := sandbox.NewWorkspaceSandboxProvider(sandboxURL)
+
+	// Build orchestrator with all dependencies
+	orch := orchestration.New(
+		profileRepo,
+		taskRepo,
+		runRepo,
+		orchestration.WithConfig(orchestration.OrchestratorConfig{
+			DefaultTimeout:          30 * time.Minute,
+			MaxConcurrentRuns:       10,
+			RequireSandboxByDefault: true,
+		}),
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(runnerRegistry),
+		orchestration.WithSandbox(sandboxProvider),
+		orchestration.WithCheckpoints(checkpointRepo),
+		orchestration.WithIdempotency(idempotencyRepo),
+	)
+
+	log.Printf("Orchestrator initialized (in-memory: %v, sandbox: %s)", useInMemory, sandboxURL)
+	return orch
+}
+
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
-	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
+	s.router.Use(corsMiddleware)
+
+	// Register all API routes via the handlers package
+	handler := handlers.New(s.orchestrator)
+	handler.RegisterRoutes(s.router)
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -80,7 +184,7 @@ func (s *Server) Start() error {
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", s.config.Port),
-		Handler:      handlers.RecoveryHandler()(s.router),
+		Handler:      gorillaHandlers.RecoveryHandler()(s.router),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -104,32 +208,13 @@ func (s *Server) Start() error {
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 
+	// Clean up database connection
+	if s.db != nil {
+		s.db.Close()
+	}
+
 	s.log("server stopped", nil)
 	return nil
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-	dbStatus := "connected"
-
-	if err := s.db.PingContext(r.Context()); err != nil {
-		status = "unhealthy"
-		dbStatus = "disconnected"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "Agent Manager API",
-		"version":   "1.0.0",
-		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{
-			"database": dbStatus,
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 // loggingMiddleware prints simple request logs
@@ -141,12 +226,29 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// corsMiddleware adds CORS headers for development
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) log(msg string, fields map[string]interface{}) {
 	if len(fields) == 0 {
 		log.Println(msg)
 		return
 	}
-	log.Printf("%s | %v", msg, fields)
+	data, _ := json.Marshal(fields)
+	log.Printf("%s | %s", msg, string(data))
 }
 
 func requireEnv(key string) string {

@@ -51,16 +51,16 @@ func loadFromFile(levers *Levers, path string) error {
 // Environment variables use the pattern: AGENT_MANAGER_<CATEGORY>_<LEVER>
 func applyEnvOverrides(l *Levers) {
 	// Execution levers
-	if v := envDuration("AGENT_MANAGER_EXECUTION_DEFAULT_TIMEOUT"); v > 0 {
+	if v := getEnvDuration("AGENT_MANAGER_EXECUTION_DEFAULT_TIMEOUT"); v > 0 {
 		l.Execution.DefaultTimeout = v
 	}
-	if v := envInt("AGENT_MANAGER_EXECUTION_DEFAULT_MAX_TURNS"); v > 0 {
+	if v := getEnvInt("AGENT_MANAGER_EXECUTION_DEFAULT_MAX_TURNS"); v > 0 {
 		l.Execution.DefaultMaxTurns = v
 	}
-	if v := envInt("AGENT_MANAGER_EXECUTION_EVENT_BUFFER_SIZE"); v > 0 {
+	if v := getEnvInt("AGENT_MANAGER_EXECUTION_EVENT_BUFFER_SIZE"); v > 0 {
 		l.Execution.EventBufferSize = v
 	}
-	if v := envDuration("AGENT_MANAGER_EXECUTION_EVENT_FLUSH_INTERVAL"); v > 0 {
+	if v := getEnvDuration("AGENT_MANAGER_EXECUTION_EVENT_FLUSH_INTERVAL"); v > 0 {
 		l.Execution.EventFlushInterval = v
 	}
 
@@ -71,7 +71,7 @@ func applyEnvOverrides(l *Levers) {
 	if v, ok := envBoolOpt("AGENT_MANAGER_SAFETY_ALLOW_IN_PLACE_OVERRIDE"); ok {
 		l.Safety.AllowInPlaceOverride = v
 	}
-	if v := envInt("AGENT_MANAGER_SAFETY_MAX_FILES_PER_RUN"); v > 0 {
+	if v := getEnvInt("AGENT_MANAGER_SAFETY_MAX_FILES_PER_RUN"); v > 0 {
 		l.Safety.MaxFilesPerRun = v
 	}
 	if v := envInt64("AGENT_MANAGER_SAFETY_MAX_BYTES_PER_RUN"); v > 0 {
@@ -82,19 +82,19 @@ func applyEnvOverrides(l *Levers) {
 	}
 
 	// Concurrency levers
-	if v := envInt("AGENT_MANAGER_CONCURRENCY_MAX_CONCURRENT_RUNS"); v > 0 {
+	if v := getEnvInt("AGENT_MANAGER_CONCURRENCY_MAX_CONCURRENT_RUNS"); v > 0 {
 		l.Concurrency.MaxConcurrentRuns = v
 	}
-	if v := envInt("AGENT_MANAGER_CONCURRENCY_MAX_CONCURRENT_PER_SCOPE"); v > 0 {
+	if v := getEnvInt("AGENT_MANAGER_CONCURRENCY_MAX_CONCURRENT_PER_SCOPE"); v > 0 {
 		l.Concurrency.MaxConcurrentPerScope = v
 	}
-	if v := envDuration("AGENT_MANAGER_CONCURRENCY_SCOPE_LOCK_TTL"); v > 0 {
+	if v := getEnvDuration("AGENT_MANAGER_CONCURRENCY_SCOPE_LOCK_TTL"); v > 0 {
 		l.Concurrency.ScopeLockTTL = v
 	}
-	if v := envDuration("AGENT_MANAGER_CONCURRENCY_SCOPE_LOCK_REFRESH_INTERVAL"); v > 0 {
+	if v := getEnvDuration("AGENT_MANAGER_CONCURRENCY_SCOPE_LOCK_REFRESH_INTERVAL"); v > 0 {
 		l.Concurrency.ScopeLockRefreshInterval = v
 	}
-	if v := envDuration("AGENT_MANAGER_CONCURRENCY_QUEUE_WAIT_TIMEOUT"); v >= 0 {
+	if v := getEnvDuration("AGENT_MANAGER_CONCURRENCY_QUEUE_WAIT_TIMEOUT"); v >= 0 {
 		l.Concurrency.QueueWaitTimeout = v
 	}
 
@@ -105,7 +105,7 @@ func applyEnvOverrides(l *Levers) {
 	if v := envStringList("AGENT_MANAGER_APPROVAL_AUTO_APPROVE_PATTERNS"); len(v) > 0 {
 		l.Approval.AutoApprovePatterns = v
 	}
-	if v := envInt("AGENT_MANAGER_APPROVAL_REVIEW_TIMEOUT_DAYS"); v > 0 {
+	if v := getEnvInt("AGENT_MANAGER_APPROVAL_REVIEW_TIMEOUT_DAYS"); v > 0 {
 		l.Approval.ReviewTimeoutDays = v
 	}
 	if v, ok := envBoolOpt("AGENT_MANAGER_APPROVAL_ALLOW_PARTIAL"); ok {
@@ -113,37 +113,37 @@ func applyEnvOverrides(l *Levers) {
 	}
 
 	// Runner levers
-	if v := envString("AGENT_MANAGER_RUNNERS_CLAUDE_CODE_PATH"); v != "" {
+	if v := getEnv("AGENT_MANAGER_RUNNERS_CLAUDE_CODE_PATH"); v != "" {
 		l.Runners.ClaudeCodePath = v
 	}
-	if v := envString("AGENT_MANAGER_RUNNERS_CODEX_PATH"); v != "" {
+	if v := getEnv("AGENT_MANAGER_RUNNERS_CODEX_PATH"); v != "" {
 		l.Runners.CodexPath = v
 	}
-	if v := envString("AGENT_MANAGER_RUNNERS_OPENCODE_PATH"); v != "" {
+	if v := getEnv("AGENT_MANAGER_RUNNERS_OPENCODE_PATH"); v != "" {
 		l.Runners.OpenCodePath = v
 	}
-	if v := envDuration("AGENT_MANAGER_RUNNERS_HEALTH_CHECK_INTERVAL"); v > 0 {
+	if v := getEnvDuration("AGENT_MANAGER_RUNNERS_HEALTH_CHECK_INTERVAL"); v > 0 {
 		l.Runners.HealthCheckInterval = v
 	}
-	if v := envDuration("AGENT_MANAGER_RUNNERS_STARTUP_GRACE_PERIOD"); v >= 0 {
+	if v := getEnvDuration("AGENT_MANAGER_RUNNERS_STARTUP_GRACE_PERIOD"); v >= 0 {
 		l.Runners.StartupGracePeriod = v
 	}
 
 	// Server levers
-	if v := envString("AGENT_MANAGER_SERVER_PORT"); v != "" {
+	if v := getEnv("AGENT_MANAGER_SERVER_PORT"); v != "" {
 		l.Server.Port = v
 	}
 	// Also check legacy API_PORT for compatibility
-	if v := envString("API_PORT"); v != "" {
+	if v := getEnv("API_PORT"); v != "" {
 		l.Server.Port = v
 	}
-	if v := envDuration("AGENT_MANAGER_SERVER_READ_TIMEOUT"); v > 0 {
+	if v := getEnvDuration("AGENT_MANAGER_SERVER_READ_TIMEOUT"); v > 0 {
 		l.Server.ReadTimeout = v
 	}
-	if v := envDuration("AGENT_MANAGER_SERVER_WRITE_TIMEOUT"); v > 0 {
+	if v := getEnvDuration("AGENT_MANAGER_SERVER_WRITE_TIMEOUT"); v > 0 {
 		l.Server.WriteTimeout = v
 	}
-	if v := envDuration("AGENT_MANAGER_SERVER_IDLE_TIMEOUT"); v > 0 {
+	if v := getEnvDuration("AGENT_MANAGER_SERVER_IDLE_TIMEOUT"); v > 0 {
 		l.Server.IdleTimeout = v
 	}
 	if v := envInt64("AGENT_MANAGER_SERVER_MAX_REQUEST_BODY_BYTES"); v > 0 {
@@ -151,40 +151,40 @@ func applyEnvOverrides(l *Levers) {
 	}
 
 	// Storage levers
-	if v := envString("AGENT_MANAGER_STORAGE_DATABASE_URL"); v != "" {
+	if v := getEnv("AGENT_MANAGER_STORAGE_DATABASE_URL"); v != "" {
 		l.Storage.DatabaseURL = v
 	}
 	// Also check legacy DATABASE_URL for compatibility
-	if v := envString("DATABASE_URL"); v != "" {
+	if v := getEnv("DATABASE_URL"); v != "" {
 		l.Storage.DatabaseURL = v
 	}
-	if v := envInt("AGENT_MANAGER_STORAGE_MAX_OPEN_CONNS"); v > 0 {
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_MAX_OPEN_CONNS"); v > 0 {
 		l.Storage.MaxOpenConns = v
 	}
-	if v := envInt("AGENT_MANAGER_STORAGE_MAX_IDLE_CONNS"); v > 0 {
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_MAX_IDLE_CONNS"); v > 0 {
 		l.Storage.MaxIdleConns = v
 	}
-	if v := envDuration("AGENT_MANAGER_STORAGE_CONN_MAX_LIFETIME"); v > 0 {
+	if v := getEnvDuration("AGENT_MANAGER_STORAGE_CONN_MAX_LIFETIME"); v > 0 {
 		l.Storage.ConnMaxLifetime = v
 	}
-	if v := envInt("AGENT_MANAGER_STORAGE_EVENT_RETENTION_DAYS"); v > 0 {
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_EVENT_RETENTION_DAYS"); v > 0 {
 		l.Storage.EventRetentionDays = v
 	}
-	if v := envInt("AGENT_MANAGER_STORAGE_ARTIFACT_RETENTION_DAYS"); v > 0 {
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_ARTIFACT_RETENTION_DAYS"); v > 0 {
 		l.Storage.ArtifactRetentionDays = v
 	}
 }
 
 // =============================================================================
-// ENVIRONMENT HELPERS
+// ENVIRONMENT HELPERS FOR LEVERS (renamed to avoid conflict with config.go)
 // =============================================================================
 
-func envString(key string) string {
+func getEnv(key string) string {
 	return strings.TrimSpace(os.Getenv(key))
 }
 
-func envInt(key string) int {
-	if val := envString(key); val != "" {
+func getEnvInt(key string) int {
+	if val := getEnv(key); val != "" {
 		if i, err := strconv.Atoi(val); err == nil {
 			return i
 		}
@@ -193,7 +193,7 @@ func envInt(key string) int {
 }
 
 func envInt64(key string) int64 {
-	if val := envString(key); val != "" {
+	if val := getEnv(key); val != "" {
 		if i, err := strconv.ParseInt(val, 10, 64); err == nil {
 			return i
 		}
@@ -202,7 +202,7 @@ func envInt64(key string) int64 {
 }
 
 func envBoolOpt(key string) (bool, bool) {
-	if val := envString(key); val != "" {
+	if val := getEnv(key); val != "" {
 		if b, err := strconv.ParseBool(val); err == nil {
 			return b, true
 		}
@@ -210,8 +210,8 @@ func envBoolOpt(key string) (bool, bool) {
 	return false, false
 }
 
-func envDuration(key string) time.Duration {
-	if val := envString(key); val != "" {
+func getEnvDuration(key string) time.Duration {
+	if val := getEnv(key); val != "" {
 		if d, err := time.ParseDuration(val); err == nil {
 			return d
 		}
@@ -220,7 +220,7 @@ func envDuration(key string) time.Duration {
 }
 
 func envStringList(key string) []string {
-	if val := envString(key); val != "" {
+	if val := getEnv(key); val != "" {
 		parts := strings.Split(val, ",")
 		result := make([]string, 0, len(parts))
 		for _, part := range parts {

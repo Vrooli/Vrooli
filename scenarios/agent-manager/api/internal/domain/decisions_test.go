@@ -13,11 +13,11 @@ import (
 
 func TestTaskStatus_CanTransitionTo(t *testing.T) {
 	tests := []struct {
-		name     string
-		from     TaskStatus
-		to       TaskStatus
-		wantOK   bool
-		wantMsg  string
+		name    string
+		from    TaskStatus
+		to      TaskStatus
+		wantOK  bool
+		wantMsg string
 	}{
 		// Valid transitions
 		{"queued to running", TaskStatusQueued, TaskStatusRunning, true, ""},

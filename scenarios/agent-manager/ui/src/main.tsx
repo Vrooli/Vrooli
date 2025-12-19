@@ -1,20 +1,36 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
+import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
 import App from "./App";
-import "./styles.css";
+import "./styles/global.css";
 
-const queryClient = new QueryClient();
-
-if (window.top !== window.self) {
-  initIframeBridgeChild();
+declare global {
+  interface Window {
+    __agentManagerBridgeInitialized?: boolean;
+  }
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+if (
+  typeof window !== "undefined" &&
+  window.parent !== window &&
+  !window.__agentManagerBridgeInitialized
+) {
+  let parentOrigin: string | undefined;
+
+  try {
+    if (document.referrer) {
+      parentOrigin = new URL(document.referrer).origin;
+    }
+  } catch (error) {
+    // Fall back to default origin when parsing fails.
+  }
+
+  initIframeBridgeChild({ parentOrigin, appId: "agent-manager" });
+  window.__agentManagerBridgeInitialized = true;
+}
+
+ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <App />
   </React.StrictMode>
 );

@@ -108,21 +108,21 @@ const (
 
 // DiffResult contains the generated diff for a sandbox.
 type DiffResult struct {
-	SandboxID   uuid.UUID     `json:"sandboxId"`
-	Files       []FileChange  `json:"files"`
-	UnifiedDiff string        `json:"unifiedDiff"`
-	Generated   time.Time     `json:"generated"`
-	Stats       DiffStats     `json:"stats"`
+	SandboxID   uuid.UUID    `json:"sandboxId"`
+	Files       []FileChange `json:"files"`
+	UnifiedDiff string       `json:"unifiedDiff"`
+	Generated   time.Time    `json:"generated"`
+	Stats       DiffStats    `json:"stats"`
 }
 
 // FileChange represents a single file modification.
 type FileChange struct {
-	ID         uuid.UUID      `json:"id"`
-	FilePath   string         `json:"filePath"`
-	ChangeType FileChangeType `json:"changeType"`
-	FileSize   int64          `json:"fileSize"`
-	LinesAdded int            `json:"linesAdded,omitempty"`
-	LinesRemoved int          `json:"linesRemoved,omitempty"`
+	ID           uuid.UUID      `json:"id"`
+	FilePath     string         `json:"filePath"`
+	ChangeType   FileChangeType `json:"changeType"`
+	FileSize     int64          `json:"fileSize"`
+	LinesAdded   int            `json:"linesAdded,omitempty"`
+	LinesRemoved int            `json:"linesRemoved,omitempty"`
 }
 
 // FileChangeType indicates how a file was modified.

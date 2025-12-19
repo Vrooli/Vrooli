@@ -9,6 +9,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"agent-manager/internal/domain"
 	"github.com/google/uuid"
@@ -182,5 +183,54 @@ type LockRepository interface {
 	Refresh(ctx context.Context, id uuid.UUID, newExpiry int64) error
 
 	// CleanupExpired removes expired locks.
+	CleanupExpired(ctx context.Context) (int, error)
+}
+
+// -----------------------------------------------------------------------------
+// CheckpointRepository - Run checkpoint persistence
+// -----------------------------------------------------------------------------
+
+// CheckpointRepository provides persistence for run checkpoints.
+// Checkpoints enable safe interruption and resumption of runs.
+type CheckpointRepository interface {
+	// Save stores a checkpoint, overwriting any existing checkpoint for the run.
+	Save(ctx context.Context, checkpoint *domain.RunCheckpoint) error
+
+	// Get retrieves the latest checkpoint for a run.
+	Get(ctx context.Context, runID uuid.UUID) (*domain.RunCheckpoint, error)
+
+	// Delete removes all checkpoints for a run.
+	Delete(ctx context.Context, runID uuid.UUID) error
+
+	// ListStale finds runs with checkpoints older than the given duration.
+	// This helps identify runs that may have stalled.
+	ListStale(ctx context.Context, olderThan time.Duration) ([]*domain.RunCheckpoint, error)
+
+	// Heartbeat updates the last heartbeat time for a checkpoint.
+	Heartbeat(ctx context.Context, runID uuid.UUID) error
+}
+
+// -----------------------------------------------------------------------------
+// IdempotencyRepository - Idempotency record persistence
+// -----------------------------------------------------------------------------
+
+// IdempotencyRepository provides persistence for idempotency records.
+// This enables replay-safe operations that can be safely retried.
+type IdempotencyRepository interface {
+	// Check looks up an existing idempotency record.
+	// Returns nil, nil if no record exists.
+	Check(ctx context.Context, key string) (*domain.IdempotencyRecord, error)
+
+	// Reserve creates a pending idempotency record.
+	// Returns an error if the key already exists.
+	Reserve(ctx context.Context, key string, ttl time.Duration) (*domain.IdempotencyRecord, error)
+
+	// Complete marks an idempotency record as complete with the result.
+	Complete(ctx context.Context, key string, entityID uuid.UUID, entityType string, response []byte) error
+
+	// Fail marks an idempotency record as failed (allows retry).
+	Fail(ctx context.Context, key string) error
+
+	// CleanupExpired removes expired idempotency records.
 	CleanupExpired(ctx context.Context) (int, error)
 }

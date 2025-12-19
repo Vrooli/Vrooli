@@ -149,10 +149,19 @@ type Run struct {
 	StartedAt *time.Time `json:"startedAt,omitempty" db:"started_at"`
 	EndedAt   *time.Time `json:"endedAt,omitempty" db:"ended_at"`
 
+	// Progress tracking (for resumption and visibility)
+	Phase            RunPhase   `json:"phase" db:"phase"`
+	LastCheckpointID *uuid.UUID `json:"lastCheckpointId,omitempty" db:"last_checkpoint_id"`
+	LastHeartbeat    *time.Time `json:"lastHeartbeat,omitempty" db:"last_heartbeat"`
+	ProgressPercent  int        `json:"progressPercent" db:"progress_percent"`
+
+	// Idempotency (for replay safety)
+	IdempotencyKey string `json:"idempotencyKey,omitempty" db:"idempotency_key"`
+
 	// Results
-	Summary   *RunSummary `json:"summary,omitempty" db:"summary"`
-	ErrorMsg  string      `json:"errorMsg,omitempty" db:"error_msg"`
-	ExitCode  *int        `json:"exitCode,omitempty" db:"exit_code"`
+	Summary  *RunSummary `json:"summary,omitempty" db:"summary"`
+	ErrorMsg string      `json:"errorMsg,omitempty" db:"error_msg"`
+	ExitCode *int        `json:"exitCode,omitempty" db:"exit_code"`
 
 	// Approval workflow
 	ApprovalState ApprovalState `json:"approvalState" db:"approval_state"`
@@ -168,6 +177,38 @@ type Run struct {
 	// Metadata
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
+}
+
+// IsResumable returns whether this run can be resumed from its current state.
+func (r *Run) IsResumable() bool {
+	// Can only resume runs that are in a non-terminal state
+	switch r.Status {
+	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:
+		return false
+	}
+	// Check if the phase supports resumption
+	return r.Phase.CanResumeFromPhase()
+}
+
+// IsStale returns whether this run appears to have stalled.
+func (r *Run) IsStale(staleDuration time.Duration) bool {
+	if r.LastHeartbeat == nil {
+		// No heartbeat recorded, check based on started time
+		if r.StartedAt == nil {
+			return false
+		}
+		return time.Since(*r.StartedAt) > staleDuration
+	}
+	return time.Since(*r.LastHeartbeat) > staleDuration
+}
+
+// UpdateProgress updates the run's progress tracking fields.
+func (r *Run) UpdateProgress(phase RunPhase, percent int) {
+	r.Phase = phase
+	r.ProgressPercent = percent
+	now := time.Now()
+	r.LastHeartbeat = &now
+	r.UpdatedAt = now
 }
 
 // RunMode indicates whether the run uses sandbox isolation.
@@ -195,11 +236,11 @@ const (
 type ApprovalState string
 
 const (
-	ApprovalStateNone             ApprovalState = "none"
-	ApprovalStatePending          ApprovalState = "pending"
+	ApprovalStateNone              ApprovalState = "none"
+	ApprovalStatePending           ApprovalState = "pending"
 	ApprovalStatePartiallyApproved ApprovalState = "partially_approved"
-	ApprovalStateApproved         ApprovalState = "approved"
-	ApprovalStateRejected         ApprovalState = "rejected"
+	ApprovalStateApproved          ApprovalState = "approved"
+	ApprovalStateRejected          ApprovalState = "rejected"
 )
 
 // RunSummary contains the structured summary from an agent run.
@@ -378,8 +419,8 @@ func NewToolResultEvent(runID uuid.UUID, toolName, output string, err error) *Ru
 
 // StatusEventData contains data for status transition events.
 type StatusEventData struct {
-	OldStatus string `json:"oldStatus"` // Previous status
-	NewStatus string `json:"newStatus"` // New status
+	OldStatus string `json:"oldStatus"`        // Previous status
+	NewStatus string `json:"newStatus"`        // New status
 	Reason    string `json:"reason,omitempty"` // Why the transition happened
 }
 
@@ -403,10 +444,10 @@ func NewStatusEvent(runID uuid.UUID, oldStatus, newStatus, reason string) *RunEv
 
 // MetricEventData contains data for metric/telemetry events.
 type MetricEventData struct {
-	Name  string            `json:"name"`            // Metric name (e.g., "tokens_used")
-	Value float64           `json:"value"`           // Metric value
-	Unit  string            `json:"unit,omitempty"`  // Unit (e.g., "tokens", "ms", "bytes")
-	Tags  map[string]string `json:"tags,omitempty"`  // Additional tags for grouping
+	Name  string            `json:"name"`           // Metric name (e.g., "tokens_used")
+	Value float64           `json:"value"`          // Metric value
+	Unit  string            `json:"unit,omitempty"` // Unit (e.g., "tokens", "ms", "bytes")
+	Tags  map[string]string `json:"tags,omitempty"` // Additional tags for grouping
 }
 
 func (d *MetricEventData) EventType() RunEventType { return EventTypeMetric }
@@ -620,13 +661,13 @@ type Policy struct {
 // PolicyRules contains the actual policy constraints.
 type PolicyRules struct {
 	// Sandbox requirements
-	RequireSandbox    *bool `json:"requireSandbox,omitempty"`
-	AllowInPlace      *bool `json:"allowInPlace,omitempty"`
+	RequireSandbox          *bool `json:"requireSandbox,omitempty"`
+	AllowInPlace            *bool `json:"allowInPlace,omitempty"`
 	InPlaceRequiresApproval *bool `json:"inPlaceRequiresApproval,omitempty"`
 
 	// Approval requirements
-	RequireApproval       *bool `json:"requireApproval,omitempty"`
-	AutoApprovePatterns   []string `json:"autoApprovePatterns,omitempty"`
+	RequireApproval     *bool    `json:"requireApproval,omitempty"`
+	AutoApprovePatterns []string `json:"autoApprovePatterns,omitempty"`
 
 	// Concurrency limits
 	MaxConcurrentRuns     *int `json:"maxConcurrentRuns,omitempty"`
@@ -654,4 +695,313 @@ type ScopeLock struct {
 	ProjectRoot string    `json:"projectRoot" db:"project_root"`
 	AcquiredAt  time.Time `json:"acquiredAt" db:"acquired_at"`
 	ExpiresAt   time.Time `json:"expiresAt" db:"expires_at"`
+}
+
+// =============================================================================
+// IDEMPOTENCY & REPLAY SAFETY
+// =============================================================================
+// These types enable safe retries, resumption, and replay of operations.
+// See: idempotency-replay-safety-hardening.md
+
+// IdempotencyRecord tracks whether an operation has been performed.
+// This prevents duplicate work when operations are retried.
+type IdempotencyRecord struct {
+	// Key uniquely identifies the operation (e.g., "run-create:task-{taskID}:profile-{profileID}:ts-{timestamp}")
+	Key string `json:"key" db:"key"`
+
+	// Status indicates the operation outcome
+	Status IdempotencyStatus `json:"status" db:"status"`
+
+	// EntityID is the ID of the created/affected entity (if applicable)
+	EntityID *uuid.UUID `json:"entityId,omitempty" db:"entity_id"`
+
+	// EntityType identifies what was created (e.g., "Run", "Task")
+	EntityType string `json:"entityType,omitempty" db:"entity_type"`
+
+	// CreatedAt is when this record was created
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
+
+	// ExpiresAt is when this record can be garbage collected
+	ExpiresAt time.Time `json:"expiresAt" db:"expires_at"`
+
+	// Response contains the cached response (JSON) for successful operations
+	Response []byte `json:"response,omitempty" db:"response"`
+}
+
+// IdempotencyStatus indicates the state of an idempotent operation.
+type IdempotencyStatus string
+
+const (
+	// IdempotencyStatusPending - Operation started but not completed
+	IdempotencyStatusPending IdempotencyStatus = "pending"
+
+	// IdempotencyStatusComplete - Operation completed successfully
+	IdempotencyStatusComplete IdempotencyStatus = "complete"
+
+	// IdempotencyStatusFailed - Operation failed (may be retried)
+	IdempotencyStatusFailed IdempotencyStatus = "failed"
+)
+
+// =============================================================================
+// PROGRESS & CHECKPOINT TRACKING
+// =============================================================================
+// These types enable safe interruption and resumption of runs.
+// See: progress-continuity-interruption-resilience.md
+
+// RunPhase represents the current phase of run execution.
+// This enables resumption from the correct point after interruption.
+type RunPhase string
+
+const (
+	// RunPhaseQueued - Run created but not started
+	RunPhaseQueued RunPhase = "queued"
+
+	// RunPhaseInitializing - Setting up workspace and acquiring resources
+	RunPhaseInitializing RunPhase = "initializing"
+
+	// RunPhaseSandboxCreating - Creating sandbox (if sandboxed mode)
+	RunPhaseSandboxCreating RunPhase = "sandbox_creating"
+
+	// RunPhaseRunnerAcquiring - Acquiring and validating runner
+	RunPhaseRunnerAcquiring RunPhase = "runner_acquiring"
+
+	// RunPhaseExecuting - Agent is actively executing
+	RunPhaseExecuting RunPhase = "executing"
+
+	// RunPhaseCollectingResults - Gathering results and artifacts
+	RunPhaseCollectingResults RunPhase = "collecting_results"
+
+	// RunPhaseAwaitingReview - Execution complete, awaiting approval
+	RunPhaseAwaitingReview RunPhase = "awaiting_review"
+
+	// RunPhaseApplying - Applying approved changes
+	RunPhaseApplying RunPhase = "applying"
+
+	// RunPhaseCleaningUp - Releasing resources and cleaning up
+	RunPhaseCleaningUp RunPhase = "cleaning_up"
+
+	// RunPhaseCompleted - Run is finished (terminal)
+	RunPhaseCompleted RunPhase = "completed"
+)
+
+// CanResumeFromPhase returns whether a run can be resumed from this phase.
+func (p RunPhase) CanResumeFromPhase() bool {
+	switch p {
+	case RunPhaseQueued, RunPhaseInitializing, RunPhaseSandboxCreating,
+		RunPhaseRunnerAcquiring, RunPhaseExecuting:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsTerminal returns whether this phase represents a completed run.
+func (p RunPhase) IsTerminal() bool {
+	return p == RunPhaseCompleted
+}
+
+// RunCheckpoint captures the state needed to resume a run.
+type RunCheckpoint struct {
+	// RunID is the run this checkpoint belongs to
+	RunID uuid.UUID `json:"runId" db:"run_id"`
+
+	// Phase is the current execution phase
+	Phase RunPhase `json:"phase" db:"phase"`
+
+	// StepWithinPhase tracks progress within a phase (0-indexed)
+	StepWithinPhase int `json:"stepWithinPhase" db:"step_within_phase"`
+
+	// SandboxID is set after sandbox creation
+	SandboxID *uuid.UUID `json:"sandboxId,omitempty" db:"sandbox_id"`
+
+	// WorkDir is set after workspace setup
+	WorkDir string `json:"workDir,omitempty" db:"work_dir"`
+
+	// LockID is set after acquiring scope lock
+	LockID *uuid.UUID `json:"lockId,omitempty" db:"lock_id"`
+
+	// LastEventSequence is the last event sequence number persisted
+	LastEventSequence int64 `json:"lastEventSequence" db:"last_event_sequence"`
+
+	// LastHeartbeat is when we last confirmed progress
+	LastHeartbeat time.Time `json:"lastHeartbeat" db:"last_heartbeat"`
+
+	// RetryCount tracks how many times this phase has been retried
+	RetryCount int `json:"retryCount" db:"retry_count"`
+
+	// SavedAt is when this checkpoint was created
+	SavedAt time.Time `json:"savedAt" db:"saved_at"`
+
+	// Metadata contains phase-specific state that may be needed for resumption
+	Metadata map[string]string `json:"metadata,omitempty" db:"metadata"`
+}
+
+// NewCheckpoint creates a checkpoint for the current run state.
+func NewCheckpoint(runID uuid.UUID, phase RunPhase) *RunCheckpoint {
+	now := time.Now()
+	return &RunCheckpoint{
+		RunID:         runID,
+		Phase:         phase,
+		LastHeartbeat: now,
+		SavedAt:       now,
+		Metadata:      make(map[string]string),
+	}
+}
+
+// Update creates an updated checkpoint with new phase information.
+func (c *RunCheckpoint) Update(phase RunPhase, step int) *RunCheckpoint {
+	now := time.Now()
+	return &RunCheckpoint{
+		RunID:             c.RunID,
+		Phase:             phase,
+		StepWithinPhase:   step,
+		SandboxID:         c.SandboxID,
+		WorkDir:           c.WorkDir,
+		LockID:            c.LockID,
+		LastEventSequence: c.LastEventSequence,
+		LastHeartbeat:     now,
+		RetryCount:        c.RetryCount,
+		SavedAt:           now,
+		Metadata:          c.Metadata,
+	}
+}
+
+// WithSandbox adds sandbox information to the checkpoint.
+func (c *RunCheckpoint) WithSandbox(sandboxID uuid.UUID, workDir string) *RunCheckpoint {
+	cp := *c
+	cp.SandboxID = &sandboxID
+	cp.WorkDir = workDir
+	cp.SavedAt = time.Now()
+	return &cp
+}
+
+// WithLock adds lock information to the checkpoint.
+func (c *RunCheckpoint) WithLock(lockID uuid.UUID) *RunCheckpoint {
+	cp := *c
+	cp.LockID = &lockID
+	cp.SavedAt = time.Now()
+	return &cp
+}
+
+// WithEventSequence updates the last persisted event sequence.
+func (c *RunCheckpoint) WithEventSequence(seq int64) *RunCheckpoint {
+	cp := *c
+	cp.LastEventSequence = seq
+	cp.SavedAt = time.Now()
+	return &cp
+}
+
+// IncrementRetry increments the retry count for the current phase.
+func (c *RunCheckpoint) IncrementRetry() *RunCheckpoint {
+	cp := *c
+	cp.RetryCount++
+	cp.SavedAt = time.Now()
+	return &cp
+}
+
+// =============================================================================
+// TEMPORAL FLOW & HEARTBEAT
+// =============================================================================
+// These types support time-based coordination and health monitoring.
+// See: temporal-flow-audit.md
+
+// HeartbeatConfig defines heartbeat behavior for long-running operations.
+type HeartbeatConfig struct {
+	// Interval is how often to send heartbeats
+	Interval time.Duration `json:"interval"`
+
+	// Timeout is how long without a heartbeat before considering dead
+	Timeout time.Duration `json:"timeout"`
+
+	// MaxMissedBeats is the number of missed heartbeats before termination
+	MaxMissedBeats int `json:"maxMissedBeats"`
+}
+
+// DefaultHeartbeatConfig returns sensible defaults for heartbeat monitoring.
+func DefaultHeartbeatConfig() HeartbeatConfig {
+	return HeartbeatConfig{
+		Interval:       30 * time.Second,
+		Timeout:        2 * time.Minute,
+		MaxMissedBeats: 3,
+	}
+}
+
+// RunProgress represents the current progress of a run for display.
+type RunProgress struct {
+	// Phase is the current execution phase
+	Phase RunPhase `json:"phase"`
+
+	// PhaseDescription is a human-readable description
+	PhaseDescription string `json:"phaseDescription"`
+
+	// PercentComplete is an estimate of overall progress (0-100)
+	PercentComplete int `json:"percentComplete"`
+
+	// CurrentAction describes what's happening now
+	CurrentAction string `json:"currentAction,omitempty"`
+
+	// ElapsedTime is how long the run has been active
+	ElapsedTime time.Duration `json:"elapsedTime"`
+
+	// EstimatedRemaining is an estimate of time left (if known)
+	EstimatedRemaining *time.Duration `json:"estimatedRemaining,omitempty"`
+
+	// LastUpdate is when progress was last reported
+	LastUpdate time.Time `json:"lastUpdate"`
+}
+
+// PhaseToProgress converts a phase to approximate progress percentage.
+func PhaseToProgress(phase RunPhase) int {
+	switch phase {
+	case RunPhaseQueued:
+		return 0
+	case RunPhaseInitializing:
+		return 5
+	case RunPhaseSandboxCreating:
+		return 15
+	case RunPhaseRunnerAcquiring:
+		return 25
+	case RunPhaseExecuting:
+		return 50 // This phase takes most of the time
+	case RunPhaseCollectingResults:
+		return 85
+	case RunPhaseAwaitingReview:
+		return 90
+	case RunPhaseApplying:
+		return 95
+	case RunPhaseCleaningUp:
+		return 98
+	case RunPhaseCompleted:
+		return 100
+	default:
+		return 0
+	}
+}
+
+// PhaseDescription returns a human-readable description of the phase.
+func (p RunPhase) Description() string {
+	switch p {
+	case RunPhaseQueued:
+		return "Waiting to start"
+	case RunPhaseInitializing:
+		return "Initializing execution environment"
+	case RunPhaseSandboxCreating:
+		return "Creating isolated workspace"
+	case RunPhaseRunnerAcquiring:
+		return "Acquiring agent runner"
+	case RunPhaseExecuting:
+		return "Agent is executing"
+	case RunPhaseCollectingResults:
+		return "Collecting results and artifacts"
+	case RunPhaseAwaitingReview:
+		return "Awaiting approval"
+	case RunPhaseApplying:
+		return "Applying approved changes"
+	case RunPhaseCleaningUp:
+		return "Cleaning up resources"
+	case RunPhaseCompleted:
+		return "Completed"
+	default:
+		return "Unknown phase"
+	}
 }

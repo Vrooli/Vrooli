@@ -23,14 +23,14 @@ type ErrorCode string
 
 const (
 	// --- Not Found Errors (404) ---
-	ErrCodeNotFoundTask       ErrorCode = "NOT_FOUND_TASK"
-	ErrCodeNotFoundRun        ErrorCode = "NOT_FOUND_RUN"
-	ErrCodeNotFoundProfile    ErrorCode = "NOT_FOUND_PROFILE"
-	ErrCodeNotFoundPolicy     ErrorCode = "NOT_FOUND_POLICY"
-	ErrCodeNotFoundSandbox    ErrorCode = "NOT_FOUND_SANDBOX"
-	ErrCodeNotFoundRunner     ErrorCode = "NOT_FOUND_RUNNER"
-	ErrCodeNotFoundEvent      ErrorCode = "NOT_FOUND_EVENT"
-	ErrCodeNotFoundArtifact   ErrorCode = "NOT_FOUND_ARTIFACT"
+	ErrCodeNotFoundTask     ErrorCode = "NOT_FOUND_TASK"
+	ErrCodeNotFoundRun      ErrorCode = "NOT_FOUND_RUN"
+	ErrCodeNotFoundProfile  ErrorCode = "NOT_FOUND_PROFILE"
+	ErrCodeNotFoundPolicy   ErrorCode = "NOT_FOUND_POLICY"
+	ErrCodeNotFoundSandbox  ErrorCode = "NOT_FOUND_SANDBOX"
+	ErrCodeNotFoundRunner   ErrorCode = "NOT_FOUND_RUNNER"
+	ErrCodeNotFoundEvent    ErrorCode = "NOT_FOUND_EVENT"
+	ErrCodeNotFoundArtifact ErrorCode = "NOT_FOUND_ARTIFACT"
 
 	// --- Validation Errors (400) ---
 	ErrCodeValidationField    ErrorCode = "VALIDATION_FIELD"
@@ -40,37 +40,37 @@ const (
 	ErrCodeValidationConflict ErrorCode = "VALIDATION_CONFLICT"
 
 	// --- State Errors (409) ---
-	ErrCodeStateTransition   ErrorCode = "STATE_TRANSITION_INVALID"
-	ErrCodeStateTerminal     ErrorCode = "STATE_TERMINAL"
-	ErrCodeStateNotReady     ErrorCode = "STATE_NOT_READY"
-	ErrCodeStateConcurrency  ErrorCode = "STATE_CONCURRENCY"
+	ErrCodeStateTransition  ErrorCode = "STATE_TRANSITION_INVALID"
+	ErrCodeStateTerminal    ErrorCode = "STATE_TERMINAL"
+	ErrCodeStateNotReady    ErrorCode = "STATE_NOT_READY"
+	ErrCodeStateConcurrency ErrorCode = "STATE_CONCURRENCY"
 
 	// --- Policy Errors (403) ---
-	ErrCodePolicySandbox      ErrorCode = "POLICY_SANDBOX_REQUIRED"
-	ErrCodePolicyApproval     ErrorCode = "POLICY_APPROVAL_REQUIRED"
-	ErrCodePolicyRunner       ErrorCode = "POLICY_RUNNER_DENIED"
-	ErrCodePolicyScope        ErrorCode = "POLICY_SCOPE_DENIED"
-	ErrCodePolicyLimit        ErrorCode = "POLICY_LIMIT_EXCEEDED"
+	ErrCodePolicySandbox  ErrorCode = "POLICY_SANDBOX_REQUIRED"
+	ErrCodePolicyApproval ErrorCode = "POLICY_APPROVAL_REQUIRED"
+	ErrCodePolicyRunner   ErrorCode = "POLICY_RUNNER_DENIED"
+	ErrCodePolicyScope    ErrorCode = "POLICY_SCOPE_DENIED"
+	ErrCodePolicyLimit    ErrorCode = "POLICY_LIMIT_EXCEEDED"
 
 	// --- Capacity Errors (503) ---
-	ErrCodeCapacityRuns       ErrorCode = "CAPACITY_MAX_RUNS"
-	ErrCodeCapacityScope      ErrorCode = "CAPACITY_SCOPE_LOCKED"
-	ErrCodeCapacityStorage    ErrorCode = "CAPACITY_STORAGE"
-	ErrCodeCapacityMemory     ErrorCode = "CAPACITY_MEMORY"
+	ErrCodeCapacityRuns    ErrorCode = "CAPACITY_MAX_RUNS"
+	ErrCodeCapacityScope   ErrorCode = "CAPACITY_SCOPE_LOCKED"
+	ErrCodeCapacityStorage ErrorCode = "CAPACITY_STORAGE"
+	ErrCodeCapacityMemory  ErrorCode = "CAPACITY_MEMORY"
 
 	// --- Infrastructure Errors (500/503) ---
-	ErrCodeRunnerUnavailable  ErrorCode = "RUNNER_UNAVAILABLE"
-	ErrCodeRunnerTimeout      ErrorCode = "RUNNER_TIMEOUT"
-	ErrCodeRunnerExecution    ErrorCode = "RUNNER_EXECUTION"
+	ErrCodeRunnerUnavailable   ErrorCode = "RUNNER_UNAVAILABLE"
+	ErrCodeRunnerTimeout       ErrorCode = "RUNNER_TIMEOUT"
+	ErrCodeRunnerExecution     ErrorCode = "RUNNER_EXECUTION"
 	ErrCodeRunnerCommunication ErrorCode = "RUNNER_COMMUNICATION"
-	ErrCodeSandboxCreate      ErrorCode = "SANDBOX_CREATE"
-	ErrCodeSandboxApprove     ErrorCode = "SANDBOX_APPROVE"
-	ErrCodeSandboxReject      ErrorCode = "SANDBOX_REJECT"
-	ErrCodeSandboxOperation   ErrorCode = "SANDBOX_OPERATION"
-	ErrCodeDatabaseConnection ErrorCode = "DATABASE_CONNECTION"
-	ErrCodeDatabaseQuery      ErrorCode = "DATABASE_QUERY"
-	ErrCodeConfigInvalid      ErrorCode = "CONFIG_INVALID"
-	ErrCodeConfigMissing      ErrorCode = "CONFIG_MISSING"
+	ErrCodeSandboxCreate       ErrorCode = "SANDBOX_CREATE"
+	ErrCodeSandboxApprove      ErrorCode = "SANDBOX_APPROVE"
+	ErrCodeSandboxReject       ErrorCode = "SANDBOX_REJECT"
+	ErrCodeSandboxOperation    ErrorCode = "SANDBOX_OPERATION"
+	ErrCodeDatabaseConnection  ErrorCode = "DATABASE_CONNECTION"
+	ErrCodeDatabaseQuery       ErrorCode = "DATABASE_QUERY"
+	ErrCodeConfigInvalid       ErrorCode = "CONFIG_INVALID"
+	ErrCodeConfigMissing       ErrorCode = "CONFIG_MISSING"
 
 	// --- Internal Errors (500) ---
 	ErrCodeInternal          ErrorCode = "INTERNAL"
@@ -207,10 +207,10 @@ func NewNotFoundError(entityType string, id uuid.UUID) *NotFoundError {
 
 // ValidationError indicates invalid input data.
 type ValidationError struct {
-	Field     string
-	Message   string
-	Hint      string
-	code      ErrorCode // optional override
+	Field   string
+	Message string
+	Hint    string
+	code    ErrorCode // optional override
 }
 
 func (e *ValidationError) Error() string {
@@ -546,11 +546,11 @@ func (e *CapacityExceededError) Details() map[string]interface{} {
 
 // RunnerError indicates a problem with the agent runner.
 type RunnerError struct {
-	RunnerType   RunnerType
-	Operation    string
-	Cause        error
-	IsTransient  bool   // true for timeouts, connection issues
-	Alternative  string // alternative runner if available
+	RunnerType  RunnerType
+	Operation   string
+	Cause       error
+	IsTransient bool   // true for timeouts, connection issues
+	Alternative string // alternative runner if available
 }
 
 func (e *RunnerError) Error() string {
