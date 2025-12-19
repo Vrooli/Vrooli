@@ -135,13 +135,29 @@ type ApproveResult struct {
 }
 
 // HealthStatus contains system health information.
+// Required fields per health-api.schema.json: status, service, timestamp, readiness
 type HealthStatus struct {
-	Status      string                  `json:"status"`
-	Database    ComponentStatus         `json:"database"`
-	Sandbox     ComponentStatus         `json:"sandbox"`
-	Runners     map[string]RunnerStatus `json:"runners"`
-	ActiveRuns  int                     `json:"activeRuns"`
-	QueuedTasks int                     `json:"queuedTasks"`
+	Status       string              `json:"status"`
+	Service      string              `json:"service"`
+	Timestamp    string              `json:"timestamp"`
+	Readiness    bool                `json:"readiness"`
+	Dependencies *HealthDependencies `json:"dependencies,omitempty"`
+	ActiveRuns   int                 `json:"activeRuns"`
+	QueuedTasks  int                 `json:"queuedTasks"`
+}
+
+// HealthDependencies contains dependency health status.
+type HealthDependencies struct {
+	Database *DependencyStatus            `json:"database,omitempty"`
+	Sandbox  *DependencyStatus            `json:"sandbox,omitempty"`
+	Runners  map[string]*DependencyStatus `json:"runners,omitempty"`
+}
+
+// DependencyStatus describes a dependency's health (matches schema).
+type DependencyStatus struct {
+	Connected bool    `json:"connected"`
+	LatencyMs *int64  `json:"latency_ms,omitempty"`
+	Error     *string `json:"error,omitempty"`
 }
 
 // ComponentStatus describes a component's health.
@@ -783,28 +799,43 @@ func (o *Orchestrator) GetRunDiff(ctx context.Context, runID uuid.UUID) (*sandbo
 
 func (o *Orchestrator) GetHealth(ctx context.Context) (*HealthStatus, error) {
 	status := &HealthStatus{
-		Status:  "healthy",
-		Runners: make(map[string]RunnerStatus),
+		Status:    "healthy",
+		Service:   "agent-manager",
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Readiness: true,
+		Dependencies: &HealthDependencies{
+			Runners: make(map[string]*DependencyStatus),
+		},
 	}
 
 	// Check sandbox
 	if o.sandbox != nil {
 		available, msg := o.sandbox.IsAvailable(ctx)
-		status.Sandbox = ComponentStatus{Available: available, Message: msg}
+		status.Dependencies.Sandbox = &DependencyStatus{
+			Connected: available,
+		}
+		if !available && msg != "" {
+			status.Dependencies.Sandbox.Error = &msg
+		}
 	} else {
-		status.Sandbox = ComponentStatus{Available: false, Message: "not configured"}
+		msg := "not configured"
+		status.Dependencies.Sandbox = &DependencyStatus{
+			Connected: false,
+			Error:     &msg,
+		}
 	}
 
 	// Check runners
 	if o.runners != nil {
 		for _, r := range o.runners.List() {
 			available, msg := r.IsAvailable(ctx)
-			status.Runners[string(r.Type())] = RunnerStatus{
-				Type:         r.Type(),
-				Available:    available,
-				Message:      msg,
-				Capabilities: r.Capabilities(),
+			depStatus := &DependencyStatus{
+				Connected: available,
 			}
+			if !available && msg != "" {
+				depStatus.Error = &msg
+			}
+			status.Dependencies.Runners[string(r.Type())] = depStatus
 		}
 	}
 

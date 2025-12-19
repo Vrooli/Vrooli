@@ -36,11 +36,22 @@ import (
 // Handler provides HTTP handlers for all API endpoints.
 type Handler struct {
 	svc orchestration.Service
+	hub *WebSocketHub
 }
 
 // New creates a new Handler with the given orchestration service.
 func New(svc orchestration.Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// SetWebSocketHub sets the WebSocket hub for event broadcasting.
+func (h *Handler) SetWebSocketHub(hub *WebSocketHub) {
+	h.hub = hub
+}
+
+// GetWebSocketHub returns the WebSocket hub for external event broadcasting.
+func (h *Handler) GetWebSocketHub() *WebSocketHub {
+	return h.hub
 }
 
 // RegisterRoutes registers all API routes on the given router.
@@ -51,6 +62,11 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Health endpoints
 	r.HandleFunc("/health", h.Health).Methods("GET")
 	r.HandleFunc("/api/v1/health", h.Health).Methods("GET")
+
+	// WebSocket endpoint (registered separately, no middleware needed)
+	if h.hub != nil {
+		r.HandleFunc("/api/v1/ws", h.HandleWebSocket(h.hub))
+	}
 
 	// Profile endpoints
 	r.HandleFunc("/api/v1/profiles", h.CreateProfile).Methods("POST")

@@ -111,7 +111,7 @@ func createOrchestrator(useInMemory bool) orchestration.Service {
 	// Create runner registry
 	runnerRegistry := runner.NewRegistry()
 
-	// Register Claude Code runner (real implementation)
+	// Register Claude Code runner (uses resource-claude-code)
 	claudeRunner, err := runner.NewClaudeCodeRunner()
 	if err != nil {
 		log.Printf("Warning: Failed to create Claude Code runner: %v", err)
@@ -121,17 +121,46 @@ func createOrchestrator(useInMemory bool) orchestration.Service {
 		))
 	} else {
 		runnerRegistry.Register(claudeRunner)
+		if avail, msg := claudeRunner.IsAvailable(context.Background()); avail {
+			log.Printf("Claude Code runner: available")
+		} else {
+			log.Printf("Claude Code runner: %s", msg)
+		}
 	}
 
-	// Register stub runners for other types (real implementations would go here)
-	runnerRegistry.Register(runner.NewStubRunner(
-		domain.RunnerTypeCodex,
-		"codex runner not configured",
-	))
-	runnerRegistry.Register(runner.NewStubRunner(
-		domain.RunnerTypeOpenCode,
-		"opencode runner not configured",
-	))
+	// Register Codex runner (uses resource-codex)
+	codexRunner, err := runner.NewCodexRunner()
+	if err != nil {
+		log.Printf("Warning: Failed to create Codex runner: %v", err)
+		runnerRegistry.Register(runner.NewStubRunner(
+			domain.RunnerTypeCodex,
+			fmt.Sprintf("codex runner failed to initialize: %v", err),
+		))
+	} else {
+		runnerRegistry.Register(codexRunner)
+		if avail, msg := codexRunner.IsAvailable(context.Background()); avail {
+			log.Printf("Codex runner: available")
+		} else {
+			log.Printf("Codex runner: %s", msg)
+		}
+	}
+
+	// Register OpenCode runner (uses resource-opencode)
+	openCodeRunner, err := runner.NewOpenCodeRunner()
+	if err != nil {
+		log.Printf("Warning: Failed to create OpenCode runner: %v", err)
+		runnerRegistry.Register(runner.NewStubRunner(
+			domain.RunnerTypeOpenCode,
+			fmt.Sprintf("opencode runner failed to initialize: %v", err),
+		))
+	} else {
+		runnerRegistry.Register(openCodeRunner)
+		if avail, msg := openCodeRunner.IsAvailable(context.Background()); avail {
+			log.Printf("OpenCode runner: available")
+		} else {
+			log.Printf("OpenCode runner: %s", msg)
+		}
+	}
 
 	// Create workspace-sandbox provider
 	sandboxURL := os.Getenv("WORKSPACE_SANDBOX_URL")
@@ -170,9 +199,16 @@ func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	s.router.Use(corsMiddleware)
 
+	// Create WebSocket hub for real-time event broadcasting
+	wsHub := handlers.NewWebSocketHub()
+	go wsHub.Run()
+
 	// Register all API routes via the handlers package
 	handler := handlers.New(s.orchestrator)
+	handler.SetWebSocketHub(wsHub)
 	handler.RegisterRoutes(s.router)
+
+	log.Printf("WebSocket endpoint available at /api/v1/ws")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -226,12 +262,20 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// corsMiddleware adds CORS headers for development
+// corsMiddleware adds CORS headers with configurable origins
+// Set CORS_ALLOWED_ORIGINS env var to restrict (comma-separated list).
+// Defaults to localhost-based origins for development safety.
 func corsMiddleware(next http.Handler) http.Handler {
+	allowedOrigins := getAllowedOrigins()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		if origin != "" && isOriginAllowed(origin, allowedOrigins) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -240,6 +284,43 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// getAllowedOrigins returns the list of allowed CORS origins.
+// Reads from CORS_ALLOWED_ORIGINS env var (comma-separated).
+// Defaults to localhost patterns for development safety.
+func getAllowedOrigins() []string {
+	if origins := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS")); origins != "" {
+		var result []string
+		for _, o := range strings.Split(origins, ",") {
+			if trimmed := strings.TrimSpace(o); trimmed != "" {
+				result = append(result, trimmed)
+			}
+		}
+		return result
+	}
+	// Default: allow localhost on common ports for development
+	return []string{
+		"http://localhost:*",
+		"http://127.0.0.1:*",
+	}
+}
+
+// isOriginAllowed checks if the origin matches any allowed pattern.
+// Supports wildcard port matching with http://host:*
+func isOriginAllowed(origin string, allowed []string) bool {
+	for _, pattern := range allowed {
+		if strings.HasSuffix(pattern, ":*") {
+			// Wildcard port pattern: http://localhost:*
+			prefix := strings.TrimSuffix(pattern, "*")
+			if strings.HasPrefix(origin, prefix) {
+				return true
+			}
+		} else if origin == pattern {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) log(msg string, fields map[string]interface{}) {

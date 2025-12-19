@@ -1,7 +1,7 @@
 // Package runner provides runner adapter implementations.
 //
 // This file implements the Claude Code runner adapter for executing
-// Claude Code CLI as an agent within agent-manager.
+// Claude Code via the resource-claude-code wrapper within agent-manager.
 package runner
 
 import (
@@ -20,37 +20,72 @@ import (
 	"github.com/google/uuid"
 )
 
+// ResourceCommand is the Vrooli resource wrapper command
+const ClaudeCodeResourceCommand = "resource-claude-code"
+
 // =============================================================================
 // Claude Code Runner Implementation
 // =============================================================================
 
 // ClaudeCodeRunner implements the Runner interface for Claude Code CLI.
 type ClaudeCodeRunner struct {
-	binaryPath string
-	available  bool
-	message    string
-	mu         sync.Mutex
-	runs       map[uuid.UUID]*exec.Cmd
+	binaryPath       string
+	available        bool
+	message          string
+	installHint      string
+	mu               sync.Mutex
+	runs             map[uuid.UUID]*exec.Cmd
 }
 
 // NewClaudeCodeRunner creates a new Claude Code runner.
 func NewClaudeCodeRunner() (*ClaudeCodeRunner, error) {
-	// Look for claude in PATH
-	binaryPath, err := exec.LookPath("claude")
+	// Look for resource-claude-code in PATH (the Vrooli wrapper)
+	binaryPath, err := exec.LookPath(ClaudeCodeResourceCommand)
 	if err != nil {
 		return &ClaudeCodeRunner{
-			available: false,
-			message:   "claude CLI not found in PATH",
-			runs:      make(map[uuid.UUID]*exec.Cmd),
+			available:   false,
+			message:     "resource-claude-code not found in PATH",
+			installHint: "Run: vrooli resource install claude-code",
+			runs:        make(map[uuid.UUID]*exec.Cmd),
 		}, nil
 	}
 
-	return &ClaudeCodeRunner{
+	// Verify the resource is healthy by checking status
+	runner := &ClaudeCodeRunner{
 		binaryPath: binaryPath,
 		available:  true,
-		message:    "claude CLI available",
+		message:    "resource-claude-code available",
 		runs:       make(map[uuid.UUID]*exec.Cmd),
-	}, nil
+	}
+
+	// Quick health check via status command
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, binaryPath, "status", "--format", "json", "--fast")
+	output, err := cmd.Output()
+	if err != nil {
+		runner.available = false
+		runner.message = fmt.Sprintf("resource-claude-code status check failed: %v", err)
+		runner.installHint = "Run: resource-claude-code manage install"
+		return runner, nil
+	}
+
+	// Parse JSON status to check health
+	var statusData map[string]interface{}
+	if err := json.Unmarshal(output, &statusData); err == nil {
+		if healthy, ok := statusData["healthy"].(string); ok && healthy != "true" {
+			runner.available = false
+			if msg, ok := statusData["health_message"].(string); ok {
+				runner.message = msg
+			} else {
+				runner.message = "resource-claude-code is not healthy"
+			}
+			runner.installHint = "Run: resource-claude-code manage install"
+		}
+	}
+
+	return runner, nil
 }
 
 // Type returns the runner type identifier.
@@ -88,15 +123,12 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	// Build command arguments
 	args := r.buildArgs(req)
 
-	// Create command
+	// Create command using resource-claude-code
 	cmd := exec.CommandContext(ctx, r.binaryPath, args...)
 	cmd.Dir = req.WorkingDir
 
-	// Set environment
-	cmd.Env = os.Environ()
-	for key, value := range req.Environment {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
-	}
+	// Set environment using buildEnv (handles all configuration via env vars)
+	cmd.Env = r.buildEnv(req)
 
 	// Track the running command for cancellation
 	r.mu.Lock()
@@ -127,7 +159,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 
 	// Start command
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start claude: %w", err)
+		return nil, fmt.Errorf("failed to start resource-claude-code: %w", err)
 	}
 
 	// Emit starting event
@@ -268,46 +300,80 @@ func (r *ClaudeCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 // IsAvailable checks if Claude Code is currently available.
 func (r *ClaudeCodeRunner) IsAvailable(ctx context.Context) (bool, string) {
 	if !r.available {
-		return false, r.message
+		msg := r.message
+		if r.installHint != "" {
+			msg += ". " + r.installHint
+		}
+		return false, msg
 	}
 
 	// Verify the binary still exists
 	if _, err := os.Stat(r.binaryPath); os.IsNotExist(err) {
-		return false, "claude CLI binary not found"
+		return false, "resource-claude-code binary not found. Run: vrooli resource install claude-code"
 	}
 
-	// Could add additional health checks here (API availability, etc.)
-	return true, "claude CLI is available"
+	return true, "resource-claude-code is available"
 }
 
-// buildArgs constructs command-line arguments for claude CLI.
+// InstallHint returns instructions for installing this runner.
+func (r *ClaudeCodeRunner) InstallHint() string {
+	return r.installHint
+}
+
+// buildArgs constructs command-line arguments for resource-claude-code run.
 func (r *ClaudeCodeRunner) buildArgs(req ExecuteRequest) []string {
+	// Use the "run" subcommand with --tag for agent tracking
 	args := []string{
-		"--print",
-		"--output-format", "stream-json",
+		"run",
+		"--tag", req.RunID.String(),
+		"-", // Read prompt from stdin
+	}
+	return args
+}
+
+// buildEnv constructs environment variables for resource-claude-code run.
+func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
+	env := os.Environ()
+
+	// Output format - use stream-json for event streaming
+	env = append(env, "OUTPUT_FORMAT=stream-json")
+
+	// Non-interactive mode for autonomous execution
+	env = append(env, "CLAUDE_NON_INTERACTIVE=true")
+
+	// Model selection via environment
+	if req.Profile != nil && req.Profile.Model != "" {
+		env = append(env, fmt.Sprintf("CLAUDE_MODEL=%s", req.Profile.Model))
 	}
 
-	// Model selection
-	if req.Profile != nil && req.Profile.Model != "" {
-		args = append(args, "--model", req.Profile.Model)
+	// Max turns
+	if req.Profile != nil && req.Profile.MaxTurns > 0 {
+		env = append(env, fmt.Sprintf("MAX_TURNS=%d", req.Profile.MaxTurns))
+	} else {
+		env = append(env, "MAX_TURNS=30") // Default
+	}
+
+	// Timeout in seconds
+	if req.Profile != nil && req.Profile.Timeout > 0 {
+		env = append(env, fmt.Sprintf("TIMEOUT=%d", int(req.Profile.Timeout.Seconds())))
 	}
 
 	// Allowed tools
 	if req.Profile != nil && len(req.Profile.AllowedTools) > 0 {
-		args = append(args, "--allowed-tools", strings.Join(req.Profile.AllowedTools, " "))
-	}
-
-	// Denied tools
-	if req.Profile != nil && len(req.Profile.DeniedTools) > 0 {
-		args = append(args, "--disallowed-tools", strings.Join(req.Profile.DeniedTools, " "))
+		env = append(env, fmt.Sprintf("ALLOWED_TOOLS=%s", strings.Join(req.Profile.AllowedTools, ",")))
 	}
 
 	// Skip permission prompts if configured (for sandboxed environments)
 	if req.Profile != nil && req.Profile.SkipPermissionPrompt {
-		args = append(args, "--dangerously-skip-permissions")
+		env = append(env, "SKIP_PERMISSIONS=yes")
 	}
 
-	return args
+	// Add any custom environment from the request
+	for key, value := range req.Environment {
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	}
+
+	return env
 }
 
 // ClaudeStreamEvent represents a single event from Claude Code's stream-json output.
