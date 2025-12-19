@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -252,9 +253,10 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		result.Success = true
 		result.ExitCode = 0
 		result.Summary = &domain.RunSummary{
-			Description: lastAssistantMessage,
-			TurnsUsed:   metrics.TurnsUsed,
-			TokensUsed:  metrics.TokensInput + metrics.TokensOutput,
+			Description:  lastAssistantMessage,
+			TurnsUsed:    metrics.TurnsUsed,
+			TokensUsed:   metrics.TokensInput + metrics.TokensOutput,
+			CostEstimate: metrics.CostEstimateUSD,
 		}
 	}
 
@@ -378,13 +380,22 @@ func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
 
 // ClaudeStreamEvent represents a single event from Claude Code's stream-json output.
 type ClaudeStreamEvent struct {
-	Type      string          `json:"type"`
-	Message   *ClaudeMessage  `json:"message,omitempty"`
-	Usage     *ClaudeUsage    `json:"usage,omitempty"`
-	ToolUse   *ClaudeToolUse  `json:"tool_use,omitempty"`
-	Result    json.RawMessage `json:"result,omitempty"`
-	Error     *ClaudeError    `json:"error,omitempty"`
-	SessionID string          `json:"session_id,omitempty"`
+	Type         string             `json:"type"`
+	Subtype      string             `json:"subtype,omitempty"` // e.g., "success", "error"
+	Message      *ClaudeMessage     `json:"message,omitempty"`
+	Usage        *ClaudeUsage       `json:"usage,omitempty"`
+	ToolUse      *ClaudeToolUse     `json:"tool_use,omitempty"`
+	Result       json.RawMessage    `json:"result,omitempty"`
+	Error        *ClaudeError       `json:"error,omitempty"`
+	SessionID    string             `json:"session_id,omitempty"`
+	IsError      bool               `json:"is_error,omitempty"`
+	DurationMs   int                `json:"duration_ms,omitempty"`
+	DurationAPI  int                `json:"duration_api_ms,omitempty"`
+	NumTurns     int                `json:"num_turns,omitempty"`
+	TotalCostUSD float64            `json:"total_cost_usd,omitempty"`
+	ServiceTier  string             `json:"service_tier,omitempty"` // e.g., "standard"
+	ContentBlock *ClaudeContentBlock `json:"content_block,omitempty"`
+	Delta        *ClaudeDelta       `json:"delta,omitempty"`
 }
 
 // ClaudeMessage represents a message in the Claude stream.
@@ -393,10 +404,18 @@ type ClaudeMessage struct {
 	Content string `json:"content"`
 }
 
-// ClaudeUsage represents token usage information.
+// ClaudeUsage represents detailed token usage information.
 type ClaudeUsage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
+	InputTokens             int               `json:"input_tokens"`
+	OutputTokens            int               `json:"output_tokens"`
+	CacheCreationInputTokens int              `json:"cache_creation_input_tokens,omitempty"`
+	CacheReadInputTokens    int               `json:"cache_read_input_tokens,omitempty"`
+	ServerToolUse           *ClaudeServerTool `json:"server_tool_use,omitempty"`
+}
+
+// ClaudeServerTool represents server-side tool usage.
+type ClaudeServerTool struct {
+	WebSearchRequests int `json:"web_search_requests,omitempty"`
 }
 
 // ClaudeToolUse represents a tool call in the stream.
@@ -410,6 +429,30 @@ type ClaudeToolUse struct {
 type ClaudeError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+}
+
+// ClaudeContentBlock represents a content block in streaming.
+type ClaudeContentBlock struct {
+	Type  string `json:"type"` // "text", "tool_use"
+	ID    string `json:"id,omitempty"`
+	Name  string `json:"name,omitempty"`
+	Text  string `json:"text,omitempty"`
+}
+
+// ClaudeDelta represents incremental updates in streaming.
+type ClaudeDelta struct {
+	Type        string `json:"type"` // "text_delta", "input_json_delta"
+	Text        string `json:"text,omitempty"`
+	PartialJSON string `json:"partial_json,omitempty"`
+}
+
+// RateLimitInfo contains parsed rate limit information.
+type RateLimitInfo struct {
+	Detected    bool
+	LimitType   string // "5_hour", "daily", "weekly", "token"
+	ResetTime   *time.Time
+	RetryAfter  int // seconds
+	Message     string
 }
 
 // parseStreamEvent parses a single line from Claude's stream-json output.
@@ -485,6 +528,32 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 				"tokens",
 			), nil
 		}
+
+	case "result":
+		// Final result event - contains cost, usage, and potential rate limits
+		return r.parseResultEvent(runID, &streamEvent)
+
+	case "content_block_start":
+		// Start of a content block (text or tool use)
+		if streamEvent.ContentBlock != nil {
+			if streamEvent.ContentBlock.Type == "tool_use" {
+				return domain.NewLogEvent(
+					runID,
+					"debug",
+					fmt.Sprintf("Starting tool: %s", streamEvent.ContentBlock.Name),
+				), nil
+			}
+		}
+
+	case "content_block_delta":
+		// Incremental content update (for streaming)
+		if streamEvent.Delta != nil && streamEvent.Delta.Text != "" {
+			return domain.NewLogEvent(
+				runID,
+				"trace",
+				streamEvent.Delta.Text,
+			), nil
+		}
 	}
 
 	// Unknown or unhandled event type - log it
@@ -493,6 +562,107 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 		"debug",
 		fmt.Sprintf("Unhandled event type: %s", streamEvent.Type),
 	), nil
+}
+
+// parseResultEvent handles the final "result" event which contains cost and rate limit info.
+func (r *ClaudeCodeRunner) parseResultEvent(runID uuid.UUID, event *ClaudeStreamEvent) (*domain.RunEvent, error) {
+	// Check for rate limit error in result
+	if event.IsError {
+		var resultStr string
+		if event.Result != nil {
+			json.Unmarshal(event.Result, &resultStr)
+		}
+
+		// Check for rate limit pattern: "Claude AI usage limit reached|timestamp"
+		rateLimitInfo := r.detectRateLimit(resultStr)
+		if rateLimitInfo.Detected {
+			return domain.NewRateLimitEvent(
+				runID,
+				rateLimitInfo.LimitType,
+				rateLimitInfo.Message,
+				rateLimitInfo.ResetTime,
+				rateLimitInfo.RetryAfter,
+			), nil
+		}
+
+		// Generic error
+		return domain.NewErrorEvent(
+			runID,
+			"execution_error",
+			resultStr,
+			false,
+		), nil
+	}
+
+	// Successful result - emit cost event if we have usage data
+	if event.Usage != nil || event.TotalCostUSD > 0 {
+		costEvent := &domain.RunEvent{
+			ID:        uuid.New(),
+			RunID:     runID,
+			EventType: domain.EventTypeMetric,
+			Timestamp: time.Now(),
+			Data: &domain.CostEventData{
+				InputTokens:         event.Usage.InputTokens,
+				OutputTokens:        event.Usage.OutputTokens,
+				CacheCreationTokens: event.Usage.CacheCreationInputTokens,
+				CacheReadTokens:     event.Usage.CacheReadInputTokens,
+				TotalCostUSD:        event.TotalCostUSD,
+				ServiceTier:         event.ServiceTier,
+			},
+		}
+		if event.Usage.ServerToolUse != nil {
+			if data, ok := costEvent.Data.(*domain.CostEventData); ok {
+				data.WebSearchRequests = event.Usage.ServerToolUse.WebSearchRequests
+			}
+		}
+		return costEvent, nil
+	}
+
+	// Result with no special data
+	return domain.NewLogEvent(
+		runID,
+		"info",
+		fmt.Sprintf("Execution completed in %d turns", event.NumTurns),
+	), nil
+}
+
+// detectRateLimit parses rate limit information from error messages.
+func (r *ClaudeCodeRunner) detectRateLimit(resultStr string) RateLimitInfo {
+	info := RateLimitInfo{
+		Detected: false,
+		Message:  resultStr,
+	}
+
+	// Pattern 1: "Claude AI usage limit reached|timestamp"
+	if strings.Contains(resultStr, "usage limit reached") || strings.Contains(resultStr, "rate limit") {
+		info.Detected = true
+		info.LimitType = "5_hour" // Most common limit type
+
+		// Try to parse reset timestamp from "limit reached|1755806400" format
+		parts := strings.Split(resultStr, "|")
+		if len(parts) >= 2 {
+			if timestamp, err := strconv.ParseInt(strings.TrimSpace(parts[len(parts)-1]), 10, 64); err == nil {
+				resetTime := time.Unix(timestamp, 0)
+				info.ResetTime = &resetTime
+				info.RetryAfter = int(time.Until(resetTime).Seconds())
+				if info.RetryAfter < 0 {
+					info.RetryAfter = 0
+				}
+			}
+		}
+
+		// Determine limit type from message content
+		lowerMsg := strings.ToLower(resultStr)
+		if strings.Contains(lowerMsg, "daily") {
+			info.LimitType = "daily"
+		} else if strings.Contains(lowerMsg, "weekly") {
+			info.LimitType = "weekly"
+		} else if strings.Contains(lowerMsg, "token") {
+			info.LimitType = "token"
+		}
+	}
+
+	return info
 }
 
 // updateMetrics updates execution metrics based on parsed events.
@@ -517,6 +687,14 @@ func (r *ClaudeCodeRunner) updateMetrics(event *domain.RunEvent, metrics *Execut
 				metrics.TokensOutput = totalTokens - metrics.TokensInput
 			}
 		}
+	case *domain.CostEventData:
+		// Update detailed token counts and cost
+		metrics.TokensInput = data.InputTokens
+		metrics.TokensOutput = data.OutputTokens
+		metrics.CostEstimateUSD = data.TotalCostUSD
+	case *domain.RateLimitEventData:
+		// Rate limit detected - this will cause execution to fail
+		// The error is handled in the Execute function
 	}
 }
 

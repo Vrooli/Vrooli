@@ -41,6 +41,7 @@ type Server struct {
 	db           *sql.DB
 	router       *mux.Router
 	orchestrator orchestration.Service
+	wsHub        *handlers.WebSocketHub
 }
 
 // NewServer initializes configuration, database, and routes
@@ -73,14 +74,19 @@ func NewServer() (*Server, error) {
 		}
 	}
 
-	// Create the orchestrator with appropriate repositories
-	orch := createOrchestrator(cfg.UseInMemory)
+	// Create WebSocket hub for real-time event broadcasting (needed by orchestrator)
+	wsHub := handlers.NewWebSocketHub()
+	go wsHub.Run()
+
+	// Create the orchestrator with appropriate repositories and broadcaster
+	orch := createOrchestrator(cfg.UseInMemory, wsHub)
 
 	srv := &Server{
 		config:       cfg,
 		db:           db,
 		router:       mux.NewRouter(),
 		orchestrator: orch,
+		wsHub:        wsHub,
 	}
 
 	srv.setupRoutes()
@@ -88,7 +94,7 @@ func NewServer() (*Server, error) {
 }
 
 // createOrchestrator creates the orchestration service with all dependencies
-func createOrchestrator(useInMemory bool) orchestration.Service {
+func createOrchestrator(useInMemory bool, wsHub *handlers.WebSocketHub) orchestration.Service {
 	// Create repositories
 	var (
 		profileRepo     repository.ProfileRepository
@@ -174,7 +180,7 @@ func createOrchestrator(useInMemory bool) orchestration.Service {
 	}
 	sandboxProvider := sandbox.NewWorkspaceSandboxProvider(sandboxURL)
 
-	// Build orchestrator with all dependencies
+	// Build orchestrator with all dependencies including WebSocket broadcaster
 	orch := orchestration.New(
 		profileRepo,
 		taskRepo,
@@ -189,6 +195,7 @@ func createOrchestrator(useInMemory bool) orchestration.Service {
 		orchestration.WithSandbox(sandboxProvider),
 		orchestration.WithCheckpoints(checkpointRepo),
 		orchestration.WithIdempotency(idempotencyRepo),
+		orchestration.WithBroadcaster(wsHub),
 	)
 
 	log.Printf("Orchestrator initialized (in-memory: %v, sandbox: %s)", useInMemory, sandboxURL)
@@ -199,13 +206,10 @@ func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	s.router.Use(corsMiddleware)
 
-	// Create WebSocket hub for real-time event broadcasting
-	wsHub := handlers.NewWebSocketHub()
-	go wsHub.Run()
-
 	// Register all API routes via the handlers package
+	// WebSocket hub was created in NewServer and is shared with orchestrator
 	handler := handlers.New(s.orchestrator)
-	handler.SetWebSocketHub(wsHub)
+	handler.SetWebSocketHub(s.wsHub)
 	handler.RegisterRoutes(s.router)
 
 	log.Printf("WebSocket endpoint available at /api/v1/ws")

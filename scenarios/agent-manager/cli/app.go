@@ -22,7 +22,8 @@ var (
 )
 
 type App struct {
-	core *cliapp.ScenarioApp
+	core     *cliapp.ScenarioApp
+	services *Services
 }
 
 func NewApp() (*App, error) {
@@ -49,7 +50,10 @@ func NewApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	app := &App{core: core}
+	app := &App{
+		core:     core,
+		services: NewServices(core.APIClient),
+	}
 	app.core.SetCommands(app.registerCommands())
 	return app, nil
 }
@@ -66,6 +70,27 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	profiles := cliapp.CommandGroup{
+		Title: "Profiles",
+		Commands: []cliapp.Command{
+			{Name: "profile", NeedsAPI: true, Description: "Manage agent profiles", Run: a.cmdProfile},
+		},
+	}
+
+	tasks := cliapp.CommandGroup{
+		Title: "Tasks",
+		Commands: []cliapp.Command{
+			{Name: "task", NeedsAPI: true, Description: "Manage tasks", Run: a.cmdTask},
+		},
+	}
+
+	runs := cliapp.CommandGroup{
+		Title: "Runs",
+		Commands: []cliapp.Command{
+			{Name: "run", NeedsAPI: true, Description: "Manage run executions", Run: a.cmdRun},
+		},
+	}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -73,7 +98,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, config}
+	return []cliapp.CommandGroup{health, profiles, tasks, runs, config}
 }
 
 func (a *App) apiPath(v1Path string) string {

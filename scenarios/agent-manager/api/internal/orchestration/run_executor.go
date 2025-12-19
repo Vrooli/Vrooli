@@ -86,6 +86,7 @@ type RunExecutor struct {
 	sandbox     sandbox.Provider
 	events      event.Store
 	checkpoints repository.CheckpointRepository // optional: for checkpoint persistence
+	broadcaster EventBroadcaster                // optional: for real-time WebSocket updates
 
 	// Configuration
 	config ExecutorConfig
@@ -169,6 +170,12 @@ func (e *RunExecutor) WithResumeFrom(checkpoint *domain.RunCheckpoint) *RunExecu
 	if checkpoint.LockID != nil {
 		e.lockID = checkpoint.LockID
 	}
+	return e
+}
+
+// WithBroadcaster sets the event broadcaster for real-time updates.
+func (e *RunExecutor) WithBroadcaster(b EventBroadcaster) *RunExecutor {
+	e.broadcaster = b
 	return e
 }
 
@@ -619,6 +626,15 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 }
 
 func (e *RunExecutor) createEventSink() runner.EventSink {
+	// If we have a broadcaster, use the broadcasting sink for real-time updates
+	if e.broadcaster != nil {
+		return &broadcastingEventSink{
+			store:       e.events,
+			runID:       e.run.ID,
+			broadcaster: e.broadcaster,
+		}
+	}
+	// Fallback to just storing events
 	if e.events != nil {
 		return &eventStoreAdapter{store: e.events, runID: e.run.ID}
 	}

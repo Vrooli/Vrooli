@@ -199,6 +199,9 @@ type Orchestrator struct {
 	// Lock management
 	locks sandbox.LockManager
 
+	// Real-time event broadcasting (WebSocket)
+	broadcaster EventBroadcaster
+
 	// Configuration
 	config OrchestratorConfig
 }
@@ -283,6 +286,13 @@ func WithCheckpoints(c repository.CheckpointRepository) Option {
 func WithIdempotency(i repository.IdempotencyRepository) Option {
 	return func(o *Orchestrator) {
 		o.idempotency = i
+	}
+}
+
+// WithBroadcaster sets the event broadcaster for real-time WebSocket updates.
+func WithBroadcaster(b EventBroadcaster) Option {
+	return func(o *Orchestrator) {
+		o.broadcaster = b
 	}
 }
 
@@ -610,6 +620,10 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	if o.checkpoints != nil {
 		executor.WithCheckpointRepository(o.checkpoints)
 	}
+	// Configure executor with broadcaster for real-time WebSocket updates
+	if o.broadcaster != nil {
+		executor.WithBroadcaster(o.broadcaster)
+	}
 	executor.Execute(ctx)
 }
 
@@ -689,6 +703,10 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	// Configure for resumption
 	if o.checkpoints != nil {
 		executor.WithCheckpointRepository(o.checkpoints)
+	}
+	// Configure executor with broadcaster for real-time WebSocket updates
+	if o.broadcaster != nil {
+		executor.WithBroadcaster(o.broadcaster)
 	}
 	executor.WithResumeFrom(checkpoint)
 
@@ -883,6 +901,14 @@ func (o *Orchestrator) GetRunnerStatus(ctx context.Context) ([]*RunnerStatus, er
 // Helper Types
 // -----------------------------------------------------------------------------
 
+// EventBroadcaster is a callback for broadcasting events in real-time.
+// This is typically implemented by the WebSocket hub.
+type EventBroadcaster interface {
+	BroadcastEvent(event *domain.RunEvent)
+	BroadcastRunStatus(run *domain.Run)
+	BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string)
+}
+
 // eventStoreAdapter adapts event.Store to runner.EventSink
 type eventStoreAdapter struct {
 	store event.Store
@@ -894,6 +920,42 @@ func (e *eventStoreAdapter) Emit(evt *domain.RunEvent) error {
 }
 
 func (e *eventStoreAdapter) Close() error {
+	return nil
+}
+
+// broadcastingEventSink stores events AND broadcasts them via WebSocket.
+type broadcastingEventSink struct {
+	store       event.Store
+	runID       uuid.UUID
+	broadcaster EventBroadcaster
+}
+
+func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
+	// Store the event
+	if b.store != nil {
+		if err := b.store.Append(context.Background(), b.runID, evt); err != nil {
+			// Log but don't fail - broadcasting is more important for UX
+			_ = err
+		}
+	}
+
+	// Broadcast the event via WebSocket
+	if b.broadcaster != nil {
+		b.broadcaster.BroadcastEvent(evt)
+
+		// Also emit progress events for status changes
+		if data, ok := evt.Data.(*domain.StatusEventData); ok {
+			b.broadcaster.BroadcastProgress(b.runID, domain.RunPhase(data.NewStatus), 0, data.Reason)
+		}
+		if data, ok := evt.Data.(*domain.ProgressEventData); ok {
+			b.broadcaster.BroadcastProgress(b.runID, data.Phase, data.PercentComplete, data.CurrentAction)
+		}
+	}
+
+	return nil
+}
+
+func (b *broadcastingEventSink) Close() error {
 	return nil
 }
 

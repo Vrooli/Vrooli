@@ -503,6 +503,108 @@ type ErrorEventData struct {
 	StackTrace string         `json:"stackTrace,omitempty"` // Optional stack trace
 }
 
+// =============================================================================
+// RATE LIMIT EVENT
+// =============================================================================
+
+// RateLimitEventData contains data for rate limit events.
+type RateLimitEventData struct {
+	LimitType   string     `json:"limitType"`             // Type of limit: "5_hour", "daily", "weekly", "token"
+	ResetTime   *time.Time `json:"resetTime,omitempty"`   // When the limit resets
+	RetryAfter  int        `json:"retryAfter,omitempty"`  // Seconds until retry is safe
+	CurrentUsed int        `json:"currentUsed,omitempty"` // Current usage count
+	Limit       int        `json:"limit,omitempty"`       // The limit that was hit
+	Message     string     `json:"message"`               // Human-readable message
+}
+
+func (d *RateLimitEventData) EventType() RunEventType { return EventTypeError }
+func (d *RateLimitEventData) isEventPayload()         {}
+
+// NewRateLimitEvent creates a new rate limit event.
+func NewRateLimitEvent(runID uuid.UUID, limitType, message string, resetTime *time.Time, retryAfter int) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeError,
+		Timestamp: time.Now(),
+		Data: &RateLimitEventData{
+			LimitType:  limitType,
+			ResetTime:  resetTime,
+			RetryAfter: retryAfter,
+			Message:    message,
+		},
+	}
+}
+
+// =============================================================================
+// COST EVENT
+// =============================================================================
+
+// CostEventData contains data for cost/usage tracking events.
+type CostEventData struct {
+	InputTokens             int     `json:"inputTokens"`
+	OutputTokens            int     `json:"outputTokens"`
+	CacheCreationTokens     int     `json:"cacheCreationTokens,omitempty"`
+	CacheReadTokens         int     `json:"cacheReadTokens,omitempty"`
+	TotalCostUSD            float64 `json:"totalCostUsd"`
+	ServiceTier             string  `json:"serviceTier,omitempty"` // e.g., "standard", "priority"
+	Model                   string  `json:"model,omitempty"`
+	WebSearchRequests       int     `json:"webSearchRequests,omitempty"`
+	ServerToolUseRequests   int     `json:"serverToolUseRequests,omitempty"`
+}
+
+func (d *CostEventData) EventType() RunEventType { return EventTypeMetric }
+func (d *CostEventData) isEventPayload()         {}
+
+// NewCostEvent creates a new cost tracking event.
+func NewCostEvent(runID uuid.UUID, inputTokens, outputTokens int, costUSD float64) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeMetric,
+		Timestamp: time.Now(),
+		Data: &CostEventData{
+			InputTokens:  inputTokens,
+			OutputTokens: outputTokens,
+			TotalCostUSD: costUSD,
+		},
+	}
+}
+
+// =============================================================================
+// PROGRESS EVENT
+// =============================================================================
+
+// ProgressEventData contains data for progress tracking events.
+type ProgressEventData struct {
+	Phase              RunPhase `json:"phase"`
+	PercentComplete    int      `json:"percentComplete"`
+	CurrentAction      string   `json:"currentAction,omitempty"`
+	TurnsCompleted     int      `json:"turnsCompleted,omitempty"`
+	TurnsTotal         int      `json:"turnsTotal,omitempty"` // 0 means unlimited
+	TokensUsed         int      `json:"tokensUsed,omitempty"`
+	ElapsedSeconds     float64  `json:"elapsedSeconds,omitempty"`
+	EstimatedRemaining float64  `json:"estimatedRemaining,omitempty"` // seconds, -1 if unknown
+}
+
+func (d *ProgressEventData) EventType() RunEventType { return EventTypeStatus }
+func (d *ProgressEventData) isEventPayload()         {}
+
+// NewProgressEvent creates a new progress tracking event.
+func NewProgressEvent(runID uuid.UUID, phase RunPhase, percent int, action string) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeStatus,
+		Timestamp: time.Now(),
+		Data: &ProgressEventData{
+			Phase:           phase,
+			PercentComplete: percent,
+			CurrentAction:   action,
+		},
+	}
+}
+
 func (d *ErrorEventData) EventType() RunEventType { return EventTypeError }
 func (d *ErrorEventData) isEventPayload()         {}
 

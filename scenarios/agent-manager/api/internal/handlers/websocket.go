@@ -149,6 +149,21 @@ func (h *WebSocketHub) BroadcastMessage(msgType string, payload interface{}) {
 	}
 }
 
+// BroadcastProgress broadcasts a progress update for a run.
+// This implements the orchestration.EventBroadcaster interface.
+func (h *WebSocketHub) BroadcastProgress(runID uuid.UUID, phase domain.RunPhase, percent int, action string) {
+	h.broadcast <- &WebSocketMessage{
+		Type: "run_progress",
+		Payload: map[string]interface{}{
+			"runId":           runID.String(),
+			"phase":           string(phase),
+			"percentComplete": percent,
+			"currentAction":   action,
+		},
+		RunID: runID.String(),
+	}
+}
+
 // HandleWebSocket handles WebSocket connections
 func (h *Handler) HandleWebSocket(hub *WebSocketHub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
