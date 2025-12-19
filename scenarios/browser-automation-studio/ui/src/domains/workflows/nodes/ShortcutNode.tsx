@@ -1,19 +1,13 @@
-import { FC, memo, useMemo, useState } from 'react';
+import { FC, memo, useMemo, useCallback } from 'react';
 import type { NodeProps } from 'reactflow';
-import { Command, Globe, Target, Clock, X as XIcon } from 'lucide-react';
-import clsx from 'clsx';
+import { Command } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
 import { useUrlInheritance } from '@hooks/useUrlInheritance';
-import {
-  useSyncedString,
-  useSyncedNumber,
-  textInputHandler,
-  numberInputHandler,
-} from '@hooks/useSyncedField';
-import { ElementPickerModal } from '../components';
+import { useSyncedString, useSyncedNumber } from '@hooks/useSyncedField';
 import type { ElementInfo } from '@/types/elements';
 import BaseNode from './BaseNode';
+import { NodeTextArea, NodeNumberField, NodeUrlField, NodeSelectorField } from './fields';
 
 // ShortcutParams interface for V2 native action params
 interface ShortcutParams {
@@ -125,17 +119,8 @@ const formatShortcutText = (shortcuts: unknown): string => {
 };
 
 const ShortcutNode: FC<NodeProps> = ({ selected, id }) => {
-  // URL inheritance hook handles URL state and handlers
-  const {
-    urlDraft,
-    setUrlDraft,
-    effectiveUrl,
-    hasCustomUrl,
-    upstreamUrl,
-    commitUrl,
-    resetUrl,
-    handleUrlKeyDown,
-  } = useUrlInheritance(id);
+  // URL inheritance for element picker
+  const { effectiveUrl } = useUrlInheritance(id);
 
   // Action params and node data hooks
   const { params, updateParams } = useActionParams<ShortcutParams>(id);
@@ -161,169 +146,70 @@ const ShortcutNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateParams({ shortcutDelayMs: v || undefined }),
   });
 
-  const [showPicker, setShowPicker] = useState(false);
-
   const shortcutsPreview = useMemo(() => parseShortcutText(shortcutText.value), [shortcutText.value]);
 
-  const handleElementSelection = (selector: string, elementInfo: ElementInfo) => {
-    const normalizedSelector = selector.trim();
-    focusSelector.setValue(normalizedSelector);
-    updateParams({ focusSelector: normalizedSelector });
-    updateData({ focusElement: elementInfo });
-  };
+  const handleElementSelection = useCallback(
+    (selector: string, elementInfo: ElementInfo) => {
+      updateParams({ focusSelector: selector });
+      updateData({ focusElement: elementInfo });
+    },
+    [updateParams, updateData],
+  );
 
-  const clearFocus = () => {
-    focusSelector.setValue('');
+  const handleClearFocus = useCallback(() => {
     updateParams({ focusSelector: undefined });
     updateData({ focusElement: undefined });
-  };
+  }, [updateParams, updateData]);
 
   return (
-    <>
-      <BaseNode
-        selected={selected}
-        icon={Command}
-        iconClassName="text-indigo-400"
-        title="Keyboard Shortcut"
-      >
-        <div className="mb-2">
-          <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            <Globe size={12} className="text-blue-400" />
-            Page URL
-          </label>
-          <div className="mt-1 flex items-center gap-2">
-            <input
-              type="text"
-              placeholder={upstreamUrl ?? 'https://example.com'}
-              className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-              value={urlDraft}
-              onChange={(event) => setUrlDraft(event.target.value)}
-              onBlur={commitUrl}
-              onKeyDown={handleUrlKeyDown}
-            />
-            {hasCustomUrl && (
-              <button
-                type="button"
-                className="px-2 py-1 text-[11px] rounded border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
-                onClick={resetUrl}
-              >
-                Reset
-              </button>
-            )}
-          </div>
-          {!hasCustomUrl && upstreamUrl && (
-            <p className="mt-1 text-[10px] text-gray-500 truncate" title={upstreamUrl}>
-              Inherits {upstreamUrl}
-            </p>
-          )}
-          {!effectiveUrl && !upstreamUrl && (
-            <p className="mt-1 text-[10px] text-red-400">Provide a URL to execute this shortcut.</p>
-          )}
-        </div>
+    <BaseNode
+      selected={selected}
+      icon={Command}
+      iconClassName="text-indigo-400"
+      title="Keyboard Shortcut"
+    >
+      <NodeUrlField nodeId={id} errorMessage="Provide a URL to execute this shortcut." />
 
-        <label className="block mb-2">
-          <span className="text-[11px] uppercase tracking-wide text-gray-500 flex items-center justify-between">
-            Shortcuts
-            <span className="text-gray-600 normal-case font-normal">
-              Separate combinations by new lines
-            </span>
-          </span>
-          <textarea
-            className="mt-1 w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none resize-none"
-            rows={3}
-            placeholder="Ctrl+Shift+P\nAlt+Tab"
-            value={shortcutText.value}
-            onChange={textInputHandler(shortcutText.setValue)}
-            onBlur={shortcutText.commit}
-          />
-        </label>
+      <NodeTextArea
+        field={shortcutText}
+        label="Shortcuts"
+        rows={3}
+        placeholder="Ctrl+Shift+P\nAlt+Tab"
+        description="Separate combinations by new lines"
+      />
 
-        <div className="grid grid-cols-1 gap-3">
-          <div>
-            <label className="text-[11px] uppercase tracking-wide text-gray-500 block mb-1">
-              Focus Selector (optional)
-            </label>
-            <div className="flex items-center gap-1">
-              <input
-                type="text"
-                value={focusSelector.value}
-                onChange={textInputHandler(focusSelector.setValue)}
-                onBlur={focusSelector.commit}
-                placeholder="CSS selector to focus before shortcut"
-                className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-              <button
-                type="button"
-                className={clsx(
-                  'p-1.5 rounded border transition-colors',
-                  effectiveUrl
-                    ? 'border-gray-700 bg-flow-bg hover:bg-gray-700 text-gray-300'
-                    : 'border-gray-800 bg-flow-bg text-gray-600 cursor-not-allowed'
-                )}
-                onClick={() => effectiveUrl && setShowPicker(true)}
-                disabled={!effectiveUrl}
-                title={effectiveUrl ? 'Pick focus element' : 'Set a page URL to pick elements'}
-              >
-                <Target size={14} />
-              </button>
-              {focusSelector.value && (
-                <button
-                  type="button"
-                  className="p-1.5 rounded border border-gray-700 bg-flow-bg text-gray-300 hover:bg-gray-700"
-                  onClick={clearFocus}
-                  title="Clear focus selector"
-                >
-                  <XIcon size={12} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-[11px] uppercase tracking-wide text-gray-500 block mb-1">
-              Delay Between Combos (ms)
-            </label>
-            <div className="flex items-center gap-2">
-              <div className="px-2 py-1 bg-flow-bg rounded border border-gray-700 text-gray-400">
-                <Clock size={12} />
-              </div>
-              <input
-                type="number"
-                min={0}
-                step={50}
-                className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={delayMs.value}
-                onChange={numberInputHandler(delayMs.setValue)}
-                onBlur={delayMs.commit}
-              />
-            </div>
-          </div>
-        </div>
-
-        {shortcutsPreview.length > 0 && (
-          <div className="mt-3 p-2 bg-flow-bg/70 border border-gray-800 rounded text-[11px] text-gray-400">
-            <span className="block mb-1 text-gray-500 uppercase tracking-wide">Will trigger</span>
-            <ul className="space-y-1">
-              {shortcutsPreview.map((combo) => (
-                <li key={combo} className="font-mono text-gray-200">
-                  {combo}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </BaseNode>
-
-      {showPicker && effectiveUrl && (
-        <ElementPickerModal
-          isOpen={showPicker}
-          onClose={() => setShowPicker(false)}
-          url={effectiveUrl}
-          onSelectElement={handleElementSelection}
-          selectedSelector={focusSelector.value}
+      <div className="space-y-3">
+        <NodeSelectorField
+          field={focusSelector}
+          effectiveUrl={effectiveUrl}
+          onElementSelect={handleElementSelection}
+          onClear={handleClearFocus}
+          label="Focus Selector (optional)"
+          placeholder="CSS selector to focus before shortcut"
+          showClear
         />
+
+        <NodeNumberField
+          field={delayMs}
+          label="Delay Between Combos (ms)"
+          min={0}
+          step={50}
+        />
+      </div>
+
+      {shortcutsPreview.length > 0 && (
+        <div className="mt-3 p-2 bg-flow-bg/70 border border-gray-800 rounded text-[11px] text-gray-400">
+          <span className="block mb-1 text-gray-500 uppercase tracking-wide">Will trigger</span>
+          <ul className="space-y-1">
+            {shortcutsPreview.map((combo) => (
+              <li key={combo} className="font-mono text-gray-200">
+                {combo}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
-    </>
+    </BaseNode>
   );
 };
 

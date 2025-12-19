@@ -1,12 +1,11 @@
 import { memo, FC, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { KeyboardEvent } from 'react';
 import type { NodeProps } from 'reactflow';
-import { MousePointer, Globe, Target, ChevronDown, ChevronRight, Loader2, Sparkles, Wand2, Brain, ArrowUp, ArrowDown } from 'lucide-react';
+import { MousePointer, Target, ChevronDown, ChevronRight, Loader2, Sparkles, Wand2, Brain, ArrowUp, ArrowDown } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useUpstreamUrl } from '@hooks/useUpstreamUrl';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
 import useUpstreamScreenshot from '@hooks/useUpstreamScreenshot';
+import { useUrlInheritance } from '@hooks/useUrlInheritance';
 import { useSyncedString, textInputHandler } from '@hooks/useSyncedField';
 import type { ElementInfo, BoundingBox, ElementHierarchyEntry, ElementCoordinateResponse } from '@/types/elements';
 import type { ClickParams } from '@utils/actionBuilder';
@@ -15,6 +14,7 @@ import { logger } from '@utils/logger';
 import { useWorkflowStore, type ExecutionViewportSettings } from '@stores/workflowStore';
 import ResiliencePanel from './ResiliencePanel';
 import BaseNode from './BaseNode';
+import { NodeUrlField } from './fields';
 import type { ResilienceSettings } from '@/types/workflow';
 
 const DEFAULT_ASPECT_RATIO = '16 / 9';
@@ -100,7 +100,9 @@ const stringifyPath = (entry: ElementHierarchyEntry | null | undefined): string 
 };
 
 const ClickNode: FC<NodeProps> = ({ selected, id }) => {
-  const upstreamUrl = useUpstreamUrl(id);
+  // URL inheritance for element picker
+  const { effectiveUrl, upstreamUrl } = useUrlInheritance(id);
+
   const upstreamScreenshot = useUpstreamScreenshot(id);
   const screenshot = upstreamScreenshot?.dataUrl ?? null;
   const executionViewport = useWorkflowStore((state) => state.currentWorkflow?.executionViewport as ExecutionViewportSettings | undefined);
@@ -111,23 +113,6 @@ const ClickNode: FC<NodeProps> = ({ selected, id }) => {
 
   // V2 Native: Use action params as source of truth
   const { params, updateParams } = useActionParams<ClickParams>(id);
-
-  const storedUrl = getValue<string>('url') ?? '';
-  const [urlDraft, setUrlDraft] = useState<string>(storedUrl);
-
-  useEffect(() => {
-    setUrlDraft(storedUrl);
-  }, [storedUrl]);
-
-  const trimmedStoredUrl = useMemo(() => storedUrl.trim(), [storedUrl]);
-  const effectiveUrl = useMemo(() => {
-    if (trimmedStoredUrl.length > 0) {
-      return trimmedStoredUrl;
-    }
-    return upstreamUrl ?? null;
-  }, [trimmedStoredUrl, upstreamUrl]);
-
-  const hasCustomUrl = trimmedStoredUrl.length > 0;
 
   const [hierarchyCandidates, setHierarchyCandidates] = useState<ElementHierarchyEntry[]>(() =>
     normalizeHierarchy(rawHierarchyData)
@@ -195,30 +180,6 @@ const ClickNode: FC<NodeProps> = ({ selected, id }) => {
       setHoveredSuggestion(null);
     }
   }, [showAiPanel]);
-
-  const commitUrl = useCallback((raw: string) => {
-    const trimmed = raw.trim();
-    updateData({ url: trimmed.length > 0 ? trimmed : undefined });
-  }, [updateData]);
-
-  const handleUrlCommit = useCallback(() => {
-    commitUrl(urlDraft);
-  }, [commitUrl, urlDraft]);
-
-  const handleUrlKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      commitUrl(urlDraft);
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      setUrlDraft(storedUrl);
-    }
-  }, [commitUrl, storedUrl, urlDraft]);
-
-  const resetUrl = useCallback(() => {
-    setUrlDraft('');
-    updateData({ url: undefined });
-  }, [updateData]);
 
   const handleElementSelection = useCallback((nextSelector: string, elementInfo: ElementInfo, options?: { hierarchy?: ElementHierarchyEntry[]; hierarchyIndex?: number }) => {
     selector.setValue(nextSelector);
@@ -514,40 +475,7 @@ const ClickNode: FC<NodeProps> = ({ selected, id }) => {
 
   return (
     <BaseNode selected={selected} icon={MousePointer} iconClassName="text-green-400" title="Click" className="w-80">
-      <div className="mb-2">
-        <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-          <Globe size={12} className="text-blue-400" />
-          Page URL
-        </label>
-        <div className="mt-1 flex items-center gap-2">
-          <input
-            type="text"
-            placeholder={upstreamUrl ?? 'https://example.com'}
-            className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            value={urlDraft}
-            onChange={(event) => setUrlDraft(event.target.value)}
-            onBlur={handleUrlCommit}
-            onKeyDown={handleUrlKeyDown}
-          />
-          {hasCustomUrl && (
-            <button
-              type="button"
-              className="px-2 py-1 text-[11px] rounded border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
-              onClick={resetUrl}
-            >
-              Reset
-            </button>
-          )}
-        </div>
-        {!hasCustomUrl && upstreamUrl && (
-          <p className="mt-1 text-[10px] text-gray-500 truncate" title={upstreamUrl}>
-            Inherits {upstreamUrl}
-          </p>
-        )}
-        {!effectiveUrl && !upstreamUrl && (
-          <p className="mt-1 text-[10px] text-red-400">Provide a URL to target this click.</p>
-        )}
-      </div>
+      <NodeUrlField nodeId={id} errorMessage="Provide a URL to target this click." />
 
       <div className="flex items-center gap-1 mb-2">
         <input

@@ -4,16 +4,10 @@ import { CheckCircle, Globe } from 'lucide-react';
 import { useUpstreamUrl } from '@hooks/useUpstreamUrl';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
-import {
-  useSyncedString,
-  useSyncedBoolean,
-  useSyncedSelect,
-  textInputHandler,
-  checkboxInputHandler,
-  selectInputHandler,
-} from '@hooks/useSyncedField';
+import { useSyncedString, useSyncedBoolean, useSyncedSelect } from '@hooks/useSyncedField';
 import type { AssertParams } from '@utils/actionBuilder';
 import BaseNode from './BaseNode';
+import { NodeTextField, NodeSelectField, NodeCheckbox } from './fields';
 
 const assertModes = [
   { value: 'exists', label: 'Element Exists' },
@@ -78,84 +72,28 @@ const AssertNode: FC<NodeProps> = ({ selected, id }) => {
       )}
 
       <div className="space-y-2">
-        <input
-          type="text"
-          placeholder="Label (optional)"
-          className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-          value={label.value}
-          onChange={textInputHandler(label.setValue)}
-          onBlur={label.commit}
-        />
+        <NodeTextField field={label} label="" placeholder="Label (optional)" />
 
-        <select
-          className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-          value={mode.value}
-          onChange={selectInputHandler(mode.setValue, mode.commit)}
-        >
-          {assertModes.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </select>
+        <NodeSelectField field={mode} label="" options={assertModes} />
 
-        <input
-          type="text"
-          placeholder="CSS Selector..."
-          className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-          value={selector.value}
-          onChange={textInputHandler(selector.setValue)}
-          onBlur={selector.commit}
-        />
+        <NodeTextField field={selector} label="" placeholder="CSS Selector..." />
 
         {showExpectedValue && (
-          <input
-            type="text"
-            placeholder={
-              mode.value === 'attribute_equals' ? 'Expected attribute value...' : 'Expected text...'
-            }
-            className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            value={expectedValue.value}
-            onChange={textInputHandler(expectedValue.setValue)}
-            onBlur={expectedValue.commit}
+          <NodeTextField
+            field={expectedValue}
+            label=""
+            placeholder={mode.value === 'attribute_equals' ? 'Expected attribute value...' : 'Expected text...'}
           />
         )}
 
         {showAttributeName && (
-          <input
-            type="text"
-            placeholder="Attribute name..."
-            className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            value={attributeName.value}
-            onChange={textInputHandler(attributeName.setValue)}
-            onBlur={attributeName.commit}
-          />
+          <NodeTextField field={attributeName} label="" placeholder="Attribute name..." />
         )}
 
-        <div className="flex items-center gap-2 text-xs">
-          <label className="flex items-center gap-1 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={continueOnFailure.value}
-              onChange={checkboxInputHandler(continueOnFailure.setValue, continueOnFailure.commit)}
-              className="rounded border-gray-700 bg-flow-bg text-flow-accent focus:ring-flow-accent focus:ring-offset-0"
-            />
-            <span className="text-gray-400">Continue on failure</span>
-          </label>
-        </div>
+        <NodeCheckbox field={continueOnFailure} label="Continue on failure" />
 
         {showCaseSensitive && (
-          <div className="flex items-center gap-2 text-xs">
-            <label className="flex items-center gap-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={caseSensitive.value}
-                onChange={checkboxInputHandler(caseSensitive.setValue, caseSensitive.commit)}
-                className="rounded border-gray-700 bg-flow-bg text-flow-accent focus:ring-flow-accent focus:ring-offset-0"
-              />
-              <span className="text-gray-400">Case sensitive</span>
-            </label>
-          </div>
+          <NodeCheckbox field={caseSensitive} label="Case sensitive" />
         )}
       </div>
     </BaseNode>

@@ -1,4 +1,4 @@
-import { memo, FC, useState, useCallback } from 'react';
+import { memo, FC, useState } from 'react';
 import type { NodeProps } from 'reactflow';
 import {
   Camera,
@@ -13,16 +13,21 @@ import {
 } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
-import { useUrlInheritance } from '@hooks/useUrlInheritance';
 import {
   useSyncedString,
   useSyncedBoolean,
   useSyncedField,
   textInputHandler,
-  checkboxInputHandler,
 } from '@hooks/useSyncedField';
 import type { ScreenshotParams } from '@utils/actionBuilder';
 import BaseNode from './BaseNode';
+import {
+  NodeTextField,
+  NodeTextArea,
+  NodeCheckbox,
+  NodeUrlField,
+  FieldRow,
+} from './fields';
 
 // Helper to parse selector lists from comma/newline separated string
 const parseSelectorList = (raw: string): string[] =>
@@ -50,18 +55,6 @@ const parseOptionalNumber = (
 };
 
 const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
-  // URL inheritance hook handles URL state and handlers
-  const {
-    urlDraft,
-    setUrlDraft,
-    effectiveUrl,
-    hasCustomUrl,
-    upstreamUrl,
-    commitUrl,
-    resetUrl,
-    handleUrlKeyDown,
-  } = useUrlInheritance(id);
-
   // Node data hook for UI-specific fields
   const { getValue, updateData } = useNodeData(id);
 
@@ -101,7 +94,7 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
     },
   });
 
-  // Optional number fields (stored as numbers, edited as strings)
+  // Optional number fields (stored as numbers, edited as strings for optional handling)
   const highlightPadding = useSyncedField(getValue<number>('highlightPadding')?.toString() ?? '', {
     onCommit: (v) => updateData({ highlightPadding: parseOptionalNumber(v, { min: 0 }) }),
   });
@@ -124,16 +117,6 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
   // UI state (not persisted)
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
-  // Handler for immediate update of selector lists on change
-  const handleSelectorListChange = useCallback(
-    (setter: React.Dispatch<React.SetStateAction<string>>, commit: () => void) =>
-      (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setter(e.target.value);
-        commit();
-      },
-    [],
-  );
-
   return (
     <BaseNode
       selected={selected}
@@ -142,40 +125,7 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
       title="Screenshot"
       className="w-80"
     >
-      <div className="mb-2">
-        <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-          <Globe size={12} className="text-blue-400" />
-          Page URL
-        </label>
-        <div className="mt-1 flex items-center gap-2">
-          <input
-            type="text"
-            placeholder={upstreamUrl ?? 'https://example.com'}
-            className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            value={urlDraft}
-            onChange={(event) => setUrlDraft(event.target.value)}
-            onBlur={commitUrl}
-            onKeyDown={handleUrlKeyDown}
-          />
-          {hasCustomUrl && (
-            <button
-              type="button"
-              className="px-2 py-1 text-[11px] rounded border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
-              onClick={resetUrl}
-            >
-              Reset
-            </button>
-          )}
-        </div>
-        {!hasCustomUrl && upstreamUrl && (
-          <p className="mt-1 text-[10px] text-gray-500 truncate" title={upstreamUrl}>
-            Inherits {upstreamUrl}
-          </p>
-        )}
-        {!effectiveUrl && !upstreamUrl && (
-          <p className="mt-1 text-[10px] text-red-400">Provide a URL to capture screenshots from.</p>
-        )}
-      </div>
+      <NodeUrlField nodeId={id} errorMessage="Provide a URL to capture screenshots from." />
 
       <input
         type="text"
@@ -186,15 +136,7 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
         onBlur={name.commit}
       />
 
-      <label className="flex items-center gap-2 text-xs">
-        <input
-          type="checkbox"
-          className="rounded"
-          checked={fullPage.value}
-          onChange={checkboxInputHandler(fullPage.setValue, fullPage.commit)}
-        />
-        <span>Full page</span>
-      </label>
+      <NodeCheckbox field={fullPage} label="Full page" />
 
       <button
         type="button"
@@ -206,53 +148,35 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
       </button>
 
       {showAdvanced && (
-        <div className="space-y-3 border-t border-gray-800 pt-3">
-          <div className="space-y-2">
-            <label className="text-xs text-gray-400 flex items-center gap-2">
-              <Focus size={12} className="text-blue-300" /> Focus selector
-            </label>
-            <input
-              type="text"
-              placeholder="CSS selector to focus before capture"
-              className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-              value={focusSelector.value}
-              onChange={textInputHandler(focusSelector.setValue)}
-              onBlur={focusSelector.commit}
-            />
-          </div>
+        <div className="space-y-3 border-t border-gray-800 pt-3 text-xs">
+          <NodeTextField
+            field={focusSelector}
+            label="Focus selector"
+            placeholder="CSS selector to focus before capture"
+            icon={Focus}
+            iconClassName="text-blue-300"
+          />
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <label className="text-xs text-gray-400 flex items-center gap-2">
-                <Wand2 size={12} className="text-purple-300" /> Highlight selectors
-              </label>
-              <span className="text-[10px] text-gray-500">comma or newline separated</span>
-            </div>
-            <textarea
-              rows={2}
-              className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-              placeholder="e.g. h1, .cta-button"
-              value={highlightInput.value}
-              onChange={handleSelectorListChange(highlightInput.setValue, highlightInput.commit)}
-            />
-          </div>
+          <NodeTextArea
+            field={highlightInput}
+            label="Highlight selectors"
+            placeholder="e.g. h1, .cta-button"
+            description="comma or newline separated"
+            rows={2}
+            icon={Wand2}
+            iconClassName="text-purple-300"
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400 flex items-center gap-2">
-                <Palette size={12} className="text-sky-300" /> Highlight color
-              </label>
-              <input
-                type="text"
-                placeholder="#00E5FF"
-                className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={highlightColor.value}
-                onChange={textInputHandler(highlightColor.setValue)}
-                onBlur={highlightColor.commit}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400 flex items-center gap-2">
+          <FieldRow>
+            <NodeTextField
+              field={highlightColor}
+              label="Highlight color"
+              placeholder="#00E5FF"
+              icon={Palette}
+              iconClassName="text-sky-300"
+            />
+            <div>
+              <label className="text-xs text-gray-400 flex items-center gap-2 mb-1">
                 <Wand2 size={12} className="text-purple-300" /> Padding (px)
               </label>
               <input
@@ -264,27 +188,21 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
                 onBlur={highlightPadding.commit}
               />
             </div>
-          </div>
+          </FieldRow>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <label className="text-xs text-gray-400 flex items-center gap-2">
-                <Droplet size={12} className="text-emerald-300" /> Mask selectors
-              </label>
-              <span className="text-[10px] text-gray-500">hide sensitive areas</span>
-            </div>
-            <textarea
-              rows={2}
-              className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-              placeholder="e.g. .ads, .cookie-banner"
-              value={maskInput.value}
-              onChange={handleSelectorListChange(maskInput.setValue, maskInput.commit)}
-            />
-          </div>
+          <NodeTextArea
+            field={maskInput}
+            label="Mask selectors"
+            placeholder="e.g. .ads, .cookie-banner"
+            description="hide sensitive areas"
+            rows={2}
+            icon={Droplet}
+            iconClassName="text-emerald-300"
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400 flex items-center gap-2">
+          <FieldRow>
+            <div>
+              <label className="text-xs text-gray-400 flex items-center gap-2 mb-1">
                 <Droplet size={12} className="text-emerald-300" /> Mask opacity
               </label>
               <input
@@ -298,8 +216,8 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
                 onBlur={maskOpacity.commit}
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400 flex items-center gap-2">
+            <div>
+              <label className="text-xs text-gray-400 flex items-center gap-2 mb-1">
                 <ZoomIn size={12} className="text-pink-300" /> Zoom factor
               </label>
               <input
@@ -312,11 +230,11 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
                 onBlur={zoomFactor.commit}
               />
             </div>
-          </div>
+          </FieldRow>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400 flex items-center gap-2">
+          <FieldRow>
+            <div>
+              <label className="text-xs text-gray-400 flex items-center gap-2 mb-1">
                 <Globe size={12} className="text-blue-300" /> Viewport width
               </label>
               <input
@@ -328,8 +246,8 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
                 onBlur={viewportWidth.commit}
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400 flex items-center gap-2">
+            <div>
+              <label className="text-xs text-gray-400 flex items-center gap-2 mb-1">
                 <Globe size={12} className="text-blue-300" /> Viewport height
               </label>
               <input
@@ -341,24 +259,18 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
                 onBlur={viewportHeight.commit}
               />
             </div>
-          </div>
+          </FieldRow>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400 flex items-center gap-2">
-                <Palette size={12} className="text-sky-300" /> Page background
-              </label>
-              <input
-                type="text"
-                placeholder="#0f172a or linear-gradient(...)"
-                className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={background.value}
-                onChange={textInputHandler(background.setValue)}
-                onBlur={background.commit}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400 flex items-center gap-2">
+          <FieldRow>
+            <NodeTextField
+              field={background}
+              label="Page background"
+              placeholder="#0f172a or linear-gradient(...)"
+              icon={Palette}
+              iconClassName="text-sky-300"
+            />
+            <div>
+              <label className="text-xs text-gray-400 flex items-center gap-2 mb-1">
                 <Timer size={12} className="text-amber-300" /> Wait before capture (ms)
               </label>
               <input
@@ -370,7 +282,7 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
                 onBlur={waitForMs.commit}
               />
             </div>
-          </div>
+          </FieldRow>
         </div>
       )}
     </BaseNode>

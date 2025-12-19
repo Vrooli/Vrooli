@@ -7,12 +7,15 @@ import {
   useSyncedNumber,
   useSyncedBoolean,
   useSyncedSelect,
-  textInputHandler,
-  numberInputHandler,
-  checkboxInputHandler,
-  selectInputHandler,
 } from '@hooks/useSyncedField';
 import BaseNode from './BaseNode';
+import {
+  NodeTextField,
+  NodeNumberField,
+  NodeSelectField,
+  NodeCheckbox,
+  FieldRow,
+} from './fields';
 
 // TabSwitchParams interface for V2 native action params
 interface TabSwitchParams {
@@ -70,10 +73,6 @@ const TabSwitchNode: FC<NodeProps> = ({ id, selected }) => {
     onCommit: (v) => updateParams({ closeOld: v }),
   });
 
-  const requiresIndex = mode.value === 'index';
-  const requiresTitle = mode.value === 'title';
-  const requiresUrl = mode.value === 'url';
-
   const modeDescription = useMemo(() => {
     switch (mode.value) {
       case 'oldest':
@@ -92,96 +91,39 @@ const TabSwitchNode: FC<NodeProps> = ({ id, selected }) => {
   return (
     <BaseNode selected={selected} icon={PanelsTopLeft} iconClassName="text-violet-300" title="Tab Switch">
       <div className="space-y-3 text-xs">
-        <div>
-          <label className="text-gray-400 block mb-1">Switch strategy</label>
-          <select
-            value={mode.value}
-            onChange={selectInputHandler(mode.setValue, mode.commit)}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          >
-            {MODES.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <p className="text-gray-500 mt-1">{modeDescription}</p>
-        </div>
+        <NodeSelectField
+          field={mode}
+          label="Switch strategy"
+          options={MODES}
+          description={modeDescription}
+        />
 
-        {requiresIndex && (
-          <div>
-            <label className="text-gray-400 block mb-1">Tab index</label>
-            <input
-              type="number"
-              min={0}
-              value={index.value}
-              onChange={numberInputHandler(index.setValue)}
-              onBlur={index.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
+        {mode.value === 'index' && (
+          <NodeNumberField field={index} label="Tab index" min={0} />
         )}
 
-        {requiresTitle && (
-          <div>
-            <label className="text-gray-400 block mb-1">Title pattern</label>
-            <input
-              type="text"
-              value={titleMatch.value}
-              placeholder="/Invoice/ or Dashboard"
-              onChange={textInputHandler(titleMatch.setValue)}
-              onBlur={titleMatch.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-        )}
-
-        {requiresUrl && (
-          <div>
-            <label className="text-gray-400 block mb-1">URL pattern</label>
-            <input
-              type="text"
-              value={urlMatch.value}
-              placeholder="/auth\\/callback/ or /settings"
-              onChange={textInputHandler(urlMatch.setValue)}
-              onBlur={urlMatch.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              className="accent-flow-accent"
-              checked={waitForNew.value}
-              onChange={checkboxInputHandler(waitForNew.setValue, waitForNew.commit)}
-            />
-            <span className="text-gray-400">Wait for new tab</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              className="accent-flow-accent"
-              checked={closeOld.value}
-              onChange={checkboxInputHandler(closeOld.setValue, closeOld.commit)}
-            />
-            <span className="text-gray-400">Close previous tab</span>
-          </label>
-        </div>
-
-        <div>
-          <label className="text-gray-400 block mb-1">Timeout (ms)</label>
-          <input
-            type="number"
-            min={1000}
-            value={timeoutMs.value}
-            onChange={numberInputHandler(timeoutMs.setValue)}
-            onBlur={timeoutMs.commit}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
+        {mode.value === 'title' && (
+          <NodeTextField
+            field={titleMatch}
+            label="Title pattern"
+            placeholder="/Invoice/ or Dashboard"
           />
-        </div>
+        )}
+
+        {mode.value === 'url' && (
+          <NodeTextField
+            field={urlMatch}
+            label="URL pattern"
+            placeholder="/auth\\/callback/ or /settings"
+          />
+        )}
+
+        <FieldRow>
+          <NodeCheckbox field={waitForNew} label="Wait for new tab" />
+          <NodeCheckbox field={closeOld} label="Close previous tab" />
+        </FieldRow>
+
+        <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={1000} />
 
         <p className="text-gray-500">
           Switch workflows between pop-ups, OAuth flows, or background tabs. Pattern fields accept plain text

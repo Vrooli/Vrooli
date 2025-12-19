@@ -6,11 +6,15 @@ import {
   useSyncedString,
   useSyncedNumber,
   useSyncedSelect,
-  textInputHandler,
-  numberInputHandler,
-  selectInputHandler,
 } from '@hooks/useSyncedField';
 import BaseNode from './BaseNode';
+import {
+  NodeTextField,
+  NodeTextArea,
+  NodeNumberField,
+  NodeSelectField,
+  FieldRow,
+} from './fields';
 
 // SetStorageParams interface for V2 native action params
 interface SetStorageParams {
@@ -68,90 +72,25 @@ const SetStorageNode: FC<NodeProps> = ({ selected, id }) => {
   return (
     <BaseNode selected={selected} icon={HardDriveUpload} iconClassName="text-violet-300" title="Set Storage">
       <div className="space-y-3 text-xs">
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-gray-400 block mb-1">Storage</label>
-            <select
-              value={storageType.value}
-              onChange={selectInputHandler(storageType.setValue, storageType.commit)}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            >
-              {STORAGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-gray-400 block mb-1">Key</label>
-            <input
-              type="text"
-              value={keyValue.value}
-              onChange={textInputHandler(keyValue.setValue)}
-              onBlur={keyValue.commit}
-              placeholder="profile"
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-        </div>
+        <FieldRow>
+          <NodeSelectField field={storageType} label="Storage" options={STORAGE_OPTIONS} />
+          <NodeTextField field={keyValue} label="Key" placeholder="profile" />
+        </FieldRow>
 
-        <div>
-          <label className="text-gray-400 block mb-1">Value type</label>
-          <select
-            value={valueType.value}
-            onChange={selectInputHandler(valueType.setValue, valueType.commit)}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          >
-            {VALUE_TYPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <NodeSelectField field={valueType} label="Value type" options={VALUE_TYPE_OPTIONS} />
 
-        <div>
-          <label className="text-gray-400 block mb-1">Value</label>
-          <textarea
-            rows={3}
-            value={value.value}
-            onChange={textInputHandler(value.setValue)}
-            onBlur={value.commit}
-            placeholder={valueType.value === 'json' ? '{"theme":"dark"}' : 'value'}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          />
-          {valueType.value === 'json' && (
-            <p className="text-[10px] text-gray-500 mt-1">
-              Must be valid JSON and will be stringified before storage.
-            </p>
-          )}
-        </div>
+        <NodeTextArea
+          field={value}
+          label="Value"
+          placeholder={valueType.value === 'json' ? '{"theme":"dark"}' : 'value'}
+          rows={3}
+          description={valueType.value === 'json' ? 'Must be valid JSON and will be stringified before storage.' : undefined}
+        />
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-gray-400 block mb-1">Timeout (ms)</label>
-            <input
-              type="number"
-              min={MIN_TIMEOUT}
-              value={timeoutMs.value}
-              onChange={numberInputHandler(timeoutMs.setValue)}
-              onBlur={timeoutMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-gray-400 block mb-1">Post-set wait (ms)</label>
-            <input
-              type="number"
-              min={0}
-              value={waitForMs.value}
-              onChange={numberInputHandler(waitForMs.setValue)}
-              onBlur={waitForMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-        </div>
+        <FieldRow>
+          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={MIN_TIMEOUT} />
+          <NodeNumberField field={waitForMs} label="Post-set wait (ms)" min={0} />
+        </FieldRow>
       </div>
     </BaseNode>
   );

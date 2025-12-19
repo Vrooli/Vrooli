@@ -3,17 +3,11 @@ import type { NodeProps } from 'reactflow';
 import { ScrollText } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
-import {
-  useSyncedString,
-  useSyncedNumber,
-  useSyncedSelect,
-  textInputHandler,
-  numberInputHandler,
-  selectInputHandler,
-} from '@hooks/useSyncedField';
+import { useSyncedString, useSyncedNumber, useSyncedSelect } from '@hooks/useSyncedField';
 import type { ResilienceSettings } from '@/types/workflow';
 import BaseNode from './BaseNode';
 import ResiliencePanel from './ResiliencePanel';
+import { NodeTextField, NodeNumberField, NodeSelectField, FieldRow } from './fields';
 
 // ScrollParams interface for V2 native action params
 interface ScrollParams {
@@ -40,6 +34,27 @@ const DEFAULT_SCROLLS = 12;
 const MIN_COORDINATE = -500000;
 const MAX_COORDINATE = 500000;
 const MIN_TIMEOUT = 100;
+
+const SCROLL_TYPE_OPTIONS = [
+  { value: 'page', label: 'Page (window)' },
+  { value: 'element', label: 'Element scrollIntoView' },
+  { value: 'position', label: 'Scroll to coordinates' },
+  { value: 'untilVisible', label: 'Scroll until visible' },
+];
+
+const BEHAVIOR_OPTIONS = [
+  { value: 'auto', label: 'Instant' },
+  { value: 'smooth', label: 'Smooth' },
+];
+
+const DIRECTION_OPTIONS = [
+  { value: 'down', label: 'Down' },
+  { value: 'up', label: 'Up' },
+  { value: 'left', label: 'Left' },
+  { value: 'right', label: 'Right' },
+  { value: 'top', label: 'Top' },
+  { value: 'bottom', label: 'Bottom' },
+];
 
 const ScrollNode: FC<NodeProps> = ({ selected, id }) => {
   const { getValue, updateData } = useNodeData(id);
@@ -110,161 +125,58 @@ const ScrollNode: FC<NodeProps> = ({ selected, id }) => {
   return (
     <BaseNode selected={selected} icon={ScrollText} iconClassName="text-amber-300" title="Scroll">
       <div className="space-y-3 text-xs">
-        <div>
-          <label className="text-gray-400 block mb-1">Scroll type</label>
-          <select
-            value={scrollType.value}
-            onChange={selectInputHandler(scrollType.setValue, scrollType.commit)}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          >
-            <option value="page">Page (window)</option>
-            <option value="element">Element scrollIntoView</option>
-            <option value="position">Scroll to coordinates</option>
-            <option value="untilVisible">Scroll until visible</option>
-          </select>
-        </div>
+        <NodeSelectField field={scrollType} label="Scroll type" options={SCROLL_TYPE_OPTIONS} />
 
         {showBehavior && (
-          <div>
-            <label className="text-gray-400 block mb-1">Behavior</label>
-            <select
-              value={behavior.value}
-              onChange={selectInputHandler(behavior.setValue, behavior.commit)}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            >
-              <option value="auto">Instant</option>
-              <option value="smooth">Smooth</option>
-            </select>
-          </div>
+          <NodeSelectField field={behavior} label="Behavior" options={BEHAVIOR_OPTIONS} />
         )}
 
         {showDirection && (
-          <div>
-            <label className="text-gray-400 block mb-1">Direction</label>
-            <select
-              value={direction.value}
-              onChange={selectInputHandler(direction.setValue, direction.commit)}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            >
-              <option value="down">Down</option>
-              <option value="up">Up</option>
-              <option value="left">Left</option>
-              <option value="right">Right</option>
-              <option value="top">Top</option>
-              <option value="bottom">Bottom</option>
-            </select>
-          </div>
+          <NodeSelectField field={direction} label="Direction" options={DIRECTION_OPTIONS} />
         )}
 
         {showAmount && (
-          <div>
-            <label className="text-gray-400 block mb-1">Amount (px)</label>
-            <input
-              type="number"
-              min={MIN_AMOUNT}
-              max={MAX_AMOUNT}
-              value={amount.value}
-              onChange={numberInputHandler(amount.setValue)}
-              onBlur={amount.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-            <p className="text-gray-500 mt-1">Pixels per scroll step.</p>
-          </div>
+          <NodeNumberField
+            field={amount}
+            label="Amount (px)"
+            min={MIN_AMOUNT}
+            max={MAX_AMOUNT}
+            description="Pixels per scroll step."
+          />
         )}
 
         {showSelector && (
-          <div>
-            <label className="text-gray-400 block mb-1">Element selector</label>
-            <input
-              type="text"
-              value={selector.value}
-              placeholder=".list-panel"
-              onChange={textInputHandler(selector.setValue)}
-              onBlur={selector.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
+          <NodeTextField field={selector} label="Element selector" placeholder=".list-panel" />
         )}
 
         {showTargetSelector && (
-          <div>
-            <label className="text-gray-400 block mb-1">Target selector</label>
-            <input
-              type="text"
+          <>
+            <NodeTextField
+              field={targetSelector}
+              label="Target selector"
               placeholder="#lazy-card"
-              value={targetSelector.value}
-              onChange={textInputHandler(targetSelector.setValue)}
-              onBlur={targetSelector.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
+              description="Page scroll repeats until this element is visible."
             />
-            <p className="text-gray-500 mt-1">Page scroll repeats until this element is visible.</p>
-          </div>
-        )}
-
-        {showTargetSelector && (
-          <div>
-            <label className="text-gray-400 block mb-1">Max scroll attempts</label>
-            <input
-              type="number"
+            <NodeNumberField
+              field={maxScrolls}
+              label="Max scroll attempts"
               min={MIN_SCROLLS}
               max={MAX_SCROLLS}
-              value={maxScrolls.value}
-              onChange={numberInputHandler(maxScrolls.setValue)}
-              onBlur={maxScrolls.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
-          </div>
+          </>
         )}
 
         {showPosition && (
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-gray-400 block mb-1">X (px)</label>
-              <input
-                type="number"
-                value={x.value}
-                onChange={numberInputHandler(x.setValue)}
-                onBlur={x.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-gray-400 block mb-1">Y (px)</label>
-              <input
-                type="number"
-                value={y.value}
-                onChange={numberInputHandler(y.setValue)}
-                onBlur={y.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-          </div>
+          <FieldRow>
+            <NodeNumberField field={x} label="X (px)" />
+            <NodeNumberField field={y} label="Y (px)" />
+          </FieldRow>
         )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-gray-400 block mb-1">Timeout (ms)</label>
-            <input
-              type="number"
-              min={MIN_TIMEOUT}
-              value={timeoutMs.value}
-              onChange={numberInputHandler(timeoutMs.setValue)}
-              onBlur={timeoutMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-gray-400 block mb-1">Post-scroll wait (ms)</label>
-            <input
-              type="number"
-              min={0}
-              value={waitForMs.value}
-              onChange={numberInputHandler(waitForMs.setValue)}
-              onBlur={waitForMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-        </div>
+        <FieldRow>
+          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={MIN_TIMEOUT} />
+          <NodeNumberField field={waitForMs} label="Post-scroll wait (ms)" min={0} />
+        </FieldRow>
 
         <p className="text-gray-500">
           Scroll nodes unlock lazy-loaded content, infinite lists, and stable viewport positioning

@@ -6,11 +6,14 @@ import {
   useSyncedString,
   useSyncedNumber,
   useSyncedBoolean,
-  textInputHandler,
-  numberInputHandler,
-  checkboxInputHandler,
 } from '@hooks/useSyncedField';
 import BaseNode from './BaseNode';
+import {
+  NodeTextField,
+  NodeNumberField,
+  NodeCheckbox,
+  FieldRow,
+} from './fields';
 
 // ClearCookieParams interface for V2 native action params
 interface ClearCookieParams {
@@ -58,98 +61,29 @@ const ClearCookieNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateParams({ waitForMs: v || undefined }),
   });
 
-  const disabledFields = clearAll.value;
-
   return (
     <BaseNode selected={selected} icon={Cookie} iconClassName="text-rose-300" title="Clear Cookie">
       <div className="space-y-3 text-xs">
-        <label className="flex items-center gap-2 text-gray-400">
-          <input
-            type="checkbox"
-            checked={clearAll.value}
-            onChange={checkboxInputHandler(clearAll.setValue, clearAll.commit)}
-          />
-          Remove every cookie in the current context
-        </label>
+        <NodeCheckbox field={clearAll} label="Remove every cookie in the current context" />
 
-        {!disabledFields && (
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-gray-400 block mb-1">Cookie name</label>
-              <input
-                type="text"
-                value={name.value}
-                onChange={textInputHandler(name.setValue)}
-                onBlur={name.commit}
-                placeholder="authToken"
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-gray-400 block mb-1">Domain</label>
-              <input
-                type="text"
-                value={domain.value}
-                onChange={textInputHandler(domain.setValue)}
-                onBlur={domain.commit}
-                placeholder=".example.com"
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-          </div>
+        {!clearAll.value && (
+          <>
+            <FieldRow>
+              <NodeTextField field={name} label="Cookie name" placeholder="authToken" />
+              <NodeTextField field={domain} label="Domain" placeholder=".example.com" />
+            </FieldRow>
+
+            <FieldRow>
+              <NodeTextField field={url} label="Target URL" placeholder="https://example.com" />
+              <NodeTextField field={path} label="Path" placeholder="/app" />
+            </FieldRow>
+          </>
         )}
 
-        {!disabledFields && (
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-gray-400 block mb-1">Target URL</label>
-              <input
-                type="text"
-                value={url.value}
-                onChange={textInputHandler(url.setValue)}
-                onBlur={url.commit}
-                placeholder="https://example.com"
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-gray-400 block mb-1">Path</label>
-              <input
-                type="text"
-                value={path.value}
-                onChange={textInputHandler(path.setValue)}
-                onBlur={path.commit}
-                placeholder="/app"
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-gray-400 block mb-1">Timeout (ms)</label>
-            <input
-              type="number"
-              min={MIN_TIMEOUT}
-              value={timeoutMs.value}
-              onChange={numberInputHandler(timeoutMs.setValue)}
-              onBlur={timeoutMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-gray-400 block mb-1">Post-clear wait (ms)</label>
-            <input
-              type="number"
-              min={0}
-              value={waitForMs.value}
-              onChange={numberInputHandler(waitForMs.setValue)}
-              onBlur={waitForMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-        </div>
+        <FieldRow>
+          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={MIN_TIMEOUT} />
+          <NodeNumberField field={waitForMs} label="Post-clear wait (ms)" min={0} />
+        </FieldRow>
       </div>
     </BaseNode>
   );

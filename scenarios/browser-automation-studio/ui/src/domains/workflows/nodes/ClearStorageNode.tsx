@@ -7,12 +7,15 @@ import {
   useSyncedNumber,
   useSyncedBoolean,
   useSyncedSelect,
-  textInputHandler,
-  numberInputHandler,
-  checkboxInputHandler,
-  selectInputHandler,
 } from '@hooks/useSyncedField';
 import BaseNode from './BaseNode';
+import {
+  NodeTextField,
+  NodeNumberField,
+  NodeSelectField,
+  NodeCheckbox,
+  FieldRow,
+} from './fields';
 
 // ClearStorageParams interface for V2 native action params
 interface ClearStorageParams {
@@ -62,68 +65,18 @@ const ClearStorageNode: FC<NodeProps> = ({ selected, id }) => {
   return (
     <BaseNode selected={selected} icon={Trash2} iconClassName="text-red-300" title="Clear Storage">
       <div className="space-y-3 text-xs">
-        <div>
-          <label className="text-gray-400 block mb-1">Storage</label>
-          <select
-            value={storageType.value}
-            onChange={selectInputHandler(storageType.setValue, storageType.commit)}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          >
-            {STORAGE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <NodeSelectField field={storageType} label="Storage" options={STORAGE_OPTIONS} />
 
-        <label className="flex items-center gap-2 text-gray-400">
-          <input
-            type="checkbox"
-            checked={clearAll.value}
-            onChange={checkboxInputHandler(clearAll.setValue, clearAll.commit)}
-          />
-          Remove every entry
-        </label>
+        <NodeCheckbox field={clearAll} label="Remove every entry" />
 
         {!clearAll.value && (
-          <div>
-            <label className="text-gray-400 block mb-1">Key</label>
-            <input
-              type="text"
-              value={keyValue.value}
-              onChange={textInputHandler(keyValue.setValue)}
-              onBlur={keyValue.commit}
-              placeholder="profile"
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
+          <NodeTextField field={keyValue} label="Key" placeholder="profile" />
         )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-gray-400 block mb-1">Timeout (ms)</label>
-            <input
-              type="number"
-              min={MIN_TIMEOUT}
-              value={timeoutMs.value}
-              onChange={numberInputHandler(timeoutMs.setValue)}
-              onBlur={timeoutMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-gray-400 block mb-1">Post-clear wait (ms)</label>
-            <input
-              type="number"
-              min={0}
-              value={waitForMs.value}
-              onChange={numberInputHandler(waitForMs.setValue)}
-              onBlur={waitForMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-        </div>
+        <FieldRow>
+          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={MIN_TIMEOUT} />
+          <NodeNumberField field={waitForMs} label="Post-clear wait (ms)" min={0} />
+        </FieldRow>
       </div>
     </BaseNode>
   );

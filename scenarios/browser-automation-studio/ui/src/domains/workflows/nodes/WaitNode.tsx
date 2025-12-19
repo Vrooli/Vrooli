@@ -8,12 +8,16 @@ import {
   useSyncedString,
   useSyncedNumber,
   useSyncedSelect,
-  textInputHandler,
-  numberInputHandler,
-  selectInputHandler,
 } from '@hooks/useSyncedField';
 import type { WaitParams } from '@utils/actionBuilder';
 import BaseNode from './BaseNode';
+import { NodeTextField, NodeNumberField, NodeSelectField } from './fields';
+
+const WAIT_OPTIONS = [
+  { label: 'Wait for time', value: 'time' },
+  { label: 'Wait for element', value: 'element' },
+  { label: 'Wait for navigation', value: 'navigation' },
+];
 
 const WaitNode: FC<NodeProps> = ({ selected, id }) => {
   const upstreamUrl = useUpstreamUrl(id);
@@ -50,35 +54,15 @@ const WaitNode: FC<NodeProps> = ({ selected, id }) => {
         </div>
       )}
 
-      <select
-        className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none mb-2"
-        value={waitType.value}
-        onChange={selectInputHandler(waitType.setValue, waitType.commit)}
-      >
-        <option value="time">Wait for time</option>
-        <option value="element">Wait for element</option>
-        <option value="navigation">Wait for navigation</option>
-      </select>
+      <div className="space-y-2">
+        <NodeSelectField field={waitType} label="" options={WAIT_OPTIONS} />
 
-      {waitType.value === 'time' ? (
-        <input
-          type="number"
-          placeholder="Milliseconds..."
-          className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-          value={duration.value}
-          onChange={numberInputHandler(duration.setValue)}
-          onBlur={duration.commit}
-        />
-      ) : (
-        <input
-          type="text"
-          placeholder="CSS Selector..."
-          className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-          value={selector.value}
-          onChange={textInputHandler(selector.setValue)}
-          onBlur={selector.commit}
-        />
-      )}
+        {waitType.value === 'time' ? (
+          <NodeNumberField field={duration} label="" placeholder="Milliseconds..." min={0} />
+        ) : (
+          <NodeTextField field={selector} label="" placeholder="CSS Selector..." />
+        )}
+      </div>
     </BaseNode>
   );
 };

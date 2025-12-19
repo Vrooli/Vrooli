@@ -2,15 +2,9 @@ import { FC, memo, useMemo } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Hand } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
-import {
-  useSyncedString,
-  useSyncedNumber,
-  useSyncedSelect,
-  textInputHandler,
-  numberInputHandler,
-  selectInputHandler,
-} from '@hooks/useSyncedField';
+import { useSyncedString, useSyncedNumber, useSyncedSelect } from '@hooks/useSyncedField';
 import BaseNode from './BaseNode';
+import { NodeTextField, NodeNumberField, NodeSelectField, FieldRow } from './fields';
 
 // GestureParams interface for V2 native action params
 interface GestureParams {
@@ -162,212 +156,59 @@ const GestureNode: FC<NodeProps> = ({ id, selected }) => {
       <p className="text-[11px] text-gray-500 mb-3">Recreate mobile touch interactions mid-run.</p>
 
       <div className="space-y-3 text-xs">
-        <div>
-          <label className="text-gray-400 block mb-1">Gesture Type</label>
-          <select
-            value={gestureType.value}
-            onChange={selectInputHandler(gestureType.setValue, gestureType.commit)}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          >
-            {GESTURE_TYPES.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-          <p className="text-gray-500 mt-1">{gestureHint}</p>
-        </div>
+        <NodeSelectField
+          field={gestureType}
+          label="Gesture Type"
+          options={GESTURE_TYPES}
+          description={gestureHint}
+        />
 
-        <div>
-          <label className="text-gray-400 block mb-1">Target Selector (optional)</label>
-          <input
-            type="text"
-            value={selector.value}
-            onChange={textInputHandler(selector.setValue)}
-            onBlur={selector.commit}
-            placeholder="#mobile-card"
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          />
-        </div>
+        <NodeTextField
+          field={selector}
+          label="Target Selector (optional)"
+          placeholder="#mobile-card"
+        />
 
         {showSwipeFields && (
           <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-gray-400 block mb-1">Direction</label>
-                <select
-                  value={direction.value}
-                  onChange={selectInputHandler(direction.setValue, direction.commit)}
-                  className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-                >
-                  {SWIPE_DIRECTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-gray-400 block mb-1">Distance (px)</label>
-                <input
-                  type="number"
-                  min={25}
-                  max={2000}
-                  value={distance.value}
-                  onChange={numberInputHandler(distance.setValue)}
-                  onBlur={distance.commit}
-                  className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-gray-400 block mb-1">Duration (ms)</label>
-                <input
-                  type="number"
-                  min={50}
-                  max={10000}
-                  value={durationMs.value}
-                  onChange={numberInputHandler(durationMs.setValue)}
-                  onBlur={durationMs.commit}
-                  className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 block mb-1">Movement Steps</label>
-                <input
-                  type="number"
-                  min={2}
-                  max={60}
-                  value={steps.value}
-                  onChange={numberInputHandler(steps.setValue)}
-                  onBlur={steps.commit}
-                  className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-                />
-              </div>
-            </div>
+            <FieldRow>
+              <NodeSelectField field={direction} label="Direction" options={SWIPE_DIRECTIONS} />
+              <NodeNumberField field={distance} label="Distance (px)" min={25} max={2000} />
+            </FieldRow>
+            <FieldRow>
+              <NodeNumberField field={durationMs} label="Duration (ms)" min={50} max={10000} />
+              <NodeNumberField field={steps} label="Movement Steps" min={2} max={60} />
+            </FieldRow>
           </div>
         )}
 
         {showPinchFields && (
           <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-gray-400 block mb-1">Scale</label>
-                <input
-                  type="number"
-                  step={0.1}
-                  min={0.2}
-                  max={4}
-                  value={scale.value}
-                  onChange={numberInputHandler(scale.setValue)}
-                  onBlur={scale.commit}
-                  className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-gray-400 block mb-1">Steps</label>
-                <input
-                  type="number"
-                  min={2}
-                  max={60}
-                  value={steps.value}
-                  onChange={numberInputHandler(steps.setValue)}
-                  onBlur={steps.commit}
-                  className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-gray-400 block mb-1">Duration (ms)</label>
-              <input
-                type="number"
-                min={50}
-                max={10000}
-                value={durationMs.value}
-                onChange={numberInputHandler(durationMs.setValue)}
-                onBlur={durationMs.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
+            <FieldRow>
+              <NodeNumberField field={scale} label="Scale" min={0.2} max={4} step={0.1} />
+              <NodeNumberField field={steps} label="Steps" min={2} max={60} />
+            </FieldRow>
+            <NodeNumberField field={durationMs} label="Duration (ms)" min={50} max={10000} />
           </div>
         )}
 
         {showHoldField && (
-          <div>
-            <label className="text-gray-400 block mb-1">Hold Duration (ms)</label>
-            <input
-              type="number"
-              min={200}
-              max={10000}
-              value={holdMs.value}
-              onChange={numberInputHandler(holdMs.setValue)}
-              onBlur={holdMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
+          <NodeNumberField field={holdMs} label="Hold Duration (ms)" min={200} max={10000} />
         )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-gray-400 block mb-1">Start X (px)</label>
-            <input
-              type="number"
-              value={startX.value}
-              onChange={textInputHandler(startX.setValue)}
-              onBlur={startX.commit}
-              placeholder="auto"
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-gray-400 block mb-1">Start Y (px)</label>
-            <input
-              type="number"
-              value={startY.value}
-              onChange={textInputHandler(startY.setValue)}
-              onBlur={startY.commit}
-              placeholder="auto"
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-        </div>
+        <FieldRow>
+          <NodeTextField field={startX} label="Start X (px)" placeholder="auto" />
+          <NodeTextField field={startY} label="Start Y (px)" placeholder="auto" />
+        </FieldRow>
 
         {showSwipeFields && (
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-gray-400 block mb-1">End X (px)</label>
-              <input
-                type="number"
-                value={endX.value}
-                onChange={textInputHandler(endX.setValue)}
-                onBlur={endX.commit}
-                placeholder="auto"
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-gray-400 block mb-1">End Y (px)</label>
-              <input
-                type="number"
-                value={endY.value}
-                onChange={textInputHandler(endY.setValue)}
-                onBlur={endY.commit}
-                placeholder="auto"
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-          </div>
+          <FieldRow>
+            <NodeTextField field={endX} label="End X (px)" placeholder="auto" />
+            <NodeTextField field={endY} label="End Y (px)" placeholder="auto" />
+          </FieldRow>
         )}
 
-        <div>
-          <label className="text-gray-400 block mb-1">Timeout (ms)</label>
-          <input
-            type="number"
-            min={0}
-            value={timeoutMs.value}
-            onChange={numberInputHandler(timeoutMs.setValue)}
-            onBlur={timeoutMs.commit}
-            placeholder="15000"
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          />
-        </div>
+        <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={0} placeholder="15000" />
       </div>
     </BaseNode>
   );

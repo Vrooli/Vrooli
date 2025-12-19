@@ -3,14 +3,10 @@ import type { NodeProps } from 'reactflow';
 import { Hand } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
-import {
-  useSyncedString,
-  useSyncedNumber,
-  textInputHandler,
-  numberInputHandler,
-} from '@hooks/useSyncedField';
+import { useSyncedString, useSyncedNumber } from '@hooks/useSyncedField';
 import ResiliencePanel from './ResiliencePanel';
 import BaseNode from './BaseNode';
+import { NodeTextField, NodeNumberField, FieldRow } from './fields';
 import type { ResilienceSettings } from '@/types/workflow';
 
 // DragDropParams interface for V2 native action params
@@ -87,12 +83,8 @@ const DragDropNode: FC<NodeProps> = ({ selected, id }) => {
   const resilienceConfig = getValue<ResilienceSettings>('resilience');
 
   const movementSummary = useMemo(() => {
-    if (steps.value <= 5) {
-      return 'Quick snap';
-    }
-    if (steps.value <= 20) {
-      return 'Smooth glide';
-    }
+    if (steps.value <= 5) return 'Quick snap';
+    if (steps.value <= 20) return 'Smooth glide';
     return 'Very smooth';
   }, [steps.value]);
 
@@ -110,131 +102,76 @@ const DragDropNode: FC<NodeProps> = ({ selected, id }) => {
     <div ref={nodeRef}>
       <BaseNode selected={selected} icon={Hand} iconClassName="text-pink-300" title="Drag & Drop">
         <div className="space-y-3 text-xs">
-          <div>
-            <label className="text-gray-400 block mb-1">Drag from selector</label>
-            <input
-              type="text"
-              value={sourceSelector.value}
-              placeholder=".kanban-card:first-child"
-              onChange={textInputHandler(sourceSelector.setValue)}
-              onBlur={sourceSelector.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
+          <NodeTextField
+            field={sourceSelector}
+            label="Drag from selector"
+            placeholder=".kanban-card:first-child"
+          />
+
+          <NodeTextField
+            field={targetSelector}
+            label="Drop target selector"
+            placeholder=".drop-target"
+          />
+
+          <FieldRow>
+            <NodeNumberField
+              field={holdMs}
+              label="Hold before drag (ms)"
+              min={0}
+              description="Ensures press/hold listeners fire."
             />
-          </div>
-          <div>
-            <label className="text-gray-400 block mb-1">Drop target selector</label>
-            <input
-              type="text"
-              value={targetSelector.value}
-              placeholder=".drop-target"
-              onChange={textInputHandler(targetSelector.setValue)}
-              onBlur={targetSelector.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
+            <NodeNumberField
+              field={steps}
+              label="Pointer steps"
+              min={MIN_STEPS}
+              max={MAX_STEPS}
+              description={movementSummary}
             />
-          </div>
+          </FieldRow>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-gray-400 block mb-1">Hold before drag (ms)</label>
-              <input
-                type="number"
-                min={0}
-                value={holdMs.value}
-                onChange={numberInputHandler(holdMs.setValue)}
-                onBlur={holdMs.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-              <p className="text-gray-500 mt-1">Ensures press/hold listeners fire.</p>
-            </div>
-            <div>
-              <label className="text-gray-400 block mb-1">Pointer steps</label>
-              <input
-                type="number"
-                min={MIN_STEPS}
-                max={MAX_STEPS}
-                value={steps.value}
-                onChange={numberInputHandler(steps.setValue)}
-                onBlur={steps.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-              <p className="text-gray-500 mt-1">{movementSummary}</p>
-            </div>
-          </div>
+          <FieldRow>
+            <NodeNumberField
+              field={durationMs}
+              label="Drag duration (ms)"
+              min={MIN_DURATION}
+              max={MAX_DURATION}
+              description="Controls how slow the card travels."
+            />
+            <NodeNumberField
+              field={timeoutMs}
+              label="Timeout (ms)"
+              min={MIN_TIMEOUT}
+              description="Waits for elements to appear."
+            />
+          </FieldRow>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-gray-400 block mb-1">Drag duration (ms)</label>
-              <input
-                type="number"
-                min={MIN_DURATION}
-                max={MAX_DURATION}
-                value={durationMs.value}
-                onChange={numberInputHandler(durationMs.setValue)}
-                onBlur={durationMs.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-              <p className="text-gray-500 mt-1">Controls how slow the card travels.</p>
-            </div>
-            <div>
-              <label className="text-gray-400 block mb-1">Timeout (ms)</label>
-              <input
-                type="number"
-                min={MIN_TIMEOUT}
-                value={timeoutMs.value}
-                onChange={numberInputHandler(timeoutMs.setValue)}
-                onBlur={timeoutMs.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-              <p className="text-gray-500 mt-1">Waits for elements to appear.</p>
-            </div>
-          </div>
+          <FieldRow>
+            <NodeNumberField
+              field={offsetX}
+              label="Offset X (px)"
+              min={MIN_OFFSET}
+              max={MAX_OFFSET}
+            />
+            <NodeNumberField
+              field={offsetY}
+              label="Offset Y (px)"
+              min={MIN_OFFSET}
+              max={MAX_OFFSET}
+            />
+          </FieldRow>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-gray-400 block mb-1">Offset X (px)</label>
-              <input
-                type="number"
-                min={MIN_OFFSET}
-                max={MAX_OFFSET}
-                value={offsetX.value}
-                onChange={numberInputHandler(offsetX.setValue)}
-                onBlur={offsetX.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
+          <FieldRow>
+            <NodeNumberField
+              field={waitForMs}
+              label="Post-drop wait (ms)"
+              min={0}
+              description="Gives UI time to reorder lists."
+            />
+            <div className="text-gray-500 flex items-center text-xs">
+              <p>Use offsets when the drop target expects the cursor inside a sub-region.</p>
             </div>
-            <div>
-              <label className="text-gray-400 block mb-1">Offset Y (px)</label>
-              <input
-                type="number"
-                min={MIN_OFFSET}
-                max={MAX_OFFSET}
-                value={offsetY.value}
-                onChange={numberInputHandler(offsetY.setValue)}
-                onBlur={offsetY.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-gray-400 block mb-1">Post-drop wait (ms)</label>
-              <input
-                type="number"
-                min={0}
-                value={waitForMs.value}
-                onChange={numberInputHandler(waitForMs.setValue)}
-                onBlur={waitForMs.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-              <p className="text-gray-500 mt-1">Gives UI time to reorder lists.</p>
-            </div>
-            <div className="text-gray-500 flex items-center">
-              <p>
-                Use offsets when the drop target expects the cursor inside a sub-region (e.g. header vs body).
-              </p>
-            </div>
-          </div>
+          </FieldRow>
         </div>
 
         <ResiliencePanel

@@ -1,13 +1,22 @@
-import { memo, FC, useState, useMemo, useEffect } from 'react';
+import { memo, FC, useState, useMemo, useEffect, useCallback } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Play, ChevronDown, Settings, AlertCircle } from 'lucide-react';
+import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
 import { useWorkflowStore } from '@stores/workflowStore';
+import { useSyncedString, useSyncedField, textInputHandler } from '@hooks/useSyncedField';
+import type { SubflowParams } from '@utils/actionBuilder';
 import BaseNode from './BaseNode';
 
 const SubflowNode: FC<NodeProps> = ({ selected, id }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // V2 Native: Use action params as source of truth for proto fields
+  const { params, updateParams } = useActionParams<SubflowParams>(id);
+
+  // Node data for UI-specific fields (workflowName for display, outputMapping not in proto)
   const { getValue, updateData } = useNodeData(id);
+
   const workflows = useWorkflowStore((state) => state.workflows);
   const loadWorkflows = useWorkflowStore((state) => state.loadWorkflows);
 
@@ -27,9 +36,57 @@ const SubflowNode: FC<NodeProps> = ({ selected, id }) => {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [workflows]);
 
-  const workflowId = getValue<string>('workflowId') ?? '';
-  const parameters = getValue<Record<string, unknown>>('parameters');
-  const outputMapping = getValue<Record<string, string>>('outputMapping');
+  // Action params fields
+  const workflowId = useSyncedString(params?.workflowId ?? '', {
+    onCommit: (v) => {
+      const match = sortedWorkflows.find((workflow) => workflow.id === v);
+      updateParams({ workflowId: v || undefined });
+      updateData({ workflowName: match?.name });
+    },
+  });
+
+  // JSON fields with parse/stringify handling
+  const parametersJson = useSyncedField(
+    params?.parameters ? JSON.stringify(params.parameters, null, 2) : '{}',
+    {
+      onCommit: (v) => {
+        try {
+          const parsed = JSON.parse(v) as Record<string, unknown>;
+          updateParams({ parameters: Object.keys(parsed).length > 0 ? parsed : undefined });
+        } catch {
+          // Invalid JSON - don't update
+        }
+      },
+    },
+  );
+
+  // Output mapping is UI-specific (not in proto SubflowParams)
+  const outputMappingJson = useSyncedField(
+    getValue<Record<string, string>>('outputMapping')
+      ? JSON.stringify(getValue<Record<string, string>>('outputMapping'), null, 2)
+      : '{}',
+    {
+      onCommit: (v) => {
+        try {
+          const parsed = JSON.parse(v) as Record<string, string>;
+          updateData({ outputMapping: Object.keys(parsed).length > 0 ? parsed : undefined });
+        } catch {
+          // Invalid JSON - don't update
+        }
+      },
+    },
+  );
+
+  const handleSelectChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const selectedId = event.target.value;
+      const match = sortedWorkflows.find((workflow) => workflow.id === selectedId);
+      workflowId.setValue(selectedId);
+      updateParams({ workflowId: selectedId || undefined });
+      updateData({ workflowName: match?.name });
+    },
+    [sortedWorkflows, workflowId, updateParams, updateData],
+  );
 
   return (
     <BaseNode selected={selected} icon={Play} iconClassName="text-violet-400" title="Subflow" className="w-80">
@@ -48,16 +105,9 @@ const SubflowNode: FC<NodeProps> = ({ selected, id }) => {
         <div className="space-y-1">
           <label className="text-xs text-gray-400">Target workflow</label>
           <select
-            value={workflowId}
+            value={workflowId.value}
             className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
-            onChange={(event) => {
-              const selectedId = event.target.value;
-              const match = sortedWorkflows.find((workflow) => workflow.id === selectedId);
-              updateData({
-                workflowId: selectedId || undefined,
-                workflowName: match?.name,
-              });
-            }}
+            onChange={handleSelectChange}
           >
             <option value="">Select workflow…</option>
             {sortedWorkflows.map((workflow) => (
@@ -77,15 +127,9 @@ const SubflowNode: FC<NodeProps> = ({ selected, id }) => {
           <label className="text-xs text-gray-400">Workflow ID</label>
           <input
             type="text"
-            value={workflowId}
-            onChange={(event) => {
-              const value = event.target.value.trim();
-              const match = sortedWorkflows.find((workflow) => workflow.id === value);
-              updateData({
-                workflowId: value || undefined,
-                workflowName: match?.name,
-              });
-            }}
+            value={workflowId.value}
+            onChange={textInputHandler(workflowId.setValue)}
+            onBlur={workflowId.commit}
             placeholder="123e4567-e89b-12d3-a456-426614174000"
             className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
@@ -116,15 +160,9 @@ const SubflowNode: FC<NodeProps> = ({ selected, id }) => {
                 Parameters (JSON)
               </label>
               <textarea
-                value={parameters ? JSON.stringify(parameters, null, 2) : '{}'}
-                onChange={(e) => {
-                  try {
-                    const parsed = JSON.parse(e.target.value);
-                    updateData({ parameters: parsed });
-                  } catch {
-                    // Invalid JSON - don't update
-                  }
-                }}
+                value={parametersJson.value}
+                onChange={(e) => parametersJson.setValue(e.target.value)}
+                onBlur={parametersJson.commit}
                 className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none font-mono h-16 resize-none"
                 placeholder='{"param1": "value1"}'
               />
@@ -136,15 +174,9 @@ const SubflowNode: FC<NodeProps> = ({ selected, id }) => {
                 Output mapping (JSON)
               </label>
               <textarea
-                value={outputMapping ? JSON.stringify(outputMapping, null, 2) : '{}'}
-                onChange={(e) => {
-                  try {
-                    const parsed = JSON.parse(e.target.value);
-                    updateData({ outputMapping: parsed });
-                  } catch {
-                    // Invalid JSON - don't update
-                  }
-                }}
+                value={outputMappingJson.value}
+                onChange={(e) => outputMappingJson.setValue(e.target.value)}
+                onBlur={outputMappingJson.commit}
                 className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none font-mono h-12 resize-none"
                 placeholder='{"workflowOutput": "myVariable"}'
               />

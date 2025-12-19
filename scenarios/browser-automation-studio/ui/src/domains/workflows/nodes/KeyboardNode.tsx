@@ -3,16 +3,10 @@ import type { NodeProps } from 'reactflow';
 import { KeySquare } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
-import {
-  useSyncedString,
-  useSyncedNumber,
-  useSyncedSelect,
-  textInputHandler,
-  numberInputHandler,
-  selectInputHandler,
-} from '@hooks/useSyncedField';
+import { useSyncedString, useSyncedNumber, useSyncedSelect, textInputHandler } from '@hooks/useSyncedField';
 import type { KeyboardParams } from '@utils/actionBuilder';
 import BaseNode from './BaseNode';
+import { NodeNumberField, NodeSelectField, FieldRow } from './fields';
 
 const KEY_SUGGESTIONS = [
   'Enter',
@@ -41,6 +35,12 @@ const KEY_SUGGESTIONS = [
   'F10',
   'F11',
   'F12',
+];
+
+const EVENT_TYPE_OPTIONS = [
+  { value: 'keypress', label: 'Key press (down → up)' },
+  { value: 'keydown', label: 'Key down only' },
+  { value: 'keyup', label: 'Key up only' },
 ];
 
 type ModifierState = {
@@ -111,8 +111,9 @@ const KeyboardNode: FC<NodeProps> = ({ selected, id }) => {
   return (
     <BaseNode selected={selected} icon={KeySquare} iconClassName="text-lime-300" title="Keyboard">
       <div className="space-y-3 text-xs">
+        {/* Key field with datalist - custom since it has autocomplete */}
         <div>
-          <label className="text-gray-400 block mb-1">Key</label>
+          <label className="text-gray-400 block mb-1 text-xs">Key</label>
           <input
             type="text"
             list={datalistId}
@@ -120,7 +121,7 @@ const KeyboardNode: FC<NodeProps> = ({ selected, id }) => {
             value={keyValue.value}
             onChange={textInputHandler(keyValue.setValue)}
             onBlur={keyValue.commit}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
+            className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
           <datalist id={datalistId}>
             {KEY_SUGGESTIONS.map((option) => (
@@ -129,21 +130,10 @@ const KeyboardNode: FC<NodeProps> = ({ selected, id }) => {
           </datalist>
         </div>
 
-        <div>
-          <label className="text-gray-400 block mb-1">Event Type</label>
-          <select
-            value={eventType.value}
-            onChange={selectInputHandler(eventType.setValue, eventType.commit)}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          >
-            <option value="keypress">Key press (down → up)</option>
-            <option value="keydown">Key down only</option>
-            <option value="keyup">Key up only</option>
-          </select>
-        </div>
+        <NodeSelectField field={eventType} label="Event Type" options={EVENT_TYPE_OPTIONS} />
 
         <div>
-          <label className="text-gray-400 block mb-1">Modifiers</label>
+          <label className="text-gray-400 block mb-1 text-xs">Modifiers</label>
           <div className="grid grid-cols-2 gap-2">
             {(['ctrl', 'shift', 'alt', 'meta'] as (keyof ModifierState)[]).map((mod) => (
               <label
@@ -162,30 +152,10 @@ const KeyboardNode: FC<NodeProps> = ({ selected, id }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-gray-400 block mb-1">Hold Delay (ms)</label>
-            <input
-              type="number"
-              min={0}
-              value={delayMs.value}
-              onChange={numberInputHandler(delayMs.setValue)}
-              onBlur={delayMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-gray-400 block mb-1">Timeout (ms)</label>
-            <input
-              type="number"
-              min={100}
-              value={timeoutMs.value}
-              onChange={numberInputHandler(timeoutMs.setValue)}
-              onBlur={timeoutMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-        </div>
+        <FieldRow>
+          <NodeNumberField field={delayMs} label="Hold Delay (ms)" min={0} />
+          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={100} />
+        </FieldRow>
 
         <p className="text-gray-500">
           Use press mode for sequences (down → optional hold → up). Toggle modifiers to simulate

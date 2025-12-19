@@ -2,14 +2,10 @@ import { FC, memo, useMemo } from 'react';
 import type { NodeProps } from 'reactflow';
 import { UploadCloud, FileWarning } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
-import {
-  useSyncedString,
-  useSyncedNumber,
-  textInputHandler,
-  numberInputHandler,
-} from '@hooks/useSyncedField';
+import { useSyncedString, useSyncedNumber } from '@hooks/useSyncedField';
 import { selectors } from '@constants/selectors';
 import BaseNode from './BaseNode';
+import { NodeTextField, NodeTextArea, NodeNumberField, FieldRow } from './fields';
 
 // UploadFileParams interface for V2 native action params
 interface UploadFileParams {
@@ -80,28 +76,19 @@ const UploadFileNode: FC<NodeProps> = ({ id, selected }) => {
       <p className="text-[11px] text-gray-500 mb-3">Attach local files to file inputs</p>
 
       <div className="space-y-3 text-xs">
-        <div>
-          <label className="text-[11px] font-semibold text-gray-400">Target selector</label>
-          <input
-            type="text"
-            value={selector.value}
-            onChange={textInputHandler(selector.setValue)}
-            onBlur={selector.commit}
-            placeholder="#upload"
-            className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          />
-          <p className="text-[10px] text-gray-500 mt-1">Must point to an &lt;input type="file"&gt; element.</p>
-        </div>
+        <NodeTextField
+          field={selector}
+          label="Target selector"
+          placeholder="#upload"
+          description="Must point to an <input type='file'> element."
+        />
 
         <div>
-          <label className="text-[11px] font-semibold text-gray-400">File paths</label>
-          <textarea
-            value={fileText.value}
-            onChange={textInputHandler(fileText.setValue)}
-            onBlur={fileText.commit}
+          <NodeTextArea
+            field={fileText}
+            label="File paths"
             placeholder="/home/me/Documents/example.pdf"
             rows={3}
-            className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />
           <div className="mt-1 text-[10px] text-gray-500 flex items-center gap-1">
             <FileWarning size={12} className="text-amber-300" />
@@ -117,30 +104,10 @@ const UploadFileNode: FC<NodeProps> = ({ id, selected }) => {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-[11px] font-semibold text-gray-400">Timeout (ms)</label>
-            <input
-              type="number"
-              min={MIN_TIMEOUT}
-              value={timeoutMs.value}
-              onChange={numberInputHandler(timeoutMs.setValue)}
-              onBlur={timeoutMs.commit}
-              className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] font-semibold text-gray-400">Wait after (ms)</label>
-            <input
-              type="number"
-              min={0}
-              value={waitForMs.value}
-              onChange={numberInputHandler(waitForMs.setValue)}
-              onBlur={waitForMs.commit}
-              className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-        </div>
+        <FieldRow>
+          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={MIN_TIMEOUT} />
+          <NodeNumberField field={waitForMs} label="Wait after (ms)" min={0} />
+        </FieldRow>
       </div>
     </BaseNode>
   );

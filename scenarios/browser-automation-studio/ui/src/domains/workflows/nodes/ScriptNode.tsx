@@ -4,14 +4,10 @@ import { TerminalSquare } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
-import {
-  useSyncedString,
-  useSyncedNumber,
-  textInputHandler,
-  numberInputHandler,
-} from '@hooks/useSyncedField';
+import { useSyncedString, useSyncedNumber } from '@hooks/useSyncedField';
 import type { EvaluateParams } from '@utils/actionBuilder';
 import BaseNode from './BaseNode';
+import { NodeTextField, NodeNumberField } from './fields';
 
 const DEFAULT_EXPRESSION = 'return document.title;';
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -82,33 +78,19 @@ const ScriptNode: FC<NodeProps> = ({ selected, id }) => {
       </div>
 
       <div className="space-y-2 text-xs">
-        <div>
-          <label className="text-gray-400 block mb-1">Timeout (ms)</label>
-          <input
-            type="number"
-            min={MIN_TIMEOUT_MS}
-            max={MAX_TIMEOUT_MS}
-            value={timeoutMs.value}
-            onChange={numberInputHandler(timeoutMs.setValue)}
-            onBlur={timeoutMs.commit}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          />
-        </div>
+        <NodeNumberField
+          field={timeoutMs}
+          label="Timeout (ms)"
+          min={MIN_TIMEOUT_MS}
+          max={MAX_TIMEOUT_MS}
+        />
 
-        <div>
-          <label className="text-gray-400 block mb-1">Store result as</label>
-          <input
-            type="text"
-            placeholder="Optional variable name"
-            value={storeResult.value}
-            onChange={textInputHandler(storeResult.setValue)}
-            onBlur={storeResult.commit}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          />
-          <p className="text-gray-500 mt-1">
-            Result is available to future nodes via the upcoming variable system.
-          </p>
-        </div>
+        <NodeTextField
+          field={storeResult}
+          label="Store result as"
+          placeholder="Optional variable name"
+          description="Result is available to future nodes via the upcoming variable system."
+        />
       </div>
     </BaseNode>
   );

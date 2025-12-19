@@ -1,16 +1,10 @@
-import { FC, memo, useMemo } from 'react';
+import { FC, memo } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Network } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
-import {
-  useSyncedString,
-  useSyncedNumber,
-  useSyncedSelect,
-  textInputHandler,
-  numberInputHandler,
-  selectInputHandler,
-} from '@hooks/useSyncedField';
+import { useSyncedString, useSyncedNumber, useSyncedSelect } from '@hooks/useSyncedField';
 import BaseNode from './BaseNode';
+import { NodeTextField, NodeTextArea, NodeNumberField, NodeSelectField, FieldRow } from './fields';
 
 // NetworkMockParams interface for V2 native action params
 interface NetworkMockParams {
@@ -25,20 +19,29 @@ interface NetworkMockParams {
 }
 
 const MOCK_TYPES = [
-  { label: 'Stub response', value: 'response' },
-  { label: 'Abort request', value: 'abort' },
-  { label: 'Delay & passthrough', value: 'delay' },
+  { value: 'response', label: 'Stub response' },
+  { value: 'abort', label: 'Abort request' },
+  { value: 'delay', label: 'Delay & passthrough' },
 ];
 
-const METHODS = ['Any', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'];
+const METHOD_OPTIONS = [
+  { value: '', label: 'Any' },
+  { value: 'GET', label: 'GET' },
+  { value: 'POST', label: 'POST' },
+  { value: 'PUT', label: 'PUT' },
+  { value: 'PATCH', label: 'PATCH' },
+  { value: 'DELETE', label: 'DELETE' },
+  { value: 'OPTIONS', label: 'OPTIONS' },
+  { value: 'HEAD', label: 'HEAD' },
+];
 
 const ABORT_REASONS = [
-  { label: 'Generic failure', value: 'Failed' },
-  { label: 'Client blocked', value: 'BlockedByClient' },
-  { label: 'Server blocked', value: 'BlockedByResponse' },
-  { label: 'Timed out', value: 'TimedOut' },
-  { label: 'Aborted', value: 'Aborted' },
-  { label: 'Connection refused', value: 'ConnectionRefused' },
+  { value: 'Failed', label: 'Generic failure' },
+  { value: 'BlockedByClient', label: 'Client blocked' },
+  { value: 'BlockedByResponse', label: 'Server blocked' },
+  { value: 'TimedOut', label: 'Timed out' },
+  { value: 'Aborted', label: 'Aborted' },
+  { value: 'ConnectionRefused', label: 'Connection refused' },
 ];
 
 const headersToText = (headers?: Record<string, string>): string => {
@@ -117,134 +120,56 @@ const NetworkMockNode: FC<NodeProps> = ({ selected, id }) => {
   const isDelay = mockType.value === 'delay';
   const isAbort = mockType.value === 'abort';
 
-  const methodOptions = useMemo(() => METHODS.map((label) => ({ label, value: label === 'Any' ? '' : label })), []);
-
   return (
     <BaseNode selected={selected} icon={Network} iconClassName="text-fuchsia-300" title="Network Mock">
       <div className="space-y-3 text-xs">
-        <div>
-          <label className="text-gray-400 block mb-1">URL pattern</label>
-          <input
-            type="text"
-            value={urlPattern.value}
-            onChange={textInputHandler(urlPattern.setValue)}
-            onBlur={urlPattern.commit}
-            placeholder="https://api.example.com/* or regex:^https://api/.+"
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          />
-          <p className="text-[10px] text-gray-500 mt-1">Prefix with <code>regex:</code> for regular expressions.</p>
-        </div>
+        <NodeTextField
+          field={urlPattern}
+          label="URL pattern"
+          placeholder="https://api.example.com/* or regex:^https://api/.+"
+          description="Prefix with regex: for regular expressions."
+        />
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-gray-400 block mb-1">HTTP method</label>
-            <select
-              value={method.value}
-              onChange={selectInputHandler(method.setValue, method.commit)}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            >
-              {methodOptions.map((option) => (
-                <option key={option.label} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-gray-400 block mb-1">Mock type</label>
-            <select
-              value={mockType.value}
-              onChange={selectInputHandler(mockType.setValue, mockType.commit)}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            >
-              {MOCK_TYPES.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <FieldRow>
+          <NodeSelectField field={method} label="HTTP method" options={METHOD_OPTIONS} />
+          <NodeSelectField field={mockType} label="Mock type" options={MOCK_TYPES} />
+        </FieldRow>
 
         {isAbort && (
-          <div>
-            <label className="text-gray-400 block mb-1">Abort reason</label>
-            <select
-              value={abortReason.value}
-              onChange={selectInputHandler(abortReason.setValue, abortReason.commit)}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            >
-              {ABORT_REASONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
+          <NodeSelectField field={abortReason} label="Abort reason" options={ABORT_REASONS} />
         )}
 
         {isResponse && (
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-gray-400 block mb-1">Status code</label>
-              <input
-                type="number"
-                min={100}
-                max={599}
-                value={statusCode.value}
-                onChange={numberInputHandler(statusCode.setValue)}
-                onBlur={statusCode.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-gray-400 block mb-1">Delay before respond (ms)</label>
-              <input
-                type="number"
-                min={0}
-                value={delayMs.value}
-                onChange={numberInputHandler(delayMs.setValue)}
-                onBlur={delayMs.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-          </div>
+          <FieldRow>
+            <NodeNumberField field={statusCode} label="Status code" min={100} max={599} />
+            <NodeNumberField field={delayMs} label="Delay before respond (ms)" min={0} />
+          </FieldRow>
         )}
 
         {isDelay && (
-          <div>
-            <label className="text-gray-400 block mb-1">Delay before continuing (ms)</label>
-            <input
-              type="number"
-              min={1}
-              value={delayMs.value}
-              onChange={numberInputHandler(delayMs.setValue)}
-              onBlur={delayMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-            <p className="text-[10px] text-gray-500 mt-1">Required for delay mocks.</p>
-          </div>
+          <NodeNumberField
+            field={delayMs}
+            label="Delay before continuing (ms)"
+            min={1}
+            description="Required for delay mocks."
+          />
         )}
 
         {isResponse && (
           <>
-            <div>
-              <label className="text-gray-400 block mb-1">Headers</label>
-              <textarea
-                rows={3}
-                value={headersText.value}
-                onChange={textInputHandler(headersText.setValue)}
-                onBlur={headersText.commit}
-                placeholder={'Content-Type: application/json\nX-Feature: mock'}
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-gray-400 block mb-1">Body</label>
-              <textarea
-                rows={4}
-                value={body.value}
-                onChange={textInputHandler(body.setValue)}
-                onBlur={body.commit}
-                placeholder='{"ok": true}'
-                className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              />
-              <p className="text-[10px] text-gray-500 mt-1">Paste raw text or JSON. Stored value is sent as-is.</p>
-            </div>
+            <NodeTextArea
+              field={headersText}
+              label="Headers"
+              rows={3}
+              placeholder={'Content-Type: application/json\nX-Feature: mock'}
+            />
+            <NodeTextArea
+              field={body}
+              label="Body"
+              rows={4}
+              placeholder='{"ok": true}'
+              description="Paste raw text or JSON. Stored value is sent as-is."
+            />
           </>
         )}
       </div>

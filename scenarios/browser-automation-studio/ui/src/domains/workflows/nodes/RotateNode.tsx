@@ -2,13 +2,9 @@ import { FC, memo, useMemo } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Smartphone } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
-import {
-  useSyncedNumber,
-  useSyncedSelect,
-  numberInputHandler,
-  selectInputHandler,
-} from '@hooks/useSyncedField';
+import { useSyncedNumber, useSyncedSelect } from '@hooks/useSyncedField';
 import BaseNode from './BaseNode';
+import { NodeNumberField, NodeSelectField } from './fields';
 
 // RotateParams interface for V2 native action params
 interface RotateParams {
@@ -21,6 +17,11 @@ const ORIENTATION_PORTRAIT = 'portrait';
 const ORIENTATION_LANDSCAPE = 'landscape';
 const PORTRAIT_ANGLES: readonly number[] = [0, 180];
 const LANDSCAPE_ANGLES: readonly number[] = [90, 270];
+
+const ORIENTATION_OPTIONS = [
+  { value: ORIENTATION_PORTRAIT, label: 'Portrait (default)' },
+  { value: ORIENTATION_LANDSCAPE, label: 'Landscape (swap width/height)' },
+];
 
 const allowedAnglesForOrientation = (orientation: string): readonly number[] =>
   orientation === ORIENTATION_LANDSCAPE ? LANDSCAPE_ANGLES : PORTRAIT_ANGLES;
@@ -68,24 +69,15 @@ const RotateNode: FC<NodeProps> = ({ selected, id }) => {
       </p>
 
       <div className="space-y-3 text-xs">
-        <div>
-          <label className="text-gray-400 block mb-1">Orientation</label>
-          <select
-            value={orientation.value}
-            onChange={selectInputHandler(orientation.setValue, orientation.commit)}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          >
-            <option value={ORIENTATION_PORTRAIT}>Portrait (default)</option>
-            <option value={ORIENTATION_LANDSCAPE}>Landscape (swap width/height)</option>
-          </select>
-        </div>
+        <NodeSelectField field={orientation} label="Orientation" options={ORIENTATION_OPTIONS} />
 
+        {/* Angle field has special handling - options depend on orientation */}
         <div>
-          <label className="text-gray-400 block mb-1">Angle</label>
+          <label className="text-gray-400 block mb-1 text-xs">Angle</label>
           <select
             value={String(angle.value)}
             onChange={(event) => handleAngleChange(event.target.value)}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
+            className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
           >
             {allowedAngles.map((option) => (
               <option key={option} value={option.toString()}>
@@ -99,22 +91,14 @@ const RotateNode: FC<NodeProps> = ({ selected, id }) => {
           </select>
         </div>
 
-        <div>
-          <label className="text-gray-400 block mb-1">Wait after rotate (ms)</label>
-          <input
-            type="number"
-            min={0}
-            step={50}
-            value={waitForMs.value}
-            onChange={numberInputHandler(waitForMs.setValue)}
-            onBlur={waitForMs.commit}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            placeholder="250"
-          />
-          <p className="text-[10px] text-gray-500 mt-1">
-            Give responsive layouts time to settle after orientation changes.
-          </p>
-        </div>
+        <NodeNumberField
+          field={waitForMs}
+          label="Wait after rotate (ms)"
+          min={0}
+          step={50}
+          placeholder="250"
+          description="Give responsive layouts time to settle after orientation changes."
+        />
       </div>
     </BaseNode>
   );

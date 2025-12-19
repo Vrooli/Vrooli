@@ -1,7 +1,8 @@
-import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { FC, memo, useMemo } from 'react';
 import { Handle, NodeProps, Position } from 'reactflow';
 import { RefreshCcw } from 'lucide-react';
 import { useNodeData } from '@hooks/useNodeData';
+import { useSyncedString, useSyncedNumber, useSyncedSelect, textInputHandler } from '@hooks/useSyncedField';
 
 const LOOP_TYPES = [
   { value: 'foreach', label: 'For Each (array variable)' },
@@ -32,42 +33,66 @@ const MAX_TOTAL_TIMEOUT_MS = 1800000;
 const LoopNode: FC<NodeProps> = ({ id, selected }) => {
   const { getValue, updateData } = useNodeData(id);
 
-  const [loopType, setLoopType] = useState<string>(getValue<string>('loopType') ?? 'foreach');
-  const [arraySource, setArraySource] = useState<string>(getValue<string>('arraySource') ?? '');
-  const [repeatCount, setRepeatCount] = useState<number>(getValue<number>('count') ?? 1);
-  const [maxIterations, setMaxIterations] = useState<number>(getValue<number>('maxIterations') ?? DEFAULT_MAX_ITERATIONS);
-  const [itemVariable, setItemVariable] = useState<string>(getValue<string>('itemVariable') ?? 'loop.item');
-  const [indexVariable, setIndexVariable] = useState<string>(getValue<string>('indexVariable') ?? 'loop.index');
-  const [conditionType, setConditionType] = useState<string>(getValue<string>('conditionType') ?? 'variable');
-  const [conditionVariable, setConditionVariable] = useState<string>(getValue<string>('conditionVariable') ?? '');
-  const [conditionOperator, setConditionOperator] = useState<string>(getValue<string>('conditionOperator') ?? 'truthy');
-  const [conditionValue, setConditionValue] = useState<string>(getValue<string>('conditionValue') ?? '');
-  const [conditionExpression, setConditionExpression] = useState<string>(getValue<string>('conditionExpression') ?? '');
-  const [iterationTimeoutMs, setIterationTimeoutMs] = useState<number>(getValue<number>('iterationTimeoutMs') ?? DEFAULT_ITERATION_TIMEOUT_MS);
-  const [totalTimeoutMs, setTotalTimeoutMs] = useState<number>(getValue<number>('totalTimeoutMs') ?? DEFAULT_TOTAL_TIMEOUT_MS);
+  // UI-specific fields using useSyncedField hooks
+  const loopType = useSyncedSelect(getValue<string>('loopType') ?? 'foreach', {
+    onCommit: (v) => updateData({ loopType: v }),
+  });
+  const arraySource = useSyncedString(getValue<string>('arraySource') ?? '', {
+    onCommit: (v) => updateData({ arraySource: v?.trim() || undefined }),
+  });
+  const repeatCount = useSyncedNumber(getValue<number>('count') ?? 1, {
+    min: 1,
+    fallback: 1,
+    onCommit: (v) => updateData({ count: v }),
+  });
+  const maxIterations = useSyncedNumber(getValue<number>('maxIterations') ?? DEFAULT_MAX_ITERATIONS, {
+    min: 1,
+    max: 1000,
+    fallback: DEFAULT_MAX_ITERATIONS,
+    onCommit: (v) => updateData({ maxIterations: v }),
+  });
+  const itemVariable = useSyncedString(getValue<string>('itemVariable') ?? 'loop.item', {
+    onCommit: (v) => updateData({ itemVariable: v?.trim() || undefined }),
+  });
+  const indexVariable = useSyncedString(getValue<string>('indexVariable') ?? 'loop.index', {
+    onCommit: (v) => updateData({ indexVariable: v?.trim() || undefined }),
+  });
+  const conditionType = useSyncedSelect(getValue<string>('conditionType') ?? 'variable', {
+    onCommit: (v) => updateData({ conditionType: v }),
+  });
+  const conditionVariable = useSyncedString(getValue<string>('conditionVariable') ?? '', {
+    onCommit: (v) => updateData({ conditionVariable: v?.trim() || undefined }),
+  });
+  const conditionOperator = useSyncedSelect(getValue<string>('conditionOperator') ?? 'truthy', {
+    onCommit: (v) => updateData({ conditionOperator: v }),
+  });
+  const conditionValue = useSyncedString(getValue<string>('conditionValue') ?? '', {
+    onCommit: (v) => updateData({ conditionValue: v }),
+  });
+  const conditionExpression = useSyncedString(getValue<string>('conditionExpression') ?? '', {
+    onCommit: (v) => updateData({ conditionExpression: v?.trim() || undefined }),
+  });
+  const iterationTimeoutMs = useSyncedNumber(getValue<number>('iterationTimeoutMs') ?? DEFAULT_ITERATION_TIMEOUT_MS, {
+    min: MIN_ITERATION_TIMEOUT_MS,
+    max: MAX_ITERATION_TIMEOUT_MS,
+    fallback: DEFAULT_ITERATION_TIMEOUT_MS,
+    onCommit: (v) => updateData({ iterationTimeoutMs: v }),
+  });
+  const totalTimeoutMs = useSyncedNumber(getValue<number>('totalTimeoutMs') ?? DEFAULT_TOTAL_TIMEOUT_MS, {
+    min: MIN_TOTAL_TIMEOUT_MS,
+    max: MAX_TOTAL_TIMEOUT_MS,
+    fallback: DEFAULT_TOTAL_TIMEOUT_MS,
+    onCommit: (v) => updateData({ totalTimeoutMs: v }),
+  });
 
-  useEffect(() => setLoopType(getValue<string>('loopType') ?? 'foreach'), [getValue]);
-  useEffect(() => setArraySource(getValue<string>('arraySource') ?? ''), [getValue]);
-  useEffect(() => setRepeatCount(getValue<number>('count') ?? 1), [getValue]);
-  useEffect(() => setMaxIterations(getValue<number>('maxIterations') ?? DEFAULT_MAX_ITERATIONS), [getValue]);
-  useEffect(() => setItemVariable(getValue<string>('itemVariable') ?? 'loop.item'), [getValue]);
-  useEffect(() => setIndexVariable(getValue<string>('indexVariable') ?? 'loop.index'), [getValue]);
-  useEffect(() => setConditionType(getValue<string>('conditionType') ?? 'variable'), [getValue]);
-  useEffect(() => setConditionVariable(getValue<string>('conditionVariable') ?? ''), [getValue]);
-  useEffect(() => setConditionOperator(getValue<string>('conditionOperator') ?? 'truthy'), [getValue]);
-  useEffect(() => setConditionValue(getValue<string>('conditionValue') ?? ''), [getValue]);
-  useEffect(() => setConditionExpression(getValue<string>('conditionExpression') ?? ''), [getValue]);
-  useEffect(() => setIterationTimeoutMs(getValue<number>('iterationTimeoutMs') ?? DEFAULT_ITERATION_TIMEOUT_MS), [getValue]);
-  useEffect(() => setTotalTimeoutMs(getValue<number>('totalTimeoutMs') ?? DEFAULT_TOTAL_TIMEOUT_MS), [getValue]);
-
-  const showArraySource = loopType === 'foreach';
-  const showRepeatCount = loopType === 'repeat';
-  const showConditionConfig = loopType === 'while';
-  const showVariableCondition = showConditionConfig && conditionType === 'variable';
-  const showExpressionCondition = showConditionConfig && conditionType === 'expression';
+  const showArraySource = loopType.value === 'foreach';
+  const showRepeatCount = loopType.value === 'repeat';
+  const showConditionConfig = loopType.value === 'while';
+  const showVariableCondition = showConditionConfig && conditionType.value === 'variable';
+  const showExpressionCondition = showConditionConfig && conditionType.value === 'expression';
 
   const loopHint = useMemo(() => {
-    switch (loopType) {
+    switch (loopType.value) {
       case 'repeat':
         return 'Execute the body a fixed number of times.';
       case 'while':
@@ -75,37 +100,7 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
       default:
         return 'Iterate over each element in a workflow variable array.';
     }
-  }, [loopType]);
-
-  const commitMaxIterations = useCallback(() => {
-    const normalized = Math.max(1, Math.min(1000, Math.round(maxIterations) || DEFAULT_MAX_ITERATIONS));
-    setMaxIterations(normalized);
-    updateData({ maxIterations: normalized });
-  }, [maxIterations, updateData]);
-
-  const commitRepeatCount = useCallback(() => {
-    const normalized = Math.max(1, Math.round(repeatCount) || 1);
-    setRepeatCount(normalized);
-    updateData({ count: normalized });
-  }, [repeatCount, updateData]);
-
-  const commitIterationTimeout = useCallback(() => {
-    const normalized = Math.max(
-      MIN_ITERATION_TIMEOUT_MS,
-      Math.min(MAX_ITERATION_TIMEOUT_MS, Math.round(iterationTimeoutMs) || DEFAULT_ITERATION_TIMEOUT_MS),
-    );
-    setIterationTimeoutMs(normalized);
-    updateData({ iterationTimeoutMs: normalized });
-  }, [iterationTimeoutMs, updateData]);
-
-  const commitTotalTimeout = useCallback(() => {
-    const normalized = Math.max(
-      MIN_TOTAL_TIMEOUT_MS,
-      Math.min(MAX_TOTAL_TIMEOUT_MS, Math.round(totalTimeoutMs) || DEFAULT_TOTAL_TIMEOUT_MS),
-    );
-    setTotalTimeoutMs(normalized);
-    updateData({ totalTimeoutMs: normalized });
-  }, [totalTimeoutMs, updateData]);
+  }, [loopType.value]);
 
   return (
     <div className={`workflow-node ${selected ? 'selected' : ''}`}>
@@ -124,11 +119,10 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
         <div>
           <label className="text-gray-400 block mb-1">Loop Type</label>
           <select
-            value={loopType}
-            onChange={(event) => {
-              const value = event.target.value;
-              setLoopType(value);
-              updateData({ loopType: value });
+            value={loopType.value}
+            onChange={(e) => {
+              loopType.setValue(e.target.value);
+              loopType.commit();
             }}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           >
@@ -144,9 +138,9 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
             <label className="text-gray-400 block mb-1">Array Variable</label>
             <input
               type="text"
-              value={arraySource}
-              onChange={(event) => setArraySource(event.target.value)}
-              onBlur={() => updateData({ arraySource: arraySource.trim() })}
+              value={arraySource.value}
+              onChange={textInputHandler(arraySource.setValue)}
+              onBlur={arraySource.commit}
               placeholder="rows"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -159,9 +153,9 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
             <input
               type="number"
               min={1}
-              value={repeatCount}
-              onChange={(event) => setRepeatCount(Number(event.target.value))}
-              onBlur={commitRepeatCount}
+              value={repeatCount.value}
+              onChange={(e) => repeatCount.setValue(Number(e.target.value))}
+              onBlur={repeatCount.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -172,11 +166,10 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
             <div>
               <label className="text-gray-400 block mb-1">Condition Type</label>
               <select
-                value={conditionType}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setConditionType(value);
-                  updateData({ conditionType: value });
+                value={conditionType.value}
+                onChange={(e) => {
+                  conditionType.setValue(e.target.value);
+                  conditionType.commit();
                 }}
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               >
@@ -192,9 +185,9 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
                   <label className="text-gray-400 block mb-1">Variable Name</label>
                   <input
                     type="text"
-                    value={conditionVariable}
-                    onChange={(event) => setConditionVariable(event.target.value)}
-                    onBlur={() => updateData({ conditionVariable: conditionVariable.trim() })}
+                    value={conditionVariable.value}
+                    onChange={textInputHandler(conditionVariable.setValue)}
+                    onBlur={conditionVariable.commit}
                     placeholder="continueProcessing"
                     className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                   />
@@ -202,11 +195,10 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
                 <div>
                   <label className="text-gray-400 block mb-1">Operator</label>
                   <select
-                    value={conditionOperator}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setConditionOperator(value);
-                      updateData({ conditionOperator: value });
+                    value={conditionOperator.value}
+                    onChange={(e) => {
+                      conditionOperator.setValue(e.target.value);
+                      conditionOperator.commit();
                     }}
                     className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                   >
@@ -215,14 +207,14 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
                     ))}
                   </select>
                 </div>
-                {conditionOperator !== 'truthy' && (
+                {conditionOperator.value !== 'truthy' && (
                   <div>
                     <label className="text-gray-400 block mb-1">Expected Value</label>
                     <input
                       type="text"
-                      value={conditionValue}
-                      onChange={(event) => setConditionValue(event.target.value)}
-                      onBlur={() => updateData({ conditionValue: conditionValue })}
+                      value={conditionValue.value}
+                      onChange={textInputHandler(conditionValue.setValue)}
+                      onBlur={conditionValue.commit}
                       className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                     />
                   </div>
@@ -235,9 +227,9 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
                 <label className="text-gray-400 block mb-1">Expression (returns boolean)</label>
                 <textarea
                   rows={3}
-                  value={conditionExpression}
-                  onChange={(event) => setConditionExpression(event.target.value)}
-                  onBlur={() => updateData({ conditionExpression: conditionExpression.trim() })}
+                  value={conditionExpression.value}
+                  onChange={(e) => conditionExpression.setValue(e.target.value)}
+                  onBlur={conditionExpression.commit}
                   placeholder="return window.isReady === true;"
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 />
@@ -252,9 +244,9 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
             <input
               type="number"
               min={1}
-              value={maxIterations}
-              onChange={(event) => setMaxIterations(Number(event.target.value))}
-              onBlur={commitMaxIterations}
+              value={maxIterations.value}
+              onChange={(e) => maxIterations.setValue(Number(e.target.value))}
+              onBlur={maxIterations.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -262,9 +254,9 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
             <label className="text-gray-400 block mb-1">Item Variable</label>
             <input
               type="text"
-              value={itemVariable}
-              onChange={(event) => setItemVariable(event.target.value)}
-              onBlur={() => updateData({ itemVariable: itemVariable.trim() })}
+              value={itemVariable.value}
+              onChange={textInputHandler(itemVariable.setValue)}
+              onBlur={itemVariable.commit}
               placeholder="loop.item"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -278,9 +270,9 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
               type="number"
               min={MIN_ITERATION_TIMEOUT_MS}
               max={MAX_ITERATION_TIMEOUT_MS}
-              value={iterationTimeoutMs}
-              onChange={(event) => setIterationTimeoutMs(Number(event.target.value))}
-              onBlur={commitIterationTimeout}
+              value={iterationTimeoutMs.value}
+              onChange={(e) => iterationTimeoutMs.setValue(Number(e.target.value))}
+              onBlur={iterationTimeoutMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
             <p className="text-gray-500 mt-1">Fails if one pass exceeds this duration.</p>
@@ -291,9 +283,9 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
               type="number"
               min={MIN_TOTAL_TIMEOUT_MS}
               max={MAX_TOTAL_TIMEOUT_MS}
-              value={totalTimeoutMs}
-              onChange={(event) => setTotalTimeoutMs(Number(event.target.value))}
-              onBlur={commitTotalTimeout}
+              value={totalTimeoutMs.value}
+              onChange={(e) => totalTimeoutMs.setValue(Number(e.target.value))}
+              onBlur={totalTimeoutMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
             <p className="text-gray-500 mt-1">Stops the loop if combined time is too high.</p>
@@ -304,9 +296,9 @@ const LoopNode: FC<NodeProps> = ({ id, selected }) => {
           <label className="text-gray-400 block mb-1">Index Variable</label>
           <input
             type="text"
-            value={indexVariable}
-            onChange={(event) => setIndexVariable(event.target.value)}
-            onBlur={() => updateData({ indexVariable: indexVariable.trim() })}
+            value={indexVariable.value}
+            onChange={textInputHandler(indexVariable.setValue)}
+            onBlur={indexVariable.commit}
             placeholder="loop.index"
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           />

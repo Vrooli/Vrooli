@@ -3,19 +3,12 @@ import type { NodeProps } from 'reactflow';
 import { ListFilter } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
-import {
-  useSyncedString,
-  useSyncedNumber,
-  useSyncedBoolean,
-  useSyncedSelect,
-  textInputHandler,
-  numberInputHandler,
-  selectInputHandler,
-} from '@hooks/useSyncedField';
+import { useSyncedString, useSyncedNumber, useSyncedBoolean, useSyncedSelect } from '@hooks/useSyncedField';
 import type { SelectParams } from '@utils/actionBuilder';
 import type { ResilienceSettings } from '@/types/workflow';
 import BaseNode from './BaseNode';
 import ResiliencePanel from './ResiliencePanel';
+import { NodeTextField, NodeNumberField, FieldRow } from './fields';
 
 const SELECT_BY_OPTIONS = [
   { value: 'value', label: 'Option value' },
@@ -101,11 +94,10 @@ const SelectNode: FC<NodeProps> = ({ selected, id }) => {
 
   const renderSelectionField = () => {
     if (multiple.value) {
+      // Custom textarea for multiple values
       return (
         <div>
-          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
-            Values (one per line)
-          </label>
+          <label className="text-gray-400 block mb-1 text-xs">Values (one per line)</label>
           <textarea
             rows={3}
             value={valuesDraft}
@@ -121,56 +113,32 @@ const SelectNode: FC<NodeProps> = ({ selected, id }) => {
 
     if (selectBy.value === 'index') {
       return (
-        <div>
-          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
-            Option index
-          </label>
-          <input
-            type="number"
-            min={0}
-            value={index.value}
-            onChange={numberInputHandler(index.setValue)}
-            onBlur={index.commit}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 text-xs focus:border-flow-accent focus:outline-none"
-          />
-          <p className="text-[10px] text-gray-500 mt-1">Uses zero-based indexing (0 = first option).</p>
-        </div>
+        <NodeNumberField
+          field={index}
+          label="Option index"
+          min={0}
+          description="Uses zero-based indexing (0 = first option)."
+        />
       );
     }
 
     if (selectBy.value === 'text') {
       return (
-        <div>
-          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
-            Text to match
-          </label>
-          <input
-            type="text"
-            value={label.value}
-            onChange={textInputHandler(label.setValue)}
-            onBlur={label.commit}
-            placeholder="Contains..."
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 text-xs focus:border-flow-accent focus:outline-none"
-          />
-          <p className="text-[10px] text-gray-500 mt-1">Matches options whose text includes this value.</p>
-        </div>
+        <NodeTextField
+          field={label}
+          label="Text to match"
+          placeholder="Contains..."
+          description="Matches options whose text includes this value."
+        />
       );
     }
 
     return (
-      <div>
-        <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
-          Option value
-        </label>
-        <input
-          type="text"
-          value={optionValue.value}
-          onChange={textInputHandler(optionValue.setValue)}
-          onBlur={optionValue.commit}
-          placeholder="Option value attribute"
-          className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 text-xs focus:border-flow-accent focus:outline-none"
-        />
-      </div>
+      <NodeTextField
+        field={optionValue}
+        label="Option value"
+        placeholder="Option value attribute"
+      />
     );
   };
 
@@ -183,29 +151,23 @@ const SelectNode: FC<NodeProps> = ({ selected, id }) => {
   return (
     <BaseNode selected={selected} icon={ListFilter} iconClassName="text-teal-300" title="Select Option">
       <div className="space-y-3 text-xs">
-        <div>
-          <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
-            Target selector
-          </label>
-          <input
-            type="text"
-            value={selector.value}
-            onChange={textInputHandler(selector.setValue)}
-            onBlur={selector.commit}
-            placeholder={'select[name="country"]'}
-            className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-          />
-        </div>
+        <NodeTextField
+          field={selector}
+          label="Target selector"
+          placeholder='select[name="country"]'
+        />
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
-              Select by
-            </label>
+        <FieldRow>
+          {/* Custom select since it needs disabled option based on multiple state */}
+          <div className="flex-1 min-w-0">
+            <label className="text-gray-400 block mb-1 text-xs">Select by</label>
             <select
               value={selectBy.value}
-              onChange={selectInputHandler(selectBy.setValue, selectBy.commit)}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
+              onChange={(e) => {
+                selectBy.setValue(e.target.value);
+                selectBy.commit();
+              }}
+              className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
             >
               {SELECT_BY_OPTIONS.map((option) => (
                 <option
@@ -218,10 +180,8 @@ const SelectNode: FC<NodeProps> = ({ selected, id }) => {
               ))}
             </select>
           </div>
-          <div>
-            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
-              Allow multiple
-            </label>
+          <div className="flex-1 min-w-0">
+            <label className="text-gray-400 block mb-1 text-xs">Allow multiple</label>
             <button
               type="button"
               onClick={toggleMultiple}
@@ -234,38 +194,14 @@ const SelectNode: FC<NodeProps> = ({ selected, id }) => {
               {multiple.value ? 'Enabled' : 'Disabled'}
             </button>
           </div>
-        </div>
+        </FieldRow>
 
         {renderSelectionField()}
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
-              Timeout (ms)
-            </label>
-            <input
-              type="number"
-              min={100}
-              value={timeoutMs.value}
-              onChange={numberInputHandler(timeoutMs.setValue)}
-              onBlur={timeoutMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="text-gray-400 text-[11px] uppercase tracking-wide block mb-1">
-              Post-change wait (ms)
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={waitForMs.value}
-              onChange={numberInputHandler(waitForMs.setValue)}
-              onBlur={waitForMs.commit}
-              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-            />
-          </div>
-        </div>
+        <FieldRow>
+          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={100} />
+          <NodeNumberField field={waitForMs} label="Post-change wait (ms)" min={0} />
+        </FieldRow>
 
         <p className="text-[11px] text-gray-500">
           Dispatches change/input events after updating the element so downstream nodes can rely on

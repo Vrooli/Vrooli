@@ -1,7 +1,8 @@
-import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { FC, memo, useMemo } from 'react';
 import { Handle, NodeProps, Position } from 'reactflow';
 import { GitBranch, ToggleLeft } from 'lucide-react';
 import { useNodeData } from '@hooks/useNodeData';
+import { useSyncedString, useSyncedNumber, useSyncedBoolean, useSyncedSelect, textInputHandler } from '@hooks/useSyncedField';
 
 const CONDITION_TYPES = [
   { value: 'expression', label: 'Expression (JS)' },
@@ -27,58 +28,47 @@ const DEFAULT_POLL_INTERVAL = 250;
 const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
   const { getValue, updateData } = useNodeData(id);
 
-  const [conditionType, setConditionType] = useState<string>(getValue<string>('conditionType') ?? 'expression');
-  const [expression, setExpression] = useState<string>(getValue<string>('expression') ?? '');
-  const [selector, setSelector] = useState<string>(getValue<string>('selector') ?? '');
-  const [variableName, setVariableName] = useState<string>(getValue<string>('variable') ?? '');
-  const [operator, setOperator] = useState<string>(getValue<string>('operator') ?? 'equals');
-  const [comparisonValue, setComparisonValue] = useState<string>(getValue<string>('value') ?? '');
-  const [negate, setNegate] = useState<boolean>(getValue<boolean>('negate') ?? false);
-  const [timeoutMs, setTimeoutMs] = useState<number>(getValue<number>('timeoutMs') ?? DEFAULT_TIMEOUT);
-  const [pollIntervalMs, setPollIntervalMs] = useState<number>(getValue<number>('pollIntervalMs') ?? DEFAULT_POLL_INTERVAL);
+  // UI-specific fields using useSyncedField hooks
+  const conditionType = useSyncedSelect(getValue<string>('conditionType') ?? 'expression', {
+    onCommit: (v) => updateData({ conditionType: v }),
+  });
+  const expression = useSyncedString(getValue<string>('expression') ?? '', {
+    onCommit: (v) => updateData({ expression: v?.trim() || undefined }),
+  });
+  const selector = useSyncedString(getValue<string>('selector') ?? '', {
+    onCommit: (v) => updateData({ selector: v?.trim() || undefined }),
+  });
+  const variableName = useSyncedString(getValue<string>('variable') ?? '', {
+    onCommit: (v) => updateData({ variable: v?.trim() || undefined }),
+  });
+  const operator = useSyncedSelect(getValue<string>('operator') ?? 'equals', {
+    onCommit: (v) => updateData({ operator: v }),
+  });
+  const comparisonValue = useSyncedString(getValue<string>('value') ?? '', {
+    onCommit: (v) => updateData({ value: v }),
+  });
+  const negate = useSyncedBoolean(getValue<boolean>('negate') ?? false, {
+    onCommit: (v) => updateData({ negate: v }),
+  });
+  const timeoutMs = useSyncedNumber(getValue<number>('timeoutMs') ?? DEFAULT_TIMEOUT, {
+    min: 100,
+    max: 60000,
+    fallback: DEFAULT_TIMEOUT,
+    onCommit: (v) => updateData({ timeoutMs: v }),
+  });
+  const pollIntervalMs = useSyncedNumber(getValue<number>('pollIntervalMs') ?? DEFAULT_POLL_INTERVAL, {
+    min: 50,
+    max: 2000,
+    fallback: DEFAULT_POLL_INTERVAL,
+    onCommit: (v) => updateData({ pollIntervalMs: v }),
+  });
 
-  useEffect(() => {
-    setConditionType(getValue<string>('conditionType') ?? 'expression');
-  }, [getValue]);
-
-  useEffect(() => {
-    setExpression(getValue<string>('expression') ?? '');
-  }, [getValue]);
-
-  useEffect(() => {
-    setSelector(getValue<string>('selector') ?? '');
-  }, [getValue]);
-
-  useEffect(() => {
-    setVariableName(getValue<string>('variable') ?? '');
-  }, [getValue]);
-
-  useEffect(() => {
-    setOperator(getValue<string>('operator') ?? 'equals');
-  }, [getValue]);
-
-  useEffect(() => {
-    setComparisonValue(getValue<string>('value') ?? '');
-  }, [getValue]);
-
-  useEffect(() => {
-    setNegate(getValue<boolean>('negate') ?? false);
-  }, [getValue]);
-
-  useEffect(() => {
-    setTimeoutMs(getValue<number>('timeoutMs') ?? DEFAULT_TIMEOUT);
-  }, [getValue]);
-
-  useEffect(() => {
-    setPollIntervalMs(getValue<number>('pollIntervalMs') ?? DEFAULT_POLL_INTERVAL);
-  }, [getValue]);
-
-  const showExpressionField = conditionType === 'expression';
-  const showSelectorField = conditionType === 'element';
-  const showVariableFields = conditionType === 'variable';
+  const showExpressionField = conditionType.value === 'expression';
+  const showSelectorField = conditionType.value === 'element';
+  const showVariableFields = conditionType.value === 'variable';
 
   const conditionDescription = useMemo(() => {
-    switch (conditionType) {
+    switch (conditionType.value) {
       case 'element':
         return 'Check whether a selector exists on the page (polls until timeout).';
       case 'variable':
@@ -86,25 +76,7 @@ const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
       default:
         return 'Evaluate JavaScript inside the page context and branch based on the result.';
     }
-  }, [conditionType]);
-
-  const handleTimeoutCommit = useCallback(() => {
-    const normalized = Math.min(Math.max(Math.round(timeoutMs) || DEFAULT_TIMEOUT, 100), 60000);
-    setTimeoutMs(normalized);
-    updateData({ timeoutMs: normalized });
-  }, [timeoutMs, updateData]);
-
-  const handlePollIntervalCommit = useCallback(() => {
-    const normalized = Math.min(Math.max(Math.round(pollIntervalMs) || DEFAULT_POLL_INTERVAL, 50), 2000);
-    setPollIntervalMs(normalized);
-    updateData({ pollIntervalMs: normalized });
-  }, [pollIntervalMs, updateData]);
-
-  const toggleNegate = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const next = event.target.checked;
-    setNegate(next);
-    updateData({ negate: next });
-  }, [updateData]);
+  }, [conditionType.value]);
 
   return (
     <div className={`workflow-node ${selected ? 'selected' : ''}`}>
@@ -118,11 +90,10 @@ const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
         <div>
           <label className="text-gray-400 block mb-1">Condition Type</label>
           <select
-            value={conditionType}
-            onChange={(event) => {
-              const value = event.target.value;
-              setConditionType(value);
-              updateData({ conditionType: value });
+            value={conditionType.value}
+            onChange={(e) => {
+              conditionType.setValue(e.target.value);
+              conditionType.commit();
             }}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
           >
@@ -138,9 +109,9 @@ const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
             <label className="text-gray-400 block mb-1">Expression</label>
             <textarea
               rows={3}
-              value={expression}
-              onChange={(event) => setExpression(event.target.value)}
-              onBlur={() => updateData({ expression: expression.trim() })}
+              value={expression.value}
+              onChange={(e) => expression.setValue(e.target.value)}
+              onBlur={expression.commit}
               placeholder="return document.querySelector('#status') !== null;"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -152,9 +123,9 @@ const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
             <label className="text-gray-400 block mb-1">Element Selector</label>
             <input
               type="text"
-              value={selector}
-              onChange={(event) => setSelector(event.target.value)}
-              onBlur={() => updateData({ selector: selector.trim() })}
+              value={selector.value}
+              onChange={textInputHandler(selector.setValue)}
+              onBlur={selector.commit}
               placeholder="#status-badge"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
@@ -167,9 +138,9 @@ const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
               <label className="text-gray-400 block mb-1">Variable Name</label>
               <input
                 type="text"
-                value={variableName}
-                onChange={(event) => setVariableName(event.target.value)}
-                onBlur={() => updateData({ variable: variableName.trim() })}
+                value={variableName.value}
+                onChange={textInputHandler(variableName.setValue)}
+                onBlur={variableName.commit}
                 placeholder="loginStatus"
                 className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
               />
@@ -178,11 +149,10 @@ const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
               <div>
                 <label className="text-gray-400 block mb-1">Operator</label>
                 <select
-                  value={operator}
-                  onChange={(event) => {
-                    const next = event.target.value;
-                    setOperator(next);
-                    updateData({ operator: next });
+                  value={operator.value}
+                  onChange={(e) => {
+                    operator.setValue(e.target.value);
+                    operator.commit();
                   }}
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 >
@@ -195,9 +165,9 @@ const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
                 <label className="text-gray-400 block mb-1">Compare To</label>
                 <input
                   type="text"
-                  value={comparisonValue}
-                  onChange={(event) => setComparisonValue(event.target.value)}
-                  onBlur={() => updateData({ value: comparisonValue })}
+                  value={comparisonValue.value}
+                  onChange={textInputHandler(comparisonValue.setValue)}
+                  onBlur={comparisonValue.commit}
                   placeholder="success"
                   className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
                 />
@@ -213,9 +183,9 @@ const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
               type="number"
               min={100}
               max={60000}
-              value={timeoutMs}
-              onChange={(event) => setTimeoutMs(Number(event.target.value))}
-              onBlur={handleTimeoutCommit}
+              value={timeoutMs.value}
+              onChange={(e) => timeoutMs.setValue(Number(e.target.value))}
+              onBlur={timeoutMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
@@ -225,16 +195,24 @@ const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
               type="number"
               min={50}
               max={2000}
-              value={pollIntervalMs}
-              onChange={(event) => setPollIntervalMs(Number(event.target.value))}
-              onBlur={handlePollIntervalCommit}
+              value={pollIntervalMs.value}
+              onChange={(e) => pollIntervalMs.setValue(Number(e.target.value))}
+              onBlur={pollIntervalMs.commit}
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
           </div>
         </div>
 
         <label className="flex items-center gap-2 text-gray-400">
-          <input type="checkbox" className="accent-flow-accent" checked={negate} onChange={toggleNegate} />
+          <input
+            type="checkbox"
+            className="accent-flow-accent"
+            checked={negate.value}
+            onChange={(e) => {
+              negate.setValue(e.target.checked);
+              negate.commit();
+            }}
+          />
           <span>Negate result (swap true/false)</span>
         </label>
 

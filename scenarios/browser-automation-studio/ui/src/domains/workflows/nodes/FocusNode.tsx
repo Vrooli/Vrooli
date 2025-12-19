@@ -1,14 +1,15 @@
-import { memo, FC, useEffect, useMemo, useState } from 'react';
+import { memo, FC, useMemo, useCallback } from 'react';
 import type { NodeProps } from 'reactflow';
-import { Crosshair, EyeOff, Target } from 'lucide-react';
+import { Crosshair, EyeOff } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { ElementPickerModal } from '../components';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
 import { useUrlInheritance } from '@hooks/useUrlInheritance';
+import { useSyncedString, useSyncedNumber } from '@hooks/useSyncedField';
 import type { FocusParams, BlurParams } from '@utils/actionBuilder';
 import type { ElementInfo } from '@/types/elements';
 import BaseNode from './BaseNode';
+import { NodeNumberField, NodeUrlField, NodeSelectorField, FieldRow } from './fields';
 
 type FocusBlurMode = 'focus' | 'blur';
 
@@ -44,188 +45,78 @@ const FocusBlurNode: FC<FocusBlurNodeProps> = ({
   helperText,
   icon: Icon,
 }) => {
-  // URL inheritance hook handles URL state and handlers
-  const {
-    urlDraft,
-    setUrlDraft,
-    effectiveUrl,
-    upstreamUrl,
-    commitUrl,
-  } = useUrlInheritance(id);
+  // URL inheritance for element picker
+  const { effectiveUrl } = useUrlInheritance(id);
 
   // Node data hook for UI-specific fields
   const { getValue, updateData } = useNodeData(id);
 
   // V2 Native: Use action params as source of truth
-  // FocusParams and BlurParams have same shape (selector, timeoutMs)
   const { params, updateParams } = useActionParams<FocusParams | BlurParams>(id);
 
-  // Local state - action params fields
-  const [selector, setSelector] = useState<string>(params?.selector ?? '');
-  const [timeoutMs, setTimeoutMs] = useState<number>(params?.timeoutMs ?? 5000);
-
-  // Local state - UI-specific fields
-  const [waitForMs, setWaitForMs] = useState<number>(() => {
-    const value = getValue<number>('waitForMs');
-    if (value !== undefined && value >= 0) return value;
-    return mode === 'blur' ? 150 : 0;
+  // Action params fields using useSyncedField
+  const selector = useSyncedString(params?.selector ?? '', {
+    onCommit: (v) => {
+      updateParams({ selector: v || undefined });
+      if (!v) {
+        updateData({ elementInfo: undefined });
+      }
+    },
   });
-  const [showPicker, setShowPicker] = useState(false);
-  const [selectedElementInfo, setSelectedElementInfo] = useState<ElementInfo | null>(
-    getValue<ElementInfo>('elementInfo') ?? null
-  );
+  const timeoutMs = useSyncedNumber(params?.timeoutMs ?? 5000, {
+    min: 100,
+    fallback: 5000,
+    onCommit: (v) => updateParams({ timeoutMs: v }),
+  });
 
-  // Sync action params fields
-  useEffect(() => {
-    setSelector(params?.selector ?? '');
-  }, [params?.selector]);
+  // UI-specific fields
+  const defaultWait = mode === 'blur' ? 150 : 0;
+  const waitForMs = useSyncedNumber(getValue<number>('waitForMs') ?? defaultWait, {
+    min: 0,
+    onCommit: (v) => updateData({ waitForMs: v }),
+  });
 
-  useEffect(() => {
-    setTimeoutMs(params?.timeoutMs ?? 5000);
-  }, [params?.timeoutMs]);
-
-  // Sync node.data fields
-  useEffect(() => {
-    const value = getValue<number>('waitForMs');
-    if (value !== undefined && value >= 0) {
-      setWaitForMs(value);
-    }
-  }, [getValue]);
-
-  useEffect(() => {
-    setSelectedElementInfo(getValue<ElementInfo>('elementInfo') ?? null);
-  }, [getValue]);
-
+  const selectedElementInfo = getValue<ElementInfo>('elementInfo') ?? null;
   const elementSummary = useMemo(() => summarizeElement(selectedElementInfo), [selectedElementInfo]);
   const accentClass = mode === 'focus' ? 'text-emerald-300' : 'text-amber-300';
-  const canPickElement = (effectiveUrl?.length ?? 0) > 0;
 
-  const handleSelectorBlur = () => {
-    const trimmed = selector.trim();
-    setSelector(trimmed);
-    updateParams({ selector: trimmed || undefined });
-    if (!trimmed) {
-      updateData({ elementInfo: undefined });
-      setSelectedElementInfo(null);
-    }
-  };
-
-  const handleTimeoutBlur = () => {
-    const normalized = Math.max(100, Math.round(timeoutMs) || 100);
-    setTimeoutMs(normalized);
-    updateParams({ timeoutMs: normalized });
-  };
-
-  const handleWaitBlur = () => {
-    const normalized = Math.max(0, Math.round(waitForMs) || 0);
-    setWaitForMs(normalized);
-    updateData({ waitForMs: normalized });
-  };
-
-  const handleElementSelection = (newSelector: string, elementInfo: ElementInfo) => {
-    setSelector(newSelector);
-    setSelectedElementInfo(elementInfo);
-    updateParams({ selector: newSelector });
-    updateData({ elementInfo });
-    setShowPicker(false);
-  };
+  const handleElementSelection = useCallback(
+    (newSelector: string, elementInfo: ElementInfo) => {
+      updateParams({ selector: newSelector });
+      updateData({ elementInfo });
+    },
+    [updateParams, updateData],
+  );
 
   return (
-    <>
-      <BaseNode selected={selected} icon={Icon} iconClassName={accentClass} title={label}>
-        <p className="text-[11px] text-gray-500 mb-3">{description}</p>
+    <BaseNode selected={selected} icon={Icon} iconClassName={accentClass} title={label}>
+      <p className="text-[11px] text-gray-500 mb-3">{description}</p>
 
-        <div className="space-y-3 text-xs">
-          <div>
-            <label className="text-[11px] font-semibold text-gray-400">Page URL (optional)</label>
-            <input
-              type="text"
-              placeholder={upstreamUrl || 'https://example.com'}
-              className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-              value={urlDraft}
-              onChange={(event) => setUrlDraft(event.target.value)}
-              onBlur={commitUrl}
-            />
-            {!urlDraft && upstreamUrl && (
-              <p className="text-[10px] text-gray-500 mt-1" title={upstreamUrl}>
-                Inherits {upstreamUrl}
-              </p>
-            )}
-          </div>
+      <div className="space-y-3 text-xs">
+        <NodeUrlField nodeId={id} />
 
-          <div>
-            <label className="text-[11px] font-semibold text-gray-400">Target selector</label>
-            <div className="flex items-center gap-2 mt-1">
-              <input
-                type="text"
-                className="flex-1 px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={selector}
-                onChange={(event) => setSelector(event.target.value)}
-                onBlur={handleSelectorBlur}
-                placeholder="#email"
-              />
-              <button
-                type="button"
-                onClick={() => canPickElement && setShowPicker(true)}
-                disabled={!canPickElement}
-                className={`p-1.5 rounded border border-gray-700 transition-colors ${
-                  canPickElement
-                    ? 'bg-flow-bg hover:bg-gray-700 cursor-pointer'
-                    : 'bg-flow-bg opacity-50 cursor-not-allowed'
-                }`}
-                title={
-                  canPickElement
-                    ? `Pick element from ${effectiveUrl}`
-                    : 'Navigate first or set a page URL'
-                }
-              >
-                <Target size={14} className={canPickElement ? 'text-gray-300' : 'text-gray-600'} />
-              </button>
-            </div>
-            {elementSummary && (
-              <p className="text-[10px] text-gray-500 mt-1">Stored element: {elementSummary}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[11px] font-semibold text-gray-400">Timeout (ms)</label>
-              <input
-                type="number"
-                min={100}
-                className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={timeoutMs}
-                onChange={(event) => setTimeoutMs(Number(event.target.value))}
-                onBlur={handleTimeoutBlur}
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-semibold text-gray-400">Post-action wait (ms)</label>
-              <input
-                type="number"
-                min={0}
-                className="w-full px-2 py-1 mt-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
-                value={waitForMs}
-                onChange={(event) => setWaitForMs(Number(event.target.value))}
-                onBlur={handleWaitBlur}
-              />
-            </div>
-          </div>
-
-          <p className="text-[11px] text-gray-500">{helperText}</p>
+        <div>
+          <NodeSelectorField
+            field={selector}
+            effectiveUrl={effectiveUrl}
+            onElementSelect={handleElementSelection}
+            label="Target selector"
+            placeholder="#email"
+            className=""
+          />
+          {elementSummary && (
+            <p className="text-[10px] text-gray-500 mt-1">Stored element: {elementSummary}</p>
+          )}
         </div>
-      </BaseNode>
 
-      {showPicker && canPickElement && effectiveUrl && (
-        <ElementPickerModal
-          isOpen={showPicker}
-          onClose={() => setShowPicker(false)}
-          url={effectiveUrl}
-          onSelectElement={handleElementSelection}
-          selectedSelector={selector}
-        />
-      )}
-    </>
+        <FieldRow>
+          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={100} />
+          <NodeNumberField field={waitForMs} label="Post-action wait (ms)" min={0} />
+        </FieldRow>
+
+        <p className="text-[11px] text-gray-500">{helperText}</p>
+      </div>
+    </BaseNode>
   );
 };
 
