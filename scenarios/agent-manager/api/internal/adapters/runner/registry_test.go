@@ -273,3 +273,147 @@ func TestStubRunner_Stop_Fails(t *testing.T) {
 		t.Error("expected stub stop to fail")
 	}
 }
+
+// =============================================================================
+// CONCURRENT ACCESS TESTS
+// =============================================================================
+
+func TestDefaultRegistry_ConcurrentGet(t *testing.T) {
+	reg := runner.NewRegistry()
+	mock := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	reg.Register(mock)
+
+	// Concurrent gets should be safe
+	const numGoroutines = 100
+	done := make(chan struct{})
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			r, err := reg.Get(domain.RunnerTypeClaudeCode)
+			if err != nil {
+				t.Errorf("concurrent Get failed: %v", err)
+				return
+			}
+			if r.Type() != domain.RunnerTypeClaudeCode {
+				t.Errorf("unexpected runner type: %s", r.Type())
+			}
+		}()
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+}
+
+func TestDefaultRegistry_ConcurrentList(t *testing.T) {
+	reg := runner.NewRegistry()
+	reg.Register(runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	reg.Register(runner.NewMockRunner(domain.RunnerTypeCodex))
+	reg.Register(runner.NewMockRunner(domain.RunnerTypeOpenCode))
+
+	// Concurrent lists should be safe
+	const numGoroutines = 100
+	done := make(chan struct{})
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			runners := reg.List()
+			if len(runners) != 3 {
+				t.Errorf("expected 3 runners, got %d", len(runners))
+			}
+		}()
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+}
+
+func TestDefaultRegistry_ConcurrentAvailable(t *testing.T) {
+	reg := runner.NewRegistry()
+	ctx := context.Background()
+
+	available := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	available.SetAvailable(true, "ready")
+
+	unavailable := runner.NewMockRunner(domain.RunnerTypeCodex)
+	unavailable.SetAvailable(false, "not configured")
+
+	reg.Register(available)
+	reg.Register(unavailable)
+
+	// Concurrent Available calls should be safe
+	const numGoroutines = 100
+	done := make(chan struct{})
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			avail := reg.Available(ctx)
+			if len(avail) != 1 {
+				t.Errorf("expected 1 available runner, got %d", len(avail))
+			}
+		}()
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+}
+
+func TestMockRunner_ConcurrentExecute(t *testing.T) {
+	mock := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	ctx := context.Background()
+
+	// Concurrent executes should be safe
+	const numGoroutines = 50
+	done := make(chan struct{})
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(idx int) {
+			defer func() { done <- struct{}{} }()
+			req := runner.ExecuteRequest{
+				RunID:      uuid.New(),
+				Prompt:     "test prompt",
+				WorkingDir: "/tmp/test",
+			}
+			result, err := mock.Execute(ctx, req)
+			if err != nil {
+				t.Errorf("concurrent Execute failed: %v", err)
+				return
+			}
+			if !result.Success {
+				t.Error("expected execution to succeed")
+			}
+		}(i)
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+}
+
+func TestMockRunner_ConcurrentIsAvailable(t *testing.T) {
+	mock := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	ctx := context.Background()
+
+	// Concurrent IsAvailable calls should be safe
+	const numGoroutines = 100
+	done := make(chan struct{})
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			avail, _ := mock.IsAvailable(ctx)
+			if !avail {
+				t.Error("expected mock to be available")
+			}
+		}()
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+}

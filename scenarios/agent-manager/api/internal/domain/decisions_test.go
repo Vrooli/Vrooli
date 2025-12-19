@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -402,6 +403,286 @@ func TestScopesOverlap(t *testing.T) {
 }
 
 // =============================================================================
+// REJECTION DECISION TESTS
+// =============================================================================
+
+func TestRun_IsRejectable(t *testing.T) {
+	sandboxID := mustParseUUID("12345678-1234-1234-1234-123456789abc")
+
+	tests := []struct {
+		name   string
+		run    *Run
+		wantOK bool
+	}{
+		{
+			name: "valid - needs_review with pending approval",
+			run: &Run{
+				Status:        RunStatusNeedsReview,
+				SandboxID:     &sandboxID,
+				ApprovalState: ApprovalStatePending,
+			},
+			wantOK: true,
+		},
+		{
+			name: "valid - needs_review with approved state (can still reject)",
+			run: &Run{
+				Status:        RunStatusNeedsReview,
+				SandboxID:     &sandboxID,
+				ApprovalState: ApprovalStateApproved,
+			},
+			wantOK: true,
+		},
+		{
+			name: "invalid - wrong status",
+			run: &Run{
+				Status:    RunStatusRunning,
+				SandboxID: &sandboxID,
+			},
+			wantOK: false,
+		},
+		{
+			name: "invalid - already rejected",
+			run: &Run{
+				Status:        RunStatusNeedsReview,
+				SandboxID:     &sandboxID,
+				ApprovalState: ApprovalStateRejected,
+			},
+			wantOK: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ok, reason := tt.run.IsRejectable()
+			if ok != tt.wantOK {
+				t.Errorf("IsRejectable() = %v (reason: %s), want %v", ok, reason, tt.wantOK)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// RESUMPTION DECISION TESTS
+// =============================================================================
+
+func TestDecideResumption(t *testing.T) {
+	staleDuration := 5 * time.Minute
+
+	tests := []struct {
+		name       string
+		run        *Run
+		checkpoint *RunCheckpoint
+		wantResume bool
+		wantReason string
+	}{
+		{
+			name: "can resume from executing phase",
+			run: &Run{
+				ID:     uuid.New(),
+				Status: RunStatusRunning,
+				Phase:  RunPhaseExecuting,
+			},
+			checkpoint: nil,
+			wantResume: true,
+		},
+		{
+			name: "can resume from queued phase",
+			run: &Run{
+				ID:     uuid.New(),
+				Status: RunStatusPending,
+				Phase:  RunPhaseQueued,
+			},
+			checkpoint: nil,
+			wantResume: true,
+		},
+		{
+			name: "cannot resume completed run",
+			run: &Run{
+				ID:     uuid.New(),
+				Status: RunStatusComplete,
+				Phase:  RunPhaseCompleted,
+			},
+			checkpoint: nil,
+			wantResume: false,
+			wantReason: "complete",
+		},
+		{
+			name: "cannot resume failed run",
+			run: &Run{
+				ID:     uuid.New(),
+				Status: RunStatusFailed,
+				Phase:  RunPhaseExecuting,
+			},
+			checkpoint: nil,
+			wantResume: false,
+			wantReason: "failed",
+		},
+		{
+			name: "cannot resume cancelled run",
+			run: &Run{
+				ID:     uuid.New(),
+				Status: RunStatusCancelled,
+				Phase:  RunPhaseExecuting,
+			},
+			checkpoint: nil,
+			wantResume: false,
+			wantReason: "cancelled",
+		},
+		{
+			name: "cannot resume from collecting_results phase",
+			run: &Run{
+				ID:     uuid.New(),
+				Status: RunStatusRunning,
+				Phase:  RunPhaseCollectingResults,
+			},
+			checkpoint: nil,
+			wantResume: false,
+			wantReason: "does not support resumption",
+		},
+		{
+			name: "uses checkpoint phase when available",
+			run: &Run{
+				ID:     uuid.New(),
+				Status: RunStatusRunning,
+				Phase:  RunPhaseInitializing,
+			},
+			checkpoint: &RunCheckpoint{
+				Phase: RunPhaseExecuting,
+			},
+			wantResume: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decision := DecideResumption(tt.run, tt.checkpoint, staleDuration)
+			if decision.CanResume != tt.wantResume {
+				t.Errorf("DecideResumption().CanResume = %v, want %v", decision.CanResume, tt.wantResume)
+			}
+			if !tt.wantResume && tt.wantReason != "" {
+				if !containsStr(decision.Reason, tt.wantReason) {
+					t.Errorf("DecideResumption().Reason = %q, should contain %q", decision.Reason, tt.wantReason)
+				}
+			}
+		})
+	}
+}
+
+func TestDecideResumption_SkippedPhases(t *testing.T) {
+	staleDuration := 5 * time.Minute
+
+	t.Run("executing phase skips earlier phases", func(t *testing.T) {
+		run := &Run{
+			ID:     uuid.New(),
+			Status: RunStatusRunning,
+			Phase:  RunPhaseExecuting,
+		}
+		decision := DecideResumption(run, nil, staleDuration)
+		if !decision.CanResume {
+			t.Fatal("Expected to be able to resume")
+		}
+		if len(decision.SkippedPhases) != 4 {
+			t.Errorf("Expected 4 skipped phases, got %d: %v", len(decision.SkippedPhases), decision.SkippedPhases)
+		}
+	})
+
+	t.Run("initializing phase skips only queued", func(t *testing.T) {
+		run := &Run{
+			ID:     uuid.New(),
+			Status: RunStatusRunning,
+			Phase:  RunPhaseInitializing,
+		}
+		decision := DecideResumption(run, nil, staleDuration)
+		if !decision.CanResume {
+			t.Fatal("Expected to be able to resume")
+		}
+		if len(decision.SkippedPhases) != 1 {
+			t.Errorf("Expected 1 skipped phase, got %d: %v", len(decision.SkippedPhases), decision.SkippedPhases)
+		}
+	})
+}
+
+// =============================================================================
+// STALE RUN DECISION TESTS
+// =============================================================================
+
+func TestDecideStaleRunAction(t *testing.T) {
+	staleDuration := 5 * time.Minute
+	maxRetries := 3
+
+	t.Run("not stale - no action", func(t *testing.T) {
+		recentTime := time.Now().Add(-1 * time.Minute)
+		run := &Run{
+			ID:            uuid.New(),
+			Status:        RunStatusRunning,
+			Phase:         RunPhaseExecuting,
+			LastHeartbeat: &recentTime,
+		}
+		decision := DecideStaleRunAction(run, nil, staleDuration, maxRetries)
+		if decision.IsStale {
+			t.Error("Recent run should not be stale")
+		}
+		if decision.Action != StaleRunActionNone {
+			t.Errorf("Action = %v, want %v", decision.Action, StaleRunActionNone)
+		}
+	})
+
+	t.Run("stale and resumable - resume action", func(t *testing.T) {
+		oldTime := time.Now().Add(-10 * time.Minute)
+		run := &Run{
+			ID:            uuid.New(),
+			Status:        RunStatusRunning,
+			Phase:         RunPhaseExecuting,
+			LastHeartbeat: &oldTime,
+		}
+		decision := DecideStaleRunAction(run, nil, staleDuration, maxRetries)
+		if !decision.IsStale {
+			t.Error("Old run should be stale")
+		}
+		if decision.Action != StaleRunActionResume {
+			t.Errorf("Action = %v, want %v", decision.Action, StaleRunActionResume)
+		}
+	})
+
+	t.Run("stale with max retries exceeded - fail action", func(t *testing.T) {
+		oldTime := time.Now().Add(-10 * time.Minute)
+		run := &Run{
+			ID:            uuid.New(),
+			Status:        RunStatusRunning,
+			Phase:         RunPhaseExecuting,
+			LastHeartbeat: &oldTime,
+		}
+		checkpoint := &RunCheckpoint{
+			RetryCount: 5, // Exceeds maxRetries
+		}
+		decision := DecideStaleRunAction(run, checkpoint, staleDuration, maxRetries)
+		if !decision.IsStale {
+			t.Error("Old run should be stale")
+		}
+		if decision.Action != StaleRunActionFail {
+			t.Errorf("Action = %v, want %v", decision.Action, StaleRunActionFail)
+		}
+	})
+
+	t.Run("stale but not resumable - alert action", func(t *testing.T) {
+		oldTime := time.Now().Add(-10 * time.Minute)
+		run := &Run{
+			ID:            uuid.New(),
+			Status:        RunStatusNeedsReview, // Not a resumable status
+			Phase:         RunPhaseAwaitingReview,
+			LastHeartbeat: &oldTime,
+		}
+		decision := DecideStaleRunAction(run, nil, staleDuration, maxRetries)
+		if !decision.IsStale {
+			t.Error("Old run should be stale")
+		}
+		if decision.Action != StaleRunActionAlert {
+			t.Errorf("Action = %v, want %v", decision.Action, StaleRunActionAlert)
+		}
+	})
+}
+
+// =============================================================================
 // HELPERS
 // =============================================================================
 
@@ -411,4 +692,13 @@ func mustParseUUID(s string) uuid.UUID {
 		panic(err)
 	}
 	return id
+}
+
+func containsStr(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

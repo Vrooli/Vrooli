@@ -2,6 +2,7 @@ package domain
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -700,6 +701,515 @@ func TestContextAttachment_Validate(t *testing.T) {
 			err := tt.attachment.Validate()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// RUN EVENT VALIDATION TESTS
+// =============================================================================
+
+func TestRunEvent_Validate(t *testing.T) {
+	validRunID := uuid.New()
+
+	tests := []struct {
+		name    string
+		event   *RunEvent
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid log event",
+			event: &RunEvent{
+				RunID:     validRunID,
+				Sequence:  0,
+				EventType: EventTypeLog,
+				Timestamp: time.Now(),
+				Data:      &LogEventData{Level: "info", Message: "test"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "nil run ID",
+			event: &RunEvent{
+				RunID:     uuid.Nil,
+				Sequence:  0,
+				EventType: EventTypeLog,
+				Timestamp: time.Now(),
+			},
+			wantErr: true,
+			errMsg:  "runId",
+		},
+		{
+			name: "negative sequence",
+			event: &RunEvent{
+				RunID:     validRunID,
+				Sequence:  -1,
+				EventType: EventTypeLog,
+				Timestamp: time.Now(),
+			},
+			wantErr: true,
+			errMsg:  "sequence",
+		},
+		{
+			name: "invalid event type",
+			event: &RunEvent{
+				RunID:     validRunID,
+				Sequence:  0,
+				EventType: "invalid_type",
+				Timestamp: time.Now(),
+			},
+			wantErr: true,
+			errMsg:  "eventType",
+		},
+		{
+			name: "zero timestamp",
+			event: &RunEvent{
+				RunID:     validRunID,
+				Sequence:  0,
+				EventType: EventTypeLog,
+				Timestamp: time.Time{},
+			},
+			wantErr: true,
+			errMsg:  "timestamp",
+		},
+		{
+			name: "mismatched data type",
+			event: &RunEvent{
+				RunID:     validRunID,
+				Sequence:  0,
+				EventType: EventTypeLog,
+				Timestamp: time.Now(),
+				Data:      &MessageEventData{Role: "user", Content: "hello"}, // Message data for Log event
+			},
+			wantErr: true,
+			errMsg:  "data",
+		},
+		{
+			name: "nil data is valid",
+			event: &RunEvent{
+				RunID:     validRunID,
+				Sequence:  0,
+				EventType: EventTypeLog,
+				Timestamp: time.Now(),
+				Data:      nil,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.event.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// SCOPE LOCK VALIDATION TESTS
+// =============================================================================
+
+func TestScopeLock_Validate(t *testing.T) {
+	validRunID := uuid.New()
+	now := time.Now()
+
+	tests := []struct {
+		name    string
+		lock    *ScopeLock
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid scope lock",
+			lock: &ScopeLock{
+				RunID:      validRunID,
+				ScopePath:  "src/",
+				AcquiredAt: now,
+				ExpiresAt:  now.Add(time.Hour),
+			},
+			wantErr: false,
+		},
+		{
+			name: "nil run ID",
+			lock: &ScopeLock{
+				RunID:      uuid.Nil,
+				ScopePath:  "src/",
+				AcquiredAt: now,
+				ExpiresAt:  now.Add(time.Hour),
+			},
+			wantErr: true,
+			errMsg:  "runId",
+		},
+		{
+			name: "empty scope path",
+			lock: &ScopeLock{
+				RunID:      validRunID,
+				ScopePath:  "",
+				AcquiredAt: now,
+				ExpiresAt:  now.Add(time.Hour),
+			},
+			wantErr: true,
+			errMsg:  "scopePath",
+		},
+		{
+			name: "whitespace only scope path",
+			lock: &ScopeLock{
+				RunID:      validRunID,
+				ScopePath:  "   ",
+				AcquiredAt: now,
+				ExpiresAt:  now.Add(time.Hour),
+			},
+			wantErr: true,
+			errMsg:  "scopePath",
+		},
+		{
+			name: "zero acquired at",
+			lock: &ScopeLock{
+				RunID:      validRunID,
+				ScopePath:  "src/",
+				AcquiredAt: time.Time{},
+				ExpiresAt:  now.Add(time.Hour),
+			},
+			wantErr: true,
+			errMsg:  "acquiredAt",
+		},
+		{
+			name: "zero expires at",
+			lock: &ScopeLock{
+				RunID:      validRunID,
+				ScopePath:  "src/",
+				AcquiredAt: now,
+				ExpiresAt:  time.Time{},
+			},
+			wantErr: true,
+			errMsg:  "expiresAt",
+		},
+		{
+			name: "expires before acquired",
+			lock: &ScopeLock{
+				RunID:      validRunID,
+				ScopePath:  "src/",
+				AcquiredAt: now,
+				ExpiresAt:  now.Add(-time.Hour),
+			},
+			wantErr: true,
+			errMsg:  "expiresAt",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.lock.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestScopeLock_IsExpired(t *testing.T) {
+	tests := []struct {
+		name    string
+		lock    *ScopeLock
+		expired bool
+	}{
+		{
+			name: "not expired",
+			lock: &ScopeLock{
+				ExpiresAt: time.Now().Add(time.Hour),
+			},
+			expired: false,
+		},
+		{
+			name: "expired",
+			lock: &ScopeLock{
+				ExpiresAt: time.Now().Add(-time.Hour),
+			},
+			expired: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.lock.IsExpired(); got != tt.expired {
+				t.Errorf("IsExpired() = %v, want %v", got, tt.expired)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// RUN CHECKPOINT VALIDATION TESTS
+// =============================================================================
+
+func TestRunCheckpoint_Validate(t *testing.T) {
+	validRunID := uuid.New()
+
+	tests := []struct {
+		name       string
+		checkpoint *RunCheckpoint
+		wantErr    bool
+		errMsg     string
+	}{
+		{
+			name: "valid checkpoint",
+			checkpoint: &RunCheckpoint{
+				RunID:             validRunID,
+				Phase:             RunPhaseExecuting,
+				StepWithinPhase:   0,
+				LastEventSequence: 0,
+				RetryCount:        0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "nil run ID",
+			checkpoint: &RunCheckpoint{
+				RunID:           uuid.Nil,
+				Phase:           RunPhaseExecuting,
+				StepWithinPhase: 0,
+			},
+			wantErr: true,
+			errMsg:  "runId",
+		},
+		{
+			name: "invalid phase",
+			checkpoint: &RunCheckpoint{
+				RunID:           validRunID,
+				Phase:           "invalid_phase",
+				StepWithinPhase: 0,
+			},
+			wantErr: true,
+			errMsg:  "phase",
+		},
+		{
+			name: "negative step within phase",
+			checkpoint: &RunCheckpoint{
+				RunID:           validRunID,
+				Phase:           RunPhaseExecuting,
+				StepWithinPhase: -1,
+			},
+			wantErr: true,
+			errMsg:  "stepWithinPhase",
+		},
+		{
+			name: "negative last event sequence",
+			checkpoint: &RunCheckpoint{
+				RunID:             validRunID,
+				Phase:             RunPhaseExecuting,
+				StepWithinPhase:   0,
+				LastEventSequence: -1,
+			},
+			wantErr: true,
+			errMsg:  "lastEventSequence",
+		},
+		{
+			name: "negative retry count",
+			checkpoint: &RunCheckpoint{
+				RunID:           validRunID,
+				Phase:           RunPhaseExecuting,
+				StepWithinPhase: 0,
+				RetryCount:      -1,
+			},
+			wantErr: true,
+			errMsg:  "retryCount",
+		},
+		{
+			name: "all phases valid",
+			checkpoint: &RunCheckpoint{
+				RunID:           validRunID,
+				Phase:           RunPhaseCompleted,
+				StepWithinPhase: 5,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.checkpoint.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// IDEMPOTENCY RECORD VALIDATION TESTS
+// =============================================================================
+
+func TestIdempotencyRecord_Validate(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name    string
+		record  *IdempotencyRecord
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid record",
+			record: &IdempotencyRecord{
+				Key:       "run-create:task-123",
+				Status:    IdempotencyStatusPending,
+				CreatedAt: now,
+				ExpiresAt: now.Add(time.Hour),
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty key",
+			record: &IdempotencyRecord{
+				Key:       "",
+				Status:    IdempotencyStatusPending,
+				CreatedAt: now,
+				ExpiresAt: now.Add(time.Hour),
+			},
+			wantErr: true,
+			errMsg:  "key",
+		},
+		{
+			name: "whitespace only key",
+			record: &IdempotencyRecord{
+				Key:       "   ",
+				Status:    IdempotencyStatusPending,
+				CreatedAt: now,
+				ExpiresAt: now.Add(time.Hour),
+			},
+			wantErr: true,
+			errMsg:  "key",
+		},
+		{
+			name: "invalid status",
+			record: &IdempotencyRecord{
+				Key:       "test-key",
+				Status:    "invalid_status",
+				CreatedAt: now,
+				ExpiresAt: now.Add(time.Hour),
+			},
+			wantErr: true,
+			errMsg:  "status",
+		},
+		{
+			name: "zero created at",
+			record: &IdempotencyRecord{
+				Key:       "test-key",
+				Status:    IdempotencyStatusPending,
+				CreatedAt: time.Time{},
+				ExpiresAt: now.Add(time.Hour),
+			},
+			wantErr: true,
+			errMsg:  "createdAt",
+		},
+		{
+			name: "zero expires at",
+			record: &IdempotencyRecord{
+				Key:       "test-key",
+				Status:    IdempotencyStatusPending,
+				CreatedAt: now,
+				ExpiresAt: time.Time{},
+			},
+			wantErr: true,
+			errMsg:  "expiresAt",
+		},
+		{
+			name: "expires before created",
+			record: &IdempotencyRecord{
+				Key:       "test-key",
+				Status:    IdempotencyStatusPending,
+				CreatedAt: now,
+				ExpiresAt: now.Add(-time.Hour),
+			},
+			wantErr: true,
+			errMsg:  "expiresAt",
+		},
+		{
+			name: "complete status valid",
+			record: &IdempotencyRecord{
+				Key:       "test-key",
+				Status:    IdempotencyStatusComplete,
+				CreatedAt: now,
+				ExpiresAt: now.Add(time.Hour),
+			},
+			wantErr: false,
+		},
+		{
+			name: "failed status valid",
+			record: &IdempotencyRecord{
+				Key:       "test-key",
+				Status:    IdempotencyStatusFailed,
+				CreatedAt: now,
+				ExpiresAt: now.Add(time.Hour),
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.record.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// RUN EVENT TYPE VALIDITY TESTS
+// =============================================================================
+
+func TestRunEventType_IsValid(t *testing.T) {
+	tests := []struct {
+		eventType RunEventType
+		want      bool
+	}{
+		{EventTypeLog, true},
+		{EventTypeMessage, true},
+		{EventTypeToolCall, true},
+		{EventTypeToolResult, true},
+		{EventTypeStatus, true},
+		{EventTypeMetric, true},
+		{EventTypeArtifact, true},
+		{EventTypeError, true},
+		{"invalid", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.eventType), func(t *testing.T) {
+			if got := tt.eventType.IsValid(); got != tt.want {
+				t.Errorf("IsValid() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// IDEMPOTENCY STATUS VALIDITY TESTS
+// =============================================================================
+
+func TestIdempotencyStatus_IsValid(t *testing.T) {
+	tests := []struct {
+		status IdempotencyStatus
+		want   bool
+	}{
+		{IdempotencyStatusPending, true},
+		{IdempotencyStatusComplete, true},
+		{IdempotencyStatusFailed, true},
+		{"invalid", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.status), func(t *testing.T) {
+			if got := tt.status.IsValid(); got != tt.want {
+				t.Errorf("IsValid() = %v, want %v", got, tt.want)
 			}
 		})
 	}

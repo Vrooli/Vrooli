@@ -123,6 +123,10 @@ type CreateRunRequest struct {
 	RunMode      *domain.RunMode `json:"runMode,omitempty"`
 	ForceInPlace bool            `json:"forceInPlace,omitempty"`
 
+	// Force bypasses slot/capacity limits (use for manual user-initiated runs)
+	// When true, the run starts even if MaxConcurrentRuns is exceeded.
+	Force bool `json:"force,omitempty"`
+
 	// IdempotencyKey enables safe retries of run creation.
 	// If provided and a run with this key already exists, the existing run is returned.
 	// Format suggestion: "run:{taskID}:{timestamp}" or caller-defined unique string.
@@ -503,6 +507,31 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 			// If reservation fails, another request beat us to it
 			return nil, domain.NewStateError("Run", "creating", "create",
 				"a run creation with this idempotency key is already in progress")
+		}
+	}
+
+	// SLOT ENFORCEMENT: Check capacity unless Force is set
+	if !req.Force && o.config.MaxConcurrentRuns > 0 && o.runs != nil {
+		// Count active runs (both Running and Starting count against the limit)
+		runningCount, err := o.runs.CountByStatus(ctx, domain.RunStatusRunning)
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, fmt.Errorf("failed to count running runs: %w", err)
+		}
+		startingCount, err := o.runs.CountByStatus(ctx, domain.RunStatusStarting)
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, fmt.Errorf("failed to count starting runs: %w", err)
+		}
+
+		activeCount := runningCount + startingCount
+		if activeCount >= o.config.MaxConcurrentRuns {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, &domain.CapacityExceededError{
+				Resource: "concurrent_runs",
+				Current:  activeCount,
+				Maximum:  o.config.MaxConcurrentRuns,
+			}
 		}
 	}
 

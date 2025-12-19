@@ -481,3 +481,324 @@ func TestMemoryListFilter_Pagination(t *testing.T) {
 		t.Errorf("expected 0 profiles with offset beyond range, got %d", len(profiles))
 	}
 }
+
+// =============================================================================
+// CONCURRENT ACCESS TESTS
+// =============================================================================
+
+func TestMemoryProfileRepository_ConcurrentCRUD(t *testing.T) {
+	repo := repository.NewMemoryProfileRepository()
+	ctx := context.Background()
+
+	const numGoroutines = 50
+	done := make(chan struct{})
+
+	// Concurrent creates
+	for i := 0; i < numGoroutines; i++ {
+		go func(idx int) {
+			defer func() { done <- struct{}{} }()
+			profile := &domain.AgentProfile{
+				ID:         uuid.New(),
+				Name:       "profile-" + uuid.New().String(),
+				RunnerType: domain.RunnerTypeClaudeCode,
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+			}
+			if err := repo.Create(ctx, profile); err != nil {
+				t.Errorf("concurrent Create failed: %v", err)
+			}
+		}(i)
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+
+	// Verify all were created
+	profiles, _ := repo.List(ctx, repository.ListFilter{})
+	if len(profiles) != numGoroutines {
+		t.Errorf("expected %d profiles, got %d", numGoroutines, len(profiles))
+	}
+
+	// Concurrent reads
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			_, err := repo.List(ctx, repository.ListFilter{})
+			if err != nil {
+				t.Errorf("concurrent List failed: %v", err)
+			}
+		}()
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+}
+
+func TestMemoryTaskRepository_ConcurrentCRUD(t *testing.T) {
+	repo := repository.NewMemoryTaskRepository()
+	ctx := context.Background()
+
+	const numGoroutines = 50
+	done := make(chan struct{})
+
+	// Concurrent creates
+	for i := 0; i < numGoroutines; i++ {
+		go func(idx int) {
+			defer func() { done <- struct{}{} }()
+			task := &domain.Task{
+				ID:        uuid.New(),
+				Title:     "task-" + uuid.New().String(),
+				ScopePath: "src/",
+				Status:    domain.TaskStatusQueued,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+			if err := repo.Create(ctx, task); err != nil {
+				t.Errorf("concurrent Create failed: %v", err)
+			}
+		}(i)
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+
+	// Verify all were created
+	tasks, _ := repo.List(ctx, repository.ListFilter{})
+	if len(tasks) != numGoroutines {
+		t.Errorf("expected %d tasks, got %d", numGoroutines, len(tasks))
+	}
+}
+
+func TestMemoryRunRepository_ConcurrentCRUD(t *testing.T) {
+	repo := repository.NewMemoryRunRepository()
+	ctx := context.Background()
+
+	const numGoroutines = 50
+	done := make(chan struct{})
+
+	// Concurrent creates
+	for i := 0; i < numGoroutines; i++ {
+		go func(idx int) {
+			defer func() { done <- struct{}{} }()
+			run := &domain.Run{
+				ID:        uuid.New(),
+				TaskID:    uuid.New(),
+				Status:    domain.RunStatusPending,
+				RunMode:   domain.RunModeSandboxed,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+			if err := repo.Create(ctx, run); err != nil {
+				t.Errorf("concurrent Create failed: %v", err)
+			}
+		}(i)
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+
+	// Verify all were created
+	runs, _ := repo.List(ctx, repository.RunListFilter{})
+	if len(runs) != numGoroutines {
+		t.Errorf("expected %d runs, got %d", numGoroutines, len(runs))
+	}
+
+	// Concurrent count by status
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			_, err := repo.CountByStatus(ctx, domain.RunStatusPending)
+			if err != nil {
+				t.Errorf("concurrent CountByStatus failed: %v", err)
+			}
+		}()
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+}
+
+func TestMemoryEventRepository_ConcurrentAppend(t *testing.T) {
+	repo := repository.NewMemoryEventRepository()
+	ctx := context.Background()
+	runID := uuid.New()
+
+	const numGoroutines = 50
+	done := make(chan struct{})
+
+	// Concurrent appends
+	for i := 0; i < numGoroutines; i++ {
+		go func(idx int) {
+			defer func() { done <- struct{}{} }()
+			events := []*domain.RunEvent{
+				{ID: uuid.New(), EventType: domain.EventTypeLog},
+			}
+			if err := repo.Append(ctx, runID, events...); err != nil {
+				t.Errorf("concurrent Append failed: %v", err)
+			}
+		}(i)
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+
+	// Verify all were appended
+	count, _ := repo.Count(ctx, runID)
+	if count != numGoroutines {
+		t.Errorf("expected %d events, got %d", numGoroutines, count)
+	}
+
+	// Verify sequences are unique and contiguous
+	events, _ := repo.Get(ctx, runID, -1, numGoroutines+10)
+	seqSet := make(map[int64]bool)
+	for _, e := range events {
+		if seqSet[e.Sequence] {
+			t.Errorf("duplicate sequence number: %d", e.Sequence)
+		}
+		seqSet[e.Sequence] = true
+	}
+}
+
+func TestMemoryCheckpointRepository_ConcurrentHeartbeat(t *testing.T) {
+	repo := repository.NewMemoryCheckpointRepository()
+	ctx := context.Background()
+	runID := uuid.New()
+
+	// Save initial checkpoint
+	checkpoint := &domain.RunCheckpoint{
+		RunID:           runID,
+		Phase:           domain.RunPhaseExecuting,
+		StepWithinPhase: 0,
+		LastHeartbeat:   time.Now(),
+	}
+	repo.Save(ctx, checkpoint)
+
+	const numGoroutines = 50
+	done := make(chan struct{})
+
+	// Concurrent heartbeats
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			if err := repo.Heartbeat(ctx, runID); err != nil {
+				t.Errorf("concurrent Heartbeat failed: %v", err)
+			}
+		}()
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+}
+
+func TestMemoryIdempotencyRepository_ConcurrentCheck(t *testing.T) {
+	repo := repository.NewMemoryIdempotencyRepository()
+	ctx := context.Background()
+	key := "concurrent-key"
+
+	// Reserve the key
+	repo.Reserve(ctx, key, time.Hour)
+
+	const numGoroutines = 50
+	done := make(chan struct{})
+
+	// Concurrent checks
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			rec, err := repo.Check(ctx, key)
+			if err != nil {
+				t.Errorf("concurrent Check failed: %v", err)
+			}
+			if rec == nil {
+				t.Error("expected record to exist")
+			}
+		}()
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
+}
+
+// =============================================================================
+// RUN REPOSITORY FILTER TESTS
+// =============================================================================
+
+func TestMemoryRunRepository_FilterByStatus(t *testing.T) {
+	repo := repository.NewMemoryRunRepository()
+	ctx := context.Background()
+
+	// Create runs with different statuses
+	statuses := []domain.RunStatus{
+		domain.RunStatusPending,
+		domain.RunStatusRunning,
+		domain.RunStatusComplete,
+		domain.RunStatusPending,
+	}
+
+	for _, status := range statuses {
+		run := &domain.Run{
+			ID:      uuid.New(),
+			TaskID:  uuid.New(),
+			Status:  status,
+			RunMode: domain.RunModeSandboxed,
+		}
+		repo.Create(ctx, run)
+	}
+
+	// Filter by pending
+	pending := domain.RunStatusPending
+	runs, _ := repo.List(ctx, repository.RunListFilter{Status: &pending})
+	if len(runs) != 2 {
+		t.Errorf("expected 2 pending runs, got %d", len(runs))
+	}
+
+	// Filter by running
+	running := domain.RunStatusRunning
+	runs, _ = repo.List(ctx, repository.RunListFilter{Status: &running})
+	if len(runs) != 1 {
+		t.Errorf("expected 1 running run, got %d", len(runs))
+	}
+}
+
+func TestMemoryRunRepository_ListByProfile(t *testing.T) {
+	repo := repository.NewMemoryRunRepository()
+	ctx := context.Background()
+
+	profileID1 := uuid.New()
+	profileID2 := uuid.New()
+
+	// Create runs for different profiles
+	for i := 0; i < 3; i++ {
+		run := &domain.Run{
+			ID:             uuid.New(),
+			TaskID:         uuid.New(),
+			AgentProfileID: &profileID1,
+			Status:         domain.RunStatusPending,
+			RunMode:        domain.RunModeSandboxed,
+		}
+		repo.Create(ctx, run)
+	}
+
+	run := &domain.Run{
+		ID:             uuid.New(),
+		TaskID:         uuid.New(),
+		AgentProfileID: &profileID2,
+		Status:         domain.RunStatusPending,
+		RunMode:        domain.RunModeSandboxed,
+	}
+	repo.Create(ctx, run)
+
+	// Filter by profile
+	runs, _ := repo.List(ctx, repository.RunListFilter{AgentProfileID: &profileID1})
+	if len(runs) != 3 {
+		t.Errorf("expected 3 runs for profile1, got %d", len(runs))
+	}
+}

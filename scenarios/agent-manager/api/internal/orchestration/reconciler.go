@@ -61,8 +61,8 @@ func DefaultReconcilerConfig() ReconcilerConfig {
 		StaleThreshold:    2 * time.Minute,
 		OrphanGracePeriod: 5 * time.Minute,
 		MaxStaleRuns:      10,
-		KillOrphans:       false, // Conservative default - don't auto-kill
-		AutoRecover:       false, // Conservative default - don't auto-recover
+		KillOrphans:       true, // Always kill orphan processes
+		AutoRecover:       true, // Auto-recover stale runs if process is alive
 	}
 }
 
@@ -550,6 +550,32 @@ func (r *Reconciler) handleOrphan(ctx context.Context, orphan OrphanProcess, sta
 	} else {
 		stats.OrphansKilled++
 		log.Printf("[reconciler] Killed orphan process: PID=%d tag=%s", orphan.PID, orphan.Tag)
+
+		// Clean up resource registries to remove stale entries
+		r.cleanupResourceRegistries(ctx)
+	}
+}
+
+// cleanupResourceRegistries runs cleanup on all agent resource registries.
+// This removes stale entries from the file-based registries that track running agents.
+func (r *Reconciler) cleanupResourceRegistries(ctx context.Context) {
+	// List of resource CLI commands that maintain agent registries
+	resourceCommands := []string{
+		"resource-claude-code",
+		"resource-codex",
+		"resource-opencode",
+	}
+
+	for _, cmd := range resourceCommands {
+		// Run agents cleanup to remove stale entries
+		cleanupCmd := exec.CommandContext(ctx, cmd, "agents", "cleanup")
+		if err := cleanupCmd.Run(); err != nil {
+			// Log but don't fail - cleanup is best-effort
+			// The resource might not be installed or the command might not exist
+			if !strings.Contains(err.Error(), "executable file not found") {
+				log.Printf("[reconciler] Warning: %s agents cleanup failed: %v", cmd, err)
+			}
+		}
 	}
 }
 

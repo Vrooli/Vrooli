@@ -231,8 +231,8 @@ func createOrchestrator(useInMemory bool, wsHub *handlers.WebSocketHub) orchestr
 			StaleThreshold:    2 * time.Minute,
 			OrphanGracePeriod: 5 * time.Minute,
 			MaxStaleRuns:      10,
-			KillOrphans:       false, // Conservative default
-			AutoRecover:       false, // Conservative default
+			KillOrphans:       true, // Always kill orphan processes
+			AutoRecover:       true, // Auto-recover stale runs if process is alive
 		}),
 		orchestration.WithReconcilerBroadcaster(wsHub),
 	)

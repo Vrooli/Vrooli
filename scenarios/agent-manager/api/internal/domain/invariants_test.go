@@ -257,6 +257,14 @@ func TestRun_SafeAccessors(t *testing.T) {
 		}
 	})
 
+	t.Run("HasSandbox false with nil UUID", func(t *testing.T) {
+		nilID := uuid.Nil
+		run := &Run{SandboxID: &nilID}
+		if run.HasSandbox() {
+			t.Error("HasSandbox() = true, want false for nil UUID")
+		}
+	})
+
 	t.Run("SafeStartedAt with nil", func(t *testing.T) {
 		run := &Run{}
 		if !run.SafeStartedAt().IsZero() {
@@ -271,6 +279,48 @@ func TestRun_SafeAccessors(t *testing.T) {
 		}
 	})
 
+	t.Run("SafeEndedAt with nil", func(t *testing.T) {
+		run := &Run{}
+		if !run.SafeEndedAt().IsZero() {
+			t.Error("SafeEndedAt() should be zero time when nil")
+		}
+	})
+
+	t.Run("SafeEndedAt with value", func(t *testing.T) {
+		run := &Run{EndedAt: &now}
+		if got := run.SafeEndedAt(); !got.Equal(now) {
+			t.Errorf("SafeEndedAt() = %v, want %v", got, now)
+		}
+	})
+
+	t.Run("SafeLastHeartbeat with nil", func(t *testing.T) {
+		run := &Run{}
+		if !run.SafeLastHeartbeat().IsZero() {
+			t.Error("SafeLastHeartbeat() should be zero time when nil")
+		}
+	})
+
+	t.Run("SafeLastHeartbeat with value", func(t *testing.T) {
+		run := &Run{LastHeartbeat: &now}
+		if got := run.SafeLastHeartbeat(); !got.Equal(now) {
+			t.Errorf("SafeLastHeartbeat() = %v, want %v", got, now)
+		}
+	})
+
+	t.Run("SafeApprovedAt with nil", func(t *testing.T) {
+		run := &Run{}
+		if !run.SafeApprovedAt().IsZero() {
+			t.Error("SafeApprovedAt() should be zero time when nil")
+		}
+	})
+
+	t.Run("SafeApprovedAt with value", func(t *testing.T) {
+		run := &Run{ApprovedAt: &now}
+		if got := run.SafeApprovedAt(); !got.Equal(now) {
+			t.Errorf("SafeApprovedAt() = %v, want %v", got, now)
+		}
+	})
+
 	t.Run("SafeExitCode with nil", func(t *testing.T) {
 		run := &Run{}
 		if got := run.SafeExitCode(); got != -1 {
@@ -282,6 +332,14 @@ func TestRun_SafeAccessors(t *testing.T) {
 		run := &Run{ExitCode: &exitCode}
 		if got := run.SafeExitCode(); got != 0 {
 			t.Errorf("SafeExitCode() = %v, want 0", got)
+		}
+	})
+
+	t.Run("SafeExitCode with non-zero value", func(t *testing.T) {
+		nonZeroCode := 127
+		run := &Run{ExitCode: &nonZeroCode}
+		if got := run.SafeExitCode(); got != 127 {
+			t.Errorf("SafeExitCode() = %v, want 127", got)
 		}
 	})
 
@@ -306,12 +364,40 @@ func TestRun_SafeAccessors(t *testing.T) {
 		}
 	})
 
+	t.Run("Duration still running", func(t *testing.T) {
+		start := time.Now().Add(-2 * time.Minute)
+		run := &Run{StartedAt: &start, EndedAt: nil}
+		got := run.Duration()
+		// Should return elapsed time since start (approximately 2 minutes)
+		if got < 1*time.Minute || got > 3*time.Minute {
+			t.Errorf("Duration() = %v, want ~2 minutes for still running", got)
+		}
+	})
+
 	t.Run("Duration completed", func(t *testing.T) {
 		start := now.Add(-5 * time.Minute)
 		run := &Run{StartedAt: &start, EndedAt: &now}
 		got := run.Duration()
 		if got < 4*time.Minute || got > 6*time.Minute {
 			t.Errorf("Duration() = %v, want ~5 minutes", got)
+		}
+	})
+}
+
+func TestIdempotencyRecord_SafeEntityID(t *testing.T) {
+	entityID := uuid.New()
+
+	t.Run("SafeEntityID with nil", func(t *testing.T) {
+		record := &IdempotencyRecord{}
+		if got := record.SafeEntityID(); got != uuid.Nil {
+			t.Errorf("SafeEntityID() = %v, want uuid.Nil", got)
+		}
+	})
+
+	t.Run("SafeEntityID with value", func(t *testing.T) {
+		record := &IdempotencyRecord{EntityID: &entityID}
+		if got := record.SafeEntityID(); got != entityID {
+			t.Errorf("SafeEntityID() = %v, want %v", got, entityID)
 		}
 	})
 }
@@ -419,6 +505,33 @@ func TestRun_Assertions(t *testing.T) {
 		}
 		if err := run.AssertCanResume(); err == nil {
 			t.Error("AssertCanResume() should error for completed run")
+		}
+	})
+
+	t.Run("AssertCanReject - needs_review", func(t *testing.T) {
+		run := &Run{
+			Status:        RunStatusNeedsReview,
+			ApprovalState: ApprovalStatePending,
+		}
+		if err := run.AssertCanReject(); err != nil {
+			t.Errorf("AssertCanReject() error = %v, want nil", err)
+		}
+	})
+
+	t.Run("AssertCanReject - running", func(t *testing.T) {
+		run := &Run{Status: RunStatusRunning}
+		if err := run.AssertCanReject(); err == nil {
+			t.Error("AssertCanReject() should error for running status")
+		}
+	})
+
+	t.Run("AssertCanReject - already rejected", func(t *testing.T) {
+		run := &Run{
+			Status:        RunStatusNeedsReview,
+			ApprovalState: ApprovalStateRejected,
+		}
+		if err := run.AssertCanReject(); err == nil {
+			t.Error("AssertCanReject() should error for already rejected run")
 		}
 	})
 }
@@ -617,4 +730,159 @@ func TestInvariantMode(t *testing.T) {
 
 	// Restore
 	SetInvariantMode(oldMode)
+}
+
+// =============================================================================
+// TASK TERMINAL TRANSITION TESTS
+// =============================================================================
+
+func TestTask_CheckTerminalTransition(t *testing.T) {
+	oldMode := invariantMode
+	SetInvariantMode(InvariantModeLog)
+	defer SetInvariantMode(oldMode)
+
+	tests := []struct {
+		name      string
+		current   TaskStatus
+		proposed  TaskStatus
+		wantValid bool
+	}{
+		{"queued to running - valid", TaskStatusQueued, TaskStatusRunning, true},
+		{"running to needs_review - valid", TaskStatusRunning, TaskStatusNeedsReview, true},
+		{"approved to running - invalid (terminal)", TaskStatusApproved, TaskStatusRunning, false},
+		{"rejected to queued - invalid (terminal)", TaskStatusRejected, TaskStatusQueued, false},
+		{"failed to running - invalid (terminal)", TaskStatusFailed, TaskStatusRunning, false},
+		{"cancelled to running - invalid (terminal)", TaskStatusCancelled, TaskStatusRunning, false},
+		{"approved to failed - valid (terminal to terminal)", TaskStatusApproved, TaskStatusFailed, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			task := &Task{ID: uuid.New(), Status: tt.current}
+			if got := task.CheckTerminalTransition(tt.proposed); got != tt.wantValid {
+				t.Errorf("CheckTerminalTransition() = %v, want %v", got, tt.wantValid)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// CHECK ALL INVARIANTS TESTS
+// =============================================================================
+
+func TestRun_CheckAllInvariants(t *testing.T) {
+	sandboxID := uuid.New()
+
+	t.Run("valid run - no violations", func(t *testing.T) {
+		run := &Run{
+			ID:            uuid.New(),
+			Status:        RunStatusNeedsReview,
+			RunMode:       RunModeSandboxed,
+			Phase:         RunPhaseAwaitingReview,
+			SandboxID:     &sandboxID,
+			ApprovalState: ApprovalStatePending,
+		}
+		violations := run.CheckAllInvariants()
+		if len(violations) != 0 {
+			t.Errorf("CheckAllInvariants() found %d violations, want 0", len(violations))
+		}
+	})
+
+	t.Run("sandbox invariant violation", func(t *testing.T) {
+		run := &Run{
+			ID:        uuid.New(),
+			Status:    RunStatusRunning,
+			RunMode:   RunModeSandboxed,
+			Phase:     RunPhaseExecuting,
+			SandboxID: nil, // Violation: sandboxed mode past sandbox creation without ID
+		}
+		violations := run.CheckAllInvariants()
+		if len(violations) == 0 {
+			t.Error("CheckAllInvariants() should detect sandbox invariant violation")
+		}
+	})
+
+	t.Run("approval state invariant violation", func(t *testing.T) {
+		run := &Run{
+			ID:            uuid.New(),
+			Status:        RunStatusRunning, // Not needs_review
+			ApprovalState: ApprovalStatePending,
+		}
+		violations := run.CheckAllInvariants()
+		if len(violations) == 0 {
+			t.Error("CheckAllInvariants() should detect approval state invariant violation")
+		}
+	})
+
+	t.Run("in_place mode - no sandbox violation", func(t *testing.T) {
+		run := &Run{
+			ID:            uuid.New(),
+			Status:        RunStatusRunning,
+			RunMode:       RunModeInPlace,
+			Phase:         RunPhaseExecuting,
+			SandboxID:     nil, // Not a violation for in_place mode
+			ApprovalState: ApprovalStateNone,
+		}
+		violations := run.CheckAllInvariants()
+		if len(violations) != 0 {
+			t.Errorf("CheckAllInvariants() found %d violations for in_place mode, want 0", len(violations))
+		}
+	})
+}
+
+// =============================================================================
+// INVARIANT VIOLATION ERROR TESTS
+// =============================================================================
+
+func TestInvariantViolationError(t *testing.T) {
+	err := &InvariantViolationError{
+		Invariant:   "INV_TEST",
+		Description: "test description",
+		Entity:      "Run",
+		EntityID:    "abc-123",
+		Details:     "extra details",
+	}
+
+	errString := err.Error()
+	if errString == "" {
+		t.Error("Error() returned empty string")
+	}
+	if !contains(errString, "INV_TEST") {
+		t.Error("Error() should contain invariant name")
+	}
+	if !contains(errString, "Run") {
+		t.Error("Error() should contain entity type")
+	}
+	if !contains(errString, "abc-123") {
+		t.Error("Error() should contain entity ID")
+	}
+	if !contains(errString, "test description") {
+		t.Error("Error() should contain description")
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && findSubstring(s, substr)))
+}
+
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// =============================================================================
+// PHASE ORDINAL EDGE CASE TESTS
+// =============================================================================
+
+func TestPhaseOrdinal_UnknownPhase(t *testing.T) {
+	// Test that unknown phase returns 0
+	unknownPhase := RunPhase("unknown_phase")
+	if got := phaseOrdinal(unknownPhase); got != 0 {
+		t.Errorf("phaseOrdinal(unknown) = %d, want 0", got)
+	}
 }
