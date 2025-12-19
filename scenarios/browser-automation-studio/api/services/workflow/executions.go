@@ -64,8 +64,24 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 	return exec, nil
 }
 
+// ExecuteOptions contains optional settings for workflow execution.
+type ExecuteOptions struct {
+	// EnableFrameStreaming enables live frame streaming during execution.
+	// When true, the execution will stream browser frames to connected WebSocket clients.
+	EnableFrameStreaming bool
+	// FrameStreamingQuality sets the JPEG quality (1-100). Default: 55.
+	FrameStreamingQuality int
+	// FrameStreamingFPS sets the target frames per second. Default: 6.
+	FrameStreamingFPS int
+}
+
 // ExecuteWorkflowAPI starts a workflow execution using proto request/response types.
 func (s *WorkflowService) ExecuteWorkflowAPI(ctx context.Context, req *basapi.ExecuteWorkflowRequest) (*basapi.ExecuteWorkflowResponse, error) {
+	return s.ExecuteWorkflowAPIWithOptions(ctx, req, nil)
+}
+
+// ExecuteWorkflowAPIWithOptions starts a workflow execution with additional options.
+func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req *basapi.ExecuteWorkflowRequest, opts *ExecuteOptions) (*basapi.ExecuteWorkflowResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
@@ -110,7 +126,7 @@ func (s *WorkflowService) ExecuteWorkflowAPI(ctx context.Context, req *basapi.Ex
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
-	s.startExecutionRunnerWithNamespaces(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg)
+	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, opts)
 
 	if req.WaitForCompletion {
 		// Poll for completion; execution updates are persisted to the DB index by the runner.
@@ -208,15 +224,24 @@ func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary,
 }
 
 func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
+	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil)
+}
+
+func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.storeExecutionCancel(executionID, cancel)
-	go s.executeWorkflowAsync(ctx, workflow, executionID, store, params, env, artifactCfg)
+	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, opts)
 }
 
 // executeWorkflowAsync is the single implementation for running workflows asynchronously.
 // It handles both legacy (flat parameters in store) and new (namespaced store/params/env) callers.
 // artifactCfg controls what artifacts are collected; nil means use default (full profile).
 func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
+	s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, nil)
+}
+
+// executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
+func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions) {
 	defer s.cancelExecutionByID(executionID)
 
 	persistenceCtx := context.Background()
@@ -255,6 +280,27 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *ba
 		execIndex.UpdatedAt = now
 		_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
 		return
+	}
+
+	// Inject frame streaming config into plan metadata if enabled.
+	// The SimpleExecutor reads this from plan.Metadata["frameStreaming"] to configure
+	// the driver session with frame streaming callbacks.
+	if opts != nil && opts.EnableFrameStreaming {
+		if plan.Metadata == nil {
+			plan.Metadata = make(map[string]any)
+		}
+		fsConfig := map[string]any{
+			"enabled": true,
+		}
+		// Apply custom quality if specified, otherwise use default (55)
+		if opts.FrameStreamingQuality > 0 {
+			fsConfig["quality"] = opts.FrameStreamingQuality
+		}
+		// Apply custom FPS if specified, otherwise use default (6)
+		if opts.FrameStreamingFPS > 0 {
+			fsConfig["fps"] = opts.FrameStreamingFPS
+		}
+		plan.Metadata["frameStreaming"] = fsConfig
 	}
 
 	req := autoexecutor.Request{

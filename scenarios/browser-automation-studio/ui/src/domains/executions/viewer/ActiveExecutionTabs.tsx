@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Image, ListTree, PlayCircle, Terminal } from "lucide-react";
+import { Image, ListTree, PlayCircle, Terminal, Video } from "lucide-react";
 import type { ReactNode } from "react";
 import { selectors } from "@constants/selectors";
 import type { ViewerTab } from "./ExecutionViewer";
@@ -8,6 +8,7 @@ interface ExecutionTabsProps {
   activeTab: ViewerTab;
   onTabChange: (tab: ViewerTab) => void;
   showExecutionSwitcher?: boolean;
+  showLivePreview?: boolean;
   isSwitchingExecution?: boolean;
   hasTimeline: boolean;
   counts: {
@@ -19,6 +20,7 @@ interface ExecutionTabsProps {
     replay: ReactNode;
     screenshots: ReactNode;
     logs: ReactNode;
+    live?: ReactNode;
     executions?: ReactNode;
   };
 }
@@ -31,6 +33,7 @@ export function ActiveExecutionTabs({
   activeTab,
   onTabChange,
   showExecutionSwitcher = false,
+  showLivePreview = false,
   isSwitchingExecution = false,
   hasTimeline,
   counts,
@@ -54,6 +57,22 @@ export function ActiveExecutionTabs({
           <PlayCircle size={14} />
           Replay ({counts.replay})
         </button>
+        {showLivePreview && (
+          <button
+            data-testid="execution-tab-live"
+            className={clsx(
+              "flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2",
+              activeTab === "live"
+                ? "bg-flow-bg text-surface border-b-2 border-green-500"
+                : "text-subtle hover:text-surface",
+            )}
+            onClick={() => onTabChange("live")}
+          >
+            <Video size={14} className={activeTab === "live" ? "text-green-500" : ""} />
+            <span>Live</span>
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          </button>
+        )}
         <button
           data-testid={selectors.executions.tabs.screenshots}
           className={clsx(
@@ -108,6 +127,7 @@ export function ActiveExecutionTabs({
 
       <div className="flex-1 overflow-hidden flex flex-col min-h-0">
         {activeTab === "replay" && tabs.replay}
+        {activeTab === "live" && showLivePreview && tabs.live}
         {activeTab === "screenshots" && tabs.screenshots}
         {activeTab === "logs" && tabs.logs}
         {activeTab === "executions" && showExecutionSwitcher && tabs.executions}

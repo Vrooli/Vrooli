@@ -22,6 +22,7 @@ import { ExecutionHeader } from "./components/ExecutionHeader";
 import { ScreenshotsPanel } from "./components/ScreenshotsPanel";
 import { LogsPanel } from "./components/LogsPanel";
 import { ReplayPanel } from "./components/ReplayPanel";
+import { ExecutionLivePreview } from "./components/ExecutionLivePreview";
 import { useExecutionStore, type Execution, type TimelineFrame } from "../store";
 import { useWorkflowStore } from "@stores/workflowStore";
 import { useExportStore } from "@/domains/exports";
@@ -51,7 +52,7 @@ interface ActiveExecutionProps {
   showExecutionSwitcher?: boolean;
 }
 
-export type ViewerTab = "replay" | "screenshots" | "logs" | "executions";
+export type ViewerTab = "replay" | "screenshots" | "logs" | "executions" | "live";
 
 type ExecutionExportPreview = {
   executionId: string;
@@ -759,6 +760,7 @@ function ActiveExecutionViewer({
         activeTab={activeTab}
         onTabChange={setActiveTab}
         showExecutionSwitcher={showExecutionSwitcher}
+        showLivePreview={isRunning}
         isSwitchingExecution={isSwitchingExecution}
         hasTimeline={hasTimeline}
         counts={{
@@ -800,6 +802,15 @@ function ActiveExecutionViewer({
             />
           ),
           logs: <LogsPanel logs={execution.logs} />,
+          live: (
+            <div className="flex-1 overflow-auto p-3">
+              <ExecutionLivePreview
+                executionId={execution.id}
+                enabled={isRunning}
+                className="h-full"
+              />
+            </div>
+          ),
           executions: (
             <div className="flex-1 overflow-hidden p-3">
               {execution.workflowId ? (

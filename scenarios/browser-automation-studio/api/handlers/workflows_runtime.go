@@ -40,7 +40,27 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
-	resp, err := h.executionService.ExecuteWorkflowAPI(ctx, &req)
+	// Check for frame streaming query parameter
+	// Usage: POST /workflows/{id}/execute?frame_streaming=true
+	var opts *workflowservice.ExecuteOptions
+	if r.URL.Query().Get("frame_streaming") == "true" {
+		opts = &workflowservice.ExecuteOptions{
+			EnableFrameStreaming: true,
+		}
+		// Optional: parse quality and fps from query params
+		if q := r.URL.Query().Get("frame_streaming_quality"); q != "" {
+			if quality, err := strconv.Atoi(q); err == nil && quality > 0 && quality <= 100 {
+				opts.FrameStreamingQuality = quality
+			}
+		}
+		if f := r.URL.Query().Get("frame_streaming_fps"); f != "" {
+			if fps, err := strconv.Atoi(f); err == nil && fps > 0 && fps <= 30 {
+				opts.FrameStreamingFPS = fps
+			}
+		}
+	}
+
+	resp, err := h.executionService.ExecuteWorkflowAPIWithOptions(ctx, &req, opts)
 	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "execute_workflow", "error": err.Error()}))
 		return
