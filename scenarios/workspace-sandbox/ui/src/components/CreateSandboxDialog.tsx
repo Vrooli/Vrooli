@@ -442,7 +442,7 @@ export function CreateSandboxDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent data-testid={SELECTORS.createDialog}>
+      <DialogContent className="max-w-lg" data-testid={SELECTORS.createDialog}>
         <DialogClose onClose={handleClose} />
 
         <DialogHeader>
