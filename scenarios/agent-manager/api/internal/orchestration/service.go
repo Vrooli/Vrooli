@@ -14,6 +14,7 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -1132,7 +1133,8 @@ func (o *Orchestrator) GetRunnerStatus(ctx context.Context) ([]*RunnerStatus, er
 	return statuses, nil
 }
 
-// ProbeRunner sends a lightweight test request to a runner to verify it can respond.
+// ProbeRunner sends a real test request to a runner to verify end-to-end functionality.
+// This invokes the agent with a minimal prompt to verify CLI + auth + API all work.
 func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.RunnerType) (*ProbeResult, error) {
 	if o.runners == nil {
 		return &ProbeResult{
@@ -1151,7 +1153,7 @@ func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.Runner
 		}, nil
 	}
 
-	// First check if the runner is available
+	// First check if the runner reports itself as available
 	available, msg := r.IsAvailable(ctx)
 	if !available {
 		return &ProbeResult{
@@ -1161,21 +1163,34 @@ func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.Runner
 		}, nil
 	}
 
-	// Run a lightweight probe command based on runner type
+	// Build the probe command - uses a minimal prompt to reduce cost/time
+	// The prompt asks for a specific response so we can validate it
 	start := time.Now()
 	var probeCmd *exec.Cmd
 	var cmdName string
+	var codexOutputFile string
+	probePrompt := "Reply with exactly one word: PROBE_OK"
+
+	// Use a timeout context for the probe (30 seconds should be plenty)
+	probeCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 
 	switch runnerType {
 	case domain.RunnerTypeClaudeCode:
 		cmdName = "claude"
-		probeCmd = exec.CommandContext(ctx, cmdName, "--version")
+		// Use print mode for non-interactive, max tokens to limit response
+		probeCmd = exec.CommandContext(probeCtx, cmdName, "-p", "--output-format", "text", probePrompt)
 	case domain.RunnerTypeCodex:
 		cmdName = "codex"
-		probeCmd = exec.CommandContext(ctx, cmdName, "--version")
+		// Use exec subcommand for non-interactive execution
+		// --skip-git-repo-check allows running from /tmp without a git repo
+		// -o writes just the response to a file (avoids session metadata in stdout)
+		codexOutputFile = fmt.Sprintf("/tmp/codex-probe-%s.txt", uuid.New().String()[:8])
+		probeCmd = exec.CommandContext(probeCtx, cmdName, "exec", "--skip-git-repo-check", "-o", codexOutputFile, probePrompt)
 	case domain.RunnerTypeOpenCode:
 		cmdName = "opencode"
-		probeCmd = exec.CommandContext(ctx, cmdName, "--version")
+		// Use run subcommand
+		probeCmd = exec.CommandContext(probeCtx, cmdName, "run", probePrompt)
 	default:
 		return &ProbeResult{
 			RunnerType: runnerType,
@@ -1184,9 +1199,39 @@ func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.Runner
 		}, nil
 	}
 
+	// Run from a safe directory (temp) to avoid any project-specific behavior
+	probeCmd.Dir = "/tmp"
+
 	output, err := probeCmd.CombinedOutput()
 	duration := time.Since(start)
-	outputStr := strings.TrimSpace(string(output))
+
+	// For Codex, read the clean output from the file instead of stdout
+	var outputStr string
+	if codexOutputFile != "" {
+		defer os.Remove(codexOutputFile) // Clean up temp file
+		if fileContent, readErr := os.ReadFile(codexOutputFile); readErr == nil {
+			outputStr = strings.TrimSpace(string(fileContent))
+		} else {
+			// Fall back to stdout if file read fails
+			outputStr = strings.TrimSpace(string(output))
+		}
+	} else {
+		outputStr = strings.TrimSpace(string(output))
+	}
+
+	// Strip ANSI escape codes for cleaner output and matching
+	outputClean := stripANSI(outputStr)
+
+	// Check for timeout
+	if probeCtx.Err() == context.DeadlineExceeded {
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    false,
+			Message:    fmt.Sprintf("%s probe timed out after 30s", cmdName),
+			Response:   outputClean,
+			DurationMs: duration.Milliseconds(),
+		}, nil
+	}
 
 	// Check for command execution error (non-zero exit code)
 	if err != nil {
@@ -1194,35 +1239,84 @@ func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.Runner
 			RunnerType: runnerType,
 			Success:    false,
 			Message:    fmt.Sprintf("%s probe failed: %v", cmdName, err),
-			Response:   outputStr,
+			Response:   outputClean,
 			DurationMs: duration.Milliseconds(),
 		}, nil
 	}
 
-	// Some CLIs return exit code 0 but print error messages - detect these
-	// by checking for common error patterns in the output
-	outputLower := strings.ToLower(outputStr)
+	// Check for error patterns in output (some CLIs return exit 0 on failure)
+	outputLower := strings.ToLower(outputClean)
 	if strings.Contains(outputLower, "error:") ||
-		strings.Contains(outputLower, "failed") ||
-		strings.Contains(outputLower, "command not found") ||
-		strings.Contains(outputLower, "no such file") ||
-		strings.Contains(outputLower, "permission denied") {
+		strings.Contains(outputLower, "unauthorized") ||
+		strings.Contains(outputLower, "authentication failed") ||
+		strings.Contains(outputLower, "api key") ||
+		strings.Contains(outputLower, "rate limit") {
 		return &ProbeResult{
 			RunnerType: runnerType,
 			Success:    false,
-			Message:    fmt.Sprintf("%s returned error in output despite exit code 0", cmdName),
-			Response:   outputStr,
+			Message:    fmt.Sprintf("%s returned error in output", cmdName),
+			Response:   outputClean,
 			DurationMs: duration.Milliseconds(),
 		}, nil
 	}
 
+	// Validate we got a meaningful response
+	// The agent should have responded with something containing "PROBE_OK" or similar
+	if strings.Contains(strings.ToUpper(outputClean), "PROBE_OK") ||
+		strings.Contains(strings.ToUpper(outputClean), "PROBE OK") {
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    true,
+			Message:    fmt.Sprintf("%s responded correctly", cmdName),
+			Response:   outputClean,
+			DurationMs: duration.Milliseconds(),
+		}, nil
+	}
+
+	// Got a response but not the expected one - still counts as working
+	// (the agent might rephrase or add context, which is fine)
+	if len(outputClean) > 0 {
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    true,
+			Message:    fmt.Sprintf("%s responded (content varies)", cmdName),
+			Response:   outputClean,
+			DurationMs: duration.Milliseconds(),
+		}, nil
+	}
+
+	// Empty response is suspicious
 	return &ProbeResult{
 		RunnerType: runnerType,
-		Success:    true,
-		Message:    fmt.Sprintf("%s responded successfully", cmdName),
-		Response:   outputStr,
+		Success:    false,
+		Message:    fmt.Sprintf("%s returned empty response", cmdName),
+		Response:   "",
 		DurationMs: duration.Milliseconds(),
 	}, nil
+}
+
+// stripANSI removes ANSI escape codes from a string
+func stripANSI(s string) string {
+	// Match ANSI escape sequences: ESC[ followed by params and a letter
+	// This handles color codes, cursor movement, etc.
+	result := strings.Builder{}
+	inEscape := false
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '[' {
+			inEscape = true
+			i++ // skip the '['
+			continue
+		}
+		if inEscape {
+			// End of escape sequence is a letter (A-Z, a-z)
+			if (s[i] >= 'A' && s[i] <= 'Z') || (s[i] >= 'a' && s[i] <= 'z') {
+				inEscape = false
+			}
+			continue
+		}
+		result.WriteByte(s[i])
+	}
+	return result.String()
 }
 
 // -----------------------------------------------------------------------------

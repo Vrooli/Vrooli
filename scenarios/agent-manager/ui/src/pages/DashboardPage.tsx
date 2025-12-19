@@ -258,6 +258,7 @@ function HealthItem({
   runnerType?: RunnerType;
 }) {
   const [copied, setCopied] = useState(false);
+  const [probeCopied, setProbeCopied] = useState(false);
   const [probing, setProbing] = useState(false);
   const [probeResult, setProbeResult] = useState<ProbeResult | null>(null);
 
@@ -272,6 +273,28 @@ function HealthItem({
     }
   };
 
+  const handleCopyProbeResult = async () => {
+    if (!probeResult) return;
+    // Build a comprehensive copy string with all probe info
+    const copyText = [
+      `Runner: ${probeResult.runnerType}`,
+      `Status: ${probeResult.success ? "Success" : "Failed"}`,
+      `Message: ${probeResult.message}`,
+      `Duration: ${probeResult.durationMs}ms`,
+      probeResult.response ? `Response: ${probeResult.response}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    try {
+      await navigator.clipboard.writeText(copyText);
+      setProbeCopied(true);
+      setTimeout(() => setProbeCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy probe result:", err);
+    }
+  };
+
   const handleProbe = async () => {
     if (!runnerType || probing) return;
     setProbing(true);
@@ -279,8 +302,6 @@ function HealthItem({
     try {
       const result = await probeRunner(runnerType);
       setProbeResult(result);
-      // Auto-clear result after 10 seconds
-      setTimeout(() => setProbeResult(null), 10000);
     } catch (err) {
       setProbeResult({
         runnerType,
@@ -291,6 +312,10 @@ function HealthItem({
     } finally {
       setProbing(false);
     }
+  };
+
+  const handleDismissProbe = () => {
+    setProbeResult(null);
   };
 
   return (
@@ -356,14 +381,36 @@ function HealthItem({
               : "bg-destructive/10 border-destructive/20 text-destructive"
           }`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="font-medium">
               {probeResult.success ? "✓ Probe successful" : "✗ Probe failed"}
             </span>
-            <span className="text-muted-foreground">{probeResult.durationMs}ms</span>
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground">{probeResult.durationMs}ms</span>
+              <button
+                onClick={handleCopyProbeResult}
+                className="p-1 rounded hover:bg-black/10 transition-colors"
+                title="Copy probe result"
+                aria-label="Copy probe result"
+              >
+                {probeCopied ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  <Copy className="h-3 w-3 opacity-60 hover:opacity-100" />
+                )}
+              </button>
+              <button
+                onClick={handleDismissProbe}
+                className="p-1 rounded hover:bg-black/10 transition-colors"
+                title="Dismiss"
+                aria-label="Dismiss probe result"
+              >
+                <XCircle className="h-3 w-3 opacity-60 hover:opacity-100" />
+              </button>
+            </div>
           </div>
           {probeResult.response && (
-            <p className="mt-1 font-mono text-[10px] opacity-80 truncate" title={probeResult.response}>
+            <p className="mt-1 font-mono text-[10px] opacity-80 break-all whitespace-pre-wrap max-h-24 overflow-y-auto" title={probeResult.response}>
               {probeResult.response}
             </p>
           )}
