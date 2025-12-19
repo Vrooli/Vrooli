@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -17,6 +15,7 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/handlers"
 	"agent-manager/internal/metrics"
@@ -25,21 +24,21 @@ import (
 
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/preflight"
 )
 
 // Config holds runtime configuration
 type Config struct {
 	Port        string
-	DatabaseURL string
 	UseInMemory bool
 }
 
 // Server wires the HTTP router, database, and orchestration service
 type Server struct {
 	config       *Config
-	db           *sql.DB
+	db           *database.DB
+	logger       *logrus.Logger
 	router       *mux.Router
 	orchestrator orchestration.Service
 	wsHub        *handlers.WebSocketHub
@@ -48,31 +47,27 @@ type Server struct {
 
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
+	// Initialize structured logger
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+
 	cfg := &Config{
 		Port:        requireEnv("API_PORT"),
 		UseInMemory: strings.ToLower(os.Getenv("USE_IN_MEMORY")) == "true",
 	}
 
-	var db *sql.DB
+	var db *database.DB
 	var err error
 
 	// Database connection (optional for in-memory mode)
 	if !cfg.UseInMemory {
-		cfg.DatabaseURL, err = resolveDatabaseURL()
+		db, err = database.NewConnection(logger)
 		if err != nil {
-			log.Printf("Database URL not configured, using in-memory storage: %v", err)
+			log.Printf("Failed to connect to database, using in-memory storage: %v", err)
 			cfg.UseInMemory = true
-		} else {
-			db, err = sql.Open("postgres", cfg.DatabaseURL)
-			if err != nil {
-				log.Printf("Failed to connect to database, using in-memory: %v", err)
-				cfg.UseInMemory = true
-			} else if err := db.Ping(); err != nil {
-				log.Printf("Failed to ping database, using in-memory: %v", err)
-				db.Close()
-				db = nil
-				cfg.UseInMemory = true
-			}
+			db = nil
 		}
 	}
 
@@ -81,11 +76,12 @@ func NewServer() (*Server, error) {
 	go wsHub.Run()
 
 	// Create the orchestrator with appropriate repositories and broadcaster
-	deps := createOrchestrator(cfg.UseInMemory, wsHub)
+	deps := createOrchestrator(db, cfg.UseInMemory, wsHub, logger)
 
 	srv := &Server{
 		config:       cfg,
 		db:           db,
+		logger:       logger,
 		router:       mux.NewRouter(),
 		orchestrator: deps.orchestrator,
 		wsHub:        wsHub,
@@ -110,7 +106,7 @@ type orchestratorDeps struct {
 }
 
 // createOrchestrator creates the orchestration service with all dependencies
-func createOrchestrator(useInMemory bool, wsHub *handlers.WebSocketHub) orchestratorDeps {
+func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSocketHub, logger *logrus.Logger) orchestratorDeps {
 	// Create repositories
 	var (
 		profileRepo     repository.ProfileRepository
@@ -120,15 +116,28 @@ func createOrchestrator(useInMemory bool, wsHub *handlers.WebSocketHub) orchestr
 		idempotencyRepo repository.IdempotencyRepository
 	)
 
-	// Always use in-memory for now (PostgreSQL implementations would go here)
-	profileRepo = repository.NewMemoryProfileRepository()
-	taskRepo = repository.NewMemoryTaskRepository()
-	runRepo = repository.NewMemoryRunRepository()
-	checkpointRepo = repository.NewMemoryCheckpointRepository()
-	idempotencyRepo = repository.NewMemoryIdempotencyRepository()
-
-	// Create event store
+	// Create event store - for now we always use memory store since
+	// the PostgreSQL event store would need to implement event.Store interface
 	eventStore := event.NewMemoryStore()
+
+	if useInMemory || db == nil {
+		// In-memory fallback
+		log.Printf("Using in-memory storage")
+		profileRepo = repository.NewMemoryProfileRepository()
+		taskRepo = repository.NewMemoryTaskRepository()
+		runRepo = repository.NewMemoryRunRepository()
+		checkpointRepo = repository.NewMemoryCheckpointRepository()
+		idempotencyRepo = repository.NewMemoryIdempotencyRepository()
+	} else {
+		// PostgreSQL persistence
+		log.Printf("Using PostgreSQL persistence")
+		repos := database.NewRepositories(db, logger)
+		profileRepo = repos.Profiles
+		taskRepo = repos.Tasks
+		runRepo = repos.Runs
+		checkpointRepo = repos.Checkpoints
+		idempotencyRepo = repos.Idempotency
+	}
 
 	// Create runner registry
 	runnerRegistry := runner.NewRegistry()
@@ -395,34 +404,6 @@ func requireEnv(key string) string {
 		log.Fatalf("environment variable %s is required. Run the scenario via 'vrooli scenario run <name>' so lifecycle exports it.", key)
 	}
 	return value
-}
-
-func resolveDatabaseURL() (string, error) {
-	if raw := strings.TrimSpace(os.Getenv("DATABASE_URL")); raw != "" {
-		return raw, nil
-	}
-
-	host := strings.TrimSpace(os.Getenv("POSTGRES_HOST"))
-	port := strings.TrimSpace(os.Getenv("POSTGRES_PORT"))
-	user := strings.TrimSpace(os.Getenv("POSTGRES_USER"))
-	password := strings.TrimSpace(os.Getenv("POSTGRES_PASSWORD"))
-	name := strings.TrimSpace(os.Getenv("POSTGRES_DB"))
-
-	if host == "" || port == "" || user == "" || password == "" || name == "" {
-		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
-	}
-
-	pgURL := &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(user, password),
-		Host:   fmt.Sprintf("%s:%s", host, port),
-		Path:   name,
-	}
-	values := pgURL.Query()
-	values.Set("sslmode", "disable")
-	pgURL.RawQuery = values.Encode()
-
-	return pgURL.String(), nil
 }
 
 func main() {
