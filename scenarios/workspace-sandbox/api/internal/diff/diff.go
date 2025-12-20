@@ -70,19 +70,49 @@ func DefaultGeneratorConfig() GeneratorConfig {
 // Generator creates unified diffs from sandbox changes.
 type Generator struct {
 	config GeneratorConfig
+	runner CommandRunner
 }
 
 // NewGenerator creates a new diff generator with default config.
+// Uses DefaultCommandRunner() for external command execution.
 func NewGenerator() *Generator {
-	return &Generator{config: DefaultGeneratorConfig()}
+	return &Generator{
+		config: DefaultGeneratorConfig(),
+		runner: DefaultCommandRunner(),
+	}
 }
 
 // NewGeneratorWithConfig creates a new diff generator with custom config.
+// Uses DefaultCommandRunner() for external command execution.
 func NewGeneratorWithConfig(cfg GeneratorConfig) *Generator {
 	if cfg.BinaryDetectionThreshold <= 0 {
 		cfg.BinaryDetectionThreshold = 8000
 	}
-	return &Generator{config: cfg}
+	return &Generator{
+		config: cfg,
+		runner: DefaultCommandRunner(),
+	}
+}
+
+// NewGeneratorWithRunner creates a diff generator with a custom command runner.
+// This is the primary seam for test isolation - inject a MockCommandRunner
+// to test diff generation without executing real commands.
+func NewGeneratorWithRunner(runner CommandRunner) *Generator {
+	return &Generator{
+		config: DefaultGeneratorConfig(),
+		runner: runner,
+	}
+}
+
+// NewGeneratorWithConfigAndRunner creates a diff generator with custom config and runner.
+func NewGeneratorWithConfigAndRunner(cfg GeneratorConfig, runner CommandRunner) *Generator {
+	if cfg.BinaryDetectionThreshold <= 0 {
+		cfg.BinaryDetectionThreshold = 8000
+	}
+	return &Generator{
+		config: cfg,
+		runner: runner,
+	}
 }
 
 // GenerateDiff creates a unified diff for all changes in a sandbox.
@@ -253,31 +283,28 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath strin
 }
 
 // diffModifiedFile generates a diff for a modified file.
+// Uses the CommandRunner seam for external command execution, enabling test isolation.
 func (g *Generator) diffModifiedFile(ctx context.Context, lowerDir, upperDir, relPath string) (string, error) {
 	oldPath := filepath.Join(lowerDir, relPath)
 	newPath := filepath.Join(upperDir, relPath)
 
-	// Try using the system diff command for better output
-	cmd := exec.CommandContext(ctx, "diff", "-u", "--label", "a/"+relPath, "--label", "b/"+relPath, oldPath, newPath)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	// Use the command runner for external diff command
+	result := g.runner.Run(ctx, "", "", "diff", "-u", "--label", "a/"+relPath, "--label", "b/"+relPath, oldPath, newPath)
 
-	err := cmd.Run()
 	// diff returns exit code 1 when files differ, which is expected
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+	if result.Err != nil {
+		if result.ExitCode == 1 {
 			// Files differ, output is in stdout
-			return "diff --git a/" + relPath + " b/" + relPath + "\n" + stdout.String(), nil
+			return "diff --git a/" + relPath + " b/" + relPath + "\n" + result.Stdout, nil
 		}
 		// Actual error or files are the same (exit code 0)
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 0 {
+		if result.ExitCode == 0 {
 			return "", nil // No difference
 		}
-		return "", fmt.Errorf("diff command failed: %v: %s", err, stderr.String())
+		return "", fmt.Errorf("diff command failed: %v: %s", result.Err, result.Stderr)
 	}
 
-	// No difference
+	// No difference (exit code 0, no error)
 	return "", nil
 }
 
@@ -303,11 +330,20 @@ func isBinaryDefault(content []byte) bool {
 }
 
 // Patcher applies diffs to the canonical repo.
-type Patcher struct{}
+type Patcher struct {
+	runner CommandRunner
+}
 
-// NewPatcher creates a new patcher.
+// NewPatcher creates a new patcher with the default command runner.
 func NewPatcher() *Patcher {
-	return &Patcher{}
+	return &Patcher{runner: DefaultCommandRunner()}
+}
+
+// NewPatcherWithRunner creates a patcher with a custom command runner.
+// This is the primary seam for test isolation - inject a MockCommandRunner
+// to test patch application without executing real git/patch commands.
+func NewPatcherWithRunner(runner CommandRunner) *Patcher {
+	return &Patcher{runner: runner}
 }
 
 // ApplyOptions controls patch application behavior.
@@ -316,6 +352,16 @@ type ApplyOptions struct {
 	CommitMsg  string
 	Author     string
 	AllowEmpty bool
+
+	// CreateCommit controls whether to create a git commit after applying changes.
+	// If false (default), changes are applied to the working tree only.
+	// If true and CommitMsg is set, a commit is created.
+	CreateCommit bool
+
+	// FilePaths contains the list of file paths to stage when creating a commit.
+	// This prevents the `git add -A` behavior that stages all repository changes.
+	// Only used when CreateCommit is true.
+	FilePaths []string
 }
 
 // ApplyResult contains the outcome of a patch application.
@@ -327,6 +373,7 @@ type ApplyResult struct {
 }
 
 // ApplyDiff applies a unified diff to the target directory.
+// Uses the CommandRunner seam for external command execution, enabling test isolation.
 func (p *Patcher) ApplyDiff(ctx context.Context, targetDir, diff string, opts ApplyOptions) (*ApplyResult, error) {
 	result := &ApplyResult{}
 
@@ -336,7 +383,7 @@ func (p *Patcher) ApplyDiff(ctx context.Context, targetDir, diff string, opts Ap
 	}
 
 	// Use git apply if in a git repo
-	if isGitRepo(targetDir) {
+	if p.isGitRepo(ctx, targetDir) {
 		return p.applyWithGit(ctx, targetDir, diff, opts)
 	}
 
@@ -345,24 +392,19 @@ func (p *Patcher) ApplyDiff(ctx context.Context, targetDir, diff string, opts Ap
 }
 
 // applyWithGit uses git apply for patch application.
+// Uses the CommandRunner seam for external command execution.
 func (p *Patcher) applyWithGit(ctx context.Context, targetDir, diff string, opts ApplyOptions) (*ApplyResult, error) {
 	result := &ApplyResult{}
 
-	args := []string{"apply", "--stat", "--summary"}
+	// First check with --stat --summary (and --check for dry run)
+	args := []string{"git", "apply", "--stat", "--summary"}
 	if opts.DryRun {
 		args = append(args, "--check")
 	}
 
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = targetDir
-	cmd.Stdin = strings.NewReader(diff)
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("git apply failed: %v: %s", err, stderr.String()))
+	checkResult := p.runner.Run(ctx, targetDir, diff, args...)
+	if checkResult.Err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("git apply failed: %v: %s", checkResult.Err, checkResult.Stderr))
 		return result, nil
 	}
 
@@ -372,20 +414,16 @@ func (p *Patcher) applyWithGit(ctx context.Context, targetDir, diff string, opts
 	}
 
 	// Actually apply the patch
-	cmd = exec.CommandContext(ctx, "git", "apply")
-	cmd.Dir = targetDir
-	cmd.Stdin = strings.NewReader(diff)
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("git apply failed: %v: %s", err, stderr.String()))
+	applyResult := p.runner.Run(ctx, targetDir, diff, "git", "apply")
+	if applyResult.Err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("git apply failed: %v: %s", applyResult.Err, applyResult.Stderr))
 		return result, nil
 	}
 
 	result.Success = true
 
-	// Create commit if message provided
-	if opts.CommitMsg != "" {
+	// Create commit only if explicitly requested AND message provided
+	if opts.CreateCommit && opts.CommitMsg != "" {
 		commitHash, err := p.createCommit(ctx, targetDir, opts)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("commit failed: %v", err))
@@ -398,23 +436,18 @@ func (p *Patcher) applyWithGit(ctx context.Context, targetDir, diff string, opts
 }
 
 // applyWithPatch uses the patch command for non-git directories.
+// Uses the CommandRunner seam for external command execution.
 func (p *Patcher) applyWithPatch(ctx context.Context, targetDir, diff string, opts ApplyOptions) (*ApplyResult, error) {
 	result := &ApplyResult{}
 
-	args := []string{"-p1", "-d", targetDir}
+	args := []string{"patch", "-p1", "-d", targetDir}
 	if opts.DryRun {
 		args = append(args, "--dry-run")
 	}
 
-	cmd := exec.CommandContext(ctx, "patch", args...)
-	cmd.Stdin = strings.NewReader(diff)
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("patch failed: %v: %s", err, stderr.String()))
+	patchResult := p.runner.Run(ctx, "", diff, args...)
+	if patchResult.Err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("patch failed: %v: %s", patchResult.Err, patchResult.Stderr))
 		return result, nil
 	}
 
@@ -423,16 +456,34 @@ func (p *Patcher) applyWithPatch(ctx context.Context, targetDir, diff string, op
 }
 
 // createCommit creates a git commit with the applied changes.
+// It stages only the specific files listed in opts.FilePaths to avoid
+// accidentally committing unrelated changes in the repository.
+// Uses the CommandRunner seam for external command execution.
 func (p *Patcher) createCommit(ctx context.Context, targetDir string, opts ApplyOptions) (string, error) {
-	// Stage all changes
-	cmd := exec.CommandContext(ctx, "git", "add", "-A")
-	cmd.Dir = targetDir
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("git add failed: %w", err)
+	// Stage only the specific files that were modified
+	if len(opts.FilePaths) == 0 {
+		return "", fmt.Errorf("no files specified for commit (FilePaths is empty)")
+	}
+
+	for _, filePath := range opts.FilePaths {
+		absPath := filepath.Join(targetDir, filePath)
+
+		// Check if file exists to determine if we're adding or removing
+		if _, err := os.Stat(absPath); os.IsNotExist(err) {
+			// File was deleted - use git rm to stage the deletion
+			// Ignore errors for files that weren't tracked
+			p.runner.Run(ctx, targetDir, "", "git", "rm", "--cached", "--ignore-unmatch", filePath)
+		} else {
+			// File exists - stage it
+			result := p.runner.Run(ctx, targetDir, "", "git", "add", filePath)
+			if result.Err != nil {
+				return "", fmt.Errorf("git add %s failed: %w", filePath, result.Err)
+			}
+		}
 	}
 
 	// Create commit
-	args := []string{"commit", "-m", opts.CommitMsg}
+	args := []string{"git", "commit", "-m", opts.CommitMsg}
 	if opts.Author != "" {
 		args = append(args, "--author", opts.Author)
 	}
@@ -440,25 +491,35 @@ func (p *Patcher) createCommit(ctx context.Context, targetDir string, opts Apply
 		args = append(args, "--allow-empty")
 	}
 
-	cmd = exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = targetDir
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("git commit failed: %w", err)
+	commitResult := p.runner.Run(ctx, targetDir, "", args...)
+	if commitResult.Err != nil {
+		return "", fmt.Errorf("git commit failed: %w: %s", commitResult.Err, commitResult.Stderr)
 	}
 
 	// Get commit hash
-	cmd = exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
-	cmd.Dir = targetDir
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to get commit hash: %w", err)
+	hashResult := p.runner.Run(ctx, targetDir, "", "git", "rev-parse", "HEAD")
+	if hashResult.Err != nil {
+		return "", fmt.Errorf("failed to get commit hash: %w", hashResult.Err)
 	}
 
-	return strings.TrimSpace(stdout.String()), nil
+	return strings.TrimSpace(hashResult.Stdout), nil
+}
+
+// CreateCommitFromFiles creates a git commit for a specific set of files.
+// This is used for batch committing pending changes from multiple sandboxes.
+func (p *Patcher) CreateCommitFromFiles(ctx context.Context, targetDir string, opts ApplyOptions) (string, error) {
+	return p.createCommit(ctx, targetDir, opts)
 }
 
 // isGitRepo checks if a directory is a git repository.
+// This is a method to use the CommandRunner seam for test isolation.
+func (p *Patcher) isGitRepo(ctx context.Context, dir string) bool {
+	result := p.runner.Run(ctx, "", "", "git", "-C", dir, "rev-parse", "--git-dir")
+	return result.Err == nil
+}
+
+// isGitRepo is a package-level helper that uses the default command runner.
+// For testable code, use Patcher.isGitRepo instead.
 func isGitRepo(dir string) bool {
 	cmd := exec.Command("git", "-C", dir, "rev-parse", "--git-dir")
 	return cmd.Run() == nil
@@ -901,6 +962,129 @@ func CheckForConflicts(ctx context.Context, s *types.Sandbox, sandboxChanges []*
 
 	// Find conflicting files
 	result.ConflictingFiles = FindConflictingFiles(sandboxChanges, repoChangedFiles)
+
+	return result, nil
+}
+
+// --- Git Status Reconciliation ---
+
+// GitFileStatus represents the status of a file in git's working tree.
+type GitFileStatus struct {
+	Path       string // Relative path from repo root
+	IndexState string // State in index (staged): M, A, D, R, C, U, or ?
+	WorkTree   string // State in working tree: M, D, U, or ?
+	IsStaged   bool   // True if file has staged changes
+	IsDirty    bool   // True if file has unstaged changes
+}
+
+// GetUncommittedFiles returns all uncommitted files from git status.
+// This includes both staged and unstaged changes.
+func GetUncommittedFiles(ctx context.Context, repoDir string) ([]GitFileStatus, error) {
+	if !isGitRepo(repoDir) {
+		return nil, nil
+	}
+
+	// Use porcelain format for machine-readable output
+	// Format: XY PATH (or XY PATH -> PATH for renames)
+	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "status", "--porcelain", "-z")
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("failed to get git status: %w", err)
+	}
+
+	output := stdout.String()
+	if output == "" {
+		return nil, nil
+	}
+
+	var files []GitFileStatus
+
+	// Split by null character (from -z flag)
+	entries := strings.Split(output, "\x00")
+	for _, entry := range entries {
+		if len(entry) < 3 {
+			continue
+		}
+
+		// First two chars are the status codes
+		indexState := string(entry[0])
+		workTree := string(entry[1])
+		path := strings.TrimSpace(entry[3:])
+
+		// Handle rename entries (have " -> " in path)
+		if idx := strings.Index(path, " -> "); idx > 0 {
+			path = path[idx+4:] // Use the new path
+		}
+
+		if path == "" {
+			continue
+		}
+
+		status := GitFileStatus{
+			Path:       path,
+			IndexState: indexState,
+			WorkTree:   workTree,
+			IsStaged:   indexState != " " && indexState != "?",
+			IsDirty:    workTree != " " && workTree != "?",
+		}
+		files = append(files, status)
+	}
+
+	return files, nil
+}
+
+// GetUncommittedFilePaths returns just the paths of uncommitted files.
+// This is a convenience wrapper around GetUncommittedFiles.
+func GetUncommittedFilePaths(ctx context.Context, repoDir string) ([]string, error) {
+	files, err := GetUncommittedFiles(ctx, repoDir)
+	if err != nil {
+		return nil, err
+	}
+
+	paths := make([]string, len(files))
+	for i, f := range files {
+		paths[i] = f.Path
+	}
+	return paths, nil
+}
+
+// ReconcileResult contains the result of reconciling pending changes with git status.
+type ReconcileResult struct {
+	// StillPending are files in DB that are still uncommitted in git
+	StillPending []string
+
+	// AlreadyCommitted are files in DB marked pending but already committed externally
+	AlreadyCommitted []string
+
+	// NotFound are files in DB that don't exist in git status at all
+	// (either committed or never existed)
+	NotFound []string
+}
+
+// ReconcilePendingWithGit compares database pending files with actual git status.
+// This detects files that were committed outside of workspace-sandbox.
+func ReconcilePendingWithGit(ctx context.Context, repoDir string, pendingPaths []string) (*ReconcileResult, error) {
+	uncommitted, err := GetUncommittedFilePaths(ctx, repoDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get uncommitted files: %w", err)
+	}
+
+	// Build set of uncommitted paths
+	uncommittedSet := make(map[string]bool)
+	for _, p := range uncommitted {
+		uncommittedSet[p] = true
+	}
+
+	result := &ReconcileResult{}
+	for _, pending := range pendingPaths {
+		if uncommittedSet[pending] {
+			result.StillPending = append(result.StillPending, pending)
+		} else {
+			// File is not in uncommitted list - either already committed or deleted
+			result.AlreadyCommitted = append(result.AlreadyCommitted, pending)
+		}
+	}
 
 	return result, nil
 }

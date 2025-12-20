@@ -102,14 +102,102 @@ type Repository interface {
 
 **Status**: Interface defined; service depends on interface, not concrete type.
 
-### 3. Diff Generation / Patch Application
-**File**: `api/internal/diff/diff.go`
+### 3. Diff Generation / Patch Application (UPDATED 2025-12-19)
+**Files**: `api/internal/diff/diff.go`, `api/internal/diff/runner.go`, `api/internal/diff/gitops.go`
 
-Two distinct operations:
-- `Generator` - Creates unified diffs from sandbox changes
-- `Patcher` - Applies diffs to canonical repo
+#### CommandRunner Interface (Critical Test Seam)
 
-**Testing Strategy**: Use temp directories with known file states.
+The `CommandRunner` interface is the primary seam for external command isolation:
+
+```go
+// api/internal/diff/runner.go
+type CommandRunner interface {
+    Run(ctx context.Context, dir string, stdin string, args ...string) CommandResult
+}
+```
+
+**Why This Seam Exists**: The diff package shells out to `git`, `diff`, and `patch` commands. Without this seam, tests would:
+1. Touch the real Vrooli git repository (DANGEROUS)
+2. Create real git repos in temp dirs (slow, flaky)
+3. Skip testing these code paths (inadequate coverage)
+
+**Implementations**:
+- `ExecCommandRunner` - Production implementation using `exec.CommandContext`
+- `MockCommandRunner` - Test implementation with configurable responses
+- `NoOpCommandRunner` - Always returns success (for suppressing commands)
+
+**Usage in Production**:
+```go
+gen := diff.NewGenerator()  // Uses DefaultCommandRunner()
+patcher := diff.NewPatcher()  // Uses DefaultCommandRunner()
+```
+
+**Usage in Tests**:
+```go
+mock := diff.NewMockCommandRunner()
+mock.AddResponse("git rev-parse HEAD", diff.CommandResult{Stdout: "abc123\n"})
+mock.AddResponse("diff -u", diff.CommandResult{Stdout: "diff output", ExitCode: 1})
+
+gen := diff.NewGeneratorWithRunner(mock)
+patcher := diff.NewPatcherWithRunner(mock)
+
+// Verify specific commands were called
+if err := mock.AssertCalled("git rev-parse"); err != nil {
+    t.Error(err)
+}
+```
+
+#### GitOps Interface (Git Operations Seam)
+
+The `GitOperations` interface abstracts all git-related operations:
+
+```go
+// api/internal/diff/gitops.go
+type GitOperations interface {
+    IsGitRepo(ctx context.Context, dir string) bool
+    GetCommitHash(ctx context.Context, repoDir string) (string, error)
+    CheckRepoChanged(ctx context.Context, repoDir, baseHash string) (bool, string, error)
+    GetChangedFilesSince(ctx context.Context, repoDir, baseCommit string) ([]string, error)
+    GetUncommittedFiles(ctx context.Context, repoDir string) ([]GitFileStatus, error)
+    CheckForConflicts(ctx context.Context, s *types.Sandbox, changes []*types.FileChange) (*ConflictCheckResult, error)
+    ReconcilePendingWithGit(ctx context.Context, repoDir string, pendingPaths []string) (*ReconcileResult, error)
+}
+```
+
+**Implementations**:
+- `GitOps` - Production implementation using `CommandRunner`
+- `MockGitOps` - Test implementation with configurable return values
+
+**Usage in Tests**:
+```go
+mockGit := diff.NewMockGitOps()
+mockGit.IsRepo = true
+mockGit.CommitHash = "abc123"
+mockGit.ConflictResult = &diff.ConflictCheckResult{HasChanged: false}
+
+// Inject into service (future improvement)
+// svc := sandbox.NewServiceWithGitOps(repo, drv, cfg, mockGit)
+```
+
+#### Generator and Patcher (Updated)
+
+Both now use `CommandRunner` internally:
+
+```go
+type Generator struct {
+    config GeneratorConfig
+    runner CommandRunner  // Injected for test isolation
+}
+
+type Patcher struct {
+    runner CommandRunner  // Injected for test isolation
+}
+```
+
+**Testing Strategy**:
+- Unit tests: Use `MockCommandRunner` to avoid real command execution
+- Integration tests: Use real commands in isolated temp directories
+- Handler tests: Mock the service entirely, bypassing diff operations
 
 ---
 
@@ -187,16 +275,104 @@ Two distinct operations:
 
 ## Testing Seams
 
+### ⚠️ CRITICAL: Test Isolation Guidelines
+
+**The workspace-sandbox scenario handles git operations and filesystem changes. Tests MUST be properly isolated to avoid:**
+1. Modifying the real Vrooli repository
+2. Creating commits or branches in the real project
+3. Corrupting production data
+4. Leaving orphaned mounts or processes
+
 ### Unit Test Boundaries
-- **Service tests**: Mock repository (using `Repository` interface) and driver (using `Driver` interface)
-- **Handler tests**: Mock service
-- **Path validation tests**: Pure functions in `types` package, no mocks needed
-- **Diff tests**: Use temp directories with fixture files
+
+| Package | Mock Dependencies | Isolation Strategy |
+|---------|-------------------|-------------------|
+| **handlers** | `ServiceAPI` (mock service) | No real service calls |
+| **sandbox/service** | `Repository` interface, `Driver` interface, `GitOperations` interface | No real DB/FS/git |
+| **repository** | `sqlmock` package | No real database |
+| **driver** | N/A (tests real overlayfs in temp dirs) | Uses `t.TempDir()` |
+| **diff** | `CommandRunner` interface, `GitOperations` interface | No real commands |
+| **types** | None (pure functions) | No external dependencies |
+| **policy** | None (pure logic) | No external dependencies |
+
+### Mock Usage Examples
+
+**Handler Tests** (mock service):
+```go
+func TestGetSandbox(t *testing.T) {
+    mockService := &mocks.MockService{
+        GetResult: &types.Sandbox{ID: uuid.New(), Status: types.StatusActive},
+    }
+    h := handlers.Handlers{Service: mockService}
+    // ... test handler
+}
+```
+
+**Repository Tests** (sqlmock):
+```go
+func TestCreate(t *testing.T) {
+    db, mock := sqlmock.New()
+    mock.ExpectQuery("INSERT INTO sandboxes").WillReturnRows(...)
+    repo := repository.NewSandboxRepository(db)
+    // ... test
+}
+```
+
+**Diff Tests** (mock command runner):
+```go
+func TestDiffModified(t *testing.T) {
+    mockRunner := diff.NewMockCommandRunner()
+    mockRunner.AddResponse("diff -u", diff.CommandResult{
+        Stdout:   "--- a/file.txt\n+++ b/file.txt\n...",
+        ExitCode: 1, // diff returns 1 when files differ
+    })
+    gen := diff.NewGeneratorWithRunner(mockRunner)
+    // ... test diff generation
+}
+```
+
+**Service Tests with Git Mocks**:
+```go
+func TestApproveWithConflictCheck(t *testing.T) {
+    mockGit := diff.NewMockGitOps()
+    mockGit.ConflictResult = &diff.ConflictCheckResult{
+        HasChanged: false,
+    }
+    // Inject mockGit into service (future improvement)
+}
+```
 
 ### Integration Test Boundaries
-- **API tests**: Real HTTP server, mock or real database
-- **Driver tests**: Real overlayfs (Linux only, may need privileges)
-- **End-to-end**: Full stack with real PostgreSQL and overlayfs
+
+| Test Type | Real Components | Mock Components | Location |
+|-----------|-----------------|-----------------|----------|
+| **API** | HTTP server | DB (optional), Driver | `handlers_test.go` |
+| **Driver** | overlayfs, temp FS | None | `overlayfs_test.go` |
+| **End-to-end** | All (PostgreSQL, overlayfs) | None | Integration suite |
+
+**IMPORTANT**: Integration tests that use real git operations MUST:
+1. Create isolated temp directories with `t.TempDir()`
+2. Initialize fresh git repos with `git init` in the temp dir
+3. Never reference the real Vrooli project directory
+4. Clean up all resources in `t.Cleanup()`
+
+### Test File Naming Convention
+
+```
+*_test.go           # Unit tests with mocks
+*_integration_test.go # Integration tests with real resources (use build tags)
+```
+
+### Build Tags for Test Isolation
+
+For tests requiring root/special privileges:
+```go
+//go:build linux && integration
+
+package driver_test
+```
+
+Run with: `go test -tags=integration ./...`
 
 ---
 
@@ -355,7 +531,49 @@ svc := sandbox.NewService(repo, drv, cfg,
 
 ## Future Seam Candidates
 
-1. **Metrics Collector** - Observability seam for sandbox counts, sizes, latencies
-2. **Safe-Git Wrapper** - Git command interception seam
-3. **GC Policy** - Garbage collection strategy interface (TTL, size, idle)
-4. **Scope Policy** - Path exclusion/inclusion rules interface
+### High Priority (Test Isolation)
+
+1. **Service GitOps Injection** - The service layer currently calls package-level git functions directly. Add `GitOperations` interface injection to the service for full test isolation.
+
+   **Current** (not fully testable):
+   ```go
+   // In service.go - directly calls package-level functions
+   baseCommitHash, err := diff.GetGitCommitHash(ctx, projectRoot)
+   conflictCheck, err := diff.CheckForConflicts(ctx, sandbox, allChanges)
+   ```
+
+   **Target** (fully testable):
+   ```go
+   type Service struct {
+       gitOps diff.GitOperations  // Inject this
+   }
+
+   func NewService(repo, drv, cfg, gitOps diff.GitOperations) *Service {
+       return &Service{gitOps: gitOps}
+   }
+
+   // Then use s.gitOps.GetCommitHash() instead of diff.GetGitCommitHash()
+   ```
+
+### Medium Priority (Observability)
+
+2. **Metrics Collector** - Observability seam for sandbox counts, sizes, latencies
+3. **Structured Logger** - Logging interface for consistent structured logs
+
+### Lower Priority (Feature Extensions)
+
+4. **Safe-Git Wrapper** - Git command interception seam (currently convention-based)
+5. **GC Policy** - Garbage collection strategy interface (TTL, size, idle)
+6. **Scope Policy** - Path exclusion/inclusion rules interface
+
+---
+
+## Changelog
+
+| Date | Change | Impact |
+|------|--------|--------|
+| 2025-12-19 | Added `CommandRunner` interface for external command isolation | Tests can now mock git/diff/patch commands |
+| 2025-12-19 | Added `GitOperations` interface for git operation abstraction | Service layer git calls can be mocked |
+| 2025-12-19 | Updated Generator and Patcher to use CommandRunner | Diff generation is now testable without real commands |
+| 2025-12-16 | Added policy interfaces and config package | Configurable approval, attribution, validation |
+| 2025-12-15 | Created SEAMS.md documenting architecture | Architectural decisions are now documented |

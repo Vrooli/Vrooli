@@ -238,6 +238,11 @@ type ApprovalRequest struct {
 	// canonical repo has changed since sandbox creation. Use with caution.
 	// [OT-P2-002] Conflict Detection
 	Force bool `json:"force,omitempty"`
+
+	// CreateCommit controls whether to create a git commit after applying changes.
+	// Default is false - changes are applied to the working tree only.
+	// When true and CommitMsg is provided, a commit is created.
+	CreateCommit bool `json:"createCommit,omitempty"`
 }
 
 // HunkRange specifies a range of lines to approve within a file.
@@ -588,4 +593,112 @@ type ConflictCheckResponse struct {
 
 	// CheckedAt is when the check was performed.
 	CheckedAt time.Time `json:"checkedAt"`
+}
+
+// --- Provenance Tracking Types ---
+
+// AppliedChange represents a file change that was applied from a sandbox.
+// Used for provenance tracking - knowing which sandbox modified which files.
+type AppliedChange struct {
+	ID               uuid.UUID  `json:"id" db:"id"`
+	SandboxID        uuid.UUID  `json:"sandboxId" db:"sandbox_id"`
+	SandboxOwner     string     `json:"sandboxOwner" db:"sandbox_owner"`
+	SandboxOwnerType string     `json:"sandboxOwnerType" db:"sandbox_owner_type"`
+	FilePath         string     `json:"filePath" db:"file_path"`
+	ProjectRoot      string     `json:"projectRoot" db:"project_root"`
+	ChangeType       string     `json:"changeType" db:"change_type"`
+	FileSize         int64      `json:"fileSize" db:"file_size"`
+	AppliedAt        time.Time  `json:"appliedAt" db:"applied_at"`
+	CommittedAt      *time.Time `json:"committedAt,omitempty" db:"committed_at"`
+	CommitHash       string     `json:"commitHash,omitempty" db:"commit_hash"`
+	CommitMessage    string     `json:"commitMessage,omitempty" db:"commit_message"`
+}
+
+// PendingChangesSummary summarizes pending changes from a single sandbox.
+type PendingChangesSummary struct {
+	SandboxID     uuid.UUID `json:"sandboxId"`
+	SandboxOwner  string    `json:"sandboxOwner"`
+	FileCount     int       `json:"fileCount"`
+	LatestApplied time.Time `json:"latestApplied"`
+}
+
+// PendingChangesResult contains the result of querying pending changes.
+type PendingChangesResult struct {
+	Summaries  []PendingChangesSummary `json:"summaries"`
+	TotalFiles int                     `json:"totalFiles"`
+}
+
+// CommitPendingRequest contains parameters for committing pending changes.
+type CommitPendingRequest struct {
+	// ProjectRoot filters to changes in a specific project.
+	ProjectRoot string `json:"projectRoot,omitempty"`
+
+	// SandboxIDs filters to changes from specific sandboxes.
+	// If empty, all pending changes (optionally filtered by ProjectRoot) are committed.
+	SandboxIDs []uuid.UUID `json:"sandboxIds,omitempty"`
+
+	// CommitMessage is the message for the git commit.
+	CommitMessage string `json:"commitMessage,omitempty"`
+
+	// Actor identifies who initiated the commit.
+	Actor string `json:"actor,omitempty"`
+}
+
+// CommitPendingResult contains the outcome of committing pending changes.
+type CommitPendingResult struct {
+	Success        bool   `json:"success"`
+	FilesCommitted int    `json:"filesCommitted"`
+	CommitHash     string `json:"commitHash,omitempty"`
+	ErrorMsg       string `json:"error,omitempty"`
+}
+
+// --- Commit Preview Types ---
+
+// CommitPreviewFile represents a single file in the commit preview.
+type CommitPreviewFile struct {
+	FilePath     string    `json:"filePath"`
+	RelativePath string    `json:"relativePath"`
+	ChangeType   string    `json:"changeType"`
+	SandboxID    uuid.UUID `json:"sandboxId"`
+	SandboxOwner string    `json:"sandboxOwner"`
+	AppliedAt    time.Time `json:"appliedAt"`
+	// Status indicates the file's current state relative to git
+	// "pending" = still uncommitted, "already_committed" = committed externally
+	Status string `json:"status"`
+}
+
+// CommitPreviewRequest contains parameters for the commit preview endpoint.
+type CommitPreviewRequest struct {
+	ProjectRoot string      `json:"projectRoot,omitempty"`
+	SandboxIDs  []uuid.UUID `json:"sandboxIds,omitempty"`
+}
+
+// CommitPreviewResult contains the preview of what would be committed.
+type CommitPreviewResult struct {
+	// Files contains all pending files with their status
+	Files []CommitPreviewFile `json:"files"`
+
+	// CommittableFiles is the count of files that can actually be committed
+	// (still uncommitted in git)
+	CommittableFiles int `json:"committableFiles"`
+
+	// AlreadyCommittedFiles is the count of files that were committed externally
+	// These will be marked as reconciled but not included in the new commit
+	AlreadyCommittedFiles int `json:"alreadyCommittedFiles"`
+
+	// SuggestedMessage is an auto-generated commit message
+	SuggestedMessage string `json:"suggestedMessage"`
+
+	// GroupedBySandbox provides a summary grouped by sandbox owner
+	GroupedBySandbox []CommitPreviewSandboxGroup `json:"groupedBySandbox"`
+}
+
+// CommitPreviewSandboxGroup summarizes changes from a single sandbox.
+type CommitPreviewSandboxGroup struct {
+	SandboxID    uuid.UUID `json:"sandboxId"`
+	SandboxOwner string    `json:"sandboxOwner"`
+	FileCount    int       `json:"fileCount"`
+	Added        int       `json:"added"`
+	Modified     int       `json:"modified"`
+	Deleted      int       `json:"deleted"`
 }

@@ -117,6 +117,36 @@ CREATE TABLE sandbox_audit_log (
     sandbox_state JSONB
 );
 
+-- Track files applied from sandboxes (provenance tracking)
+-- Records which sandbox modified which files, enabling:
+-- - Attribution of changes to specific sandboxes/agents
+-- - Batch committing of pending changes
+-- - Audit trail of file modifications
+CREATE TABLE applied_changes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sandbox_id UUID REFERENCES sandboxes(id) ON DELETE SET NULL,
+
+    -- Original sandbox ownership (preserved even if sandbox deleted)
+    sandbox_owner TEXT,
+    sandbox_owner_type TEXT,
+
+    -- File information
+    file_path TEXT NOT NULL,            -- Absolute path to the file
+    project_root TEXT NOT NULL,         -- Project root directory
+    change_type TEXT NOT NULL,          -- 'added', 'modified', 'deleted'
+    file_size BIGINT DEFAULT 0,
+
+    -- Timestamps
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Commit tracking (null until committed)
+    committed_at TIMESTAMPTZ,
+    commit_hash TEXT,
+    commit_message TEXT,
+
+    CONSTRAINT valid_applied_change_type CHECK (change_type IN ('added', 'modified', 'deleted'))
+);
+
 -- Indexes for common queries
 CREATE INDEX idx_sandboxes_status ON sandboxes(status);
 CREATE INDEX idx_sandboxes_owner ON sandboxes(owner);
@@ -133,6 +163,11 @@ CREATE INDEX idx_sandbox_changes_approval ON sandbox_changes(approval_status);
 CREATE INDEX idx_sandbox_audit_log_sandbox_id ON sandbox_audit_log(sandbox_id);
 CREATE INDEX idx_sandbox_audit_log_event_type ON sandbox_audit_log(event_type);
 CREATE INDEX idx_sandbox_audit_log_event_time ON sandbox_audit_log(event_time);
+
+CREATE INDEX idx_applied_changes_sandbox_id ON applied_changes(sandbox_id);
+CREATE INDEX idx_applied_changes_file_path ON applied_changes(file_path);
+CREATE INDEX idx_applied_changes_project_root ON applied_changes(project_root);
+CREATE INDEX idx_applied_changes_pending ON applied_changes(committed_at) WHERE committed_at IS NULL;
 
 -- Function to check for overlapping scope paths
 CREATE OR REPLACE FUNCTION check_scope_overlap(

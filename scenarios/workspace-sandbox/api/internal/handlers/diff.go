@@ -143,3 +143,128 @@ func (h *Handlers) ValidatePath(w http.ResponseWriter, r *http.Request) {
 
 	h.JSONSuccess(w, result)
 }
+
+// --- Provenance Tracking Handlers ---
+
+// GetPendingChanges returns pending (uncommitted) changes grouped by sandbox.
+//
+// Query parameters:
+//   - projectRoot: Optional. Filter by project root.
+//   - limit: Optional. Maximum results to return (default 100).
+//   - offset: Optional. Pagination offset.
+func (h *Handlers) GetPendingChanges(w http.ResponseWriter, r *http.Request) {
+	projectRoot := r.URL.Query().Get("projectRoot")
+	if projectRoot == "" {
+		projectRoot = h.Config.Driver.ProjectRoot
+	}
+
+	limit := 100
+	offset := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := parseInt(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsed, err := parseInt(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	result, err := h.Service.GetPendingChanges(r.Context(), projectRoot, limit, offset)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, result)
+}
+
+// GetFileProvenance returns the history of changes for a specific file.
+//
+// Query parameters:
+//   - path: Required. The file path to query.
+//   - projectRoot: Optional. Filter by project root.
+//   - limit: Optional. Maximum history entries to return (default 50).
+func (h *Handlers) GetFileProvenance(w http.ResponseWriter, r *http.Request) {
+	filePath := r.URL.Query().Get("path")
+	if filePath == "" {
+		h.JSONError(w, "path parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	projectRoot := r.URL.Query().Get("projectRoot")
+	if projectRoot == "" {
+		projectRoot = h.Config.Driver.ProjectRoot
+	}
+
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := parseInt(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	changes, err := h.Service.GetFileProvenance(r.Context(), filePath, projectRoot, limit)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, map[string]interface{}{
+		"filePath": filePath,
+		"changes":  changes,
+	})
+}
+
+// CommitPending commits pending changes to git and updates provenance records.
+func (h *Handlers) CommitPending(w http.ResponseWriter, r *http.Request) {
+	var req types.CommitPendingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Allow empty body with defaults
+		req = types.CommitPendingRequest{}
+	}
+
+	if req.ProjectRoot == "" {
+		req.ProjectRoot = h.Config.Driver.ProjectRoot
+	}
+
+	result, err := h.Service.CommitPending(r.Context(), &req)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, result)
+}
+
+// GetCommitPreview returns a preview of what would be committed.
+// This includes reconciliation with git status to detect externally-committed files.
+//
+// Query parameters:
+//   - projectRoot: Optional. The project root to check.
+//     If not provided, uses the server's configured PROJECT_ROOT.
+//
+// Response includes:
+//   - List of files with their status (pending or already_committed)
+//   - Suggested commit message
+//   - Summary grouped by sandbox
+func (h *Handlers) GetCommitPreview(w http.ResponseWriter, r *http.Request) {
+	projectRoot := r.URL.Query().Get("projectRoot")
+	if projectRoot == "" {
+		projectRoot = h.Config.Driver.ProjectRoot
+	}
+
+	result, err := h.Service.GetCommitPreview(r.Context(), &types.CommitPreviewRequest{
+		ProjectRoot: projectRoot,
+	})
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, result)
+}
+
+// parseInt is a helper for parsing integer query parameters.
+func parseInt(s string) (int, error) {
+	var i int
+	err := json.Unmarshal([]byte(s), &i)
+	return i, err
+}

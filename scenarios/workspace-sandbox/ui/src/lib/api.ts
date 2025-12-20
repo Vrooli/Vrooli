@@ -671,3 +671,67 @@ export async function deleteProfile(id: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+// --- Commit Preview and Pending Types ---
+
+export interface CommitPreviewFile {
+  filePath: string;
+  relativePath: string;
+  changeType: string;
+  sandboxId: string;
+  sandboxOwner: string;
+  appliedAt: string;
+  // "pending" = still uncommitted, "already_committed" = committed externally
+  status: "pending" | "already_committed";
+}
+
+export interface CommitPreviewSandboxGroup {
+  sandboxId: string;
+  sandboxOwner: string;
+  fileCount: number;
+  added: number;
+  modified: number;
+  deleted: number;
+}
+
+export interface CommitPreviewResult {
+  files: CommitPreviewFile[];
+  committableFiles: number;
+  alreadyCommittedFiles: number;
+  suggestedMessage: string;
+  groupedBySandbox: CommitPreviewSandboxGroup[];
+}
+
+export interface CommitPendingRequest {
+  projectRoot?: string;
+  sandboxIds?: string[];
+  commitMessage?: string;
+  actor?: string;
+}
+
+export interface CommitPendingResult {
+  success: boolean;
+  filesCommitted: number;
+  commitHash?: string;
+  error?: string;
+}
+
+// --- Commit Preview and Pending Functions ---
+
+// Get commit preview with reconciliation
+export async function fetchCommitPreview(projectRoot?: string): Promise<CommitPreviewResult> {
+  const params = new URLSearchParams();
+  if (projectRoot) {
+    params.set("projectRoot", projectRoot);
+  }
+  const query = params.toString();
+  return apiRequest<CommitPreviewResult>(`/commit-preview${query ? `?${query}` : ""}`);
+}
+
+// Commit pending changes
+export async function commitPending(req: CommitPendingRequest): Promise<CommitPendingResult> {
+  return apiRequest<CommitPendingResult>("/commit-pending", {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
+}

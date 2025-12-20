@@ -257,6 +257,12 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/audit", h.GetAuditLog).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/audit", h.GetSandboxAuditLog).Methods("GET")
 
+	// --- Provenance Tracking ---
+	api.HandleFunc("/pending", h.GetPendingChanges).Methods("GET")
+	api.HandleFunc("/provenance", h.GetFileProvenance).Methods("GET")
+	api.HandleFunc("/commit-preview", h.GetCommitPreview).Methods("GET")
+	api.HandleFunc("/commit-pending", h.CommitPending).Methods("POST")
+
 	// --- Metrics (OT-P1-008) ---
 	// Supports Prometheus format (default) and JSON (?format=json)
 	metricsHandler := func(w http.ResponseWriter, r *http.Request) {

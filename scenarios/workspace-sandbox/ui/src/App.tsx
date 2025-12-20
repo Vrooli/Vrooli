@@ -5,6 +5,7 @@ import { SandboxList } from "./components/SandboxList";
 import { SandboxDetail } from "./components/SandboxDetail";
 import { CreateSandboxDialog } from "./components/CreateSandboxDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { CommitPendingDialog } from "./components/CommitPendingDialog";
 import { LaunchAgentDialog, type LaunchConfig } from "./components/LaunchAgentDialog";
 import {
   useHealth,
@@ -31,6 +32,7 @@ export default function App() {
   const [selectedSandbox, setSelectedSandbox] = useState<Sandbox | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [commitDialogOpen, setCommitDialogOpen] = useState(false);
   const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
 
   // Queries
@@ -229,6 +231,7 @@ export default function App() {
         onRefresh={handleRefresh}
         onCreateClick={() => setCreateDialogOpen(true)}
         onSettingsClick={() => setSettingsDialogOpen(true)}
+        onCommitClick={() => setCommitDialogOpen(true)}
       />
 
       {/* Main Content */}
@@ -282,6 +285,13 @@ export default function App() {
       <SettingsDialog
         open={settingsDialogOpen}
         onOpenChange={setSettingsDialogOpen}
+      />
+
+      {/* Commit Pending Dialog */}
+      <CommitPendingDialog
+        open={commitDialogOpen}
+        onOpenChange={setCommitDialogOpen}
+        projectRoot={healthQuery.data?.config?.projectRoot}
       />
 
       {/* Launch Agent Dialog */}

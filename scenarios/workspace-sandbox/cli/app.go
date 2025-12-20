@@ -102,7 +102,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		Title: "Diff & Approval",
 		Commands: []cliapp.Command{
 			{Name: "diff", NeedsAPI: true, Description: "Show changes in a sandbox ([--raw])", Run: a.cmdDiff},
-			{Name: "approve", NeedsAPI: true, Description: "Apply sandbox changes to the repo ([-m MESSAGE] [--force])", Run: a.cmdApprove},
+			{Name: "approve", NeedsAPI: true, Description: "Apply sandbox changes ([-m MSG] [--commit] [--force])", Run: a.cmdApprove},
 			{Name: "reject", NeedsAPI: true, Description: "Reject and discard sandbox changes", Run: a.cmdReject},
 			{Name: "conflicts", NeedsAPI: true, Description: "Check for conflicts with canonical repo [OT-P2-003]", Run: a.cmdConflicts},
 			{Name: "rebase", NeedsAPI: true, Description: "Update sandbox baseline to current repo state [OT-P2-003]", Run: a.cmdRebase},
@@ -124,6 +124,15 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	provenance := cliapp.CommandGroup{
+		Title: "Provenance",
+		Commands: []cliapp.Command{
+			{Name: "pending", NeedsAPI: true, Description: "List pending (uncommitted) changes by sandbox", Run: a.cmdPending},
+			{Name: "provenance", NeedsAPI: true, Description: "Show change history for a file (--path=FILE)", Run: a.cmdProvenance},
+			{Name: "commit-pending", NeedsAPI: true, Description: "Commit all pending changes ([-m MESSAGE])", Run: a.cmdCommitPending},
+		},
+	}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -131,7 +140,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, sandboxes, execution, diff, gc, driver, config}
+	return []cliapp.CommandGroup{health, sandboxes, execution, diff, gc, provenance, driver, config}
 }
 
 func (a *App) apiPath(v1Path string) string {
@@ -578,7 +587,7 @@ func (a *App) cmdDiff(args []string) error {
 
 func (a *App) cmdApprove(args []string) error {
 	var sandboxID, message string
-	var force bool
+	var force, createCommit bool
 
 	for i, arg := range args {
 		switch {
@@ -590,6 +599,8 @@ func (a *App) cmdApprove(args []string) error {
 			message = strings.TrimPrefix(arg, "--message=")
 		case arg == "--force" || arg == "-f":
 			force = true
+		case arg == "--commit" || arg == "-c":
+			createCommit = true
 		case !strings.HasPrefix(arg, "-") && (i == 0 || !strings.HasPrefix(args[i-1], "-m")):
 			if sandboxID == "" {
 				sandboxID = arg
@@ -598,7 +609,11 @@ func (a *App) cmdApprove(args []string) error {
 	}
 
 	if sandboxID == "" {
-		return fmt.Errorf("usage: workspace-sandbox approve <sandbox-id> [-m MESSAGE] [--force]")
+		return fmt.Errorf("usage: workspace-sandbox approve <sandbox-id> [-m MESSAGE] [--commit] [--force]\n\n" +
+			"Options:\n" +
+			"  -m, --message=MSG    Commit message (required if --commit is used)\n" +
+			"  -c, --commit         Create a git commit (default: apply to working tree only)\n" +
+			"  -f, --force          Force approval even if conflicts detected")
 	}
 
 	resolvedID, err := a.resolveSandboxID(sandboxID)
@@ -615,6 +630,9 @@ func (a *App) cmdApprove(args []string) error {
 	if force {
 		reqBody["force"] = true
 	}
+	if createCommit {
+		reqBody["createCommit"] = true
+	}
 
 	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+resolvedID+"/approve"), nil, reqBody)
 	if err != nil {
@@ -630,6 +648,8 @@ func (a *App) cmdApprove(args []string) error {
 		fmt.Printf("Applied %d changes\n", resp.Applied)
 		if resp.CommitHash != "" {
 			fmt.Printf("Commit: %s\n", resp.CommitHash)
+		} else {
+			fmt.Println("Changes applied to working tree (no commit created)")
 		}
 	} else {
 		fmt.Printf("Approval failed: %s\n", resp.ErrorMsg)
@@ -1942,4 +1962,259 @@ func restoreTerminal(fd uintptr, state *term.State) {
 	if state != nil {
 		term.Restore(int(fd), state)
 	}
+}
+
+// --- Provenance Tracking Commands ---
+
+// pendingChangesSummary represents a sandbox with pending changes.
+type pendingChangesSummary struct {
+	SandboxID     string    `json:"sandboxId"`
+	SandboxOwner  string    `json:"sandboxOwner"`
+	FileCount     int       `json:"fileCount"`
+	LatestApplied time.Time `json:"latestApplied"`
+}
+
+// pendingChangesResult represents the API response for pending changes.
+type pendingChangesResult struct {
+	Summaries  []pendingChangesSummary `json:"summaries"`
+	TotalFiles int                     `json:"totalFiles"`
+}
+
+// appliedChange represents a file change for provenance tracking.
+type appliedChange struct {
+	ID           string     `json:"id"`
+	SandboxID    string     `json:"sandboxId"`
+	SandboxOwner string     `json:"sandboxOwner"`
+	FilePath     string     `json:"filePath"`
+	ProjectRoot  string     `json:"projectRoot"`
+	ChangeType   string     `json:"changeType"`
+	AppliedAt    time.Time  `json:"appliedAt"`
+	CommittedAt  *time.Time `json:"committedAt,omitempty"`
+	CommitHash   string     `json:"commitHash,omitempty"`
+}
+
+// fileProvenanceResult represents the API response for file provenance.
+type fileProvenanceResult struct {
+	FilePath string          `json:"filePath"`
+	Changes  []appliedChange `json:"changes"`
+}
+
+// commitPendingResult represents the API response for commit-pending.
+type commitPendingResult struct {
+	Success        bool   `json:"success"`
+	FilesCommitted int    `json:"filesCommitted"`
+	CommitHash     string `json:"commitHash,omitempty"`
+	ErrorMsg       string `json:"error,omitempty"`
+}
+
+// cmdPending lists pending (uncommitted) changes grouped by sandbox.
+// Usage: workspace-sandbox pending [--project=PATH] [--json]
+func (a *App) cmdPending(args []string) error {
+	var projectRoot string
+	var asJSON bool
+
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--project="):
+			projectRoot = strings.TrimPrefix(arg, "--project=")
+		case arg == "--json":
+			asJSON = true
+		}
+	}
+
+	query := url.Values{}
+	if projectRoot != "" {
+		query.Set("projectRoot", projectRoot)
+	}
+
+	body, err := a.core.APIClient.Get(a.apiPath("/pending"), query)
+	if err != nil {
+		return err
+	}
+
+	if asJSON {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var resp pendingChangesResult
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(resp.Summaries) == 0 {
+		fmt.Println("No pending changes")
+		return nil
+	}
+
+	fmt.Println("=== Pending Changes ===")
+	fmt.Println()
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "SANDBOX\tOWNER\tFILES\tLAST APPLIED")
+	for _, s := range resp.Summaries {
+		owner := s.SandboxOwner
+		if owner == "" {
+			owner = "-"
+		}
+		lastApplied := s.LatestApplied.Format("2006-01-02 15:04")
+		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n", s.SandboxID[:8], owner, s.FileCount, lastApplied)
+	}
+	w.Flush()
+
+	fmt.Printf("\nTotal: %d files pending across %d sandboxes\n", resp.TotalFiles, len(resp.Summaries))
+	fmt.Println("\nTo commit all pending changes:")
+	fmt.Println("  workspace-sandbox commit-pending -m \"Commit message\"")
+
+	return nil
+}
+
+// cmdProvenance shows the change history for a specific file.
+// Usage: workspace-sandbox provenance --path=FILE [--project=PATH] [--limit=N] [--json]
+func (a *App) cmdProvenance(args []string) error {
+	var filePath, projectRoot string
+	var limit int
+	var asJSON bool
+
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--path="):
+			filePath = strings.TrimPrefix(arg, "--path=")
+		case strings.HasPrefix(arg, "--project="):
+			projectRoot = strings.TrimPrefix(arg, "--project=")
+		case strings.HasPrefix(arg, "--limit="):
+			fmt.Sscanf(strings.TrimPrefix(arg, "--limit="), "%d", &limit)
+		case arg == "--json":
+			asJSON = true
+		case !strings.HasPrefix(arg, "-"):
+			// Allow positional file path argument
+			if filePath == "" {
+				filePath = arg
+			}
+		}
+	}
+
+	if filePath == "" {
+		return fmt.Errorf("usage: workspace-sandbox provenance --path=FILE [--project=PATH] [--limit=N] [--json]\n\n" +
+			"Shows the change history for a specific file, including which sandbox\n" +
+			"modified it and when changes were committed.")
+	}
+
+	query := url.Values{}
+	query.Set("path", filePath)
+	if projectRoot != "" {
+		query.Set("projectRoot", projectRoot)
+	}
+	if limit > 0 {
+		query.Set("limit", fmt.Sprintf("%d", limit))
+	}
+
+	body, err := a.core.APIClient.Get(a.apiPath("/provenance"), query)
+	if err != nil {
+		return err
+	}
+
+	if asJSON {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var resp fileProvenanceResult
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(resp.Changes) == 0 {
+		fmt.Printf("No change history found for: %s\n", resp.FilePath)
+		return nil
+	}
+
+	fmt.Printf("=== Change History: %s ===\n\n", resp.FilePath)
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "SANDBOX\tOWNER\tCHANGE\tAPPLIED\tCOMMITTED")
+	for _, c := range resp.Changes {
+		owner := c.SandboxOwner
+		if owner == "" {
+			owner = "-"
+		}
+		applied := c.AppliedAt.Format("2006-01-02 15:04")
+		committed := "-"
+		if c.CommittedAt != nil {
+			committed = c.CommitHash
+			if len(committed) > 8 {
+				committed = committed[:8]
+			}
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", c.SandboxID[:8], owner, c.ChangeType, applied, committed)
+	}
+	w.Flush()
+
+	return nil
+}
+
+// cmdCommitPending commits all pending changes to git.
+// Usage: workspace-sandbox commit-pending [-m MESSAGE] [--project=PATH] [--json]
+func (a *App) cmdCommitPending(args []string) error {
+	var message, projectRoot, actor string
+	var asJSON bool
+
+	for i, arg := range args {
+		switch {
+		case arg == "-m" && i+1 < len(args):
+			message = args[i+1]
+		case strings.HasPrefix(arg, "-m="):
+			message = strings.TrimPrefix(arg, "-m=")
+		case strings.HasPrefix(arg, "--message="):
+			message = strings.TrimPrefix(arg, "--message=")
+		case strings.HasPrefix(arg, "--project="):
+			projectRoot = strings.TrimPrefix(arg, "--project=")
+		case strings.HasPrefix(arg, "--actor="):
+			actor = strings.TrimPrefix(arg, "--actor=")
+		case arg == "--json":
+			asJSON = true
+		}
+	}
+
+	reqBody := map[string]interface{}{}
+	if message != "" {
+		reqBody["commitMessage"] = message
+	}
+	if projectRoot != "" {
+		reqBody["projectRoot"] = projectRoot
+	}
+	if actor != "" {
+		reqBody["actor"] = actor
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.apiPath("/commit-pending"), nil, reqBody)
+	if err != nil {
+		return err
+	}
+
+	if asJSON {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var resp commitPendingResult
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if resp.Success {
+		if resp.FilesCommitted == 0 {
+			fmt.Println("No pending changes to commit")
+		} else {
+			fmt.Printf("Committed %d files\n", resp.FilesCommitted)
+			if resp.CommitHash != "" {
+				fmt.Printf("Commit: %s\n", resp.CommitHash)
+			}
+		}
+	} else {
+		fmt.Printf("Commit failed: %s\n", resp.ErrorMsg)
+		return fmt.Errorf("commit failed")
+	}
+
+	return nil
 }

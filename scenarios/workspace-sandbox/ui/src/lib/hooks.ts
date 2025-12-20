@@ -26,6 +26,8 @@ import {
   fetchProfiles,
   saveProfile,
   deleteProfile,
+  fetchCommitPreview,
+  commitPending,
   type ListFilter,
   type CreateRequest,
   type ApprovalRequest,
@@ -33,6 +35,7 @@ import {
   type StartProcessRequest,
   type ExecutionConfig,
   type IsolationProfile,
+  type CommitPendingRequest,
 } from "./api";
 
 // Query keys for cache management
@@ -48,6 +51,7 @@ export const queryKeys = {
   processLog: (sandboxId: string, pid: number) => ["processLog", sandboxId, pid] as const,
   executionConfig: ["executionConfig"] as const,
   profiles: ["profiles"] as const,
+  commitPreview: (projectRoot?: string) => ["commitPreview", projectRoot] as const,
 };
 
 // Health check
@@ -376,6 +380,31 @@ export function useDeleteProfile() {
     mutationFn: (id: string) => deleteProfile(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.profiles });
+    },
+  });
+}
+
+// --- Commit Preview and Pending Hooks ---
+
+// Get commit preview with git reconciliation
+export function useCommitPreview(projectRoot?: string) {
+  return useQuery({
+    queryKey: queryKeys.commitPreview(projectRoot),
+    queryFn: () => fetchCommitPreview(projectRoot),
+  });
+}
+
+// Commit pending changes mutation
+export function useCommitPending() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (req: CommitPendingRequest) => commitPending(req),
+    onSuccess: () => {
+      // Invalidate commit preview to refresh
+      queryClient.invalidateQueries({ queryKey: ["commitPreview"] });
+      // Also refresh sandboxes as the commit status may have changed
+      queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
     },
   });
 }

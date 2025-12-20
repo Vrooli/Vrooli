@@ -63,6 +63,23 @@ type Repository interface {
 
 	// GetGCCandidates returns sandboxes eligible for garbage collection based on policy.
 	GetGCCandidates(ctx context.Context, policy *types.GCPolicy, limit int) ([]*types.Sandbox, error)
+
+	// --- Provenance Tracking Support ---
+
+	// RecordAppliedChanges records file changes that were applied from a sandbox.
+	RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error
+
+	// GetPendingChanges returns pending (uncommitted) changes grouped by sandbox.
+	GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error)
+
+	// GetPendingChangeFiles returns all pending change records for the given project/sandboxes.
+	GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error)
+
+	// GetFileProvenance returns the history of changes for a specific file.
+	GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error)
+
+	// MarkChangesCommitted updates applied_changes records with commit information.
+	MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error
 }
 
 // TxRepository is a Repository bound to a transaction.
@@ -1123,4 +1140,247 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 	}
 
 	return sandboxes, nil
+}
+
+// --- Provenance Tracking Support ---
+
+// RecordAppliedChanges records file changes that were applied from a sandbox.
+// This enables provenance tracking - knowing which sandbox modified which files.
+func (r *SandboxRepository) RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error {
+	if len(changes) == 0 {
+		return nil
+	}
+
+	query := `
+		INSERT INTO applied_changes (
+			id, sandbox_id, sandbox_owner, sandbox_owner_type,
+			file_path, project_root, change_type, file_size
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+
+	for _, change := range changes {
+		_, err := r.db.ExecContext(ctx, query,
+			change.ID, change.SandboxID, change.SandboxOwner, change.SandboxOwnerType,
+			change.FilePath, change.ProjectRoot, change.ChangeType, change.FileSize,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to record applied change for %s: %w", change.FilePath, err)
+		}
+	}
+
+	return nil
+}
+
+// GetPendingChanges returns pending (uncommitted) changes grouped by sandbox.
+func (r *SandboxRepository) GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Build query based on whether projectRoot is provided
+	var args []interface{}
+	whereClause := "WHERE committed_at IS NULL"
+	if projectRoot != "" {
+		whereClause += " AND project_root = $1"
+		args = append(args, projectRoot)
+	}
+
+	// Get total count of pending files
+	countQuery := "SELECT COUNT(*) FROM applied_changes " + whereClause
+	var totalFiles int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalFiles); err != nil {
+		return nil, fmt.Errorf("failed to count pending changes: %w", err)
+	}
+
+	// Get grouped summaries
+	argNum := len(args) + 1
+	query := `
+		SELECT sandbox_id, sandbox_owner, COUNT(*) as file_count, MAX(applied_at) as latest_applied
+		FROM applied_changes
+		` + whereClause + `
+		GROUP BY sandbox_id, sandbox_owner
+		ORDER BY latest_applied DESC
+		LIMIT $` + strconv.Itoa(argNum) + ` OFFSET $` + strconv.Itoa(argNum+1)
+
+	args = append(args, limit, offset)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query pending changes: %w", err)
+	}
+	defer rows.Close()
+
+	var summaries []types.PendingChangesSummary
+	for rows.Next() {
+		var summary types.PendingChangesSummary
+		err := rows.Scan(&summary.SandboxID, &summary.SandboxOwner, &summary.FileCount, &summary.LatestApplied)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan pending change summary: %w", err)
+		}
+		summaries = append(summaries, summary)
+	}
+
+	return &types.PendingChangesResult{
+		Summaries:  summaries,
+		TotalFiles: totalFiles,
+	}, nil
+}
+
+// GetPendingChangeFiles returns all pending change records for the given project/sandboxes.
+func (r *SandboxRepository) GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error) {
+	var args []interface{}
+	whereClause := "WHERE committed_at IS NULL"
+	argNum := 1
+
+	if projectRoot != "" {
+		whereClause += fmt.Sprintf(" AND project_root = $%d", argNum)
+		args = append(args, projectRoot)
+		argNum++
+	}
+
+	if len(sandboxIDs) > 0 {
+		placeholders := make([]string, len(sandboxIDs))
+		for i, id := range sandboxIDs {
+			placeholders[i] = fmt.Sprintf("$%d", argNum)
+			args = append(args, id)
+			argNum++
+		}
+		whereClause += " AND sandbox_id IN (" + strings.Join(placeholders, ",") + ")"
+	}
+
+	query := `
+		SELECT id, sandbox_id, sandbox_owner, sandbox_owner_type,
+			   file_path, project_root, change_type, file_size, applied_at
+		FROM applied_changes
+		` + whereClause + `
+		ORDER BY applied_at ASC`
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query pending change files: %w", err)
+	}
+	defer rows.Close()
+
+	var changes []*types.AppliedChange
+	for rows.Next() {
+		change := &types.AppliedChange{}
+		err := rows.Scan(
+			&change.ID, &change.SandboxID, &change.SandboxOwner, &change.SandboxOwnerType,
+			&change.FilePath, &change.ProjectRoot, &change.ChangeType, &change.FileSize, &change.AppliedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan pending change file: %w", err)
+		}
+		changes = append(changes, change)
+	}
+
+	return changes, nil
+}
+
+// GetFileProvenance returns the history of changes for a specific file.
+func (r *SandboxRepository) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+
+	var args []interface{}
+	args = append(args, filePath)
+	whereClause := "WHERE file_path = $1"
+	argNum := 2
+
+	if projectRoot != "" {
+		whereClause += fmt.Sprintf(" AND project_root = $%d", argNum)
+		args = append(args, projectRoot)
+		argNum++
+	}
+
+	query := `
+		SELECT id, sandbox_id, sandbox_owner, sandbox_owner_type,
+			   file_path, project_root, change_type, file_size, applied_at,
+			   committed_at, COALESCE(commit_hash, ''), COALESCE(commit_message, '')
+		FROM applied_changes
+		` + whereClause + `
+		ORDER BY applied_at DESC
+		LIMIT $` + strconv.Itoa(argNum)
+
+	args = append(args, limit)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query file provenance: %w", err)
+	}
+	defer rows.Close()
+
+	var changes []*types.AppliedChange
+	for rows.Next() {
+		change := &types.AppliedChange{}
+		err := rows.Scan(
+			&change.ID, &change.SandboxID, &change.SandboxOwner, &change.SandboxOwnerType,
+			&change.FilePath, &change.ProjectRoot, &change.ChangeType, &change.FileSize, &change.AppliedAt,
+			&change.CommittedAt, &change.CommitHash, &change.CommitMessage,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan file provenance: %w", err)
+		}
+		changes = append(changes, change)
+	}
+
+	return changes, nil
+}
+
+// MarkChangesCommitted updates applied_changes records with commit information.
+func (r *SandboxRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, 0, len(ids)+3)
+	args = append(args, time.Now(), commitHash, commitMessage)
+
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+4)
+		args = append(args, id)
+	}
+
+	query := `
+		UPDATE applied_changes
+		SET committed_at = $1, commit_hash = $2, commit_message = $3
+		WHERE id IN (` + strings.Join(placeholders, ",") + `)`
+
+	_, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to mark changes committed: %w", err)
+	}
+
+	return nil
+}
+
+// --- Provenance Tracking for TxSandboxRepository (stubs) ---
+
+// RecordAppliedChanges is not implemented for transactions.
+func (r *TxSandboxRepository) RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error {
+	return fmt.Errorf("RecordAppliedChanges not implemented for transactions")
+}
+
+// GetPendingChanges is not implemented for transactions.
+func (r *TxSandboxRepository) GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error) {
+	return nil, fmt.Errorf("GetPendingChanges not implemented for transactions")
+}
+
+// GetPendingChangeFiles is not implemented for transactions.
+func (r *TxSandboxRepository) GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error) {
+	return nil, fmt.Errorf("GetPendingChangeFiles not implemented for transactions")
+}
+
+// GetFileProvenance is not implemented for transactions.
+func (r *TxSandboxRepository) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
+	return nil, fmt.Errorf("GetFileProvenance not implemented for transactions")
+}
+
+// MarkChangesCommitted is not implemented for transactions.
+func (r *TxSandboxRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
+	return fmt.Errorf("MarkChangesCommitted not implemented for transactions")
 }

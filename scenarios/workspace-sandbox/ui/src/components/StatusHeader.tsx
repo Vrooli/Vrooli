@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Loader2,
   Settings,
+  GitCommit,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -23,6 +24,7 @@ interface StatusHeaderProps {
   onRefresh: () => void;
   onCreateClick: () => void;
   onSettingsClick: () => void;
+  onCommitClick: () => void;
 }
 
 export function StatusHeader({
@@ -32,6 +34,7 @@ export function StatusHeader({
   onRefresh,
   onCreateClick,
   onSettingsClick,
+  onCommitClick,
 }: StatusHeaderProps) {
   const isHealthy = health?.status === "healthy";
   const driverAvailable = health?.dependencies?.driver === "available";
@@ -134,6 +137,15 @@ export function StatusHeader({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onCommitClick}
+          title="Commit pending changes"
+        >
+          <GitCommit className="h-4 w-4" />
+        </Button>
+
         <Button
           variant="ghost"
           size="icon"

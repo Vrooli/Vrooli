@@ -76,6 +76,21 @@ type ServiceAPI interface {
 	// ValidatePath checks if a path is valid for use as a sandbox scope.
 	// This enables the UI to validate paths before attempting to create a sandbox.
 	ValidatePath(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error)
+
+	// --- Provenance Tracking ---
+
+	// GetPendingChanges returns pending (uncommitted) changes grouped by sandbox.
+	GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error)
+
+	// GetFileProvenance returns the history of changes for a specific file.
+	GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error)
+
+	// GetCommitPreview returns a preview of what would be committed.
+	// This includes reconciliation with git status to detect externally-committed files.
+	GetCommitPreview(ctx context.Context, req *types.CommitPreviewRequest) (*types.CommitPreviewResult, error)
+
+	// CommitPending commits pending changes to git and updates provenance records.
+	CommitPending(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error)
 }
 
 // Verify Service implements ServiceAPI interface at compile time.
@@ -709,11 +724,19 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		}
 	}
 
+	// Extract file paths for selective staging (prevents git add -A bug)
+	filePaths := make([]string, len(changes))
+	for i, change := range changes {
+		filePaths[i] = change.FilePath
+	}
+
 	// Apply the diff
 	patcher := diff.NewPatcher()
 	applyResult, err := patcher.ApplyDiff(ctx, sandbox.ProjectRoot, diffResult.UnifiedDiff, diff.ApplyOptions{
-		CommitMsg: commitMsg,
-		Author:    author,
+		CommitMsg:    commitMsg,
+		Author:       author,
+		CreateCommit: req.CreateCommit, // Only commit if explicitly requested
+		FilePaths:    filePaths,        // For selective staging
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply diff: %w", err)
@@ -727,6 +750,41 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 			ErrorMsg:  fmt.Sprintf("patch application failed: %v", applyResult.Errors),
 			AppliedAt: time.Now(),
 		}, nil
+	}
+
+	// Record provenance for all applied changes
+	appliedChanges := make([]*types.AppliedChange, len(changes))
+	for i, c := range changes {
+		appliedChanges[i] = &types.AppliedChange{
+			ID:               uuid.New(),
+			SandboxID:        sandbox.ID,
+			SandboxOwner:     sandbox.Owner,
+			SandboxOwnerType: string(sandbox.OwnerType),
+			FilePath:         filepath.Join(sandbox.ProjectRoot, c.FilePath),
+			ProjectRoot:      sandbox.ProjectRoot,
+			ChangeType:       string(c.ChangeType),
+			FileSize:         c.FileSize,
+		}
+	}
+
+	// Record in database (best-effort, don't fail on provenance error)
+	if err := s.repo.RecordAppliedChanges(ctx, appliedChanges); err != nil {
+		s.logAuditEvent(ctx, sandbox, "provenance.warning", "system", "system", map[string]interface{}{
+			"message": "failed to record provenance: " + err.Error(),
+		})
+	}
+
+	// If commit was created, mark provenance records as committed
+	if applyResult.CommitHash != "" {
+		ids := make([]uuid.UUID, len(appliedChanges))
+		for i, c := range appliedChanges {
+			ids[i] = c.ID
+		}
+		if err := s.repo.MarkChangesCommitted(ctx, ids, applyResult.CommitHash, commitMsg); err != nil {
+			s.logAuditEvent(ctx, sandbox, "provenance.warning", "system", "system", map[string]interface{}{
+				"message": "failed to mark changes committed: " + err.Error(),
+			})
+		}
 	}
 
 	// [OT-P1-002] Partial Approval Workflow
@@ -1220,3 +1278,385 @@ type ScopeConflictError = types.ScopeConflictError
 // NotFoundError is an alias for types.NotFoundError.
 // Deprecated: Use types.NotFoundError directly.
 type NotFoundError = types.NotFoundError
+
+// --- Provenance Tracking ---
+
+// GetPendingChanges returns pending (uncommitted) changes grouped by sandbox.
+func (s *Service) GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error) {
+	return s.repo.GetPendingChanges(ctx, projectRoot, limit, offset)
+}
+
+// GetFileProvenance returns the history of changes for a specific file.
+func (s *Service) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
+	return s.repo.GetFileProvenance(ctx, filePath, projectRoot, limit)
+}
+
+// CommitPending commits pending changes to git and updates provenance records.
+// This allows batching multiple sandbox changes into a single commit.
+//
+// Reconciliation behavior:
+// - Files that are still uncommitted in git will be staged and committed
+// - Files that were already committed externally will be marked as reconciled
+//   with a special commit hash indicating external commit
+func (s *Service) CommitPending(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error) {
+	result := &types.CommitPendingResult{}
+
+	// Determine project root
+	projectRoot := req.ProjectRoot
+	if projectRoot == "" {
+		projectRoot = s.config.DefaultProjectRoot
+	}
+	if projectRoot == "" {
+		result.ErrorMsg = "project root is required"
+		return result, nil
+	}
+
+	// Get all pending change files
+	pendingChanges, err := s.repo.GetPendingChangeFiles(ctx, projectRoot, req.SandboxIDs)
+	if err != nil {
+		result.ErrorMsg = fmt.Sprintf("failed to get pending changes: %v", err)
+		return result, nil
+	}
+
+	if len(pendingChanges) == 0 {
+		result.Success = true
+		result.FilesCommitted = 0
+		return result, nil
+	}
+
+	// Build mapping of relative path -> change record
+	pathToChange := make(map[string]*types.AppliedChange)
+	relPaths := make([]string, 0, len(pendingChanges))
+	for _, change := range pendingChanges {
+		relPath := change.FilePath
+		if strings.HasPrefix(relPath, projectRoot) {
+			relPath = strings.TrimPrefix(relPath, projectRoot)
+			relPath = strings.TrimPrefix(relPath, string(filepath.Separator))
+		}
+		if relPath != "" {
+			relPaths = append(relPaths, relPath)
+			pathToChange[relPath] = change
+		}
+	}
+
+	if len(relPaths) == 0 {
+		result.Success = true
+		result.FilesCommitted = 0
+		return result, nil
+	}
+
+	// Reconcile with git status to find which files are actually uncommitted
+	reconciled, err := diff.ReconcilePendingWithGit(ctx, projectRoot, relPaths)
+	if err != nil {
+		// If reconciliation fails, fall back to committing all files
+		fmt.Printf("warning: reconciliation failed, proceeding without: %v\n", err)
+		reconciled = &diff.ReconcileResult{StillPending: relPaths}
+	}
+
+	// Mark externally-committed files in DB (with special marker)
+	if len(reconciled.AlreadyCommitted) > 0 {
+		var externallyCommittedIDs []uuid.UUID
+		for _, path := range reconciled.AlreadyCommitted {
+			if change, ok := pathToChange[path]; ok {
+				externallyCommittedIDs = append(externallyCommittedIDs, change.ID)
+			}
+		}
+		if len(externallyCommittedIDs) > 0 {
+			// Mark as "externally committed" - use a special marker
+			if err := s.repo.MarkChangesCommitted(ctx, externallyCommittedIDs, "EXTERNAL", "Committed externally (reconciled)"); err != nil {
+				fmt.Printf("warning: failed to mark externally committed: %v\n", err)
+			}
+		}
+	}
+
+	// If no files are actually uncommitted, we're done
+	if len(reconciled.StillPending) == 0 {
+		result.Success = true
+		result.FilesCommitted = 0
+		return result, nil
+	}
+
+	// Generate commit message if not provided
+	commitMsg := req.CommitMessage
+	if commitMsg == "" {
+		// Use a more descriptive default message
+		commitMsg = s.generateDefaultCommitMessage(reconciled.StillPending, pathToChange)
+	}
+
+	// Create the commit with only the files that are actually uncommitted
+	patcher := diff.NewPatcher()
+	commitHash, err := patcher.CreateCommitFromFiles(ctx, projectRoot, diff.ApplyOptions{
+		CommitMsg:    commitMsg,
+		Author:       req.Actor,
+		CreateCommit: true,
+		FilePaths:    reconciled.StillPending,
+	})
+	if err != nil {
+		result.ErrorMsg = fmt.Sprintf("failed to create commit: %v", err)
+		return result, nil
+	}
+
+	// Mark committed files in DB
+	var committedIDs []uuid.UUID
+	for _, path := range reconciled.StillPending {
+		if change, ok := pathToChange[path]; ok {
+			committedIDs = append(committedIDs, change.ID)
+		}
+	}
+
+	if len(committedIDs) > 0 {
+		if err := s.repo.MarkChangesCommitted(ctx, committedIDs, commitHash, commitMsg); err != nil {
+			fmt.Printf("warning: failed to mark changes committed: %v\n", err)
+		}
+	}
+
+	result.Success = true
+	result.FilesCommitted = len(reconciled.StillPending)
+	result.CommitHash = commitHash
+
+	return result, nil
+}
+
+// generateDefaultCommitMessage creates a descriptive commit message.
+func (s *Service) generateDefaultCommitMessage(paths []string, pathToChange map[string]*types.AppliedChange) string {
+	if len(paths) == 0 {
+		return "No changes"
+	}
+
+	// Count by type and collect unique owners
+	var added, modified, deleted int
+	owners := make(map[string]bool)
+
+	for _, path := range paths {
+		if change, ok := pathToChange[path]; ok {
+			switch change.ChangeType {
+			case "added":
+				added++
+			case "modified":
+				modified++
+			case "deleted":
+				deleted++
+			}
+			if change.SandboxOwner != "" {
+				owners[change.SandboxOwner] = true
+			}
+		}
+	}
+
+	// Build message
+	var msg strings.Builder
+	msg.WriteString(fmt.Sprintf("Apply %d sandbox changes", len(paths)))
+
+	// Add owner attribution
+	ownerList := make([]string, 0, len(owners))
+	for owner := range owners {
+		ownerList = append(ownerList, owner)
+	}
+	if len(ownerList) == 1 {
+		msg.WriteString(fmt.Sprintf(" from %s", ownerList[0]))
+	} else if len(ownerList) > 1 && len(ownerList) <= 3 {
+		msg.WriteString(fmt.Sprintf(" from %s", strings.Join(ownerList, ", ")))
+	}
+
+	// Add breakdown
+	msg.WriteString("\n\n")
+	if added > 0 {
+		msg.WriteString(fmt.Sprintf("- %d added\n", added))
+	}
+	if modified > 0 {
+		msg.WriteString(fmt.Sprintf("- %d modified\n", modified))
+	}
+	if deleted > 0 {
+		msg.WriteString(fmt.Sprintf("- %d deleted\n", deleted))
+	}
+
+	return msg.String()
+}
+
+// GetCommitPreview returns a preview of what would be committed.
+// This includes reconciliation with git status to detect externally-committed files.
+func (s *Service) GetCommitPreview(ctx context.Context, req *types.CommitPreviewRequest) (*types.CommitPreviewResult, error) {
+	projectRoot := req.ProjectRoot
+	if projectRoot == "" {
+		projectRoot = s.config.DefaultProjectRoot
+	}
+	if projectRoot == "" {
+		return nil, fmt.Errorf("project root is required")
+	}
+
+	// Get all pending change files from database
+	pendingChanges, err := s.repo.GetPendingChangeFiles(ctx, projectRoot, req.SandboxIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending changes: %w", err)
+	}
+
+	result := &types.CommitPreviewResult{
+		Files:            make([]types.CommitPreviewFile, 0, len(pendingChanges)),
+		GroupedBySandbox: []types.CommitPreviewSandboxGroup{},
+	}
+
+	if len(pendingChanges) == 0 {
+		result.SuggestedMessage = "No pending changes"
+		return result, nil
+	}
+
+	// Extract relative paths for reconciliation
+	relPaths := make([]string, 0, len(pendingChanges))
+	for _, change := range pendingChanges {
+		relPath := change.FilePath
+		if strings.HasPrefix(relPath, projectRoot) {
+			relPath = strings.TrimPrefix(relPath, projectRoot)
+			relPath = strings.TrimPrefix(relPath, string(filepath.Separator))
+		}
+		if relPath != "" {
+			relPaths = append(relPaths, relPath)
+		}
+	}
+
+	// Reconcile with git status
+	reconciled, err := diff.ReconcilePendingWithGit(ctx, projectRoot, relPaths)
+	if err != nil {
+		// Log but don't fail - we can still show the pending files
+		fmt.Printf("warning: failed to reconcile with git: %v\n", err)
+		reconciled = &diff.ReconcileResult{StillPending: relPaths}
+	}
+
+	// Build sets for quick lookup
+	stillPendingSet := make(map[string]bool)
+	for _, p := range reconciled.StillPending {
+		stillPendingSet[p] = true
+	}
+
+	// Group by sandbox for summary
+	sandboxGroups := make(map[uuid.UUID]*types.CommitPreviewSandboxGroup)
+
+	for _, change := range pendingChanges {
+		relPath := change.FilePath
+		if strings.HasPrefix(relPath, projectRoot) {
+			relPath = strings.TrimPrefix(relPath, projectRoot)
+			relPath = strings.TrimPrefix(relPath, string(filepath.Separator))
+		}
+
+		status := "already_committed"
+		if stillPendingSet[relPath] {
+			status = "pending"
+			result.CommittableFiles++
+		} else {
+			result.AlreadyCommittedFiles++
+		}
+
+		file := types.CommitPreviewFile{
+			FilePath:     change.FilePath,
+			RelativePath: relPath,
+			ChangeType:   change.ChangeType,
+			SandboxID:    change.SandboxID,
+			SandboxOwner: change.SandboxOwner,
+			AppliedAt:    change.AppliedAt,
+			Status:       status,
+		}
+		result.Files = append(result.Files, file)
+
+		// Update sandbox group
+		group, exists := sandboxGroups[change.SandboxID]
+		if !exists {
+			group = &types.CommitPreviewSandboxGroup{
+				SandboxID:    change.SandboxID,
+				SandboxOwner: change.SandboxOwner,
+			}
+			sandboxGroups[change.SandboxID] = group
+		}
+		if status == "pending" {
+			group.FileCount++
+			switch change.ChangeType {
+			case "added":
+				group.Added++
+			case "modified":
+				group.Modified++
+			case "deleted":
+				group.Deleted++
+			}
+		}
+	}
+
+	// Convert sandbox groups map to slice
+	for _, group := range sandboxGroups {
+		if group.FileCount > 0 {
+			result.GroupedBySandbox = append(result.GroupedBySandbox, *group)
+		}
+	}
+
+	// Generate suggested commit message
+	result.SuggestedMessage = s.generateCommitMessage(result)
+
+	return result, nil
+}
+
+// generateCommitMessage creates a descriptive commit message from the preview.
+func (s *Service) generateCommitMessage(preview *types.CommitPreviewResult) string {
+	if preview.CommittableFiles == 0 {
+		return "No uncommitted changes to apply"
+	}
+
+	var msg strings.Builder
+
+	// Count totals across all sandboxes
+	var totalAdded, totalModified, totalDeleted int
+	owners := make([]string, 0)
+	seenOwners := make(map[string]bool)
+
+	for _, group := range preview.GroupedBySandbox {
+		totalAdded += group.Added
+		totalModified += group.Modified
+		totalDeleted += group.Deleted
+		if !seenOwners[group.SandboxOwner] {
+			seenOwners[group.SandboxOwner] = true
+			owners = append(owners, group.SandboxOwner)
+		}
+	}
+
+	// Write summary line
+	msg.WriteString(fmt.Sprintf("Apply %d sandbox changes", preview.CommittableFiles))
+
+	// Add attribution if from specific owners
+	if len(owners) == 1 {
+		msg.WriteString(fmt.Sprintf(" from %s", owners[0]))
+	} else if len(owners) <= 3 {
+		msg.WriteString(fmt.Sprintf(" from %s", strings.Join(owners, ", ")))
+	} else {
+		msg.WriteString(fmt.Sprintf(" from %d sandboxes", len(preview.GroupedBySandbox)))
+	}
+	msg.WriteString("\n")
+
+	// Add breakdown
+	msg.WriteString("\n")
+	if totalAdded > 0 {
+		msg.WriteString(fmt.Sprintf("- %d files added\n", totalAdded))
+	}
+	if totalModified > 0 {
+		msg.WriteString(fmt.Sprintf("- %d files modified\n", totalModified))
+	}
+	if totalDeleted > 0 {
+		msg.WriteString(fmt.Sprintf("- %d files deleted\n", totalDeleted))
+	}
+
+	// Add file list if not too many
+	if preview.CommittableFiles <= 10 {
+		msg.WriteString("\nFiles:\n")
+		for _, file := range preview.Files {
+			if file.Status == "pending" {
+				prefix := " "
+				switch file.ChangeType {
+				case "added":
+					prefix = "+"
+				case "modified":
+					prefix = "M"
+				case "deleted":
+					prefix = "-"
+				}
+				msg.WriteString(fmt.Sprintf("  %s %s\n", prefix, file.RelativePath))
+			}
+		}
+	}
+
+	return msg.String()
+}
