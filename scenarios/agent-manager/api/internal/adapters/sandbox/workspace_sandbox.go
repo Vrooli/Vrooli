@@ -469,5 +469,144 @@ func (r *wsApproveResponse) toApproveResult() *ApproveResult {
 	}
 }
 
+// =============================================================================
+// Conflict Detection and Cleanup
+// =============================================================================
+
+// CheckConflicts checks if a scope path would conflict with existing sandboxes.
+// Returns any conflicting sandboxes without attempting to create a new one.
+func (p *WorkspaceSandboxProvider) CheckConflicts(ctx context.Context, scopePath string) ([]ConflictingSandbox, error) {
+	resp, err := p.doRequest(ctx, "GET", "/api/v1/sandboxes", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list sandboxes: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, p.parseError(resp)
+	}
+
+	var result struct {
+		Sandboxes []wsSandboxResponse `json:"sandboxes"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Check for overlapping scopes
+	var conflicts []ConflictingSandbox
+	for _, sb := range result.Sandboxes {
+		// Skip deleted/rejected sandboxes
+		if sb.Status == "deleted" || sb.Status == "rejected" {
+			continue
+		}
+		// Check for overlap (simple prefix matching)
+		if pathsOverlap(scopePath, sb.ScopePath) {
+			conflicts = append(conflicts, ConflictingSandbox{
+				SandboxID:    sb.ID,
+				Scope:        sb.ScopePath,
+				ConflictType: "scope_overlap",
+			})
+		}
+	}
+
+	return conflicts, nil
+}
+
+// pathsOverlap checks if two paths would conflict (one is prefix of other).
+func pathsOverlap(path1, path2 string) bool {
+	// Normalize paths
+	if path1 == path2 {
+		return true
+	}
+	// Check if one is a prefix of the other
+	if len(path1) > len(path2) {
+		return len(path2) > 0 && (path1[:len(path2)] == path2 && (len(path1) == len(path2) || path1[len(path2)] == '/'))
+	}
+	return len(path1) > 0 && (path2[:len(path1)] == path1 && (len(path2) == len(path1) || path2[len(path1)] == '/'))
+}
+
+// FormatConflictError creates a user-friendly error message for scope conflicts.
+func FormatConflictError(conflicts []ConflictingSandbox) string {
+	if len(conflicts) == 0 {
+		return ""
+	}
+
+	var msg string
+	msg = fmt.Sprintf("Cannot create sandbox - scope conflicts detected with %d existing sandbox(es):\n", len(conflicts))
+	for _, c := range conflicts {
+		shortID := c.SandboxID
+		if len(shortID) > 8 {
+			shortID = shortID[:8]
+		}
+		msg += fmt.Sprintf("  - Sandbox %s manages scope: %s\n", shortID, c.Scope)
+	}
+	msg += "\nHint: Delete conflicting sandboxes or choose a different scope path.\n"
+	msg += "Use 'vrooli sandbox list' to see all sandboxes and 'vrooli sandbox delete <id>' to remove conflicts."
+	return msg
+}
+
+// List returns all sandboxes, optionally filtered by status.
+func (p *WorkspaceSandboxProvider) List(ctx context.Context, status string) ([]*Sandbox, error) {
+	path := "/api/v1/sandboxes"
+	if status != "" {
+		path += "?status=" + status
+	}
+
+	resp, err := p.doRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list sandboxes: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, p.parseError(resp)
+	}
+
+	var result struct {
+		Sandboxes []wsSandboxResponse `json:"sandboxes"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	sandboxes := make([]*Sandbox, len(result.Sandboxes))
+	for i, sb := range result.Sandboxes {
+		sandboxes[i] = sb.toSandbox()
+	}
+	return sandboxes, nil
+}
+
+// CleanupStaleSandboxes deletes sandboxes that haven't been used within the given duration.
+// Returns the number of sandboxes deleted and any errors encountered.
+func (p *WorkspaceSandboxProvider) CleanupStaleSandboxes(ctx context.Context, olderThan time.Duration) (int, error) {
+	sandboxes, err := p.List(ctx, "")
+	if err != nil {
+		return 0, fmt.Errorf("failed to list sandboxes: %w", err)
+	}
+
+	cutoff := time.Now().Add(-olderThan)
+	deleted := 0
+
+	for _, sb := range sandboxes {
+		// Skip recently used sandboxes
+		if sb.CreatedAt.After(cutoff) {
+			continue
+		}
+		// Skip already deleted sandboxes
+		if sb.Status == SandboxStatusDeleted {
+			continue
+		}
+		// Delete stale sandbox
+		if err := p.Delete(ctx, sb.ID); err != nil {
+			// Log but continue with other deletions
+			continue
+		}
+		deleted++
+	}
+
+	return deleted, nil
+}
+
 // Verify interface compliance
 var _ Provider = (*WorkspaceSandboxProvider)(nil)

@@ -59,10 +59,61 @@ func (e *eventRow) toDomain() *domain.RunEvent {
 		Timestamp: e.Timestamp,
 	}
 
-	// Parse data as RunEventData first (for backward compatibility)
-	var legacy domain.RunEventData
-	if err := json.Unmarshal(e.Data, &legacy); err == nil {
-		evt.Data = legacy.ToTypedPayload()
+	// Unmarshal based on event type
+	switch domain.RunEventType(e.EventType) {
+	case domain.EventTypeLog:
+		var data domain.LogEventData
+		if err := json.Unmarshal(e.Data, &data); err == nil {
+			evt.Data = &data
+		}
+	case domain.EventTypeMessage:
+		var data domain.MessageEventData
+		if err := json.Unmarshal(e.Data, &data); err == nil {
+			evt.Data = &data
+		}
+	case domain.EventTypeToolCall:
+		var data domain.ToolCallEventData
+		if err := json.Unmarshal(e.Data, &data); err == nil {
+			evt.Data = &data
+		}
+	case domain.EventTypeToolResult:
+		var data domain.ToolResultEventData
+		if err := json.Unmarshal(e.Data, &data); err == nil {
+			evt.Data = &data
+		}
+	case domain.EventTypeStatus:
+		var data domain.StatusEventData
+		if err := json.Unmarshal(e.Data, &data); err == nil {
+			evt.Data = &data
+		}
+	case domain.EventTypeMetric:
+		// Try CostEventData first (common for token usage)
+		var costData domain.CostEventData
+		if err := json.Unmarshal(e.Data, &costData); err == nil && costData.TotalCostUSD > 0 {
+			evt.Data = &costData
+		} else {
+			// Fall back to generic MetricEventData
+			var metricData domain.MetricEventData
+			if err := json.Unmarshal(e.Data, &metricData); err == nil {
+				evt.Data = &metricData
+			}
+		}
+	case domain.EventTypeArtifact:
+		var data domain.ArtifactEventData
+		if err := json.Unmarshal(e.Data, &data); err == nil {
+			evt.Data = &data
+		}
+	case domain.EventTypeError:
+		var data domain.ErrorEventData
+		if err := json.Unmarshal(e.Data, &data); err == nil {
+			evt.Data = &data
+		}
+	default:
+		// For unknown types, try legacy format
+		var legacy domain.RunEventData
+		if err := json.Unmarshal(e.Data, &legacy); err == nil {
+			evt.Data = legacy.ToTypedPayload()
+		}
 	}
 	return evt
 }
@@ -196,17 +247,17 @@ func (s *PostgresStore) Get(ctx context.Context, runID uuid.UUID, opts GetOption
 	query := fmt.Sprintf("SELECT %s FROM run_events WHERE %s ORDER BY sequence ASC",
 		eventColumns, strings.Join(conditions, " AND "))
 
-	// Apply offset
-	if opts.Offset > 0 {
-		query += fmt.Sprintf(" OFFSET $%d", argNum)
-		args = append(args, opts.Offset)
-		argNum++
-	}
-
-	// Apply limit
+	// Apply limit first (required before OFFSET in standard SQL)
 	if opts.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT $%d", argNum)
 		args = append(args, opts.Limit)
+		argNum++
+	}
+
+	// Apply offset (must come after LIMIT)
+	if opts.Offset > 0 {
+		query += fmt.Sprintf(" OFFSET $%d", argNum)
+		args = append(args, opts.Offset)
 	}
 
 	var rows []eventRow
