@@ -3,6 +3,12 @@
     {
       "id": "e0",
       "source": "open-demo-project",
+      "target": "ensure-workflows-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e0b",
+      "source": "ensure-workflows-tab",
       "target": "switch-to-tree-view",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -78,6 +84,21 @@
     {
       "action": {
         "click": {
+          "selector": "@selector/workflows.tab"
+        },
+        "metadata": {
+          "label": "Ensure Workflows tab is active"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "ensure-workflows-tab"
+    },
+    {
+      "action": {
+        "click": {
           "selector": "@selector/projects.fileTree.viewModeToggle"
         },
         "metadata": {
@@ -95,7 +116,7 @@
         "assert": {
           "failure_message": "File tree should be visible after switching view mode",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": "@selector/projects.fileTree.root",
+          "selector": "@selector/projects.fileTree.container",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -153,7 +174,7 @@
     {
       "action": {
         "click": {
-          "selector": "@selector/projects.fileTree.root"
+          "selector": "@selector/projects.fileTree.container"
         },
         "metadata": {
           "label": "Click away to close menu"
@@ -195,7 +216,7 @@
         "assert": {
           "failure_message": "File tree container should exist",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": "@selector/projects.fileTree.root",
+          "selector": "@selector/projects.fileTree.container",
           "timeout_ms": 3000
         },
         "metadata": {

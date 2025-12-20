@@ -167,7 +167,7 @@
         "assert": {
           "failure_message": "File tree should be visible after switching view mode",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": "@selector/projects.fileTree.root",
+          "selector": "@selector/projects.fileTree.container",
           "timeout_ms": 5000
         },
         "metadata": {

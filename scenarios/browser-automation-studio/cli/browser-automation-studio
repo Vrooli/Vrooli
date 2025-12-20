@@ -105,7 +105,7 @@ COMMANDS:
     execution watch         Watch live execution with screenshots
     execution list          List all executions
     execution stop          Stop a running execution
-    execution export        Generate replay export metadata for an execution
+    execution export        Export execution artifacts or replay metadata
     execution render        Build a marketing-style HTML replay package for an execution
     execution render-video  Generate an MP4/WEBM replay video via the API's Browserless renderer
     recording import        Import a Chrome extension recording archive
@@ -159,8 +159,11 @@ EXECUTION COMMANDS:
     execution stop <execution-id>
         Stop a running execution
 
-    execution export <execution-id> [--output <file>]
-        Generate replay export metadata (JSON). Use --output to save response.
+    execution export <execution-id> [flags]
+        --format <json|folder>  Export as JSON or a local folder bundle (default: json)
+        --output <file>         Save JSON export package to file
+        --output-dir <dir>      Folder export destination (required for format=folder)
+        Generate replay export metadata or a local artifact bundle.
 
     execution render <execution-id> [--output <dir>] [--overwrite]
     execution render-video <execution-id> [--output <file>] [--format mp4|webm] [--overwrite]
@@ -190,6 +193,9 @@ EXAMPLES:
 
     # Generate replay export package and save to file
     browser-automation-studio execution export abc123 --output bas-export.json
+
+    # Export execution artifacts to a local folder
+    browser-automation-studio execution export abc123 --format folder --output-dir ./bas-export
 
 EOF
 }
@@ -863,6 +869,14 @@ execute_workflow() {
         execution_id=$(echo "$response" | grep -o '"execution_id":"[^"]*' | cut -d'"' -f4)
         echo -e "${GREEN}✓ Execution started!${NC}"
         echo "Execution ID: $execution_id"
+        echo ""
+        echo -e "${BLUE}Execution artifacts${NC}"
+        echo "Timeline: ${API_URL}/executions/${execution_id}/timeline"
+        echo "Screenshots: ${API_URL}/executions/${execution_id}/screenshots"
+        if [ -n "$SCENARIO_ROOT" ]; then
+            echo "Recordings root: ${SCENARIO_ROOT}/data/recordings/${execution_id}"
+        fi
+        echo "Folder export: browser-automation-studio execution export ${execution_id} --format folder --output-dir ./bas-export"
         
         if [ "$wait" = true ]; then
             echo "Waiting for completion..."
@@ -1872,12 +1886,27 @@ NODE
                 args=("${@:3}")
                 execution_id=""
                 output_path=""
+                output_dir=""
+                export_format="json"
 
                 i=0
                 while [ $i -lt ${#args[@]} ]; do
                     # Parse argument token (not a security credential - just CLI arg parser variable)
                     token="${args[$i]}"
                     case "$token" in
+                        --format)
+                            next=$((i + 1))
+                            if [ $next -ge ${#args[@]} ]; then
+                                echo -e "${RED}Error:${NC} --format flag requires a value"
+                                exit 1
+                            fi
+                            export_format="${args[$next]}"
+                            i=$((i + 2))
+                            continue
+                            ;;
+                        --format=*)
+                            export_format="${token#*=}"
+                            ;;
                         --output|--out)
                             next=$((i + 1))
                             if [ $next -ge ${#args[@]} ]; then
@@ -1890,6 +1919,19 @@ NODE
                             ;;
                         --output=*|--out=*)
                             output_path="${token#*=}"
+                            ;;
+                        --output-dir|--out-dir)
+                            next=$((i + 1))
+                            if [ $next -ge ${#args[@]} ]; then
+                                echo -e "${RED}Error:${NC} --output-dir flag requires a directory path"
+                                exit 1
+                            fi
+                            output_dir="${args[$next]}"
+                            i=$((i + 2))
+                            continue
+                            ;;
+                        --output-dir=*|--out-dir=*)
+                            output_dir="${token#*=}"
                             ;;
                         --*)
                             echo -e "${RED}Unknown option:${NC} ${token}"
@@ -1909,12 +1951,37 @@ NODE
 
                 if [ -z "$execution_id" ]; then
                     echo -e "${RED}Execution ID is required${NC}"
-                    echo "Usage: browser-automation-studio execution export <execution-id> [--output <file>]"
+                    echo "Usage: browser-automation-studio execution export <execution-id> [--format <json|folder>] [--output <file>] [--output-dir <dir>]"
                     exit 1
                 fi
 
+                export_format="$(echo "$export_format" | tr '[:upper:]' '[:lower:]')"
+                if [ "$export_format" != "json" ] && [ "$export_format" != "folder" ]; then
+                    echo -e "${RED}Error:${NC} --format must be 'json' or 'folder'"
+                    exit 1
+                fi
+
+                if [ "$export_format" = "folder" ]; then
+                    if [ -z "$output_dir" ]; then
+                        echo -e "${RED}Error:${NC} --output-dir is required for format=folder"
+                        exit 1
+                    fi
+                    if ! command -v jq >/dev/null 2>&1; then
+                        echo -e "${RED}Error:${NC} jq is required for folder export"
+                        exit 1
+                    fi
+                fi
+
                 tmp_file=$(mktemp)
-                status_code=$(curl -s -o "$tmp_file" -w "%{http_code}" -X POST "${API_URL}/executions/${execution_id}/export")
+                if [ "$export_format" = "folder" ]; then
+                    export_body=$(jq -n --arg format "$export_format" --arg output_dir "$output_dir" '{format: $format, output_dir: $output_dir}')
+                    status_code=$(curl -s -o "$tmp_file" -w "%{http_code}" -X POST \
+                        -H "Content-Type: application/json" \
+                        -d "$export_body" \
+                        "${API_URL}/executions/${execution_id}/export")
+                else
+                    status_code=$(curl -s -o "$tmp_file" -w "%{http_code}" -X POST "${API_URL}/executions/${execution_id}/export")
+                fi
                 body=$(cat "$tmp_file")
                 rm -f "$tmp_file"
 
@@ -1939,42 +2006,52 @@ NODE
                     exit 1
                 fi
 
-                if command -v jq >/dev/null 2>&1; then
-                    message=$(printf '%s' "$body" | jq -r '.message // empty' 2>/dev/null)
-                    statusLabel=$(printf '%s' "$body" | jq -r '.status // empty' 2>/dev/null)
-                    frameCount=$(printf '%s' "$body" | jq -r '.package.summary.frame_count // empty' 2>/dev/null)
-                    totalDuration=$(printf '%s' "$body" | jq -r '.package.summary.total_duration_ms // empty' 2>/dev/null)
-                    accentColor=$(printf '%s' "$body" | jq -r '.package.theme.accent_color // empty' 2>/dev/null)
-                else
-                    message=$(printf '%s' "$body" | grep -o '"message":"[^"]*' | head -n1 | cut -d'"' -f4)
-                    statusLabel=$(printf '%s' "$body" | grep -o '"status":"[^"]*' | head -n1 | cut -d'"' -f4)
-                    frameCount=""
-                    totalDuration=""
-                    accentColor=""
-                fi
-
-                echo -e "${GREEN}✓ Export ready${NC}: ${message:-Replay export generated}"
-                if [ -n "$statusLabel" ]; then
-                    echo -e "Status: ${statusLabel}"
-                fi
-                if [ -n "$frameCount" ] || [ -n "$totalDuration" ]; then
-                    frameLabel=${frameCount:-"?"}
-                    durationLabel=${totalDuration:-"?"}
-                    echo -e "Frames: ${frameLabel}, Total Duration: ${durationLabel}ms"
-                fi
-                if [ -n "$accentColor" ]; then
-                    echo -e "Theme Accent: ${accentColor}"
-                fi
-
-                if [ -n "$output_path" ]; then
-                    mkdir -p "$(dirname "$output_path")" 2>/dev/null || true
-                    if printf '%s\n' "$body" > "$output_path"; then
-                        echo -e "Saved export package to ${output_path}"
+                if [ "$export_format" = "folder" ]; then
+                    if command -v jq >/dev/null 2>&1; then
+                        message=$(printf '%s' "$body" | jq -r '.message // empty' 2>/dev/null)
                     else
-                        echo -e "${RED}Failed to write export package to${NC} ${output_path}"
+                        message=$(printf '%s' "$body" | grep -o '"message":"[^"]*' | head -n1 | cut -d'"' -f4)
                     fi
+                    echo -e "${GREEN}✓ Export ready${NC}: ${message:-Execution export generated}"
+                    echo -e "Output directory: ${output_dir}"
                 else
-                    echo -e "Tip: use --output <file> to save the export package."
+                    if command -v jq >/dev/null 2>&1; then
+                        message=$(printf '%s' "$body" | jq -r '.message // empty' 2>/dev/null)
+                        statusLabel=$(printf '%s' "$body" | jq -r '.status // empty' 2>/dev/null)
+                        frameCount=$(printf '%s' "$body" | jq -r '.package.summary.frame_count // empty' 2>/dev/null)
+                        totalDuration=$(printf '%s' "$body" | jq -r '.package.summary.total_duration_ms // empty' 2>/dev/null)
+                        accentColor=$(printf '%s' "$body" | jq -r '.package.theme.accent_color // empty' 2>/dev/null)
+                    else
+                        message=$(printf '%s' "$body" | grep -o '"message":"[^"]*' | head -n1 | cut -d'"' -f4)
+                        statusLabel=$(printf '%s' "$body" | grep -o '"status":"[^"]*' | head -n1 | cut -d'"' -f4)
+                        frameCount=""
+                        totalDuration=""
+                        accentColor=""
+                    fi
+
+                    echo -e "${GREEN}✓ Export ready${NC}: ${message:-Replay export generated}"
+                    if [ -n "$statusLabel" ]; then
+                        echo -e "Status: ${statusLabel}"
+                    fi
+                    if [ -n "$frameCount" ] || [ -n "$totalDuration" ]; then
+                        frameLabel=${frameCount:-"?"}
+                        durationLabel=${totalDuration:-"?"}
+                        echo -e "Frames: ${frameLabel}, Total Duration: ${durationLabel}ms"
+                    fi
+                    if [ -n "$accentColor" ]; then
+                        echo -e "Theme Accent: ${accentColor}"
+                    fi
+
+                    if [ -n "$output_path" ]; then
+                        mkdir -p "$(dirname "$output_path")" 2>/dev/null || true
+                        if printf '%s\n' "$body" > "$output_path"; then
+                            echo -e "Saved export package to ${output_path}"
+                        else
+                            echo -e "${RED}Failed to write export package to${NC} ${output_path}"
+                        fi
+                    else
+                        echo -e "Tip: use --output <file> to save the export package."
+                    fi
                 fi
                 ;;
             render)
