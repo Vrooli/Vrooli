@@ -1,72 +1,135 @@
 {
   "metadata": {
-    "name": "Configuration Panel E2E Test",
+    "name": "configuration-panel",
     "description": "Tests the configuration UI with presets, health status, and circuit breaker controls",
-    "tags": ["e2e", "ui", "configuration"],
-    "requirements": ["SCS-UI-002"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-UI-002\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "navigate",
-      "data": {
-        "label": "Navigate to dashboard",
-        "url": "{{UI_URL}}",
-        "waitFor": "[data-testid='dashboard']"
+      "id": "navigate-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "scenario-completeness-scoring",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to dashboard"
+        }
       }
     },
     {
-      "id": "2",
-      "type": "click",
-      "data": {
-        "label": "Open configuration panel",
-        "selector": "button:has-text('Config')",
-        "notes": "Click configuration button to open config panel"
+      "id": "wait-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='dashboard']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for dashboard"
+        }
       }
     },
     {
-      "id": "3",
-      "type": "assertion",
-      "data": {
-        "label": "Verify configuration panel visible",
-        "selector": "[data-testid='configuration-panel']",
-        "assertions": [
-          {"type": "visible"}
-        ],
-        "notes": "Configuration panel is visible"
+      "id": "click-config-button",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text('Config')"
+        },
+        "metadata": {
+          "label": "Open configuration panel"
+        }
       }
     },
     {
-      "id": "4",
-      "type": "assertion",
-      "data": {
-        "label": "Verify configuration editor",
-        "selector": "[data-testid='config-editor']",
-        "assertions": [
-          {"type": "visible"}
-        ],
-        "notes": "Configuration editor is displayed"
+      "id": "assert-config-panel",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='configuration-panel']",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Configuration panel should be visible"
+        },
+        "metadata": {
+          "label": "Verify configuration panel visible"
+        }
       }
     },
     {
-      "id": "5",
-      "type": "assertion",
-      "data": {
-        "label": "Verify health badges",
-        "selector": "[data-testid^='health-badge-']",
-        "assertions": [
-          {"type": "exists"}
-        ],
-        "notes": "Health badges are present"
+      "id": "assert-config-editor",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='config-editor']",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Configuration editor should be visible"
+        },
+        "metadata": {
+          "label": "Verify configuration editor"
+        }
+      }
+    },
+    {
+      "id": "assert-health-badges",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid^='health-badge-']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Health badges should exist"
+        },
+        "metadata": {
+          "label": "Verify health badges"
+        }
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
-    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"},
-    {"id": "e3", "source": "3", "target": "4", "type": "smoothstep"},
-    {"id": "e4", "source": "4", "target": "5", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-dashboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-dashboard",
+      "target": "click-config-button",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "click-config-button",
+      "target": "assert-config-panel",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-config-panel",
+      "target": "assert-config-editor",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-config-editor",
+      "target": "assert-health-badges",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

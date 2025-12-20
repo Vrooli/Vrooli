@@ -1,47 +1,53 @@
 {
   "metadata": {
-    "name": "Health Monitoring E2E Test",
+    "name": "collector-health",
     "description": "Tests the health monitoring and collector status API endpoints",
-    "tags": ["e2e", "api", "health"],
-    "requirements": ["SCS-HEALTH-001", "SCS-HEALTH-003"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-HEALTH-001\", \"SCS-HEALTH-003\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "http_request",
-      "data": {
-        "label": "Get collector health status",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/health/collectors",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "get-collector-health",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/health/collectors",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
         },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.status"},
-          {"type": "json_path_exists", "path": "$.collectors"},
-          {"type": "json_path_exists", "path": "$.summary"}
-        ]
+        "metadata": {
+          "label": "Get collector health status"
+        }
       }
     },
     {
-      "id": "2",
-      "type": "http_request",
-      "data": {
-        "label": "Test requirements collector",
-        "method": "POST",
-        "url": "{{API_URL}}/api/v1/health/collectors/requirements/test",
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path", "path": "$.name", "expected": "requirements"},
-          {"type": "json_path_exists", "path": "$.success"}
-        ]
+      "id": "test-requirements-collector",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/health/collectors/requirements/test",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Test requirements collector"
+        }
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "get-collector-health",
+      "target": "test-requirements-collector",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

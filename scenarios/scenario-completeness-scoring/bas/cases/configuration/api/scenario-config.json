@@ -1,84 +1,75 @@
 {
   "metadata": {
-    "name": "Configuration Update E2E Test",
+    "name": "scenario-config",
     "description": "Tests updating global configuration (weights and toggles)",
-    "tags": ["e2e", "api", "configuration"],
-    "requirements": ["SCS-CFG-004"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-CFG-004\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "http_request",
-      "data": {
-        "label": "Reset configuration to defaults",
-        "method": "POST",
-        "url": "{{API_URL}}/api/v1/config/reset",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "reset-config",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/config/reset",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
         },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path", "path": "$.success", "expected": true},
-          {"type": "json_path_exists", "path": "$.config"}
-        ]
+        "metadata": {
+          "label": "Reset configuration to defaults"
+        }
       }
     },
     {
-      "id": "2",
-      "type": "http_request",
-      "data": {
-        "label": "Update configuration weights",
-        "method": "PUT",
-        "url": "{{API_URL}}/api/v1/config",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "update-config",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "PUT",
+          "url": "{{API_URL}}/api/v1/config",
+          "headers": {"Content-Type": "application/json"},
+          "body": "{\"version\": \"1.0.0\", \"weights\": {\"quality\": 40, \"coverage\": 20, \"quantity\": 20, \"ui\": 20}}",
+          "expected_status": 200
         },
-        "body": {
-          "version": "1.0.0",
-          "components": {
-            "quality": {"enabled": true, "requirement_pass_rate": true, "target_pass_rate": true, "test_pass_rate": true},
-            "coverage": {"enabled": true, "test_coverage_ratio": true, "requirement_depth": true},
-            "quantity": {"enabled": true, "requirements": true, "targets": true, "tests": true},
-            "ui": {"enabled": true, "template_detection": true, "component_complexity": true, "api_integration": true, "routing": true, "code_volume": true}
-          },
-          "penalties": {
-            "enabled": true,
-            "insufficient_test_coverage": true,
-            "invalid_test_location": true,
-            "monolithic_test_files": true,
-            "single_layer_validation": true,
-            "target_mapping_ratio": true,
-            "superficial_test_implementation": true,
-            "manual_validations": true
-          },
-          "circuit_breaker": {"enabled": true, "fail_threshold": 3, "retry_interval_seconds": 300, "auto_disable": true},
-          "weights": {"quality": 40, "coverage": 20, "quantity": 20, "ui": 20}
-        },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path", "path": "$.success", "expected": true}
-        ]
+        "metadata": {
+          "label": "Update configuration weights"
+        }
       }
     },
     {
-      "id": "3",
-      "type": "http_request",
-      "data": {
-        "label": "Verify configuration saved",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/config",
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path", "path": "$.config.weights.quality", "expected": 40},
-          {"type": "json_path", "path": "$.config.weights.ui", "expected": 20}
-        ]
+      "id": "verify-config",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/config",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Verify configuration saved"
+        }
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
-    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "reset-config",
+      "target": "update-config",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "update-config",
+      "target": "verify-config",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

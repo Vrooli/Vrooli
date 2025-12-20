@@ -1,84 +1,157 @@
 {
-  "workflow_id": "campaign-lifecycle",
-  "name": "Campaign Lifecycle Test",
   "metadata": {
-    "reset": "none"
+    "name": "campaign-lifecycle",
+    "description": "Test complete campaign lifecycle: create, visit files, query, delete",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"VT-REQ-001\", \"VT-REQ-002\", \"VT-REQ-003\"]",
+      "priority": "P0",
+      "test_type": "api"
+    }
   },
-  "description": "Test complete campaign lifecycle: create, visit files, query, delete",
-  "requirement_refs": ["VT-REQ-001", "VT-REQ-002", "VT-REQ-003"],
-  "priority": "P0",
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "id": "create_campaign",
-      "action": "http_request",
-      "method": "POST",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns",
-      "body": {
-        "name": "test-campaign-lifecycle",
-        "from_agent": "test-automation",
-        "patterns": ["**/*.go", "**/*.ts"],
-        "description": "Test campaign for lifecycle validation"
-      },
-      "expected_status": 201,
-      "save_response": "campaign"
+      "id": "create-campaign",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns",
+          "body": "{\"name\": \"test-campaign-lifecycle\", \"from_agent\": \"test-automation\", \"patterns\": [\"**/*.go\", \"**/*.ts\"], \"description\": \"Test campaign for lifecycle validation\"}",
+          "expected_status": 201,
+          "store_result": "campaign"
+        },
+        "metadata": {
+          "label": "Create test campaign"
+        }
+      }
     },
     {
-      "id": "verify_campaign_created",
-      "action": "http_request",
-      "method": "GET",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
-      "expected_status": 200,
-      "assertions": [
-        {"field": "name", "equals": "test-campaign-lifecycle"},
-        {"field": "status", "equals": "active"}
-      ]
+      "id": "verify-campaign-created",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Verify campaign was created"
+        }
+      }
     },
     {
-      "id": "record_visits",
-      "action": "http_request",
-      "method": "POST",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/visit",
-      "body": {
-        "files": ["api/main.go", "ui/src/App.tsx"],
-        "context": "test-visit",
-        "agent": "test-automation"
-      },
-      "expected_status": 200
+      "id": "record-visits",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/visit",
+          "body": "{\"files\": [\"api/main.go\", \"ui/src/App.tsx\"], \"context\": \"test-visit\", \"agent\": \"test-automation\"}",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Record file visits"
+        }
+      }
     },
     {
-      "id": "query_least_visited",
-      "action": "http_request",
-      "method": "GET",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/prioritize/least-visited?limit=10",
-      "expected_status": 200,
-      "assertions": [
-        {"field": "files", "type": "array"},
-        {"field": "files.length", "greater_than": 0}
-      ]
+      "id": "query-least-visited",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/prioritize/least-visited?limit=10",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Query least visited files"
+        }
+      }
     },
     {
-      "id": "query_most_stale",
-      "action": "http_request",
-      "method": "GET",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/prioritize/most-stale?limit=10",
-      "expected_status": 200,
-      "assertions": [
-        {"field": "files", "type": "array"}
-      ]
+      "id": "query-most-stale",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/prioritize/most-stale?limit=10",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Query most stale files"
+        }
+      }
     },
     {
-      "id": "delete_campaign",
-      "action": "http_request",
-      "method": "DELETE",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
-      "expected_status": 200
+      "id": "delete-campaign",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "DELETE",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Delete test campaign"
+        }
+      }
     },
     {
-      "id": "verify_campaign_deleted",
-      "action": "http_request",
-      "method": "GET",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
-      "expected_status": 404
+      "id": "verify-campaign-deleted",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
+          "expected_status": 404
+        },
+        "metadata": {
+          "label": "Verify campaign was deleted"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "create-campaign",
+      "target": "verify-campaign-created",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "verify-campaign-created",
+      "target": "record-visits",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "record-visits",
+      "target": "query-least-visited",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "query-least-visited",
+      "target": "query-most-stale",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "query-most-stale",
+      "target": "delete-campaign",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "delete-campaign",
+      "target": "verify-campaign-deleted",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

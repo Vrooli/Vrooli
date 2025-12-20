@@ -1,39 +1,117 @@
 {
   "metadata": {
-    "reset": "none"
+    "name": "ui-loads-successfully",
+    "description": "Validates that the UI loads and displays chart management interface",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CHART-P0-007-UI-TABS\"]"
+    }
   },
-  "description": "Validates that the UI loads and displays chart management interface",
-  "requirements": ["CHART-P0-007-UI-TABS"],
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "type": "navigate",
-      "url": "http://localhost:${UI_PORT}/"
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "chart-generator",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to chart-generator home"
+        }
+      }
     },
     {
-      "type": "wait",
-      "selector": "@selector/CHART_PREVIEW_CONTAINER",
-      "timeout": 5000
+      "id": "wait-preview-container",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/CHART_PREVIEW_CONTAINER",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for chart preview container"
+        }
+      }
     },
     {
-      "type": "assert",
-      "selector": "@selector/TAB_CHARTS",
-      "condition": "visible",
-      "message": "Charts tab should be visible"
+      "id": "assert-charts-tab",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/TAB_CHARTS",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Charts tab should be visible"
+        },
+        "metadata": {
+          "label": "Assert charts tab visible"
+        }
+      }
     },
     {
-      "type": "assert",
-      "selector": "@selector/TAB_STYLES",
-      "condition": "visible",
-      "message": "Styles tab should be visible"
+      "id": "assert-styles-tab",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/TAB_STYLES",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Styles tab should be visible"
+        },
+        "metadata": {
+          "label": "Assert styles tab visible"
+        }
+      }
     },
     {
-      "type": "assert",
-      "selector": "@selector/TAB_DATA",
-      "condition": "visible",
-      "message": "Data tab should be visible"
+      "id": "assert-data-tab",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/TAB_DATA",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Data tab should be visible"
+        },
+        "metadata": {
+          "label": "Assert data tab visible"
+        }
+      }
     }
   ],
-  "cleanup": [],
-  "fixtures": [],
-  "reset": "none"
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-preview-container",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-preview-container",
+      "target": "assert-charts-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-charts-tab",
+      "target": "assert-styles-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-styles-tab",
+      "target": "assert-data-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
 }

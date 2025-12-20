@@ -1,85 +1,156 @@
 {
   "metadata": {
-    "name": "Scenario Detail View E2E Test",
+    "name": "scenario-detail",
     "description": "Tests the scenario detail page with score breakdown, history chart, and recommendations",
-    "tags": ["e2e", "ui", "detail"],
-    "requirements": ["SCS-UI-003", "SCS-UI-005"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-UI-003\", \"SCS-UI-005\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "navigate",
-      "data": {
-        "label": "Navigate to dashboard",
-        "url": "{{UI_URL}}",
-        "waitFor": "[data-testid='dashboard']"
+      "id": "navigate-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "scenario-completeness-scoring",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to dashboard"
+        }
       }
     },
     {
-      "id": "2",
-      "type": "click",
-      "data": {
-        "label": "Open scenario detail",
-        "selector": "[data-testid^='scenario-row-']",
-        "notes": "Click first scenario row to open detail view"
+      "id": "wait-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='dashboard']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for dashboard"
+        }
       }
     },
     {
-      "id": "3",
-      "type": "assertion",
-      "data": {
-        "label": "Verify detail view visible",
-        "selector": "[data-testid='scenario-detail']",
-        "assertions": [
-          {"type": "visible"}
-        ],
-        "notes": "Scenario detail view is visible"
+      "id": "click-scenario-row",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid^='scenario-row-']"
+        },
+        "metadata": {
+          "label": "Open scenario detail"
+        }
       }
     },
     {
-      "id": "4",
-      "type": "assertion",
-      "data": {
-        "label": "Verify score bars",
-        "selector": "[data-testid^='score-bar-']",
-        "assertions": [
-          {"type": "exists"}
-        ],
-        "notes": "Score progress bars are present for dimensions"
+      "id": "assert-detail-view",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='scenario-detail']",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Scenario detail view should be visible"
+        },
+        "metadata": {
+          "label": "Verify detail view visible"
+        }
       }
     },
     {
-      "id": "5",
-      "type": "assertion",
-      "data": {
-        "label": "Verify recommendations section",
-        "selector": "[data-testid='recommendations-section']",
-        "assertions": [
-          {"type": "visible"}
-        ],
-        "notes": "Recommendations section is visible"
+      "id": "assert-score-bars",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid^='score-bar-']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Score progress bars should exist"
+        },
+        "metadata": {
+          "label": "Verify score bars"
+        }
       }
     },
     {
-      "id": "6",
-      "type": "assertion",
-      "data": {
-        "label": "Verify history sparkline",
-        "selector": "[data-testid='sparkline']",
-        "assertions": [
-          {"type": "exists"}
-        ],
-        "notes": "History sparkline is present"
+      "id": "assert-recommendations",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='recommendations-section']",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Recommendations section should be visible"
+        },
+        "metadata": {
+          "label": "Verify recommendations section"
+        }
+      }
+    },
+    {
+      "id": "assert-sparkline",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='sparkline']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "History sparkline should exist"
+        },
+        "metadata": {
+          "label": "Verify history sparkline"
+        }
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
-    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"},
-    {"id": "e3", "source": "3", "target": "4", "type": "smoothstep"},
-    {"id": "e4", "source": "4", "target": "5", "type": "smoothstep"},
-    {"id": "e5", "source": "5", "target": "6", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-dashboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-dashboard",
+      "target": "click-scenario-row",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "click-scenario-row",
+      "target": "assert-detail-view",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-detail-view",
+      "target": "assert-score-bars",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-score-bars",
+      "target": "assert-recommendations",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-recommendations",
+      "target": "assert-sparkline",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

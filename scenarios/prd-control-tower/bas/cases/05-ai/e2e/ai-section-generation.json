@@ -1,78 +1,107 @@
 {
   "metadata": {
+    "name": "ai-section-generation",
     "description": "Verifies AI-assisted PRD section generation via resource-openrouter integration",
-    "version": 1,
-    "reset": "full",
-    "requirements": ["PCT-FUNC-005", "PCT-AI-GENERATE", "PCT-AI-CONTEXT"]
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"PCT-FUNC-005\", \"PCT-AI-GENERATE\", \"PCT-AI-CONTEXT\"]"
+    }
   },
   "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "viewport_width": 1440,
+    "viewport_height": 900
   },
   "nodes": [
     {
       "id": "navigate-home",
-      "type": "navigate",
-      "data": {
-        "label": "Open PRD Control Tower",
-        "destinationType": "scenario",
-        "scenario": "prd-control-tower",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 30000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prd-control-tower",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open PRD Control Tower"
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "click-drafts-link",
-      "type": "click",
-      "data": {
-        "label": "Navigate to Drafts page",
-        "selector": "@selector/navigation.draftsLink",
-        "timeoutMs": 10000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/navigation.draftsLink"
+        },
+        "metadata": {
+          "label": "Navigate to Drafts page"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 10000,
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "check-draft-exists",
-      "type": "evaluate",
-      "data": {
-        "label": "Check if draft exists",
-        "expression": "document.querySelector('@selector/drafts.draftCard') !== null",
-        "storeResult": "hasDraft"
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.querySelector('@selector/drafts.draftCard') !== null",
+          "store_result": "hasDraft"
+        },
+        "metadata": {
+          "label": "Check if draft exists"
+        }
       }
     },
     {
       "id": "click-existing-draft",
-      "type": "click",
-      "data": {
-        "label": "Open existing draft",
-        "selector": "@selector/drafts.draftCard",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/drafts.draftCard"
+        },
+        "metadata": {
+          "label": "Open existing draft"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 10000,
+        "wait_after_ms": 2000
       }
     },
     {
       "id": "assert-editor-loaded",
-      "type": "assert",
-      "data": {
-        "label": "Draft editor loaded",
-        "selector": "@selector/drafts.editor.textarea",
-        "assertMode": "exists",
-        "timeoutMs": 15000,
-        "failureMessage": "Draft editor should be visible"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/drafts.editor.textarea",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 15000,
+          "failure_message": "Draft editor should be visible"
+        },
+        "metadata": {
+          "label": "Draft editor loaded"
+        }
       }
     },
     {
       "id": "check-ai-dialog-availability",
-      "type": "evaluate",
-      "data": {
-        "label": "Check if AI assistant dialog is available",
-        "expression": "document.body.innerHTML.includes('AI') || document.body.innerHTML.includes('Generate')",
-        "storeResult": "hasAIFeature"
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.body.innerHTML.includes('AI') || document.body.innerHTML.includes('Generate')",
+          "store_result": "hasAIFeature"
+        },
+        "metadata": {
+          "label": "Check if AI assistant dialog is available"
+        }
       }
     }
   ],
@@ -81,32 +110,31 @@
       "id": "e1",
       "source": "navigate-home",
       "target": "click-drafts-link",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "click-drafts-link",
       "target": "check-draft-exists",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "check-draft-exists",
       "target": "click-existing-draft",
-      "type": "smoothstep",
-      "condition": "hasDraft === true"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "click-existing-draft",
       "target": "assert-editor-loaded",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "assert-editor-loaded",
       "target": "check-ai-dialog-availability",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

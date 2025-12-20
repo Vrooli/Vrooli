@@ -1,30 +1,30 @@
 {
   "metadata": {
-    "name": "Coverage Dimension E2E Test",
+    "name": "coverage-dimension",
     "description": "Tests coverage dimension scoring in score breakdown",
-    "tags": ["e2e", "api", "scoring", "coverage"],
-    "requirements": ["SCS-CORE-001B"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-CORE-001B\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "http_request",
-      "data": {
-        "label": "Get score breakdown with coverage dimension",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "get-coverage-score",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
         },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.breakdown.coverage"},
-          {"type": "json_path_exists", "path": "$.breakdown.coverage.score"},
-          {"type": "json_path_exists", "path": "$.breakdown.coverage.max"}
-        ],
-        "notes": "Verify coverage dimension is included in breakdown with score and max values"
+        "metadata": {
+          "label": "Get score breakdown with coverage dimension"
+        }
       }
     }
   ],

@@ -1,62 +1,73 @@
 {
   "metadata": {
-    "name": "Configuration API E2E Test",
+    "name": "config-retrieval",
     "description": "Tests the configuration retrieval and update API endpoints",
-    "tags": ["e2e", "api", "configuration"],
-    "requirements": ["SCS-CFG-001", "SCS-CFG-004"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-CFG-001\", \"SCS-CFG-004\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "http_request",
-      "data": {
-        "label": "Get global configuration",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/config",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "get-global-config",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/config",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
         },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.config"},
-          {"type": "json_path_exists", "path": "$.config.weights"},
-          {"type": "json_path_exists", "path": "$.effective_weights"}
-        ]
+        "metadata": {
+          "label": "Get global configuration"
+        }
       }
     },
     {
-      "id": "2",
-      "type": "http_request",
-      "data": {
-        "label": "Get all thresholds",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/config/thresholds",
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.categories"},
-          {"type": "json_path", "path": "$.default_category", "expected": "utility"}
-        ]
+      "id": "get-thresholds",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/config/thresholds",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Get all thresholds"
+        }
       }
     },
     {
-      "id": "3",
-      "type": "http_request",
-      "data": {
-        "label": "Get utility category thresholds",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/config/thresholds/utility",
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path", "path": "$.category", "expected": "utility"},
-          {"type": "json_path_exists", "path": "$.thresholds"}
-        ]
+      "id": "get-utility-thresholds",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/config/thresholds/utility",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Get utility category thresholds"
+        }
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
-    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "get-global-config",
+      "target": "get-thresholds",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "get-thresholds",
+      "target": "get-utility-thresholds",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

@@ -1,119 +1,170 @@
 {
   "metadata": {
+    "name": "requirements-view-and-linkage",
     "description": "Verifies requirements registry display and operational target linkage in Scenario Control Center",
-    "version": 1,
-    "reset": "full",
-    "requirements": ["PCT-FUNC-004", "PCT-REQ-PARSE", "PCT-REQ-TARGETS", "PCT-REQ-LINKAGE"]
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"PCT-FUNC-004\", \"PCT-REQ-PARSE\", \"PCT-REQ-TARGETS\", \"PCT-REQ-LINKAGE\"]"
+    }
   },
   "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "viewport_width": 1440,
+    "viewport_height": 900
   },
   "nodes": [
     {
       "id": "navigate-home",
-      "type": "navigate",
-      "data": {
-        "label": "Open PRD Control Tower",
-        "destinationType": "scenario",
-        "scenario": "prd-control-tower",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 30000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prd-control-tower",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open PRD Control Tower"
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "click-requirements-link",
-      "type": "click",
-      "data": {
-        "label": "Navigate to Requirements Registry",
-        "selector": "@selector/navigation.requirementsLink",
-        "timeoutMs": 20000,
-        "waitForMs": 3000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/navigation.requirementsLink"
+        },
+        "metadata": {
+          "label": "Navigate to Requirements Registry"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 20000,
+        "wait_after_ms": 3000
       }
     },
     {
       "id": "assert-requirements-loaded",
-      "type": "assert",
-      "data": {
-        "label": "Requirements cards visible",
-        "selector": "@selector/requirements.requirementCard",
-        "assertMode": "exists",
-        "timeoutMs": 30000,
-        "failureMessage": "Requirements registry should display requirement cards"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/requirements.requirementCard",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 30000,
+          "failure_message": "Requirements registry should display requirement cards"
+        },
+        "metadata": {
+          "label": "Requirements cards visible"
+        }
       }
     },
     {
       "id": "count-requirements",
-      "type": "evaluate",
-      "data": {
-        "label": "Count requirements displayed",
-        "expression": "document.querySelectorAll('@selector/requirements.requirementCard').length",
-        "storeResult": "requirementCount"
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.querySelectorAll('@selector/requirements.requirementCard').length",
+          "store_result": "requirementCount"
+        },
+        "metadata": {
+          "label": "Count requirements displayed"
+        }
       }
     },
     {
       "id": "navigate-catalog",
-      "type": "click",
-      "data": {
-        "label": "Return to catalog",
-        "selector": "@selector/navigation.catalogLink",
-        "timeoutMs": 10000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/navigation.catalogLink"
+        },
+        "metadata": {
+          "label": "Return to catalog"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 10000,
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "click-first-scenario",
-      "type": "click",
-      "data": {
-        "label": "Open first scenario detail",
-        "selector": "@selector/catalog.card",
-        "timeoutMs": 15000,
-        "waitForMs": 3000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/catalog.card"
+        },
+        "metadata": {
+          "label": "Open first scenario detail"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 15000,
+        "wait_after_ms": 3000
       }
     },
     {
       "id": "click-requirements-tab",
-      "type": "click",
-      "data": {
-        "label": "Switch to Requirements tab",
-        "selector": "@selector/scenario.tabs.requirements",
-        "timeoutMs": 20000,
-        "waitForMs": 3000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/scenario.tabs.requirements"
+        },
+        "metadata": {
+          "label": "Switch to Requirements tab"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 20000,
+        "wait_after_ms": 3000
       }
     },
     {
       "id": "assert-scenario-requirements-visible",
-      "type": "assert",
-      "data": {
-        "label": "Scenario requirements displayed",
-        "selector": "@selector/requirements.requirementCard",
-        "assertMode": "exists",
-        "timeoutMs": 30000,
-        "failureMessage": "Requirements tab should show scenario-specific requirements"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/requirements.requirementCard",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 30000,
+          "failure_message": "Requirements tab should show scenario-specific requirements"
+        },
+        "metadata": {
+          "label": "Scenario requirements displayed"
+        }
       }
     },
     {
       "id": "click-targets-tab",
-      "type": "click",
-      "data": {
-        "label": "Switch to Operational Targets tab",
-        "selector": "@selector/scenario.tabs.targets",
-        "timeoutMs": 20000,
-        "waitForMs": 3000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/scenario.tabs.targets"
+        },
+        "metadata": {
+          "label": "Switch to Operational Targets tab"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 20000,
+        "wait_after_ms": 3000
       }
     },
     {
       "id": "assert-targets-visible",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify operational targets loaded",
-        "expression": "document.querySelector('@selector/scenario.tabs.targets') !== null",
-        "storeResult": "hasTargetsTab"
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.querySelector('@selector/scenario.tabs.targets') !== null",
+          "store_result": "hasTargetsTab"
+        },
+        "metadata": {
+          "label": "Verify operational targets loaded"
+        }
       }
     }
   ],
@@ -122,55 +173,55 @@
       "id": "e1",
       "source": "navigate-home",
       "target": "click-requirements-link",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "click-requirements-link",
       "target": "assert-requirements-loaded",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "assert-requirements-loaded",
       "target": "count-requirements",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "count-requirements",
       "target": "navigate-catalog",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "navigate-catalog",
       "target": "click-first-scenario",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "click-first-scenario",
       "target": "click-requirements-tab",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "click-requirements-tab",
       "target": "assert-scenario-requirements-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "assert-scenario-requirements-visible",
       "target": "click-targets-tab",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "click-targets-tab",
       "target": "assert-targets-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

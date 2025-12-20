@@ -1,53 +1,54 @@
 {
   "metadata": {
-    "name": "What-If Analysis E2E Test",
+    "name": "what-if-analysis",
     "description": "Tests the what-if analysis and recommendations API endpoints",
-    "tags": ["e2e", "api", "analysis"],
-    "requirements": ["SCS-ANALYSIS-001", "SCS-ANALYSIS-002"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-ANALYSIS-001\", \"SCS-ANALYSIS-002\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "http_request",
-      "data": {
-        "label": "What-if analysis request",
-        "method": "POST",
-        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/what-if",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "what-if-request",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/what-if",
+          "headers": {"Content-Type": "application/json"},
+          "body": "{\"changes\": [{\"component\": \"quality.requirement_pass_rate\", \"new_value\": 0.9}]}",
+          "expected_status": 200
         },
-        "body": {
-          "changes": [
-            {"component": "quality.requirement_pass_rate", "new_value": 0.9}
-          ]
-        },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.current_score"},
-          {"type": "json_path_exists", "path": "$.projected_score"},
-          {"type": "json_path_exists", "path": "$.impact"}
-        ],
-        "notes": "Verify what-if analysis returns current score, projected score, and impact"
+        "metadata": {
+          "label": "What-if analysis request"
+        }
       }
     },
     {
-      "id": "2",
-      "type": "http_request",
-      "data": {
-        "label": "Get score with recommendations",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.recommendations"}
-        ],
-        "notes": "Verify score response includes recommendations"
+      "id": "get-recommendations",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Get score with recommendations"
+        }
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "what-if-request",
+      "target": "get-recommendations",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

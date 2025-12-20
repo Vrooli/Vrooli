@@ -1,103 +1,142 @@
 {
   "metadata": {
+    "name": "draft-create-edit-publish",
     "description": "Draft editor workflow: navigate to catalog, open scenario, and access draft editor (NOTE: Save/Publish steps omitted due to Monaco+React controlled component limitation - see PROBLEMS.md)",
-    "version": 1,
-    "reset": "full",
-    "requirements": ["PCT-FUNC-002", "PCT-DRAFT-CREATE", "PCT-DRAFT-EDIT"]
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"PCT-FUNC-002\", \"PCT-DRAFT-CREATE\", \"PCT-DRAFT-EDIT\"]"
+    }
   },
   "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "viewport_width": 1440,
+    "viewport_height": 900
   },
   "nodes": [
     {
       "id": "navigate-home",
-      "type": "navigate",
-      "data": {
-        "label": "Open PRD Control Tower",
-        "destinationType": "scenario",
-        "scenario": "prd-control-tower",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 30000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prd-control-tower",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open PRD Control Tower"
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "click-catalog-link",
-      "type": "click",
-      "data": {
-        "label": "Navigate to Catalog page",
-        "selector": "@selector/navigation.catalogLink",
-        "timeoutMs": 10000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/navigation.catalogLink"
+        },
+        "metadata": {
+          "label": "Navigate to Catalog page"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 10000,
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "assert-catalog-loaded",
-      "type": "assert",
-      "data": {
-        "label": "Catalog cards visible",
-        "selector": "@selector/catalog.card",
-        "assertMode": "exists",
-        "timeoutMs": 10000,
-        "failureMessage": "Catalog should display scenario cards"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/catalog.card",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000,
+          "failure_message": "Catalog should display scenario cards"
+        },
+        "metadata": {
+          "label": "Catalog cards visible"
+        }
       }
     },
     {
       "id": "click-first-card",
-      "type": "click",
-      "data": {
-        "label": "Click first scenario card",
-        "selector": "@selector/catalog.card",
-        "timeoutMs": 10000,
-        "waitForMs": 3000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/catalog.card"
+        },
+        "metadata": {
+          "label": "Click first scenario card"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 10000,
+        "wait_after_ms": 3000
       }
     },
     {
       "id": "assert-scenario-loaded",
-      "type": "assert",
-      "data": {
-        "label": "Scenario control center loaded",
-        "selector": "@selector/scenario.tabs.prd",
-        "assertMode": "exists",
-        "timeoutMs": 20000,
-        "failureMessage": "Scenario detail page should load with PRD tab"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/scenario.tabs.prd",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "Scenario detail page should load with PRD tab"
+        },
+        "metadata": {
+          "label": "Scenario control center loaded"
+        }
       }
     },
     {
       "id": "click-edit-draft",
-      "type": "click",
-      "data": {
-        "label": "Click Edit Draft button",
-        "selector": "a[href*='/draft/']",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "a[href*='/draft/']"
+        },
+        "metadata": {
+          "label": "Click Edit Draft button"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 10000,
+        "wait_after_ms": 2000
       }
     },
     {
       "id": "assert-editor-loaded",
-      "type": "assert",
-      "data": {
-        "label": "Draft editor loaded",
-        "selector": "@selector/drafts.editor.textarea",
-        "assertMode": "exists",
-        "timeoutMs": 20000,
-        "failureMessage": "Draft editor should be visible after clicking Edit Draft"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/drafts.editor.textarea",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "Draft editor should be visible after clicking Edit Draft"
+        },
+        "metadata": {
+          "label": "Draft editor loaded"
+        }
       }
     },
     {
       "id": "assert-editor-has-content",
-      "type": "assert",
-      "data": {
-        "label": "Editor contains PRD content",
-        "selector": ".monaco-editor .view-lines",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Editor should display content after loading"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": ".monaco-editor .view-lines",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Editor should display content after loading"
+        },
+        "metadata": {
+          "label": "Editor contains PRD content"
+        }
       }
     }
   ],
@@ -106,43 +145,43 @@
       "id": "e1",
       "source": "navigate-home",
       "target": "click-catalog-link",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "click-catalog-link",
       "target": "assert-catalog-loaded",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "assert-catalog-loaded",
       "target": "click-first-card",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "click-first-card",
       "target": "assert-scenario-loaded",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "assert-scenario-loaded",
       "target": "click-edit-draft",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "click-edit-draft",
       "target": "assert-editor-loaded",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "assert-editor-loaded",
       "target": "assert-editor-has-content",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

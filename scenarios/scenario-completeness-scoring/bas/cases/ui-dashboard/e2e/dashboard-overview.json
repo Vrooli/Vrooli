@@ -1,75 +1,138 @@
 {
   "metadata": {
-    "name": "Dashboard Overview E2E Test",
+    "name": "dashboard-overview",
     "description": "Tests the UI dashboard showing all scenarios with scores, trends, and health status",
-    "tags": ["e2e", "ui", "dashboard"],
-    "requirements": ["SCS-UI-001", "SCS-UI-006"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-UI-001\", \"SCS-UI-006\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "navigate",
-      "data": {
-        "label": "Navigate to dashboard",
-        "url": "{{UI_URL}}",
-        "waitFor": "[data-testid='dashboard']"
+      "id": "navigate-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "scenario-completeness-scoring",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to dashboard"
+        }
       }
     },
     {
-      "id": "2",
-      "type": "assertion",
-      "data": {
-        "label": "Verify dashboard container",
-        "selector": "[data-testid='dashboard']",
-        "assertions": [
-          {"type": "visible"}
-        ],
-        "notes": "Dashboard root container is visible"
+      "id": "wait-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='dashboard']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for dashboard to load"
+        }
       }
     },
     {
-      "id": "3",
-      "type": "assertion",
-      "data": {
-        "label": "Verify scenarios table",
-        "selector": "[data-testid='scenarios-table']",
-        "assertions": [
-          {"type": "visible"}
-        ],
-        "notes": "Scenarios table is rendered"
+      "id": "assert-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='dashboard']",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Dashboard container should be visible"
+        },
+        "metadata": {
+          "label": "Verify dashboard container"
+        }
       }
     },
     {
-      "id": "4",
-      "type": "assertion",
-      "data": {
-        "label": "Verify sparkline charts",
-        "selector": "[data-testid='sparkline']",
-        "assertions": [
-          {"type": "exists"}
-        ],
-        "notes": "Sparkline trend charts are present"
+      "id": "assert-scenarios-table",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='scenarios-table']",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Scenarios table should be visible"
+        },
+        "metadata": {
+          "label": "Verify scenarios table"
+        }
       }
     },
     {
-      "id": "5",
-      "type": "assertion",
-      "data": {
-        "label": "Verify trend indicators",
-        "selector": "[data-testid='trend-indicator']",
-        "assertions": [
-          {"type": "exists"}
-        ],
-        "notes": "Trend indicators are present"
+      "id": "assert-sparklines",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='sparkline']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Sparkline trend charts should exist"
+        },
+        "metadata": {
+          "label": "Verify sparkline charts"
+        }
+      }
+    },
+    {
+      "id": "assert-trend-indicators",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='trend-indicator']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Trend indicators should exist"
+        },
+        "metadata": {
+          "label": "Verify trend indicators"
+        }
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
-    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"},
-    {"id": "e3", "source": "3", "target": "4", "type": "smoothstep"},
-    {"id": "e4", "source": "4", "target": "5", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-dashboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-dashboard",
+      "target": "assert-dashboard",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-dashboard",
+      "target": "assert-scenarios-table",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-scenarios-table",
+      "target": "assert-sparklines",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-sparklines",
+      "target": "assert-trend-indicators",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

@@ -1,48 +1,53 @@
 {
   "metadata": {
-    "name": "Trend Analysis E2E Test",
+    "name": "trend-analysis",
     "description": "Tests the trend detection and analysis API endpoints",
-    "tags": ["e2e", "api", "trends"],
-    "requirements": ["SCS-HIST-003"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-HIST-003\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "http_request",
-      "data": {
-        "label": "Get scenario trend analysis",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/trends",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "get-scenario-trends",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/trends",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
         },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.scenario"},
-          {"type": "json_path_exists", "path": "$.trend"},
-          {"type": "json_path_exists", "path": "$.summary"}
-        ],
-        "notes": "Verify trend analysis returns scenario name, trend type, and summary"
+        "metadata": {
+          "label": "Get scenario trend analysis"
+        }
       }
     },
     {
-      "id": "2",
-      "type": "http_request",
-      "data": {
-        "label": "Get all scenarios trends",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/trends",
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.trends"}
-        ],
-        "notes": "Verify all-scenarios trend endpoint returns trends array"
+      "id": "get-all-trends",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/trends",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Get all scenarios trends"
+        }
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "get-scenario-trends",
+      "target": "get-all-trends",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

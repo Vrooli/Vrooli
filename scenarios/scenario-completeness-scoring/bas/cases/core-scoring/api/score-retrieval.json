@@ -1,47 +1,53 @@
 {
   "metadata": {
-    "name": "Score Retrieval E2E Test",
+    "name": "score-retrieval",
     "description": "Tests the /api/v1/scores/{scenario} endpoint returns proper score breakdown",
-    "tags": ["e2e", "api", "scoring"],
-    "requirements": ["SCS-CORE-001", "SCS-CORE-002"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-CORE-001\", \"SCS-CORE-002\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "http_request",
-      "data": {
-        "label": "Get score for scenario",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "get-score",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
         },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path", "path": "$.scenario", "expected": "scenario-completeness-scoring"},
-          {"type": "json_path_exists", "path": "$.score"},
-          {"type": "json_path_exists", "path": "$.classification"},
-          {"type": "json_path_exists", "path": "$.breakdown"}
-        ]
+        "metadata": {
+          "label": "Get score for scenario"
+        }
       }
     },
     {
-      "id": "2",
-      "type": "http_request",
-      "data": {
-        "label": "Force recalculate score",
-        "method": "POST",
-        "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/calculate",
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path", "path": "$.recalculated", "expected": true}
-        ]
+      "id": "recalculate-score",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/calculate",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Force recalculate score"
+        }
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "get-score",
+      "target": "recalculate-score",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

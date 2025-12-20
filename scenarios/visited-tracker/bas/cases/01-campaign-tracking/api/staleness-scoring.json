@@ -1,73 +1,139 @@
 {
-  "workflow_id": "staleness-scoring",
-  "name": "Staleness Scoring Test",
   "metadata": {
-    "reset": "none"
+    "name": "staleness-scoring",
+    "description": "Verify staleness score calculation and prioritization logic",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"VT-REQ-003\", \"VT-REQ-009\"]",
+      "priority": "P0",
+      "test_type": "api"
+    }
   },
-  "description": "Verify staleness score calculation and prioritization logic",
-  "requirement_refs": ["VT-REQ-003", "VT-REQ-009"],
-  "priority": "P0",
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "id": "create_campaign",
-      "action": "http_request",
-      "method": "POST",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns",
-      "body": {
-        "name": "staleness-test-campaign",
-        "from_agent": "test-automation",
-        "patterns": ["**/*.go"]
-      },
-      "expected_status": 201,
-      "save_response": "campaign"
+      "id": "create-campaign",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns",
+          "body": "{\"name\": \"staleness-test-campaign\", \"from_agent\": \"test-automation\", \"patterns\": [\"**/*.go\"]}",
+          "expected_status": 201,
+          "store_result": "campaign"
+        },
+        "metadata": {
+          "label": "Create test campaign"
+        }
+      }
     },
     {
-      "id": "sync_files",
-      "action": "http_request",
-      "method": "POST",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/structure/sync",
-      "body": {
-        "patterns": ["scenarios/visited-tracker/api/**/*.go"]
-      },
-      "expected_status": 200,
-      "save_response": "sync_result"
+      "id": "sync-files",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/structure/sync",
+          "body": "{\"patterns\": [\"scenarios/visited-tracker/api/**/*.go\"]}",
+          "expected_status": 200,
+          "store_result": "sync_result"
+        },
+        "metadata": {
+          "label": "Sync files to campaign"
+        }
+      }
     },
     {
-      "id": "visit_some_files",
-      "action": "http_request",
-      "method": "POST",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/visit",
-      "body": {
-        "files": ["scenarios/visited-tracker/api/main.go"]
-      },
-      "expected_status": 200
+      "id": "visit-some-files",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/visit",
+          "body": "{\"files\": [\"scenarios/visited-tracker/api/main.go\"]}",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Visit some files"
+        }
+      }
     },
     {
-      "id": "get_most_stale",
-      "action": "http_request",
-      "method": "GET",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/prioritize/most-stale",
-      "expected_status": 200,
-      "save_response": "stale_files",
-      "assertions": [
-        {"field": "files", "type": "array"},
-        {"field": "files.length", "greater_than": 0},
-        {"field": "files[0].staleness_score", "greater_than": 0}
-      ]
+      "id": "get-most-stale",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}/prioritize/most-stale",
+          "expected_status": 200,
+          "store_result": "stale_files"
+        },
+        "metadata": {
+          "label": "Get most stale files"
+        }
+      }
     },
     {
-      "id": "verify_visited_not_most_stale",
-      "action": "assertion",
-      "check": "${stale_files.files[0].file_path}",
-      "not_equals": "scenarios/visited-tracker/api/main.go",
-      "description": "Recently visited file should not be the most stale"
+      "id": "verify-visited-not-most-stale",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "stale_files.files[0].file_path !== 'scenarios/visited-tracker/api/main.go'",
+          "store_result": "staleness_verified"
+        },
+        "metadata": {
+          "label": "Verify recently visited file is not most stale"
+        }
+      }
     },
     {
       "id": "cleanup",
-      "action": "http_request",
-      "method": "DELETE",
-      "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
-      "expected_status": 200
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "DELETE",
+          "url": "http://localhost:${API_PORT}/api/v1/campaigns/${campaign.id}",
+          "expected_status": 200
+        },
+        "metadata": {
+          "label": "Delete test campaign"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "create-campaign",
+      "target": "sync-files",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "sync-files",
+      "target": "visit-some-files",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "visit-some-files",
+      "target": "get-most-stale",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "get-most-stale",
+      "target": "verify-visited-not-most-stale",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "verify-visited-not-most-stale",
+      "target": "cleanup",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

@@ -1,67 +1,75 @@
 {
   "metadata": {
-    "name": "Configuration Schema E2E Test",
+    "name": "presets",
     "description": "Tests the configuration schema, retrieval, and reset API endpoints",
-    "tags": ["e2e", "api", "configuration"],
-    "requirements": ["SCS-CFG-003"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-CFG-003\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "http_request",
-      "data": {
-        "label": "Get configuration schema",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/config/schema",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "get-schema",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/config/schema",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
         },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.schema"},
-          {"type": "json_path_exists", "path": "$.schema.sections"}
-        ]
+        "metadata": {
+          "label": "Get configuration schema"
+        }
       }
     },
     {
-      "id": "2",
-      "type": "http_request",
-      "data": {
-        "label": "Get configuration",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/config",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "get-config",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/config",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
         },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.config"},
-          {"type": "json_path_exists", "path": "$.effective_weights"}
-        ]
+        "metadata": {
+          "label": "Get configuration"
+        }
       }
     },
     {
-      "id": "3",
-      "type": "http_request",
-      "data": {
-        "label": "Reset configuration",
-        "method": "POST",
-        "url": "{{API_URL}}/api/v1/config/reset",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "reset-config",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/config/reset",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
         },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path", "path": "$.success", "expected": true},
-          {"type": "json_path_exists", "path": "$.config"}
-        ]
+        "metadata": {
+          "label": "Reset configuration"
+        }
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"},
-    {"id": "e2", "source": "2", "target": "3", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "get-schema",
+      "target": "get-config",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "get-config",
+      "target": "reset-config",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

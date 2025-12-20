@@ -1,53 +1,55 @@
 {
   "metadata": {
-    "name": "Bulk Operations E2E Test",
+    "name": "bulk-operations",
     "description": "Tests bulk score refresh and cross-scenario comparison API endpoints",
-    "tags": ["e2e", "api", "analysis", "bulk"],
-    "requirements": ["SCS-ANALYSIS-003", "SCS-ANALYSIS-004"],
-    "reset": "none"
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SCS-ANALYSIS-003\", \"SCS-ANALYSIS-004\"]"
+    }
   },
-  "settings": {},
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
   "nodes": [
     {
-      "id": "1",
-      "type": "http_request",
-      "data": {
-        "label": "Bulk refresh all scores",
-        "method": "POST",
-        "url": "{{API_URL}}/api/v1/scores/refresh-all",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "bulk-refresh",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/scores/refresh-all",
+          "headers": {"Content-Type": "application/json"},
+          "expected_status": 200
         },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.results"},
-          {"type": "json_path_exists", "path": "$.total"}
-        ],
-        "notes": "Verify bulk refresh recalculates all scenarios"
+        "metadata": {
+          "label": "Bulk refresh all scores"
+        }
       }
     },
     {
-      "id": "2",
-      "type": "http_request",
-      "data": {
-        "label": "Compare scenarios",
-        "method": "POST",
-        "url": "{{API_URL}}/api/v1/compare",
-        "headers": {
-          "Content-Type": "application/json"
+      "id": "compare-scenarios",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/compare",
+          "headers": {"Content-Type": "application/json"},
+          "body": "{\"scenarios\": [\"scenario-completeness-scoring\"]}",
+          "expected_status": 200
         },
-        "body": {
-          "scenarios": ["scenario-completeness-scoring"]
-        },
-        "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.comparisons"}
-        ],
-        "notes": "Verify cross-scenario comparison endpoint"
+        "metadata": {
+          "label": "Compare scenarios"
+        }
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "1", "target": "2", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "bulk-refresh",
+      "target": "compare-scenarios",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

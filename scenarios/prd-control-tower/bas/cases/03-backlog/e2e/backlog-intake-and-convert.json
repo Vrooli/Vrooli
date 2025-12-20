@@ -1,161 +1,223 @@
 {
   "metadata": {
+    "name": "backlog-intake-and-convert",
     "description": "Verifies backlog intake workflow: paste freeform text, save entries, and convert to draft",
-    "version": 1,
-    "reset": "full",
-    "requirements": [
-      "PCT-FUNC-003",
-      "PCT-BACKLOG-INTAKE",
-      "PCT-BACKLOG-PREVIEW",
-      "PCT-BACKLOG-CONVERT"
-    ]
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"PCT-FUNC-003\", \"PCT-BACKLOG-INTAKE\", \"PCT-BACKLOG-PREVIEW\", \"PCT-BACKLOG-CONVERT\"]"
+    }
   },
   "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "viewport_width": 1440,
+    "viewport_height": 900
   },
   "nodes": [
     {
       "id": "navigate-home",
-      "type": "navigate",
-      "data": {
-        "label": "Open PRD Control Tower",
-        "destinationType": "scenario",
-        "scenario": "prd-control-tower",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 30000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prd-control-tower",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open PRD Control Tower"
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "click-backlog-link",
-      "type": "click",
-      "data": {
-        "label": "Navigate to Backlog page",
-        "selector": "@selector/navigation.backlogLink",
-        "timeoutMs": 10000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/navigation.backlogLink"
+        },
+        "metadata": {
+          "label": "Navigate to Backlog page"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 10000,
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "assert-intake-card-visible",
-      "type": "assert",
-      "data": {
-        "label": "Backlog intake card visible",
-        "selector": "@selector/backlog.intakeCard",
-        "assertMode": "exists",
-        "timeoutMs": 10000,
-        "failureMessage": "Backlog intake card should be visible"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/backlog.intakeCard",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000,
+          "failure_message": "Backlog intake card should be visible"
+        },
+        "metadata": {
+          "label": "Backlog intake card visible"
+        }
       }
     },
     {
       "id": "type-backlog-text",
-      "type": "type",
-      "data": {
-        "label": "Enter freeform backlog ideas",
-        "selector": "@selector/backlog.textArea",
-        "text": "Build AI-powered documentation generator\nCreate automated PRD compliance checker\nImplement real-time collaboration features",
-        "clearFirst": true,
-        "timeoutMs": 5000,
-        "waitForMs": 1500
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/backlog.textArea",
+          "value": "Build AI-powered documentation generator\nCreate automated PRD compliance checker\nImplement real-time collaboration features",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Enter freeform backlog ideas"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 5000,
+        "wait_after_ms": 1500
       }
     },
     {
       "id": "select-preview-items",
-      "type": "click",
-      "data": {
-        "label": "Select all items in preview panel",
-        "selector": "@selector/backlog.selectAllButton",
-        "timeoutMs": 5000,
-        "waitForMs": 500
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/backlog.selectAllButton"
+        },
+        "metadata": {
+          "label": "Select all items in preview panel"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 5000,
+        "wait_after_ms": 500
       }
     },
     {
       "id": "click-save-backlog",
-      "type": "click",
-      "data": {
-        "label": "Save backlog entries",
-        "selector": "@selector/backlog.saveButton",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/backlog.saveButton"
+        },
+        "metadata": {
+          "label": "Save backlog entries"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 5000,
+        "wait_after_ms": 2000
       }
     },
     {
       "id": "assert-entries-table-visible",
-      "type": "assert",
-      "data": {
-        "label": "Backlog entries table populated",
-        "selector": "@selector/backlog.entriesTable",
-        "assertMode": "exists",
-        "timeoutMs": 10000,
-        "failureMessage": "Backlog entries table should display saved entries"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/backlog.entriesTable",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000,
+          "failure_message": "Backlog entries table should display saved entries"
+        },
+        "metadata": {
+          "label": "Backlog entries table populated"
+        }
       }
     },
     {
       "id": "assert-entry-row-exists",
-      "type": "assert",
-      "data": {
-        "label": "At least one backlog entry exists",
-        "selector": "@selector/backlog.entryRow",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Should have at least one backlog entry row"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/backlog.entryRow",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Should have at least one backlog entry row"
+        },
+        "metadata": {
+          "label": "At least one backlog entry exists"
+        }
       }
     },
     {
       "id": "click-entry-row",
-      "type": "click",
-      "data": {
-        "label": "Select backlog entry",
-        "selector": "@selector/backlog.entryRow",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/backlog.entryRow"
+        },
+        "metadata": {
+          "label": "Select backlog entry"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 5000,
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "assert-preview-visible",
-      "type": "assert",
-      "data": {
-        "label": "Preview panel shows entry details",
-        "selector": "@selector/backlog.previewPanel",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Preview panel should display when entry selected"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/backlog.previewPanel",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Preview panel should display when entry selected"
+        },
+        "metadata": {
+          "label": "Preview panel shows entry details"
+        }
       }
     },
     {
       "id": "select-entry-for-convert",
-      "type": "click",
-      "data": {
-        "label": "Select entry in preview for conversion",
-        "selector": "@selector/backlog.selectAllButton",
-        "timeoutMs": 5000,
-        "waitForMs": 500
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/backlog.selectAllButton"
+        },
+        "metadata": {
+          "label": "Select entry in preview for conversion"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 5000,
+        "wait_after_ms": 500
       }
     },
     {
       "id": "click-convert",
-      "type": "click",
-      "data": {
-        "label": "Convert entry to draft",
-        "selector": "@selector/backlog.convertButton",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/backlog.convertButton"
+        },
+        "metadata": {
+          "label": "Convert entry to draft"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 5000,
+        "wait_after_ms": 2000
       }
     },
     {
       "id": "assert-draft-created",
-      "type": "assert",
-      "data": {
-        "label": "Drafts page loaded after multi-item conversion",
-        "selector": "@selector/drafts.draftCard",
-        "assertMode": "exists",
-        "timeoutMs": 15000,
-        "failureMessage": "Should navigate to drafts list after converting multiple entries"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/drafts.draftCard",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 15000,
+          "failure_message": "Should navigate to drafts list after converting multiple entries"
+        },
+        "metadata": {
+          "label": "Drafts page loaded after multi-item conversion"
+        }
       }
     }
   ],
@@ -164,73 +226,73 @@
       "id": "e1",
       "source": "navigate-home",
       "target": "click-backlog-link",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "click-backlog-link",
       "target": "assert-intake-card-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "assert-intake-card-visible",
       "target": "type-backlog-text",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3a",
       "source": "type-backlog-text",
       "target": "select-preview-items",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "select-preview-items",
       "target": "click-save-backlog",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "click-save-backlog",
       "target": "assert-entries-table-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "assert-entries-table-visible",
       "target": "assert-entry-row-exists",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "assert-entry-row-exists",
       "target": "click-entry-row",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "click-entry-row",
       "target": "assert-preview-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8a",
       "source": "assert-preview-visible",
       "target": "select-entry-for-convert",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "select-entry-for-convert",
       "target": "click-convert",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "click-convert",
       "target": "assert-draft-created",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

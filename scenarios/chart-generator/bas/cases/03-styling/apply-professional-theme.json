@@ -1,42 +1,151 @@
 {
   "metadata": {
-    "reset": "none"
+    "name": "apply-professional-theme",
+    "description": "Validates applying professional styling theme to a chart",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CHART-P0-003-LIGHT\"]"
+    }
   },
-  "description": "Validates applying professional styling theme to a chart",
-  "requirements": ["CHART-P0-003-LIGHT"],
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "type": "navigate",
-      "url": "http://localhost:${UI_PORT}/"
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "chart-generator",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to chart-generator home"
+        }
+      }
     },
     {
-      "type": "wait",
-      "selector": "@selector/CHART_PREVIEW_CONTAINER",
-      "timeout": 5000
+      "id": "wait-preview-container",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/CHART_PREVIEW_CONTAINER",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for chart preview container"
+        }
+      }
     },
     {
-      "type": "click",
-      "selector": "@selector/TAB_STYLES"
+      "id": "click-styles-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/TAB_STYLES"
+        },
+        "metadata": {
+          "label": "Click styles tab"
+        }
+      }
     },
     {
-      "type": "wait",
-      "duration": 300
+      "id": "wait-tab-switch",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "wait_for": {
+            "duration_ms": 300
+          }
+        },
+        "metadata": {
+          "label": "Wait for tab switch"
+        }
+      }
     },
     {
-      "type": "click",
-      "selector": "@selector/STYLE_PROFESSIONAL"
+      "id": "click-professional-theme",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/STYLE_PROFESSIONAL"
+        },
+        "metadata": {
+          "label": "Select professional theme"
+        }
+      }
     },
     {
-      "type": "wait",
-      "duration": 500
+      "id": "wait-render",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "wait_for": {
+            "duration_ms": 500
+          }
+        },
+        "metadata": {
+          "label": "Wait for chart to render"
+        }
+      }
     },
     {
-      "type": "assert",
-      "selector": "@selector/CHART_SVG",
-      "condition": "visible",
-      "message": "Chart with professional theme should render successfully"
+      "id": "assert-chart-visible",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/CHART_SVG",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Chart with professional theme should render successfully"
+        },
+        "metadata": {
+          "label": "Assert chart with professional theme visible"
+        }
+      }
     }
   ],
-  "cleanup": [],
-  "fixtures": []
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-preview-container",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-preview-container",
+      "target": "click-styles-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "click-styles-tab",
+      "target": "wait-tab-switch",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-tab-switch",
+      "target": "click-professional-theme",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "click-professional-theme",
+      "target": "wait-render",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "wait-render",
+      "target": "assert-chart-visible",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
 }

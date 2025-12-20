@@ -1,89 +1,122 @@
 {
   "metadata": {
+    "name": "catalog-view-and-navigate",
     "description": "Verifies catalog view displays all scenarios/resources and allows navigation to detail pages",
-    "version": 1,
-    "reset": "full",
-    "requirements": ["PCT-FUNC-001", "PCT-CATALOG-ENUMERATE", "PCT-CATALOG-VIEW-PRD", "PCT-CATALOG-STATUS"]
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"PCT-FUNC-001\", \"PCT-CATALOG-ENUMERATE\", \"PCT-CATALOG-VIEW-PRD\", \"PCT-CATALOG-STATUS\"]"
+    }
   },
   "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "viewport_width": 1440,
+    "viewport_height": 900
   },
   "nodes": [
     {
       "id": "navigate-home",
-      "type": "navigate",
-      "data": {
-        "label": "Open PRD Control Tower home page",
-        "destinationType": "scenario",
-        "scenario": "prd-control-tower",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 30000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prd-control-tower",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open PRD Control Tower home page"
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "click-catalog-link",
-      "type": "click",
-      "data": {
-        "label": "Navigate to Catalog page",
-        "selector": "@selector/navigation.catalogLink",
-        "timeoutMs": 10000,
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/navigation.catalogLink"
+        },
+        "metadata": {
+          "label": "Navigate to Catalog page"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 10000,
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "assert-catalog-loaded",
-      "type": "assert",
-      "data": {
-        "label": "Catalog page loaded with cards",
-        "selector": "@selector/catalog.card",
-        "assertMode": "exists",
-        "timeoutMs": 15000,
-        "failureMessage": "Catalog should display at least one entity card"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/catalog.card",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 15000,
+          "failure_message": "Catalog should display at least one entity card"
+        },
+        "metadata": {
+          "label": "Catalog page loaded with cards"
+        }
       }
     },
     {
       "id": "count-catalog-cards",
-      "type": "evaluate",
-      "data": {
-        "label": "Count catalog entries",
-        "expression": "document.querySelectorAll('@selector/catalog.card').length",
-        "storeResult": "cardCount"
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.querySelectorAll('@selector/catalog.card').length",
+          "store_result": "cardCount"
+        },
+        "metadata": {
+          "label": "Count catalog entries"
+        }
       }
     },
     {
       "id": "assert-cards-present",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify multiple catalog entries exist",
-        "expression": "document.querySelectorAll('@selector/catalog.card').length > 0",
-        "storeResult": "hasCards"
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.querySelectorAll('@selector/catalog.card').length > 0",
+          "store_result": "hasCards"
+        },
+        "metadata": {
+          "label": "Verify multiple catalog entries exist"
+        }
       }
     },
     {
       "id": "click-first-card",
-      "type": "click",
-      "data": {
-        "label": "Click first catalog card",
-        "selector": "@selector/catalog.card",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/catalog.card"
+        },
+        "metadata": {
+          "label": "Click first catalog card"
+        }
+      },
+      "execution_settings": {
+        "timeout_ms": 10000,
+        "wait_after_ms": 2000
       }
     },
     {
       "id": "assert-detail-loaded",
-      "type": "assert",
-      "data": {
-        "label": "Scenario Control Center loaded",
-        "selector": "@selector/scenario.tabs.prd",
-        "assertMode": "exists",
-        "timeoutMs": 15000,
-        "failureMessage": "Should navigate to Scenario Control Center with PRD tab"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/scenario.tabs.prd",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 15000,
+          "failure_message": "Should navigate to Scenario Control Center with PRD tab"
+        },
+        "metadata": {
+          "label": "Scenario Control Center loaded"
+        }
       }
     }
   ],
@@ -92,37 +125,37 @@
       "id": "e1",
       "source": "navigate-home",
       "target": "click-catalog-link",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "click-catalog-link",
       "target": "assert-catalog-loaded",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "assert-catalog-loaded",
       "target": "count-catalog-cards",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "count-catalog-cards",
       "target": "assert-cards-present",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "assert-cards-present",
       "target": "click-first-card",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "click-first-card",
       "target": "assert-detail-loaded",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

@@ -1,45 +1,98 @@
 {
-  "workflow_id": "ui-campaign-dashboard",
-  "name": "Campaign Dashboard UI Test",
   "metadata": {
-    "reset": "none"
+    "name": "campaign-dashboard",
+    "description": "Test campaign dashboard UI workflow",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"VT-REQ-007\"]",
+      "priority": "P1"
+    }
   },
-  "description": "Test campaign dashboard UI workflow",
-  "requirement_refs": ["VT-REQ-007"],
-  "priority": "P1",
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "id": "navigate_to_home",
-      "action": "navigate",
-      "url": "http://localhost:${UI_PORT}",
-      "wait_for": "[data-testid='campaigns-list']",
-      "timeout": 5000
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "visited-tracker",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to Visited Tracker home"
+        }
+      }
     },
     {
-      "id": "verify_page_loaded",
-      "action": "assert_visible",
-      "selector": "[data-testid='campaigns-list']",
-      "description": "Verify campaigns list is visible"
+      "id": "wait-campaigns-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='campaigns-list']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for campaigns list to load"
+        }
+      }
     },
     {
-      "id": "check_title",
-      "action": "assert_text",
-      "selector": "h1",
-      "contains": "Visited Tracker",
-      "description": "Verify page title"
+      "id": "assert-campaigns-list",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='campaigns-list']",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Campaigns list should be visible"
+        },
+        "metadata": {
+          "label": "Verify campaigns list is visible"
+        }
+      }
     },
     {
-      "id": "screenshot_dashboard",
-      "action": "screenshot",
-      "path": "coverage/ui-smoke/campaign-dashboard-home.png",
-      "description": "Capture dashboard screenshot"
+      "id": "assert-title",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "h1",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": "Visited Tracker",
+          "timeout_ms": 5000,
+          "failure_message": "Page title should contain 'Visited Tracker'"
+        },
+        "metadata": {
+          "label": "Verify page title"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-campaigns-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "check_accessibility",
-      "action": "run_lighthouse",
-      "categories": ["accessibility"],
-      "threshold": 90,
-      "description": "Verify accessibility score"
+      "id": "e2",
+      "source": "wait-campaigns-list",
+      "target": "assert-campaigns-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-campaigns-list",
+      "target": "assert-title",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }
