@@ -44,23 +44,13 @@ api/
 
 ### Using the Refactored Version
 
-#### Option 1: Direct Execution (Recommended)
-```bash
-cd api
-go run ./cmd/server
-```
+The System Monitor API must be started via the Vrooli lifecycle system so ports,
+environment, and dependencies are wired correctly.
 
-#### Option 2: Build and Run
 ```bash
-cd api
-go build -o system-monitor-api ./cmd/server
-./system-monitor-api
-```
-
-#### Option 3: Using Build Tags
-```bash
-go build -tags refactored
-./system-monitor-api
+make start
+# or
+vrooli scenario start system-monitor
 ```
 
 ### Environment Variables
@@ -75,14 +65,14 @@ The refactored version uses the same environment variables:
 ### Maintained Endpoints
 All existing endpoints continue to work exactly as before:
 - `/health` - Health check
-- `/api/metrics/current` - Current metrics
-- `/api/metrics/detailed` - Detailed metrics
-- `/api/investigations/trigger` - Trigger investigation
-- `/api/investigations/latest` - Get latest investigation
+- `/api/v1/metrics/current` - Current metrics
+- `/api/v1/metrics/detailed` - Detailed metrics
+- `/api/v1/investigations/trigger` - Trigger investigation
+- `/api/v1/investigations/latest` - Get latest investigation
 - All other existing endpoints
 
 ### Legacy Support
-The original `main.go` file remains unchanged and functional. You can switch between implementations without breaking changes.
+Direct execution is intentionally disabled to keep lifecycle wiring consistent.
 
 ## Testing
 
@@ -136,14 +126,8 @@ go test ./tests/integration/...
 
 ## Rollback Plan
 
-If issues arise, the original implementation remains fully functional:
-```bash
-# Use original implementation
-go run main.go
-
-# Or build original
-go build -o system-monitor-api main.go
-```
+If issues arise, continue running through the lifecycle system and revert the
+API changes in version control. Direct execution is not supported.
 
 ## Support
 
@@ -151,4 +135,4 @@ For questions or issues with the refactored version:
 1. Check this documentation
 2. Review the code structure in `/internal`
 3. Run tests to verify functionality
-4. Fallback to original if needed
+4. Roll back via version control if needed

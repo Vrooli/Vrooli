@@ -290,7 +290,7 @@ Provide your findings using this **structured format** that highlights both curr
 
 1. **Investigation Start** (Update progress to 10%):
 ```bash
-curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/progress" \
+curl -X PUT "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/progress" \
   -H "Content-Type: application/json" \
   -d '{"progress": 10}'
 ```
@@ -298,7 +298,7 @@ curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/progress" 
 2. **After Each Investigation Area** (Add detailed steps):
 ```bash
 # Example: Scripts evaluation and execution
-curl -X POST "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/step" \
+curl -X POST "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/step" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Investigation Scripts Analysis",
@@ -309,7 +309,7 @@ curl -X POST "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/step" \
 
 3. **Progress Updates** (25%, 50%, 75%):
 ```bash
-curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/progress" \
+curl -X PUT "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/progress" \
   -H "Content-Type: application/json" \
   -d '{"progress": 50}'
 ```
@@ -317,7 +317,7 @@ curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/progress" 
 4. **Final Results** (Include intelligence built):
 ```bash
 # Update findings with structured data including new tools created
-curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/findings" \
+curl -X PUT "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/findings" \
   -H "Content-Type: application/json" \
   -d '{
     "findings": "Complete investigation summary with tools used and created",
@@ -334,14 +334,14 @@ curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/findings" 
   }'
 
 # Mark as completed
-curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/status" \
+curl -X PUT "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/status" \
   -H "Content-Type: application/json" \
   -d '{"status": "completed"}'
 ```
 
 5. **Error Handling**:
 ```bash
-curl -X PUT "{{API_BASE_URL}}/api/investigations/{{INVESTIGATION_ID}}/status" \
+curl -X PUT "{{API_BASE_URL}}/api/v1/investigations/{{INVESTIGATION_ID}}/status" \
   -H "Content-Type: application/json" \
   -d '{"status": "failed"}'
 ```

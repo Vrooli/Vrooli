@@ -2,37 +2,27 @@
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "system-monitor",
     "displayName": "System Monitor",
-    "description": "Server monitoring with AI-driven anomaly investigation",
+    "description": "Real-time system monitoring with AI-driven anomaly investigations and reporting.",
     "version": "1.0.0",
+    "type": "business-application",
+    "category": "monitoring",
     "tags": [
-      "vrooli-helper",
-      "emergency-response",
       "monitoring",
-      "system",
-      "maintenance",
+      "observability",
       "anomaly-detection",
-      "ai-investigation",
-      "dashboards",
-      "alerts",
-      "metrics",
-      "dark-theme",
+      "investigations",
+      "reports",
       "react-ui",
-      "typescript",
-      "vite",
       "go-api",
-      "node-red-flows",
-      "postgres-storage",
-      "redis-cache",
-      "ollama-ai",
-      "shared-workflow:rate-limiter",
-      "shared-workflow:ollama",
-      "shared-workflow:structured-data-extractor"
+      "node-red",
+      "postgres",
+      "questdb",
+      "redis",
+      "ollama"
     ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -50,8 +40,7 @@
     "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
     "support": {
       "issues": "https://github.com/Vrooli/Vrooli/issues"
-    },
-    "importance": "important"
+    }
   },
   "ports": {
     "api": {
@@ -68,36 +57,33 @@
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "System Monitor health check configuration",
+      "description": "Standard API/UI health checks",
       "endpoints": {
         "api": "/health",
-        "metrics": "/api/metrics/current",
         "ui": "/health"
       },
+      "startup_grace_period": 15000,
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 3000,
-          "interval": 45000
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
         }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
+      ]
     },
     "setup": {
-      "description": "Initialize System Monitor",
+      "description": "Build API & UI, install CLI",
       "condition": {
         "checks": [
           {
@@ -107,69 +93,55 @@
             ]
           },
           {
+            "type": "cli",
+            "command": "system-monitor"
+          },
+          {
             "type": "ui-bundle",
             "bundle_path": "ui/dist/index.html",
             "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "system-monitor",
-            "targets": [
-              "system-monitor"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
           }
         ]
       },
       "steps": [
         {
-          "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
-          "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
           "name": "install-cli",
-          "run": "cd cli && chmod +x system-monitor && ./install.sh",
-          "description": "Install CLI command"
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o system-monitor-api .",
-          "description": "Build Go API binary"
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o system-monitor-api ./cmd/server",
+          "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install React UI dependencies"
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build React UI for production"
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
-          "run": "echo 'System Monitor ready:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: system-monitor --help'",
-          "description": "Display service endpoints after setup"
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start System Monitor app with production UI bundle",
+      "description": "Launch API and UI server",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./system-monitor-api",
-          "description": "Start Go API server in background",
           "background": true,
+          "description": "Start Go API server in background",
           "condition": {
             "file_exists": "api/system-monitor-api"
           }
@@ -177,41 +149,41 @@
         {
           "name": "start-ui",
           "run": "cd ui && node server.cjs",
-          "description": "Start Express server with built React app",
           "background": true,
+          "description": "Serve production UI bundle",
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo 'System Monitor running:\\n  UI: http://localhost:'$UI_PORT'\\n  API: http://localhost:'$API_PORT'\\n  Grafana: http://localhost:3004'",
-          "description": "Display service URLs"
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for system-monitor",
+      "description": "Execute phased test suite via test-genie",
       "steps": [
         {
-          "name": "run-phased-tests",
+          "name": "run-tests",
           "run": "test-genie execute system-monitor --preset comprehensive",
-          "description": "Execute phased scenario test suite"
+          "description": "Run all test phases via test-genie"
         }
       ]
     },
     "stop": {
-      "description": "Stop services",
+      "description": "Stop background processes",
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f \"system-monitor-api\" || true; sleep 1; pkill -9 -f \"system-monitor-api\" 2>/dev/null || true",
-          "description": "Stop API process"
+          "run": "pkill -f 'system-monitor-api' || true",
+          "description": "Stop Go API"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/system-monitor.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/system-monitor.*vite\" 2>/dev/null || true",
-          "description": "Stop React UI dev server"
+          "run": "pkill -f 'node server.cjs' || true",
+          "description": "Stop UI server"
         }
       ]
     }
@@ -222,7 +194,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "store metrics, thresholds, investigations, and reports",
+        "description": "Store thresholds, investigations, and reports",
         "initialization": [
           {
             "file": "initialization/postgres/schema.sql",
@@ -234,7 +206,7 @@
         "type": "questdb",
         "enabled": true,
         "required": true,
-        "purpose": "time series data for metrics and performance analytics",
+        "description": "Time-series metrics storage",
         "initialization": [
           {
             "file": "initialization/questdb/server.conf",
@@ -246,7 +218,7 @@
         "type": "redis",
         "enabled": true,
         "required": true,
-        "purpose": "real-time alerts and caching",
+        "description": "Real-time alerts and caching",
         "initialization": [
           {
             "file": "initialization/redis/redis.conf",
@@ -258,7 +230,7 @@
         "type": "node-red",
         "enabled": true,
         "required": true,
-        "purpose": "anomaly detection flows"
+        "description": "Metric collection and anomaly detection workflows"
       },
       "ollama": {
         "type": "ollama",
@@ -267,34 +239,22 @@
         "models": [
           "llama3.2:3b"
         ],
-        "purpose": "anomaly investigation and analysis"
+        "description": "AI analysis for anomaly investigations"
       },
       "codex": {
         "type": "codex",
         "enabled": true,
         "required": false,
-        "purpose": "deep system investigation using Codex tooling",
         "models": [
           "codex-mini-latest"
-        ]
+        ],
+        "description": "Deep system investigations using Codex tooling"
       },
       "grafana": {
         "type": "grafana",
         "enabled": true,
         "required": false,
-        "purpose": "advanced metrics visualization"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Optional dashboards for advanced visualization"
       }
     },
     "scenarios": {}

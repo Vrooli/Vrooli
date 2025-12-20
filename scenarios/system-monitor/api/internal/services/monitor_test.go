@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/repository"
+	"system-monitor-api/internal/repository/memory"
 )
 
 
@@ -17,7 +17,7 @@ func TestMonitorService_GetCurrentMetrics(t *testing.T) {
 			MetricsInterval: 10 * time.Second,
 		},
 	}
-	repo := repository.NewMemoryRepository()
+	repo := memory.NewRepository()
 	
 	svc := NewMonitorService(cfg, repo, nil) // Pass nil for alert service in tests
 	
@@ -50,7 +50,7 @@ func TestMonitorService_CollectorRegistration(t *testing.T) {
 			MetricsInterval: 10 * time.Second,
 		},
 	}
-	repo := repository.NewMemoryRepository()
+	repo := memory.NewRepository()
 	
 	svc := NewMonitorService(cfg, repo, nil)
 	
@@ -79,7 +79,7 @@ func TestMonitorService_StartStop(t *testing.T) {
 			MetricsInterval: 100 * time.Millisecond, // Short interval for testing
 		},
 	}
-	repo := repository.NewMemoryRepository()
+	repo := memory.NewRepository()
 	
 	svc := NewMonitorService(cfg, repo, nil)
 	

@@ -338,11 +338,11 @@ func (s *InvestigationService) buildInvestigationPrompt(investigationID string, 
 		}
 		return fmt.Sprintf(`System Anomaly Investigation
 Investigation ID: %s
-API Base URL: http://localhost:8080
+API Base URL: %s
 Operation Mode: %s
 CPU: %.2f%%, Memory: %.2f%%, TCP Connections: %d%s
 Analyze system for anomalies and provide findings.`,
-			investigationID, operationMode, cpuUsage, memoryUsage, tcpConnections, noteLine)
+			investigationID, s.resolveAPIBaseURL(), operationMode, cpuUsage, memoryUsage, tcpConnections, noteLine)
 	}
 	return prompt
 }
@@ -383,7 +383,7 @@ func (s *InvestigationService) loadPromptTemplate(investigationID string, cpuUsa
 	prompt = strings.ReplaceAll(prompt, "{{TCP_CONNECTIONS}}", strconv.Itoa(tcpConnections))
 	prompt = strings.ReplaceAll(prompt, "{{TIMESTAMP}}", timestamp)
 	prompt = strings.ReplaceAll(prompt, "{{INVESTIGATION_ID}}", investigationID)
-	prompt = strings.ReplaceAll(prompt, "{{API_BASE_URL}}", "http://localhost:8080")
+	prompt = strings.ReplaceAll(prompt, "{{API_BASE_URL}}", s.resolveAPIBaseURL())
 	prompt = strings.ReplaceAll(prompt, "{{OPERATION_MODE}}", operationMode)
 
 	trimmedNote := strings.TrimSpace(note)
@@ -466,6 +466,14 @@ func removeConditionalSection(input, startToken, endToken string) string {
 		input = input[:start] + input[end+len(endToken):]
 	}
 	return input
+}
+
+func (s *InvestigationService) resolveAPIBaseURL() string {
+	port := strings.TrimSpace(s.config.Server.APIPort)
+	if port == "" {
+		port = "8080"
+	}
+	return fmt.Sprintf("http://localhost:%s", port)
 }
 
 // Helper methods to get system metrics

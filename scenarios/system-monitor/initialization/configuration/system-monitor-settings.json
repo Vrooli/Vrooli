@@ -2,7 +2,7 @@
     "metadata": {
         "config_version": "1.0.0",
         "description": "System Monitor settings including active/inactive status",
-        "last_modified": "2025-12-20T02:07:47-05:00"
+        "last_modified": "2025-12-20T14:42:05-05:00"
     },
     "settings": {
         "active": false,

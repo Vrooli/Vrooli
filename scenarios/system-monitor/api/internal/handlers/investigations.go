@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"system-monitor-api/internal/config"
@@ -26,7 +27,7 @@ func NewInvestigationHandler(cfg *config.Config, investigationSvc *services.Inve
 	}
 }
 
-// ListInvestigations handles GET /api/investigations
+// ListInvestigations handles GET /api/v1/investigations
 func (h *InvestigationHandler) ListInvestigations(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	limit := 20
@@ -45,7 +46,7 @@ func (h *InvestigationHandler) ListInvestigations(w http.ResponseWriter, r *http
 	respondWithJSON(w, http.StatusOK, investigations)
 }
 
-// GetLatestInvestigation handles GET /api/investigations/latest
+// GetLatestInvestigation handles GET /api/v1/investigations/latest
 func (h *InvestigationHandler) GetLatestInvestigation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -58,7 +59,7 @@ func (h *InvestigationHandler) GetLatestInvestigation(w http.ResponseWriter, r *
 	respondWithJSON(w, http.StatusOK, investigation)
 }
 
-// TriggerInvestigation handles POST /api/investigations/trigger
+// TriggerInvestigation handles POST /api/v1/investigations/trigger
 func (h *InvestigationHandler) TriggerInvestigation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -84,7 +85,7 @@ func (h *InvestigationHandler) TriggerInvestigation(w http.ResponseWriter, r *ht
 	response := map[string]interface{}{
 		"status":           "queued",
 		"investigation_id": investigation.ID,
-		"api_base_url":     "http://localhost:8080",
+		"api_base_url":     h.resolveAPIBaseURL(),
 		"message":          "Investigation queued for processing",
 		"auto_fix":         req.AutoFix,
 		"note":             req.Note,
@@ -93,7 +94,7 @@ func (h *InvestigationHandler) TriggerInvestigation(w http.ResponseWriter, r *ht
 	respondWithJSON(w, http.StatusAccepted, response)
 }
 
-// GetInvestigation handles GET /api/investigations/{id}
+// GetInvestigation handles GET /api/v1/investigations/{id}
 func (h *InvestigationHandler) GetInvestigation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -108,7 +109,7 @@ func (h *InvestigationHandler) GetInvestigation(w http.ResponseWriter, r *http.R
 	respondWithJSON(w, http.StatusOK, investigation)
 }
 
-// UpdateInvestigationStatus handles PUT /api/investigations/{id}/status
+// UpdateInvestigationStatus handles PUT /api/v1/investigations/{id}/status
 func (h *InvestigationHandler) UpdateInvestigationStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -131,7 +132,7 @@ func (h *InvestigationHandler) UpdateInvestigationStatus(w http.ResponseWriter, 
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
-// UpdateInvestigationFindings handles PUT /api/investigations/{id}/findings
+// UpdateInvestigationFindings handles PUT /api/v1/investigations/{id}/findings
 func (h *InvestigationHandler) UpdateInvestigationFindings(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -155,7 +156,7 @@ func (h *InvestigationHandler) UpdateInvestigationFindings(w http.ResponseWriter
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
-// UpdateInvestigationProgress handles PUT /api/investigations/{id}/progress
+// UpdateInvestigationProgress handles PUT /api/v1/investigations/{id}/progress
 func (h *InvestigationHandler) UpdateInvestigationProgress(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -178,7 +179,7 @@ func (h *InvestigationHandler) UpdateInvestigationProgress(w http.ResponseWriter
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
-// AddInvestigationStep handles POST /api/investigations/{id}/step
+// AddInvestigationStep handles POST /api/v1/investigations/{id}/step
 func (h *InvestigationHandler) AddInvestigationStep(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -198,7 +199,7 @@ func (h *InvestigationHandler) AddInvestigationStep(w http.ResponseWriter, r *ht
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "step_added"})
 }
 
-// GetCooldownStatus handles GET /api/investigations/cooldown
+// GetCooldownStatus handles GET /api/v1/investigations/cooldown
 func (h *InvestigationHandler) GetCooldownStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -211,7 +212,7 @@ func (h *InvestigationHandler) GetCooldownStatus(w http.ResponseWriter, r *http.
 	respondWithJSON(w, http.StatusOK, status)
 }
 
-// ResetCooldown handles POST /api/investigations/cooldown/reset
+// ResetCooldown handles POST /api/v1/investigations/cooldown/reset
 func (h *InvestigationHandler) ResetCooldown(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -223,7 +224,7 @@ func (h *InvestigationHandler) ResetCooldown(w http.ResponseWriter, r *http.Requ
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "cooldown_reset"})
 }
 
-// UpdateCooldownPeriod handles PUT /api/investigations/cooldown/period
+// UpdateCooldownPeriod handles PUT /api/v1/investigations/cooldown/period
 func (h *InvestigationHandler) UpdateCooldownPeriod(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -244,7 +245,7 @@ func (h *InvestigationHandler) UpdateCooldownPeriod(w http.ResponseWriter, r *ht
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
-// GetTriggers handles GET /api/investigations/triggers
+// GetTriggers handles GET /api/v1/investigations/triggers
 func (h *InvestigationHandler) GetTriggers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -257,7 +258,7 @@ func (h *InvestigationHandler) GetTriggers(w http.ResponseWriter, r *http.Reques
 	respondWithJSON(w, http.StatusOK, triggers)
 }
 
-// UpdateTrigger handles PUT /api/investigations/triggers/{id}
+// UpdateTrigger handles PUT /api/v1/investigations/triggers/{id}
 func (h *InvestigationHandler) UpdateTrigger(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -282,7 +283,7 @@ func (h *InvestigationHandler) UpdateTrigger(w http.ResponseWriter, r *http.Requ
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
-// UpdateTriggerThreshold handles PUT /api/investigations/triggers/{id}/threshold
+// UpdateTriggerThreshold handles PUT /api/v1/investigations/triggers/{id}/threshold
 func (h *InvestigationHandler) UpdateTriggerThreshold(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -303,6 +304,14 @@ func (h *InvestigationHandler) UpdateTriggerThreshold(w http.ResponseWriter, r *
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+func (h *InvestigationHandler) resolveAPIBaseURL() string {
+	port := strings.TrimSpace(h.config.Server.APIPort)
+	if port == "" {
+		port = "8080"
+	}
+	return fmt.Sprintf("http://localhost:%s", port)
 }
 
 // =============================================================================

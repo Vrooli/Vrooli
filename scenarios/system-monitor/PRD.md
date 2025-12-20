@@ -82,15 +82,15 @@ required:
     integration_pattern: Pub/Sub for alert distribution
     access_method: resource-redis CLI for queue management
     
-  - resource_name: n8n
+  - resource_name: node-red
     purpose: Orchestrate monitoring workflows
-    integration_pattern: Scheduled and triggered workflows
-    access_method: resource-n8n CLI for workflow management
+    integration_pattern: Scheduled and triggered flows
+    access_method: resource-node-red CLI for flow management
     
   - resource_name: ollama
     purpose: AI analysis of anomalies (llama3.2:3b)
-    integration_pattern: Shared workflow for inference
-    access_method: ollama.json shared workflow
+    integration_pattern: Investigation prompt execution via agent-manager
+    access_method: initialization/claude-code/anomaly-check.md
     
 optional:
   - resource_name: grafana
@@ -103,20 +103,15 @@ optional:
 ```yaml
 integration_priorities:
   1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/automation/n8n/
-      purpose: AI model inference for anomaly analysis
-      reused_by: [research-assistant, product-manager-agent]
+    - workflow: metric-collector.json
+      location: initialization/node-red/
+      purpose: Collect host metrics and fan out to storage
+      reused_by: [load-tester, api-monitor]
       
-    - workflow: rate-limiter.json
-      location: initialization/automation/n8n/
-      purpose: Prevent API overload during investigations
-      reused_by: [api-monitor, load-tester]
-      
-    - workflow: structured-data-extractor.json
-      location: initialization/automation/n8n/
-      purpose: Parse system logs and metrics
-      reused_by: [log-analyzer, audit-system]
+    - workflow: anomaly-detector.json
+      location: initialization/node-red/
+      purpose: Analyze metric trends and trigger investigations
+      reused_by: [log-analyzer, incident-response-manager]
       
   2_resource_cli:
     - command: resource-questdb query "SELECT * FROM metrics WHERE time > now() - '1h'"
@@ -130,12 +125,11 @@ integration_priorities:
       endpoint: tcp://localhost:9009 (QuestDB ILP)
       
     - justification: WebSocket needed for live dashboard updates
-      endpoint: ws://localhost:3003/metrics
+      endpoint: ws://localhost:${UI_PORT}/metrics
 
 shared_workflow_validation:
-  - ollama.json handles any LLM inference task
-  - rate-limiter.json is generic rate limiting
-  - structured-data-extractor.json parses any structured text
+  - metric-collector.json collects system telemetry for storage
+  - anomaly-detector.json evaluates triggers and opens investigations
 ```
 
 ### Data Models
@@ -512,7 +506,7 @@ discovery:
       - Performance baselines
       - Alert management
     interfaces:
-      - api: http://localhost:8083/api/v1
+      - api: http://localhost:${API_PORT}/api/v1
       - cli: system-monitor
       - events: monitor.*
       - metrics: tcp://localhost:9009 (QuestDB)
@@ -592,7 +586,7 @@ testing::runner::register_phase --name performance --script "test/phases/test-pe
 - **Dependencies** dry-runs Go module analysis and `npm install` to ensure manifests stay resolvable.
 - **Unit** leverages the shared multi-language runner with scenario-specific coverage thresholds.
 - **Integration** executes `go test -tags=integration` against API services for workflow coverage.
-- **Business** exercises `/health`, `/api/metrics/current`, and report generation while verifying the React dashboard responds.
+- **Business** exercises `/health`, `/api/v1/metrics/current`, and report generation while verifying the React dashboard responds.
 - **Performance** runs best-effort Go benchmarks and targeted performance tests, emitting warnings when regressions appear.
 
 ### Test Execution Gates

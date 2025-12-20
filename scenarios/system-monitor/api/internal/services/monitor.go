@@ -3,12 +3,12 @@ package services
 import (
 	"context"
 	"log"
-	"strings"
 	"sync"
 	"time"
 
 	"system-monitor-api/internal/collectors"
 	"system-monitor-api/internal/config"
+	"system-monitor-api/internal/infrastructure"
 	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/repository"
 )
@@ -19,6 +19,7 @@ type MonitorService struct {
 	repo       repository.MetricsRepository
 	collectors *collectors.CollectorRegistry
 	alertSvc   interface{} // Can be *AlertService or mock
+	infra      infrastructure.Provider
 	mu         sync.RWMutex
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -33,6 +34,7 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, al
 		repo:       repo,
 		collectors: collectors.NewCollectorRegistry(),
 		alertSvc:   alertSvc,
+		infra:      infrastructure.NewStaticProvider(),
 		ctx:        ctx,
 		cancel:     cancel,
 	}
@@ -320,8 +322,7 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 		detailed.GPUDetails = &metrics
 	}
 
-	// Add service dependencies check
-	detailed.SystemDetails.ServiceDependencies = s.checkServiceDependencies()
+	detailed.SystemDetails.ServiceDependencies = s.infra.CheckServiceDependencies()
 
 	return detailed, nil
 }
@@ -371,138 +372,7 @@ func (s *MonitorService) GetProcessMonitorData(ctx context.Context) (*models.Pro
 
 // GetInfrastructureMonitorData retrieves infrastructure monitoring data
 func (s *MonitorService) GetInfrastructureMonitorData(ctx context.Context) (*models.InfrastructureMonitorData, error) {
-	result := &models.InfrastructureMonitorData{
-		Timestamp: time.Now(),
-	}
-
-	// Get connection pools
-	result.DatabasePools = []models.ConnectionPool{
-		{
-			Name:     "postgres-main",
-			Active:   8,
-			Idle:     2,
-			MaxSize:  10,
-			Waiting:  0,
-			Healthy:  true,
-			LeakRisk: "low",
-		},
-	}
-
-	result.HTTPClientPools = []models.ConnectionPool{
-		{
-			Name:     "scenario-api-1->ollama",
-			Active:   3,
-			Idle:     7,
-			MaxSize:  10,
-			Waiting:  0,
-			Healthy:  true,
-			LeakRisk: "low",
-		},
-	}
-
-	// Message queue stats
-	result.MessageQueues = models.MessageQueueInfo{
-		RedisPubSub: models.RedisPubSubInfo{
-			Subscribers: 12,
-			Channels:    5,
-		},
-		BackgroundJobs: models.BackgroundJobsInfo{
-			Pending: 3,
-			Active:  1,
-			Failed:  0,
-		},
-	}
-
-	// Storage I/O stats
-	result.StorageIO = models.StorageIOInfo{
-		DiskQueueDepth: 0.2,
-		IOWaitPercent:  2.5,
-		ReadMBPerSec:   15.0,
-		WriteMBPerSec:  8.0,
-	}
-
-	return result, nil
-}
-
-// checkServiceDependencies checks the health of dependent services
-func (s *MonitorService) checkServiceDependencies() []models.ServiceHealth {
-	services := []models.ServiceHealth{
-		{
-			Name:      "postgres",
-			Status:    "healthy",
-			LatencyMs: 2.5,
-			LastCheck: time.Now(),
-			Endpoint:  "localhost:5432",
-		},
-		{
-			Name:      "redis",
-			Status:    "healthy",
-			LatencyMs: 0.8,
-			LastCheck: time.Now(),
-			Endpoint:  "localhost:6379",
-		},
-		{
-			Name:      "qdrant",
-			Status:    "healthy",
-			LatencyMs: 4.1,
-			LastCheck: time.Now(),
-			Endpoint:  "localhost:6333",
-		},
-		{
-			Name:      "ollama",
-			Status:    "healthy",
-			LatencyMs: 15.2,
-			LastCheck: time.Now(),
-			Endpoint:  "localhost:11434",
-		},
-	}
-
-	return services
-}
-
-// Helper functions
-
-func getFloat64Value(m map[string]interface{}, key string) float64 {
-	if val, ok := m[key].(float64); ok {
-		return val
-	}
-	return 0.0
-}
-
-func getIntValue(m map[string]interface{}, key string) int {
-	if val, ok := m[key].(int); ok {
-		return val
-	}
-	if val, ok := m[key].(float64); ok {
-		return int(val)
-	}
-	return 0
-}
-
-func getInt64Value(m map[string]interface{}, key string) int64 {
-	if val, ok := m[key].(int64); ok {
-		return val
-	}
-	if val, ok := m[key].(float64); ok {
-		return int64(val)
-	}
-	return 0
-}
-
-func getFloat64Slice(m map[string]interface{}, key string) []float64 {
-	if val, ok := m[key].([]float64); ok {
-		return val
-	}
-	if val, ok := m[key].([]interface{}); ok {
-		result := make([]float64, 0, len(val))
-		for _, v := range val {
-			if f, ok := v.(float64); ok {
-				result = append(result, f)
-			}
-		}
-		return result
-	}
-	return []float64{}
+	return s.infra.GetInfrastructureMonitorData(ctx)
 }
 
 func convertToProcessInfo(proc map[string]interface{}) models.ProcessInfo {
@@ -515,24 +385,4 @@ func convertToProcessInfo(proc map[string]interface{}) models.ProcessInfo {
 		FDs:        getIntValue(proc, "fd_count"),
 		Status:     getStringValue(proc, "status"),
 	}
-}
-
-func getStringValue(m map[string]interface{}, key string) string {
-	if val, ok := m[key].(string); ok {
-		return val
-	}
-	return ""
-}
-
-func getBoolValue(m map[string]interface{}, key string) bool {
-	if val, ok := m[key].(bool); ok {
-		return val
-	}
-	if val, ok := m[key].(string); ok {
-		return strings.EqualFold(val, "true") || val == "1"
-	}
-	if val, ok := m[key].(float64); ok {
-		return val != 0
-	}
-	return false
 }

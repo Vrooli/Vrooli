@@ -21,7 +21,7 @@ func NewMetricsHandler(cfg *config.Config, monitorSvc *services.MonitorService) 
 	}
 }
 
-// GetCurrentMetrics handles GET /api/metrics/current
+// GetCurrentMetrics handles GET /api/v1/metrics/current
 func (h *MetricsHandler) GetCurrentMetrics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
@@ -34,7 +34,7 @@ func (h *MetricsHandler) GetCurrentMetrics(w http.ResponseWriter, r *http.Reques
 	respondWithJSON(w, http.StatusOK, metrics)
 }
 
-// GetDetailedMetrics handles GET /api/metrics/detailed
+// GetDetailedMetrics handles GET /api/v1/metrics/detailed
 func (h *MetricsHandler) GetDetailedMetrics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
@@ -47,7 +47,7 @@ func (h *MetricsHandler) GetDetailedMetrics(w http.ResponseWriter, r *http.Reque
 	respondWithJSON(w, http.StatusOK, metrics)
 }
 
-// GetProcessMonitor handles GET /api/metrics/processes
+// GetProcessMonitor handles GET /api/v1/metrics/processes
 func (h *MetricsHandler) GetProcessMonitor(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
@@ -60,7 +60,7 @@ func (h *MetricsHandler) GetProcessMonitor(w http.ResponseWriter, r *http.Reques
 	respondWithJSON(w, http.StatusOK, data)
 }
 
-// GetInfrastructureMonitor handles GET /api/metrics/infrastructure
+// GetInfrastructureMonitor handles GET /api/v1/metrics/infrastructure
 func (h *MetricsHandler) GetInfrastructureMonitor(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
