@@ -28,7 +28,7 @@ type AgentManagerConfig struct {
 	ProfileName string
 	// Timeout for API requests
 	Timeout time.Duration
-	// Enabled determines whether to use agent-manager (vs direct CLI)
+	// Enabled determines whether agent-manager is available for investigations
 	Enabled bool
 }
 
@@ -68,7 +68,6 @@ type ResourcesConfig struct {
 	QuestDBURL     string
 	NodeRedURL     string
 	OllamaURL      string
-	CodexCommand   string
 	GrafanaURL     string
 }
 
@@ -144,7 +143,6 @@ func Load() *Config {
 			QuestDBURL:   getEnv("QUESTDB_URL", "http://localhost:9000"),
 			NodeRedURL:   getEnv("NODE_RED_URL", "http://localhost:1880"),
 			OllamaURL:    getEnv("OLLAMA_URL", "http://localhost:11434"),
-			CodexCommand: getEnv("CODEX_COMMAND", "resource-codex content execute"),
 			GrafanaURL:   getEnv("GRAFANA_URL", "http://localhost:3004"),
 		},
 		Alerts: AlertConfig{

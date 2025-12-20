@@ -72,6 +72,15 @@ func (s *InvestigationService) initializeAgentProfile() {
 
 // TriggerInvestigation starts a new investigation
 func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix bool, note string) (*models.Investigation, error) {
+	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
+		return nil, fmt.Errorf("agent-manager not enabled")
+	}
+	availabilityCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if !s.agentSvc.IsAvailable(availabilityCtx) {
+		return nil, fmt.Errorf("agent-manager not available")
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -227,17 +236,28 @@ func (s *InvestigationService) runInvestigation(investigationID string, autoFix 
 	tcpConnections := s.getTCPConnections()
 	timestamp := time.Now().Format(time.RFC3339)
 
-	// Try Codex agent first, then fallback to basic analysis
-	findings, details := s.performInvestigation(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
+	// Execute investigation via agent-manager
+	findings, details, ok := s.performInvestigation(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
 
 	// Update investigation with findings
 	s.UpdateInvestigationFindings(ctx, investigationID, findings, details)
 	s.UpdateInvestigationProgress(ctx, investigationID, 100)
-	s.UpdateInvestigationStatus(ctx, investigationID, "completed")
+	current, err := s.repo.GetInvestigation(ctx, investigationID)
+	if err == nil && current != nil {
+		status := strings.ToLower(strings.TrimSpace(current.Status))
+		if status == "stopped" || status == "cancelled" || status == "canceled" {
+			return
+		}
+	}
+	if ok {
+		s.UpdateInvestigationStatus(ctx, investigationID, "completed")
+	} else {
+		s.UpdateInvestigationStatus(ctx, investigationID, "failed")
+	}
 }
 
 // performInvestigation executes the investigation logic via agent-manager.
-func (s *InvestigationService) performInvestigation(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, autoFix bool, note string) (string, map[string]interface{}) {
+func (s *InvestigationService) performInvestigation(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, autoFix bool, note string) (string, map[string]interface{}, bool) {
 	operationMode := "report-only"
 	if autoFix {
 		operationMode = "auto-fix"
@@ -249,7 +269,7 @@ func (s *InvestigationService) performInvestigation(investigationID string, cpuU
 			"error":          "agent-manager not enabled",
 			"auto_fix":       autoFix,
 			"operation_mode": operationMode,
-		}
+		}, false
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -260,7 +280,7 @@ func (s *InvestigationService) performInvestigation(investigationID string, cpuU
 			"error":          "agent-manager not available",
 			"auto_fix":       autoFix,
 			"operation_mode": operationMode,
-		}
+		}, false
 	}
 
 	prompt := s.buildInvestigationPrompt(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
@@ -270,7 +290,7 @@ func (s *InvestigationService) performInvestigation(investigationID string, cpuU
 }
 
 // performAgentManagerInvestigation uses agent-manager for execution.
-func (s *InvestigationService) performAgentManagerInvestigation(ctx context.Context, investigationID, prompt, workingDir string, autoFix bool, operationMode string) (string, map[string]interface{}) {
+func (s *InvestigationService) performAgentManagerInvestigation(ctx context.Context, investigationID, prompt, workingDir string, autoFix bool, operationMode string) (string, map[string]interface{}, bool) {
 	result, err := s.agentSvc.Execute(ctx, agentmanager.ExecuteRequest{
 		InvestigationID: investigationID,
 		Prompt:          prompt,
@@ -286,7 +306,7 @@ func (s *InvestigationService) performAgentManagerInvestigation(ctx context.Cont
 	if err != nil {
 		log.Printf("[investigation] agent-manager execution failed: %v", err)
 		baseDetails["agent_error"] = truncateAgentLog(err.Error(), 400)
-		return fmt.Sprintf("Investigation failed: %v", err), baseDetails
+		return fmt.Sprintf("Investigation failed: %v", err), baseDetails, false
 	}
 
 	if result.Success {
@@ -301,7 +321,7 @@ func (s *InvestigationService) performAgentManagerInvestigation(ctx context.Cont
 		for k, v := range baseDetails {
 			details[k] = v
 		}
-		return strings.TrimSpace(result.Output), details
+		return strings.TrimSpace(result.Output), details, true
 	}
 
 	// Execution failed
@@ -320,7 +340,7 @@ func (s *InvestigationService) performAgentManagerInvestigation(ctx context.Cont
 		details["agent_timeout"] = true
 	}
 
-	return fmt.Sprintf("Investigation completed with issues: %s", result.ErrorMessage), details
+	return fmt.Sprintf("Investigation completed with issues: %s", result.ErrorMessage), details, false
 }
 
 // buildInvestigationPrompt builds the prompt for the investigation agent
@@ -615,6 +635,35 @@ func (s *InvestigationService) ResetCooldown(ctx context.Context) error {
 	return nil
 }
 
+// GetInvestigationAgentStatus returns the investigation for an agent ID.
+func (s *InvestigationService) GetInvestigationAgentStatus(ctx context.Context, id string) (*models.Investigation, error) {
+	return s.repo.GetInvestigation(ctx, id)
+}
+
+// StopInvestigationAgent attempts to stop a running investigation agent.
+func (s *InvestigationService) StopInvestigationAgent(ctx context.Context, id string) error {
+	investigation, err := s.repo.GetInvestigation(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if investigation.Status == "completed" || investigation.Status == "failed" || investigation.Status == "stopped" || investigation.Status == "cancelled" {
+		return nil
+	}
+
+	if s.agentSvc != nil && s.agentSvc.IsEnabled() {
+		tag := fmt.Sprintf("system-monitor-%s", id)
+		run, runErr := s.agentSvc.GetRunByTag(ctx, tag)
+		if runErr == nil && run != nil {
+			if stopErr := s.agentSvc.StopRun(ctx, run.Id); stopErr != nil {
+				return stopErr
+			}
+		}
+	}
+
+	return s.UpdateInvestigationStatus(ctx, id, "stopped")
+}
+
 // GetTriggers returns all trigger configurations
 func (s *InvestigationService) GetTriggers(ctx context.Context) (map[string]*models.TriggerConfig, error) {
 	s.mu.RLock()
@@ -759,13 +808,13 @@ type RunnerResponse struct {
 
 // AgentStatusResponse represents the agent-manager status.
 type AgentStatusResponse struct {
-	Enabled       bool             `json:"enabled"`
-	Available     bool             `json:"available"`
-	ProfileID     string           `json:"profile_id,omitempty"`
-	ActiveRuns    int              `json:"active_runs"`
-	RunnerStatus  []RunnerResponse `json:"runners,omitempty"`
-	AgentManager  string           `json:"agent_manager_url,omitempty"`
-	LastError     string           `json:"last_error,omitempty"`
+	Enabled      bool             `json:"enabled"`
+	Available    bool             `json:"available"`
+	ProfileID    string           `json:"profile_id,omitempty"`
+	ActiveRuns   int              `json:"active_runs"`
+	RunnerStatus []RunnerResponse `json:"runners,omitempty"`
+	AgentManager string           `json:"agent_manager_url,omitempty"`
+	LastError    string           `json:"last_error,omitempty"`
 }
 
 // GetAgentConfig returns the current agent configuration.
@@ -828,14 +877,13 @@ func (s *InvestigationService) GetAgentConfig(ctx context.Context) (*AgentConfig
 // GetAvailableRunners returns available runners from agent-manager.
 func (s *InvestigationService) GetAvailableRunners(ctx context.Context) ([]RunnerResponse, error) {
 	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
-		// Return default runner info when agent-manager is not enabled
+		// Agent-manager is required; return a disabled placeholder
 		return []RunnerResponse{
 			{
-				Type:            "codex",
-				Name:            "OpenAI Codex",
-				Available:       true,
-				Message:         "Using direct CLI execution (agent-manager not enabled)",
-				SupportedModels: []string{"codex-mini-latest", "gpt-4o"},
+				Type:      "agent-manager",
+				Name:      "agent-manager",
+				Available: false,
+				Message:   "agent-manager is required for investigations",
 			},
 		}, nil
 	}

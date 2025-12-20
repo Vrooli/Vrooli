@@ -230,34 +230,39 @@ export const InvestigationsSection = ({
               gap: 'var(--spacing-lg)',
               flexWrap: 'wrap'
             }}>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--spacing-sm)',
-                cursor: 'pointer',
-                color: 'var(--color-text)',
-                fontSize: 'var(--font-size-sm)',
-                userSelect: 'none'
-              }}>
-                <input
-                  type="checkbox"
-                  checked={autoFixEnabled}
-                  onChange={(event) => setAutoFixEnabled(event.target.checked)}
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    accentColor: 'var(--color-success)',
-                    cursor: 'pointer'
-                  }}
-                />
-                <Shield size={16} style={{ color: autoFixEnabled ? 'var(--color-success)' : 'var(--color-text-dim)' }} />
-                <span style={{
-                  fontWeight: autoFixEnabled ? 'bold' : 'normal',
-                  color: autoFixEnabled ? 'var(--color-text-bright)' : 'inherit'
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--spacing-sm)',
+                  cursor: 'pointer',
+                  color: 'var(--color-text)',
+                  fontSize: 'var(--font-size-sm)',
+                  userSelect: 'none'
                 }}>
-                  Adaptive auto-fix & recovery
+                  <input
+                    type="checkbox"
+                    checked={autoFixEnabled}
+                    onChange={(event) => setAutoFixEnabled(event.target.checked)}
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      accentColor: 'var(--color-success)',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <Shield size={16} style={{ color: autoFixEnabled ? 'var(--color-success)' : 'var(--color-text-dim)' }} />
+                  <span style={{
+                    fontWeight: autoFixEnabled ? 'bold' : 'normal',
+                    color: autoFixEnabled ? 'var(--color-text-bright)' : 'inherit'
+                  }}>
+                    Adaptive auto-fix & recovery
+                  </span>
+                </label>
+                <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-xs)' }}>
+                  Allows the agent to apply safe remediation steps automatically; otherwise it stays report-only.
                 </span>
-              </label>
+              </div>
 
               <button
                 className="btn btn-secondary"

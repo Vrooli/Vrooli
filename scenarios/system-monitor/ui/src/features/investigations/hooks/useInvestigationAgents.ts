@@ -163,7 +163,7 @@ export const useInvestigationAgents = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ autoFix, note })
+        body: JSON.stringify({ auto_fix: autoFix, note })
       });
 
       if (!response.ok) {
@@ -230,35 +230,10 @@ export const useInvestigationAgents = () => {
     }
   }, []);
 
-  const triggerInvestigation = useCallback(async ({ autoFix, note }: { autoFix: boolean; note?: string }) => {
-    try {
-      const requestBody: { auto_fix: boolean; note?: string } = { auto_fix: autoFix };
-      if (note) {
-        requestBody.note = note;
-      }
-
-      const response = await fetch(buildApiUrl('/investigations/trigger'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Investigation trigger failed:', errorText || response.statusText);
-      }
-    } catch (triggerError) {
-      console.error('Failed to trigger investigation:', triggerError);
-    }
-  }, []);
-
   const spawnAgent = useCallback(async ({ autoFix, note }: { autoFix: boolean; note?: string }) => {
     const agent = await spawnInvestigationAgent({ autoFix, note });
-    void triggerInvestigation({ autoFix, note });
     return agent;
-  }, [spawnInvestigationAgent, triggerInvestigation]);
+  }, [spawnInvestigationAgent]);
 
   const stopAgent = useCallback(async (agentId: string) => {
     setAgentErrors(prev => {
@@ -331,6 +306,12 @@ export const useInvestigationAgents = () => {
       await Promise.all(activeAgents.map(async agent => {
         try {
           const response = await fetch(buildApiUrl(`/investigations/agent/${encodeURIComponent(agent.id)}/status`));
+          if (response.status === 404) {
+            if (isMounted) {
+              setAgents(prev => prev.filter(existing => existing.id !== agent.id));
+            }
+            return;
+          }
           if (!response.ok) {
             return;
           }
@@ -347,7 +328,12 @@ export const useInvestigationAgents = () => {
             ?? mapAgentPayload({ ...(payload as Record<string, unknown>), id: agent.id });
 
           if (mapped && isMounted) {
-            setAgents(prev => prev.map(existing => existing.id === mapped.id ? { ...existing, ...mapped } : existing));
+            const normalizedStatus = mapped.status?.toLowerCase?.();
+            if (normalizedStatus && TERMINAL_AGENT_STATUSES.has(normalizedStatus)) {
+              setAgents(prev => prev.filter(existing => existing.id !== mapped.id));
+            } else {
+              setAgents(prev => prev.map(existing => existing.id === mapped.id ? { ...existing, ...mapped } : existing));
+            }
           }
         } catch (pollError) {
           console.error('Failed to poll agent status:', pollError);

@@ -404,13 +404,43 @@ func (h *InvestigationHandler) GetCurrentAgent(w http.ResponseWriter, r *http.Re
 	}
 
 	// Only return if there's an active investigation
-	if investigation != nil && investigation.Status == "in_progress" {
+	if investigation != nil && (investigation.Status == "in_progress" || investigation.Status == "queued") {
 		respondWithJSON(w, http.StatusOK, investigation)
 		return
 	}
 
 	// No active agent
 	respondWithJSON(w, http.StatusOK, nil)
+}
+
+// GetAgentStatusByID handles GET /api/v1/investigations/agent/{id}/status
+// Returns the latest investigation payload for a specific agent.
+func (h *InvestigationHandler) GetAgentStatusByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	ctx := r.Context()
+
+	investigation, err := h.investigationSvc.GetInvestigationAgentStatus(ctx, id)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, investigation)
+}
+
+// StopAgent handles POST /api/v1/investigations/agent/{id}/stop
+func (h *InvestigationHandler) StopAgent(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	ctx := r.Context()
+
+	if err := h.investigationSvc.StopInvestigationAgent(ctx, id); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"status": "stopped"})
 }
 
 // ListScripts handles GET /api/v1/investigations/scripts

@@ -36,7 +36,7 @@ func Run(cfg *config.Config) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		if err := agentSvc.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
 			log.Printf("Warning: Failed to initialize agent-manager profile: %v", err)
-			log.Println("Will fall back to direct CLI execution for investigations")
+			log.Println("Investigations require agent-manager; anomaly checks will fail until it is available")
 		}
 		cancel()
 	}
@@ -49,7 +49,7 @@ func Run(cfg *config.Config) error {
 		return fmt.Errorf("start monitor service: %w", err)
 	}
 
-	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc)
+	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc, settingsMgr)
 	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc)
 	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc)
 	reportHandler := handlers.NewReportHandler(cfg, reportSvc)

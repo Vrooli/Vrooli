@@ -22,6 +22,8 @@ func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandle
 	r.HandleFunc("/api/v1/investigations/trigger", investigation.TriggerInvestigation).Methods("POST")
 	r.HandleFunc("/api/v1/investigations/agent/spawn", investigation.TriggerInvestigation).Methods("POST")
 	r.HandleFunc("/api/v1/investigations/agent/current", investigation.GetCurrentAgent).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/agent/{id}/status", investigation.GetAgentStatusByID).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/agent/{id}/stop", investigation.StopAgent).Methods("POST")
 	r.HandleFunc("/api/v1/investigations/cooldown", investigation.GetCooldownStatus).Methods("GET")
 	r.HandleFunc("/api/v1/investigations/cooldown/reset", investigation.ResetCooldown).Methods("POST")
 	r.HandleFunc("/api/v1/investigations/cooldown/period", investigation.UpdateCooldownPeriod).Methods("PUT")
