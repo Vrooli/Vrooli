@@ -694,8 +694,20 @@ func (e *RunExecutor) classifyOutcome() domain.RunOutcome {
 }
 
 func (e *RunExecutor) handleSuccessfulCompletion() {
-	e.run.Status = domain.RunStatusNeedsReview
-	e.run.ApprovalState = domain.ApprovalStatePending
+	// Check if approval is required based on resolved config
+	requiresApproval := true // default to requiring approval for safety
+	if e.run.ResolvedConfig != nil {
+		requiresApproval = e.run.ResolvedConfig.RequiresApproval
+	}
+
+	if requiresApproval {
+		e.run.Status = domain.RunStatusNeedsReview
+		e.run.ApprovalState = domain.ApprovalStatePending
+	} else {
+		// Skip approval workflow - mark as complete directly
+		e.run.Status = domain.RunStatusComplete
+		e.run.ApprovalState = domain.ApprovalStateNone
+	}
 
 	if e.result != nil {
 		e.run.Summary = e.result.Summary

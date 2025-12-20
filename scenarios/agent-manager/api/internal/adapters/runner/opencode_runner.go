@@ -224,11 +224,16 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			continue
 		}
 
+		// Skip silently if parseStreamEvent returned nil, nil (non-JSON lines)
+		if event == nil {
+			continue
+		}
+
 		// Update metrics based on event
 		r.updateMetrics(event, &metrics, &lastAssistantMessage)
 
 		// Emit to sink
-		if req.EventSink != nil && event != nil {
+		if req.EventSink != nil {
 			req.EventSink.Emit(event)
 		}
 
@@ -481,7 +486,21 @@ type OpenCodeError struct {
 
 // parseStreamEvent parses a single line from OpenCode's JSON output.
 // OpenCode format: {"type":"...", "timestamp":..., "sessionID":"...", "part":{...}}
+// Returns nil, nil for lines that should be silently skipped (non-JSON startup output).
 func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain.RunEvent, error) {
+	// Skip empty lines
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return nil, nil
+	}
+
+	// Quick check: valid JSON must start with '{' or '['
+	// This avoids logging warnings for non-JSON startup output
+	if len(line) > 0 && line[0] != '{' && line[0] != '[' {
+		// Silently skip non-JSON lines (startup messages, etc.)
+		return nil, nil
+	}
+
 	var streamEvent OpenCodeStreamEvent
 	if err := json.Unmarshal([]byte(line), &streamEvent); err != nil {
 		return nil, fmt.Errorf("invalid JSON: %w", err)
@@ -511,8 +530,8 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 			return domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text), nil
 		}
 
-	case "tool_call":
-		// Tool invocation
+	case "tool_call", "tool_use":
+		// Tool invocation (OpenCode may use either "tool_call" or "tool_use")
 		if streamEvent.Part != nil {
 			var input map[string]interface{}
 			if streamEvent.Part.Input != nil {
@@ -521,7 +540,7 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 			return domain.NewToolCallEvent(runID, streamEvent.Part.Name, input), nil
 		}
 
-	case "tool_result":
+	case "tool_result", "tool-result":
 		// Tool execution result
 		if streamEvent.Part != nil {
 			var errMsg error

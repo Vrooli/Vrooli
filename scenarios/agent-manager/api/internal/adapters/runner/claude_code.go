@@ -75,7 +75,15 @@ func NewClaudeCodeRunner() (*ClaudeCodeRunner, error) {
 	// Parse JSON status to check health
 	var statusData map[string]interface{}
 	if err := json.Unmarshal(output, &statusData); err == nil {
-		if healthy, ok := statusData["healthy"].(string); ok && healthy != "true" {
+		// Check health status - handle both boolean and string formats
+		isHealthy := true
+		if healthy, ok := statusData["healthy"].(bool); ok {
+			isHealthy = healthy
+		} else if healthyStr, ok := statusData["healthy"].(string); ok {
+			isHealthy = healthyStr == "true"
+		}
+
+		if !isHealthy {
 			runner.available = false
 			if msg, ok := statusData["health_message"].(string); ok {
 				runner.message = msg
@@ -216,11 +224,16 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 			continue
 		}
 
+		// Skip silently if parseStreamEvent returned nil, nil (non-JSON lines)
+		if event == nil {
+			continue
+		}
+
 		// Update metrics based on event
 		r.updateMetrics(event, &metrics, &lastAssistantMessage)
 
 		// Emit to sink
-		if req.EventSink != nil && event != nil {
+		if req.EventSink != nil {
 			req.EventSink.Emit(event)
 		}
 	}
@@ -404,9 +417,90 @@ type ClaudeStreamEvent struct {
 }
 
 // ClaudeMessage represents a message in the Claude stream.
+// Content can be either a string or an array of content blocks.
 type ClaudeMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string          `json:"role"`
+	Content json.RawMessage `json:"content"` // Can be string or []ContentBlock
+}
+
+// ClaudeContentItem represents a single item in a content array.
+type ClaudeContentItem struct {
+	Type      string          `json:"type"`                  // "text", "tool_use", "tool_result"
+	Text      string          `json:"text,omitempty"`        // For text blocks
+	ID        string          `json:"id,omitempty"`          // For tool_use blocks
+	Name      string          `json:"name,omitempty"`        // For tool_use blocks
+	Input     json.RawMessage `json:"input,omitempty"`       // For tool_use blocks
+	ToolUseID string          `json:"tool_use_id,omitempty"` // For tool_result blocks
+	Content   string          `json:"content,omitempty"`     // For tool_result blocks
+}
+
+// ExtractTextContent extracts text content from a ClaudeMessage.
+// Handles both string content and array of content blocks.
+func (m *ClaudeMessage) ExtractTextContent() string {
+	if m.Content == nil || len(m.Content) == 0 {
+		return ""
+	}
+
+	// Try parsing as a simple string first
+	var simpleString string
+	if err := json.Unmarshal(m.Content, &simpleString); err == nil {
+		return simpleString
+	}
+
+	// Try parsing as an array of content blocks
+	var contentBlocks []ClaudeContentItem
+	if err := json.Unmarshal(m.Content, &contentBlocks); err == nil {
+		var textParts []string
+		for _, block := range contentBlocks {
+			if block.Type == "text" && block.Text != "" {
+				textParts = append(textParts, block.Text)
+			}
+		}
+		return strings.Join(textParts, "\n")
+	}
+
+	return ""
+}
+
+// ExtractToolUses extracts tool use blocks from a ClaudeMessage content array.
+func (m *ClaudeMessage) ExtractToolUses() []ClaudeContentItem {
+	if m.Content == nil || len(m.Content) == 0 {
+		return nil
+	}
+
+	var contentBlocks []ClaudeContentItem
+	if err := json.Unmarshal(m.Content, &contentBlocks); err != nil {
+		return nil
+	}
+
+	var toolUses []ClaudeContentItem
+	for _, block := range contentBlocks {
+		if block.Type == "tool_use" {
+			toolUses = append(toolUses, block)
+		}
+	}
+	return toolUses
+}
+
+// ExtractToolResults extracts tool result blocks from a ClaudeMessage content array.
+// These appear in user messages as responses to tool_use blocks from the assistant.
+func (m *ClaudeMessage) ExtractToolResults() []ClaudeContentItem {
+	if m.Content == nil || len(m.Content) == 0 {
+		return nil
+	}
+
+	var contentBlocks []ClaudeContentItem
+	if err := json.Unmarshal(m.Content, &contentBlocks); err != nil {
+		return nil
+	}
+
+	var toolResults []ClaudeContentItem
+	for _, block := range contentBlocks {
+		if block.Type == "tool_result" {
+			toolResults = append(toolResults, block)
+		}
+	}
+	return toolResults
 }
 
 // ClaudeUsage represents detailed token usage information.
@@ -461,31 +555,106 @@ type RateLimitInfo struct {
 }
 
 // parseStreamEvent parses a single line from Claude's stream-json output.
+// Returns nil, nil for lines that should be silently skipped (non-JSON startup output).
 func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain.RunEvent, error) {
+	// Skip empty lines
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return nil, nil
+	}
+
+	// Quick check: valid JSON objects start with '{', arrays with '['
+	// Skip non-JSON lines like "Initializing...", "[Info] ...", etc.
+	if len(line) == 0 {
+		return nil, nil
+	}
+	firstChar := line[0]
+	if firstChar != '{' && firstChar != '[' {
+		return nil, nil
+	}
+	// Lines starting with '[' followed by a letter are likely log prefixes like "[Info]"
+	// Valid JSON arrays start with '[' followed by whitespace, '{', '[', '"', digit, or ']'
+	if firstChar == '[' && len(line) > 1 {
+		secondChar := line[1]
+		// Check if it looks like a log prefix rather than JSON array
+		if (secondChar >= 'A' && secondChar <= 'Z') || (secondChar >= 'a' && secondChar <= 'z') {
+			return nil, nil
+		}
+	}
+
 	var streamEvent ClaudeStreamEvent
 	if err := json.Unmarshal([]byte(line), &streamEvent); err != nil {
-		return nil, fmt.Errorf("invalid JSON: %w", err)
+		// Silently skip malformed JSON from startup/debug output
+		// Real streaming events from Claude Code are always well-formed
+		return nil, nil
 	}
 
 	switch streamEvent.Type {
 	case "message":
 		if streamEvent.Message != nil {
-			return domain.NewMessageEvent(
-				runID,
-				streamEvent.Message.Role,
-				streamEvent.Message.Content,
-			), nil
+			// Extract text content (handles both string and array formats)
+			textContent := streamEvent.Message.ExtractTextContent()
+			if textContent != "" {
+				return domain.NewMessageEvent(
+					runID,
+					streamEvent.Message.Role,
+					textContent,
+				), nil
+			}
 		}
 
 	case "assistant":
-		// Assistant text content
+		// Assistant turn event - may contain content or just be a turn marker
 		if streamEvent.Message != nil {
-			return domain.NewMessageEvent(
-				runID,
-				"assistant",
-				streamEvent.Message.Content,
-			), nil
+			textContent := streamEvent.Message.ExtractTextContent()
+			if textContent != "" {
+				return domain.NewMessageEvent(
+					runID,
+					"assistant",
+					textContent,
+				), nil
+			}
+			// Also check for tool uses in the message content
+			toolUses := streamEvent.Message.ExtractToolUses()
+			if len(toolUses) > 0 {
+				// Emit tool call events for each tool use
+				for _, tool := range toolUses {
+					var input map[string]interface{}
+					if tool.Input != nil {
+						json.Unmarshal(tool.Input, &input)
+					}
+					return domain.NewToolCallEvent(runID, tool.Name, input), nil
+				}
+			}
 		}
+		// Turn marker without content - log for debugging
+		return domain.NewLogEvent(runID, "debug", "Assistant turn started"), nil
+
+	case "user":
+		// User turn event - may contain tool results or the user's prompt
+		if streamEvent.Message != nil {
+			// Check for tool results first (responses to tool_use from assistant)
+			toolResults := streamEvent.Message.ExtractToolResults()
+			if len(toolResults) > 0 {
+				// Return the first tool result (most common case)
+				// TODO: Consider emitting multiple events for multiple results
+				result := toolResults[0]
+				// Use toolUseID as tool name since we don't have the actual name at this point
+				return domain.NewToolResultEvent(
+					runID,
+					result.ToolUseID, // Using ID as a reference to the originating tool_use
+					result.Content,
+					nil, // No error for successful tool results
+				), nil
+			}
+
+			textContent := streamEvent.Message.ExtractTextContent()
+			if textContent != "" {
+				return domain.NewMessageEvent(runID, "user", textContent), nil
+			}
+		}
+		// Turn marker without content
+		return domain.NewLogEvent(runID, "debug", "User turn marker"), nil
 
 	case "tool_use":
 		if streamEvent.ToolUse != nil {
@@ -538,14 +707,23 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 		// Final result event - contains cost, usage, and potential rate limits
 		return r.parseResultEvent(runID, &streamEvent)
 
+	case "system":
+		// System context/prompt - log for debugging but don't emit as user-visible event
+		return domain.NewLogEvent(
+			runID,
+			"debug",
+			"System context received",
+		), nil
+
 	case "content_block_start":
 		// Start of a content block (text or tool use)
 		if streamEvent.ContentBlock != nil {
 			if streamEvent.ContentBlock.Type == "tool_use" {
-				return domain.NewLogEvent(
+				// Emit a proper tool_call event for tool_use content blocks
+				return domain.NewToolCallEvent(
 					runID,
-					"debug",
-					fmt.Sprintf("Starting tool: %s", streamEvent.ContentBlock.Name),
+					streamEvent.ContentBlock.Name,
+					nil, // Input comes in subsequent delta events
 				), nil
 			}
 		}
@@ -559,14 +737,34 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 				streamEvent.Delta.Text,
 			), nil
 		}
+		return nil, nil // Skip empty deltas silently
+
+	case "content_block_stop":
+		// End of a content block - silently skip
+		return nil, nil
+
+	case "message_start", "message_delta", "message_stop":
+		// Message lifecycle events - silently skip (content comes via other events)
+		return nil, nil
+
+	case "init", "start", "ping", "heartbeat":
+		// Initialization and keep-alive events - silently skip
+		return nil, nil
+
+	case "":
+		// Empty event type - silently skip
+		return nil, nil
 	}
 
-	// Unknown or unhandled event type - log it
-	return domain.NewLogEvent(
-		runID,
-		"debug",
-		fmt.Sprintf("Unhandled event type: %s", streamEvent.Type),
-	), nil
+	// Unknown event type - log it for debugging but don't spam
+	if streamEvent.Type != "" {
+		return domain.NewLogEvent(
+			runID,
+			"debug",
+			fmt.Sprintf("Unhandled event type: %s", streamEvent.Type),
+		), nil
+	}
+	return nil, nil
 }
 
 // parseResultEvent handles the final "result" event which contains cost and rate limit info.
