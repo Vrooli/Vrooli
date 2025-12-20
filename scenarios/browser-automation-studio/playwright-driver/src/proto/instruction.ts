@@ -86,9 +86,9 @@ export function toHandlerInstruction(proto: CompiledInstruction): HandlerInstruc
   return {
     index: proto.index,
     nodeId: proto.nodeId,
-    // Legacy fields - no longer populated, kept for interface compatibility
-    type: '',
-    params: {},
+    // Legacy fields - populated as fallback when typed action is missing
+    type: proto.type ?? '',
+    params: jsonValueMapToPlain(proto.params),
     preloadHtml: proto.preloadHtml,
     context: jsonValueMapToPlain(proto.context),
     metadata: proto.metadata ? { ...proto.metadata } : undefined,

@@ -16,6 +16,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"google.golang.org/protobuf/encoding/protojson"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 const (
@@ -357,10 +360,12 @@ func (c *Client) RunInstructions(ctx context.Context, sessionID string, instruct
 // RunInstruction executes a compiled instruction and returns the step outcome.
 // This is the primary execution method used by the workflow executor.
 func (c *Client) RunInstruction(ctx context.Context, sessionID string, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
-	req := RunInstructionRequest{Instruction: instruction}
-
+	requestBody, err := buildInstructionPayload(instruction)
+	if err != nil {
+		return contracts.StepOutcome{}, err
+	}
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(req); err != nil {
+	if err := json.NewEncoder(&buf).Encode(requestBody); err != nil {
 		return contracts.StepOutcome{}, fmt.Errorf("encode run request: %w", err)
 	}
 
@@ -383,6 +388,149 @@ func (c *Client) RunInstruction(ctx context.Context, sessionID string, instructi
 	}
 
 	return decodeStepOutcome(resp.Body)
+}
+
+func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[string]any, error) {
+	payload := make(map[string]any)
+	wire := map[string]any{
+		"index":   instruction.Index,
+		"node_id": instruction.NodeID,
+	}
+
+	if instruction.PreloadHTML != "" {
+		wire["preload_html"] = instruction.PreloadHTML
+	}
+	if len(instruction.Context) > 0 {
+		context := make(map[string]any, len(instruction.Context))
+		for key, value := range instruction.Context {
+			context[key] = typeconv.WrapJsonValue(value)
+		}
+		wire["context"] = context
+	}
+	if len(instruction.Metadata) > 0 {
+		wire["metadata"] = instruction.Metadata
+	}
+
+	if instruction.Action != nil {
+		actionJSON, err := protojson.MarshalOptions{EmitUnpopulated: false, UseEnumNumbers: true}.Marshal(instruction.Action)
+		if err != nil {
+			return nil, fmt.Errorf("encode action: %w", err)
+		}
+		var action map[string]any
+		if err := json.Unmarshal(actionJSON, &action); err != nil {
+			return nil, fmt.Errorf("decode action: %w", err)
+		}
+		wire["action"] = action
+	}
+
+	stepType := actionTypeToString(instruction.Action)
+	if stepType != "" {
+		wire["type"] = stepType
+	}
+
+	params := actionToParams(instruction.Action)
+	if params == nil {
+		params = map[string]any{}
+	}
+	wire["params"] = params
+
+	payload["instruction"] = wire
+	return payload, nil
+}
+
+func actionTypeToString(action *basactions.ActionDefinition) string {
+	if action == nil {
+		return ""
+	}
+	switch action.Type {
+	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
+		return "navigate"
+	case basactions.ActionType_ACTION_TYPE_CLICK:
+		return "click"
+	case basactions.ActionType_ACTION_TYPE_INPUT:
+		return "type"
+	case basactions.ActionType_ACTION_TYPE_WAIT:
+		return "wait"
+	case basactions.ActionType_ACTION_TYPE_ASSERT:
+		return "assert"
+	case basactions.ActionType_ACTION_TYPE_SCROLL:
+		return "scroll"
+	case basactions.ActionType_ACTION_TYPE_SELECT:
+		return "select"
+	case basactions.ActionType_ACTION_TYPE_EVALUATE:
+		return "evaluate"
+	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
+		return "keyboard"
+	case basactions.ActionType_ACTION_TYPE_HOVER:
+		return "hover"
+	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
+		return "screenshot"
+	case basactions.ActionType_ACTION_TYPE_FOCUS:
+		return "focus"
+	case basactions.ActionType_ACTION_TYPE_BLUR:
+		return "blur"
+	case basactions.ActionType_ACTION_TYPE_SUBFLOW:
+		return "subflow"
+	case basactions.ActionType_ACTION_TYPE_EXTRACT:
+		return "extract"
+	case basactions.ActionType_ACTION_TYPE_UPLOAD_FILE:
+		return "uploadFile"
+	case basactions.ActionType_ACTION_TYPE_DOWNLOAD:
+		return "download"
+	case basactions.ActionType_ACTION_TYPE_FRAME_SWITCH:
+		return "frameSwitch"
+	case basactions.ActionType_ACTION_TYPE_TAB_SWITCH:
+		return "tabSwitch"
+	case basactions.ActionType_ACTION_TYPE_COOKIE_STORAGE:
+		return "setCookie"
+	case basactions.ActionType_ACTION_TYPE_SHORTCUT:
+		return "shortcut"
+	case basactions.ActionType_ACTION_TYPE_DRAG_DROP:
+		return "dragDrop"
+	case basactions.ActionType_ACTION_TYPE_GESTURE:
+		return "gesture"
+	case basactions.ActionType_ACTION_TYPE_NETWORK_MOCK:
+		return "networkMock"
+	case basactions.ActionType_ACTION_TYPE_ROTATE:
+		return "rotate"
+	case basactions.ActionType_ACTION_TYPE_SET_VARIABLE:
+		return "setVariable"
+	case basactions.ActionType_ACTION_TYPE_LOOP:
+		return "loop"
+	case basactions.ActionType_ACTION_TYPE_CONDITIONAL:
+		return "conditional"
+	default:
+		return ""
+	}
+}
+
+func actionToParams(action *basactions.ActionDefinition) map[string]any {
+	if action == nil {
+		return nil
+	}
+
+	raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(action)
+	if err != nil {
+		return nil
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return nil
+	}
+
+	delete(decoded, "type")
+	delete(decoded, "metadata")
+
+	for _, value := range decoded {
+		if params, ok := value.(map[string]any); ok {
+			wrapped := make(map[string]any, len(params))
+			for key, param := range params {
+				wrapped[key] = typeconv.WrapJsonValue(param)
+			}
+			return wrapped
+		}
+	}
+	return nil
 }
 
 // decodeStepOutcome converts the driver response into a StepOutcome,

@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/state"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -142,6 +144,30 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	cancel()
 
 	normalized := e.normalizeOutcome(req.Plan, instruction, attempt, startedAt, outcome, runErr)
+	if !normalized.Success {
+		fields := logrus.Fields{
+			"execution_id": normalized.ExecutionID,
+			"node_id":      normalized.NodeID,
+			"step_index":   normalized.StepIndex,
+			"step_type":    normalized.StepType,
+			"attempt":      normalized.Attempt,
+			"duration_ms":  normalized.DurationMs,
+		}
+		if normalized.UsedSelector != "" {
+			fields["used_selector"] = normalized.UsedSelector
+		}
+		if normalized.SelectorMatchCount > 0 {
+			fields["selector_match_count"] = normalized.SelectorMatchCount
+		}
+		if normalized.Failure != nil {
+			fields["failure_kind"] = normalized.Failure.Kind
+			fields["failure_code"] = normalized.Failure.Code
+			fields["failure_message"] = normalized.Failure.Message
+			fields["failure_retryable"] = normalized.Failure.Retryable
+			fields["failure_fatal"] = normalized.Failure.Fatal
+		}
+		logrus.WithFields(fields).Warn("Step failed")
+	}
 
 	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, normalized)
 	if recordErr != nil {
@@ -625,15 +651,36 @@ func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
 			return spec, fmt.Errorf("subflow %s has invalid workflowId: %w", step.NodeID, err)
 		}
 	}
+	if spec.workflowID == nil {
+		if idStr := state.StringValue(stepParams, "workflow_id"); strings.TrimSpace(idStr) != "" {
+			if parsed, err := uuid.Parse(idStr); err == nil {
+				spec.workflowID = &parsed
+			} else {
+				return spec, fmt.Errorf("subflow %s has invalid workflow_id: %w", step.NodeID, err)
+			}
+		}
+	}
 	if version := state.IntValue(stepParams, "workflowVersion"); version > 0 {
 		spec.workflowVersion = &version
 	}
 	if pathStr := state.StringValue(stepParams, "workflowPath"); strings.TrimSpace(pathStr) != "" {
 		spec.workflowPath = strings.TrimSpace(pathStr)
 	}
+	if spec.workflowPath == "" {
+		if pathStr := state.StringValue(stepParams, "workflow_path"); strings.TrimSpace(pathStr) != "" {
+			spec.workflowPath = strings.TrimSpace(pathStr)
+		}
+	}
 	if rawDef, ok := stepParams["workflowDefinition"]; ok {
 		if def, ok := rawDef.(map[string]any); ok && len(def) > 0 {
 			spec.inlineDef = def
+		}
+	}
+	if spec.inlineDef == nil {
+		if rawDef, ok := stepParams["workflow_definition"]; ok {
+			if def, ok := rawDef.(map[string]any); ok && len(def) > 0 {
+				spec.inlineDef = def
+			}
 		}
 	}
 	if rawParams, ok := stepParams["parameters"]; ok {
@@ -641,7 +688,51 @@ func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
 			spec.params = params
 		}
 	}
+	if spec.workflowID == nil && spec.workflowPath == "" && spec.inlineDef == nil && step.Action != nil {
+		if sub := step.Action.GetSubflow(); sub != nil {
+			if spec.workflowID == nil {
+				if idStr := strings.TrimSpace(sub.GetWorkflowId()); idStr != "" {
+					if parsed, err := uuid.Parse(idStr); err == nil {
+						spec.workflowID = &parsed
+					} else {
+						return spec, fmt.Errorf("subflow %s has invalid workflowId: %w", step.NodeID, err)
+					}
+				}
+			}
+			if spec.workflowPath == "" {
+				if pathStr := strings.TrimSpace(sub.GetWorkflowPath()); pathStr != "" {
+					spec.workflowPath = pathStr
+				}
+			}
+			if spec.workflowVersion == nil {
+				if version := sub.GetWorkflowVersion(); version > 0 {
+					converted := int(version)
+					spec.workflowVersion = &converted
+				}
+			}
+			if spec.params == nil {
+				spec.params = typeconv.JsonValueMapToAny(sub.GetArgs())
+			}
+		}
+	}
 	if spec.workflowID == nil && spec.workflowPath == "" && spec.inlineDef == nil {
+		paramKeys := make([]string, 0, len(stepParams))
+		for key := range stepParams {
+			paramKeys = append(paramKeys, key)
+		}
+		sort.Strings(paramKeys)
+		stepType := PlanStepType(step)
+		logrus.WithFields(logrus.Fields{
+			"node_id":                  step.NodeID,
+			"step_type":                stepType,
+			"action_present":           step.Action != nil,
+			"subflow_action_present":   step.Action != nil && step.Action.GetSubflow() != nil,
+			"workflow_id_present":      spec.workflowID != nil,
+			"workflow_path_present":    spec.workflowPath != "",
+			"workflow_def_present":     spec.inlineDef != nil,
+			"workflow_version_present": spec.workflowVersion != nil,
+			"param_keys":               paramKeys,
+		}).Warn("subflow missing workflow reference")
 		return spec, fmt.Errorf("subflow %s missing workflowId, workflowPath, or workflowDefinition", step.NodeID)
 	}
 	return spec, nil

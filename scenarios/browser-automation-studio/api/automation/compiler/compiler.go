@@ -102,8 +102,10 @@ func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
 	if width, height := extractViewportFromSettings(raw.Settings); width > 0 && height > 0 {
 		metadata["executionViewport"] = map[string]any{"width": width, "height": height}
 	}
-	if selector, timeout := extractEntryFromSettings(raw.Settings); selector != "" {
-		metadata["entrySelector"] = selector
+	if selector, timeout := extractEntryFromSettings(raw.Settings); selector != "" || timeout > 0 {
+		if selector != "" {
+			metadata["entrySelector"] = selector
+		}
 		if timeout > 0 {
 			metadata["entrySelectorTimeoutMs"] = timeout
 		}
@@ -429,15 +431,26 @@ func extractEntryFromSettings(settings map[string]any) (string, int) {
 			return strings.TrimSpace(selector), timeout
 		}
 	}
+	if timeout := toPositiveInt(settings["entry_selector_timeout_ms"]); timeout > 0 {
+		return "", timeout
+	}
 
 	// Fall back to camelCase.
 	raw, ok := settings["entrySelector"]
 	if !ok {
-		return "", 0
+		timeout := toPositiveInt(settings["entrySelectorTimeoutMs"])
+		if timeout == 0 {
+			timeout = toPositiveInt(settings["entryTimeoutMs"])
+		}
+		return "", timeout
 	}
 	selector, ok := raw.(string)
 	if !ok || strings.TrimSpace(selector) == "" {
-		return "", 0
+		timeout := toPositiveInt(settings["entrySelectorTimeoutMs"])
+		if timeout == 0 {
+			timeout = toPositiveInt(settings["entryTimeoutMs"])
+		}
+		return "", timeout
 	}
 	timeout := toPositiveInt(settings["entrySelectorTimeoutMs"])
 	if timeout == 0 {
@@ -951,9 +964,11 @@ func resolveNavigateURL(step *ExecutionStep) error {
 }
 
 // selectorManifest holds the loaded selector mappings from selectors.manifest.json
-var selectorManifest map[string]interface{}
-var selectorManifestOnce sync.Once
-var selectorManifestErr error
+var (
+	selectorManifest     map[string]interface{}
+	selectorManifestOnce sync.Once
+	selectorManifestErr  error
+)
 
 // loadSelectorManifest loads the selector manifest from ui/src/consts/selectors.manifest.json
 func loadSelectorManifest() error {
@@ -1024,7 +1039,7 @@ func resolveSelectors(step *ExecutionStep) error {
 
 	for _, paramName := range selectorParams {
 		if selectorRef, ok := step.Params[paramName].(string); ok {
-			if strings.HasPrefix(selectorRef, "@selector/") {
+			if strings.Contains(selectorRef, "@selector/") {
 				hasSelectorsRefs = true
 				break
 			}
@@ -1050,11 +1065,10 @@ func resolveSelectors(step *ExecutionStep) error {
 				cleanedRef = cleanedRef[:idx]
 			}
 
-			// Try to resolve @selector/ references
-			if resolved := resolveSelectorReference(cleanedRef); resolved != "" {
-				step.Params[paramName] = resolved
+			resolvedRef := resolveSelectorTokens(cleanedRef)
+			if resolvedRef != cleanedRef {
+				step.Params[paramName] = resolvedRef
 			} else if cleanedRef != selectorRef {
-				// No @selector/ reference, but we cleaned the /*dup-N*/ suffix
 				step.Params[paramName] = cleanedRef
 			}
 		}
@@ -1067,7 +1081,7 @@ func resolveSelectors(step *ExecutionStep) error {
 			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
 				cleanedRef = cleanedRef[:idx]
 			}
-			if resolved := resolveSelectorReference(cleanedRef); resolved != "" {
+			if resolved := resolveSelectorTokens(cleanedRef); resolved != cleanedRef {
 				resilience["successSelector"] = resolved
 			} else if cleanedRef != successSelector {
 				resilience["successSelector"] = cleanedRef
@@ -1078,7 +1092,7 @@ func resolveSelectors(step *ExecutionStep) error {
 			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
 				cleanedRef = cleanedRef[:idx]
 			}
-			if resolved := resolveSelectorReference(cleanedRef); resolved != "" {
+			if resolved := resolveSelectorTokens(cleanedRef); resolved != cleanedRef {
 				resilience["failureSelector"] = resolved
 			} else if cleanedRef != failureSelector {
 				resilience["failureSelector"] = cleanedRef
@@ -1105,13 +1119,21 @@ func resolveSelectorReference(selectorRef string) string {
 		path = path[:idx]
 	}
 
+	// Split base path from optional selector suffix (e.g. :not(...), [attr=...])
+	basePath := path
+	suffix := ""
+	if idx := strings.IndexAny(basePath, ":["); idx != -1 {
+		suffix = basePath[idx:]
+		basePath = basePath[:idx]
+	}
+
 	// Look up in manifest
 	selectors, ok := selectorManifest["selectors"].(map[string]interface{})
 	if !ok {
 		return ""
 	}
 
-	entry, ok := selectors[path].(map[string]interface{})
+	entry, ok := selectors[basePath].(map[string]interface{})
 	if !ok {
 		return ""
 	}
@@ -1121,5 +1143,30 @@ func resolveSelectorReference(selectorRef string) string {
 		return ""
 	}
 
-	return selector
+	return selector + suffix
+}
+
+// resolveSelectorTokens replaces any @selector/ references embedded in a selector string.
+func resolveSelectorTokens(selectorRef string) string {
+	resolved := selectorRef
+	for {
+		idx := strings.Index(resolved, "@selector/")
+		if idx == -1 {
+			return resolved
+		}
+		end := idx + len("@selector/")
+		for end < len(resolved) {
+			ch := resolved[end]
+			if ch == ' ' || ch == ',' {
+				break
+			}
+			end++
+		}
+		token := resolved[idx:end]
+		replacement := resolveSelectorReference(token)
+		if replacement == "" {
+			replacement = token
+		}
+		resolved = resolved[:idx] + replacement + resolved[end:]
+	}
 }

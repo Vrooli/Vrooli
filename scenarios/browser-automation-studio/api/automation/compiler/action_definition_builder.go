@@ -2,6 +2,9 @@
 package compiler
 
 import (
+	"sort"
+
+	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -72,11 +75,27 @@ func BuildActionDefinition(stepType string, params map[string]any) (*basactions.
 		action.Params = &basactions.ActionDefinition_Blur{
 			Blur: typeconv.BuildBlurParams(params),
 		}
+	case basactions.ActionType_ACTION_TYPE_SUBFLOW:
+		action.Params = &basactions.ActionDefinition_Subflow{
+			Subflow: typeconv.BuildSubflowParams(params),
+		}
 	}
 
 	// Build metadata if present in params
 	action.Metadata = typeconv.BuildActionMetadata(params)
 
+	if actionType != basactions.ActionType_ACTION_TYPE_UNSPECIFIED && action.Params == nil {
+		paramKeys := make([]string, 0, len(params))
+		for key := range params {
+			paramKeys = append(paramKeys, key)
+		}
+		sort.Strings(paramKeys)
+		logrus.WithFields(logrus.Fields{
+			"step_type":   stepType,
+			"action_type": actionType.String(),
+			"param_keys":  paramKeys,
+		}).Warn("ActionDefinition params missing for step")
+	}
+
 	return action, nil
 }
-

@@ -123,6 +123,20 @@
         },
         "metadata": { "label": "Verify project header" }
       }
+    },
+    {
+      "id": "fixture-wait-for-project-tabs",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflows.tab",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for project tabs" }
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      }
     }
   ],
   "edges": [
@@ -166,6 +180,12 @@
       "id": "fixture-edge-2",
       "source": "fixture-click-demo",
       "target": "fixture-assert-demo-heading",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-edge-3",
+      "source": "fixture-assert-demo-heading",
+      "target": "fixture-wait-for-project-tabs",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]

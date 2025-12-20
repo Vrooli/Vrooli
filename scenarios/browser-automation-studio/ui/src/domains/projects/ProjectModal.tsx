@@ -599,6 +599,7 @@ function ProjectModal({
           <div className="mb-5">
             <button
               type="button"
+              data-testid={selectors.dialogs.project.advancedOptionsToggle}
               onClick={() => setShowAdvanced(!showAdvanced)}
               className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
             >

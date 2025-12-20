@@ -107,6 +107,10 @@
       "testId": "project-modal-name-error",
       "selector": "[data-testid=\"project-modal-name-error\"]"
     },
+    "dialogs.project.advancedOptionsToggle": {
+      "testId": "project-modal-advanced-options-toggle",
+      "selector": "[data-testid=\"project-modal-advanced-options-toggle\"]"
+    },
     "dialogs.project.descriptionInput": {
       "testId": "project-modal-description-input",
       "selector": "[data-testid=\"project-modal-description-input\"]"

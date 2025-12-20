@@ -3,6 +3,18 @@
     {
       "id": "e1",
       "source": "call-open-project",
+      "target": "wait-for-workflows-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e1b",
+      "source": "wait-for-workflows-tab",
+      "target": "click-workflows-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e1c",
+      "source": "click-workflows-tab",
       "target": "assert-workflows-tab-active",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -87,6 +99,37 @@
         "type": "ACTION_TYPE_ASSERT"
       },
       "id": "assert-workflows-tab-active"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.tab"
+        },
+        "metadata": {
+          "label": "Ensure workflows tab is selected"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "click-workflows-tab"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for workflows tab"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflows.tab",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "wait-for-workflows-tab"
     },
     {
       "action": {
@@ -197,6 +240,7 @@
     }
   ],
   "settings": {
+    "entry_selector_timeout_ms": 10000,
     "viewport_height": 1080,
     "viewport_width": 1920
   }

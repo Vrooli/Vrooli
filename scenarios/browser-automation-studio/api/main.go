@@ -85,6 +85,9 @@ func main() {
 	default:
 		log.SetLevel(logrus.InfoLevel)
 	}
+	logrus.SetFormatter(log.Formatter)
+	logrus.SetLevel(log.Level)
+	logrus.SetOutput(log.Out)
 
 	// Log current working directory for transparency
 	if cwd, err := os.Getwd(); err == nil {

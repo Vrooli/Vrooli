@@ -6,6 +6,7 @@ package compat
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 )
@@ -37,10 +38,13 @@ func NormalizeExecuteAdhocRequest(body []byte) ([]byte, error) {
 		typeconv.NormalizeJsonValueMaps(params, "initial_params", "initial_store", "env")
 	}
 
-	// 2. executionViewport camelCase → snake_case conversion
+	// 2. Normalize workflow definition fields for proto compatibility
 	if flowDef, ok := raw["flow_definition"].(map[string]any); ok && flowDef != nil {
-		NormalizeWorkflowSettings(flowDef)
+		NormalizeWorkflowDefinitionV2(flowDef)
 	}
+
+	// 3. Ensure protojson-compatible field names (lowerCamelCase)
+	raw = normalizeProtoJSONKeys(raw).(map[string]any)
 
 	return json.Marshal(raw)
 }
@@ -72,6 +76,11 @@ func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 	settings, ok := doc["settings"].(map[string]any)
 	if ok && settings != nil {
 		normalizeViewportSettings(settings)
+	}
+
+	// Remove non-proto metadata fields (used by test-genie/playbooks metadata)
+	if metadata, ok := doc["metadata"].(map[string]any); ok && metadata != nil {
+		delete(metadata, "reset")
 	}
 
 	// Normalize subflow args in nodes
@@ -118,4 +127,51 @@ func normalizeViewportSettings(settings map[string]any) {
 		delete(settings, "executionViewport")
 	}
 	delete(settings, "defaultStepTimeoutMs")
+}
+
+func normalizeProtoJSONKeys(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for key, raw := range v {
+			normalizedKey := toLowerCamel(key)
+			normalizedVal := normalizeProtoJSONKeys(raw)
+			if _, exists := out[normalizedKey]; exists && normalizedKey != key {
+				// Preserve existing key if both snake_case and camelCase are present.
+				continue
+			}
+			out[normalizedKey] = normalizedVal
+		}
+		return out
+	case []any:
+		for i := range v {
+			v[i] = normalizeProtoJSONKeys(v[i])
+		}
+		return v
+	default:
+		return value
+	}
+}
+
+func toLowerCamel(input string) string {
+	if !strings.ContainsRune(input, '_') {
+		return input
+	}
+	parts := strings.Split(input, "_")
+	if len(parts) == 0 {
+		return input
+	}
+	var b strings.Builder
+	b.WriteString(parts[0])
+	for i := 1; i < len(parts); i++ {
+		part := parts[i]
+		if part == "" {
+			continue
+		}
+		b.WriteString(strings.ToUpper(part[:1]))
+		if len(part) > 1 {
+			b.WriteString(part[1:])
+		}
+	}
+	return b.String()
 }

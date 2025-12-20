@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // StringToNavigateWaitEvent converts a string to NavigateWaitEvent enum.
@@ -336,6 +337,53 @@ func BuildBlurParams(data map[string]any) *basactions.BlurParams {
 		p.TimeoutMs = &tm
 	}
 	return p
+}
+
+// BuildSubflowParams converts a data map to SubflowParams proto.
+// Supports workflowId/workflow_id, workflowPath/workflow_path, workflowVersion/workflow_version,
+// and parameters/args for argument passing.
+func BuildSubflowParams(data map[string]any) *basactions.SubflowParams {
+	p := &basactions.SubflowParams{}
+	if id, ok := data["workflowId"].(string); ok && id != "" {
+		p.Target = &basactions.SubflowParams_WorkflowId{WorkflowId: id}
+	} else if id, ok := data["workflow_id"].(string); ok && id != "" {
+		p.Target = &basactions.SubflowParams_WorkflowId{WorkflowId: id}
+	}
+	if p.Target == nil {
+		if path, ok := data["workflowPath"].(string); ok && path != "" {
+			p.Target = &basactions.SubflowParams_WorkflowPath{WorkflowPath: path}
+		} else if path, ok := data["workflow_path"].(string); ok && path != "" {
+			p.Target = &basactions.SubflowParams_WorkflowPath{WorkflowPath: path}
+		}
+	}
+	if version, ok := ToInt32(data["workflowVersion"]); ok {
+		p.WorkflowVersion = &version
+	} else if version, ok := ToInt32(data["workflow_version"]); ok {
+		p.WorkflowVersion = &version
+	}
+
+	if args, ok := data["parameters"].(map[string]any); ok {
+		p.Args = buildSubflowArgs(args)
+	} else if args, ok := data["args"].(map[string]any); ok {
+		p.Args = buildSubflowArgs(args)
+	}
+	return p
+}
+
+func buildSubflowArgs(args map[string]any) map[string]*commonv1.JsonValue {
+	if len(args) == 0 {
+		return nil
+	}
+	normalized := make(map[string]*commonv1.JsonValue, len(args))
+	for key, value := range args {
+		switch typed := value.(type) {
+		case *commonv1.JsonValue:
+			normalized[key] = typed
+		default:
+			normalized[key] = AnyToJsonValue(typed)
+		}
+	}
+	return normalized
 }
 
 // BuildActionMetadata extracts action metadata from a data map.

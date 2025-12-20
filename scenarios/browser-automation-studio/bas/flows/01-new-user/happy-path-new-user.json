@@ -39,6 +39,12 @@
     {
       "id": "e7",
       "source": "fill-project-name",
+      "target": "expand-advanced-options",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7b",
+      "source": "expand-advanced-options",
       "target": "fill-project-description",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -365,6 +371,21 @@
         "wait_after_ms": 500
       },
       "id": "fill-project-name"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dialogs.project.advancedOptionsToggle"
+        },
+        "metadata": {
+          "label": "Expand advanced options"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "expand-advanced-options"
     },
     {
       "action": {

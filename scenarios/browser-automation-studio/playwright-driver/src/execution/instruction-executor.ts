@@ -124,8 +124,12 @@ function validateInstructionStructure(rawInstruction: unknown): string | null {
   // Accept both node_id (wire format) and nodeId (proto format)
   const nodeId = inst.node_id ?? inst.nodeId;
   if (!nodeId || typeof nodeId !== 'string') return 'Missing or invalid instruction.node_id: must be a non-empty string';
-  if (!inst.type || typeof inst.type !== 'string') return 'Missing or invalid instruction.type: must be a non-empty string';
-  if (!inst.params || typeof inst.params !== 'object') return 'Missing or invalid instruction.params: must be an object';
+  const hasLegacyType = typeof inst.type === 'string' && inst.type.length > 0;
+  const action = inst.action as Record<string, unknown> | undefined;
+  const actionType = action?.type;
+  const hasTypedAction = typeof actionType === 'string' || typeof actionType === 'number';
+  if (!hasLegacyType && !hasTypedAction) return 'Missing or invalid instruction.type: must be a non-empty string';
+  if (hasLegacyType && (!inst.params || typeof inst.params !== 'object')) return 'Missing or invalid instruction.params: must be an object';
   return null;
 }
 

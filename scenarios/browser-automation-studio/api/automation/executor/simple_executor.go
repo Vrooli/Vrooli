@@ -51,10 +51,25 @@ func NewSimpleExecutor(seq events.Sequencer) *SimpleExecutor {
 
 // Execute runs the plan sequentially. Retries/branching will be layered on
 // later; this is the minimal happy path required to exercise the abstraction.
-func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
+func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	startedAt := time.Now()
+	engineName := req.EngineName
+	defer func() {
+		status := "success"
+		if err != nil {
+			status = "failed"
+		}
+		logrus.WithFields(logrus.Fields{
+			"execution_id": req.Plan.ExecutionID,
+			"workflow_id":  req.Plan.WorkflowID,
+			"engine":       engineName,
+			"status":       status,
+			"duration_ms":  time.Since(startedAt).Milliseconds(),
+		}).Info("Execution completed")
+	}()
 
 	// Log context deadline for debugging timeout issues
 	if deadline, ok := ctx.Deadline(); ok {
@@ -83,10 +98,14 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		logrus.WithField("execution_id", req.Plan.ExecutionID).Debug("No execution timeout set")
 	}
 
-	engineName := req.EngineName
 	if engineName == "" {
 		engineName = "playwright"
 	}
+	logrus.WithFields(logrus.Fields{
+		"execution_id": req.Plan.ExecutionID,
+		"workflow_id":  req.Plan.WorkflowID,
+		"engine":       engineName,
+	}).Info("Execution started")
 
 	compiler := req.PlanCompiler
 	if compiler == nil {
@@ -524,11 +543,36 @@ func (e *SimpleExecutor) normalizeOutcome(plan contracts.ExecutionPlan, instruct
 	}
 
 	if !outcome.Success && outcome.Failure == nil {
+		message := "step failed without failure metadata"
+		details := map[string]any{}
+		if outcome.Assertion != nil {
+			if outcome.Assertion.Message != "" {
+				message = outcome.Assertion.Message
+			} else if outcome.Assertion.Selector != "" || outcome.Assertion.Mode != "" {
+				message = fmt.Sprintf("assertion failed (mode=%s selector=%s)", outcome.Assertion.Mode, outcome.Assertion.Selector)
+			}
+			details["assertion"] = outcome.Assertion
+		} else if instruction.Action != nil && instruction.Action.GetAssert() != nil {
+			assertParams := instruction.Action.GetAssert()
+			mode := assertParams.GetMode().String()
+			selector := assertParams.GetSelector()
+			if selector != "" || mode != "" {
+				message = fmt.Sprintf("assertion failed (mode=%s selector=%s)", mode, selector)
+			}
+			details["assertion"] = map[string]any{
+				"mode":     mode,
+				"selector": selector,
+			}
+		}
+		if outcome.Condition != nil {
+			details["condition"] = outcome.Condition
+		}
 		outcome.Failure = &contracts.StepFailure{
 			Kind:      contracts.FailureKindEngine,
-			Message:   "step failed without failure metadata",
+			Message:   message,
 			Retryable: false,
 			Source:    contracts.FailureSourceEngine,
+			Details:   details,
 			OccurredAt: func() *time.Time {
 				t := now
 				return &t
@@ -637,6 +681,10 @@ func entrySelectorFromPlan(plan contracts.ExecutionPlan) (string, int) {
 			instrType := InstructionStepType(instr)
 			if instrType == "navigate" {
 				logrus.WithField("execution_id", plan.ExecutionID).Debug("Skipping entry probe - workflow navigates before first selector-bearing instruction")
+				return "", 0
+			}
+			if instrType == "subflow" {
+				logrus.WithField("execution_id", plan.ExecutionID).Debug("Skipping entry probe - workflow starts with subflow")
 				return "", 0
 			}
 			instrParams := InstructionParams(instr)

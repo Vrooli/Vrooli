@@ -33,6 +33,12 @@
     {
       "id": "e9",
       "source": "update-name",
+      "target": "expand-advanced-options",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9b",
+      "source": "expand-advanced-options",
       "target": "update-description",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -142,6 +148,21 @@
         "wait_after_ms": 300
       },
       "id": "update-name"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dialogs.project.advancedOptionsToggle"
+        },
+        "metadata": {
+          "label": "Expand advanced options"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "expand-advanced-options"
     },
     {
       "action": {

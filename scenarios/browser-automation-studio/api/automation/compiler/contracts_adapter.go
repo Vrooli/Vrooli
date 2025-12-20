@@ -5,10 +5,10 @@ package compiler
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
@@ -43,7 +43,14 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 		// Build typed Action field from step type/params
 		action, actionErr := BuildActionDefinition(string(step.Type), step.Params)
 		if actionErr != nil {
-			log.Printf("[COMPILER] Warning: failed to build ActionDefinition for step %d (%s): %v", step.Index, step.Type, actionErr)
+			logrus.WithFields(logrus.Fields{
+				"execution_id": executionID,
+				"workflow_id":  workflow.GetId(),
+				"node_id":      step.NodeID,
+				"step_index":   step.Index,
+				"step_type":    step.Type,
+				"error":        actionErr.Error(),
+			}).Warn("Failed to build ActionDefinition for step")
 		} else {
 			instr.Action = action
 		}
