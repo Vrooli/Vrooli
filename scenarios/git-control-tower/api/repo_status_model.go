@@ -13,8 +13,14 @@ type RepoStatus struct {
 	Files     RepoFilesStatus        `json:"files"`
 	Scopes    map[string][]string    `json:"scopes"`
 	Summary   RepoStatusSummary      `json:"summary"`
+	Author    RepoAuthorStatus       `json:"author"`
 	Timestamp time.Time              `json:"timestamp"`
 	Raw       map[string]interface{} `json:"raw,omitempty"`
+}
+
+type RepoAuthorStatus struct {
+	Name  string `json:"name,omitempty"`
+	Email string `json:"email,omitempty"`
 }
 
 type RepoBranchStatus struct {
@@ -31,6 +37,7 @@ type RepoFilesStatus struct {
 	Untracked []string `json:"untracked"`
 	Conflicts []string `json:"conflicts"`
 	Ignored   []string `json:"ignored,omitempty"`
+	Statuses  map[string]string `json:"statuses,omitempty"`
 }
 
 type RepoStatusSummary struct {

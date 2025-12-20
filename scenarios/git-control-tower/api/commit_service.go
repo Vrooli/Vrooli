@@ -47,7 +47,10 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 	}
 
 	// Attempt to create the commit
-	hash, err := deps.Git.Commit(ctx, repoDir, message)
+	hash, err := deps.Git.Commit(ctx, repoDir, message, CommitOptions{
+		AuthorName:  strings.TrimSpace(req.AuthorName),
+		AuthorEmail: strings.TrimSpace(req.AuthorEmail),
+	})
 	if err != nil {
 		return &CommitResponse{
 			Success:   false,

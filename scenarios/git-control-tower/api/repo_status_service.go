@@ -28,6 +28,13 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 	parsed.RepoDir = repoDir
 	parsed.Timestamp = time.Now().UTC()
+	parsed.Author = RepoAuthorStatus{}
+	if name, err := deps.Git.ConfigGet(ctx, repoDir, "user.name"); err == nil {
+		parsed.Author.Name = name
+	}
+	if email, err := deps.Git.ConfigGet(ctx, repoDir, "user.email"); err == nil {
+		parsed.Author.Email = email
+	}
 
 	parsed.Summary = RepoStatusSummary{
 		Staged:    len(parsed.Files.Staged),

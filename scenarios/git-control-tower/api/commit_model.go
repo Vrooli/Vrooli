@@ -9,6 +9,12 @@ type CommitRequest struct {
 	// Should follow conventional commit format if ValidateConventional is true.
 	Message string `json:"message"`
 
+	// AuthorName overrides the commit author and committer name.
+	AuthorName string `json:"author_name,omitempty"`
+
+	// AuthorEmail overrides the commit author and committer email.
+	AuthorEmail string `json:"author_email,omitempty"`
+
 	// ValidateConventional enables conventional commit message validation.
 	// When true, the message must match the format: type(scope): description
 	ValidateConventional bool `json:"validate_conventional,omitempty"`

@@ -34,7 +34,7 @@ type GitRunner interface {
 
 	// Commit creates a new commit with the given message.
 	// Returns the commit hash (short OID) on success.
-	Commit(ctx context.Context, repoDir string, message string) (string, error)
+	Commit(ctx context.Context, repoDir string, message string, options CommitOptions) (string, error)
 
 	// RevParse runs git rev-parse with the given arguments.
 	// Used for repository validation (e.g., --is-inside-work-tree).
@@ -56,6 +56,9 @@ type GitRunner interface {
 	// GetRemoteURL returns the URL for the specified remote (e.g., "origin").
 	GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error)
 
+	// ConfigGet returns the git config value for the given key.
+	ConfigGet(ctx context.Context, repoDir string, key string) (string, error)
+
 	// Discard discards changes in the specified paths.
 	// For tracked files: git checkout -- <paths>
 	// For untracked files: removes them from the working tree
@@ -68,6 +71,12 @@ type GitRunner interface {
 	// Pull pulls commits from the remote repository.
 	// Returns an error if the pull fails (e.g., conflicts).
 	Pull(ctx context.Context, repoDir string, remote string, branch string) error
+}
+
+// CommitOptions configures author overrides for commit operations.
+type CommitOptions struct {
+	AuthorName  string
+	AuthorEmail string
 }
 
 // ExecGitRunner implements GitRunner by executing the real git binary.
@@ -162,10 +171,26 @@ func (r *ExecGitRunner) Unstage(ctx context.Context, repoDir string, paths []str
 	return nil
 }
 
-func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message string) (string, error) {
+func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message string, options CommitOptions) (string, error) {
 	// Create the commit
 	args := []string{"-C", repoDir, "commit", "-m", message}
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	if options.AuthorName != "" || options.AuthorEmail != "" {
+		env := os.Environ()
+		if options.AuthorName != "" {
+			env = append(env,
+				fmt.Sprintf("GIT_AUTHOR_NAME=%s", options.AuthorName),
+				fmt.Sprintf("GIT_COMMITTER_NAME=%s", options.AuthorName),
+			)
+		}
+		if options.AuthorEmail != "" {
+			env = append(env,
+				fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", options.AuthorEmail),
+				fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", options.AuthorEmail),
+			)
+		}
+		cmd.Env = env
+	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		exitErr := &exec.ExitError{}
@@ -255,6 +280,22 @@ func (r *ExecGitRunner) GetRemoteURL(ctx context.Context, repoDir string, remote
 			return "", fmt.Errorf("git remote get-url failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
 		}
 		return "", fmt.Errorf("git remote get-url failed: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func (r *ExecGitRunner) ConfigGet(ctx context.Context, repoDir string, key string) (string, error) {
+	if strings.TrimSpace(key) == "" {
+		return "", fmt.Errorf("config key is required")
+	}
+	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "config", "--get", key)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return "", fmt.Errorf("git config failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return "", fmt.Errorf("git config failed: %w", err)
 	}
 	return strings.TrimSpace(string(out)), nil
 }

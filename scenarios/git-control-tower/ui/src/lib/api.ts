@@ -32,6 +32,7 @@ export interface RepoFilesStatus {
   untracked: string[];
   conflicts: string[];
   ignored?: string[];
+  statuses?: Record<string, string>;
 }
 
 export interface RepoStatusSummary {
@@ -48,6 +49,10 @@ export interface RepoStatus {
   files: RepoFilesStatus;
   scopes: Record<string, string[]>;
   summary: RepoStatusSummary;
+  author: {
+    name?: string;
+    email?: string;
+  };
   timestamp: string;
 }
 
@@ -106,7 +111,9 @@ export interface UnstageResponse {
 
 export interface CommitRequest {
   message: string;
-  conventional?: boolean;
+  validate_conventional?: boolean;
+  author_name?: string;
+  author_email?: string;
 }
 
 export interface CommitResponse {

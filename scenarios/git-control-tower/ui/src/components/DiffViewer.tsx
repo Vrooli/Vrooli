@@ -1,7 +1,9 @@
-import { FileDiff, Plus, Minus, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { FileDiff, Plus, Minus, Loader2, AlertTriangle } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
+import { Button } from "./ui/button";
 import type { DiffResponse, DiffHunk } from "../lib/api";
 
 interface DiffViewerProps {
@@ -93,6 +95,18 @@ export function DiffViewer({
   isLoading,
   error
 }: DiffViewerProps) {
+  const [showBinary, setShowBinary] = useState(false);
+  const isBinaryDiff = Boolean(
+    diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch"))
+  );
+
+  useEffect(() => {
+    setShowBinary(false);
+  }, [selectedFile, diff?.raw]);
+
+  const showBinaryNotice =
+    selectedFile && !isLoading && !error && diff?.has_diff && isBinaryDiff && !showBinary;
+
   return (
     <Card className="h-full flex flex-col" data-testid="diff-viewer-panel">
       <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
@@ -173,8 +187,32 @@ export function DiffViewer({
             </div>
           )}
 
+          {/* Binary diff notice */}
+          {showBinaryNotice && (
+            <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+              <AlertTriangle className="h-10 w-10 text-amber-400 mb-4" />
+              <p className="text-sm text-slate-300">
+                The file is not displayed in the text editor because it is either binary or uses an unsupported text encoding.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => setShowBinary(true)}
+              >
+                Show Anyway
+              </Button>
+            </div>
+          )}
+
           {/* Raw diff fallback */}
-          {selectedFile && !isLoading && !error && diff?.has_diff && !diff.hunks && diff.raw && (
+          {selectedFile &&
+            !isLoading &&
+            !error &&
+            diff?.has_diff &&
+            !diff.hunks &&
+            diff.raw &&
+            (!isBinaryDiff || showBinary) && (
             <pre
               className="p-4 font-mono text-xs text-slate-300 whitespace-pre overflow-x-auto"
               data-testid="diff-raw"

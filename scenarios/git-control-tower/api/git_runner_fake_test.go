@@ -41,13 +41,19 @@ type FakeGitRunner struct {
 	LookPathError  error
 	FetchError     error
 	RemoteURLError error
+	ConfigError    error
 	DiscardError   error
 	PushError      error
 	PullError      error
 
 	// Commit tracking
-	LastCommitMessage string
-	CommitCount       int
+	LastCommitMessage    string
+	LastCommitAuthorName string
+	LastCommitAuthorEmail string
+	CommitCount          int
+
+	// Config values
+	ConfigValues map[string]string
 
 	// Fetch tracking
 	FetchCount int
@@ -90,6 +96,7 @@ func NewFakeGitRunner() *FakeGitRunner {
 		IsRepository: true,
 		GitAvailable: true,
 		RepoRoot:     "/fake/repo",
+		ConfigValues: map[string]string{},
 		Calls:        []FakeGitCall{},
 	}
 }
@@ -234,8 +241,8 @@ func (f *FakeGitRunner) Unstage(ctx context.Context, repoDir string, paths []str
 }
 
 // Commit simulates creating a commit.
-func (f *FakeGitRunner) Commit(ctx context.Context, repoDir string, message string) (string, error) {
-	f.recordCall("Commit", repoDir, message)
+func (f *FakeGitRunner) Commit(ctx context.Context, repoDir string, message string, options CommitOptions) (string, error) {
+	f.recordCall("Commit", repoDir, message, options.AuthorName, options.AuthorEmail)
 
 	if f.CommitError != nil {
 		return "", f.CommitError
@@ -251,6 +258,8 @@ func (f *FakeGitRunner) Commit(ctx context.Context, repoDir string, message stri
 
 	// Track commit
 	f.LastCommitMessage = message
+	f.LastCommitAuthorName = options.AuthorName
+	f.LastCommitAuthorEmail = options.AuthorEmail
 	f.CommitCount++
 
 	// Return a fake commit hash
@@ -295,6 +304,20 @@ func (f *FakeGitRunner) LookPath() (string, error) {
 		return "", fmt.Errorf("executable file not found in $PATH")
 	}
 	return "/usr/bin/git", nil
+}
+
+// ConfigGet returns a configured git config value.
+func (f *FakeGitRunner) ConfigGet(ctx context.Context, repoDir string, key string) (string, error) {
+	f.recordCall("ConfigGet", repoDir, key)
+
+	if f.ConfigError != nil {
+		return "", f.ConfigError
+	}
+
+	if value, ok := f.ConfigValues[key]; ok {
+		return value, nil
+	}
+	return "", fmt.Errorf("config not found")
 }
 
 // ResolveRepoRoot returns the configured repository root.

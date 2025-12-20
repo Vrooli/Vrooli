@@ -42,10 +42,14 @@ func ParsePorcelainV2Status(output []byte) (*RepoStatus, error) {
 			}
 		case strings.HasPrefix(record, "? "):
 			path := strings.TrimSpace(strings.TrimPrefix(record, "?"))
-			status.Files.Untracked = append(status.Files.Untracked, unquoteGitPath(path))
+			unquoted := unquoteGitPath(path)
+			status.Files.Untracked = append(status.Files.Untracked, unquoted)
+			recordStatus(status, unquoted, "??")
 		case strings.HasPrefix(record, "! "):
 			path := strings.TrimSpace(strings.TrimPrefix(record, "!"))
-			status.Files.Ignored = append(status.Files.Ignored, unquoteGitPath(path))
+			unquoted := unquoteGitPath(path)
+			status.Files.Ignored = append(status.Files.Ignored, unquoted)
+			recordStatus(status, unquoted, "!!")
 		default:
 			// Keep for debugging; avoid hard failing on unrecognized future record types.
 			status.Raw["unparsed"] = appendRaw(status.Raw["unparsed"], record)
@@ -105,7 +109,9 @@ func parseChangedRecord(status *RepoStatus, record string) error {
 	if !ok {
 		return fmt.Errorf("invalid status record (missing path): %q", record)
 	}
-	addPathByXY(status, xy[:2], unquoteGitPath(path))
+	unquotedPath := unquoteGitPath(path)
+	addPathByXY(status, xy[:2], unquotedPath)
+	recordStatus(status, unquotedPath, xy[:2])
 	return nil
 }
 
@@ -118,7 +124,9 @@ func parseRenamedRecord(status *RepoStatus, record string, _ string) error {
 	if !ok {
 		return fmt.Errorf("invalid rename record (missing path): %q", record)
 	}
-	addPathByXY(status, xy[:2], unquoteGitPath(path))
+	unquotedPath := unquoteGitPath(path)
+	addPathByXY(status, xy[:2], unquotedPath)
+	recordStatus(status, unquotedPath, xy[:2])
 	return nil
 }
 
@@ -134,6 +142,7 @@ func parseUnmergedRecord(status *RepoStatus, record string) error {
 	unquotedPath := unquoteGitPath(path)
 	addPathByXY(status, xy[:2], unquotedPath)
 	status.Files.Conflicts = append(status.Files.Conflicts, unquotedPath)
+	recordStatus(status, unquotedPath, xy[:2])
 	return nil
 }
 
@@ -151,6 +160,16 @@ func addPathByXY(status *RepoStatus, xy string, path string) {
 	if worktree != '.' {
 		status.Files.Unstaged = append(status.Files.Unstaged, path)
 	}
+}
+
+func recordStatus(status *RepoStatus, path string, code string) {
+	if path == "" || code == "" {
+		return
+	}
+	if status.Files.Statuses == nil {
+		status.Files.Statuses = map[string]string{}
+	}
+	status.Files.Statuses[path] = code
 }
 
 func unquoteGitPath(path string) string {

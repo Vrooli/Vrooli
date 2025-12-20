@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusHeader } from "./components/StatusHeader";
 import { FileList } from "./components/FileList";
@@ -20,6 +20,27 @@ import {
 
 export default function App() {
   const queryClient = useQueryClient();
+  const mainRef = useRef<HTMLDivElement | null>(null);
+  const sidebarRef = useRef<HTMLDivElement | null>(null);
+
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    if (typeof window === "undefined") return 320;
+    const stored = Number(localStorage.getItem("gct.sidebarWidth"));
+    return Number.isFinite(stored) && stored > 0 ? stored : 320;
+  });
+  const [changesHeight, setChangesHeight] = useState(() => {
+    if (typeof window === "undefined") return 420;
+    const stored = Number(localStorage.getItem("gct.changesHeight"));
+    return Number.isFinite(stored) && stored > 0 ? stored : 420;
+  });
+  const [changesCollapsed, setChangesCollapsed] = useState(false);
+  const [commitCollapsed, setCommitCollapsed] = useState(false);
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [isResizingSplit, setIsResizingSplit] = useState(false);
+  const sidebarResize = useRef<{ left: number; max: number } | null>(null);
+  const splitResize = useRef<{ top: number; height: number } | null>(null);
+  const sidebarMinWidth = 200;
+  const diffMinWidth = 320;
 
   // Selected file state
   const [selectedFile, setSelectedFile] = useState<string | undefined>();
@@ -148,12 +169,20 @@ export default function App() {
   );
 
   const handleCommit = useCallback(
-    (message: string, conventional: boolean) => {
+    (
+      message: string,
+      options: { conventional: boolean; authorName?: string; authorEmail?: string }
+    ) => {
       setCommitError(undefined);
       setLastCommitHash(undefined);
 
       commitMutation.mutate(
-        { message, conventional },
+        {
+          message,
+          validate_conventional: options.conventional,
+          author_name: options.authorName,
+          author_email: options.authorEmail
+        },
         {
           onSuccess: (result) => {
             if (result.success && result.hash) {
@@ -187,6 +216,131 @@ export default function App() {
     pullMutation.mutate({});
   }, [pullMutation]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("gct.sidebarWidth", String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("gct.changesHeight", String(changesHeight));
+  }, [changesHeight]);
+
+  useEffect(() => {
+    if (!sidebarRef.current || typeof ResizeObserver === "undefined") return;
+
+    const minTop = 200;
+    const minBottom = 180;
+    const clamp = () => {
+      if (!sidebarRef.current || changesCollapsed || commitCollapsed) return;
+      const height = sidebarRef.current.clientHeight;
+      const maxHeight = Math.max(minTop, height - minBottom);
+      if (changesHeight > maxHeight) {
+        setChangesHeight(maxHeight);
+      } else if (changesHeight < minTop) {
+        setChangesHeight(Math.min(minTop, maxHeight));
+      }
+    };
+
+    clamp();
+    const observer = new ResizeObserver(clamp);
+    observer.observe(sidebarRef.current);
+    return () => observer.disconnect();
+  }, [changesHeight, changesCollapsed, commitCollapsed]);
+
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+
+    const handleMove = (event: MouseEvent) => {
+      if (!sidebarResize.current) return;
+      const minWidth = sidebarMinWidth;
+      const nextWidth = event.clientX - sidebarResize.current.left;
+      const clampedWidth = Math.max(minWidth, Math.min(sidebarResize.current.max, nextWidth));
+      setSidebarWidth(clampedWidth);
+    };
+
+    const handleUp = () => {
+      setIsResizingSidebar(false);
+      sidebarResize.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizingSidebar]);
+
+  useEffect(() => {
+    if (!isResizingSplit) return;
+
+    const handleMove = (event: MouseEvent) => {
+      if (!splitResize.current) return;
+      const minTop = 200;
+      const minBottom = 180;
+      const nextHeight = event.clientY - splitResize.current.top;
+      const maxHeight = splitResize.current.height - minBottom;
+      const clampedHeight = Math.max(minTop, Math.min(maxHeight, nextHeight));
+      setChangesHeight(clampedHeight);
+    };
+
+    const handleUp = () => {
+      setIsResizingSplit(false);
+      splitResize.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizingSplit]);
+
+  const handleSidebarResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!mainRef.current) return;
+    const rect = mainRef.current.getBoundingClientRect();
+    const minDiffWidth = diffMinWidth;
+    const minWidth = sidebarMinWidth;
+    sidebarResize.current = {
+      left: rect.left,
+      max: Math.max(minWidth, rect.width - minDiffWidth)
+    };
+    setIsResizingSidebar(true);
+  };
+
+  const handleSplitResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!sidebarRef.current || changesCollapsed || commitCollapsed) return;
+    const rect = sidebarRef.current.getBoundingClientRect();
+    splitResize.current = { top: rect.top, height: rect.height };
+    setIsResizingSplit(true);
+  };
+
+  const showSplitHandle = !changesCollapsed && !commitCollapsed;
+  const sidebarRows = (() => {
+    if (changesCollapsed && commitCollapsed) return "auto 0px auto";
+    if (changesCollapsed) return "auto 0px minmax(0, 1fr)";
+    if (commitCollapsed) return "minmax(0, 1fr) 0px auto";
+    return `minmax(0, ${changesHeight}px) 6px minmax(0, 1fr)`;
+  })();
+
   return (
     <div
       className="h-screen flex flex-col bg-slate-950 text-slate-50"
@@ -206,36 +360,68 @@ export default function App() {
       />
 
       {/* Main Content - Split Pane */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden" ref={mainRef}>
         {/* File List Panel + Commit Panel */}
-        <div className="w-80 flex-shrink-0 border-r border-slate-800 overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-hidden">
-            <FileList
-              files={statusQuery.data?.files}
-              selectedFile={selectedFile}
-              selectedIsStaged={selectedIsStaged}
-              onSelectFile={handleSelectFile}
-              onStageFile={handleStageFile}
-              onUnstageFile={handleUnstageFile}
-              onDiscardFile={handleDiscardFile}
-              onStageAll={handleStageAll}
-              onUnstageAll={handleUnstageAll}
-              isStaging={isStaging}
-              isDiscarding={isDiscarding}
-              confirmingDiscard={confirmingDiscard}
-              onConfirmDiscard={setConfirmingDiscard}
+        <div
+          className="flex-shrink-0 border-r border-slate-800 overflow-hidden min-w-0"
+          style={{ width: sidebarWidth, minWidth: sidebarMinWidth }}
+        >
+          <div
+            className="h-full min-h-0 min-w-0 grid overflow-hidden"
+            style={{ gridTemplateRows: sidebarRows }}
+            ref={sidebarRef}
+          >
+            <div className="min-h-0 min-w-0 overflow-hidden">
+              <FileList
+                files={statusQuery.data?.files}
+                selectedFile={selectedFile}
+                selectedIsStaged={selectedIsStaged}
+                onSelectFile={handleSelectFile}
+                onStageFile={handleStageFile}
+                onUnstageFile={handleUnstageFile}
+                onDiscardFile={handleDiscardFile}
+                onStageAll={handleStageAll}
+                onUnstageAll={handleUnstageAll}
+                isStaging={isStaging}
+                isDiscarding={isDiscarding}
+                confirmingDiscard={confirmingDiscard}
+                onConfirmDiscard={setConfirmingDiscard}
+                collapsed={changesCollapsed}
+                onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
+                fillHeight={!changesCollapsed}
+              />
+            </div>
+            <div
+              className={`${
+                showSplitHandle
+                  ? "cursor-row-resize bg-slate-900 hover:bg-slate-800"
+                  : "bg-transparent"
+              }`}
+              onMouseDown={showSplitHandle ? handleSplitResizeStart : undefined}
+              aria-hidden="true"
             />
-          </div>
-          <div className="flex-shrink-0 border-t border-slate-800">
-            <CommitPanel
-              stagedCount={statusQuery.data?.summary.staged ?? 0}
+            <div className="min-h-0 min-w-0 border-t border-slate-800 overflow-hidden">
+              <CommitPanel
+                stagedCount={statusQuery.data?.summary.staged ?? 0}
               onCommit={handleCommit}
               isCommitting={commitMutation.isPending}
               lastCommitHash={lastCommitHash}
               commitError={commitError}
+              defaultAuthorName={statusQuery.data?.author?.name}
+              defaultAuthorEmail={statusQuery.data?.author?.email}
+              collapsed={commitCollapsed}
+              onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
+              fillHeight={!commitCollapsed}
             />
+            </div>
           </div>
         </div>
+
+        <div
+          className="w-1 bg-slate-900 hover:bg-slate-800 cursor-col-resize"
+          onMouseDown={handleSidebarResizeStart}
+          aria-hidden="true"
+        />
 
         {/* Diff Viewer Panel */}
         <div className="flex-1 overflow-hidden">
