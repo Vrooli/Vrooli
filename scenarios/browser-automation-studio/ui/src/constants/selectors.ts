@@ -461,6 +461,18 @@ const literalSelectors = {
     card: "project-card",
     cardTitle: "project-card-title",
     editButton: "project-edit-button",
+    fileTree: {
+      root: "project-file-tree-root",
+      container: "project-file-tree",
+      viewModeToggle: "project-file-tree-view-mode-toggle",
+      createFolderButton: "project-file-tree-create-folder",
+      createWorkflowButton: "project-file-tree-create-workflow",
+    },
+    presets: {
+      recommendedPreset: "project-preset-recommended",
+      emptyPreset: "project-preset-empty",
+      customPreset: "project-preset-custom",
+    },
     search: {
       input: "projects-search-input",
       clearButton: "projects-search-clear",

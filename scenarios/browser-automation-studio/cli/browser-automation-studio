@@ -128,6 +128,8 @@ WORKFLOW COMMANDS:
         --params <json>      JSON parameters for workflow
         --wait              Wait for completion
         --output-screenshots <dir>  Save screenshots to directory
+        --project-root <path>  Absolute path for resolving workflowPath (defaults to ./bas if present)
+        --adhoc             Force adhoc execution (resolves subflows via project_root)
 
     workflow list [flags]
         --folder <path>      Filter by folder path
@@ -742,6 +744,8 @@ execute_workflow() {
     local params="{}"
     local wait=false
     local output_dir=""
+    local project_root=""
+    local adhoc=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -757,6 +761,14 @@ execute_workflow() {
                 output_dir="$2"
                 shift 2
                 ;;
+            --project-root)
+                project_root="$2"
+                shift 2
+                ;;
+            --adhoc)
+                adhoc=true
+                shift
+                ;;
             *)
                 echo -e "${RED}Unknown option: $1${NC}"
                 exit 1
@@ -765,11 +777,87 @@ execute_workflow() {
     done
     
     echo -e "${BLUE}Executing workflow: $workflow${NC}"
+
+    if [ -z "$project_root" ]; then
+        if [ -n "${BAS_PROJECT_ROOT:-}" ]; then
+            project_root="${BAS_PROJECT_ROOT}"
+        elif [ -d "${SCENARIO_ROOT}/bas" ]; then
+            project_root="${SCENARIO_ROOT}/bas"
+        fi
+    fi
+
+    echo "API URL: ${API_URL}"
+    if [ -n "$project_root" ]; then
+        echo "Project root: ${project_root}"
+    else
+        echo "Project root: (not set)"
+        echo -e "${YELLOW}⚠ Subflows using workflow_path may fail. Provide --project-root /abs/path/to/bas${NC}"
+    fi
+
+    if [ -n "$project_root" ]; then
+        adhoc=true
+    fi
+
+    if [ "$adhoc" = true ]; then
+        echo "Execution mode: adhoc"
+        if [ "$wait" = true ]; then
+            echo "Wait mode: client-side polling (adhoc returns immediately)"
+        fi
+    else
+        echo "Execution mode: direct"
+    fi
     
-    response=$(curl -s -X POST \
-        -H "Content-Type: application/json" \
-        -d "{\"parameters\": $params, \"wait_for_completion\": $wait}" \
-        "${API_URL}/workflows/$workflow/execute")
+    if [ "$adhoc" = true ]; then
+        if ! command -v jq >/dev/null 2>&1; then
+            echo -e "${RED}error: jq is required for adhoc execution${NC}"
+            echo "Install jq to enable adhoc workflow execution."
+            exit 1
+        fi
+
+        if [ -n "$project_root" ]; then
+            params=$(printf "%s" "$params" | jq --arg project_root "$project_root" '. + {project_root: $project_root}')
+            echo "Project root injected into parameters as project_root."
+        fi
+
+        local workflow_id="$workflow"
+        if ! printf "%s" "$workflow" | grep -Eq '^[0-9a-fA-F-]{36}$'; then
+            workflow_id=$(curl -s "${API_URL}/workflows" | jq -r --arg name "$workflow" '.workflows[]? | select(.name == $name) | .id')
+            if [ -z "$workflow_id" ]; then
+                echo -e "${RED}error: workflow not found by name '${workflow}'${NC}"
+                exit 1
+            fi
+            if [ "$(printf "%s" "$workflow_id" | wc -l | tr -d ' ')" -gt 1 ]; then
+                echo -e "${RED}error: multiple workflows match name '${workflow}'${NC}"
+                printf "%s\n" "$workflow_id"
+                exit 1
+            fi
+        fi
+
+        local workflow_response flow_definition params_json payload
+        workflow_response=$(curl -s "${API_URL}/workflows/${workflow_id}")
+        flow_definition=$(printf "%s" "$workflow_response" | jq '.workflow.flow_definition')
+        if [ -z "$flow_definition" ] || [ "$flow_definition" = "null" ]; then
+            echo -e "${RED}error: missing flow_definition for workflow ${workflow_id}${NC}"
+            exit 1
+        fi
+
+        params_json=$(printf "%s" "$params" | jq '.')
+        payload=$(jq -n \
+            --argjson flow_definition "$flow_definition" \
+            --argjson parameters "$params_json" \
+            --argjson wait "$wait" \
+            '{flow_definition: $flow_definition, wait_for_completion: $wait, parameters: $parameters}')
+
+        response=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "${API_URL}/workflows/execute-adhoc")
+    else
+        response=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"parameters\": $params, \"wait_for_completion\": $wait}" \
+            "${API_URL}/workflows/$workflow/execute")
+    fi
     
     if echo "$response" | grep -q "execution_id"; then
         execution_id=$(echo "$response" | grep -o '"execution_id":"[^"]*' | cut -d'"' -f4)
@@ -805,6 +893,7 @@ execute_workflow() {
             
             if [ $attempt -gt $max_attempts ]; then
                 echo -e "${YELLOW}⚠ Timeout waiting for execution completion${NC}"
+                echo -e "${YELLOW}Check execution details with: browser-automation-studio execution list --workflow ${workflow}${NC}"
             fi
         fi
         
@@ -815,6 +904,12 @@ execute_workflow() {
     else
         echo -e "${RED}error: failed to start execution${NC}"
         echo "$response"
+        if [ "$adhoc" = true ]; then
+            echo -e "${YELLOW}Note: adhoc executions can still start even if the API times out.${NC}"
+            echo -e "${YELLOW}Check running executions with: browser-automation-studio execution list${NC}"
+        elif [ -z "$project_root" ]; then
+            echo -e "${YELLOW}Hint: set --project-root /abs/path/to/bas so workflow_path subflows can resolve.${NC}"
+        fi
         exit 1
     fi
 }

@@ -81,6 +81,11 @@ interface PresetCardProps {
 }
 
 function PresetCard({ type, selected, onSelect, disabled }: PresetCardProps) {
+  const presetTestIds: Record<PresetType, string> = {
+    recommended: selectors.projects.presets.recommendedPreset,
+    empty: selectors.projects.presets.emptyPreset,
+    custom: selectors.projects.presets.customPreset,
+  };
   const configs: Record<
     PresetType,
     {
@@ -138,6 +143,7 @@ function PresetCard({ type, selected, onSelect, disabled }: PresetCardProps) {
       type="button"
       onClick={onSelect}
       disabled={disabled}
+      data-testid={presetTestIds[type]}
       className={`
         relative flex flex-col p-4 rounded-xl border-2 transition-all duration-200 text-left w-full
         ${

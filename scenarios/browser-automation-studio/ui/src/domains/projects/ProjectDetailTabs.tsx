@@ -177,6 +177,7 @@ export function ProjectDetailTabs({ workflowCount }: ProjectDetailTabsProps) {
             </button>
             <button
               onClick={() => handleViewModeChange("tree")}
+              data-testid={selectors.projects.fileTree.viewModeToggle}
               className={`px-3 py-1.5 rounded flex items-center gap-2 transition-colors ${
                 viewMode === "tree"
                   ? "bg-flow-accent text-white"

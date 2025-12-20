@@ -252,6 +252,7 @@ export function FileTreeItem({
     <div className="select-none">
       <div
         draggable={node.path !== ""}
+        data-testid={isFolder ? "file-tree-folder" : "file-tree-file"}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragOver={handleDragOver}

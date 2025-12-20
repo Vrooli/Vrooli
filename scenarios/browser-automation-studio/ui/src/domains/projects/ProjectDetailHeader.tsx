@@ -677,6 +677,7 @@ export function ProjectDetailHeader({
                         >
                           <button
                             onClick={handleCreateFolder}
+                            data-testid={selectors.projects.fileTree.createFolderButton}
                             className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
                           >
                             <FolderOpen size={16} />
@@ -686,6 +687,7 @@ export function ProjectDetailHeader({
                             <button
                               key={type}
                               onClick={() => handleCreateWorkflowFile(type)}
+                              data-testid={selectors.projects.fileTree.createWorkflowButton}
                               className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
                             >
                               <FileCode size={16} />

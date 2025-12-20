@@ -17,6 +17,7 @@ import {
   type ProjectEntry,
 } from "./hooks/useProjectDetailStore";
 import { useFileTreeOperations } from "./hooks/useFileTreeOperations";
+import { selectors } from "@constants/selectors";
 
 interface ProjectFileTreeProps {
   project: Project;
@@ -290,7 +291,7 @@ export function ProjectFileTree({
   // Render loading state
   if (projectEntriesLoading) {
     return (
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-6" data-testid={selectors.projects.fileTree.container}>
         <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
           <div className="text-center text-gray-400 py-8">
             <Loader size={24} className="mx-auto mb-3 animate-spin" />
@@ -304,7 +305,7 @@ export function ProjectFileTree({
   // Render error state
   if (projectEntriesError) {
     return (
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-6" data-testid={selectors.projects.fileTree.container}>
         <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
           <div className="text-center text-gray-400 py-8">
             <WifiOff size={40} className="mx-auto mb-3 opacity-50" />
@@ -325,7 +326,7 @@ export function ProjectFileTree({
   // Render empty state
   if (memoizedFileTree.length === 0) {
     return (
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-6" data-testid={selectors.projects.fileTree.container}>
         <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
           <div className="text-center text-gray-400 py-8">
             <FolderTree size={48} className="mx-auto mb-4 opacity-50" />
@@ -342,7 +343,7 @@ export function ProjectFileTree({
   // Render no results state
   if (filteredFileTree.length === 0) {
     return (
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-6" data-testid={selectors.projects.fileTree.container}>
         <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
           <div className="text-center text-gray-400 py-8">
             <FolderTree size={48} className="mx-auto mb-4 opacity-50" />
@@ -361,11 +362,12 @@ export function ProjectFileTree({
 
   // Render file tree
   return (
-    <div className="flex-1 overflow-auto p-6">
+    <div className="flex-1 overflow-auto p-6" data-testid={selectors.projects.fileTree.container}>
       <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
         <div className="space-y-1">
           {/* Root folder */}
           <div
+            data-testid={selectors.projects.fileTree.root}
             className={`flex items-center gap-1.5 px-2 py-1.5 rounded cursor-pointer transition-colors ${
               selectedTreeFolder === "" ? "bg-flow-node" : "hover:bg-flow-node"
             } ${

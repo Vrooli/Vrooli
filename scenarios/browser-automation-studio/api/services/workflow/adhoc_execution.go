@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -105,42 +104,10 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *base
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
 	s.startExecutionRunnerWithNamespaces(wf, executionID, store, params, env, artifactCfg, projectRoot)
 
-	if !req.WaitForCompletion {
-		return &basexecution.ExecuteAdhocResponse{
-			ExecutionId: executionID.String(),
-			Status:      basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING,
-			Message:     "Execution started",
-		}, nil
-	}
-
-	ticker := time.NewTicker(250 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-ticker.C:
-			latest, err := s.repo.GetExecution(ctx, executionID)
-			if err != nil {
-				return nil, err
-			}
-			if latest.CompletedAt == nil {
-				continue
-			}
-
-			resp := &basexecution.ExecuteAdhocResponse{
-				ExecutionId: latest.ID.String(),
-				Status:      enums.StringToExecutionStatus(latest.Status),
-				Message:     "Execution completed",
-				CompletedAt: autocontracts.TimePtrToTimestamp(latest.CompletedAt),
-			}
-			if strings.TrimSpace(latest.ErrorMessage) != "" {
-				msg := latest.ErrorMessage
-				resp.Status = basbase.ExecutionStatus_EXECUTION_STATUS_FAILED
-				resp.Message = "Execution failed"
-				resp.Error = &msg
-			}
-			return resp, nil
-		}
-	}
+	// Adhoc runs return immediately; callers should poll the execution ID.
+	return &basexecution.ExecuteAdhocResponse{
+		ExecutionId: executionID.String(),
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING,
+		Message:     "Execution started (adhoc). Poll executions API for status.",
+	}, nil
 }
