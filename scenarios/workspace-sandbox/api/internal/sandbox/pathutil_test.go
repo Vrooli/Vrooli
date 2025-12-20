@@ -308,3 +308,245 @@ func TestIsWithinProject(t *testing.T) {
 		})
 	}
 }
+
+// [REQ:P0-005] Scope Path Validation - RelativePath conversion
+func TestRelativePath(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "sandbox-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	validator, err := NewPathValidator(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		absPath string
+		wantRel string
+		wantErr bool
+	}{
+		{
+			name:    "project root returns dot",
+			absPath: tmpDir,
+			wantRel: ".",
+		},
+		{
+			name:    "immediate subdirectory",
+			absPath: filepath.Join(tmpDir, "src"),
+			wantRel: "src",
+		},
+		{
+			name:    "nested subdirectory",
+			absPath: filepath.Join(tmpDir, "src", "components", "user"),
+			wantRel: filepath.Join("src", "components", "user"),
+		},
+		{
+			name:    "path outside project returns relative with parent refs",
+			absPath: "/etc/passwd",
+			// filepath.Rel returns a path with ../ for paths outside the base
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := validator.RelativePath(tt.absPath)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			// Only check exact match for known paths
+			if tt.wantRel != "" && got != tt.wantRel {
+				t.Errorf("RelativePath(%q) = %q, want %q", tt.absPath, got, tt.wantRel)
+			}
+		})
+	}
+}
+
+// [REQ:P0-005] Scope Path Validation - ValidateScopePath convenience function
+func TestValidateScopePath(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "sandbox-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a subdirectory
+	subDir := filepath.Join(tmpDir, "subdir")
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		scopePath   string
+		projectRoot string
+		wantPath    string
+		wantErr     bool
+	}{
+		{
+			name:        "valid relative path",
+			scopePath:   "subdir",
+			projectRoot: tmpDir,
+			wantPath:    subDir,
+		},
+		{
+			name:        "empty scope returns project root",
+			scopePath:   "",
+			projectRoot: tmpDir,
+			wantPath:    tmpDir,
+		},
+		{
+			name:        "valid absolute path within project",
+			scopePath:   subDir,
+			projectRoot: tmpDir,
+			wantPath:    subDir,
+		},
+		{
+			name:        "path outside project fails",
+			scopePath:   "/etc",
+			projectRoot: tmpDir,
+			wantErr:     true,
+		},
+		{
+			name:        "parent traversal that escapes fails",
+			scopePath:   "../../../etc",
+			projectRoot: tmpDir,
+			wantErr:     true,
+		},
+		{
+			name:        "parent traversal within project succeeds",
+			scopePath:   "subdir/../subdir",
+			projectRoot: tmpDir,
+			wantPath:    subDir,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ValidateScopePath(tt.scopePath, tt.projectRoot)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if got != tt.wantPath {
+				t.Errorf("ValidateScopePath(%q, %q) = %q, want %q",
+					tt.scopePath, tt.projectRoot, got, tt.wantPath)
+			}
+		})
+	}
+}
+
+// [REQ:P0-005] Scope Path Validation - FindConflicts with empty list
+func TestFindConflictsEmptyList(t *testing.T) {
+	conflicts := FindConflicts("/project/src", []*types.Sandbox{})
+	if len(conflicts) != 0 {
+		t.Errorf("FindConflicts with empty list should return 0 conflicts, got %d", len(conflicts))
+	}
+
+	conflicts = FindConflicts("/project/src", nil)
+	if len(conflicts) != 0 {
+		t.Errorf("FindConflicts with nil list should return 0 conflicts, got %d", len(conflicts))
+	}
+}
+
+// [REQ:P0-005] Scope Path Validation - FindConflicts with all non-active sandboxes
+func TestFindConflictsAllNonActive(t *testing.T) {
+	sandboxes := []*types.Sandbox{
+		{ID: uuid.New(), ScopePath: "/project/src", Status: types.StatusStopped},
+		{ID: uuid.New(), ScopePath: "/project/src", Status: types.StatusApproved},
+		{ID: uuid.New(), ScopePath: "/project/src", Status: types.StatusRejected},
+		{ID: uuid.New(), ScopePath: "/project/src", Status: types.StatusDeleted},
+		{ID: uuid.New(), ScopePath: "/project/src", Status: types.StatusError},
+	}
+
+	conflicts := FindConflicts("/project/src", sandboxes)
+	if len(conflicts) != 0 {
+		t.Errorf("FindConflicts should ignore all non-active sandboxes, got %d conflicts", len(conflicts))
+	}
+}
+
+// [REQ:P0-002] Stable Sandbox Identifier - NewPathValidator error handling
+func TestNewPathValidatorErrors(t *testing.T) {
+	tests := []struct {
+		name        string
+		projectRoot string
+		wantErr     bool
+	}{
+		{
+			name:        "valid path",
+			projectRoot: "/tmp",
+			wantErr:     false,
+		},
+		{
+			name:        "relative path normalized",
+			projectRoot: ".",
+			wantErr:     false,
+		},
+		{
+			name:        "non-existent path handled gracefully",
+			projectRoot: "/nonexistent/path/for/testing",
+			wantErr:     false, // Non-existent paths are allowed (uses abs path)
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator, err := NewPathValidator(tt.projectRoot)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if validator == nil {
+				t.Error("validator should not be nil")
+			}
+			if validator.ProjectRoot() == "" {
+				t.Error("ProjectRoot() should not be empty")
+			}
+		})
+	}
+}
+
+// [REQ:P0-002] Stable Sandbox Identifier - ProjectRoot accessor
+func TestProjectRootAccessor(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "sandbox-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	validator, err := NewPathValidator(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to create validator: %v", err)
+	}
+
+	root := validator.ProjectRoot()
+	if root == "" {
+		t.Error("ProjectRoot() should not be empty")
+	}
+	// Should be an absolute path
+	if !filepath.IsAbs(root) {
+		t.Errorf("ProjectRoot() should return absolute path, got %q", root)
+	}
+}

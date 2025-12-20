@@ -1183,3 +1183,485 @@ func TestDriverInfoUnavailable(t *testing.T) {
 		t.Errorf("DriverInfo() available = %v, want false", resp["available"])
 	}
 }
+
+// --- StartSandbox Handler Tests ---
+
+// TestStartSandboxSuccess tests successfully starting (resuming) a stopped sandbox.
+// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API starts/resumes sandbox
+func TestStartSandboxSuccess(t *testing.T) {
+	testID := uuid.New()
+	svc := &mockService{
+		startFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+			return &types.Sandbox{
+				ID:        testID,
+				Status:    types.StatusActive,
+				MergedDir: "/tmp/sandbox/" + testID.String() + "/merged",
+			}, nil
+		},
+	}
+
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/start", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.StartSandbox(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("StartSandbox() status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp types.Sandbox
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if resp.Status != types.StatusActive {
+		t.Errorf("StartSandbox() status = %v, want %v", resp.Status, types.StatusActive)
+	}
+}
+
+// TestStartSandboxNotFound tests starting a non-existent sandbox.
+// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns 404 for unknown ID
+func TestStartSandboxNotFound(t *testing.T) {
+	testID := uuid.New()
+	svc := &mockService{
+		startFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+			return nil, types.NewNotFoundError(id.String())
+		},
+	}
+
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/start", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.StartSandbox(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("StartSandbox() status = %d, want %d", rr.Code, http.StatusNotFound)
+	}
+}
+
+// TestStartSandboxInvalidState tests starting a sandbox that's not in a startable state.
+// [REQ:REQ-P0-007] Sandbox Lifecycle Management - API returns 409 for invalid state
+func TestStartSandboxInvalidState(t *testing.T) {
+	testID := uuid.New()
+	svc := &mockService{
+		startFn: func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+			return nil, types.NewStateError(&types.InvalidTransitionError{
+				Current:   types.StatusApproved,
+				Attempted: types.StatusActive,
+				Reason:    "cannot start approved sandbox",
+			})
+		},
+	}
+
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/start", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.StartSandbox(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Errorf("StartSandbox() status = %d, want %d", rr.Code, http.StatusConflict)
+	}
+}
+
+// --- CheckConflicts Handler Tests ---
+
+// TestCheckConflictsSuccess tests successfully checking for conflicts.
+// [REQ:OT-P2-002] Conflict Detection - API returns conflict info
+func TestCheckConflictsSuccess(t *testing.T) {
+	testID := uuid.New()
+	now := time.Now()
+	svc := &mockService{
+		checkConflictsFn: func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
+			return &types.ConflictCheckResponse{
+				HasConflict:         false,
+				BaseCommitHash:      "abc123",
+				CurrentHash:         "abc123",
+				RepoChangedFiles:    []string{},
+				SandboxChangedFiles: []string{"file.txt"},
+				ConflictingFiles:    []string{},
+				CheckedAt:           now,
+			}, nil
+		},
+	}
+
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	req := httptest.NewRequest("GET", "/sandboxes/"+testID.String()+"/conflicts", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.CheckConflicts(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("CheckConflicts() status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp types.ConflictCheckResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if resp.HasConflict {
+		t.Error("CheckConflicts() hasConflict = true, want false")
+	}
+	if resp.BaseCommitHash != "abc123" {
+		t.Errorf("CheckConflicts() baseCommitHash = %q, want 'abc123'", resp.BaseCommitHash)
+	}
+}
+
+// TestCheckConflictsWithConflict tests conflict detection when files conflict.
+// [REQ:OT-P2-002] Conflict Detection - API returns conflicting files
+func TestCheckConflictsWithConflict(t *testing.T) {
+	testID := uuid.New()
+	now := time.Now()
+	svc := &mockService{
+		checkConflictsFn: func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
+			return &types.ConflictCheckResponse{
+				HasConflict:         true,
+				BaseCommitHash:      "abc123",
+				CurrentHash:         "def456",
+				RepoChangedFiles:    []string{"file.txt", "config.go"},
+				SandboxChangedFiles: []string{"file.txt", "main.go"},
+				ConflictingFiles:    []string{"file.txt"},
+				CheckedAt:           now,
+			}, nil
+		},
+	}
+
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	req := httptest.NewRequest("GET", "/sandboxes/"+testID.String()+"/conflicts", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.CheckConflicts(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("CheckConflicts() status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp types.ConflictCheckResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if !resp.HasConflict {
+		t.Error("CheckConflicts() hasConflict = false, want true")
+	}
+	if len(resp.ConflictingFiles) != 1 || resp.ConflictingFiles[0] != "file.txt" {
+		t.Errorf("CheckConflicts() conflictingFiles = %v, want ['file.txt']", resp.ConflictingFiles)
+	}
+}
+
+// TestCheckConflictsNotFound tests conflict check for non-existent sandbox.
+func TestCheckConflictsNotFound(t *testing.T) {
+	testID := uuid.New()
+	svc := &mockService{
+		checkConflictsFn: func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error) {
+			return nil, types.NewNotFoundError(id.String())
+		},
+	}
+
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	req := httptest.NewRequest("GET", "/sandboxes/"+testID.String()+"/conflicts", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.CheckConflicts(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("CheckConflicts() status = %d, want %d", rr.Code, http.StatusNotFound)
+	}
+}
+
+// --- Rebase Handler Tests ---
+
+// TestRebaseSuccess tests successfully rebasing a sandbox.
+// [REQ:OT-P2-003] Rebase Workflow - API performs rebase operation
+func TestRebaseSuccess(t *testing.T) {
+	testID := uuid.New()
+	now := time.Now()
+	svc := &mockService{
+		rebaseFn: func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
+			return &types.RebaseResult{
+				Success:          true,
+				PreviousBaseHash: "abc123",
+				NewBaseHash:      "def456",
+				ConflictingFiles: []string{},
+				RepoChangedFiles: []string{"file.txt"},
+				Strategy:         types.RebaseStrategyRegenerate,
+				RebasedAt:        now,
+			}, nil
+		},
+	}
+
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	body := `{"strategy": "regenerate", "actor": "test-user"}`
+	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/rebase", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.Rebase(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Rebase() status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp types.RebaseResult
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Error("Rebase() success = false, want true")
+	}
+	if resp.PreviousBaseHash != "abc123" {
+		t.Errorf("Rebase() previousBaseHash = %q, want 'abc123'", resp.PreviousBaseHash)
+	}
+	if resp.NewBaseHash != "def456" {
+		t.Errorf("Rebase() newBaseHash = %q, want 'def456'", resp.NewBaseHash)
+	}
+}
+
+// TestRebaseWithConflicts tests rebase when conflicts cannot be resolved.
+// [REQ:OT-P2-003] Rebase Workflow - API reports unresolvable conflicts
+func TestRebaseWithConflicts(t *testing.T) {
+	testID := uuid.New()
+	now := time.Now()
+	svc := &mockService{
+		rebaseFn: func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
+			return &types.RebaseResult{
+				Success:          false,
+				PreviousBaseHash: "abc123",
+				NewBaseHash:      "",
+				ConflictingFiles: []string{"main.go", "config.go"},
+				RepoChangedFiles: []string{"main.go", "config.go", "readme.md"},
+				Strategy:         types.RebaseStrategyRegenerate,
+				ErrorMsg:         "cannot automatically resolve conflicts",
+				RebasedAt:        now,
+			}, nil
+		},
+	}
+
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	body := `{"strategy": "regenerate"}`
+	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/rebase", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.Rebase(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Rebase() status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp types.RebaseResult
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if resp.Success {
+		t.Error("Rebase() success = true, want false")
+	}
+	if len(resp.ConflictingFiles) != 2 {
+		t.Errorf("Rebase() conflictingFiles count = %d, want 2", len(resp.ConflictingFiles))
+	}
+}
+
+// TestRebaseNotFound tests rebase for non-existent sandbox.
+func TestRebaseNotFound(t *testing.T) {
+	testID := uuid.New()
+	svc := &mockService{
+		rebaseFn: func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error) {
+			return nil, types.NewNotFoundError(req.SandboxID.String())
+		},
+	}
+
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	body := `{"strategy": "regenerate"}`
+	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/rebase", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.Rebase(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("Rebase() status = %d, want %d", rr.Code, http.StatusNotFound)
+	}
+}
+
+// --- ValidatePath Handler Tests ---
+
+// TestValidatePathSuccess tests successfully validating a path.
+// [REQ:REQ-P0-005] Scope Path Validation - API validates scope paths
+func TestValidatePathSuccess(t *testing.T) {
+	svc := &mockService{
+		validatePathFn: func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
+			return &types.PathValidationResult{
+				Path:              path,
+				ProjectRoot:       projectRoot,
+				Valid:             true,
+				Exists:            true,
+				IsDirectory:       true,
+				WithinProjectRoot: true,
+			}, nil
+		},
+	}
+
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	req := httptest.NewRequest("GET", "/validate-path?path=/project/src&projectRoot=/project", nil)
+	rr := httptest.NewRecorder()
+
+	h.ValidatePath(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("ValidatePath() status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp types.PathValidationResult
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if !resp.Valid {
+		t.Error("ValidatePath() valid = false, want true")
+	}
+	if !resp.WithinProjectRoot {
+		t.Error("ValidatePath() withinProjectRoot = false, want true")
+	}
+}
+
+// TestValidatePathOutsideProject tests path validation for paths outside project.
+// [REQ:REQ-P0-005] Scope Path Validation - API rejects paths outside project
+func TestValidatePathOutsideProject(t *testing.T) {
+	svc := &mockService{
+		validatePathFn: func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
+			return &types.PathValidationResult{
+				Path:              path,
+				ProjectRoot:       projectRoot,
+				Valid:             false,
+				Exists:            true,
+				IsDirectory:       true,
+				WithinProjectRoot: false,
+				Error:             "path is outside project root",
+			}, nil
+		},
+	}
+
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	req := httptest.NewRequest("GET", "/validate-path?path=/etc/passwd&projectRoot=/project", nil)
+	rr := httptest.NewRecorder()
+
+	h.ValidatePath(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("ValidatePath() status = %d, want %d", rr.Code, http.StatusOK)
+	}
+
+	var resp types.PathValidationResult
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if resp.Valid {
+		t.Error("ValidatePath() valid = true, want false")
+	}
+	if resp.WithinProjectRoot {
+		t.Error("ValidatePath() withinProjectRoot = true, want false")
+	}
+	if resp.Error == "" {
+		t.Error("ValidatePath() error should not be empty")
+	}
+}
+
+// TestValidatePathMissingParam tests path validation without path parameter.
+func TestValidatePathMissingParam(t *testing.T) {
+	h := &Handlers{
+		Service:       &mockService{},
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	req := httptest.NewRequest("GET", "/validate-path", nil)
+	rr := httptest.NewRecorder()
+
+	h.ValidatePath(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("ValidatePath() status = %d, want %d", rr.Code, http.StatusBadRequest)
+	}
+}

@@ -920,6 +920,380 @@ func TestDomainErrorInterface(t *testing.T) {
 }
 
 // ============================================================================
+// GC (Garbage Collection) Types Tests [OT-P1-003]
+// ============================================================================
+
+func TestDefaultGCPolicy(t *testing.T) {
+	policy := DefaultGCPolicy()
+
+	// Verify default MaxAge is 24 hours
+	if policy.MaxAge != 24*time.Hour {
+		t.Errorf("DefaultGCPolicy().MaxAge = %v, want 24h", policy.MaxAge)
+	}
+
+	// Verify default IdleTimeout is 4 hours
+	if policy.IdleTimeout != 4*time.Hour {
+		t.Errorf("DefaultGCPolicy().IdleTimeout = %v, want 4h", policy.IdleTimeout)
+	}
+
+	// Verify IncludeTerminal is true
+	if !policy.IncludeTerminal {
+		t.Error("DefaultGCPolicy().IncludeTerminal = false, want true")
+	}
+
+	// Verify TerminalDelay is 1 hour
+	if policy.TerminalDelay != 1*time.Hour {
+		t.Errorf("DefaultGCPolicy().TerminalDelay = %v, want 1h", policy.TerminalDelay)
+	}
+
+	// Verify MaxTotalSizeBytes is not set (0)
+	if policy.MaxTotalSizeBytes != 0 {
+		t.Errorf("DefaultGCPolicy().MaxTotalSizeBytes = %d, want 0", policy.MaxTotalSizeBytes)
+	}
+
+	// Verify Statuses includes the expected statuses
+	expectedStatuses := []Status{StatusStopped, StatusError, StatusApproved, StatusRejected}
+	if len(policy.Statuses) != len(expectedStatuses) {
+		t.Errorf("DefaultGCPolicy().Statuses length = %d, want %d", len(policy.Statuses), len(expectedStatuses))
+	}
+
+	// Check all expected statuses are present
+	statusSet := make(map[Status]bool)
+	for _, s := range policy.Statuses {
+		statusSet[s] = true
+	}
+	for _, expected := range expectedStatuses {
+		if !statusSet[expected] {
+			t.Errorf("DefaultGCPolicy().Statuses missing %s", expected)
+		}
+	}
+}
+
+func TestGCPolicyStructure(t *testing.T) {
+	policy := GCPolicy{
+		MaxAge:            48 * time.Hour,
+		IdleTimeout:       8 * time.Hour,
+		MaxTotalSizeBytes: 10 * 1024 * 1024 * 1024, // 10GB
+		IncludeTerminal:   true,
+		TerminalDelay:     2 * time.Hour,
+		Statuses:          []Status{StatusStopped, StatusError},
+	}
+
+	if policy.MaxAge != 48*time.Hour {
+		t.Errorf("GCPolicy.MaxAge = %v, want 48h", policy.MaxAge)
+	}
+	if policy.IdleTimeout != 8*time.Hour {
+		t.Errorf("GCPolicy.IdleTimeout = %v, want 8h", policy.IdleTimeout)
+	}
+	if policy.MaxTotalSizeBytes != 10*1024*1024*1024 {
+		t.Errorf("GCPolicy.MaxTotalSizeBytes = %d, want 10GB", policy.MaxTotalSizeBytes)
+	}
+	if !policy.IncludeTerminal {
+		t.Error("GCPolicy.IncludeTerminal = false, want true")
+	}
+	if policy.TerminalDelay != 2*time.Hour {
+		t.Errorf("GCPolicy.TerminalDelay = %v, want 2h", policy.TerminalDelay)
+	}
+	if len(policy.Statuses) != 2 {
+		t.Errorf("GCPolicy.Statuses length = %d, want 2", len(policy.Statuses))
+	}
+}
+
+func TestGCRequestStructure(t *testing.T) {
+	policy := DefaultGCPolicy()
+	request := GCRequest{
+		Policy: &policy,
+		DryRun: true,
+		Limit:  100,
+		Actor:  "scheduler",
+	}
+
+	if request.Policy == nil {
+		t.Error("GCRequest.Policy should not be nil")
+	}
+	if !request.DryRun {
+		t.Error("GCRequest.DryRun = false, want true")
+	}
+	if request.Limit != 100 {
+		t.Errorf("GCRequest.Limit = %d, want 100", request.Limit)
+	}
+	if request.Actor != "scheduler" {
+		t.Errorf("GCRequest.Actor = %q, want 'scheduler'", request.Actor)
+	}
+}
+
+func TestGCResultStructure(t *testing.T) {
+	now := time.Now()
+	result := GCResult{
+		Collected: []*GCCollectedSandbox{
+			{
+				ID:        uuid.New(),
+				ScopePath: "/project/test",
+				Status:    StatusStopped,
+				SizeBytes: 1024,
+				CreatedAt: now.Add(-48 * time.Hour),
+				Reason:    "exceeded max age",
+			},
+		},
+		TotalCollected:      1,
+		TotalBytesReclaimed: 1024,
+		Errors:              []GCError{},
+		DryRun:              false,
+		StartedAt:           now.Add(-1 * time.Minute),
+		CompletedAt:         now,
+		Reasons:             map[string][]string{"test-id": {"age", "idle"}},
+	}
+
+	if result.TotalCollected != 1 {
+		t.Errorf("GCResult.TotalCollected = %d, want 1", result.TotalCollected)
+	}
+	if result.TotalBytesReclaimed != 1024 {
+		t.Errorf("GCResult.TotalBytesReclaimed = %d, want 1024", result.TotalBytesReclaimed)
+	}
+	if result.DryRun {
+		t.Error("GCResult.DryRun = true, want false")
+	}
+	if len(result.Collected) != 1 {
+		t.Errorf("GCResult.Collected length = %d, want 1", len(result.Collected))
+	}
+	if result.Collected[0].Reason != "exceeded max age" {
+		t.Errorf("GCResult.Collected[0].Reason = %q, want 'exceeded max age'", result.Collected[0].Reason)
+	}
+}
+
+func TestGCCollectedSandboxStructure(t *testing.T) {
+	now := time.Now()
+	id := uuid.New()
+	collected := GCCollectedSandbox{
+		ID:        id,
+		ScopePath: "/project/old",
+		Status:    StatusApproved,
+		SizeBytes: 5000,
+		CreatedAt: now.Add(-72 * time.Hour),
+		Reason:    "terminal state cleanup",
+	}
+
+	if collected.ID != id {
+		t.Error("GCCollectedSandbox.ID not set correctly")
+	}
+	if collected.ScopePath != "/project/old" {
+		t.Errorf("GCCollectedSandbox.ScopePath = %q, want '/project/old'", collected.ScopePath)
+	}
+	if collected.Status != StatusApproved {
+		t.Errorf("GCCollectedSandbox.Status = %s, want 'approved'", collected.Status)
+	}
+	if collected.SizeBytes != 5000 {
+		t.Errorf("GCCollectedSandbox.SizeBytes = %d, want 5000", collected.SizeBytes)
+	}
+	if collected.Reason != "terminal state cleanup" {
+		t.Errorf("GCCollectedSandbox.Reason = %q, want 'terminal state cleanup'", collected.Reason)
+	}
+}
+
+func TestGCErrorStructure(t *testing.T) {
+	id := uuid.New()
+	gcErr := GCError{
+		SandboxID: id,
+		Error:     "failed to unmount: device busy",
+	}
+
+	if gcErr.SandboxID != id {
+		t.Error("GCError.SandboxID not set correctly")
+	}
+	if gcErr.Error != "failed to unmount: device busy" {
+		t.Errorf("GCError.Error = %q, want 'failed to unmount: device busy'", gcErr.Error)
+	}
+}
+
+// ============================================================================
+// Rebase Types Tests [OT-P2-003]
+// ============================================================================
+
+func TestRebaseStrategyConstants(t *testing.T) {
+	if RebaseStrategyRegenerate != "regenerate" {
+		t.Errorf("RebaseStrategyRegenerate = %q, want 'regenerate'", RebaseStrategyRegenerate)
+	}
+}
+
+func TestRebaseRequestStructure(t *testing.T) {
+	id := uuid.New()
+	req := RebaseRequest{
+		SandboxID: id,
+		Strategy:  RebaseStrategyRegenerate,
+		Actor:     "admin",
+	}
+
+	if req.SandboxID != id {
+		t.Error("RebaseRequest.SandboxID not set correctly")
+	}
+	if req.Strategy != RebaseStrategyRegenerate {
+		t.Errorf("RebaseRequest.Strategy = %q, want 'regenerate'", req.Strategy)
+	}
+	if req.Actor != "admin" {
+		t.Errorf("RebaseRequest.Actor = %q, want 'admin'", req.Actor)
+	}
+}
+
+func TestRebaseResultStructure(t *testing.T) {
+	now := time.Now()
+	result := RebaseResult{
+		Success:          true,
+		PreviousBaseHash: "abc123",
+		NewBaseHash:      "def456",
+		ConflictingFiles: []string{"file1.go", "file2.go"},
+		RepoChangedFiles: []string{"file1.go", "file2.go", "file3.go"},
+		Strategy:         RebaseStrategyRegenerate,
+		ErrorMsg:         "",
+		RebasedAt:        now,
+	}
+
+	if !result.Success {
+		t.Error("RebaseResult.Success = false, want true")
+	}
+	if result.PreviousBaseHash != "abc123" {
+		t.Errorf("RebaseResult.PreviousBaseHash = %q, want 'abc123'", result.PreviousBaseHash)
+	}
+	if result.NewBaseHash != "def456" {
+		t.Errorf("RebaseResult.NewBaseHash = %q, want 'def456'", result.NewBaseHash)
+	}
+	if len(result.ConflictingFiles) != 2 {
+		t.Errorf("RebaseResult.ConflictingFiles length = %d, want 2", len(result.ConflictingFiles))
+	}
+	if len(result.RepoChangedFiles) != 3 {
+		t.Errorf("RebaseResult.RepoChangedFiles length = %d, want 3", len(result.RepoChangedFiles))
+	}
+	if result.Strategy != RebaseStrategyRegenerate {
+		t.Errorf("RebaseResult.Strategy = %q, want 'regenerate'", result.Strategy)
+	}
+	if result.ErrorMsg != "" {
+		t.Errorf("RebaseResult.ErrorMsg = %q, want ''", result.ErrorMsg)
+	}
+}
+
+func TestRebaseResultFailure(t *testing.T) {
+	result := RebaseResult{
+		Success:  false,
+		ErrorMsg: "merge conflict detected",
+		Strategy: RebaseStrategyRegenerate,
+	}
+
+	if result.Success {
+		t.Error("RebaseResult.Success = true, want false")
+	}
+	if result.ErrorMsg != "merge conflict detected" {
+		t.Errorf("RebaseResult.ErrorMsg = %q, want 'merge conflict detected'", result.ErrorMsg)
+	}
+}
+
+// ============================================================================
+// Conflict Detection Types Tests [OT-P2-002]
+// ============================================================================
+
+func TestConflictInfoStructure(t *testing.T) {
+	info := ConflictInfo{
+		HasConflict:      true,
+		BaseCommitHash:   "abc123",
+		CurrentHash:      "xyz789",
+		ConflictingFiles: []string{"main.go", "config.go"},
+		RepoChangedFiles: []string{"main.go", "config.go", "readme.md"},
+	}
+
+	if !info.HasConflict {
+		t.Error("ConflictInfo.HasConflict = false, want true")
+	}
+	if info.BaseCommitHash != "abc123" {
+		t.Errorf("ConflictInfo.BaseCommitHash = %q, want 'abc123'", info.BaseCommitHash)
+	}
+	if info.CurrentHash != "xyz789" {
+		t.Errorf("ConflictInfo.CurrentHash = %q, want 'xyz789'", info.CurrentHash)
+	}
+	if len(info.ConflictingFiles) != 2 {
+		t.Errorf("ConflictInfo.ConflictingFiles length = %d, want 2", len(info.ConflictingFiles))
+	}
+	if len(info.RepoChangedFiles) != 3 {
+		t.Errorf("ConflictInfo.RepoChangedFiles length = %d, want 3", len(info.RepoChangedFiles))
+	}
+}
+
+func TestConflictCheckResponseStructure(t *testing.T) {
+	now := time.Now()
+	resp := ConflictCheckResponse{
+		HasConflict:         true,
+		BaseCommitHash:      "base123",
+		CurrentHash:         "current456",
+		RepoChangedFiles:    []string{"a.go", "b.go"},
+		SandboxChangedFiles: []string{"a.go", "c.go"},
+		ConflictingFiles:    []string{"a.go"},
+		CheckedAt:           now,
+	}
+
+	if !resp.HasConflict {
+		t.Error("ConflictCheckResponse.HasConflict = false, want true")
+	}
+	if resp.BaseCommitHash != "base123" {
+		t.Errorf("ConflictCheckResponse.BaseCommitHash = %q, want 'base123'", resp.BaseCommitHash)
+	}
+	if resp.CurrentHash != "current456" {
+		t.Errorf("ConflictCheckResponse.CurrentHash = %q, want 'current456'", resp.CurrentHash)
+	}
+	if len(resp.ConflictingFiles) != 1 || resp.ConflictingFiles[0] != "a.go" {
+		t.Errorf("ConflictCheckResponse.ConflictingFiles = %v, want ['a.go']", resp.ConflictingFiles)
+	}
+}
+
+// ============================================================================
+// Path Validation Types Tests
+// ============================================================================
+
+func TestPathValidationResultStructure(t *testing.T) {
+	result := PathValidationResult{
+		Path:              "/project/src",
+		ProjectRoot:       "/project",
+		Valid:             true,
+		Exists:            true,
+		IsDirectory:       true,
+		WithinProjectRoot: true,
+		Error:             "",
+	}
+
+	if result.Path != "/project/src" {
+		t.Errorf("PathValidationResult.Path = %q, want '/project/src'", result.Path)
+	}
+	if !result.Valid {
+		t.Error("PathValidationResult.Valid = false, want true")
+	}
+	if !result.Exists {
+		t.Error("PathValidationResult.Exists = false, want true")
+	}
+	if !result.IsDirectory {
+		t.Error("PathValidationResult.IsDirectory = false, want true")
+	}
+	if !result.WithinProjectRoot {
+		t.Error("PathValidationResult.WithinProjectRoot = false, want true")
+	}
+}
+
+func TestPathValidationResultInvalid(t *testing.T) {
+	result := PathValidationResult{
+		Path:              "/etc/passwd",
+		ProjectRoot:       "/project",
+		Valid:             false,
+		WithinProjectRoot: false,
+		Error:             "path is outside project root",
+	}
+
+	if result.Valid {
+		t.Error("PathValidationResult.Valid = true, want false")
+	}
+	if result.WithinProjectRoot {
+		t.Error("PathValidationResult.WithinProjectRoot = true, want false")
+	}
+	if result.Error != "path is outside project root" {
+		t.Errorf("PathValidationResult.Error = %q, want 'path is outside project root'", result.Error)
+	}
+}
+
+// ============================================================================
 // Helper functions
 // ============================================================================
 
