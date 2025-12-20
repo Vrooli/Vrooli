@@ -370,7 +370,7 @@ func TestNewToolResultEvent(t *testing.T) {
 	runID := uuid.New()
 
 	t.Run("successful result", func(t *testing.T) {
-		event := NewToolResultEvent(runID, "Read", "file contents here", nil)
+		event := NewToolResultEvent(runID, "Read", "", "file contents here", nil)
 
 		data, ok := event.Data.(*ToolResultEventData)
 		if !ok {
@@ -388,7 +388,7 @@ func TestNewToolResultEvent(t *testing.T) {
 	})
 
 	t.Run("failed result", func(t *testing.T) {
-		event := NewToolResultEvent(runID, "Write", "", errors.New("permission denied"))
+		event := NewToolResultEvent(runID, "Write", "", "", errors.New("permission denied"))
 
 		data, ok := event.Data.(*ToolResultEventData)
 		if !ok {
@@ -399,6 +399,28 @@ func TestNewToolResultEvent(t *testing.T) {
 		}
 		if data.Error != "permission denied" {
 			t.Errorf("Error = %s, want 'permission denied'", data.Error)
+		}
+	})
+
+	t.Run("with tool call ID", func(t *testing.T) {
+		toolCallID := "toolu_01GXZ12345"
+		event := NewToolResultEvent(runID, "Bash", toolCallID, "command output", nil)
+
+		data, ok := event.Data.(*ToolResultEventData)
+		if !ok {
+			t.Fatalf("Data type = %T, want *ToolResultEventData", event.Data)
+		}
+		if data.ToolName != "Bash" {
+			t.Errorf("ToolName = %s, want 'Bash'", data.ToolName)
+		}
+		if data.ToolCallID != toolCallID {
+			t.Errorf("ToolCallID = %s, want %s", data.ToolCallID, toolCallID)
+		}
+		if data.Output != "command output" {
+			t.Errorf("Output = %s, want 'command output'", data.Output)
+		}
+		if !data.Success {
+			t.Error("Success should be true for nil error")
 		}
 	})
 }

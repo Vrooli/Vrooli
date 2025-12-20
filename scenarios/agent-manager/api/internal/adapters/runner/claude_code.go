@@ -639,10 +639,11 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 				// Return the first tool result (most common case)
 				// TODO: Consider emitting multiple events for multiple results
 				result := toolResults[0]
-				// Use toolUseID as tool name since we don't have the actual name at this point
+				// Use toolUseID to correlate with the originating tool_call event
 				return domain.NewToolResultEvent(
 					runID,
-					result.ToolUseID, // Using ID as a reference to the originating tool_use
+					"",               // tool name not available from result
+					result.ToolUseID, // Tool call ID for correlation
 					result.Content,
 					nil, // No error for successful tool results
 				), nil
@@ -678,6 +679,7 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 		return domain.NewToolResultEvent(
 			runID,
 			"", // tool name not always available in result
+			"", // tool call ID not available in this event type
 			resultStr,
 			nil,
 		), nil

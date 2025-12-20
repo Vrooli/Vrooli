@@ -454,21 +454,24 @@ func NewToolCallEvent(runID uuid.UUID, toolName string, input map[string]interfa
 
 // ToolResultEventData contains data for tool result events.
 type ToolResultEventData struct {
-	ToolName string `json:"toolName"`        // Name of the tool that was called
-	Output   string `json:"output"`          // Tool output (success)
-	Error    string `json:"error,omitempty"` // Error message (if failed)
-	Success  bool   `json:"success"`         // Whether the tool call succeeded
+	ToolName   string `json:"toolName"`             // Display name of the tool (e.g., "Write", "bash")
+	ToolCallID string `json:"toolCallId,omitempty"` // Tool invocation ID (e.g., "toolu_01GXZ...")
+	Output     string `json:"output"`               // Tool output (success)
+	Error      string `json:"error,omitempty"`      // Error message (if failed)
+	Success    bool   `json:"success"`              // Whether the tool call succeeded
 }
 
 func (d *ToolResultEventData) EventType() RunEventType { return EventTypeToolResult }
 func (d *ToolResultEventData) isEventPayload()         {}
 
 // NewToolResultEvent creates a new tool result event.
-func NewToolResultEvent(runID uuid.UUID, toolName, output string, err error) *RunEvent {
+// toolName is the display name (e.g., "Write"), toolCallID is the invocation ID.
+func NewToolResultEvent(runID uuid.UUID, toolName, toolCallID, output string, err error) *RunEvent {
 	data := &ToolResultEventData{
-		ToolName: toolName,
-		Output:   output,
-		Success:  err == nil,
+		ToolName:   toolName,
+		ToolCallID: toolCallID,
+		Output:     output,
+		Success:    err == nil,
 	}
 	if err != nil {
 		data.Error = err.Error()

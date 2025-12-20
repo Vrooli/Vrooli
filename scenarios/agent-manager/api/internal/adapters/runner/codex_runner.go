@@ -684,6 +684,7 @@ func (r *CodexRunner) parseCodexStreamEvent(runID uuid.UUID, line string) *domai
 				return domain.NewToolResultEvent(
 					runID,
 					streamEvent.Item.Name,
+					"", // Codex doesn't provide tool call IDs
 					streamEvent.Item.Output,
 					nil,
 				)

@@ -1373,6 +1373,9 @@ type broadcastingEventSink struct {
 }
 
 func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
+	// Validate event and log warnings for missing data
+	domain.ValidateEvent(evt)
+
 	// Store the event
 	if b.store != nil {
 		if err := b.store.Append(context.Background(), b.runID, evt); err != nil {

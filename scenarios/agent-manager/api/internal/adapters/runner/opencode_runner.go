@@ -444,17 +444,30 @@ type OpenCodePart struct {
 	ID        string            `json:"id,omitempty"`
 	SessionID string            `json:"sessionID,omitempty"`
 	MessageID string            `json:"messageID,omitempty"`
-	Type      string            `json:"type"` // "text", "step-start", "step-finish", "tool-call", "tool-result"
+	Type      string            `json:"type"` // "text", "step-start", "step-finish", "tool"
 	Text      string            `json:"text,omitempty"`
 	Reason    string            `json:"reason,omitempty"`
 	Snapshot  string            `json:"snapshot,omitempty"`
 	Cost      float64           `json:"cost,omitempty"`
 	Tokens    *OpenCodeTokens   `json:"tokens,omitempty"`
-	Name      string            `json:"name,omitempty"`  // Tool name
-	Input     json.RawMessage   `json:"input,omitempty"` // Tool input
+	Name      string            `json:"name,omitempty"`  // Legacy tool name field
+	Input     json.RawMessage   `json:"input,omitempty"` // Legacy tool input field
 	Output    string            `json:"output,omitempty"`
 	IsError   bool              `json:"isError,omitempty"`
 	Time      *OpenCodeTime     `json:"time,omitempty"`
+	// New fields for actual OpenCode tool_use format
+	Tool   string          `json:"tool,omitempty"`   // Actual tool name (e.g., "write", "bash")
+	CallID string          `json:"callID,omitempty"` // Tool call ID
+	State  *OpenCodeState  `json:"state,omitempty"`  // Tool state with input/output
+}
+
+// OpenCodeState represents the state field in tool_use events.
+type OpenCodeState struct {
+	Status   string                 `json:"status,omitempty"`   // "pending", "completed", etc.
+	Input    map[string]interface{} `json:"input,omitempty"`    // Tool input arguments
+	Output   string                 `json:"output,omitempty"`   // Tool output
+	Title    string                 `json:"title,omitempty"`    // Display title
+	Metadata map[string]interface{} `json:"metadata,omitempty"` // Additional metadata
 }
 
 // OpenCodeTokens represents token usage in step_finish events.
@@ -531,37 +544,51 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 		}
 
 	case "tool_call", "tool_use", "tool-call":
-		// Tool invocation (OpenCode may use different type names)
+		// Tool invocation - OpenCode uses "tool_use" with part.tool and part.state.input
 		if streamEvent.Part != nil {
-			// Get tool name with fallbacks
-			toolName := streamEvent.Part.Name
+			// Get tool name - prefer part.tool (actual OpenCode format)
+			toolName := streamEvent.Part.Tool
 			if toolName == "" {
-				toolName = streamEvent.Part.Type // Fallback to type field
-			}
-			if toolName == "" {
-				toolName = streamEvent.Part.ID // Fallback to ID
+				toolName = streamEvent.Part.Name // Legacy fallback
 			}
 			if toolName == "" {
 				toolName = "unknown_tool"
 			}
 
-			// Initialize input to empty map (never nil)
+			// Get input - prefer part.state.input (actual OpenCode format)
 			input := make(map[string]interface{})
-			if streamEvent.Part.Input != nil {
+			if streamEvent.Part.State != nil && streamEvent.Part.State.Input != nil {
+				input = streamEvent.Part.State.Input
+			} else if streamEvent.Part.Input != nil {
+				// Legacy fallback
 				json.Unmarshal(streamEvent.Part.Input, &input)
 			}
+
 			return domain.NewToolCallEvent(runID, toolName, input), nil
 		}
 
 	case "tool_result", "tool-result":
 		// Tool execution result
 		if streamEvent.Part != nil {
+			// Get tool name - prefer part.tool (actual OpenCode format)
+			toolName := streamEvent.Part.Tool
+			if toolName == "" {
+				toolName = streamEvent.Part.Name // Legacy fallback
+			}
+
+			// Get output - prefer part.state.output (actual OpenCode format)
+			output := streamEvent.Part.Output
+			if output == "" && streamEvent.Part.State != nil {
+				output = streamEvent.Part.State.Output
+			}
+
+			toolCallID := streamEvent.Part.CallID
 			var errMsg error
 			if streamEvent.Part.IsError {
-				errMsg = fmt.Errorf("%s", streamEvent.Part.Output)
-				return domain.NewToolResultEvent(runID, streamEvent.Part.Name, "", errMsg), nil
+				errMsg = fmt.Errorf("%s", output)
+				return domain.NewToolResultEvent(runID, toolName, toolCallID, "", errMsg), nil
 			}
-			return domain.NewToolResultEvent(runID, streamEvent.Part.Name, streamEvent.Part.Output, nil), nil
+			return domain.NewToolResultEvent(runID, toolName, toolCallID, output, nil), nil
 		}
 
 	case "step_finish":
@@ -614,31 +641,46 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 
 	// Check Part.Type as secondary classification (nested type info)
 	// This handles cases where streamEvent.Type is generic but Part.Type is specific
+	// OpenCode uses part.type="tool" for tool invocations
 	if streamEvent.Part != nil && streamEvent.Part.Type != "" {
 		switch streamEvent.Part.Type {
 		case "text", "assistant":
 			if streamEvent.Part.Text != "" {
 				return domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text), nil
 			}
-		case "tool-call", "tool_call", "tool_use":
-			toolName := streamEvent.Part.Name
+		case "tool", "tool-call", "tool_call", "tool_use":
+			// OpenCode uses part.type="tool" with part.tool for the tool name
+			toolName := streamEvent.Part.Tool
 			if toolName == "" {
-				toolName = streamEvent.Part.ID
+				toolName = streamEvent.Part.Name // Legacy fallback
 			}
 			if toolName == "" {
 				toolName = "unknown_tool"
 			}
+
+			// Get input from state.input (actual OpenCode format)
 			input := make(map[string]interface{})
-			if streamEvent.Part.Input != nil {
+			if streamEvent.Part.State != nil && streamEvent.Part.State.Input != nil {
+				input = streamEvent.Part.State.Input
+			} else if streamEvent.Part.Input != nil {
 				json.Unmarshal(streamEvent.Part.Input, &input)
 			}
 			return domain.NewToolCallEvent(runID, toolName, input), nil
 		case "tool-result", "tool_result":
+			toolName := streamEvent.Part.Tool
+			if toolName == "" {
+				toolName = streamEvent.Part.Name
+			}
+			output := streamEvent.Part.Output
+			if output == "" && streamEvent.Part.State != nil {
+				output = streamEvent.Part.State.Output
+			}
+			toolCallID := streamEvent.Part.CallID
 			var errMsg error
 			if streamEvent.Part.IsError {
-				errMsg = fmt.Errorf("%s", streamEvent.Part.Output)
+				errMsg = fmt.Errorf("%s", output)
 			}
-			return domain.NewToolResultEvent(runID, streamEvent.Part.Name, streamEvent.Part.Output, errMsg), nil
+			return domain.NewToolResultEvent(runID, toolName, toolCallID, output, errMsg), nil
 		}
 	}
 
