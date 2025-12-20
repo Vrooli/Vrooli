@@ -408,7 +408,7 @@ func (e *RunExecutor) stopHeartbeat() {
 func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
 	if err == context.DeadlineExceeded {
 		e.failWithError(ctx, &domain.RunnerError{
-			RunnerType:  e.profile.RunnerType,
+			RunnerType:  e.getRunnerType(),
 			Operation:   "timeout",
 			Cause:       fmt.Errorf("execution exceeded timeout of %v", e.config.Timeout),
 			IsTransient: false,
@@ -539,21 +539,24 @@ func (e *RunExecutor) useInPlaceWorkspace() error {
 // =============================================================================
 
 func (e *RunExecutor) acquireRunner(ctx context.Context) (runner.Runner, error) {
+	// Get runner type from profile or resolved config
+	runnerType := e.getRunnerType()
+
 	if e.runners == nil {
 		return nil, &domain.RunnerError{
-			RunnerType:  e.profile.RunnerType,
+			RunnerType:  runnerType,
 			Operation:   "acquire",
 			Cause:       fmt.Errorf("no runner registry configured"),
 			IsTransient: false,
 		}
 	}
 
-	r, err := e.runners.Get(e.profile.RunnerType)
+	r, err := e.runners.Get(runnerType)
 	if err != nil {
 		// Try to find an alternative runner to suggest
 		alternative := e.findAlternativeRunner()
 		return nil, &domain.RunnerError{
-			RunnerType:  e.profile.RunnerType,
+			RunnerType:  runnerType,
 			Operation:   "acquire",
 			Cause:       err,
 			IsTransient: false,
@@ -567,7 +570,7 @@ func (e *RunExecutor) acquireRunner(ctx context.Context) (runner.Runner, error) 
 		// Try to find an alternative runner to suggest
 		alternative := e.findAlternativeRunner()
 		return nil, &domain.RunnerError{
-			RunnerType:  e.profile.RunnerType,
+			RunnerType:  runnerType,
 			Operation:   "availability_check",
 			Cause:       fmt.Errorf(msg),
 			IsTransient: true, // runner might become available
@@ -576,6 +579,17 @@ func (e *RunExecutor) acquireRunner(ctx context.Context) (runner.Runner, error) 
 	}
 
 	return r, nil
+}
+
+// getRunnerType returns the runner type, preferring profile but falling back to resolved config.
+func (e *RunExecutor) getRunnerType() domain.RunnerType {
+	if e.profile != nil {
+		return e.profile.RunnerType
+	}
+	if e.run != nil && e.run.ResolvedConfig != nil {
+		return e.run.ResolvedConfig.RunnerType
+	}
+	return domain.RunnerTypeClaudeCode // Default fallback
 }
 
 // findAlternativeRunner attempts to find another available runner.
@@ -592,8 +606,9 @@ func (e *RunExecutor) findAlternativeRunner() string {
 		domain.RunnerTypeOpenCode,
 	}
 
+	currentType := e.getRunnerType()
 	for _, rt := range alternatives {
-		if rt == e.profile.RunnerType {
+		if rt == currentType {
 			continue // Skip the one that failed
 		}
 		if r, err := e.runners.Get(rt); err == nil {

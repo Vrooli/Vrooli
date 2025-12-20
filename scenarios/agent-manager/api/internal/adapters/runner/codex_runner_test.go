@@ -259,20 +259,25 @@ func TestCodexRunner_ParseStreamEvent_TurnCompleted(t *testing.T) {
 		t.Errorf("EventType = %s, want %s", event.EventType, domain.EventTypeMetric)
 	}
 
-	metricData, ok := event.Data.(*domain.MetricEventData)
+	costData, ok := event.Data.(*domain.CostEventData)
 	if !ok {
-		t.Fatalf("expected MetricEventData, got %T", event.Data)
+		t.Fatalf("expected CostEventData, got %T", event.Data)
 	}
-	if metricData.Name != "tokens" {
-		t.Errorf("Name = %s, want tokens", metricData.Name)
+	// Check input tokens (12810)
+	if costData.InputTokens != 12810 {
+		t.Errorf("InputTokens = %d, want 12810", costData.InputTokens)
 	}
-	// input_tokens (12810) + output_tokens (83) = 12893
-	expectedTokens := float64(12810 + 83)
-	if metricData.Value != expectedTokens {
-		t.Errorf("Value = %f, want %f", metricData.Value, expectedTokens)
+	// Check output tokens (83)
+	if costData.OutputTokens != 83 {
+		t.Errorf("OutputTokens = %d, want 83", costData.OutputTokens)
 	}
-	if metricData.Unit != "tokens" {
-		t.Errorf("Unit = %s, want tokens", metricData.Unit)
+	// Check cost is non-zero (calculated by estimateCodexCost)
+	if costData.TotalCostUSD <= 0 {
+		t.Errorf("TotalCostUSD = %f, want > 0", costData.TotalCostUSD)
+	}
+	// Check model is set
+	if costData.Model != "o4-mini" {
+		t.Errorf("Model = %s, want o4-mini", costData.Model)
 	}
 }
 
@@ -462,9 +467,15 @@ func TestCodexRunner_UpdateMetrics_Tokens(t *testing.T) {
 	event := runner.parseCodexStreamEvent(runID, codexSamples["turn.completed"])
 	runner.updateCodexMetrics(event, metrics, &lastAssistant)
 
-	expectedTokens := 12810 + 83
-	if metrics.TokensOutput != expectedTokens {
-		t.Errorf("TokensOutput = %d, want %d", metrics.TokensOutput, expectedTokens)
+	// CostEventData now tracks input and output tokens separately
+	if metrics.TokensInput != 12810 {
+		t.Errorf("TokensInput = %d, want 12810", metrics.TokensInput)
+	}
+	if metrics.TokensOutput != 83 {
+		t.Errorf("TokensOutput = %d, want 83", metrics.TokensOutput)
+	}
+	if metrics.CostEstimateUSD <= 0 {
+		t.Errorf("CostEstimateUSD = %f, want > 0", metrics.CostEstimateUSD)
 	}
 }
 
@@ -529,8 +540,15 @@ func TestCodexRunner_ParseFullStream(t *testing.T) {
 	if metrics.ToolCallCount != 1 {
 		t.Errorf("ToolCallCount = %d, want 1", metrics.ToolCallCount)
 	}
-	if metrics.TokensOutput != 12893 {
-		t.Errorf("TokensOutput = %d, want 12893", metrics.TokensOutput)
+	// CostEventData tracks tokens separately
+	if metrics.TokensInput != 12810 {
+		t.Errorf("TokensInput = %d, want 12810", metrics.TokensInput)
+	}
+	if metrics.TokensOutput != 83 {
+		t.Errorf("TokensOutput = %d, want 83", metrics.TokensOutput)
+	}
+	if metrics.CostEstimateUSD <= 0 {
+		t.Errorf("CostEstimateUSD = %f, want > 0", metrics.CostEstimateUSD)
 	}
 	if lastAssistant != "Created `test123.txt` containing `hello`." {
 		t.Errorf("lastAssistant mismatch")

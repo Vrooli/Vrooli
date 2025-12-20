@@ -116,11 +116,11 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		idempotencyRepo repository.IdempotencyRepository
 	)
 
-	// Create event store - for now we always use memory store since
-	// the PostgreSQL event store would need to implement event.Store interface
-	eventStore := event.NewMemoryStore()
+	// Create event store - use PostgreSQL when database is available
+	var eventStore event.Store
 
 	if useInMemory || db == nil {
+		eventStore = event.NewMemoryStore()
 		// In-memory fallback
 		log.Printf("Using in-memory storage")
 		profileRepo = repository.NewMemoryProfileRepository()
@@ -131,6 +131,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 	} else {
 		// PostgreSQL persistence
 		log.Printf("Using PostgreSQL persistence")
+		eventStore = event.NewPostgresStore(db.DB, logger)
 		repos := database.NewRepositories(db, logger)
 		profileRepo = repos.Profiles
 		taskRepo = repos.Tasks

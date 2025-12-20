@@ -692,12 +692,21 @@ func (r *CodexRunner) parseCodexStreamEvent(runID uuid.UUID, line string) *domai
 
 	case "turn.completed":
 		if streamEvent.Usage != nil {
-			return domain.NewMetricEvent(
-				runID,
-				"tokens",
-				float64(streamEvent.Usage.InputTokens+streamEvent.Usage.OutputTokens),
-				"tokens",
-			)
+			// Create cost event with detailed token breakdown and estimated cost
+			costEvent := &domain.RunEvent{
+				ID:        uuid.New(),
+				RunID:     runID,
+				EventType: domain.EventTypeMetric,
+				Timestamp: time.Now(),
+				Data: &domain.CostEventData{
+					InputTokens:     streamEvent.Usage.InputTokens,
+					OutputTokens:    streamEvent.Usage.OutputTokens,
+					CacheReadTokens: streamEvent.Usage.CachedInputTokens,
+					TotalCostUSD:    estimateCodexCost(streamEvent.Usage),
+					Model:           "o4-mini", // Codex default model
+				},
+			}
+			return costEvent
 		}
 
 	case "error":
@@ -714,6 +723,26 @@ func (r *CodexRunner) parseCodexStreamEvent(runID uuid.UUID, line string) *domai
 	return nil
 }
 
+// estimateCodexCost estimates the USD cost for Codex token usage.
+// Uses o4-mini pricing as the default (Codex typically uses o4-mini).
+func estimateCodexCost(usage *CodexUsage) float64 {
+	// o4-mini pricing (as of 2025)
+	// Input: $0.00015 per 1K tokens
+	// Output: $0.0006 per 1K tokens
+	// Cached input: 50% discount
+	const (
+		inputCostPer1K       = 0.00015
+		outputCostPer1K      = 0.0006
+		cachedInputCostPer1K = 0.000075 // 50% of input cost
+	)
+
+	inputCost := float64(usage.InputTokens) / 1000.0 * inputCostPer1K
+	outputCost := float64(usage.OutputTokens) / 1000.0 * outputCostPer1K
+	cachedCost := float64(usage.CachedInputTokens) / 1000.0 * cachedInputCostPer1K
+
+	return inputCost + outputCost + cachedCost
+}
+
 // updateCodexMetrics updates execution metrics based on parsed events.
 func (r *CodexRunner) updateCodexMetrics(event *domain.RunEvent, metrics *ExecutionMetrics, lastAssistant *string) {
 	if event == nil {
@@ -728,7 +757,13 @@ func (r *CodexRunner) updateCodexMetrics(event *domain.RunEvent, metrics *Execut
 		}
 	case *domain.ToolCallEventData:
 		metrics.ToolCallCount++
+	case *domain.CostEventData:
+		// Track token breakdown and cost from CostEventData
+		metrics.TokensInput += data.InputTokens
+		metrics.TokensOutput += data.OutputTokens
+		metrics.CostEstimateUSD += data.TotalCostUSD
 	case *domain.MetricEventData:
+		// Legacy fallback for any MetricEventData that might still come through
 		if data.Name == "tokens" {
 			totalTokens := int(data.Value)
 			metrics.TokensOutput = totalTokens

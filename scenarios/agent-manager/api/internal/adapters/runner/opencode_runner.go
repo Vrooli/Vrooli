@@ -530,14 +530,27 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 			return domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text), nil
 		}
 
-	case "tool_call", "tool_use":
-		// Tool invocation (OpenCode may use either "tool_call" or "tool_use")
+	case "tool_call", "tool_use", "tool-call":
+		// Tool invocation (OpenCode may use different type names)
 		if streamEvent.Part != nil {
-			var input map[string]interface{}
+			// Get tool name with fallbacks
+			toolName := streamEvent.Part.Name
+			if toolName == "" {
+				toolName = streamEvent.Part.Type // Fallback to type field
+			}
+			if toolName == "" {
+				toolName = streamEvent.Part.ID // Fallback to ID
+			}
+			if toolName == "" {
+				toolName = "unknown_tool"
+			}
+
+			// Initialize input to empty map (never nil)
+			input := make(map[string]interface{})
 			if streamEvent.Part.Input != nil {
 				json.Unmarshal(streamEvent.Part.Input, &input)
 			}
-			return domain.NewToolCallEvent(runID, streamEvent.Part.Name, input), nil
+			return domain.NewToolCallEvent(runID, toolName, input), nil
 		}
 
 	case "tool_result", "tool-result":
@@ -573,6 +586,59 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 		// Model reasoning/thinking
 		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
 			return domain.NewLogEvent(runID, "debug", fmt.Sprintf("Thinking: %s", streamEvent.Part.Text)), nil
+		}
+
+	case "assistant", "response", "message", "assistant_message":
+		// Alternative event types for assistant messages (OpenCode may vary)
+		if streamEvent.Part != nil {
+			text := streamEvent.Part.Text
+			if text == "" {
+				text = streamEvent.Part.Output // Fallback to output field
+			}
+			if text != "" {
+				return domain.NewMessageEvent(runID, "assistant", text), nil
+			}
+		}
+
+	case "content", "content_block":
+		// Content block events (similar to Claude Code format)
+		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
+			// Check if it's assistant content based on Part.Type
+			role := "assistant"
+			if streamEvent.Part.Type == "user" {
+				role = "user"
+			}
+			return domain.NewMessageEvent(runID, role, streamEvent.Part.Text), nil
+		}
+	}
+
+	// Check Part.Type as secondary classification (nested type info)
+	// This handles cases where streamEvent.Type is generic but Part.Type is specific
+	if streamEvent.Part != nil && streamEvent.Part.Type != "" {
+		switch streamEvent.Part.Type {
+		case "text", "assistant":
+			if streamEvent.Part.Text != "" {
+				return domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text), nil
+			}
+		case "tool-call", "tool_call", "tool_use":
+			toolName := streamEvent.Part.Name
+			if toolName == "" {
+				toolName = streamEvent.Part.ID
+			}
+			if toolName == "" {
+				toolName = "unknown_tool"
+			}
+			input := make(map[string]interface{})
+			if streamEvent.Part.Input != nil {
+				json.Unmarshal(streamEvent.Part.Input, &input)
+			}
+			return domain.NewToolCallEvent(runID, toolName, input), nil
+		case "tool-result", "tool_result":
+			var errMsg error
+			if streamEvent.Part.IsError {
+				errMsg = fmt.Errorf("%s", streamEvent.Part.Output)
+			}
+			return domain.NewToolResultEvent(runID, streamEvent.Part.Name, streamEvent.Part.Output, errMsg), nil
 		}
 	}
 
