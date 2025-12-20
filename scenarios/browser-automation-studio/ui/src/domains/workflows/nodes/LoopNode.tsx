@@ -1,8 +1,9 @@
 import { FC, memo, useMemo } from 'react';
 import { Handle, NodeProps, Position } from 'reactflow';
 import { RefreshCcw } from 'lucide-react';
-import { useNodeData } from '@hooks/useNodeData';
+import { useActionParams } from '@hooks/useActionParams';
 import { useSyncedString, useSyncedNumber, useSyncedSelect, textInputHandler } from '@hooks/useSyncedField';
+import type { LoopParams } from '@utils/actionParams';
 
 const LOOP_TYPES = [
   { value: 'foreach', label: 'For Each (array variable)' },
@@ -31,58 +32,59 @@ const MIN_TOTAL_TIMEOUT_MS = 1000;
 const MAX_TOTAL_TIMEOUT_MS = 1800000;
 
 const LoopNode: FC<NodeProps> = ({ id, selected }) => {
-  const { getValue, updateData } = useNodeData(id);
+  // V2 Native: Use action params as source of truth
+  const { params, updateParams } = useActionParams<LoopParams>(id);
 
-  // UI-specific fields using useSyncedField hooks
-  const loopType = useSyncedSelect(getValue<string>('loopType') ?? 'foreach', {
-    onCommit: (v) => updateData({ loopType: v }),
+  // Action params fields using useSyncedField hooks
+  const loopType = useSyncedSelect(params?.loopType ?? 'foreach', {
+    onCommit: (v) => updateParams({ loopType: v }),
   });
-  const arraySource = useSyncedString(getValue<string>('arraySource') ?? '', {
-    onCommit: (v) => updateData({ arraySource: v?.trim() || undefined }),
+  const arraySource = useSyncedString(params?.arraySource ?? '', {
+    onCommit: (v) => updateParams({ arraySource: v?.trim() || undefined }),
   });
-  const repeatCount = useSyncedNumber(getValue<number>('count') ?? 1, {
+  const repeatCount = useSyncedNumber(params?.count ?? 1, {
     min: 1,
     fallback: 1,
-    onCommit: (v) => updateData({ count: v }),
+    onCommit: (v) => updateParams({ count: v }),
   });
-  const maxIterations = useSyncedNumber(getValue<number>('maxIterations') ?? DEFAULT_MAX_ITERATIONS, {
+  const maxIterations = useSyncedNumber(params?.maxIterations ?? DEFAULT_MAX_ITERATIONS, {
     min: 1,
     max: 1000,
     fallback: DEFAULT_MAX_ITERATIONS,
-    onCommit: (v) => updateData({ maxIterations: v }),
+    onCommit: (v) => updateParams({ maxIterations: v }),
   });
-  const itemVariable = useSyncedString(getValue<string>('itemVariable') ?? 'loop.item', {
-    onCommit: (v) => updateData({ itemVariable: v?.trim() || undefined }),
+  const itemVariable = useSyncedString(params?.itemVariable ?? 'loop.item', {
+    onCommit: (v) => updateParams({ itemVariable: v?.trim() || undefined }),
   });
-  const indexVariable = useSyncedString(getValue<string>('indexVariable') ?? 'loop.index', {
-    onCommit: (v) => updateData({ indexVariable: v?.trim() || undefined }),
+  const indexVariable = useSyncedString(params?.indexVariable ?? 'loop.index', {
+    onCommit: (v) => updateParams({ indexVariable: v?.trim() || undefined }),
   });
-  const conditionType = useSyncedSelect(getValue<string>('conditionType') ?? 'variable', {
-    onCommit: (v) => updateData({ conditionType: v }),
+  const conditionType = useSyncedSelect(params?.conditionType ?? 'variable', {
+    onCommit: (v) => updateParams({ conditionType: v }),
   });
-  const conditionVariable = useSyncedString(getValue<string>('conditionVariable') ?? '', {
-    onCommit: (v) => updateData({ conditionVariable: v?.trim() || undefined }),
+  const conditionVariable = useSyncedString(params?.conditionVariable ?? '', {
+    onCommit: (v) => updateParams({ conditionVariable: v?.trim() || undefined }),
   });
-  const conditionOperator = useSyncedSelect(getValue<string>('conditionOperator') ?? 'truthy', {
-    onCommit: (v) => updateData({ conditionOperator: v }),
+  const conditionOperator = useSyncedSelect(params?.conditionOperator ?? 'truthy', {
+    onCommit: (v) => updateParams({ conditionOperator: v }),
   });
-  const conditionValue = useSyncedString(getValue<string>('conditionValue') ?? '', {
-    onCommit: (v) => updateData({ conditionValue: v }),
+  const conditionValue = useSyncedString(params?.conditionValue ?? '', {
+    onCommit: (v) => updateParams({ conditionValue: v }),
   });
-  const conditionExpression = useSyncedString(getValue<string>('conditionExpression') ?? '', {
-    onCommit: (v) => updateData({ conditionExpression: v?.trim() || undefined }),
+  const conditionExpression = useSyncedString(params?.conditionExpression ?? '', {
+    onCommit: (v) => updateParams({ conditionExpression: v?.trim() || undefined }),
   });
-  const iterationTimeoutMs = useSyncedNumber(getValue<number>('iterationTimeoutMs') ?? DEFAULT_ITERATION_TIMEOUT_MS, {
+  const iterationTimeoutMs = useSyncedNumber(params?.iterationTimeoutMs ?? DEFAULT_ITERATION_TIMEOUT_MS, {
     min: MIN_ITERATION_TIMEOUT_MS,
     max: MAX_ITERATION_TIMEOUT_MS,
     fallback: DEFAULT_ITERATION_TIMEOUT_MS,
-    onCommit: (v) => updateData({ iterationTimeoutMs: v }),
+    onCommit: (v) => updateParams({ iterationTimeoutMs: v }),
   });
-  const totalTimeoutMs = useSyncedNumber(getValue<number>('totalTimeoutMs') ?? DEFAULT_TOTAL_TIMEOUT_MS, {
+  const totalTimeoutMs = useSyncedNumber(params?.totalTimeoutMs ?? DEFAULT_TOTAL_TIMEOUT_MS, {
     min: MIN_TOTAL_TIMEOUT_MS,
     max: MAX_TOTAL_TIMEOUT_MS,
     fallback: DEFAULT_TOTAL_TIMEOUT_MS,
-    onCommit: (v) => updateData({ totalTimeoutMs: v }),
+    onCommit: (v) => updateParams({ totalTimeoutMs: v }),
   });
 
   const showArraySource = loopType.value === 'foreach';

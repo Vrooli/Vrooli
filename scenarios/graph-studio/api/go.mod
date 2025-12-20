@@ -8,11 +8,13 @@ require (
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/google/uuid v1.3.0
+	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.10.9
+	github.com/vrooli/api-core v0.0.0
 )
 
 require (
-	github.com/DATA-DOG/go-sqlmock v1.5.0 // indirect
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
@@ -35,7 +37,9 @@ require (
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
-	golang.org/x/time v0.13.0 // indirect
+	golang.org/x/time v0.13.0
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/vrooli/api-core => ../../../packages/api-core

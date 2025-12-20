@@ -1,8 +1,9 @@
 import { FC, memo, useMemo } from 'react';
 import { Handle, NodeProps, Position } from 'reactflow';
 import { GitBranch, ToggleLeft } from 'lucide-react';
-import { useNodeData } from '@hooks/useNodeData';
+import { useActionParams } from '@hooks/useActionParams';
 import { useSyncedString, useSyncedNumber, useSyncedBoolean, useSyncedSelect, textInputHandler } from '@hooks/useSyncedField';
+import type { ConditionalParams } from '@utils/actionParams';
 
 const CONDITION_TYPES = [
   { value: 'expression', label: 'Expression (JS)' },
@@ -26,41 +27,42 @@ const DEFAULT_TIMEOUT = 10000;
 const DEFAULT_POLL_INTERVAL = 250;
 
 const ConditionalNode: FC<NodeProps> = ({ id, selected }) => {
-  const { getValue, updateData } = useNodeData(id);
+  // V2 Native: Use action params as source of truth
+  const { params, updateParams } = useActionParams<ConditionalParams>(id);
 
-  // UI-specific fields using useSyncedField hooks
-  const conditionType = useSyncedSelect(getValue<string>('conditionType') ?? 'expression', {
-    onCommit: (v) => updateData({ conditionType: v }),
+  // Action params fields using useSyncedField hooks
+  const conditionType = useSyncedSelect(params?.conditionType ?? 'expression', {
+    onCommit: (v) => updateParams({ conditionType: v }),
   });
-  const expression = useSyncedString(getValue<string>('expression') ?? '', {
-    onCommit: (v) => updateData({ expression: v?.trim() || undefined }),
+  const expression = useSyncedString(params?.expression ?? '', {
+    onCommit: (v) => updateParams({ expression: v?.trim() || undefined }),
   });
-  const selector = useSyncedString(getValue<string>('selector') ?? '', {
-    onCommit: (v) => updateData({ selector: v?.trim() || undefined }),
+  const selector = useSyncedString(params?.selector ?? '', {
+    onCommit: (v) => updateParams({ selector: v?.trim() || undefined }),
   });
-  const variableName = useSyncedString(getValue<string>('variable') ?? '', {
-    onCommit: (v) => updateData({ variable: v?.trim() || undefined }),
+  const variableName = useSyncedString(params?.variable ?? '', {
+    onCommit: (v) => updateParams({ variable: v?.trim() || undefined }),
   });
-  const operator = useSyncedSelect(getValue<string>('operator') ?? 'equals', {
-    onCommit: (v) => updateData({ operator: v }),
+  const operator = useSyncedSelect(params?.operator ?? 'equals', {
+    onCommit: (v) => updateParams({ operator: v }),
   });
-  const comparisonValue = useSyncedString(getValue<string>('value') ?? '', {
-    onCommit: (v) => updateData({ value: v }),
+  const comparisonValue = useSyncedString(params?.value ?? '', {
+    onCommit: (v) => updateParams({ value: v }),
   });
-  const negate = useSyncedBoolean(getValue<boolean>('negate') ?? false, {
-    onCommit: (v) => updateData({ negate: v }),
+  const negate = useSyncedBoolean(params?.negate ?? false, {
+    onCommit: (v) => updateParams({ negate: v }),
   });
-  const timeoutMs = useSyncedNumber(getValue<number>('timeoutMs') ?? DEFAULT_TIMEOUT, {
+  const timeoutMs = useSyncedNumber(params?.timeoutMs ?? DEFAULT_TIMEOUT, {
     min: 100,
     max: 60000,
     fallback: DEFAULT_TIMEOUT,
-    onCommit: (v) => updateData({ timeoutMs: v }),
+    onCommit: (v) => updateParams({ timeoutMs: v }),
   });
-  const pollIntervalMs = useSyncedNumber(getValue<number>('pollIntervalMs') ?? DEFAULT_POLL_INTERVAL, {
+  const pollIntervalMs = useSyncedNumber(params?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL, {
     min: 50,
     max: 2000,
     fallback: DEFAULT_POLL_INTERVAL,
-    onCommit: (v) => updateData({ pollIntervalMs: v }),
+    onCommit: (v) => updateParams({ pollIntervalMs: v }),
   });
 
   const showExpressionField = conditionType.value === 'expression';

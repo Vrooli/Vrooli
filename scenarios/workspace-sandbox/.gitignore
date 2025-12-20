@@ -1,6 +1,8 @@
 # Build artifacts
 cli/cli
+cli/workspace-sandbox
 cli/workspace-sandbox-cli
+api/api
 api/workspace-sandbox-api
 
 # Node modules

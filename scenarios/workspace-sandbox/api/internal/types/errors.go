@@ -79,6 +79,21 @@ func (e *ScopeConflictError) Hint() string {
 	return "Either delete or stop the conflicting sandbox, or choose a non-overlapping scope path."
 }
 
+// Details returns structured information about the conflicts for API responses.
+func (e *ScopeConflictError) Details() map[string]interface{} {
+	conflicts := make([]map[string]interface{}, len(e.Conflicts))
+	for i, c := range e.Conflicts {
+		conflicts[i] = map[string]interface{}{
+			"sandboxId":    c.ExistingID,
+			"scope":        c.ExistingScope,
+			"conflictType": string(c.ConflictType),
+		}
+	}
+	return map[string]interface{}{
+		"conflicts": conflicts,
+	}
+}
+
 // ValidationError indicates input validation failed.
 type ValidationError struct {
 	Field   string

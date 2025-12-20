@@ -1,0 +1,654 @@
+{
+  "scenario": "git-control-tower",
+  "report_version": 1,
+  "generated_at": "2025-12-18T04:03:57.064679966Z",
+  "dependencies": [
+    {
+      "name": "ollama",
+      "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.6
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0,
+          "reason": "Resource-intensive AI not supported on mobile"
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.3,
+          "notes": "Consider using managed AI API for SaaS deployment",
+          "alternatives": [
+            "openai",
+            "anthropic",
+            "openrouter"
+          ]
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.6
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0.2,
+          "reason": "Database should be remote for mobile deployments",
+          "alternatives": [
+            "saas-variant",
+            "cloud-variant"
+          ]
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.95
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
+      "source": "declared"
+    },
+    {
+      "name": "redis",
+      "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.9
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": false,
+          "fitness_score": 0.2,
+          "reason": "Database should be remote for mobile deployments",
+          "alternatives": [
+            "saas-variant",
+            "cloud-variant"
+          ]
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.95
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
+      "source": "declared"
+    },
+    {
+      "name": "resource-openrouter",
+      "type": "resource",
+      "tier_support": {
+        "desktop": {
+          "supported": true,
+          "fitness_score": 0.9
+        },
+        "enterprise": {
+          "supported": true,
+          "fitness_score": 0.98
+        },
+        "local": {
+          "supported": true,
+          "fitness_score": 1
+        },
+        "mobile": {
+          "supported": true,
+          "fitness_score": 0.4
+        },
+        "saas": {
+          "supported": true,
+          "fitness_score": 0.85
+        },
+        "server": {
+          "supported": true,
+          "fitness_score": 0.95
+        }
+      },
+      "source": "declared"
+    }
+  ],
+  "aggregates": {
+    "desktop": {
+      "fitness_score": 0.75,
+      "dependency_count": 4,
+      "blocking_dependencies": [
+        "ollama",
+        "postgres"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "enterprise": {
+      "fitness_score": 0.98,
+      "dependency_count": 4,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "local": {
+      "fitness_score": 1,
+      "dependency_count": 4,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "mobile": {
+      "fitness_score": 0.2,
+      "dependency_count": 4,
+      "blocking_dependencies": [
+        "ollama",
+        "postgres",
+        "redis",
+        "resource-openrouter"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "saas": {
+      "fitness_score": 0.7625000000000001,
+      "dependency_count": 4,
+      "blocking_dependencies": [
+        "ollama"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    },
+    "server": {
+      "fitness_score": 0.95,
+      "dependency_count": 4,
+      "estimated_requirements": {
+        "ram_mb": 0,
+        "disk_mb": 0,
+        "cpu_cores": 0
+      }
+    }
+  },
+  "bundle_manifest": {
+    "scenario": "git-control-tower",
+    "generated_at": "2025-12-18T04:03:57.064679966Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/git-control-tower-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/git-control-tower",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "ollama",
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.6
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0,
+            "reason": "Resource-intensive AI not supported on mobile"
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.3,
+            "notes": "Consider using managed AI API for SaaS deployment",
+            "alternatives": [
+              "openai",
+              "anthropic",
+              "openrouter"
+            ]
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
+      },
+      {
+        "name": "postgres",
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.6
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0.2,
+            "reason": "Database should be remote for mobile deployments",
+            "alternatives": [
+              "saas-variant",
+              "cloud-variant"
+            ]
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.95
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
+      },
+      {
+        "name": "redis",
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.9
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": false,
+            "fitness_score": 0.2,
+            "reason": "Database should be remote for mobile deployments",
+            "alternatives": [
+              "saas-variant",
+              "cloud-variant"
+            ]
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.95
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
+      },
+      {
+        "name": "resource-openrouter",
+        "type": "resource",
+        "tier_support": {
+          "desktop": {
+            "supported": true,
+            "fitness_score": 0.9
+          },
+          "enterprise": {
+            "supported": true,
+            "fitness_score": 0.98
+          },
+          "local": {
+            "supported": true,
+            "fitness_score": 1
+          },
+          "mobile": {
+            "supported": true,
+            "fitness_score": 0.4
+          },
+          "saas": {
+            "supported": true,
+            "fitness_score": 0.85
+          },
+          "server": {
+            "supported": true,
+            "fitness_score": 0.95
+          }
+        }
+      }
+    ],
+    "skeleton": {
+      "schema_version": "v0.1",
+      "target": "desktop",
+      "app": {
+        "name": "git-control-tower",
+        "version": "1.0.0",
+        "description": "Agent-friendly git repository control plane (REST API + CLI + UI)"
+      },
+      "ipc": {
+        "mode": "loopback-http",
+        "host": "127.0.0.1",
+        "port": 39200,
+        "auth_token_path": "runtime/auth_token"
+      },
+      "telemetry": {
+        "file": "telemetry/deployment-telemetry.jsonl"
+      },
+      "ports": {
+        "default_range": {
+          "min": 20000,
+          "max": 24000
+        }
+      },
+      "services": [
+        {
+          "id": "git-control-tower-api",
+          "type": "api-binary",
+          "description": "Bundled API process for git-control-tower",
+          "binaries": {
+            "darwin-x64": {
+              "path": "api/git-control-tower-api"
+            },
+            "linux-x64": {
+              "path": "api/git-control-tower-api"
+            },
+            "win-x64": {
+              "path": "api/git-control-tower-api.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "api",
+            "entry_point": ".",
+            "output_pattern": "bin/{{platform}}/git-control-tower-api{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "API_PORT": "${git-control-tower-api.api}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "data_dirs": [
+            "data/api"
+          ],
+          "log_dir": "logs/api",
+          "ports": {
+            "requested": [
+              {
+                "name": "api",
+                "range": {
+                  "min": 23100,
+                  "max": 23200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "api",
+            "interval_ms": 2000,
+            "timeout_ms": 15000,
+            "retries": 5
+          },
+          "readiness": {
+            "type": "port_open",
+            "port_name": "api",
+            "timeout_ms": 30000
+          }
+        },
+        {
+          "id": "ui",
+          "type": "ui-bundle",
+          "description": "Production UI bundle served locally",
+          "binaries": {
+            "darwin-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "linux-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "win-x64": {
+              "path": "ui/dist/index.html"
+            }
+          },
+          "env": {
+            "UI_PORT": "${ui.ui}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "log_dir": "logs/ui",
+          "ports": {
+            "requested": [
+              {
+                "name": "ui",
+                "range": {
+                  "min": 24100,
+                  "max": 24200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/",
+            "port_name": "ui",
+            "interval_ms": 2000,
+            "timeout_ms": 10000,
+            "retries": 3
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "ui",
+            "timeout_ms": 20000
+          },
+          "assets": [
+            {
+              "path": "ui/dist/index.html",
+              "sha256": "pending"
+            }
+          ],
+          "critical": true
+        },
+        {
+          "id": "git-control-tower-cli",
+          "type": "resource",
+          "description": "CLI for git-control-tower scenario",
+          "binaries": {
+            "darwin-x64": {
+              "path": "cli/git-control-tower"
+            },
+            "linux-x64": {
+              "path": "cli/git-control-tower"
+            },
+            "win-x64": {
+              "path": "cli/git-control-tower.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "cli",
+            "entry_point": ".",
+            "output_pattern": "bin/{{platform}}/git-control-tower{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "health": {
+            "type": "command",
+            "command": [
+              "echo",
+              "healthy"
+            ],
+            "interval_ms": 10000,
+            "timeout_ms": 5000,
+            "retries": 1
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "http",
+            "timeout_ms": 5000
+          },
+          "assets": [
+            {
+              "path": "cli/git-control-tower",
+              "sha256": "pending"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "metadata_gaps": {
+    "total_gaps": 0,
+    "scenarios_missing_all": 0,
+    "gaps_by_scenario": {},
+    "missing_tiers": null,
+    "secret_requirements": [
+      {
+        "dependency_name": "postgres",
+        "dependency_type": "resource",
+        "secret_type": "database_credentials",
+        "required_secrets": [
+          "postgres_password",
+          "postgres_user"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/database-credentials.md",
+        "priority": "required"
+      },
+      {
+        "dependency_name": "redis",
+        "dependency_type": "resource",
+        "secret_type": "cache_credentials",
+        "required_secrets": [
+          "redis_password"
+        ],
+        "playbook_reference": "secrets-manager/playbooks/cache-credentials.md",
+        "priority": "required"
+      }
+    ],
+    "resource_swap_suggestions": [
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "openrouter",
+        "reason": "Lighter alternative for SaaS/mobile deployments",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Reduces deployment size and resource requirements"
+      },
+      {
+        "original_resource": "ollama",
+        "alternative_resource": "anthropic",
+        "reason": "Managed AI API for production deployments",
+        "applicable_tiers": [
+          "saas",
+          "enterprise"
+        ],
+        "relationship": "api_alternative",
+        "impact_description": "Better scalability and reliability"
+      },
+      {
+        "original_resource": "postgres",
+        "alternative_resource": "supabase",
+        "reason": "Managed PostgreSQL with built-in APIs",
+        "applicable_tiers": [
+          "mobile",
+          "saas"
+        ],
+        "relationship": "managed_service",
+        "impact_description": "Eliminates database management overhead"
+      },
+      {
+        "original_resource": "redis",
+        "alternative_resource": "in-memory-cache",
+        "reason": "Embedded caching for desktop deployments",
+        "applicable_tiers": [
+          "desktop"
+        ],
+        "relationship": "embedded_alternative",
+        "impact_description": "Simplifies deployment, no separate service needed"
+      }
+    ],
+    "recommendations": [
+      "Configure 2 secret(s) for dependencies - see secrets-manager playbooks",
+      "Consider 4 resource swap(s) for deployment optimization"
+    ]
+  }
+}

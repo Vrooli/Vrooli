@@ -244,6 +244,12 @@
         "required": true,
         "purpose": "AI-powered analysis of scenario code, configurations, and proposed scenario descriptions"
       },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Generate embeddings for semantic similarity matching against Qdrant"
+      },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,

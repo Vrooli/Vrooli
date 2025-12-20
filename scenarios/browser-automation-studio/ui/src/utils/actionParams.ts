@@ -24,6 +24,20 @@ import {
   type FocusParams,
   type BlurParams,
   type SubflowParams,
+  type SetVariableParams,
+  type LoopParams,
+  type ConditionalParams,
+  type ExtractParams,
+  type UploadFileParams,
+  type DownloadParams,
+  type FrameSwitchParams,
+  type TabSwitchParams,
+  type CookieStorageParams,
+  type ShortcutParams,
+  type DragDropParams,
+  type GestureParams,
+  type NetworkMockParams,
+  type RotateParams,
 } from './actionBuilder';
 
 // Re-export types for convenience
@@ -45,6 +59,20 @@ export type {
   FocusParams,
   BlurParams,
   SubflowParams,
+  SetVariableParams,
+  LoopParams,
+  ConditionalParams,
+  ExtractParams,
+  UploadFileParams,
+  DownloadParams,
+  FrameSwitchParams,
+  TabSwitchParams,
+  CookieStorageParams,
+  ShortcutParams,
+  DragDropParams,
+  GestureParams,
+  NetworkMockParams,
+  RotateParams,
 };
 
 /**
@@ -81,6 +109,42 @@ export function getParamsFieldName(actionType: ActionTypeValue): string | null {
       return 'blur';
     case ACTION_TYPES.SUBFLOW:
       return 'subflow';
+    // Control flow
+    case ACTION_TYPES.SET_VARIABLE:
+      return 'setVariable';
+    case ACTION_TYPES.LOOP:
+      return 'loop';
+    case ACTION_TYPES.CONDITIONAL:
+      return 'conditional';
+    // Data extraction
+    case ACTION_TYPES.EXTRACT:
+      return 'extract';
+    // File operations
+    case ACTION_TYPES.UPLOAD_FILE:
+      return 'uploadFile';
+    case ACTION_TYPES.DOWNLOAD:
+      return 'download';
+    // Context switching
+    case ACTION_TYPES.FRAME_SWITCH:
+      return 'frameSwitch';
+    case ACTION_TYPES.TAB_SWITCH:
+      return 'tabSwitch';
+    // Storage
+    case ACTION_TYPES.COOKIE_STORAGE:
+      return 'cookieStorage';
+    // Input actions
+    case ACTION_TYPES.SHORTCUT:
+      return 'shortcut';
+    case ACTION_TYPES.DRAG_DROP:
+      return 'dragDrop';
+    case ACTION_TYPES.GESTURE:
+      return 'gesture';
+    // Network
+    case ACTION_TYPES.NETWORK_MOCK:
+      return 'networkMock';
+    // Device
+    case ACTION_TYPES.ROTATE:
+      return 'rotate';
     default:
       return null;
   }
@@ -104,6 +168,28 @@ export type ActionParamsMap = {
   [ACTION_TYPES.FOCUS]: FocusParams;
   [ACTION_TYPES.BLUR]: BlurParams;
   [ACTION_TYPES.SUBFLOW]: SubflowParams;
+  // Control flow
+  [ACTION_TYPES.SET_VARIABLE]: SetVariableParams;
+  [ACTION_TYPES.LOOP]: LoopParams;
+  [ACTION_TYPES.CONDITIONAL]: ConditionalParams;
+  // Data extraction
+  [ACTION_TYPES.EXTRACT]: ExtractParams;
+  // File operations
+  [ACTION_TYPES.UPLOAD_FILE]: UploadFileParams;
+  [ACTION_TYPES.DOWNLOAD]: DownloadParams;
+  // Context switching
+  [ACTION_TYPES.FRAME_SWITCH]: FrameSwitchParams;
+  [ACTION_TYPES.TAB_SWITCH]: TabSwitchParams;
+  // Storage
+  [ACTION_TYPES.COOKIE_STORAGE]: CookieStorageParams;
+  // Input actions
+  [ACTION_TYPES.SHORTCUT]: ShortcutParams;
+  [ACTION_TYPES.DRAG_DROP]: DragDropParams;
+  [ACTION_TYPES.GESTURE]: GestureParams;
+  // Network
+  [ACTION_TYPES.NETWORK_MOCK]: NetworkMockParams;
+  // Device
+  [ACTION_TYPES.ROTATE]: RotateParams;
   [ACTION_TYPES.UNSPECIFIED]: Record<string, unknown>;
 };
 
@@ -259,6 +345,42 @@ export function getActionLabel(action: ActionDefinition | undefined): string {
       return 'Blur';
     case ACTION_TYPES.SUBFLOW:
       return 'Subflow';
+    // Control flow
+    case ACTION_TYPES.SET_VARIABLE:
+      return 'Set Variable';
+    case ACTION_TYPES.LOOP:
+      return 'Loop';
+    case ACTION_TYPES.CONDITIONAL:
+      return 'Conditional';
+    // Data extraction
+    case ACTION_TYPES.EXTRACT:
+      return 'Extract';
+    // File operations
+    case ACTION_TYPES.UPLOAD_FILE:
+      return 'Upload File';
+    case ACTION_TYPES.DOWNLOAD:
+      return 'Download';
+    // Context switching
+    case ACTION_TYPES.FRAME_SWITCH:
+      return 'Frame Switch';
+    case ACTION_TYPES.TAB_SWITCH:
+      return 'Tab Switch';
+    // Storage
+    case ACTION_TYPES.COOKIE_STORAGE:
+      return 'Cookie/Storage';
+    // Input actions
+    case ACTION_TYPES.SHORTCUT:
+      return 'Shortcut';
+    case ACTION_TYPES.DRAG_DROP:
+      return 'Drag & Drop';
+    case ACTION_TYPES.GESTURE:
+      return 'Gesture';
+    // Network
+    case ACTION_TYPES.NETWORK_MOCK:
+      return 'Network Mock';
+    // Device
+    case ACTION_TYPES.ROTATE:
+      return 'Rotate';
     default:
       return 'Unknown';
   }

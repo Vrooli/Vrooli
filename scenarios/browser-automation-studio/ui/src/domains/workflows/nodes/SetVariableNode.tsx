@@ -1,10 +1,11 @@
 import { memo, FC } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Variable, Settings2 } from 'lucide-react';
+import { useActionParams } from '@hooks/useActionParams';
 import { useElementPicker } from '@hooks/useElementPicker';
-import { useNodeData } from '@hooks/useNodeData';
 import { useUrlInheritance } from '@hooks/useUrlInheritance';
 import { useSyncedString, useSyncedNumber, useSyncedBoolean, useSyncedSelect } from '@hooks/useSyncedField';
+import type { SetVariableParams } from '@utils/actionParams';
 import BaseNode from './BaseNode';
 import { NodeTextField, NodeTextArea, NodeSelectField, NodeCheckbox, NodeUrlField, NodeSelectorField, FieldRow } from './fields';
 
@@ -42,46 +43,46 @@ const SetVariableNode: FC<NodeProps> = ({ selected, id }) => {
   // URL inheritance for element picker (extract mode)
   const { effectiveUrl } = useUrlInheritance(id);
 
-  // Node data hook for fields (set variable doesn't have a proto type, so all stored in node.data)
-  const { getValue, updateData } = useNodeData(id);
+  // V2 Native: Use action params as source of truth
+  const { params, updateParams } = useActionParams<SetVariableParams>(id);
 
-  // Element picker binding (data-only mode since this node doesn't use action params)
-  const elementPicker = useElementPicker(id, { mode: 'data-only' });
+  // Element picker binding
+  const elementPicker = useElementPicker(id);
 
-  // UI-specific fields using useSyncedField hooks
-  const name = useSyncedString(getValue<string>('name') ?? '', {
-    onCommit: (v) => updateData({ name: v || undefined }),
+  // Action params fields using useSyncedField hooks
+  const name = useSyncedString(params?.name ?? '', {
+    onCommit: (v) => updateParams({ name: v || undefined }),
   });
-  const sourceType = useSyncedSelect(getValue<string>('sourceType') ?? 'static', {
-    onCommit: (v) => updateData({ sourceType: v }),
+  const sourceType = useSyncedSelect(params?.sourceType ?? 'static', {
+    onCommit: (v) => updateParams({ sourceType: v }),
   });
-  const valueType = useSyncedSelect(getValue<string>('valueType') ?? 'text', {
-    onCommit: (v) => updateData({ valueType: v }),
+  const valueType = useSyncedSelect(params?.valueType ?? 'text', {
+    onCommit: (v) => updateParams({ valueType: v }),
   });
-  const staticValue = useSyncedString(getValue<string>('value') ?? '', {
-    onCommit: (v) => updateData({ value: v || undefined }),
+  const staticValue = useSyncedString(params?.value ?? '', {
+    onCommit: (v) => updateParams({ value: v || undefined }),
   });
-  const expression = useSyncedString(getValue<string>('expression') ?? '', {
-    onCommit: (v) => updateData({ expression: v || undefined }),
+  const expression = useSyncedString(params?.expression ?? '', {
+    onCommit: (v) => updateParams({ expression: v || undefined }),
   });
-  const selector = useSyncedString(getValue<string>('selector') ?? '', {
-    onCommit: (v) => updateData({ selector: v || undefined }),
+  const selector = useSyncedString(params?.selector ?? '', {
+    onCommit: (v) => updateParams({ selector: v || undefined }),
   });
-  const extractType = useSyncedSelect(getValue<string>('extractType') ?? 'text', {
-    onCommit: (v) => updateData({ extractType: v }),
+  const extractType = useSyncedSelect(params?.extractType ?? 'text', {
+    onCommit: (v) => updateParams({ extractType: v }),
   });
-  const attribute = useSyncedString(getValue<string>('attribute') ?? '', {
-    onCommit: (v) => updateData({ attribute: v || undefined }),
+  const attribute = useSyncedString(params?.attribute ?? '', {
+    onCommit: (v) => updateParams({ attribute: v || undefined }),
   });
-  const storeAs = useSyncedString(getValue<string>('storeAs') ?? '', {
-    onCommit: (v) => updateData({ storeAs: v || undefined }),
+  const storeAs = useSyncedString(params?.storeAs ?? '', {
+    onCommit: (v) => updateParams({ storeAs: v || undefined }),
   });
-  const timeoutMs = useSyncedNumber(getValue<number>('timeoutMs') ?? 0, {
+  const timeoutMs = useSyncedNumber(params?.timeoutMs ?? 0, {
     min: 0,
-    onCommit: (v) => updateData({ timeoutMs: v || undefined }),
+    onCommit: (v) => updateParams({ timeoutMs: v || undefined }),
   });
-  const allMatches = useSyncedBoolean(coerceBoolean(getValue<boolean>('allMatches')), {
-    onCommit: (v) => updateData({ allMatches: v }),
+  const allMatches = useSyncedBoolean(coerceBoolean(params?.allMatches), {
+    onCommit: (v) => updateParams({ allMatches: v }),
   });
 
   const renderSourceFields = () => {

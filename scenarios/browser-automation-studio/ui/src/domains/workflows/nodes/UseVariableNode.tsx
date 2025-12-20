@@ -1,31 +1,33 @@
 import { memo, FC, useId } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Recycle, Sparkles } from 'lucide-react';
-import { useNodeData } from '@hooks/useNodeData';
+import { useActionParams } from '@hooks/useActionParams';
 import { useWorkflowVariables } from '@hooks/useWorkflowVariables';
 import { useSyncedString, useSyncedBoolean, textInputHandler } from '@hooks/useSyncedField';
+import type { SetVariableParams } from '@utils/actionParams';
 import { VariableSuggestionList } from '../components';
 import BaseNode from './BaseNode';
 import { NodeTextArea, NodeCheckbox } from './fields';
 
 const UseVariableNode: FC<NodeProps> = ({ selected, id }) => {
-  const { getValue, updateData } = useNodeData(id);
+  // V2 Native: Use action params as source of truth
+  const { params, updateParams } = useActionParams<SetVariableParams>(id);
   const availableVariables = useWorkflowVariables(id);
   const nameDatalistId = useId();
   const aliasDatalistId = useId();
 
-  // UI-specific fields using useSyncedField hooks
-  const name = useSyncedString(getValue<string>('name') ?? '', {
-    onCommit: (v) => updateData({ name: v || undefined }),
+  // Action params fields using useSyncedField hooks
+  const name = useSyncedString(params?.name ?? '', {
+    onCommit: (v) => updateParams({ name: v || undefined }),
   });
-  const storeAs = useSyncedString(getValue<string>('storeAs') ?? '', {
-    onCommit: (v) => updateData({ storeAs: v || undefined }),
+  const storeAs = useSyncedString(params?.storeAs ?? '', {
+    onCommit: (v) => updateParams({ storeAs: v || undefined }),
   });
-  const transform = useSyncedString(getValue<string>('transform') ?? '', {
-    onCommit: (v) => updateData({ transform: v || undefined }),
+  const transform = useSyncedString(params?.transform ?? '', {
+    onCommit: (v) => updateParams({ transform: v || undefined }),
   });
-  const required = useSyncedBoolean(getValue<boolean>('required') ?? false, {
-    onCommit: (v) => updateData({ required: v }),
+  const required = useSyncedBoolean(params?.required ?? false, {
+    onCommit: (v) => updateParams({ required: v }),
   });
 
   return (
@@ -57,7 +59,7 @@ const UseVariableNode: FC<NodeProps> = ({ selected, id }) => {
             emptyHint="Add a Set Variable or store a result earlier in the workflow to reference it here."
             onSelect={(value) => {
               name.setValue(value);
-              updateData({ name: value });
+              updateParams({ name: value });
             }}
           />
         </div>
@@ -87,7 +89,7 @@ const UseVariableNode: FC<NodeProps> = ({ selected, id }) => {
             emptyHint="Aliases become new variables future nodes can reuse."
             onSelect={(value) => {
               storeAs.setValue(value);
-              updateData({ storeAs: value });
+              updateParams({ storeAs: value });
             }}
           />
         </div>

@@ -66,16 +66,22 @@ type Pinger interface {
 
 // ErrorResponse represents a standard error response with optional guidance.
 type ErrorResponse struct {
-	Error     string `json:"error"`
-	Code      int    `json:"code"`
-	Success   bool   `json:"success"`
-	Hint      string `json:"hint,omitempty"`      // Actionable guidance for resolving the error
-	Retryable bool   `json:"retryable,omitempty"` // Whether the operation might succeed on retry
+	Error     string                 `json:"error"`
+	Code      int                    `json:"code"`
+	Success   bool                   `json:"success"`
+	Hint      string                 `json:"hint,omitempty"`      // Actionable guidance for resolving the error
+	Retryable bool                   `json:"retryable,omitempty"` // Whether the operation might succeed on retry
+	Details   map[string]interface{} `json:"details,omitempty"`   // Structured error details for programmatic handling
 }
 
 // Hintable is an interface for errors that provide resolution hints.
 type Hintable interface {
 	Hint() string
+}
+
+// Detailable is an interface for errors that provide structured details.
+type Detailable interface {
+	Details() map[string]interface{}
 }
 
 // SuccessResponse wraps successful responses with metadata.
@@ -143,6 +149,11 @@ func (h *Handlers) JSONDomainError(w http.ResponseWriter, err types.DomainError)
 	// Include hint if the error provides one
 	if hintable, ok := err.(Hintable); ok {
 		response.Hint = hintable.Hint()
+	}
+
+	// Include structured details if the error provides them
+	if detailable, ok := err.(Detailable); ok {
+		response.Details = detailable.Details()
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -1,0 +1,235 @@
+{
+  "scenario": "scenario-to-cloud",
+  "report_version": 1,
+  "generated_at": "2025-12-18T04:03:57.179312635Z",
+  "dependencies": [],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "scenario-to-cloud",
+    "generated_at": "2025-12-18T04:03:57.179312635Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/scenario-to-cloud-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/scenario-to-cloud",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [],
+    "skeleton": {
+      "schema_version": "v0.1",
+      "target": "desktop",
+      "app": {
+        "name": "scenario-to-cloud",
+        "version": "0.0.1",
+        "description": "Deploy one scenario and its dependencies to cloud targets (VPS first), orchestrated by deployment-manager."
+      },
+      "ipc": {
+        "mode": "loopback-http",
+        "host": "127.0.0.1",
+        "port": 39200,
+        "auth_token_path": "runtime/auth_token"
+      },
+      "telemetry": {
+        "file": "telemetry/deployment-telemetry.jsonl"
+      },
+      "ports": {
+        "default_range": {
+          "min": 20000,
+          "max": 24000
+        }
+      },
+      "services": [
+        {
+          "id": "scenario-to-cloud-api",
+          "type": "api-binary",
+          "description": "Bundled API process for scenario-to-cloud",
+          "binaries": {
+            "darwin-x64": {
+              "path": "api/scenario-to-cloud-api"
+            },
+            "linux-x64": {
+              "path": "api/scenario-to-cloud-api"
+            },
+            "win-x64": {
+              "path": "api/scenario-to-cloud-api.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "api",
+            "entry_point": ".",
+            "output_pattern": "bin/{{platform}}/scenario-to-cloud-api{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "API_PORT": "${scenario-to-cloud-api.api}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "data_dirs": [
+            "data/api"
+          ],
+          "log_dir": "logs/api",
+          "ports": {
+            "requested": [
+              {
+                "name": "api",
+                "range": {
+                  "min": 23100,
+                  "max": 23200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "api",
+            "interval_ms": 2000,
+            "timeout_ms": 15000,
+            "retries": 5
+          },
+          "readiness": {
+            "type": "port_open",
+            "port_name": "api",
+            "timeout_ms": 30000
+          }
+        },
+        {
+          "id": "ui",
+          "type": "ui-bundle",
+          "description": "Production UI bundle served locally",
+          "binaries": {
+            "darwin-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "linux-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "win-x64": {
+              "path": "ui/dist/index.html"
+            }
+          },
+          "env": {
+            "UI_PORT": "${ui.ui}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "log_dir": "logs/ui",
+          "ports": {
+            "requested": [
+              {
+                "name": "ui",
+                "range": {
+                  "min": 24100,
+                  "max": 24200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/",
+            "port_name": "ui",
+            "interval_ms": 2000,
+            "timeout_ms": 10000,
+            "retries": 3
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "ui",
+            "timeout_ms": 20000
+          },
+          "assets": [
+            {
+              "path": "ui/dist/index.html",
+              "sha256": "pending"
+            }
+          ],
+          "critical": true
+        },
+        {
+          "id": "scenario-to-cloud-cli",
+          "type": "resource",
+          "description": "CLI for scenario-to-cloud scenario",
+          "binaries": {
+            "darwin-x64": {
+              "path": "cli/scenario-to-cloud"
+            },
+            "linux-x64": {
+              "path": "cli/scenario-to-cloud"
+            },
+            "win-x64": {
+              "path": "cli/scenario-to-cloud.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "cli",
+            "entry_point": ".",
+            "output_pattern": "bin/{{platform}}/scenario-to-cloud{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "health": {
+            "type": "command",
+            "command": [
+              "echo",
+              "healthy"
+            ],
+            "interval_ms": 10000,
+            "timeout_ms": 5000,
+            "retries": 1
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "http",
+            "timeout_ms": 5000
+          },
+          "assets": [
+            {
+              "path": "cli/scenario-to-cloud",
+              "sha256": "pending"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "metadata_gaps": {
+    "total_gaps": 0,
+    "scenarios_missing_all": 0,
+    "gaps_by_scenario": {},
+    "missing_tiers": null,
+    "recommendations": []
+  }
+}

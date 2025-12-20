@@ -25,6 +25,28 @@ export const ACTION_TYPES = {
   FOCUS: 'ACTION_TYPE_FOCUS',
   BLUR: 'ACTION_TYPE_BLUR',
   SUBFLOW: 'ACTION_TYPE_SUBFLOW',
+  // Control flow
+  SET_VARIABLE: 'ACTION_TYPE_SET_VARIABLE',
+  LOOP: 'ACTION_TYPE_LOOP',
+  CONDITIONAL: 'ACTION_TYPE_CONDITIONAL',
+  // Data extraction
+  EXTRACT: 'ACTION_TYPE_EXTRACT',
+  // File operations
+  UPLOAD_FILE: 'ACTION_TYPE_UPLOAD_FILE',
+  DOWNLOAD: 'ACTION_TYPE_DOWNLOAD',
+  // Context switching
+  FRAME_SWITCH: 'ACTION_TYPE_FRAME_SWITCH',
+  TAB_SWITCH: 'ACTION_TYPE_TAB_SWITCH',
+  // Storage
+  COOKIE_STORAGE: 'ACTION_TYPE_COOKIE_STORAGE',
+  // Input actions
+  SHORTCUT: 'ACTION_TYPE_SHORTCUT',
+  DRAG_DROP: 'ACTION_TYPE_DRAG_DROP',
+  GESTURE: 'ACTION_TYPE_GESTURE',
+  // Network
+  NETWORK_MOCK: 'ACTION_TYPE_NETWORK_MOCK',
+  // Device
+  ROTATE: 'ACTION_TYPE_ROTATE',
 } as const;
 
 export type ActionTypeValue = (typeof ACTION_TYPES)[keyof typeof ACTION_TYPES];
@@ -54,6 +76,7 @@ export function nodeTypeToActionType(nodeType: string): ActionTypeValue {
       return ACTION_TYPES.SELECT;
     case 'evaluate':
     case 'eval':
+    case 'script':
       return ACTION_TYPES.EVALUATE;
     case 'keyboard':
     case 'keypress':
@@ -68,6 +91,75 @@ export function nodeTypeToActionType(nodeType: string): ActionTypeValue {
       return ACTION_TYPES.BLUR;
     case 'subflow':
       return ACTION_TYPES.SUBFLOW;
+    // Control flow
+    case 'setvariable':
+    case 'set_variable':
+    case 'setvar':
+      return ACTION_TYPES.SET_VARIABLE;
+    case 'usevariable':
+    case 'use_variable':
+    case 'usevar':
+      return ACTION_TYPES.SET_VARIABLE; // UseVariable uses same type as SetVariable
+    case 'loop':
+      return ACTION_TYPES.LOOP;
+    case 'conditional':
+    case 'if':
+    case 'branch':
+      return ACTION_TYPES.CONDITIONAL;
+    // Data extraction
+    case 'extract':
+      return ACTION_TYPES.EXTRACT;
+    // File operations
+    case 'uploadfile':
+    case 'upload_file':
+    case 'upload':
+      return ACTION_TYPES.UPLOAD_FILE;
+    case 'download':
+      return ACTION_TYPES.DOWNLOAD;
+    // Context switching
+    case 'frameswitch':
+    case 'frame_switch':
+    case 'frame':
+      return ACTION_TYPES.FRAME_SWITCH;
+    case 'tabswitch':
+    case 'tab_switch':
+    case 'tab':
+      return ACTION_TYPES.TAB_SWITCH;
+    // Storage (cookies and localStorage)
+    case 'setcookie':
+    case 'set_cookie':
+    case 'getcookie':
+    case 'get_cookie':
+    case 'clearcookie':
+    case 'clear_cookie':
+    case 'setstorage':
+    case 'set_storage':
+    case 'getstorage':
+    case 'get_storage':
+    case 'clearstorage':
+    case 'clear_storage':
+    case 'cookie':
+    case 'storage':
+    case 'cookiestorage':
+    case 'cookie_storage':
+      return ACTION_TYPES.COOKIE_STORAGE;
+    // Input actions
+    case 'shortcut':
+      return ACTION_TYPES.SHORTCUT;
+    case 'dragdrop':
+    case 'drag_drop':
+    case 'drag':
+      return ACTION_TYPES.DRAG_DROP;
+    case 'gesture':
+      return ACTION_TYPES.GESTURE;
+    // Network
+    case 'networkmock':
+    case 'network_mock':
+    case 'mock':
+      return ACTION_TYPES.NETWORK_MOCK;
+    // Device
+    case 'rotate':
+      return ACTION_TYPES.ROTATE;
     default:
       return ACTION_TYPES.UNSPECIFIED;
   }
@@ -106,6 +198,42 @@ export function actionTypeToNodeType(actionType: ActionTypeValue): string {
       return 'blur';
     case ACTION_TYPES.SUBFLOW:
       return 'subflow';
+    // Control flow
+    case ACTION_TYPES.SET_VARIABLE:
+      return 'setVariable';
+    case ACTION_TYPES.LOOP:
+      return 'loop';
+    case ACTION_TYPES.CONDITIONAL:
+      return 'conditional';
+    // Data extraction
+    case ACTION_TYPES.EXTRACT:
+      return 'extract';
+    // File operations
+    case ACTION_TYPES.UPLOAD_FILE:
+      return 'uploadFile';
+    case ACTION_TYPES.DOWNLOAD:
+      return 'download';
+    // Context switching
+    case ACTION_TYPES.FRAME_SWITCH:
+      return 'frameSwitch';
+    case ACTION_TYPES.TAB_SWITCH:
+      return 'tabSwitch';
+    // Storage
+    case ACTION_TYPES.COOKIE_STORAGE:
+      return 'cookieStorage';
+    // Input actions
+    case ACTION_TYPES.SHORTCUT:
+      return 'shortcut';
+    case ACTION_TYPES.DRAG_DROP:
+      return 'dragDrop';
+    case ACTION_TYPES.GESTURE:
+      return 'gesture';
+    // Network
+    case ACTION_TYPES.NETWORK_MOCK:
+      return 'networkMock';
+    // Device
+    case ACTION_TYPES.ROTATE:
+      return 'rotate';
     default:
       return 'unknown';
   }
@@ -130,6 +258,28 @@ export interface ActionDefinition {
   focus?: FocusParams;
   blur?: BlurParams;
   subflow?: SubflowParams;
+  // Control flow
+  setVariable?: SetVariableParams;
+  loop?: LoopParams;
+  conditional?: ConditionalParams;
+  // Data extraction
+  extract?: ExtractParams;
+  // File operations
+  uploadFile?: UploadFileParams;
+  download?: DownloadParams;
+  // Context switching
+  frameSwitch?: FrameSwitchParams;
+  tabSwitch?: TabSwitchParams;
+  // Storage
+  cookieStorage?: CookieStorageParams;
+  // Input actions
+  shortcut?: ShortcutParams;
+  dragDrop?: DragDropParams;
+  gesture?: GestureParams;
+  // Network
+  networkMock?: NetworkMockParams;
+  // Device
+  rotate?: RotateParams;
   metadata?: ActionMetadata;
 }
 
@@ -235,6 +385,156 @@ export interface SubflowParams {
   workflowPath?: string;
   workflowVersion?: number;
   parameters?: Record<string, unknown>;
+}
+
+// Control flow params
+export interface SetVariableParams {
+  name?: string;
+  value?: string;
+  sourceType?: string;
+  valueType?: string;
+  expression?: string;
+  selector?: string;
+  extractType?: string;
+  attribute?: string;
+  storeAs?: string;
+  timeoutMs?: number;
+  allMatches?: boolean;
+  // UseVariable-specific fields (shares same action type)
+  transform?: string;
+  required?: boolean;
+}
+
+export interface LoopParams {
+  loopType?: string;
+  arraySource?: string;
+  count?: number;
+  maxIterations?: number;
+  itemVariable?: string;
+  indexVariable?: string;
+  conditionType?: string;
+  conditionVariable?: string;
+  conditionOperator?: string;
+  conditionValue?: string;
+  conditionExpression?: string;
+  iterationTimeoutMs?: number;
+  totalTimeoutMs?: number;
+}
+
+export interface ConditionalParams {
+  conditionType?: string;
+  expression?: string;
+  selector?: string;
+  variable?: string;
+  operator?: string;
+  value?: string;
+  negate?: boolean;
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
+
+// Data extraction params
+export interface ExtractParams {
+  selector?: string;
+  extractType?: string;
+  attribute?: string;
+  storeAs?: string;
+  allMatches?: boolean;
+  timeoutMs?: number;
+}
+
+// File operation params
+export interface UploadFileParams {
+  selector?: string;
+  filePath?: string;
+  filePaths?: string[];
+  timeoutMs?: number;
+}
+
+export interface DownloadParams {
+  url?: string;
+  savePath?: string;
+  timeoutMs?: number;
+}
+
+// Context switching params
+export interface FrameSwitchParams {
+  switchBy?: string;
+  selector?: string;
+  name?: string;
+  urlMatch?: string;
+  index?: number;
+  timeoutMs?: number;
+}
+
+export interface TabSwitchParams {
+  switchBy?: string;
+  index?: number;
+  titleMatch?: string;
+  urlMatch?: string;
+  waitForNew?: boolean;
+  closeOld?: boolean;
+  timeoutMs?: number;
+}
+
+// Storage params (cookies and localStorage)
+export interface CookieStorageParams {
+  operation?: string;
+  storageType?: string;
+  name?: string;
+  value?: string;
+  url?: string;
+  domain?: string;
+  path?: string;
+  sameSite?: string;
+  secure?: boolean;
+  httpOnly?: boolean;
+  ttlSeconds?: number;
+  expiresAt?: string;
+  storeAs?: string;
+  timeoutMs?: number;
+  waitForMs?: number;
+}
+
+// Input action params
+export interface ShortcutParams {
+  keys?: string[];
+  modifiers?: string[];
+  timeoutMs?: number;
+}
+
+export interface DragDropParams {
+  sourceSelector?: string;
+  targetSelector?: string;
+  sourcePosition?: { x?: number; y?: number };
+  targetPosition?: { x?: number; y?: number };
+  steps?: number;
+  timeoutMs?: number;
+}
+
+export interface GestureParams {
+  gestureType?: string;
+  selector?: string;
+  startPosition?: { x?: number; y?: number };
+  endPosition?: { x?: number; y?: number };
+  duration?: number;
+  timeoutMs?: number;
+}
+
+// Network params
+export interface NetworkMockParams {
+  urlPattern?: string;
+  method?: string;
+  responseStatus?: number;
+  responseBody?: string;
+  responseHeaders?: Record<string, string>;
+  delay?: number;
+}
+
+// Device params
+export interface RotateParams {
+  orientation?: string;
+  angle?: number;
 }
 
 export interface ActionMetadata {
@@ -410,6 +710,185 @@ function buildSubflowParams(data: Record<string, unknown>): SubflowParams {
   };
 }
 
+// Control flow builders
+function buildSetVariableParams(data: Record<string, unknown>): SetVariableParams {
+  return {
+    name: getString(data, 'name'),
+    value: getString(data, 'value'),
+    sourceType: getString(data, 'sourceType'),
+    valueType: getString(data, 'valueType'),
+    expression: getString(data, 'expression'),
+    selector: getString(data, 'selector'),
+    extractType: getString(data, 'extractType'),
+    attribute: getString(data, 'attribute'),
+    storeAs: getString(data, 'storeAs'),
+    timeoutMs: getNumber(data, 'timeoutMs'),
+    allMatches: getBool(data, 'allMatches'),
+  };
+}
+
+function buildLoopParams(data: Record<string, unknown>): LoopParams {
+  return {
+    loopType: getString(data, 'loopType'),
+    arraySource: getString(data, 'arraySource'),
+    count: getNumber(data, 'count'),
+    maxIterations: getNumber(data, 'maxIterations'),
+    itemVariable: getString(data, 'itemVariable'),
+    indexVariable: getString(data, 'indexVariable'),
+    conditionType: getString(data, 'conditionType'),
+    conditionVariable: getString(data, 'conditionVariable'),
+    conditionOperator: getString(data, 'conditionOperator'),
+    conditionValue: getString(data, 'conditionValue'),
+    conditionExpression: getString(data, 'conditionExpression'),
+    iterationTimeoutMs: getNumber(data, 'iterationTimeoutMs'),
+    totalTimeoutMs: getNumber(data, 'totalTimeoutMs'),
+  };
+}
+
+function buildConditionalParams(data: Record<string, unknown>): ConditionalParams {
+  return {
+    conditionType: getString(data, 'conditionType'),
+    expression: getString(data, 'expression'),
+    selector: getString(data, 'selector'),
+    variable: getString(data, 'variable'),
+    operator: getString(data, 'operator'),
+    value: getString(data, 'value'),
+    negate: getBool(data, 'negate'),
+    timeoutMs: getNumber(data, 'timeoutMs'),
+    pollIntervalMs: getNumber(data, 'pollIntervalMs'),
+  };
+}
+
+// Data extraction builder
+function buildExtractParams(data: Record<string, unknown>): ExtractParams {
+  return {
+    selector: getString(data, 'selector'),
+    extractType: getString(data, 'extractType'),
+    attribute: getString(data, 'attribute'),
+    storeAs: getString(data, 'storeAs'),
+    allMatches: getBool(data, 'allMatches'),
+    timeoutMs: getNumber(data, 'timeoutMs'),
+  };
+}
+
+// File operation builders
+function buildUploadFileParams(data: Record<string, unknown>): UploadFileParams {
+  return {
+    selector: getString(data, 'selector'),
+    filePath: getString(data, 'filePath'),
+    filePaths: getStringArray(data, 'filePaths'),
+    timeoutMs: getNumber(data, 'timeoutMs'),
+  };
+}
+
+function buildDownloadParams(data: Record<string, unknown>): DownloadParams {
+  return {
+    url: getString(data, 'url'),
+    savePath: getString(data, 'savePath'),
+    timeoutMs: getNumber(data, 'timeoutMs'),
+  };
+}
+
+// Context switching builders
+function buildFrameSwitchParams(data: Record<string, unknown>): FrameSwitchParams {
+  return {
+    switchBy: getString(data, 'switchBy'),
+    selector: getString(data, 'selector'),
+    name: getString(data, 'name'),
+    urlMatch: getString(data, 'urlMatch'),
+    index: getNumber(data, 'index'),
+    timeoutMs: getNumber(data, 'timeoutMs'),
+  };
+}
+
+function buildTabSwitchParams(data: Record<string, unknown>): TabSwitchParams {
+  return {
+    switchBy: getString(data, 'switchBy'),
+    index: getNumber(data, 'index'),
+    titleMatch: getString(data, 'titleMatch'),
+    urlMatch: getString(data, 'urlMatch'),
+    waitForNew: getBool(data, 'waitForNew'),
+    closeOld: getBool(data, 'closeOld'),
+    timeoutMs: getNumber(data, 'timeoutMs'),
+  };
+}
+
+// Storage builder
+function buildCookieStorageParams(data: Record<string, unknown>): CookieStorageParams {
+  return {
+    operation: getString(data, 'operation'),
+    storageType: getString(data, 'storageType'),
+    name: getString(data, 'name'),
+    value: getString(data, 'value'),
+    url: getString(data, 'url'),
+    domain: getString(data, 'domain'),
+    path: getString(data, 'path'),
+    sameSite: getString(data, 'sameSite'),
+    secure: getBool(data, 'secure'),
+    httpOnly: getBool(data, 'httpOnly'),
+    ttlSeconds: getNumber(data, 'ttlSeconds'),
+    expiresAt: getString(data, 'expiresAt'),
+    storeAs: getString(data, 'storeAs'),
+    timeoutMs: getNumber(data, 'timeoutMs'),
+    waitForMs: getNumber(data, 'waitForMs'),
+  };
+}
+
+// Input action builders
+function buildShortcutParams(data: Record<string, unknown>): ShortcutParams {
+  return {
+    keys: getStringArray(data, 'keys'),
+    modifiers: getStringArray(data, 'modifiers'),
+    timeoutMs: getNumber(data, 'timeoutMs'),
+  };
+}
+
+function buildDragDropParams(data: Record<string, unknown>): DragDropParams {
+  const sourcePos = data.sourcePosition as { x?: number; y?: number } | undefined;
+  const targetPos = data.targetPosition as { x?: number; y?: number } | undefined;
+  return {
+    sourceSelector: getString(data, 'sourceSelector'),
+    targetSelector: getString(data, 'targetSelector'),
+    sourcePosition: sourcePos,
+    targetPosition: targetPos,
+    steps: getNumber(data, 'steps'),
+    timeoutMs: getNumber(data, 'timeoutMs'),
+  };
+}
+
+function buildGestureParams(data: Record<string, unknown>): GestureParams {
+  const startPos = data.startPosition as { x?: number; y?: number } | undefined;
+  const endPos = data.endPosition as { x?: number; y?: number } | undefined;
+  return {
+    gestureType: getString(data, 'gestureType'),
+    selector: getString(data, 'selector'),
+    startPosition: startPos,
+    endPosition: endPos,
+    duration: getNumber(data, 'duration'),
+    timeoutMs: getNumber(data, 'timeoutMs'),
+  };
+}
+
+// Network builder
+function buildNetworkMockParams(data: Record<string, unknown>): NetworkMockParams {
+  return {
+    urlPattern: getString(data, 'urlPattern'),
+    method: getString(data, 'method'),
+    responseStatus: getNumber(data, 'responseStatus'),
+    responseBody: getString(data, 'responseBody'),
+    responseHeaders: data.responseHeaders as Record<string, string> | undefined,
+    delay: getNumber(data, 'delay'),
+  };
+}
+
+// Device builder
+function buildRotateParams(data: Record<string, unknown>): RotateParams {
+  return {
+    orientation: getString(data, 'orientation'),
+    angle: getNumber(data, 'angle'),
+  };
+}
+
 /**
  * Builds a V2 ActionDefinition from V1 node type and data.
  *
@@ -466,6 +945,56 @@ export function buildActionDefinition(
       break;
     case ACTION_TYPES.SUBFLOW:
       action.subflow = buildSubflowParams(data);
+      break;
+    // Control flow
+    case ACTION_TYPES.SET_VARIABLE:
+      action.setVariable = buildSetVariableParams(data);
+      break;
+    case ACTION_TYPES.LOOP:
+      action.loop = buildLoopParams(data);
+      break;
+    case ACTION_TYPES.CONDITIONAL:
+      action.conditional = buildConditionalParams(data);
+      break;
+    // Data extraction
+    case ACTION_TYPES.EXTRACT:
+      action.extract = buildExtractParams(data);
+      break;
+    // File operations
+    case ACTION_TYPES.UPLOAD_FILE:
+      action.uploadFile = buildUploadFileParams(data);
+      break;
+    case ACTION_TYPES.DOWNLOAD:
+      action.download = buildDownloadParams(data);
+      break;
+    // Context switching
+    case ACTION_TYPES.FRAME_SWITCH:
+      action.frameSwitch = buildFrameSwitchParams(data);
+      break;
+    case ACTION_TYPES.TAB_SWITCH:
+      action.tabSwitch = buildTabSwitchParams(data);
+      break;
+    // Storage
+    case ACTION_TYPES.COOKIE_STORAGE:
+      action.cookieStorage = buildCookieStorageParams(data);
+      break;
+    // Input actions
+    case ACTION_TYPES.SHORTCUT:
+      action.shortcut = buildShortcutParams(data);
+      break;
+    case ACTION_TYPES.DRAG_DROP:
+      action.dragDrop = buildDragDropParams(data);
+      break;
+    case ACTION_TYPES.GESTURE:
+      action.gesture = buildGestureParams(data);
+      break;
+    // Network
+    case ACTION_TYPES.NETWORK_MOCK:
+      action.networkMock = buildNetworkMockParams(data);
+      break;
+    // Device
+    case ACTION_TYPES.ROTATE:
+      action.rotate = buildRotateParams(data);
       break;
   }
 
