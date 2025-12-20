@@ -1,10 +1,9 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
-	"fmt"
 	"log"
-	"os"
+
+	"github.com/vrooli/api-core/preflight"
 
 	"test-genie/internal/app"
 )

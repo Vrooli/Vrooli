@@ -11,21 +11,73 @@ test-genie does **not** rewrite workflows. BAS resolves scenario navigation, tok
 
 ## Workflow Contract
 
-Workflows should be runnable by BAS as-is. The Playbooks phase provides BAS:
+Workflows must use **V2 proto-JSON format**. Legacy V1 format (with `node.type` + `node.data`) and steps format (with `steps[]` array) are rejected by preflight validation.
 
-- `project_root`: absolute path to the scenario’s `bas/` directory (for resolving `workflowPath` relative to `bas/`)
-- `initial_params`: the contents of `coverage/runtime/seed-state.json` (seeded data)
-
-Each case workflow should include `metadata.description` for humans and for registry generation:
+### Required Format (V2 Proto-JSON)
 
 ```json
 {
   "metadata": {
+    "name": "workflow-name",
     "description": "What the workflow validates",
-    "version": 1
-  }
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"REQ-001\"]"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "step-1",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "my-scenario",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to home" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "step-1", "target": "step-2", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
 }
 ```
+
+### Action Types
+
+| Action Type | Description | Key Fields |
+|------------|-------------|------------|
+| `ACTION_TYPE_NAVIGATE` | Navigate to URL or scenario | `navigate.destination_type`, `navigate.scenario`, `navigate.url` |
+| `ACTION_TYPE_CLICK` | Click an element | `click.selector` |
+| `ACTION_TYPE_INPUT` | Type text into an element | `input.selector`, `input.text` |
+| `ACTION_TYPE_WAIT` | Wait for an element state | `wait.selector`, `wait.state`, `wait.timeout_ms` |
+| `ACTION_TYPE_ASSERT` | Assert element condition | `assert.selector`, `assert.mode`, `assert.expected_value` |
+| `ACTION_TYPE_SUBFLOW` | Call another workflow | `subflow.workflow_path`, `subflow.params` |
+| `ACTION_TYPE_HTTP_REQUEST` | Make HTTP request | `http_request.method`, `http_request.url` |
+| `ACTION_TYPE_SHELL` | Execute shell command | `shell.command` |
+
+### Common Enum Values
+
+- **Navigate destination**: `NAVIGATE_DESTINATION_TYPE_URL`, `NAVIGATE_DESTINATION_TYPE_SCENARIO`
+- **Wait events**: `NAVIGATE_WAIT_EVENT_NETWORKIDLE`, `NAVIGATE_WAIT_EVENT_LOAD`, `NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED`
+- **Wait states**: `WAIT_STATE_VISIBLE`, `WAIT_STATE_HIDDEN`, `WAIT_STATE_ATTACHED`
+- **Assertion modes**: `ASSERTION_MODE_VISIBLE`, `ASSERTION_MODE_EXISTS`, `ASSERTION_MODE_TEXT_CONTAINS`, `ASSERTION_MODE_TEXT_EQUALS`
+- **Edge types**: `WORKFLOW_EDGE_TYPE_SMOOTHSTEP`
+
+### Runtime Context
+
+The Playbooks phase provides BAS:
+
+- `project_root`: absolute path to the scenario's `bas/` directory (for resolving `workflowPath` relative to `bas/`)
+- `initial_params`: the contents of `coverage/runtime/seed-state.json` (seeded data)
 
 After adding or moving a case under `bas/cases/`, regenerate the registry from the scenario directory:
 

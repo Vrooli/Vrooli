@@ -1,46 +1,173 @@
 {
   "metadata": {
+    "name": "create-sandbox-dialog",
     "description": "Validates that the create sandbox dialog opens and displays form fields",
-    "requirement": "REQ-P0-001",
-    "version": 1
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"REQ-P0-001\"]"
+    }
   },
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "action": "navigate",
-      "target": "/"
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "workspace-sandbox",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to workspace-sandbox home"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/header.createButton",
-      "timeout": 5000
+      "id": "wait-create-button",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/header.createButton",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for create button"
+        }
+      }
     },
     {
-      "action": "click",
-      "selector": "@selector/header.createButton"
+      "id": "click-create-button",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/header.createButton"
+        },
+        "metadata": {
+          "label": "Click create sandbox button"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/createDialog.root",
-      "timeout": 3000
+      "id": "wait-dialog",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/createDialog.root",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Wait for dialog to open"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/createDialog.scopePathInput",
-      "condition": "visible"
+      "id": "assert-scope-path-input",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/createDialog.scopePathInput",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Scope path input should be visible"
+        },
+        "metadata": {
+          "label": "Assert scope path input visible"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/createDialog.submitButton",
-      "condition": "visible"
+      "id": "assert-submit-button",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/createDialog.submitButton",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Submit button should be visible"
+        },
+        "metadata": {
+          "label": "Assert submit button visible"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/createDialog.cancelButton",
-      "condition": "visible"
+      "id": "assert-cancel-button",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/createDialog.cancelButton",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Cancel button should be visible"
+        },
+        "metadata": {
+          "label": "Assert cancel button visible"
+        }
+      }
     },
     {
-      "action": "click",
-      "selector": "@selector/createDialog.cancelButton"
+      "id": "click-cancel",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/createDialog.cancelButton"
+        },
+        "metadata": {
+          "label": "Click cancel to close dialog"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-create-button",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-create-button",
+      "target": "click-create-button",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "click-create-button",
+      "target": "wait-dialog",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-dialog",
+      "target": "assert-scope-path-input",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-scope-path-input",
+      "target": "assert-submit-button",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-submit-button",
+      "target": "assert-cancel-button",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "assert-cancel-button",
+      "target": "click-cancel",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

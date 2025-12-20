@@ -1,28 +1,96 @@
 {
   "metadata": {
+    "name": "sandbox-list-display",
     "description": "Validates that the sandbox list displays correctly with empty state",
-    "requirement": "REQ-P0-008",
-    "version": 1
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"REQ-P0-008\"]"
+    }
   },
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "action": "navigate",
-      "target": "/"
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "workspace-sandbox",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to workspace-sandbox home"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/header.root",
-      "timeout": 5000
+      "id": "wait-header",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/header.root",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for header to load"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/sandboxList",
-      "condition": "visible"
+      "id": "assert-sandbox-list",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/sandboxList",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Sandbox list should be visible"
+        },
+        "metadata": {
+          "label": "Assert sandbox list visible"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/header.createButton",
-      "condition": "visible"
+      "id": "assert-create-button",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/header.createButton",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Create button should be visible in header"
+        },
+        "metadata": {
+          "label": "Assert create button visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-header",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-header",
+      "target": "assert-sandbox-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-sandbox-list",
+      "target": "assert-create-button",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

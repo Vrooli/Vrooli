@@ -1,46 +1,57 @@
 {
   "metadata": {
+    "name": "bas-dashboard-loads",
     "description": "Verifies browser-automation-studio dashboard loads correctly",
-    "version": 1,
-    "reset": "none"
+    "labels": {
+      "reset": "none"
+    }
   },
   "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "viewport_width": 1440,
+    "viewport_height": 900
   },
   "nodes": [
     {
       "id": "navigate-bas",
-      "type": "navigate",
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 30000
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open BAS dashboard"
+        }
       }
     },
     {
       "id": "wait-render",
-      "type": "wait",
-      "data": {
-        "label": "Wait for initial render",
-        "waitForMs": 1000
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1000
+        },
+        "metadata": {
+          "label": "Wait for initial render"
+        }
       }
     },
     {
       "id": "assert-page-loaded",
-      "type": "assert",
-      "data": {
-        "label": "Dashboard content visible",
-        "selector": "body",
-        "assertMode": "exists",
-        "timeoutMs": 10000,
-        "failureMessage": "BAS dashboard body should be present"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000,
+          "failure_message": "BAS dashboard body should be present"
+        },
+        "metadata": {
+          "label": "Dashboard content visible"
+        }
       }
     }
   ],
@@ -49,13 +60,13 @@
       "id": "e1",
       "source": "navigate-bas",
       "target": "wait-render",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "wait-render",
       "target": "assert-page-loaded",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

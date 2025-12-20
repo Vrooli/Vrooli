@@ -10,16 +10,18 @@ import (
 func TestPreflightValidatorBasicStructure(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create a simple workflow with no tokens
+	// Create a simple V2 proto format workflow with no tokens
 	workflowPath := filepath.Join(tmpDir, "test.json")
 	workflow := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id":   "nav",
-				"type": "navigate",
-				"data": map[string]any{
-					"destinationType": "url",
-					"url":             "https://example.com",
+				"id": "nav",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_NAVIGATE",
+					"navigate": map[string]any{
+						"destination_type": "NAVIGATE_DESTINATION_TYPE_URL",
+						"url":              "https://example.com",
+					},
 				},
 			},
 		},
@@ -49,6 +51,99 @@ func TestPreflightValidatorBasicStructure(t *testing.T) {
 	}
 	if result.TokenCounts.ParamsTokens != 0 {
 		t.Errorf("expected 0 params tokens, got %d", result.TokenCounts.ParamsTokens)
+	}
+}
+
+func TestPreflightValidatorLegacyV1Format(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a workflow using deprecated V1 format (type+data)
+	workflowPath := filepath.Join(tmpDir, "test.json")
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "nav",
+				"type": "navigate",
+				"data": map[string]any{
+					"destinationType": "url",
+					"url":             "https://example.com",
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	data, _ := json.Marshal(workflow)
+	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
+		t.Fatalf("failed to write workflow: %v", err)
+	}
+
+	v := NewPreflightValidator(tmpDir)
+	result, err := v.Validate(workflowPath)
+	if err != nil {
+		t.Fatalf("validation failed: %v", err)
+	}
+
+	if result.Valid {
+		t.Fatalf("expected invalid result for V1 format, got valid")
+	}
+
+	found := false
+	for _, issue := range result.Errors {
+		if issue.Code == "PF_LEGACY_V1_FORMAT" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected PF_LEGACY_V1_FORMAT error, got: %+v", result.Errors)
+	}
+}
+
+func TestPreflightValidatorLegacyStepsFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a workflow using deprecated steps format
+	workflowPath := filepath.Join(tmpDir, "test.json")
+	workflow := map[string]any{
+		"steps": []any{
+			map[string]any{
+				"action":   "navigate",
+				"url":      "https://example.com",
+				"waitFor":  "networkidle",
+				"timeout":  30000,
+			},
+			map[string]any{
+				"action":   "click",
+				"selector": "button.submit",
+			},
+		},
+	}
+
+	data, _ := json.Marshal(workflow)
+	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
+		t.Fatalf("failed to write workflow: %v", err)
+	}
+
+	v := NewPreflightValidator(tmpDir)
+	result, err := v.Validate(workflowPath)
+	if err != nil {
+		t.Fatalf("validation failed: %v", err)
+	}
+
+	if result.Valid {
+		t.Fatalf("expected invalid result for steps format, got valid")
+	}
+
+	found := false
+	for _, issue := range result.Errors {
+		if issue.Code == "PF_LEGACY_STEPS_FORMAT" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected PF_LEGACY_STEPS_FORMAT error, got: %+v", result.Errors)
 	}
 }
 
@@ -88,19 +183,23 @@ func TestPreflightValidatorMissingNodes(t *testing.T) {
 func TestPreflightValidatorSubflowWithWorkflowPath(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create workflow with subflow using new workflowPath format
+	// Create V2 proto format workflow with subflow
 	workflowPath := filepath.Join(tmpDir, "test.json")
 	workflow := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id":   "subflow",
-				"type": "subflow",
-				"data": map[string]any{
-					"label":        "Call helper",
-					"workflowPath": "actions/helper.json",
-					"params": map[string]any{
-						"projectName": "${@params/projectName}",
-						"projectId":   "${@params/projectId}",
+				"id": "subflow",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_SUBFLOW",
+					"subflow": map[string]any{
+						"workflow_path": "actions/helper.json",
+						"params": map[string]any{
+							"projectName": "${@params/projectName}",
+							"projectId":   "${@params/projectId}",
+						},
+					},
+					"metadata": map[string]any{
+						"label": "Call helper",
 					},
 				},
 			},
@@ -139,10 +238,12 @@ func TestPreflightValidatorAbsoluteWorkflowPathWarning(t *testing.T) {
 	workflow := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id":   "subflow",
-				"type": "subflow",
-				"data": map[string]any{
-					"workflowPath": "/absolute/path/to/helper.json",
+				"id": "subflow",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_SUBFLOW",
+					"subflow": map[string]any{
+						"workflow_path": "/absolute/path/to/helper.json",
+					},
 				},
 			},
 		},
@@ -184,25 +285,31 @@ func TestPreflightValidatorSelectorCounting(t *testing.T) {
 	workflow := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id":   "click1",
-				"type": "click",
-				"data": map[string]any{
-					"selector": "@selector/button.submit",
+				"id": "click1",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_CLICK",
+					"click": map[string]any{
+						"selector": "@selector/button.submit",
+					},
 				},
 			},
 			map[string]any{
-				"id":   "click2",
-				"type": "click",
-				"data": map[string]any{
-					"selector": "@selector/button.cancel",
+				"id": "click2",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_CLICK",
+					"click": map[string]any{
+						"selector": "@selector/button.cancel",
+					},
 				},
 			},
 			map[string]any{
-				"id":   "type1",
-				"type": "type",
-				"data": map[string]any{
-					"selector": "@selector/input.name",
-					"text":     "test",
+				"id": "input1",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_INPUT",
+					"input": map[string]any{
+						"selector": "@selector/input.name",
+						"text":     "test",
+					},
 				},
 			},
 		},
@@ -236,12 +343,14 @@ func TestPreflightValidatorScenarioNavigation(t *testing.T) {
 	workflow := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id":   "nav",
-				"type": "navigate",
-				"data": map[string]any{
-					"destinationType": "scenario",
-					"scenario":        "browser-automation-studio",
-					"scenarioPath":    "/workflows",
+				"id": "nav",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_NAVIGATE",
+					"navigate": map[string]any{
+						"destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+						"scenario":         "browser-automation-studio",
+						"scenario_path":    "/workflows",
+					},
 				},
 			},
 		},
@@ -257,6 +366,10 @@ func TestPreflightValidatorScenarioNavigation(t *testing.T) {
 	result, err := v.Validate(workflowPath)
 	if err != nil {
 		t.Fatalf("validation failed: %v", err)
+	}
+
+	if !result.Valid {
+		t.Fatalf("expected valid result, got errors: %+v", result.Errors)
 	}
 
 	if len(result.RequiredScenarios) != 1 {
@@ -275,11 +388,13 @@ func TestPreflightValidatorMissingScenarioName(t *testing.T) {
 	workflow := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id":   "nav",
-				"type": "navigate",
-				"data": map[string]any{
-					"destinationType": "scenario",
-					"scenarioPath":    "/workflows",
+				"id": "nav",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_NAVIGATE",
+					"navigate": map[string]any{
+						"destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+						"scenario_path":    "/workflows",
+					},
 				},
 			},
 		},
@@ -316,16 +431,18 @@ func TestPreflightValidatorMissingScenarioName(t *testing.T) {
 func TestPreflightValidatorValidateAll(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create two workflows with different characteristics
+	// Create two V2 proto format workflows with different characteristics
 	wf1 := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id":   "sf1",
-				"type": "subflow",
-				"data": map[string]any{
-					"workflowPath": "actions/helper1.json",
-					"params": map[string]any{
-						"param1": "${@params/value1}",
+				"id": "sf1",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_SUBFLOW",
+					"subflow": map[string]any{
+						"workflow_path": "actions/helper1.json",
+						"params": map[string]any{
+							"param1": "${@params/value1}",
+						},
 					},
 				},
 			},
@@ -335,21 +452,25 @@ func TestPreflightValidatorValidateAll(t *testing.T) {
 	wf2 := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id":   "sf2",
-				"type": "subflow",
-				"data": map[string]any{
-					"workflowPath": "actions/helper2.json",
-					"params": map[string]any{
-						"param2": "${@params/value2}",
+				"id": "sf2",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_SUBFLOW",
+					"subflow": map[string]any{
+						"workflow_path": "actions/helper2.json",
+						"params": map[string]any{
+							"param2": "${@params/value2}",
+						},
 					},
 				},
 			},
 			map[string]any{
-				"id":   "nav",
-				"type": "navigate",
-				"data": map[string]any{
-					"destinationType": "scenario",
-					"scenario":        "test-scenario",
+				"id": "nav",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_NAVIGATE",
+					"navigate": map[string]any{
+						"destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+						"scenario":         "test-scenario",
+					},
 				},
 			},
 		},
@@ -394,28 +515,36 @@ func TestPreflightValidatorNestedWorkflowDefinition(t *testing.T) {
 	workflow := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id":   "subflow",
-				"type": "subflow",
-				"data": map[string]any{
-					"label": "Inline subflow",
-					"workflowDefinition": map[string]any{
-						"nodes": []any{
-							map[string]any{
-								"id":   "nested-click",
-								"type": "click",
-								"data": map[string]any{
-									"selector": "@selector/nested.button",
+				"id": "subflow",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_SUBFLOW",
+					"subflow": map[string]any{
+						"workflow_definition": map[string]any{
+							"nodes": []any{
+								map[string]any{
+									"id": "nested-click",
+									"action": map[string]any{
+										"type": "ACTION_TYPE_CLICK",
+										"click": map[string]any{
+											"selector": "@selector/nested.button",
+										},
+									},
+								},
+								map[string]any{
+									"id": "nested-subflow",
+									"action": map[string]any{
+										"type": "ACTION_TYPE_SUBFLOW",
+										"subflow": map[string]any{
+											"workflow_path": "actions/deeply-nested.json",
+										},
+									},
 								},
 							},
-							map[string]any{
-								"id":   "nested-subflow",
-								"type": "subflow",
-								"data": map[string]any{
-									"workflowPath": "actions/deeply-nested.json",
-								},
-							},
+							"edges": []any{},
 						},
-						"edges": []any{},
+					},
+					"metadata": map[string]any{
+						"label": "Inline subflow",
 					},
 				},
 			},
@@ -439,7 +568,7 @@ func TestPreflightValidatorNestedWorkflowDefinition(t *testing.T) {
 	}
 
 	// Should count nested selectors and subflows
-	// Note: The scanner recursively scans nested workflowDefinition nodes
+	// Note: The scanner recursively scans nested workflow_definition nodes
 	if result.TokenCounts.Selectors < 1 {
 		t.Errorf("expected at least 1 selector (from nested def), got %d", result.TokenCounts.Selectors)
 	}

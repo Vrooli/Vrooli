@@ -1,28 +1,96 @@
 {
   "metadata": {
+    "name": "health-indicator",
     "description": "Validates that the health indicator displays API connection status",
-    "requirement": "REQ-P0-010",
-    "version": 1
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"REQ-P0-010\"]"
+    }
   },
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "action": "navigate",
-      "target": "/"
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "workspace-sandbox",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to workspace-sandbox home"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/header.root",
-      "timeout": 5000
+      "id": "wait-header",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/header.root",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for header to load"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/header.healthIndicator",
-      "condition": "visible"
+      "id": "assert-health-indicator",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/header.healthIndicator",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Health indicator should be visible in header"
+        },
+        "metadata": {
+          "label": "Assert health indicator visible"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/header.statsPanel",
-      "condition": "visible"
+      "id": "assert-stats-panel",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/header.statsPanel",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Stats panel should be visible in header"
+        },
+        "metadata": {
+          "label": "Assert stats panel visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-header",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-header",
+      "target": "assert-health-indicator",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-health-indicator",
+      "target": "assert-stats-panel",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }
