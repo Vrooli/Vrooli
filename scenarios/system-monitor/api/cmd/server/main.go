@@ -1,8 +1,8 @@
 package main
 
 import (
+	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 
+	"system-monitor-api/internal/agentmanager"
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/handlers"
 	"system-monitor-api/internal/middleware"
@@ -223,8 +224,28 @@ func main() {
 	// Create services
 	alertSvc := services.NewAlertService(cfg, repo)
 	monitorSvc := services.NewMonitorService(cfg, repo, alertSvc)
-	investigationSvc := services.NewInvestigationService(cfg, repo, alertSvc)
+
+	// Create agent-manager service
+	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
+		URL:         cfg.AgentManager.URL,
+		ProfileName: cfg.AgentManager.ProfileName,
+		Timeout:     cfg.AgentManager.Timeout,
+		Enabled:     cfg.AgentManager.Enabled,
+	})
+
+	// Initialize agent-manager profile
+	if agentSvc.IsEnabled() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := agentSvc.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
+			log.Printf("Warning: Failed to initialize agent-manager profile: %v", err)
+			log.Println("Will fall back to direct CLI execution for investigations")
+		}
+		cancel()
+	}
+
+	investigationSvc := services.NewInvestigationService(cfg, repo, alertSvc, agentSvc)
 	reportSvc := services.NewReportService(cfg, repo)
+	settingsMgr := services.NewSettingsManager()
 
 	// Start monitoring service
 	if err := monitorSvc.Start(); err != nil {
@@ -236,9 +257,10 @@ func main() {
 	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc)
 	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc)
 	reportHandler := handlers.NewReportHandler(cfg, reportSvc)
+	settingsHandler := handlers.NewSettingsHandler(settingsMgr)
 
 	// Setup routes
-	router := setupRoutes(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler)
+	router := setupRoutes(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler)
 
 	// Setup middleware
 	handler := setupMiddleware(cfg, router)
@@ -329,41 +351,59 @@ func connectDatabase(cfg *config.Config) (*sql.DB, error) {
 	return nil, err
 }
 
-func setupRoutes(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler) *mux.Router {
+func setupRoutes(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler) *mux.Router {
 	r := mux.NewRouter()
 
-	// Health endpoint
+	// Health endpoints - at root for infrastructure checks, and /api/v1 for client requests
 	r.HandleFunc("/health", health.Handle).Methods("GET")
+	r.HandleFunc("/api/v1/health", health.Handle).Methods("GET")
 
 	// Metrics endpoints
-	r.HandleFunc("/api/metrics/current", metrics.GetCurrentMetrics).Methods("GET")
-	r.HandleFunc("/api/metrics/detailed", metrics.GetDetailedMetrics).Methods("GET")
-	r.HandleFunc("/api/metrics/processes", metrics.GetProcessMonitor).Methods("GET")
-	r.HandleFunc("/api/metrics/infrastructure", metrics.GetInfrastructureMonitor).Methods("GET")
+	r.HandleFunc("/api/v1/metrics/current", metrics.GetCurrentMetrics).Methods("GET")
+	r.HandleFunc("/api/v1/metrics/detailed", metrics.GetDetailedMetrics).Methods("GET")
+	r.HandleFunc("/api/v1/metrics/processes", metrics.GetProcessMonitor).Methods("GET")
+	r.HandleFunc("/api/v1/metrics/infrastructure", metrics.GetInfrastructureMonitor).Methods("GET")
 
 	// Investigation endpoints
-	r.HandleFunc("/api/investigations", investigation.ListInvestigations).Methods("GET")
-	r.HandleFunc("/api/investigations/latest", investigation.GetLatestInvestigation).Methods("GET")
-	r.HandleFunc("/api/investigations/trigger", investigation.TriggerInvestigation).Methods("POST")
-	r.HandleFunc("/api/investigations/cooldown", investigation.GetCooldownStatus).Methods("GET")
-	r.HandleFunc("/api/investigations/cooldown/reset", investigation.ResetCooldown).Methods("POST")
-	r.HandleFunc("/api/investigations/cooldown/period", investigation.UpdateCooldownPeriod).Methods("PUT")
-	r.HandleFunc("/api/investigations/triggers", investigation.GetTriggers).Methods("GET")
-	r.HandleFunc("/api/investigations/triggers/{id}", investigation.UpdateTrigger).Methods("PUT")
-	r.HandleFunc("/api/investigations/triggers/{id}/threshold", investigation.UpdateTriggerThreshold).Methods("PUT")
-	r.HandleFunc("/api/investigations/{id}", investigation.GetInvestigation).Methods("GET")
-	r.HandleFunc("/api/investigations/{id}/status", investigation.UpdateInvestigationStatus).Methods("PUT")
-	r.HandleFunc("/api/investigations/{id}/findings", investigation.UpdateInvestigationFindings).Methods("PUT")
-	r.HandleFunc("/api/investigations/{id}/progress", investigation.UpdateInvestigationProgress).Methods("PUT")
-	r.HandleFunc("/api/investigations/{id}/step", investigation.AddInvestigationStep).Methods("POST")
+	r.HandleFunc("/api/v1/investigations", investigation.ListInvestigations).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/latest", investigation.GetLatestInvestigation).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/trigger", investigation.TriggerInvestigation).Methods("POST")
+	r.HandleFunc("/api/v1/investigations/agent/spawn", investigation.TriggerInvestigation).Methods("POST")
+	r.HandleFunc("/api/v1/investigations/agent/current", investigation.GetCurrentAgent).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/cooldown", investigation.GetCooldownStatus).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/cooldown/reset", investigation.ResetCooldown).Methods("POST")
+	r.HandleFunc("/api/v1/investigations/cooldown/period", investigation.UpdateCooldownPeriod).Methods("PUT")
+	r.HandleFunc("/api/v1/investigations/triggers", investigation.GetTriggers).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/triggers/{id}", investigation.UpdateTrigger).Methods("PUT")
+	r.HandleFunc("/api/v1/investigations/triggers/{id}/threshold", investigation.UpdateTriggerThreshold).Methods("PUT")
+	r.HandleFunc("/api/v1/investigations/scripts", investigation.ListScripts).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/scripts/{id}", investigation.GetScript).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/scripts/{id}/execute", investigation.ExecuteScript).Methods("POST")
+	r.HandleFunc("/api/v1/investigations/{id}", investigation.GetInvestigation).Methods("GET")
+	r.HandleFunc("/api/v1/investigations/{id}/status", investigation.UpdateInvestigationStatus).Methods("PUT")
+	r.HandleFunc("/api/v1/investigations/{id}/findings", investigation.UpdateInvestigationFindings).Methods("PUT")
+	r.HandleFunc("/api/v1/investigations/{id}/progress", investigation.UpdateInvestigationProgress).Methods("PUT")
+	r.HandleFunc("/api/v1/investigations/{id}/step", investigation.AddInvestigationStep).Methods("POST")
 
 	// Report endpoints (order matters - more specific routes first)
-	r.HandleFunc("/api/reports/generate", report.GenerateReport).Methods("POST")
-	r.HandleFunc("/api/reports/{id}", report.GetReport).Methods("GET")
-	r.HandleFunc("/api/reports", report.ListReports).Methods("GET")
+	r.HandleFunc("/api/v1/reports/generate", report.GenerateReport).Methods("POST")
+	r.HandleFunc("/api/v1/reports/{id}", report.GetReport).Methods("GET")
+	r.HandleFunc("/api/v1/reports", report.ListReports).Methods("GET")
 
-	// Legacy endpoints for backward compatibility
-	r.HandleFunc("/api/logs", legacyLogsHandler).Methods("GET")
+	// Settings endpoints
+	r.HandleFunc("/api/v1/settings", settings.GetSettings).Methods("GET")
+	r.HandleFunc("/api/v1/settings", settings.UpdateSettings).Methods("PUT")
+	r.HandleFunc("/api/v1/settings/reset", settings.ResetSettings).Methods("POST")
+
+	// Maintenance state endpoints
+	r.HandleFunc("/api/v1/maintenance/state", settings.GetMaintenanceState).Methods("GET")
+	r.HandleFunc("/api/v1/maintenance/state", settings.SetMaintenanceState).Methods("POST")
+
+	// Agent configuration endpoints
+	r.HandleFunc("/api/v1/agent/config", investigation.GetAgentConfig).Methods("GET")
+	r.HandleFunc("/api/v1/agent/config", investigation.UpdateAgentConfig).Methods("PUT")
+	r.HandleFunc("/api/v1/agent/runners", investigation.GetAvailableRunners).Methods("GET")
+	r.HandleFunc("/api/v1/agent/status", investigation.GetAgentStatus).Methods("GET")
 
 	return r
 }
@@ -410,17 +450,4 @@ func waitForShutdown(monitorSvc *services.MonitorService, srv *http.Server, db *
 	}
 
 	log.Println("Server shutdown complete")
-}
-
-// Legacy handlers for backward compatibility
-
-func legacyLogsHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"logs":      []map[string]interface{}{},
-		"count":     0,
-		"timestamp": time.Now().Format(time.RFC3339),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }

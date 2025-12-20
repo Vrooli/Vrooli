@@ -10,13 +10,26 @@ import (
 
 // Config holds all application configuration
 type Config struct {
-	Server     ServerConfig
-	Database   DatabaseConfig
-	Monitoring MonitoringConfig
-	Resources  ResourcesConfig
-	Alerts     AlertConfig
-	Logging    LoggingConfig
-	Health     HealthConfig
+	Server       ServerConfig
+	Database     DatabaseConfig
+	Monitoring   MonitoringConfig
+	Resources    ResourcesConfig
+	Alerts       AlertConfig
+	Logging      LoggingConfig
+	Health       HealthConfig
+	AgentManager AgentManagerConfig
+}
+
+// AgentManagerConfig contains agent-manager service configuration
+type AgentManagerConfig struct {
+	// URL is the base URL for agent-manager API (e.g., "http://localhost:15000")
+	URL string
+	// ProfileName is the name to use for the system-monitor agent profile
+	ProfileName string
+	// Timeout for API requests
+	Timeout time.Duration
+	// Enabled determines whether to use agent-manager (vs direct CLI)
+	Enabled bool
 }
 
 // ServerConfig contains server configuration
@@ -159,6 +172,12 @@ func Load() *Config {
 			Timeout:            time.Duration(getEnvAsInt("HEALTH_TIMEOUT_SECONDS", 5)) * time.Second,
 			StartupGracePeriod: time.Duration(getEnvAsInt("HEALTH_STARTUP_GRACE_SECONDS", 10)) * time.Second,
 			Endpoints:          loadHealthEndpoints(),
+		},
+		AgentManager: AgentManagerConfig{
+			URL:         getEnv("AGENT_MANAGER_URL", "http://localhost:15000"),
+			ProfileName: getEnv("AGENT_MANAGER_PROFILE_NAME", "system-monitor-investigator"),
+			Timeout:     time.Duration(getEnvAsInt("AGENT_MANAGER_TIMEOUT_SECONDS", 30)) * time.Second,
+			Enabled:     getEnvAsBool("AGENT_MANAGER_ENABLED", true),
 		},
 	}
 

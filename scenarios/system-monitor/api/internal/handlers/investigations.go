@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -302,4 +303,133 @@ func (h *InvestigationHandler) UpdateTriggerThreshold(w http.ResponseWriter, r *
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+// =============================================================================
+// Agent Configuration Endpoints
+// =============================================================================
+
+// GetAgentConfig handles GET /api/agent/config
+func (h *InvestigationHandler) GetAgentConfig(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	config, err := h.investigationSvc.GetAgentConfig(ctx)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, config)
+}
+
+// GetAvailableRunners handles GET /api/agent/runners
+func (h *InvestigationHandler) GetAvailableRunners(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	runners, err := h.investigationSvc.GetAvailableRunners(ctx)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, runners)
+}
+
+// UpdateAgentConfig handles PUT /api/agent/config
+func (h *InvestigationHandler) UpdateAgentConfig(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req struct {
+		RunnerType       string   `json:"runner_type,omitempty"`
+		Model            string   `json:"model,omitempty"`
+		MaxTurns         int32    `json:"max_turns,omitempty"`
+		TimeoutSeconds   int32    `json:"timeout_seconds,omitempty"`
+		AllowedTools     []string `json:"allowed_tools,omitempty"`
+		SkipPermissions  bool     `json:"skip_permissions,omitempty"`
+		RequiresSandbox  bool     `json:"requires_sandbox,omitempty"`
+		RequiresApproval bool     `json:"requires_approval,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	config, err := h.investigationSvc.UpdateAgentConfig(ctx, req.RunnerType, req.Model, req.MaxTurns, req.TimeoutSeconds, req.AllowedTools, req.SkipPermissions, req.RequiresSandbox, req.RequiresApproval)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, config)
+}
+
+// GetAgentStatus handles GET /api/agent/status
+func (h *InvestigationHandler) GetAgentStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	status, err := h.investigationSvc.GetAgentStatus(ctx)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, status)
+}
+
+// =============================================================================
+// Agent Current & Scripts Endpoints
+// =============================================================================
+
+// GetCurrentAgent handles GET /api/v1/investigations/agent/current
+// Returns current running investigation agent status (if any)
+func (h *InvestigationHandler) GetCurrentAgent(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get the latest in-progress investigation
+	investigation, err := h.investigationSvc.GetLatestInvestigation(ctx)
+	if err != nil {
+		// Return empty if no investigations
+		respondWithJSON(w, http.StatusOK, nil)
+		return
+	}
+
+	// Only return if there's an active investigation
+	if investigation != nil && investigation.Status == "in_progress" {
+		respondWithJSON(w, http.StatusOK, investigation)
+		return
+	}
+
+	// No active agent
+	respondWithJSON(w, http.StatusOK, nil)
+}
+
+// ListScripts handles GET /api/v1/investigations/scripts
+// Returns list of available investigation scripts
+func (h *InvestigationHandler) ListScripts(w http.ResponseWriter, r *http.Request) {
+	// Return empty scripts list for now (feature placeholder)
+	response := map[string]interface{}{
+		"scripts": []interface{}{},
+	}
+	respondWithJSON(w, http.StatusOK, response)
+}
+
+// GetScript handles GET /api/v1/investigations/scripts/{id}
+// Returns a specific script's content
+func (h *InvestigationHandler) GetScript(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	// Script feature not implemented yet
+	respondWithError(w, http.StatusNotFound, fmt.Errorf("script not found: %s", id))
+}
+
+// ExecuteScript handles POST /api/v1/investigations/scripts/{id}/execute
+// Executes a specific investigation script
+func (h *InvestigationHandler) ExecuteScript(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	// Script feature not implemented yet
+	respondWithError(w, http.StatusNotFound, fmt.Errorf("script not found: %s", id))
 }

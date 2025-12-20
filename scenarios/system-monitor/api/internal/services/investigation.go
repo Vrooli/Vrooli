@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,16 +15,11 @@ import (
 	"sync"
 	"time"
 
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"system-monitor-api/internal/agentmanager"
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/repository"
-)
-
-const (
-	investigationServiceAgentModel       = "codex-mini-latest"
-	investigationServiceAllowedTools     = "read_file,write_file,append_file,list_files,analyze_code,execute_command(*)"
-	investigationServiceMaxTurns         = 75
-	investigationServiceAgentTimeoutSecs = 600
 )
 
 // InvestigationService handles anomaly investigations
@@ -31,6 +27,7 @@ type InvestigationService struct {
 	config         *config.Config
 	repo           repository.InvestigationRepository
 	alertSvc       *AlertService
+	agentSvc       *agentmanager.AgentService
 	mu             sync.RWMutex
 	cooldownPeriod time.Duration
 	lastTrigger    time.Time
@@ -38,11 +35,12 @@ type InvestigationService struct {
 }
 
 // NewInvestigationService creates a new investigation service
-func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRepository, alertSvc *AlertService) *InvestigationService {
+func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRepository, alertSvc *AlertService, agentSvc *agentmanager.AgentService) *InvestigationService {
 	s := &InvestigationService{
 		config:         cfg,
 		repo:           repo,
 		alertSvc:       alertSvc,
+		agentSvc:       agentSvc,
 		cooldownPeriod: 5 * time.Minute, // Default 5 minutes
 		lastTrigger:    time.Time{},     // Start with zero time - no cooldown initially
 		triggers:       make(map[string]*models.TriggerConfig),
@@ -54,7 +52,22 @@ func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRe
 		s.initializeDefaultTriggers()
 	}
 
+	// Initialize agent profile if agent-manager is enabled
+	if agentSvc != nil && agentSvc.IsEnabled() {
+		go s.initializeAgentProfile()
+	}
+
 	return s
+}
+
+// initializeAgentProfile ensures the agent profile exists in agent-manager.
+func (s *InvestigationService) initializeAgentProfile() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := s.agentSvc.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
+		log.Printf("[investigation] Warning: failed to initialize agent profile: %v", err)
+	}
 }
 
 // TriggerInvestigation starts a new investigation
@@ -223,185 +236,94 @@ func (s *InvestigationService) runInvestigation(investigationID string, autoFix 
 	s.UpdateInvestigationStatus(ctx, investigationID, "completed")
 }
 
-// performInvestigation executes the investigation logic
+// performInvestigation executes the investigation logic via agent-manager.
 func (s *InvestigationService) performInvestigation(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, autoFix bool, note string) (string, map[string]interface{}) {
 	operationMode := "report-only"
 	if autoFix {
 		operationMode = "auto-fix"
 	}
 
+	// Agent-manager is required
+	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
+		return "Investigation failed: agent-manager is not enabled", map[string]interface{}{
+			"error":          "agent-manager not enabled",
+			"auto_fix":       autoFix,
+			"operation_mode": operationMode,
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	if !s.agentSvc.IsAvailable(ctx) {
+		return "Investigation failed: agent-manager is not available", map[string]interface{}{
+			"error":          "agent-manager not available",
+			"auto_fix":       autoFix,
+			"operation_mode": operationMode,
+		}
+	}
+
 	prompt := s.buildInvestigationPrompt(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
+	workingDir := resolveInvestigationWorkingDir()
+
+	return s.performAgentManagerInvestigation(ctx, investigationID, prompt, workingDir, autoFix, operationMode)
+}
+
+// performAgentManagerInvestigation uses agent-manager for execution.
+func (s *InvestigationService) performAgentManagerInvestigation(ctx context.Context, investigationID, prompt, workingDir string, autoFix bool, operationMode string) (string, map[string]interface{}) {
+	result, err := s.agentSvc.Execute(ctx, agentmanager.ExecuteRequest{
+		InvestigationID: investigationID,
+		Prompt:          prompt,
+		WorkingDir:      workingDir,
+	})
 
 	baseDetails := map[string]interface{}{
-		"agent_resource": "resource-codex",
-		"agent_model":    investigationServiceAgentModel,
+		"agent_source":   "agent-manager",
 		"auto_fix":       autoFix,
 		"operation_mode": operationMode,
 	}
 
-	workingDir := resolveInvestigationWorkingDir()
-	execCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-
-	agentTag := fmt.Sprintf("system-monitor-%s", investigationID)
-	result := ExecuteCodexAgent(execCtx, CodexAgentOptions{
-		Prompt:          prompt,
-		AllowedTools:    investigationServiceAllowedTools,
-		MaxTurns:        investigationServiceMaxTurns,
-		TimeoutSeconds:  investigationServiceAgentTimeoutSecs,
-		SkipPermissions: true,
-		WorkingDir:      workingDir,
-		DefaultModel:    investigationServiceAgentModel,
-		AgentTag:        agentTag,
-	})
+	if err != nil {
+		log.Printf("[investigation] agent-manager execution failed: %v", err)
+		baseDetails["agent_error"] = truncateAgentLog(err.Error(), 400)
+		return fmt.Sprintf("Investigation failed: %v", err), baseDetails
+	}
 
 	if result.Success {
 		details := map[string]interface{}{
-			"source":           "resource-codex",
+			"source":           "agent-manager",
+			"run_id":           result.RunID,
 			"risk_level":       "low",
-			"duration_seconds": int(result.Duration.Seconds()),
+			"duration_seconds": result.DurationSeconds,
+			"tokens_used":      result.TokensUsed,
+			"cost_estimate":    result.CostEstimate,
 		}
 		for k, v := range baseDetails {
 			details[k] = v
 		}
-		if strings.TrimSpace(result.Stderr) != "" {
-			details["agent_warnings"] = truncateAgentLog(result.Stderr, 400)
-		}
 		return strings.TrimSpace(result.Output), details
 	}
 
-	fallbackFindings, fallbackDetails := s.performBasicAnalysis(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID)
+	// Execution failed
+	details := make(map[string]interface{})
 	for k, v := range baseDetails {
-		fallbackDetails[k] = v
+		details[k] = v
 	}
-	if result.Error != nil {
-		fallbackDetails["agent_error"] = truncateAgentLog(result.Error.Error(), 400)
-	}
-	if strings.TrimSpace(result.Stderr) != "" {
-		fallbackDetails["agent_stderr"] = truncateAgentLog(result.Stderr, 400)
+	details["run_id"] = result.RunID
+	if result.ErrorMessage != "" {
+		details["agent_error"] = truncateAgentLog(result.ErrorMessage, 400)
 	}
 	if result.RateLimited {
-		fallbackDetails["agent_rate_limited"] = true
-		if result.RetryAfterSeconds > 0 {
-			fallbackDetails["retry_after_seconds"] = result.RetryAfterSeconds
-		}
+		details["agent_rate_limited"] = true
 	}
 	if result.Timeout {
-		fallbackDetails["agent_timeout"] = true
-	}
-	if result.IdleTimeout {
-		fallbackDetails["agent_idle_terminated"] = true
+		details["agent_timeout"] = true
 	}
 
-	return fallbackFindings, fallbackDetails
+	return fmt.Sprintf("Investigation completed with issues: %s", result.ErrorMessage), details
 }
 
-// performBasicAnalysis performs a basic system analysis
-func (s *InvestigationService) performBasicAnalysis(cpuUsage, memoryUsage float64, tcpConnections int, timestamp, investigationID string) (string, map[string]interface{}) {
-	riskLevel := "low"
-	anomalies := []string{}
-	recommendations := []string{}
-
-	// Analyze CPU usage
-	if cpuUsage > 80 {
-		riskLevel = "high"
-		anomalies = append(anomalies, fmt.Sprintf("High CPU usage: %.2f%%", cpuUsage))
-		recommendations = append(recommendations, "Investigate top CPU-consuming processes")
-	} else if cpuUsage > 60 {
-		riskLevel = "medium"
-		anomalies = append(anomalies, fmt.Sprintf("Elevated CPU usage: %.2f%%", cpuUsage))
-	}
-
-	// Analyze memory usage
-	if memoryUsage > 90 {
-		if riskLevel == "low" {
-			riskLevel = "high"
-		}
-		anomalies = append(anomalies, fmt.Sprintf("Critical memory usage: %.2f%%", memoryUsage))
-		recommendations = append(recommendations, "Check for memory leaks")
-	} else if memoryUsage > 75 {
-		if riskLevel == "low" {
-			riskLevel = "medium"
-		}
-		anomalies = append(anomalies, fmt.Sprintf("High memory usage: %.2f%%", memoryUsage))
-	}
-
-	// Analyze network connections
-	if tcpConnections > 500 {
-		if riskLevel == "low" {
-			riskLevel = "medium"
-		}
-		anomalies = append(anomalies, fmt.Sprintf("High number of TCP connections: %d", tcpConnections))
-		recommendations = append(recommendations, "Review network connections")
-	}
-
-	// Build findings report
-	findings := fmt.Sprintf(`### Investigation Summary
-
-**Status**: %s
-**Agent**: Fallback heuristics (Codex agent unavailable)
-**Investigation ID**: %s
-**Timestamp**: %s
-
-**Key Findings**:
-- CPU Usage: %.2f%%
-- Memory Usage: %.2f%%
-- TCP Connections: %d
-
-**Anomalies Detected**: %d
-%s
-
-**Risk Level**: %s
-
-**Recommendations**:
-%s`,
-		func() string {
-			if len(anomalies) > 0 {
-				return "Warning"
-			}
-			return "Normal"
-		}(),
-		investigationID,
-		timestamp,
-		cpuUsage,
-		memoryUsage,
-		tcpConnections,
-		len(anomalies),
-		func() string {
-			if len(anomalies) == 0 {
-				return "- No anomalies detected"
-			}
-			result := ""
-			for _, a := range anomalies {
-				result += fmt.Sprintf("- %s\n", a)
-			}
-			return result
-		}(),
-		riskLevel,
-		func() string {
-			if len(recommendations) == 0 {
-				return "- Continue normal monitoring"
-			}
-			result := ""
-			for _, r := range recommendations {
-				result += fmt.Sprintf("- %s\n", r)
-			}
-			return result
-		}(),
-	)
-
-	details := map[string]interface{}{
-		"source":                "fallback_analysis",
-		"risk_level":            riskLevel,
-		"anomalies_found":       len(anomalies),
-		"recommendations_count": len(recommendations),
-		"critical_issues":       riskLevel == "high",
-	}
-
-	return findings, details
-}
-
-// buildInvestigationPrompt builds the prompt for the Codex investigation agent
+// buildInvestigationPrompt builds the prompt for the investigation agent
 func (s *InvestigationService) buildInvestigationPrompt(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, autoFix bool, note string) string {
 	operationMode := "report-only"
 	if autoFix {
@@ -796,6 +718,262 @@ func (s *InvestigationService) loadTriggersFromConfig() error {
 	}
 
 	return nil
+}
+
+// =============================================================================
+// Agent Configuration Methods
+// =============================================================================
+
+// AgentConfigResponse represents the current agent configuration.
+type AgentConfigResponse struct {
+	Enabled          bool     `json:"enabled"`
+	ProfileID        string   `json:"profile_id,omitempty"`
+	ProfileName      string   `json:"profile_name"`
+	RunnerType       string   `json:"runner_type"`
+	Model            string   `json:"model"`
+	MaxTurns         int32    `json:"max_turns"`
+	TimeoutSeconds   int32    `json:"timeout_seconds"`
+	AllowedTools     []string `json:"allowed_tools"`
+	SkipPermissions  bool     `json:"skip_permissions"`
+	RequiresSandbox  bool     `json:"requires_sandbox"`
+	RequiresApproval bool     `json:"requires_approval"`
+}
+
+// RunnerResponse represents an available runner.
+type RunnerResponse struct {
+	Type            string   `json:"type"`
+	Name            string   `json:"name"`
+	Available       bool     `json:"available"`
+	Message         string   `json:"message,omitempty"`
+	InstallHint     string   `json:"install_hint,omitempty"`
+	SupportedModels []string `json:"supported_models,omitempty"`
+}
+
+// AgentStatusResponse represents the agent-manager status.
+type AgentStatusResponse struct {
+	Enabled       bool             `json:"enabled"`
+	Available     bool             `json:"available"`
+	ProfileID     string           `json:"profile_id,omitempty"`
+	ActiveRuns    int              `json:"active_runs"`
+	RunnerStatus  []RunnerResponse `json:"runners,omitempty"`
+	AgentManager  string           `json:"agent_manager_url,omitempty"`
+	LastError     string           `json:"last_error,omitempty"`
+}
+
+// GetAgentConfig returns the current agent configuration.
+func (s *InvestigationService) GetAgentConfig(ctx context.Context) (*AgentConfigResponse, error) {
+	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
+		// Return defaults when agent-manager is not enabled
+		defaultCfg := agentmanager.DefaultProfileConfig()
+		return &AgentConfigResponse{
+			Enabled:          false,
+			ProfileName:      s.config.AgentManager.ProfileName,
+			RunnerType:       runnerTypeToString(defaultCfg.RunnerType),
+			Model:            defaultCfg.Model,
+			MaxTurns:         defaultCfg.MaxTurns,
+			TimeoutSeconds:   defaultCfg.TimeoutSeconds,
+			AllowedTools:     defaultCfg.AllowedTools,
+			SkipPermissions:  defaultCfg.SkipPermissions,
+			RequiresSandbox:  defaultCfg.RequiresSandbox,
+			RequiresApproval: defaultCfg.RequiresApproval,
+		}, nil
+	}
+
+	profile, err := s.agentSvc.GetProfile(ctx)
+	if err != nil {
+		// Return defaults with error context
+		defaultCfg := agentmanager.DefaultProfileConfig()
+		return &AgentConfigResponse{
+			Enabled:          true,
+			ProfileName:      s.config.AgentManager.ProfileName,
+			RunnerType:       runnerTypeToString(defaultCfg.RunnerType),
+			Model:            defaultCfg.Model,
+			MaxTurns:         defaultCfg.MaxTurns,
+			TimeoutSeconds:   defaultCfg.TimeoutSeconds,
+			AllowedTools:     defaultCfg.AllowedTools,
+			SkipPermissions:  defaultCfg.SkipPermissions,
+			RequiresSandbox:  defaultCfg.RequiresSandbox,
+			RequiresApproval: defaultCfg.RequiresApproval,
+		}, nil
+	}
+
+	timeoutSecs := int32(600)
+	if profile.Timeout != nil {
+		timeoutSecs = int32(profile.Timeout.AsDuration().Seconds())
+	}
+
+	return &AgentConfigResponse{
+		Enabled:          true,
+		ProfileID:        profile.Id,
+		ProfileName:      profile.Name,
+		RunnerType:       runnerTypeToString(profile.RunnerType),
+		Model:            profile.Model,
+		MaxTurns:         profile.MaxTurns,
+		TimeoutSeconds:   timeoutSecs,
+		AllowedTools:     profile.AllowedTools,
+		SkipPermissions:  profile.SkipPermissionPrompt,
+		RequiresSandbox:  profile.RequiresSandbox,
+		RequiresApproval: profile.RequiresApproval,
+	}, nil
+}
+
+// GetAvailableRunners returns available runners from agent-manager.
+func (s *InvestigationService) GetAvailableRunners(ctx context.Context) ([]RunnerResponse, error) {
+	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
+		// Return default runner info when agent-manager is not enabled
+		return []RunnerResponse{
+			{
+				Type:            "codex",
+				Name:            "OpenAI Codex",
+				Available:       true,
+				Message:         "Using direct CLI execution (agent-manager not enabled)",
+				SupportedModels: []string{"codex-mini-latest", "gpt-4o"},
+			},
+		}, nil
+	}
+
+	runners, err := s.agentSvc.GetAvailableRunners(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get runners from agent-manager: %w", err)
+	}
+
+	result := make([]RunnerResponse, 0, len(runners))
+	for _, r := range runners {
+		result = append(result, RunnerResponse{
+			Type:            r.Name,
+			Name:            r.Name,
+			Available:       r.Available,
+			Message:         r.Message,
+			InstallHint:     r.InstallHint,
+			SupportedModels: r.SupportedModels,
+		})
+	}
+
+	return result, nil
+}
+
+// UpdateAgentConfig updates the agent profile configuration.
+func (s *InvestigationService) UpdateAgentConfig(ctx context.Context, runnerType, model string, maxTurns, timeoutSeconds int32, allowedTools []string, skipPermissions, requiresSandbox, requiresApproval bool) (*AgentConfigResponse, error) {
+	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
+		return nil, fmt.Errorf("agent-manager not enabled")
+	}
+
+	cfg := &agentmanager.ProfileConfig{
+		RunnerType:       stringToRunnerType(runnerType),
+		Model:            model,
+		MaxTurns:         maxTurns,
+		TimeoutSeconds:   timeoutSeconds,
+		AllowedTools:     allowedTools,
+		SkipPermissions:  skipPermissions,
+		RequiresSandbox:  requiresSandbox,
+		RequiresApproval: requiresApproval,
+	}
+
+	// Apply defaults if not provided
+	defaultCfg := agentmanager.DefaultProfileConfig()
+	if cfg.Model == "" {
+		cfg.Model = defaultCfg.Model
+	}
+	if cfg.MaxTurns == 0 {
+		cfg.MaxTurns = defaultCfg.MaxTurns
+	}
+	if cfg.TimeoutSeconds == 0 {
+		cfg.TimeoutSeconds = defaultCfg.TimeoutSeconds
+	}
+	if len(cfg.AllowedTools) == 0 {
+		cfg.AllowedTools = defaultCfg.AllowedTools
+	}
+
+	profile, err := s.agentSvc.UpdateProfile(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("update profile: %w", err)
+	}
+
+	timeoutSecs := int32(600)
+	if profile.Timeout != nil {
+		timeoutSecs = int32(profile.Timeout.AsDuration().Seconds())
+	}
+
+	return &AgentConfigResponse{
+		Enabled:          true,
+		ProfileID:        profile.Id,
+		ProfileName:      profile.Name,
+		RunnerType:       runnerTypeToString(profile.RunnerType),
+		Model:            profile.Model,
+		MaxTurns:         profile.MaxTurns,
+		TimeoutSeconds:   timeoutSecs,
+		AllowedTools:     profile.AllowedTools,
+		SkipPermissions:  profile.SkipPermissionPrompt,
+		RequiresSandbox:  profile.RequiresSandbox,
+		RequiresApproval: profile.RequiresApproval,
+	}, nil
+}
+
+// GetAgentStatus returns the current agent-manager status.
+func (s *InvestigationService) GetAgentStatus(ctx context.Context) (*AgentStatusResponse, error) {
+	status := &AgentStatusResponse{
+		Enabled:      s.agentSvc != nil && s.agentSvc.IsEnabled(),
+		AgentManager: s.config.AgentManager.URL,
+	}
+
+	if !status.Enabled {
+		return status, nil
+	}
+
+	status.Available = s.agentSvc.IsAvailable(ctx)
+	status.ProfileID = s.agentSvc.GetProfileID()
+
+	// Get active runs
+	runs, err := s.agentSvc.ListActiveRuns(ctx)
+	if err == nil {
+		status.ActiveRuns = len(runs)
+	}
+
+	// Get runner status
+	runners, err := s.agentSvc.GetAvailableRunners(ctx)
+	if err == nil {
+		for _, r := range runners {
+			status.RunnerStatus = append(status.RunnerStatus, RunnerResponse{
+				Type:            r.Name,
+				Name:            r.Name,
+				Available:       r.Available,
+				Message:         r.Message,
+				SupportedModels: r.SupportedModels,
+			})
+		}
+	} else {
+		status.LastError = err.Error()
+	}
+
+	return status, nil
+}
+
+// runnerTypeToString converts RunnerType enum to string.
+func runnerTypeToString(rt domainpb.RunnerType) string {
+	switch rt {
+	case domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE:
+		return "claude-code"
+	case domainpb.RunnerType_RUNNER_TYPE_CODEX:
+		return "codex"
+	case domainpb.RunnerType_RUNNER_TYPE_OPENCODE:
+		return "opencode"
+	default:
+		return "unknown"
+	}
+}
+
+// stringToRunnerType converts string to RunnerType enum.
+func stringToRunnerType(s string) domainpb.RunnerType {
+	switch strings.ToLower(s) {
+	case "claude-code", "claude_code":
+		return domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE
+	case "codex":
+		return domainpb.RunnerType_RUNNER_TYPE_CODEX
+	case "opencode":
+		return domainpb.RunnerType_RUNNER_TYPE_OPENCODE
+	default:
+		return domainpb.RunnerType_RUNNER_TYPE_CODEX
+	}
 }
 
 // saveTriggersToConfig saves trigger configuration to JSON file
