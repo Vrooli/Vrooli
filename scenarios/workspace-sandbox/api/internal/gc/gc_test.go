@@ -78,6 +78,26 @@ func (m *MockRepository) UpdateWithVersionCheck(ctx context.Context, s *types.Sa
 	return nil
 }
 
+func (m *MockRepository) RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error {
+	return nil
+}
+
+func (m *MockRepository) GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error) {
+	return &types.PendingChangesResult{}, nil
+}
+
+func (m *MockRepository) GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error) {
+	return nil, nil
+}
+
+func (m *MockRepository) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
+	return nil, nil
+}
+
+func (m *MockRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
+	return nil
+}
+
 func (m *MockRepository) BeginTx(ctx context.Context) (repository.TxRepository, error) {
 	return &MockTxRepository{MockRepository: m}, nil
 }

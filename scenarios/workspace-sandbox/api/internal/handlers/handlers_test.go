@@ -207,20 +207,24 @@ func TestHealthContentType(t *testing.T) {
 
 // mockService implements sandbox.ServiceAPI for testing.
 type mockService struct {
-	createFn         func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error)
-	getFn            func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	listFn           func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
-	stopFn           func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	startFn          func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
-	deleteFn         func(ctx context.Context, id uuid.UUID) error
-	getDiffFn        func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
-	approveFn        func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
-	rejectFn         func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
-	discardFn        func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error)
-	getWorkspaceFn   func(ctx context.Context, id uuid.UUID) (string, error)
-	checkConflictsFn func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error)
-	rebaseFn         func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error)
-	validatePathFn   func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error)
+	createFn            func(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error)
+	getFn               func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	listFn              func(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error)
+	stopFn              func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	startFn             func(ctx context.Context, id uuid.UUID) (*types.Sandbox, error)
+	deleteFn            func(ctx context.Context, id uuid.UUID) error
+	getDiffFn           func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
+	approveFn           func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
+	rejectFn            func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
+	discardFn           func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error)
+	getWorkspaceFn      func(ctx context.Context, id uuid.UUID) (string, error)
+	checkConflictsFn    func(ctx context.Context, id uuid.UUID) (*types.ConflictCheckResponse, error)
+	rebaseFn            func(ctx context.Context, req *types.RebaseRequest) (*types.RebaseResult, error)
+	validatePathFn      func(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error)
+	getPendingChangesFn func(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error)
+	getFileProvenanceFn func(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error)
+	getCommitPreviewFn  func(ctx context.Context, req *types.CommitPreviewRequest) (*types.CommitPreviewResult, error)
+	commitPendingFn     func(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error)
 }
 
 // Verify mockService implements ServiceAPI
@@ -320,6 +324,34 @@ func (m *mockService) Rebase(ctx context.Context, req *types.RebaseRequest) (*ty
 func (m *mockService) ValidatePath(ctx context.Context, path, projectRoot string) (*types.PathValidationResult, error) {
 	if m.validatePathFn != nil {
 		return m.validatePathFn(ctx, path, projectRoot)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockService) GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error) {
+	if m.getPendingChangesFn != nil {
+		return m.getPendingChangesFn(ctx, projectRoot, limit, offset)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockService) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
+	if m.getFileProvenanceFn != nil {
+		return m.getFileProvenanceFn(ctx, filePath, projectRoot, limit)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockService) GetCommitPreview(ctx context.Context, req *types.CommitPreviewRequest) (*types.CommitPreviewResult, error) {
+	if m.getCommitPreviewFn != nil {
+		return m.getCommitPreviewFn(ctx, req)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockService) CommitPending(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error) {
+	if m.commitPendingFn != nil {
+		return m.commitPendingFn(ctx, req)
 	}
 	return nil, fmt.Errorf("not implemented")
 }

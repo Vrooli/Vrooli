@@ -109,6 +109,11 @@ type Service struct {
 	approvalPolicy    policy.ApprovalPolicy
 	attributionPolicy policy.AttributionPolicy
 	validationPolicy  policy.ValidationPolicy
+
+	// gitOps provides a seam for git operations, enabling test isolation.
+	// When nil, uses package-level diff functions (backwards compatible).
+	// For testing, inject a MockGitOps via WithGitOps option.
+	gitOps diff.GitOperations
 }
 
 // ServiceConfig holds service configuration.
@@ -150,6 +155,15 @@ func WithValidationPolicy(p policy.ValidationPolicy) ServiceOption {
 	}
 }
 
+// WithGitOps sets the git operations implementation.
+// This is the primary seam for test isolation of git-related functionality.
+// When testing, inject a MockGitOps to avoid touching real git repositories.
+func WithGitOps(g diff.GitOperations) ServiceOption {
+	return func(s *Service) {
+		s.gitOps = g
+	}
+}
+
 // NewService creates a new sandbox service.
 func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig, opts ...ServiceOption) *Service {
 	s := &Service{
@@ -158,6 +172,8 @@ func NewService(repo repository.Repository, drv driver.Driver, cfg ServiceConfig
 		config: cfg,
 		// Default policies (no-op implementations for backwards compatibility)
 		validationPolicy: policy.NewNoOpValidationPolicy(),
+		// Default GitOps (production implementation)
+		gitOps: diff.NewGitOps(),
 	}
 
 	// Apply options
@@ -292,7 +308,8 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 	}
 
 	// Capture the base commit hash for conflict detection (OT-P2-002)
-	baseCommitHash, err := diff.GetGitCommitHash(ctx, projectRoot)
+	// Uses injected gitOps for test isolation
+	baseCommitHash, err := s.gitOps.GetCommitHash(ctx, projectRoot)
 	if err != nil {
 		// Log but don't fail - repo might not be a git repo
 		s.logAuditEvent(ctx, sandbox, "sandbox.warning", "system", "system", map[string]interface{}{
@@ -625,7 +642,8 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 
 	// [OT-P2-002] Conflict Detection
 	// Check if the canonical repo has changed since sandbox creation
-	conflictCheck, err := diff.CheckForConflicts(ctx, sandbox, allChanges)
+	// Uses injected gitOps for test isolation
+	conflictCheck, err := s.gitOps.CheckForConflicts(ctx, sandbox, allChanges)
 	if err != nil {
 		// Log but don't fail - conflict check is advisory
 		s.logAuditEvent(ctx, sandbox, "sandbox.warning", "system", "system", map[string]interface{}{
@@ -1022,8 +1040,8 @@ func (s *Service) CheckConflicts(ctx context.Context, id uuid.UUID) (*types.Conf
 		return response, nil
 	}
 
-	// Use existing conflict detection
-	conflictCheck, err := diff.CheckForConflicts(ctx, sandbox, sandboxChanges)
+	// Use existing conflict detection via injected gitOps
+	conflictCheck, err := s.gitOps.CheckForConflicts(ctx, sandbox, sandboxChanges)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check for conflicts: %w", err)
 	}
@@ -1072,8 +1090,8 @@ func (s *Service) Rebase(ctx context.Context, req *types.RebaseRequest) (*types.
 		result.Strategy = types.RebaseStrategyRegenerate
 	}
 
-	// Get the current commit hash
-	newHash, err := diff.GetGitCommitHash(ctx, sandbox.ProjectRoot)
+	// Get the current commit hash via injected gitOps
+	newHash, err := s.gitOps.GetCommitHash(ctx, sandbox.ProjectRoot)
 	if err != nil {
 		result.Success = false
 		result.ErrorMsg = fmt.Sprintf("failed to get current repo commit hash: %v", err)
@@ -1089,8 +1107,9 @@ func (s *Service) Rebase(ctx context.Context, req *types.RebaseRequest) (*types.
 	result.NewBaseHash = newHash
 
 	// Check what files have changed in the repo since sandbox creation
+	// Uses injected gitOps for test isolation
 	if sandbox.BaseCommitHash != "" && sandbox.BaseCommitHash != newHash {
-		repoChangedFiles, err := diff.GetChangedFilesSinceCommit(ctx, sandbox.ProjectRoot, sandbox.BaseCommitHash)
+		repoChangedFiles, err := s.gitOps.GetChangedFilesSince(ctx, sandbox.ProjectRoot, sandbox.BaseCommitHash)
 		if err != nil {
 			// Log but don't fail - we can still update the hash
 			s.logAuditEvent(ctx, sandbox, "rebase.warning", req.Actor, "", map[string]interface{}{
@@ -1100,6 +1119,7 @@ func (s *Service) Rebase(ctx context.Context, req *types.RebaseRequest) (*types.
 			result.RepoChangedFiles = repoChangedFiles
 
 			// Find conflicting files (changed in both sandbox and repo)
+			// FindConflictingFiles is a pure function, no injection needed
 			sandboxChanges, _ := s.driver.GetChangedFiles(ctx, sandbox)
 			result.ConflictingFiles = diff.FindConflictingFiles(sandboxChanges, repoChangedFiles)
 		}
@@ -1346,7 +1366,8 @@ func (s *Service) CommitPending(ctx context.Context, req *types.CommitPendingReq
 	}
 
 	// Reconcile with git status to find which files are actually uncommitted
-	reconciled, err := diff.ReconcilePendingWithGit(ctx, projectRoot, relPaths)
+	// Uses injected gitOps for test isolation
+	reconciled, err := s.gitOps.ReconcilePendingWithGit(ctx, projectRoot, relPaths)
 	if err != nil {
 		// If reconciliation fails, fall back to committing all files
 		fmt.Printf("warning: reconciliation failed, proceeding without: %v\n", err)
@@ -1513,8 +1534,8 @@ func (s *Service) GetCommitPreview(ctx context.Context, req *types.CommitPreview
 		}
 	}
 
-	// Reconcile with git status
-	reconciled, err := diff.ReconcilePendingWithGit(ctx, projectRoot, relPaths)
+	// Reconcile with git status via injected gitOps
+	reconciled, err := s.gitOps.ReconcilePendingWithGit(ctx, projectRoot, relPaths)
 	if err != nil {
 		// Log but don't fail - we can still show the pending files
 		fmt.Printf("warning: failed to reconcile with git: %v\n", err)

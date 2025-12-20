@@ -68,6 +68,11 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	// Run automatic migrations
+	if err := ensureSchema(db); err != nil {
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
 	// Initialize driver with automatic selection and fallback
 	// Respects saved preference if available, otherwise:
 	// Priority: native overlayfs (in user namespace) > fuse-overlayfs > copy driver
@@ -360,6 +365,53 @@ func resolveDatabaseURL(cfg config.DatabaseConfig) (string, error) {
 	pgURL.RawQuery = values.Encode()
 
 	return pgURL.String(), nil
+}
+
+// ensureSchema runs automatic migrations to ensure required tables exist.
+// This is idempotent and safe to run on every startup.
+func ensureSchema(db *sql.DB) error {
+	// Check if applied_changes table exists
+	var exists bool
+	err := db.QueryRow(`
+		SELECT EXISTS (
+			SELECT FROM information_schema.tables
+			WHERE table_name = 'applied_changes'
+		)
+	`).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to check applied_changes table: %w", err)
+	}
+
+	if !exists {
+		log.Println("running migration: creating applied_changes table")
+		_, err = db.Exec(`
+			CREATE TABLE applied_changes (
+				id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+				sandbox_id UUID REFERENCES sandboxes(id) ON DELETE SET NULL,
+				sandbox_owner TEXT,
+				sandbox_owner_type TEXT,
+				file_path TEXT NOT NULL,
+				project_root TEXT NOT NULL,
+				change_type TEXT NOT NULL,
+				file_size BIGINT DEFAULT 0,
+				applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				committed_at TIMESTAMPTZ,
+				commit_hash TEXT,
+				commit_message TEXT,
+				CONSTRAINT valid_applied_change_type CHECK (change_type IN ('added', 'modified', 'deleted'))
+			);
+			CREATE INDEX idx_applied_changes_sandbox_id ON applied_changes(sandbox_id);
+			CREATE INDEX idx_applied_changes_file_path ON applied_changes(file_path);
+			CREATE INDEX idx_applied_changes_project_root ON applied_changes(project_root);
+			CREATE INDEX idx_applied_changes_pending ON applied_changes(committed_at) WHERE committed_at IS NULL;
+		`)
+		if err != nil {
+			return fmt.Errorf("failed to create applied_changes table: %w", err)
+		}
+		log.Println("migration complete: applied_changes table created")
+	}
+
+	return nil
 }
 
 func main() {

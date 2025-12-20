@@ -288,7 +288,7 @@ type Patcher struct {
 | Package | Mock Dependencies | Isolation Strategy |
 |---------|-------------------|-------------------|
 | **handlers** | `ServiceAPI` (mock service) | No real service calls |
-| **sandbox/service** | `Repository` interface, `Driver` interface, `GitOperations` interface | No real DB/FS/git |
+| **sandbox/service** | `Repository` interface, `Driver` interface, `GitOperations` via `WithGitOps()` | No real DB/FS/git |
 | **repository** | `sqlmock` package | No real database |
 | **driver** | N/A (tests real overlayfs in temp dirs) | Uses `t.TempDir()` |
 | **diff** | `CommandRunner` interface, `GitOperations` interface | No real commands |
@@ -331,14 +331,27 @@ func TestDiffModified(t *testing.T) {
 }
 ```
 
-**Service Tests with Git Mocks**:
+**Service Tests with Git Mocks** (FULLY IMPLEMENTED):
 ```go
 func TestApproveWithConflictCheck(t *testing.T) {
     mockGit := diff.NewMockGitOps()
+    mockGit.IsRepo = true
+    mockGit.CommitHash = "abc123"
     mockGit.ConflictResult = &diff.ConflictCheckResult{
         HasChanged: false,
     }
-    // Inject mockGit into service (future improvement)
+
+    svc := sandbox.NewService(mockRepo, mockDriver, cfg,
+        sandbox.WithGitOps(mockGit),  // Inject mock git operations
+    )
+
+    // All git operations are now mocked - no real git commands executed
+    result, err := svc.Approve(ctx, &types.ApprovalRequest{...})
+
+    // Verify git operations were called
+    if !mockGit.WasCalled("CheckForConflicts") {
+        t.Error("Expected CheckForConflicts to be called")
+    }
 }
 ```
 
@@ -512,13 +525,14 @@ type ValidationPolicy interface {
 ### 6. Service Options Pattern
 **File**: `api/internal/sandbox/service.go`
 
-The service now accepts functional options for injecting policies:
+The service now accepts functional options for injecting policies and git operations:
 
 ```go
 svc := sandbox.NewService(repo, drv, cfg,
     sandbox.WithApprovalPolicy(approvalPolicy),
     sandbox.WithAttributionPolicy(attributionPolicy),
     sandbox.WithValidationPolicy(validationPolicy),
+    sandbox.WithGitOps(gitOps),  // CRITICAL for test isolation
 )
 ```
 
@@ -527,33 +541,52 @@ svc := sandbox.NewService(repo, drv, cfg,
 - Easy to test with mock policies
 - Clear injection point for behavior customization
 
+### 7. Service GitOps Injection (IMPLEMENTED 2025-12-19)
+**File**: `api/internal/sandbox/service.go`
+
+The Service now has full test isolation for git operations via injected `GitOperations`:
+
+```go
+type Service struct {
+    // ... other fields
+    gitOps diff.GitOperations  // Injected for test isolation
+}
+```
+
+**What Changed**:
+- Added `gitOps` field to Service struct
+- Added `WithGitOps(g diff.GitOperations)` option
+- Updated all service methods to use `s.gitOps` instead of package-level functions:
+  - `Create` uses `s.gitOps.GetCommitHash()`
+  - `Approve` uses `s.gitOps.CheckForConflicts()`
+  - `CheckConflicts` uses `s.gitOps.CheckForConflicts()`
+  - `Rebase` uses `s.gitOps.GetCommitHash()` and `s.gitOps.GetChangedFilesSince()`
+  - `CommitPending` uses `s.gitOps.ReconcilePendingWithGit()`
+  - `GetCommitPreview` uses `s.gitOps.ReconcilePendingWithGit()`
+
+**Usage in Tests**:
+```go
+mockGit := diff.NewMockGitOps()
+mockGit.IsRepo = true
+mockGit.CommitHash = "abc123"
+mockGit.ConflictResult = &diff.ConflictCheckResult{HasChanged: false}
+
+svc := sandbox.NewService(mockRepo, mockDriver, cfg,
+    sandbox.WithGitOps(mockGit),
+)
+
+// Now all git operations are mocked - no real commands executed
+```
+
+**Test Safety Guarantees**:
+- NO real git commands are executed in tests
+- NO commits, branches, or modifications to the Vrooli repository
+- Fully deterministic test behavior
+- Fast test execution (no process spawning)
+
 ---
 
 ## Future Seam Candidates
-
-### High Priority (Test Isolation)
-
-1. **Service GitOps Injection** - The service layer currently calls package-level git functions directly. Add `GitOperations` interface injection to the service for full test isolation.
-
-   **Current** (not fully testable):
-   ```go
-   // In service.go - directly calls package-level functions
-   baseCommitHash, err := diff.GetGitCommitHash(ctx, projectRoot)
-   conflictCheck, err := diff.CheckForConflicts(ctx, sandbox, allChanges)
-   ```
-
-   **Target** (fully testable):
-   ```go
-   type Service struct {
-       gitOps diff.GitOperations  // Inject this
-   }
-
-   func NewService(repo, drv, cfg, gitOps diff.GitOperations) *Service {
-       return &Service{gitOps: gitOps}
-   }
-
-   // Then use s.gitOps.GetCommitHash() instead of diff.GetGitCommitHash()
-   ```
 
 ### Medium Priority (Observability)
 
@@ -572,6 +605,9 @@ svc := sandbox.NewService(repo, drv, cfg,
 
 | Date | Change | Impact |
 |------|--------|--------|
+| 2025-12-19 | **Injected GitOperations into Service** | Full test isolation - service no longer calls package-level git functions |
+| 2025-12-19 | Added `WithGitOps()` service option | Enables injecting MockGitOps in tests |
+| 2025-12-19 | Updated mockService in handlers_test.go | Added missing methods: GetPendingChanges, GetFileProvenance, GetCommitPreview, CommitPending |
 | 2025-12-19 | Added `CommandRunner` interface for external command isolation | Tests can now mock git/diff/patch commands |
 | 2025-12-19 | Added `GitOperations` interface for git operation abstraction | Service layer git calls can be mocked |
 | 2025-12-19 | Updated Generator and Patcher to use CommandRunner | Diff generation is now testable without real commands |
