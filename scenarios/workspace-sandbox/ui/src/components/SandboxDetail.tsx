@@ -188,7 +188,13 @@ export function SandboxDetail({
             <div>
               <CardTitle className="flex items-center gap-2">
                 <FolderOpen className="h-4 w-4" />
-                {sandbox.reservedPath || sandbox.scopePath || "/"}
+                {(() => {
+                  const reserved = sandbox.reservedPaths?.length
+                    ? sandbox.reservedPaths
+                    : [sandbox.reservedPath || sandbox.scopePath || "/"];
+                  const head = reserved[0] || "/";
+                  return reserved.length > 1 ? `${head} (+${reserved.length - 1})` : head;
+                })()}
               </CardTitle>
               <CardDescription className="font-mono text-xs mt-1">
                 {sandbox.id}
@@ -209,8 +215,24 @@ export function SandboxDetail({
             <MetadataRow
               icon={<FolderOpen className="h-3.5 w-3.5" />}
               label="Reserved"
-              value={sandbox.reservedPath || sandbox.scopePath || "Not specified"}
-              copyable={!!(sandbox.reservedPath || sandbox.scopePath)}
+              value={(() => {
+                const reserved = sandbox.reservedPaths?.length
+                  ? sandbox.reservedPaths
+                  : sandbox.reservedPath
+                  ? [sandbox.reservedPath]
+                  : sandbox.scopePath
+                  ? [sandbox.scopePath]
+                  : [];
+                if (reserved.length === 0) return "Not specified";
+                return reserved.join(", ");
+              })()}
+              copyable={
+                !!(
+                  (sandbox.reservedPaths && sandbox.reservedPaths.length > 0) ||
+                  sandbox.reservedPath ||
+                  sandbox.scopePath
+                )
+              }
             />
             <MetadataRow
               icon={<FolderOpen className="h-3.5 w-3.5" />}

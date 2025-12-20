@@ -99,7 +99,13 @@ function SandboxGroup({
                 <div className="flex items-center gap-2 min-w-0">
                   <FolderOpen className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
                   <span className="font-mono text-xs text-slate-200 truncate">
-                    {sandbox.reservedPath || sandbox.scopePath || "/"}
+                    {(() => {
+                      const reserved = sandbox.reservedPaths?.length
+                        ? sandbox.reservedPaths
+                        : [sandbox.reservedPath || sandbox.scopePath || "/"];
+                      const head = reserved[0] || "/";
+                      return reserved.length > 1 ? `${head} (+${reserved.length - 1})` : head;
+                    })()}
                   </span>
                 </div>
 

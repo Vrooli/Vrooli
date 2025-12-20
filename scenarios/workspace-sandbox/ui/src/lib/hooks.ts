@@ -54,12 +54,14 @@ export const queryKeys = {
   commitPreview: (projectRoot?: string) => ["commitPreview", projectRoot] as const,
 };
 
+const isTestEnv = import.meta.env.MODE === "test";
+
 // Health check
 export function useHealth() {
   return useQuery({
     queryKey: queryKeys.health,
     queryFn: fetchHealth,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: isTestEnv ? false : 30000, // Refetch every 30 seconds
   });
 }
 
@@ -97,7 +99,7 @@ export function useSandboxes(filter?: ListFilter) {
   return useQuery({
     queryKey: queryKeys.sandboxes(filter),
     queryFn: () => listSandboxes(filter),
-    refetchInterval: 10000, // Refetch every 10 seconds for live updates
+    refetchInterval: isTestEnv ? false : 10000, // Refetch every 10 seconds for live updates
   });
 }
 

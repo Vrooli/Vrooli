@@ -76,7 +76,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	sandboxes := cliapp.CommandGroup{
 		Title: "Sandbox Operations",
 		Commands: []cliapp.Command{
-			{Name: "create", NeedsAPI: true, Description: "Create a new sandbox (--scope=PATH [--reserved=PATH] [--project=DIR] [--owner=ID])", Run: a.cmdCreate},
+			{Name: "create", NeedsAPI: true, Description: "Create a new sandbox ([--project=DIR] [--scope=PATH] [--reserve=PATH ...] [--owner=ID])", Run: a.cmdCreate},
 			{Name: "list", NeedsAPI: true, Description: "List sandboxes ([--status=STATUS] [--owner=ID] [--json])", Run: a.cmdList},
 			{Name: "inspect", NeedsAPI: true, Description: "Show sandbox details", Run: a.cmdInspect},
 			{Name: "stop", NeedsAPI: true, Description: "Stop a sandbox (unmount but preserve)", Run: a.cmdStop},
@@ -218,6 +218,7 @@ type sandboxResponse struct {
 	ID           string    `json:"id"`
 	ScopePath    string    `json:"scopePath"`
 	ReservedPath string    `json:"reservedPath"`
+	ReservedPaths []string `json:"reservedPaths,omitempty"`
 	ProjectRoot  string    `json:"projectRoot"`
 	Owner        string    `json:"owner,omitempty"`
 	Status       string    `json:"status"`
@@ -294,7 +295,8 @@ func (a *App) cmdStatus(_ []string) error {
 }
 
 func (a *App) cmdCreate(args []string) error {
-	var scope, reserved, project, owner string
+	var scope, project, owner string
+	var reservedPaths []string
 
 	for _, arg := range args {
 		switch {
@@ -302,10 +304,23 @@ func (a *App) cmdCreate(args []string) error {
 			scope = strings.TrimPrefix(arg, "--scope=")
 		case strings.HasPrefix(arg, "-s="):
 			scope = strings.TrimPrefix(arg, "-s=")
+		case strings.HasPrefix(arg, "--reserve="):
+			reservedPaths = append(reservedPaths, strings.TrimPrefix(arg, "--reserve="))
 		case strings.HasPrefix(arg, "--reserved="):
-			reserved = strings.TrimPrefix(arg, "--reserved=")
+			// Backwards compatible alias for --reserve.
+			reservedPaths = append(reservedPaths, strings.TrimPrefix(arg, "--reserved="))
 		case strings.HasPrefix(arg, "-r="):
-			reserved = strings.TrimPrefix(arg, "-r=")
+			// Backwards compatible alias for --reserve.
+			reservedPaths = append(reservedPaths, strings.TrimPrefix(arg, "-r="))
+		case strings.HasPrefix(arg, "--reserved-paths="):
+			// Comma-separated convenience: --reserved-paths=/a,/b
+			raw := strings.TrimPrefix(arg, "--reserved-paths=")
+			for _, p := range strings.Split(raw, ",") {
+				p = strings.TrimSpace(p)
+				if p != "" {
+					reservedPaths = append(reservedPaths, p)
+				}
+			}
 		case strings.HasPrefix(arg, "--project="):
 			project = strings.TrimPrefix(arg, "--project=")
 		case strings.HasPrefix(arg, "-p="):
@@ -317,15 +332,22 @@ func (a *App) cmdCreate(args []string) error {
 		}
 	}
 
-	if scope == "" {
-		return fmt.Errorf("usage: workspace-sandbox create --scope=PATH [--reserved=PATH] [--project=DIR] [--owner=ID]")
+	if scope == "" && project == "" {
+		// Default full-repo mount: omit scopePath and let the server default projectRoot + scopePath.
+		// If the server has no default, it will return a validation error with guidance.
+	} else if scope == "" {
+		// Default mount scope to the project root, enabling copy-on-write changes anywhere in the project.
+		scope = project
 	}
 
-	reqBody := map[string]interface{}{
-		"scopePath": scope,
+	reqBody := map[string]interface{}{}
+	if scope != "" {
+		reqBody["scopePath"] = scope
 	}
-	if reserved != "" {
-		reqBody["reservedPath"] = reserved
+	if len(reservedPaths) > 0 {
+		// Server expects both for backwards compatibility; it prefers reservedPaths when present.
+		reqBody["reservedPath"] = reservedPaths[0]
+		reqBody["reservedPaths"] = reservedPaths
 	}
 	if project != "" {
 		reqBody["projectRoot"] = project
@@ -347,7 +369,14 @@ func (a *App) cmdCreate(args []string) error {
 	fmt.Printf("Created sandbox: %s\n", sb.ID)
 	fmt.Printf("Status: %s\n", sb.Status)
 	fmt.Printf("Scope: %s\n", sb.ScopePath)
-	if sb.ReservedPath != "" && sb.ReservedPath != sb.ScopePath {
+	if len(sb.ReservedPaths) > 0 {
+		head := sb.ReservedPaths[0]
+		if len(sb.ReservedPaths) > 1 {
+			fmt.Printf("Reserved: %s (+%d)\n", head, len(sb.ReservedPaths)-1)
+		} else if head != "" && head != sb.ScopePath {
+			fmt.Printf("Reserved: %s\n", head)
+		}
+	} else if sb.ReservedPath != "" && sb.ReservedPath != sb.ScopePath {
 		fmt.Printf("Reserved: %s\n", sb.ReservedPath)
 	}
 	if sb.MergedDir != "" {

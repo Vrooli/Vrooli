@@ -39,6 +39,18 @@ EXCEPTION
 END $$;
 
 -- ============================================================================
+-- SCHEMA EVOLUTION (idempotent)
+-- ============================================================================
+
+-- Add reserved_paths (multi-reserve) if missing.
+DO $$ BEGIN
+    ALTER TABLE sandboxes
+        ADD COLUMN IF NOT EXISTS reserved_paths TEXT[] DEFAULT '{}';
+EXCEPTION
+    WHEN undefined_table THEN NULL;
+END $$;
+
+-- ============================================================================
 -- SANDBOXES TABLE
 -- ============================================================================
 -- Core table storing sandbox metadata and mount configuration
@@ -143,15 +155,15 @@ CREATE INDEX IF NOT EXISTS idx_audit_event_type ON sandbox_audit_log(event_type)
 -- ============================================================================
 -- SCOPE OVERLAP CHECKING FUNCTION
 -- ============================================================================
--- This function checks if a new scope path overlaps with any existing active sandbox
--- by checking ancestor/descendant relationships.
+-- This function checks if a new reserved path overlaps with any existing sandbox's
+-- reserved paths by checking ancestor/descendant relationships.
 --
 -- Overlap types:
 --   - 'exact': Same path
 --   - 'new_is_ancestor': New path is parent of existing
 --   - 'existing_is_ancestor': Existing path is parent of new
 --
--- Only checks against active sandboxes (creating, active status)
+-- Checks against sandboxes that still "reserve" work (creating, active, stopped)
 CREATE OR REPLACE FUNCTION check_scope_overlap(
     p_scope_path TEXT,
     p_project_root TEXT,
@@ -166,12 +178,18 @@ BEGIN
     RETURN QUERY
     SELECT
         s.id,
-        s.scope_path,
+        existing_prefix,
         s.status
-    FROM sandboxes s
+    FROM sandboxes s,
+         LATERAL unnest(
+            CASE
+                WHEN s.reserved_paths IS NOT NULL AND array_length(s.reserved_paths, 1) > 0 THEN s.reserved_paths
+                ELSE ARRAY[COALESCE(s.reserved_path, s.scope_path)]
+            END
+         ) AS existing_prefix
     WHERE
-        -- Only check active sandboxes
-        s.status IN ('creating', 'active')
+        -- Only check sandboxes that still reserve work
+        s.status IN ('creating', 'active', 'stopped')
         -- Same project root
         AND s.project_root = p_project_root
         -- Exclude specified ID if provided
@@ -179,11 +197,11 @@ BEGIN
         -- Check for path overlap (exact match or ancestor/descendant)
         AND (
             -- Exact match
-            s.scope_path = p_scope_path
+            existing_prefix = p_scope_path
             -- New path is ancestor of existing (existing starts with new + /)
-            OR s.scope_path LIKE (p_scope_path || '/%')
+            OR existing_prefix LIKE (p_scope_path || '/%')
             -- Existing is ancestor of new (new starts with existing + /)
-            OR p_scope_path LIKE (s.scope_path || '/%')
+            OR p_scope_path LIKE (existing_prefix || '/%')
         );
 END;
 $$ LANGUAGE plpgsql STABLE;

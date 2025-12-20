@@ -228,9 +228,14 @@ export default function App() {
 
   // Extract existing reserved paths from active sandboxes for conflict detection
   const existingReservedPaths = useMemo(() => {
-    return sandboxes
-      .filter((sb) => sb.status === "active" || sb.status === "creating")
-      .map((sb) => sb.reservedPath || sb.scopePath);
+    const paths = new Set<string>();
+    sandboxes
+      .filter((sb) => sb.status === "active" || sb.status === "creating" || sb.status === "stopped")
+      .forEach((sb) => {
+        const reserved = sb.reservedPaths?.length ? sb.reservedPaths : [sb.reservedPath || sb.scopePath];
+        reserved.forEach((p) => p && paths.add(p));
+      });
+    return Array.from(paths);
   }, [sandboxes]);
 
   return (

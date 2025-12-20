@@ -108,11 +108,23 @@ func FindConflicts(newScope string, existingSandboxes []*types.Sandbox) []types.
 			continue
 		}
 
-		conflictType := types.CheckPathOverlap(s.ScopePath, newScope)
-		if conflictType != "" {
+		existing := make([]string, 0, 1)
+		if len(s.ReservedPaths) > 0 {
+			existing = append(existing, s.ReservedPaths...)
+		} else if s.ReservedPath != "" {
+			existing = append(existing, s.ReservedPath)
+		} else if s.ScopePath != "" {
+			existing = append(existing, s.ScopePath)
+		}
+
+		for _, existingPrefix := range existing {
+			conflictType := types.CheckPathOverlap(existingPrefix, newScope)
+			if conflictType == "" {
+				continue
+			}
 			conflicts = append(conflicts, types.PathConflict{
 				ExistingID:    s.ID.String(),
-				ExistingScope: s.ScopePath,
+				ExistingScope: existingPrefix,
 				NewScope:      newScope,
 				ConflictType:  conflictType,
 			})

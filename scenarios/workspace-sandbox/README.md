@@ -4,7 +4,7 @@ Fast, storage-efficient, copy-on-write workspaces for running agents and tools a
 
 ## What It Is
 
-workspace-sandbox creates isolated writable views of a chosen path scope within a repository, captures all changes as diffs, and supports an approval workflow to selectively apply those changes back to the real repo via controlled patch application.
+workspace-sandbox creates fast, copy-on-write workspaces over a project directory, captures all changes as diffs, and supports an approval workflow to selectively apply changes back to the canonical repo via a controlled patch process.
 
 **Key Capabilities:**
 - Create sandboxes in ~1-2 seconds with overlayfs copy-on-write
@@ -37,8 +37,14 @@ vrooli scenario start workspace-sandbox
 ### CLI Commands
 
 ```bash
-# Create a new sandbox for a path
-workspace-sandbox create --scope /path/to/scope
+# Create a new sandbox (defaults to mounting the full project root configured on the server)
+# Reserve one or more paths to (1) avoid overlap with other sandboxes, and (2) set the default approval allowlist.
+workspace-sandbox create --reserve /path/to/project/scenarios/my-scenario
+workspace-sandbox create --reserve /path/to/project/scenarios/a --reserve /path/to/project/packages/b
+
+# Optional: explicitly set the project root and/or mount scope
+workspace-sandbox create --project /path/to/project --reserve /path/to/project/scenarios/my-scenario
+workspace-sandbox create --project /path/to/project --scope /path/to/project --reserve /path/to/project/scenarios/my-scenario
 
 # List active sandboxes
 workspace-sandbox list
@@ -118,7 +124,14 @@ Access at `http://localhost:<UI_PORT>` after starting the scenario.
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Key insight:** The overlay mount is only visible inside the user namespace. All sandbox operations (exec, diff, approve) go through the API, which runs inside the namespace and can access the mounted filesystem.
+**Key insight:** The overlay mount is only visible inside the user namespace when using the kernel overlayfs + userns driver. When using the FUSE Overlayfs driver, the merged directory is directly accessible on the host. In both cases, approvals default to the reserved path allowlist.
+
+## Scope vs Reserved Paths
+
+The sandbox has two distinct path concepts:
+
+- **Scope (mount scope):** The copy-on-write view that the agent sees. By default this is the full project root, so agents can modify any file in the repo without touching the canonical checkout.
+- **Reserved paths (allowlist + conflict lock):** One or more prefixes used to prevent overlapping sandboxes and to define the default approval filter. Changes outside reserved paths are ignored unless you explicitly include them or approve all.
 
 ### Process Isolation
 
@@ -195,7 +208,7 @@ If you see "falling back to copy driver", check:
 2. **Build artifacts**: node_modules, build caches grow sandbox size rapidly
 3. **Long-lived sandboxes**: Changes accumulate; prefer ephemeral use
 4. **Git operations**: stash/commit/checkout/clean/reset blocked by safe-git wrapper
-5. **Namespace isolation**: Overlay mounts are only visible inside the API's user namespace; use the exec API for running commands in sandboxes
+5. **Namespace isolation**: With kernel overlayfs + userns, overlay mounts are only visible inside the API's user namespace; use the exec API for running commands in sandboxes. With FUSE Overlayfs, the merged dir is host-visible.
 
 ## Testing
 

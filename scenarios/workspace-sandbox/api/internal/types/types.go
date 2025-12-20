@@ -28,11 +28,15 @@
 //
 // # Mutual Exclusion Rule
 //
-// Two sandboxes cannot have scopes that overlap. This prevents:
-//   - A child sandbox from being affected by changes in a parent scope
-//   - A parent sandbox from overwriting changes made in a child scope
+// Two sandboxes cannot have overlapping reserved directories. This prevents:
+//   - Two agents working on the same subtree at once (conflicts/collisions)
+//   - Approval ambiguity when multiple sandboxes propose changes to the same area
 //
-// The ConflictType enum describes the relationship when scopes overlap.
+// Note: ScopePath controls what is mounted copy-on-write. ReservedPath(s) controls:
+//
+//	(1) mutual exclusion/locking, and (2) the default approval allowlist.
+//
+// The ConflictType enum describes the relationship when reserved paths overlap.
 //
 // # Safety Model
 //
@@ -81,19 +85,20 @@ const (
 
 // Sandbox represents a workspace sandbox with all its metadata.
 type Sandbox struct {
-	ID           uuid.UUID  `json:"id" db:"id"`
-	ScopePath    string     `json:"scopePath" db:"scope_path"`
-	ReservedPath string     `json:"reservedPath" db:"reserved_path"`
-	ProjectRoot  string     `json:"projectRoot" db:"project_root"`
-	Owner        string     `json:"owner,omitempty" db:"owner"`
-	OwnerType    OwnerType  `json:"ownerType" db:"owner_type"`
-	Status       Status     `json:"status" db:"status"`
-	ErrorMsg     string     `json:"errorMessage,omitempty" db:"error_message"`
-	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
-	LastUsedAt   time.Time  `json:"lastUsedAt" db:"last_used_at"`
-	StoppedAt    *time.Time `json:"stoppedAt,omitempty" db:"stopped_at"`
-	ApprovedAt   *time.Time `json:"approvedAt,omitempty" db:"approved_at"`
-	DeletedAt    *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`
+	ID            uuid.UUID  `json:"id" db:"id"`
+	ScopePath     string     `json:"scopePath" db:"scope_path"`
+	ReservedPath  string     `json:"reservedPath" db:"reserved_path"`
+	ReservedPaths []string   `json:"reservedPaths,omitempty" db:"reserved_paths"`
+	ProjectRoot   string     `json:"projectRoot" db:"project_root"`
+	Owner         string     `json:"owner,omitempty" db:"owner"`
+	OwnerType     OwnerType  `json:"ownerType" db:"owner_type"`
+	Status        Status     `json:"status" db:"status"`
+	ErrorMsg      string     `json:"errorMessage,omitempty" db:"error_message"`
+	CreatedAt     time.Time  `json:"createdAt" db:"created_at"`
+	LastUsedAt    time.Time  `json:"lastUsedAt" db:"last_used_at"`
+	StoppedAt     *time.Time `json:"stoppedAt,omitempty" db:"stopped_at"`
+	ApprovedAt    *time.Time `json:"approvedAt,omitempty" db:"approved_at"`
+	DeletedAt     *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`
 
 	// Driver configuration
 	Driver        string `json:"driver" db:"driver"`
@@ -181,13 +186,14 @@ type AuditEvent struct {
 //
 // If no IdempotencyKey is provided, each request creates a new sandbox.
 type CreateRequest struct {
-	ScopePath    string                 `json:"scopePath"`
-	ReservedPath string                 `json:"reservedPath,omitempty"`
-	ProjectRoot  string                 `json:"projectRoot,omitempty"`
-	Owner        string                 `json:"owner,omitempty"`
-	OwnerType    OwnerType              `json:"ownerType,omitempty"`
-	Tags         []string               `json:"tags,omitempty"`
-	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	ScopePath     string                 `json:"scopePath"`
+	ReservedPath  string                 `json:"reservedPath,omitempty"`
+	ReservedPaths []string               `json:"reservedPaths,omitempty"`
+	ProjectRoot   string                 `json:"projectRoot,omitempty"`
+	Owner         string                 `json:"owner,omitempty"`
+	OwnerType     OwnerType              `json:"ownerType,omitempty"`
+	Tags          []string               `json:"tags,omitempty"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 
 	// IdempotencyKey is an optional client-provided key for request deduplication.
 	// If provided and a sandbox was already created with this key, that sandbox

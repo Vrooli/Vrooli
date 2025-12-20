@@ -20,6 +20,7 @@ export interface Sandbox {
   id: string;
   scopePath: string;
   reservedPath: string;
+  reservedPaths?: string[];
   projectRoot: string;
   owner?: string;
   ownerType: OwnerType;
@@ -157,6 +158,7 @@ export interface DiscardResult {
 export interface CreateRequest {
   scopePath: string;
   reservedPath?: string;
+  reservedPaths?: string[];
   projectRoot?: string;
   owner?: string;
   ownerType?: OwnerType;

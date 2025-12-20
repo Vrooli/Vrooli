@@ -43,7 +43,8 @@ Before diving into the architecture, let's establish some key terms:
 | Term | Definition |
 |------|------------|
 | **Sandbox** | An isolated workspace where an agent can read/write files without affecting the original |
-| **Scope** | The directory being sandboxed (e.g., `scenarios/my-project`) |
+| **Scope (Mount Scope)** | The directory that is mounted copy-on-write. Default is the full project root so agents can modify any file without touching the canonical repo. |
+| **Reserved Paths** | One or more path prefixes used for mutual exclusion (prevent overlapping sandboxes) and as the default approval allowlist. Must live within the scope. |
 | **Upper Layer** | Where all changes (new/modified files) are stored |
 | **Lower Layer** | The original files (read-only) |
 | **Merged View** | The combined view where upper overlays lower |

@@ -21,7 +21,8 @@ CREATE TABLE sandboxes (
 
     -- Scope configuration
     scope_path TEXT NOT NULL,           -- Normalized absolute path within project
-    reserved_path TEXT,                 -- Reserved subtree for mutual exclusion + default approval (defaults to scope_path)
+    reserved_path TEXT,                 -- Back-compat primary reserved subtree (defaults to scope_path)
+    reserved_paths TEXT[] DEFAULT '{}', -- Reserved subtrees for mutual exclusion + default approval (if empty, fall back to reserved_path/scope_path)
     project_root TEXT NOT NULL,         -- Project root directory
 
     -- Ownership and attribution
@@ -179,17 +180,23 @@ CREATE OR REPLACE FUNCTION check_scope_overlap(
 ) RETURNS TABLE(id UUID, scope_path TEXT, status sandbox_status) AS $$
 BEGIN
     RETURN QUERY
-    SELECT s.id, COALESCE(s.reserved_path, s.scope_path), s.status
-    FROM sandboxes s
+    SELECT s.id, existing_prefix, s.status
+    FROM sandboxes s,
+         LATERAL unnest(
+            CASE
+                WHEN s.reserved_paths IS NOT NULL AND array_length(s.reserved_paths, 1) > 0 THEN s.reserved_paths
+                ELSE ARRAY[COALESCE(s.reserved_path, s.scope_path)]
+            END
+         ) AS existing_prefix
     WHERE s.project_root = new_project
-      AND s.status IN ('creating', 'active')
+      AND s.status IN ('creating', 'active', 'stopped')
       AND (exclude_id IS NULL OR s.id != exclude_id)
       AND (
           -- new_scope is ancestor of existing reserved scope
-          COALESCE(s.reserved_path, s.scope_path) LIKE new_scope || '/%'
-          OR COALESCE(s.reserved_path, s.scope_path) = new_scope
+          existing_prefix LIKE new_scope || '/%'
+          OR existing_prefix = new_scope
           -- existing reserved scope is ancestor of new_scope
-          OR new_scope LIKE COALESCE(s.reserved_path, s.scope_path) || '/%'
+          OR new_scope LIKE existing_prefix || '/%'
       );
 END;
 $$ LANGUAGE plpgsql;

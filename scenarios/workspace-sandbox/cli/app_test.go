@@ -239,6 +239,7 @@ func TestCreateArgumentParsing(t *testing.T) {
 		scope   string
 		project string
 		owner   string
+		reserve []string
 	}{
 		{
 			name:  "scope with --scope=",
@@ -252,29 +253,60 @@ func TestCreateArgumentParsing(t *testing.T) {
 		},
 		{
 			name:    "all arguments",
-			args:    []string{"--scope=/src", "--project=/root", "--owner=user-1"},
+			args:    []string{"--scope=/src", "--project=/root", "--owner=user-1", "--reserve=/root/scenarios/a"},
 			scope:   "/src",
 			project: "/root",
 			owner:   "user-1",
+			reserve: []string{"/root/scenarios/a"},
 		},
 		{
 			name:    "short flags",
-			args:    []string{"-s=/src", "-p=/root", "-o=user-1"},
+			args:    []string{"-s=/src", "-p=/root", "-o=user-1", "-r=/root/scenarios/a"},
 			scope:   "/src",
 			project: "/root",
 			owner:   "user-1",
+			reserve: []string{"/root/scenarios/a"},
+		},
+		{
+			name:    "default scope to project root when scope omitted",
+			args:    []string{"--project=/root", "--reserve=/root/scenarios/a"},
+			scope:   "/root",
+			project: "/root",
+			reserve: []string{"/root/scenarios/a"},
+		},
+		{
+			name:    "reserved-paths comma separated",
+			args:    []string{"--project=/root", "--reserved-paths=/root/a,/root/b"},
+			scope:   "/root",
+			project: "/root",
+			reserve: []string{"/root/a", "/root/b"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var scope, project, owner string
+			var reservedPaths []string
 			for _, arg := range tt.args {
 				switch {
 				case strings.HasPrefix(arg, "--scope="):
 					scope = strings.TrimPrefix(arg, "--scope=")
 				case strings.HasPrefix(arg, "-s="):
 					scope = strings.TrimPrefix(arg, "-s=")
+				case strings.HasPrefix(arg, "--reserve="):
+					reservedPaths = append(reservedPaths, strings.TrimPrefix(arg, "--reserve="))
+				case strings.HasPrefix(arg, "--reserved="):
+					reservedPaths = append(reservedPaths, strings.TrimPrefix(arg, "--reserved="))
+				case strings.HasPrefix(arg, "-r="):
+					reservedPaths = append(reservedPaths, strings.TrimPrefix(arg, "-r="))
+				case strings.HasPrefix(arg, "--reserved-paths="):
+					raw := strings.TrimPrefix(arg, "--reserved-paths=")
+					for _, p := range strings.Split(raw, ",") {
+						p = strings.TrimSpace(p)
+						if p != "" {
+							reservedPaths = append(reservedPaths, p)
+						}
+					}
 				case strings.HasPrefix(arg, "--project="):
 					project = strings.TrimPrefix(arg, "--project=")
 				case strings.HasPrefix(arg, "-p="):
@@ -285,6 +317,11 @@ func TestCreateArgumentParsing(t *testing.T) {
 					owner = strings.TrimPrefix(arg, "-o=")
 				}
 			}
+
+			if scope == "" && project != "" {
+				scope = project
+			}
+
 			if scope != tt.scope {
 				t.Errorf("scope = %q, want %q", scope, tt.scope)
 			}
@@ -293,6 +330,11 @@ func TestCreateArgumentParsing(t *testing.T) {
 			}
 			if owner != tt.owner {
 				t.Errorf("owner = %q, want %q", owner, tt.owner)
+			}
+			if tt.reserve != nil {
+				if strings.Join(reservedPaths, ",") != strings.Join(tt.reserve, ",") {
+					t.Errorf("reserve = %q, want %q", reservedPaths, tt.reserve)
+				}
 			}
 		})
 	}

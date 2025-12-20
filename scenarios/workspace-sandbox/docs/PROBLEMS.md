@@ -109,8 +109,8 @@ The following issues were addressed in the 2025-12-16 Idempotency & Temporal Flo
 3. **Concurrent modification detection**: ✓ ADDRESSED - Added optimistic locking with version field.
    Updates check version; ConcurrentModificationError on conflict.
 
-4. **Scope overlap race condition**: ✓ ADDRESSED - TxRepository uses FOR UPDATE to lock during overlap check.
-   Prevents two sandboxes from being created with overlapping scopes simultaneously.
+4. **Reserved path overlap race condition**: ✓ ADDRESSED - TxRepository uses FOR UPDATE to lock during overlap check.
+   Prevents two sandboxes from being created with overlapping reserved paths simultaneously.
 
 ### Technical Debt to Address
 

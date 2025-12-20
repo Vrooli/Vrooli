@@ -370,9 +370,33 @@ func resolveDatabaseURL(cfg config.DatabaseConfig) (string, error) {
 // ensureSchema runs automatic migrations to ensure required tables exist.
 // This is idempotent and safe to run on every startup.
 func ensureSchema(db *sql.DB) error {
+	// Ensure core schema exists (sandboxes table).
+	var sandboxesExists bool
+	err := db.QueryRow(`
+		SELECT EXISTS (
+			SELECT FROM information_schema.tables
+			WHERE table_name = 'sandboxes'
+		)
+	`).Scan(&sandboxesExists)
+	if err != nil {
+		return fmt.Errorf("failed to check sandboxes table: %w", err)
+	}
+
+	if !sandboxesExists {
+		log.Println("running migration: initializing workspace-sandbox schema")
+		schemaSQL, err := loadSchemaSQL()
+		if err != nil {
+			return fmt.Errorf("failed to load schema.sql: %w", err)
+		}
+		if _, err := db.Exec(schemaSQL); err != nil {
+			return fmt.Errorf("failed to apply schema.sql: %w", err)
+		}
+		log.Println("migration complete: schema.sql applied")
+	}
+
 	// Check if applied_changes table exists
 	var exists bool
-	err := db.QueryRow(`
+	err = db.QueryRow(`
 		SELECT EXISTS (
 			SELECT FROM information_schema.tables
 			WHERE table_name = 'applied_changes'
@@ -417,9 +441,23 @@ func ensureSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to add reserved_path column: %w", err)
 	}
 
+	// Add reserved_paths array for multi-reserve support (idempotent).
+	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS reserved_paths TEXT[] DEFAULT '{}'`); err != nil {
+		return fmt.Errorf("failed to add reserved_paths column: %w", err)
+	}
+
 	// Backfill reserved_path for existing rows to preserve legacy behavior.
 	if _, err := db.Exec(`UPDATE sandboxes SET reserved_path = scope_path WHERE reserved_path IS NULL`); err != nil {
 		return fmt.Errorf("failed to backfill reserved_path: %w", err)
+	}
+
+	// Backfill reserved_paths when empty or NULL to align with reserved_path/scope_path.
+	if _, err := db.Exec(`
+		UPDATE sandboxes
+		SET reserved_paths = ARRAY[COALESCE(reserved_path, scope_path)]
+		WHERE reserved_paths IS NULL OR array_length(reserved_paths, 1) IS NULL OR array_length(reserved_paths, 1) = 0
+	`); err != nil {
+		return fmt.Errorf("failed to backfill reserved_paths: %w", err)
 	}
 
 	// Index for reserved_path overlap queries and UI filtering.
@@ -427,7 +465,7 @@ func ensureSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to create idx_sandboxes_reserved_path: %w", err)
 	}
 
-	// Update overlap check function to use reserved_path when present.
+	// Update overlap check function to use reserved_paths when present.
 	// Note: We keep the function name/signature for backwards compatibility.
 	if _, err := db.Exec(`
 		CREATE OR REPLACE FUNCTION check_scope_overlap(
@@ -437,15 +475,21 @@ func ensureSchema(db *sql.DB) error {
 		) RETURNS TABLE(id UUID, scope_path TEXT, status sandbox_status) AS $$
 		BEGIN
 			RETURN QUERY
-			SELECT s.id, COALESCE(s.reserved_path, s.scope_path), s.status
-			FROM sandboxes s
+			SELECT s.id, existing_prefix, s.status
+			FROM sandboxes s,
+			     LATERAL unnest(
+			        CASE
+			            WHEN s.reserved_paths IS NOT NULL AND array_length(s.reserved_paths, 1) > 0 THEN s.reserved_paths
+			            ELSE ARRAY[COALESCE(s.reserved_path, s.scope_path)]
+			        END
+			     ) AS existing_prefix
 			WHERE s.project_root = new_project
 			  AND s.status IN ('creating', 'active')
 			  AND (exclude_id IS NULL OR s.id != exclude_id)
 			  AND (
-			      COALESCE(s.reserved_path, s.scope_path) LIKE new_scope || '/%'
-			      OR COALESCE(s.reserved_path, s.scope_path) = new_scope
-			      OR new_scope LIKE COALESCE(s.reserved_path, s.scope_path) || '/%'
+			      existing_prefix LIKE new_scope || '/%'
+			      OR existing_prefix = new_scope
+			      OR new_scope LIKE existing_prefix || '/%'
 			  );
 		END;
 		$$ LANGUAGE plpgsql;
@@ -454,6 +498,34 @@ func ensureSchema(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func loadSchemaSQL() (string, error) {
+	candidates := []string{}
+
+	if root := os.Getenv("VROOLI_ROOT"); root != "" {
+		candidates = append(candidates, filepath.Join(root, "scenarios", "workspace-sandbox", "initialization", "postgres", "schema.sql"))
+	}
+
+	if cwd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(cwd, "initialization", "postgres", "schema.sql"))
+		candidates = append(candidates, filepath.Join(cwd, "scenarios", "workspace-sandbox", "initialization", "postgres", "schema.sql"))
+	}
+
+	for _, path := range candidates {
+		if path == "" {
+			continue
+		}
+		if _, err := os.Stat(path); err == nil {
+			bytes, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return "", readErr
+			}
+			return string(bytes), nil
+		}
+	}
+
+	return "", fmt.Errorf("schema.sql not found (checked %s)", strings.Join(candidates, ", "))
 }
 
 func main() {

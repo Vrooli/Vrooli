@@ -214,13 +214,13 @@ func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.
 	}
 
 	// Validate and normalize the request
-	projectRoot, normalizedScopePath, normalizedReservedPath, err := s.validateCreateRequest(ctx, req)
+	projectRoot, normalizedScopePath, normalizedReservedPaths, err := s.validateCreateRequest(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create and mount the sandbox
-	return s.createAndMountSandbox(ctx, req, projectRoot, normalizedScopePath, normalizedReservedPath)
+	return s.createAndMountSandbox(ctx, req, projectRoot, normalizedScopePath, normalizedReservedPaths)
 }
 
 // checkIdempotency checks if a sandbox was already created with the given idempotency key.
@@ -244,16 +244,16 @@ func (s *Service) checkIdempotency(ctx context.Context, req *types.CreateRequest
 }
 
 // validateCreateRequest validates the create request and returns the resolved project root,
-// normalized scope path (mount scope), and normalized reserved path (mutual exclusion + default approval).
+// normalized scope path (mount scope), and normalized reserved paths (mutual exclusion + default approval).
 // Returns an error if validation fails.
-func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRequest) (string, string, string, error) {
+func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRequest) (string, string, []string, error) {
 	// Resolve project root from request or config
 	projectRoot := req.ProjectRoot
 	if projectRoot == "" {
 		projectRoot = s.config.DefaultProjectRoot
 	}
 	if projectRoot == "" {
-		return "", "", "", types.NewValidationErrorWithHint(
+		return "", "", nil, types.NewValidationErrorWithHint(
 			"projectRoot",
 			"project root is required but not provided",
 			"Set projectRoot in the request body, or configure PROJECT_ROOT environment variable",
@@ -263,58 +263,122 @@ func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRe
 	// Validate and normalize scope path (mount scope)
 	normalizedScopePath, err := ValidateScopePath(req.ScopePath, projectRoot)
 	if err != nil {
-		return "", "", "", types.NewValidationErrorWithHint(
+		return "", "", nil, types.NewValidationErrorWithHint(
 			"scopePath",
 			fmt.Sprintf("invalid scope path: %v", err),
 			"Ensure the path exists within the project root and contains no invalid characters",
 		)
 	}
 
-	// Validate and normalize reserved path (defaults to scope path for backwards compatibility)
-	reserved := req.ReservedPath
-	if reserved == "" {
-		reserved = normalizedScopePath
-	}
-	normalizedReservedPath, err := ValidateScopePath(reserved, projectRoot)
-	if err != nil {
-		return "", "", "", types.NewValidationErrorWithHint(
-			"reservedPath",
-			fmt.Sprintf("invalid reserved path: %v", err),
-			"Ensure the reserved path exists within the project root and contains no invalid characters",
-		)
+	// Determine reserved paths (defaults to scope path for backwards compatibility)
+	rawReservedPaths := req.ReservedPaths
+	if len(rawReservedPaths) == 0 {
+		if strings.TrimSpace(req.ReservedPath) != "" {
+			rawReservedPaths = []string{req.ReservedPath}
+		} else {
+			rawReservedPaths = []string{normalizedScopePath}
+		}
 	}
 
-	// Ensure reservedPath is within the mount scope. Otherwise approvals could never apply.
-	// This also keeps mutual exclusion semantics meaningful.
+	normalizedReservedPaths := make([]string, 0, len(rawReservedPaths))
+	fieldName := "reservedPaths"
+	if len(req.ReservedPaths) == 0 {
+		fieldName = "reservedPath"
+	}
+
 	cleanScope := filepath.Clean(normalizedScopePath)
-	cleanReserved := filepath.Clean(normalizedReservedPath)
-	if cleanReserved != cleanScope && !strings.HasPrefix(cleanReserved, cleanScope+string(filepath.Separator)) {
-		return "", "", "", types.NewValidationErrorWithHint(
-			"reservedPath",
-			"reserved path must be within scope path",
-			"Set scopePath to the project root (full-repo mount), or choose a reservedPath inside the scopePath",
-		)
+
+	// Normalize, validate, dedupe, and prune redundant reserved paths.
+	// Rules:
+	// - Each reserved path must be within project root and within the mount scope.
+	// - Descendants of an already-reserved prefix are redundant and are skipped.
+	// - If a new prefix is an ancestor of existing reserved prefixes, it replaces them.
+	for _, raw := range rawReservedPaths {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+
+		normalized, err := ValidateScopePath(raw, projectRoot)
+		if err != nil {
+			return "", "", nil, types.NewValidationErrorWithHint(
+				fieldName,
+				fmt.Sprintf("invalid reserved path: %v", err),
+				"Ensure reserved paths exist within the project root and contain no invalid characters",
+			)
+		}
+
+		cleanReserved := filepath.Clean(normalized)
+		// Ensure reservedPath is within the mount scope. Otherwise approvals could never apply.
+		if cleanReserved != cleanScope && !strings.HasPrefix(cleanReserved, cleanScope+string(filepath.Separator)) {
+			return "", "", nil, types.NewValidationErrorWithHint(
+				fieldName,
+				"reserved path must be within scope path",
+				"Set scopePath to the project root (full-repo mount), or choose reservedPaths inside the scopePath",
+			)
+		}
+
+		// Skip if redundant (already within an existing reserved prefix).
+		redundant := false
+		for _, kept := range normalizedReservedPaths {
+			cleanKept := filepath.Clean(kept)
+			if cleanReserved == cleanKept || strings.HasPrefix(cleanReserved, cleanKept+string(filepath.Separator)) {
+				redundant = true
+				break
+			}
+		}
+		if redundant {
+			continue
+		}
+
+		// Remove any existing prefixes that are children of the new prefix.
+		pruned := normalizedReservedPaths[:0]
+		for _, kept := range normalizedReservedPaths {
+			cleanKept := filepath.Clean(kept)
+			if cleanKept == cleanReserved || strings.HasPrefix(cleanKept, cleanReserved+string(filepath.Separator)) {
+				continue
+			}
+			pruned = append(pruned, kept)
+		}
+		normalizedReservedPaths = pruned
+
+		normalizedReservedPaths = append(normalizedReservedPaths, normalized)
+	}
+
+	if len(normalizedReservedPaths) == 0 {
+		normalizedReservedPaths = []string{normalizedScopePath}
 	}
 
 	// Check for overlapping sandboxes
-	conflicts, err := s.repo.CheckScopeOverlap(ctx, normalizedReservedPath, projectRoot, nil)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to check scope overlap: %w", err)
+	var allConflicts []types.PathConflict
+	for _, reservedAbs := range normalizedReservedPaths {
+		conflicts, err := s.repo.CheckScopeOverlap(ctx, reservedAbs, projectRoot, nil)
+		if err != nil {
+			return "", "", nil, fmt.Errorf("failed to check scope overlap: %w", err)
+		}
+		if len(conflicts) > 0 {
+			allConflicts = append(allConflicts, conflicts...)
+		}
 	}
-	if len(conflicts) > 0 {
-		return "", "", "", &types.ScopeConflictError{Conflicts: conflicts}
+	if len(allConflicts) > 0 {
+		return "", "", nil, &types.ScopeConflictError{Conflicts: allConflicts}
 	}
 
-	return projectRoot, normalizedScopePath, normalizedReservedPath, nil
+	return projectRoot, normalizedScopePath, normalizedReservedPaths, nil
 }
 
 // createAndMountSandbox creates the sandbox record, mounts the overlay, and returns the sandbox.
-func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRequest, projectRoot, normalizedScopePath, normalizedReservedPath string) (*types.Sandbox, error) {
+func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRequest, projectRoot, normalizedScopePath string, normalizedReservedPaths []string) (*types.Sandbox, error) {
 	// Create sandbox record
+	primaryReserved := normalizedScopePath
+	if len(normalizedReservedPaths) > 0 {
+		primaryReserved = normalizedReservedPaths[0]
+	}
 	sandbox := &types.Sandbox{
 		ID:             uuid.New(),
 		ScopePath:      normalizedScopePath,
-		ReservedPath:   normalizedReservedPath,
+		ReservedPath:   primaryReserved,
+		ReservedPaths:  normalizedReservedPaths,
 		ProjectRoot:    projectRoot,
 		Owner:          req.Owner,
 		OwnerType:      req.OwnerType,
@@ -374,6 +438,7 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 	s.logAuditEvent(ctx, sandbox, "created", req.Owner, string(req.OwnerType), map[string]interface{}{
 		"scopePath":      sandbox.ScopePath,
 		"reservedPath":   sandbox.ReservedPath,
+		"reservedPaths":  sandbox.ReservedPaths,
 		"projectRoot":    sandbox.ProjectRoot,
 		"idempotencyKey": req.IdempotencyKey,
 	})
@@ -632,10 +697,20 @@ func getApprovablePrefixesRelToScope(sandbox *types.Sandbox, req *types.Approval
 		return []string{""}, nil
 	}
 
-	// Default allowlist: reserved path if present; fallback to scope for legacy rows.
-	reservedAbs := sandbox.ReservedPath
-	if reservedAbs == "" {
-		reservedAbs = sandbox.ScopePath
+	// Default allowlist: reserved paths if present; fallback to reservedPath; then scope for legacy rows.
+	defaultReservedAbs := make([]string, 0, 1)
+	for _, p := range sandbox.ReservedPaths {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			defaultReservedAbs = append(defaultReservedAbs, p)
+		}
+	}
+	if len(defaultReservedAbs) == 0 {
+		if strings.TrimSpace(sandbox.ReservedPath) != "" {
+			defaultReservedAbs = append(defaultReservedAbs, strings.TrimSpace(sandbox.ReservedPath))
+		} else if strings.TrimSpace(sandbox.ScopePath) != "" {
+			defaultReservedAbs = append(defaultReservedAbs, strings.TrimSpace(sandbox.ScopePath))
+		}
 	}
 
 	includePrefixes := []string(nil)
@@ -643,10 +718,8 @@ func getApprovablePrefixesRelToScope(sandbox *types.Sandbox, req *types.Approval
 		includePrefixes = req.IncludePrefixes
 	}
 
-	absPrefixes := make([]string, 0, 1+len(includePrefixes))
-	if reservedAbs != "" {
-		absPrefixes = append(absPrefixes, reservedAbs)
-	}
+	absPrefixes := make([]string, 0, len(defaultReservedAbs)+len(includePrefixes))
+	absPrefixes = append(absPrefixes, defaultReservedAbs...)
 
 	for _, p := range includePrefixes {
 		p = strings.TrimSpace(p)
@@ -702,7 +775,7 @@ func getApprovablePrefixesRelToScope(sandbox *types.Sandbox, req *types.Approval
 		}
 	}
 
-	// If reservedPath equals scopePath, relPrefixes will contain "" and we allow all.
+	// If any reserved prefix equals scopePath, relPrefixes will contain "" and we allow all.
 	if len(relPrefixes) == 0 {
 		return []string{""}, nil
 	}

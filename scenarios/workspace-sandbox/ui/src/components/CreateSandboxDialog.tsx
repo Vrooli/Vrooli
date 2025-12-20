@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Check,
   X,
-  Clock,
   Eye,
   Pencil,
 } from "lucide-react";
@@ -64,15 +63,16 @@ function isPathWithin(childPath: string, parentPath: string): boolean {
   );
 }
 
-/** Paths that should never be allowed as sandbox roots */
+/** Paths that should never be allowed as project roots or reserved prefixes */
 const DANGEROUS_PATHS = ["/", "/bin", "/sbin", "/usr", "/etc", "/var", "/tmp", "/root", "/home"];
 
-/** Validates the reserved directory path using server-side validation */
+/** Validates a reserved prefix path using server-side validation */
 function useReservedPathValidation(
   reservedPath: string,
   projectRoot: string,
   defaultProjectRoot: string,
-  existingReservedPaths: string[] = []
+  existingReservedPaths: string[] = [],
+  existingReservedPathsKey: string = ""
 ): PathValidation {
   const [validation, setValidation] = useState<PathValidation>({ status: "idle" });
 
@@ -102,7 +102,7 @@ function useReservedPathValidation(
       if (DANGEROUS_PATHS.includes(normalizedPath)) {
         setValidation({
           status: "invalid",
-          message: "Cannot use system directories as sandbox root",
+          message: "Cannot use system directories as reserved paths",
         });
         return;
       }
@@ -162,7 +162,7 @@ function useReservedPathValidation(
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [reservedPath, projectRoot, defaultProjectRoot, existingReservedPaths]);
+  }, [reservedPath, projectRoot, defaultProjectRoot, existingReservedPathsKey]);
 
   return validation;
 }
@@ -234,7 +234,8 @@ function getRecentPaths(sandboxes: Sandbox[] = []): string[] {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 10)
     .forEach((s) => {
-      paths.add(s.reservedPath || s.scopePath);
+      const reserved = s.reservedPaths?.length ? s.reservedPaths : [s.reservedPath || s.scopePath];
+      reserved.forEach((p) => p && paths.add(p));
       if (s.scopePath) {
         paths.add(s.scopePath);
       }
@@ -243,6 +244,17 @@ function getRecentPaths(sandboxes: Sandbox[] = []): string[] {
       }
     });
   return Array.from(paths).slice(0, 5);
+}
+
+function getRecentProjectRoots(sandboxes: Sandbox[] = []): string[] {
+  const roots = new Set<string>();
+  sandboxes
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 20)
+    .forEach((s) => {
+      if (s.projectRoot) roots.add(s.projectRoot);
+    });
+  return Array.from(roots).slice(0, 5);
 }
 
 /** Visual path preview component */
@@ -330,20 +342,29 @@ export function CreateSandboxDialog({
   existingReservedPaths = [],
   defaultProjectRoot = "",
 }: CreateSandboxDialogProps) {
-  const [reservedPath, setReservedPath] = useState("");
+  const [reservedPathInput, setReservedPathInput] = useState("");
+  const [reservedPaths, setReservedPaths] = useState<string[]>([]);
   const [projectRoot, setProjectRoot] = useState("");
   const [owner, setOwner] = useState("");
   const [ownerType, setOwnerType] = useState<OwnerType>("user");
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showRecentPaths, setShowRecentPaths] = useState(false);
   const [mountScopePath, setMountScopePath] = useState("");
 
-  // Path validation - reserved path must be within project root (or defaultProjectRoot)
-  const reservedValidation = useReservedPathValidation(
-    reservedPath,
+  // Path validation - new reserved path must be within project root and not conflict with existing sandboxes
+  const existingReservedPathsKey = useMemo(() => {
+    if (existingReservedPaths.length === 0) return "";
+    return existingReservedPaths
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .sort()
+      .join("|");
+  }, [existingReservedPaths]);
+  const reservedInputValidation = useReservedPathValidation(
+    reservedPathInput,
     projectRoot,
     defaultProjectRoot,
-    existingReservedPaths
+    [...existingReservedPaths, ...reservedPaths],
+    existingReservedPathsKey
   );
   const projectRootValidation = useProjectRootValidation(projectRoot);
 
@@ -355,18 +376,73 @@ export function CreateSandboxDialog({
 
   // Recent paths for quick selection
   const recentPaths = useMemo(() => getRecentPaths(recentSandboxes), [recentSandboxes]);
+  const recentProjectRoots = useMemo(
+    () => getRecentProjectRoots(recentSandboxes),
+    [recentSandboxes]
+  );
 
   const effectiveProjectRoot = projectRoot.trim() || defaultProjectRoot;
   const effectiveScopePath = mountScopePath.trim() || effectiveProjectRoot;
 
+  const reservedListValidation = useMemo<PathValidation>(() => {
+    if (reservedPaths.length === 0) return { status: "idle" };
+
+    // Basic client-side checks for the list; server will re-validate on create.
+    for (const p of reservedPaths) {
+      const trimmed = p.trim();
+      if (!trimmed.startsWith("/")) {
+        return { status: "invalid", message: "Reserved paths must be absolute (start with /)" };
+      }
+      const normalizedPath = trimmed.replace(/\/+$/, "") || "/";
+      if (DANGEROUS_PATHS.includes(normalizedPath)) {
+        return { status: "invalid", message: "Cannot reserve system directories" };
+      }
+      if (effectiveProjectRoot && !isPathWithin(trimmed, effectiveProjectRoot)) {
+        return { status: "outside", message: `Reserved paths must be within ${effectiveProjectRoot}` };
+      }
+    }
+
+    // Prevent overlaps within the reserved list itself.
+    for (let i = 0; i < reservedPaths.length; i++) {
+      for (let j = i + 1; j < reservedPaths.length; j++) {
+        const a = reservedPaths[i].trim().replace(/\/+$/, "");
+        const b = reservedPaths[j].trim().replace(/\/+$/, "");
+        if (!a || !b) continue;
+        if (a === b || a.startsWith(b + "/") || b.startsWith(a + "/")) {
+          return { status: "conflict", message: "Reserved paths overlap each other" };
+        }
+      }
+    }
+
+    return { status: "valid", message: `${reservedPaths.length} reserved path(s)` };
+  }, [reservedPaths, effectiveProjectRoot]);
+
+  const effectiveReservedPaths = useMemo(() => {
+    const result = [...reservedPaths];
+    const pending = reservedPathInput.trim();
+    if (pending && reservedInputValidation.status === "valid") {
+      result.push(pending);
+    }
+    // De-dupe while preserving order
+    return result.filter((p, idx) => result.indexOf(p) === idx);
+  }, [reservedPaths, reservedPathInput, reservedInputValidation.status]);
+
   const canSubmit =
     !!effectiveScopePath &&
-    reservedPath.trim() &&
-    reservedValidation.status !== "invalid" &&
-    reservedValidation.status !== "conflict" &&
-    reservedValidation.status !== "outside" &&
+    effectiveReservedPaths.length > 0 &&
+    reservedListValidation.status !== "invalid" &&
+    reservedListValidation.status !== "conflict" &&
+    reservedListValidation.status !== "outside" &&
     projectRootValidation.status !== "invalid" &&
     !isCreating;
+
+  const handleAddReservedPath = () => {
+    const trimmed = reservedPathInput.trim();
+    if (!trimmed) return;
+    if (reservedInputValidation.status !== "valid") return;
+    setReservedPaths((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    setReservedPathInput("");
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -377,7 +453,8 @@ export function CreateSandboxDialog({
 
     onCreate({
       scopePath,
-      reservedPath: reservedPath.trim(),
+      reservedPath: effectiveReservedPaths[0],
+      reservedPaths: effectiveReservedPaths,
       projectRoot: effectiveProjectRoot || undefined,
       owner: owner.trim() || undefined,
       ownerType,
@@ -388,23 +465,16 @@ export function CreateSandboxDialog({
     if (!isCreating) {
       onOpenChange(false);
       // Reset form
-      setReservedPath("");
+      setReservedPathInput("");
+      setReservedPaths([]);
       setProjectRoot("");
       setOwner("");
       setOwnerType("user");
       setShowAdvanced(false);
       setShowRecentPaths(false);
+      setShowRecentProjectRoots(false);
       setMountScopePath("");
     }
-  };
-
-  const handleSelectRecentPath = (path: string, field: "reserved" | "projectRoot") => {
-    if (field === "reserved") {
-      setReservedPath(path);
-    } else {
-      setProjectRoot(path);
-    }
-    setShowRecentPaths(false);
   };
 
   /** Renders validation indicator */
@@ -467,93 +537,118 @@ export function CreateSandboxDialog({
           {/* Reserved Directory - Required */}
           <div className="space-y-2">
             <Label htmlFor="reservedPath">
-              Reserved Directory <span className="text-red-400">*</span>
+              Reserved Path(s) <span className="text-red-400">*</span>
             </Label>
             <div className="relative">
-              <Input
-                id="reservedPath"
-                placeholder={reservedPlaceholder}
-                value={reservedPath}
-                onChange={(e) => setReservedPath(e.target.value)}
-                required
-                autoFocus
-                className={
-                  reservedValidation.status === "invalid" ||
-                  reservedValidation.status === "conflict" ||
-                  reservedValidation.status === "outside"
-                    ? "border-red-500 focus:border-red-500"
-                    : reservedValidation.status === "valid"
-                    ? "border-emerald-500 focus:border-emerald-500"
-                    : ""
-                }
-                data-testid={SELECTORS.scopePathInput}
-              />
-              {recentPaths.length > 0 && (
+              <div className="flex gap-2">
+                <Input
+                  id="reservedPath"
+                  placeholder={reservedPlaceholder}
+                  value={reservedPathInput}
+                  onChange={(e) => setReservedPathInput(e.target.value)}
+                  list={recentPaths.length > 0 ? "reservedPathSuggestions" : undefined}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddReservedPath();
+                    }
+                  }}
+                  className={
+                    reservedInputValidation.status === "invalid" ||
+                    reservedInputValidation.status === "conflict" ||
+                    reservedInputValidation.status === "outside"
+                      ? "border-red-500 focus:border-red-500"
+                      : reservedInputValidation.status === "valid"
+                      ? "border-emerald-500 focus:border-emerald-500"
+                      : ""
+                  }
+                  data-testid={SELECTORS.scopePathInput}
+                />
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-slate-400 hover:text-slate-200"
-                  onClick={() => setShowRecentPaths(!showRecentPaths)}
+                  variant="secondary"
+                  onClick={handleAddReservedPath}
+                  disabled={!reservedPathInput.trim() || reservedInputValidation.status !== "valid"}
                 >
-                  <Clock className="h-3.5 w-3.5" />
+                  Add
                 </Button>
-              )}
+              </div>
             </div>
-            <ValidationIndicator validation={reservedValidation} />
-            <p className="text-xs text-slate-500">
-              Prevents overlapping sandboxes by reserving this subtree. By default, approval applies only changes under this directory.
-            </p>
-
-            {/* Recent paths dropdown */}
-            {showRecentPaths && recentPaths.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full rounded-md border border-slate-700 bg-slate-800 shadow-lg">
-                <div className="p-2 text-xs text-slate-400 border-b border-slate-700">
-                  Recent paths
-                </div>
+            {recentPaths.length > 0 && (
+              <datalist id="reservedPathSuggestions">
                 {recentPaths.map((path) => (
-                  <button
-                    key={path}
-                    type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 truncate"
-                    onClick={() => handleSelectRecentPath(path, "reserved")}
+                  <option key={path} value={path} />
+                ))}
+              </datalist>
+            )}
+            {reservedPaths.length > 0 && <ValidationIndicator validation={reservedListValidation} />}
+            <ValidationIndicator validation={reservedInputValidation} />
+
+            {reservedPaths.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {reservedPaths.map((p) => (
+                  <div
+                    key={p}
+                    className="inline-flex items-center gap-2 rounded-md border border-slate-700 bg-slate-800/60 px-2 py-1 text-xs text-slate-200"
                   >
-                    {path}
-                  </button>
+                    <span className="font-mono truncate max-w-[360px]">{p}</span>
+                    <button
+                      type="button"
+                      className="text-slate-400 hover:text-slate-200"
+                      onClick={() => setReservedPaths((prev) => prev.filter((x) => x !== p))}
+                      aria-label={`Remove ${p}`}
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
+            <p className="text-xs text-slate-500">
+              Reserves one or more subtrees to prevent overlapping sandboxes. Approval defaults to changes under these paths unless you explicitly approve more.
+            </p>
           </div>
 
           {/* Project Root - Optional */}
           <div className="space-y-2">
-            <Label htmlFor="projectRoot">Project Root (optional)</Label>
-            <Input
-              id="projectRoot"
-              placeholder={projectRootPlaceholder}
-              value={projectRoot}
-              onChange={(e) => setProjectRoot(e.target.value)}
-              className={
-                projectRootValidation.status === "invalid"
-                  ? "border-red-500 focus:border-red-500"
-                  : projectRootValidation.status === "valid"
-                  ? "border-emerald-500 focus:border-emerald-500"
-                  : ""
-              }
-              data-testid={SELECTORS.projectRootInput}
-            />
+            <Label htmlFor="projectRoot">Project Root (full repo mount)</Label>
+            <div className="relative">
+              <Input
+                id="projectRoot"
+                placeholder={projectRootPlaceholder}
+                value={projectRoot}
+                onChange={(e) => setProjectRoot(e.target.value)}
+                list={recentProjectRoots.length > 0 ? "projectRootSuggestions" : undefined}
+                className={
+                  projectRootValidation.status === "invalid"
+                    ? "border-red-500 focus:border-red-500"
+                    : projectRootValidation.status === "valid"
+                    ? "border-emerald-500 focus:border-emerald-500"
+                    : ""
+                }
+                data-testid={SELECTORS.projectRootInput}
+              />
+            </div>
+            {recentProjectRoots.length > 0 && (
+              <datalist id="projectRootSuggestions">
+                {recentProjectRoots.map((path) => (
+                  <option key={path} value={path} />
+                ))}
+              </datalist>
+            )}
             <ValidationIndicator validation={projectRootValidation} />
             <p className="text-xs text-slate-500">
               {defaultProjectRoot
-                ? `Defaults to ${defaultProjectRoot} if empty. Reserved Directory must be inside this root.`
-                : "Reserved Directory must be inside this root."}
+                ? `Defaults to ${defaultProjectRoot} if empty. The sandbox mounts the full project root by default; reserved paths must be inside it.`
+                : "The sandbox mounts the full project root by default; reserved paths must be inside it."}
             </p>
           </div>
 
           {/* Path Preview */}
-          {reservedPath.trim() && (
+          {effectiveReservedPaths[0] && (
             <PathPreview
-              reservedPath={reservedPath}
+              reservedPath={effectiveReservedPaths[0]}
               projectRoot={projectRoot.trim() || defaultProjectRoot}
             />
           )}
@@ -585,7 +680,7 @@ export function CreateSandboxDialog({
                   onChange={(e) => setMountScopePath(e.target.value)}
                 />
                 <p className="text-xs text-slate-500">
-                  By default the sandbox mounts the full project root for easy reference. Set this to a subdirectory to sandbox less of the tree.
+                  By default the sandbox mounts the full project root. Set this to a subdirectory if you want a narrower copy-on-write mount.
                 </p>
               </div>
 
