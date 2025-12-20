@@ -24,7 +24,7 @@ export async function handleSessionClose(
   try {
     logger.info(scopedLog(LogContext.SESSION, 'closing session'), { sessionId });
 
-    await sessionManager.closeSession(sessionId);
+    const result = await sessionManager.closeSession(sessionId);
 
     // Clean up caches associated with this session
     clearSessionIdempotencyCache(sessionId);
@@ -32,7 +32,11 @@ export async function handleSessionClose(
 
     logger.info(scopedLog(LogContext.SESSION, 'session closed'), { sessionId });
 
-    sendJson(res, 200, { success: true });
+    const response: { success: boolean; video_paths?: string[] } = { success: true };
+    if (result.videoPaths.length > 0) {
+      response.video_paths = result.videoPaths;
+    }
+    sendJson(res, 200, response);
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/close`);
   }

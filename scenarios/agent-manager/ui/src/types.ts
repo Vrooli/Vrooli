@@ -158,6 +158,7 @@ export interface RunEventData {
   // Tool call events
   toolName?: string;
   input?: Record<string, unknown>;
+  toolCallId?: string;
   // Tool result events
   output?: string;
   error?: string;
@@ -260,6 +261,38 @@ export interface ApprovalResult {
   success: boolean;
   commitHash?: string;
   message?: string;
+}
+
+// List/response wrappers (API v1)
+export interface ListProfilesResponse {
+  profiles: AgentProfile[];
+  total: number;
+}
+
+export interface ListTasksResponse {
+  tasks: Task[];
+  total: number;
+}
+
+export interface ListRunsResponse {
+  runs: Run[];
+  total: number;
+}
+
+export interface GetRunnerStatusResponse {
+  runners: RunnerStatus[];
+}
+
+export interface GetRunEventsResponse {
+  events: RunEvent[];
+}
+
+export interface GetRunDiffResponse {
+  diff: DiffResult;
+}
+
+export interface ProbeRunnerResponse {
+  result: ProbeResult;
 }
 
 // Form types

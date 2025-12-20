@@ -233,6 +233,10 @@ func (r *inMemoryCaptureRecorder) UpdateCheckpoint(_ context.Context, _ uuid.UUI
 	return nil // In-memory recorder doesn't persist checkpoints
 }
 
+func (r *inMemoryCaptureRecorder) RecordExecutionArtifacts(_ context.Context, _ autocontracts.ExecutionPlan, _ []executionwriter.ExternalArtifact) error {
+	return nil // In-memory recorder does not persist artifacts
+}
+
 func (r *inMemoryCaptureRecorder) SetArtifactConfig(_ *config.ArtifactCollectionSettings) {
 	// In-memory recorder ignores artifact config - collects everything
 }

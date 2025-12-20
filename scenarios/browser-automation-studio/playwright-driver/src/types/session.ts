@@ -183,6 +183,10 @@ export interface SessionState {
   executedInstructions?: Map<string, ExecutedInstructionRecord>;
 }
 
+export interface SessionCloseResult {
+  videoPaths: string[];
+}
+
 /**
  * Record of an executed instruction for idempotency tracking.
  * Stores enough information to return the same result on replay.

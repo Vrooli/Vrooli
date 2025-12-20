@@ -35,6 +35,9 @@ type ExecutionWriter interface {
 	// totalSteps is the total number of steps in the workflow for progress calculation.
 	UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error
 
+	// RecordExecutionArtifacts persists execution-level artifacts (such as video/trace files).
+	RecordExecutionArtifacts(ctx context.Context, plan contracts.ExecutionPlan, artifacts []ExternalArtifact) error
+
 	// SetArtifactConfig updates the artifact collection settings for this writer.
 	// Call this before starting execution to configure what artifacts are collected.
 	// If not called, defaults to "full" profile (all artifacts collected).
@@ -42,6 +45,14 @@ type ExecutionWriter interface {
 
 	// GetArtifactConfig returns the current artifact collection settings.
 	GetArtifactConfig() config.ArtifactCollectionSettings
+}
+
+// ExternalArtifact captures an execution-level artifact to persist.
+type ExternalArtifact struct {
+	ArtifactType string
+	Label        string
+	Path         string
+	Payload      map[string]any
 }
 
 // ExecutionIndexRepository captures the minimal persistence surface needed by the writer.

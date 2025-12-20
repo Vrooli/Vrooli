@@ -1,4 +1,7 @@
-import type { SessionSpec, SessionState, SessionPhase } from '../types';
+import type { SessionSpec, SessionState, SessionPhase, SessionCloseResult } from '../types';
+import type { Video } from 'playwright';
+import { rename, mkdir } from 'node:fs/promises';
+import path from 'node:path';
 import type { Config } from '../config';
 import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, LogContext } from '../utils';
 import { buildContext } from './context-builder';
@@ -514,7 +517,7 @@ export class SessionManager {
    * Hardened to be idempotent - safe to call concurrently from multiple sources
    * (e.g., explicit close and idle cleanup).
    */
-  async closeSession(sessionId: string): Promise<void> {
+  async closeSession(sessionId: string): Promise<SessionCloseResult> {
     // Check if session exists
     const session = this.sessions.get(sessionId);
     if (!session) {
@@ -522,7 +525,7 @@ export class SessionManager {
       if (this.closingSessionIds.has(sessionId)) {
         // Another call is closing this session - just return
         logger.debug(scopedLog(LogContext.SESSION, 'already closing'), { sessionId });
-        return;
+        return { videoPaths: [] };
       }
       throw new SessionNotFoundError(sessionId);
     }
@@ -530,7 +533,7 @@ export class SessionManager {
     // Check if already being closed (concurrent close protection)
     if (this.closingSessionIds.has(sessionId)) {
       logger.debug(scopedLog(LogContext.SESSION, 'close already in progress'), { sessionId });
-      return;
+      return { videoPaths: [] };
     }
 
     // Mark as closing to prevent concurrent close attempts
@@ -548,6 +551,7 @@ export class SessionManager {
 
     const startTime = Date.now();
 
+    let videoPaths: string[] = [];
     try {
       // Stop recording if active
       if (session.recordingController?.isRecording()) {
@@ -574,8 +578,9 @@ export class SessionManager {
         });
       }
 
-      // Close all pages
-      for (const page of session.pages) {
+      // Close all pages and collect video artifacts (if enabled)
+      for (const [index, page] of session.pages.entries()) {
+        const video = page.video();
         await page.close().catch((err) => {
           logger.warn(scopedLog(LogContext.CLEANUP, 'page close failed'), {
             sessionId,
@@ -583,6 +588,12 @@ export class SessionManager {
           });
           metrics.cleanupFailures.inc({ operation: 'page_close' });
         });
+        if (video) {
+          const videoPath = await resolveVideoPath(video, session, index);
+          if (videoPath) {
+            videoPaths.push(videoPath);
+          }
+        }
       }
 
       // Close context
@@ -615,6 +626,7 @@ export class SessionManager {
       metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
       metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
     }
+    return { videoPaths };
   }
 
   /**
@@ -724,5 +736,45 @@ export class SessionManager {
     await this.browserManager.shutdown();
 
     logger.info('session-manager: shutdown complete');
+  }
+}
+
+async function resolveVideoPath(video: Video, session: SessionState, pageIndex: number): Promise<string | null> {
+  let sourcePath = '';
+  try {
+    sourcePath = await video.path();
+  } catch (error) {
+    logger.warn(scopedLog(LogContext.CLEANUP, 'video path unavailable'), {
+      sessionId: session.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+
+  if (!sourcePath) {
+    return null;
+  }
+
+  const ext = path.extname(sourcePath) || '.webm';
+  const targetDir = session.videoDir || path.dirname(sourcePath);
+  const targetName = `execution-${session.spec.execution_id}-page-${pageIndex + 1}${ext}`;
+  const targetPath = path.join(targetDir, targetName);
+
+  if (targetPath === sourcePath) {
+    return sourcePath;
+  }
+
+  try {
+    await mkdir(targetDir, { recursive: true });
+    await rename(sourcePath, targetPath);
+    return targetPath;
+  } catch (error) {
+    logger.warn(scopedLog(LogContext.CLEANUP, 'video rename failed'), {
+      sessionId: session.id,
+      sourcePath,
+      targetPath,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return sourcePath;
   }
 }

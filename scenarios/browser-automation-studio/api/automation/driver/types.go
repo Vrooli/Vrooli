@@ -304,3 +304,9 @@ type StepOutcomeResponse struct {
 	// Uses contracts.ElementMeta (proto type) for type compatibility with StepOutcome.
 	ElementSnapshot *contracts.ElementMeta `json:"element_snapshot,omitempty"`
 }
+
+// CloseSessionResponse is returned when a session is closed.
+type CloseSessionResponse struct {
+	Success    bool     `json:"success,omitempty"`
+	VideoPaths []string `json:"video_paths,omitempty"`
+}

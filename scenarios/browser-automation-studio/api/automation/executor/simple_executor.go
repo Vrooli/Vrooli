@@ -13,8 +13,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/automation/state"
 	"github.com/vrooli/browser-automation-studio/config"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -182,7 +184,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 	var session engine.EngineSession
 	defer func() {
 		if session != nil {
-			_ = session.Close(context.Background()) // Best-effort cleanup.
+			closeSessionWithArtifacts(context.Background(), session, req.Plan, req.Recorder)
 		}
 	}()
 
@@ -969,6 +971,52 @@ func (e *SimpleExecutor) maybeResetSession(ctx context.Context, eng engine.Autom
 		return nil, nil
 	default:
 		return session, nil
+	}
+}
+
+type sessionArtifactCloser interface {
+	CloseWithArtifacts(ctx context.Context) (*driver.CloseSessionResponse, error)
+}
+
+func closeSessionWithArtifacts(ctx context.Context, session engine.EngineSession, plan contracts.ExecutionPlan, recorder executionwriter.ExecutionWriter) {
+	if session == nil {
+		return
+	}
+
+	if closer, ok := session.(sessionArtifactCloser); ok {
+		artifacts, err := closer.CloseWithArtifacts(ctx)
+		if err != nil {
+			logrus.WithError(err).WithField("execution_id", plan.ExecutionID).Warn("Failed to close session")
+			return
+		}
+		if recorder == nil || artifacts == nil || len(artifacts.VideoPaths) == 0 {
+			return
+		}
+		external := make([]executionwriter.ExternalArtifact, 0, len(artifacts.VideoPaths))
+		for index, videoPath := range artifacts.VideoPaths {
+			if strings.TrimSpace(videoPath) == "" {
+				continue
+			}
+			external = append(external, executionwriter.ExternalArtifact{
+				ArtifactType: "video_meta",
+				Label:        fmt.Sprintf("video-%d", index+1),
+				Path:         videoPath,
+				Payload: map[string]any{
+					"page_index": index,
+				},
+			})
+		}
+		if len(external) == 0 {
+			return
+		}
+		if err := recorder.RecordExecutionArtifacts(ctx, plan, external); err != nil {
+			logrus.WithError(err).WithField("execution_id", plan.ExecutionID).Warn("Failed to persist video artifacts")
+		}
+		return
+	}
+
+	if err := session.Close(ctx); err != nil {
+		logrus.WithError(err).Warn("Failed to close session")
 	}
 }
 

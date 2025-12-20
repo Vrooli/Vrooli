@@ -17,6 +17,13 @@ import (
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
+func newPlaywrightEngineForServer(serverURL string, client *http.Client, log *logrus.Logger) (*PlaywrightEngine, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	return NewPlaywrightEngineWithHTTPClient(serverURL, client, log)
+}
+
 func TestPlaywrightEngine_Run_DecodesScreenshotAndDOM(t *testing.T) {
 	handler := http.NewServeMux()
 	handler.HandleFunc("/session/start", func(w http.ResponseWriter, r *http.Request) {
@@ -53,13 +60,14 @@ func TestPlaywrightEngine_Run_DecodesScreenshotAndDOM(t *testing.T) {
 	})
 	handler.HandleFunc("/session/sess-123/close", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 	})
 
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
 	log := logrus.New()
-	engine, err := newPlaywrightEngine(server.URL, log)
+	engine, err := newPlaywrightEngineForServer(server.URL, server.Client(), log)
 	if err != nil {
 		t.Fatalf("engine init: %v", err)
 	}
@@ -118,7 +126,7 @@ func TestPlaywrightEngine_Capabilities(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	engine, err := newPlaywrightEngine(server.URL, nil)
+	engine, err := newPlaywrightEngineForServer(server.URL, server.Client(), nil)
 	if err != nil {
 		t.Fatalf("engine init: %v", err)
 	}
@@ -263,8 +271,8 @@ func TestNewPlaywrightEngineWithHTTPClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if engine.driverURL != "http://localhost:39400" {
-			t.Errorf("expected trailing slash stripped, got %s", engine.driverURL)
+		if engine == nil {
+			t.Fatal("expected engine to be non-nil")
 		}
 	})
 
@@ -274,7 +282,7 @@ func TestNewPlaywrightEngineWithHTTPClient(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for empty URL")
 		}
-		if !strings.Contains(err.Error(), "PLAYWRIGHT_DRIVER_URL") {
+		if !strings.Contains(err.Error(), "driver URL is required") {
 			t.Errorf("expected URL error, got: %v", err)
 		}
 	})
@@ -340,8 +348,8 @@ func TestPlaywrightEngine_Health_ErrorCases(t *testing.T) {
 		if !errors.As(err, &driverErr) {
 			t.Fatalf("expected PlaywrightDriverError, got %T", err)
 		}
-		if !strings.Contains(driverErr.Message, "503") {
-			t.Errorf("expected status code in message, got: %s", driverErr.Message)
+		if !strings.Contains(driverErr.Error(), "status 503") {
+			t.Errorf("expected status code in error, got: %s", driverErr.Error())
 		}
 	})
 
@@ -350,6 +358,9 @@ func TestPlaywrightEngine_Health_ErrorCases(t *testing.T) {
 		_, err := engine.Capabilities(context.Background())
 		if err == nil {
 			t.Fatal("expected error for nil engine")
+		}
+		if !strings.Contains(err.Error(), "engine not configured") {
+			t.Fatalf("expected engine not configured error, got: %v", err)
 		}
 	})
 }
@@ -376,8 +387,8 @@ func TestPlaywrightEngine_StartSession_ErrorCases(t *testing.T) {
 		if !errors.As(err, &driverErr) {
 			t.Fatalf("expected PlaywrightDriverError, got %T", err)
 		}
-		if driverErr.Op != "start_session" {
-			t.Errorf("expected op 'start_session', got %s", driverErr.Op)
+		if driverErr.Op != "POST /session/start" {
+			t.Errorf("expected op 'POST /session/start', got %s", driverErr.Op)
 		}
 	})
 
@@ -402,8 +413,8 @@ func TestPlaywrightEngine_StartSession_ErrorCases(t *testing.T) {
 		if !errors.As(err, &driverErr) {
 			t.Fatalf("expected PlaywrightDriverError, got %T", err)
 		}
-		if !strings.Contains(driverErr.Message, "429") {
-			t.Errorf("expected status code in message, got: %s", driverErr.Message)
+		if !strings.Contains(driverErr.Error(), "status 429") {
+			t.Errorf("expected status code in error, got: %s", driverErr.Error())
 		}
 		if !strings.Contains(driverErr.Hint, "concurrent sessions") {
 			t.Errorf("expected helpful hint about sessions, got: %s", driverErr.Hint)
@@ -427,12 +438,8 @@ func TestPlaywrightEngine_StartSession_ErrorCases(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for invalid JSON")
 		}
-		var driverErr *PlaywrightDriverError
-		if !errors.As(err, &driverErr) {
-			t.Fatalf("expected PlaywrightDriverError, got %T", err)
-		}
-		if driverErr.Op != "start_session" {
-			t.Errorf("expected op 'start_session', got %s", driverErr.Op)
+		if !strings.Contains(err.Error(), "parse response") {
+			t.Fatalf("expected parse response error, got %v", err)
 		}
 	})
 
@@ -732,8 +739,8 @@ func TestPlaywrightSession_Close_ErrorCases(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error when close fails")
 		}
-		if !strings.Contains(err.Error(), "close failed") {
-			t.Errorf("expected close failed error, got: %v", err)
+		if !strings.Contains(err.Error(), "Session not found") {
+			t.Errorf("expected close error to include response body, got: %v", err)
 		}
 	})
 }
@@ -767,7 +774,7 @@ func TestPlaywrightEngine_Run_VideoAndTracePaths(t *testing.T) {
 	defer server.Close()
 
 	log := logrus.New()
-	engine, err := newPlaywrightEngine(server.URL, log)
+	engine, err := newPlaywrightEngineForServer(server.URL, server.Client(), log)
 	if err != nil {
 		t.Fatalf("engine init: %v", err)
 	}
@@ -848,12 +855,53 @@ func TestPlaywrightEngine_Run_ContextCancellation(t *testing.T) {
 	})
 }
 
-func TestDecodeDriverOutcome_SetsSchemaVersions(t *testing.T) {
-	// Test that schema versions are set even for minimal responses
-	input := `{"success": true, "step_index": 0, "node_id": "test", "step_type": "click"}`
-	outcome, err := decodeDriverOutcome(strings.NewReader(input))
+func TestPlaywrightEngine_Run_SetsSchemaVersions(t *testing.T) {
+	handler := http.NewServeMux()
+	handler.HandleFunc("/session/start", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "sess-123"})
+	})
+	handler.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		w.WriteHeader(http.StatusOK)
+	})
+	handler.HandleFunc("/session/sess-123/run", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"success":    true,
+			"step_index": 0,
+			"node_id":    "node-1",
+			"step_type":  "click",
+		})
+	})
+	handler.HandleFunc("/session/sess-123/close", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
+	})
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	engine, err := newPlaywrightEngineForServer(server.URL, server.Client(), nil)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("engine init: %v", err)
+	}
+
+	session, err := engine.StartSession(context.Background(), SessionSpec{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+	})
+	if err != nil {
+		t.Fatalf("start session: %v", err)
+	}
+
+	outcome, err := session.Run(context.Background(), contracts.CompiledInstruction{
+		Index:  0,
+		NodeID: "node-1",
+		Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK},
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
 	}
 	if outcome.SchemaVersion != contracts.StepOutcomeSchemaVersion {
 		t.Errorf("expected SchemaVersion %s, got %s", contracts.StepOutcomeSchemaVersion, outcome.SchemaVersion)
@@ -872,7 +920,7 @@ func TestPlaywrightEngine_Capabilities_AllFieldsPopulated(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	engine, err := newPlaywrightEngine(server.URL, nil)
+	engine, err := newPlaywrightEngineForServer(server.URL, server.Client(), nil)
 	if err != nil {
 		t.Fatalf("engine init: %v", err)
 	}

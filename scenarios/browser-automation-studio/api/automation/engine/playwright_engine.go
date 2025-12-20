@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -42,6 +43,9 @@ func NewPlaywrightEngineWithDefault(log *logrus.Logger) (*PlaywrightEngine, erro
 // NewPlaywrightEngineWithHTTPClient constructs an engine with a custom HTTP client.
 // This is primarily used for testing to inject mock HTTP responses.
 func NewPlaywrightEngineWithHTTPClient(driverURL string, httpClient HTTPDoer, log *logrus.Logger) (*PlaywrightEngine, error) {
+	if httpClient == nil {
+		return nil, errors.New("httpClient is required")
+	}
 	client, err := driver.NewClientWithURL(driverURL, driver.WithHTTPClient(httpClient), driver.WithLogger(log))
 	if err != nil {
 		return nil, err
@@ -56,6 +60,9 @@ func (e *PlaywrightEngine) Name() string { return "playwright" }
 // Capabilities returns a conservative capability descriptor for the local
 // Playwright driver. Update when driver gains richer support (HAR/video, etc.).
 func (e *PlaywrightEngine) Capabilities(ctx context.Context) (contracts.EngineCapabilities, error) {
+	if e == nil {
+		return contracts.EngineCapabilities{}, errors.New("engine not configured")
+	}
 	if err := e.sessions.Client().Health(ctx); err != nil {
 		return contracts.EngineCapabilities{}, err
 	}
@@ -113,7 +120,11 @@ func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (
 		}
 	}
 
-	e.log.WithFields(logrus.Fields{
+	logger := e.log
+	if logger == nil {
+		logger = logrus.StandardLogger()
+	}
+	logger.WithFields(logrus.Fields{
 		"execution_id":    spec.ExecutionID,
 		"viewport_width":  spec.ViewportWidth,
 		"viewport_height": spec.ViewportHeight,

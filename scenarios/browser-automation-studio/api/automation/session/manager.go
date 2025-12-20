@@ -34,7 +34,11 @@ type Option func(*Manager)
 
 // WithLogger sets a custom logger.
 func WithLogger(log *logrus.Logger) Option {
-	return func(m *Manager) { m.log = log }
+	return func(m *Manager) {
+		if log != nil {
+			m.log = log
+		}
+	}
 }
 
 // WithDefaultViewport sets default viewport dimensions.

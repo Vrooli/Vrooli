@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { SlidersHorizontal, Palette } from 'lucide-react';
 import type { RecordedAction } from '../types/types';
 import { PlaywrightView, type FrameStats, type PageMetadata } from '../capture/PlaywrightView';
 import { StreamSettings, useStreamSettings, type StreamSettingsValues } from '../capture/StreamSettings';
 import { FrameStatsDisplay } from '../capture/FrameStatsDisplay';
 import { BrowserUrlBar } from '../capture/BrowserUrlBar';
 import { usePerfStats } from '../hooks/usePerfStats';
+import { useSettingsStore } from '@stores/settingsStore';
+import { buildBackgroundDecor, buildChromeDecor } from '@/domains/exports/replay/themes';
+import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
+import { ReplaySection } from '@/views/SettingsView/sections/ReplaySection';
+import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
+import clsx from 'clsx';
 
 interface RecordPreviewPanelProps {
   previewUrl: string;
@@ -32,16 +39,25 @@ export function RecordPreviewPanel({
   const effectiveUrl = previewUrl || lastUrl;
 
   const [liveRefreshToken, setLiveRefreshToken] = useState(0);
-  const previewContainerRef = useRef<HTMLDivElement | null>(null);
+  const previewViewportRef = useRef<HTMLDivElement | null>(null);
   const lastReportedViewportRef = useRef<{ width: number; height: number } | null>(null);
   // Track viewport for passing to PlaywrightView (for coordinate mapping)
   const [currentViewport, setCurrentViewport] = useState<{ width: number; height: number } | null>(null);
+  const [showReplayStyle, setShowReplayStyle] = useState(false);
+  const [showReplaySettings, setShowReplaySettings] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [newPresetName, setNewPresetName] = useState('');
 
   // Stream settings management
   const { preset, settings: streamSettings, showStats, setPreset, setShowStats } = useStreamSettings();
 
   // Debug performance stats from server (enabled when showStats is on)
   const { stats: perfStats } = usePerfStats(sessionId ?? null, showStats);
+  const {
+    replay,
+    randomizeSettings,
+    saveAsPreset,
+  } = useSettingsStore();
 
   // Frame statistics from PlaywrightView
   const [frameStats, setFrameStats] = useState<FrameStats | null>(null);
@@ -75,7 +91,7 @@ export function RecordPreviewPanel({
 
   // Observe preview container size and notify parent for viewport sizing.
   useEffect(() => {
-    const node = previewContainerRef.current;
+    const node = previewViewportRef.current;
     if (!node) return;
 
     const observer = new ResizeObserver((entries) => {
@@ -98,7 +114,25 @@ export function RecordPreviewPanel({
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [previewContainerRef, onViewportChange]);
+  }, [previewViewportRef, onViewportChange, showReplayStyle]);
+
+  const backgroundDecor = useMemo(
+    () => buildBackgroundDecor(replay.backgroundTheme),
+    [replay.backgroundTheme],
+  );
+
+  const chromeDecor = useMemo(
+    () => buildChromeDecor(replay.chromeTheme, pageTitle || effectiveUrl || 'Live Preview'),
+    [replay.chromeTheme, pageTitle, effectiveUrl],
+  );
+
+  const handleSavePreset = useCallback(() => {
+    const trimmedName = newPresetName.trim();
+    if (!trimmedName) return;
+    saveAsPreset(trimmedName);
+    setNewPresetName('');
+    setShowSaveDialog(false);
+  }, [newPresetName, saveAsPreset]);
 
   return (
     <div className="flex flex-col h-full">
@@ -123,6 +157,33 @@ export function RecordPreviewPanel({
           />
         )}
 
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showReplayStyle}
+          onClick={() => setShowReplayStyle((prev) => !prev)}
+          className={clsx(
+            'flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg border transition-colors',
+            showReplayStyle
+              ? 'border-flow-accent/50 bg-flow-accent/10 text-flow-accent'
+              : 'border-gray-700 bg-gray-800/70 text-gray-300 hover:text-surface',
+          )}
+          title="Toggle replay styling for the live preview"
+        >
+          <Palette size={14} />
+          Replay Style
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowReplaySettings(true)}
+          className="flex items-center gap-2 px-2 py-1.5 text-xs text-gray-300 hover:text-surface bg-gray-800/70 border border-gray-700 rounded-lg transition-colors"
+          title="Configure replay styling"
+        >
+          <SlidersHorizontal size={14} />
+          Settings
+        </button>
+
         {/* Stream quality settings */}
         <StreamSettings
           sessionId={sessionId}
@@ -133,25 +194,134 @@ export function RecordPreviewPanel({
           onShowStatsChange={setShowStats}
         />
       </div>
-      <div className="flex-1 overflow-hidden" ref={previewContainerRef}>
-        {sessionId ? (
-          effectiveUrl ? (
-            <PlaywrightView
-              sessionId={sessionId}
-              refreshToken={liveRefreshToken}
-              viewport={currentViewport ?? undefined}
-              quality={streamSettings.quality}
-              fps={streamSettings.fps}
-              onStatsUpdate={handleStatsUpdate}
-              onPageMetadataChange={handlePageMetadataChange}
-            />
-          ) : (
-            <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
-          )
+      <div className="flex-1 overflow-hidden">
+        {showReplayStyle ? (
+          <div className="h-full w-full flex items-center justify-center bg-slate-950/95 p-4">
+            <div
+              data-theme="dark"
+              className={clsx('relative h-full w-full max-w-6xl', backgroundDecor.containerClass)}
+              style={backgroundDecor.containerStyle}
+            >
+              {backgroundDecor.baseLayer}
+              {backgroundDecor.overlay}
+              <div className={clsx('relative z-10 h-full w-full', backgroundDecor.contentClass)}>
+                <div className={clsx('flex h-full w-full flex-col overflow-hidden', chromeDecor.frameClass)}>
+                  {chromeDecor.header}
+                  <div className={clsx('relative flex-1 overflow-hidden', chromeDecor.contentClass)} ref={previewViewportRef}>
+                    {sessionId ? (
+                      effectiveUrl ? (
+                        <PlaywrightView
+                          sessionId={sessionId}
+                          refreshToken={liveRefreshToken}
+                          viewport={currentViewport ?? undefined}
+                          quality={streamSettings.quality}
+                          fps={streamSettings.fps}
+                          onStatsUpdate={handleStatsUpdate}
+                          onPageMetadataChange={handlePageMetadataChange}
+                        />
+                      ) : (
+                        <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
+                      )
+                    ) : (
+                      <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
+                    )}
+                    <WatermarkOverlay settings={replay.watermark} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
-          <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
+          <div className="h-full w-full" ref={previewViewportRef}>
+            {sessionId ? (
+              effectiveUrl ? (
+                <PlaywrightView
+                  sessionId={sessionId}
+                  refreshToken={liveRefreshToken}
+                  viewport={currentViewport ?? undefined}
+                  quality={streamSettings.quality}
+                  fps={streamSettings.fps}
+                  onStatsUpdate={handleStatsUpdate}
+                  onPageMetadataChange={handlePageMetadataChange}
+                />
+              ) : (
+                <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
+              )
+            ) : (
+              <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
+            )}
+          </div>
         )}
       </div>
+
+      <ResponsiveDialog
+        isOpen={showReplaySettings}
+        onDismiss={() => setShowReplaySettings(false)}
+        ariaLabel="Replay settings"
+        size="xl"
+      >
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-h-[85vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-surface">Replay Settings</h2>
+              <p className="text-xs text-gray-400">Tune styling for the live replay preview.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowReplaySettings(false)}
+              className="px-3 py-1.5 text-xs text-gray-300 hover:text-surface bg-gray-800 rounded-lg"
+            >
+              Close
+            </button>
+          </div>
+          <ReplaySection
+            onRandomize={() => randomizeSettings()}
+            onSavePreset={() => setShowSaveDialog(true)}
+          />
+        </div>
+      </ResponsiveDialog>
+
+      <ResponsiveDialog
+        isOpen={showSaveDialog}
+        onDismiss={() => setShowSaveDialog(false)}
+        ariaLabel="Save replay preset"
+      >
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 w-full max-w-md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-gray-800 rounded-lg">
+              <SlidersHorizontal size={16} className="text-flow-accent" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-surface">Save Preset</h2>
+              <p className="text-xs text-gray-400">Name this replay style for reuse.</p>
+            </div>
+          </div>
+          <input
+            type="text"
+            value={newPresetName}
+            onChange={(e) => setNewPresetName(e.target.value)}
+            placeholder="My replay preset"
+            className="w-full px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded-lg text-surface focus:outline-none focus:ring-2 focus:ring-flow-accent/50 mb-4"
+          />
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setShowSaveDialog(false)}
+              className="flex-1 px-4 py-2 text-subtle hover:text-surface hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSavePreset}
+              disabled={!newPresetName.trim()}
+              className="flex-1 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Save Preset
+            </button>
+          </div>
+        </div>
+      </ResponsiveDialog>
     </div>
   );
 }

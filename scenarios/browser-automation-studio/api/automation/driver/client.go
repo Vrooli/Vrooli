@@ -215,8 +215,12 @@ func (c *Client) CreateSession(ctx context.Context, req *CreateSessionRequest) (
 }
 
 // CloseSession closes a browser session.
-func (c *Client) CloseSession(ctx context.Context, sessionID string) error {
-	return c.postNoBody(ctx, fmt.Sprintf("/session/%s/close", url.PathEscape(sessionID)), nil)
+func (c *Client) CloseSession(ctx context.Context, sessionID string) (*CloseSessionResponse, error) {
+	var resp CloseSessionResponse
+	if err := c.postNoBody(ctx, fmt.Sprintf("/session/%s/close", url.PathEscape(sessionID)), &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
 // ResetSession resets a session to clean state (for execution reuse).

@@ -17,6 +17,7 @@ type Session struct {
 	client *driver.Client
 	mu     sync.RWMutex
 	closed bool
+	closeArtifacts *driver.CloseSessionResponse
 }
 
 // --- Execution Mode Operations ---
@@ -215,23 +216,33 @@ func (s *Session) Reset(ctx context.Context) error {
 
 // Close closes the session.
 func (s *Session) Close(ctx context.Context) error {
+	_, err := s.CloseWithArtifacts(ctx)
+	return err
+}
+
+// CloseWithArtifacts closes the session and returns any artifact metadata from the driver.
+func (s *Session) CloseWithArtifacts(ctx context.Context) (*driver.CloseSessionResponse, error) {
 	s.mu.Lock()
 	if s.closed {
+		artifacts := s.closeArtifacts
 		s.mu.Unlock()
-		return nil
+		return artifacts, nil
 	}
 	s.closed = true
 	s.mu.Unlock()
 
-	err := s.client.CloseSession(ctx, s.id)
+	artifacts, err := s.client.CloseSession(ctx, s.id)
 	if err != nil {
 		// Rollback on failure - session is still open on driver
 		s.mu.Lock()
 		s.closed = false
 		s.mu.Unlock()
-		return err
+		return nil, err
 	}
-	return nil
+	s.mu.Lock()
+	s.closeArtifacts = artifacts
+	s.mu.Unlock()
+	return artifacts, nil
 }
 
 // --- Accessors ---

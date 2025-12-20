@@ -580,6 +580,68 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	}, nil
 }
 
+// RecordExecutionArtifacts persists execution-level artifacts (video/trace/HAR) into result.json.
+func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contracts.ExecutionPlan, artifacts []ExternalArtifact) error {
+	if r == nil || len(artifacts) == 0 {
+		return nil
+	}
+
+	result := r.getOrCreateResult(plan)
+
+	const maxEmbeddedExternalBytes = 5 * 1024 * 1024
+
+	for _, item := range artifacts {
+		path := strings.TrimSpace(item.Path)
+		if path == "" {
+			continue
+		}
+
+		info, err := os.Stat(path)
+		if err != nil {
+			if r.log != nil {
+				r.log.WithError(err).WithField("path", path).Debug("external artifact not readable")
+			}
+			continue
+		}
+
+		payload := map[string]any{
+			"path":       path,
+			"size_bytes": info.Size(),
+		}
+		for key, value := range item.Payload {
+			payload[key] = value
+		}
+
+		if info.Size() > 0 && info.Size() <= maxEmbeddedExternalBytes {
+			if data, readErr := os.ReadFile(path); readErr == nil {
+				payload["base64"] = base64.StdEncoding.EncodeToString(data)
+				payload["inline"] = true
+			}
+		}
+
+		artifactType := strings.TrimSpace(item.ArtifactType)
+		if artifactType == "" {
+			artifactType = "custom"
+		}
+		label := strings.TrimSpace(item.Label)
+		if label == "" {
+			label = artifactType
+		}
+
+		artifact := ArtifactData{
+			ArtifactID:   uuid.New().String(),
+			ArtifactType: artifactType,
+			Label:        label,
+			Payload:      payload,
+		}
+		result.mu.Lock()
+		result.Artifacts = append(result.Artifacts, artifact)
+		result.mu.Unlock()
+	}
+
+	return r.writeResultFile(plan.ExecutionID, result)
+}
+
 func (r *FileWriter) appendProtoTimelineEntry(
 	plan contracts.ExecutionPlan,
 	outcome contracts.StepOutcome,
