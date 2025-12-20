@@ -34,6 +34,7 @@ import { useTimelinePanel } from './hooks/useTimelinePanel';
 import { useActionSelection } from './hooks/useActionSelection';
 import { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
 import { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
+import { mergeConsecutiveActions } from './utils/mergeActions';
 import { getConfig } from '@/config';
 import type { StreamSettingsValues } from './capture/StreamSettings';
 import type { TimelineMode } from './types/timeline-unified';
@@ -149,7 +150,10 @@ export function RecordModePage({
   });
 
   // Use unified timeline items count for selection
-  const timelineItemCount = useMemo(() => timelineItems.length, [timelineItems]);
+  const mergedActions = useMemo(() => mergeConsecutiveActions(actions), [actions]);
+  const timelineItemCount = useMemo(() => {
+    return mode === 'recording' ? mergedActions.length : timelineItems.length;
+  }, [mergedActions.length, mode, timelineItems.length]);
 
   // Selection state for multi-step workflow creation
   const {
@@ -365,12 +369,18 @@ export function RecordModePage({
 
   // Test selected actions
   const handleTestSelectedActions = useCallback(
-    async (_actionIndices: number[]): Promise<ReplayPreviewResponse> => {
-      // TODO: API should support selective replay - for now replay all actions
-      const results = await replayPreview({ stopOnFailure: true });
+    async (actionIndices: number[]): Promise<ReplayPreviewResponse> => {
+      const selected = mode === 'recording'
+        ? actionIndices.map((index) => mergedActions[index]).filter(Boolean)
+        : [];
+      const actionsToReplay = selected.length > 0 ? selected : mergedActions;
+      const results = await replayPreview(
+        { stopOnFailure: true },
+        actionsToReplay,
+      );
       return results;
     },
-    [replayPreview]
+    [mergedActions, mode, replayPreview]
   );
 
   // Generate workflow from selected actions
@@ -438,7 +448,11 @@ export function RecordModePage({
           // Inline mode: use existing generate workflow API
           // TODO: API should support generating from subset of actions
           // For now, generate from all actions
-          const result = await generateWorkflow(params.name, params.projectId);
+          const selectedActions = mode === 'recording'
+            ? params.actionIndices.map((index) => mergedActions[index]).filter(Boolean)
+            : [];
+          const actionsToGenerate = selectedActions.length > 0 ? selectedActions : mergedActions;
+          const result = await generateWorkflow(params.name, params.projectId, actionsToGenerate);
 
           // Reset state
           setRightPanelView('preview');
@@ -452,7 +466,7 @@ export function RecordModePage({
         setIsGenerating(false);
       }
     },
-    [generateWorkflow, exitSelectionMode, onWorkflowGenerated]
+    [generateWorkflow, exitSelectionMode, mergedActions, mode, onWorkflowGenerated]
   );
 
   const hasUnstableSelectors = lowConfidenceCount > 0 || mediumConfidenceCount > 0;
@@ -462,7 +476,7 @@ export function RecordModePage({
     <div className="flex flex-col h-full bg-flow-bg text-flow-text">
       <RecordingHeader
         isRecording={mode === 'recording' && isRecording}
-        actionCount={timelineItems.length}
+        actionCount={timelineItemCount}
         isSidebarOpen={isSidebarOpen}
         onToggleTimeline={handleSidebarToggle}
         onClose={onClose}
@@ -486,6 +500,7 @@ export function RecordModePage({
           <RecordActionsPanel
             actions={actions}
             timelineItems={timelineItems}
+            itemCountOverride={timelineItemCount}
             mode={mode}
             isRecording={isRecording}
             isLoading={isLoading}

@@ -141,6 +141,9 @@ export interface OutroCardSettings {
 }
 
 export interface ReplaySettings {
+  presentationWidth: number;
+  presentationHeight: number;
+  useCustomDimensions: boolean;
   chromeTheme: ReplayChromeTheme;
   backgroundTheme: ReplayBackgroundTheme;
   cursorTheme: ReplayCursorTheme;
@@ -205,6 +208,9 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
     name: 'Default',
     isBuiltIn: true,
     settings: {
+      presentationWidth: 1280,
+      presentationHeight: 720,
+      useCustomDimensions: false,
       chromeTheme: 'aurora',
       backgroundTheme: 'aurora',
       cursorTheme: 'white',
@@ -226,6 +232,9 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
     name: 'Cinematic',
     isBuiltIn: true,
     settings: {
+      presentationWidth: 1280,
+      presentationHeight: 720,
+      useCustomDimensions: false,
       chromeTheme: 'midnight',
       backgroundTheme: 'nebula',
       cursorTheme: 'aura',
@@ -247,6 +256,9 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
     name: 'Minimal',
     isBuiltIn: true,
     settings: {
+      presentationWidth: 1280,
+      presentationHeight: 720,
+      useCustomDimensions: false,
       chromeTheme: 'minimal',
       backgroundTheme: 'charcoal',
       cursorTheme: 'arrowLight',
@@ -268,6 +280,9 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
     name: 'Presentation',
     isBuiltIn: true,
     settings: {
+      presentationWidth: 1280,
+      presentationHeight: 720,
+      useCustomDimensions: false,
       chromeTheme: 'chromium',
       backgroundTheme: 'grid',
       cursorTheme: 'arrowNeon',
@@ -289,6 +304,9 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
     name: 'Ocean Vibes',
     isBuiltIn: true,
     settings: {
+      presentationWidth: 1280,
+      presentationHeight: 720,
+      useCustomDimensions: false,
       chromeTheme: 'aurora',
       backgroundTheme: 'ocean',
       cursorTheme: 'white',
@@ -343,6 +361,9 @@ const loadBrandingSettings = <T extends object>(key: string, defaults: T): T => 
 };
 
 const loadReplaySettings = (): ReplaySettings => {
+  const storedWidth = safeGetItem(`${STORAGE_PREFIX}replay.presentationWidth`);
+  const storedHeight = safeGetItem(`${STORAGE_PREFIX}replay.presentationHeight`);
+  const storedUseCustom = safeGetItem(`${STORAGE_PREFIX}replay.useCustomDimensions`);
   const storedChrome = safeGetItem(`${STORAGE_PREFIX}replay.chromeTheme`);
   const storedBackground = safeGetItem(`${STORAGE_PREFIX}replay.backgroundTheme`);
   const storedCursor = safeGetItem(`${STORAGE_PREFIX}replay.cursorTheme`);
@@ -354,8 +375,15 @@ const loadReplaySettings = (): ReplaySettings => {
   const storedDuration = safeGetItem(`${STORAGE_PREFIX}replay.frameDuration`);
   const storedAutoPlay = safeGetItem(`${STORAGE_PREFIX}replay.autoPlay`);
   const storedLoop = safeGetItem(`${STORAGE_PREFIX}replay.loop`);
+  const parsedWidth = storedWidth ? Math.round(parseInt(storedWidth, 10)) : 1280;
+  const parsedHeight = storedHeight ? Math.round(parseInt(storedHeight, 10)) : 720;
+  const normalizedWidth = Number.isFinite(parsedWidth) ? Math.min(3840, Math.max(320, parsedWidth)) : 1280;
+  const normalizedHeight = Number.isFinite(parsedHeight) ? Math.min(3840, Math.max(320, parsedHeight)) : 720;
 
   return {
+    presentationWidth: normalizedWidth,
+    presentationHeight: normalizedHeight,
+    useCustomDimensions: storedUseCustom === 'true',
     chromeTheme: isReplayChromeTheme(storedChrome) ? storedChrome : DEFAULT_CHROME_THEME,
     backgroundTheme: isReplayBackgroundTheme(storedBackground) ? storedBackground : DEFAULT_BACKGROUND_THEME,
     cursorTheme: isReplayCursorTheme(storedCursor) ? storedCursor : DEFAULT_CURSOR_THEME,
@@ -383,6 +411,9 @@ const saveReplaySetting = <K extends keyof ReplaySettings>(key: K, value: Replay
 };
 
 const getDefaultReplaySettings = (): ReplaySettings => ({
+  presentationWidth: 1280,
+  presentationHeight: 720,
+  useCustomDimensions: false,
   chromeTheme: DEFAULT_CHROME_THEME,
   backgroundTheme: DEFAULT_BACKGROUND_THEME,
   cursorTheme: DEFAULT_CURSOR_THEME,
@@ -554,6 +585,9 @@ const PATH_STYLES: CursorPathStyle[] = ['linear', 'parabolicUp', 'parabolicDown'
 // Generate random replay settings
 const generateRandomSettings = (): ReplaySettings => {
   return {
+    presentationWidth: 1280,
+    presentationHeight: 720,
+    useCustomDimensions: false,
     chromeTheme: randomChoice(REPLAY_CHROME_OPTIONS).id,
     backgroundTheme: randomChoice(REPLAY_BACKGROUND_OPTIONS).id,
     cursorTheme: randomChoice(REPLAY_CURSOR_OPTIONS).id,
@@ -636,7 +670,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       saveReplaySetting(key as keyof ReplaySettings, value);
     });
 
-    set({ replay: { ...settings }, activePresetId: presetId });
+    const defaults = getDefaultReplaySettings();
+    set({ replay: { ...defaults, ...settings }, activePresetId: presetId });
   },
 
   saveAsPreset: (name: string) => {
@@ -665,7 +700,13 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   randomizeSettings: () => {
-    const randomSettings = generateRandomSettings();
+    const currentDimensions = get().replay;
+    const randomSettings = {
+      ...generateRandomSettings(),
+      presentationWidth: currentDimensions.presentationWidth,
+      presentationHeight: currentDimensions.presentationHeight,
+      useCustomDimensions: currentDimensions.useCustomDimensions,
+    };
 
     // Apply all settings to storage
     Object.entries(randomSettings).forEach(([key, value]) => {

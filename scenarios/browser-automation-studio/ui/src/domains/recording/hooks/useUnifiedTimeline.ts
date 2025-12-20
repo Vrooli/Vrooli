@@ -20,6 +20,7 @@ import {
   hasTimelineEntry,
   parseTimelineEntry,
 } from '../types/timeline-unified';
+import { mergeConsecutiveActions } from '../utils/mergeActions';
 
 export interface UseUnifiedTimelineOptions {
   /** Current mode: 'recording' for live recording, 'execution' for workflow playback */
@@ -70,7 +71,7 @@ export function useUnifiedTimeline({
   onItemsReceived,
 }: UseUnifiedTimelineOptions): UseUnifiedTimelineReturn {
   const [items, setItems] = useState<TimelineItem[]>(() =>
-    initialActions.map(recordedActionToTimelineItem)
+    mergeConsecutiveActions(initialActions).map(recordedActionToTimelineItem)
   );
   const [isLive, setIsLive] = useState(false);
   // Error state for future error handling
@@ -81,8 +82,8 @@ export function useUnifiedTimeline({
 
   // Update items when initialActions change (recording mode)
   useEffect(() => {
-    if (mode === 'recording' && initialActions.length > 0) {
-      const newItems = initialActions.map(recordedActionToTimelineItem);
+    if (mode === 'recording') {
+      const newItems = mergeConsecutiveActions(initialActions).map(recordedActionToTimelineItem);
       setItems(newItems);
     }
   }, [mode, initialActions]);
@@ -93,22 +94,7 @@ export function useUnifiedTimeline({
 
     const msg = lastMessage as WebSocketMessage & { action?: unknown; timeline_entry?: unknown };
 
-    // Recording mode: Handle recording_action messages
-    if (mode === 'recording' && msg.type === 'recording_action' && msg.action) {
-      const action = msg.action as RecordedAction;
-      const newItem = recordedActionToTimelineItem(action);
-
-      setItems((prev) => {
-        const exists = prev.some((item) => item.id === newItem.id);
-        if (exists) return prev;
-
-        const updated = [...prev, newItem];
-        if (onItemsReceived) {
-          onItemsReceived([newItem]);
-        }
-        return updated;
-      });
-    }
+    // Recording mode timeline is driven by initialActions from useRecordMode.
 
     // Execution mode: Handle step events with timeline_entry (V2 unified format)
     if (mode === 'execution' && msg.type === 'step') {

@@ -8,6 +8,8 @@ interface RecordActionsPanelProps {
   actions: RecordedAction[];
   /** Unified timeline items (preferred) */
   timelineItems?: TimelineItem[];
+  /** Override item count when actions are reconciled */
+  itemCountOverride?: number;
   /** Current mode: recording or execution */
   mode?: TimelineMode;
   isRecording: boolean;
@@ -42,6 +44,7 @@ interface RecordActionsPanelProps {
 export function RecordActionsPanel({
   actions,
   timelineItems,
+  itemCountOverride,
   mode = 'recording',
   isRecording,
   isLoading,
@@ -70,7 +73,7 @@ export function RecordActionsPanel({
   onSelectNone,
 }: RecordActionsPanelProps) {
   // Use unified timeline items if provided, otherwise fall back to actions count
-  const itemCount = timelineItems?.length ?? actions.length;
+  const itemCount = itemCountOverride ?? timelineItems?.length ?? actions.length;
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
 
   const selectedSession = useMemo(

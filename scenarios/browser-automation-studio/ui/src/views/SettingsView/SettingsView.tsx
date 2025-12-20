@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import {
   ArrowLeft,
   Settings,
@@ -78,10 +78,45 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
   }, [initialTab]); // eslint-disable-line react-hooks/exhaustive-deps -- Only sync when initialTab changes
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
+  const previewBoundsRef = useRef<HTMLDivElement | null>(null);
+  const [previewBounds, setPreviewBounds] = useState<{ width: number; height: number } | null>(null);
 
   // Use 1.5x frame duration for preview so users can better see their customizations
   const previewFrameDuration = Math.round(replay.frameDuration * 1.5);
   const demoFrames = useMemo(() => createDemoFrames(previewFrameDuration), [previewFrameDuration]);
+  const targetWidth = useMemo(() => {
+    const width = Math.round(replay.presentationWidth);
+    return Math.min(3840, Math.max(320, width));
+  }, [replay.presentationWidth]);
+  const targetHeight = useMemo(() => {
+    const height = Math.round(replay.presentationHeight);
+    return Math.min(3840, Math.max(320, height));
+  }, [replay.presentationHeight]);
+  const previewScale = useMemo(() => {
+    if (!previewBounds) return 1;
+    const scaleX = previewBounds.width / targetWidth;
+    const scaleY = previewBounds.height / targetHeight;
+    const nextScale = Math.min(scaleX, scaleY, 1);
+    return Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1;
+  }, [previewBounds, targetHeight, targetWidth]);
+  const scaledWidth = Math.round(targetWidth * previewScale);
+  const scaledHeight = Math.round(targetHeight * previewScale);
+
+  useEffect(() => {
+    const node = previewBoundsRef.current;
+    if (!node) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const width = entry.contentRect.width;
+      const height = entry.contentRect.height;
+      if (width <= 0 || height <= 0) return;
+      setPreviewBounds({ width, height });
+    });
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const handleReset = useCallback(() => {
     if (activeTab === 'display') {
@@ -279,8 +314,8 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
                 {isPreviewPlaying ? 'Pause' : 'Play'}
               </button>
             </div>
-            <div className="flex-1 min-h-0 p-4 overflow-y-auto">
-              <div className="w-full max-w-4xl mx-auto">
+            <div className="flex-1 min-h-0 p-4 overflow-hidden">
+              <div ref={previewBoundsRef} className="w-full h-full flex items-center justify-center">
                 <Suspense
                   fallback={
                     <div className="w-full aspect-video flex items-center justify-center bg-gray-800 rounded-lg">
@@ -288,22 +323,35 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
                     </div>
                   }
                 >
-                  <ReplayPlayer
-                    frames={demoFrames}
-                    autoPlay={isPreviewPlaying}
-                    loop={replay.loop}
-                    chromeTheme={replay.chromeTheme}
-                    backgroundTheme={replay.backgroundTheme}
-                    cursorTheme={replay.cursorTheme}
-                    cursorInitialPosition={replay.cursorInitialPosition}
-                    cursorScale={replay.cursorScale}
-                    cursorClickAnimation={replay.cursorClickAnimation}
-                    cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
-                    cursorDefaultPathStyle={replay.cursorPathStyle}
-                    watermark={replay.watermark}
-                    introCard={replay.introCard}
-                    outroCard={replay.outroCard}
-                  />
+                  <div style={{ width: scaledWidth, height: scaledHeight }} className="relative">
+                    <div
+                      style={{
+                        width: targetWidth,
+                        height: targetHeight,
+                        transform: `scale(${previewScale})`,
+                        transformOrigin: 'top left',
+                      }}
+                      className="relative"
+                    >
+                      <ReplayPlayer
+                        frames={demoFrames}
+                        autoPlay={isPreviewPlaying}
+                        loop={replay.loop}
+                        chromeTheme={replay.chromeTheme}
+                        backgroundTheme={replay.backgroundTheme}
+                        cursorTheme={replay.cursorTheme}
+                        cursorInitialPosition={replay.cursorInitialPosition}
+                        cursorScale={replay.cursorScale}
+                        cursorClickAnimation={replay.cursorClickAnimation}
+                        cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
+                        cursorDefaultPathStyle={replay.cursorPathStyle}
+                        watermark={replay.watermark}
+                        introCard={replay.introCard}
+                        outroCard={replay.outroCard}
+                        presentationDimensions={{ width: targetWidth, height: targetHeight }}
+                      />
+                    </div>
+                  </div>
                 </Suspense>
               </div>
             </div>

@@ -48,10 +48,10 @@ interface UseRecordModeReturn {
   deleteAction: (index: number) => void;
   updateSelector: (index: number, newSelector: string) => void;
   updatePayload: (index: number, payload: Record<string, unknown>) => void;
-  generateWorkflow: (name: string, projectId?: string) => Promise<GenerateWorkflowResponse>;
+  generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[]) => Promise<GenerateWorkflowResponse>;
   validateSelector: (selector: string) => Promise<SelectorValidation>;
   refreshActions: () => Promise<void>;
-  replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }) => Promise<ReplayPreviewResponse>;
+  replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]) => Promise<ReplayPreviewResponse>;
   isReplaying: boolean;
   lowConfidenceCount: number;
   mediumConfidenceCount: number;
@@ -78,10 +78,10 @@ interface UseRecordingTransportReturn {
   error: string | null;
   startRecording: (sessionIdOverride?: string) => Promise<void>;
   stopRecording: () => Promise<void>;
-  generateWorkflow: (name: string, projectId?: string) => Promise<GenerateWorkflowResponse>;
+  generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[]) => Promise<GenerateWorkflowResponse>;
   validateSelector: (selector: string) => Promise<SelectorValidation>;
   refreshActions: () => Promise<void>;
-  replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }) => Promise<ReplayPreviewResponse>;
+  replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]) => Promise<ReplayPreviewResponse>;
 }
 
 function useRecordingTransport({
@@ -287,13 +287,14 @@ function useRecordingTransport({
   }, [apiUrl, refreshActions]);
 
   const generateWorkflow = useCallback(
-    async (name: string, projectId?: string): Promise<GenerateWorkflowResponse> => {
+    async (name: string, projectId?: string, actionsOverride?: RecordedAction[]): Promise<GenerateWorkflowResponse> => {
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
         throw new Error('No session ID provided');
       }
 
-      if (actions.length === 0) {
+      const actionsToSend = actionsOverride ?? actions;
+      if (actionsToSend.length === 0) {
         throw new Error('No actions to generate workflow from');
       }
 
@@ -309,7 +310,7 @@ function useRecordingTransport({
             body: JSON.stringify({
               name,
               project_id: projectId,
-              actions,
+              actions: actionsToSend,
             }),
           }
         );
@@ -359,13 +360,14 @@ function useRecordingTransport({
   );
 
   const replayPreview = useCallback(
-    async (options?: { limit?: number; stopOnFailure?: boolean }): Promise<ReplayPreviewResponse> => {
+    async (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]): Promise<ReplayPreviewResponse> => {
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
         throw new Error('No session ID provided');
       }
 
-      if (actions.length === 0) {
+      const actionsToSend = actionsOverride ?? actions;
+      if (actionsToSend.length === 0) {
         throw new Error('No actions to replay');
       }
 
@@ -379,7 +381,7 @@ function useRecordingTransport({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              actions,
+              actions: actionsToSend,
               limit: options?.limit,
               stop_on_failure: options?.stopOnFailure ?? true,
             }),
