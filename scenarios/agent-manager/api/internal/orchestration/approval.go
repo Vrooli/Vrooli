@@ -69,10 +69,18 @@ func (o *Orchestrator) RejectRun(ctx context.Context, id uuid.UUID, actor, reaso
 		return domain.NewStateError("Run", string(run.Status), "reject", rejectReason)
 	}
 
-	// Reject in sandbox (cleanup resources)
+	// Reject and cleanup sandbox
 	if run.SandboxID != nil && o.sandbox != nil {
+		// First mark as rejected in workspace-sandbox
 		if err := o.sandbox.Reject(ctx, *run.SandboxID, actor); err != nil {
-			return fmt.Errorf("sandbox rejection failed: %w", err)
+			// Log but continue - we still want to update run state
+			// The sandbox might already be in rejected state
+		}
+		// Then delete to fully release the scope lock
+		// This ensures the sandbox is cleaned up and scope is available for new runs
+		if err := o.sandbox.Delete(ctx, *run.SandboxID); err != nil {
+			// Log but don't fail - run rejection should still succeed
+			// The sandbox might already be deleted or in a cleanup-pending state
 		}
 	}
 

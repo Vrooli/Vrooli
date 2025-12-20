@@ -208,6 +208,9 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		// OpenCode doesn't exit after step_finish in JSON mode, so we need to detect it
 		if strings.Contains(line, `"type":"step_finish"`) {
 			stepFinished = true
+			// Handle step_finish specially - it may contain both message and cost data
+			r.handleStepFinish(req.RunID, line, &metrics, &lastAssistantMessage, req.EventSink)
+			break
 		}
 
 		// Parse the streaming event
@@ -235,12 +238,6 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		// Emit to sink
 		if req.EventSink != nil {
 			req.EventSink.Emit(event)
-		}
-
-		// If we received step_finish, break out of the loop
-		// OpenCode has completed but doesn't exit in JSON mode
-		if stepFinished {
-			break
 		}
 	}
 
@@ -564,6 +561,21 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 				json.Unmarshal(streamEvent.Part.Input, &input)
 			}
 
+			// Check if this is a completed tool call (OpenCode sometimes bundles result in same event)
+			if streamEvent.Part.State != nil && streamEvent.Part.State.Status == "completed" {
+				// This tool_call includes the result - emit as tool_result instead
+				output := streamEvent.Part.State.Output
+				if output == "" {
+					output = streamEvent.Part.Output
+				}
+				toolCallID := streamEvent.Part.CallID
+				var errMsg error
+				if streamEvent.Part.IsError {
+					errMsg = fmt.Errorf("%s", output)
+				}
+				return domain.NewToolResultEvent(runID, toolName, toolCallID, output, errMsg), nil
+			}
+
 			return domain.NewToolCallEvent(runID, toolName, input), nil
 		}
 
@@ -592,8 +604,17 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 		}
 
 	case "step_finish":
-		// Step completed - contains cost and token usage
+		// Step completed - contains cost, token usage, and possibly the final message
 		if streamEvent.Part != nil {
+			// First, try to extract assistant message from Snapshot or Text
+			// This will be returned and the cost event will be handled in updateMetrics
+			// via the CostEventData that we embed
+			if msgEvent := r.extractAssistantMessage(runID, streamEvent.Part); msgEvent != nil {
+				// Return message event - cost data is already in metrics from step_finish
+				// We'll handle cost separately via parseStepFinishEvent called after
+				return msgEvent, nil
+			}
+			// If no message, return the cost event
 			return r.parseStepFinishEvent(runID, streamEvent.Part)
 		}
 
@@ -658,6 +679,20 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 				toolName = "unknown_tool"
 			}
 
+			// Check if this is a completed tool (has result)
+			if streamEvent.Part.State != nil && streamEvent.Part.State.Status == "completed" {
+				output := streamEvent.Part.State.Output
+				if output == "" {
+					output = streamEvent.Part.Output
+				}
+				toolCallID := streamEvent.Part.CallID
+				var errMsg error
+				if streamEvent.Part.IsError {
+					errMsg = fmt.Errorf("%s", output)
+				}
+				return domain.NewToolResultEvent(runID, toolName, toolCallID, output, errMsg), nil
+			}
+
 			// Get input from state.input (actual OpenCode format)
 			input := make(map[string]interface{})
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Input != nil {
@@ -693,6 +728,7 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 }
 
 // parseStepFinishEvent handles the step_finish event with cost/token data.
+// Returns multiple events: a message event (if snapshot available) and a cost event.
 func (r *OpenCodeRunner) parseStepFinishEvent(runID uuid.UUID, part *OpenCodePart) (*domain.RunEvent, error) {
 	// Extract token and cost information
 	var inputTokens, outputTokens, cacheRead, cacheWrite int
@@ -720,6 +756,53 @@ func (r *OpenCodeRunner) parseStepFinishEvent(runID uuid.UUID, part *OpenCodePar
 		},
 	}
 	return costEvent, nil
+}
+
+// extractAssistantMessage tries to extract the final assistant message from step_finish.
+// OpenCode stores the complete assistant response in the Snapshot field.
+func (r *OpenCodeRunner) extractAssistantMessage(runID uuid.UUID, part *OpenCodePart) *domain.RunEvent {
+	// Check Snapshot field - contains the full assistant response
+	if part.Snapshot != "" {
+		return domain.NewMessageEvent(runID, "assistant", part.Snapshot)
+	}
+	// Fallback to Text field
+	if part.Text != "" {
+		return domain.NewMessageEvent(runID, "assistant", part.Text)
+	}
+	return nil
+}
+
+// handleStepFinish processes a step_finish event, emitting both message and cost events.
+// OpenCode's step_finish contains the final assistant message (in Snapshot) and token/cost data.
+func (r *OpenCodeRunner) handleStepFinish(runID uuid.UUID, line string, metrics *ExecutionMetrics, lastAssistant *string, sink EventSink) {
+	// Parse the step_finish event
+	var streamEvent OpenCodeStreamEvent
+	if err := json.Unmarshal([]byte(line), &streamEvent); err != nil {
+		return
+	}
+
+	if streamEvent.Part == nil {
+		return
+	}
+
+	part := streamEvent.Part
+
+	// 1. Extract and emit assistant message if available
+	if msgEvent := r.extractAssistantMessage(runID, part); msgEvent != nil {
+		r.updateMetrics(msgEvent, metrics, lastAssistant)
+		if sink != nil {
+			sink.Emit(msgEvent)
+		}
+	}
+
+	// 2. Extract and emit cost/token metrics
+	costEvent, err := r.parseStepFinishEvent(runID, part)
+	if err == nil && costEvent != nil {
+		r.updateMetrics(costEvent, metrics, lastAssistant)
+		if sink != nil {
+			sink.Emit(costEvent)
+		}
+	}
 }
 
 // updateMetrics updates execution metrics based on parsed events.

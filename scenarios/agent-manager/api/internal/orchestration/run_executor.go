@@ -722,6 +722,17 @@ func (e *RunExecutor) handleSuccessfulCompletion() {
 		// Skip approval workflow - mark as complete directly
 		e.run.Status = domain.RunStatusComplete
 		e.run.ApprovalState = domain.ApprovalStateNone
+
+		// Cleanup sandbox when approval not required - changes are discarded
+		// since the user chose not to review them in sandboxed mode
+		if e.run.RunMode == domain.RunModeSandboxed && e.sandboxID != nil && e.sandbox != nil {
+			ctx := context.Background()
+			if err := e.sandbox.Delete(ctx, *e.sandboxID); err != nil {
+				e.emitSystemEvent(ctx, "warn", "failed to cleanup sandbox on completion: "+err.Error())
+			} else {
+				e.emitSystemEvent(ctx, "info", "sandbox cleaned up (no approval required)")
+			}
+		}
 	}
 
 	if e.result != nil {
