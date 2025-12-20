@@ -151,6 +151,15 @@ Vrooli Ascension (BAS) enables **declarative UI testing** through JSON workflows
 - After editing or moving a workflow, regenerate the registry using the playbook build script
 - `metadata.reset` (`none`, `full`) tells the runner when to reseed
 
+## Workflow Hierarchy (Critical)
+
+BAS workflows are **hierarchical** and should be authored/tested in this order:
+1. **Actions** (`bas/actions/`): atomic, reusable steps; no assertions.
+2. **Flows** (`bas/flows/`): compose actions into journeys; still no assertions.
+3. **Cases** (`bas/cases/`): assert requirements; call flows or actions.
+
+This ordering is the fastest way to debug failures: stabilize actions first, then flows, then cases.
+
 ## Node Types Reference
 
 ### Navigate Node
@@ -252,7 +261,7 @@ BAS uses a **centralized selector registry** to eliminate hardcoded CSS selector
 
 ### How It Works
 
-**Single Source of Truth**: All selectors defined in `ui/src/consts/selectors.ts`:
+**Single Source of Truth**: All selectors defined in `ui/src/constants/selectors.ts`:
 
 ```typescript
 const literalSelectors = {
@@ -269,7 +278,7 @@ const literalSelectors = {
 **In UI Components**:
 
 ```typescript
-import { selectors } from '@/consts/selectors';
+import { selectors } from '@/constants/selectors';
 
 <button data-testid={selectors.dashboard.newProjectButton}>
   New Project
@@ -349,14 +358,19 @@ See [Directory Structure](directory-structure.md) for naming conventions, fixtur
 
 ## Execution
 
-BAS workflows are executed through test-genie's Go orchestrator during the business phase:
+**Run iteratively while authoring** using the BAS CLI (recommended):
+```bash
+browser-automation-studio execution create \
+  --file bas/cases/01-foundation/01-projects/new-project-create.json \
+  --wait
+```
 
-**Via CLI:**
+**Run in the Playbooks phase** using test-genie:
 ```bash
 test-genie execute my-scenario --preset comprehensive
 ```
 
-**Via API:**
+**Via API (test-genie orchestrator):**
 ```bash
 curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute-sync" \
   -H "Content-Type: application/json" \
@@ -402,7 +416,7 @@ For `@selector/` references, the error message will tell you:
 1. If manifest was auto-regenerated (selector doesn't exist in selectors.ts)
 2. Similar selectors you might have meant
 
-**Solution**: Register selector in `ui/src/consts/selectors.ts` first.
+**Solution**: Register selector in `ui/src/constants/selectors.ts` first.
 
 ### Workflow Times Out
 
