@@ -969,11 +969,16 @@ func (s *InvestigationService) UpdateAgentConfig(ctx context.Context, runnerType
 func (s *InvestigationService) GetAgentStatus(ctx context.Context) (*AgentStatusResponse, error) {
 	status := &AgentStatusResponse{
 		Enabled:      s.agentSvc != nil && s.agentSvc.IsEnabled(),
-		AgentManager: s.config.AgentManager.URL,
 	}
 
 	if !status.Enabled {
 		return status, nil
+	}
+
+	if url, err := s.agentSvc.ResolveURL(ctx); err == nil {
+		status.AgentManager = url
+	} else {
+		status.LastError = err.Error()
 	}
 
 	status.Available = s.agentSvc.IsAvailable(ctx)

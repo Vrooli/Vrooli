@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,15 +25,13 @@ import (
 
 // Client is an HTTP client for the agent-manager API.
 type Client struct {
-	baseURL    string
 	httpClient *http.Client
 	jsonOpts   protojson.MarshalOptions
 }
 
 // NewClient creates a new agent-manager client.
-func NewClient(baseURL string, timeout time.Duration) *Client {
+func NewClient(timeout time.Duration) *Client {
 	return &Client{
-		baseURL: baseURL,
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
@@ -512,7 +512,12 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 		bodyReader = bytes.NewReader(body)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bodyReader)
+	baseURL, err := c.resolveBaseURL(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, baseURL+path, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -523,6 +528,30 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 	req.Header.Set("Accept", "application/json")
 
 	return c.httpClient.Do(req)
+}
+
+func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", "agent-manager", "API_PORT")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		message := strings.TrimSpace(string(output))
+		if message != "" {
+			return "", fmt.Errorf("resolve agent-manager port: %w: %s", err, message)
+		}
+		return "", fmt.Errorf("resolve agent-manager port: %w", err)
+	}
+
+	port := strings.TrimSpace(string(output))
+	if port == "" {
+		return "", fmt.Errorf("resolve agent-manager port: empty output")
+	}
+
+	return fmt.Sprintf("http://localhost:%s", port), nil
+}
+
+// ResolveURL exposes the computed agent-manager base URL.
+func (c *Client) ResolveURL(ctx context.Context) (string, error) {
+	return c.resolveBaseURL(ctx)
 }
 
 func (c *Client) parseResponse(resp *http.Response, msg proto.Message) error {

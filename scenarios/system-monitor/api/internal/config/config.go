@@ -22,8 +22,6 @@ type Config struct {
 
 // AgentManagerConfig contains agent-manager service configuration
 type AgentManagerConfig struct {
-	// URL is the base URL for agent-manager API (e.g., "http://localhost:15000")
-	URL string
 	// ProfileName is the name to use for the system-monitor agent profile
 	ProfileName string
 	// Timeout for API requests
@@ -172,7 +170,6 @@ func Load() *Config {
 			Endpoints:          loadHealthEndpoints(),
 		},
 		AgentManager: AgentManagerConfig{
-			URL:         getEnv("AGENT_MANAGER_URL", "http://localhost:15000"),
 			ProfileName: getEnv("AGENT_MANAGER_PROFILE_NAME", "system-monitor-investigator"),
 			Timeout:     time.Duration(getEnvAsInt("AGENT_MANAGER_TIMEOUT_SECONDS", 30)) * time.Second,
 			Enabled:     getEnvAsBool("AGENT_MANAGER_ENABLED", true),

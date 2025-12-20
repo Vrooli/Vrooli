@@ -26,7 +26,6 @@ type AgentService struct {
 
 // AgentServiceConfig contains configuration for the agent service.
 type AgentServiceConfig struct {
-	URL         string
 	ProfileName string
 	Timeout     time.Duration
 	Enabled     bool
@@ -34,7 +33,7 @@ type AgentServiceConfig struct {
 
 // NewAgentService creates a new agent service.
 func NewAgentService(cfg AgentServiceConfig) *AgentService {
-	client := NewClient(cfg.URL, cfg.Timeout)
+	client := NewClient(cfg.Timeout)
 	return &AgentService{
 		client:      client,
 		profileName: cfg.ProfileName,
@@ -54,6 +53,14 @@ func (s *AgentService) IsAvailable(ctx context.Context) bool {
 	}
 	ok, err := s.client.Health(ctx)
 	return err == nil && ok
+}
+
+// ResolveURL returns the current agent-manager base URL.
+func (s *AgentService) ResolveURL(ctx context.Context) (string, error) {
+	if !s.enabled {
+		return "", fmt.Errorf("agent-manager not enabled")
+	}
+	return s.client.ResolveURL(ctx)
 }
 
 // Initialize ensures the agent profile exists.

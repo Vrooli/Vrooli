@@ -26,7 +26,6 @@ func Run(cfg *config.Config) error {
 	monitorSvc := services.NewMonitorService(cfg, repo, alertSvc)
 
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
-		URL:         cfg.AgentManager.URL,
 		ProfileName: cfg.AgentManager.ProfileName,
 		Timeout:     cfg.AgentManager.Timeout,
 		Enabled:     cfg.AgentManager.Enabled,
