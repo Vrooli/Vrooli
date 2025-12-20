@@ -12,11 +12,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/discovery"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -531,22 +530,11 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 }
 
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", "agent-manager", "API_PORT")
-	output, err := cmd.CombinedOutput()
+	url, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
 	if err != nil {
-		message := strings.TrimSpace(string(output))
-		if message != "" {
-			return "", fmt.Errorf("resolve agent-manager port: %w: %s", err, message)
-		}
-		return "", fmt.Errorf("resolve agent-manager port: %w", err)
+		return "", fmt.Errorf("resolve agent-manager url: %w", err)
 	}
-
-	port := strings.TrimSpace(string(output))
-	if port == "" {
-		return "", fmt.Errorf("resolve agent-manager port: empty output")
-	}
-
-	return fmt.Sprintf("http://localhost:%s", port), nil
+	return url, nil
 }
 
 // ResolveURL exposes the computed agent-manager base URL.

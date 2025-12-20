@@ -21,15 +21,40 @@ import "github.com/vrooli/api-core/preflight"
 
 func main() {
     // Must be first - before any initialization
-    if preflight.Run(preflight.Config{
-        ScenarioName: "my-scenario",
-    }) {
-        return // Process was re-exec'd after rebuild
-    }
+if preflight.Run(preflight.Config{
+    ScenarioName: "my-scenario",
+}) {
+    return // Process was re-exec'd after rebuild
+}
 
     // Safe to initialize server, DB connections, etc.
     server := NewServer()
-    server.Start()
+server.Start()
+}
+```
+
+## Scenario Discovery
+
+`api-core/discovery` resolves scenario ports at runtime by invoking the Vrooli CLI
+every call (no caching). This avoids hard-coded or stale ports when scenarios
+restart on new allocations.
+
+```go
+import (
+    "context"
+    "log"
+
+    "github.com/vrooli/api-core/discovery"
+)
+
+func callOtherScenario() {
+    resolver := discovery.NewResolver(discovery.ResolverConfig{})
+    url, err := resolver.ResolveScenarioURLDefault(context.Background(), "other-scenario")
+    if err != nil {
+        log.Printf("resolve failed: %v", err)
+        return
+    }
+    // url -> http://localhost:<port>
 }
 ```
 
