@@ -214,13 +214,13 @@ func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.
 	}
 
 	// Validate and normalize the request
-	projectRoot, normalizedPath, err := s.validateCreateRequest(ctx, req)
+	projectRoot, normalizedScopePath, normalizedReservedPath, err := s.validateCreateRequest(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create and mount the sandbox
-	return s.createAndMountSandbox(ctx, req, projectRoot, normalizedPath)
+	return s.createAndMountSandbox(ctx, req, projectRoot, normalizedScopePath, normalizedReservedPath)
 }
 
 // checkIdempotency checks if a sandbox was already created with the given idempotency key.
@@ -243,50 +243,78 @@ func (s *Service) checkIdempotency(ctx context.Context, req *types.CreateRequest
 	return nil, false
 }
 
-// validateCreateRequest validates the create request and returns the resolved project root
-// and normalized scope path. Returns an error if validation fails.
-func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRequest) (string, string, error) {
+// validateCreateRequest validates the create request and returns the resolved project root,
+// normalized scope path (mount scope), and normalized reserved path (mutual exclusion + default approval).
+// Returns an error if validation fails.
+func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRequest) (string, string, string, error) {
 	// Resolve project root from request or config
 	projectRoot := req.ProjectRoot
 	if projectRoot == "" {
 		projectRoot = s.config.DefaultProjectRoot
 	}
 	if projectRoot == "" {
-		return "", "", types.NewValidationErrorWithHint(
+		return "", "", "", types.NewValidationErrorWithHint(
 			"projectRoot",
 			"project root is required but not provided",
 			"Set projectRoot in the request body, or configure PROJECT_ROOT environment variable",
 		)
 	}
 
-	// Validate and normalize scope path
-	normalizedPath, err := ValidateScopePath(req.ScopePath, projectRoot)
+	// Validate and normalize scope path (mount scope)
+	normalizedScopePath, err := ValidateScopePath(req.ScopePath, projectRoot)
 	if err != nil {
-		return "", "", types.NewValidationErrorWithHint(
+		return "", "", "", types.NewValidationErrorWithHint(
 			"scopePath",
 			fmt.Sprintf("invalid scope path: %v", err),
 			"Ensure the path exists within the project root and contains no invalid characters",
 		)
 	}
 
-	// Check for overlapping sandboxes
-	conflicts, err := s.repo.CheckScopeOverlap(ctx, normalizedPath, projectRoot, nil)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to check scope overlap: %w", err)
+	// Validate and normalize reserved path (defaults to scope path for backwards compatibility)
+	reserved := req.ReservedPath
+	if reserved == "" {
+		reserved = normalizedScopePath
 	}
-	if len(conflicts) > 0 {
-		return "", "", &types.ScopeConflictError{Conflicts: conflicts}
+	normalizedReservedPath, err := ValidateScopePath(reserved, projectRoot)
+	if err != nil {
+		return "", "", "", types.NewValidationErrorWithHint(
+			"reservedPath",
+			fmt.Sprintf("invalid reserved path: %v", err),
+			"Ensure the reserved path exists within the project root and contains no invalid characters",
+		)
 	}
 
-	return projectRoot, normalizedPath, nil
+	// Ensure reservedPath is within the mount scope. Otherwise approvals could never apply.
+	// This also keeps mutual exclusion semantics meaningful.
+	cleanScope := filepath.Clean(normalizedScopePath)
+	cleanReserved := filepath.Clean(normalizedReservedPath)
+	if cleanReserved != cleanScope && !strings.HasPrefix(cleanReserved, cleanScope+string(filepath.Separator)) {
+		return "", "", "", types.NewValidationErrorWithHint(
+			"reservedPath",
+			"reserved path must be within scope path",
+			"Set scopePath to the project root (full-repo mount), or choose a reservedPath inside the scopePath",
+		)
+	}
+
+	// Check for overlapping sandboxes
+	conflicts, err := s.repo.CheckScopeOverlap(ctx, normalizedReservedPath, projectRoot, nil)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to check scope overlap: %w", err)
+	}
+	if len(conflicts) > 0 {
+		return "", "", "", &types.ScopeConflictError{Conflicts: conflicts}
+	}
+
+	return projectRoot, normalizedScopePath, normalizedReservedPath, nil
 }
 
 // createAndMountSandbox creates the sandbox record, mounts the overlay, and returns the sandbox.
-func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRequest, projectRoot, normalizedPath string) (*types.Sandbox, error) {
+func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRequest, projectRoot, normalizedScopePath, normalizedReservedPath string) (*types.Sandbox, error) {
 	// Create sandbox record
 	sandbox := &types.Sandbox{
 		ID:             uuid.New(),
-		ScopePath:      normalizedPath,
+		ScopePath:      normalizedScopePath,
+		ReservedPath:   normalizedReservedPath,
 		ProjectRoot:    projectRoot,
 		Owner:          req.Owner,
 		OwnerType:      req.OwnerType,
@@ -345,6 +373,7 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 	// Log audit event [OT-P1-004]
 	s.logAuditEvent(ctx, sandbox, "created", req.Owner, string(req.OwnerType), map[string]interface{}{
 		"scopePath":      sandbox.ScopePath,
+		"reservedPath":   sandbox.ReservedPath,
 		"projectRoot":    sandbox.ProjectRoot,
 		"idempotencyKey": req.IdempotencyKey,
 	})
@@ -598,6 +627,134 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 	return gen.GenerateDiff(ctx, sandbox, changes)
 }
 
+func getApprovablePrefixesRelToScope(sandbox *types.Sandbox, req *types.ApprovalRequest) ([]string, error) {
+	if req != nil && req.ApproveAll {
+		return []string{""}, nil
+	}
+
+	// Default allowlist: reserved path if present; fallback to scope for legacy rows.
+	reservedAbs := sandbox.ReservedPath
+	if reservedAbs == "" {
+		reservedAbs = sandbox.ScopePath
+	}
+
+	includePrefixes := []string(nil)
+	if req != nil {
+		includePrefixes = req.IncludePrefixes
+	}
+
+	absPrefixes := make([]string, 0, 1+len(includePrefixes))
+	if reservedAbs != "" {
+		absPrefixes = append(absPrefixes, reservedAbs)
+	}
+
+	for _, p := range includePrefixes {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+
+		abs := p
+		if !filepath.IsAbs(abs) {
+			abs = filepath.Join(sandbox.ProjectRoot, abs)
+		}
+		abs = filepath.Clean(abs)
+
+		// Ensure prefix is within project root.
+		cleanProject := filepath.Clean(sandbox.ProjectRoot)
+		if abs != cleanProject && !strings.HasPrefix(abs, cleanProject+string(filepath.Separator)) {
+			return nil, types.NewValidationErrorWithHint(
+				"includePrefixes",
+				"includePrefixes must be within projectRoot",
+				"Provide absolute paths within projectRoot, or paths relative to projectRoot",
+			)
+		}
+
+		absPrefixes = append(absPrefixes, abs)
+	}
+
+	relPrefixes := make([]string, 0, len(absPrefixes))
+	seen := make(map[string]bool)
+	for _, abs := range absPrefixes {
+		rel, err := filepath.Rel(sandbox.ScopePath, abs)
+		if err != nil {
+			return nil, types.NewValidationErrorWithHint(
+				"includePrefixes",
+				"failed to resolve includePrefixes relative to scopePath",
+				"Ensure scopePath and includePrefixes are valid directories within projectRoot",
+			)
+		}
+		rel = filepath.Clean(rel)
+		if rel == "." {
+			rel = ""
+		}
+		// Ensure prefix is within the sandbox mount scope.
+		if strings.HasPrefix(rel, "..") {
+			return nil, types.NewValidationErrorWithHint(
+				"includePrefixes",
+				"includePrefixes must be within scopePath",
+				"Set scopePath to the project root for full-repo sandboxes, or provide prefixes inside the scopePath",
+			)
+		}
+		if !seen[rel] {
+			seen[rel] = true
+			relPrefixes = append(relPrefixes, rel)
+		}
+	}
+
+	// If reservedPath equals scopePath, relPrefixes will contain "" and we allow all.
+	if len(relPrefixes) == 0 {
+		return []string{""}, nil
+	}
+
+	return relPrefixes, nil
+}
+
+func filterChangesByRelPrefixes(changes []*types.FileChange, relPrefixes []string) []*types.FileChange {
+	if len(changes) == 0 {
+		return changes
+	}
+	if len(relPrefixes) == 0 {
+		return nil
+	}
+
+	// Fast path: allow all.
+	if len(relPrefixes) == 1 && relPrefixes[0] == "" {
+		return changes
+	}
+
+	var filtered []*types.FileChange
+	for _, c := range changes {
+		if c == nil {
+			continue
+		}
+		if pathWithinAnyRelPrefix(c.FilePath, relPrefixes) {
+			filtered = append(filtered, c)
+		}
+	}
+	return filtered
+}
+
+func pathWithinAnyRelPrefix(relPath string, relPrefixes []string) bool {
+	cleanPath := filepath.Clean(relPath)
+	if cleanPath == "." {
+		cleanPath = ""
+	}
+	for _, prefix := range relPrefixes {
+		cleanPrefix := filepath.Clean(prefix)
+		if cleanPrefix == "." {
+			cleanPrefix = ""
+		}
+		if cleanPrefix == "" {
+			return true
+		}
+		if cleanPath == cleanPrefix || strings.HasPrefix(cleanPath, cleanPrefix+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
+
 // Approve applies sandbox changes to the canonical repo.
 //
 // # Idempotency
@@ -685,9 +842,45 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 	// [OT-P1-002] Track which changes will be applied (for partial approval)
 	changes := allChanges
 
+	// If hunks mode is requested, narrow changes to only files referenced by hunks.
+	// This ensures reservedPath filtering and validation behave consistently across modes.
+	if req.Mode == "hunks" && len(req.HunkRanges) > 0 {
+		fileIDs := make([]uuid.UUID, 0, len(req.HunkRanges))
+		seen := make(map[uuid.UUID]bool)
+		for _, hr := range req.HunkRanges {
+			if !seen[hr.FileID] {
+				seen[hr.FileID] = true
+				fileIDs = append(fileIDs, hr.FileID)
+			}
+		}
+		changes = diff.FilterChanges(allChanges, fileIDs)
+	}
+
 	// Filter changes if specific files requested
 	if req.Mode == "files" && len(req.FileIDs) > 0 {
 		changes = diff.FilterChanges(allChanges, req.FileIDs)
+	}
+
+	// Apply reservedPath default approval filter unless explicitly bypassed.
+	// This is "soft safety": agents can change anything in the sandbox, but default approval is scoped.
+	approvablePrefixes, err := getApprovablePrefixesRelToScope(sandbox, req)
+	if err != nil {
+		return nil, err
+	}
+	// Empty prefix ("") means "all files".
+	allowAll := len(approvablePrefixes) == 1 && approvablePrefixes[0] == ""
+	if !allowAll {
+		before := changes
+		changes = filterChangesByRelPrefixes(changes, approvablePrefixes)
+
+		// For explicit selection modes, require an explicit override to approve outside reserved scope.
+		if req.Mode != "all" && len(changes) != len(before) {
+			return nil, types.NewValidationErrorWithHint(
+				"reservedPath",
+				"selected changes include files outside the reserved directory",
+				"Use approveAll=true to bypass reservedPath filtering, or provide includePrefixes to expand the allowlist",
+			)
+		}
 	}
 
 	if len(changes) == 0 {
@@ -1315,9 +1508,9 @@ func (s *Service) GetFileProvenance(ctx context.Context, filePath, projectRoot s
 // This allows batching multiple sandbox changes into a single commit.
 //
 // Reconciliation behavior:
-// - Files that are still uncommitted in git will be staged and committed
-// - Files that were already committed externally will be marked as reconciled
-//   with a special commit hash indicating external commit
+//   - Files that are still uncommitted in git will be staged and committed
+//   - Files that were already committed externally will be marked as reconciled
+//     with a special commit hash indicating external commit
 func (s *Service) CommitPending(ctx context.Context, req *types.CommitPendingRequest) (*types.CommitPendingResult, error) {
 	result := &types.CommitPendingResult{}
 

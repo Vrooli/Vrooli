@@ -116,6 +116,21 @@ export default function App() {
     );
   }, [selectedSandbox, approveMutation, queryClient]);
 
+  const handleApproveAll = useCallback(() => {
+    if (!selectedSandbox) return;
+    approveMutation.mutate(
+      { id: selectedSandbox.id, options: { approveAll: true } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.sandbox(selectedSandbox.id),
+          });
+          queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
+        },
+      }
+    );
+  }, [selectedSandbox, approveMutation, queryClient]);
+
   const handleReject = useCallback(() => {
     if (!selectedSandbox) return;
     rejectMutation.mutate(
@@ -211,11 +226,11 @@ export default function App() {
   // Use the list version if available (more up-to-date)
   const currentSandbox = selectedFromList || selectedSandbox;
 
-  // Extract existing scope paths from active sandboxes for conflict detection
-  const existingScopePaths = useMemo(() => {
+  // Extract existing reserved paths from active sandboxes for conflict detection
+  const existingReservedPaths = useMemo(() => {
     return sandboxes
       .filter((sb) => sb.status === "active" || sb.status === "creating")
-      .map((sb) => sb.scopePath);
+      .map((sb) => sb.reservedPath || sb.scopePath);
   }, [sandboxes]);
 
   return (
@@ -256,6 +271,7 @@ export default function App() {
             onStop={handleStop}
             onStart={handleStart}
             onApprove={handleApprove}
+            onApproveAll={handleApproveAll}
             onReject={handleReject}
             onDelete={handleDelete}
             onDiscardFile={handleDiscardFile}
@@ -277,7 +293,7 @@ export default function App() {
         onCreate={handleCreate}
         isCreating={createMutation.isPending}
         recentSandboxes={sandboxes}
-        existingScopePaths={existingScopePaths}
+        existingReservedPaths={existingReservedPaths}
         defaultProjectRoot={healthQuery.data?.config?.projectRoot}
       />
 

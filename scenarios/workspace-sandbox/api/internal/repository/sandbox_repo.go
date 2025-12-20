@@ -115,13 +115,13 @@ func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error 
 
 	query := `
 		INSERT INTO sandboxes (
-			id, scope_path, project_root, owner, owner_type, status,
+			id, scope_path, reserved_path, project_root, owner, owner_type, status,
 			driver, driver_version, tags, metadata, idempotency_key, version, base_commit_hash
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULLIF($11, ''), $12, NULLIF($13, ''))
+		) VALUES ($1, $2, NULLIF($3, ''), $4, $5, $6, $7, $8, $9, $10, $11, NULLIF($12, ''), $13, NULLIF($14, ''))
 		RETURNING created_at, last_used_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
-		s.ID, s.ScopePath, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
+		s.ID, s.ScopePath, s.ReservedPath, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, s.IdempotencyKey, s.Version, s.BaseCommitHash,
 	).Scan(&s.CreatedAt, &s.LastUsedAt, &s.UpdatedAt)
 }
@@ -129,7 +129,7 @@ func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error 
 // Get retrieves a sandbox by ID.
 func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 	query := `
-		SELECT id, scope_path, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, COALESCE(reserved_path, scope_path), project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata,
@@ -143,7 +143,7 @@ func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandb
 	var activePIDs pq.Int64Array
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.ScopePath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.ScopePath, &s.ReservedPath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
@@ -319,7 +319,7 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 	limitArg := qb.nextArgNum()
 	offsetArg := limitArg + 1
 	query := `
-		SELECT id, scope_path, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, COALESCE(reserved_path, scope_path), project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata,
@@ -345,7 +345,7 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 		var activePIDs pq.Int64Array
 
 		err := rows.Scan(
-			&s.ID, &s.ScopePath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+			&s.ID, &s.ScopePath, &s.ReservedPath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 			&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 			&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
@@ -576,7 +576,7 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 	}
 
 	query := `
-		SELECT id, scope_path, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, COALESCE(reserved_path, scope_path), project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata,
@@ -590,7 +590,7 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 	var activePIDs pq.Int64Array
 
 	err := r.db.QueryRowContext(ctx, query, key).Scan(
-		&s.ID, &s.ScopePath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.ScopePath, &s.ReservedPath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
@@ -708,13 +708,13 @@ func (r *TxSandboxRepository) Create(ctx context.Context, s *types.Sandbox) erro
 
 	query := `
 		INSERT INTO sandboxes (
-			id, scope_path, project_root, owner, owner_type, status,
+			id, scope_path, reserved_path, project_root, owner, owner_type, status,
 			driver, driver_version, tags, metadata, idempotency_key, version
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULLIF($11, ''), $12)
+		) VALUES ($1, $2, NULLIF($3, ''), $4, $5, $6, $7, $8, $9, $10, $11, NULLIF($12, ''), $13)
 		RETURNING created_at, last_used_at, updated_at`
 
 	return r.tx.QueryRowContext(ctx, query,
-		s.ID, s.ScopePath, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
+		s.ID, s.ScopePath, s.ReservedPath, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, s.IdempotencyKey, s.Version,
 	).Scan(&s.CreatedAt, &s.LastUsedAt, &s.UpdatedAt)
 }
@@ -722,7 +722,7 @@ func (r *TxSandboxRepository) Create(ctx context.Context, s *types.Sandbox) erro
 // Get retrieves a sandbox by ID within the transaction.
 func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 	query := `
-		SELECT id, scope_path, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, COALESCE(reserved_path, scope_path), project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata,
@@ -736,7 +736,7 @@ func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.San
 	var activePIDs pq.Int64Array
 
 	err := r.tx.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.ScopePath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.ScopePath, &s.ReservedPath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
@@ -914,7 +914,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 	}
 
 	query := `
-		SELECT id, scope_path, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, COALESCE(reserved_path, scope_path), project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata,
@@ -929,7 +929,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 	var activePIDs pq.Int64Array
 
 	err := r.tx.QueryRowContext(ctx, query, key).Scan(
-		&s.ID, &s.ScopePath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.ScopePath, &s.ReservedPath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
@@ -1091,7 +1091,7 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 	limitArg := qb.nextArgNum()
 
 	query := `
-		SELECT id, scope_path, project_root, owner, owner_type, status, error_message,
+		SELECT id, scope_path, COALESCE(reserved_path, scope_path), project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata,
@@ -1117,7 +1117,7 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 		var activePIDs pq.Int64Array
 
 		err := rows.Scan(
-			&s.ID, &s.ScopePath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+			&s.ID, &s.ScopePath, &s.ReservedPath, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 			&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 			&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,

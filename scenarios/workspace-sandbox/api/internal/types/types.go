@@ -81,18 +81,19 @@ const (
 
 // Sandbox represents a workspace sandbox with all its metadata.
 type Sandbox struct {
-	ID          uuid.UUID  `json:"id" db:"id"`
-	ScopePath   string     `json:"scopePath" db:"scope_path"`
-	ProjectRoot string     `json:"projectRoot" db:"project_root"`
-	Owner       string     `json:"owner,omitempty" db:"owner"`
-	OwnerType   OwnerType  `json:"ownerType" db:"owner_type"`
-	Status      Status     `json:"status" db:"status"`
-	ErrorMsg    string     `json:"errorMessage,omitempty" db:"error_message"`
-	CreatedAt   time.Time  `json:"createdAt" db:"created_at"`
-	LastUsedAt  time.Time  `json:"lastUsedAt" db:"last_used_at"`
-	StoppedAt   *time.Time `json:"stoppedAt,omitempty" db:"stopped_at"`
-	ApprovedAt  *time.Time `json:"approvedAt,omitempty" db:"approved_at"`
-	DeletedAt   *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`
+	ID           uuid.UUID  `json:"id" db:"id"`
+	ScopePath    string     `json:"scopePath" db:"scope_path"`
+	ReservedPath string     `json:"reservedPath" db:"reserved_path"`
+	ProjectRoot  string     `json:"projectRoot" db:"project_root"`
+	Owner        string     `json:"owner,omitempty" db:"owner"`
+	OwnerType    OwnerType  `json:"ownerType" db:"owner_type"`
+	Status       Status     `json:"status" db:"status"`
+	ErrorMsg     string     `json:"errorMessage,omitempty" db:"error_message"`
+	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
+	LastUsedAt   time.Time  `json:"lastUsedAt" db:"last_used_at"`
+	StoppedAt    *time.Time `json:"stoppedAt,omitempty" db:"stopped_at"`
+	ApprovedAt   *time.Time `json:"approvedAt,omitempty" db:"approved_at"`
+	DeletedAt    *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`
 
 	// Driver configuration
 	Driver        string `json:"driver" db:"driver"`
@@ -180,12 +181,13 @@ type AuditEvent struct {
 //
 // If no IdempotencyKey is provided, each request creates a new sandbox.
 type CreateRequest struct {
-	ScopePath   string                 `json:"scopePath"`
-	ProjectRoot string                 `json:"projectRoot,omitempty"`
-	Owner       string                 `json:"owner,omitempty"`
-	OwnerType   OwnerType              `json:"ownerType,omitempty"`
-	Tags        []string               `json:"tags,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	ScopePath    string                 `json:"scopePath"`
+	ReservedPath string                 `json:"reservedPath,omitempty"`
+	ProjectRoot  string                 `json:"projectRoot,omitempty"`
+	Owner        string                 `json:"owner,omitempty"`
+	OwnerType    OwnerType              `json:"ownerType,omitempty"`
+	Tags         []string               `json:"tags,omitempty"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 
 	// IdempotencyKey is an optional client-provided key for request deduplication.
 	// If provided and a sandbox was already created with this key, that sandbox
@@ -233,6 +235,13 @@ type ApprovalRequest struct {
 	HunkRanges []HunkRange `json:"hunkRanges,omitempty"`
 	Actor      string      `json:"actor,omitempty"`
 	CommitMsg  string      `json:"commitMessage,omitempty"`
+
+	// ApproveAll bypasses reservedPath default filtering and applies all changes.
+	ApproveAll bool `json:"approveAll,omitempty"`
+
+	// IncludePrefixes expands the default approvable paths beyond reservedPath.
+	// Each prefix may be absolute (within projectRoot) or relative to projectRoot.
+	IncludePrefixes []string `json:"includePrefixes,omitempty"`
 
 	// Force bypasses conflict detection and applies changes even if the
 	// canonical repo has changed since sandbox creation. Use with caution.

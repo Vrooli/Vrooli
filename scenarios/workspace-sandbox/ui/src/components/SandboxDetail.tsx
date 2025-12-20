@@ -33,6 +33,7 @@ interface SandboxDetailProps {
   onStop: () => void;
   onStart: () => void;
   onApprove: () => void;
+  onApproveAll?: () => void;
   onReject: () => void;
   onDelete: () => void;
   onDiscardFile?: (fileId: string) => void;
@@ -136,6 +137,7 @@ export function SandboxDetail({
   onStop,
   onStart,
   onApprove,
+  onApproveAll,
   onReject,
   onDelete,
   onDiscardFile,
@@ -149,6 +151,7 @@ export function SandboxDetail({
 }: SandboxDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showApproveAllConfirm, setShowApproveAllConfirm] = useState(false);
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
 
   // Empty state
@@ -185,7 +188,7 @@ export function SandboxDetail({
             <div>
               <CardTitle className="flex items-center gap-2">
                 <FolderOpen className="h-4 w-4" />
-                {sandbox.scopePath || "/"}
+                {sandbox.reservedPath || sandbox.scopePath || "/"}
               </CardTitle>
               <CardDescription className="font-mono text-xs mt-1">
                 {sandbox.id}
@@ -203,6 +206,18 @@ export function SandboxDetail({
         <CardContent className="pt-0">
           {/* Metadata */}
           <div className="mt-2">
+            <MetadataRow
+              icon={<FolderOpen className="h-3.5 w-3.5" />}
+              label="Reserved"
+              value={sandbox.reservedPath || sandbox.scopePath || "Not specified"}
+              copyable={!!(sandbox.reservedPath || sandbox.scopePath)}
+            />
+            <MetadataRow
+              icon={<FolderOpen className="h-3.5 w-3.5" />}
+              label="Scope"
+              value={sandbox.scopePath || "Not specified"}
+              copyable={!!sandbox.scopePath}
+            />
             <MetadataRow
               icon={<FolderOpen className="h-3.5 w-3.5" />}
               label="Project"
@@ -318,10 +333,10 @@ export function SandboxDetail({
 
               {canApproveReject && (
                 <>
-                  {/* Approve button with confirmation */}
+                  {/* Approve reserved changes (default) */}
                   {showApproveConfirm ? (
                     <div className="flex items-center gap-1">
-                      <span className="text-xs text-slate-400 mr-1">Apply changes?</span>
+                      <span className="text-xs text-slate-400 mr-1">Approve reserved changes?</span>
                       <Button
                         variant="success"
                         size="sm"
@@ -351,14 +366,60 @@ export function SandboxDetail({
                     <Button
                       variant="success"
                       size="sm"
-                      onClick={() => setShowApproveConfirm(true)}
+                      onClick={() => {
+                        setShowApproveAllConfirm(false);
+                        setShowApproveConfirm(true);
+                      }}
                       disabled={isApproving}
                       data-testid={SELECTORS.approveButton}
                     >
                       <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                      Approve
+                      Approve Reserved
                     </Button>
                   )}
+
+                  {/* Approve all changes (override) */}
+                  {onApproveAll &&
+                    (showApproveAllConfirm ? (
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-slate-400 mr-1">Approve all changes?</span>
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={() => {
+                            onApproveAll();
+                            setShowApproveAllConfirm(false);
+                          }}
+                          disabled={isApproving}
+                        >
+                          {isApproving ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            "Yes"
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowApproveAllConfirm(false)}
+                        >
+                          No
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowApproveConfirm(false);
+                          setShowApproveAllConfirm(true);
+                        }}
+                        disabled={isApproving}
+                      >
+                        <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                        Approve All
+                      </Button>
+                    ))}
 
                   {/* Reject button with confirmation */}
                   {showRejectConfirm ? (

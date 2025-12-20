@@ -107,9 +107,10 @@ func DefaultBwrapConfig() BwrapConfig {
 		Hostname:       "sandbox",
 		IsolationLevel: IsolationFull,
 		Env: map[string]string{
-			"PATH":  "/usr/local/bin:/usr/bin:/bin",
-			"HOME":  "/tmp",
-			"SHELL": "/bin/sh",
+			"PATH":         "/usr/local/bin:/usr/bin:/bin",
+			"HOME":         "/tmp",
+			"SHELL":        "/bin/sh",
+			"PROJECT_PATH": "/workspace",
 		},
 	}
 }
@@ -286,6 +287,15 @@ func buildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 	// This is where the agent/tool will see the combined filesystem
 	args = append(args, "--bind", s.MergedDir, "/workspace")
 
+	// Optional compatibility: mirror the workspace at the project's host path so
+	// prompts/tools that use host-absolute paths (e.g., /home/user/project/...) work.
+	//
+	// Enabled via WORKSPACE_SANDBOX_MIRROR_PROJECT_ROOT=true|1.
+	if shouldMirrorProjectRoot() && s.ProjectRoot != "" && filepath.IsAbs(s.ProjectRoot) {
+		addDirHierarchy(&args, s.ProjectRoot)
+		args = append(args, "--bind", s.MergedDir, filepath.Clean(s.ProjectRoot))
+	}
+
 	// Make the project root read-only to prevent direct writes
 	// The merged directory includes overlay, so writes go to upper layer
 	args = append(args, "--ro-bind", s.LowerDir, "/workspace-readonly")
@@ -348,6 +358,34 @@ func buildBwrapArgs(s *types.Sandbox, cfg BwrapConfig) []string {
 	args = append(args, "--")
 
 	return args
+}
+
+func shouldMirrorProjectRoot() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("WORKSPACE_SANDBOX_MIRROR_PROJECT_ROOT")))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
+}
+
+func addDirHierarchy(args *[]string, absPath string) {
+	clean := filepath.Clean(absPath)
+	if clean == "" || clean == "/" || !filepath.IsAbs(clean) {
+		return
+	}
+
+	// Avoid creating/overriding critical system mountpoints.
+	switch clean {
+	case "/bin", "/sbin", "/usr", "/etc", "/lib", "/lib64", "/proc", "/dev", "/tmp":
+		return
+	}
+
+	parts := strings.Split(strings.TrimPrefix(clean, "/"), string(filepath.Separator))
+	cur := ""
+	for _, p := range parts {
+		if p == "" {
+			continue
+		}
+		cur = cur + string(filepath.Separator) + p
+		*args = append(*args, "--dir", cur)
+	}
 }
 
 // addVrooliAwareBinds adds bind mounts for Vrooli-aware isolation.

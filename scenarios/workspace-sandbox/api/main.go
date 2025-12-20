@@ -411,6 +411,48 @@ func ensureSchema(db *sql.DB) error {
 		log.Println("migration complete: applied_changes table created")
 	}
 
+	// --- reserved_path support (soft safety reserved directory) ---
+	// Add column if missing (idempotent).
+	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS reserved_path TEXT`); err != nil {
+		return fmt.Errorf("failed to add reserved_path column: %w", err)
+	}
+
+	// Backfill reserved_path for existing rows to preserve legacy behavior.
+	if _, err := db.Exec(`UPDATE sandboxes SET reserved_path = scope_path WHERE reserved_path IS NULL`); err != nil {
+		return fmt.Errorf("failed to backfill reserved_path: %w", err)
+	}
+
+	// Index for reserved_path overlap queries and UI filtering.
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_sandboxes_reserved_path ON sandboxes(reserved_path)`); err != nil {
+		return fmt.Errorf("failed to create idx_sandboxes_reserved_path: %w", err)
+	}
+
+	// Update overlap check function to use reserved_path when present.
+	// Note: We keep the function name/signature for backwards compatibility.
+	if _, err := db.Exec(`
+		CREATE OR REPLACE FUNCTION check_scope_overlap(
+			new_scope TEXT,
+			new_project TEXT,
+			exclude_id UUID DEFAULT NULL
+		) RETURNS TABLE(id UUID, scope_path TEXT, status sandbox_status) AS $$
+		BEGIN
+			RETURN QUERY
+			SELECT s.id, COALESCE(s.reserved_path, s.scope_path), s.status
+			FROM sandboxes s
+			WHERE s.project_root = new_project
+			  AND s.status IN ('creating', 'active')
+			  AND (exclude_id IS NULL OR s.id != exclude_id)
+			  AND (
+			      COALESCE(s.reserved_path, s.scope_path) LIKE new_scope || '/%'
+			      OR COALESCE(s.reserved_path, s.scope_path) = new_scope
+			      OR new_scope LIKE COALESCE(s.reserved_path, s.scope_path) || '/%'
+			  );
+		END;
+		$$ LANGUAGE plpgsql;
+	`); err != nil {
+		return fmt.Errorf("failed to update check_scope_overlap function: %w", err)
+	}
+
 	return nil
 }
 

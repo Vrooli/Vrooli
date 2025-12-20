@@ -19,6 +19,7 @@ export interface MountHealth {
 export interface Sandbox {
   id: string;
   scopePath: string;
+  reservedPath: string;
   projectRoot: string;
   owner?: string;
   ownerType: OwnerType;
@@ -155,6 +156,7 @@ export interface DiscardResult {
 
 export interface CreateRequest {
   scopePath: string;
+  reservedPath?: string;
   projectRoot?: string;
   owner?: string;
   ownerType?: OwnerType;
@@ -173,6 +175,8 @@ export interface ApprovalRequest {
   }>;
   actor?: string;
   commitMessage?: string;
+  approveAll?: boolean;
+  includePrefixes?: string[];
 }
 
 export interface ListFilter {
@@ -320,6 +324,8 @@ export async function approveSandbox(
       hunkRanges: options?.hunkRanges,
       actor: options?.actor,
       commitMessage: options?.commitMessage,
+      approveAll: options?.approveAll,
+      includePrefixes: options?.includePrefixes,
     }),
   });
 }

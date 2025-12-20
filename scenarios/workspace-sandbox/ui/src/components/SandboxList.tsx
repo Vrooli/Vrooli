@@ -95,11 +95,11 @@ function SandboxGroup({
                 data-sandbox-id={sandbox.id}
                 onClick={() => onSelect(sandbox)}
               >
-                {/* Sandbox scope path */}
+                {/* Sandbox reserved path */}
                 <div className="flex items-center gap-2 min-w-0">
                   <FolderOpen className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
                   <span className="font-mono text-xs text-slate-200 truncate">
-                    {sandbox.scopePath || "/"}
+                    {sandbox.reservedPath || sandbox.scopePath || "/"}
                   </span>
                 </div>
 

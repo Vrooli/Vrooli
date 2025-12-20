@@ -21,6 +21,7 @@ CREATE TABLE sandboxes (
 
     -- Scope configuration
     scope_path TEXT NOT NULL,           -- Normalized absolute path within project
+    reserved_path TEXT,                 -- Reserved subtree for mutual exclusion + default approval (defaults to scope_path)
     project_root TEXT NOT NULL,         -- Project root directory
 
     -- Ownership and attribution
@@ -151,6 +152,7 @@ CREATE TABLE applied_changes (
 CREATE INDEX idx_sandboxes_status ON sandboxes(status);
 CREATE INDEX idx_sandboxes_owner ON sandboxes(owner);
 CREATE INDEX idx_sandboxes_scope_path ON sandboxes(scope_path);
+CREATE INDEX idx_sandboxes_reserved_path ON sandboxes(reserved_path);
 CREATE INDEX idx_sandboxes_project_root ON sandboxes(project_root);
 CREATE INDEX idx_sandboxes_created_at ON sandboxes(created_at);
 CREATE INDEX idx_sandboxes_last_used_at ON sandboxes(last_used_at);
@@ -177,17 +179,17 @@ CREATE OR REPLACE FUNCTION check_scope_overlap(
 ) RETURNS TABLE(id UUID, scope_path TEXT, status sandbox_status) AS $$
 BEGIN
     RETURN QUERY
-    SELECT s.id, s.scope_path, s.status
+    SELECT s.id, COALESCE(s.reserved_path, s.scope_path), s.status
     FROM sandboxes s
     WHERE s.project_root = new_project
       AND s.status IN ('creating', 'active')
       AND (exclude_id IS NULL OR s.id != exclude_id)
       AND (
-          -- new_scope is ancestor of existing scope
-          s.scope_path LIKE new_scope || '/%'
-          OR s.scope_path = new_scope
-          -- existing scope is ancestor of new_scope
-          OR new_scope LIKE s.scope_path || '/%'
+          -- new_scope is ancestor of existing reserved scope
+          COALESCE(s.reserved_path, s.scope_path) LIKE new_scope || '/%'
+          OR COALESCE(s.reserved_path, s.scope_path) = new_scope
+          -- existing reserved scope is ancestor of new_scope
+          OR new_scope LIKE COALESCE(s.reserved_path, s.scope_path) || '/%'
       );
 END;
 $$ LANGUAGE plpgsql;

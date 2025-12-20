@@ -34,8 +34,8 @@ interface CreateSandboxDialogProps {
   isCreating: boolean;
   /** Recent sandboxes for path suggestions */
   recentSandboxes?: Sandbox[];
-  /** Existing sandbox scope paths for conflict detection */
-  existingScopePaths?: string[];
+  /** Existing sandbox reserved paths for conflict detection */
+  existingReservedPaths?: string[];
   /** Default project root from server config (PROJECT_ROOT env var) */
   defaultProjectRoot?: string;
 }
@@ -67,17 +67,17 @@ function isPathWithin(childPath: string, parentPath: string): boolean {
 /** Paths that should never be allowed as sandbox roots */
 const DANGEROUS_PATHS = ["/", "/bin", "/sbin", "/usr", "/etc", "/var", "/tmp", "/root", "/home"];
 
-/** Validates the writable directory path using server-side validation */
-function useWritablePathValidation(
-  writablePath: string,
+/** Validates the reserved directory path using server-side validation */
+function useReservedPathValidation(
+  reservedPath: string,
   projectRoot: string,
   defaultProjectRoot: string,
-  existingScopePaths: string[] = []
+  existingReservedPaths: string[] = []
 ): PathValidation {
   const [validation, setValidation] = useState<PathValidation>({ status: "idle" });
 
   useEffect(() => {
-    if (!writablePath.trim()) {
+    if (!reservedPath.trim()) {
       setValidation({ status: "idle" });
       return;
     }
@@ -86,7 +86,7 @@ function useWritablePathValidation(
 
     // Debounce validation - 300ms
     const timer = setTimeout(async () => {
-      const trimmedPath = writablePath.trim();
+      const trimmedPath = reservedPath.trim();
 
       // Quick client-side checks first (no API call needed)
       if (!trimmedPath.startsWith("/")) {
@@ -108,7 +108,7 @@ function useWritablePathValidation(
       }
 
       // Check for conflicts with existing sandboxes (client-side)
-      const hasConflict = existingScopePaths.some((existing) => {
+      const hasConflict = existingReservedPaths.some((existing) => {
         return (
           trimmedPath === existing ||
           trimmedPath.startsWith(existing + "/") ||
@@ -162,7 +162,7 @@ function useWritablePathValidation(
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [writablePath, projectRoot, defaultProjectRoot, existingScopePaths]);
+  }, [reservedPath, projectRoot, defaultProjectRoot, existingReservedPaths]);
 
   return validation;
 }
@@ -234,8 +234,11 @@ function getRecentPaths(sandboxes: Sandbox[] = []): string[] {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 10)
     .forEach((s) => {
-      paths.add(s.scopePath);
-      if (s.projectRoot && s.projectRoot !== s.scopePath) {
+      paths.add(s.reservedPath || s.scopePath);
+      if (s.scopePath) {
+        paths.add(s.scopePath);
+      }
+      if (s.projectRoot && s.projectRoot !== (s.reservedPath || s.scopePath)) {
         paths.add(s.projectRoot);
       }
     });
@@ -244,29 +247,29 @@ function getRecentPaths(sandboxes: Sandbox[] = []): string[] {
 
 /** Visual path preview component */
 function PathPreview({
-  writablePath,
-  readOnlyPath,
+  reservedPath,
+  projectRoot,
 }: {
-  writablePath: string;
-  readOnlyPath: string;
+  reservedPath: string;
+  projectRoot: string;
 }) {
-  const effectiveReadOnly = readOnlyPath || writablePath;
+  const effectiveRoot = projectRoot || reservedPath;
 
   // Parse paths into segments for visualization
-  const readOnlySegments = effectiveReadOnly.split("/").filter(Boolean);
-  const writableSegments = writablePath.split("/").filter(Boolean);
+  const rootSegments = effectiveRoot.split("/").filter(Boolean);
+  const reservedSegments = reservedPath.split("/").filter(Boolean);
 
-  // Find where writable path diverges from read-only path
+  // Find where reserved path diverges from root.
   let divergeIndex = 0;
-  for (let i = 0; i < readOnlySegments.length; i++) {
-    if (readOnlySegments[i] === writableSegments[i]) {
+  for (let i = 0; i < rootSegments.length; i++) {
+    if (rootSegments[i] === reservedSegments[i]) {
       divergeIndex = i + 1;
     } else {
       break;
     }
   }
 
-  if (!writablePath.trim()) {
+  if (!reservedPath.trim()) {
     return null;
   }
 
@@ -277,14 +280,13 @@ function PathPreview({
         <span className="text-[10px] uppercase tracking-wider">Preview</span>
       </div>
       <div className="space-y-1">
-        {readOnlySegments.map((segment, i) => {
-          const isWritable =
+        {rootSegments.map((segment, i) => {
+          const isReserved =
             i >= divergeIndex - 1 &&
-            writableSegments.slice(0, i + 1).join("/") === readOnlySegments.slice(0, i + 1).join("/") &&
-            i === writableSegments.length - 1;
-          const isInWritablePath = writableSegments
-            .slice(0, i + 1)
-            .join("/") === readOnlySegments.slice(0, i + 1).join("/");
+            reservedSegments.slice(0, i + 1).join("/") === rootSegments.slice(0, i + 1).join("/") &&
+            i === reservedSegments.length - 1;
+          const isInReservedPath =
+            reservedSegments.slice(0, i + 1).join("/") === rootSegments.slice(0, i + 1).join("/");
 
           return (
             <div
@@ -292,27 +294,24 @@ function PathPreview({
               className="flex items-center gap-1"
               style={{ paddingLeft: `${i * 12}px` }}
             >
-              {isWritable ? (
+              {isReserved ? (
                 <Pencil className="h-3 w-3 text-emerald-400" />
               ) : (
                 <FolderOpen className="h-3 w-3 text-slate-500" />
               )}
               <span
                 className={
-                  isWritable
+                  isReserved
                     ? "text-emerald-400"
-                    : isInWritablePath
+                    : isInReservedPath
                     ? "text-slate-300"
                     : "text-slate-500"
                 }
               >
                 {segment}/
               </span>
-              {isWritable && (
-                <span className="text-[10px] text-emerald-500 ml-1">writable</span>
-              )}
-              {!isWritable && i === readOnlySegments.length - 1 && effectiveReadOnly !== writablePath && (
-                <span className="text-[10px] text-slate-500 ml-1">read-only</span>
+              {isReserved && (
+                <span className="text-[10px] text-emerald-500 ml-1">reserved</span>
               )}
             </div>
           );
@@ -328,39 +327,44 @@ export function CreateSandboxDialog({
   onCreate,
   isCreating,
   recentSandboxes = [],
-  existingScopePaths = [],
+  existingReservedPaths = [],
   defaultProjectRoot = "",
 }: CreateSandboxDialogProps) {
-  const [scopePath, setScopePath] = useState("");
+  const [reservedPath, setReservedPath] = useState("");
   const [projectRoot, setProjectRoot] = useState("");
   const [owner, setOwner] = useState("");
   const [ownerType, setOwnerType] = useState<OwnerType>("user");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showRecentPaths, setShowRecentPaths] = useState(false);
+  const [mountScopePath, setMountScopePath] = useState("");
 
-  // Path validation - writable path must be within project root (or defaultProjectRoot)
-  const scopeValidation = useWritablePathValidation(
-    scopePath,
+  // Path validation - reserved path must be within project root (or defaultProjectRoot)
+  const reservedValidation = useReservedPathValidation(
+    reservedPath,
     projectRoot,
     defaultProjectRoot,
-    existingScopePaths
+    existingReservedPaths
   );
   const projectRootValidation = useProjectRootValidation(projectRoot);
 
   // Dynamic placeholders based on server config
-  const writablePlaceholder = defaultProjectRoot
-    ? `${defaultProjectRoot}/src/components`
-    : "/home/user/myproject/src/components";
+  const reservedPlaceholder = defaultProjectRoot
+    ? `${defaultProjectRoot}/scenarios/my-scenario`
+    : "/home/user/myproject/scenarios/my-scenario";
   const projectRootPlaceholder = defaultProjectRoot || "/home/user/myproject";
 
   // Recent paths for quick selection
   const recentPaths = useMemo(() => getRecentPaths(recentSandboxes), [recentSandboxes]);
 
+  const effectiveProjectRoot = projectRoot.trim() || defaultProjectRoot;
+  const effectiveScopePath = mountScopePath.trim() || effectiveProjectRoot;
+
   const canSubmit =
-    scopePath.trim() &&
-    scopeValidation.status !== "invalid" &&
-    scopeValidation.status !== "conflict" &&
-    scopeValidation.status !== "outside" &&
+    !!effectiveScopePath &&
+    reservedPath.trim() &&
+    reservedValidation.status !== "invalid" &&
+    reservedValidation.status !== "conflict" &&
+    reservedValidation.status !== "outside" &&
     projectRootValidation.status !== "invalid" &&
     !isCreating;
 
@@ -369,10 +373,12 @@ export function CreateSandboxDialog({
 
     if (!canSubmit) return;
 
+    const scopePath = effectiveScopePath;
+
     onCreate({
-      scopePath: scopePath.trim(),
-      // Use defaultProjectRoot from server config if user didn't provide a custom one
-      projectRoot: projectRoot.trim() || defaultProjectRoot || undefined,
+      scopePath,
+      reservedPath: reservedPath.trim(),
+      projectRoot: effectiveProjectRoot || undefined,
       owner: owner.trim() || undefined,
       ownerType,
     });
@@ -382,18 +388,19 @@ export function CreateSandboxDialog({
     if (!isCreating) {
       onOpenChange(false);
       // Reset form
-      setScopePath("");
+      setReservedPath("");
       setProjectRoot("");
       setOwner("");
       setOwnerType("user");
       setShowAdvanced(false);
       setShowRecentPaths(false);
+      setMountScopePath("");
     }
   };
 
-  const handleSelectRecentPath = (path: string, field: "scope" | "projectRoot") => {
-    if (field === "scope") {
-      setScopePath(path);
+  const handleSelectRecentPath = (path: string, field: "reserved" | "projectRoot") => {
+    if (field === "reserved") {
+      setReservedPath(path);
     } else {
       setProjectRoot(path);
     }
@@ -457,25 +464,25 @@ export function CreateSandboxDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* Writable Directory - Required (renamed from Scope Path) */}
+          {/* Reserved Directory - Required */}
           <div className="space-y-2">
-            <Label htmlFor="scopePath">
-              Writable Directory <span className="text-red-400">*</span>
+            <Label htmlFor="reservedPath">
+              Reserved Directory <span className="text-red-400">*</span>
             </Label>
             <div className="relative">
               <Input
-                id="scopePath"
-                placeholder={writablePlaceholder}
-                value={scopePath}
-                onChange={(e) => setScopePath(e.target.value)}
+                id="reservedPath"
+                placeholder={reservedPlaceholder}
+                value={reservedPath}
+                onChange={(e) => setReservedPath(e.target.value)}
                 required
                 autoFocus
                 className={
-                  scopeValidation.status === "invalid" ||
-                  scopeValidation.status === "conflict" ||
-                  scopeValidation.status === "outside"
+                  reservedValidation.status === "invalid" ||
+                  reservedValidation.status === "conflict" ||
+                  reservedValidation.status === "outside"
                     ? "border-red-500 focus:border-red-500"
-                    : scopeValidation.status === "valid"
+                    : reservedValidation.status === "valid"
                     ? "border-emerald-500 focus:border-emerald-500"
                     : ""
                 }
@@ -493,9 +500,9 @@ export function CreateSandboxDialog({
                 </Button>
               )}
             </div>
-            <ValidationIndicator validation={scopeValidation} />
+            <ValidationIndicator validation={reservedValidation} />
             <p className="text-xs text-slate-500">
-              Files here can be modified. Must be within the read-only context below (or equal to it).
+              Prevents overlapping sandboxes by reserving this subtree. By default, approval applies only changes under this directory.
             </p>
 
             {/* Recent paths dropdown */}
@@ -509,7 +516,7 @@ export function CreateSandboxDialog({
                     key={path}
                     type="button"
                     className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 truncate"
-                    onClick={() => handleSelectRecentPath(path, "scope")}
+                    onClick={() => handleSelectRecentPath(path, "reserved")}
                   >
                     {path}
                   </button>
@@ -518,9 +525,9 @@ export function CreateSandboxDialog({
             )}
           </div>
 
-          {/* Read-Only Context - Optional (renamed from Project Root) */}
+          {/* Project Root - Optional */}
           <div className="space-y-2">
-            <Label htmlFor="projectRoot">Read-Only Context (optional)</Label>
+            <Label htmlFor="projectRoot">Project Root (optional)</Label>
             <Input
               id="projectRoot"
               placeholder={projectRootPlaceholder}
@@ -538,14 +545,17 @@ export function CreateSandboxDialog({
             <ValidationIndicator validation={projectRootValidation} />
             <p className="text-xs text-slate-500">
               {defaultProjectRoot
-                ? `Parent directory with read-only access. Defaults to ${defaultProjectRoot} if empty.`
-                : "Parent directory with read-only access. The writable directory must be inside this path."}
+                ? `Defaults to ${defaultProjectRoot} if empty. Reserved Directory must be inside this root.`
+                : "Reserved Directory must be inside this root."}
             </p>
           </div>
 
           {/* Path Preview */}
-          {scopePath.trim() && (
-            <PathPreview writablePath={scopePath} readOnlyPath={projectRoot} />
+          {reservedPath.trim() && (
+            <PathPreview
+              reservedPath={reservedPath}
+              projectRoot={projectRoot.trim() || defaultProjectRoot}
+            />
           )}
 
           {/* Advanced Options Toggle */}
@@ -565,6 +575,20 @@ export function CreateSandboxDialog({
           {/* Advanced Options - Hidden by default */}
           {showAdvanced && (
             <div className="space-y-4 pl-4 border-l-2 border-slate-700">
+              {/* Mount Scope (advanced) */}
+              <div className="space-y-2">
+                <Label htmlFor="mountScopePath">Mount Scope (advanced)</Label>
+                <Input
+                  id="mountScopePath"
+                  placeholder={projectRootPlaceholder}
+                  value={mountScopePath}
+                  onChange={(e) => setMountScopePath(e.target.value)}
+                />
+                <p className="text-xs text-slate-500">
+                  By default the sandbox mounts the full project root for easy reference. Set this to a subdirectory to sandbox less of the tree.
+                </p>
+              </div>
+
               {/* Owner */}
               <div className="space-y-2">
                 <Label htmlFor="owner">Owner</Label>

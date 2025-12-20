@@ -76,7 +76,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	sandboxes := cliapp.CommandGroup{
 		Title: "Sandbox Operations",
 		Commands: []cliapp.Command{
-			{Name: "create", NeedsAPI: true, Description: "Create a new sandbox (--scope=PATH [--project=DIR] [--owner=ID])", Run: a.cmdCreate},
+			{Name: "create", NeedsAPI: true, Description: "Create a new sandbox (--scope=PATH [--reserved=PATH] [--project=DIR] [--owner=ID])", Run: a.cmdCreate},
 			{Name: "list", NeedsAPI: true, Description: "List sandboxes ([--status=STATUS] [--owner=ID] [--json])", Run: a.cmdList},
 			{Name: "inspect", NeedsAPI: true, Description: "Show sandbox details", Run: a.cmdInspect},
 			{Name: "stop", NeedsAPI: true, Description: "Stop a sandbox (unmount but preserve)", Run: a.cmdStop},
@@ -215,16 +215,17 @@ func (a *App) resolveSandboxID(shortID string) (string, error) {
 
 // Sandbox types
 type sandboxResponse struct {
-	ID          string    `json:"id"`
-	ScopePath   string    `json:"scopePath"`
-	ProjectRoot string    `json:"projectRoot"`
-	Owner       string    `json:"owner,omitempty"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"createdAt"`
-	MergedDir   string    `json:"mergedDir,omitempty"`
-	SizeBytes   int64     `json:"sizeBytes"`
-	FileCount   int       `json:"fileCount"`
-	ErrorMsg    string    `json:"errorMessage,omitempty"`
+	ID           string    `json:"id"`
+	ScopePath    string    `json:"scopePath"`
+	ReservedPath string    `json:"reservedPath"`
+	ProjectRoot  string    `json:"projectRoot"`
+	Owner        string    `json:"owner,omitempty"`
+	Status       string    `json:"status"`
+	CreatedAt    time.Time `json:"createdAt"`
+	MergedDir    string    `json:"mergedDir,omitempty"`
+	SizeBytes    int64     `json:"sizeBytes"`
+	FileCount    int       `json:"fileCount"`
+	ErrorMsg     string    `json:"errorMessage,omitempty"`
 }
 
 type listResponse struct {
@@ -293,7 +294,7 @@ func (a *App) cmdStatus(_ []string) error {
 }
 
 func (a *App) cmdCreate(args []string) error {
-	var scope, project, owner string
+	var scope, reserved, project, owner string
 
 	for _, arg := range args {
 		switch {
@@ -301,6 +302,10 @@ func (a *App) cmdCreate(args []string) error {
 			scope = strings.TrimPrefix(arg, "--scope=")
 		case strings.HasPrefix(arg, "-s="):
 			scope = strings.TrimPrefix(arg, "-s=")
+		case strings.HasPrefix(arg, "--reserved="):
+			reserved = strings.TrimPrefix(arg, "--reserved=")
+		case strings.HasPrefix(arg, "-r="):
+			reserved = strings.TrimPrefix(arg, "-r=")
 		case strings.HasPrefix(arg, "--project="):
 			project = strings.TrimPrefix(arg, "--project=")
 		case strings.HasPrefix(arg, "-p="):
@@ -313,11 +318,14 @@ func (a *App) cmdCreate(args []string) error {
 	}
 
 	if scope == "" {
-		return fmt.Errorf("usage: workspace-sandbox create --scope=PATH [--project=DIR] [--owner=ID]")
+		return fmt.Errorf("usage: workspace-sandbox create --scope=PATH [--reserved=PATH] [--project=DIR] [--owner=ID]")
 	}
 
 	reqBody := map[string]interface{}{
 		"scopePath": scope,
+	}
+	if reserved != "" {
+		reqBody["reservedPath"] = reserved
 	}
 	if project != "" {
 		reqBody["projectRoot"] = project
@@ -339,6 +347,9 @@ func (a *App) cmdCreate(args []string) error {
 	fmt.Printf("Created sandbox: %s\n", sb.ID)
 	fmt.Printf("Status: %s\n", sb.Status)
 	fmt.Printf("Scope: %s\n", sb.ScopePath)
+	if sb.ReservedPath != "" && sb.ReservedPath != sb.ScopePath {
+		fmt.Printf("Reserved: %s\n", sb.ReservedPath)
+	}
 	if sb.MergedDir != "" {
 		fmt.Printf("Workspace: %s\n", sb.MergedDir)
 	}
@@ -390,19 +401,22 @@ func (a *App) cmdList(args []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tSTATUS\tSCOPE\tOWNER\tCREATED\tFILES")
+	fmt.Fprintln(w, "ID\tSTATUS\tRESERVED\tOWNER\tCREATED\tFILES")
 	for _, sb := range resp.Sandboxes {
 		created := sb.CreatedAt.Format("2006-01-02 15:04")
-		scope := sb.ScopePath
-		if len(scope) > 40 {
-			scope = "..." + scope[len(scope)-37:]
+		reserved := sb.ReservedPath
+		if reserved == "" {
+			reserved = sb.ScopePath
+		}
+		if len(reserved) > 40 {
+			reserved = "..." + reserved[len(reserved)-37:]
 		}
 		owner := sb.Owner
 		if owner == "" {
 			owner = "-"
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d\n",
-			sb.ID[:8], sb.Status, scope, owner, created, sb.FileCount)
+			sb.ID[:8], sb.Status, reserved, owner, created, sb.FileCount)
 	}
 	w.Flush()
 
@@ -434,6 +448,9 @@ func (a *App) cmdInspect(args []string) error {
 	fmt.Printf("ID:          %s\n", sb.ID)
 	fmt.Printf("Status:      %s\n", sb.Status)
 	fmt.Printf("Scope:       %s\n", sb.ScopePath)
+	if sb.ReservedPath != "" {
+		fmt.Printf("Reserved:    %s\n", sb.ReservedPath)
+	}
 	fmt.Printf("Project:     %s\n", sb.ProjectRoot)
 	fmt.Printf("Owner:       %s\n", sb.Owner)
 	fmt.Printf("Created:     %s\n", sb.CreatedAt.Format(time.RFC3339))
@@ -588,6 +605,8 @@ func (a *App) cmdDiff(args []string) error {
 func (a *App) cmdApprove(args []string) error {
 	var sandboxID, message string
 	var force, createCommit bool
+	var approveAll bool
+	var includePrefixes []string
 
 	for i, arg := range args {
 		switch {
@@ -601,6 +620,10 @@ func (a *App) cmdApprove(args []string) error {
 			force = true
 		case arg == "--commit" || arg == "-c":
 			createCommit = true
+		case arg == "--approve-all":
+			approveAll = true
+		case strings.HasPrefix(arg, "--include-prefix="):
+			includePrefixes = append(includePrefixes, strings.TrimPrefix(arg, "--include-prefix="))
 		case !strings.HasPrefix(arg, "-") && (i == 0 || !strings.HasPrefix(args[i-1], "-m")):
 			if sandboxID == "" {
 				sandboxID = arg
@@ -609,11 +632,13 @@ func (a *App) cmdApprove(args []string) error {
 	}
 
 	if sandboxID == "" {
-		return fmt.Errorf("usage: workspace-sandbox approve <sandbox-id> [-m MESSAGE] [--commit] [--force]\n\n" +
+		return fmt.Errorf("usage: workspace-sandbox approve <sandbox-id> [-m MESSAGE] [--commit] [--force] [--approve-all] [--include-prefix=PATH]\n\n" +
 			"Options:\n" +
 			"  -m, --message=MSG    Commit message (required if --commit is used)\n" +
 			"  -c, --commit         Create a git commit (default: apply to working tree only)\n" +
-			"  -f, --force          Force approval even if conflicts detected")
+			"  -f, --force          Force approval even if conflicts detected\n" +
+			"  --approve-all        Bypass reservedPath filtering and approve all changes\n" +
+			"  --include-prefix=PATH Expand default approvable paths beyond reservedPath (repeatable)")
 	}
 
 	resolvedID, err := a.resolveSandboxID(sandboxID)
@@ -632,6 +657,12 @@ func (a *App) cmdApprove(args []string) error {
 	}
 	if createCommit {
 		reqBody["createCommit"] = true
+	}
+	if approveAll {
+		reqBody["approveAll"] = true
+	}
+	if len(includePrefixes) > 0 {
+		reqBody["includePrefixes"] = includePrefixes
 	}
 
 	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+resolvedID+"/approve"), nil, reqBody)
@@ -1799,13 +1830,13 @@ type interactiveMessage struct {
 
 // interactiveStartRequest is sent to initiate an interactive session.
 type interactiveStartRequest struct {
-	Command        string `json:"command"`
+	Command        string   `json:"command"`
 	Args           []string `json:"args,omitempty"`
-	IsolationLevel string `json:"isolationLevel,omitempty"`
-	AllowNetwork   bool   `json:"allowNetwork,omitempty"`
-	MemoryLimitMB  int    `json:"memoryLimitMB,omitempty"`
-	Cols           int    `json:"cols,omitempty"`
-	Rows           int    `json:"rows,omitempty"`
+	IsolationLevel string   `json:"isolationLevel,omitempty"`
+	AllowNetwork   bool     `json:"allowNetwork,omitempty"`
+	MemoryLimitMB  int      `json:"memoryLimitMB,omitempty"`
+	Cols           int      `json:"cols,omitempty"`
+	Rows           int      `json:"rows,omitempty"`
 }
 
 // runInteractiveSession connects to the WebSocket endpoint and runs an interactive session.
