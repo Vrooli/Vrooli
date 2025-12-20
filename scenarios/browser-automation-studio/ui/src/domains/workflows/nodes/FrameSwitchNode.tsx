@@ -8,11 +8,7 @@ import {
   useSyncedSelect,
 } from '@hooks/useSyncedField';
 import BaseNode from './BaseNode';
-import {
-  NodeTextField,
-  NodeNumberField,
-  NodeSelectField,
-} from './fields';
+import { NodeTextField, NodeNumberField, NodeSelectField } from './fields';
 
 // FrameSwitchParams interface for V2 native action params
 interface FrameSwitchParams {
@@ -82,12 +78,10 @@ const FrameSwitchNode: FC<NodeProps> = ({ id, selected }) => {
   return (
     <BaseNode selected={selected} icon={LayoutPanelTop} iconClassName="text-lime-300" title="Frame Switch">
       <div className="space-y-3 text-xs">
-        <NodeSelectField
-          field={mode}
-          label="Switch strategy"
-          options={MODES}
-          description={modeDescription}
-        />
+        <div>
+          <NodeSelectField field={mode} label="Switch strategy" options={MODES} />
+          <p className="text-gray-500 mt-1">{modeDescription}</p>
+        </div>
 
         {mode.value === 'selector' && (
           <NodeTextField
@@ -102,11 +96,7 @@ const FrameSwitchNode: FC<NodeProps> = ({ id, selected }) => {
         )}
 
         {mode.value === 'name' && (
-          <NodeTextField
-            field={frameName}
-            label="Frame name"
-            placeholder="paymentFrame"
-          />
+          <NodeTextField field={frameName} label="Frame name" placeholder="paymentFrame" />
         )}
 
         {mode.value === 'url' && (
@@ -117,12 +107,10 @@ const FrameSwitchNode: FC<NodeProps> = ({ id, selected }) => {
           />
         )}
 
-        <NodeNumberField
-          field={timeoutMs}
-          label="Timeout (ms)"
-          min={500}
-          description="Applies only to selector/index/name/url modes."
-        />
+        <div>
+          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={500} />
+          <p className="text-gray-500 mt-1">Applies only to selector/index/name/url modes.</p>
+        </div>
       </div>
     </BaseNode>
   );

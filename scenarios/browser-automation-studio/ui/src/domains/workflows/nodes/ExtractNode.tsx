@@ -1,11 +1,10 @@
-import { memo, FC, useCallback } from 'react';
+import { memo, FC } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Database } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
-import { useNodeData } from '@hooks/useNodeData';
+import { useElementPicker } from '@hooks/useElementPicker';
 import { useUrlInheritance } from '@hooks/useUrlInheritance';
 import { useSyncedString, useSyncedSelect } from '@hooks/useSyncedField';
-import type { ElementInfo } from '@/types/elements';
 import BaseNode from './BaseNode';
 import { NodeTextField, NodeSelectField, NodeUrlField, NodeSelectorField } from './fields';
 
@@ -27,11 +26,11 @@ const ExtractNode: FC<NodeProps> = ({ selected, id }) => {
   // URL inheritance for element picker
   const { effectiveUrl } = useUrlInheritance(id);
 
-  // Node data hook for UI-specific fields
-  const { updateData } = useNodeData(id);
-
   // V2 Native: Use action params as source of truth
   const { params, updateParams } = useActionParams<ExtractParams>(id);
+
+  // Element picker binding
+  const elementPicker = useElementPicker(id);
 
   // Action params fields using useSyncedField
   const selector = useSyncedString(params?.selector ?? '', {
@@ -44,14 +43,6 @@ const ExtractNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateParams({ attribute: v || undefined }),
   });
 
-  const handleElementSelection = useCallback(
-    (newSelector: string, elementInfo: ElementInfo) => {
-      updateParams({ selector: newSelector });
-      updateData({ elementInfo });
-    },
-    [updateParams, updateData],
-  );
-
   return (
     <BaseNode selected={selected} icon={Database} iconClassName="text-pink-400" title="Extract Data">
       <NodeUrlField nodeId={id} />
@@ -59,7 +50,7 @@ const ExtractNode: FC<NodeProps> = ({ selected, id }) => {
       <NodeSelectorField
         field={selector}
         effectiveUrl={effectiveUrl}
-        onElementSelect={handleElementSelection}
+        onElementSelect={elementPicker.onSelect}
       />
 
       <NodeSelectField field={extractType} label="" options={EXTRACT_TYPE_OPTIONS} className="mb-2" />

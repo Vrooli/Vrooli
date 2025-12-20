@@ -9,13 +9,7 @@ import {
   useSyncedSelect,
 } from '@hooks/useSyncedField';
 import BaseNode from './BaseNode';
-import {
-  NodeTextField,
-  NodeNumberField,
-  NodeSelectField,
-  NodeCheckbox,
-  FieldRow,
-} from './fields';
+import { NodeTextField, NodeNumberField, NodeSelectField, NodeCheckbox, FieldRow } from './fields';
 
 // TabSwitchParams interface for V2 native action params
 interface TabSwitchParams {
@@ -41,7 +35,7 @@ const DEFAULT_TIMEOUT = 30000;
 const TabSwitchNode: FC<NodeProps> = ({ id, selected }) => {
   const { params, updateParams } = useActionParams<TabSwitchParams>(id);
 
-  // Select field
+  // Select fields
   const mode = useSyncedSelect(params?.switchBy ?? 'newest', {
     onCommit: (v) => updateParams({ switchBy: v }),
   });
@@ -73,6 +67,10 @@ const TabSwitchNode: FC<NodeProps> = ({ id, selected }) => {
     onCommit: (v) => updateParams({ closeOld: v }),
   });
 
+  const requiresIndex = mode.value === 'index';
+  const requiresTitle = mode.value === 'title';
+  const requiresUrl = mode.value === 'url';
+
   const modeDescription = useMemo(() => {
     switch (mode.value) {
       case 'oldest':
@@ -91,18 +89,16 @@ const TabSwitchNode: FC<NodeProps> = ({ id, selected }) => {
   return (
     <BaseNode selected={selected} icon={PanelsTopLeft} iconClassName="text-violet-300" title="Tab Switch">
       <div className="space-y-3 text-xs">
-        <NodeSelectField
-          field={mode}
-          label="Switch strategy"
-          options={MODES}
-          description={modeDescription}
-        />
+        <div>
+          <NodeSelectField field={mode} label="Switch strategy" options={MODES} />
+          <p className="text-gray-500 mt-1">{modeDescription}</p>
+        </div>
 
-        {mode.value === 'index' && (
+        {requiresIndex && (
           <NodeNumberField field={index} label="Tab index" min={0} />
         )}
 
-        {mode.value === 'title' && (
+        {requiresTitle && (
           <NodeTextField
             field={titleMatch}
             label="Title pattern"
@@ -110,7 +106,7 @@ const TabSwitchNode: FC<NodeProps> = ({ id, selected }) => {
           />
         )}
 
-        {mode.value === 'url' && (
+        {requiresUrl && (
           <NodeTextField
             field={urlMatch}
             label="URL pattern"

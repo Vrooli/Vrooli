@@ -1,10 +1,10 @@
-import { memo, FC, useCallback } from 'react';
+import { memo, FC } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Variable, Settings2 } from 'lucide-react';
+import { useElementPicker } from '@hooks/useElementPicker';
 import { useNodeData } from '@hooks/useNodeData';
 import { useUrlInheritance } from '@hooks/useUrlInheritance';
 import { useSyncedString, useSyncedNumber, useSyncedBoolean, useSyncedSelect } from '@hooks/useSyncedField';
-import type { ElementInfo } from '@/types/elements';
 import BaseNode from './BaseNode';
 import { NodeTextField, NodeTextArea, NodeSelectField, NodeCheckbox, NodeUrlField, NodeSelectorField, FieldRow } from './fields';
 
@@ -45,6 +45,9 @@ const SetVariableNode: FC<NodeProps> = ({ selected, id }) => {
   // Node data hook for fields (set variable doesn't have a proto type, so all stored in node.data)
   const { getValue, updateData } = useNodeData(id);
 
+  // Element picker binding (data-only mode since this node doesn't use action params)
+  const elementPicker = useElementPicker(id, { mode: 'data-only' });
+
   // UI-specific fields using useSyncedField hooks
   const name = useSyncedString(getValue<string>('name') ?? '', {
     onCommit: (v) => updateData({ name: v || undefined }),
@@ -81,13 +84,6 @@ const SetVariableNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateData({ allMatches: v }),
   });
 
-  const handleElementSelection = useCallback(
-    (newSelector: string, elementInfo: ElementInfo) => {
-      updateData({ selector: newSelector, elementInfo });
-    },
-    [updateData],
-  );
-
   const renderSourceFields = () => {
     if (sourceType.value === 'static') {
       return (
@@ -122,7 +118,7 @@ const SetVariableNode: FC<NodeProps> = ({ selected, id }) => {
         <NodeSelectorField
           field={selector}
           effectiveUrl={effectiveUrl}
-          onElementSelect={handleElementSelection}
+          onElementSelect={elementPicker.onSelect}
           placeholder="CSS selector..."
           className=""
         />

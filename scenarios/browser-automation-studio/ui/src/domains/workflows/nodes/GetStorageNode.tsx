@@ -10,9 +10,9 @@ import {
 import BaseNode from './BaseNode';
 import {
   NodeTextField,
-  NodeNumberField,
   NodeSelectField,
   FieldRow,
+  TimeoutFields,
 } from './fields';
 
 // GetStorageParams interface for V2 native action params
@@ -80,10 +80,12 @@ const GetStorageNode: FC<NodeProps> = ({ selected, id }) => {
           <NodeTextField field={storeAs} label="Store as" placeholder="profileData" />
         </FieldRow>
 
-        <FieldRow>
-          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={MIN_TIMEOUT} />
-          <NodeNumberField field={waitForMs} label="Post-read wait (ms)" min={0} />
-        </FieldRow>
+        <TimeoutFields
+          timeoutMs={timeoutMs}
+          waitForMs={waitForMs}
+          waitLabel="Post-read wait (ms)"
+          minTimeout={MIN_TIMEOUT}
+        />
       </div>
     </BaseNode>
   );

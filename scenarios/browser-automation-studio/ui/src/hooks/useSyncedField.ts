@@ -258,6 +258,276 @@ export function useSyncedSelect<T extends string>(
 }
 
 // ============================================================================
+// Advanced Specialized Variants
+// ============================================================================
+
+export interface UseSyncedArrayAsTextOptions {
+  /** Separator regex for parsing (default: /[\n,]+/) */
+  separator?: RegExp;
+  /** Join string for display (default: '\n') */
+  joinWith?: string;
+  /** Called when the field should be committed */
+  onCommit?: (value: string[]) => void;
+}
+
+/**
+ * Specialized hook for array fields edited as text (comma/newline separated).
+ * Local state is a string for editing, but commits as string[].
+ *
+ * @example
+ * ```tsx
+ * const selectors = useSyncedArrayAsText(params?.selectors ?? [], {
+ *   onCommit: (v) => updateParams({ selectors: v.length ? v : undefined }),
+ * });
+ *
+ * <textarea
+ *   value={selectors.value}
+ *   onChange={(e) => selectors.setValue(e.target.value)}
+ *   onBlur={selectors.commit}
+ *   placeholder="selector1, selector2"
+ * />
+ * ```
+ */
+export function useSyncedArrayAsText(
+  externalValue: string[],
+  options: UseSyncedArrayAsTextOptions = {},
+): UseSyncedFieldResult<string> & { parsedValue: string[] } {
+  const { separator = /[\n,]+/, joinWith = '\n', onCommit } = options;
+
+  // Convert array to display string
+  const displayValue = Array.isArray(externalValue) ? externalValue.join(joinWith) : '';
+
+  // Parse string to array
+  const parseToArray = useCallback(
+    (text: string): string[] =>
+      text
+        .split(separator)
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0),
+    [separator],
+  );
+
+  const field = useSyncedField(displayValue, {
+    onCommit: (text) => {
+      const parsed = parseToArray(text);
+      onCommit?.(parsed);
+    },
+  });
+
+  return {
+    ...field,
+    parsedValue: parseToArray(field.value),
+  };
+}
+
+export interface UseSyncedOptionalNumberOptions {
+  /** Minimum allowed value */
+  min?: number;
+  /** Maximum allowed value */
+  max?: number;
+  /** Whether to allow floating point (default: false, rounds to int) */
+  float?: boolean;
+  /** Called when the field should be committed */
+  onCommit?: (value: number | undefined) => void;
+}
+
+/**
+ * Specialized hook for optional number fields.
+ * Local state is a string for editing, commits as number | undefined.
+ * Empty string commits as undefined.
+ *
+ * @example
+ * ```tsx
+ * const padding = useSyncedOptionalNumber(params?.padding, {
+ *   min: 0,
+ *   onCommit: (v) => updateParams({ padding: v }),
+ * });
+ *
+ * <input
+ *   type="number"
+ *   value={padding.value}
+ *   onChange={(e) => padding.setValue(e.target.value)}
+ *   onBlur={padding.commit}
+ * />
+ * ```
+ */
+export function useSyncedOptionalNumber(
+  externalValue: number | undefined,
+  options: UseSyncedOptionalNumberOptions = {},
+): UseSyncedFieldResult<string> & { numericValue: number | undefined } {
+  const { min, max, float = false, onCommit } = options;
+
+  // Convert number to display string
+  const displayValue = externalValue !== undefined ? String(externalValue) : '';
+
+  // Parse and normalize
+  const parseToNumber = useCallback(
+    (text: string): number | undefined => {
+      const trimmed = text.trim();
+      if (trimmed === '') return undefined;
+
+      const parsed = float ? Number.parseFloat(trimmed) : Number.parseInt(trimmed, 10);
+      if (Number.isNaN(parsed)) return undefined;
+
+      let result = parsed;
+      if (min !== undefined) result = Math.max(min, result);
+      if (max !== undefined) result = Math.min(max, result);
+      return result;
+    },
+    [min, max, float],
+  );
+
+  const field = useSyncedField(displayValue, {
+    onCommit: (text) => {
+      const parsed = parseToNumber(text);
+      onCommit?.(parsed);
+    },
+  });
+
+  return {
+    ...field,
+    numericValue: parseToNumber(field.value),
+  };
+}
+
+export interface UseSyncedJsonOptions<T> {
+  /** Fallback value for invalid JSON (default: {}) */
+  fallback?: T;
+  /** Indentation for display (default: 2) */
+  indent?: number;
+  /** Called when the field should be committed */
+  onCommit?: (value: T) => void;
+}
+
+/**
+ * Specialized hook for JSON object fields.
+ * Local state is a string for editing, commits as parsed object.
+ * Invalid JSON is not committed (keeps previous value).
+ *
+ * @example
+ * ```tsx
+ * const params = useSyncedJson<Record<string, unknown>>(data?.parameters ?? {}, {
+ *   onCommit: (v) => updateData({ parameters: v }),
+ * });
+ *
+ * <textarea
+ *   value={params.value}
+ *   onChange={(e) => params.setValue(e.target.value)}
+ *   onBlur={params.commit}
+ * />
+ * {params.parseError && <span className="text-red-400">{params.parseError}</span>}
+ * ```
+ */
+export function useSyncedJson<T extends object>(
+  externalValue: T,
+  options: UseSyncedJsonOptions<T> = {},
+): UseSyncedFieldResult<string> & { parsedValue: T | undefined; parseError: string | undefined } {
+  const { fallback = {} as T, indent = 2, onCommit } = options;
+
+  // Convert object to display string
+  const displayValue = JSON.stringify(externalValue ?? fallback, null, indent);
+
+  const [parseError, setParseError] = useState<string | undefined>(undefined);
+
+  const field = useSyncedField(displayValue, {
+    onCommit: (text) => {
+      try {
+        const parsed = JSON.parse(text) as T;
+        setParseError(undefined);
+        onCommit?.(parsed);
+      } catch (err) {
+        setParseError(err instanceof Error ? err.message : 'Invalid JSON');
+        // Don't commit invalid JSON
+      }
+    },
+  });
+
+  // Try to parse current value for live feedback
+  let parsedValue: T | undefined;
+  try {
+    parsedValue = JSON.parse(field.value) as T;
+  } catch {
+    parsedValue = undefined;
+  }
+
+  return {
+    ...field,
+    parsedValue,
+    parseError,
+  };
+}
+
+export interface UseSyncedObjectOptions<T extends object> {
+  /** Called when the field should be committed */
+  onCommit?: (value: T) => void;
+}
+
+/**
+ * Specialized hook for simple object fields (like modifier checkboxes).
+ * Provides toggle helpers for boolean fields within the object.
+ *
+ * @example
+ * ```tsx
+ * const modifiers = useSyncedObject({ ctrl: false, shift: false, alt: false }, {
+ *   onCommit: (v) => updateData({ modifiers: v }),
+ * });
+ *
+ * <input
+ *   type="checkbox"
+ *   checked={modifiers.value.ctrl}
+ *   onChange={() => modifiers.toggle('ctrl')}
+ * />
+ * ```
+ */
+export function useSyncedObject<T extends object>(
+  externalValue: T,
+  options: UseSyncedObjectOptions<T> = {},
+): UseSyncedFieldResult<T> & {
+  toggle: (key: keyof T) => void;
+  setField: <K extends keyof T>(key: K, value: T[K]) => void;
+} {
+  const { onCommit } = options;
+
+  // Deep equality check for objects
+  const isEqual = useCallback((a: T, b: T): boolean => {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }, []);
+
+  const field = useSyncedField(externalValue, { onCommit, isEqual });
+
+  // Toggle a boolean field and commit immediately
+  const toggle = useCallback(
+    (key: keyof T) => {
+      field.setValue((prev) => {
+        const next = { ...prev, [key]: !prev[key] } as T;
+        // Commit immediately for checkboxes
+        onCommit?.(next);
+        return next;
+      });
+    },
+    [field, onCommit],
+  );
+
+  // Set a specific field and commit immediately
+  const setField = useCallback(
+    <K extends keyof T>(key: K, value: T[K]) => {
+      field.setValue((prev) => {
+        const next = { ...prev, [key]: value } as T;
+        onCommit?.(next);
+        return next;
+      });
+    },
+    [field, onCommit],
+  );
+
+  return {
+    ...field,
+    toggle,
+    setField,
+  };
+}
+
+// ============================================================================
 // Input Props Helpers
 // ============================================================================
 

@@ -3,12 +3,12 @@ import type { NodeProps } from 'reactflow';
 import { MousePointer } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
+import { useResiliencePanelProps } from '@hooks/useResiliencePanel';
 import { useSyncedString, useSyncedNumber } from '@hooks/useSyncedField';
 import type { HoverParams } from '@utils/actionBuilder';
-import type { ResilienceSettings } from '@/types/workflow';
 import BaseNode from './BaseNode';
 import ResiliencePanel from './ResiliencePanel';
-import { NodeTextField, NodeNumberField, FieldRow } from './fields';
+import { NodeTextField, NodeNumberField, FieldRow, TimeoutFields } from './fields';
 
 const MIN_STEPS = 1;
 const MAX_STEPS = 50;
@@ -20,6 +20,7 @@ const DEFAULT_DURATION = 350;
 const HoverNode: FC<NodeProps> = ({ selected, id }) => {
   const { getValue, updateData } = useNodeData(id);
   const { params, updateParams } = useActionParams<HoverParams>(id);
+  const resilience = useResiliencePanelProps(id);
 
   // Action params fields
   const selector = useSyncedString(params?.selector ?? '', {
@@ -49,8 +50,6 @@ const HoverNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateData({ durationMs: v }),
   });
 
-  const resilienceConfig = getValue<ResilienceSettings>('resilience');
-
   const stepsHint = useMemo(() => {
     if (steps.value <= 3) return 'Instant';
     if (steps.value <= 10) return 'Smooth';
@@ -66,10 +65,11 @@ const HoverNode: FC<NodeProps> = ({ selected, id }) => {
           placeholder=".menu-item > button"
         />
 
-        <FieldRow>
-          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={100} />
-          <NodeNumberField field={waitForMs} label="Post-hover wait (ms)" min={0} />
-        </FieldRow>
+        <TimeoutFields
+          timeoutMs={timeoutMs}
+          waitForMs={waitForMs}
+          waitLabel="Post-hover wait (ms)"
+        />
 
         <FieldRow>
           <NodeNumberField
@@ -94,10 +94,7 @@ const HoverNode: FC<NodeProps> = ({ selected, id }) => {
         </p>
       </div>
 
-      <ResiliencePanel
-        value={resilienceConfig}
-        onChange={(next) => updateData({ resilience: next ?? null })}
-      />
+      <ResiliencePanel {...resilience} />
     </BaseNode>
   );
 };

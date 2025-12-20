@@ -2,12 +2,11 @@ import { memo, FC, useEffect, useMemo, useRef } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Hand } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
-import { useNodeData } from '@hooks/useNodeData';
+import { useResiliencePanelProps } from '@hooks/useResiliencePanel';
 import { useSyncedString, useSyncedNumber } from '@hooks/useSyncedField';
 import ResiliencePanel from './ResiliencePanel';
 import BaseNode from './BaseNode';
 import { NodeTextField, NodeNumberField, FieldRow } from './fields';
-import type { ResilienceSettings } from '@/types/workflow';
 
 // DragDropParams interface for V2 native action params
 interface DragDropParams {
@@ -33,7 +32,6 @@ const MIN_TIMEOUT = 500;
 const DragDropNode: FC<NodeProps> = ({ selected, id }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
   const { params, updateParams } = useActionParams<DragDropParams>(id);
-  const { getValue, updateData } = useNodeData(id);
 
   // String fields
   const sourceSelector = useSyncedString(params?.sourceSelector ?? '', {
@@ -80,7 +78,7 @@ const DragDropNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateParams({ waitForMs: v || undefined }),
   });
 
-  const resilienceConfig = getValue<ResilienceSettings>('resilience');
+  const resilience = useResiliencePanelProps(id);
 
   const movementSummary = useMemo(() => {
     if (steps.value <= 5) return 'Quick snap';
@@ -174,10 +172,7 @@ const DragDropNode: FC<NodeProps> = ({ selected, id }) => {
           </FieldRow>
         </div>
 
-        <ResiliencePanel
-          value={resilienceConfig}
-          onChange={(next) => updateData({ resilience: next ?? null })}
-        />
+        <ResiliencePanel {...resilience} />
       </BaseNode>
     </div>
   );

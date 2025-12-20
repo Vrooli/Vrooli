@@ -5,7 +5,7 @@ import { useActionParams } from '@hooks/useActionParams';
 import { useSyncedString, useSyncedNumber } from '@hooks/useSyncedField';
 import { selectors } from '@constants/selectors';
 import BaseNode from './BaseNode';
-import { NodeTextField, NodeTextArea, NodeNumberField, FieldRow } from './fields';
+import { NodeTextField, NodeTextArea, TimeoutFields } from './fields';
 
 // UploadFileParams interface for V2 native action params
 interface UploadFileParams {
@@ -104,10 +104,12 @@ const UploadFileNode: FC<NodeProps> = ({ id, selected }) => {
           )}
         </div>
 
-        <FieldRow>
-          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={MIN_TIMEOUT} />
-          <NodeNumberField field={waitForMs} label="Wait after (ms)" min={0} />
-        </FieldRow>
+        <TimeoutFields
+          timeoutMs={timeoutMs}
+          waitForMs={waitForMs}
+          waitLabel="Wait after (ms)"
+          minTimeout={MIN_TIMEOUT}
+        />
       </div>
     </BaseNode>
   );

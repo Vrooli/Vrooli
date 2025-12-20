@@ -9,17 +9,10 @@ import {
   useSyncedSelect,
 } from '@hooks/useSyncedField';
 import BaseNode from './BaseNode';
-import {
-  NodeTextField,
-  NodeTextArea,
-  NodeNumberField,
-  NodeSelectField,
-  NodeCheckbox,
-  FieldRow,
-} from './fields';
+import { NodeTextField, NodeTextArea, NodeNumberField, NodeSelectField, NodeCheckbox, FieldRow } from './fields';
 
-// CookieParams interface for V2 native action params
-interface CookieParams {
+// SetCookieParams interface for V2 native action params
+interface SetCookieParams {
   name?: string;
   value?: string;
   url?: string;
@@ -35,23 +28,23 @@ interface CookieParams {
 }
 
 const SAME_SITE_OPTIONS = [
-  { label: 'Browser default', value: '' },
-  { label: 'Lax', value: 'lax' },
-  { label: 'Strict', value: 'strict' },
-  { label: 'None', value: 'none' },
+  { value: '', label: 'Browser default' },
+  { value: 'lax', label: 'Lax' },
+  { value: 'strict', label: 'Strict' },
+  { value: 'none', label: 'None' },
 ];
 
 const MIN_TIMEOUT = 100;
 
 const SetCookieNode: FC<NodeProps> = ({ selected, id }) => {
-  const { params, updateParams } = useActionParams<CookieParams>(id);
+  const { params, updateParams } = useActionParams<SetCookieParams>(id);
 
-  // String fields with trim normalization
+  // String fields
   const name = useSyncedString(params?.name ?? '', {
     onCommit: (v) => updateParams({ name: v || undefined }),
   });
   const value = useSyncedString(params?.value ?? '', {
-    trim: false, // Don't trim cookie value
+    trim: false,
     onCommit: (v) => updateParams({ value: v }),
   });
   const url = useSyncedString(params?.url ?? '', {
@@ -67,12 +60,12 @@ const SetCookieNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateParams({ expiresAt: v || undefined }),
   });
 
-  // Select field (commits immediately on change)
+  // Select fields
   const sameSite = useSyncedSelect(params?.sameSite ?? '', {
     onCommit: (v) => updateParams({ sameSite: v || undefined }),
   });
 
-  // Boolean fields (commit immediately on change)
+  // Boolean fields
   const secure = useSyncedBoolean(params?.secure ?? false, {
     onCommit: (v) => updateParams({ secure: v || undefined }),
   });
@@ -80,7 +73,7 @@ const SetCookieNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateParams({ httpOnly: v || undefined }),
   });
 
-  // Number fields with validation
+  // Number fields
   const ttlSeconds = useSyncedNumber(params?.ttlSeconds ?? 0, {
     min: 0,
     onCommit: (v) => updateParams({ ttlSeconds: v || undefined }),
@@ -125,7 +118,11 @@ const SetCookieNode: FC<NodeProps> = ({ selected, id }) => {
 
         <FieldRow>
           <NodeNumberField field={ttlSeconds} label="TTL (seconds)" min={0} />
-          <NodeTextField field={expiresAt} label="Expires at (RFC3339)" placeholder="2025-12-31T23:59:59Z" />
+          <NodeTextField
+            field={expiresAt}
+            label="Expires at (RFC3339)"
+            placeholder="2025-12-31T23:59:59Z"
+          />
         </FieldRow>
 
         <FieldRow>

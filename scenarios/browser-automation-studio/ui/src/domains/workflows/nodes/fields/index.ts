@@ -47,6 +47,7 @@ export { NodeCheckbox } from './NodeCheckbox';
 export { NodeUrlField } from './NodeUrlField';
 export { NodeSelectorField } from './NodeSelectorField';
 export { FieldRow } from './FieldRow';
+export { TimeoutFields } from './TimeoutFields';
 
 export type {
   BaseFieldProps,
@@ -61,3 +62,4 @@ export type {
 
 export type { NodeUrlFieldProps } from './NodeUrlField';
 export type { NodeSelectorFieldProps } from './NodeSelectorField';
+export type { TimeoutFieldsProps } from './TimeoutFields';

@@ -1,13 +1,12 @@
-import { memo, FC, useCallback } from 'react';
+import { memo, FC } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Keyboard } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
-import { useNodeData } from '@hooks/useNodeData';
+import { useElementPicker } from '@hooks/useElementPicker';
+import { useResiliencePanelProps } from '@hooks/useResiliencePanel';
 import { useUrlInheritance } from '@hooks/useUrlInheritance';
 import { useSyncedString, textInputHandler } from '@hooks/useSyncedField';
-import type { ElementInfo } from '@/types/elements';
 import type { InputParams } from '@utils/actionBuilder';
-import type { ResilienceSettings } from '@/types/workflow';
 import BaseNode from './BaseNode';
 import ResiliencePanel from './ResiliencePanel';
 import { NodeUrlField, NodeSelectorField } from './fields';
@@ -16,11 +15,14 @@ const TypeNode: FC<NodeProps> = ({ selected, id }) => {
   // URL inheritance for element picker
   const { effectiveUrl } = useUrlInheritance(id);
 
-  // Node data hook for non-action fields
-  const { updateData, getValue } = useNodeData(id);
-
   // V2 Native: Use action params as source of truth
   const { params, updateParams } = useActionParams<InputParams>(id);
+
+  // Resilience panel binding
+  const resilience = useResiliencePanelProps(id);
+
+  // Element picker binding
+  const elementPicker = useElementPicker(id);
 
   // Action params fields using useSyncedField
   const selector = useSyncedString(params?.selector ?? '', {
@@ -30,18 +32,6 @@ const TypeNode: FC<NodeProps> = ({ selected, id }) => {
     trim: false, // Don't trim text input
     onCommit: (v) => updateParams({ value: v }),
   });
-
-  const handleElementSelection = useCallback(
-    (newSelector: string, elementInfo: ElementInfo) => {
-      // V2 Native: Update selector in action params
-      updateParams({ selector: newSelector });
-      // Keep elementInfo in data for now (not part of InputParams proto)
-      updateData({ elementInfo });
-    },
-    [updateParams, updateData],
-  );
-
-  const resilienceConfig = getValue<ResilienceSettings>('resilience');
 
   return (
     <BaseNode
@@ -55,7 +45,7 @@ const TypeNode: FC<NodeProps> = ({ selected, id }) => {
       <NodeSelectorField
         field={selector}
         effectiveUrl={effectiveUrl}
-        onElementSelect={handleElementSelection}
+        onElementSelect={elementPicker.onSelect}
       />
 
       <textarea
@@ -67,10 +57,7 @@ const TypeNode: FC<NodeProps> = ({ selected, id }) => {
         onBlur={text.commit}
       />
 
-      <ResiliencePanel
-        value={resilienceConfig}
-        onChange={(next) => updateData({ resilience: next ?? null })}
-      />
+      <ResiliencePanel {...resilience} />
     </BaseNode>
   );
 };

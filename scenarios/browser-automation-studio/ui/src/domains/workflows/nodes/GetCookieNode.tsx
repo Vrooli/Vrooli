@@ -10,9 +10,9 @@ import {
 import BaseNode from './BaseNode';
 import {
   NodeTextField,
-  NodeNumberField,
   NodeSelectField,
   FieldRow,
+  TimeoutFields,
 } from './fields';
 
 // GetCookieParams interface for V2 native action params
@@ -87,10 +87,12 @@ const GetCookieNode: FC<NodeProps> = ({ selected, id }) => {
 
         <NodeSelectField field={resultFormat} label="Result format" options={RESULT_OPTIONS} />
 
-        <FieldRow>
-          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={MIN_TIMEOUT} />
-          <NodeNumberField field={waitForMs} label="Post-fetch wait (ms)" min={0} />
-        </FieldRow>
+        <TimeoutFields
+          timeoutMs={timeoutMs}
+          waitForMs={waitForMs}
+          waitLabel="Post-fetch wait (ms)"
+          minTimeout={MIN_TIMEOUT}
+        />
       </div>
     </BaseNode>
   );

@@ -11,10 +11,9 @@ import {
 import BaseNode from './BaseNode';
 import {
   NodeTextField,
-  NodeNumberField,
   NodeSelectField,
   NodeCheckbox,
-  FieldRow,
+  TimeoutFields,
 } from './fields';
 
 // ClearStorageParams interface for V2 native action params
@@ -73,10 +72,12 @@ const ClearStorageNode: FC<NodeProps> = ({ selected, id }) => {
           <NodeTextField field={keyValue} label="Key" placeholder="profile" />
         )}
 
-        <FieldRow>
-          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={MIN_TIMEOUT} />
-          <NodeNumberField field={waitForMs} label="Post-clear wait (ms)" min={0} />
-        </FieldRow>
+        <TimeoutFields
+          timeoutMs={timeoutMs}
+          waitForMs={waitForMs}
+          waitLabel="Post-clear wait (ms)"
+          minTimeout={MIN_TIMEOUT}
+        />
       </div>
     </BaseNode>
   );

@@ -11,9 +11,9 @@ import BaseNode from './BaseNode';
 import {
   NodeTextField,
   NodeTextArea,
-  NodeNumberField,
   NodeSelectField,
   FieldRow,
+  TimeoutFields,
 } from './fields';
 
 // SetStorageParams interface for V2 native action params
@@ -87,10 +87,12 @@ const SetStorageNode: FC<NodeProps> = ({ selected, id }) => {
           description={valueType.value === 'json' ? 'Must be valid JSON and will be stringified before storage.' : undefined}
         />
 
-        <FieldRow>
-          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={MIN_TIMEOUT} />
-          <NodeNumberField field={waitForMs} label="Post-set wait (ms)" min={0} />
-        </FieldRow>
+        <TimeoutFields
+          timeoutMs={timeoutMs}
+          waitForMs={waitForMs}
+          waitLabel="Post-set wait (ms)"
+          minTimeout={MIN_TIMEOUT}
+        />
       </div>
     </BaseNode>
   );

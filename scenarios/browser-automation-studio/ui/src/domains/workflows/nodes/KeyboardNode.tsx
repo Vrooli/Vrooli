@@ -1,9 +1,15 @@
-import { memo, FC, useCallback, useMemo, useState, useEffect } from 'react';
+import { memo, FC, useMemo } from 'react';
 import type { NodeProps } from 'reactflow';
 import { KeySquare } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
-import { useSyncedString, useSyncedNumber, useSyncedSelect, textInputHandler } from '@hooks/useSyncedField';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  useSyncedSelect,
+  useSyncedObject,
+  textInputHandler,
+} from '@hooks/useSyncedField';
 import type { KeyboardParams } from '@utils/actionBuilder';
 import BaseNode from './BaseNode';
 import { NodeNumberField, NodeSelectField, FieldRow } from './fields';
@@ -50,6 +56,13 @@ type ModifierState = {
   meta: boolean;
 };
 
+const DEFAULT_MODIFIERS: ModifierState = {
+  ctrl: false,
+  shift: false,
+  alt: false,
+  meta: false,
+};
+
 const normalizeModifiers = (raw: unknown): ModifierState => {
   const map = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
   return {
@@ -86,24 +99,10 @@ const KeyboardNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateData({ timeoutMs: v }),
   });
 
-  // Modifiers need special handling since it's an object
-  const [modifiers, setModifiers] = useState<ModifierState>(() =>
-    normalizeModifiers(getValue<ModifierState>('modifiers')),
-  );
-
-  useEffect(() => {
-    setModifiers(normalizeModifiers(getValue<ModifierState>('modifiers')));
-  }, [getValue]);
-
-  const handleModifierToggle = useCallback(
-    (field: keyof ModifierState) => {
-      setModifiers((prev) => {
-        const next = { ...prev, [field]: !prev[field] };
-        updateData({ modifiers: next });
-        return next;
-      });
-    },
-    [updateData],
+  // Object field using useSyncedObject (replaces manual useState + useEffect + toggle)
+  const modifiers = useSyncedObject<ModifierState>(
+    normalizeModifiers(getValue<ModifierState>('modifiers')) ?? DEFAULT_MODIFIERS,
+    { onCommit: (v) => updateData({ modifiers: v }) },
   );
 
   const datalistId = useMemo(() => `keyboard-node-keys-${id}`, [id]);
@@ -142,8 +141,8 @@ const KeyboardNode: FC<NodeProps> = ({ selected, id }) => {
               >
                 <input
                   type="checkbox"
-                  checked={modifiers[mod]}
-                  onChange={() => handleModifierToggle(mod)}
+                  checked={modifiers.value[mod]}
+                  onChange={() => modifiers.toggle(mod)}
                   className="accent-flow-accent"
                 />
                 <span className="capitalize">{mod}</span>

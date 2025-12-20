@@ -16,7 +16,8 @@ import { useNodeData } from '@hooks/useNodeData';
 import {
   useSyncedString,
   useSyncedBoolean,
-  useSyncedField,
+  useSyncedArrayAsText,
+  useSyncedOptionalNumber,
   textInputHandler,
 } from '@hooks/useSyncedField';
 import type { ScreenshotParams } from '@utils/actionBuilder';
@@ -28,31 +29,6 @@ import {
   NodeUrlField,
   FieldRow,
 } from './fields';
-
-// Helper to parse selector lists from comma/newline separated string
-const parseSelectorList = (raw: string): string[] =>
-  raw
-    .split(/[\n,]+/)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-
-// Helper to format selector lists to comma-separated string
-const formatSelectorList = (selectors: string[] | undefined): string =>
-  Array.isArray(selectors) ? selectors.join(', ') : '';
-
-// Helper to parse optional number from string
-const parseOptionalNumber = (
-  value: string,
-  options: { float?: boolean; min?: number; max?: number } = {},
-): number | undefined => {
-  if (value === '') return undefined;
-  const parsed = options.float ? Number.parseFloat(value) : Number.parseInt(value, 10);
-  if (Number.isNaN(parsed)) return undefined;
-  let result = parsed;
-  if (options.min !== undefined) result = Math.max(options.min, result);
-  if (options.max !== undefined) result = Math.min(options.max, result);
-  return result;
-};
 
 const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
   // Node data hook for UI-specific fields
@@ -80,38 +56,43 @@ const ScreenshotNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateData({ background: v || undefined }),
   });
 
-  // Selector list fields (stored as arrays, edited as strings)
-  const highlightInput = useSyncedField(formatSelectorList(getValue<string[]>('highlightSelectors')), {
-    onCommit: (v) => {
-      const selectors = parseSelectorList(v);
-      updateData({ highlightSelectors: selectors.length > 0 ? selectors : undefined });
-    },
+  // Selector list fields using useSyncedArrayAsText
+  const highlightInput = useSyncedArrayAsText(getValue<string[]>('highlightSelectors') ?? [], {
+    joinWith: ', ',
+    onCommit: (v) => updateData({ highlightSelectors: v.length > 0 ? v : undefined }),
   });
-  const maskInput = useSyncedField(formatSelectorList(getValue<string[]>('maskSelectors')), {
-    onCommit: (v) => {
-      const selectors = parseSelectorList(v);
-      updateData({ maskSelectors: selectors.length > 0 ? selectors : undefined });
-    },
+  const maskInput = useSyncedArrayAsText(getValue<string[]>('maskSelectors') ?? [], {
+    joinWith: ', ',
+    onCommit: (v) => updateData({ maskSelectors: v.length > 0 ? v : undefined }),
   });
 
-  // Optional number fields (stored as numbers, edited as strings for optional handling)
-  const highlightPadding = useSyncedField(getValue<number>('highlightPadding')?.toString() ?? '', {
-    onCommit: (v) => updateData({ highlightPadding: parseOptionalNumber(v, { min: 0 }) }),
+  // Optional number fields using useSyncedOptionalNumber
+  const highlightPadding = useSyncedOptionalNumber(getValue<number>('highlightPadding'), {
+    min: 0,
+    onCommit: (v) => updateData({ highlightPadding: v }),
   });
-  const maskOpacity = useSyncedField(getValue<number>('maskOpacity')?.toString() ?? '', {
-    onCommit: (v) => updateData({ maskOpacity: parseOptionalNumber(v, { float: true, min: 0, max: 1 }) }),
+  const maskOpacity = useSyncedOptionalNumber(getValue<number>('maskOpacity'), {
+    min: 0,
+    max: 1,
+    float: true,
+    onCommit: (v) => updateData({ maskOpacity: v }),
   });
-  const zoomFactor = useSyncedField(getValue<number>('zoomFactor')?.toString() ?? '', {
-    onCommit: (v) => updateData({ zoomFactor: parseOptionalNumber(v, { float: true, min: 0 }) }),
+  const zoomFactor = useSyncedOptionalNumber(getValue<number>('zoomFactor'), {
+    min: 0,
+    float: true,
+    onCommit: (v) => updateData({ zoomFactor: v }),
   });
-  const viewportWidth = useSyncedField(getValue<number>('viewportWidth')?.toString() ?? '', {
-    onCommit: (v) => updateData({ viewportWidth: parseOptionalNumber(v, { min: 320 }) }),
+  const viewportWidth = useSyncedOptionalNumber(getValue<number>('viewportWidth'), {
+    min: 320,
+    onCommit: (v) => updateData({ viewportWidth: v }),
   });
-  const viewportHeight = useSyncedField(getValue<number>('viewportHeight')?.toString() ?? '', {
-    onCommit: (v) => updateData({ viewportHeight: parseOptionalNumber(v, { min: 320 }) }),
+  const viewportHeight = useSyncedOptionalNumber(getValue<number>('viewportHeight'), {
+    min: 320,
+    onCommit: (v) => updateData({ viewportHeight: v }),
   });
-  const waitForMs = useSyncedField(getValue<number>('waitForMs')?.toString() ?? '', {
-    onCommit: (v) => updateData({ waitForMs: parseOptionalNumber(v, { min: 0 }) }),
+  const waitForMs = useSyncedOptionalNumber(getValue<number>('waitForMs'), {
+    min: 0,
+    onCommit: (v) => updateData({ waitForMs: v }),
   });
 
   // UI state (not persisted)

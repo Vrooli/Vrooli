@@ -1,34 +1,27 @@
-import { memo, FC, useState, useEffect, useCallback } from 'react';
+import { memo, FC, useCallback, useEffect } from 'react';
 import type { NodeProps } from 'reactflow';
 import { ListFilter } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
-import { useSyncedString, useSyncedNumber, useSyncedBoolean, useSyncedSelect } from '@hooks/useSyncedField';
+import { useResiliencePanelProps } from '@hooks/useResiliencePanel';
+import {
+  useSyncedString,
+  useSyncedNumber,
+  useSyncedBoolean,
+  useSyncedSelect,
+  useSyncedArrayAsText,
+  textInputHandler,
+} from '@hooks/useSyncedField';
 import type { SelectParams } from '@utils/actionBuilder';
-import type { ResilienceSettings } from '@/types/workflow';
 import BaseNode from './BaseNode';
 import ResiliencePanel from './ResiliencePanel';
-import { NodeTextField, NodeNumberField, FieldRow } from './fields';
+import { NodeTextField, NodeNumberField, FieldRow, TimeoutFields } from './fields';
 
 const SELECT_BY_OPTIONS = [
   { value: 'value', label: 'Option value' },
   { value: 'text', label: 'Displayed text' },
   { value: 'index', label: 'Option index' },
 ];
-
-const parseValuesInput = (raw: string): string[] => {
-  return raw
-    .split(/\r?\n|,/)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-};
-
-const formatValues = (values?: unknown): string => {
-  if (!Array.isArray(values)) {
-    return '';
-  }
-  return values.join('\n');
-};
 
 const SelectNode: FC<NodeProps> = ({ selected, id }) => {
   // Node data hook for UI-specific fields
@@ -69,14 +62,12 @@ const SelectNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateData({ waitForMs: v || undefined }),
   });
 
-  // Special handling for values array (textarea)
-  const [valuesDraft, setValuesDraft] = useState<string>(formatValues(getValue<string[]>('values')));
+  // Array field using new hook (replaces manual useState + useEffect + parse/format)
+  const valuesField = useSyncedArrayAsText(getValue<string[]>('values') ?? [], {
+    onCommit: (v) => updateData({ values: v.length > 0 ? v : undefined }),
+  });
 
-  useEffect(() => {
-    setValuesDraft(formatValues(getValue<string[]>('values')));
-  }, [getValue]);
-
-  const resilienceConfig = getValue<ResilienceSettings>('resilience');
+  const resilience = useResiliencePanelProps(id);
 
   // If multiple mode and index is selected, switch to value
   useEffect(() => {
@@ -86,23 +77,17 @@ const SelectNode: FC<NodeProps> = ({ selected, id }) => {
     }
   }, [multiple.value, selectBy, updateData]);
 
-  const handleValuesBlur = useCallback(() => {
-    const parsed = parseValuesInput(valuesDraft);
-    setValuesDraft(parsed.join('\n'));
-    updateData({ values: parsed });
-  }, [updateData, valuesDraft]);
-
   const renderSelectionField = () => {
     if (multiple.value) {
-      // Custom textarea for multiple values
+      // Textarea for multiple values using useSyncedArrayAsText
       return (
         <div>
           <label className="text-gray-400 block mb-1 text-xs">Values (one per line)</label>
           <textarea
             rows={3}
-            value={valuesDraft}
-            onChange={(event) => setValuesDraft(event.target.value)}
-            onBlur={handleValuesBlur}
+            value={valuesField.value}
+            onChange={textInputHandler(valuesField.setValue)}
+            onBlur={valuesField.commit}
             placeholder={selectBy.value === 'text' ? 'Primary\nSecondary' : 'value-a\nvalue-b'}
             className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 text-xs focus:border-flow-accent focus:outline-none resize-none"
           />
@@ -198,10 +183,11 @@ const SelectNode: FC<NodeProps> = ({ selected, id }) => {
 
         {renderSelectionField()}
 
-        <FieldRow>
-          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={100} />
-          <NodeNumberField field={waitForMs} label="Post-change wait (ms)" min={0} />
-        </FieldRow>
+        <TimeoutFields
+          timeoutMs={timeoutMs}
+          waitForMs={waitForMs}
+          waitLabel="Post-change wait (ms)"
+        />
 
         <p className="text-[11px] text-gray-500">
           Dispatches change/input events after updating the element so downstream nodes can rely on
@@ -209,10 +195,7 @@ const SelectNode: FC<NodeProps> = ({ selected, id }) => {
         </p>
       </div>
 
-      <ResiliencePanel
-        value={resilienceConfig}
-        onChange={(next) => updateData({ resilience: next ?? null })}
-      />
+      <ResiliencePanel {...resilience} />
     </BaseNode>
   );
 };

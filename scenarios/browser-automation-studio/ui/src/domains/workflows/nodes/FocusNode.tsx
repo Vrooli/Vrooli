@@ -1,15 +1,16 @@
-import { memo, FC, useMemo, useCallback } from 'react';
+import { memo, FC, useMemo } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Crosshair, EyeOff } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
+import { useElementPicker } from '@hooks/useElementPicker';
 import { useNodeData } from '@hooks/useNodeData';
 import { useUrlInheritance } from '@hooks/useUrlInheritance';
 import { useSyncedString, useSyncedNumber } from '@hooks/useSyncedField';
 import type { FocusParams, BlurParams } from '@utils/actionBuilder';
 import type { ElementInfo } from '@/types/elements';
 import BaseNode from './BaseNode';
-import { NodeNumberField, NodeUrlField, NodeSelectorField, FieldRow } from './fields';
+import { NodeUrlField, NodeSelectorField, TimeoutFields } from './fields';
 
 type FocusBlurMode = 'focus' | 'blur';
 
@@ -54,6 +55,9 @@ const FocusBlurNode: FC<FocusBlurNodeProps> = ({
   // V2 Native: Use action params as source of truth
   const { params, updateParams } = useActionParams<FocusParams | BlurParams>(id);
 
+  // Element picker binding
+  const elementPicker = useElementPicker(id);
+
   // Action params fields using useSyncedField
   const selector = useSyncedString(params?.selector ?? '', {
     onCommit: (v) => {
@@ -80,14 +84,6 @@ const FocusBlurNode: FC<FocusBlurNodeProps> = ({
   const elementSummary = useMemo(() => summarizeElement(selectedElementInfo), [selectedElementInfo]);
   const accentClass = mode === 'focus' ? 'text-emerald-300' : 'text-amber-300';
 
-  const handleElementSelection = useCallback(
-    (newSelector: string, elementInfo: ElementInfo) => {
-      updateParams({ selector: newSelector });
-      updateData({ elementInfo });
-    },
-    [updateParams, updateData],
-  );
-
   return (
     <BaseNode selected={selected} icon={Icon} iconClassName={accentClass} title={label}>
       <p className="text-[11px] text-gray-500 mb-3">{description}</p>
@@ -99,7 +95,7 @@ const FocusBlurNode: FC<FocusBlurNodeProps> = ({
           <NodeSelectorField
             field={selector}
             effectiveUrl={effectiveUrl}
-            onElementSelect={handleElementSelection}
+            onElementSelect={elementPicker.onSelect}
             label="Target selector"
             placeholder="#email"
             className=""
@@ -109,10 +105,7 @@ const FocusBlurNode: FC<FocusBlurNodeProps> = ({
           )}
         </div>
 
-        <FieldRow>
-          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={100} />
-          <NodeNumberField field={waitForMs} label="Post-action wait (ms)" min={0} />
-        </FieldRow>
+        <TimeoutFields timeoutMs={timeoutMs} waitForMs={waitForMs} />
 
         <p className="text-[11px] text-gray-500">{helperText}</p>
       </div>

@@ -4,7 +4,7 @@ import { Play, ChevronDown, Settings, AlertCircle } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
 import { useNodeData } from '@hooks/useNodeData';
 import { useWorkflowStore } from '@stores/workflowStore';
-import { useSyncedString, useSyncedField, textInputHandler } from '@hooks/useSyncedField';
+import { useSyncedString, useSyncedJson, textInputHandler } from '@hooks/useSyncedField';
 import type { SubflowParams } from '@utils/actionBuilder';
 import BaseNode from './BaseNode';
 
@@ -45,35 +45,16 @@ const SubflowNode: FC<NodeProps> = ({ selected, id }) => {
     },
   });
 
-  // JSON fields with parse/stringify handling
-  const parametersJson = useSyncedField(
-    params?.parameters ? JSON.stringify(params.parameters, null, 2) : '{}',
-    {
-      onCommit: (v) => {
-        try {
-          const parsed = JSON.parse(v) as Record<string, unknown>;
-          updateParams({ parameters: Object.keys(parsed).length > 0 ? parsed : undefined });
-        } catch {
-          // Invalid JSON - don't update
-        }
-      },
-    },
-  );
+  // JSON fields using useSyncedJson (provides parse error feedback)
+  const parametersJson = useSyncedJson<Record<string, unknown>>(params?.parameters ?? {}, {
+    onCommit: (v) => updateParams({ parameters: Object.keys(v).length > 0 ? v : undefined }),
+  });
 
   // Output mapping is UI-specific (not in proto SubflowParams)
-  const outputMappingJson = useSyncedField(
-    getValue<Record<string, string>>('outputMapping')
-      ? JSON.stringify(getValue<Record<string, string>>('outputMapping'), null, 2)
-      : '{}',
+  const outputMappingJson = useSyncedJson<Record<string, string>>(
+    getValue<Record<string, string>>('outputMapping') ?? {},
     {
-      onCommit: (v) => {
-        try {
-          const parsed = JSON.parse(v) as Record<string, string>;
-          updateData({ outputMapping: Object.keys(parsed).length > 0 ? parsed : undefined });
-        } catch {
-          // Invalid JSON - don't update
-        }
-      },
+      onCommit: (v) => updateData({ outputMapping: Object.keys(v).length > 0 ? v : undefined }),
     },
   );
 
@@ -163,9 +144,14 @@ const SubflowNode: FC<NodeProps> = ({ selected, id }) => {
                 value={parametersJson.value}
                 onChange={(e) => parametersJson.setValue(e.target.value)}
                 onBlur={parametersJson.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none font-mono h-16 resize-none"
+                className={`w-full px-2 py-1 bg-flow-bg rounded text-xs border focus:outline-none font-mono h-16 resize-none ${
+                  parametersJson.parseError ? 'border-red-500' : 'border-gray-700 focus:border-flow-accent'
+                }`}
                 placeholder='{"param1": "value1"}'
               />
+              {parametersJson.parseError && (
+                <p className="text-[10px] text-red-400">{parametersJson.parseError}</p>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -177,9 +163,14 @@ const SubflowNode: FC<NodeProps> = ({ selected, id }) => {
                 value={outputMappingJson.value}
                 onChange={(e) => outputMappingJson.setValue(e.target.value)}
                 onBlur={outputMappingJson.commit}
-                className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none font-mono h-12 resize-none"
+                className={`w-full px-2 py-1 bg-flow-bg rounded text-xs border focus:outline-none font-mono h-12 resize-none ${
+                  outputMappingJson.parseError ? 'border-red-500' : 'border-gray-700 focus:border-flow-accent'
+                }`}
                 placeholder='{"workflowOutput": "myVariable"}'
               />
+              {outputMappingJson.parseError && (
+                <p className="text-[10px] text-red-400">{outputMappingJson.parseError}</p>
+              )}
             </div>
           </div>
         )}

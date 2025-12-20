@@ -2,12 +2,11 @@ import { FC, memo } from 'react';
 import type { NodeProps } from 'reactflow';
 import { ScrollText } from 'lucide-react';
 import { useActionParams } from '@hooks/useActionParams';
-import { useNodeData } from '@hooks/useNodeData';
+import { useResiliencePanelProps } from '@hooks/useResiliencePanel';
 import { useSyncedString, useSyncedNumber, useSyncedSelect } from '@hooks/useSyncedField';
-import type { ResilienceSettings } from '@/types/workflow';
 import BaseNode from './BaseNode';
 import ResiliencePanel from './ResiliencePanel';
-import { NodeTextField, NodeNumberField, NodeSelectField, FieldRow } from './fields';
+import { NodeTextField, NodeNumberField, NodeSelectField, FieldRow, TimeoutFields } from './fields';
 
 // ScrollParams interface for V2 native action params
 interface ScrollParams {
@@ -57,7 +56,6 @@ const DIRECTION_OPTIONS = [
 ];
 
 const ScrollNode: FC<NodeProps> = ({ selected, id }) => {
-  const { getValue, updateData } = useNodeData(id);
   const { params, updateParams } = useActionParams<ScrollParams>(id);
 
   // Select fields
@@ -113,7 +111,7 @@ const ScrollNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => updateParams({ waitForMs: v || undefined }),
   });
 
-  const resilienceConfig = getValue<ResilienceSettings>('resilience');
+  const resilience = useResiliencePanelProps(id);
 
   const showDirection = scrollType.value === 'page' || scrollType.value === 'untilVisible';
   const showAmount = scrollType.value === 'page' || scrollType.value === 'untilVisible';
@@ -173,10 +171,12 @@ const ScrollNode: FC<NodeProps> = ({ selected, id }) => {
           </FieldRow>
         )}
 
-        <FieldRow>
-          <NodeNumberField field={timeoutMs} label="Timeout (ms)" min={MIN_TIMEOUT} />
-          <NodeNumberField field={waitForMs} label="Post-scroll wait (ms)" min={0} />
-        </FieldRow>
+        <TimeoutFields
+          timeoutMs={timeoutMs}
+          waitForMs={waitForMs}
+          waitLabel="Post-scroll wait (ms)"
+          minTimeout={MIN_TIMEOUT}
+        />
 
         <p className="text-gray-500">
           Scroll nodes unlock lazy-loaded content, infinite lists, and stable viewport positioning
@@ -184,10 +184,7 @@ const ScrollNode: FC<NodeProps> = ({ selected, id }) => {
         </p>
       </div>
 
-      <ResiliencePanel
-        value={resilienceConfig}
-        onChange={(next) => updateData({ resilience: next ?? null })}
-      />
+      <ResiliencePanel {...resilience} />
     </BaseNode>
   );
 };
