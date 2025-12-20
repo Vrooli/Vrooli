@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"google.golang.org/protobuf/encoding/protojson"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 const (
@@ -261,14 +262,85 @@ func (c *Client) GetRecordedActions(ctx context.Context, sessionID string, clear
 	if clear {
 		path += "?clear=true"
 	}
-	var resp GetActionsResponse
-	if err := c.get(ctx, path, &resp); err != nil {
-		return nil, err
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
 	}
-	if resp.Actions == nil {
-		resp.Actions = []RecordedAction{}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, &Error{
+			Op:      "GET " + path,
+			URL:     c.baseURL,
+			Message: "driver unavailable",
+			Cause:   err,
+			Hint:    "verify playwright-driver is running and PLAYWRIGHT_DRIVER_URL is correct",
+		}
 	}
-	return &resp, nil
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		bodyStr := strings.TrimSpace(string(body))
+		hint := "check playwright-driver logs for details"
+		if strings.Contains(bodyStr, "Maximum concurrent sessions") {
+			hint = "too many concurrent sessions - wait for other executions to complete or increase session limit"
+		} else if strings.Contains(bodyStr, "browser") && strings.Contains(bodyStr, "launch") {
+			hint = "browser failed to launch - check chromium installation and system resources"
+		}
+		return nil, &Error{
+			Op:      "GET " + path,
+			URL:     c.baseURL,
+			Status:  resp.StatusCode,
+			Message: bodyStr,
+			Hint:    hint,
+		}
+	}
+
+	if len(body) == 0 {
+		return &GetActionsResponse{SessionID: sessionID, Actions: []RecordedAction{}}, nil
+	}
+
+	var raw struct {
+		SessionID   string            `json:"session_id"`
+		IsRecording bool              `json:"is_recording"`
+		Actions     []RecordedAction  `json:"actions"`
+		Entries     []json.RawMessage `json:"entries"`
+	}
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil, fmt.Errorf("parse response: %w", err)
+	}
+
+	actions := raw.Actions
+	if actions == nil {
+		actions = []RecordedAction{}
+	}
+
+	var entries []*bastimeline.TimelineEntry
+	for _, entryRaw := range raw.Entries {
+		if len(entryRaw) == 0 {
+			continue
+		}
+		var entry bastimeline.TimelineEntry
+		if err := protojson.Unmarshal(entryRaw, &entry); err != nil {
+			continue
+		}
+		entries = append(entries, &entry)
+	}
+
+	if len(actions) == 0 && len(entries) > 0 {
+		actions = make([]RecordedAction, 0, len(entries))
+		for _, entry := range entries {
+			actions = append(actions, RecordedActionFromTimelineEntry(entry))
+		}
+	}
+
+	return &GetActionsResponse{
+		SessionID:   raw.SessionID,
+		IsRecording: raw.IsRecording,
+		Actions:     actions,
+		Entries:     raw.Entries,
+	}, nil
 }
 
 // Navigate navigates the session to a URL (recording mode).

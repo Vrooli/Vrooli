@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/json"
+
 	"github.com/google/uuid"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 )
@@ -86,6 +88,7 @@ type GetActionsResponse struct {
 	IsRecording bool                         `json:"is_recording,omitempty"`
 	Actions     []livecapture.RecordedAction `json:"actions"`
 	Count       int                          `json:"count"`
+	Entries     []json.RawMessage            `json:"entries,omitempty"`
 }
 
 // GenerateWorkflowRequest is the request body for generating a workflow from recording.

@@ -155,6 +155,7 @@ type GetActionsResponse struct {
 	SessionID   string           `json:"session_id"`
 	IsRecording bool             `json:"is_recording"`
 	Actions     []RecordedAction `json:"actions"`
+	Entries     []json.RawMessage `json:"entries,omitempty"`
 }
 
 // NavigateRequest is the request to navigate the session.

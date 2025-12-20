@@ -35,6 +35,7 @@ import { useActionSelection } from './hooks/useActionSelection';
 import { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
 import { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
 import { mergeConsecutiveActions } from './utils/mergeActions';
+import { recordedActionToTimelineItem } from './types/timeline-unified';
 import { getConfig } from '@/config';
 import type { StreamSettingsValues } from './capture/StreamSettings';
 import type { TimelineMode } from './types/timeline-unified';
@@ -149,8 +150,57 @@ export function RecordModePage({
     initialActions: actions,
   });
 
-  // Use unified timeline items count for selection
   const mergedActions = useMemo(() => mergeConsecutiveActions(actions), [actions]);
+
+  const mergedTimelineItems = useMemo(() => {
+    if (mode !== 'recording') return timelineItems;
+    return mergedActions.map(recordedActionToTimelineItem);
+  }, [mergedActions, mode, timelineItems]);
+
+  const mergedIndexMap = useMemo(() => {
+    const map = new Map<number, number[]>();
+    mergedActions.forEach((action, index) => {
+      const mergedIds = action._merged?.mergedIds ?? [action.id];
+      const originalIndices = mergedIds
+        .map((id) => actions.findIndex((raw) => raw.id === id))
+        .filter((idx) => idx !== -1);
+      map.set(index, originalIndices);
+    });
+    return map;
+  }, [actions, mergedActions]);
+
+  const handleDeleteMergedAction = useCallback(
+    (index: number) => {
+      const originalIndices = mergedIndexMap.get(index) ?? [];
+      const sorted = [...originalIndices].sort((a, b) => b - a);
+      for (const originalIndex of sorted) {
+        deleteAction(originalIndex);
+      }
+    },
+    [deleteAction, mergedIndexMap]
+  );
+
+  const handleEditMergedSelector = useCallback(
+    (index: number, newSelector: string) => {
+      const originalIndices = mergedIndexMap.get(index) ?? [];
+      if (originalIndices.length > 0) {
+        updateSelector(originalIndices[0], newSelector);
+      }
+    },
+    [mergedIndexMap, updateSelector]
+  );
+
+  const handleEditMergedPayload = useCallback(
+    (index: number, payload: Record<string, unknown>) => {
+      const originalIndices = mergedIndexMap.get(index) ?? [];
+      for (const originalIndex of originalIndices) {
+        updatePayload(originalIndex, payload);
+      }
+    },
+    [mergedIndexMap, updatePayload]
+  );
+
+  // Use unified timeline items count for selection
   const timelineItemCount = useMemo(() => {
     return mode === 'recording' ? mergedActions.length : timelineItems.length;
   }, [mergedActions.length, mode, timelineItems.length]);
@@ -338,20 +388,6 @@ export function RecordModePage({
     setShowClearConfirm(false);
   }, [clearActions, exitSelectionMode]);
 
-  const handleEditSelector = useCallback(
-    (index: number, newSelector: string) => {
-      updateSelector(index, newSelector);
-    },
-    [updateSelector]
-  );
-
-  const handleEditPayload = useCallback(
-    (index: number, payload: Record<string, unknown>) => {
-      updatePayload(index, payload);
-    },
-    [updatePayload]
-  );
-
   // Navigate to workflow creation form
   const handleCreateWorkflow = useCallback(() => {
     // If not in selection mode and clicking "Create Workflow",
@@ -499,7 +535,7 @@ export function RecordModePage({
         {isSidebarOpen && (
           <RecordActionsPanel
             actions={actions}
-            timelineItems={timelineItems}
+            timelineItems={mergedTimelineItems}
             itemCountOverride={timelineItemCount}
             mode={mode}
             isRecording={isRecording}
@@ -517,10 +553,10 @@ export function RecordModePage({
             onCreateSessionProfile={handleCreateSessionProfile}
             onClearRequested={() => setShowClearConfirm(true)}
             onCreateWorkflow={handleCreateWorkflow}
-            onDeleteAction={deleteAction}
+            onDeleteAction={handleDeleteMergedAction}
             onValidateSelector={validateSelector}
-            onEditSelector={handleEditSelector}
-            onEditPayload={handleEditPayload}
+            onEditSelector={handleEditMergedSelector}
+            onEditPayload={handleEditMergedPayload}
             isSelectionMode={isSelectionMode}
             selectedIndices={selectedIndices}
             onToggleSelectionMode={toggleSelectionMode}

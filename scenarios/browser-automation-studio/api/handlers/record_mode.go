@@ -23,6 +23,7 @@ import (
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -369,6 +370,8 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 		SessionID:   resp.SessionID,
 		IsRecording: resp.IsRecording,
 		Actions:     resp.Actions,
+		Count:       len(resp.Actions),
+		Entries:     resp.Entries,
 	}
 
 	h.respondSuccess(w, http.StatusOK, driverResp)
@@ -482,16 +485,38 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var action livecapture.RecordedAction
-	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Invalid JSON body: " + err.Error(),
+			"error": "Failed to read request body: " + err.Error(),
 		}))
 		return
 	}
 
-	// Convert to unified TimelineEntry format for V2 migration
-	timelineEntry := h.convertRecordedActionToTimelineEntry(&action)
+	var action livecapture.RecordedAction
+	var timelineEntry map[string]any
+
+	if err := json.Unmarshal(body, &action); err == nil && action.ActionType != "" {
+		// Legacy RecordedAction payload.
+		timelineEntry = h.convertRecordedActionToTimelineEntry(&action)
+	} else {
+		// Proto TimelineEntry payload (preferred from playwright-driver).
+		var entry bastimeline.TimelineEntry
+		if err := protojson.Unmarshal(body, &entry); err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+				"error": "Invalid JSON body: " + err.Error(),
+			}))
+			return
+		}
+		action = livecapture.RecordedActionFromTimelineEntry(&entry)
+		timelineEntry = h.convertRecordedActionToTimelineEntry(&action)
+		if timelineEntry == nil {
+			var entryMap map[string]any
+			if err := json.Unmarshal(body, &entryMap); err == nil {
+				timelineEntry = entryMap
+			}
+		}
+	}
 
 	// Broadcast with both legacy action and timeline_entry
 	if timelineEntry != nil {
