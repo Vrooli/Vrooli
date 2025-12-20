@@ -1,0 +1,441 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "buf/validate/validate.proto";
+import "agent-manager/v1/domain/types.proto";
+import "agent-manager/v1/domain/profile.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// =============================================================================
+// RUN
+// =============================================================================
+//
+// @layer 2
+// @domain agent-manager
+// @imports types.proto, profile.proto
+// @stability stable
+//
+// Run represents a concrete execution attempt of a task.
+// Links a Task (what) to an AgentProfile (how) with execution tracking.
+//
+// USAGE CONTEXTS:
+//   - Run Management: CRUD operations via API
+//   - Execution Tracking: Status, phase, progress, heartbeat
+//   - Approval Workflow: Approval state, actor, timestamp
+//   - Result Collection: Summary, diff, artifacts
+//
+// =============================================================================
+
+// Run represents a single execution attempt of a task.
+//
+// A run is created by associating a task with a profile (or inline config).
+// It tracks execution state, progress, and results.
+//
+// @usage POST /api/v1/runs, GET /api/v1/runs/{id}
+message Run {
+  // Unique identifier for this run.
+  // @format uuid
+  string id = 1;
+
+  // Task being executed.
+  // @format uuid
+  string task_id = 2 [(buf.validate.field).string.uuid = true];
+
+  // Agent profile used for this run.
+  // Optional if inline config is provided.
+  // @format uuid
+  optional string agent_profile_id = 3;
+
+  // Custom tag for identification.
+  // Defaults to ID if not set.
+  // Used for agent tracking, log filtering, external process identification.
+  // Examples: "ecosystem-task-123", "test-genie-abc"
+  string tag = 4;
+
+  // Sandbox ID if running in sandboxed mode.
+  // @format uuid
+  optional string sandbox_id = 5;
+
+  // Execution mode (sandboxed or in-place).
+  RunMode run_mode = 6;
+
+  // Current status.
+  RunStatus status = 7;
+
+  // When the run started executing.
+  optional google.protobuf.Timestamp started_at = 8;
+
+  // When the run finished (success, failure, or cancellation).
+  optional google.protobuf.Timestamp ended_at = 9;
+
+  // Detailed execution phase.
+  RunPhase phase = 10;
+
+  // ID of the last saved checkpoint for resumption.
+  // @format uuid
+  optional string last_checkpoint_id = 11;
+
+  // Last heartbeat from the runner.
+  // Used for stale run detection.
+  optional google.protobuf.Timestamp last_heartbeat = 12;
+
+  // Progress percentage (0-100).
+  int32 progress_percent = 13 [(buf.validate.field).int32 = {gte: 0, lte: 100}];
+
+  // Idempotency key for replay safety.
+  string idempotency_key = 14;
+
+  // Execution summary after completion.
+  optional RunSummary summary = 15;
+
+  // Error message if failed.
+  string error_msg = 16;
+
+  // Exit code from the runner process.
+  optional int32 exit_code = 17;
+
+  // Approval workflow state.
+  ApprovalState approval_state = 18;
+
+  // User who approved/rejected.
+  string approved_by = 19;
+
+  // When the approval decision was made.
+  optional google.protobuf.Timestamp approved_at = 20;
+
+  // Resolved configuration for this run.
+  // Merged from profile + inline overrides.
+  optional RunConfig resolved_config = 21;
+
+  // Path to the generated diff file.
+  string diff_path = 22;
+
+  // Path to the execution log file.
+  string log_path = 23;
+
+  // Number of files changed by this run.
+  int32 changed_files = 24;
+
+  // Total size of changes in bytes.
+  int64 total_size_bytes = 25;
+
+  // When the run was created.
+  google.protobuf.Timestamp created_at = 26;
+
+  // When the run was last updated.
+  google.protobuf.Timestamp updated_at = 27;
+}
+
+// =============================================================================
+// RUN SUMMARY
+// =============================================================================
+
+// RunSummary contains the structured summary from an agent run.
+//
+// Populated after successful execution with details about
+// what was accomplished and resource usage.
+//
+// @usage Run.summary
+message RunSummary {
+  // Human-readable description of what was done.
+  string description = 1;
+
+  // Files that were modified.
+  repeated string files_modified = 2;
+
+  // Files that were created.
+  repeated string files_created = 3;
+
+  // Files that were deleted.
+  repeated string files_deleted = 4;
+
+  // Total tokens consumed (input + output).
+  int32 tokens_used = 5;
+
+  // Number of conversation turns.
+  int32 turns_used = 6;
+
+  // Estimated cost in USD.
+  double cost_estimate = 7;
+}
+
+// =============================================================================
+// RUN CHECKPOINT
+// =============================================================================
+
+// RunCheckpoint captures the state needed to resume a run.
+//
+// Checkpoints are saved at phase transitions and enable
+// resumption after interruption.
+//
+// @usage internal resumption
+message RunCheckpoint {
+  // Run ID this checkpoint belongs to.
+  // @format uuid
+  string run_id = 1;
+
+  // Current execution phase.
+  RunPhase phase = 2;
+
+  // Progress within the phase (0-indexed).
+  int32 step_within_phase = 3;
+
+  // Sandbox ID if created.
+  // @format uuid
+  optional string sandbox_id = 4;
+
+  // Working directory path.
+  string work_dir = 5;
+
+  // Scope lock ID if acquired.
+  // @format uuid
+  optional string lock_id = 6;
+
+  // Last event sequence number persisted.
+  int64 last_event_sequence = 7;
+
+  // When we last confirmed progress.
+  google.protobuf.Timestamp last_heartbeat = 8;
+
+  // How many times this phase has been retried.
+  int32 retry_count = 9;
+
+  // When this checkpoint was created.
+  google.protobuf.Timestamp saved_at = 10;
+
+  // Phase-specific state for resumption.
+  map<string, string> metadata = 11;
+}
+
+// =============================================================================
+// RUN PROGRESS
+// =============================================================================
+
+// RunProgress represents the current progress of a run for display.
+//
+// Provides human-readable progress information for UI display.
+//
+// @usage GET /api/v1/runs/{id}/progress, WebSocket progress events
+message RunProgress {
+  // Current execution phase.
+  RunPhase phase = 1;
+
+  // Human-readable phase description.
+  string phase_description = 2;
+
+  // Overall progress percentage (0-100).
+  int32 percent_complete = 3;
+
+  // What's happening now.
+  string current_action = 4;
+
+  // How long the run has been active.
+  google.protobuf.Duration elapsed_time = 5;
+
+  // Estimated time remaining (if known).
+  optional google.protobuf.Duration estimated_remaining = 6;
+
+  // When progress was last reported.
+  google.protobuf.Timestamp last_update = 7;
+}
+
+// =============================================================================
+// IDEMPOTENCY RECORD
+// =============================================================================
+
+// IdempotencyRecord tracks whether an operation has been performed.
+//
+// Prevents duplicate work when operations are retried.
+// Records expire after a configurable TTL.
+//
+// @usage internal replay safety
+message IdempotencyRecord {
+  // Unique operation key.
+  // Format: "run-create:task-{taskID}:profile-{profileID}:ts-{timestamp}"
+  string key = 1;
+
+  // Operation outcome.
+  IdempotencyStatus status = 2;
+
+  // ID of the created/affected entity.
+  // @format uuid
+  optional string entity_id = 3;
+
+  // Type of entity (e.g., "Run", "Task").
+  string entity_type = 4;
+
+  // When this record was created.
+  google.protobuf.Timestamp created_at = 5;
+
+  // When this record can be garbage collected.
+  google.protobuf.Timestamp expires_at = 6;
+
+  // Cached response (JSON) for successful operations.
+  bytes response = 7;
+}
+
+// =============================================================================
+// RUNNER STATUS
+// =============================================================================
+
+// RunnerStatus provides status information for a runner type.
+//
+// Returned by the runner status endpoint to indicate availability.
+//
+// @usage GET /api/v1/runners
+message RunnerStatus {
+  // Which runner type.
+  RunnerType runner_type = 1;
+
+  // Whether the runner is available for use.
+  bool available = 2;
+
+  // Human-readable status message.
+  string message = 3;
+
+  // Installation hint if not available.
+  string install_hint = 4;
+
+  // Supported models for this runner.
+  repeated string supported_models = 5;
+
+  // Runner capabilities.
+  RunnerCapabilities capabilities = 6;
+}
+
+// RunnerCapabilities describes what a runner supports.
+//
+// @usage RunnerStatus.capabilities
+message RunnerCapabilities {
+  // Supports streaming output.
+  bool supports_streaming = 1;
+
+  // Supports conversation messages.
+  bool supports_messages = 2;
+
+  // Supports tool call/result events.
+  bool supports_tool_events = 3;
+
+  // Supports cost tracking.
+  bool supports_cost_tracking = 4;
+
+  // Supports run cancellation.
+  bool supports_cancellation = 5;
+
+  // Maximum turns (0 = unlimited).
+  int32 max_turns = 6;
+}
+
+// =============================================================================
+// PROBE RESULT
+// =============================================================================
+
+// ProbeResult contains the result of a runner connectivity probe.
+//
+// @usage POST /api/v1/runners/{type}/probe
+message ProbeResult {
+  // Whether the probe succeeded.
+  bool success = 1;
+
+  // Response time in milliseconds.
+  int64 latency_ms = 2;
+
+  // Error message if probe failed.
+  string error = 3;
+
+  // Additional probe details.
+  map<string, string> details = 4;
+}
+
+// =============================================================================
+// STOP ALL RESULT
+// =============================================================================
+
+// StopAllResult contains the result of stopping multiple runs.
+//
+// @usage POST /api/v1/runs/stop-all
+message StopAllResult {
+  // Number of runs stopped.
+  int32 stopped_count = 1;
+
+  // Runs that failed to stop.
+  repeated StopFailure failures = 2;
+}
+
+// StopFailure describes a run that failed to stop.
+message StopFailure {
+  // Run ID that failed.
+  // @format uuid
+  string run_id = 1;
+
+  // Error message.
+  string error = 2;
+}
+
+// =============================================================================
+// APPROVE RESULT
+// =============================================================================
+
+// ApproveResult contains the result of approving a run.
+//
+// @usage POST /api/v1/runs/{id}/approve
+message ApproveResult {
+  // Whether approval was successful.
+  bool success = 1;
+
+  // Number of files applied.
+  int32 files_applied = 2;
+
+  // Git commit hash if changes were committed.
+  string commit_hash = 3;
+
+  // Message describing what was applied.
+  string message = 4;
+}
+
+// =============================================================================
+// RUN DIFF
+// =============================================================================
+
+// RunDiff contains the diff output for a run.
+//
+// @usage GET /api/v1/runs/{id}/diff
+message RunDiff {
+  // Run ID.
+  // @format uuid
+  string run_id = 1;
+
+  // Unified diff content.
+  string content = 2;
+
+  // Individual file changes.
+  repeated FileDiff files = 3;
+
+  // When the diff was generated.
+  google.protobuf.Timestamp generated_at = 4;
+}
+
+// FileDiff represents changes to a single file.
+message FileDiff {
+  // File path.
+  string path = 1;
+
+  // Change type: added, modified, deleted.
+  string change_type = 2;
+
+  // Lines added.
+  int32 additions = 3;
+
+  // Lines deleted.
+  int32 deletions = 4;
+
+  // Whether the file is binary.
+  bool is_binary = 5;
+
+  // Unified diff for this file.
+  string patch = 6;
+}

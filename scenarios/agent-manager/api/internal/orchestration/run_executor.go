@@ -572,7 +572,7 @@ func (e *RunExecutor) acquireRunner(ctx context.Context) (runner.Runner, error) 
 		return nil, &domain.RunnerError{
 			RunnerType:  runnerType,
 			Operation:   "availability_check",
-			Cause:       fmt.Errorf(msg),
+			Cause:       fmt.Errorf("%s", msg),
 			IsTransient: true, // runner might become available
 			Alternative: alternative,
 		}

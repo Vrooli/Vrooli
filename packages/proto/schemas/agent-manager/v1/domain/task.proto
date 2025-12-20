@@ -1,0 +1,227 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
+import "agent-manager/v1/domain/types.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// =============================================================================
+// TASK
+// =============================================================================
+//
+// @layer 1
+// @domain agent-manager
+// @imports types.proto
+// @stability stable
+//
+// Task defines WHAT needs to be done - the work specification.
+// A task can have multiple runs (execution attempts) over its lifetime.
+//
+// USAGE CONTEXTS:
+//   - Task Management: CRUD operations via API
+//   - Run Creation: Task ID references for work definition
+//   - Multi-phase Execution: Phase prompt IDs for sequential steps
+//
+// =============================================================================
+
+// Task defines a unit of work to be performed by an agent.
+//
+// Tasks are work specifications independent of execution configuration.
+// They define scope, context, and requirements but not HOW to execute.
+//
+// @usage POST /api/v1/tasks, referenced by Run.task_id
+message Task {
+  // Unique identifier for this task.
+  // @format uuid
+  string id = 1;
+
+  // Short title summarizing the task.
+  // @constraint 1-200 characters
+  string title = 2 [(buf.validate.field).string = {min_len: 1, max_len: 200}];
+
+  // Detailed description of what needs to be done.
+  // This is the main prompt sent to the agent.
+  string description = 3;
+
+  // Path where the agent should operate.
+  // Can be a file, directory, or glob pattern.
+  // @constraint non-empty
+  string scope_path = 4 [(buf.validate.field).string.min_len = 1];
+
+  // Root directory for the project.
+  // If empty, uses scope_path parent or current directory.
+  string project_root = 5;
+
+  // IDs of phase prompts for multi-step execution.
+  // Each phase runs sequentially with its own prompt.
+  // @format uuid
+  repeated string phase_prompt_ids = 6;
+
+  // Additional context attached to the task.
+  repeated ContextAttachment context_attachments = 7;
+
+  // Current status of the task.
+  TaskStatus status = 8;
+
+  // User or system that created this task.
+  string created_by = 9;
+
+  // When the task was created.
+  google.protobuf.Timestamp created_at = 10;
+
+  // When the task was last updated.
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+// =============================================================================
+// CONTEXT ATTACHMENT
+// =============================================================================
+
+// ContextAttachment represents additional context provided to an agent.
+//
+// Attachments can be files, URLs, or inline notes that provide
+// relevant context for task execution.
+//
+// @usage Task.context_attachments
+message ContextAttachment {
+  // Type of attachment.
+  // @constraint "file" | "link" | "note"
+  string type = 1 [(buf.validate.field).string = {in: ["file", "link", "note"]}];
+
+  // File path for "file" type attachments.
+  // Relative to project_root or absolute.
+  string path = 2;
+
+  // URL for "link" type attachments.
+  string url = 3;
+
+  // Inline content for "note" type attachments.
+  // Also used for file content preview or link description.
+  string content = 4;
+
+  // Optional label for the attachment.
+  string label = 5;
+}
+
+// =============================================================================
+// SCOPE LOCK
+// =============================================================================
+
+// ScopeLock represents an exclusive lock on a path scope.
+//
+// Locks prevent concurrent runs from modifying the same files.
+// Automatically released when the run completes or times out.
+//
+// @usage internal concurrency control
+message ScopeLock {
+  // Unique identifier for this lock.
+  // @format uuid
+  string id = 1;
+
+  // Run ID that holds this lock.
+  // @format uuid
+  string run_id = 2;
+
+  // Path scope that is locked.
+  string scope_path = 3;
+
+  // Project root for the locked scope.
+  string project_root = 4;
+
+  // When the lock was acquired.
+  google.protobuf.Timestamp acquired_at = 5;
+
+  // When the lock expires.
+  google.protobuf.Timestamp expires_at = 6;
+}
+
+// =============================================================================
+// POLICY
+// =============================================================================
+
+// Policy defines rules for agent execution, approval, and resource access.
+//
+// Policies can be applied at various scopes (global, project, path pattern)
+// and are evaluated in priority order.
+//
+// @usage internal policy enforcement
+message Policy {
+  // Unique identifier for this policy.
+  // @format uuid
+  string id = 1;
+
+  // Human-readable name for the policy.
+  string name = 2;
+
+  // Description of what this policy does.
+  string description = 3;
+
+  // Priority for policy evaluation (higher wins).
+  int32 priority = 4;
+
+  // Glob pattern for scope matching.
+  // Empty means applies to all scopes.
+  string scope_pattern = 5;
+
+  // Policy rules to apply.
+  PolicyRules rules = 6;
+
+  // User or system that created this policy.
+  string created_by = 7;
+
+  // When the policy was created.
+  google.protobuf.Timestamp created_at = 8;
+
+  // When the policy was last updated.
+  google.protobuf.Timestamp updated_at = 9;
+
+  // Whether this policy is active.
+  bool enabled = 10;
+}
+
+// PolicyRules contains the actual policy constraints.
+//
+// Each field is optional - only set fields are applied.
+// Multiple policies are merged with priority-based conflict resolution.
+//
+// @usage Policy.rules
+message PolicyRules {
+  // Whether sandbox isolation is required.
+  optional bool require_sandbox = 1;
+
+  // Whether in-place execution is allowed.
+  optional bool allow_in_place = 2;
+
+  // Whether in-place execution requires approval.
+  optional bool in_place_requires_approval = 3;
+
+  // Whether approval is required before applying changes.
+  optional bool require_approval = 4;
+
+  // Glob patterns for auto-approval (no human review needed).
+  repeated string auto_approve_patterns = 5;
+
+  // Maximum concurrent runs across all scopes.
+  optional int32 max_concurrent_runs = 6;
+
+  // Maximum concurrent runs per scope.
+  optional int32 max_concurrent_per_scope = 7;
+
+  // Maximum number of files that can be changed in a run.
+  optional int32 max_files_changed = 8;
+
+  // Maximum total size of changes in bytes.
+  optional int64 max_total_size_bytes = 9;
+
+  // Maximum execution time in milliseconds.
+  optional int64 max_execution_time_ms = 10;
+
+  // Runner types that are allowed.
+  repeated RunnerType allowed_runners = 11;
+
+  // Runner types that are denied.
+  repeated RunnerType denied_runners = 12;
+}

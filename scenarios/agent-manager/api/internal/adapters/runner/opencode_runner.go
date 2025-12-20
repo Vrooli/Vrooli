@@ -819,6 +819,10 @@ func (r *OpenCodeRunner) updateMetrics(event *domain.RunEvent, metrics *Executio
 		}
 	case *domain.ToolCallEventData:
 		metrics.ToolCallCount++
+	case *domain.ToolResultEventData:
+		// OpenCode bundles tool call and result in one event with status:"completed"
+		// Count these as tool calls for metrics purposes
+		metrics.ToolCallCount++
 	case *domain.MetricEventData:
 		if data.Name == "tokens" {
 			totalTokens := int(data.Value)

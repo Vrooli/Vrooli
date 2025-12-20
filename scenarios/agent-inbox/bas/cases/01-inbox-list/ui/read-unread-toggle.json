@@ -1,51 +1,149 @@
 {
   "metadata": {
+    "name": "read-unread-toggle",
     "description": "Validate toggling read/unread status updates visual indicator",
-    "requirement": "INBOX-LIST-002,INBOX-LIST-003",
-    "version": 1
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"INBOX-LIST-002\", \"INBOX-LIST-003\"]"
+    }
   },
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "action": "navigate",
-      "url": "${UI_BASE_URL}",
-      "description": "Navigate to Agent Inbox UI"
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "agent-inbox",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to Agent Inbox UI"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/inbox.container",
-      "timeout": 5000,
-      "description": "Wait for inbox container to load"
+      "id": "wait-inbox-container",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/inbox.container",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for inbox container to load"
+        }
+      }
     },
     {
-      "action": "click",
-      "selector": "@selector/inbox.newChatButton",
-      "description": "Create a new chat for testing"
+      "id": "click-new-chat",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/inbox.newChatButton"
+        },
+        "metadata": {
+          "label": "Create a new chat for testing"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/inbox.messageList",
-      "timeout": 3000,
-      "description": "Wait for chat to open"
+      "id": "wait-message-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/inbox.messageList",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Wait for chat to open"
+        }
+      }
     },
     {
-      "action": "click",
-      "selector": "@selector/nav.inbox",
-      "description": "Navigate back to inbox"
+      "id": "click-nav-inbox",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/nav.inbox"
+        },
+        "metadata": {
+          "label": "Navigate back to inbox"
+        }
+      }
     },
     {
-      "action": "click",
-      "selector": "@selector/inbox.toggleReadButton",
-      "description": "Toggle read status"
+      "id": "click-toggle-read",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/inbox.toggleReadButton"
+        },
+        "metadata": {
+          "label": "Toggle read status"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/inbox.unreadIndicator",
-      "assertion": "visible",
-      "description": "Verify unread indicator appears"
+      "id": "assert-unread-indicator",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/inbox.unreadIndicator",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Unread indicator should appear after toggling read status"
+        },
+        "metadata": {
+          "label": "Verify unread indicator appears"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-inbox-container",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "action": "screenshot",
-      "name": "read-unread-toggle"
+      "id": "e2",
+      "source": "wait-inbox-container",
+      "target": "click-new-chat",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "click-new-chat",
+      "target": "wait-message-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-message-list",
+      "target": "click-nav-inbox",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "click-nav-inbox",
+      "target": "click-toggle-read",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "click-toggle-read",
+      "target": "assert-unread-indicator",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

@@ -29,8 +29,13 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/protoconv"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"google.golang.org/protobuf/proto"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 )
 
 // Handler provides HTTP handlers for all API endpoints.
@@ -122,10 +127,25 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 // =============================================================================
 
 // writeJSON writes a JSON response with the given status code.
+// For non-proto types (legacy compatibility).
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
+}
+
+// writeProtoJSON writes a proto message as JSON using protojson.
+// This ensures consistent snake_case field names per the proto schema.
+func writeProtoJSON(w http.ResponseWriter, status int, msg proto.Message) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	data, err := protoconv.MarshalJSON(msg)
+	if err != nil {
+		// Fallback to empty object on marshal error
+		w.Write([]byte("{}"))
+		return
+	}
+	w.Write(data)
 }
 
 // writeError writes a structured error response using domain.ErrorResponse.
@@ -275,7 +295,7 @@ func (h *Handler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, result)
+	writeProtoJSON(w, http.StatusCreated, protoconv.AgentProfileToProto(result))
 }
 
 // GetProfile retrieves a profile by ID.
@@ -292,7 +312,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, profile)
+	writeProtoJSON(w, http.StatusOK, protoconv.AgentProfileToProto(profile))
 }
 
 // ListProfiles returns all agent profiles.
@@ -303,7 +323,10 @@ func (h *Handler) ListProfiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, profiles)
+	writeProtoJSON(w, http.StatusOK, &apipb.ListProfilesResponse{
+		Profiles: protoconv.AgentProfilesToProto(profiles),
+		Total:    int32(len(profiles)),
+	})
 }
 
 // UpdateProfile updates an existing profile.
@@ -333,7 +356,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, result)
+	writeProtoJSON(w, http.StatusOK, protoconv.AgentProfileToProto(result))
 }
 
 // DeleteProfile removes a profile.
@@ -376,7 +399,7 @@ func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, result)
+	writeProtoJSON(w, http.StatusCreated, protoconv.TaskToProto(result))
 }
 
 // GetTask retrieves a task by ID.
@@ -393,7 +416,7 @@ func (h *Handler) GetTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, task)
+	writeProtoJSON(w, http.StatusOK, protoconv.TaskToProto(task))
 }
 
 // ListTasks returns all tasks.
@@ -404,7 +427,10 @@ func (h *Handler) ListTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, tasks)
+	writeProtoJSON(w, http.StatusOK, &apipb.ListTasksResponse{
+		Tasks: protoconv.TasksToProto(tasks),
+		Total: int32(len(tasks)),
+	})
 }
 
 // UpdateTask updates an existing task.
@@ -434,7 +460,7 @@ func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, result)
+	writeProtoJSON(w, http.StatusOK, protoconv.TaskToProto(result))
 }
 
 // CancelTask cancels a queued or running task.
@@ -450,7 +476,7 @@ func (h *Handler) CancelTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})
+	writeProtoJSON(w, http.StatusOK, &apipb.CancelTaskResponse{Success: true, Status: "cancelled"})
 }
 
 // DeleteTask permanently removes a cancelled task.
@@ -487,7 +513,7 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, run)
+	writeProtoJSON(w, http.StatusCreated, protoconv.RunToProto(run))
 }
 
 // GetRun retrieves a run by ID.
@@ -504,7 +530,7 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, run)
+	writeProtoJSON(w, http.StatusOK, protoconv.RunToProto(run))
 }
 
 // ListRuns returns all runs, with optional filtering.
@@ -547,7 +573,10 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, runs)
+	writeProtoJSON(w, http.StatusOK, &apipb.ListRunsResponse{
+		Runs:  protoconv.RunsToProto(runs),
+		Total: int32(len(runs)),
+	})
 }
 
 // StopRun stops a running run.
@@ -563,7 +592,7 @@ func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "stopped"})
+	writeProtoJSON(w, http.StatusOK, &apipb.StopRunResponse{Status: "stopped"})
 }
 
 // GetRunByTag retrieves a run by its custom tag.
@@ -580,7 +609,7 @@ func (h *Handler) GetRunByTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, run)
+	writeProtoJSON(w, http.StatusOK, protoconv.RunToProto(run))
 }
 
 // StopRunByTag stops a run identified by its custom tag.
@@ -596,7 +625,7 @@ func (h *Handler) StopRunByTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "stopped", "tag": tag})
+	writeProtoJSON(w, http.StatusOK, &apipb.StopRunByTagResponse{Status: "stopped", Tag: tag})
 }
 
 // StopAllRuns stops all running runs, optionally filtered by tag prefix.
@@ -621,7 +650,14 @@ func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, result)
+	writeProtoJSON(w, http.StatusOK, &apipb.StopAllRunsResponse{
+		Result: protoconv.StopAllResultToProto(&protoconv.StopAllResult{
+			Stopped:   result.Stopped,
+			Failed:    result.Failed,
+			Skipped:   result.Skipped,
+			FailedIDs: result.FailedIDs,
+		}),
+	})
 }
 
 // GetRunEvents returns events for a run.
@@ -638,7 +674,9 @@ func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, events)
+	writeProtoJSON(w, http.StatusOK, &apipb.GetRunEventsResponse{
+		Events: protoconv.RunEventsToProto(events),
+	})
 }
 
 // GetRunDiff returns the diff for a run.
@@ -655,7 +693,27 @@ func (h *Handler) GetRunDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, diff)
+	// Convert sandbox.FileChange to protoconv.FileChange
+	files := make([]protoconv.FileChange, len(diff.Files))
+	for i, f := range diff.Files {
+		files[i] = protoconv.FileChange{
+			ID:           f.ID,
+			FilePath:     f.FilePath,
+			ChangeType:   string(f.ChangeType),
+			FileSize:     f.FileSize,
+			LinesAdded:   f.LinesAdded,
+			LinesRemoved: f.LinesRemoved,
+		}
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.GetRunDiffResponse{
+		Diff: protoconv.DiffResultToProto(id, &protoconv.DiffResult{
+			SandboxID:   diff.SandboxID,
+			Files:       files,
+			UnifiedDiff: diff.UnifiedDiff,
+			Generated:   diff.Generated,
+		}),
+	})
 }
 
 // ApproveRun approves a run's changes.
@@ -687,7 +745,16 @@ func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, result)
+	writeProtoJSON(w, http.StatusOK, &apipb.ApproveRunResponse{
+		Result: protoconv.ApproveResultToProto(&protoconv.ApproveResult{
+			Success:    result.Success,
+			Applied:    result.Applied,
+			Remaining:  result.Remaining,
+			IsPartial:  result.IsPartial,
+			CommitHash: result.CommitHash,
+			ErrorMsg:   result.ErrorMsg,
+		}),
+	})
 }
 
 // RejectRun rejects a run's changes.
@@ -712,7 +779,7 @@ func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "rejected"})
+	writeProtoJSON(w, http.StatusOK, &apipb.RejectRunResponse{Status: "rejected"})
 }
 
 // GetRunnerStatus returns status of all runners.
@@ -723,7 +790,28 @@ func (h *Handler) GetRunnerStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, statuses)
+	// Convert orchestration.RunnerStatus to protoconv types
+	protoStatuses := make([]*protoconv.OrchestratorRunnerStatus, len(statuses))
+	for i, s := range statuses {
+		protoStatuses[i] = &protoconv.OrchestratorRunnerStatus{
+			Type:      s.Type,
+			Available: s.Available,
+			Message:   s.Message,
+			Capabilities: protoconv.RunnerCapabilities{
+				SupportsMessages:     s.Capabilities.SupportsMessages,
+				SupportsToolEvents:   s.Capabilities.SupportsToolEvents,
+				SupportsCostTracking: s.Capabilities.SupportsCostTracking,
+				SupportsStreaming:    s.Capabilities.SupportsStreaming,
+				SupportsCancellation: s.Capabilities.SupportsCancellation,
+				MaxTurns:             s.Capabilities.MaxTurns,
+				SupportedModels:      s.Capabilities.SupportedModels,
+			},
+		}
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.GetRunnerStatusResponse{
+		Runners: protoconv.OrchestratorRunnerStatusesToProto(protoStatuses),
+	})
 }
 
 // ProbeRunner sends a test request to verify a runner can respond.
@@ -740,5 +828,13 @@ func (h *Handler) ProbeRunner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, result)
+	writeProtoJSON(w, http.StatusOK, &apipb.ProbeRunnerResponse{
+		Result: protoconv.ProbeResultToProto(&protoconv.ProbeResult{
+			RunnerType: result.RunnerType,
+			Success:    result.Success,
+			Message:    result.Message,
+			Response:   result.Response,
+			DurationMs: result.DurationMs,
+		}),
+	})
 }

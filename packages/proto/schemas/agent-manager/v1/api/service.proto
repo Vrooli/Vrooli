@@ -1,0 +1,697 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "google/api/annotations.proto";
+import "buf/validate/validate.proto";
+import "common/v1/types.proto";
+import "agent-manager/v1/domain/types.proto";
+import "agent-manager/v1/domain/profile.proto";
+import "agent-manager/v1/domain/task.proto";
+import "agent-manager/v1/domain/run.proto";
+import "agent-manager/v1/domain/events.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api;api";
+
+// =============================================================================
+// AGENT MANAGER API SERVICE
+// =============================================================================
+//
+// @layer 3
+// @domain agent-manager
+// @imports common, domain/*
+// @stability stable
+//
+// gRPC service definition for Agent Manager operations.
+// Defines CRUD operations for profiles, tasks, and runs, plus execution control.
+//
+// This service is designed for both:
+//   - gRPC clients: Native protobuf communication
+//   - REST clients: HTTP/JSON via grpc-gateway annotations
+//
+// USAGE CONTEXTS:
+//   - Scenario Integration: Other scenarios creating and monitoring runs
+//   - UI: Dashboard, profile management, run monitoring
+//   - CLI: Headless agent execution and status checking
+//   - Automation: CI/CD pipelines, batch processing
+//
+// =============================================================================
+
+// AgentManagerService provides agent orchestration and lifecycle management.
+//
+// Enables scenarios to create tasks, configure agent profiles, start runs,
+// monitor progress, and manage approval workflows.
+service AgentManagerService {
+  // ==========================================================================
+  // HEALTH
+  // ==========================================================================
+
+  // Health returns the service health status.
+  rpc Health(HealthRequest) returns (common.v1.HealthResponse) {
+    option (google.api.http) = {
+      get: "/health"
+    };
+  }
+
+  // ==========================================================================
+  // PROFILES
+  // ==========================================================================
+
+  // CreateProfile creates a new agent profile.
+  rpc CreateProfile(CreateProfileRequest) returns (CreateProfileResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/profiles"
+      body: "*"
+    };
+  }
+
+  // GetProfile retrieves a profile by ID.
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/profiles/{profile_id}"
+    };
+  }
+
+  // ListProfiles returns all agent profiles.
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/profiles"
+    };
+  }
+
+  // UpdateProfile updates an existing profile.
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/profiles/{profile_id}"
+      body: "*"
+    };
+  }
+
+  // DeleteProfile removes a profile.
+  rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/profiles/{profile_id}"
+    };
+  }
+
+  // ==========================================================================
+  // TASKS
+  // ==========================================================================
+
+  // CreateTask creates a new task.
+  rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/tasks"
+      body: "*"
+    };
+  }
+
+  // GetTask retrieves a task by ID.
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/tasks/{task_id}"
+    };
+  }
+
+  // ListTasks returns all tasks with optional filtering.
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/tasks"
+    };
+  }
+
+  // UpdateTask updates an existing task.
+  rpc UpdateTask(UpdateTaskRequest) returns (UpdateTaskResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/tasks/{task_id}"
+      body: "*"
+    };
+  }
+
+  // DeleteTask permanently removes a cancelled task.
+  rpc DeleteTask(DeleteTaskRequest) returns (DeleteTaskResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/tasks/{task_id}"
+    };
+  }
+
+  // CancelTask cancels a queued or running task.
+  rpc CancelTask(CancelTaskRequest) returns (CancelTaskResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/tasks/{task_id}/cancel"
+    };
+  }
+
+  // ==========================================================================
+  // RUNS
+  // ==========================================================================
+
+  // CreateRun starts a new run for a task.
+  rpc CreateRun(CreateRunRequest) returns (CreateRunResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs"
+      body: "*"
+    };
+  }
+
+  // GetRun retrieves a run by ID.
+  rpc GetRun(GetRunRequest) returns (GetRunResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/runs/{run_id}"
+    };
+  }
+
+  // GetRunByTag retrieves a run by its custom tag.
+  rpc GetRunByTag(GetRunByTagRequest) returns (GetRunByTagResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/runs/tag/{tag}"
+    };
+  }
+
+  // ListRuns returns runs with optional filtering.
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/runs"
+    };
+  }
+
+  // StopRun stops a running run.
+  rpc StopRun(StopRunRequest) returns (StopRunResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/{run_id}/stop"
+    };
+  }
+
+  // StopRunByTag stops a run identified by its custom tag.
+  rpc StopRunByTag(StopRunByTagRequest) returns (StopRunByTagResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/tag/{tag}/stop"
+    };
+  }
+
+  // StopAllRuns stops all running runs, optionally filtered by tag prefix.
+  rpc StopAllRuns(StopAllRunsRequest) returns (StopAllRunsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/stop-all"
+      body: "*"
+    };
+  }
+
+  // ==========================================================================
+  // RUN EVENTS
+  // ==========================================================================
+
+  // GetRunEvents returns the event stream for a run.
+  rpc GetRunEvents(GetRunEventsRequest) returns (GetRunEventsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/runs/{run_id}/events"
+    };
+  }
+
+  // GetRunDiff returns the diff for a sandboxed run.
+  rpc GetRunDiff(GetRunDiffRequest) returns (GetRunDiffResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/runs/{run_id}/diff"
+    };
+  }
+
+  // ==========================================================================
+  // APPROVAL WORKFLOW
+  // ==========================================================================
+
+  // ApproveRun approves and applies changes from a sandboxed run.
+  rpc ApproveRun(ApproveRunRequest) returns (ApproveRunResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/{run_id}/approve"
+      body: "*"
+    };
+  }
+
+  // RejectRun rejects and discards changes from a sandboxed run.
+  rpc RejectRun(RejectRunRequest) returns (RejectRunResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/{run_id}/reject"
+      body: "*"
+    };
+  }
+
+  // ==========================================================================
+  // RUNNERS
+  // ==========================================================================
+
+  // GetRunnerStatus returns status of all runners.
+  rpc GetRunnerStatus(GetRunnerStatusRequest) returns (GetRunnerStatusResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/runners"
+    };
+  }
+
+  // ProbeRunner sends a test request to verify runner connectivity.
+  rpc ProbeRunner(ProbeRunnerRequest) returns (ProbeRunnerResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runners/{runner_type}/probe"
+    };
+  }
+}
+
+// =============================================================================
+// HEALTH MESSAGES
+// =============================================================================
+
+// HealthRequest is empty - no parameters needed.
+message HealthRequest {}
+
+// =============================================================================
+// PROFILE MESSAGES
+// =============================================================================
+
+// CreateProfileRequest creates a new agent profile.
+message CreateProfileRequest {
+  // Profile data.
+  AgentProfile profile = 1 [(buf.validate.field).required = true];
+}
+
+// CreateProfileResponse returns the created profile.
+message CreateProfileResponse {
+  // The created profile with generated ID.
+  AgentProfile profile = 1;
+}
+
+// GetProfileRequest identifies a profile to retrieve.
+message GetProfileRequest {
+  // Profile ID.
+  // @format uuid
+  string profile_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetProfileResponse returns a single profile.
+message GetProfileResponse {
+  // The profile.
+  AgentProfile profile = 1;
+}
+
+// ListProfilesRequest filters and paginates profile listings.
+message ListProfilesRequest {
+  // Filter by runner type.
+  optional RunnerType runner_type = 1;
+
+  // Pagination limit (default: 50, max: 100).
+  optional int32 limit = 2 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+
+  // Pagination offset.
+  optional int32 offset = 3 [(buf.validate.field).int32.gte = 0];
+}
+
+// ListProfilesResponse returns a list of profiles.
+message ListProfilesResponse {
+  // List of profiles.
+  repeated AgentProfile profiles = 1;
+
+  // Total count.
+  int32 total = 2;
+
+  // Whether more results are available.
+  bool has_more = 3;
+}
+
+// UpdateProfileRequest updates an existing profile.
+message UpdateProfileRequest {
+  // Profile ID (path param).
+  // @format uuid
+  string profile_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Updated profile data.
+  AgentProfile profile = 2 [(buf.validate.field).required = true];
+}
+
+// UpdateProfileResponse returns the updated profile.
+message UpdateProfileResponse {
+  // The updated profile.
+  AgentProfile profile = 1;
+}
+
+// DeleteProfileRequest identifies a profile to delete.
+message DeleteProfileRequest {
+  // Profile ID.
+  // @format uuid
+  string profile_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// DeleteProfileResponse confirms deletion.
+message DeleteProfileResponse {
+  // Whether deletion was successful.
+  bool success = 1;
+}
+
+// =============================================================================
+// TASK MESSAGES
+// =============================================================================
+
+// CreateTaskRequest creates a new task.
+message CreateTaskRequest {
+  // Task data.
+  Task task = 1 [(buf.validate.field).required = true];
+}
+
+// CreateTaskResponse returns the created task.
+message CreateTaskResponse {
+  // The created task with generated ID.
+  Task task = 1;
+}
+
+// GetTaskRequest identifies a task to retrieve.
+message GetTaskRequest {
+  // Task ID.
+  // @format uuid
+  string task_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetTaskResponse returns a single task.
+message GetTaskResponse {
+  // The task.
+  Task task = 1;
+}
+
+// ListTasksRequest filters and paginates task listings.
+message ListTasksRequest {
+  // Filter by task status.
+  optional TaskStatus status = 1;
+
+  // Filter by scope path prefix.
+  optional string scope_prefix = 2;
+
+  // Pagination limit (default: 50, max: 100).
+  optional int32 limit = 3 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+
+  // Pagination offset.
+  optional int32 offset = 4 [(buf.validate.field).int32.gte = 0];
+}
+
+// ListTasksResponse returns a list of tasks.
+message ListTasksResponse {
+  // List of tasks.
+  repeated Task tasks = 1;
+
+  // Total count.
+  int32 total = 2;
+
+  // Whether more results are available.
+  bool has_more = 3;
+}
+
+// UpdateTaskRequest updates an existing task.
+message UpdateTaskRequest {
+  // Task ID (path param).
+  // @format uuid
+  string task_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Updated task data.
+  Task task = 2 [(buf.validate.field).required = true];
+}
+
+// UpdateTaskResponse returns the updated task.
+message UpdateTaskResponse {
+  // The updated task.
+  Task task = 1;
+}
+
+// DeleteTaskRequest identifies a task to delete.
+message DeleteTaskRequest {
+  // Task ID.
+  // @format uuid
+  string task_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// DeleteTaskResponse confirms deletion.
+message DeleteTaskResponse {
+  // Whether deletion was successful.
+  bool success = 1;
+}
+
+// CancelTaskRequest cancels a queued or running task.
+message CancelTaskRequest {
+  // Task ID.
+  // @format uuid
+  string task_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// CancelTaskResponse confirms cancellation.
+message CancelTaskResponse {
+  // Whether cancellation was successful.
+  bool success = 1;
+
+  // Cancelled status.
+  string status = 2;
+}
+
+// =============================================================================
+// RUN MESSAGES
+// =============================================================================
+
+// CreateRunRequest starts a new run.
+message CreateRunRequest {
+  // Task ID to execute.
+  // @format uuid
+  string task_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Profile ID to use (optional if inline_config provided).
+  // @format uuid
+  optional string agent_profile_id = 2;
+
+  // Custom tag for the run.
+  // Defaults to run ID if not specified.
+  optional string tag = 3;
+
+  // Execution mode.
+  optional RunMode run_mode = 4;
+
+  // Inline configuration (overrides profile).
+  optional RunConfig inline_config = 5;
+
+  // Bypass capacity limits.
+  bool force = 6;
+
+  // Idempotency key for replay safety.
+  optional string idempotency_key = 7;
+}
+
+// CreateRunResponse returns the created run.
+message CreateRunResponse {
+  // The created run.
+  Run run = 1;
+}
+
+// GetRunRequest identifies a run to retrieve.
+message GetRunRequest {
+  // Run ID.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetRunResponse returns a single run.
+message GetRunResponse {
+  // The run.
+  Run run = 1;
+}
+
+// GetRunByTagRequest identifies a run by tag.
+message GetRunByTagRequest {
+  // Run tag.
+  string tag = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// GetRunByTagResponse returns the run.
+message GetRunByTagResponse {
+  // The run.
+  Run run = 1;
+}
+
+// ListRunsRequest filters and paginates run listings.
+message ListRunsRequest {
+  // Filter by run status.
+  optional RunStatus status = 1;
+
+  // Filter by task ID.
+  // @format uuid
+  optional string task_id = 2;
+
+  // Filter by profile ID.
+  // @format uuid
+  optional string agent_profile_id = 3;
+
+  // Filter by tag prefix.
+  optional string tag_prefix = 4;
+
+  // Pagination limit (default: 50, max: 100).
+  optional int32 limit = 5 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+
+  // Pagination offset.
+  optional int32 offset = 6 [(buf.validate.field).int32.gte = 0];
+}
+
+// ListRunsResponse returns a list of runs.
+message ListRunsResponse {
+  // List of runs.
+  repeated Run runs = 1;
+
+  // Total count.
+  int32 total = 2;
+
+  // Whether more results are available.
+  bool has_more = 3;
+}
+
+// StopRunRequest stops a running run.
+message StopRunRequest {
+  // Run ID.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// StopRunResponse confirms the run was stopped.
+message StopRunResponse {
+  // Status after stopping.
+  string status = 1;
+}
+
+// StopRunByTagRequest stops a run by tag.
+message StopRunByTagRequest {
+  // Run tag.
+  string tag = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// StopRunByTagResponse confirms the run was stopped.
+message StopRunByTagResponse {
+  // Status after stopping.
+  string status = 1;
+
+  // Tag that was stopped.
+  string tag = 2;
+}
+
+// StopAllRunsRequest stops multiple runs.
+message StopAllRunsRequest {
+  // Only stop runs with this tag prefix.
+  optional string tag_prefix = 1;
+
+  // Force stop even if cleanup fails.
+  bool force = 2;
+}
+
+// StopAllRunsResponse returns results of stopping runs.
+message StopAllRunsResponse {
+  // Result details.
+  StopAllResult result = 1;
+}
+
+// =============================================================================
+// RUN EVENTS MESSAGES
+// =============================================================================
+
+// GetRunEventsRequest retrieves events for a run.
+message GetRunEventsRequest {
+  // Run ID.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Start from this sequence number.
+  optional int64 after_sequence = 2;
+
+  // Maximum events to return.
+  optional int32 limit = 3 [(buf.validate.field).int32 = {gte: 1, lte: 1000}];
+
+  // Filter by event types.
+  repeated RunEventType event_types = 4;
+}
+
+// GetRunEventsResponse returns run events.
+message GetRunEventsResponse {
+  // List of events.
+  repeated RunEvent events = 1;
+
+  // Whether more events are available.
+  bool has_more = 2;
+}
+
+// GetRunDiffRequest retrieves the diff for a run.
+message GetRunDiffRequest {
+  // Run ID.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetRunDiffResponse returns the diff.
+message GetRunDiffResponse {
+  // The diff content.
+  RunDiff diff = 1;
+}
+
+// =============================================================================
+// APPROVAL MESSAGES
+// =============================================================================
+
+// ApproveRunRequest approves a run's changes.
+message ApproveRunRequest {
+  // Run ID.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Actor approving (user identifier).
+  string actor = 2;
+
+  // Commit message for the changes.
+  optional string commit_msg = 3;
+
+  // Force approval even with warnings.
+  bool force = 4;
+}
+
+// ApproveRunResponse returns approval result.
+message ApproveRunResponse {
+  // Approval result.
+  ApproveResult result = 1;
+}
+
+// RejectRunRequest rejects a run's changes.
+message RejectRunRequest {
+  // Run ID.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Actor rejecting.
+  string actor = 2;
+
+  // Reason for rejection.
+  string reason = 3;
+}
+
+// RejectRunResponse confirms rejection.
+message RejectRunResponse {
+  // Status after rejection.
+  string status = 1;
+}
+
+// =============================================================================
+// RUNNER MESSAGES
+// =============================================================================
+
+// GetRunnerStatusRequest retrieves runner status.
+message GetRunnerStatusRequest {}
+
+// GetRunnerStatusResponse returns all runner statuses.
+message GetRunnerStatusResponse {
+  // Status of each runner.
+  repeated RunnerStatus runners = 1;
+}
+
+// ProbeRunnerRequest tests runner connectivity.
+message ProbeRunnerRequest {
+  // Runner type to probe.
+  RunnerType runner_type = 1;
+}
+
+// ProbeRunnerResponse returns probe result.
+message ProbeRunnerResponse {
+  // Probe result.
+  ProbeResult result = 1;
+}

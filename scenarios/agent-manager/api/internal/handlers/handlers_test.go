@@ -15,14 +15,29 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/protoconv"
 	"agent-manager/internal/repository"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"google.golang.org/protobuf/proto"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // =============================================================================
 // TEST SETUP HELPERS
 // =============================================================================
+
+// decodeProtoJSON decodes a proto JSON response body into a proto message.
+func decodeProtoJSON(t *testing.T, body []byte, msg proto.Message) {
+	t.Helper()
+	// Use protojson via protoconv for consistent unmarshalling
+	if err := protoconv.UnmarshalJSON(body, msg); err != nil {
+		t.Fatalf("failed to decode proto JSON: %v\nBody: %s", err, string(body))
+	}
+}
 
 // setupTestHandler creates a handler with in-memory repositories for testing.
 func setupTestHandler() (*Handler, *mux.Router) {
@@ -84,15 +99,13 @@ func TestCreateProfile_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
 	}
 
-	var result domain.AgentProfile
-	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
+	var result pb.AgentProfile
+	decodeProtoJSON(t, rr.Body.Bytes(), &result)
 
 	if result.Name != "test-profile" {
 		t.Errorf("expected name 'test-profile', got '%s'", result.Name)
 	}
-	if result.ID == uuid.Nil {
+	if result.Id == "" {
 		t.Error("expected profile ID to be assigned")
 	}
 }
@@ -157,11 +170,11 @@ func TestGetProfile_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created domain.AgentProfile
-	json.NewDecoder(rr.Body).Decode(&created)
+	var created pb.AgentProfile
+	decodeProtoJSON(t, rr.Body.Bytes(), &created)
 
 	// Now retrieve it
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+created.ID.String(), nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+created.Id, nil)
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -169,11 +182,11 @@ func TestGetProfile_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
 	}
 
-	var retrieved domain.AgentProfile
-	json.NewDecoder(rr.Body).Decode(&retrieved)
+	var retrieved pb.AgentProfile
+	decodeProtoJSON(t, rr.Body.Bytes(), &retrieved)
 
-	if retrieved.ID != created.ID {
-		t.Errorf("expected ID %s, got %s", created.ID, retrieved.ID)
+	if retrieved.Id != created.Id {
+		t.Errorf("expected ID %s, got %s", created.Id, retrieved.Id)
 	}
 }
 
@@ -218,11 +231,12 @@ func TestListProfiles(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 	}
 
-	var profiles []*domain.AgentProfile
-	json.NewDecoder(rr.Body).Decode(&profiles)
+	// Response is ListProfilesResponse with profiles array and total
+	var response apipb.ListProfilesResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
 
-	if len(profiles) != 3 {
-		t.Errorf("expected 3 profiles, got %d", len(profiles))
+	if len(response.Profiles) != 3 {
+		t.Errorf("expected 3 profiles, got %d", len(response.Profiles))
 	}
 }
 
@@ -242,8 +256,8 @@ func TestUpdateProfile_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created domain.AgentProfile
-	json.NewDecoder(rr.Body).Decode(&created)
+	var created pb.AgentProfile
+	decodeProtoJSON(t, rr.Body.Bytes(), &created)
 
 	// Update profile
 	updateData := map[string]interface{}{
@@ -252,7 +266,7 @@ func TestUpdateProfile_Success(t *testing.T) {
 		"runnerType":  "claude-code",
 	}
 	body, _ = json.Marshal(updateData)
-	req = httptest.NewRequest(http.MethodPut, "/api/v1/profiles/"+created.ID.String(), bytes.NewReader(body))
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/profiles/"+created.Id, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -261,8 +275,8 @@ func TestUpdateProfile_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
 	}
 
-	var updated domain.AgentProfile
-	json.NewDecoder(rr.Body).Decode(&updated)
+	var updated pb.AgentProfile
+	decodeProtoJSON(t, rr.Body.Bytes(), &updated)
 
 	if updated.Name != "updated-name" {
 		t.Errorf("expected name 'updated-name', got '%s'", updated.Name)
@@ -288,11 +302,11 @@ func TestDeleteProfile_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created domain.AgentProfile
-	json.NewDecoder(rr.Body).Decode(&created)
+	var created pb.AgentProfile
+	decodeProtoJSON(t, rr.Body.Bytes(), &created)
 
 	// Delete profile
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/profiles/"+created.ID.String(), nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/profiles/"+created.Id, nil)
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -301,7 +315,7 @@ func TestDeleteProfile_Success(t *testing.T) {
 	}
 
 	// Verify it's gone
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+created.ID.String(), nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+created.Id, nil)
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -337,14 +351,14 @@ func TestCreateTask_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
 	}
 
-	var result domain.Task
-	json.NewDecoder(rr.Body).Decode(&result)
+	var result pb.Task
+	decodeProtoJSON(t, rr.Body.Bytes(), &result)
 
 	if result.Title != "Fix login bug" {
 		t.Errorf("expected title 'Fix login bug', got '%s'", result.Title)
 	}
-	if result.Status != domain.TaskStatusQueued {
-		t.Errorf("expected status 'queued', got '%s'", result.Status)
+	if result.Status != pb.TaskStatus_TASK_STATUS_QUEUED {
+		t.Errorf("expected status TASK_STATUS_QUEUED, got '%s'", result.Status)
 	}
 }
 
@@ -403,16 +417,23 @@ func TestGetTask_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created domain.Task
-	json.NewDecoder(rr.Body).Decode(&created)
+	var created pb.Task
+	decodeProtoJSON(t, rr.Body.Bytes(), &created)
 
 	// Get task
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/tasks/"+created.ID.String(), nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/tasks/"+created.Id, nil)
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	var retrieved pb.Task
+	decodeProtoJSON(t, rr.Body.Bytes(), &retrieved)
+
+	if retrieved.Id != created.Id {
+		t.Errorf("expected ID %s, got %s", created.Id, retrieved.Id)
 	}
 }
 
@@ -443,11 +464,12 @@ func TestListTasks(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 	}
 
-	var tasks []*domain.Task
-	json.NewDecoder(rr.Body).Decode(&tasks)
+	// Response is ListTasksResponse with tasks array and total
+	var response apipb.ListTasksResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
 
-	if len(tasks) != 3 {
-		t.Errorf("expected 3 tasks, got %d", len(tasks))
+	if len(response.Tasks) != 3 {
+		t.Errorf("expected 3 tasks, got %d", len(response.Tasks))
 	}
 }
 
@@ -467,11 +489,11 @@ func TestCancelTask_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created domain.Task
-	json.NewDecoder(rr.Body).Decode(&created)
+	var created pb.Task
+	decodeProtoJSON(t, rr.Body.Bytes(), &created)
 
 	// Cancel task
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+created.ID.String()+"/cancel", nil)
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+created.Id+"/cancel", nil)
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -555,8 +577,8 @@ func TestCreateRun_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var createdProfile domain.AgentProfile
-	json.NewDecoder(rr.Body).Decode(&createdProfile)
+	var createdProfile pb.AgentProfile
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdProfile)
 
 	// Create a task
 	task := map[string]interface{}{
@@ -569,13 +591,13 @@ func TestCreateRun_Success(t *testing.T) {
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var createdTask domain.Task
-	json.NewDecoder(rr.Body).Decode(&createdTask)
+	var createdTask pb.Task
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdTask)
 
 	// Create a run
 	runReq := map[string]interface{}{
-		"taskId":         createdTask.ID.String(),
-		"agentProfileId": createdProfile.ID.String(),
+		"taskId":         createdTask.Id,
+		"agentProfileId": createdProfile.Id,
 	}
 	body, _ = json.Marshal(runReq)
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
@@ -587,14 +609,14 @@ func TestCreateRun_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
 	}
 
-	var createdRun domain.Run
-	json.NewDecoder(rr.Body).Decode(&createdRun)
+	var createdRun pb.Run
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdRun)
 
-	if createdRun.TaskID != createdTask.ID {
-		t.Errorf("expected task ID %s, got %s", createdTask.ID, createdRun.TaskID)
+	if createdRun.TaskId != createdTask.Id {
+		t.Errorf("expected task ID %s, got %s", createdTask.Id, createdRun.TaskId)
 	}
-	if createdRun.AgentProfileID == nil || *createdRun.AgentProfileID != createdProfile.ID {
-		t.Errorf("expected profile ID %s, got %v", createdProfile.ID, createdRun.AgentProfileID)
+	if createdRun.AgentProfileId == nil || *createdRun.AgentProfileId != createdProfile.Id {
+		t.Errorf("expected profile ID %s, got %v", createdProfile.Id, createdRun.AgentProfileId)
 	}
 }
 
@@ -625,11 +647,11 @@ func TestGetRunnerStatus(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 	}
 
-	var statuses []*orchestration.RunnerStatus
-	json.NewDecoder(rr.Body).Decode(&statuses)
+	var response apipb.GetRunnerStatusResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
 
 	// Should have at least one runner (the mock)
-	if len(statuses) == 0 {
+	if len(response.Runners) == 0 {
 		t.Error("expected at least one runner status")
 	}
 }
@@ -976,7 +998,7 @@ func TestLargePayload_Profile(t *testing.T) {
 // =============================================================================
 
 // createTestProfile is a helper to create a profile for testing.
-func createTestProfile(t *testing.T, router *mux.Router) *domain.AgentProfile {
+func createTestProfile(t *testing.T, router *mux.Router) *pb.AgentProfile {
 	profile := map[string]interface{}{
 		"name":       "test-profile-" + uuid.New().String()[:8],
 		"runnerType": "claude-code",
@@ -991,13 +1013,13 @@ func createTestProfile(t *testing.T, router *mux.Router) *domain.AgentProfile {
 		t.Fatalf("failed to create test profile: %d %s", rr.Code, rr.Body.String())
 	}
 
-	var result domain.AgentProfile
-	json.NewDecoder(rr.Body).Decode(&result)
+	var result pb.AgentProfile
+	decodeProtoJSON(t, rr.Body.Bytes(), &result)
 	return &result
 }
 
 // createTestTask is a helper to create a task for testing.
-func createTestTask(t *testing.T, router *mux.Router) *domain.Task {
+func createTestTask(t *testing.T, router *mux.Router) *pb.Task {
 	task := map[string]interface{}{
 		"title":     "test-task-" + uuid.New().String()[:8],
 		"scopePath": "src/",
@@ -1012,8 +1034,8 @@ func createTestTask(t *testing.T, router *mux.Router) *domain.Task {
 		t.Fatalf("failed to create test task: %d %s", rr.Code, rr.Body.String())
 	}
 
-	var result domain.Task
-	json.NewDecoder(rr.Body).Decode(&result)
+	var result pb.Task
+	decodeProtoJSON(t, rr.Body.Bytes(), &result)
 	return &result
 }
 
@@ -1033,8 +1055,8 @@ func TestStopRun_Success(t *testing.T) {
 	task := createTestTask(t, router)
 
 	runReq := map[string]interface{}{
-		"taskId":         task.ID.String(),
-		"agentProfileId": profile.ID.String(),
+		"taskId":         task.Id,
+		"agentProfileId": profile.Id,
 	}
 	body, _ := json.Marshal(runReq)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
@@ -1042,11 +1064,11 @@ func TestStopRun_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var createdRun domain.Run
-	json.NewDecoder(rr.Body).Decode(&createdRun)
+	var createdRun pb.Run
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdRun)
 
 	// Stop the run
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+createdRun.ID.String()+"/stop", nil)
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+createdRun.Id+"/stop", nil)
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -1168,8 +1190,8 @@ func TestGetRunEvents_Success(t *testing.T) {
 	task := createTestTask(t, router)
 
 	runReq := map[string]interface{}{
-		"taskId":         task.ID.String(),
-		"agentProfileId": profile.ID.String(),
+		"taskId":         task.Id,
+		"agentProfileId": profile.Id,
 	}
 	body, _ := json.Marshal(runReq)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
@@ -1177,11 +1199,11 @@ func TestGetRunEvents_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var createdRun domain.Run
-	json.NewDecoder(rr.Body).Decode(&createdRun)
+	var createdRun pb.Run
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdRun)
 
 	// Get events for the run
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+createdRun.ID.String()+"/events", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+createdRun.Id+"/events", nil)
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -1189,11 +1211,10 @@ func TestGetRunEvents_Success(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	// Verify response is an array
-	var events []interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&events); err != nil {
-		t.Fatalf("failed to decode events: %v", err)
-	}
+	// Verify response contains events array
+	var response apipb.GetRunEventsResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
+	// Events may be empty for a fresh run, that's OK
 }
 
 // TestGetRunEvents_NotFound tests getting events for non-existent run.
@@ -1430,7 +1451,7 @@ func TestUpdateTask_Success(t *testing.T) {
 		"scopePath":   "src/updated",
 	}
 	body, _ := json.Marshal(updateData)
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/tasks/"+task.ID.String(), bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/tasks/"+task.Id, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1439,8 +1460,8 @@ func TestUpdateTask_Success(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	var updated domain.Task
-	json.NewDecoder(rr.Body).Decode(&updated)
+	var updated pb.Task
+	decodeProtoJSON(t, rr.Body.Bytes(), &updated)
 
 	if updated.Title != "Updated Title" {
 		t.Errorf("expected title 'Updated Title', got '%s'", updated.Title)
@@ -1489,11 +1510,11 @@ func TestUpdateTask_MalformedBody(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created domain.Task
-	json.NewDecoder(rr.Body).Decode(&created)
+	var created pb.Task
+	decodeProtoJSON(t, rr.Body.Bytes(), &created)
 
 	// Try to update with malformed JSON
-	req = httptest.NewRequest(http.MethodPut, "/api/v1/tasks/"+created.ID.String(), bytes.NewReader([]byte("{broken")))
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/tasks/"+created.Id, bytes.NewReader([]byte("{broken")))
 	req.Header.Set("Content-Type", "application/json")
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)

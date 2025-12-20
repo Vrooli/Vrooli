@@ -1,47 +1,134 @@
 {
   "metadata": {
+    "name": "create-new-chat",
     "description": "Validate creating a new chat session with bubble view mode",
-    "requirement": "BUBBLE-001",
-    "version": 1
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"BUBBLE-001\"]"
+    }
   },
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "action": "navigate",
-      "url": "${UI_BASE_URL}",
-      "description": "Navigate to Agent Inbox UI"
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "agent-inbox",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to Agent Inbox UI"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/inbox.container",
-      "timeout": 5000,
-      "description": "Wait for inbox container to load"
+      "id": "wait-inbox-container",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/inbox.container",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for inbox container to load"
+        }
+      }
     },
     {
-      "action": "click",
-      "selector": "@selector/inbox.newChatButton",
-      "description": "Click new chat button"
+      "id": "click-new-chat",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/inbox.newChatButton"
+        },
+        "metadata": {
+          "label": "Click new chat button"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/inbox.messageList",
-      "timeout": 3000,
-      "description": "Wait for chat view to open"
+      "id": "wait-message-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/inbox.messageList",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Wait for chat view to open"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/inbox.messageInput",
-      "assertion": "visible",
-      "description": "Verify message input is visible"
+      "id": "assert-message-input",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/inbox.messageInput",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Message input should be visible in new chat"
+        },
+        "metadata": {
+          "label": "Verify message input is visible"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/inbox.sendMessageButton",
-      "assertion": "visible",
-      "description": "Verify send button is visible"
+      "id": "assert-send-button",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/inbox.sendMessageButton",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Send button should be visible in new chat"
+        },
+        "metadata": {
+          "label": "Verify send button is visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-inbox-container",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "action": "screenshot",
-      "name": "new-chat-created"
+      "id": "e2",
+      "source": "wait-inbox-container",
+      "target": "click-new-chat",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "click-new-chat",
+      "target": "wait-message-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-message-list",
+      "target": "assert-message-input",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-message-input",
+      "target": "assert-send-button",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

@@ -5,6 +5,10 @@ BUF_BASE_BRANCH ?= master
 generate:
 	buf generate
 	touch gen/python/py.typed \
+	      gen/python/agent_manager/py.typed \
+	      gen/python/agent_manager/v1/py.typed \
+	      gen/python/agent_manager/v1/api/py.typed \
+	      gen/python/agent_manager/v1/domain/py.typed \
 	      gen/python/browser_automation_studio/py.typed \
 	      gen/python/browser_automation_studio/v1/py.typed \
 	      gen/python/browser_automation_studio/v1/api/py.typed \

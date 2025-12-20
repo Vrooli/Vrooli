@@ -1,30 +1,75 @@
 {
   "metadata": {
+    "name": "chat-list-display",
     "description": "Validate chat list display shows chats with previews, read/unread indicators, and labels",
-    "requirement": "INBOX-LIST-001",
-    "version": 1
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"INBOX-LIST-001\"]"
+    }
   },
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "action": "navigate",
-      "url": "${UI_BASE_URL}",
-      "description": "Navigate to Agent Inbox UI"
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "agent-inbox",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to Agent Inbox UI"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/inbox.container",
-      "timeout": 5000,
-      "description": "Wait for inbox container to load"
+      "id": "wait-inbox-container",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/inbox.container",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for inbox container to load"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/inbox.chatList",
-      "assertion": "visible",
-      "description": "Verify chat list is visible"
+      "id": "assert-chat-list",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/inbox.chatList",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Chat list should be visible"
+        },
+        "metadata": {
+          "label": "Verify chat list is visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-inbox-container",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "action": "screenshot",
-      "name": "inbox-list-display"
+      "id": "e2",
+      "source": "wait-inbox-container",
+      "target": "assert-chat-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

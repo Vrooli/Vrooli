@@ -1,78 +1,244 @@
 {
   "metadata": {
+    "name": "basic-chat-flow",
     "description": "End-to-end journey: Create chat, send message, archive chat",
-    "requirement": "INBOX-LIST-001,BUBBLE-001,BUBBLE-002,PERSIST-001,PERSIST-002",
-    "version": 1
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"INBOX-LIST-001\", \"BUBBLE-001\", \"BUBBLE-002\", \"PERSIST-001\", \"PERSIST-002\"]"
+    }
   },
-  "steps": [
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
     {
-      "action": "navigate",
-      "url": "${UI_BASE_URL}",
-      "description": "Navigate to Agent Inbox UI"
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "agent-inbox",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to Agent Inbox UI"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/inbox.container",
-      "timeout": 5000,
-      "description": "Wait for inbox container to load"
+      "id": "wait-inbox-container",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/inbox.container",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for inbox container to load"
+        }
+      }
     },
     {
-      "action": "click",
-      "selector": "@selector/inbox.newChatButton",
-      "description": "Create a new chat"
+      "id": "click-new-chat",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/inbox.newChatButton"
+        },
+        "metadata": {
+          "label": "Create a new chat"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/inbox.messageInput",
-      "timeout": 3000,
-      "description": "Wait for message input"
+      "id": "wait-message-input",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/inbox.messageInput",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Wait for message input"
+        }
+      }
     },
     {
-      "action": "type",
-      "selector": "@selector/inbox.messageInput",
-      "text": "Hello, this is a test message!",
-      "description": "Type a test message"
+      "id": "type-message",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/inbox.messageInput",
+          "value": "Hello, this is a test message!"
+        },
+        "metadata": {
+          "label": "Type a test message"
+        }
+      }
     },
     {
-      "action": "click",
-      "selector": "@selector/inbox.sendMessageButton",
-      "description": "Send the message"
+      "id": "click-send",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/inbox.sendMessageButton"
+        },
+        "metadata": {
+          "label": "Send the message"
+        }
+      }
     },
     {
-      "action": "wait",
-      "timeout": 1000,
-      "description": "Wait for message to be sent"
+      "id": "wait-message-sent",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "wait_for": {
+            "duration_ms": 1000
+          }
+        },
+        "metadata": {
+          "label": "Wait for message to be sent"
+        }
+      }
     },
     {
-      "action": "click",
-      "selector": "@selector/nav.inbox",
-      "description": "Navigate back to inbox"
+      "id": "click-nav-inbox",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/nav.inbox"
+        },
+        "metadata": {
+          "label": "Navigate back to inbox"
+        }
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/inbox.chatList",
-      "timeout": 3000,
-      "description": "Wait for chat list"
+      "id": "wait-chat-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/inbox.chatList",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Wait for chat list"
+        }
+      }
     },
     {
-      "action": "click",
-      "selector": "@selector/inbox.toggleArchiveButton",
-      "description": "Archive the chat"
+      "id": "click-archive",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/inbox.toggleArchiveButton"
+        },
+        "metadata": {
+          "label": "Archive the chat"
+        }
+      }
     },
     {
-      "action": "click",
-      "selector": "@selector/nav.archived",
-      "description": "Navigate to archived view"
+      "id": "click-nav-archived",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/nav.archived"
+        },
+        "metadata": {
+          "label": "Navigate to archived view"
+        }
+      }
     },
     {
-      "action": "assert",
-      "selector": "@selector/inbox.chatList",
-      "assertion": "hasContent",
-      "description": "Verify archived chat appears"
+      "id": "assert-archived-chat",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/inbox.chatList",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Archived chat should appear in archived view"
+        },
+        "metadata": {
+          "label": "Verify archived chat appears"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-inbox-container",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "action": "screenshot",
-      "name": "basic-chat-flow-complete"
+      "id": "e2",
+      "source": "wait-inbox-container",
+      "target": "click-new-chat",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "click-new-chat",
+      "target": "wait-message-input",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-message-input",
+      "target": "type-message",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "type-message",
+      "target": "click-send",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "click-send",
+      "target": "wait-message-sent",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "wait-message-sent",
+      "target": "click-nav-inbox",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "click-nav-inbox",
+      "target": "wait-chat-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "wait-chat-list",
+      "target": "click-archive",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "click-archive",
+      "target": "click-nav-archived",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "click-nav-archived",
+      "target": "assert-archived-chat",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

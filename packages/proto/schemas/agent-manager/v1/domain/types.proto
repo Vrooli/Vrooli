@@ -1,0 +1,390 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// =============================================================================
+// AGENT-MANAGER CORE TYPES
+// =============================================================================
+//
+// @layer 0
+// @domain agent-manager
+// @imports none (external only: google.protobuf)
+// @stability stable
+//
+// Core enums and primitive types for the agent-manager scenario.
+// These form the foundation for all agent orchestration operations.
+//
+// USAGE CONTEXTS:
+//   - Profile Configuration: RunnerType, tool permissions
+//   - Task Lifecycle: TaskStatus for work unit state
+//   - Run Lifecycle: RunStatus, RunPhase, RunMode, ApprovalState
+//   - Event Streaming: RunEventType for event classification
+//
+// =============================================================================
+
+// =============================================================================
+// RUNNER TYPES
+// =============================================================================
+
+// RunnerType identifies which agent runner implementation to use.
+//
+// Each runner type corresponds to a different AI coding assistant CLI.
+// The agent-manager routes execution to the appropriate runner adapter.
+//
+// @usage AgentProfile.runner_type, Run.resolved_config.runner_type
+enum RunnerType {
+  // Default/unspecified. Will use RUNNER_TYPE_CLAUDE_CODE as fallback.
+  RUNNER_TYPE_UNSPECIFIED = 0;
+
+  // Claude Code CLI (resource-claude-code).
+  // Anthropic's Claude-based coding assistant.
+  // Supports: streaming, cost tracking, rate limit detection, MCP.
+  RUNNER_TYPE_CLAUDE_CODE = 1;
+
+  // OpenAI Codex CLI (resource-codex).
+  // OpenAI's code generation model.
+  // Supports: streaming, cost tracking.
+  RUNNER_TYPE_CODEX = 2;
+
+  // OpenCode CLI (resource-opencode).
+  // Open-source multi-model CLI supporting various providers.
+  // Supports: OpenRouter, Anthropic, OpenAI, Google, DeepSeek.
+  RUNNER_TYPE_OPENCODE = 3;
+}
+
+// =============================================================================
+// TASK STATUS
+// =============================================================================
+
+// TaskStatus represents the lifecycle state of a task.
+//
+// Tasks progress through states as runs are created and completed.
+// Terminal states (approved, rejected, failed, cancelled) cannot transition.
+//
+// State machine:
+//   queued -> running -> needs_review -> approved
+//                    \-> failed       \-> rejected
+//                    \-> cancelled
+//
+// @usage Task.status
+enum TaskStatus {
+  // Default/unspecified.
+  TASK_STATUS_UNSPECIFIED = 0;
+
+  // Task is waiting to be picked up for execution.
+  TASK_STATUS_QUEUED = 1;
+
+  // Task has an active run in progress.
+  TASK_STATUS_RUNNING = 2;
+
+  // Task execution complete, awaiting human review.
+  TASK_STATUS_NEEDS_REVIEW = 3;
+
+  // Task changes approved and applied.
+  TASK_STATUS_APPROVED = 4;
+
+  // Task changes rejected.
+  TASK_STATUS_REJECTED = 5;
+
+  // Task execution failed with error.
+  TASK_STATUS_FAILED = 6;
+
+  // Task was cancelled before completion.
+  TASK_STATUS_CANCELLED = 7;
+}
+
+// =============================================================================
+// RUN STATUS
+// =============================================================================
+
+// RunStatus represents the lifecycle state of a run.
+//
+// A run is a single execution attempt of a task with a specific configuration.
+// Runs progress through states and may require review before completion.
+//
+// State machine:
+//   pending -> starting -> running -> needs_review -> complete
+//                      \-> failed              \-> failed
+//                      \-> cancelled
+//
+// @usage Run.status
+enum RunStatus {
+  // Default/unspecified.
+  RUN_STATUS_UNSPECIFIED = 0;
+
+  // Run created but not started.
+  RUN_STATUS_PENDING = 1;
+
+  // Run is initializing (acquiring resources, creating sandbox).
+  RUN_STATUS_STARTING = 2;
+
+  // Run is actively executing.
+  RUN_STATUS_RUNNING = 3;
+
+  // Run execution complete, awaiting approval.
+  RUN_STATUS_NEEDS_REVIEW = 4;
+
+  // Run completed successfully (changes applied if approved).
+  RUN_STATUS_COMPLETE = 5;
+
+  // Run failed with error.
+  RUN_STATUS_FAILED = 6;
+
+  // Run was cancelled.
+  RUN_STATUS_CANCELLED = 7;
+}
+
+// =============================================================================
+// RUN PHASE
+// =============================================================================
+
+// RunPhase represents the detailed execution phase within a run.
+//
+// Phases provide fine-grained progress tracking and enable resumption
+// from specific points after interruption.
+//
+// @usage Run.phase, RunCheckpoint.phase
+enum RunPhase {
+  // Default/unspecified.
+  RUN_PHASE_UNSPECIFIED = 0;
+
+  // Run created but not started.
+  RUN_PHASE_QUEUED = 1;
+
+  // Setting up workspace and acquiring resources.
+  RUN_PHASE_INITIALIZING = 2;
+
+  // Creating isolated sandbox workspace.
+  RUN_PHASE_SANDBOX_CREATING = 3;
+
+  // Acquiring and validating runner.
+  RUN_PHASE_RUNNER_ACQUIRING = 4;
+
+  // Agent is actively executing.
+  RUN_PHASE_EXECUTING = 5;
+
+  // Gathering results and artifacts.
+  RUN_PHASE_COLLECTING_RESULTS = 6;
+
+  // Execution complete, awaiting approval.
+  RUN_PHASE_AWAITING_REVIEW = 7;
+
+  // Applying approved changes.
+  RUN_PHASE_APPLYING = 8;
+
+  // Releasing resources and cleaning up.
+  RUN_PHASE_CLEANING_UP = 9;
+
+  // Run is finished (terminal).
+  RUN_PHASE_COMPLETED = 10;
+}
+
+// =============================================================================
+// RUN MODE
+// =============================================================================
+
+// RunMode indicates whether the run uses sandbox isolation.
+//
+// Sandboxed mode creates an isolated workspace for safe execution.
+// In-place mode operates directly on the target directory.
+//
+// @usage Run.run_mode
+enum RunMode {
+  // Default/unspecified. Will use RUN_MODE_SANDBOXED.
+  RUN_MODE_UNSPECIFIED = 0;
+
+  // Execute in isolated sandbox workspace.
+  // Changes are reviewed before being applied to the target.
+  RUN_MODE_SANDBOXED = 1;
+
+  // Execute directly in target directory.
+  // Changes are applied immediately (requires explicit permission).
+  RUN_MODE_IN_PLACE = 2;
+}
+
+// =============================================================================
+// APPROVAL STATE
+// =============================================================================
+
+// ApprovalState represents the approval workflow state for a run.
+//
+// Runs in sandboxed mode require approval before changes are applied.
+// Partial approval allows applying only selected changes.
+//
+// @usage Run.approval_state
+enum ApprovalState {
+  // Default/unspecified or not applicable.
+  APPROVAL_STATE_UNSPECIFIED = 0;
+
+  // No approval required (in-place mode or auto-approved).
+  APPROVAL_STATE_NONE = 1;
+
+  // Awaiting approval decision.
+  APPROVAL_STATE_PENDING = 2;
+
+  // Some changes approved, others pending or rejected.
+  APPROVAL_STATE_PARTIALLY_APPROVED = 3;
+
+  // All changes approved and applied.
+  APPROVAL_STATE_APPROVED = 4;
+
+  // Changes rejected and discarded.
+  APPROVAL_STATE_REJECTED = 5;
+}
+
+// =============================================================================
+// RUN EVENT TYPE
+// =============================================================================
+
+// RunEventType categorizes events in the run's event stream.
+//
+// Events are append-only records of agent activity. Each event type
+// has a specific payload structure in the event data.
+//
+// @usage RunEvent.event_type
+enum RunEventType {
+  // Default/unspecified.
+  RUN_EVENT_TYPE_UNSPECIFIED = 0;
+
+  // Log message (debug, info, warn, error).
+  RUN_EVENT_TYPE_LOG = 1;
+
+  // Conversation message (user, assistant, system).
+  RUN_EVENT_TYPE_MESSAGE = 2;
+
+  // Tool invocation by the agent.
+  RUN_EVENT_TYPE_TOOL_CALL = 3;
+
+  // Tool execution result.
+  RUN_EVENT_TYPE_TOOL_RESULT = 4;
+
+  // Status transition event.
+  RUN_EVENT_TYPE_STATUS = 5;
+
+  // Metric/telemetry event (tokens, cost, etc.).
+  RUN_EVENT_TYPE_METRIC = 6;
+
+  // Artifact creation event (diff, log, screenshot).
+  RUN_EVENT_TYPE_ARTIFACT = 7;
+
+  // Error event.
+  RUN_EVENT_TYPE_ERROR = 8;
+}
+
+// =============================================================================
+// RECOVERY ACTION
+// =============================================================================
+
+// RecoveryAction indicates the recommended action after an error.
+//
+// Used in error responses to guide clients on how to recover.
+//
+// @usage ErrorEventData.recovery
+enum RecoveryAction {
+  // Default/unspecified.
+  RECOVERY_ACTION_UNSPECIFIED = 0;
+
+  // No automatic recovery possible.
+  RECOVERY_ACTION_NONE = 1;
+
+  // Retry the operation immediately.
+  RECOVERY_ACTION_RETRY = 2;
+
+  // Retry with exponential backoff.
+  RECOVERY_ACTION_RETRY_BACKOFF = 3;
+
+  // Fix input and retry.
+  RECOVERY_ACTION_FIX_INPUT = 4;
+
+  // Wait for resource availability.
+  RECOVERY_ACTION_WAIT = 5;
+
+  // Escalate to human operator.
+  RECOVERY_ACTION_ESCALATE = 6;
+}
+
+// =============================================================================
+// IDEMPOTENCY STATUS
+// =============================================================================
+
+// IdempotencyStatus indicates the state of an idempotent operation.
+//
+// Used for replay safety to prevent duplicate operations.
+//
+// @usage IdempotencyRecord.status
+enum IdempotencyStatus {
+  // Default/unspecified.
+  IDEMPOTENCY_STATUS_UNSPECIFIED = 0;
+
+  // Operation started but not completed.
+  IDEMPOTENCY_STATUS_PENDING = 1;
+
+  // Operation completed successfully.
+  IDEMPOTENCY_STATUS_COMPLETE = 2;
+
+  // Operation failed (may be retried).
+  IDEMPOTENCY_STATUS_FAILED = 3;
+}
+
+// =============================================================================
+// RUN OUTCOME
+// =============================================================================
+
+// RunOutcome classifies how a run completed.
+//
+// Used for result classification and metrics.
+//
+// @usage internal classification
+enum RunOutcome {
+  // Default/unspecified.
+  RUN_OUTCOME_UNSPECIFIED = 0;
+
+  // Completed successfully, needs review.
+  RUN_OUTCOME_SUCCESS = 1;
+
+  // Non-zero exit code from agent.
+  RUN_OUTCOME_EXIT_ERROR = 2;
+
+  // Execution threw an exception.
+  RUN_OUTCOME_EXCEPTION = 3;
+
+  // User cancelled the run.
+  RUN_OUTCOME_CANCELLED = 4;
+
+  // Exceeded time limit.
+  RUN_OUTCOME_TIMEOUT = 5;
+
+  // Sandbox creation failed.
+  RUN_OUTCOME_SANDBOX_FAIL = 6;
+
+  // Runner not available.
+  RUN_OUTCOME_RUNNER_FAIL = 7;
+}
+
+// =============================================================================
+// STALE RUN ACTION
+// =============================================================================
+
+// StaleRunAction indicates what action to take for a stale run.
+//
+// Used by the reconciler to handle orphaned or stalled runs.
+//
+// @usage internal reconciliation
+enum StaleRunAction {
+  // Default/unspecified.
+  STALE_RUN_ACTION_UNSPECIFIED = 0;
+
+  // Not stale, no action needed.
+  STALE_RUN_ACTION_NONE = 1;
+
+  // Try to resume the run.
+  STALE_RUN_ACTION_RESUME = 2;
+
+  // Mark as failed.
+  STALE_RUN_ACTION_FAIL = 3;
+
+  // Alert operator but don't change state.
+  STALE_RUN_ACTION_ALERT = 4;
+}

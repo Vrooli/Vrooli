@@ -1,0 +1,172 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "buf/validate/validate.proto";
+import "agent-manager/v1/domain/types.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// =============================================================================
+// AGENT PROFILE
+// =============================================================================
+//
+// @layer 1
+// @domain agent-manager
+// @imports types.proto
+// @stability stable
+//
+// AgentProfile defines HOW an agent runs - the configuration template
+// for agent execution. Profiles are reusable across many tasks.
+//
+// USAGE CONTEXTS:
+//   - Profile Management: CRUD operations via API
+//   - Run Creation: Profile ID references for consistent configuration
+//   - Policy Enforcement: Runner restrictions, approval requirements
+//
+// =============================================================================
+
+// AgentProfile defines the configuration for running an agent.
+//
+// This is a reusable definition that can be applied to many tasks.
+// Profiles encapsulate runner settings, tool permissions, and policy flags.
+//
+// @usage POST /api/v1/profiles, referenced by Run.agent_profile_id
+message AgentProfile {
+  // Unique identifier for this profile.
+  // @format uuid
+  string id = 1;
+
+  // Human-readable name for the profile.
+  // @constraint 1-100 characters
+  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 100}];
+
+  // Optional description of what this profile is used for.
+  string description = 3;
+
+  // Which agent runner to use (claude-code, codex, opencode).
+  RunnerType runner_type = 4;
+
+  // Model to use (e.g., "claude-sonnet-4-5", "gpt-4o", "anthropic/claude-opus-4-5").
+  // If empty, uses the runner's default model.
+  string model = 5;
+
+  // Maximum number of conversation turns before stopping.
+  // 0 means unlimited (use with caution).
+  // @constraint 0-1000
+  int32 max_turns = 6 [(buf.validate.field).int32 = {gte: 0, lte: 1000}];
+
+  // Maximum execution time for the agent.
+  // Default: 30 minutes if not specified.
+  google.protobuf.Duration timeout = 7;
+
+  // Tools the agent is allowed to use.
+  // Empty means use runner defaults.
+  // Examples: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
+  repeated string allowed_tools = 8;
+
+  // Tools explicitly denied even if in allowed_tools.
+  repeated string denied_tools = 9;
+
+  // Skip permission prompts during execution.
+  // WARNING: Enables autonomous execution without user confirmation.
+  bool skip_permission_prompt = 10;
+
+  // Whether runs using this profile require sandbox isolation.
+  // Default: true for safety.
+  bool requires_sandbox = 11;
+
+  // Whether runs using this profile require human approval before applying changes.
+  // Default: true for safety.
+  bool requires_approval = 12;
+
+  // Paths the agent is allowed to access.
+  // Empty means no path restrictions.
+  repeated string allowed_paths = 13;
+
+  // Paths explicitly denied.
+  repeated string denied_paths = 14;
+
+  // User or system that created this profile.
+  string created_by = 15;
+
+  // When the profile was created.
+  google.protobuf.Timestamp created_at = 16;
+
+  // When the profile was last updated.
+  google.protobuf.Timestamp updated_at = 17;
+}
+
+// =============================================================================
+// RUN CONFIG
+// =============================================================================
+
+// RunConfig contains the resolved configuration for a run.
+//
+// This can be:
+// - Loaded from a profile
+// - Provided inline with the run request
+// - A combination (profile as base, overrides applied)
+//
+// The orchestrator resolves the final config before execution.
+//
+// @usage Run.resolved_config, CreateRunRequest.inline_config
+message RunConfig {
+  // Which agent runner to use.
+  RunnerType runner_type = 1;
+
+  // Model to use for execution.
+  string model = 2;
+
+  // Maximum conversation turns.
+  int32 max_turns = 3;
+
+  // Maximum execution time.
+  google.protobuf.Duration timeout = 4;
+
+  // Tools the agent is allowed to use.
+  repeated string allowed_tools = 5;
+
+  // Tools explicitly denied.
+  repeated string denied_tools = 6;
+
+  // Skip permission prompts.
+  bool skip_permission_prompt = 7;
+
+  // Require sandbox isolation.
+  bool requires_sandbox = 8;
+
+  // Require human approval.
+  bool requires_approval = 9;
+
+  // Paths the agent is allowed to access.
+  repeated string allowed_paths = 10;
+
+  // Paths explicitly denied.
+  repeated string denied_paths = 11;
+}
+
+// =============================================================================
+// HEARTBEAT CONFIG
+// =============================================================================
+
+// HeartbeatConfig defines heartbeat behavior for long-running operations.
+//
+// Used for stale run detection and health monitoring.
+//
+// @usage internal orchestrator configuration
+message HeartbeatConfig {
+  // How often to send heartbeats.
+  // Default: 30 seconds.
+  google.protobuf.Duration interval = 1;
+
+  // How long without a heartbeat before considering dead.
+  // Default: 2 minutes.
+  google.protobuf.Duration timeout = 2;
+
+  // Number of missed heartbeats before termination.
+  // Default: 3.
+  int32 max_missed_beats = 3;
+}

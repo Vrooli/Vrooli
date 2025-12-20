@@ -1,0 +1,383 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "agent-manager/v1/domain/types.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// =============================================================================
+// RUN EVENTS
+// =============================================================================
+//
+// @layer 2
+// @domain agent-manager
+// @imports types.proto
+// @stability stable
+//
+// RunEvent captures all agent activity in an append-only event stream.
+// Events enable real-time progress tracking, debugging, and auditing.
+//
+// USAGE CONTEXTS:
+//   - Event Streaming: WebSocket real-time updates
+//   - Event History: GET /api/v1/runs/{id}/events
+//   - Debugging: Log and error events for troubleshooting
+//   - Metrics: Cost and progress tracking
+//
+// TAGGED UNION PATTERN:
+// RunEvent uses a oneof for type-safe event payloads. Each event type
+// has a specific payload structure, ensuring you can only access relevant fields.
+//
+// =============================================================================
+
+// RunEvent represents a single event in a run's event stream.
+//
+// Events are append-only and ordered by sequence number.
+// The data field contains type-specific payload based on event_type.
+//
+// @usage GET /api/v1/runs/{id}/events, WebSocket subscription
+message RunEvent {
+  // Unique identifier for this event.
+  // @format uuid
+  string id = 1;
+
+  // Run ID this event belongs to.
+  // @format uuid
+  string run_id = 2;
+
+  // Monotonically increasing sequence number within the run.
+  // Used for ordering and resumption.
+  int64 sequence = 3;
+
+  // Type of event for payload discrimination.
+  RunEventType event_type = 4;
+
+  // When the event occurred.
+  google.protobuf.Timestamp timestamp = 5;
+
+  // Type-specific event payload.
+  // Use the appropriate field based on event_type.
+  oneof data {
+    // Log event data (event_type = LOG).
+    LogEventData log = 10;
+
+    // Message event data (event_type = MESSAGE).
+    MessageEventData message = 11;
+
+    // Tool call event data (event_type = TOOL_CALL).
+    ToolCallEventData tool_call = 12;
+
+    // Tool result event data (event_type = TOOL_RESULT).
+    ToolResultEventData tool_result = 13;
+
+    // Status change event data (event_type = STATUS).
+    StatusEventData status = 14;
+
+    // Metric event data (event_type = METRIC).
+    MetricEventData metric = 15;
+
+    // Artifact event data (event_type = ARTIFACT).
+    ArtifactEventData artifact = 16;
+
+    // Error event data (event_type = ERROR).
+    ErrorEventData error = 17;
+
+    // Progress event data (event_type = STATUS, subtype progress).
+    ProgressEventData progress = 18;
+
+    // Cost event data (event_type = METRIC, subtype cost).
+    CostEventData cost = 19;
+
+    // Rate limit event data (event_type = ERROR, subtype rate_limit).
+    RateLimitEventData rate_limit = 20;
+  }
+}
+
+// =============================================================================
+// LOG EVENT
+// =============================================================================
+
+// LogEventData contains data for log events.
+//
+// Log events capture debug, info, warn, and error messages
+// from the agent execution.
+//
+// @usage RunEvent.log
+message LogEventData {
+  // Log level: debug, info, warn, error.
+  string level = 1;
+
+  // The log message.
+  string message = 2;
+}
+
+// =============================================================================
+// MESSAGE EVENT
+// =============================================================================
+
+// MessageEventData contains data for conversation messages.
+//
+// Message events capture the conversation between user, assistant,
+// and system during agent execution.
+//
+// @usage RunEvent.message
+message MessageEventData {
+  // Message role: user, assistant, system.
+  string role = 1;
+
+  // Message content.
+  string content = 2;
+}
+
+// =============================================================================
+// TOOL CALL EVENT
+// =============================================================================
+
+// ToolCallEventData contains data for tool invocation events.
+//
+// Emitted when the agent calls a tool (Read, Write, Bash, etc.).
+//
+// @usage RunEvent.tool_call
+message ToolCallEventData {
+  // Name of the tool being called.
+  // Examples: "Read", "Write", "Edit", "Bash", "Glob", "Grep"
+  string tool_name = 1;
+
+  // Tool input parameters.
+  // Structure varies by tool.
+  google.protobuf.Struct input = 2;
+
+  // Tool call ID for correlation with result.
+  string tool_call_id = 3;
+}
+
+// =============================================================================
+// TOOL RESULT EVENT
+// =============================================================================
+
+// ToolResultEventData contains data for tool result events.
+//
+// Emitted after a tool call completes with its output or error.
+//
+// @usage RunEvent.tool_result
+message ToolResultEventData {
+  // Tool name for display.
+  string tool_name = 1;
+
+  // Tool call ID for correlation.
+  string tool_call_id = 2;
+
+  // Tool output on success.
+  string output = 3;
+
+  // Error message on failure.
+  string error = 4;
+
+  // Whether the tool call succeeded.
+  bool success = 5;
+}
+
+// =============================================================================
+// STATUS EVENT
+// =============================================================================
+
+// StatusEventData contains data for status transition events.
+//
+// Emitted when the run status or phase changes.
+//
+// @usage RunEvent.status
+message StatusEventData {
+  // Previous status.
+  string old_status = 1;
+
+  // New status.
+  string new_status = 2;
+
+  // Reason for the transition.
+  string reason = 3;
+}
+
+// =============================================================================
+// METRIC EVENT
+// =============================================================================
+
+// MetricEventData contains data for metric/telemetry events.
+//
+// Generic metric events for various measurements.
+// For cost-specific data, use CostEventData.
+//
+// @usage RunEvent.metric
+message MetricEventData {
+  // Metric name (e.g., "tokens_used", "api_calls").
+  string name = 1;
+
+  // Metric value.
+  double value = 2;
+
+  // Unit of measurement (e.g., "tokens", "ms", "bytes").
+  string unit = 3;
+
+  // Additional tags for grouping.
+  map<string, string> tags = 4;
+}
+
+// =============================================================================
+// ARTIFACT EVENT
+// =============================================================================
+
+// ArtifactEventData contains data for artifact creation events.
+//
+// Emitted when the agent creates an artifact (diff, log, screenshot, etc.).
+//
+// @usage RunEvent.artifact
+message ArtifactEventData {
+  // Artifact type: diff, log, screenshot, recording, etc.
+  string type = 1;
+
+  // Path to the artifact file.
+  string path = 2;
+
+  // Size in bytes.
+  int64 size = 3;
+
+  // MIME type.
+  string mime_type = 4;
+}
+
+// =============================================================================
+// ERROR EVENT
+// =============================================================================
+
+// ErrorEventData contains data for error events.
+//
+// Emitted when an error occurs during execution.
+// For rate limit errors, use RateLimitEventData.
+//
+// @usage RunEvent.error
+message ErrorEventData {
+  // Machine-readable error code.
+  string code = 1;
+
+  // Human-readable error message.
+  string message = 2;
+
+  // Whether the error is retryable.
+  bool retryable = 3;
+
+  // Suggested recovery action.
+  RecoveryAction recovery = 4;
+
+  // Stack trace if available.
+  string stack_trace = 5;
+
+  // Additional structured error details.
+  google.protobuf.Struct details = 6;
+}
+
+// =============================================================================
+// PROGRESS EVENT
+// =============================================================================
+
+// ProgressEventData contains data for progress tracking events.
+//
+// Emitted periodically during execution to report progress.
+// Used for UI progress bars and estimated time remaining.
+//
+// @usage RunEvent.progress
+message ProgressEventData {
+  // Current execution phase.
+  RunPhase phase = 1;
+
+  // Percentage complete (0-100).
+  int32 percent_complete = 2;
+
+  // What's happening now.
+  string current_action = 3;
+
+  // Conversation turns completed.
+  int32 turns_completed = 4;
+
+  // Total turns expected (0 = unlimited).
+  int32 turns_total = 5;
+
+  // Tokens consumed so far.
+  int32 tokens_used = 6;
+
+  // Seconds elapsed.
+  double elapsed_seconds = 7;
+
+  // Estimated seconds remaining (-1 if unknown).
+  double estimated_remaining = 8;
+}
+
+// =============================================================================
+// COST EVENT
+// =============================================================================
+
+// CostEventData contains data for cost/usage tracking events.
+//
+// Emitted after each agent turn with token usage and cost.
+// Aggregated in RunSummary.cost_estimate.
+//
+// @usage RunEvent.cost
+message CostEventData {
+  // Input tokens consumed.
+  int32 input_tokens = 1;
+
+  // Output tokens generated.
+  int32 output_tokens = 2;
+
+  // Cache creation tokens (for prompt caching).
+  int32 cache_creation_tokens = 3;
+
+  // Cache read tokens (cache hits).
+  int32 cache_read_tokens = 4;
+
+  // Total cost in USD.
+  double total_cost_usd = 5;
+
+  // Service tier (e.g., "standard", "priority").
+  string service_tier = 6;
+
+  // Model used.
+  string model = 7;
+
+  // Web search requests made.
+  int32 web_search_requests = 8;
+
+  // Server tool use requests.
+  int32 server_tool_use_requests = 9;
+}
+
+// =============================================================================
+// RATE LIMIT EVENT
+// =============================================================================
+
+// RateLimitEventData contains data for rate limit events.
+//
+// Emitted when a rate limit is encountered.
+// Includes reset time and retry guidance.
+//
+// @usage RunEvent.rate_limit
+message RateLimitEventData {
+  // Type of rate limit hit.
+  // Values: "5_hour", "daily", "weekly", "token", "requests"
+  string limit_type = 1;
+
+  // When the limit resets.
+  optional google.protobuf.Timestamp reset_time = 2;
+
+  // Seconds until retry is safe.
+  int32 retry_after = 3;
+
+  // Current usage count.
+  int32 current_used = 4;
+
+  // The limit that was hit.
+  int32 limit = 5;
+
+  // Human-readable message.
+  string message = 6;
+}

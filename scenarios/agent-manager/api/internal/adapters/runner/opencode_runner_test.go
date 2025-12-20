@@ -80,13 +80,15 @@ func TestOpenCodeRunner_ParseStreamEvent_ToolUseWrite(t *testing.T) {
 	if event == nil {
 		t.Fatal("expected event, got nil")
 	}
-	if event.EventType != domain.EventTypeToolCall {
-		t.Errorf("expected EventTypeToolCall, got %v", event.EventType)
+	// OpenCode bundles call+result in one event with status:"completed"
+	// This is semantically a tool result, not a tool call
+	if event.EventType != domain.EventTypeToolResult {
+		t.Errorf("expected EventTypeToolResult (completed tool_use), got %v", event.EventType)
 	}
 
-	toolData, ok := event.Data.(*domain.ToolCallEventData)
+	toolData, ok := event.Data.(*domain.ToolResultEventData)
 	if !ok {
-		t.Fatalf("expected ToolCallEventData, got %T", event.Data)
+		t.Fatalf("expected ToolResultEventData, got %T", event.Data)
 	}
 
 	// Verify tool name is "write" (not "tool" or empty)
@@ -94,15 +96,9 @@ func TestOpenCodeRunner_ParseStreamEvent_ToolUseWrite(t *testing.T) {
 		t.Errorf("expected toolName 'write', got '%s'", toolData.ToolName)
 	}
 
-	// Verify input contains the expected data
-	if toolData.Input == nil {
-		t.Fatal("expected input, got nil")
-	}
-	if content, ok := toolData.Input["content"].(string); !ok || content != "hello world" {
-		t.Errorf("expected input.content 'hello world', got '%v'", toolData.Input["content"])
-	}
-	if filePath, ok := toolData.Input["filePath"].(string); !ok || filePath != "/tmp/opencode-debug/debug.txt" {
-		t.Errorf("expected input.filePath '/tmp/opencode-debug/debug.txt', got '%v'", toolData.Input["filePath"])
+	// Verify output is empty (as per the sample)
+	if toolData.Output != "" {
+		t.Errorf("expected empty output, got '%s'", toolData.Output)
 	}
 }
 
@@ -117,13 +113,15 @@ func TestOpenCodeRunner_ParseStreamEvent_ToolUseBash(t *testing.T) {
 	if event == nil {
 		t.Fatal("expected event, got nil")
 	}
-	if event.EventType != domain.EventTypeToolCall {
-		t.Errorf("expected EventTypeToolCall, got %v", event.EventType)
+	// OpenCode bundles call+result in one event with status:"completed"
+	// This is semantically a tool result, not a tool call
+	if event.EventType != domain.EventTypeToolResult {
+		t.Errorf("expected EventTypeToolResult (completed tool_use), got %v", event.EventType)
 	}
 
-	toolData, ok := event.Data.(*domain.ToolCallEventData)
+	toolData, ok := event.Data.(*domain.ToolResultEventData)
 	if !ok {
-		t.Fatalf("expected ToolCallEventData, got %T", event.Data)
+		t.Fatalf("expected ToolResultEventData, got %T", event.Data)
 	}
 
 	// Verify tool name is "bash"
@@ -131,12 +129,9 @@ func TestOpenCodeRunner_ParseStreamEvent_ToolUseBash(t *testing.T) {
 		t.Errorf("expected toolName 'bash', got '%s'", toolData.ToolName)
 	}
 
-	// Verify input contains command
-	if toolData.Input == nil {
-		t.Fatal("expected input, got nil")
-	}
-	if cmd, ok := toolData.Input["command"].(string); !ok || cmd != "ls -la" {
-		t.Errorf("expected input.command 'ls -la', got '%v'", toolData.Input["command"])
+	// Verify output contains the command result
+	if toolData.Output != "total 0" {
+		t.Errorf("expected output 'total 0', got '%s'", toolData.Output)
 	}
 }
 
@@ -299,13 +294,14 @@ func TestOpenCodeRunner_ParseStreamEvent_FullStream(t *testing.T) {
 	}
 
 	// Verify event types in order
+	// Note: OpenCode's tool_use with status:"completed" becomes tool_result
 	expectedTypes := []domain.RunEventType{
-		domain.EventTypeLog,     // step_start
-		domain.EventTypeToolCall, // tool_use
-		domain.EventTypeMetric,  // step_finish
-		domain.EventTypeLog,     // step_start (2nd)
-		domain.EventTypeMessage, // text
-		domain.EventTypeMetric,  // step_finish
+		domain.EventTypeLog,        // step_start
+		domain.EventTypeToolResult, // tool_use (completed = result)
+		domain.EventTypeMetric,     // step_finish
+		domain.EventTypeLog,        // step_start (2nd)
+		domain.EventTypeMessage,    // text
+		domain.EventTypeMetric,     // step_finish
 	}
 
 	for i, expectedType := range expectedTypes {
@@ -323,6 +319,8 @@ func TestOpenCodeRunner_ParseStreamEvent_FullStream(t *testing.T) {
 	if metrics.TurnsUsed != 1 {
 		t.Errorf("expected 1 turn, got %d", metrics.TurnsUsed)
 	}
+	// ToolCallCount is incremented for both tool_call and tool_result events
+	// since OpenCode bundles them together
 	if metrics.ToolCallCount != 1 {
 		t.Errorf("expected 1 tool call, got %d", metrics.ToolCallCount)
 	}
