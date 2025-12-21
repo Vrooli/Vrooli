@@ -70,7 +70,7 @@ func runWatch(ctx *appctx.Context, args []string) error {
 }
 
 func streamExecution(ctx *appctx.Context, executionID string, stop <-chan struct{}) {
-	wsURL := buildWebSocketURL(ctx.APIRoot(), executionID)
+	wsURL := buildWebSocketURL(ctx.ResolvedAPIRoot(), executionID)
 	if wsURL == "" {
 		fmt.Println("[stream] WebSocket base unavailable")
 		return

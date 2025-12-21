@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 type Context struct {
@@ -43,6 +44,28 @@ func (c *Context) APIV1Base() string {
 
 func (c *Context) APIRoot() string {
 	base := strings.TrimRight(strings.TrimSpace(c.Core.HTTPClient.BaseURL()), "/")
+	if strings.HasSuffix(base, "/api/v1") {
+		return strings.TrimSuffix(base, "/api/v1")
+	}
+	return base
+}
+
+func (c *Context) ResolvedAPIV1Base() string {
+	if c == nil || c.Core == nil {
+		return ""
+	}
+	if base := strings.TrimSpace(c.APIV1Base()); base != "" {
+		return base
+	}
+	base := cliutil.DetermineAPIBase(c.Core.APIBaseOptions())
+	if strings.TrimSpace(base) == "" {
+		return ""
+	}
+	return strings.TrimRight(base, "/") + "/api/v1"
+}
+
+func (c *Context) ResolvedAPIRoot() string {
+	base := strings.TrimRight(strings.TrimSpace(c.ResolvedAPIV1Base()), "/")
 	if strings.HasSuffix(base, "/api/v1") {
 		return strings.TrimSuffix(base, "/api/v1")
 	}

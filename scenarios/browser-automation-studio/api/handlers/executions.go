@@ -39,6 +39,12 @@ func (h *Handler) GetExecutionScreenshots(w http.ResponseWriter, r *http.Request
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_screenshots", "execution_id": executionID.String()}))
 		return
 	}
+	if len(screenshots) == 0 {
+		if details, missing := h.resolveArtifactGap(ctx, executionID, "screenshots"); missing {
+			h.respondError(w, ErrExecutionArtifactsUnavailable.WithDetails(details))
+			return
+		}
+	}
 
 	h.respondProto(w, http.StatusOK, &basexecution.GetScreenshotsResponse{
 		ExecutionId: executionID.String(),
@@ -59,6 +65,12 @@ func (h *Handler) GetExecutionTimeline(w http.ResponseWriter, r *http.Request) {
 
 	// Preferred: proto timeline persisted to disk.
 	if pbTimeline, err := h.executionService.GetExecutionTimelineProto(ctx, executionID); err == nil && pbTimeline != nil {
+		if len(pbTimeline.Entries) == 0 && len(pbTimeline.Logs) == 0 {
+			if details, missing := h.resolveArtifactGap(ctx, executionID, "timeline"); missing {
+				h.respondError(w, ErrExecutionArtifactsUnavailable.WithDetails(details))
+				return
+			}
+		}
 		h.respondProto(w, http.StatusOK, pbTimeline)
 		return
 	}
@@ -81,7 +93,86 @@ func (h *Handler) GetExecutionTimeline(w http.ResponseWriter, r *http.Request) {
 		}))
 		return
 	}
+	if len(pbTimeline.Entries) == 0 && len(pbTimeline.Logs) == 0 {
+		if details, missing := h.resolveArtifactGap(ctx, executionID, "timeline"); missing {
+			h.respondError(w, ErrExecutionArtifactsUnavailable.WithDetails(details))
+			return
+		}
+	}
 	h.respondProto(w, http.StatusOK, pbTimeline)
+}
+
+func (h *Handler) resolveArtifactGap(ctx context.Context, executionID uuid.UUID, artifact string) (map[string]string, bool) {
+	execution, err := h.executionService.GetExecution(ctx, executionID)
+	if err != nil {
+		return map[string]string{
+			"execution_id": executionID.String(),
+			"artifact":     artifact,
+			"reason":       "execution_lookup_failed",
+			"error":        err.Error(),
+		}, true
+	}
+
+	resultPath := strings.TrimSpace(execution.ResultPath)
+	if resultPath == "" {
+		expectedResultPath := ""
+		expectedTimelinePath := ""
+		if strings.TrimSpace(h.recordingsRoot) != "" {
+			expectedResultPath = filepath.Join(h.recordingsRoot, executionID.String(), "result.json")
+			expectedTimelinePath = filepath.Join(h.recordingsRoot, executionID.String(), "timeline.proto.json")
+		}
+		return map[string]string{
+			"execution_id":           executionID.String(),
+			"artifact":               artifact,
+			"reason":                 "result_path_missing",
+			"recordings_root":        strings.TrimSpace(h.recordingsRoot),
+			"expected_result_path":   expectedResultPath,
+			"expected_timeline_path": expectedTimelinePath,
+		}, true
+	}
+
+	if _, err := os.Stat(resultPath); err != nil {
+		if os.IsNotExist(err) {
+			return map[string]string{
+				"execution_id": executionID.String(),
+				"artifact":     artifact,
+				"reason":       "result_file_missing",
+				"result_path":  resultPath,
+			}, true
+		}
+		return map[string]string{
+			"execution_id": executionID.String(),
+			"artifact":     artifact,
+			"reason":       "result_file_unreadable",
+			"result_path":  resultPath,
+			"error":        err.Error(),
+		}, true
+	}
+
+	if artifact == "timeline" {
+		timelinePath := filepath.Join(filepath.Dir(resultPath), "timeline.proto.json")
+		if _, err := os.Stat(timelinePath); err != nil {
+			if os.IsNotExist(err) {
+				return map[string]string{
+					"execution_id":  executionID.String(),
+					"artifact":      artifact,
+					"reason":        "timeline_file_missing",
+					"result_path":   resultPath,
+					"timeline_path": timelinePath,
+				}, true
+			}
+			return map[string]string{
+				"execution_id":  executionID.String(),
+				"artifact":      artifact,
+				"reason":        "timeline_file_unreadable",
+				"result_path":   resultPath,
+				"timeline_path": timelinePath,
+				"error":         err.Error(),
+			}, true
+		}
+	}
+
+	return map[string]string{}, false
 }
 
 // PostExecutionExport handles POST /api/v1/executions/{id}/export

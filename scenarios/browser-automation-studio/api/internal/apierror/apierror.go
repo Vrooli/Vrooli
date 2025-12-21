@@ -155,6 +155,12 @@ var (
 		Message: "Execution not found",
 	}
 
+	ErrExecutionArtifactsUnavailable = &APIError{
+		Status:  http.StatusNotFound,
+		Code:    "EXECUTION_ARTIFACTS_UNAVAILABLE",
+		Message: "Execution artifacts not available",
+	}
+
 	ErrScreenshotNotFound = &APIError{
 		Status:  http.StatusNotFound,
 		Code:    "SCREENSHOT_NOT_FOUND",

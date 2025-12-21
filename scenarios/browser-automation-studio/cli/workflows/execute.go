@@ -102,7 +102,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		adhoc = true
 	}
 
-	fmt.Printf("API URL: %s\n", ctx.APIV1Base())
+	fmt.Printf("API URL: %s\n", ctx.ResolvedAPIV1Base())
 	if projectRoot != "" {
 		fmt.Printf("Project root: %s\n", projectRoot)
 	} else {
@@ -206,8 +206,8 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	fmt.Printf("Execution ID: %s\n", executionID)
 	fmt.Println("")
 	fmt.Println("Execution artifacts")
-	fmt.Printf("Timeline: %s/executions/%s/timeline\n", ctx.APIV1Base(), executionID)
-	fmt.Printf("Screenshots: %s/executions/%s/screenshots\n", ctx.APIV1Base(), executionID)
+	fmt.Printf("Timeline: %s/executions/%s/timeline\n", ctx.ResolvedAPIV1Base(), executionID)
+	fmt.Printf("Screenshots: %s/executions/%s/screenshots\n", ctx.ResolvedAPIV1Base(), executionID)
 	if ctx.ScenarioRoot != "" {
 		fmt.Printf("Recordings root: %s\n", filepath.Join(ctx.ScenarioRoot, "data", "recordings", executionID))
 	}
@@ -223,14 +223,17 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			status := extractString(statusResp, "status")
+			status := normalizeExecutionStatus(extractString(statusResp, "status"))
 			if status == "completed" {
 				fmt.Println("OK: Execution completed successfully")
 				break
 			}
-			if status == "failed" {
+			if status == "failed" || status == "cancelled" {
 				fmt.Println("ERROR: Execution failed")
 				errorMessage := extractString(statusResp, "error")
+				if errorMessage == "" {
+					errorMessage = extractString(statusResp, "error_message")
+				}
 				if errorMessage != "" {
 					fmt.Printf("Error: %s\n", errorMessage)
 				}
@@ -313,4 +316,17 @@ func extractString(data []byte, key string) string {
 		}
 	}
 	return ""
+}
+
+func normalizeExecutionStatus(raw string) string {
+	switch strings.TrimSpace(strings.ToUpper(raw)) {
+	case "EXECUTION_STATUS_COMPLETED", "COMPLETED":
+		return "completed"
+	case "EXECUTION_STATUS_FAILED", "FAILED":
+		return "failed"
+	case "EXECUTION_STATUS_CANCELLED", "CANCELLED", "CANCELED":
+		return "cancelled"
+	default:
+		return strings.ToLower(strings.TrimSpace(raw))
+	}
 }

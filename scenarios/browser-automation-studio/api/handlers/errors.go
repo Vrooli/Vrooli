@@ -44,14 +44,15 @@ var (
 
 // 404 Not Found errors
 var (
-	ErrWorkflowNotFound        = apierror.ErrWorkflowNotFound
-	ErrProjectNotFound         = apierror.ErrProjectNotFound
-	ErrProjectFileNotFound     = apierror.ErrProjectFileNotFound
-	ErrWorkflowVersionNotFound = apierror.ErrWorkflowVersionNotFound
-	ErrExecutionNotFound       = apierror.ErrExecutionNotFound
-	ErrScreenshotNotFound      = apierror.ErrScreenshotNotFound
-	ErrArtifactNotFound        = apierror.ErrArtifactNotFound
-	ErrScheduleNotFound        = apierror.ErrScheduleNotFound
+	ErrWorkflowNotFound              = apierror.ErrWorkflowNotFound
+	ErrProjectNotFound               = apierror.ErrProjectNotFound
+	ErrProjectFileNotFound           = apierror.ErrProjectFileNotFound
+	ErrWorkflowVersionNotFound       = apierror.ErrWorkflowVersionNotFound
+	ErrExecutionNotFound             = apierror.ErrExecutionNotFound
+	ErrScreenshotNotFound            = apierror.ErrScreenshotNotFound
+	ErrArtifactNotFound              = apierror.ErrArtifactNotFound
+	ErrExecutionArtifactsUnavailable = apierror.ErrExecutionArtifactsUnavailable
+	ErrScheduleNotFound              = apierror.ErrScheduleNotFound
 )
 
 // 409 Conflict errors

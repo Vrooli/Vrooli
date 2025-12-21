@@ -114,7 +114,7 @@ func runImport(ctx *appctx.Context, args []string) error {
 		return fmt.Errorf("finalize upload: %w", err)
 	}
 
-	endpoint := strings.TrimRight(ctx.APIRoot(), "/") + ctx.APIPath("/recordings/import")
+	endpoint := strings.TrimRight(ctx.ResolvedAPIRoot(), "/") + ctx.APIPath("/recordings/import")
 
 	req, err := http.NewRequest("POST", endpoint, body)
 	if err != nil {

@@ -59,7 +59,7 @@ func runStatus(ctx *appctx.Context, args []string) error {
 		}
 	}
 
-	apiBase := strings.TrimRight(ctx.APIRoot(), "/")
+	apiBase := strings.TrimRight(ctx.ResolvedAPIRoot(), "/")
 	apiRunning := false
 	if apiBase != "" {
 		healthURL := apiBase + "/health"
@@ -98,7 +98,7 @@ func runStatus(ctx *appctx.Context, args []string) error {
 	if jsonOutput {
 		var output statusOutput
 		output.APIServer.Running = apiRunning
-		output.APIServer.URL = ctx.APIV1Base()
+		output.APIServer.URL = ctx.ResolvedAPIV1Base()
 		output.Browserless.Status = browserlessStatus
 		output.Workflows.Count = workflowCount
 		data, _ := json.MarshalIndent(output, "", "  ")
