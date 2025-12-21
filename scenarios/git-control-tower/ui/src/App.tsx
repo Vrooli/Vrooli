@@ -11,6 +11,8 @@ import {
   useRepoHistory,
   useDiff,
   useSyncStatus,
+  useApprovedChanges,
+  useApprovedChangesPreview,
   useStageFiles,
   useUnstageFiles,
   useCommit,
@@ -66,12 +68,14 @@ export default function App() {
   const [confirmingDiscard, setConfirmingDiscard] = useState<string | null>(null);
   const [lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
+  const [commitMessage, setCommitMessage] = useState("");
 
   // Queries
   const healthQuery = useHealth();
   const statusQuery = useRepoStatus();
   const historyQuery = useRepoHistory(historyLimit);
   const syncStatusQuery = useSyncStatus();
+  const approvedChangesQuery = useApprovedChanges();
   const diffQuery = useDiff(selectedFile, selectedIsStaged);
 
   // Mutations
@@ -81,6 +85,7 @@ export default function App() {
   const discardMutation = useDiscardFiles();
   const pushMutation = usePush();
   const pullMutation = usePull();
+  const approvedPreviewMutation = useApprovedChangesPreview();
 
   const isStaging = stageMutation.isPending || unstageMutation.isPending;
   const isDiscarding = discardMutation.isPending;
@@ -91,12 +96,13 @@ export default function App() {
     queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
     queryClient.invalidateQueries({ queryKey: queryKeys.repoHistory(historyLimit) });
     queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+    queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges });
     if (selectedFile) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.diff(selectedFile, selectedIsStaged)
       });
     }
-  }, [queryClient, selectedFile, selectedIsStaged]);
+  }, [historyLimit, queryClient, selectedFile, selectedIsStaged]);
 
   const orderedFiles = useMemo(() => {
     const files = statusQuery.data?.files;
@@ -109,6 +115,27 @@ export default function App() {
       ...(files.untracked ?? []).map((path) => ({ path, staged: false }))
     ];
   }, [statusQuery.data?.files]);
+
+  const approvedPendingPaths = useMemo(() => {
+    const files = approvedChangesQuery.data?.files ?? [];
+    return files
+      .filter((file) => file.status === "pending" && file.relativePath)
+      .map((file) => file.relativePath);
+  }, [approvedChangesQuery.data?.files]);
+
+  const approvedPendingSet = useMemo(
+    () => new Set(approvedPendingPaths),
+    [approvedPendingPaths]
+  );
+
+  const approvedStagedPaths = useMemo(() => {
+    const staged = statusQuery.data?.files?.staged ?? [];
+    return staged.filter((path) => approvedPendingSet.has(path));
+  }, [approvedPendingSet, statusQuery.data?.files?.staged]);
+
+  const canUseApprovedMessage =
+    approvedStagedPaths.length > 0 &&
+    approvedStagedPaths.length === (statusQuery.data?.files?.staged ?? []).length;
 
   const orderedKeys = useMemo(() => orderedFiles.map((entry) => selectionKey(entry)), [orderedFiles, selectionKey]);
   const orderedKeyToEntry = useMemo(
@@ -258,6 +285,22 @@ export default function App() {
     stageMutation.mutate({ paths: allUnstaged });
   }, [stageMutation, statusQuery.data]);
 
+  const handleStageApproved = useCallback(() => {
+    const suggestedMessage = approvedChangesQuery.data?.suggestedMessage ?? "";
+    if (approvedPendingPaths.length === 0) return;
+
+    stageMutation.mutate(
+      { paths: approvedPendingPaths },
+      {
+        onSuccess: () => {
+          if (suggestedMessage) {
+            setCommitMessage(suggestedMessage);
+          }
+        }
+      }
+    );
+  }, [approvedChangesQuery.data?.suggestedMessage, approvedPendingPaths, stageMutation]);
+
   const handleUnstageAll = useCallback(() => {
     const files = statusQuery.data?.files;
     if (!files || (files.staged?.length ?? 0) === 0) return;
@@ -305,6 +348,7 @@ export default function App() {
           onSuccess: (result) => {
             if (result.success && result.hash) {
               setLastCommitHash(result.hash);
+              setCommitMessage("");
               // Clear selection if viewing staged diff
               if (selectedIsStaged) {
                 setSelectedFile(undefined);
@@ -325,6 +369,21 @@ export default function App() {
     },
     [commitMutation, selectedIsStaged]
   );
+
+  const handleUseApprovedMessage = useCallback(() => {
+    if (!canUseApprovedMessage) return;
+
+    approvedPreviewMutation.mutate(
+      { paths: approvedStagedPaths },
+      {
+        onSuccess: (result) => {
+          if (result.available && result.suggestedMessage) {
+            setCommitMessage(result.suggestedMessage);
+          }
+        }
+      }
+    );
+  }, [approvedPreviewMutation, approvedStagedPaths, canUseApprovedMessage]);
 
   const handlePush = useCallback(() => {
     pushMutation.mutate({});
@@ -612,6 +671,18 @@ export default function App() {
                           }
                         : undefined
                     }
+                    approvedChanges={
+                      approvedChangesQuery.data
+                        ? {
+                            available: approvedChangesQuery.data.available,
+                            committableFiles: approvedChangesQuery.data.committableFiles,
+                            warning: approvedChangesQuery.data.warning
+                          }
+                        : undefined
+                    }
+                    approvedPaths={approvedPendingSet}
+                    onStageApproved={handleStageApproved}
+                    isStagingApproved={isStaging}
                     onPush={handlePush}
                     onPull={handlePull}
                     isPushing={pushMutation.isPending}
@@ -672,6 +743,11 @@ export default function App() {
             <div className="min-h-0 min-w-0 border-t border-slate-800 overflow-hidden">
               <CommitPanel
                 stagedCount={statusQuery.data?.summary.staged ?? 0}
+                commitMessage={commitMessage}
+                onCommitMessageChange={setCommitMessage}
+                canUseApprovedMessage={canUseApprovedMessage}
+                onUseApprovedMessage={handleUseApprovedMessage}
+                isUsingApprovedMessage={approvedPreviewMutation.isPending}
                 onCommit={handleCommit}
                 isCommitting={commitMutation.isPending}
                 lastCommitHash={lastCommitHash}

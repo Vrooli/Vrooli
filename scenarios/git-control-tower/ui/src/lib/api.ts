@@ -192,6 +192,26 @@ export interface SyncStatusResponse {
   timestamp: string;
 }
 
+export interface ApprovedChangeFile {
+  relativePath: string;
+  status: string;
+  sandboxId?: string;
+  sandboxOwner?: string;
+  changeType?: string;
+}
+
+export interface ApprovedChangesResponse {
+  available: boolean;
+  committableFiles: number;
+  suggestedMessage?: string;
+  files?: ApprovedChangeFile[];
+  warning?: string;
+}
+
+export interface ApprovedChangesPreviewRequest {
+  paths: string[];
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -320,4 +340,25 @@ export async function fetchSyncStatus(doFetch = false): Promise<SyncStatusRespon
     cache: "no-store"
   });
   return handleResponse<SyncStatusResponse>(res);
+}
+
+export async function fetchApprovedChanges(): Promise<ApprovedChangesResponse> {
+  const url = buildApiUrl("/repo/approved-changes", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<ApprovedChangesResponse>(res);
+}
+
+export async function fetchApprovedChangesPreview(
+  request: ApprovedChangesPreviewRequest
+): Promise<ApprovedChangesResponse> {
+  const url = buildApiUrl("/repo/approved-changes/preview", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<ApprovedChangesResponse>(res);
 }

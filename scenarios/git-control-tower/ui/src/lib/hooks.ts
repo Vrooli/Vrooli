@@ -5,6 +5,8 @@ import {
   fetchRepoHistory,
   fetchDiff,
   fetchSyncStatus,
+  fetchApprovedChanges,
+  fetchApprovedChangesPreview,
   stageFiles,
   unstageFiles,
   createCommit,
@@ -17,7 +19,8 @@ import {
   type CommitRequest,
   type DiscardRequest,
   type PushRequest,
-  type PullRequest
+  type PullRequest,
+  type ApprovedChangesPreviewRequest
 } from "./api";
 
 export const queryKeys = {
@@ -25,7 +28,8 @@ export const queryKeys = {
   repoStatus: ["repo", "status"] as const,
   repoHistory: (limit?: number) => ["repo", "history", limit] as const,
   syncStatus: ["repo", "sync-status"] as const,
-  diff: (path?: string, staged?: boolean) => ["repo", "diff", path, staged] as const
+  diff: (path?: string, staged?: boolean) => ["repo", "diff", path, staged] as const,
+  approvedChanges: ["repo", "approved-changes"] as const
 };
 
 export function useHealth() {
@@ -98,6 +102,7 @@ export function useCommit() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
       queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+      queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges });
     }
   });
 }
@@ -134,5 +139,19 @@ export function usePull() {
       queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
       queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
     }
+  });
+}
+
+export function useApprovedChanges() {
+  return useQuery({
+    queryKey: queryKeys.approvedChanges,
+    queryFn: fetchApprovedChanges,
+    refetchInterval: 5000
+  });
+}
+
+export function useApprovedChangesPreview() {
+  return useMutation({
+    mutationFn: (request: ApprovedChangesPreviewRequest) => fetchApprovedChangesPreview(request)
   });
 }

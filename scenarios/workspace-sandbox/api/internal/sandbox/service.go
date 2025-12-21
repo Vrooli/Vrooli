@@ -1777,6 +1777,18 @@ func (s *Service) GetCommitPreview(ctx context.Context, req *types.CommitPreview
 		return nil, fmt.Errorf("failed to get pending changes: %w", err)
 	}
 
+	filePathSet := normalizeCommitPreviewFilePaths(projectRoot, req.FilePaths)
+	if len(filePathSet) > 0 {
+		filtered := make([]*types.AppliedChange, 0, len(pendingChanges))
+		for _, change := range pendingChanges {
+			relPath := relativeToProjectRoot(projectRoot, change.FilePath)
+			if _, ok := filePathSet[relPath]; ok {
+				filtered = append(filtered, change)
+			}
+		}
+		pendingChanges = filtered
+	}
+
 	result := &types.CommitPreviewResult{
 		Files:            make([]types.CommitPreviewFile, 0, len(pendingChanges)),
 		GroupedBySandbox: []types.CommitPreviewSandboxGroup{},
@@ -1790,11 +1802,7 @@ func (s *Service) GetCommitPreview(ctx context.Context, req *types.CommitPreview
 	// Extract relative paths for reconciliation
 	relPaths := make([]string, 0, len(pendingChanges))
 	for _, change := range pendingChanges {
-		relPath := change.FilePath
-		if strings.HasPrefix(relPath, projectRoot) {
-			relPath = strings.TrimPrefix(relPath, projectRoot)
-			relPath = strings.TrimPrefix(relPath, string(filepath.Separator))
-		}
+		relPath := relativeToProjectRoot(projectRoot, change.FilePath)
 		if relPath != "" {
 			relPaths = append(relPaths, relPath)
 		}
@@ -1818,11 +1826,7 @@ func (s *Service) GetCommitPreview(ctx context.Context, req *types.CommitPreview
 	sandboxGroups := make(map[uuid.UUID]*types.CommitPreviewSandboxGroup)
 
 	for _, change := range pendingChanges {
-		relPath := change.FilePath
-		if strings.HasPrefix(relPath, projectRoot) {
-			relPath = strings.TrimPrefix(relPath, projectRoot)
-			relPath = strings.TrimPrefix(relPath, string(filepath.Separator))
-		}
+		relPath := relativeToProjectRoot(projectRoot, change.FilePath)
 
 		status := "already_committed"
 		if stillPendingSet[relPath] {
@@ -1876,6 +1880,46 @@ func (s *Service) GetCommitPreview(ctx context.Context, req *types.CommitPreview
 	result.SuggestedMessage = s.generateCommitMessage(result)
 
 	return result, nil
+}
+
+func normalizeCommitPreviewFilePaths(projectRoot string, filePaths []string) map[string]struct{} {
+	if len(filePaths) == 0 {
+		return nil
+	}
+	normalized := make(map[string]struct{}, len(filePaths))
+	for _, path := range filePaths {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		cleaned := filepath.Clean(path)
+		if filepath.IsAbs(cleaned) {
+			if projectRoot == "" || !strings.HasPrefix(cleaned, projectRoot) {
+				continue
+			}
+			cleaned = strings.TrimPrefix(cleaned, projectRoot)
+			cleaned = strings.TrimPrefix(cleaned, string(filepath.Separator))
+		} else {
+			cleaned = strings.TrimPrefix(cleaned, string(filepath.Separator))
+		}
+		if cleaned == "" || cleaned == "." {
+			continue
+		}
+		normalized[cleaned] = struct{}{}
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
+
+func relativeToProjectRoot(projectRoot, path string) string {
+	relPath := path
+	if projectRoot != "" && strings.HasPrefix(relPath, projectRoot) {
+		relPath = strings.TrimPrefix(relPath, projectRoot)
+		relPath = strings.TrimPrefix(relPath, string(filepath.Separator))
+	}
+	return relPath
 }
 
 // generateCommitMessage creates a descriptive commit message from the preview.

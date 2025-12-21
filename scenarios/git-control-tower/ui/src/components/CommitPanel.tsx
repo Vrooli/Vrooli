@@ -12,6 +12,11 @@ import { Button } from "./ui/button";
 
 interface CommitPanelProps {
   stagedCount: number;
+  commitMessage: string;
+  onCommitMessageChange: (value: string) => void;
+  canUseApprovedMessage?: boolean;
+  onUseApprovedMessage?: () => void;
+  isUsingApprovedMessage?: boolean;
   onCommit: (
     message: string,
     options: { conventional: boolean; authorName?: string; authorEmail?: string }
@@ -28,6 +33,11 @@ interface CommitPanelProps {
 
 export function CommitPanel({
   stagedCount,
+  commitMessage,
+  onCommitMessageChange,
+  canUseApprovedMessage = false,
+  onUseApprovedMessage,
+  isUsingApprovedMessage = false,
   onCommit,
   isCommitting,
   lastCommitHash,
@@ -38,25 +48,23 @@ export function CommitPanel({
   onToggleCollapse,
   fillHeight = false
 }: CommitPanelProps) {
-  const [message, setMessage] = useState("");
   const [useConventional, setUseConventional] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [authorName, setAuthorName] = useState("");
   const [authorEmail, setAuthorEmail] = useState("");
   const [authorTouched, setAuthorTouched] = useState(false);
 
-  const canCommit = stagedCount > 0 && message.trim().length > 0 && !isCommitting;
+  const canCommit = stagedCount > 0 && commitMessage.trim().length > 0 && !isCommitting;
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (canCommit) {
-      onCommit(message, {
+      onCommit(commitMessage, {
         conventional: useConventional,
         authorName: authorName.trim() || defaultAuthorName || undefined,
         authorEmail: authorEmail.trim() || defaultAuthorEmail || undefined
       });
-      setMessage("");
     }
   };
 
@@ -99,14 +107,35 @@ export function CommitPanel({
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              value={commitMessage}
+              onChange={(e) => onCommitMessageChange(e.target.value)}
               placeholder="Commit message..."
               className="w-full h-20 px-3 py-2 text-sm bg-slate-800/50 border border-slate-700 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-500"
               disabled={isCommitting}
               data-testid="commit-message-input"
             />
           </div>
+
+          {canUseApprovedMessage && onUseApprovedMessage && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onUseApprovedMessage}
+              disabled={isUsingApprovedMessage}
+              className="h-7 px-2"
+              data-testid="use-approved-message-button"
+            >
+              {isUsingApprovedMessage ? (
+                <span className="flex items-center">
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  Loading...
+                </span>
+              ) : (
+                "Use approved message"
+              )}
+            </Button>
+          )}
 
           <div className="flex items-center justify-between gap-2 min-w-0">
             <button

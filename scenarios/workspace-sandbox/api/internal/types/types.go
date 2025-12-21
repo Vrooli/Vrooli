@@ -686,6 +686,7 @@ type CommitPreviewFile struct {
 type CommitPreviewRequest struct {
 	ProjectRoot string      `json:"projectRoot,omitempty"`
 	SandboxIDs  []uuid.UUID `json:"sandboxIds,omitempty"`
+	FilePaths   []string    `json:"filePaths,omitempty"`
 }
 
 // CommitPreviewResult contains the preview of what would be committed.

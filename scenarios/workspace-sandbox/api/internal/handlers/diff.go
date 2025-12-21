@@ -262,6 +262,27 @@ func (h *Handlers) GetCommitPreview(w http.ResponseWriter, r *http.Request) {
 	h.JSONSuccess(w, result)
 }
 
+// PostCommitPreview returns a preview of what would be committed for a subset of files.
+// Accepts JSON body matching CommitPreviewRequest with optional filePaths.
+func (h *Handlers) PostCommitPreview(w http.ResponseWriter, r *http.Request) {
+	var req types.CommitPreviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.ProjectRoot == "" {
+		req.ProjectRoot = h.Config.Driver.ProjectRoot
+	}
+
+	result, err := h.Service.GetCommitPreview(r.Context(), &req)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, result)
+}
+
 // parseInt is a helper for parsing integer query parameters.
 func parseInt(s string) (int, error) {
 	var i int

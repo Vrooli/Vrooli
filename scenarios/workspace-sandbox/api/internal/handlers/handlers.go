@@ -261,6 +261,7 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/pending", h.GetPendingChanges).Methods("GET")
 	api.HandleFunc("/provenance", h.GetFileProvenance).Methods("GET")
 	api.HandleFunc("/commit-preview", h.GetCommitPreview).Methods("GET")
+	api.HandleFunc("/commit-preview", h.PostCommitPreview).Methods("POST")
 	api.HandleFunc("/commit-pending", h.CommitPending).Methods("POST")
 
 	// --- Metrics (OT-P1-008) ---

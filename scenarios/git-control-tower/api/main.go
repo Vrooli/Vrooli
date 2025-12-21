@@ -29,11 +29,12 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config *Config
-	db     *sql.DB
-	router *mux.Router
-	git    GitRunner
-	audit  AuditLogger
+	config  *Config
+	db      *sql.DB
+	router  *mux.Router
+	git     GitRunner
+	audit   AuditLogger
+	sandbox *WorkspaceSandboxClient
 }
 
 // NewServer initializes configuration, database, and routes
@@ -63,11 +64,12 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
-		config: cfg,
-		db:     db,
-		router: mux.NewRouter(),
-		git:    &ExecGitRunner{GitPath: "git"},
-		audit:  auditLogger,
+		config:  cfg,
+		db:      db,
+		router:  mux.NewRouter(),
+		git:     &ExecGitRunner{GitPath: "git"},
+		audit:   auditLogger,
+		sandbox: NewWorkspaceSandboxClient(5 * time.Second),
 	}
 
 	srv.setupRoutes()
@@ -85,6 +87,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/stage", s.handleStage).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/unstage", s.handleUnstage).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/commit", s.handleCommit).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/approved-changes", s.handleApprovedChanges).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/approved-changes/preview", s.handleApprovedChangesPreview).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/sync-status", s.handleSyncStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/discard", s.handleDiscard).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/push", s.handlePush).Methods("POST")

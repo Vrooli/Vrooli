@@ -10,7 +10,8 @@ import {
   Binary,
   ChevronDown,
   ChevronRight,
-  Loader2
+  Loader2,
+  ShieldCheck
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -27,6 +28,10 @@ interface FileListProps {
   selectedKeySet?: Set<string>;
   selectionKey: (entry: SelectedFileEntry) => string;
   syncStatus?: { ahead: number; behind: number; canPush: boolean; canPull: boolean; warning?: string };
+  approvedChanges?: { available: boolean; committableFiles: number; warning?: string };
+  approvedPaths?: Set<string>;
+  onStageApproved?: () => void;
+  isStagingApproved?: boolean;
   onPush?: () => void;
   onPull?: () => void;
   isPushing?: boolean;
@@ -54,6 +59,7 @@ interface FileSectionProps {
   binaryFiles?: Set<string>;
   maxPathChars: number;
   icon: React.ReactNode;
+  approvedFiles?: Set<string>;
   selectedFiles?: SelectedFileEntry[];
   selectedKeySet?: Set<string>;
   selectionKey: (entry: SelectedFileEntry) => string;
@@ -131,6 +137,7 @@ interface FileRowProps {
   isLoading: boolean;
   isDiscarding: boolean;
   isBinary: boolean;
+  isApproved: boolean;
   itemTestId: string;
   actionTestId: string;
   discardTestId: string;
@@ -153,6 +160,7 @@ const FileRow = memo(function FileRow({
   isLoading,
   isDiscarding,
   isBinary,
+  isApproved,
   itemTestId,
   actionTestId,
   discardTestId,
@@ -195,6 +203,16 @@ const FileRow = memo(function FileRow({
         >
           <Binary className="h-3 w-3" />
           bin
+        </span>
+      )}
+
+      {isApproved && (
+        <span
+          className="flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-300"
+          title="Sandbox-approved change"
+        >
+          <ShieldCheck className="h-3 w-3" />
+          approved
         </span>
       )}
 
@@ -270,6 +288,7 @@ function FileSection({
   files,
   fileStatuses,
   binaryFiles,
+  approvedFiles,
   maxPathChars,
   icon,
   selectedFiles,
@@ -301,10 +320,11 @@ function FileSection({
           key: selectionKey({ path: file, staged: isStaged }),
           badge,
           displayPath: formatPath(file, maxPathChars),
-          isBinary: binaryFiles?.has(file) ?? false
+          isBinary: binaryFiles?.has(file) ?? false,
+          isApproved: approvedFiles?.has(file) ?? false
         };
       }),
-    [files, fileStatuses, category, maxPathChars, selectionKey, isStaged, binaryFiles]
+    [files, fileStatuses, category, maxPathChars, selectionKey, isStaged, binaryFiles, approvedFiles]
   );
 
   if (files.length === 0) return null;
@@ -343,6 +363,7 @@ function FileSection({
               isLoading={isLoading}
               isDiscarding={isDiscarding ?? false}
               isBinary={entry.isBinary}
+              isApproved={entry.isApproved}
               itemTestId={`file-item-${category}`}
               actionTestId={`file-action-${category}`}
               discardTestId={`file-discard-${category}`}
@@ -366,6 +387,10 @@ export function FileList({
   selectedKeySet,
   selectionKey,
   syncStatus,
+  approvedChanges,
+  approvedPaths,
+  onStageApproved,
+  isStagingApproved = false,
   onPush,
   onPull,
   isPushing = false,
@@ -393,6 +418,9 @@ export function FileList({
   const handleDiscardUnstaged = useCallback(
     (path: string) => onDiscardFile(path, false),
     [onDiscardFile]
+  );
+  const showApprovedBanner = Boolean(
+    approvedChanges?.available && (approvedChanges.committableFiles ?? 0) > 0
   );
   const showSync = Boolean(syncStatus && (syncStatus.ahead > 0 || syncStatus.behind > 0));
   const handleDiscardUntracked = useCallback(
@@ -469,6 +497,35 @@ export function FileList({
 
       {!collapsed && (
         <CardContent className="flex-1 min-w-0 p-0 overflow-hidden">
+        {showApprovedBanner && (
+          <div className="mx-2 mt-2 mb-1 rounded-md border border-emerald-800/50 bg-emerald-950/20 p-2 text-xs text-emerald-200">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
+                <span>Approved changes ready</span>
+                <span className="text-emerald-300">
+                  {approvedChanges?.committableFiles ?? 0} file
+                  {(approvedChanges?.committableFiles ?? 0) !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onStageApproved}
+                disabled={isStagingApproved}
+                className="h-7 px-2"
+                data-testid="stage-approved-button"
+              >
+                Stage approved
+              </Button>
+            </div>
+            {approvedChanges?.warning && (
+              <div className="mt-1 text-[11px] text-emerald-300/80">
+                {approvedChanges.warning}
+              </div>
+            )}
+          </div>
+        )}
         {showSync && (
           <div className="mx-2 mt-2 mb-1 rounded-md border border-slate-800/60 bg-slate-900/50 p-2 text-xs text-slate-300">
             <div className="flex items-center justify-between gap-2">
@@ -521,6 +578,7 @@ export function FileList({
               files={files?.conflicts ?? []}
               fileStatuses={files?.statuses}
               binaryFiles={binarySet}
+              approvedFiles={approvedPaths}
               maxPathChars={maxPathChars}
               icon={<AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
               selectedFiles={selectedFiles}
@@ -540,6 +598,7 @@ export function FileList({
               files={files?.staged ?? []}
               fileStatuses={files?.statuses}
               binaryFiles={binarySet}
+              approvedFiles={approvedPaths}
               maxPathChars={maxPathChars}
               icon={<FilePlus className="h-3.5 w-3.5 text-emerald-500" />}
               selectedFiles={selectedFiles}
@@ -559,6 +618,7 @@ export function FileList({
               files={files?.unstaged ?? []}
               fileStatuses={files?.statuses}
               binaryFiles={binarySet}
+              approvedFiles={approvedPaths}
               maxPathChars={maxPathChars}
               icon={<FileX className="h-3.5 w-3.5 text-amber-500" />}
               selectedFiles={selectedFiles}
@@ -582,6 +642,7 @@ export function FileList({
               files={files?.untracked ?? []}
               fileStatuses={files?.statuses}
               binaryFiles={binarySet}
+              approvedFiles={approvedPaths}
               maxPathChars={maxPathChars}
               icon={<File className="h-3.5 w-3.5 text-slate-500" />}
               selectedFiles={selectedFiles}
