@@ -24,11 +24,20 @@ import {
   toPoint,
 } from "../utils/executionTypeMappers";
 import type {
+  ExportIntroCard,
+  ExportOutroCard,
+  ExportWatermark,
   ReplayMovieAsset,
   ReplayMovieFrame,
   ReplayMovieSpec,
   ReplayMovieSummary,
 } from "../types/export";
+import type {
+  IntroCardSettings,
+  OutroCardSettings,
+  WatermarkPosition,
+  WatermarkSettings,
+} from "@/stores/settingsStore";
 import { logger } from "../utils/logger";
 import "../index.css";
 
@@ -109,6 +118,42 @@ const DEFAULT_BODY_BACKGROUND = "#020617";
 const DEFAULT_CANVAS_WIDTH = 1280;
 const DEFAULT_CANVAS_HEIGHT = 720;
 const SPEC_POLL_INTERVAL_MS = 4000;
+const DEFAULT_WATERMARK_SETTINGS: WatermarkSettings = {
+  enabled: false,
+  assetId: null,
+  position: "bottom-right",
+  size: 12,
+  opacity: 80,
+  margin: 16,
+};
+const DEFAULT_INTRO_CARD_SETTINGS: IntroCardSettings = {
+  enabled: false,
+  title: "",
+  subtitle: "",
+  logoAssetId: null,
+  backgroundAssetId: null,
+  backgroundColor: "#0f172a",
+  textColor: "#ffffff",
+  duration: 2000,
+};
+const DEFAULT_OUTRO_CARD_SETTINGS: OutroCardSettings = {
+  enabled: false,
+  title: "Thanks for watching!",
+  ctaText: "Learn More",
+  ctaUrl: "",
+  logoAssetId: null,
+  backgroundAssetId: null,
+  backgroundColor: "#0f172a",
+  textColor: "#ffffff",
+  duration: 3000,
+};
+
+const isWatermarkPosition = (value: unknown): value is WatermarkPosition =>
+  value === "top-left" ||
+  value === "top-right" ||
+  value === "bottom-left" ||
+  value === "bottom-right" ||
+  value === "center";
 const CURSOR_SPEED_PROFILES: CursorSpeedProfile[] = [
   "instant",
   "linear",
@@ -348,6 +393,69 @@ const resolveAssetUrl = (
   return undefined;
 };
 
+const mapWatermarkSettings = (
+  watermark?: ExportWatermark | null,
+): WatermarkSettings | undefined => {
+  if (!watermark) {
+    return undefined;
+  }
+  const position = isWatermarkPosition(watermark.position)
+    ? watermark.position
+    : DEFAULT_WATERMARK_SETTINGS.position;
+  return {
+    ...DEFAULT_WATERMARK_SETTINGS,
+    enabled: Boolean(watermark.enabled),
+    assetId: watermark.asset_id ?? DEFAULT_WATERMARK_SETTINGS.assetId,
+    position,
+    size: watermark.size ?? DEFAULT_WATERMARK_SETTINGS.size,
+    opacity: watermark.opacity ?? DEFAULT_WATERMARK_SETTINGS.opacity,
+    margin: watermark.margin ?? DEFAULT_WATERMARK_SETTINGS.margin,
+  };
+};
+
+const mapIntroCardSettings = (
+  intro?: ExportIntroCard | null,
+): IntroCardSettings | undefined => {
+  if (!intro) {
+    return undefined;
+  }
+  return {
+    ...DEFAULT_INTRO_CARD_SETTINGS,
+    enabled: Boolean(intro.enabled),
+    title: intro.title ?? DEFAULT_INTRO_CARD_SETTINGS.title,
+    subtitle: intro.subtitle ?? DEFAULT_INTRO_CARD_SETTINGS.subtitle,
+    logoAssetId: intro.logo_asset_id ?? DEFAULT_INTRO_CARD_SETTINGS.logoAssetId,
+    backgroundAssetId:
+      intro.background_asset_id ?? DEFAULT_INTRO_CARD_SETTINGS.backgroundAssetId,
+    backgroundColor:
+      intro.background_color ?? DEFAULT_INTRO_CARD_SETTINGS.backgroundColor,
+    textColor: intro.text_color ?? DEFAULT_INTRO_CARD_SETTINGS.textColor,
+    duration: intro.duration_ms ?? DEFAULT_INTRO_CARD_SETTINGS.duration,
+  };
+};
+
+const mapOutroCardSettings = (
+  outro?: ExportOutroCard | null,
+): OutroCardSettings | undefined => {
+  if (!outro) {
+    return undefined;
+  }
+  return {
+    ...DEFAULT_OUTRO_CARD_SETTINGS,
+    enabled: Boolean(outro.enabled),
+    title: outro.title ?? DEFAULT_OUTRO_CARD_SETTINGS.title,
+    ctaText: outro.cta_text ?? DEFAULT_OUTRO_CARD_SETTINGS.ctaText,
+    ctaUrl: outro.cta_url ?? DEFAULT_OUTRO_CARD_SETTINGS.ctaUrl,
+    logoAssetId: outro.logo_asset_id ?? DEFAULT_OUTRO_CARD_SETTINGS.logoAssetId,
+    backgroundAssetId:
+      outro.background_asset_id ?? DEFAULT_OUTRO_CARD_SETTINGS.backgroundAssetId,
+    backgroundColor:
+      outro.background_color ?? DEFAULT_OUTRO_CARD_SETTINGS.backgroundColor,
+    textColor: outro.text_color ?? DEFAULT_OUTRO_CARD_SETTINGS.textColor,
+    duration: outro.duration_ms ?? DEFAULT_OUTRO_CARD_SETTINGS.duration,
+  };
+};
+
 const toReplayFrame = (
   frame: ReplayMovieFrame,
   index: number,
@@ -363,7 +471,7 @@ const toReplayFrame = (
   const holdMs = toNumber(frame.hold_ms) ?? 0;
   const totalDurationMs = durationMs + holdMs;
   const boundingBox = toBoundingBox(frame.element_bounding_box);
-  const focusedElementBox = frame.focused_element?.boundingBox;
+  const focusedElementBox = frame.focused_element?.bounding_box;
   const focusedBoundingBox = toBoundingBox(focusedElementBox);
   const clickPosition = toPoint(frame.click_position);
   const cursorTrail = mapTrail(
@@ -1269,9 +1377,9 @@ const ReplayExportPage = () => {
 
   const decor = movieSpec?.decor ?? {};
   const motion = movieSpec?.cursor_motion;
-  const watermark = movieSpec?.watermark;
-  const introCard = movieSpec?.intro_card;
-  const outroCard = movieSpec?.outro_card;
+  const watermark = mapWatermarkSettings(movieSpec?.watermark);
+  const introCard = mapIntroCardSettings(movieSpec?.intro_card);
+  const outroCard = mapOutroCardSettings(movieSpec?.outro_card);
   const chromeTheme = (decor.chrome_theme ?? "aurora") as any;
   const backgroundTheme = (decor.background_theme ?? "aurora") as any;
   const cursorTheme = (decor.cursor_theme ?? "white") as any;

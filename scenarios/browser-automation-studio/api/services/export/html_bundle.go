@@ -614,7 +614,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <style>
     :root {
       color-scheme: dark;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: 'Space Grotesk', 'IBM Plex Sans', 'Segoe UI', sans-serif;
     }
     body {
       margin: 0;

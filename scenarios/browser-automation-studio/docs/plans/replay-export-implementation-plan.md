@@ -155,6 +155,8 @@ Progress Notes
 - 2025-12-20: UI export dialog supports render source selection (auto/recorded/replay) persisted via replay config.
 - 2025-12-20: Added HTML bundle zip unit test coverage; resolved a helper name conflict in the HTML bundle generator.
 - 2025-12-20: Added handler tests for recorded videos endpoint and render-source webm guard; documented VIDEO_ENABLED in ENVIRONMENT.md.
+- 2025-12-20: Ran Go tests for handlers, execution-writer, and export packages; adjusted HTML export font stack to avoid Inter defaults.
+- 2025-12-20: Fixed UI export typing issues (focused element bounding box, replay config branding mappings) to unblock UI build.
 
 Progress Assessment (current)
 - Phase 1 complete: persisted replay config (API + UI), export handler applies config, and composer renders branding settings.

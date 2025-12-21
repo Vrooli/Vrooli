@@ -86,6 +86,81 @@ const toNumber = (value: unknown): number | null => {
   return null;
 };
 
+const coerceBoolean = (value: unknown, fallback: boolean): boolean => {
+  return typeof value === 'boolean' ? value : fallback;
+};
+
+const coerceString = (value: unknown, fallback: string | null): string | null => {
+  return typeof value === 'string' ? value : fallback;
+};
+
+const coerceNumber = (value: unknown, fallback: number): number => {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+};
+
+const isWatermarkPosition = (
+  value: unknown
+): value is 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center' =>
+  typeof value === 'string' &&
+  ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'].includes(value);
+
+const coerceWatermarkSettings = (
+  value: Record<string, unknown> | null,
+  fallback: WatermarkSettings
+): WatermarkSettings | null => {
+  if (!value) {
+    return null;
+  }
+  const positionCandidate = value.position;
+  return {
+    enabled: coerceBoolean(value.enabled, fallback.enabled),
+    assetId: coerceString(value.assetId ?? value.asset_id, fallback.assetId),
+    position: isWatermarkPosition(positionCandidate) ? positionCandidate : fallback.position,
+    size: coerceNumber(value.size, fallback.size),
+    opacity: coerceNumber(value.opacity, fallback.opacity),
+    margin: coerceNumber(value.margin, fallback.margin),
+  };
+};
+
+const coerceIntroCardSettings = (
+  value: Record<string, unknown> | null,
+  fallback: IntroCardSettings
+): IntroCardSettings | null => {
+  if (!value) {
+    return null;
+  }
+  return {
+    enabled: coerceBoolean(value.enabled, fallback.enabled),
+    title: coerceString(value.title, fallback.title) ?? fallback.title,
+    subtitle: coerceString(value.subtitle, fallback.subtitle) ?? fallback.subtitle,
+    logoAssetId: coerceString(value.logoAssetId ?? value.logo_asset_id, fallback.logoAssetId),
+    backgroundAssetId: coerceString(value.backgroundAssetId ?? value.background_asset_id, fallback.backgroundAssetId),
+    backgroundColor: coerceString(value.backgroundColor ?? value.background_color, fallback.backgroundColor) ?? fallback.backgroundColor,
+    textColor: coerceString(value.textColor ?? value.text_color, fallback.textColor) ?? fallback.textColor,
+    duration: coerceNumber(value.duration ?? value.duration_ms, fallback.duration),
+  };
+};
+
+const coerceOutroCardSettings = (
+  value: Record<string, unknown> | null,
+  fallback: OutroCardSettings
+): OutroCardSettings | null => {
+  if (!value) {
+    return null;
+  }
+  return {
+    enabled: coerceBoolean(value.enabled, fallback.enabled),
+    title: coerceString(value.title, fallback.title) ?? fallback.title,
+    ctaText: coerceString(value.ctaText ?? value.cta_text, fallback.ctaText) ?? fallback.ctaText,
+    ctaUrl: coerceString(value.ctaUrl ?? value.cta_url, fallback.ctaUrl) ?? fallback.ctaUrl,
+    logoAssetId: coerceString(value.logoAssetId ?? value.logo_asset_id, fallback.logoAssetId),
+    backgroundAssetId: coerceString(value.backgroundAssetId ?? value.background_asset_id, fallback.backgroundAssetId),
+    backgroundColor: coerceString(value.backgroundColor ?? value.background_color, fallback.backgroundColor) ?? fallback.backgroundColor,
+    textColor: coerceString(value.textColor ?? value.text_color, fallback.textColor) ?? fallback.textColor,
+    duration: coerceNumber(value.duration ?? value.duration_ms, fallback.duration),
+  };
+};
+
 export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
   const {
     replay,
@@ -164,17 +239,17 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
           setReplaySetting('exportRenderSource', config.renderSource);
         }
 
-        const watermark = asObject(config.watermark);
+        const watermark = coerceWatermarkSettings(asObject(config.watermark), replay.watermark);
         if (watermark) {
-          setReplaySetting('watermark', watermark as WatermarkSettings);
+          setReplaySetting('watermark', watermark);
         }
-        const introCard = asObject(config.introCard);
+        const introCard = coerceIntroCardSettings(asObject(config.introCard), replay.introCard);
         if (introCard) {
-          setReplaySetting('introCard', introCard as IntroCardSettings);
+          setReplaySetting('introCard', introCard);
         }
-        const outroCard = asObject(config.outroCard);
+        const outroCard = coerceOutroCardSettings(asObject(config.outroCard), replay.outroCard);
         if (outroCard) {
-          setReplaySetting('outroCard', outroCard as OutroCardSettings);
+          setReplaySetting('outroCard', outroCard);
         }
       } catch (error) {
         logger.warn('Failed to load replay config from API', { component: 'SettingsView' }, error);
