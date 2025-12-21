@@ -65,6 +65,18 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		}
 		opts.RequiresVideo = true
 	}
+	if parseBoolQuery(r, "requires_trace", "record_trace") {
+		if opts == nil {
+			opts = &workflowservice.ExecuteOptions{}
+		}
+		opts.RequiresTrace = true
+	}
+	if parseBoolQuery(r, "requires_har", "record_har") {
+		if opts == nil {
+			opts = &workflowservice.ExecuteOptions{}
+		}
+		opts.RequiresHAR = true
+	}
 
 	resp, err := h.executionService.ExecuteWorkflowAPIWithOptions(ctx, &req, opts)
 	if err != nil {
@@ -101,6 +113,18 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 	var opts *workflowservice.ExecuteOptions
 	if parseBoolQuery(r, "requires_video", "record_video") {
 		opts = &workflowservice.ExecuteOptions{RequiresVideo: true}
+	}
+	if parseBoolQuery(r, "requires_trace", "record_trace") {
+		if opts == nil {
+			opts = &workflowservice.ExecuteOptions{}
+		}
+		opts.RequiresTrace = true
+	}
+	if parseBoolQuery(r, "requires_har", "record_har") {
+		if opts == nil {
+			opts = &workflowservice.ExecuteOptions{}
+		}
+		opts.RequiresHAR = true
 	}
 	resp, err := h.executionService.ExecuteAdhocWorkflowAPIWithOptions(ctx, &req, opts)
 	if err != nil {

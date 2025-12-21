@@ -63,7 +63,7 @@ export async function buildContext(
 
   // HAR recording
   let harPath: string | undefined;
-  if (spec.required_capabilities?.har && config.telemetry.har.enabled) {
+  if (spec.required_capabilities?.har) {
     harPath =
       artifactPaths.har_path ||
       (artifactRoot ? path.join(artifactRoot, 'har', `execution-${spec.execution_id}.har`) : undefined) ||
@@ -93,7 +93,7 @@ export async function buildContext(
 
   // Tracing (if enabled)
   let tracePath: string | undefined;
-  const shouldTrace = spec.required_capabilities?.tracing && config.telemetry.tracing.enabled;
+  const shouldTrace = Boolean(spec.required_capabilities?.tracing);
   if (shouldTrace) {
     tracePath =
       artifactPaths.trace_path ||

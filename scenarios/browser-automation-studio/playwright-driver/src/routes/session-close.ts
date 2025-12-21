@@ -32,9 +32,17 @@ export async function handleSessionClose(
 
     logger.info(scopedLog(LogContext.SESSION, 'session closed'), { sessionId });
 
-    const response: { success: boolean; video_paths?: string[] } = { success: true };
+    const response: { success: boolean; video_paths?: string[]; trace_path?: string; har_path?: string } = {
+      success: true,
+    };
     if (result.videoPaths.length > 0) {
       response.video_paths = result.videoPaths;
+    }
+    if (result.tracePath) {
+      response.trace_path = result.tracePath;
+    }
+    if (result.harPath) {
+      response.har_path = result.harPath;
     }
     sendJson(res, 200, response);
   } catch (error) {

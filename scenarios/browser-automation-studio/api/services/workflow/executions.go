@@ -75,6 +75,10 @@ type ExecuteOptions struct {
 	FrameStreamingFPS int
 	// RequiresVideo forces video capture capability on the execution plan metadata.
 	RequiresVideo bool
+	// RequiresTrace forces trace capture capability on the execution plan metadata.
+	RequiresTrace bool
+	// RequiresHAR forces HAR capture capability on the execution plan metadata.
+	RequiresHAR bool
 }
 
 // ExecuteWorkflowAPI starts a workflow execution using proto request/response types.
@@ -298,6 +302,18 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 			plan.Metadata = make(map[string]any)
 		}
 		plan.Metadata["requiresVideo"] = true
+	}
+	if opts != nil && opts.RequiresTrace {
+		if plan.Metadata == nil {
+			plan.Metadata = make(map[string]any)
+		}
+		plan.Metadata["requiresTracing"] = true
+	}
+	if opts != nil && opts.RequiresHAR {
+		if plan.Metadata == nil {
+			plan.Metadata = make(map[string]any)
+		}
+		plan.Metadata["requiresHar"] = true
 	}
 
 	// Inject frame streaming config into plan metadata if enabled.

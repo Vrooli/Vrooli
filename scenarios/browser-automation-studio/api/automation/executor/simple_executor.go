@@ -995,30 +995,20 @@ func closeSessionWithArtifacts(ctx context.Context, session engine.EngineSession
 			logrus.WithError(err).WithField("execution_id", plan.ExecutionID).Warn("Failed to close session")
 			return
 		}
-		if recorder == nil || artifacts == nil || len(artifacts.VideoPaths) == 0 {
+		if recorder == nil || artifacts == nil {
 			return
 		}
 		downloader, _ := session.(sessionArtifactDownloader)
-		cleanups := make([]func(), 0, len(artifacts.VideoPaths))
-		external := make([]executionwriter.ExternalArtifact, 0, len(artifacts.VideoPaths))
+		cleanups := make([]func(), 0, len(artifacts.VideoPaths)+2)
+		external := make([]executionwriter.ExternalArtifact, 0, len(artifacts.VideoPaths)+2)
 		for index, videoPath := range artifacts.VideoPaths {
 			trimmedPath := strings.TrimSpace(videoPath)
 			if trimmedPath == "" {
 				continue
 			}
-			pathToStore := trimmedPath
-			contentType := ""
-			if _, statErr := os.Stat(trimmedPath); statErr != nil && downloader != nil {
-				downloadedPath, downloadedType, cleanup, dlErr := downloadVideoArtifact(ctx, downloader, trimmedPath)
-				if dlErr != nil {
-					logrus.WithError(dlErr).WithField("path", trimmedPath).Warn("Failed to download remote video artifact")
-					continue
-				}
-				pathToStore = downloadedPath
-				contentType = downloadedType
-				if cleanup != nil {
-					cleanups = append(cleanups, cleanup)
-				}
+			pathToStore, contentType, cleanup := resolveArtifactPath(ctx, downloader, trimmedPath, ".webm")
+			if cleanup != nil {
+				cleanups = append(cleanups, cleanup)
 			}
 			external = append(external, executionwriter.ExternalArtifact{
 				ArtifactType: "video_meta",
@@ -1026,16 +1016,49 @@ func closeSessionWithArtifacts(ctx context.Context, session engine.EngineSession
 				Path:         pathToStore,
 				ContentType:  contentType,
 				Payload: map[string]any{
-					"page_index": index,
+					"page_index":  index,
 					"source_path": trimmedPath,
 				},
 			})
 		}
+
+		if tracePath := strings.TrimSpace(artifacts.TracePath); tracePath != "" {
+			pathToStore, contentType, cleanup := resolveArtifactPath(ctx, downloader, tracePath, ".zip")
+			if cleanup != nil {
+				cleanups = append(cleanups, cleanup)
+			}
+			external = append(external, executionwriter.ExternalArtifact{
+				ArtifactType: "trace_meta",
+				Label:        "trace",
+				Path:         pathToStore,
+				ContentType:  contentType,
+				Payload: map[string]any{
+					"source_path": tracePath,
+				},
+			})
+		}
+
+		if harPath := strings.TrimSpace(artifacts.HARPath); harPath != "" {
+			pathToStore, contentType, cleanup := resolveArtifactPath(ctx, downloader, harPath, ".har")
+			if cleanup != nil {
+				cleanups = append(cleanups, cleanup)
+			}
+			external = append(external, executionwriter.ExternalArtifact{
+				ArtifactType: "har_meta",
+				Label:        "har",
+				Path:         pathToStore,
+				ContentType:  contentType,
+				Payload: map[string]any{
+					"source_path": harPath,
+				},
+			})
+		}
+
 		if len(external) == 0 {
 			return
 		}
 		if err := recorder.RecordExecutionArtifacts(ctx, plan, external); err != nil {
-			logrus.WithError(err).WithField("execution_id", plan.ExecutionID).Warn("Failed to persist video artifacts")
+			logrus.WithError(err).WithField("execution_id", plan.ExecutionID).Warn("Failed to persist execution artifacts")
 		}
 		for _, cleanup := range cleanups {
 			cleanup()
@@ -1048,7 +1071,7 @@ func closeSessionWithArtifacts(ctx context.Context, session engine.EngineSession
 	}
 }
 
-func downloadVideoArtifact(ctx context.Context, downloader sessionArtifactDownloader, sourcePath string) (string, string, func(), error) {
+func downloadSessionArtifact(ctx context.Context, downloader sessionArtifactDownloader, sourcePath string, fallbackExt string) (string, string, func(), error) {
 	if downloader == nil {
 		return "", "", nil, errors.New("artifact downloader unavailable")
 	}
@@ -1066,9 +1089,12 @@ func downloadVideoArtifact(ctx context.Context, downloader sessionArtifactDownlo
 		ext = extensionForContentType(download.ContentType)
 	}
 	if ext == "" {
-		ext = ".webm"
+		ext = fallbackExt
 	}
-	tmpFile, err := os.CreateTemp("", "bas-video-*"+ext)
+	if ext == "" {
+		ext = ".bin"
+	}
+	tmpFile, err := os.CreateTemp("", "bas-artifact-*"+ext)
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -1083,6 +1109,26 @@ func downloadVideoArtifact(ctx context.Context, downloader sessionArtifactDownlo
 	}
 	cleanup := func() { _ = os.Remove(tmpFile.Name()) }
 	return tmpFile.Name(), download.ContentType, cleanup, nil
+}
+
+func resolveArtifactPath(ctx context.Context, downloader sessionArtifactDownloader, sourcePath string, fallbackExt string) (string, string, func()) {
+	pathToStore := sourcePath
+	contentType := ""
+	if _, statErr := os.Stat(sourcePath); statErr != nil {
+		if downloader == nil {
+			logrus.WithError(statErr).WithField("path", sourcePath).Warn("Artifact path missing and downloader unavailable")
+			return pathToStore, contentType, nil
+		}
+		downloadedPath, downloadedType, cleanup, dlErr := downloadSessionArtifact(ctx, downloader, sourcePath, fallbackExt)
+		if dlErr != nil {
+			logrus.WithError(dlErr).WithField("path", sourcePath).Warn("Failed to download remote artifact")
+			return pathToStore, contentType, nil
+		}
+		pathToStore = downloadedPath
+		contentType = downloadedType
+		return pathToStore, contentType, cleanup
+	}
+	return pathToStore, contentType, nil
 }
 
 func extensionForContentType(contentType string) string {

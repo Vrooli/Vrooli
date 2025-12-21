@@ -63,6 +63,12 @@ func (s *executionServiceStub) GetExecutionVideoArtifacts(context.Context, uuid.
 	}
 	return s.videos, nil
 }
+func (s *executionServiceStub) GetExecutionTraceArtifacts(context.Context, uuid.UUID) ([]workflow.ExecutionFileArtifact, error) {
+	return nil, errors.New("not implemented")
+}
+func (s *executionServiceStub) GetExecutionHarArtifacts(context.Context, uuid.UUID) ([]workflow.ExecutionFileArtifact, error) {
+	return nil, errors.New("not implemented")
+}
 func (s *executionServiceStub) HydrateExecutionProto(context.Context, *database.ExecutionIndex) (*basexecution.Execution, error) {
 	return nil, errors.New("not implemented")
 }

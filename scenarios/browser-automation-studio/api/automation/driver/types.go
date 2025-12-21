@@ -322,6 +322,8 @@ type StepOutcomeResponse struct {
 type CloseSessionResponse struct {
 	Success    bool     `json:"success,omitempty"`
 	VideoPaths []string `json:"video_paths,omitempty"`
+	TracePath  string   `json:"trace_path,omitempty"`
+	HARPath    string   `json:"har_path,omitempty"`
 }
 
 // ArtifactDownload captures a streamed artifact response from the driver.

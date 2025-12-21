@@ -626,7 +626,11 @@ export class SessionManager {
       metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
       metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
     }
-    return { videoPaths };
+    return {
+      videoPaths,
+      tracePath: session.tracePath,
+      harPath: session.harPath,
+    };
   }
 
   /**

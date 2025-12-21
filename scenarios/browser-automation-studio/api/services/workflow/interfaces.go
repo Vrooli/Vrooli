@@ -81,6 +81,8 @@ type ExecutionService interface {
 	UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error
 	GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*basexecution.ExecutionScreenshot, error)
 	GetExecutionVideoArtifacts(ctx context.Context, executionID uuid.UUID) ([]ExecutionVideoArtifact, error)
+	GetExecutionTraceArtifacts(ctx context.Context, executionID uuid.UUID) ([]ExecutionFileArtifact, error)
+	GetExecutionHarArtifacts(ctx context.Context, executionID uuid.UUID) ([]ExecutionFileArtifact, error)
 	HydrateExecutionProto(ctx context.Context, execIndex *database.ExecutionIndex) (*basexecution.Execution, error)
 
 	// Timeline and export

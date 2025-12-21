@@ -20,6 +20,8 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	projectRoot := ""
 	adhoc := false
 	requiresVideo := false
+	requiresTrace := false
+	requiresHAR := false
 	fromFile := ""
 
 	for i := 0; i < len(args); i++ {
@@ -54,6 +56,10 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			adhoc = true
 		case "--record-video", "--requires-video":
 			requiresVideo = true
+		case "--record-trace", "--requires-trace":
+			requiresTrace = true
+		case "--record-har", "--requires-har":
+			requiresHAR = true
 		default:
 			if strings.HasPrefix(args[i], "--") {
 				return fmt.Errorf("unknown option: %s", args[i])
@@ -169,18 +175,14 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		}
 
 		executePath := ctx.APIPath("/workflows/execute-adhoc")
-		if requiresVideo {
-			executePath += "?requires_video=true"
-		}
+		executePath = appendExecuteQuery(executePath, requiresVideo, requiresTrace, requiresHAR)
 		response, err = ctx.Core.APIClient.Request("POST", executePath, nil, payload)
 		if err != nil {
 			return err
 		}
 	} else {
 		executePath := ctx.APIPath("/workflows/" + workflow + "/execute")
-		if requiresVideo {
-			executePath += "?requires_video=true"
-		}
+		executePath = appendExecuteQuery(executePath, requiresVideo, requiresTrace, requiresHAR)
 		payload := map[string]any{
 			"parameters":          params,
 			"wait_for_completion": wait,
@@ -259,7 +261,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			time.Sleep(5 * time.Second)
 		}
 		if completed {
-			printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo)
+			printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo, requiresTrace, requiresHAR)
 		}
 		if !completed {
 			if lastStatus == "" {
@@ -309,19 +311,42 @@ func extractWorkflowName(flowDef any) string {
 	return ""
 }
 
+func appendExecuteQuery(base string, requiresVideo bool, requiresTrace bool, requiresHAR bool) string {
+	pairs := make([]string, 0, 3)
+	if requiresVideo {
+		pairs = append(pairs, "requires_video=true")
+	}
+	if requiresTrace {
+		pairs = append(pairs, "requires_trace=true")
+	}
+	if requiresHAR {
+		pairs = append(pairs, "requires_har=true")
+	}
+	if len(pairs) == 0 {
+		return base
+	}
+	sep := "?"
+	if strings.Contains(base, "?") {
+		sep = "&"
+	}
+	return base + sep + strings.Join(pairs, "&")
+}
+
 type executionResultSummary struct {
 	Artifacts []struct {
 		ArtifactType string `json:"artifact_type"`
 	} `json:"artifacts"`
 }
 
-func printCollectedArtifacts(ctx *appctx.Context, executionID, recordingsRoot string, failed bool, requiresVideo bool) {
+func printCollectedArtifacts(ctx *appctx.Context, executionID, recordingsRoot string, failed bool, requiresVideo bool, requiresTrace bool, requiresHAR bool) {
 	fmt.Println("")
 	fmt.Println("Execution artifacts")
 
 	hasTimeline := false
 	hasScreenshots := false
 	hasVideos := false
+	hasTraces := false
+	hasHAR := false
 
 	if recordingsRoot != "" {
 		timelinePath := filepath.Join(recordingsRoot, "timeline.proto.json")
@@ -339,6 +364,10 @@ func printCollectedArtifacts(ctx *appctx.Context, executionID, recordingsRoot st
 						hasScreenshots = true
 					case "video", "video_meta":
 						hasVideos = true
+					case "trace", "trace_meta":
+						hasTraces = true
+					case "har", "har_meta":
+						hasHAR = true
 					}
 				}
 			}
@@ -354,7 +383,13 @@ func printCollectedArtifacts(ctx *appctx.Context, executionID, recordingsRoot st
 	if hasVideos {
 		fmt.Printf("Recorded videos: %s/executions/%s/recorded-videos\n", ctx.ResolvedAPIV1Base(), executionID)
 	}
-	if !hasTimeline && !hasScreenshots && !hasVideos {
+	if hasTraces {
+		fmt.Printf("Traces: %s/executions/%s/recorded-traces\n", ctx.ResolvedAPIV1Base(), executionID)
+	}
+	if hasHAR {
+		fmt.Printf("HAR files: %s/executions/%s/recorded-har\n", ctx.ResolvedAPIV1Base(), executionID)
+	}
+	if !hasTimeline && !hasScreenshots && !hasVideos && !hasTraces && !hasHAR {
 		fmt.Println("No artifacts detected yet.")
 	}
 
@@ -366,11 +401,33 @@ func printCollectedArtifacts(ctx *appctx.Context, executionID, recordingsRoot st
 		fmt.Println("Video capture was requested but no recordings were produced.")
 		fmt.Println("Check playwright-driver logs for video capture errors.")
 	}
+	if !hasTraces && requiresTrace {
+		fmt.Println("Trace capture was requested but no traces were produced.")
+		fmt.Println("Check playwright-driver logs for trace capture errors.")
+	}
+	if !hasHAR && requiresHAR {
+		fmt.Println("HAR capture was requested but no HAR files were produced.")
+		fmt.Println("Check playwright-driver logs for HAR capture errors.")
+	}
 
 	if !hasVideos && !requiresVideo {
 		optional := "To collect video recordings, rerun with: --requires-video"
 		if failed {
 			optional = "To collect video recordings on a retry, rerun with: --requires-video"
+		}
+		fmt.Println(optional)
+	}
+	if !hasTraces && !requiresTrace {
+		optional := "To collect traces, rerun with: --requires-trace"
+		if failed {
+			optional = "To collect traces on a retry, rerun with: --requires-trace"
+		}
+		fmt.Println(optional)
+	}
+	if !hasHAR && !requiresHAR {
+		optional := "To collect HAR files, rerun with: --requires-har"
+		if failed {
+			optional = "To collect HAR files on a retry, rerun with: --requires-har"
 		}
 		fmt.Println(optional)
 	}

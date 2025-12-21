@@ -191,6 +191,8 @@ export interface SessionState {
 
 export interface SessionCloseResult {
   videoPaths: string[];
+  tracePath?: string;
+  harPath?: string;
 }
 
 /**

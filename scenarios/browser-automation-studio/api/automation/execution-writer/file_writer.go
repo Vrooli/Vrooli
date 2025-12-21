@@ -610,6 +610,7 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 			artifactType = "custom"
 		}
 		isVideo := isVideoArtifactType(artifactType)
+		allowInline := !isNonInlineArtifactType(artifactType)
 
 		payload := map[string]any{
 			"path":       path,
@@ -619,7 +620,7 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 			payload[key] = value
 		}
 
-		if !isVideo && info.Size() > 0 && info.Size() <= maxEmbeddedExternalBytes {
+		if allowInline && info.Size() > 0 && info.Size() <= maxEmbeddedExternalBytes {
 			if data, readErr := os.ReadFile(path); readErr == nil {
 				payload["base64"] = base64.StdEncoding.EncodeToString(data)
 				payload["inline"] = true
@@ -670,6 +671,15 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 func isVideoArtifactType(kind string) bool {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
 	case "video", "video_meta":
+		return true
+	default:
+		return false
+	}
+}
+
+func isNonInlineArtifactType(kind string) bool {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "video", "video_meta", "trace", "trace_meta", "har", "har_meta":
 		return true
 	default:
 		return false
