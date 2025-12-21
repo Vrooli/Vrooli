@@ -35,7 +35,7 @@ func NewClient(timeout time.Duration) *Client {
 			Timeout: timeout,
 		},
 		jsonOpts: protojson.MarshalOptions{
-			UseProtoNames: true, // snake_case for JSON
+			UseProtoNames: false, // lowerCamelCase to match agent-manager HTTP handlers
 		},
 	}
 }
@@ -54,6 +54,30 @@ func (c *Client) Health(ctx context.Context) (bool, error) {
 // =============================================================================
 // PROFILES
 // =============================================================================
+
+// EnsureProfile resolves a profile by key, creating it with defaults if needed.
+func (c *Client) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequest) (*apipb.EnsureProfileResponse, error) {
+	body, err := c.jsonOpts.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	resp, err := c.doRequest(ctx, "POST", "/api/v1/profiles/ensure", body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, c.parseError(resp)
+	}
+
+	var result apipb.EnsureProfileResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
 
 // CreateProfile creates a new agent profile.
 func (c *Client) CreateProfile(ctx context.Context, profile *domainpb.AgentProfile) (*domainpb.AgentProfile, error) {

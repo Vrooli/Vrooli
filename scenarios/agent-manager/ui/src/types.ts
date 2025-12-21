@@ -55,6 +55,7 @@ export type RunEventType =
 export interface AgentProfile {
   id: string;
   name: string;
+  profileKey?: string;
   description?: string;
   runnerType: RunnerType;
   model?: string;
@@ -298,6 +299,7 @@ export interface ProbeRunnerResponse {
 // Form types
 export interface CreateProfileRequest {
   name: string;
+  profileKey?: string;
   description?: string;
   runnerType: RunnerType;
   model?: string;

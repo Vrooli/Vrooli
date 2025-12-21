@@ -10,6 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS agent_profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL UNIQUE,
+    profile_key VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
     runner_type VARCHAR(50) NOT NULL,
     model VARCHAR(100),
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_agent_profiles_name ON agent_profiles(name);
+CREATE INDEX IF NOT EXISTS idx_agent_profiles_profile_key ON agent_profiles(profile_key);
 
 -- ============================================================================
 -- Tasks - Defines WHAT needs to be done

@@ -30,6 +30,26 @@ class CreateProfileResponse(_message.Message):
     profile: _profile_pb2.AgentProfile
     def __init__(self, profile: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ...) -> None: ...
 
+class EnsureProfileRequest(_message.Message):
+    __slots__ = ()
+    PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
+    DEFAULTS_FIELD_NUMBER: _ClassVar[int]
+    UPDATE_EXISTING_FIELD_NUMBER: _ClassVar[int]
+    profile_key: str
+    defaults: _profile_pb2.AgentProfile
+    update_existing: bool
+    def __init__(self, profile_key: _Optional[str] = ..., defaults: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., update_existing: _Optional[bool] = ...) -> None: ...
+
+class EnsureProfileResponse(_message.Message):
+    __slots__ = ()
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_FIELD_NUMBER: _ClassVar[int]
+    profile: _profile_pb2.AgentProfile
+    created: bool
+    updated: bool
+    def __init__(self, profile: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., created: _Optional[bool] = ..., updated: _Optional[bool] = ...) -> None: ...
+
 class GetProfileRequest(_message.Message):
     __slots__ = ()
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -174,6 +194,14 @@ class CancelTaskResponse(_message.Message):
     status: str
     def __init__(self, success: _Optional[bool] = ..., status: _Optional[str] = ...) -> None: ...
 
+class ProfileRef(_message.Message):
+    __slots__ = ()
+    PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
+    DEFAULTS_FIELD_NUMBER: _ClassVar[int]
+    profile_key: str
+    defaults: _profile_pb2.AgentProfile
+    def __init__(self, profile_key: _Optional[str] = ..., defaults: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ...) -> None: ...
+
 class CreateRunRequest(_message.Message):
     __slots__ = ()
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
@@ -183,6 +211,7 @@ class CreateRunRequest(_message.Message):
     INLINE_CONFIG_FIELD_NUMBER: _ClassVar[int]
     FORCE_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_REF_FIELD_NUMBER: _ClassVar[int]
     task_id: str
     agent_profile_id: str
     tag: str
@@ -190,7 +219,8 @@ class CreateRunRequest(_message.Message):
     inline_config: _profile_pb2.RunConfig
     force: bool
     idempotency_key: str
-    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2_1.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+    profile_ref: ProfileRef
+    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2_1.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ...) -> None: ...
 
 class CreateRunResponse(_message.Message):
     __slots__ = ()

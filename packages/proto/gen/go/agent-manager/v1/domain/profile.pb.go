@@ -38,6 +38,10 @@ type AgentProfile struct {
 	// Human-readable name for the profile.
 	// @constraint 1-100 characters
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Stable key used to reference the profile across scenarios and runs.
+	// This is used for idempotent profile resolution.
+	// @constraint 1-100 characters
+	ProfileKey string `protobuf:"bytes,18,opt,name=profile_key,json=profileKey,proto3" json:"profile_key,omitempty"`
 	// Optional description of what this profile is used for.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Which agent runner to use (claude-code, codex, opencode).
@@ -122,6 +126,13 @@ func (x *AgentProfile) GetId() string {
 func (x *AgentProfile) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *AgentProfile) GetProfileKey() string {
+	if x != nil {
+		return x.ProfileKey
 	}
 	return ""
 }
@@ -451,10 +462,12 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xc5\x05\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xf1\x05\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
-	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\x04name\x12 \n" +
+	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\x04name\x12*\n" +
+	"\vprofile_key\x18\x12 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\n" +
+	"profileKey\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12=\n" +
 	"\vrunner_type\x18\x04 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +

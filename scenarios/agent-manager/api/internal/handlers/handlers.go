@@ -23,6 +23,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 
@@ -75,6 +76,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 	// Profile endpoints
 	r.HandleFunc("/api/v1/profiles", h.CreateProfile).Methods("POST")
+	r.HandleFunc("/api/v1/profiles/ensure", h.EnsureProfile).Methods("POST")
 	r.HandleFunc("/api/v1/profiles", h.ListProfiles).Methods("GET")
 	r.HandleFunc("/api/v1/profiles/{id}", h.GetProfile).Methods("GET")
 	r.HandleFunc("/api/v1/profiles/{id}", h.UpdateProfile).Methods("PUT")
@@ -296,6 +298,37 @@ func (h *Handler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeProtoJSON(w, http.StatusCreated, protoconv.AgentProfileToProto(result))
+}
+
+// EnsureProfile resolves a profile by key, creating it with defaults if needed.
+func (h *Handler) EnsureProfile(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.EnsureProfileRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+
+	result, err := h.svc.EnsureProfile(r.Context(), orchestration.EnsureProfileRequest{
+		ProfileKey:     req.ProfileKey,
+		Defaults:       protoconv.AgentProfileFromProto(req.Defaults),
+		UpdateExisting: req.UpdateExisting,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.EnsureProfileResponse{
+		Profile: protoconv.AgentProfileToProto(result.Profile),
+		Created: result.Created,
+		Updated: result.Updated,
+	})
 }
 
 // GetProfile retrieves a profile by ID.

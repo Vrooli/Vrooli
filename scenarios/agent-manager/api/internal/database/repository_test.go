@@ -86,6 +86,7 @@ func TestProfileCRUD(t *testing.T) {
 	profile := &domain.AgentProfile{
 		ID:                   uuid.New(),
 		Name:                 "test-profile",
+		ProfileKey:           "test-profile",
 		Description:          "A test profile",
 		RunnerType:           domain.RunnerTypeClaudeCode,
 		Model:                "claude-sonnet-4-20250514",
@@ -182,6 +183,7 @@ func TestProfileListPagination(t *testing.T) {
 		profile := &domain.AgentProfile{
 			ID:          uuid.New(),
 			Name:        fmt.Sprintf("profile-%d", i),
+			ProfileKey:  fmt.Sprintf("profile-%d", i),
 			Description: "Test",
 			RunnerType:  domain.RunnerTypeClaudeCode,
 		}
@@ -445,6 +447,7 @@ func TestRunListFilters(t *testing.T) {
 	profile := &domain.AgentProfile{
 		ID:         uuid.New(),
 		Name:       "filter-profile",
+		ProfileKey: "filter-profile",
 		RunnerType: domain.RunnerTypeClaudeCode,
 	}
 	if err := repos.Profiles.Create(ctx, profile); err != nil {
@@ -1140,7 +1143,7 @@ func TestRunWithComplexFields(t *testing.T) {
 	}
 
 	// Create profile
-	profile := &domain.AgentProfile{ID: uuid.New(), Name: "complex-profile", RunnerType: domain.RunnerTypeClaudeCode}
+	profile := &domain.AgentProfile{ID: uuid.New(), Name: "complex-profile", ProfileKey: "complex-profile", RunnerType: domain.RunnerTypeClaudeCode}
 	if err := repos.Profiles.Create(ctx, profile); err != nil {
 		t.Fatalf("Create profile: %v", err)
 	}

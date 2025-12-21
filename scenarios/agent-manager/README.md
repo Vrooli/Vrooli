@@ -105,6 +105,7 @@ Append-only event stream capturing all agent activity (logs, messages, tool call
 |--------|------|-------------|
 | GET | `/health` | Health check |
 | POST | `/api/v1/profiles` | Create agent profile |
+| POST | `/api/v1/profiles/ensure` | Ensure profile by key (create if missing) |
 | GET | `/api/v1/profiles` | List agent profiles |
 | POST | `/api/v1/tasks` | Create task |
 | GET | `/api/v1/tasks` | List tasks |

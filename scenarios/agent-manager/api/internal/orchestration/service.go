@@ -42,6 +42,7 @@ type Service interface {
 	ListProfiles(ctx context.Context, opts ListOptions) ([]*domain.AgentProfile, error)
 	UpdateProfile(ctx context.Context, profile *domain.AgentProfile) (*domain.AgentProfile, error)
 	DeleteProfile(ctx context.Context, id uuid.UUID) error
+	EnsureProfile(ctx context.Context, req EnsureProfileRequest) (*EnsureProfileResult, error)
 
 	// --- Task Operations ---
 	CreateTask(ctx context.Context, task *domain.Task) (*domain.Task, error)
@@ -109,6 +110,9 @@ type CreateRunRequest struct {
 	// Profile-based config (optional - can be nil if inline config provided)
 	AgentProfileID *uuid.UUID `json:"agentProfileId,omitempty"`
 
+	// ProfileRef resolves a profile by key with fallback defaults.
+	ProfileRef *ProfileRef `json:"profileRef,omitempty"`
+
 	// Custom tag for identification (defaults to run ID if not set)
 	// Used for agent tracking, log filtering, and external process identification
 	// Example: "ecosystem-task-123", "test-genie-abc"
@@ -136,6 +140,26 @@ type CreateRunRequest struct {
 	// If provided and a run with this key already exists, the existing run is returned.
 	// Format suggestion: "run:{taskID}:{timestamp}" or caller-defined unique string.
 	IdempotencyKey string `json:"idempotencyKey,omitempty"`
+}
+
+// ProfileRef identifies a profile by key with optional defaults.
+type ProfileRef struct {
+	ProfileKey string               `json:"profileKey"`
+	Defaults   *domain.AgentProfile `json:"defaults,omitempty"`
+}
+
+// EnsureProfileRequest resolves a profile by key.
+type EnsureProfileRequest struct {
+	ProfileKey     string               `json:"profileKey"`
+	Defaults       *domain.AgentProfile `json:"defaults,omitempty"`
+	UpdateExisting bool                 `json:"updateExisting,omitempty"`
+}
+
+// EnsureProfileResult captures profile resolution outcome.
+type EnsureProfileResult struct {
+	Profile *domain.AgentProfile `json:"profile"`
+	Created bool                 `json:"created"`
+	Updated bool                 `json:"updated"`
 }
 
 // StopAllOptions specifies which runs to stop in a bulk operation.
@@ -395,6 +419,10 @@ func (o *Orchestrator) CreateProfile(ctx context.Context, profile *domain.AgentP
 	profile.CreatedAt = time.Now()
 	profile.UpdatedAt = profile.CreatedAt
 
+	if err := normalizeProfileInput(profile); err != nil {
+		return nil, err
+	}
+
 	if err := o.profiles.Create(ctx, profile); err != nil {
 		return nil, fmt.Errorf("failed to create profile: %w", err)
 	}
@@ -422,6 +450,11 @@ func (o *Orchestrator) ListProfiles(ctx context.Context, opts ListOptions) ([]*d
 
 func (o *Orchestrator) UpdateProfile(ctx context.Context, profile *domain.AgentProfile) (*domain.AgentProfile, error) {
 	profile.UpdatedAt = time.Now()
+
+	if err := normalizeProfileInput(profile); err != nil {
+		return nil, err
+	}
+
 	if err := o.profiles.Update(ctx, profile); err != nil {
 		return nil, fmt.Errorf("failed to update profile: %w", err)
 	}
@@ -430,6 +463,86 @@ func (o *Orchestrator) UpdateProfile(ctx context.Context, profile *domain.AgentP
 
 func (o *Orchestrator) DeleteProfile(ctx context.Context, id uuid.UUID) error {
 	return o.profiles.Delete(ctx, id)
+}
+
+// EnsureProfile resolves a profile by key, creating it with defaults if needed.
+func (o *Orchestrator) EnsureProfile(ctx context.Context, req EnsureProfileRequest) (*EnsureProfileResult, error) {
+	key := strings.TrimSpace(req.ProfileKey)
+	if key == "" {
+		return nil, domain.NewValidationErrorWithHint("profileKey", "field is required",
+			"Provide a stable profile key for lookup or creation")
+	}
+
+	existing, err := o.profiles.GetByKey(ctx, key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get profile by key: %w", err)
+	}
+
+	if existing != nil && !req.UpdateExisting {
+		return &EnsureProfileResult{Profile: existing}, nil
+	}
+
+	if req.Defaults == nil {
+		return nil, domain.NewValidationErrorWithHint("defaults", "field is required",
+			"Provide default profile settings to create a new profile")
+	}
+
+	candidate := *req.Defaults
+	candidate.ProfileKey = key
+	if strings.TrimSpace(candidate.Name) == "" {
+		candidate.Name = key
+	}
+
+	now := time.Now()
+	if existing == nil {
+		if candidate.ID == uuid.Nil {
+			candidate.ID = uuid.New()
+		}
+		candidate.CreatedAt = now
+		candidate.UpdatedAt = now
+
+		if err := normalizeProfileInput(&candidate); err != nil {
+			return nil, err
+		}
+		if err := o.profiles.Create(ctx, &candidate); err != nil {
+			return nil, fmt.Errorf("failed to create profile: %w", err)
+		}
+		return &EnsureProfileResult{Profile: &candidate, Created: true}, nil
+	}
+
+	candidate.ID = existing.ID
+	candidate.CreatedAt = existing.CreatedAt
+	candidate.UpdatedAt = now
+	if candidate.CreatedBy == "" {
+		candidate.CreatedBy = existing.CreatedBy
+	}
+
+	if err := normalizeProfileInput(&candidate); err != nil {
+		return nil, err
+	}
+	if err := o.profiles.Update(ctx, &candidate); err != nil {
+		return nil, fmt.Errorf("failed to update profile: %w", err)
+	}
+
+	return &EnsureProfileResult{Profile: &candidate, Updated: true}, nil
+}
+
+func normalizeProfileInput(profile *domain.AgentProfile) error {
+	if profile == nil {
+		return domain.NewValidationError("profile", "cannot be nil")
+	}
+
+	name := strings.TrimSpace(profile.Name)
+	key := strings.TrimSpace(profile.ProfileKey)
+	if key == "" && name != "" {
+		profile.ProfileKey = name
+		key = name
+	}
+	if name == "" && key != "" {
+		profile.Name = key
+	}
+
+	return profile.Validate()
 }
 
 // -----------------------------------------------------------------------------
@@ -569,6 +682,12 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		return nil, err
 	}
 
+	if req.AgentProfileID != nil && req.ProfileRef != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, domain.NewValidationErrorWithHint("agentProfileId/profileRef", "only one profile reference is allowed",
+			"provide either agentProfileId or profileRef")
+	}
+
 	// Resolve configuration: profile (if provided) + inline overrides
 	resolvedConfig, profile, err := o.resolveRunConfig(ctx, req)
 	if err != nil {
@@ -611,11 +730,15 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	}
 
 	// Create the run with progress tracking initialized
+	profileID := req.AgentProfileID
+	if profile != nil {
+		profileID = &profile.ID
+	}
 	run := &domain.Run{
 		ID:              uuid.New(),
 		TaskID:          task.ID,
-		AgentProfileID:  req.AgentProfileID, // May be nil if inline config used
-		Tag:             req.Tag,            // Custom tag for identification
+		AgentProfileID:  profileID, // May be nil if inline config used
+		Tag:             req.Tag,   // Custom tag for identification
 		RunMode:         runMode,
 		Status:          domain.RunStatusPending,
 		Phase:           domain.RunPhaseQueued,
@@ -677,6 +800,21 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 			return nil, nil, err
 		}
 		cfg.ApplyProfile(profile)
+	}
+
+	// Resolve profile by key if provided
+	if req.ProfileRef != nil {
+		result, err := o.EnsureProfile(ctx, EnsureProfileRequest{
+			ProfileKey: req.ProfileRef.ProfileKey,
+			Defaults:   req.ProfileRef.Defaults,
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		profile = result.Profile
+		if profile != nil {
+			cfg.ApplyProfile(profile)
+		}
 	}
 
 	// Apply inline overrides

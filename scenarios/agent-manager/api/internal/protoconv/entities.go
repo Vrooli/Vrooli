@@ -22,6 +22,7 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 	return &pb.AgentProfile{
 		Id:                   UUIDToString(p.ID),
 		Name:                 p.Name,
+		ProfileKey:           p.ProfileKey,
 		Description:          p.Description,
 		RunnerType:           RunnerTypeToProto(p.RunnerType),
 		Model:                p.Model,
@@ -48,6 +49,7 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 	return &domain.AgentProfile{
 		ID:                   UUIDFromString(p.Id),
 		Name:                 p.Name,
+		ProfileKey:           p.ProfileKey,
 		Description:          p.Description,
 		RunnerType:           RunnerTypeFromProto(p.RunnerType),
 		Model:                p.Model,

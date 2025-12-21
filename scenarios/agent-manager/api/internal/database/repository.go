@@ -15,27 +15,27 @@ import (
 
 // Repositories holds all PostgreSQL repository implementations.
 type Repositories struct {
-	Profiles     repository.ProfileRepository
-	Tasks        repository.TaskRepository
-	Runs         repository.RunRepository
-	Events       repository.EventRepository
-	Checkpoints  repository.CheckpointRepository
-	Idempotency  repository.IdempotencyRepository
-	Policies     repository.PolicyRepository
-	Locks        repository.LockRepository
+	Profiles    repository.ProfileRepository
+	Tasks       repository.TaskRepository
+	Runs        repository.RunRepository
+	Events      repository.EventRepository
+	Checkpoints repository.CheckpointRepository
+	Idempotency repository.IdempotencyRepository
+	Policies    repository.PolicyRepository
+	Locks       repository.LockRepository
 }
 
 // NewRepositories creates all repository implementations using the given database connection.
 func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 	return &Repositories{
-		Profiles:     &profileRepository{db: db, log: log},
-		Tasks:        &taskRepository{db: db, log: log},
-		Runs:         &runRepository{db: db, log: log},
-		Events:       &eventRepository{db: db, log: log},
-		Checkpoints:  &checkpointRepository{db: db, log: log},
-		Idempotency:  &idempotencyRepository{db: db, log: log},
-		Policies:     &policyRepository{db: db, log: log},
-		Locks:        &lockRepository{db: db, log: log},
+		Profiles:    &profileRepository{db: db, log: log},
+		Tasks:       &taskRepository{db: db, log: log},
+		Runs:        &runRepository{db: db, log: log},
+		Events:      &eventRepository{db: db, log: log},
+		Checkpoints: &checkpointRepository{db: db, log: log},
+		Idempotency: &idempotencyRepository{db: db, log: log},
+		Policies:    &policyRepository{db: db, log: log},
+		Locks:       &lockRepository{db: db, log: log},
 	}
 }
 
@@ -68,6 +68,7 @@ var _ repository.ProfileRepository = (*profileRepository)(nil)
 type profileRow struct {
 	ID                   uuid.UUID   `db:"id"`
 	Name                 string      `db:"name"`
+	ProfileKey           string      `db:"profile_key"`
 	Description          string      `db:"description"`
 	RunnerType           string      `db:"runner_type"`
 	Model                string      `db:"model"`
@@ -89,6 +90,7 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 	return &domain.AgentProfile{
 		ID:                   r.ID,
 		Name:                 r.Name,
+		ProfileKey:           r.ProfileKey,
 		Description:          r.Description,
 		RunnerType:           domain.RunnerType(r.RunnerType),
 		Model:                r.Model,
@@ -111,6 +113,7 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 	return &profileRow{
 		ID:                   p.ID,
 		Name:                 p.Name,
+		ProfileKey:           p.ProfileKey,
 		Description:          p.Description,
 		RunnerType:           string(p.RunnerType),
 		Model:                p.Model,
@@ -129,7 +132,7 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 	}
 }
 
-const profileColumns = `id, name, description, runner_type, model, max_turns, timeout_ms,
+const profileColumns = `id, name, profile_key, description, runner_type, model, max_turns, timeout_ms,
 	allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
 	allowed_paths, denied_paths, created_by, created_at, updated_at`
 
@@ -142,10 +145,10 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 	profile.UpdatedAt = now
 
 	row := profileFromDomain(profile)
-	query := `INSERT INTO agent_profiles (id, name, description, runner_type, model, max_turns, timeout_ms,
+	query := `INSERT INTO agent_profiles (id, name, profile_key, description, runner_type, model, max_turns, timeout_ms,
 		allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
 		allowed_paths, denied_paths, created_by, created_at, updated_at)
-		VALUES (:id, :name, :description, :runner_type, :model, :max_turns, :timeout_ms,
+		VALUES (:id, :name, :profile_key, :description, :runner_type, :model, :max_turns, :timeout_ms,
 		:allowed_tools, :denied_tools, :skip_permission_prompt, :requires_sandbox, :requires_approval,
 		:allowed_paths, :denied_paths, :created_by, :created_at, :updated_at)`
 
@@ -181,6 +184,18 @@ func (r *profileRepository) GetByName(ctx context.Context, name string) (*domain
 	return row.toDomain(), nil
 }
 
+func (r *profileRepository) GetByKey(ctx context.Context, key string) (*domain.AgentProfile, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM agent_profiles WHERE profile_key = ?", profileColumns))
+	var row profileRow
+	if err := r.db.GetContext(ctx, &row, query, key); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get profile by key: %w", err)
+	}
+	return row.toDomain(), nil
+}
+
 func (r *profileRepository) List(ctx context.Context, filter repository.ListFilter) ([]*domain.AgentProfile, error) {
 	base := fmt.Sprintf("SELECT %s FROM agent_profiles ORDER BY updated_at DESC", profileColumns)
 	queryWithPaging, args := appendLimitOffset(base, filter.Limit, filter.Offset)
@@ -202,7 +217,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 	profile.UpdatedAt = time.Now()
 	row := profileFromDomain(profile)
 
-	query := `UPDATE agent_profiles SET name = :name, description = :description,
+	query := `UPDATE agent_profiles SET name = :name, profile_key = :profile_key, description = :description,
 		runner_type = :runner_type, model = :model, max_turns = :max_turns, timeout_ms = :timeout_ms,
 		allowed_tools = :allowed_tools, denied_tools = :denied_tools,
 		skip_permission_prompt = :skip_permission_prompt, requires_sandbox = :requires_sandbox,

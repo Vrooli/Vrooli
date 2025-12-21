@@ -43,6 +43,11 @@ message AgentProfile {
   // @constraint 1-100 characters
   string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 100}];
 
+  // Stable key used to reference the profile across scenarios and runs.
+  // This is used for idempotent profile resolution.
+  // @constraint 1-100 characters
+  string profile_key = 18 [(buf.validate.field).string = {min_len: 1, max_len: 100}];
+
   // Optional description of what this profile is used for.
   string description = 3;
 

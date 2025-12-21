@@ -27,6 +27,7 @@ func Run(cfg *config.Config) error {
 
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
 		ProfileName: cfg.AgentManager.ProfileName,
+		ProfileKey:  cfg.AgentManager.ProfileKey,
 		Timeout:     cfg.AgentManager.Timeout,
 		Enabled:     cfg.AgentManager.Enabled,
 	})

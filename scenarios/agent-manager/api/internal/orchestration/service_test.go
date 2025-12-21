@@ -114,6 +114,58 @@ func TestOrchestrator_ProfileCRUD(t *testing.T) {
 	}
 }
 
+func TestOrchestrator_EnsureProfile(t *testing.T) {
+	svc := newTestOrchestrator(t)
+	ctx := context.Background()
+
+	result, err := svc.EnsureProfile(ctx, orchestration.EnsureProfileRequest{
+		ProfileKey: "system-monitor-investigator",
+		Defaults: &domain.AgentProfile{
+			Name:       "System Monitor Investigator",
+			RunnerType: domain.RunnerTypeCodex,
+			Model:      "codex-mini-latest",
+		},
+	})
+	if err != nil {
+		t.Fatalf("EnsureProfile create failed: %v", err)
+	}
+	if !result.Created || result.Profile == nil {
+		t.Fatalf("expected profile to be created")
+	}
+	if result.Profile.ProfileKey != "system-monitor-investigator" {
+		t.Errorf("expected profile key to be set, got %q", result.Profile.ProfileKey)
+	}
+
+	result, err = svc.EnsureProfile(ctx, orchestration.EnsureProfileRequest{
+		ProfileKey: "system-monitor-investigator",
+	})
+	if err != nil {
+		t.Fatalf("EnsureProfile resolve failed: %v", err)
+	}
+	if result.Created || result.Updated {
+		t.Errorf("expected resolve without create/update")
+	}
+
+	result, err = svc.EnsureProfile(ctx, orchestration.EnsureProfileRequest{
+		ProfileKey:     "system-monitor-investigator",
+		UpdateExisting: true,
+		Defaults: &domain.AgentProfile{
+			Name:       "System Monitor Investigator",
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Model:      "claude-3-opus",
+		},
+	})
+	if err != nil {
+		t.Fatalf("EnsureProfile update failed: %v", err)
+	}
+	if !result.Updated {
+		t.Errorf("expected profile to be updated")
+	}
+	if result.Profile.RunnerType != domain.RunnerTypeClaudeCode {
+		t.Errorf("expected runner type to update, got %v", result.Profile.RunnerType)
+	}
+}
+
 func TestOrchestrator_TaskCRUD(t *testing.T) {
 	svc := newTestOrchestrator(t)
 	ctx := context.Background()

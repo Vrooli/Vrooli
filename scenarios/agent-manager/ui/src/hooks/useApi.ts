@@ -367,6 +367,7 @@ function mapAgentProfile(value: unknown): AgentProfile {
   return {
     id: String(getField(record, "id") ?? ""),
     name: String(getField(record, "name") ?? ""),
+    profileKey: getField(record, "profileKey", "profile_key"),
     description: getField(record, "description"),
     runnerType: (normalizeRunnerType(getField(record, "runnerType", "runner_type")) ??
       getField(record, "runnerType", "runner_type") ??

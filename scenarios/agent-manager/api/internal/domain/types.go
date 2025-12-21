@@ -23,6 +23,7 @@ import (
 type AgentProfile struct {
 	ID          uuid.UUID `json:"id" db:"id"`
 	Name        string    `json:"name" db:"name"`
+	ProfileKey  string    `json:"profileKey" db:"profile_key"`
 	Description string    `json:"description,omitempty" db:"description"`
 
 	// Runner configuration

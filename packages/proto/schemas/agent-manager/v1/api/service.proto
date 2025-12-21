@@ -65,6 +65,14 @@ service AgentManagerService {
     };
   }
 
+  // EnsureProfile resolves a profile by key, creating it with defaults if needed.
+  rpc EnsureProfile(EnsureProfileRequest) returns (EnsureProfileResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/profiles/ensure"
+      body: "*"
+    };
+  }
+
   // GetProfile retrieves a profile by ID.
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
     option (google.api.http) = {
@@ -277,6 +285,30 @@ message CreateProfileResponse {
   AgentProfile profile = 1;
 }
 
+// EnsureProfileRequest resolves a profile by key, creating it with defaults if needed.
+message EnsureProfileRequest {
+  // Stable profile key for lookup or creation.
+  string profile_key = 1 [(buf.validate.field).string = {min_len: 1, max_len: 100}];
+
+  // Default profile settings to use if the profile does not exist.
+  AgentProfile defaults = 2;
+
+  // Update an existing profile with defaults (opt-in).
+  bool update_existing = 3;
+}
+
+// EnsureProfileResponse returns the resolved profile and creation metadata.
+message EnsureProfileResponse {
+  // The resolved profile.
+  AgentProfile profile = 1;
+
+  // True if the profile was created during this call.
+  bool created = 2;
+
+  // True if the profile was updated during this call.
+  bool updated = 3;
+}
+
 // GetProfileRequest identifies a profile to retrieve.
 message GetProfileRequest {
   // Profile ID.
@@ -448,6 +480,15 @@ message CancelTaskResponse {
 // RUN MESSAGES
 // =============================================================================
 
+// ProfileRef identifies a profile by key and optional defaults.
+message ProfileRef {
+  // Stable profile key for lookup or creation.
+  string profile_key = 1 [(buf.validate.field).string = {min_len: 1, max_len: 100}];
+
+  // Default profile settings to use if the profile does not exist.
+  AgentProfile defaults = 2;
+}
+
 // CreateRunRequest starts a new run.
 message CreateRunRequest {
   // Task ID to execute.
@@ -473,6 +514,9 @@ message CreateRunRequest {
 
   // Idempotency key for replay safety.
   optional string idempotency_key = 7;
+
+  // Profile reference for key-based resolution (optional).
+  optional ProfileRef profile_ref = 8;
 }
 
 // CreateRunResponse returns the created run.

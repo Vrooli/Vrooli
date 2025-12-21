@@ -157,6 +157,17 @@ func (p *AgentProfile) Validate() error {
 		return NewValidationError("description", "must be 4096 characters or less")
 	}
 
+	// ProfileKey is optional but must be non-empty if provided
+	if p.ProfileKey != "" {
+		key := strings.TrimSpace(p.ProfileKey)
+		if key == "" {
+			return NewValidationError("profileKey", "cannot be empty when provided")
+		}
+		if len(key) > 255 {
+			return NewValidationError("profileKey", "must be 255 characters or less")
+		}
+	}
+
 	// RunnerType must be valid
 	if !p.RunnerType.IsValid() {
 		return NewValidationErrorWithHint("runnerType", "invalid runner type",

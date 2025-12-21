@@ -49,6 +49,9 @@ type ProfileRepository interface {
 	// GetByName retrieves a profile by name.
 	GetByName(ctx context.Context, name string) (*domain.AgentProfile, error)
 
+	// GetByKey retrieves a profile by key.
+	GetByKey(ctx context.Context, key string) (*domain.AgentProfile, error)
+
 	// List retrieves profiles with optional filtering.
 	List(ctx context.Context, filter ListFilter) ([]*domain.AgentProfile, error)
 

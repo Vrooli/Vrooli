@@ -264,6 +264,7 @@ func TestAgentProfileRoundTrip(t *testing.T) {
 	original := &domain.AgentProfile{
 		ID:                   uuid.New(),
 		Name:                 "test-profile",
+		ProfileKey:           "test-profile-key",
 		Description:          "A test profile",
 		RunnerType:           domain.RunnerTypeClaudeCode,
 		Model:                "claude-3-opus",
@@ -289,6 +290,9 @@ func TestAgentProfileRoundTrip(t *testing.T) {
 	}
 	if result.Name != original.Name {
 		t.Errorf("Name: expected %v, got %v", original.Name, result.Name)
+	}
+	if result.ProfileKey != original.ProfileKey {
+		t.Errorf("ProfileKey: expected %v, got %v", original.ProfileKey, result.ProfileKey)
 	}
 	if result.RunnerType != original.RunnerType {
 		t.Errorf("RunnerType: expected %v, got %v", original.RunnerType, result.RunnerType)

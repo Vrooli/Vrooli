@@ -19,6 +19,7 @@ import (
 type AgentService struct {
 	client      *Client
 	profileName string
+	profileKey  string
 	profileID   string
 	mu          sync.RWMutex
 	enabled     bool
@@ -27,6 +28,7 @@ type AgentService struct {
 // AgentServiceConfig contains configuration for the agent service.
 type AgentServiceConfig struct {
 	ProfileName string
+	ProfileKey  string
 	Timeout     time.Duration
 	Enabled     bool
 }
@@ -37,6 +39,7 @@ func NewAgentService(cfg AgentServiceConfig) *AgentService {
 	return &AgentService{
 		client:      client,
 		profileName: cfg.ProfileName,
+		profileKey:  cfg.ProfileKey,
 		enabled:     cfg.Enabled,
 	}
 }
@@ -70,20 +73,25 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 		return nil
 	}
 
-	profile := s.buildProfile(cfg)
-	created, isNew, err := s.client.UpsertProfile(ctx, profile)
+	resp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
+		ProfileKey:     s.profileKey,
+		Defaults:       s.buildProfile(cfg),
+		UpdateExisting: false,
+	})
 	if err != nil {
-		return fmt.Errorf("upsert profile: %w", err)
+		return fmt.Errorf("ensure profile: %w", err)
 	}
 
 	s.mu.Lock()
-	s.profileID = created.Id
+	if resp.Profile != nil {
+		s.profileID = resp.Profile.Id
+	}
 	s.mu.Unlock()
 
-	if isNew {
-		log.Printf("[agent-manager] Created profile '%s' (id=%s)", s.profileName, created.Id)
+	if resp.Created {
+		log.Printf("[agent-manager] Created profile '%s' (id=%s)", s.profileName, s.profileID)
 	} else {
-		log.Printf("[agent-manager] Updated profile '%s' (id=%s)", s.profileName, created.Id)
+		log.Printf("[agent-manager] Resolved profile '%s' (id=%s)", s.profileName, s.profileID)
 	}
 
 	return nil
@@ -118,6 +126,7 @@ func DefaultProfileConfig() *ProfileConfig {
 func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 	return &domainpb.AgentProfile{
 		Name:                 s.profileName,
+		ProfileKey:           s.profileKey,
 		Description:          "Agent profile for system-monitor investigations",
 		RunnerType:           cfg.RunnerType,
 		Model:                cfg.Model,
@@ -129,6 +138,44 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		RequiresApproval:     cfg.RequiresApproval,
 		CreatedBy:            "system-monitor",
 	}
+}
+
+func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {
+	return &apipb.ProfileRef{
+		ProfileKey: s.profileKey,
+		Defaults:   s.buildProfile(DefaultProfileConfig()),
+	}
+}
+
+// EnsureProfile resolves the profile by key, creating it with defaults if needed.
+func (s *AgentService) EnsureProfile(ctx context.Context, cfg *ProfileConfig, updateExisting bool) (*domainpb.AgentProfile, error) {
+	if !s.enabled {
+		return nil, fmt.Errorf("agent-manager not enabled")
+	}
+
+	if cfg == nil {
+		cfg = DefaultProfileConfig()
+	}
+
+	resp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
+		ProfileKey:     s.profileKey,
+		Defaults:       s.buildProfile(cfg),
+		UpdateExisting: updateExisting,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ensure profile: %w", err)
+	}
+
+	if resp.Profile != nil {
+		s.mu.Lock()
+		s.profileID = resp.Profile.Id
+		if resp.Profile.Name != "" {
+			s.profileName = resp.Profile.Name
+		}
+		s.mu.Unlock()
+	}
+
+	return resp.Profile, nil
 }
 
 // GetProfileID returns the current profile ID.
@@ -144,11 +191,13 @@ func (s *AgentService) GetProfile(ctx context.Context) (*domainpb.AgentProfile, 
 		return nil, fmt.Errorf("agent-manager not enabled")
 	}
 
-	profileID := s.GetProfileID()
-	if profileID == "" {
-		return nil, fmt.Errorf("profile not initialized")
+	if s.GetProfileID() == "" {
+		if _, err := s.EnsureProfile(ctx, DefaultProfileConfig(), false); err != nil {
+			return nil, err
+		}
 	}
 
+	profileID := s.GetProfileID()
 	return s.client.GetProfile(ctx, profileID)
 }
 
@@ -156,6 +205,12 @@ func (s *AgentService) GetProfile(ctx context.Context) (*domainpb.AgentProfile, 
 func (s *AgentService) UpdateProfile(ctx context.Context, cfg *ProfileConfig) (*domainpb.AgentProfile, error) {
 	if !s.enabled {
 		return nil, fmt.Errorf("agent-manager not enabled")
+	}
+
+	if s.GetProfileID() == "" {
+		if _, err := s.EnsureProfile(ctx, cfg, false); err != nil {
+			return nil, err
+		}
 	}
 
 	profile := s.buildProfile(cfg)
@@ -265,11 +320,6 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 		return nil, fmt.Errorf("agent-manager not enabled")
 	}
 
-	profileID := s.GetProfileID()
-	if profileID == "" {
-		return nil, fmt.Errorf("profile not initialized")
-	}
-
 	// Create task for this investigation
 	task := &domainpb.Task{
 		Title:       fmt.Sprintf("System Investigation %s", req.InvestigationID),
@@ -287,11 +337,11 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 	// Create run with tag for tracking
 	tag := fmt.Sprintf("system-monitor-%s", req.InvestigationID)
 	runReq := &apipb.CreateRunRequest{
-		TaskId:         createdTask.Id,
-		AgentProfileId: &profileID,
-		Tag:            &tag,
-		RunMode:        domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
-		Force:          true, // Bypass capacity limits for investigations
+		TaskId:     createdTask.Id,
+		ProfileRef: s.defaultProfileRef(),
+		Tag:        &tag,
+		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
+		Force:      true, // Bypass capacity limits for investigations
 	}
 
 	// Apply inline config overrides if provided
@@ -358,11 +408,6 @@ func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (st
 		return "", fmt.Errorf("agent-manager not enabled")
 	}
 
-	profileID := s.GetProfileID()
-	if profileID == "" {
-		return "", fmt.Errorf("profile not initialized")
-	}
-
 	// Create task
 	task := &domainpb.Task{
 		Title:       fmt.Sprintf("System Investigation %s", req.InvestigationID),
@@ -380,11 +425,11 @@ func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (st
 	// Create run
 	tag := fmt.Sprintf("system-monitor-%s", req.InvestigationID)
 	runReq := &apipb.CreateRunRequest{
-		TaskId:         createdTask.Id,
-		AgentProfileId: &profileID,
-		Tag:            &tag,
-		RunMode:        domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
-		Force:          true,
+		TaskId:     createdTask.Id,
+		ProfileRef: s.defaultProfileRef(),
+		Tag:        &tag,
+		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
+		Force:      true,
 	}
 
 	if req.InlineConfig != nil {

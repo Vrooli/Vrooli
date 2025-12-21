@@ -25,6 +25,7 @@ type MemoryProfileRepository struct {
 	mu       sync.RWMutex
 	profiles map[uuid.UUID]*domain.AgentProfile
 	byName   map[string]uuid.UUID
+	byKey    map[string]uuid.UUID
 }
 
 // NewMemoryProfileRepository creates a new in-memory profile repository.
@@ -32,6 +33,7 @@ func NewMemoryProfileRepository() *MemoryProfileRepository {
 	return &MemoryProfileRepository{
 		profiles: make(map[uuid.UUID]*domain.AgentProfile),
 		byName:   make(map[string]uuid.UUID),
+		byKey:    make(map[string]uuid.UUID),
 	}
 }
 
@@ -39,17 +41,33 @@ func (r *MemoryProfileRepository) Create(ctx context.Context, profile *domain.Ag
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	profileKey := strings.TrimSpace(profile.ProfileKey)
+	if profileKey == "" {
+		profileKey = strings.TrimSpace(profile.Name)
+	}
+
 	if _, exists := r.profiles[profile.ID]; exists {
 		return fmt.Errorf("profile already exists: %s", profile.ID)
 	}
 	if _, exists := r.byName[profile.Name]; exists {
 		return fmt.Errorf("profile name already exists: %s", profile.Name)
 	}
+	if profileKey != "" {
+		if _, exists := r.byKey[profileKey]; exists {
+			return fmt.Errorf("profile key already exists: %s", profileKey)
+		}
+	}
 
 	// Deep copy to prevent external mutation
 	copy := *profile
+	if profileKey != "" {
+		copy.ProfileKey = profileKey
+	}
 	r.profiles[profile.ID] = &copy
 	r.byName[profile.Name] = profile.ID
+	if profileKey != "" {
+		r.byKey[profileKey] = profile.ID
+	}
 	return nil
 }
 
@@ -71,6 +89,19 @@ func (r *MemoryProfileRepository) GetByName(ctx context.Context, name string) (*
 	defer r.mu.RUnlock()
 
 	id, exists := r.byName[name]
+	if !exists {
+		return nil, nil
+	}
+	profile := r.profiles[id]
+	copy := *profile
+	return &copy, nil
+}
+
+func (r *MemoryProfileRepository) GetByKey(ctx context.Context, key string) (*domain.AgentProfile, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	id, exists := r.byKey[key]
 	if !exists {
 		return nil, nil
 	}
@@ -111,13 +142,29 @@ func (r *MemoryProfileRepository) Update(ctx context.Context, profile *domain.Ag
 		return fmt.Errorf("profile not found: %s", profile.ID)
 	}
 
+	profileKey := strings.TrimSpace(profile.ProfileKey)
+	if profileKey == "" {
+		profileKey = strings.TrimSpace(profile.Name)
+	}
+
 	// Update name index if name changed
 	if existing.Name != profile.Name {
 		delete(r.byName, existing.Name)
 		r.byName[profile.Name] = profile.ID
 	}
+	if existing.ProfileKey != profile.ProfileKey {
+		if existing.ProfileKey != "" {
+			delete(r.byKey, existing.ProfileKey)
+		}
+		if profileKey != "" {
+			r.byKey[profileKey] = profile.ID
+		}
+	}
 
 	copy := *profile
+	if profileKey != "" {
+		copy.ProfileKey = profileKey
+	}
 	r.profiles[profile.ID] = &copy
 	return nil
 }
@@ -132,6 +179,9 @@ func (r *MemoryProfileRepository) Delete(ctx context.Context, id uuid.UUID) erro
 	}
 
 	delete(r.byName, profile.Name)
+	if profile.ProfileKey != "" {
+		delete(r.byKey, profile.ProfileKey)
+	}
 	delete(r.profiles, id)
 	return nil
 }
