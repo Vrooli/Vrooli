@@ -5,7 +5,13 @@ import { selectors } from "@constants/selectors";
 import type { MutableRefObject } from "react";
 import type { ReplayMovieSpec } from "@/types/export";
 import type { ExportPreviewMetrics } from "./exportPreview";
-import type { ExportDimensionPreset, ExportFormat, ExportFormatOption } from "./exportConfig";
+import type {
+  ExportDimensionPreset,
+  ExportFormat,
+  ExportFormatOption,
+  ExportRenderSource,
+  ExportRenderSourceOption,
+} from "./exportConfig";
 import { DEFAULT_EXPORT_HEIGHT, DEFAULT_EXPORT_WIDTH, EXPORT_EXTENSIONS } from "./exportConfig";
 
 interface ExportDialogProps {
@@ -18,6 +24,9 @@ interface ExportDialogProps {
   setExportFormat: (format: ExportFormat) => void;
   isBinaryExport: boolean;
   exportFormatOptions: ExportFormatOption[];
+  exportRenderSourceOptions: ExportRenderSourceOption[];
+  renderSource: ExportRenderSource;
+  setRenderSource: (value: ExportRenderSource) => void;
   dimensionPresetOptions: Array<{
     id: ExportDimensionPreset;
     label: string;
@@ -59,6 +68,9 @@ interface ExportDialogProps {
   activeSpecId: string | null;
   previewMetrics: ExportPreviewMetrics;
   formatSeconds: (value: number) => string;
+  recordedVideoAvailable: boolean;
+  recordedVideoCount: number;
+  recordedVideoLoading: boolean;
 }
 
 /**
@@ -75,6 +87,9 @@ export function ExportDialog({
   setExportFormat,
   isBinaryExport,
   exportFormatOptions,
+  exportRenderSourceOptions,
+  renderSource,
+  setRenderSource,
   dimensionPresetOptions,
   dimensionPreset,
   setDimensionPreset,
@@ -110,6 +125,9 @@ export function ExportDialog({
   activeSpecId,
   previewMetrics,
   formatSeconds,
+  recordedVideoAvailable,
+  recordedVideoCount,
+  recordedVideoLoading,
 }: ExportDialogProps) {
   const isJsonExport = exportFormat === "json";
 
@@ -202,6 +220,67 @@ export function ExportDialog({
             })}
           </div>
         </section>
+
+        {!isJsonExport && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-white">Render source</h3>
+                <p className="text-xs text-gray-400">Choose how the video is generated.</p>
+              </div>
+              <span className="text-[11px] uppercase tracking-[0.2em] text-gray-500">Source</span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {exportRenderSourceOptions.map((option) => {
+                const isSelected = option.id === renderSource;
+                const Icon = option.icon;
+                const isUnavailable =
+                  option.id === "recorded_video" &&
+                  !recordedVideoLoading &&
+                  !recordedVideoAvailable;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    disabled={isUnavailable}
+                    onClick={() => setRenderSource(option.id)}
+                    className={clsx(
+                      "flex flex-col items-start gap-3 rounded-xl border px-4 py-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-900",
+                      isSelected && !isUnavailable
+                        ? "border-flow-accent/70 bg-flow-accent/20 text-white shadow-[0_20px_45px_rgba(59,130,246,0.25)]"
+                        : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white",
+                      isUnavailable && "cursor-not-allowed opacity-60",
+                    )}
+                  >
+                    <span
+                      className={clsx(
+                        "flex h-10 w-10 items-center justify-center rounded-lg",
+                        isSelected && !isUnavailable
+                          ? "bg-flow-accent/80 text-white"
+                          : "bg-slate-900/70 text-flow-accent",
+                      )}
+                    >
+                      <Icon size={18} />
+                    </span>
+                    <div>
+                      <div className="text-sm font-semibold">{option.label}</div>
+                      <div className="text-xs text-slate-400">{option.description}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-xs text-slate-400">
+              {recordedVideoLoading && "Checking for recorded video artifacts…"}
+              {!recordedVideoLoading && recordedVideoAvailable && (
+                <>Recorded video available ({recordedVideoCount}).</>
+              )}
+              {!recordedVideoLoading && !recordedVideoAvailable && (
+                <>No recorded video found for this execution.</>
+              )}
+            </div>
+          </section>
+        )}
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">

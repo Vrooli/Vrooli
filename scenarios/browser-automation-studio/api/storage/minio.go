@@ -156,6 +156,22 @@ func (m *MinIOClient) GetScreenshot(ctx context.Context, objectName string) (io.
 	return object, &info, nil
 }
 
+// GetArtifact retrieves a stored artifact from MinIO.
+func (m *MinIOClient) GetArtifact(ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+	object, err := m.client.GetObject(ctx, m.bucketName, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get artifact: %w", err)
+	}
+
+	info, err := object.Stat()
+	if err != nil {
+		object.Close()
+		return nil, nil, fmt.Errorf("failed to get artifact info: %w", err)
+	}
+
+	return object, &info, nil
+}
+
 // DeleteScreenshot deletes a screenshot from MinIO
 func (m *MinIOClient) DeleteScreenshot(ctx context.Context, objectName string) error {
 	err := m.client.RemoveObject(ctx, m.bucketName, objectName, minio.RemoveObjectOptions{})
@@ -165,6 +181,37 @@ func (m *MinIOClient) DeleteScreenshot(ctx context.Context, objectName string) e
 
 	m.log.WithField("object_name", objectName).Info("Screenshot deleted from MinIO")
 	return nil
+}
+
+// StoreArtifactFromFile uploads a file into MinIO and returns the artifact metadata.
+func (m *MinIOClient) StoreArtifactFromFile(ctx context.Context, executionID uuid.UUID, label string, filePath string, contentType string) (*ArtifactInfo, error) {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat artifact file: %w", err)
+	}
+	objectName := artifactObjectName(executionID, label, filepath.Ext(filePath))
+	derivedType := detectContentTypeFromFile(filePath, contentType)
+
+	_, err = m.client.FPutObject(ctx, m.bucketName, objectName, filePath, minio.PutObjectOptions{
+		ContentType: derivedType,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to store artifact: %w", err)
+	}
+
+	m.log.WithFields(logrus.Fields{
+		"execution_id": executionID,
+		"label":        label,
+		"object_name":  objectName,
+		"size_bytes":   info.Size(),
+	}).Info("Artifact stored in MinIO")
+
+	return &ArtifactInfo{
+		URL:         artifactURL(objectName),
+		SizeBytes:   info.Size(),
+		ContentType: derivedType,
+		ObjectName:  objectName,
+	}, nil
 }
 
 // ListExecutionScreenshots lists all screenshots for an execution

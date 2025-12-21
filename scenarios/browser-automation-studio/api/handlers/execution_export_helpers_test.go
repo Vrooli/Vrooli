@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"os"
 	"testing"
 
+	"github.com/google/uuid"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/storage"
 )
 
 func TestNormalizeRenderSource(t *testing.T) {
@@ -48,7 +51,7 @@ func TestResolveRecordedVideoSource_Path(t *testing.T) {
 		},
 	}
 
-	source, err := resolveRecordedVideoSource([]executionwriter.ArtifactData{artifact})
+	source, err := resolveRecordedVideoSource([]executionwriter.ArtifactData{artifact}, nil)
 	if err != nil {
 		t.Fatalf("expected video source, got error: %v", err)
 	}
@@ -71,7 +74,7 @@ func TestResolveRecordedVideoSource_Inline(t *testing.T) {
 		Payload:      payload,
 	}
 
-	source, err := resolveRecordedVideoSource([]executionwriter.ArtifactData{artifact})
+	source, err := resolveRecordedVideoSource([]executionwriter.ArtifactData{artifact}, nil)
 	if err != nil {
 		t.Fatalf("expected video source, got error: %v", err)
 	}
@@ -95,11 +98,56 @@ func TestResolveRecordedVideoSource_Missing(t *testing.T) {
 		ArtifactType: "video_meta",
 		Payload:      map[string]any{"path": "/nope/video.webm"},
 	}
-	_, err := resolveRecordedVideoSource([]executionwriter.ArtifactData{artifact})
+	_, err := resolveRecordedVideoSource([]executionwriter.ArtifactData{artifact}, nil)
 	if err == nil {
 		t.Fatalf("expected error for missing video")
 	}
 	if !errors.Is(err, errRecordedVideoNotFound) {
 		t.Fatalf("expected errRecordedVideoNotFound, got %v", err)
 	}
+}
+
+func TestResolveRecordedVideoSource_StorageURL(t *testing.T) {
+	tmp, err := os.CreateTemp("", "bas-video-*.webm")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	if _, err := tmp.Write([]byte("fake-video-storage")); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmp.Name())
+		t.Fatalf("failed to close temp file: %v", err)
+	}
+	defer os.Remove(tmp.Name())
+
+	store := storage.NewMemoryStorage()
+	info, err := store.StoreArtifactFromFile(context.Background(), uuid.New(), "video-1", tmp.Name(), "video/webm")
+	if err != nil {
+		t.Fatalf("failed to store artifact: %v", err)
+	}
+
+	artifact := executionwriter.ArtifactData{
+		ArtifactType: "video_meta",
+		StorageURL:   info.URL,
+		ContentType:  "video/webm",
+		Payload:      map[string]any{},
+	}
+
+	source, err := resolveRecordedVideoSource([]executionwriter.ArtifactData{artifact}, store)
+	if err != nil {
+		t.Fatalf("expected video source, got error: %v", err)
+	}
+	if source == nil {
+		t.Fatalf("expected non-nil source")
+	}
+	if _, statErr := os.Stat(source.Path); statErr != nil {
+		t.Fatalf("expected downloaded file to exist, got error: %v", statErr)
+	}
+	if source.Cleanup == nil {
+		t.Fatalf("expected cleanup for downloaded video source")
+	}
+	source.Cleanup()
 }

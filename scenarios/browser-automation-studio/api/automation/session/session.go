@@ -183,6 +183,18 @@ func (s *Session) GetStorageState(ctx context.Context) (json.RawMessage, error) 
 	return s.client.GetStorageState(ctx, s.id)
 }
 
+// DownloadArtifact streams a driver-managed artifact by path.
+// This intentionally allows closed sessions to fetch artifacts captured at teardown.
+func (s *Session) DownloadArtifact(ctx context.Context, path string) (*driver.ArtifactDownload, error) {
+	if s == nil || s.client == nil {
+		return nil, errors.New("session client unavailable")
+	}
+	if path == "" {
+		return nil, errors.New("artifact path required")
+	}
+	return s.client.DownloadArtifact(ctx, path)
+}
+
 // ValidateSelector validates a selector on the current page.
 func (s *Session) ValidateSelector(ctx context.Context, selector string) (*driver.ValidateSelectorResponse, error) {
 	if s.isClosed() {

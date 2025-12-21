@@ -79,6 +79,51 @@ func (s *WorkflowService) GetExecutionScreenshots(ctx context.Context, execution
 	return screenshots, nil
 }
 
+// ExecutionVideoArtifact captures recorded video artifact metadata.
+type ExecutionVideoArtifact struct {
+	ArtifactID  string         `json:"artifact_id"`
+	StorageURL  string         `json:"storage_url,omitempty"`
+	ContentType string         `json:"content_type,omitempty"`
+	Label       string         `json:"label,omitempty"`
+	SizeBytes   *int64         `json:"size_bytes,omitempty"`
+	Payload     map[string]any `json:"payload,omitempty"`
+}
+
+// GetExecutionVideoArtifacts reads recorded video artifacts from the execution result file.
+func (s *WorkflowService) GetExecutionVideoArtifacts(ctx context.Context, executionID uuid.UUID) ([]ExecutionVideoArtifact, error) {
+	execution, err := s.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		return nil, fmt.Errorf("get execution: %w", err)
+	}
+	if execution.ResultPath == "" {
+		return []ExecutionVideoArtifact{}, nil
+	}
+
+	resultData, err := s.readExecutionResult(execution.ResultPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []ExecutionVideoArtifact{}, nil
+		}
+		return nil, fmt.Errorf("read result file: %w", err)
+	}
+
+	videos := make([]ExecutionVideoArtifact, 0)
+	for _, artifact := range resultData.Artifacts {
+		if artifact.ArtifactType != "video_meta" && artifact.ArtifactType != "video" {
+			continue
+		}
+		videos = append(videos, ExecutionVideoArtifact{
+			ArtifactID:  artifact.ArtifactID,
+			StorageURL:  artifact.StorageURL,
+			ContentType: artifact.ContentType,
+			Label:       artifact.Label,
+			SizeBytes:   artifact.SizeBytes,
+			Payload:     artifact.Payload,
+		})
+	}
+	return videos, nil
+}
+
 // UpdateExecutionResultPath updates the DB execution index with the given result file path.
 // This is used by the recorder when it first writes the result file.
 func (s *WorkflowService) UpdateExecutionResultPath(ctx context.Context, executionID uuid.UUID, resultPath string) error {
@@ -100,4 +145,3 @@ func (s *WorkflowService) GetExecution(ctx context.Context, id uuid.UUID) (*data
 func (s *WorkflowService) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {
 	return s.repo.UpdateExecution(ctx, execution)
 }
-

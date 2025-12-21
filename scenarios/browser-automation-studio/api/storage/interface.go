@@ -26,6 +26,12 @@ type StorageInterface interface {
 	// ListExecutionScreenshots lists all screenshots for an execution
 	ListExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]string, error)
 
+	// GetArtifact retrieves a stored artifact from storage.
+	GetArtifact(ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error)
+
+	// StoreArtifactFromFile stores a non-screenshot artifact from a file path.
+	StoreArtifactFromFile(ctx context.Context, executionID uuid.UUID, label string, filePath string, contentType string) (*ArtifactInfo, error)
+
 	// HealthCheck checks if storage is accessible
 	HealthCheck(ctx context.Context) error
 

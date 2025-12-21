@@ -267,7 +267,7 @@ func normalizeCursorTrail(points []*contracts.Point, viewport ExportDimensions) 
 	}
 	result := make([]htmlPoint, 0, len(points))
 	for _, point := range points {
-		normalized := normalizePoint(point, viewport)
+		normalized := normalizeHTMLPoint(point, viewport)
 		if normalized == nil {
 			continue
 		}
@@ -281,7 +281,7 @@ func resolveCursorPoint(frame ExportFrame, trail []htmlPoint, viewport ExportDim
 		return &htmlPoint{X: frame.NormalizedClickPosition.X, Y: frame.NormalizedClickPosition.Y}
 	}
 	if frame.ClickPosition != nil {
-		normalized := normalizePoint(frame.ClickPosition, viewport)
+		normalized := normalizeHTMLPoint(frame.ClickPosition, viewport)
 		if normalized != nil {
 			return &htmlPoint{X: normalized.X, Y: normalized.Y}
 		}
@@ -315,7 +315,7 @@ func normalizeBox(box *contracts.BoundingBox, viewport ExportDimensions) *htmlHi
 	}
 }
 
-func normalizePoint(point *contracts.Point, viewport ExportDimensions) *htmlPoint {
+func normalizeHTMLPoint(point *contracts.Point, viewport ExportDimensions) *htmlPoint {
 	if point == nil || viewport.Width <= 0 || viewport.Height <= 0 {
 		return nil
 	}

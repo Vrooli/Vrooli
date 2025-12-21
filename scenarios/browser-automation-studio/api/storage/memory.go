@@ -99,6 +99,41 @@ func (m *MemoryStorage) StoreScreenshotFromFile(ctx context.Context, executionID
 	return m.StoreScreenshot(ctx, executionID, stepName, data, contentType)
 }
 
+// GetArtifact retrieves an artifact from memory storage.
+func (m *MemoryStorage) GetArtifact(ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+	return m.GetScreenshot(ctx, objectName)
+}
+
+// StoreArtifactFromFile reads a file and stores it in memory as an artifact.
+func (m *MemoryStorage) StoreArtifactFromFile(ctx context.Context, executionID uuid.UUID, label string, filePath string, contentType string) (*ArtifactInfo, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat file: %w", err)
+	}
+
+	objectName := artifactObjectName(executionID, label, filepath.Ext(filePath))
+	derivedType := detectContentTypeFromFile(filePath, contentType)
+
+	m.mu.Lock()
+	m.objects[objectName] = memoryObject{
+		data:        append([]byte{}, data...),
+		contentType: derivedType,
+		storedAt:    time.Now(),
+	}
+	m.mu.Unlock()
+
+	return &ArtifactInfo{
+		URL:         artifactURL(objectName),
+		SizeBytes:   info.Size(),
+		ContentType: derivedType,
+		ObjectName:  objectName,
+	}, nil
+}
+
 // DeleteScreenshot removes a screenshot from memory.
 func (m *MemoryStorage) DeleteScreenshot(ctx context.Context, objectName string) error {
 	m.mu.Lock()

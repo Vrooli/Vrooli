@@ -19,6 +19,7 @@ import {
   DIMENSION_PRESET_CONFIG,
   EXPORT_EXTENSIONS,
   EXPORT_FORMAT_OPTIONS,
+  EXPORT_RENDER_SOURCE_OPTIONS,
   type ExportDimensionPreset,
   type ExportFormat,
 } from "./exportConfig";
@@ -77,6 +78,8 @@ export const useExecutionExport = ({
     replayCursorInitialPosition,
     replayCursorClickAnimation,
     replayCursorScale,
+    replayRenderSource,
+    setReplayRenderSource,
   } = replayCustomization;
   const {
     movieSpec,
@@ -128,6 +131,15 @@ export const useExecutionExport = ({
   const [lastCreatedExport, setLastCreatedExport] = useState<Export | null>(
     null,
   );
+  const [recordedVideoStatus, setRecordedVideoStatus] = useState<{
+    available: boolean;
+    count: number;
+    loading: boolean;
+  }>({
+    available: false,
+    count: 0,
+    loading: false,
+  });
   const supportsFileSystemAccess =
     typeof window !== "undefined" &&
     typeof (window as typeof window & { showSaveFilePicker?: unknown })
@@ -192,6 +204,51 @@ export const useExecutionExport = ({
       setUseNativeFilePicker(false);
     }
   }, [exportFormat, useNativeFilePicker]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    void (async () => {
+      setRecordedVideoStatus((prev) => ({
+        ...prev,
+        loading: true,
+      }));
+      try {
+        const { API_URL } = await getConfig();
+        const response = await fetch(
+          `${API_URL}/executions/${execution.id}/recorded-videos`,
+        );
+        if (!response.ok) {
+          throw new Error(`Recorded videos unavailable (${response.status})`);
+        }
+        const payload = (await response.json()) as {
+          videos?: unknown;
+        };
+        const videos = Array.isArray(payload?.videos) ? payload.videos : [];
+        if (isCancelled) {
+          return;
+        }
+        setRecordedVideoStatus({
+          available: videos.length > 0,
+          count: videos.length,
+          loading: false,
+        });
+        if (videos.length === 0 && replayRenderSource === "recorded_video") {
+          setReplayRenderSource("auto");
+        }
+      } catch {
+        if (!isCancelled) {
+          setRecordedVideoStatus({
+            available: false,
+            count: 0,
+            loading: false,
+          });
+        }
+      }
+    })();
+    return () => {
+      isCancelled = true;
+    };
+  }, [execution.id, replayRenderSource, setReplayRenderSource]);
 
   useEffect(() => {
     if (!isExportDialogOpen) {
@@ -637,6 +694,7 @@ export const useExecutionExport = ({
         const requestPayload: Record<string, unknown> = {
           format: exportFormat,
           file_name: finalFileName,
+          render_source: replayRenderSource,
         };
         if (hasExportFrames && exportSpec) {
           requestPayload.movie_spec = exportSpec;
@@ -693,6 +751,7 @@ export const useExecutionExport = ({
             backgroundTheme: replayBackgroundTheme,
             cursorTheme: replayCursorTheme,
             cursorScale: replayCursorScale,
+            renderSource: replayRenderSource,
           },
           fileSizeBytes: blob.size,
           durationMs: exportPreview?.totalDurationMs,
@@ -838,6 +897,7 @@ export const useExecutionExport = ({
     replayCursorInitialPosition,
     replayCursorScale,
     replayCursorTheme,
+    replayRenderSource,
     replayFramesWithFallback.length,
     supportsFileSystemAccess,
     useNativeFilePicker,
@@ -849,6 +909,9 @@ export const useExecutionExport = ({
     setExportFormat,
     isBinaryExport,
     exportFormatOptions: EXPORT_FORMAT_OPTIONS,
+    exportRenderSourceOptions: EXPORT_RENDER_SOURCE_OPTIONS,
+    renderSource: replayRenderSource,
+    setRenderSource: setReplayRenderSource,
     dimensionPresetOptions,
     dimensionPreset,
     setDimensionPreset,
@@ -884,6 +947,9 @@ export const useExecutionExport = ({
     activeSpecId,
     previewMetrics,
     formatSeconds,
+    recordedVideoAvailable: recordedVideoStatus.available,
+    recordedVideoCount: recordedVideoStatus.count,
+    recordedVideoLoading: recordedVideoStatus.loading,
   } as const;
 
   return {

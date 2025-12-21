@@ -77,6 +77,18 @@ func (s *recordingFileStore) ListExecutionScreenshots(_ context.Context, executi
 	return nil, nil
 }
 
+func (s *recordingFileStore) GetArtifact(_ context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+	return nil, nil, fmt.Errorf("recording file store does not support GetArtifact (%s)", objectName)
+}
+
+func (s *recordingFileStore) StoreArtifactFromFile(_ context.Context, executionID uuid.UUID, label string, filePath string, contentType string) (*storage.ArtifactInfo, error) {
+	_ = executionID
+	_ = label
+	_ = filePath
+	_ = contentType
+	return nil, fmt.Errorf("recording file store does not support StoreArtifactFromFile")
+}
+
 func (s *recordingFileStore) HealthCheck(_ context.Context) error {
 	return nil
 }

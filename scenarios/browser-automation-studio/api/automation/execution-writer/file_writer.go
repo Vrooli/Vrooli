@@ -56,14 +56,14 @@ type FileWriter struct {
 // ExecutionResultData accumulates execution results to be written to disk.
 // This is the file format stored at ExecutionIndex.ResultPath.
 type ExecutionResultData struct {
-	ExecutionID   string                   `json:"execution_id"`
-	WorkflowID    string                   `json:"workflow_id"`
-	Steps         []StepResultData         `json:"steps"`
-	Artifacts     []ArtifactData           `json:"artifacts"`
-	Telemetry     []TelemetryData          `json:"telemetry"`
-	TimelineFrame []TimelineFrameData      `json:"timeline_frames"`
-	Summary       ExecutionSummary         `json:"summary"`
-	mu            sync.Mutex               `json:"-"`
+	ExecutionID   string              `json:"execution_id"`
+	WorkflowID    string              `json:"workflow_id"`
+	Steps         []StepResultData    `json:"steps"`
+	Artifacts     []ArtifactData      `json:"artifacts"`
+	Telemetry     []TelemetryData     `json:"telemetry"`
+	TimelineFrame []TimelineFrameData `json:"timeline_frames"`
+	Summary       ExecutionSummary    `json:"summary"`
+	mu            sync.Mutex          `json:"-"`
 }
 
 type executionTimelineData struct {
@@ -73,16 +73,16 @@ type executionTimelineData struct {
 
 // StepResultData captures individual step execution results.
 type StepResultData struct {
-	StepID      string                 `json:"step_id"`
-	StepIndex   int                    `json:"step_index"`
-	NodeID      string                 `json:"node_id"`
-	StepType    string                 `json:"step_type"`
-	Status      string                 `json:"status"`
-	StartedAt   time.Time              `json:"started_at"`
-	CompletedAt *time.Time             `json:"completed_at,omitempty"`
-	DurationMs  int                    `json:"duration_ms"`
-	Error       string                 `json:"error,omitempty"`
-	Metadata    map[string]any         `json:"metadata,omitempty"`
+	StepID      string         `json:"step_id"`
+	StepIndex   int            `json:"step_index"`
+	NodeID      string         `json:"node_id"`
+	StepType    string         `json:"step_type"`
+	Status      string         `json:"status"`
+	StartedAt   time.Time      `json:"started_at"`
+	CompletedAt *time.Time     `json:"completed_at,omitempty"`
+	DurationMs  int            `json:"duration_ms"`
+	Error       string         `json:"error,omitempty"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
 // ArtifactData captures execution artifacts (screenshots, DOM snapshots, etc).
@@ -101,23 +101,23 @@ type ArtifactData struct {
 
 // TelemetryData captures step telemetry for debugging.
 type TelemetryData struct {
-	StepIndex int                      `json:"step_index"`
-	Data      contracts.StepTelemetry  `json:"data"`
-	Timestamp time.Time                `json:"timestamp"`
+	StepIndex int                     `json:"step_index"`
+	Data      contracts.StepTelemetry `json:"data"`
+	Timestamp time.Time               `json:"timestamp"`
 }
 
 // TimelineFrameData captures timeline frame data for replay.
 type TimelineFrameData struct {
-	StepIndex            int            `json:"step_index"`
-	NodeID               string         `json:"node_id"`
-	StepType             string         `json:"step_type"`
-	ScreenshotURL        string         `json:"screenshot_url,omitempty"`
-	ScreenshotArtifactID string         `json:"screenshot_artifact_id,omitempty"`
-	DOMSnapshotArtifactID string        `json:"dom_snapshot_artifact_id,omitempty"`
-	Success              bool           `json:"success"`
-	Attempt              int            `json:"attempt"`
-	DurationMs           int            `json:"duration_ms"`
-	Payload              map[string]any `json:"payload,omitempty"`
+	StepIndex             int            `json:"step_index"`
+	NodeID                string         `json:"node_id"`
+	StepType              string         `json:"step_type"`
+	ScreenshotURL         string         `json:"screenshot_url,omitempty"`
+	ScreenshotArtifactID  string         `json:"screenshot_artifact_id,omitempty"`
+	DOMSnapshotArtifactID string         `json:"dom_snapshot_artifact_id,omitempty"`
+	Success               bool           `json:"success"`
+	Attempt               int            `json:"attempt"`
+	DurationMs            int            `json:"duration_ms"`
+	Payload               map[string]any `json:"payload,omitempty"`
 }
 
 // ExecutionSummary provides aggregate statistics.
@@ -184,11 +184,11 @@ func (r *FileWriter) getOrCreateResult(plan contracts.ExecutionPlan) *ExecutionR
 	}
 
 	result := &ExecutionResultData{
-		ExecutionID: plan.ExecutionID.String(),
-		WorkflowID:  plan.WorkflowID.String(),
-		Steps:       make([]StepResultData, 0),
-		Artifacts:   make([]ArtifactData, 0),
-		Telemetry:   make([]TelemetryData, 0),
+		ExecutionID:   plan.ExecutionID.String(),
+		WorkflowID:    plan.WorkflowID.String(),
+		Steps:         make([]StepResultData, 0),
+		Artifacts:     make([]ArtifactData, 0),
+		Telemetry:     make([]TelemetryData, 0),
 		TimelineFrame: make([]TimelineFrameData, 0),
 		Summary: ExecutionSummary{
 			LastUpdated: time.Now().UTC(),
@@ -628,11 +628,34 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 			label = artifactType
 		}
 
+		var storageURL string
+		contentType := strings.TrimSpace(item.ContentType)
+		var sizeBytes *int64
+		if r.storage != nil && isVideoArtifactType(artifactType) {
+			artifactInfo, storeErr := r.storage.StoreArtifactFromFile(ctx, plan.ExecutionID, label, path, item.ContentType)
+			if storeErr != nil {
+				if r.log != nil {
+					r.log.WithError(storeErr).WithField("path", path).Warn("Failed to store video artifact")
+				}
+			} else if artifactInfo != nil {
+				storageURL = artifactInfo.URL
+				if strings.TrimSpace(artifactInfo.ContentType) != "" {
+					contentType = artifactInfo.ContentType
+				}
+				size := artifactInfo.SizeBytes
+				sizeBytes = &size
+				payload["storage_object"] = artifactInfo.ObjectName
+			}
+		}
+
 		artifact := ArtifactData{
 			ArtifactID:   uuid.New().String(),
 			ArtifactType: artifactType,
 			Label:        label,
 			Payload:      payload,
+			StorageURL:   storageURL,
+			ContentType:  contentType,
+			SizeBytes:    sizeBytes,
 		}
 		result.mu.Lock()
 		result.Artifacts = append(result.Artifacts, artifact)
@@ -640,6 +663,15 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 	}
 
 	return r.writeResultFile(plan.ExecutionID, result)
+}
+
+func isVideoArtifactType(kind string) bool {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "video", "video_meta":
+		return true
+	default:
+		return false
+	}
 }
 
 func (r *FileWriter) appendProtoTimelineEntry(

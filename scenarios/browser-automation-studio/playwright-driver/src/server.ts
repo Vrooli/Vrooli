@@ -281,6 +281,9 @@ function setupRoutes(
   router.get('/health', async (req, res) => {
     await routes.handleHealth(req, res, sessionManager);
   });
+  router.get('/artifacts', async (req, res) => {
+    await routes.handleArtifactDownload(req, res);
+  });
 
   // Session lifecycle
   router.post('/session/start', async (req, res) => {

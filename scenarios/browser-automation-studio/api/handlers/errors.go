@@ -50,15 +50,16 @@ var (
 	ErrWorkflowVersionNotFound = apierror.ErrWorkflowVersionNotFound
 	ErrExecutionNotFound       = apierror.ErrExecutionNotFound
 	ErrScreenshotNotFound      = apierror.ErrScreenshotNotFound
+	ErrArtifactNotFound        = apierror.ErrArtifactNotFound
 	ErrScheduleNotFound        = apierror.ErrScheduleNotFound
 )
 
 // 409 Conflict errors
 var (
-	ErrProjectAlreadyExists  = apierror.ErrProjectAlreadyExists
-	ErrWorkflowAlreadyExists = apierror.ErrWorkflowAlreadyExists
+	ErrProjectAlreadyExists    = apierror.ErrProjectAlreadyExists
+	ErrWorkflowAlreadyExists   = apierror.ErrWorkflowAlreadyExists
 	ErrWorkflowVersionConflict = apierror.ErrWorkflowVersionConflict
-	ErrConflict              = apierror.ErrConflict
+	ErrConflict                = apierror.ErrConflict
 )
 
 // 500 Internal Server Error

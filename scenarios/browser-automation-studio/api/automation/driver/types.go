@@ -2,6 +2,7 @@ package driver
 
 import (
 	"encoding/json"
+	"io"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -310,4 +311,11 @@ type StepOutcomeResponse struct {
 type CloseSessionResponse struct {
 	Success    bool     `json:"success,omitempty"`
 	VideoPaths []string `json:"video_paths,omitempty"`
+}
+
+// ArtifactDownload captures a streamed artifact response from the driver.
+type ArtifactDownload struct {
+	Reader      io.ReadCloser
+	ContentType string
+	Size        int64
 }

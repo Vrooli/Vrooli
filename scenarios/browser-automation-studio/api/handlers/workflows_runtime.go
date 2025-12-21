@@ -59,6 +59,12 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if parseBoolQuery(r, "requires_video", "record_video") {
+		if opts == nil {
+			opts = &workflowservice.ExecuteOptions{}
+		}
+		opts.RequiresVideo = true
+	}
 
 	resp, err := h.executionService.ExecuteWorkflowAPIWithOptions(ctx, &req, opts)
 	if err != nil {
@@ -92,12 +98,36 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
-	resp, err := h.executionService.ExecuteAdhocWorkflowAPI(ctx, &req)
+	var opts *workflowservice.ExecuteOptions
+	if parseBoolQuery(r, "requires_video", "record_video") {
+		opts = &workflowservice.ExecuteOptions{RequiresVideo: true}
+	}
+	resp, err := h.executionService.ExecuteAdhocWorkflowAPIWithOptions(ctx, &req, opts)
 	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "execute_adhoc", "error": err.Error()}))
 		return
 	}
 	h.respondProto(w, http.StatusOK, resp)
+}
+
+func parseBoolQuery(r *http.Request, keys ...string) bool {
+	if r == nil {
+		return false
+	}
+	query := r.URL.Query()
+	for _, key := range keys {
+		raw := strings.TrimSpace(query.Get(key))
+		if raw == "" {
+			continue
+		}
+		switch strings.ToLower(raw) {
+		case "1", "true", "yes", "on":
+			return true
+		case "0", "false", "no", "off":
+			return false
+		}
+	}
+	return false
 }
 
 func (h *Handler) ListWorkflowVersions(w http.ResponseWriter, r *http.Request) {

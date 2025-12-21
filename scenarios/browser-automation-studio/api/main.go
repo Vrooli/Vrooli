@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"fmt"
+	"github.com/vrooli/api-core/preflight"
 	"net"
 	"net/http"
 	"os"
@@ -243,6 +243,7 @@ func main() {
 		r.Post("/executions/{id}/stop", handler.StopExecution)
 		r.Post("/executions/{id}/resume", handler.ResumeExecution)
 		r.Get("/executions/{id}/screenshots", handler.GetExecutionScreenshots)
+		r.Get("/executions/{id}/recorded-videos", handler.GetExecutionRecordedVideos)
 		r.Post("/executions/{executionId}/frames", handler.ReceiveExecutionFrame) // Frame streaming callback from playwright-driver
 
 		// Export library routes
@@ -269,6 +270,7 @@ func main() {
 		// Screenshot serving routes
 		r.Get("/screenshots/*", handler.ServeScreenshot)
 		r.Get("/screenshots/thumbnail/*", handler.ServeThumbnail)
+		r.Get("/artifacts/*", handler.ServeArtifact)
 
 		// Preview route for taking screenshots of URLs
 		// POST /api/v1/preview-screenshot

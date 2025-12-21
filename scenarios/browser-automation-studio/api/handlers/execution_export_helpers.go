@@ -1,19 +1,24 @@
 package handlers
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/handlers/export"
 	exportservices "github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/storage"
 )
 
 // executionExportRequest represents the JSON payload for execution export endpoints.
@@ -77,13 +82,13 @@ func normalizeRenderSource(value string) (string, bool) {
 	}
 }
 
-func resolveRecordedVideoSource(artifacts []executionwriter.ArtifactData) (*recordedVideoSource, error) {
+func resolveRecordedVideoSource(artifacts []executionwriter.ArtifactData, store storage.StorageInterface) (*recordedVideoSource, error) {
 	var lastErr error
 	for _, artifact := range artifacts {
 		if !isRecordedVideoArtifact(artifact.ArtifactType) {
 			continue
 		}
-		source, err := recordedVideoFromArtifact(artifact)
+		source, err := recordedVideoFromArtifact(artifact, store)
 		if err != nil {
 			lastErr = err
 			continue
@@ -107,13 +112,11 @@ func isRecordedVideoArtifact(kind string) bool {
 	}
 }
 
-func recordedVideoFromArtifact(artifact executionwriter.ArtifactData) (*recordedVideoSource, error) {
+func recordedVideoFromArtifact(artifact executionwriter.ArtifactData, store storage.StorageInterface) (*recordedVideoSource, error) {
 	payload := artifact.Payload
 	path := payloadString(payload, "path")
 	if path == "" {
-		if storagePath := strings.TrimPrefix(strings.TrimSpace(artifact.StorageURL), "file://"); storagePath != "" {
-			path = storagePath
-		}
+		path = filePathFromStorageURL(artifact.StorageURL)
 	}
 	if path != "" {
 		info, err := os.Stat(path)
@@ -126,6 +129,18 @@ func recordedVideoFromArtifact(artifact executionwriter.ArtifactData) (*recorded
 				Path:        path,
 				ContentType: contentType,
 			}, nil
+		}
+	}
+
+	if store != nil {
+		if objectName := artifactObjectNameFromURL(artifact.StorageURL); objectName != "" {
+			source, err := downloadRecordedVideoFromStorage(store, objectName, artifact)
+			if err != nil {
+				return nil, err
+			}
+			if source != nil {
+				return source, nil
+			}
 		}
 	}
 
@@ -223,6 +238,75 @@ func extensionForContentType(contentType string) string {
 	default:
 		return ""
 	}
+}
+
+func artifactObjectNameFromURL(storageURL string) string {
+	trimmed := strings.TrimSpace(storageURL)
+	if trimmed == "" {
+		return ""
+	}
+	path := trimmed
+	if parsed, err := url.Parse(trimmed); err == nil {
+		if parsed.Path != "" {
+			path = parsed.Path
+		}
+	}
+	switch {
+	case strings.HasPrefix(path, "/api/v1/artifacts/"):
+		return strings.TrimPrefix(path, "/api/v1/artifacts/")
+	case strings.HasPrefix(path, "/api/v1/screenshots/"):
+		return strings.TrimPrefix(path, "/api/v1/screenshots/")
+	default:
+		return ""
+	}
+}
+
+func filePathFromStorageURL(storageURL string) string {
+	trimmed := strings.TrimSpace(storageURL)
+	if trimmed == "" {
+		return ""
+	}
+	return strings.TrimPrefix(trimmed, "file://")
+}
+
+func downloadRecordedVideoFromStorage(store storage.StorageInterface, objectName string, artifact executionwriter.ArtifactData) (*recordedVideoSource, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	reader, info, err := store.GetArtifact(ctx, objectName)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	contentType := firstNonEmptyString(artifact.ContentType, info.ContentType, payloadString(artifact.Payload, "content_type"))
+	ext := extensionForContentType(contentType)
+	if ext == "" {
+		ext = filepath.Ext(objectName)
+	}
+	if ext == "" {
+		ext = ".webm"
+	}
+
+	file, err := os.CreateTemp("", "bas-recorded-video-*"+ext)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := io.Copy(file, reader); err != nil {
+		_ = file.Close()
+		_ = os.Remove(file.Name())
+		return nil, err
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(file.Name())
+		return nil, err
+	}
+
+	return &recordedVideoSource{
+		Path:        file.Name(),
+		ContentType: contentType,
+		Cleanup:     func() { _ = os.Remove(file.Name()) },
+	}, nil
 }
 
 func firstNonEmptyString(values ...string) string {

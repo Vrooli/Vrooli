@@ -73,6 +73,8 @@ type ExecuteOptions struct {
 	FrameStreamingQuality int
 	// FrameStreamingFPS sets the target frames per second. Default: 6.
 	FrameStreamingFPS int
+	// RequiresVideo forces video capture capability on the execution plan metadata.
+	RequiresVideo bool
 }
 
 // ExecuteWorkflowAPI starts a workflow execution using proto request/response types.
@@ -288,6 +290,13 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		execIndex.UpdatedAt = now
 		_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
 		return
+	}
+
+	if opts != nil && opts.RequiresVideo {
+		if plan.Metadata == nil {
+			plan.Metadata = make(map[string]any)
+		}
+		plan.Metadata["requiresVideo"] = true
 	}
 
 	// Inject frame streaming config into plan metadata if enabled.

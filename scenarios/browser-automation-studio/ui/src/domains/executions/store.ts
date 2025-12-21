@@ -190,6 +190,8 @@ export interface ArtifactCollectionConfig {
 export interface StartExecutionOptions {
   /** Artifact collection configuration */
   artifactConfig?: ArtifactCollectionConfig;
+  /** Force native video capture for this execution */
+  requiresVideo?: boolean;
   /** Function to save the workflow before execution */
   saveWorkflowFn?: () => Promise<void>;
 }
@@ -452,6 +454,30 @@ const loadArtifactProfile = (): ArtifactProfile => {
   return 'full'; // Default to full collection
 };
 
+const resolveRequiresVideoPreference = (): boolean => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  const keys = [
+    'browserAutomation.settings.replay.exportRenderSource',
+    'browserAutomation.replayRenderSource',
+  ];
+  for (const key of keys) {
+    try {
+      const stored = window.localStorage.getItem(key);
+      if (stored === 'recorded_video' || stored === 'auto') {
+        return true;
+      }
+      if (stored === 'replay_frames') {
+        return false;
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }
+  return false;
+};
+
 export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   executions: [],
   currentExecution: null,
@@ -503,8 +529,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       // Build artifact config for the request
       // Use provided config, fall back to store's profile, or default to 'full'
       const artifactConfig = options?.artifactConfig ?? { profile: state.artifactProfile };
+      const requiresVideo = options?.requiresVideo ?? resolveRequiresVideoPreference();
 
-      const response = await fetch(`${config.API_URL}/workflows/${workflowId}/execute`, {
+      const executeURL = new URL(`${config.API_URL}/workflows/${workflowId}/execute`);
+      if (requiresVideo) {
+        executeURL.searchParams.set('requires_video', 'true');
+      }
+
+      const response = await fetch(executeURL.toString(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -5,6 +5,8 @@ import {
   Clapperboard,
   Film,
   FileJson,
+  MousePointer2,
+  Video,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -15,6 +17,8 @@ import type { LucideIcon } from "lucide-react";
 export type ExportFormat = "json" | "mp4" | "gif";
 
 export type ExportDimensionPreset = "spec" | "1080p" | "720p" | "custom";
+
+export type ExportRenderSource = "auto" | "recorded_video" | "replay_frames";
 
 // =============================================================================
 // File Extensions
@@ -54,6 +58,13 @@ export interface ExportFormatOption {
   disabled?: boolean;
 }
 
+export interface ExportRenderSourceOption {
+  id: ExportRenderSource;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+}
+
 export const EXPORT_FORMAT_OPTIONS: ExportFormatOption[] = [
   {
     id: "mp4",
@@ -75,6 +86,27 @@ export const EXPORT_FORMAT_OPTIONS: ExportFormatOption[] = [
     description: "Raw replay bundle for tooling",
     icon: FileJson,
     badge: "Data",
+  },
+];
+
+export const EXPORT_RENDER_SOURCE_OPTIONS: ExportRenderSourceOption[] = [
+  {
+    id: "auto",
+    label: "Auto",
+    description: "Prefer recorded video and fall back to replay render.",
+    icon: Clapperboard,
+  },
+  {
+    id: "recorded_video",
+    label: "Recorded video",
+    description: "Use native Playwright recording when available.",
+    icon: Video,
+  },
+  {
+    id: "replay_frames",
+    label: "Replay render",
+    description: "Use stylized replay frames (best for cursor control).",
+    icon: MousePointer2,
   },
 ];
 

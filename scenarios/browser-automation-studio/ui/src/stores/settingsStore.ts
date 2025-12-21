@@ -22,6 +22,7 @@ import {
   REPLAY_CURSOR_POSITIONS,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
 } from '@/domains/exports/replay/replayThemeOptions';
+import type { ExportRenderSource } from '@/domains/executions/viewer/exportConfig';
 
 const STORAGE_PREFIX = 'browserAutomation.settings.';
 const PRESETS_STORAGE_KEY = `${STORAGE_PREFIX}replay.userPresets`;
@@ -55,6 +56,10 @@ const isValidSpeedProfile = (value: unknown): value is CursorSpeedProfile => {
 
 const isValidPathStyle = (value: unknown): value is CursorPathStyle => {
   return ['linear', 'parabolicUp', 'parabolicDown', 'cubic', 'pseudorandom'].includes(value as string);
+};
+
+const isValidRenderSource = (value: unknown): value is ExportRenderSource => {
+  return ['auto', 'recorded_video', 'replay_frames'].includes(value as string);
 };
 
 const clampCursorScale = (value: number): number => {
@@ -155,6 +160,7 @@ export interface ReplaySettings {
   frameDuration: number;
   autoPlay: boolean;
   loop: boolean;
+  exportRenderSource: ExportRenderSource;
   watermark: WatermarkSettings;
   introCard: IntroCardSettings;
   outroCard: OutroCardSettings;
@@ -222,6 +228,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       frameDuration: 1600,
       autoPlay: false,
       loop: true,
+      exportRenderSource: 'auto',
       watermark: { ...DEFAULT_WATERMARK_SETTINGS },
       introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
       outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
@@ -246,6 +253,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       frameDuration: 2500,
       autoPlay: true,
       loop: true,
+      exportRenderSource: 'auto',
       watermark: { ...DEFAULT_WATERMARK_SETTINGS },
       introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
       outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
@@ -270,6 +278,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       frameDuration: 1200,
       autoPlay: false,
       loop: false,
+      exportRenderSource: 'auto',
       watermark: { ...DEFAULT_WATERMARK_SETTINGS },
       introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
       outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
@@ -294,6 +303,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       frameDuration: 2000,
       autoPlay: true,
       loop: true,
+      exportRenderSource: 'auto',
       watermark: { ...DEFAULT_WATERMARK_SETTINGS },
       introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
       outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
@@ -318,6 +328,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       frameDuration: 2200,
       autoPlay: true,
       loop: true,
+      exportRenderSource: 'auto',
       watermark: { ...DEFAULT_WATERMARK_SETTINGS },
       introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
       outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
@@ -375,6 +386,7 @@ const loadReplaySettings = (): ReplaySettings => {
   const storedDuration = safeGetItem(`${STORAGE_PREFIX}replay.frameDuration`);
   const storedAutoPlay = safeGetItem(`${STORAGE_PREFIX}replay.autoPlay`);
   const storedLoop = safeGetItem(`${STORAGE_PREFIX}replay.loop`);
+  const storedRenderSource = safeGetItem(`${STORAGE_PREFIX}replay.exportRenderSource`);
   const parsedWidth = storedWidth ? Math.round(parseInt(storedWidth, 10)) : 1280;
   const parsedHeight = storedHeight ? Math.round(parseInt(storedHeight, 10)) : 720;
   const normalizedWidth = Number.isFinite(parsedWidth) ? Math.min(3840, Math.max(320, parsedWidth)) : 1280;
@@ -395,6 +407,7 @@ const loadReplaySettings = (): ReplaySettings => {
     frameDuration: storedDuration ? Math.max(800, Math.min(6000, parseInt(storedDuration, 10))) : DEFAULT_FRAME_DURATION,
     autoPlay: storedAutoPlay === 'true',
     loop: storedLoop !== 'false', // Default to true
+    exportRenderSource: isValidRenderSource(storedRenderSource) ? storedRenderSource : 'auto',
     watermark: loadBrandingSettings('watermark', DEFAULT_WATERMARK_SETTINGS),
     introCard: loadBrandingSettings('introCard', DEFAULT_INTRO_CARD_SETTINGS),
     outroCard: loadBrandingSettings('outroCard', DEFAULT_OUTRO_CARD_SETTINGS),
@@ -425,6 +438,7 @@ const getDefaultReplaySettings = (): ReplaySettings => ({
   frameDuration: DEFAULT_FRAME_DURATION,
   autoPlay: false,
   loop: true,
+  exportRenderSource: 'auto',
   watermark: { ...DEFAULT_WATERMARK_SETTINGS },
   introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },
   outroCard: { ...DEFAULT_OUTRO_CARD_SETTINGS },
@@ -599,6 +613,7 @@ const generateRandomSettings = (): ReplaySettings => {
     frameDuration: Math.round((800 + Math.random() * 5200) / 100) * 100, // 800-6000 in 100ms steps
     autoPlay: Math.random() > 0.5,
     loop: Math.random() > 0.3, // 70% chance of loop
+    exportRenderSource: 'auto',
     // Preserve current branding settings when randomizing
     watermark: { ...DEFAULT_WATERMARK_SETTINGS },
     introCard: { ...DEFAULT_INTRO_CARD_SETTINGS },

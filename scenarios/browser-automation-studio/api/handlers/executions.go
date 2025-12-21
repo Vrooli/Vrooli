@@ -160,6 +160,22 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+		if renderSource == renderSourceAuto && format == "webm" {
+			if errors.Is(videoErr, database.ErrNotFound) {
+				h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))
+				return
+			}
+			if errors.Is(videoErr, errRecordedVideoNotFound) {
+				h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "recorded video unavailable for webm export"}))
+				return
+			}
+			if videoErr != nil {
+				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "recorded_video_export", "error": videoErr.Error()}))
+				return
+			}
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "recorded video unavailable for webm export"}))
+			return
+		}
 		if renderSource == renderSourceRecordedVideo {
 			if errors.Is(videoErr, database.ErrNotFound) {
 				h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))
@@ -327,7 +343,7 @@ func (h *Handler) loadRecordedVideo(ctx context.Context, executionID uuid.UUID) 
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
-	return resolveRecordedVideoSource(result.Artifacts)
+	return resolveRecordedVideoSource(result.Artifacts, h.storage)
 }
 
 func (h *Handler) serveRecordedVideo(w http.ResponseWriter, r *http.Request, source *recordedVideoSource, format, fileName string) error {

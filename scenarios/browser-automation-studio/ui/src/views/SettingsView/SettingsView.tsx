@@ -69,6 +69,9 @@ const isValidSpeedProfile = (value: unknown): value is 'instant' | 'linear' | 'e
 const isValidPathStyle = (value: unknown): value is 'linear' | 'parabolicUp' | 'parabolicDown' | 'cubic' | 'pseudorandom' =>
   typeof value === 'string' && ['linear', 'parabolicUp', 'parabolicDown', 'cubic', 'pseudorandom'].includes(value);
 
+const isValidRenderSource = (value: unknown): value is 'auto' | 'recorded_video' | 'replay_frames' =>
+  typeof value === 'string' && ['auto', 'recorded_video', 'replay_frames'].includes(value);
+
 const asObject = (value: unknown): Record<string, unknown> | null => {
   if (!value || typeof value !== 'object') {
     return null;
@@ -157,6 +160,9 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
         if (isValidPathStyle(config.cursorPathStyle)) {
           setReplaySetting('cursorPathStyle', config.cursorPathStyle);
         }
+        if (isValidRenderSource(config.renderSource)) {
+          setReplaySetting('exportRenderSource', config.renderSource);
+        }
 
         const watermark = asObject(config.watermark);
         if (watermark) {
@@ -196,6 +202,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
       cursorScale: replay.cursorScale,
       cursorSpeedProfile: replay.cursorSpeedProfile,
       cursorPathStyle: replay.cursorPathStyle,
+      renderSource: replay.exportRenderSource,
       watermark: replay.watermark,
       introCard: replay.introCard,
       outroCard: replay.outroCard,
@@ -235,6 +242,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
     replay.cursorScale,
     replay.cursorSpeedProfile,
     replay.cursorTheme,
+    replay.exportRenderSource,
     replay.introCard,
     replay.outroCard,
     replay.watermark,

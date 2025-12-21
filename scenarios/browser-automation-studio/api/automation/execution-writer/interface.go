@@ -52,6 +52,7 @@ type ExternalArtifact struct {
 	ArtifactType string
 	Label        string
 	Path         string
+	ContentType  string
 	Payload      map[string]any
 }
 

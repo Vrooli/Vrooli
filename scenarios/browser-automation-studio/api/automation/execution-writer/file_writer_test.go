@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -71,6 +72,15 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 	}
 	if artifact.Payload["path"] != artifactPath {
 		t.Fatalf("expected path payload to match")
+	}
+	if strings.TrimSpace(artifact.StorageURL) == "" {
+		t.Fatalf("expected storage URL to be set")
+	}
+	if artifact.ContentType == "" {
+		t.Fatalf("expected content type to be set")
+	}
+	if _, ok := artifact.Payload["storage_object"]; !ok {
+		t.Fatalf("expected storage object payload")
 	}
 	if artifact.Payload["base64"] == "" {
 		t.Fatalf("expected inline base64 payload")

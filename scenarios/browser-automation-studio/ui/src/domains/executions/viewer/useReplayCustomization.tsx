@@ -25,6 +25,7 @@ import {
   type CursorOption,
   type CursorPositionOption,
 } from "@/domains/exports/replay/replayThemeOptions";
+import type { ExportRenderSource } from "./exportConfig";
 import { getConfig } from "@/config";
 
 export interface ReplayCustomizationController {
@@ -34,12 +35,14 @@ export interface ReplayCustomizationController {
   replayCursorInitialPosition: ReplayCursorInitialPosition;
   replayCursorClickAnimation: ReplayCursorClickAnimation;
   replayCursorScale: number;
+  replayRenderSource: ExportRenderSource;
   setReplayChromeTheme: (value: ReplayChromeTheme) => void;
   setReplayBackgroundTheme: (value: ReplayBackgroundTheme) => void;
   setReplayCursorTheme: (value: ReplayCursorTheme) => void;
   setReplayCursorInitialPosition: (value: ReplayCursorInitialPosition) => void;
   setReplayCursorClickAnimation: (value: ReplayCursorClickAnimation) => void;
   setReplayCursorScale: (value: number) => void;
+  setReplayRenderSource: (value: ExportRenderSource) => void;
   selectedChromeOption: (typeof REPLAY_CHROME_OPTIONS)[number];
   selectedBackgroundOption: BackgroundOption;
   selectedCursorOption: CursorOption;
@@ -86,6 +89,10 @@ const parseReplayConfig = (value: unknown): Record<string, unknown> | null => {
     return null;
   }
   return value as Record<string, unknown>;
+};
+
+const isReplayRenderSource = (value: unknown): value is ExportRenderSource => {
+  return value === "auto" || value === "recorded_video" || value === "replay_frames";
 };
 
 const setupDismissListeners = (
@@ -169,6 +176,13 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     }
     return 1;
   });
+  const [replayRenderSource, setReplayRenderSource] = useState<ExportRenderSource>(() => {
+    if (typeof window === "undefined") {
+      return "auto";
+    }
+    const stored = window.localStorage.getItem("browserAutomation.replayRenderSource");
+    return isReplayRenderSource(stored) ? stored : "auto";
+  });
   const [isServerConfigReady, setIsServerConfigReady] = useState(false);
   const lastSyncedConfigRef = useRef<string | null>(null);
   const syncTimerRef = useRef<number | null>(null);
@@ -223,6 +237,10 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
         if (typeof cursorScale === "number" && Number.isFinite(cursorScale)) {
           setReplayCursorScale(clampCursorScale(cursorScale));
         }
+        const renderSource = config.renderSource;
+        if (isReplayRenderSource(renderSource)) {
+          setReplayRenderSource(renderSource);
+        }
       } catch (err) {
         logger.warn("Failed to load replay config from API", { component: "ReplayCustomization", executionId }, err);
       } finally {
@@ -247,6 +265,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
       cursorInitialPosition: replayCursorInitialPosition,
       cursorClickAnimation: replayCursorClickAnimation,
       cursorScale: replayCursorScale,
+      renderSource: replayRenderSource,
     };
     const serialized = JSON.stringify(payload);
     if (lastSyncedConfigRef.current === serialized) {
@@ -283,6 +302,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     replayCursorInitialPosition,
     replayCursorScale,
     replayCursorTheme,
+    replayRenderSource,
   ]);
 
   useEffect(() => {
@@ -316,6 +336,10 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
   useEffect(() => {
     persistToLocalStorage("browserAutomation.replayCursorScale", replayCursorScale.toFixed(2), { executionId });
   }, [replayCursorScale, executionId]);
+
+  useEffect(() => {
+    persistToLocalStorage("browserAutomation.replayRenderSource", replayRenderSource, { executionId });
+  }, [replayRenderSource, executionId]);
 
   useEffect(
     () => setupDismissListeners(isBackgroundMenuOpen, backgroundSelectorRef, () => setIsBackgroundMenuOpen(false)),
@@ -444,12 +468,14 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     replayCursorInitialPosition,
     replayCursorClickAnimation,
     replayCursorScale,
+    replayRenderSource,
     setReplayChromeTheme,
     setReplayBackgroundTheme,
     setReplayCursorTheme,
     setReplayCursorInitialPosition,
     setReplayCursorClickAnimation,
     setReplayCursorScale,
+    setReplayRenderSource,
     selectedChromeOption,
     selectedBackgroundOption,
     selectedCursorOption,

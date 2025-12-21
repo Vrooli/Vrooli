@@ -49,26 +49,25 @@ func (f *FileStorage) ensureParent(path string) error {
 	return os.MkdirAll(filepath.Dir(path), 0o755)
 }
 
-// GetScreenshot reads a screenshot from disk.
-func (f *FileStorage) GetScreenshot(_ context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+func (f *FileStorage) openObject(objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
 	path, err := f.objectPath(objectName)
 	if err != nil {
 		return nil, nil, err
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to open screenshot: %w", err)
+		return nil, nil, fmt.Errorf("failed to open object: %w", err)
 	}
 	info, err := file.Stat()
 	if err != nil {
 		file.Close()
-		return nil, nil, fmt.Errorf("failed to stat screenshot: %w", err)
+		return nil, nil, fmt.Errorf("failed to stat object: %w", err)
 	}
 	header := make([]byte, 512)
 	n, _ := file.Read(header)
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		file.Close()
-		return nil, nil, fmt.Errorf("failed to rewind screenshot: %w", err)
+		return nil, nil, fmt.Errorf("failed to rewind object: %w", err)
 	}
 	contentType := http.DetectContentType(header[:n])
 
@@ -77,6 +76,11 @@ func (f *FileStorage) GetScreenshot(_ context.Context, objectName string) (io.Re
 		Size:        info.Size(),
 		ContentType: contentType,
 	}, nil
+}
+
+// GetScreenshot reads a screenshot from disk.
+func (f *FileStorage) GetScreenshot(_ context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+	return f.openObject(objectName)
 }
 
 // StoreScreenshot writes raw bytes to disk and returns API URLs.
@@ -119,6 +123,54 @@ func (f *FileStorage) StoreScreenshotFromFile(ctx context.Context, executionID u
 		return nil, fmt.Errorf("failed to read screenshot file: %w", err)
 	}
 	return f.StoreScreenshot(ctx, executionID, stepName, data, mime.TypeByExtension(filepath.Ext(filePath)))
+}
+
+// GetArtifact reads a stored artifact from disk.
+func (f *FileStorage) GetArtifact(_ context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+	return f.openObject(objectName)
+}
+
+// StoreArtifactFromFile copies a file into storage and returns the artifact metadata.
+func (f *FileStorage) StoreArtifactFromFile(_ context.Context, executionID uuid.UUID, label string, filePath string, contentType string) (*ArtifactInfo, error) {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat artifact file: %w", err)
+	}
+	ext := filepath.Ext(filePath)
+	objectName := artifactObjectName(executionID, label, ext)
+	destPath, err := f.objectPath(objectName)
+	if err != nil {
+		return nil, err
+	}
+	if err := f.ensureParent(destPath); err != nil {
+		return nil, fmt.Errorf("failed to ensure artifact directory: %w", err)
+	}
+
+	src, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open artifact file: %w", err)
+	}
+	defer src.Close()
+
+	dest, err := os.Create(destPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create artifact file: %w", err)
+	}
+	if _, err := io.Copy(dest, src); err != nil {
+		_ = dest.Close()
+		return nil, fmt.Errorf("failed to copy artifact file: %w", err)
+	}
+	if err := dest.Close(); err != nil {
+		return nil, fmt.Errorf("failed to finalize artifact file: %w", err)
+	}
+
+	derivedType := detectContentTypeFromFile(filePath, contentType)
+	return &ArtifactInfo{
+		URL:         artifactURL(objectName),
+		SizeBytes:   info.Size(),
+		ContentType: derivedType,
+		ObjectName:  objectName,
+	}, nil
 }
 
 // DeleteScreenshot removes the screenshot file.

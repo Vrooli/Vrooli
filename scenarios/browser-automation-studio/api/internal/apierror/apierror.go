@@ -161,6 +161,12 @@ var (
 		Message: "Screenshot not found",
 	}
 
+	ErrArtifactNotFound = &APIError{
+		Status:  http.StatusNotFound,
+		Code:    "ARTIFACT_NOT_FOUND",
+		Message: "Artifact not found",
+	}
+
 	ErrScheduleNotFound = &APIError{
 		Status:  http.StatusNotFound,
 		Code:    "SCHEDULE_NOT_FOUND",

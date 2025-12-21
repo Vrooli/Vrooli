@@ -130,6 +130,7 @@ WORKFLOW COMMANDS:
         --output-screenshots <dir>  Save screenshots to directory
         --project-root <path>  Absolute path for resolving workflowPath (defaults to ./bas if present)
         --adhoc             Force adhoc execution (resolves subflows via project_root)
+        --record-video      Require native video capture for this execution
 
     workflow list [flags]
         --folder <path>      Filter by folder path
@@ -752,6 +753,7 @@ execute_workflow() {
     local output_dir=""
     local project_root=""
     local adhoc=false
+    local requires_video=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -773,6 +775,10 @@ execute_workflow() {
                 ;;
             --adhoc)
                 adhoc=true
+                shift
+                ;;
+            --record-video|--requires-video)
+                requires_video=true
                 shift
                 ;;
             *)
@@ -854,15 +860,23 @@ execute_workflow() {
             --argjson wait "$wait" \
             '{flow_definition: $flow_definition, wait_for_completion: $wait, parameters: $parameters}')
 
+        local execute_url="${API_URL}/workflows/execute-adhoc"
+        if [ "$requires_video" = true ]; then
+            execute_url="${execute_url}?requires_video=true"
+        fi
         response=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -d "$payload" \
-            "${API_URL}/workflows/execute-adhoc")
+            "${execute_url}")
     else
+        local execute_url="${API_URL}/workflows/$workflow/execute"
+        if [ "$requires_video" = true ]; then
+            execute_url="${execute_url}?requires_video=true"
+        fi
         response=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -d "{\"parameters\": $params, \"wait_for_completion\": $wait}" \
-            "${API_URL}/workflows/$workflow/execute")
+            "${execute_url}")
     fi
     
     if echo "$response" | grep -q "execution_id"; then

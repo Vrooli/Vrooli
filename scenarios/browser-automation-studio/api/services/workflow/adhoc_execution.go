@@ -56,6 +56,12 @@ func (s *WorkflowService) ensureAdhocWorkflowIndex(ctx context.Context) (uuid.UU
 // ExecuteAdhocWorkflowAPI executes a provided workflow definition without persisting it as a workflow index.
 // Artifacts are still recorded to disk using the standard recorder.
 func (s *WorkflowService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *basexecution.ExecuteAdhocRequest) (*basexecution.ExecuteAdhocResponse, error) {
+	return s.ExecuteAdhocWorkflowAPIWithOptions(ctx, req, nil)
+}
+
+// ExecuteAdhocWorkflowAPIWithOptions executes a provided workflow definition without persisting it as a workflow index.
+// Artifacts are still recorded to disk using the standard recorder.
+func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *ExecuteOptions) (*basexecution.ExecuteAdhocResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
@@ -102,7 +108,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *base
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
-	s.startExecutionRunnerWithNamespaces(wf, executionID, store, params, env, artifactCfg, projectRoot)
+	s.startExecutionRunnerWithOptions(wf, executionID, store, params, env, artifactCfg, opts, projectRoot)
 
 	// Adhoc runs return immediately; callers should poll the execution ID.
 	return &basexecution.ExecuteAdhocResponse{

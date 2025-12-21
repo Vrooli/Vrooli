@@ -224,6 +224,59 @@ func (c *Client) CloseSession(ctx context.Context, sessionID string) (*CloseSess
 	return &resp, nil
 }
 
+// DownloadArtifact streams an artifact file from the driver.
+func (c *Client) DownloadArtifact(ctx context.Context, path string) (*ArtifactDownload, error) {
+	if c == nil || c.httpClient == nil {
+		return nil, &Error{
+			Op:      "download_artifact",
+			Message: "client not configured",
+			Hint:    "ensure NewClient() was called successfully",
+		}
+	}
+
+	endpoint := fmt.Sprintf("%s/artifacts?path=%s", c.baseURL, url.QueryEscape(path))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, http.NoBody)
+	if err != nil {
+		return nil, &Error{
+			Op:      "download_artifact",
+			URL:     endpoint,
+			Message: "failed to create artifact download request",
+			Cause:   err,
+		}
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, &Error{
+			Op:      "download_artifact",
+			URL:     endpoint,
+			Message: "failed to reach driver for artifact download",
+			Cause:   err,
+		}
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		_ = resp.Body.Close()
+		return nil, &Error{
+			Op:      "download_artifact",
+			URL:     endpoint,
+			Status:  resp.StatusCode,
+			Message: strings.TrimSpace(string(body)),
+		}
+	}
+
+	size := resp.ContentLength
+	if size < 0 {
+		size = 0
+	}
+	return &ArtifactDownload{
+		Reader:      resp.Body,
+		ContentType: resp.Header.Get("Content-Type"),
+		Size:        size,
+	}, nil
+}
+
 // ResetSession resets a session to clean state (for execution reuse).
 func (c *Client) ResetSession(ctx context.Context, sessionID string) error {
 	return c.postNoBody(ctx, fmt.Sprintf("/session/%s/reset", url.PathEscape(sessionID)), nil)
