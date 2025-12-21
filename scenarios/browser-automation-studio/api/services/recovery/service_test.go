@@ -12,9 +12,17 @@ import (
 
 type mockRepo struct {
 	executions []*database.ExecutionIndex
-	updated    []*database.ExecutionIndex
+	updates    []statusUpdate
 	listErr    error
 	updateErr  error
+}
+
+type statusUpdate struct {
+	id           uuid.UUID
+	status       string
+	errorMessage *string
+	completedAt  *time.Time
+	updatedAt    time.Time
 }
 
 func (m *mockRepo) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
@@ -24,11 +32,17 @@ func (m *mockRepo) ListExecutions(ctx context.Context, workflowID *uuid.UUID, li
 	return m.executions, nil
 }
 
-func (m *mockRepo) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {
+func (m *mockRepo) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
 	if m.updateErr != nil {
 		return m.updateErr
 	}
-	m.updated = append(m.updated, execution)
+	m.updates = append(m.updates, statusUpdate{
+		id:           id,
+		status:       status,
+		errorMessage: errorMessage,
+		completedAt:  completedAt,
+		updatedAt:    updatedAt,
+	})
 	return nil
 }
 
@@ -55,8 +69,8 @@ func TestRecoverStaleExecutions_NoStale(t *testing.T) {
 	if result.TotalStale != 0 {
 		t.Fatalf("expected TotalStale=0, got %d", result.TotalStale)
 	}
-	if len(repo.updated) != 0 {
-		t.Fatalf("expected no updates, got %d", len(repo.updated))
+	if len(repo.updates) != 0 {
+		t.Fatalf("expected no updates, got %d", len(repo.updates))
 	}
 }
 
@@ -89,21 +103,20 @@ func TestRecoverStaleExecutions_MarksInterrupted(t *testing.T) {
 	if result.Recovered != 1 {
 		t.Fatalf("expected Recovered=1, got %d", result.Recovered)
 	}
-	if len(repo.updated) != 1 {
-		t.Fatalf("expected 1 updated execution, got %d", len(repo.updated))
+	if len(repo.updates) != 1 {
+		t.Fatalf("expected 1 updated execution, got %d", len(repo.updates))
 	}
-	updated := repo.updated[0]
-	if updated.ID != staleID {
-		t.Fatalf("expected updated execution id %s, got %s", staleID, updated.ID)
+	updated := repo.updates[0]
+	if updated.id != staleID {
+		t.Fatalf("expected updated execution id %s, got %s", staleID, updated.id)
 	}
-	if updated.Status != database.ExecutionStatusFailed {
-		t.Fatalf("expected status failed, got %q", updated.Status)
+	if updated.status != database.ExecutionStatusFailed {
+		t.Fatalf("expected status failed, got %q", updated.status)
 	}
-	if updated.CompletedAt == nil {
+	if updated.completedAt == nil {
 		t.Fatalf("expected completed_at to be set")
 	}
-	if updated.ErrorMessage == "" {
+	if updated.errorMessage == nil || *updated.errorMessage == "" {
 		t.Fatalf("expected error_message to be set")
 	}
 }
-

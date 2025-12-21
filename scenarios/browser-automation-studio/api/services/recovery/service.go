@@ -27,7 +27,7 @@ type Service struct {
 // RecoveryRepository captures the subset of database operations required for recovery.
 type RecoveryRepository interface {
 	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
-	UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error
+	UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error
 }
 
 // Option configures the recovery service.
@@ -121,7 +121,7 @@ func (s *Service) RecoverStaleExecutions(ctx context.Context) (*RecoveryResult, 
 		// We mark the execution as failed with an interrupt reason.
 		// Resumability should be determined by checking the result file.
 		recovery.LastStepIndex = -1 // Unknown without reading result file
-		recovery.Resumable = false   // Conservative default
+		recovery.Resumable = false  // Conservative default
 
 		// Mark the execution as failed/interrupted
 		exec.Status = database.ExecutionStatusFailed
@@ -131,7 +131,8 @@ func (s *Service) RecoverStaleExecutions(ctx context.Context) (*RecoveryResult, 
 		exec.CompletedAt = &now
 		exec.UpdatedAt = now
 
-		if updateErr := s.repo.UpdateExecution(ctx, exec); updateErr != nil {
+		errMsg := exec.ErrorMessage
+		if updateErr := s.repo.UpdateExecutionStatus(ctx, exec.ID, exec.Status, &errMsg, exec.CompletedAt, exec.UpdatedAt); updateErr != nil {
 			s.log.WithError(updateErr).WithField("execution_id", exec.ID).Error("Failed to mark execution interrupted")
 			recovery.Error = updateErr.Error()
 			recovery.RecoveryAction = "error_marking_interrupted"

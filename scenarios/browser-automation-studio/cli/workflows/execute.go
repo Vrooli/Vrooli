@@ -216,6 +216,8 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	if wait {
 		fmt.Println("Waiting for completion...")
 		maxAttempts := 60
+		lastStatus := ""
+		completed := false
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
 			statusResp, err := ctx.Core.APIClient.Get(ctx.APIPath("/executions/"+executionID), nil)
 			if err != nil {
@@ -224,8 +226,10 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				continue
 			}
 			status := normalizeExecutionStatus(extractString(statusResp, "status"))
+			lastStatus = status
 			if status == "completed" {
 				fmt.Println("OK: Execution completed successfully")
+				completed = true
 				break
 			}
 			if status == "failed" || status == "cancelled" {
@@ -237,10 +241,18 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				if errorMessage != "" {
 					fmt.Printf("Error: %s\n", errorMessage)
 				}
+				completed = true
 				break
 			}
 			fmt.Print(".")
 			time.Sleep(5 * time.Second)
+		}
+		if !completed {
+			if lastStatus == "" {
+				lastStatus = "unknown"
+			}
+			fmt.Println("")
+			fmt.Printf("TIMEOUT: Execution did not finish after %d seconds (last status: %s). Use: browser-automation-studio execution watch %s\n", maxAttempts*5, lastStatus, executionID)
 		}
 	}
 

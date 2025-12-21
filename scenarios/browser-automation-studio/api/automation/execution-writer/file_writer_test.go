@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -20,7 +21,11 @@ func (noopRepo) GetExecution(ctx context.Context, id uuid.UUID) (*database.Execu
 	return nil, nil
 }
 
-func (noopRepo) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {
+func (noopRepo) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
+	return nil
+}
+
+func (noopRepo) UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error {
 	return nil
 }
 

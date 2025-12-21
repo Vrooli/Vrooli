@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
@@ -126,13 +127,8 @@ func (s *WorkflowService) GetExecutionVideoArtifacts(ctx context.Context, execut
 
 // UpdateExecutionResultPath updates the DB execution index with the given result file path.
 // This is used by the recorder when it first writes the result file.
-func (s *WorkflowService) UpdateExecutionResultPath(ctx context.Context, executionID uuid.UUID, resultPath string) error {
-	exec, err := s.repo.GetExecution(ctx, executionID)
-	if err != nil {
-		return err
-	}
-	exec.ResultPath = resultPath
-	return s.repo.UpdateExecution(ctx, exec)
+func (s *WorkflowService) UpdateExecutionResultPath(ctx context.Context, executionID uuid.UUID, resultPath string, updatedAt time.Time) error {
+	return s.repo.UpdateExecutionResultPath(ctx, executionID, resultPath, updatedAt)
 }
 
 // Ensure our workflow service satisfies the recorder's minimal interface when used as ExecutionIndexRepository.
@@ -140,6 +136,10 @@ var _ executionwriter.ExecutionIndexRepository = (*WorkflowService)(nil)
 
 func (s *WorkflowService) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
 	return s.repo.GetExecution(ctx, id)
+}
+
+func (s *WorkflowService) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
+	return s.repo.UpdateExecutionStatus(ctx, id, status, errorMessage, completedAt, updatedAt)
 }
 
 func (s *WorkflowService) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {

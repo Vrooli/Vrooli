@@ -39,7 +39,10 @@ type Repository interface {
 	// Execution index operations (detailed results are on disk)
 	CreateExecution(ctx context.Context, execution *ExecutionIndex) error
 	GetExecution(ctx context.Context, id uuid.UUID) (*ExecutionIndex, error)
+	// UpdateExecution updates the full execution row; prefer targeted updates for lifecycle/result path changes.
 	UpdateExecution(ctx context.Context, execution *ExecutionIndex) error
+	UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error
+	UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error
 	DeleteExecution(ctx context.Context, id uuid.UUID) error
 	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*ExecutionIndex, error)
 	ListExecutionsByStatus(ctx context.Context, status string, limit, offset int) ([]*ExecutionIndex, error)
@@ -89,7 +92,7 @@ var _ Repository = (*repository)(nil)
 const (
 	projectSelectColumns   = "id, name, folder_path, created_at, updated_at"
 	workflowSelectColumns  = "id, project_id, name, folder_path, file_path, version, created_at, updated_at"
-	executionSelectColumns = "id, workflow_id, status, started_at, completed_at, error_message, result_path, created_at, updated_at"
+	executionSelectColumns = "id, workflow_id, status, started_at, completed_at, COALESCE(error_message, '') as error_message, COALESCE(result_path, '') as result_path, created_at, updated_at"
 	scheduleSelectColumns  = "id, workflow_id, name, cron_expression, timezone, is_active, parameters_json, next_run_at, last_run_at, created_at, updated_at"
 )
 
@@ -375,6 +378,38 @@ func (r *repository) UpdateExecution(ctx context.Context, execution *ExecutionIn
 	_, err := r.db.NamedExecContext(ctx, query, execution)
 	if err != nil {
 		return fmt.Errorf("failed to update execution: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
+	query := r.db.Rebind("UPDATE executions SET status = ?, error_message = ?, completed_at = ?, updated_at = ? WHERE id = ?")
+	errValue := ""
+	if errorMessage != nil {
+		errValue = *errorMessage
+	}
+	completeValue := sql.NullTime{}
+	if completedAt != nil {
+		completeValue = sql.NullTime{Time: *completedAt, Valid: true}
+	}
+	res, err := r.db.ExecContext(ctx, query, status, errValue, completeValue, updatedAt, id)
+	if err != nil {
+		return fmt.Errorf("failed to update execution status: %w", err)
+	}
+	if rows, rowsErr := res.RowsAffected(); rowsErr == nil && rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *repository) UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error {
+	query := r.db.Rebind("UPDATE executions SET result_path = ?, updated_at = ? WHERE id = ?")
+	res, err := r.db.ExecContext(ctx, query, resultPath, updatedAt, id)
+	if err != nil {
+		return fmt.Errorf("failed to update execution result path: %w", err)
+	}
+	if rows, rowsErr := res.RowsAffected(); rowsErr == nil && rows == 0 {
+		return ErrNotFound
 	}
 	return nil
 }

@@ -89,6 +89,8 @@ type IngestionRepository interface {
 	GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
 	CreateExecution(ctx context.Context, execution *database.ExecutionIndex) error
 	UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error
+	UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error
+	UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error
 	DeleteExecution(ctx context.Context, id uuid.UUID) error
 }
 
@@ -182,8 +184,12 @@ func (a *executionIndexRepoAdapter) GetExecution(ctx context.Context, id uuid.UU
 	return a.repo.GetExecution(ctx, id)
 }
 
-func (a *executionIndexRepoAdapter) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {
-	return a.repo.UpdateExecution(ctx, execution)
+func (a *executionIndexRepoAdapter) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
+	return a.repo.UpdateExecutionStatus(ctx, id, status, errorMessage, completedAt, updatedAt)
+}
+
+func (a *executionIndexRepoAdapter) UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error {
+	return a.repo.UpdateExecutionResultPath(ctx, id, resultPath, updatedAt)
 }
 
 // ImportArchive ingests a Chrome extension recording archive located on disk.
@@ -262,7 +268,7 @@ func (s *IngestionService) ImportArchive(ctx context.Context, archivePath string
 	execution.UpdatedAt = time.Now().UTC()
 	// ResultPath is set by the recorder when writing the result file
 
-	if err := s.repo.UpdateExecution(ctx, execution); err != nil {
+	if err := s.repo.UpdateExecutionStatus(ctx, execution.ID, execution.Status, nil, execution.CompletedAt, execution.UpdatedAt); err != nil {
 		return nil, fmt.Errorf("failed to finalise execution: %w", err)
 	}
 

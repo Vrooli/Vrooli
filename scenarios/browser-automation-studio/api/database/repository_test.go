@@ -265,3 +265,79 @@ func TestExecutionCRUD(t *testing.T) {
 	}
 }
 
+func TestExecutionStatusUpdatePreservesResultPath(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repo := NewRepository(db, logrus.New())
+	ctx := context.Background()
+
+	workflowID := uuid.New()
+	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "W1", FolderPath: "/w1", Version: 1}); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+
+	exec := &ExecutionIndex{
+		ID:         uuid.New(),
+		WorkflowID: workflowID,
+		Status:     ExecutionStatusRunning,
+		StartedAt:  time.Now().UTC(),
+		ResultPath: "data/recordings/execution-2/result.json",
+	}
+	if err := repo.CreateExecution(ctx, exec); err != nil {
+		t.Fatalf("CreateExecution: %v", err)
+	}
+
+	completedAt := time.Now().UTC()
+	errMsg := "completed"
+	if err := repo.UpdateExecutionStatus(ctx, exec.ID, ExecutionStatusCompleted, &errMsg, &completedAt, time.Now().UTC()); err != nil {
+		t.Fatalf("UpdateExecutionStatus: %v", err)
+	}
+
+	got, err := repo.GetExecution(ctx, exec.ID)
+	if err != nil {
+		t.Fatalf("GetExecution: %v", err)
+	}
+	if got.ResultPath != exec.ResultPath {
+		t.Fatalf("expected result_path %q, got %q", exec.ResultPath, got.ResultPath)
+	}
+	if got.Status != ExecutionStatusCompleted {
+		t.Fatalf("expected status %q, got %q", ExecutionStatusCompleted, got.Status)
+	}
+}
+
+func TestExecutionResultPathUpdate(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repo := NewRepository(db, logrus.New())
+	ctx := context.Background()
+
+	workflowID := uuid.New()
+	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "W2", FolderPath: "/w2", Version: 1}); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+
+	exec := &ExecutionIndex{
+		ID:         uuid.New(),
+		WorkflowID: workflowID,
+		Status:     ExecutionStatusRunning,
+		StartedAt:  time.Now().UTC(),
+	}
+	if err := repo.CreateExecution(ctx, exec); err != nil {
+		t.Fatalf("CreateExecution: %v", err)
+	}
+
+	resultPath := "data/recordings/execution-3/result.json"
+	if err := repo.UpdateExecutionResultPath(ctx, exec.ID, resultPath, time.Now().UTC()); err != nil {
+		t.Fatalf("UpdateExecutionResultPath: %v", err)
+	}
+
+	got, err := repo.GetExecution(ctx, exec.ID)
+	if err != nil {
+		t.Fatalf("GetExecution: %v", err)
+	}
+	if got.ResultPath != resultPath {
+		t.Fatalf("expected result_path %q, got %q", resultPath, got.ResultPath)
+	}
+}

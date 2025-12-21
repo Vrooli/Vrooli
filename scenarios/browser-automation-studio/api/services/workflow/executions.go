@@ -38,12 +38,12 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
-		ID:        uuid.New(),
+		ID:         uuid.New(),
 		WorkflowID: workflowID,
-		Status:    database.ExecutionStatusPending,
-		StartedAt: now,
-		CreatedAt: now,
-		UpdatedAt: now,
+		Status:     database.ExecutionStatusPending,
+		StartedAt:  now,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 
 	if err := s.repo.CreateExecution(ctx, exec); err != nil {
@@ -102,12 +102,12 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
-		ID:        uuid.New(),
+		ID:         uuid.New(),
 		WorkflowID: workflowID,
-		Status:    database.ExecutionStatusPending,
-		StartedAt: now,
-		CreatedAt: now,
-		UpdatedAt: now,
+		Status:     database.ExecutionStatusPending,
+		StartedAt:  now,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 	if err := s.repo.CreateExecution(ctx, exec); err != nil {
 		return nil, err
@@ -116,15 +116,15 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	// Persist an initial proto snapshot immediately so the filesystem is the source of truth
 	// for parameters/trigger metadata and other rich execution fields not stored in the DB index.
 	snapshot := &basexecution.Execution{
-		ExecutionId: exec.ID.String(),
-		WorkflowId:  workflowID.String(),
+		ExecutionId:     exec.ID.String(),
+		WorkflowId:      workflowID.String(),
 		WorkflowVersion: int32(version),
-		Status:      enums.StringToExecutionStatus(exec.Status),
-		TriggerType: basbase.TriggerType_TRIGGER_TYPE_API,
-		StartedAt:   autocontracts.TimeToTimestamp(now),
-		CreatedAt:   autocontracts.TimeToTimestamp(now),
-		UpdatedAt:   autocontracts.TimeToTimestamp(now),
-		Parameters:  req.Parameters,
+		Status:          enums.StringToExecutionStatus(exec.Status),
+		TriggerType:     basbase.TriggerType_TRIGGER_TYPE_API,
+		StartedAt:       autocontracts.TimeToTimestamp(now),
+		CreatedAt:       autocontracts.TimeToTimestamp(now),
+		UpdatedAt:       autocontracts.TimeToTimestamp(now),
+		Parameters:      req.Parameters,
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
@@ -262,7 +262,7 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 
 	execIndex.Status = database.ExecutionStatusRunning
 	execIndex.UpdatedAt = time.Now().UTC()
-	_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
+	_ = s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, execIndex.Status, nil, nil, execIndex.UpdatedAt)
 	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
 		ExecutionId: execIndex.ID.String(),
 		WorkflowId:  execIndex.WorkflowID.String(),
@@ -288,7 +288,8 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		now := time.Now().UTC()
 		execIndex.CompletedAt = &now
 		execIndex.UpdatedAt = now
-		_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
+		errMsg := execIndex.ErrorMessage
+		_ = s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, execIndex.Status, &errMsg, execIndex.CompletedAt, execIndex.UpdatedAt)
 		return
 	}
 
@@ -362,7 +363,11 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	execIndex.ErrorMessage = errMsg
 	execIndex.CompletedAt = &now
 	execIndex.UpdatedAt = now
-	_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
+	var errPtr *string
+	if strings.TrimSpace(execIndex.ErrorMessage) != "" {
+		errPtr = &execIndex.ErrorMessage
+	}
+	_ = s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, execIndex.Status, errPtr, execIndex.CompletedAt, execIndex.UpdatedAt)
 	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
 		ExecutionId: execIndex.ID.String(),
 		WorkflowId:  execIndex.WorkflowID.String(),

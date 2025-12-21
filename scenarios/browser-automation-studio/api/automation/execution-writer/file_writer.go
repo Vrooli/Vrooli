@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1099,15 +1100,14 @@ func (r *FileWriter) MarkCrash(ctx context.Context, executionID uuid.UUID, failu
 
 	// Update database index to mark as failed
 	if r.repo != nil {
-		execution, err := r.repo.GetExecution(ctx, executionID)
-		if err == nil && execution != nil {
-			execution.Status = database.ExecutionStatusFailed
-			execution.ErrorMessage = failure.Message
-			now := time.Now()
-			execution.CompletedAt = &now
-			if err := r.repo.UpdateExecution(ctx, execution); err != nil {
-				return fmt.Errorf("update execution index: %w", err)
-			}
+		now := time.Now().UTC()
+		msg := strings.TrimSpace(failure.Message)
+		var errMsg *string
+		if msg != "" {
+			errMsg = &msg
+		}
+		if err := r.repo.UpdateExecutionStatus(ctx, executionID, database.ExecutionStatusFailed, errMsg, &now, now); err != nil {
+			return fmt.Errorf("update execution index: %w", err)
 		}
 	}
 
@@ -1156,14 +1156,18 @@ func (r *FileWriter) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID
 
 // updateExecutionIndex updates the database index with the result path.
 func (r *FileWriter) updateExecutionIndex(ctx context.Context, executionID uuid.UUID, resultPath string) error {
-	execution, err := r.repo.GetExecution(ctx, executionID)
-	if err != nil {
-		// Execution may not exist yet - that's OK, it will be created by the workflow service
+	if r.repo == nil {
 		return nil
 	}
-
-	execution.ResultPath = resultPath
-	return r.repo.UpdateExecution(ctx, execution)
+	updatedAt := time.Now().UTC()
+	if err := r.repo.UpdateExecutionResultPath(ctx, executionID, resultPath, updatedAt); err != nil {
+		// Execution may not exist yet - that's OK, it will be created by the workflow service
+		if errors.Is(err, database.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *FileWriter) persistScreenshot(ctx context.Context, executionID uuid.UUID, outcome contracts.StepOutcome) (*storage.ScreenshotInfo, error) {

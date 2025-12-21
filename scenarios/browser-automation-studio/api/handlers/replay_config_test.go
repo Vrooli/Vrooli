@@ -100,6 +100,14 @@ func (r *testRepository) UpdateExecution(context.Context, *database.ExecutionInd
 	return errors.New("not implemented")
 }
 
+func (r *testRepository) UpdateExecutionStatus(context.Context, uuid.UUID, string, *string, *time.Time, time.Time) error {
+	return errors.New("not implemented")
+}
+
+func (r *testRepository) UpdateExecutionResultPath(context.Context, uuid.UUID, string, time.Time) error {
+	return errors.New("not implemented")
+}
+
 func (r *testRepository) DeleteExecution(context.Context, uuid.UUID) error {
 	return errors.New("not implemented")
 }

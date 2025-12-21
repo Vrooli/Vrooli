@@ -792,12 +792,7 @@ func (c *Client) doRequest(req *http.Request, response interface{}, operation st
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		bodyStr := strings.TrimSpace(string(body))
-		hint := "check playwright-driver logs for details"
-		if strings.Contains(bodyStr, "Maximum concurrent sessions") {
-			hint = "too many concurrent sessions - wait for other executions to complete or increase session limit"
-		} else if strings.Contains(bodyStr, "browser") && strings.Contains(bodyStr, "launch") {
-			hint = "browser failed to launch - check chromium installation and system resources"
-		}
+		hint := hintForDriverFailure(bodyStr)
 		return &Error{
 			Op:      operation,
 			URL:     c.baseURL,
@@ -814,4 +809,22 @@ func (c *Client) doRequest(req *http.Request, response interface{}, operation st
 	}
 
 	return nil
+}
+
+func hintForDriverFailure(message string) string {
+	lower := strings.ToLower(message)
+	switch {
+	case strings.Contains(lower, "maximum concurrent sessions"):
+		return "too many concurrent sessions - wait for other executions to complete or increase session limit"
+	case strings.Contains(lower, "unsupported instruction"):
+		return "instruction not supported - verify the playwright-driver build matches the API contract"
+	case strings.Contains(lower, "browser") && strings.Contains(lower, "launch"):
+		return "browser failed to launch - check chromium installation and system resources"
+	case strings.Contains(lower, "selector") && (strings.Contains(lower, "not found") || strings.Contains(lower, "timeout")):
+		return "selector failed - verify @selector keys match ui/src/constants/selectors.ts and add waits for UI transitions"
+	case strings.Contains(lower, "timeout"):
+		return "driver timed out - increase timeouts or ensure the UI is stable before asserting"
+	default:
+		return "check playwright-driver logs for details"
+	}
 }

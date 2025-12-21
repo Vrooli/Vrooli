@@ -2,6 +2,7 @@ package executionwriter
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -60,7 +61,8 @@ type ExternalArtifact struct {
 // This updates the database index only; detailed execution data is written to JSON files.
 type ExecutionIndexRepository interface {
 	GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
-	UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error
+	UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error
+	UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error
 }
 
 // RecordResult exposes IDs generated during persistence for downstream sinks.
