@@ -7,6 +7,12 @@ type RepoStatusDeps struct {
 	RepoDir string
 }
 
+type RepoHistoryDeps struct {
+	Git     GitRunner
+	RepoDir string
+	Limit   int
+}
+
 type RepoStatus struct {
 	RepoDir   string                 `json:"repo_dir"`
 	Branch    RepoBranchStatus       `json:"branch"`
@@ -16,6 +22,13 @@ type RepoStatus struct {
 	Author    RepoAuthorStatus       `json:"author"`
 	Timestamp time.Time              `json:"timestamp"`
 	Raw       map[string]interface{} `json:"raw,omitempty"`
+}
+
+type RepoHistory struct {
+	RepoDir   string    `json:"repo_dir"`
+	Lines     []string  `json:"lines"`
+	Limit     int       `json:"limit"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 type RepoAuthorStatus struct {
@@ -32,11 +45,11 @@ type RepoBranchStatus struct {
 }
 
 type RepoFilesStatus struct {
-	Staged    []string `json:"staged"`
-	Unstaged  []string `json:"unstaged"`
-	Untracked []string `json:"untracked"`
-	Conflicts []string `json:"conflicts"`
-	Ignored   []string `json:"ignored,omitempty"`
+	Staged    []string          `json:"staged"`
+	Unstaged  []string          `json:"unstaged"`
+	Untracked []string          `json:"untracked"`
+	Conflicts []string          `json:"conflicts"`
+	Ignored   []string          `json:"ignored,omitempty"`
 	Statuses  map[string]string `json:"statuses,omitempty"`
 }
 

@@ -56,6 +56,13 @@ export interface RepoStatus {
   timestamp: string;
 }
 
+export interface RepoHistoryResponse {
+  repo_dir: string;
+  lines: string[];
+  limit: number;
+  timestamp: string;
+}
+
 export interface DiffHunk {
   old_start: number;
   old_count: number;
@@ -212,6 +219,18 @@ export async function fetchRepoStatus(): Promise<RepoStatus> {
     cache: "no-store"
   });
   return handleResponse<RepoStatus>(res);
+}
+
+export async function fetchRepoHistory(limit = 30): Promise<RepoHistoryResponse> {
+  const params = new URLSearchParams();
+  if (limit > 0) params.set("limit", String(limit));
+
+  const url = buildApiUrl(`/repo/history?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<RepoHistoryResponse>(res);
 }
 
 export async function fetchDiff(

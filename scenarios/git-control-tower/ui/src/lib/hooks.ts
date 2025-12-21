@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchHealth,
   fetchRepoStatus,
+  fetchRepoHistory,
   fetchDiff,
   fetchSyncStatus,
   stageFiles,
@@ -10,6 +11,7 @@ import {
   discardFiles,
   pushToRemote,
   pullFromRemote,
+  type RepoHistoryResponse,
   type StageRequest,
   type UnstageRequest,
   type CommitRequest,
@@ -21,6 +23,7 @@ import {
 export const queryKeys = {
   health: ["health"] as const,
   repoStatus: ["repo", "status"] as const,
+  repoHistory: (limit?: number) => ["repo", "history", limit] as const,
   syncStatus: ["repo", "sync-status"] as const,
   diff: (path?: string, staged?: boolean) => ["repo", "diff", path, staged] as const
 };
@@ -38,6 +41,14 @@ export function useRepoStatus() {
     queryKey: queryKeys.repoStatus,
     queryFn: fetchRepoStatus,
     refetchInterval: 5000
+  });
+}
+
+export function useRepoHistory(limit = 30) {
+  return useQuery<RepoHistoryResponse, Error>({
+    queryKey: queryKeys.repoHistory(limit),
+    queryFn: () => fetchRepoHistory(limit),
+    refetchInterval: 30000
   });
 }
 

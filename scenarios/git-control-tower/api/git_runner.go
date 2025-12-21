@@ -71,6 +71,10 @@ type GitRunner interface {
 	// Pull pulls commits from the remote repository.
 	// Returns an error if the pull fails (e.g., conflicts).
 	Pull(ctx context.Context, repoDir string, remote string, branch string) error
+
+	// LogGraph returns a git log graph for recent commits.
+	// Use a limit to cap the number of log entries.
+	LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error)
 }
 
 // CommitOptions configures author overrides for commit operations.
@@ -382,4 +386,31 @@ func (r *ExecGitRunner) Pull(ctx context.Context, repoDir string, remote string,
 		return fmt.Errorf("git pull failed: %w", err)
 	}
 	return nil
+}
+
+func (r *ExecGitRunner) LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error) {
+	if limit <= 0 {
+		limit = 30
+	}
+	args := []string{
+		"-C", repoDir,
+		"log",
+		"--graph",
+		"--oneline",
+		"--decorate",
+		"--color=never",
+		"-n", fmt.Sprintf("%d", limit),
+	}
+
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+	if err == nil {
+		return out, nil
+	}
+
+	exitErr := &exec.ExitError{}
+	if errors.As(err, &exitErr) {
+		return nil, fmt.Errorf("git log failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+	}
+	return nil, fmt.Errorf("git log failed: %w", err)
 }

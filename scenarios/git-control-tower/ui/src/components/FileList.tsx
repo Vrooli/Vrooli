@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import {
   File,
   FilePlus,
@@ -23,6 +23,8 @@ type SelectedFileEntry = { path: string; staged: boolean };
 interface FileListProps {
   files?: RepoFilesStatus;
   selectedFiles?: SelectedFileEntry[];
+  selectedKeySet?: Set<string>;
+  selectionKey: (entry: SelectedFileEntry) => string;
   onSelectFile: (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => void;
   onStageFile: (path: string) => void;
   onUnstageFile: (path: string) => void;
@@ -46,6 +48,8 @@ interface FileSectionProps {
   maxPathChars: number;
   icon: React.ReactNode;
   selectedFiles?: SelectedFileEntry[];
+  selectedKeySet?: Set<string>;
+  selectionKey: (entry: SelectedFileEntry) => string;
   onSelectFile: (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => void;
   onAction: (path: string) => void;
   actionIcon: React.ReactNode;
@@ -109,6 +113,138 @@ function getStatusBadge(code: string | undefined, category: FileCategory) {
   return { label: "M", style: statusStyleMap.M };
 }
 
+interface FileRowProps {
+  file: string;
+  displayPath: string;
+  badge: { label: string; style: string };
+  isSelected: boolean;
+  isStaged: boolean;
+  isConfirming: boolean;
+  canDiscard: boolean;
+  isLoading: boolean;
+  isDiscarding: boolean;
+  itemTestId: string;
+  actionTestId: string;
+  discardTestId: string;
+  actionIcon: React.ReactNode;
+  actionLabel: string;
+  onSelectFile: (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => void;
+  onAction: (path: string) => void;
+  onDiscard?: (path: string) => void;
+  onConfirmDiscard?: (path: string | null) => void;
+}
+
+const FileRow = memo(function FileRow({
+  file,
+  displayPath,
+  badge,
+  isSelected,
+  isStaged,
+  isConfirming,
+  canDiscard,
+  isLoading,
+  isDiscarding,
+  itemTestId,
+  actionTestId,
+  discardTestId,
+  actionIcon,
+  actionLabel,
+  onSelectFile,
+  onAction,
+  onDiscard,
+  onConfirmDiscard
+}: FileRowProps) {
+  return (
+    <li
+      className={`group w-full flex items-center gap-2 px-2 py-1 rounded text-sm cursor-pointer transition-colors min-w-0 overflow-hidden select-none ${
+        isSelected
+          ? "bg-slate-700/50 text-slate-100"
+          : "hover:bg-slate-800/50 text-slate-300"
+      }`}
+      data-testid={itemTestId}
+      data-file-path={file}
+      onClick={(event) => onSelectFile(file, isStaged, event)}
+    >
+      <span
+        className={`h-5 w-5 flex items-center justify-center rounded border text-[10px] font-bold ${badge.style}`}
+        aria-label={`Status ${badge.label}`}
+        title={`Status ${badge.label}`}
+      >
+        {badge.label}
+      </span>
+      <File className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <span className="font-mono text-xs truncate block w-full" title={file}>
+          {displayPath}
+        </span>
+      </div>
+
+      {isConfirming && onConfirmDiscard && onDiscard && (
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <span className="text-xs text-red-400 mr-1">Discard?</span>
+          <button
+            className="px-1.5 py-0.5 text-xs bg-red-600 hover:bg-red-500 text-white rounded transition-colors"
+            onClick={() => {
+              onDiscard(file);
+              onConfirmDiscard(null);
+            }}
+            disabled={isDiscarding}
+            data-testid="confirm-discard-yes"
+          >
+            Yes
+          </button>
+          <button
+            className="px-1.5 py-0.5 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
+            onClick={() => onConfirmDiscard(null)}
+            data-testid="confirm-discard-no"
+          >
+            No
+          </button>
+        </div>
+      )}
+
+      {!isConfirming && (
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+          <button
+            className="p-1 rounded hover:bg-slate-700 transition-all"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAction(file);
+            }}
+            disabled={isLoading}
+            title={actionLabel}
+            data-testid={actionTestId}
+          >
+            {isLoading ? (
+              <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+            ) : (
+              actionIcon
+            )}
+          </button>
+          {canDiscard && onConfirmDiscard && (
+            <button
+              className="p-1 rounded hover:bg-red-900/50 transition-all"
+              onClick={(e) => {
+                e.stopPropagation();
+                onConfirmDiscard(file);
+              }}
+              disabled={isDiscarding}
+              title="Discard changes"
+              data-testid={discardTestId}
+            >
+              {isDiscarding ? (
+                <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+              ) : (
+                <Trash2 className="h-3 w-3 text-red-400" />
+              )}
+            </button>
+          )}
+        </div>
+      )}
+    </li>
+  );
+});
+
 function FileSection({
   title,
   category,
@@ -117,6 +253,8 @@ function FileSection({
   maxPathChars,
   icon,
   selectedFiles,
+  selectedKeySet,
+  selectionKey,
   onSelectFile,
   onAction,
   actionIcon,
@@ -130,12 +268,25 @@ function FileSection({
 }: FileSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
-  if (files.length === 0) return null;
-
   const isStaged = category === "staged";
   const canDiscard = category === "unstaged" || category === "untracked";
-  const isSelectedFile = (path: string) =>
-    Boolean(selectedFiles?.some((entry) => entry.path === path && entry.staged === isStaged));
+  const selectedKeys = selectedKeySet ?? new Set(selectedFiles?.map(selectionKey));
+
+  const entries = useMemo(
+    () =>
+      files.map((file) => {
+        const badge = getStatusBadge(fileStatuses?.[file], category);
+        return {
+          file,
+          key: selectionKey({ path: file, staged: isStaged }),
+          badge,
+          displayPath: formatPath(file, maxPathChars)
+        };
+      }),
+    [files, fileStatuses, category, maxPathChars, selectionKey, isStaged]
+  );
+
+  if (files.length === 0) return null;
 
   return (
     <div className="mb-4" data-testid={`file-section-${category}`}>
@@ -158,108 +309,29 @@ function FileSection({
 
       {expanded && (
         <ul className="mt-1 space-y-0.5 min-w-0">
-          {files.map((file) => {
-            const isSelected = isSelectedFile(file);
-            const isConfirmingThis = confirmingDiscard === file;
-            const badge = getStatusBadge(fileStatuses?.[file], category);
-            const displayPath = formatPath(file, maxPathChars);
-
-            return (
-              <li
-                key={file}
-                className={`group w-full flex items-center gap-2 px-2 py-1 rounded text-sm cursor-pointer transition-colors min-w-0 overflow-hidden ${
-                  isSelected
-                    ? "bg-slate-700/50 text-slate-100"
-                    : "hover:bg-slate-800/50 text-slate-300"
-                }`}
-                data-testid={`file-item-${category}`}
-                data-file-path={file}
-                onClick={(event) => onSelectFile(file, isStaged, event)}
-              >
-                <span
-                  className={`h-5 w-5 flex items-center justify-center rounded border text-[10px] font-bold ${badge.style}`}
-                  aria-label={`Status ${badge.label}`}
-                  title={`Status ${badge.label}`}
-                >
-                  {badge.label}
-                </span>
-                <File className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <span className="font-mono text-xs truncate block w-full" title={file}>
-                    {displayPath}
-                  </span>
-                </div>
-
-                {/* Confirmation UI for discard */}
-                {isConfirmingThis && onConfirmDiscard && onDiscard && (
-                  <div
-                    className="flex items-center gap-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <span className="text-xs text-red-400 mr-1">Discard?</span>
-                    <button
-                      className="px-1.5 py-0.5 text-xs bg-red-600 hover:bg-red-500 text-white rounded transition-colors"
-                      onClick={() => {
-                        onDiscard(file);
-                        onConfirmDiscard(null);
-                      }}
-                      disabled={isDiscarding}
-                      data-testid="confirm-discard-yes"
-                    >
-                      Yes
-                    </button>
-                    <button
-                      className="px-1.5 py-0.5 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
-                      onClick={() => onConfirmDiscard(null)}
-                      data-testid="confirm-discard-no"
-                    >
-                      No
-                    </button>
-                  </div>
-                )}
-
-                {/* Action buttons (hidden during confirmation) */}
-                {!isConfirmingThis && (
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
-                    <button
-                      className="p-1 rounded hover:bg-slate-700 transition-all"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAction(file);
-                      }}
-                      disabled={isLoading}
-                      title={actionLabel}
-                      data-testid={`file-action-${category}`}
-                    >
-                      {isLoading ? (
-                        <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
-                      ) : (
-                        actionIcon
-                      )}
-                    </button>
-                    {canDiscard && onConfirmDiscard && (
-                      <button
-                        className="p-1 rounded hover:bg-red-900/50 transition-all"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onConfirmDiscard(file);
-                        }}
-                        disabled={isDiscarding}
-                        title="Discard changes"
-                        data-testid={`file-discard-${category}`}
-                      >
-                        {isDiscarding ? (
-                          <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
-                        ) : (
-                          <Trash2 className="h-3 w-3 text-red-400" />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </li>
-            );
-          })}
+          {entries.map((entry) => (
+            <FileRow
+              key={entry.file}
+              file={entry.file}
+              displayPath={entry.displayPath}
+              badge={entry.badge}
+              isSelected={selectedKeys?.has(entry.key) ?? false}
+              isStaged={isStaged}
+              isConfirming={confirmingDiscard === entry.file}
+              canDiscard={canDiscard}
+              isLoading={isLoading}
+              isDiscarding={isDiscarding ?? false}
+              itemTestId={`file-item-${category}`}
+              actionTestId={`file-action-${category}`}
+              discardTestId={`file-discard-${category}`}
+              actionIcon={actionIcon}
+              actionLabel={actionLabel}
+              onSelectFile={onSelectFile}
+              onAction={onAction}
+              onDiscard={onDiscard}
+              onConfirmDiscard={onConfirmDiscard}
+            />
+          ))}
         </ul>
       )}
     </div>
@@ -269,6 +341,8 @@ function FileSection({
 export function FileList({
   files,
   selectedFiles,
+  selectedKeySet,
+  selectionKey,
   onSelectFile,
   onStageFile,
   onUnstageFile,
@@ -288,6 +362,14 @@ export function FileList({
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [maxPathChars, setMaxPathChars] = useState(48);
+  const handleDiscardUnstaged = useCallback(
+    (path: string) => onDiscardFile(path, false),
+    [onDiscardFile]
+  );
+  const handleDiscardUntracked = useCallback(
+    (path: string) => onDiscardFile(path, true),
+    [onDiscardFile]
+  );
 
   useEffect(() => {
     if (!scrollAreaRef.current || typeof ResizeObserver === "undefined") return;
@@ -358,7 +440,7 @@ export function FileList({
 
       {!collapsed && (
         <CardContent className="flex-1 min-w-0 p-0 overflow-hidden">
-        <ScrollArea className="h-full min-w-0 px-2 py-2" ref={scrollAreaRef}>
+        <ScrollArea className="h-full min-w-0 px-2 py-2 select-none" ref={scrollAreaRef}>
             {/* Conflicts - Always show first if any */}
             <FileSection
               title="Conflicts"
@@ -368,6 +450,8 @@ export function FileList({
               maxPathChars={maxPathChars}
               icon={<AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
               selectedFiles={selectedFiles}
+              selectedKeySet={selectedKeySet}
+              selectionKey={selectionKey}
               onSelectFile={onSelectFile}
               onAction={onStageFile}
               actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
@@ -384,6 +468,8 @@ export function FileList({
               maxPathChars={maxPathChars}
               icon={<FilePlus className="h-3.5 w-3.5 text-emerald-500" />}
               selectedFiles={selectedFiles}
+              selectedKeySet={selectedKeySet}
+              selectionKey={selectionKey}
               onSelectFile={onSelectFile}
               onAction={onUnstageFile}
               actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
@@ -400,12 +486,14 @@ export function FileList({
               maxPathChars={maxPathChars}
               icon={<FileX className="h-3.5 w-3.5 text-amber-500" />}
               selectedFiles={selectedFiles}
+              selectedKeySet={selectedKeySet}
+              selectionKey={selectionKey}
               onSelectFile={onSelectFile}
               onAction={onStageFile}
               actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
               actionLabel="Stage file"
               isLoading={isStaging}
-              onDiscard={(path) => onDiscardFile(path, false)}
+              onDiscard={handleDiscardUnstaged}
               isDiscarding={isDiscarding}
               confirmingDiscard={confirmingDiscard}
               onConfirmDiscard={onConfirmDiscard}
@@ -420,13 +508,15 @@ export function FileList({
               maxPathChars={maxPathChars}
               icon={<File className="h-3.5 w-3.5 text-slate-500" />}
               selectedFiles={selectedFiles}
+              selectedKeySet={selectedKeySet}
+              selectionKey={selectionKey}
               onSelectFile={onSelectFile}
               onAction={onStageFile}
               actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
               actionLabel="Stage file"
               isLoading={isStaging}
               defaultExpanded={false}
-              onDiscard={(path) => onDiscardFile(path, true)}
+              onDiscard={handleDiscardUntracked}
               isDiscarding={isDiscarding}
               confirmingDiscard={confirmingDiscard}
               onConfirmDiscard={onConfirmDiscard}

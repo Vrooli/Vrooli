@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"fmt"
@@ -10,9 +9,12 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/vrooli/api-core/preflight"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -79,6 +81,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/status", s.handleRepoStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/diff", s.handleDiff).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/history", s.handleRepoHistory).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/stage", s.handleStage).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/unstage", s.handleUnstage).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/commit", s.handleCommit).Methods("POST")
@@ -165,6 +168,43 @@ func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp.OK(status)
+}
+
+func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	limit := 30
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 {
+			resp.BadRequest("limit must be a positive integer")
+			return
+		}
+		if parsed > 200 {
+			parsed = 200
+		}
+		limit = parsed
+	}
+
+	history, err := GetRepoHistory(ctx, RepoHistoryDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+		Limit:   limit,
+	})
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	resp.OK(history)
 }
 
 // [REQ:GCT-OT-P0-003] File diff endpoint

@@ -45,12 +45,16 @@ type FakeGitRunner struct {
 	DiscardError   error
 	PushError      error
 	PullError      error
+	LogError       error
 
 	// Commit tracking
-	LastCommitMessage    string
-	LastCommitAuthorName string
+	LastCommitMessage     string
+	LastCommitAuthorName  string
 	LastCommitAuthorEmail string
-	CommitCount          int
+	CommitCount           int
+
+	// History tracking
+	HistoryLines []string
 
 	// Config values
 	ConfigValues map[string]string
@@ -418,6 +422,20 @@ func (f *FakeGitRunner) Pull(ctx context.Context, repoDir string, remote string,
 	}
 
 	return nil
+}
+
+func (f *FakeGitRunner) LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error) {
+	f.recordCall("LogGraph", repoDir, fmt.Sprintf("limit=%d", limit))
+
+	if f.LogError != nil {
+		return nil, f.LogError
+	}
+
+	lines := f.HistoryLines
+	if limit > 0 && len(lines) > limit {
+		lines = lines[:limit]
+	}
+	return []byte(strings.Join(lines, "\n")), nil
 }
 
 // --- Test helpers ---

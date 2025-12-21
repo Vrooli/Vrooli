@@ -4,9 +4,11 @@ import { StatusHeader } from "./components/StatusHeader";
 import { FileList } from "./components/FileList";
 import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
+import { GitHistory } from "./components/GitHistory";
 import {
   useHealth,
   useRepoStatus,
+  useRepoHistory,
   useDiff,
   useSyncStatus,
   useStageFiles,
@@ -33,12 +35,21 @@ export default function App() {
     const stored = Number(localStorage.getItem("gct.changesHeight"));
     return Number.isFinite(stored) && stored > 0 ? stored : 420;
   });
+  const [historyHeight, setHistoryHeight] = useState(() => {
+    if (typeof window === "undefined") return 200;
+    const stored = Number(localStorage.getItem("gct.historyHeight"));
+    return Number.isFinite(stored) && stored > 0 ? stored : 200;
+  });
   const [changesCollapsed, setChangesCollapsed] = useState(false);
+  const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [commitCollapsed, setCommitCollapsed] = useState(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isResizingSplit, setIsResizingSplit] = useState(false);
+  const [isResizingHistory, setIsResizingHistory] = useState(false);
+  const historyLimit = 50;
   const sidebarResize = useRef<{ left: number; max: number } | null>(null);
   const splitResize = useRef<{ top: number; height: number } | null>(null);
+  const historyResize = useRef<{ bottom: number } | null>(null);
   const sidebarMinWidth = 200;
   const diffMinWidth = 320;
 
@@ -58,6 +69,7 @@ export default function App() {
   // Queries
   const healthQuery = useHealth();
   const statusQuery = useRepoStatus();
+  const historyQuery = useRepoHistory(historyLimit);
   const syncStatusQuery = useSyncStatus();
   const diffQuery = useDiff(selectedFile, selectedIsStaged);
 
@@ -76,6 +88,7 @@ export default function App() {
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.health });
     queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+    queryClient.invalidateQueries({ queryKey: queryKeys.repoHistory(historyLimit) });
     queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
     if (selectedFile) {
       queryClient.invalidateQueries({
@@ -106,6 +119,10 @@ export default function App() {
     [orderedKeys]
   );
   const orderedKeySet = useMemo(() => new Set(orderedKeys), [orderedKeys]);
+  const selectedKeySet = useMemo(
+    () => new Set(selectedFiles.map((entry) => selectionKey(entry))),
+    [selectedFiles, selectionKey]
+  );
 
   const handleSelectFile = useCallback(
     (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => {
@@ -311,6 +328,11 @@ export default function App() {
   }, [changesHeight]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("gct.historyHeight", String(historyHeight));
+  }, [historyHeight]);
+
+  useEffect(() => {
     if (!orderedKeySet.size) {
       setSelectedFiles([]);
       setSelectedFile(undefined);
@@ -340,11 +362,21 @@ export default function App() {
   useEffect(() => {
     if (!sidebarRef.current || typeof ResizeObserver === "undefined") return;
 
-    const minTop = 200;
+    const minChanges = 200;
+    const minHistory = 140;
+    const dividerHeight = 6;
     const minBottom = 180;
     const clamp = () => {
-      if (!sidebarRef.current || changesCollapsed || commitCollapsed) return;
+      if (!sidebarRef.current || commitCollapsed) return;
       const height = sidebarRef.current.clientHeight;
+      const minTop =
+        changesCollapsed && historyCollapsed
+          ? minChanges
+          : changesCollapsed
+            ? minHistory
+            : historyCollapsed
+              ? minChanges
+              : minChanges + minHistory + dividerHeight;
       const maxHeight = Math.max(minTop, height - minBottom);
       if (changesHeight > maxHeight) {
         setChangesHeight(maxHeight);
@@ -357,7 +389,19 @@ export default function App() {
     const observer = new ResizeObserver(clamp);
     observer.observe(sidebarRef.current);
     return () => observer.disconnect();
-  }, [changesHeight, changesCollapsed, commitCollapsed]);
+  }, [changesHeight, changesCollapsed, historyCollapsed, commitCollapsed]);
+
+  useEffect(() => {
+    if (changesCollapsed || historyCollapsed) return;
+    const minChanges = 200;
+    const minHistory = 140;
+    const maxHistory = Math.max(minHistory, changesHeight - minChanges);
+    if (historyHeight > maxHistory) {
+      setHistoryHeight(maxHistory);
+    } else if (historyHeight < minHistory) {
+      setHistoryHeight(Math.min(minHistory, maxHistory));
+    }
+  }, [changesHeight, historyHeight, changesCollapsed, historyCollapsed]);
 
   useEffect(() => {
     if (!isResizingSidebar) return;
@@ -423,6 +467,39 @@ export default function App() {
     };
   }, [isResizingSplit]);
 
+  useEffect(() => {
+    if (!isResizingHistory) return;
+
+    const handleMove = (event: MouseEvent) => {
+      if (!historyResize.current) return;
+      const minHistory = 140;
+      const minChanges = 200;
+      const nextHeight = historyResize.current.bottom - event.clientY;
+      const maxHeight = Math.max(minHistory, changesHeight - minChanges);
+      const clampedHeight = Math.max(minHistory, Math.min(maxHeight, nextHeight));
+      setHistoryHeight(clampedHeight);
+    };
+
+    const handleUp = () => {
+      setIsResizingHistory(false);
+      historyResize.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizingHistory, changesHeight]);
+
   const handleSidebarResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
     if (!mainRef.current) return;
@@ -438,16 +515,25 @@ export default function App() {
 
   const handleSplitResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
-    if (!sidebarRef.current || changesCollapsed || commitCollapsed) return;
+    if (!sidebarRef.current || commitCollapsed || (changesCollapsed && historyCollapsed)) return;
     const rect = sidebarRef.current.getBoundingClientRect();
     splitResize.current = { top: rect.top, height: rect.height };
     setIsResizingSplit(true);
   };
 
-  const showSplitHandle = !changesCollapsed && !commitCollapsed;
+  const handleHistoryResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!sidebarRef.current || changesCollapsed || historyCollapsed) return;
+    const rect = sidebarRef.current.getBoundingClientRect();
+    historyResize.current = { bottom: rect.top + changesHeight };
+    setIsResizingHistory(true);
+  };
+
+  const topCollapsed = changesCollapsed && historyCollapsed;
+  const showSplitHandle = !commitCollapsed && !topCollapsed;
   const sidebarRows = (() => {
-    if (changesCollapsed && commitCollapsed) return "auto 0px auto";
-    if (changesCollapsed) return "auto 0px minmax(0, 1fr)";
+    if (topCollapsed && commitCollapsed) return "auto 0px auto";
+    if (topCollapsed) return "auto 0px minmax(0, 1fr)";
     if (commitCollapsed) return "minmax(0, 1fr) 0px auto";
     return `minmax(0, ${changesHeight}px) 6px minmax(0, 1fr)`;
   })();
@@ -483,23 +569,58 @@ export default function App() {
             ref={sidebarRef}
           >
             <div className="min-h-0 min-w-0 overflow-hidden">
-              <FileList
-                files={statusQuery.data?.files}
-                selectedFiles={selectedFiles}
-                onSelectFile={handleSelectFile}
-                onStageFile={handleStageFile}
-                onUnstageFile={handleUnstageFile}
-                onDiscardFile={handleDiscardFile}
-                onStageAll={handleStageAll}
-                onUnstageAll={handleUnstageAll}
-                isStaging={isStaging}
-                isDiscarding={isDiscarding}
-                confirmingDiscard={confirmingDiscard}
-                onConfirmDiscard={setConfirmingDiscard}
-                collapsed={changesCollapsed}
-                onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
-                fillHeight={!changesCollapsed}
-              />
+              <div
+                className="h-full min-h-0 min-w-0 grid"
+                style={{
+                  gridTemplateRows:
+                    !changesCollapsed && !historyCollapsed
+                      ? `minmax(0, 1fr) 6px minmax(0, ${historyHeight}px)`
+                      : "minmax(0, 1fr)"
+                }}
+              >
+                <div className="min-h-0">
+                  <FileList
+                    files={statusQuery.data?.files}
+                    selectedFiles={selectedFiles}
+                    selectedKeySet={selectedKeySet}
+                    selectionKey={selectionKey}
+                    onSelectFile={handleSelectFile}
+                    onStageFile={handleStageFile}
+                    onUnstageFile={handleUnstageFile}
+                    onDiscardFile={handleDiscardFile}
+                    onStageAll={handleStageAll}
+                    onUnstageAll={handleUnstageAll}
+                    isStaging={isStaging}
+                    isDiscarding={isDiscarding}
+                    confirmingDiscard={confirmingDiscard}
+                    onConfirmDiscard={setConfirmingDiscard}
+                    collapsed={changesCollapsed}
+                    onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
+                    fillHeight={!changesCollapsed}
+                  />
+                </div>
+                <div
+                  className={`${
+                    !changesCollapsed && !historyCollapsed
+                      ? "cursor-row-resize bg-slate-900 hover:bg-slate-800"
+                      : "bg-transparent"
+                  }`}
+                  onMouseDown={
+                    !changesCollapsed && !historyCollapsed ? handleHistoryResizeStart : undefined
+                  }
+                  aria-hidden="true"
+                />
+                <div className="min-h-0">
+                  <GitHistory
+                    lines={historyQuery.data?.lines}
+                    isLoading={historyQuery.isLoading}
+                    error={historyQuery.error}
+                    collapsed={historyCollapsed}
+                    onToggleCollapse={() => setHistoryCollapsed((prev) => !prev)}
+                    height={historyHeight}
+                  />
+                </div>
+              </div>
             </div>
             <div
               className={`${
@@ -513,16 +634,16 @@ export default function App() {
             <div className="min-h-0 min-w-0 border-t border-slate-800 overflow-hidden">
               <CommitPanel
                 stagedCount={statusQuery.data?.summary.staged ?? 0}
-              onCommit={handleCommit}
-              isCommitting={commitMutation.isPending}
-              lastCommitHash={lastCommitHash}
-              commitError={commitError}
-              defaultAuthorName={statusQuery.data?.author?.name}
-              defaultAuthorEmail={statusQuery.data?.author?.email}
-              collapsed={commitCollapsed}
-              onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
-              fillHeight={!commitCollapsed}
-            />
+                onCommit={handleCommit}
+                isCommitting={commitMutation.isPending}
+                lastCommitHash={lastCommitHash}
+                commitError={commitError}
+                defaultAuthorName={statusQuery.data?.author?.name}
+                defaultAuthorEmail={statusQuery.data?.author?.email}
+                collapsed={commitCollapsed}
+                onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
+                fillHeight={!commitCollapsed}
+              />
             </div>
           </div>
         </div>

@@ -57,6 +57,39 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	return parsed, nil
 }
 
+func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, error) {
+	if deps.Git == nil {
+		return nil, fmt.Errorf("git runner is required")
+	}
+	repoDir := strings.TrimSpace(deps.RepoDir)
+	if repoDir == "" {
+		return nil, fmt.Errorf("repo dir is required")
+	}
+
+	limit := deps.Limit
+	if limit <= 0 {
+		limit = 30
+	}
+
+	out, err := deps.Git.LogGraph(ctx, repoDir, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	raw := strings.TrimRight(string(out), "\n")
+	lines := []string{}
+	if raw != "" {
+		lines = strings.Split(raw, "\n")
+	}
+
+	return &RepoHistory{
+		RepoDir:   repoDir,
+		Lines:     lines,
+		Limit:     limit,
+		Timestamp: time.Now().UTC(),
+	}, nil
+}
+
 func detectScopes(files RepoFilesStatus) map[string][]string {
 	scopes := map[string][]string{}
 	for _, path := range append(append(append(files.Staged, files.Unstaged...), files.Untracked...), files.Conflicts...) {
