@@ -257,6 +257,13 @@
         "description": "Optional dashboards for advanced visualization"
       }
     },
-    "scenarios": {}
+    "scenarios": {
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "description": "Agent orchestration layer for investigations and anomaly checks"
+      }
+    }
   }
 }

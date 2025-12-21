@@ -2056,8 +2056,8 @@ NODE
                 ;;
             render)
                 check_api_health
-                if ! command -v node >/dev/null 2>&1; then
-                    echo -e "${RED}Error:${NC} Node.js is required for replay rendering"
+                if ! command -v unzip >/dev/null 2>&1; then
+                    echo -e "${RED}Error:${NC} unzip is required for replay rendering"
                     exit 1
                 fi
 
@@ -2108,17 +2108,32 @@ NODE
                     exit 1
                 fi
 
-                tmp_json=$(mktemp)
-                status_code=$(curl -s -o "$tmp_json" -w "%{http_code}" -X POST "${API_URL}/executions/${execution_id}/export")
+                if [ -z "$output_dir" ]; then
+                    output_dir="bas-replay-${execution_id}"
+                fi
+
+                if [ -d "$output_dir" ] && [ "$overwrite_flag" -eq 0 ]; then
+                    echo -e "${RED}Error:${NC} ${output_dir} already exists (use --overwrite)"
+                    exit 1
+                fi
+
+                tmp_zip=$(mktemp)
+                archive_name="$(basename "$output_dir").zip"
+                render_body=$(printf '{"format":"html","file_name":"%s"}' "$archive_name")
+                status_code=$(curl -s -o "$tmp_zip" -w "%{http_code}" -X POST "${API_URL}/executions/${execution_id}/export" \
+                    -H 'Content-Type: application/json' \
+                    -H 'Accept: application/zip' \
+                    -d "$render_body")
+
                 if [ "$status_code" = "404" ]; then
-                    rm -f "$tmp_json"
+                    rm -f "$tmp_zip"
                     echo -e "${RED}✗ Execution not found${NC}"
                     exit 1
                 fi
 
                 if [ "$status_code" != "200" ]; then
-                    error_body=$(cat "$tmp_json")
-                    rm -f "$tmp_json"
+                    error_body=$(cat "$tmp_zip")
+                    rm -f "$tmp_zip"
                     if command -v jq >/dev/null 2>&1; then
                         message=$(printf '%s' "$error_body" | jq -r '.message // empty' 2>/dev/null)
                     else
@@ -2128,43 +2143,17 @@ NODE
                     exit 1
                 fi
 
-                if [ -z "$output_dir" ]; then
-                    output_dir="bas-replay-${execution_id}"
-                fi
-
-                renderer="${SCRIPT_DIR}/render-export.js"
-                if [ ! -f "$renderer" ]; then
-                    rm -f "$tmp_json"
-                    echo -e "${RED}Replay renderer script missing:${NC} ${renderer}"
+                mkdir -p "$output_dir" 2>/dev/null || true
+                if ! unzip -o "$tmp_zip" -d "$output_dir" >/dev/null 2>&1; then
+                    rm -f "$tmp_zip"
+                    echo -e "${RED}✗ Failed to extract replay package${NC}"
                     exit 1
                 fi
-
-                base_url="${API_URL%/api/v1}"
-
-                node_args=("$renderer" --input "$tmp_json" --output "$output_dir" --base-url "$base_url")
-                if [ "$overwrite_flag" -eq 1 ]; then
-                    node_args+=("--overwrite")
-                fi
-
-                if ! node "${node_args[@]}"; then
-                    rm -f "$tmp_json"
-                    echo -e "${RED}✗ Failed to render replay${NC}"
-                    exit 1
-                fi
-
-                rm -f "$tmp_json"
+                rm -f "$tmp_zip"
                 echo -e "${GREEN}✓ Replay package ready${NC}: open ${output_dir}/index.html"
                 ;;
             render-video)
                 check_api_health
-                if ! command -v node >/dev/null 2>&1; then
-                    echo -e "${RED}Error:${NC} Node.js is required for video rendering"
-                    exit 1
-                fi
-                if ! command -v ffmpeg >/dev/null 2>&1; then
-                    echo -e "${RED}Error:${NC} ffmpeg is required for video rendering"
-                    exit 1
-                fi
 
                 args=("${@:3}")
                 execution_id=""

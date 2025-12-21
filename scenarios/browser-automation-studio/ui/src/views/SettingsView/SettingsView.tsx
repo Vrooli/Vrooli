@@ -19,11 +19,20 @@ import {
   Play,
   Pause,
 } from 'lucide-react';
-import { useSettingsStore } from '@stores/settingsStore';
+import { useSettingsStore, type IntroCardSettings, type OutroCardSettings, type WatermarkSettings } from '@stores/settingsStore';
 import { BrandingTab } from './sections/branding';
 import { SessionProfilesTab } from './sections/SessionProfilesSection';
 import { SubscriptionTab } from './sections/subscription';
 import { SchedulesTab } from './sections/schedules';
+import { getConfig } from '@/config';
+import { logger } from '@utils/logger';
+import {
+  isReplayBackgroundTheme,
+  isReplayChromeTheme,
+  isReplayCursorClickAnimation,
+  isReplayCursorInitialPosition,
+  isReplayCursorTheme,
+} from '@/domains/exports/replay/replayThemeOptions';
 import {
   DisplaySection,
   ReplaySection,
@@ -54,9 +63,30 @@ interface SettingsViewProps {
   initialTab?: string;
 }
 
+const isValidSpeedProfile = (value: unknown): value is 'instant' | 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' =>
+  typeof value === 'string' && ['instant', 'linear', 'easeIn', 'easeOut', 'easeInOut'].includes(value);
+
+const isValidPathStyle = (value: unknown): value is 'linear' | 'parabolicUp' | 'parabolicDown' | 'cubic' | 'pseudorandom' =>
+  typeof value === 'string' && ['linear', 'parabolicUp', 'parabolicDown', 'cubic', 'pseudorandom'].includes(value);
+
+const asObject = (value: unknown): Record<string, unknown> | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  return value as Record<string, unknown>;
+};
+
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  return null;
+};
+
 export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
   const {
     replay,
+    setReplaySetting,
     resetReplaySettings,
     resetWorkflowDefaults,
     resetDisplaySettings,
@@ -69,6 +99,9 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
     (initialTab as SettingsTab) || 'display'
   );
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(true);
+  const [isReplayConfigReady, setIsReplayConfigReady] = useState(false);
+  const lastSyncedReplayConfigRef = useRef<string | null>(null);
+  const syncTimerRef = useRef<number | null>(null);
 
   // Sync activeTab when initialTab prop changes (e.g., navigating from "Open export settings")
   useEffect(() => {
@@ -78,6 +111,142 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
   }, [initialTab]); // eslint-disable-line react-hooks/exhaustive-deps -- Only sync when initialTab changes
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
+
+  useEffect(() => {
+    let isCancelled = false;
+    void (async () => {
+      try {
+        const { API_URL } = await getConfig();
+        const response = await fetch(`${API_URL}/replay-config`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch replay config (${response.status})`);
+        }
+        const payload = (await response.json()) as { config?: unknown };
+        const config = asObject(payload.config);
+        if (!config || isCancelled) {
+          return;
+        }
+
+        const chromeTheme = config.chromeTheme;
+        if (isReplayChromeTheme(chromeTheme)) {
+          setReplaySetting('chromeTheme', chromeTheme);
+        }
+        const backgroundTheme = config.backgroundTheme;
+        if (isReplayBackgroundTheme(backgroundTheme)) {
+          setReplaySetting('backgroundTheme', backgroundTheme);
+        }
+        const cursorTheme = config.cursorTheme;
+        if (isReplayCursorTheme(cursorTheme)) {
+          setReplaySetting('cursorTheme', cursorTheme);
+        }
+        const cursorInitialPosition = config.cursorInitialPosition;
+        if (isReplayCursorInitialPosition(cursorInitialPosition)) {
+          setReplaySetting('cursorInitialPosition', cursorInitialPosition);
+        }
+        const cursorClickAnimation = config.cursorClickAnimation;
+        if (isReplayCursorClickAnimation(cursorClickAnimation)) {
+          setReplaySetting('cursorClickAnimation', cursorClickAnimation);
+        }
+        const cursorScale = toNumber(config.cursorScale);
+        if (cursorScale != null) {
+          setReplaySetting('cursorScale', cursorScale);
+        }
+        if (isValidSpeedProfile(config.cursorSpeedProfile)) {
+          setReplaySetting('cursorSpeedProfile', config.cursorSpeedProfile);
+        }
+        if (isValidPathStyle(config.cursorPathStyle)) {
+          setReplaySetting('cursorPathStyle', config.cursorPathStyle);
+        }
+
+        const watermark = asObject(config.watermark);
+        if (watermark) {
+          setReplaySetting('watermark', watermark as WatermarkSettings);
+        }
+        const introCard = asObject(config.introCard);
+        if (introCard) {
+          setReplaySetting('introCard', introCard as IntroCardSettings);
+        }
+        const outroCard = asObject(config.outroCard);
+        if (outroCard) {
+          setReplaySetting('outroCard', outroCard as OutroCardSettings);
+        }
+      } catch (error) {
+        logger.warn('Failed to load replay config from API', { component: 'SettingsView' }, error);
+      } finally {
+        if (!isCancelled) {
+          setIsReplayConfigReady(true);
+        }
+      }
+    })();
+    return () => {
+      isCancelled = true;
+    };
+  }, [setReplaySetting]);
+
+  useEffect(() => {
+    if (!isReplayConfigReady) {
+      return;
+    }
+    const payload = {
+      chromeTheme: replay.chromeTheme,
+      backgroundTheme: replay.backgroundTheme,
+      cursorTheme: replay.cursorTheme,
+      cursorInitialPosition: replay.cursorInitialPosition,
+      cursorClickAnimation: replay.cursorClickAnimation,
+      cursorScale: replay.cursorScale,
+      cursorSpeedProfile: replay.cursorSpeedProfile,
+      cursorPathStyle: replay.cursorPathStyle,
+      watermark: replay.watermark,
+      introCard: replay.introCard,
+      outroCard: replay.outroCard,
+    };
+    const serialized = JSON.stringify(payload);
+    if (lastSyncedReplayConfigRef.current === serialized) {
+      return;
+    }
+    if (syncTimerRef.current !== null) {
+      window.clearTimeout(syncTimerRef.current);
+    }
+    syncTimerRef.current = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const { API_URL } = await getConfig();
+          const response = await fetch(`${API_URL}/replay-config`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ config: payload }),
+          });
+          if (!response.ok) {
+            throw new Error(`Failed to persist replay config (${response.status})`);
+          }
+          lastSyncedReplayConfigRef.current = serialized;
+        } catch (error) {
+          logger.warn('Failed to persist replay config', { component: 'SettingsView' }, error);
+        }
+      })();
+    }, 600);
+  }, [
+    isReplayConfigReady,
+    replay.backgroundTheme,
+    replay.chromeTheme,
+    replay.cursorClickAnimation,
+    replay.cursorInitialPosition,
+    replay.cursorPathStyle,
+    replay.cursorScale,
+    replay.cursorSpeedProfile,
+    replay.cursorTheme,
+    replay.introCard,
+    replay.outroCard,
+    replay.watermark,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (syncTimerRef.current !== null) {
+        window.clearTimeout(syncTimerRef.current);
+      }
+    };
+  }, []);
   const previewBoundsRef = useRef<HTMLDivElement | null>(null);
   const [previewBounds, setPreviewBounds] = useState<{ width: number; height: number } | null>(null);
 

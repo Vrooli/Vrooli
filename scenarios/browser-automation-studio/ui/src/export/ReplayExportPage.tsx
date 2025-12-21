@@ -1269,6 +1269,9 @@ const ReplayExportPage = () => {
 
   const decor = movieSpec?.decor ?? {};
   const motion = movieSpec?.cursor_motion;
+  const watermark = movieSpec?.watermark;
+  const introCard = movieSpec?.intro_card;
+  const outroCard = movieSpec?.outro_card;
   const chromeTheme = (decor.chrome_theme ?? "aurora") as any;
   const backgroundTheme = (decor.background_theme ?? "aurora") as any;
   const cursorTheme = (decor.cursor_theme ?? "white") as any;
@@ -1373,6 +1376,9 @@ const ReplayExportPage = () => {
           cursorClickAnimation={cursorClickAnimation}
           cursorDefaultSpeedProfile={cursorDefaultSpeedProfile}
           cursorDefaultPathStyle={cursorDefaultPathStyle}
+          watermark={watermark ?? undefined}
+          introCard={introCard ?? undefined}
+          outroCard={outroCard ?? undefined}
           onFrameChange={handleFrameChange}
           onFrameProgressChange={handleProgressChange}
           exposeController={handleExposeController}
