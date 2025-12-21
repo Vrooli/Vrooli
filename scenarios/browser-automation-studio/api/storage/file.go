@@ -24,7 +24,7 @@ type FileStorage struct {
 // NewFileStorage initializes a filesystem-backed storage rooted at the provided directory.
 func NewFileStorage(root string, log *logrus.Logger) (*FileStorage, error) {
 	if strings.TrimSpace(root) == "" {
-		return nil, fmt.Errorf("screenshot root is required")
+		return nil, fmt.Errorf("storage root is required")
 	}
 	absRoot := root
 	if resolved, err := filepath.Abs(root); err == nil {
@@ -85,7 +85,7 @@ func (f *FileStorage) GetScreenshot(_ context.Context, objectName string) (io.Re
 
 // StoreScreenshot writes raw bytes to disk and returns API URLs.
 func (f *FileStorage) StoreScreenshot(_ context.Context, executionID uuid.UUID, stepName string, data []byte, contentType string) (*ScreenshotInfo, error) {
-	objectName := fmt.Sprintf("screenshots/%s/%s-%s.png", executionID, sanitizeStepName(stepName), uuid.New())
+	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s-%s.png", executionID, sanitizeStepName(stepName), uuid.New())
 	path, err := f.objectPath(objectName)
 	if err != nil {
 		return nil, err
@@ -187,7 +187,7 @@ func (f *FileStorage) DeleteScreenshot(_ context.Context, objectName string) err
 
 // ListExecutionScreenshots lists stored screenshot object names for an execution.
 func (f *FileStorage) ListExecutionScreenshots(_ context.Context, executionID uuid.UUID) ([]string, error) {
-	base := filepath.Join(f.root, "screenshots", executionID.String())
+	base := filepath.Join(f.root, executionID.String(), "artifacts", "screenshots")
 	var objects []string
 	err := filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
 		if err != nil {

@@ -122,12 +122,10 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 // When uxRepo is provided, the UX metrics collector wraps the event sink to passively
 // capture interaction data during workflow executions.
 func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, uxRepo uxmetrics.Repository) HandlerDeps {
-	// Initialize screenshot storage (defaults to local filesystem, optionally MinIO)
-	screenshotRoot := paths.ResolveScreenshotsRoot(log)
-	storageClient := storage.NewScreenshotStorage(log, screenshotRoot)
-
 	// Initialize recordings infrastructure
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
+	// Store screenshots alongside other execution artifacts under recordingsRoot.
+	storageClient := storage.NewScreenshotStorage(log, recordingsRoot)
 	recordingService := archiveingestion.NewIngestionService(repo, storageClient, wsHub, log, recordingsRoot)
 	sessionProfiles := archiveingestion.NewSessionProfileStore(paths.ResolveSessionProfilesRoot(log), log)
 

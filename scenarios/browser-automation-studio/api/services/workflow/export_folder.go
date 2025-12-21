@@ -111,8 +111,7 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 				continue
 			}
 
-			// Extract object name from URL
-			// URL format: /screenshots/{execution-id}/{filename}
+			// Extract object name from URL (path after /api/v1/screenshots/)
 			objectName := frame.Screenshot.URL
 			if strings.HasPrefix(objectName, "/") {
 				objectName = objectName[1:]

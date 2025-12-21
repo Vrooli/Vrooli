@@ -17,7 +17,7 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 - On sqlite startup we best-effort call `resource-sqlite manage install` to prep directories; it’s safe to continue if the CLI isn’t present. Set `BAS_SKIP_SQLITE_TESTS=true` to skip sqlite smoke tests in CI.
 
 ### Screenshot storage
-- Default: local filesystem (`BAS_SCREENSHOT_STORAGE=local` or unset) rooted at `scenarios/browser-automation-studio/data/screenshots`. Override with `BAS_SCREENSHOTS_ROOT` for custom paths.
+- Default: local filesystem (`BAS_SCREENSHOT_STORAGE=local` or unset) rooted at `scenarios/browser-automation-studio/data/recordings`.
 - Object storage: set `BAS_SCREENSHOT_STORAGE=minio` and supply `MINIO_*` env vars. If MinIO init fails, the API automatically falls back to local storage so desktop/offline builds stay functional.
 
 ## ⚠️ Current Implementation Status (2025-11-14)

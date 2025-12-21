@@ -70,6 +70,13 @@ export async function handleSessionStart(
       });
     }
 
+    if (requiresArtifactRoot(request.required_capabilities) && !request.artifact_paths?.root?.trim()) {
+      throw new InvalidInstructionError('artifact_paths.root is required when recording video/trace/HAR artifacts', {
+        field: 'artifact_paths.root',
+        required_for: request.required_capabilities,
+      });
+    }
+
     // Build session spec
     const spec: SessionSpec = {
       execution_id: request.execution_id,
@@ -106,4 +113,11 @@ export async function handleSessionStart(
   } catch (error) {
     sendError(res, error as Error, '/session/start');
   }
+}
+
+function requiresArtifactRoot(capabilities?: StartSessionRequest['required_capabilities']): boolean {
+  if (!capabilities) {
+    return false;
+  }
+  return Boolean(capabilities.video || capabilities.har || capabilities.tracing);
 }

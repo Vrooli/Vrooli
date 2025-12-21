@@ -9,9 +9,9 @@ import (
 
 // NewScreenshotStorage chooses a storage backend based on env configuration, defaulting to local filesystem.
 // BAS_SCREENSHOT_STORAGE:
-//   - "local" (default): filesystem store rooted at screenshotRoot
+//   - "local" (default): filesystem store rooted at recordingsRoot
 //   - "minio": use MinIO/S3-compatible object storage, falling back to local on init failure
-func NewScreenshotStorage(log *logrus.Logger, screenshotRoot string) StorageInterface {
+func NewScreenshotStorage(log *logrus.Logger, recordingsRoot string) StorageInterface {
 	mode := strings.ToLower(strings.TrimSpace(os.Getenv("BAS_SCREENSHOT_STORAGE")))
 	if mode == "" {
 		mode = "local"
@@ -28,7 +28,7 @@ func NewScreenshotStorage(log *logrus.Logger, screenshotRoot string) StorageInte
 		}
 	}
 
-	local, err := NewFileStorage(screenshotRoot, log)
+	local, err := NewFileStorage(recordingsRoot, log)
 	if err != nil {
 		if log != nil {
 			log.WithError(err).Warn("Screenshot storage unavailable; filesystem backend failed to initialize")

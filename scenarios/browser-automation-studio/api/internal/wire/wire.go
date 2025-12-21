@@ -87,12 +87,10 @@ func DefaultConfig() Config {
 // BuildDependencies constructs all production dependencies.
 // This is the main entry point for dependency injection.
 func BuildDependencies(repo database.Repository, hub *wsHub.Hub, log *logrus.Logger, cfg Config) (*Dependencies, error) {
-	// Initialize storage infrastructure
-	screenshotRoot := paths.ResolveScreenshotsRoot(log)
-	storageClient := storage.NewScreenshotStorage(log, screenshotRoot)
-
 	// Initialize recordings infrastructure
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
+	// Store screenshots alongside other execution artifacts under recordingsRoot.
+	storageClient := storage.NewScreenshotStorage(log, recordingsRoot)
 	recordingImportSvc := archiveingestion.NewIngestionService(repo, storageClient, hub, log, recordingsRoot)
 	sessionProfiles := archiveingestion.NewSessionProfileStore(paths.ResolveSessionProfilesRoot(log), log)
 

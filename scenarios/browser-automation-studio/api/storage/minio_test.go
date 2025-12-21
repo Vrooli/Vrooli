@@ -372,7 +372,7 @@ func TestMinIOClient_GetScreenshot(t *testing.T) {
 	t.Run("returns error for non-existent screenshot", func(t *testing.T) {
 		ctx := context.Background()
 
-		reader, objectInfo, err := client.GetScreenshot(ctx, "screenshots/non-existent.png")
+		reader, objectInfo, err := client.GetScreenshot(ctx, "00000000-0000-0000-0000-000000000000/artifacts/screenshots/missing.png")
 
 		assert.Error(t, err)
 		assert.Nil(t, reader)
@@ -383,7 +383,7 @@ func TestMinIOClient_GetScreenshot(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
 
-		reader, objectInfo, err := client.GetScreenshot(ctx, "screenshots/test.png")
+		reader, objectInfo, err := client.GetScreenshot(ctx, "00000000-0000-0000-0000-000000000000/artifacts/screenshots/test.png")
 
 		assert.Error(t, err)
 		assert.Nil(t, reader)
@@ -443,7 +443,7 @@ func TestMinIOClient_DeleteScreenshot(t *testing.T) {
 		ctx := context.Background()
 
 		// MinIO doesn't error on deleting non-existent objects
-		err := client.DeleteScreenshot(ctx, "screenshots/never-existed.png")
+		err := client.DeleteScreenshot(ctx, "00000000-0000-0000-0000-000000000000/artifacts/screenshots/never-existed.png")
 
 		// Should not error (MinIO behavior)
 		assert.NoError(t, err)
