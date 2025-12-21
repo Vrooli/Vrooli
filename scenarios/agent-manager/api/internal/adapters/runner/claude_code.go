@@ -174,7 +174,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 
 	// Emit starting event
 	if req.EventSink != nil {
-		req.EventSink.Emit(domain.NewStatusEvent(
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
 			req.RunID,
 			string(domain.RunStatusStarting),
 			string(domain.RunStatusRunning),
@@ -215,7 +215,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		if err != nil {
 			// Log parsing error but continue
 			if req.EventSink != nil {
-				req.EventSink.Emit(domain.NewLogEvent(
+				_ = req.EventSink.Emit(domain.NewLogEvent(
 					req.RunID,
 					"warn",
 					fmt.Sprintf("Failed to parse event: %v", err),
@@ -234,7 +234,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 
 		// Emit to sink
 		if req.EventSink != nil {
-			req.EventSink.Emit(event)
+			_ = req.EventSink.Emit(event)
 		}
 	}
 
@@ -280,13 +280,13 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		if !result.Success {
 			finalStatus = string(domain.RunStatusFailed)
 		}
-		req.EventSink.Emit(domain.NewStatusEvent(
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
 			req.RunID,
 			string(domain.RunStatusRunning),
 			finalStatus,
 			"Claude Code execution completed",
 		))
-		req.EventSink.Close()
+		_ = req.EventSink.Close()
 	}
 
 	return result, nil
@@ -437,7 +437,7 @@ type ClaudeContentItem struct {
 // ExtractTextContent extracts text content from a ClaudeMessage.
 // Handles both string content and array of content blocks.
 func (m *ClaudeMessage) ExtractTextContent() string {
-	if m.Content == nil || len(m.Content) == 0 {
+	if len(m.Content) == 0 {
 		return ""
 	}
 
@@ -464,7 +464,7 @@ func (m *ClaudeMessage) ExtractTextContent() string {
 
 // ExtractToolUses extracts tool use blocks from a ClaudeMessage content array.
 func (m *ClaudeMessage) ExtractToolUses() []ClaudeContentItem {
-	if m.Content == nil || len(m.Content) == 0 {
+	if len(m.Content) == 0 {
 		return nil
 	}
 
@@ -485,7 +485,7 @@ func (m *ClaudeMessage) ExtractToolUses() []ClaudeContentItem {
 // ExtractToolResults extracts tool result blocks from a ClaudeMessage content array.
 // These appear in user messages as responses to tool_use blocks from the assistant.
 func (m *ClaudeMessage) ExtractToolResults() []ClaudeContentItem {
-	if m.Content == nil || len(m.Content) == 0 {
+	if len(m.Content) == 0 {
 		return nil
 	}
 
@@ -617,14 +617,13 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 			// Also check for tool uses in the message content
 			toolUses := streamEvent.Message.ExtractToolUses()
 			if len(toolUses) > 0 {
-				// Emit tool call events for each tool use
-				for _, tool := range toolUses {
-					var input map[string]interface{}
-					if tool.Input != nil {
-						json.Unmarshal(tool.Input, &input)
-					}
-					return domain.NewToolCallEvent(runID, tool.Name, input), nil
+				// Emit the first tool call event (most common case).
+				tool := toolUses[0]
+				var input map[string]interface{}
+				if tool.Input != nil {
+					_ = json.Unmarshal(tool.Input, &input)
 				}
+				return domain.NewToolCallEvent(runID, tool.Name, input), nil
 			}
 		}
 		// Turn marker without content - log for debugging
@@ -661,7 +660,7 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 		if streamEvent.ToolUse != nil {
 			var input map[string]interface{}
 			if streamEvent.ToolUse.Input != nil {
-				json.Unmarshal(streamEvent.ToolUse.Input, &input)
+				_ = json.Unmarshal(streamEvent.ToolUse.Input, &input)
 			}
 			return domain.NewToolCallEvent(
 				runID,
@@ -674,7 +673,7 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 		// Parse tool result
 		var resultStr string
 		if streamEvent.Result != nil {
-			json.Unmarshal(streamEvent.Result, &resultStr)
+			_ = json.Unmarshal(streamEvent.Result, &resultStr)
 		}
 		return domain.NewToolResultEvent(
 			runID,
@@ -775,7 +774,7 @@ func (r *ClaudeCodeRunner) parseResultEvent(runID uuid.UUID, event *ClaudeStream
 	if event.IsError {
 		var resultStr string
 		if event.Result != nil {
-			json.Unmarshal(event.Result, &resultStr)
+			_ = json.Unmarshal(event.Result, &resultStr)
 		}
 
 		// Check for rate limit pattern: "Claude AI usage limit reached|timestamp"

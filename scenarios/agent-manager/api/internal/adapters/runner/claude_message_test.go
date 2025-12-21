@@ -179,7 +179,7 @@ func TestClaudeMessage_ExtractToolUses_EmptyContent(t *testing.T) {
 			}
 
 			tools := msg.ExtractToolUses()
-			if tools != nil && len(tools) != 0 {
+			if len(tools) != 0 {
 				t.Errorf("ExtractToolUses() = %v, want nil or empty", tools)
 			}
 		})

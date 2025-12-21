@@ -775,7 +775,7 @@ func (o *Orchestrator) markIdempotencyFailed(ctx context.Context, key string) {
 	if key == "" || o.idempotency == nil {
 		return
 	}
-	o.idempotency.Fail(ctx, key)
+	_ = o.idempotency.Fail(ctx, key)
 }
 
 // markIdempotencyComplete marks an idempotency key as successfully completed.
@@ -783,7 +783,7 @@ func (o *Orchestrator) markIdempotencyComplete(ctx context.Context, key string, 
 	if key == "" || o.idempotency == nil {
 		return
 	}
-	o.idempotency.Complete(ctx, key, entityID, entityType, nil)
+	_ = o.idempotency.Complete(ctx, key, entityID, entityType, nil)
 }
 
 // resolveRunConfig resolves the run configuration from profile and/or inline config.
@@ -1218,6 +1218,17 @@ func (o *Orchestrator) GetHealth(ctx context.Context) (*HealthStatus, error) {
 		Dependencies: &HealthDependencies{
 			Runners: make(map[string]*DependencyStatus),
 		},
+	}
+
+	// Check database (repositories configured)
+	if o.profiles != nil && o.tasks != nil && o.runs != nil {
+		status.Dependencies.Database = &DependencyStatus{Connected: true}
+	} else {
+		msg := "not configured"
+		status.Dependencies.Database = &DependencyStatus{
+			Connected: false,
+			Error:     &msg,
+		}
 	}
 
 	// Check sandbox

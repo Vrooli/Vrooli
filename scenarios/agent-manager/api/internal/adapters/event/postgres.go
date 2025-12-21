@@ -132,7 +132,9 @@ func (s *PostgresStore) Append(ctx context.Context, runID uuid.UUID, events ...*
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	// Get the next sequence number
 	var maxSeq int64

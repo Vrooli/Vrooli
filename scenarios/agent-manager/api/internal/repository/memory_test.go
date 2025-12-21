@@ -92,7 +92,9 @@ func TestMemoryProfileRepository_DuplicateID(t *testing.T) {
 	profile1 := &domain.AgentProfile{ID: id, Name: "profile1"}
 	profile2 := &domain.AgentProfile{ID: id, Name: "profile2"}
 
-	repo.Create(ctx, profile1)
+	if err := repo.Create(ctx, profile1); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
 	err := repo.Create(ctx, profile2)
 	if err == nil {
 		t.Error("expected error for duplicate ID")
@@ -106,7 +108,9 @@ func TestMemoryProfileRepository_DuplicateName(t *testing.T) {
 	profile1 := &domain.AgentProfile{ID: uuid.New(), Name: "same-name"}
 	profile2 := &domain.AgentProfile{ID: uuid.New(), Name: "same-name"}
 
-	repo.Create(ctx, profile1)
+	if err := repo.Create(ctx, profile1); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
 	err := repo.Create(ctx, profile2)
 	if err == nil {
 		t.Error("expected error for duplicate name")
@@ -253,9 +257,15 @@ func TestMemoryRunRepository_FilterByTaskID(t *testing.T) {
 	run2 := &domain.Run{ID: uuid.New(), TaskID: taskID1, Status: domain.RunStatusPending}
 	run3 := &domain.Run{ID: uuid.New(), TaskID: taskID2, Status: domain.RunStatusPending}
 
-	repo.Create(ctx, run1)
-	repo.Create(ctx, run2)
-	repo.Create(ctx, run3)
+	if err := repo.Create(ctx, run1); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if err := repo.Create(ctx, run2); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if err := repo.Create(ctx, run3); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
 
 	// Filter by task
 	runs, _ := repo.List(ctx, repository.RunListFilter{TaskID: &taskID1})
@@ -424,7 +434,9 @@ func TestMemoryIdempotencyRepository_DuplicateReserve(t *testing.T) {
 	ctx := context.Background()
 	key := "duplicate-key"
 
-	repo.Reserve(ctx, key, time.Hour)
+	if _, err := repo.Reserve(ctx, key, time.Hour); err != nil {
+		t.Fatalf("Reserve failed: %v", err)
+	}
 	_, err := repo.Reserve(ctx, key, time.Hour)
 	if err == nil {
 		t.Error("expected error for duplicate reserve")
@@ -437,7 +449,9 @@ func TestMemoryIdempotencyRepository_ExpiredReserve(t *testing.T) {
 	key := "expired-key"
 
 	// Reserve with very short TTL
-	repo.Reserve(ctx, key, 1*time.Millisecond)
+	if _, err := repo.Reserve(ctx, key, 1*time.Millisecond); err != nil {
+		t.Fatalf("Reserve failed: %v", err)
+	}
 	time.Sleep(5 * time.Millisecond)
 
 	// Should be able to reserve again after expiration
@@ -454,7 +468,9 @@ func TestMemoryListFilter_Pagination(t *testing.T) {
 	// Create 10 profiles
 	for i := 0; i < 10; i++ {
 		profile := &domain.AgentProfile{ID: uuid.New(), Name: "profile-" + uuid.New().String()}
-		repo.Create(ctx, profile)
+		if err := repo.Create(ctx, profile); err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
 	}
 
 	// Test offset
@@ -677,7 +693,9 @@ func TestMemoryCheckpointRepository_ConcurrentHeartbeat(t *testing.T) {
 		StepWithinPhase: 0,
 		LastHeartbeat:   time.Now(),
 	}
-	repo.Save(ctx, checkpoint)
+	if err := repo.Save(ctx, checkpoint); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
 
 	const numGoroutines = 50
 	done := make(chan struct{})
@@ -703,7 +721,9 @@ func TestMemoryIdempotencyRepository_ConcurrentCheck(t *testing.T) {
 	key := "concurrent-key"
 
 	// Reserve the key
-	repo.Reserve(ctx, key, time.Hour)
+	if _, err := repo.Reserve(ctx, key, time.Hour); err != nil {
+		t.Fatalf("Reserve failed: %v", err)
+	}
 
 	const numGoroutines = 50
 	done := make(chan struct{})
@@ -750,7 +770,9 @@ func TestMemoryRunRepository_FilterByStatus(t *testing.T) {
 			Status:  status,
 			RunMode: domain.RunModeSandboxed,
 		}
-		repo.Create(ctx, run)
+		if err := repo.Create(ctx, run); err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
 	}
 
 	// Filter by pending
@@ -784,7 +806,9 @@ func TestMemoryRunRepository_ListByProfile(t *testing.T) {
 			Status:         domain.RunStatusPending,
 			RunMode:        domain.RunModeSandboxed,
 		}
-		repo.Create(ctx, run)
+		if err := repo.Create(ctx, run); err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
 	}
 
 	run := &domain.Run{
@@ -794,7 +818,9 @@ func TestMemoryRunRepository_ListByProfile(t *testing.T) {
 		Status:         domain.RunStatusPending,
 		RunMode:        domain.RunModeSandboxed,
 	}
-	repo.Create(ctx, run)
+	if err := repo.Create(ctx, run); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
 
 	// Filter by profile
 	runs, _ := repo.List(ctx, repository.RunListFilter{AgentProfileID: &profileID1})

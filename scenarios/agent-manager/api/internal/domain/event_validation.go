@@ -42,7 +42,7 @@ func validateToolCallEvent(evt *RunEvent) {
 		log.Printf("[WARN] tool_call event has unknown toolName - parsing may have failed (runID=%s)", evt.RunID)
 	}
 
-	if data.Input == nil || len(data.Input) == 0 {
+	if len(data.Input) == 0 {
 		log.Printf("[WARN] tool_call event has empty input (runID=%s, tool=%s)", evt.RunID, data.ToolName)
 	}
 }
@@ -140,7 +140,7 @@ func ValidateEvents(events []*RunEvent) EventValidationStats {
 					stats.EmptyToolNames++
 					stats.WarningCount++
 				}
-				if data.Input == nil || len(data.Input) == 0 {
+				if len(data.Input) == 0 {
 					stats.EmptyInputs++
 					stats.WarningCount++
 				}

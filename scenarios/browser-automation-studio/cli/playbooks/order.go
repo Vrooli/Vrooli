@@ -39,7 +39,7 @@ func runOrder(ctx *appctx.Context, args []string) error {
 		return fmt.Errorf("scenario root not resolved")
 	}
 
-	registryPath := filepath.Join(scenarioDir, "test", "playbooks", "registry.json")
+	registryPath := filepath.Join(scenarioDir, "bas", "registry.json")
 	registry, err := playbooks.LoadRegistry(registryPath)
 	if err != nil {
 		return fmt.Errorf("registry not found at %s", registryPath)

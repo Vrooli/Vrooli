@@ -3,6 +3,7 @@
     "description": "Baseline Lighthouse config for the React + Vite template",
     "last_updated": "2025-11-08T00:00:00Z"
   },
+  "version": "1.0.0",
   "enabled": true,
   "pages": [
     {

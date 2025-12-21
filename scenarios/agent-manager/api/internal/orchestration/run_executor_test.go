@@ -75,6 +75,20 @@ func newInPlaceFixtures() *testFixtures {
 	return f
 }
 
+func mustCreateRun(t *testing.T, repo repository.RunRepository, run *domain.Run) {
+	t.Helper()
+	if err := repo.Create(context.Background(), run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+}
+
+func mustRegisterRunnerForExecutor(t *testing.T, registry runner.Registry, r runner.Runner) {
+	t.Helper()
+	if err := registry.Register(r); err != nil {
+		t.Fatalf("register runner: %v", err)
+	}
+}
+
 // =============================================================================
 // MOCK SANDBOX PROVIDER
 // =============================================================================
@@ -221,12 +235,12 @@ func TestDefaultExecutorConfig(t *testing.T) {
 func TestNewRunExecutor(t *testing.T) {
 	f := newTestFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "ready")
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	sandboxProvider := newMockSandboxProvider()
 	eventStore := event.NewMemoryStore()
@@ -282,7 +296,7 @@ func TestRunExecutor_WithConfig(t *testing.T) {
 func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 	f := newTestFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -295,7 +309,7 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 			Summary:  &domain.RunSummary{},
 		}, nil
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	sandboxProvider := newMockSandboxProvider()
 	eventStore := event.NewMemoryStore()
@@ -343,7 +357,7 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 	f := newInPlaceFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -354,7 +368,7 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 			ExitCode: 0,
 		}, nil
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -391,12 +405,12 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 	f := newTestFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "ready")
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	// Mock sandbox provider that fails
 	sandboxProvider := &mockSandboxProvider{
@@ -447,12 +461,12 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 	f := newTestFixtures() // Sandboxed mode requires provider
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "ready")
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -489,12 +503,12 @@ func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 	f := newInPlaceFixtures() // Skip sandbox issues
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(false, "resource not installed")
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -527,7 +541,7 @@ func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 	f := newInPlaceFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	// Empty registry - no runners registered
 	registry := runner.NewRegistry()
@@ -567,7 +581,7 @@ func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 	f := newInPlaceFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -575,7 +589,7 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
 		return nil, errors.New("execution failed")
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -608,7 +622,7 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 	f := newInPlaceFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -620,7 +634,7 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 			ErrorMessage: "agent encountered an error",
 		}, nil
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -663,7 +677,7 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 	f := newInPlaceFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -678,7 +692,7 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -729,7 +743,7 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	f := newInPlaceFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -744,7 +758,7 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 			return &runner.ExecuteResult{Success: true}, nil
 		}
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -782,7 +796,7 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 	f := newInPlaceFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -790,7 +804,7 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
 		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 	checkpointRepo := repository.NewMemoryCheckpointRepository()
@@ -837,7 +851,7 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 	runRepo := repository.NewMemoryRunRepository()
 	// Run already has sandbox ID (was created in previous attempt)
 	f.run.SandboxID = &sandboxID
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -845,7 +859,7 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
 		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	// Mock sandbox that allows retrieval and provides workspace path
 	sandboxProvider := &mockSandboxProvider{
@@ -908,7 +922,7 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 func TestRunExecutor_EmitsEvents(t *testing.T) {
 	f := newInPlaceFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -916,7 +930,7 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
 		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -965,7 +979,7 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 	f := newInPlaceFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -973,7 +987,7 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
 		return nil, errors.New("execution error")
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -1013,7 +1027,7 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 	f := newInPlaceFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -1021,7 +1035,7 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
 		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -1064,7 +1078,7 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 	f := newInPlaceFixtures()
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -1072,7 +1086,7 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 	mockRunner.ExecuteFunc = func(ctx context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
 		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
 	}
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -1111,12 +1125,12 @@ func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
 	f.task.ProjectRoot = "" // Missing project root
 
 	runRepo := repository.NewMemoryRunRepository()
-	runRepo.Create(context.Background(), f.run)
+	mustCreateRun(t, runRepo, f.run)
 
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "ready")
-	registry.Register(mockRunner)
+	mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 	eventStore := event.NewMemoryStore()
 
@@ -1167,7 +1181,7 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 			f.profile.ID = uuid.New()
 
 			runRepo := repository.NewMemoryRunRepository()
-			runRepo.Create(context.Background(), f.run)
+			mustCreateRun(t, runRepo, f.run)
 
 			registry := runner.NewRegistry()
 			mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -1176,7 +1190,7 @@ func TestRunExecutor_ConcurrentExecutions(t *testing.T) {
 				time.Sleep(10 * time.Millisecond) // Simulate some work
 				return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
 			}
-			registry.Register(mockRunner)
+			mustRegisterRunnerForExecutor(t, registry, mockRunner)
 
 			eventStore := event.NewMemoryStore()
 

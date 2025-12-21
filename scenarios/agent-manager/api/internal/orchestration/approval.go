@@ -8,6 +8,7 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"agent-manager/internal/adapters/sandbox"
@@ -45,8 +46,7 @@ func (o *Orchestrator) ApproveRun(ctx context.Context, req ApproveRequest) (*App
 
 	// Update run to approved state
 	if err := o.markRunApproved(ctx, run, req.Actor); err != nil {
-		// Log but don't fail - the approval itself succeeded
-		// This is a known edge case to handle
+		log.Printf("Warning: failed to mark run %s as approved: %v", run.ID, err)
 	}
 
 	return mapApproveResult(result), nil
@@ -73,14 +73,12 @@ func (o *Orchestrator) RejectRun(ctx context.Context, id uuid.UUID, actor, reaso
 	if run.SandboxID != nil && o.sandbox != nil {
 		// First mark as rejected in workspace-sandbox
 		if err := o.sandbox.Reject(ctx, *run.SandboxID, actor); err != nil {
-			// Log but continue - we still want to update run state
-			// The sandbox might already be in rejected state
+			log.Printf("Warning: failed to reject sandbox %s: %v", *run.SandboxID, err)
 		}
 		// Then delete to fully release the scope lock
 		// This ensures the sandbox is cleaned up and scope is available for new runs
 		if err := o.sandbox.Delete(ctx, *run.SandboxID); err != nil {
-			// Log but don't fail - run rejection should still succeed
-			// The sandbox might already be deleted or in a cleanup-pending state
+			log.Printf("Warning: failed to delete sandbox %s: %v", *run.SandboxID, err)
 		}
 	}
 
@@ -118,9 +116,13 @@ func (o *Orchestrator) PartialApprove(ctx context.Context, req PartialApproveReq
 
 	// Update run state based on remaining files
 	if result.Remaining == 0 {
-		o.markRunApproved(ctx, run, req.Actor)
+		if err := o.markRunApproved(ctx, run, req.Actor); err != nil {
+			log.Printf("Warning: failed to mark run %s as approved: %v", run.ID, err)
+		}
 	} else {
-		o.markRunPartiallyApproved(ctx, run)
+		if err := o.markRunPartiallyApproved(ctx, run); err != nil {
+			log.Printf("Warning: failed to mark run %s as partially approved: %v", run.ID, err)
+		}
 	}
 
 	return mapApproveResult(result), nil

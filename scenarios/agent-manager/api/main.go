@@ -147,12 +147,16 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 	claudeRunner, err := runner.NewClaudeCodeRunner()
 	if err != nil {
 		log.Printf("Warning: Failed to create Claude Code runner: %v", err)
-		runnerRegistry.Register(runner.NewStubRunner(
+		if err := runnerRegistry.Register(runner.NewStubRunner(
 			domain.RunnerTypeClaudeCode,
 			fmt.Sprintf("claude-code runner failed to initialize: %v", err),
-		))
+		)); err != nil {
+			log.Printf("Warning: Failed to register stub Claude runner: %v", err)
+		}
 	} else {
-		runnerRegistry.Register(claudeRunner)
+		if err := runnerRegistry.Register(claudeRunner); err != nil {
+			log.Printf("Warning: Failed to register Claude runner: %v", err)
+		}
 		if avail, msg := claudeRunner.IsAvailable(context.Background()); avail {
 			log.Printf("Claude Code runner: available")
 		} else {
@@ -164,12 +168,16 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 	codexRunner, err := runner.NewCodexRunner()
 	if err != nil {
 		log.Printf("Warning: Failed to create Codex runner: %v", err)
-		runnerRegistry.Register(runner.NewStubRunner(
+		if err := runnerRegistry.Register(runner.NewStubRunner(
 			domain.RunnerTypeCodex,
 			fmt.Sprintf("codex runner failed to initialize: %v", err),
-		))
+		)); err != nil {
+			log.Printf("Warning: Failed to register stub Codex runner: %v", err)
+		}
 	} else {
-		runnerRegistry.Register(codexRunner)
+		if err := runnerRegistry.Register(codexRunner); err != nil {
+			log.Printf("Warning: Failed to register Codex runner: %v", err)
+		}
 		if avail, msg := codexRunner.IsAvailable(context.Background()); avail {
 			log.Printf("Codex runner: available")
 		} else {
@@ -181,12 +189,16 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 	openCodeRunner, err := runner.NewOpenCodeRunner()
 	if err != nil {
 		log.Printf("Warning: Failed to create OpenCode runner: %v", err)
-		runnerRegistry.Register(runner.NewStubRunner(
+		if err := runnerRegistry.Register(runner.NewStubRunner(
 			domain.RunnerTypeOpenCode,
 			fmt.Sprintf("opencode runner failed to initialize: %v", err),
-		))
+		)); err != nil {
+			log.Printf("Warning: Failed to register stub OpenCode runner: %v", err)
+		}
 	} else {
-		runnerRegistry.Register(openCodeRunner)
+		if err := runnerRegistry.Register(openCodeRunner); err != nil {
+			log.Printf("Warning: Failed to register OpenCode runner: %v", err)
+		}
 		if avail, msg := openCodeRunner.IsAvailable(context.Background()); avail {
 			log.Printf("OpenCode runner: available")
 		} else {

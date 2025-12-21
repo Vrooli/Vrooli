@@ -59,9 +59,15 @@ func TestDefaultRegistry_List(t *testing.T) {
 	reg := runner.NewRegistry()
 
 	// Register multiple runners
-	reg.Register(runner.NewMockRunner(domain.RunnerTypeClaudeCode))
-	reg.Register(runner.NewMockRunner(domain.RunnerTypeCodex))
-	reg.Register(runner.NewMockRunner(domain.RunnerTypeOpenCode))
+	if err := reg.Register(runner.NewMockRunner(domain.RunnerTypeClaudeCode)); err != nil {
+		t.Fatalf("register claude-code failed: %v", err)
+	}
+	if err := reg.Register(runner.NewMockRunner(domain.RunnerTypeCodex)); err != nil {
+		t.Fatalf("register codex failed: %v", err)
+	}
+	if err := reg.Register(runner.NewMockRunner(domain.RunnerTypeOpenCode)); err != nil {
+		t.Fatalf("register opencode failed: %v", err)
+	}
 
 	runners := reg.List()
 	if len(runners) != 3 {
@@ -80,8 +86,12 @@ func TestDefaultRegistry_Available(t *testing.T) {
 	unavailable := runner.NewMockRunner(domain.RunnerTypeCodex)
 	unavailable.SetAvailable(false, "not configured")
 
-	reg.Register(available)
-	reg.Register(unavailable)
+	if err := reg.Register(available); err != nil {
+		t.Fatalf("register available runner failed: %v", err)
+	}
+	if err := reg.Register(unavailable); err != nil {
+		t.Fatalf("register unavailable runner failed: %v", err)
+	}
 
 	// Check available runners
 	avail := reg.Available(ctx)
@@ -185,7 +195,9 @@ func TestMockRunner_Stop(t *testing.T) {
 		return nil
 	}
 
-	mock.Stop(ctx, runID)
+	if err := mock.Stop(ctx, runID); err != nil {
+		t.Fatalf("Stop failed: %v", err)
+	}
 	if !stopCalled {
 		t.Error("custom StopFunc was not called")
 	}
@@ -281,7 +293,9 @@ func TestStubRunner_Stop_Fails(t *testing.T) {
 func TestDefaultRegistry_ConcurrentGet(t *testing.T) {
 	reg := runner.NewRegistry()
 	mock := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
-	reg.Register(mock)
+	if err := reg.Register(mock); err != nil {
+		t.Fatalf("register runner failed: %v", err)
+	}
 
 	// Concurrent gets should be safe
 	const numGoroutines = 100
@@ -308,9 +322,15 @@ func TestDefaultRegistry_ConcurrentGet(t *testing.T) {
 
 func TestDefaultRegistry_ConcurrentList(t *testing.T) {
 	reg := runner.NewRegistry()
-	reg.Register(runner.NewMockRunner(domain.RunnerTypeClaudeCode))
-	reg.Register(runner.NewMockRunner(domain.RunnerTypeCodex))
-	reg.Register(runner.NewMockRunner(domain.RunnerTypeOpenCode))
+	if err := reg.Register(runner.NewMockRunner(domain.RunnerTypeClaudeCode)); err != nil {
+		t.Fatalf("register claude-code failed: %v", err)
+	}
+	if err := reg.Register(runner.NewMockRunner(domain.RunnerTypeCodex)); err != nil {
+		t.Fatalf("register codex failed: %v", err)
+	}
+	if err := reg.Register(runner.NewMockRunner(domain.RunnerTypeOpenCode)); err != nil {
+		t.Fatalf("register opencode failed: %v", err)
+	}
 
 	// Concurrent lists should be safe
 	const numGoroutines = 100
@@ -341,8 +361,12 @@ func TestDefaultRegistry_ConcurrentAvailable(t *testing.T) {
 	unavailable := runner.NewMockRunner(domain.RunnerTypeCodex)
 	unavailable.SetAvailable(false, "not configured")
 
-	reg.Register(available)
-	reg.Register(unavailable)
+	if err := reg.Register(available); err != nil {
+		t.Fatalf("register available runner failed: %v", err)
+	}
+	if err := reg.Register(unavailable); err != nil {
+		t.Fatalf("register unavailable runner failed: %v", err)
+	}
 
 	// Concurrent Available calls should be safe
 	const numGoroutines = 100

@@ -13,7 +13,7 @@ import (
 
 func runScaffold(ctx *appctx.Context, args []string) error {
 	scenarioDir := ctx.ScenarioRoot
-	resetMode := "project"
+	resetMode := "full"
 	description := ""
 	positionals := []string{}
 
@@ -41,11 +41,11 @@ func runScaffold(ctx *appctx.Context, args []string) error {
 			fmt.Println("Usage: browser-automation-studio playbooks scaffold <folder> <name> [--reset <mode>] [--description <text>]")
 			fmt.Println("")
 			fmt.Println("Positional arguments:")
-			fmt.Println("  folder   Path under test/playbooks (e.g., capabilities/01-foundation/projects)")
+			fmt.Println("  folder   Path under bas/cases (e.g., 01-foundation/01-projects)")
 			fmt.Println("  name     Human-friendly workflow name used for metadata/slug")
 			fmt.Println("")
 			fmt.Println("Options:")
-			fmt.Println("  --reset <mode>       Reset mode (none|project|global). Defaults to project.")
+			fmt.Println("  --reset <mode>       Reset mode (none|full). Defaults to full.")
 			fmt.Println("  --description <text> Optional description, defaults to the workflow name.")
 			fmt.Println("  --scenario <dir>     Override scenario directory (defaults to CLI root).")
 			return nil
@@ -79,15 +79,15 @@ func runScaffold(ctx *appctx.Context, args []string) error {
 
 	normalizedReset := strings.ToLower(strings.TrimSpace(resetMode))
 	switch normalizedReset {
-	case "none", "project", "global":
+	case "none", "full":
 		resetMode = normalizedReset
 	default:
-		fmt.Printf("Warning: unknown reset mode '%s', defaulting to project\n", resetMode)
-		resetMode = "project"
+		fmt.Printf("Warning: unknown reset mode '%s', defaulting to full\n", resetMode)
+		resetMode = "full"
 	}
 
 	slug := util.Slugify(workflowName)
-	baseDir := filepath.Join(scenarioDir, "test", "playbooks")
+	baseDir := filepath.Join(scenarioDir, "bas", "cases")
 	targetDir := filepath.Join(baseDir, filepath.FromSlash(folder))
 	targetFile := filepath.Join(targetDir, slug+".json")
 
@@ -116,6 +116,6 @@ func runScaffold(ctx *appctx.Context, args []string) error {
 	fmt.Println("Next steps:")
 	fmt.Println("  * Edit the JSON to add real nodes and selectors")
 	fmt.Printf("  * Link the workflow from requirements/*.json\n")
-	fmt.Printf("  * Regenerate the registry (node scripts/.../build-registry.mjs --scenario %s)\n", scenarioDir)
+	fmt.Printf("  * Regenerate the registry (test-genie registry build --scenario %s)\n", scenarioDir)
 	return nil
 }

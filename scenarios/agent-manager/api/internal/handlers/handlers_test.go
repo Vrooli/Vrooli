@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -49,7 +50,9 @@ func setupTestHandler() (*Handler, *mux.Router) {
 
 	// Create runner registry with mock runner
 	registry := runner.NewRegistry()
-	registry.Register(runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	if err := registry.Register(runner.NewMockRunner(domain.RunnerTypeClaudeCode)); err != nil {
+		panic(fmt.Sprintf("register runner: %v", err))
+	}
 
 	// Create orchestrator with dependencies
 	orch := orchestration.New(
@@ -1375,7 +1378,9 @@ func TestListRuns_WithStatusFilter(t *testing.T) {
 	}
 
 	var runs []interface{}
-	json.NewDecoder(rr.Body).Decode(&runs)
+	if err := json.NewDecoder(rr.Body).Decode(&runs); err != nil {
+		t.Fatalf("decode runs failed: %v", err)
+	}
 	// All returned runs should have status "running" (or empty if none)
 }
 

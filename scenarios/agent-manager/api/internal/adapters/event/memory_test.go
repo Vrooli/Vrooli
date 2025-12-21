@@ -250,7 +250,9 @@ func TestMemoryStore_Stream(t *testing.T) {
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		evt := domain.NewLogEvent(runID, "info", "streamed")
-		store.Append(context.Background(), runID, evt)
+		if err := store.Append(context.Background(), runID, evt); err != nil {
+			t.Errorf("Append failed: %v", err)
+		}
 	}()
 
 	// Wait for event
@@ -273,7 +275,9 @@ func TestMemoryStore_Stream_ExistingEvents(t *testing.T) {
 	// Add events before streaming
 	for i := 0; i < 3; i++ {
 		evt := domain.NewLogEvent(runID, "info", "test")
-		store.Append(context.Background(), runID, evt)
+		if err := store.Append(context.Background(), runID, evt); err != nil {
+			t.Fatalf("Append failed: %v", err)
+		}
 	}
 
 	// Start streaming from sequence 0
@@ -309,8 +313,12 @@ func TestMemoryStore_IsolatesByRunID(t *testing.T) {
 	evt1 := domain.NewLogEvent(runID1, "info", "run1")
 	evt2 := domain.NewLogEvent(runID2, "info", "run2")
 
-	store.Append(ctx, runID1, evt1)
-	store.Append(ctx, runID2, evt2)
+	if err := store.Append(ctx, runID1, evt1); err != nil {
+		t.Fatalf("Append failed: %v", err)
+	}
+	if err := store.Append(ctx, runID2, evt2); err != nil {
+		t.Fatalf("Append failed: %v", err)
+	}
 
 	// Verify isolation (AfterSequence: -1 to include sequence 0)
 	events1, _ := store.Get(ctx, runID1, event.GetOptions{AfterSequence: -1})

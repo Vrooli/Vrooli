@@ -28,7 +28,7 @@ func TestWorkspaceSandboxProvider_Create(t *testing.T) {
 			t.Errorf("expected application/json content type, got %s", ct)
 		}
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":          sandboxID.String(),
 			"scopePath":   "src/",
 			"projectRoot": "/project",
@@ -71,7 +71,7 @@ func TestWorkspaceSandboxProvider_Get(t *testing.T) {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":          sandboxID.String(),
 			"scopePath":   "src/",
 			"projectRoot": "/project",
@@ -99,7 +99,7 @@ func TestWorkspaceSandboxProvider_Get_NotFound(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "not found"})
 	}))
 	defer server.Close()
 
@@ -143,7 +143,7 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"files": []map[string]interface{}{
 				{
 					"id":           fileID.String(),
@@ -196,7 +196,7 @@ func TestWorkspaceSandboxProvider_Approve(t *testing.T) {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":    true,
 			"applied":    3,
 			"remaining":  0,
@@ -259,7 +259,7 @@ func TestWorkspaceSandboxProvider_IsAvailable(t *testing.T) {
 		{
 			name: "healthy",
 			response: func(w http.ResponseWriter) {
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
 					"status":    "healthy",
 					"readiness": true,
 				})
@@ -269,7 +269,7 @@ func TestWorkspaceSandboxProvider_IsAvailable(t *testing.T) {
 		{
 			name: "not ready",
 			response: func(w http.ResponseWriter) {
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
 					"status":    "starting",
 					"readiness": false,
 				})
@@ -316,7 +316,7 @@ func TestWorkspaceSandboxProvider_PartialApprove(t *testing.T) {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":    true,
 			"applied":    2,
 			"remaining":  1,

@@ -804,4 +804,4 @@ func TestRun_IsStale(t *testing.T) {
 
 - [PRD.md](../PRD.md) - Product requirements and operational targets
 - [README.md](../README.md) - Overview and quick start
-- [requirements/](../requirements/) - Detailed requirements by module
+- [requirements/README.md](../requirements/README.md) - Detailed requirements by module

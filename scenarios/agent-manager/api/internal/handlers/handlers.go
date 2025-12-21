@@ -133,7 +133,7 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // writeProtoJSON writes a proto message as JSON using protojson.
@@ -144,10 +144,10 @@ func writeProtoJSON(w http.ResponseWriter, status int, msg proto.Message) {
 	data, err := protoconv.MarshalJSON(msg)
 	if err != nil {
 		// Fallback to empty object on marshal error
-		w.Write([]byte("{}"))
+		_, _ = w.Write([]byte("{}"))
 		return
 	}
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // writeError writes a structured error response using domain.ErrorResponse.
@@ -251,12 +251,6 @@ func mapErrorCodeToStatus(code domain.ErrorCode) int {
 	default:
 		return http.StatusInternalServerError
 	}
-}
-
-// mapDomainError maps domain errors to HTTP status codes.
-// Kept for backwards compatibility; prefer writeError() for new code.
-func mapDomainError(err error) int {
-	return mapErrorCodeToStatus(domain.GetErrorCode(err))
 }
 
 // =============================================================================

@@ -67,12 +67,12 @@ func runList(ctx *appctx.Context, args []string) error {
 		if len(date) > 0 {
 			dateLabel = date[0]
 		}
-		fmt.Printf("  %s [%s] - %s\n", fallback(exec.ID, "unknown"), fallback(exec.Status, "unknown"), dateLabel)
+		fmt.Printf("  %s [%s] - %s\n", fallbackValue(exec.ID, "unknown"), fallbackValue(exec.Status, "unknown"), dateLabel)
 	}
 	return nil
 }
 
-func fallback(value, fallback string) string {
+func fallbackValue(value, fallback string) string {
 	if strings.TrimSpace(value) == "" {
 		return fallback
 	}

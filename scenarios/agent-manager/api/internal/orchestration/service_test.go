@@ -2,6 +2,7 @@ package orchestration_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -31,7 +32,7 @@ func newTestOrchestrator(t *testing.T) orchestration.Service {
 	runnerRegistry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "mock runner available")
-	runnerRegistry.Register(mockRunner)
+	mustRegisterRunner(t, runnerRegistry, mockRunner)
 
 	return orchestration.New(
 		profileRepo,
@@ -49,6 +50,31 @@ func newTestOrchestrator(t *testing.T) orchestration.Service {
 	)
 }
 
+func mustCreateProfile(t *testing.T, svc orchestration.Service, ctx context.Context, profile *domain.AgentProfile) *domain.AgentProfile {
+	t.Helper()
+	created, err := svc.CreateProfile(ctx, profile)
+	if err != nil {
+		t.Fatalf("CreateProfile failed: %v", err)
+	}
+	return created
+}
+
+func mustCreateTask(t *testing.T, svc orchestration.Service, ctx context.Context, task *domain.Task) *domain.Task {
+	t.Helper()
+	created, err := svc.CreateTask(ctx, task)
+	if err != nil {
+		t.Fatalf("CreateTask failed: %v", err)
+	}
+	return created
+}
+
+func mustRegisterRunner(t *testing.T, registry runner.Registry, r runner.Runner) {
+	t.Helper()
+	if err := registry.Register(r); err != nil {
+		t.Fatalf("register runner: %v", err)
+	}
+}
+
 func TestOrchestrator_ProfileCRUD(t *testing.T) {
 	svc := newTestOrchestrator(t)
 	ctx := context.Background()
@@ -64,10 +90,7 @@ func TestOrchestrator_ProfileCRUD(t *testing.T) {
 		UpdatedAt:  time.Now(),
 	}
 
-	created, err := svc.CreateProfile(ctx, profile)
-	if err != nil {
-		t.Fatalf("CreateProfile failed: %v", err)
-	}
+	created := mustCreateProfile(t, svc, ctx, profile)
 	if created.ID != profile.ID {
 		t.Error("created profile should have same ID")
 	}
@@ -181,10 +204,7 @@ func TestOrchestrator_TaskCRUD(t *testing.T) {
 		UpdatedAt:   time.Now(),
 	}
 
-	created, err := svc.CreateTask(ctx, task)
-	if err != nil {
-		t.Fatalf("CreateTask failed: %v", err)
-	}
+	created := mustCreateTask(t, svc, ctx, task)
 	if created.ID != task.ID {
 		t.Error("created task should have same ID")
 	}
@@ -244,7 +264,7 @@ func TestOrchestrator_RunOperations(t *testing.T) {
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	svc.CreateProfile(ctx, profile)
+	mustCreateProfile(t, svc, ctx, profile)
 
 	task := &domain.Task{
 		ID:        uuid.New(),
@@ -254,7 +274,7 @@ func TestOrchestrator_RunOperations(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	svc.CreateTask(ctx, task)
+	mustCreateTask(t, svc, ctx, task)
 
 	// Create run (will fail due to missing sandbox, but we can test the creation logic)
 	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
@@ -344,7 +364,7 @@ func TestOrchestrator_ListProfiles_Pagination(t *testing.T) {
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
 		}
-		svc.CreateProfile(ctx, profile)
+		mustCreateProfile(t, svc, ctx, profile)
 	}
 
 	// Test limit
@@ -528,7 +548,7 @@ func TestOrchestrator_GetRunEvents_Empty(t *testing.T) {
 	// Should return empty slice or nil, not error (events are optional)
 	if err != nil {
 		t.Logf("GetRunEvents for non-existent run returned error (acceptable): %v", err)
-	} else if events != nil && len(events) > 0 {
+	} else if len(events) > 0 {
 		t.Errorf("expected empty events for non-existent run, got %d", len(events))
 	}
 }
@@ -641,7 +661,7 @@ func TestOrchestrator_ListStaleRuns_Empty(t *testing.T) {
 		t.Fatalf("ListStaleRuns should not fail on empty: %v", err)
 	}
 	// nil or empty slice are both acceptable for "no results"
-	if runs != nil && len(runs) != 0 {
+	if len(runs) != 0 {
 		t.Errorf("expected 0 stale runs, got %d", len(runs))
 	}
 }
@@ -659,7 +679,7 @@ func TestOrchestrator_CreateRun_IdempotencyKey(t *testing.T) {
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	svc.CreateProfile(ctx, profile)
+	mustCreateProfile(t, svc, ctx, profile)
 
 	task := &domain.Task{
 		ID:        uuid.New(),
@@ -669,7 +689,7 @@ func TestOrchestrator_CreateRun_IdempotencyKey(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	svc.CreateTask(ctx, task)
+	mustCreateTask(t, svc, ctx, task)
 
 	idempotencyKey := "test-idempotency-" + uuid.New().String()
 
@@ -720,7 +740,7 @@ func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (orchestration.Serv
 	runnerRegistry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "mock runner available")
-	runnerRegistry.Register(mockRunner)
+	mustRegisterRunner(t, runnerRegistry, mockRunner)
 
 	svc := orchestration.New(
 		profileRepo,
@@ -754,7 +774,7 @@ func TestOrchestrator_SlotEnforcement_BlocksAtCapacity(t *testing.T) {
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	svc.CreateProfile(ctx, profile)
+	mustCreateProfile(t, svc, ctx, profile)
 
 	task := &domain.Task{
 		ID:        uuid.New(),
@@ -764,7 +784,7 @@ func TestOrchestrator_SlotEnforcement_BlocksAtCapacity(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	svc.CreateTask(ctx, task)
+	mustCreateTask(t, svc, ctx, task)
 
 	// Manually create 2 "running" runs to simulate capacity
 	for i := 0; i < 2; i++ {
@@ -829,7 +849,7 @@ func TestOrchestrator_SlotEnforcement_ForceBypassesLimit(t *testing.T) {
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	svc.CreateProfile(ctx, profile)
+	mustCreateProfile(t, svc, ctx, profile)
 
 	task := &domain.Task{
 		ID:        uuid.New(),
@@ -839,7 +859,7 @@ func TestOrchestrator_SlotEnforcement_ForceBypassesLimit(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	svc.CreateTask(ctx, task)
+	mustCreateTask(t, svc, ctx, task)
 
 	// Fill capacity with 2 running runs
 	for i := 0; i < 2; i++ {
@@ -851,7 +871,9 @@ func TestOrchestrator_SlotEnforcement_ForceBypassesLimit(t *testing.T) {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		}
-		runRepo.Create(ctx, run)
+		if err := runRepo.Create(ctx, run); err != nil {
+			t.Fatalf("create run: %v", err)
+		}
 	}
 
 	// Try to create with Force=true - should NOT return capacity error
@@ -887,7 +909,7 @@ func TestOrchestrator_SlotEnforcement_CountsStartingRuns(t *testing.T) {
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	svc.CreateProfile(ctx, profile)
+	mustCreateProfile(t, svc, ctx, profile)
 
 	task := &domain.Task{
 		ID:        uuid.New(),
@@ -897,25 +919,29 @@ func TestOrchestrator_SlotEnforcement_CountsStartingRuns(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	svc.CreateTask(ctx, task)
+	mustCreateTask(t, svc, ctx, task)
 
 	// Create 1 running and 1 starting run
-	runRepo.Create(ctx, &domain.Run{
+	if err := runRepo.Create(ctx, &domain.Run{
 		ID:        uuid.New(),
 		TaskID:    task.ID,
 		Status:    domain.RunStatusRunning,
 		RunMode:   domain.RunModeInPlace,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-	})
-	runRepo.Create(ctx, &domain.Run{
+	}); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	if err := runRepo.Create(ctx, &domain.Run{
 		ID:        uuid.New(),
 		TaskID:    task.ID,
 		Status:    domain.RunStatusStarting,
 		RunMode:   domain.RunModeInPlace,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-	})
+	}); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
 
 	// Try to create another run - should fail (1 running + 1 starting = 2 = limit)
 	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
@@ -951,7 +977,7 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	svc.CreateProfile(ctx, profile)
+	mustCreateProfile(t, svc, ctx, profile)
 
 	task := &domain.Task{
 		ID:        uuid.New(),
@@ -961,17 +987,19 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	svc.CreateTask(ctx, task)
+	mustCreateTask(t, svc, ctx, task)
 
 	// Create only 1 running run (limit is 3)
-	runRepo.Create(ctx, &domain.Run{
+	if err := runRepo.Create(ctx, &domain.Run{
 		ID:        uuid.New(),
 		TaskID:    task.ID,
 		Status:    domain.RunStatusRunning,
 		RunMode:   domain.RunModeInPlace,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-	})
+	}); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
 
 	// Try to create another run - should NOT fail with capacity error
 	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
@@ -982,7 +1010,8 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 
 	// If there's an error, make sure it's NOT a CapacityExceededError
 	if err != nil {
-		if _, ok := err.(*domain.CapacityExceededError); ok {
+		var capErr *domain.CapacityExceededError
+		if errors.As(err, &capErr) {
 			t.Fatal("should not get CapacityExceededError when under capacity")
 		}
 		// Other errors are acceptable (e.g., runner execution issues)
@@ -1004,7 +1033,7 @@ func TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck(t *testing.T) {
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	svc.CreateProfile(ctx, profile)
+	mustCreateProfile(t, svc, ctx, profile)
 
 	task := &domain.Task{
 		ID:        uuid.New(),
@@ -1014,18 +1043,20 @@ func TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	svc.CreateTask(ctx, task)
+	mustCreateTask(t, svc, ctx, task)
 
 	// Create many running runs
 	for i := 0; i < 100; i++ {
-		runRepo.Create(ctx, &domain.Run{
+		if err := runRepo.Create(ctx, &domain.Run{
 			ID:        uuid.New(),
 			TaskID:    task.ID,
 			Status:    domain.RunStatusRunning,
 			RunMode:   domain.RunModeInPlace,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
-		})
+		}); err != nil {
+			t.Fatalf("create run: %v", err)
+		}
 	}
 
 	// Try to create another run - should NOT fail with capacity error
@@ -1037,7 +1068,8 @@ func TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck(t *testing.T) {
 
 	// If there's an error, make sure it's NOT a CapacityExceededError
 	if err != nil {
-		if _, ok := err.(*domain.CapacityExceededError); ok {
+		var capErr *domain.CapacityExceededError
+		if errors.As(err, &capErr) {
 			t.Fatal("MaxConcurrentRuns=0 should disable capacity check")
 		}
 	}

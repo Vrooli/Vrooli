@@ -330,7 +330,9 @@ func (e *RunExecutor) advancePhase(ctx context.Context, phase domain.RunPhase) {
 	e.saveCheckpoint(ctx)
 
 	// Update run in database
-	e.runs.Update(ctx, e.run)
+	if err := e.runs.Update(ctx, e.run); err != nil {
+		e.emitSystemEvent(ctx, "warn", "failed to persist phase update: "+err.Error())
+	}
 
 	// Emit phase change event
 	e.emitSystemEvent(ctx, "info", fmt.Sprintf("phase: %s", phase.Description()))
@@ -390,7 +392,9 @@ func (e *RunExecutor) sendHeartbeat(ctx context.Context) {
 
 	// Update checkpoint in database (best-effort)
 	if e.checkpoints != nil {
-		e.checkpoints.Heartbeat(ctx, e.run.ID)
+		if err := e.checkpoints.Heartbeat(ctx, e.run.ID); err != nil {
+			e.emitSystemEvent(ctx, "warn", "heartbeat checkpoint failed: "+err.Error())
+		}
 	}
 }
 
@@ -422,7 +426,9 @@ func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
 		e.run.Status = domain.RunStatusCancelled
 		e.run.EndedAt = &now
 		e.run.UpdatedAt = now
-		e.runs.Update(ctx, e.run)
+		if updateErr := e.runs.Update(ctx, e.run); updateErr != nil {
+			e.emitSystemEvent(ctx, "warn", "failed to persist cancellation: "+updateErr.Error())
+		}
 	}
 
 	e.cleanupOnFailure(ctx)
@@ -629,7 +635,9 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 	// Update status to running
 	e.run.Status = domain.RunStatusRunning
 	e.run.UpdatedAt = time.Now()
-	e.runs.Update(ctx, e.run)
+	if err := e.runs.Update(ctx, e.run); err != nil {
+		e.emitSystemEvent(ctx, "warn", "failed to persist run start: "+err.Error())
+	}
 
 	// Create event sink
 	eventSink := e.createEventSink()
@@ -691,7 +699,9 @@ func (e *RunExecutor) handleResult(ctx context.Context) {
 		e.handleFailure() // Fallback
 	}
 
-	e.runs.Update(ctx, e.run)
+	if err := e.runs.Update(ctx, e.run); err != nil {
+		e.emitSystemEvent(ctx, "warn", "failed to persist run result: "+err.Error())
+	}
 }
 
 func (e *RunExecutor) classifyOutcome() domain.RunOutcome {
@@ -791,19 +801,13 @@ func (e *RunExecutor) failWithError(ctx context.Context, err error) {
 	}
 }
 
-// failWithString is a convenience wrapper for simple error messages.
-func (e *RunExecutor) failWithString(ctx context.Context, errMsg string) {
-	e.failWithError(ctx, fmt.Errorf("%s", errMsg))
-}
-
 // classifyErrorOutcome maps errors to RunOutcome for categorization.
 func (e *RunExecutor) classifyErrorOutcome(err error) domain.RunOutcome {
-	switch err.(type) {
+	switch err := err.(type) {
 	case *domain.SandboxError:
 		return domain.RunOutcomeSandboxFail
 	case *domain.RunnerError:
-		runnerErr := err.(*domain.RunnerError)
-		if runnerErr.Operation == "timeout" {
+		if err.Operation == "timeout" {
 			return domain.RunOutcomeTimeout
 		}
 		return domain.RunOutcomeRunnerFail
@@ -820,7 +824,7 @@ func (e *RunExecutor) emitFailureEvent(ctx context.Context, err domain.DomainErr
 	}
 
 	evt := domain.NewErrorEventFromDomainError(e.run.ID, err)
-	e.events.Append(ctx, e.run.ID, evt)
+	_ = e.events.Append(ctx, e.run.ID, evt)
 }
 
 // emitGenericFailureEvent captures a non-domain error as an event.
@@ -831,7 +835,7 @@ func (e *RunExecutor) emitGenericFailureEvent(ctx context.Context, err error) {
 	}
 
 	evt := domain.NewErrorEvent(e.run.ID, string(domain.ErrCodeInternal), err.Error(), false)
-	e.events.Append(ctx, e.run.ID, evt)
+	_ = e.events.Append(ctx, e.run.ID, evt)
 }
 
 // emitSystemEvent captures a system-level event (log, status change).
@@ -842,7 +846,7 @@ func (e *RunExecutor) emitSystemEvent(ctx context.Context, level, message string
 	}
 
 	evt := domain.NewLogEvent(e.run.ID, level, message)
-	e.events.Append(ctx, e.run.ID, evt)
+	_ = e.events.Append(ctx, e.run.ID, evt)
 }
 
 // =============================================================================

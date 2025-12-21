@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/rand"
 	"os"
@@ -38,9 +39,7 @@ type DB struct {
 	dialect Dialect
 }
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 // NewConnection creates a new database connection with exponential backoff retry.
 func NewConnection(log *logrus.Logger) (*DB, error) {
@@ -82,7 +81,7 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		if delay > maxDelay {
 			delay = maxDelay
 		}
-		jitter := time.Duration(float64(delay) * jitterFactor * rand.Float64())
+		jitter := time.Duration(float64(delay) * jitterFactor * rng.Float64())
 		actualDelay := delay + jitter
 
 		log.WithFields(logrus.Fields{
@@ -233,13 +232,13 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 
 	defer func() {
 		if r := recover(); r != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			panic(r)
 		}
 	}()
 
 	if err := fn(tx); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 
@@ -269,8 +268,92 @@ func (db *DB) initSchema() error {
 		return err
 	}
 
+	if err := db.ensureProfileKeyColumn(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to backfill profile keys")
+		return err
+	}
+
 	db.log.Info("Database schema initialized successfully")
 	return nil
+}
+
+func (db *DB) ensureProfileKeyColumn(ctx context.Context) error {
+	switch db.dialect {
+	case DialectPostgres:
+		var exists bool
+		if err := db.QueryRowContext(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_name = 'agent_profiles'
+				AND column_name = 'profile_key'
+			)`).Scan(&exists); err != nil {
+			return fmt.Errorf("check profile_key column: %w", err)
+		}
+		if !exists {
+			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN profile_key VARCHAR(255)`); err != nil {
+				return fmt.Errorf("add profile_key column: %w", err)
+			}
+		}
+
+		if _, err := db.ExecContext(ctx, `UPDATE agent_profiles SET profile_key = name WHERE profile_key IS NULL OR profile_key = ''`); err != nil {
+			return fmt.Errorf("backfill profile_key values: %w", err)
+		}
+
+		if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ALTER COLUMN profile_key SET NOT NULL`); err != nil {
+			return fmt.Errorf("enforce profile_key not null: %w", err)
+		}
+
+		if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_profiles_profile_key ON agent_profiles(profile_key)`); err != nil {
+			return fmt.Errorf("ensure profile_key index: %w", err)
+		}
+	case DialectSQLite:
+		exists, err := sqliteColumnExists(ctx, db, "agent_profiles", "profile_key")
+		if err != nil {
+			return fmt.Errorf("check profile_key column: %w", err)
+		}
+		if !exists {
+			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN profile_key TEXT`); err != nil {
+				return fmt.Errorf("add profile_key column: %w", err)
+			}
+		}
+		if _, err := db.ExecContext(ctx, `UPDATE agent_profiles SET profile_key = name WHERE profile_key IS NULL OR profile_key = ''`); err != nil {
+			return fmt.Errorf("backfill profile_key values: %w", err)
+		}
+		if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_profiles_profile_key ON agent_profiles(profile_key)`); err != nil {
+			return fmt.Errorf("ensure profile_key index: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported dialect: %s", db.dialect)
+	}
+
+	return nil
+}
+
+func sqliteColumnExists(ctx context.Context, db *DB, tableName, columnName string) (bool, error) {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", tableName))
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			cid       int
+			name      string
+			colType   string
+			notNull   int
+			defaultV  sql.NullString
+			primaryK  int
+		)
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &defaultV, &primaryK); err != nil {
+			return false, err
+		}
+		if name == columnName {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }
 
 func getCurrentFilePath() string {

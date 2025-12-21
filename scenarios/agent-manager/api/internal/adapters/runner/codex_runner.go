@@ -265,7 +265,7 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 
 	// Emit starting event
 	if req.EventSink != nil {
-		req.EventSink.Emit(domain.NewStatusEvent(
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
 			req.RunID,
 			string(domain.RunStatusStarting),
 			string(domain.RunStatusRunning),
@@ -312,7 +312,7 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 
 		// Emit to sink
 		if req.EventSink != nil {
-			req.EventSink.Emit(event)
+			_ = req.EventSink.Emit(event)
 		}
 	}
 
@@ -358,13 +358,13 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		if !result.Success {
 			finalStatus = string(domain.RunStatusFailed)
 		}
-		req.EventSink.Emit(domain.NewStatusEvent(
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
 			req.RunID,
 			string(domain.RunStatusRunning),
 			finalStatus,
 			"Codex execution completed",
 		))
-		req.EventSink.Close()
+		_ = req.EventSink.Close()
 	}
 
 	return result, nil
@@ -418,7 +418,7 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 
 	// Emit starting event
 	if req.EventSink != nil {
-		req.EventSink.Emit(domain.NewStatusEvent(
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
 			req.RunID,
 			string(domain.RunStatusStarting),
 			string(domain.RunStatusRunning),
@@ -455,7 +455,7 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 
 		// Emit log event for each line
 		if req.EventSink != nil {
-			req.EventSink.Emit(domain.NewLogEvent(
+			_ = req.EventSink.Emit(domain.NewLogEvent(
 				req.RunID,
 				"info",
 				line,
@@ -502,13 +502,13 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 		if !result.Success {
 			finalStatus = string(domain.RunStatusFailed)
 		}
-		req.EventSink.Emit(domain.NewStatusEvent(
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
 			req.RunID,
 			string(domain.RunStatusRunning),
 			finalStatus,
 			"Codex execution completed",
 		))
-		req.EventSink.Close()
+		_ = req.EventSink.Close()
 	}
 
 	return result, nil
@@ -677,7 +677,7 @@ func (r *CodexRunner) parseCodexStreamEvent(runID uuid.UUID, line string) *domai
 			case "tool_call":
 				var input map[string]interface{}
 				if streamEvent.Item.Input != nil {
-					json.Unmarshal(streamEvent.Item.Input, &input)
+					_ = json.Unmarshal(streamEvent.Item.Input, &input)
 				}
 				return domain.NewToolCallEvent(runID, streamEvent.Item.Name, input)
 			case "tool_result":

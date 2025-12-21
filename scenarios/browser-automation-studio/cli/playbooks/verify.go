@@ -24,7 +24,7 @@ func runVerify(ctx *appctx.Context, args []string) error {
 			i++
 		case "--help", "-h":
 			fmt.Println("Usage: browser-automation-studio playbooks verify [--scenario <dir>]")
-			fmt.Println("Checks that every directory under test/playbooks (excluding __*) begins with a two-digit prefix")
+			fmt.Println("Checks that every directory under bas/cases (excluding __*) begins with a two-digit prefix")
 			return nil
 		default:
 			return fmt.Errorf("unknown option: %s", args[i])
@@ -35,13 +35,14 @@ func runVerify(ctx *appctx.Context, args []string) error {
 		return fmt.Errorf("scenario root not resolved")
 	}
 
-	baseDir := filepath.Join(scenarioDir, "test", "playbooks")
+	baseDir := filepath.Join(scenarioDir, "bas", "cases")
 	if info, err := os.Stat(baseDir); err != nil || !info.IsDir() {
-		return fmt.Errorf("playbooks directory not found at %s", baseDir)
+		return fmt.Errorf("cases directory not found at %s", baseDir)
 	}
 
 	issues := 0
-	verifyTree := func(root, rel string) error {
+	var verifyTree func(root, rel string) error
+	verifyTree = func(root, rel string) error {
 		entries, err := os.ReadDir(root)
 		if err != nil {
 			return err
@@ -66,13 +67,8 @@ func runVerify(ctx *appctx.Context, args []string) error {
 		return nil
 	}
 
-	for _, sub := range []string{"capabilities", "journeys"} {
-		path := filepath.Join(baseDir, sub)
-		if info, err := os.Stat(path); err == nil && info.IsDir() {
-			if err := verifyTree(path, sub+"/"); err != nil {
-				return err
-			}
-		}
+	if err := verifyTree(baseDir, ""); err != nil {
+		return err
 	}
 
 	if issues == 0 {

@@ -96,7 +96,7 @@ func TestReconcileStats_ZeroValues(t *testing.T) {
 	if stats.OrphansKilled != 0 {
 		t.Errorf("OrphansKilled = %d, want 0", stats.OrphansKilled)
 	}
-	if stats.Errors != nil && len(stats.Errors) > 0 {
+	if len(stats.Errors) > 0 {
 		t.Error("Errors should be empty")
 	}
 }

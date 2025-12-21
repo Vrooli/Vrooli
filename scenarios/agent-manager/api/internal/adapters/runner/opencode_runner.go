@@ -173,7 +173,7 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 
 	// Emit starting event
 	if req.EventSink != nil {
-		req.EventSink.Emit(domain.NewStatusEvent(
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
 			req.RunID,
 			string(domain.RunStatusStarting),
 			string(domain.RunStatusRunning),
@@ -218,7 +218,7 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		if err != nil {
 			// Log parsing error but continue
 			if req.EventSink != nil {
-				req.EventSink.Emit(domain.NewLogEvent(
+				_ = req.EventSink.Emit(domain.NewLogEvent(
 					req.RunID,
 					"warn",
 					fmt.Sprintf("Failed to parse event: %v", err),
@@ -237,7 +237,7 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 
 		// Emit to sink
 		if req.EventSink != nil {
-			req.EventSink.Emit(event)
+			_ = req.EventSink.Emit(event)
 		}
 	}
 
@@ -245,7 +245,7 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 	if stepFinished && cmd.Process != nil {
 		// Give a brief moment for cleanup, then terminate
 		time.Sleep(100 * time.Millisecond)
-		cmd.Process.Signal(os.Interrupt)
+		_ = cmd.Process.Signal(os.Interrupt)
 		// Wait briefly for graceful shutdown
 		done := make(chan error, 1)
 		go func() { done <- cmd.Wait() }()
@@ -254,7 +254,7 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			// Process exited gracefully
 		case <-time.After(2 * time.Second):
 			// Force kill if it doesn't exit gracefully
-			cmd.Process.Kill()
+			_ = cmd.Process.Kill()
 			<-done
 		}
 	}
@@ -305,13 +305,13 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		if !result.Success {
 			finalStatus = string(domain.RunStatusFailed)
 		}
-		req.EventSink.Emit(domain.NewStatusEvent(
+		_ = req.EventSink.Emit(domain.NewStatusEvent(
 			req.RunID,
 			string(domain.RunStatusRunning),
 			finalStatus,
 			"OpenCode execution completed",
 		))
-		req.EventSink.Close()
+		_ = req.EventSink.Close()
 	}
 
 	return result, nil
@@ -558,7 +558,7 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 				input = streamEvent.Part.State.Input
 			} else if streamEvent.Part.Input != nil {
 				// Legacy fallback
-				json.Unmarshal(streamEvent.Part.Input, &input)
+				_ = json.Unmarshal(streamEvent.Part.Input, &input)
 			}
 
 			// Check if this is a completed tool call (OpenCode sometimes bundles result in same event)
@@ -698,7 +698,7 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Input != nil {
 				input = streamEvent.Part.State.Input
 			} else if streamEvent.Part.Input != nil {
-				json.Unmarshal(streamEvent.Part.Input, &input)
+				_ = json.Unmarshal(streamEvent.Part.Input, &input)
 			}
 			return domain.NewToolCallEvent(runID, toolName, input), nil
 		case "tool-result", "tool_result":
@@ -791,7 +791,7 @@ func (r *OpenCodeRunner) handleStepFinish(runID uuid.UUID, line string, metrics 
 	if msgEvent := r.extractAssistantMessage(runID, part); msgEvent != nil {
 		r.updateMetrics(msgEvent, metrics, lastAssistant)
 		if sink != nil {
-			sink.Emit(msgEvent)
+			_ = sink.Emit(msgEvent)
 		}
 	}
 
@@ -800,7 +800,7 @@ func (r *OpenCodeRunner) handleStepFinish(runID uuid.UUID, line string, metrics 
 	if err == nil && costEvent != nil {
 		r.updateMetrics(costEvent, metrics, lastAssistant)
 		if sink != nil {
-			sink.Emit(costEvent)
+			_ = sink.Emit(costEvent)
 		}
 	}
 }
