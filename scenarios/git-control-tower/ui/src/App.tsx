@@ -550,10 +550,6 @@ export default function App() {
         syncStatus={syncStatusQuery.data}
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
-        onPush={handlePush}
-        onPull={handlePull}
-        isPushing={pushMutation.isPending}
-        isPulling={pullMutation.isPending}
       />
 
       {/* Main Content - Split Pane */}
@@ -584,6 +580,21 @@ export default function App() {
                     selectedFiles={selectedFiles}
                     selectedKeySet={selectedKeySet}
                     selectionKey={selectionKey}
+                    syncStatus={
+                      syncStatusQuery.data
+                        ? {
+                            ahead: syncStatusQuery.data.ahead,
+                            behind: syncStatusQuery.data.behind,
+                            canPush: syncStatusQuery.data.can_push,
+                            canPull: syncStatusQuery.data.can_pull,
+                            warning: syncStatusQuery.data.safety_warnings?.join("; ")
+                          }
+                        : undefined
+                    }
+                    onPush={handlePush}
+                    onPull={handlePull}
+                    isPushing={pushMutation.isPending}
+                    isPulling={pullMutation.isPending}
                     onSelectFile={handleSelectFile}
                     onStageFile={handleStageFile}
                     onUnstageFile={handleUnstageFile}

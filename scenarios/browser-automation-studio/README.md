@@ -84,6 +84,7 @@ vrooli resource minio start
 ```bash
 # Install CLI
 cd cli
+# Go toolchain required for CLI build
 ./install.sh
 source ~/.bashrc
 

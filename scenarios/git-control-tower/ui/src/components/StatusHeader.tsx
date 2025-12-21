@@ -6,11 +6,9 @@ import {
   CheckCircle,
   AlertCircle,
   Circle,
-  RefreshCw,
-  Loader2
+  RefreshCw
 } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
 
 interface StatusHeaderProps {
@@ -19,10 +17,6 @@ interface StatusHeaderProps {
   syncStatus?: SyncStatusResponse;
   isLoading: boolean;
   onRefresh: () => void;
-  onPush: () => void;
-  onPull: () => void;
-  isPushing: boolean;
-  isPulling: boolean;
 }
 
 export function StatusHeader({
@@ -30,15 +24,9 @@ export function StatusHeader({
   health,
   syncStatus,
   isLoading,
-  onRefresh,
-  onPush,
-  onPull,
-  isPushing,
-  isPulling
+  onRefresh
 }: StatusHeaderProps) {
   const isHealthy = health?.readiness ?? false;
-  const canPush = syncStatus?.can_push ?? false;
-  const canPull = syncStatus?.can_pull ?? false;
   const ahead = status?.branch.ahead ?? syncStatus?.ahead ?? 0;
   const behind = status?.branch.behind ?? syncStatus?.behind ?? 0;
 
@@ -112,44 +100,6 @@ export function StatusHeader({
            status.summary.unstaged === 0 &&
            status.summary.untracked === 0 && (
             <span className="text-xs text-slate-500">Working tree clean</span>
-          )}
-        </div>
-
-        {/* Push/Pull Buttons */}
-        <div className="flex items-center gap-2">
-          {(canPull || behind > 0) && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onPull}
-              disabled={isPulling || !canPull}
-              data-testid="pull-button"
-              title={syncStatus?.safety_warnings?.join("; ") || "Pull from remote"}
-            >
-              {isPulling ? (
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-              ) : (
-                <ArrowDown className="h-3 w-3 mr-1" />
-              )}
-              Pull
-            </Button>
-          )}
-          {(canPush || ahead > 0) && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onPush}
-              disabled={isPushing || !canPush}
-              data-testid="push-button"
-              title={syncStatus?.safety_warnings?.join("; ") || "Push to remote"}
-            >
-              {isPushing ? (
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-              ) : (
-                <ArrowUp className="h-3 w-3 mr-1" />
-              )}
-              Push
-            </Button>
           )}
         </div>
 
