@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileDiff, Plus, Minus, Loader2, AlertTriangle } from "lucide-react";
+import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
@@ -12,6 +12,7 @@ interface DiffViewerProps {
   isStaged: boolean;
   isLoading: boolean;
   error?: Error | null;
+  repoDir?: string;
 }
 
 function DiffLine({ line, lineNumber }: { line: string; lineNumber?: number }) {
@@ -93,16 +94,55 @@ export function DiffViewer({
   selectedFile,
   isStaged,
   isLoading,
-  error
+  error,
+  repoDir
 }: DiffViewerProps) {
   const [showBinary, setShowBinary] = useState(false);
+  const [copied, setCopied] = useState(false);
   const isBinaryDiff = Boolean(
     diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch"))
   );
+  const absolutePath =
+    selectedFile && repoDir ? `${repoDir.replace(/\/$/, "")}/${selectedFile}` : selectedFile;
 
   useEffect(() => {
     setShowBinary(false);
   }, [selectedFile, diff?.raw]);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  const handleCopyPath = async () => {
+    if (!absolutePath) return;
+
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(absolutePath);
+        setCopied(true);
+        return;
+      } catch {
+        // Fallback to legacy copy.
+      }
+    }
+
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = absolutePath;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(true);
+    } catch {
+      // Ignore copy errors.
+    }
+  };
 
   const showBinaryNotice =
     selectedFile && !isLoading && !error && diff?.has_diff && isBinaryDiff && !showBinary;
@@ -119,6 +159,22 @@ export function DiffViewer({
               "Diff Viewer"
             )}
           </CardTitle>
+          {selectedFile && (
+            <button
+              type="button"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10"
+              onClick={handleCopyPath}
+              title={copied ? "Copied" : "Copy absolute path"}
+              aria-label="Copy absolute path"
+              data-testid="copy-absolute-path"
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-emerald-300" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </button>
+          )}
           {selectedFile && (
             <Badge variant={isStaged ? "staged" : "unstaged"}>
               {isStaged ? "staged" : "unstaged"}

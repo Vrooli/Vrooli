@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusHeader } from "./components/StatusHeader";
 import { FileList } from "./components/FileList";
@@ -43,8 +43,14 @@ export default function App() {
   const diffMinWidth = 320;
 
   // Selected file state
+  const selectionKey = useCallback(
+    (entry: { path: string; staged: boolean }) => `${entry.staged ? "1" : "0"}:${entry.path}`,
+    []
+  );
   const [selectedFile, setSelectedFile] = useState<string | undefined>();
   const [selectedIsStaged, setSelectedIsStaged] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<Array<{ path: string; staged: boolean }>>([]);
+  const lastSelectedKeyRef = useRef<string | null>(null);
   const [confirmingDiscard, setConfirmingDiscard] = useState<string | null>(null);
   const [lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
@@ -78,10 +84,85 @@ export default function App() {
     }
   }, [queryClient, selectedFile, selectedIsStaged]);
 
-  const handleSelectFile = useCallback((path: string, staged: boolean) => {
-    setSelectedFile(path);
-    setSelectedIsStaged(staged);
-  }, []);
+  const orderedFiles = useMemo(() => {
+    const files = statusQuery.data?.files;
+    if (!files) return [] as Array<{ path: string; staged: boolean }>;
+
+    return [
+      ...(files.conflicts ?? []).map((path) => ({ path, staged: false })),
+      ...(files.staged ?? []).map((path) => ({ path, staged: true })),
+      ...(files.unstaged ?? []).map((path) => ({ path, staged: false })),
+      ...(files.untracked ?? []).map((path) => ({ path, staged: false }))
+    ];
+  }, [statusQuery.data?.files]);
+
+  const orderedKeys = useMemo(() => orderedFiles.map((entry) => selectionKey(entry)), [orderedFiles, selectionKey]);
+  const orderedKeyToEntry = useMemo(
+    () => new Map(orderedFiles.map((entry) => [selectionKey(entry), entry])),
+    [orderedFiles, selectionKey]
+  );
+  const orderedIndexMap = useMemo(
+    () => new Map(orderedKeys.map((key, index) => [key, index])),
+    [orderedKeys]
+  );
+  const orderedKeySet = useMemo(() => new Set(orderedKeys), [orderedKeys]);
+
+  const handleSelectFile = useCallback(
+    (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => {
+      const nextEntry = orderedKeyToEntry.get(selectionKey({ path, staged })) ?? { path, staged };
+      const nextKey = selectionKey(nextEntry);
+      const lastKey = lastSelectedKeyRef.current;
+      const isToggle = event.metaKey || event.ctrlKey;
+      const isRange = event.shiftKey && lastKey && orderedIndexMap.has(lastKey);
+      let nextSelection: Array<{ path: string; staged: boolean }>;
+
+      if (isRange && orderedIndexMap.has(nextKey)) {
+        const start = orderedIndexMap.get(lastKey) ?? 0;
+        const end = orderedIndexMap.get(nextKey) ?? 0;
+        const [from, to] = start < end ? [start, end] : [end, start];
+        nextSelection = orderedKeys
+          .slice(from, to + 1)
+          .map((key) => orderedKeyToEntry.get(key))
+          .filter((entry): entry is { path: string; staged: boolean } => Boolean(entry));
+      } else if (isToggle) {
+        const hasEntry = selectedFiles.some((entry) => selectionKey(entry) === nextKey);
+        if (hasEntry) {
+          nextSelection = selectedFiles.filter((entry) => selectionKey(entry) !== nextKey);
+        } else {
+          nextSelection = [...selectedFiles, nextEntry].sort((a, b) => {
+            const aIndex = orderedIndexMap.get(selectionKey(a)) ?? 0;
+            const bIndex = orderedIndexMap.get(selectionKey(b)) ?? 0;
+            return aIndex - bIndex;
+          });
+        }
+      } else {
+        nextSelection = [nextEntry];
+      }
+
+      setSelectedFiles(nextSelection);
+      lastSelectedKeyRef.current = nextKey;
+
+      if (nextSelection.length === 0) {
+        setSelectedFile(undefined);
+        setSelectedIsStaged(false);
+        return;
+      }
+
+      const clickedStillSelected = nextSelection.some((entry) => selectionKey(entry) === nextKey);
+      const primary = clickedStillSelected
+        ? nextEntry
+        : nextSelection[nextSelection.length - 1];
+      setSelectedFile(primary.path);
+      setSelectedIsStaged(primary.staged);
+    },
+    [
+      orderedIndexMap,
+      orderedKeyToEntry,
+      orderedKeys,
+      selectionKey,
+      selectedFiles
+    ]
+  );
 
   const handleStageFile = useCallback(
     (path: string) => {
@@ -160,6 +241,9 @@ export default function App() {
             if (selectedFile === path) {
               setSelectedFile(undefined);
             }
+            setSelectedFiles((prev) =>
+              prev.filter((entry) => !(entry.path === path && !entry.staged))
+            );
             queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
           }
         }
@@ -225,6 +309,33 @@ export default function App() {
     if (typeof window === "undefined") return;
     localStorage.setItem("gct.changesHeight", String(changesHeight));
   }, [changesHeight]);
+
+  useEffect(() => {
+    if (!orderedKeySet.size) {
+      setSelectedFiles([]);
+      setSelectedFile(undefined);
+      setSelectedIsStaged(false);
+      lastSelectedKeyRef.current = null;
+      return;
+    }
+
+    setSelectedFiles((prev) => prev.filter((entry) => orderedKeySet.has(selectionKey(entry))));
+  }, [orderedKeySet, selectionKey]);
+
+  useEffect(() => {
+    if (!selectedFile) return;
+    const activeKey = selectionKey({ path: selectedFile, staged: selectedIsStaged });
+    if (orderedKeySet.has(activeKey)) return;
+
+    if (selectedFiles.length > 0) {
+      const fallback = selectedFiles[selectedFiles.length - 1];
+      setSelectedFile(fallback.path);
+      setSelectedIsStaged(fallback.staged);
+    } else {
+      setSelectedFile(undefined);
+      setSelectedIsStaged(false);
+    }
+  }, [orderedKeySet, selectedFile, selectedFiles, selectedIsStaged, selectionKey]);
 
   useEffect(() => {
     if (!sidebarRef.current || typeof ResizeObserver === "undefined") return;
@@ -374,8 +485,7 @@ export default function App() {
             <div className="min-h-0 min-w-0 overflow-hidden">
               <FileList
                 files={statusQuery.data?.files}
-                selectedFile={selectedFile}
-                selectedIsStaged={selectedIsStaged}
+                selectedFiles={selectedFiles}
                 onSelectFile={handleSelectFile}
                 onStageFile={handleStageFile}
                 onUnstageFile={handleUnstageFile}
@@ -431,6 +541,7 @@ export default function App() {
             isStaged={selectedIsStaged}
             isLoading={diffQuery.isLoading}
             error={diffQuery.error}
+            repoDir={statusQuery.data?.repo_dir}
           />
         </div>
       </div>

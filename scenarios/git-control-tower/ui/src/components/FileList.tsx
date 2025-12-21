@@ -18,11 +18,12 @@ import type { RepoFilesStatus } from "../lib/api";
 
 type FileCategory = "staged" | "unstaged" | "untracked" | "conflicts";
 
+type SelectedFileEntry = { path: string; staged: boolean };
+
 interface FileListProps {
   files?: RepoFilesStatus;
-  selectedFile?: string;
-  selectedIsStaged?: boolean;
-  onSelectFile: (path: string, staged: boolean) => void;
+  selectedFiles?: SelectedFileEntry[];
+  onSelectFile: (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => void;
   onStageFile: (path: string) => void;
   onUnstageFile: (path: string) => void;
   onDiscardFile: (path: string, untracked: boolean) => void;
@@ -44,9 +45,8 @@ interface FileSectionProps {
   fileStatuses?: Record<string, string>;
   maxPathChars: number;
   icon: React.ReactNode;
-  selectedFile?: string;
-  selectedIsStaged?: boolean;
-  onSelectFile: (path: string, staged: boolean) => void;
+  selectedFiles?: SelectedFileEntry[];
+  onSelectFile: (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => void;
   onAction: (path: string) => void;
   actionIcon: React.ReactNode;
   actionLabel: string;
@@ -116,8 +116,7 @@ function FileSection({
   fileStatuses,
   maxPathChars,
   icon,
-  selectedFile,
-  selectedIsStaged,
+  selectedFiles,
   onSelectFile,
   onAction,
   actionIcon,
@@ -135,6 +134,8 @@ function FileSection({
 
   const isStaged = category === "staged";
   const canDiscard = category === "unstaged" || category === "untracked";
+  const isSelectedFile = (path: string) =>
+    Boolean(selectedFiles?.some((entry) => entry.path === path && entry.staged === isStaged));
 
   return (
     <div className="mb-4" data-testid={`file-section-${category}`}>
@@ -158,7 +159,7 @@ function FileSection({
       {expanded && (
         <ul className="mt-1 space-y-0.5 min-w-0">
           {files.map((file) => {
-            const isSelected = selectedFile === file && selectedIsStaged === isStaged;
+            const isSelected = isSelectedFile(file);
             const isConfirmingThis = confirmingDiscard === file;
             const badge = getStatusBadge(fileStatuses?.[file], category);
             const displayPath = formatPath(file, maxPathChars);
@@ -173,7 +174,7 @@ function FileSection({
                 }`}
                 data-testid={`file-item-${category}`}
                 data-file-path={file}
-                onClick={() => onSelectFile(file, isStaged)}
+                onClick={(event) => onSelectFile(file, isStaged, event)}
               >
                 <span
                   className={`h-5 w-5 flex items-center justify-center rounded border text-[10px] font-bold ${badge.style}`}
@@ -267,8 +268,7 @@ function FileSection({
 
 export function FileList({
   files,
-  selectedFile,
-  selectedIsStaged,
+  selectedFiles,
   onSelectFile,
   onStageFile,
   onUnstageFile,
@@ -367,8 +367,7 @@ export function FileList({
               fileStatuses={files?.statuses}
               maxPathChars={maxPathChars}
               icon={<AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
-              selectedFile={selectedFile}
-              selectedIsStaged={selectedIsStaged}
+              selectedFiles={selectedFiles}
               onSelectFile={onSelectFile}
               onAction={onStageFile}
               actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
@@ -384,8 +383,7 @@ export function FileList({
               fileStatuses={files?.statuses}
               maxPathChars={maxPathChars}
               icon={<FilePlus className="h-3.5 w-3.5 text-emerald-500" />}
-              selectedFile={selectedFile}
-              selectedIsStaged={selectedIsStaged}
+              selectedFiles={selectedFiles}
               onSelectFile={onSelectFile}
               onAction={onUnstageFile}
               actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
@@ -401,8 +399,7 @@ export function FileList({
               fileStatuses={files?.statuses}
               maxPathChars={maxPathChars}
               icon={<FileX className="h-3.5 w-3.5 text-amber-500" />}
-              selectedFile={selectedFile}
-              selectedIsStaged={selectedIsStaged}
+              selectedFiles={selectedFiles}
               onSelectFile={onSelectFile}
               onAction={onStageFile}
               actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
@@ -422,8 +419,7 @@ export function FileList({
               fileStatuses={files?.statuses}
               maxPathChars={maxPathChars}
               icon={<File className="h-3.5 w-3.5 text-slate-500" />}
-              selectedFile={selectedFile}
-              selectedIsStaged={selectedIsStaged}
+              selectedFiles={selectedFiles}
               onSelectFile={onSelectFile}
               onAction={onStageFile}
               actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
