@@ -683,7 +683,8 @@ func TestMinIOClient_ConcurrentOperations(t *testing.T) {
 		for i := 0; i < concurrency; i++ {
 			go func(idx int) {
 				data := []byte(bytes.Repeat([]byte{byte(idx)}, 100))
-				_, err := client.StoreScreenshot(ctx, executionID, "concurrent", data, "image/png")
+				stepName := fmt.Sprintf("concurrent-%02d", idx)
+				_, err := client.StoreScreenshot(ctx, executionID, stepName, data, "image/png")
 				done <- err
 			}(i)
 		}

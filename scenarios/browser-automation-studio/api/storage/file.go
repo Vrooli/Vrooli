@@ -85,7 +85,7 @@ func (f *FileStorage) GetScreenshot(_ context.Context, objectName string) (io.Re
 
 // StoreScreenshot writes raw bytes to disk and returns API URLs.
 func (f *FileStorage) StoreScreenshot(_ context.Context, executionID uuid.UUID, stepName string, data []byte, contentType string) (*ScreenshotInfo, error) {
-	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s-%s.png", executionID, sanitizeStepName(stepName), uuid.New())
+	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s.png", executionID, sanitizeStepName(stepName))
 	path, err := f.objectPath(objectName)
 	if err != nil {
 		return nil, err

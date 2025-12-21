@@ -62,7 +62,7 @@ func (m *MemoryStorage) StoreScreenshot(ctx context.Context, executionID uuid.UU
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	objectName := fmt.Sprintf("%s/%s.png", executionID.String(), stepName)
+	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s.png", executionID.String(), stepName)
 
 	m.objects[objectName] = memoryObject{
 		data:        append([]byte{}, data...), // Copy data
@@ -148,7 +148,7 @@ func (m *MemoryStorage) ListExecutionScreenshots(ctx context.Context, executionI
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	prefix := executionID.String() + "/"
+	prefix := executionID.String() + "/artifacts/screenshots/"
 	var result []string
 
 	for key := range m.objects {

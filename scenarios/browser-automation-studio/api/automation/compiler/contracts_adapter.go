@@ -5,6 +5,7 @@ package compiler
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -58,6 +59,17 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 		instructions = append(instructions, instr)
 	}
 
+	metadata := map[string]any{}
+	for key, value := range plan.Metadata {
+		metadata[key] = value
+	}
+	if name := strings.TrimSpace(plan.WorkflowName); name != "" {
+		metadata["workflowName"] = name
+	}
+	if len(metadata) == 0 {
+		metadata = nil
+	}
+
 	// Build the contracts.ExecutionPlan with both flat and graph representations
 	contractPlan := contracts.ExecutionPlan{
 		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
@@ -66,7 +78,7 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 		WorkflowID:     workflowID,
 		Instructions:   instructions,
 		Graph:          toContractsGraph(plan),
-		Metadata:       plan.Metadata,
+		Metadata:       metadata,
 		CreatedAt:      time.Now().UTC(),
 	}
 

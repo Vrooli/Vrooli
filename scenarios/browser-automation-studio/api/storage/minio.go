@@ -106,7 +106,7 @@ func (m *MinIOClient) ensureBucket(ctx context.Context) error {
 // StoreScreenshot stores a screenshot file in MinIO
 func (m *MinIOClient) StoreScreenshot(ctx context.Context, executionID uuid.UUID, stepName string, data []byte, contentType string) (*ScreenshotInfo, error) {
 	// Generate object name
-	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s-%s.png", executionID, stepName, uuid.New())
+	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s.png", executionID, stepName)
 
 	// Derive image dimensions before streaming to storage so replay UI can size thumbnails accurately.
 	width, height := decodeDimensions(data)

@@ -439,7 +439,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 
 	// Persist screenshot if available - controlled by CollectScreenshots
 	if cfg.CollectScreenshots && outcome.Screenshot != nil && len(outcome.Screenshot.Data) > 0 {
-		screenshotInfo, err := r.persistScreenshot(ctx, plan.ExecutionID, outcome)
+		screenshotInfo, err := r.persistScreenshot(ctx, plan, plan.ExecutionID, outcome)
 		if err != nil && r.log != nil {
 			r.log.WithError(err).Warn("Failed to persist screenshot artifact")
 		}
@@ -1171,7 +1171,7 @@ func (r *FileWriter) updateExecutionIndex(ctx context.Context, executionID uuid.
 	return nil
 }
 
-func (r *FileWriter) persistScreenshot(ctx context.Context, executionID uuid.UUID, outcome contracts.StepOutcome) (*storage.ScreenshotInfo, error) {
+func (r *FileWriter) persistScreenshot(ctx context.Context, plan contracts.ExecutionPlan, executionID uuid.UUID, outcome contracts.StepOutcome) (*storage.ScreenshotInfo, error) {
 	if r.storage == nil {
 		return nil, nil
 	}
@@ -1182,7 +1182,8 @@ func (r *FileWriter) persistScreenshot(ctx context.Context, executionID uuid.UUI
 	if contentType == "" {
 		contentType = "image/png"
 	}
-	return r.storage.StoreScreenshot(ctx, executionID, outcome.NodeID, outcome.Screenshot.Data, contentType)
+	stepName := buildScreenshotBaseName(plan, outcome)
+	return r.storage.StoreScreenshot(ctx, executionID, stepName, outcome.Screenshot.Data, contentType)
 }
 
 func statusFromOutcome(outcome contracts.StepOutcome) string {
@@ -1203,6 +1204,116 @@ func deriveStepLabel(outcome contracts.StepOutcome) string {
 		return fmt.Sprintf("step-%d", outcome.StepIndex)
 	}
 	return "step"
+}
+
+func buildScreenshotBaseName(plan contracts.ExecutionPlan, outcome contracts.StepOutcome) string {
+	stepNumber := outcome.StepIndex + 1
+	if stepNumber < 0 {
+		stepNumber = 0
+	}
+	stepToken := fmt.Sprintf("%05d", stepNumber)
+
+	workflowName := workflowNameForArtifacts(plan)
+	if workflowName == "" {
+		workflowName = plan.WorkflowID.String()
+	}
+	workflowToken := slugifyFilenamePart(workflowName, "-")
+	if workflowToken == "" {
+		workflowToken = "workflow"
+	}
+
+	nodeToken := slugifyFilenamePart(outcome.NodeID, "-")
+	if nodeToken == "" {
+		nodeToken = "node"
+	}
+
+	actionToken := normalizeActionType(outcome.StepType)
+
+	name := fmt.Sprintf("%s--%s--%s--%s", stepToken, workflowToken, nodeToken, actionToken)
+	if outcome.Attempt > 1 {
+		name = fmt.Sprintf("%s--attempt-%02d", name, outcome.Attempt)
+	}
+	return name
+}
+
+func workflowNameForArtifacts(plan contracts.ExecutionPlan) string {
+	if plan.Metadata == nil {
+		return ""
+	}
+	if value, ok := plan.Metadata["workflowName"]; ok {
+		if name, ok := value.(string); ok {
+			return strings.TrimSpace(name)
+		}
+	}
+	if value, ok := plan.Metadata["workflow_name"]; ok {
+		if name, ok := value.(string); ok {
+			return strings.TrimSpace(name)
+		}
+	}
+	return ""
+}
+
+func slugifyFilenamePart(input string, delimiter string) string {
+	trimmed := strings.TrimSpace(input)
+	if trimmed == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(trimmed))
+	lastWasDelimiter := false
+
+	for _, r := range trimmed {
+		if r >= 'A' && r <= 'Z' {
+			r += 'a' - 'A'
+		}
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			lastWasDelimiter = false
+			continue
+		}
+		if !lastWasDelimiter {
+			b.WriteString(delimiter)
+			lastWasDelimiter = true
+		}
+	}
+
+	out := strings.Trim(b.String(), delimiter)
+	return out
+}
+
+func normalizeActionType(actionType string) string {
+	trimmed := strings.TrimSpace(actionType)
+	if trimmed == "" {
+		return "ACTION_TYPE_UNKNOWN"
+	}
+
+	var b strings.Builder
+	b.Grow(len(trimmed))
+	lastWasUnderscore := false
+
+	for _, r := range trimmed {
+		if r >= 'a' && r <= 'z' {
+			r -= 'a' - 'A'
+		}
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			lastWasUnderscore = false
+			continue
+		}
+		if !lastWasUnderscore {
+			b.WriteByte('_')
+			lastWasUnderscore = true
+		}
+	}
+
+	out := strings.Trim(b.String(), "_")
+	if out == "" {
+		out = "UNKNOWN"
+	}
+	if !strings.HasPrefix(out, "ACTION_TYPE_") {
+		out = "ACTION_TYPE_" + out
+	}
+	return out
 }
 
 // sanitizeOutcome applies default size limits to outcome fields.

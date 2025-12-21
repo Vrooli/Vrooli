@@ -153,6 +153,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				return fmt.Errorf("invalid JSON in %s", fromFile)
 			}
 			payload["flow_definition"] = flowDef
+			payload["metadata"] = buildAdhocMetadata(flowDef, fromFile)
 		} else {
 			workflowDetail, err := getWorkflow(ctx, workflowID)
 			if err != nil {
@@ -162,6 +163,9 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				return fmt.Errorf("missing flow_definition for workflow %s", workflowID)
 			}
 			payload["flow_definition"] = json.RawMessage(workflowDetail.Workflow.FlowDefinition)
+			if name := strings.TrimSpace(workflowDetail.Workflow.Name); name != "" {
+				payload["metadata"] = map[string]any{"name": name}
+			}
 		}
 
 		executePath := ctx.APIPath("/workflows/execute-adhoc")
@@ -273,6 +277,36 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	}
 
 	return nil
+}
+
+func buildAdhocMetadata(flowDef any, filePath string) map[string]any {
+	name := extractWorkflowName(flowDef)
+	if name == "" {
+		base := strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+		name = strings.TrimSpace(base)
+	}
+	if name == "" {
+		return nil
+	}
+	return map[string]any{"name": name}
+}
+
+func extractWorkflowName(flowDef any) string {
+	flowMap, ok := flowDef.(map[string]any)
+	if !ok {
+		return ""
+	}
+	if name, ok := flowMap["name"].(string); ok {
+		return strings.TrimSpace(name)
+	}
+	meta, ok := flowMap["metadata"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	if name, ok := meta["name"].(string); ok {
+		return strings.TrimSpace(name)
+	}
+	return ""
 }
 
 type executionResultSummary struct {
