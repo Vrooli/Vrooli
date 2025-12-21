@@ -55,6 +55,7 @@ type FakeGitRunner struct {
 
 	// History tracking
 	HistoryLines []string
+	NumstatLines []string
 
 	// Config values
 	ConfigValues map[string]string
@@ -436,6 +437,14 @@ func (f *FakeGitRunner) LogGraph(ctx context.Context, repoDir string, limit int)
 		lines = lines[:limit]
 	}
 	return []byte(strings.Join(lines, "\n")), nil
+}
+
+func (f *FakeGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error) {
+	f.recordCall("DiffNumstat", repoDir, fmt.Sprintf("staged=%v", staged))
+	if f.DiffError != nil {
+		return nil, f.DiffError
+	}
+	return []byte(strings.Join(f.NumstatLines, "\n")), nil
 }
 
 // --- Test helpers ---

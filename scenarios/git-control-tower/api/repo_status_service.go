@@ -45,16 +45,53 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 	parsed.Scopes = detectScopes(parsed.Files)
 
+	binarySet := map[string]struct{}{}
+	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, true); err == nil {
+		addBinaryFiles(binarySet, numstat)
+	}
+	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, false); err == nil {
+		addBinaryFiles(binarySet, numstat)
+	}
+	if len(binarySet) > 0 {
+		parsed.Files.Binary = make([]string, 0, len(binarySet))
+		for path := range binarySet {
+			parsed.Files.Binary = append(parsed.Files.Binary, path)
+		}
+	}
+
 	sort.Strings(parsed.Files.Staged)
 	sort.Strings(parsed.Files.Unstaged)
 	sort.Strings(parsed.Files.Untracked)
 	sort.Strings(parsed.Files.Conflicts)
 	sort.Strings(parsed.Files.Ignored)
+	sort.Strings(parsed.Files.Binary)
 	for key := range parsed.Scopes {
 		sort.Strings(parsed.Scopes[key])
 	}
 
 	return parsed, nil
+}
+
+func addBinaryFiles(out map[string]struct{}, numstat []byte) {
+	lines := strings.Split(strings.TrimSpace(string(numstat)), "\n")
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 3)
+		if len(parts) < 3 {
+			continue
+		}
+		additions := strings.TrimSpace(parts[0])
+		deletions := strings.TrimSpace(parts[1])
+		path := strings.TrimSpace(parts[2])
+		if path == "" {
+			continue
+		}
+		if additions == "-" || deletions == "-" {
+			out[path] = struct{}{}
+		}
+	}
 }
 
 func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, error) {

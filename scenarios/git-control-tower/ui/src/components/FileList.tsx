@@ -7,6 +7,7 @@ import {
   Plus,
   Minus,
   Trash2,
+  Binary,
   ChevronDown,
   ChevronRight,
   Loader2
@@ -50,6 +51,7 @@ interface FileSectionProps {
   category: FileCategory;
   files: string[];
   fileStatuses?: Record<string, string>;
+  binaryFiles?: Set<string>;
   maxPathChars: number;
   icon: React.ReactNode;
   selectedFiles?: SelectedFileEntry[];
@@ -128,6 +130,7 @@ interface FileRowProps {
   canDiscard: boolean;
   isLoading: boolean;
   isDiscarding: boolean;
+  isBinary: boolean;
   itemTestId: string;
   actionTestId: string;
   discardTestId: string;
@@ -149,6 +152,7 @@ const FileRow = memo(function FileRow({
   canDiscard,
   isLoading,
   isDiscarding,
+  isBinary,
   itemTestId,
   actionTestId,
   discardTestId,
@@ -183,6 +187,16 @@ const FileRow = memo(function FileRow({
           {displayPath}
         </span>
       </div>
+
+      {isBinary && (
+        <span
+          className="flex items-center gap-1 rounded border border-slate-700/60 bg-slate-900/60 px-1.5 py-0.5 text-[10px] text-slate-400"
+          title="Binary file"
+        >
+          <Binary className="h-3 w-3" />
+          bin
+        </span>
+      )}
 
       {isConfirming && onConfirmDiscard && onDiscard && (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -255,6 +269,7 @@ function FileSection({
   category,
   files,
   fileStatuses,
+  binaryFiles,
   maxPathChars,
   icon,
   selectedFiles,
@@ -285,10 +300,11 @@ function FileSection({
           file,
           key: selectionKey({ path: file, staged: isStaged }),
           badge,
-          displayPath: formatPath(file, maxPathChars)
+          displayPath: formatPath(file, maxPathChars),
+          isBinary: binaryFiles?.has(file) ?? false
         };
       }),
-    [files, fileStatuses, category, maxPathChars, selectionKey, isStaged]
+    [files, fileStatuses, category, maxPathChars, selectionKey, isStaged, binaryFiles]
   );
 
   if (files.length === 0) return null;
@@ -326,6 +342,7 @@ function FileSection({
               canDiscard={canDiscard}
               isLoading={isLoading}
               isDiscarding={isDiscarding ?? false}
+              isBinary={entry.isBinary}
               itemTestId={`file-item-${category}`}
               actionTestId={`file-action-${category}`}
               discardTestId={`file-discard-${category}`}
@@ -372,6 +389,7 @@ export function FileList({
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [maxPathChars, setMaxPathChars] = useState(48);
+  const binarySet = useMemo(() => new Set(files?.binary ?? []), [files?.binary]);
   const handleDiscardUnstaged = useCallback(
     (path: string) => onDiscardFile(path, false),
     [onDiscardFile]
@@ -502,6 +520,7 @@ export function FileList({
               category="conflicts"
               files={files?.conflicts ?? []}
               fileStatuses={files?.statuses}
+              binaryFiles={binarySet}
               maxPathChars={maxPathChars}
               icon={<AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
               selectedFiles={selectedFiles}
@@ -520,6 +539,7 @@ export function FileList({
               category="staged"
               files={files?.staged ?? []}
               fileStatuses={files?.statuses}
+              binaryFiles={binarySet}
               maxPathChars={maxPathChars}
               icon={<FilePlus className="h-3.5 w-3.5 text-emerald-500" />}
               selectedFiles={selectedFiles}
@@ -538,6 +558,7 @@ export function FileList({
               category="unstaged"
               files={files?.unstaged ?? []}
               fileStatuses={files?.statuses}
+              binaryFiles={binarySet}
               maxPathChars={maxPathChars}
               icon={<FileX className="h-3.5 w-3.5 text-amber-500" />}
               selectedFiles={selectedFiles}
@@ -560,6 +581,7 @@ export function FileList({
               category="untracked"
               files={files?.untracked ?? []}
               fileStatuses={files?.statuses}
+              binaryFiles={binarySet}
               maxPathChars={maxPathChars}
               icon={<File className="h-3.5 w-3.5 text-slate-500" />}
               selectedFiles={selectedFiles}

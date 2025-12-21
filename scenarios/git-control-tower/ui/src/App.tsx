@@ -46,7 +46,8 @@ export default function App() {
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isResizingSplit, setIsResizingSplit] = useState(false);
   const [isResizingHistory, setIsResizingHistory] = useState(false);
-  const historyLimit = 50;
+  const [historyLimit, setHistoryLimit] = useState(50);
+  const historyMaxLimit = 200;
   const sidebarResize = useRef<{ left: number; max: number } | null>(null);
   const splitResize = useRef<{ top: number; height: number } | null>(null);
   const historyResize = useRef<{ bottom: number } | null>(null);
@@ -183,48 +184,64 @@ export default function App() {
 
   const handleStageFile = useCallback(
     (path: string) => {
+      const selectedUnstaged = selectedFiles.filter((entry) => !entry.staged).map((entry) => entry.path);
+      const shouldStageSelection =
+        selectedUnstaged.length > 1 &&
+        selectedUnstaged.some((selectedPath) => selectedPath === path);
+      const pathsToStage = shouldStageSelection ? selectedUnstaged : [path];
+
       stageMutation.mutate(
-        { paths: [path] },
+        { paths: pathsToStage },
         {
           onSuccess: () => {
             // If we were viewing this file's unstaged diff, switch to staged
             if (selectedFile === path && !selectedIsStaged) {
               setSelectedIsStaged(true);
             }
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.diff(path, false)
-            });
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.diff(path, true)
+            pathsToStage.forEach((stagedPath) => {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.diff(stagedPath, false)
+              });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.diff(stagedPath, true)
+              });
             });
           }
         }
       );
     },
-    [stageMutation, queryClient, selectedFile, selectedIsStaged]
+    [stageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles]
   );
 
   const handleUnstageFile = useCallback(
     (path: string) => {
+      const selectedStaged = selectedFiles.filter((entry) => entry.staged).map((entry) => entry.path);
+      const shouldUnstageSelection =
+        selectedStaged.length > 1 &&
+        selectedStaged.some((selectedPath) => selectedPath === path);
+      const pathsToUnstage = shouldUnstageSelection ? selectedStaged : [path];
+
       unstageMutation.mutate(
-        { paths: [path] },
+        { paths: pathsToUnstage },
         {
           onSuccess: () => {
             // If we were viewing this file's staged diff, switch to unstaged
             if (selectedFile === path && selectedIsStaged) {
               setSelectedIsStaged(false);
             }
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.diff(path, false)
-            });
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.diff(path, true)
+            pathsToUnstage.forEach((unstagedPath) => {
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.diff(unstagedPath, false)
+              });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.diff(unstagedPath, true)
+              });
             });
           }
         }
       );
     },
-    [unstageMutation, queryClient, selectedFile, selectedIsStaged]
+    [unstageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles]
   );
 
   const handleStageAll = useCallback(() => {
@@ -316,6 +333,10 @@ export default function App() {
   const handlePull = useCallback(() => {
     pullMutation.mutate({});
   }, [pullMutation]);
+
+  const handleLoadMoreHistory = useCallback(() => {
+    setHistoryLimit((prev) => Math.min(historyMaxLimit, prev + 50));
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -629,6 +650,12 @@ export default function App() {
                     collapsed={historyCollapsed}
                     onToggleCollapse={() => setHistoryCollapsed((prev) => !prev)}
                     height={historyHeight}
+                    onLoadMore={handleLoadMoreHistory}
+                    isFetching={historyQuery.isFetching}
+                    hasMore={
+                      (historyQuery.data?.lines?.length ?? 0) >= historyLimit &&
+                      historyLimit < historyMaxLimit
+                    }
                   />
                 </div>
               </div>

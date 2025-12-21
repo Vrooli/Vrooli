@@ -49,6 +49,7 @@ type RepoFilesStatus struct {
 	Unstaged  []string          `json:"unstaged"`
 	Untracked []string          `json:"untracked"`
 	Conflicts []string          `json:"conflicts"`
+	Binary    []string          `json:"binary,omitempty"`
 	Ignored   []string          `json:"ignored,omitempty"`
 	Statuses  map[string]string `json:"statuses,omitempty"`
 }

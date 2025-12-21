@@ -75,6 +75,10 @@ type GitRunner interface {
 	// LogGraph returns a git log graph for recent commits.
 	// Use a limit to cap the number of log entries.
 	LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error)
+
+	// DiffNumstat returns numstat output for changes.
+	// If staged is true, returns staged stats (--cached).
+	DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error)
 }
 
 // CommitOptions configures author overrides for commit operations.
@@ -413,4 +417,23 @@ func (r *ExecGitRunner) LogGraph(ctx context.Context, repoDir string, limit int)
 		return nil, fmt.Errorf("git log failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
 	}
 	return nil, fmt.Errorf("git log failed: %w", err)
+}
+
+func (r *ExecGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error) {
+	args := []string{"-C", repoDir, "diff", "--numstat", "--no-color"}
+	if staged {
+		args = append(args, "--cached")
+	}
+
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+	if err == nil {
+		return out, nil
+	}
+
+	exitErr := &exec.ExitError{}
+	if errors.As(err, &exitErr) {
+		return nil, fmt.Errorf("git diff --numstat failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+	}
+	return nil, fmt.Errorf("git diff --numstat failed: %w", err)
 }

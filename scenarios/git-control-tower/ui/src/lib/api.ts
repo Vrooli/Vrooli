@@ -31,6 +31,7 @@ export interface RepoFilesStatus {
   unstaged: string[];
   untracked: string[];
   conflicts: string[];
+  binary?: string[];
   ignored?: string[];
   statuses?: Record<string, string>;
 }

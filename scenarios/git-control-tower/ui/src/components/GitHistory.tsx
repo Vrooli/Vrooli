@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, GitCommit, Loader2 } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 
@@ -10,6 +10,9 @@ interface GitHistoryProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   height?: number;
+  onLoadMore?: () => void;
+  isFetching?: boolean;
+  hasMore?: boolean;
 }
 
 type HistoryEntry = {
@@ -83,10 +86,15 @@ export function GitHistory({
   error,
   collapsed = false,
   onToggleCollapse,
-  height = 200
+  height = 200,
+  onLoadMore,
+  isFetching = false,
+  hasMore = false
 }: GitHistoryProps) {
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const hasLines = lines.length > 0;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const isLoadingMoreRef = useRef(false);
   const entries = useMemo(() => {
     let remoteSeen = false;
     let firstRemoteIndex = -1;
@@ -109,6 +117,21 @@ export function GitHistory({
       } as HistoryEntry;
     });
   }, [lines]);
+
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current || !onLoadMore || !hasMore) return;
+    if (isLoadingMoreRef.current || isLoading || isFetching) return;
+
+    const { scrollTop, clientHeight, scrollHeight } = scrollRef.current;
+    if (scrollTop + clientHeight >= scrollHeight - 80) {
+      isLoadingMoreRef.current = true;
+      onLoadMore();
+    }
+  }, [hasMore, isFetching, isLoading, onLoadMore]);
+
+  if (!isFetching && isLoadingMoreRef.current) {
+    isLoadingMoreRef.current = false;
+  }
 
   return (
     <Card
@@ -138,7 +161,11 @@ export function GitHistory({
 
       {!collapsed && (
         <CardContent className="flex-1 min-w-0 p-0 overflow-hidden">
-          <ScrollArea className="h-full min-w-0 px-2 py-2">
+          <ScrollArea
+            className="h-full min-w-0 px-2 py-2"
+            ref={scrollRef}
+            onScroll={handleScroll}
+          >
             {isLoading && (
               <div className="flex items-center justify-center py-6 text-slate-500 text-sm">
                 <Loader2 className="h-4 w-4 animate-spin mr-2 text-slate-500" />
@@ -160,11 +187,11 @@ export function GitHistory({
               </div>
             )}
             {!isLoading && !error && hasLines && (
-              <div className="space-y-1 font-mono text-xs text-slate-200">
+              <div className="relative space-y-1 font-mono text-xs text-slate-200">
                 {entries.map((entry, index) => {
                   const isUnpushed = entry.hash && !entry.isPushed;
                   const nodeTone = isUnpushed ? "bg-amber-400" : "bg-emerald-400";
-                  const lineTone = isUnpushed ? "bg-amber-500/40" : "bg-emerald-500/40";
+                  const lineTone = isUnpushed ? "bg-amber-500/30" : "bg-emerald-500/30";
                   const chipTone = isUnpushed
                     ? "border-amber-500/40 text-amber-200 bg-amber-500/10"
                     : "border-emerald-500/40 text-emerald-200 bg-emerald-500/10";
@@ -176,20 +203,22 @@ export function GitHistory({
                   return (
                     <div
                       key={`${entry.raw}-${index}`}
-                      className="relative rounded-md border border-slate-800/60 bg-slate-900/40 px-2 py-1.5 text-slate-200 hover:bg-slate-800/60 transition-colors"
+                      className="group relative rounded-lg border border-slate-800/70 bg-slate-950/30 px-2 py-2 text-slate-200 hover:bg-slate-900/60 transition-colors"
                     >
-                      <div className="flex items-start gap-2">
-                        <div className="relative mt-1 flex flex-col items-center">
-                          <span className={`h-2.5 w-2.5 rounded-full ${nodeTone}`} />
-                          <span className={`mt-1 w-px flex-1 ${lineTone}`} />
+                      <div className="flex items-start gap-3">
+                        <div className="relative w-5 flex-shrink-0">
+                          <span
+                            className={`absolute left-2 top-0 h-full w-px ${lineTone}`}
+                            aria-hidden="true"
+                          />
+                          <span
+                            className={`absolute left-1.5 top-1.5 h-2.5 w-2.5 rounded-full ${nodeTone} shadow-[0_0_0_2px_rgba(10,12,20,0.9)]`}
+                          />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                            {entry.graph && (
-                              <span className="text-slate-600">{entry.graph}</span>
-                            )}
                             {entry.hash && (
-                              <span className="rounded border border-slate-800/70 bg-slate-950/60 px-1.5 py-0.5 text-[10px] text-slate-300">
+                              <span className="rounded border border-slate-800/80 bg-slate-950/70 px-1.5 py-0.5 text-[10px] text-slate-300">
                                 {entry.hash}
                               </span>
                             )}
@@ -212,6 +241,11 @@ export function GitHistory({
                     </div>
                   );
                 })}
+              </div>
+            )}
+            {hasMore && (
+              <div className="py-3 text-center text-xs text-slate-500">
+                {isFetching ? "Loading more history..." : "Scroll to load more"}
               </div>
             )}
           </ScrollArea>
