@@ -53,6 +53,12 @@ func testStartSessionRequestContract(t *testing.T) {
 			ViewportW: 1280,
 			ViewportH: 720,
 		},
+		ArtifactPaths: &artifactPaths{
+			Root:      "/recordings/11111111-1111-1111-1111-111111111111/artifacts",
+			VideoDir:  "/recordings/11111111-1111-1111-1111-111111111111/artifacts/videos",
+			HARPath:   "/recordings/11111111-1111-1111-1111-111111111111/artifacts/har/execution-11111111-1111-1111-1111-111111111111.har",
+			TracePath: "/recordings/11111111-1111-1111-1111-111111111111/artifacts/traces/execution-11111111-1111-1111-1111-111111111111.zip",
+		},
 	}
 
 	data, err := json.Marshal(req)
@@ -75,6 +81,9 @@ func testStartSessionRequestContract(t *testing.T) {
 		if !strings.Contains(jsonStr, field) {
 			t.Errorf("StartSessionRequest missing required field: %s\nJSON: %s", field, jsonStr)
 		}
+	}
+	if !strings.Contains(jsonStr, `"artifact_paths"`) {
+		t.Errorf("StartSessionRequest missing artifact_paths field when provided: %s", jsonStr)
 	}
 
 	// Verify it can round-trip
@@ -419,20 +428,20 @@ func testStepOutcomeContract(t *testing.T) {
 		FocusedElement: &contracts.ElementFocus{
 			Selector:    "h1",
 			BoundingBox: &contracts.BoundingBox{X: 100, Y: 50, Width: 200, Height: 40},
-			},
-			HighlightRegions: []*contracts.HighlightRegion{
-				{Selector: "h1", Padding: 4, CustomRgba: &highlightRGBA},
-			},
-			MaskRegions: []*contracts.MaskRegion{
-				{Selector: ".sidebar", Opacity: 0.5},
-			},
-			ZoomFactor: 1.5,
-			CursorTrail: []contracts.CursorPosition{
-				{Point: &contracts.Point{X: 0, Y: 0}, RecordedAt: now, ElapsedMs: 0},
-				{Point: &contracts.Point{X: 200, Y: 70}, RecordedAt: now, ElapsedMs: 500},
-			},
-			Notes: map[string]string{"dedupe": "abc123"},
-		}
+		},
+		HighlightRegions: []*contracts.HighlightRegion{
+			{Selector: "h1", Padding: 4, CustomRgba: &highlightRGBA},
+		},
+		MaskRegions: []*contracts.MaskRegion{
+			{Selector: ".sidebar", Opacity: 0.5},
+		},
+		ZoomFactor: 1.5,
+		CursorTrail: []contracts.CursorPosition{
+			{Point: &contracts.Point{X: 0, Y: 0}, RecordedAt: now, ElapsedMs: 0},
+			{Point: &contracts.Point{X: 200, Y: 70}, RecordedAt: now, ElapsedMs: 500},
+		},
+		Notes: map[string]string{"dedupe": "abc123"},
+	}
 
 	data, err := json.Marshal(outcome)
 	if err != nil {

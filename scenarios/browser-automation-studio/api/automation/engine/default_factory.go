@@ -16,3 +16,13 @@ func DefaultFactory(log *logrus.Logger) (Factory, error) {
 
 	return NewStaticFactory(pw), nil
 }
+
+// DefaultFactoryWithRecordingsRoot constructs an engine factory with an explicit recordings root.
+func DefaultFactoryWithRecordingsRoot(log *logrus.Logger, recordingsRoot string) (Factory, error) {
+	pw, err := NewPlaywrightEngineWithRecordingsRoot(log, recordingsRoot)
+	if err != nil {
+		return nil, fmt.Errorf("playwright engine required: %w", err)
+	}
+
+	return NewStaticFactory(pw), nil
+}

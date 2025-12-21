@@ -24,6 +24,12 @@ export interface SessionSpec {
     viewport_width?: number;
     viewport_height?: number;
   };
+  artifact_paths?: {
+    root?: string;
+    video_dir?: string;
+    har_path?: string;
+    trace_path?: string;
+  };
   // Browser context configuration
   user_agent?: string;
   locale?: string;
@@ -236,6 +242,12 @@ export interface StartSessionRequest {
     tracing?: boolean;
     viewport_width?: number;
     viewport_height?: number;
+  };
+  artifact_paths?: {
+    root?: string;
+    video_dir?: string;
+    har_path?: string;
+    trace_path?: string;
   };
   storage_state?: SessionSpec['storage_state'];
   /**

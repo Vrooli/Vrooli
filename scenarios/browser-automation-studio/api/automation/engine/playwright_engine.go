@@ -33,6 +33,19 @@ func NewPlaywrightEngine(log *logrus.Logger) (*PlaywrightEngine, error) {
 	return &PlaywrightEngine{sessions: mgr, log: log}, nil
 }
 
+// NewPlaywrightEngineWithRecordingsRoot constructs an engine with an explicit recordings root.
+func NewPlaywrightEngineWithRecordingsRoot(log *logrus.Logger, recordingsRoot string) (*PlaywrightEngine, error) {
+	opts := []session.Option{session.WithLogger(log)}
+	if strings.TrimSpace(recordingsRoot) != "" {
+		opts = append(opts, session.WithExecutionArtifactsRoot(recordingsRoot))
+	}
+	mgr, err := session.NewManager(opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &PlaywrightEngine{sessions: mgr, log: log}, nil
+}
+
 // NewPlaywrightEngineWithDefault allows the localhost fallback when explicit
 // configuration is absent (useful for local development and tests).
 func NewPlaywrightEngineWithDefault(log *logrus.Logger) (*PlaywrightEngine, error) {
@@ -180,6 +193,14 @@ type startSessionRequest struct {
 	Labels      map[string]string `json:"labels,omitempty"`
 
 	RequiredCapabilities capabilityRequest `json:"required_capabilities"`
+	ArtifactPaths        *artifactPaths    `json:"artifact_paths,omitempty"`
+}
+
+type artifactPaths struct {
+	Root      string `json:"root,omitempty"`
+	VideoDir  string `json:"video_dir,omitempty"`
+	HARPath   string `json:"har_path,omitempty"`
+	TracePath string `json:"trace_path,omitempty"`
 }
 
 type capabilityRequest struct {

@@ -1,3 +1,5 @@
+import { mkdir } from 'fs/promises';
+import path from 'path';
 import { Browser, BrowserContext } from 'playwright';
 import type { SessionSpec } from '../types';
 import type { Config } from '../config';
@@ -24,6 +26,9 @@ export async function buildContext(
   tracePath?: string;
   videoDir?: string;
 }> {
+  const artifactPaths = spec.artifact_paths ?? {};
+  const artifactRoot = (artifactPaths.root ?? '').trim();
+
   const contextOptions: Parameters<typeof browser.newContext>[0] = {
     viewport: {
       width: spec.viewport.width,
@@ -59,7 +64,11 @@ export async function buildContext(
   // HAR recording
   let harPath: string | undefined;
   if (spec.required_capabilities?.har && config.telemetry.har.enabled) {
-    harPath = `/tmp/har-${spec.execution_id}-${Date.now()}.har`;
+    harPath =
+      artifactPaths.har_path ||
+      (artifactRoot ? path.join(artifactRoot, 'har', `execution-${spec.execution_id}.har`) : undefined) ||
+      `/tmp/har-${spec.execution_id}-${Date.now()}.har`;
+    await ensureDir(path.dirname(harPath), 'har');
     contextOptions.recordHar = {
       path: harPath,
       mode: 'minimal',
@@ -70,7 +79,11 @@ export async function buildContext(
   // Video recording
   let videoDir: string | undefined;
   if (spec.required_capabilities?.video) {
-    videoDir = `/tmp/videos-${spec.execution_id}-${Date.now()}`;
+    videoDir =
+      artifactPaths.video_dir ||
+      (artifactRoot ? path.join(artifactRoot, 'videos') : undefined) ||
+      `/tmp/videos-${spec.execution_id}-${Date.now()}`;
+    await ensureDir(videoDir, 'video');
     contextOptions.recordVideo = {
       dir: videoDir,
       size: spec.viewport,
@@ -82,7 +95,11 @@ export async function buildContext(
   let tracePath: string | undefined;
   const shouldTrace = spec.required_capabilities?.tracing && config.telemetry.tracing.enabled;
   if (shouldTrace) {
-    tracePath = `/tmp/trace-${spec.execution_id}-${Date.now()}.zip`;
+    tracePath =
+      artifactPaths.trace_path ||
+      (artifactRoot ? path.join(artifactRoot, 'traces', `execution-${spec.execution_id}.zip`) : undefined) ||
+      `/tmp/trace-${spec.execution_id}-${Date.now()}.zip`;
+    await ensureDir(path.dirname(tracePath), 'trace');
   }
 
   // Create context
@@ -112,4 +129,16 @@ export async function buildContext(
     tracePath,
     videoDir,
   };
+}
+
+async function ensureDir(dir: string, label: string): Promise<void> {
+  try {
+    await mkdir(dir, { recursive: true });
+  } catch (error) {
+    logger.warn('Failed to ensure artifact directory', {
+      label,
+      dir,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }

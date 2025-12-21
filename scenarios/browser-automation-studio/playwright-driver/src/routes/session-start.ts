@@ -79,6 +79,7 @@ export async function handleSessionStart(
       base_url: request.base_url,
       labels: request.labels,
       required_capabilities: request.required_capabilities,
+      artifact_paths: request.artifact_paths,
       storage_state: request.storage_state,
     };
 

@@ -22,8 +22,8 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
-	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
@@ -98,7 +98,7 @@ func BuildDependencies(repo database.Repository, hub *wsHub.Hub, log *logrus.Log
 
 	// Wire automation stack
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
-	autoEngineFactory, engErr := autoengine.DefaultFactory(log)
+	autoEngineFactory, engErr := autoengine.DefaultFactoryWithRecordingsRoot(log, recordingsRoot)
 	if engErr != nil && !cfg.SkipEngineValidation {
 		log.WithError(engErr).Warn("Failed to initialize automation engine; automation executor will be disabled")
 	}

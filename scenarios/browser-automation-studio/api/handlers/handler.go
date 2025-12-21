@@ -11,8 +11,8 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
-	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
@@ -48,9 +48,9 @@ type Handler struct {
 	recordingService  archiveingestion.IngestionServiceInterface
 	recordModeService *livecapture.Service // Live recording session management
 	recordingsRoot    string
-	replayRenderer  replayRenderer
-	sessionProfiles *archiveingestion.SessionProfileStore
-	log             *logrus.Logger
+	replayRenderer    replayRenderer
+	sessionProfiles   *archiveingestion.SessionProfileStore
+	log               *logrus.Logger
 	upgrader          websocket.Upgrader
 	wsAllowAll        bool
 	wsAllowedOrigins  []string
@@ -133,7 +133,7 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 
 	// Wire automation stack
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
-	autoEngineFactory, engErr := autoengine.DefaultFactory(log)
+	autoEngineFactory, engErr := autoengine.DefaultFactoryWithRecordingsRoot(log, recordingsRoot)
 	if engErr != nil {
 		log.WithError(engErr).Warn("Failed to initialize automation engine; automation executor will be disabled")
 	}
@@ -154,10 +154,10 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 
 	// Create workflow service with dependencies
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, wsHub, log, workflow.WorkflowServiceOptions{
-		Executor:         autoExecutor,
-		EngineFactory:    autoEngineFactory,
-		ArtifactRecorder: autoRecorder,
-		EventSinkFactory: eventSinkFactory,
+		Executor:          autoExecutor,
+		EngineFactory:     autoEngineFactory,
+		ArtifactRecorder:  autoRecorder,
+		EventSinkFactory:  eventSinkFactory,
 		ExecutionDataRoot: recordingsRoot,
 	})
 
@@ -222,10 +222,10 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 		storage:           deps.Storage,
 		recordingService:  deps.RecordingService,
 		recordModeService: deps.RecordModeService,
-		recordingsRoot:  deps.RecordingsRoot,
-		replayRenderer:  deps.ReplayRenderer,
-		sessionProfiles: deps.SessionProfiles,
-		log:             log,
+		recordingsRoot:    deps.RecordingsRoot,
+		replayRenderer:    deps.ReplayRenderer,
+		sessionProfiles:   deps.SessionProfiles,
+		log:               log,
 		wsAllowAll:        allowAllOrigins,
 		wsAllowedOrigins:  allowedCopy,
 		upgrader:          websocket.Upgrader{},

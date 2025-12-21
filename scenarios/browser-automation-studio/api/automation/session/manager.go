@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -27,6 +29,8 @@ type Manager struct {
 	defaultViewport Viewport
 	apiHost         string
 	apiPort         string
+
+	executionArtifactsRoot string
 }
 
 // Option configures a Manager.
@@ -56,6 +60,14 @@ func WithAPIEndpoint(host, port string) Option {
 	}
 }
 
+// WithExecutionArtifactsRoot sets the base directory for execution-level artifacts.
+// This path is used to construct stable per-execution artifact directories.
+func WithExecutionArtifactsRoot(root string) Option {
+	return func(m *Manager) {
+		m.executionArtifactsRoot = strings.TrimSpace(root)
+	}
+}
+
 // NewManager creates a unified session manager.
 func NewManager(opts ...Option) (*Manager, error) {
 	client, err := driver.NewClient()
@@ -64,12 +76,13 @@ func NewManager(opts ...Option) (*Manager, error) {
 	}
 
 	m := &Manager{
-		client:          client,
-		sessions:        make(map[string]*Session),
-		log:             logrus.StandardLogger(),
-		defaultViewport: Viewport{Width: 1280, Height: 720},
-		apiHost:         resolveAPIHost(),
-		apiPort:         resolveAPIPort(),
+		client:                 client,
+		sessions:               make(map[string]*Session),
+		log:                    logrus.StandardLogger(),
+		defaultViewport:        Viewport{Width: 1280, Height: 720},
+		apiHost:                resolveAPIHost(),
+		apiPort:                resolveAPIPort(),
+		executionArtifactsRoot: "",
 	}
 
 	for _, opt := range opts {
@@ -82,12 +95,13 @@ func NewManager(opts ...Option) (*Manager, error) {
 // NewManagerWithClient creates a manager with a custom driver client (for testing).
 func NewManagerWithClient(client *driver.Client, opts ...Option) *Manager {
 	m := &Manager{
-		client:          client,
-		sessions:        make(map[string]*Session),
-		log:             logrus.StandardLogger(),
-		defaultViewport: Viewport{Width: 1280, Height: 720},
-		apiHost:         resolveAPIHost(),
-		apiPort:         resolveAPIPort(),
+		client:                 client,
+		sessions:               make(map[string]*Session),
+		log:                    logrus.StandardLogger(),
+		defaultViewport:        Viewport{Width: 1280, Height: 720},
+		apiHost:                resolveAPIHost(),
+		apiPort:                resolveAPIPort(),
+		executionArtifactsRoot: "",
 	}
 
 	for _, opt := range opts {
@@ -212,9 +226,41 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 				Tracing:   spec.Capabilities.NeedsTracing,
 			}
 		}
+		if paths := m.buildArtifactPaths(spec, req.RequiredCapabilities); paths != nil {
+			req.ArtifactPaths = paths
+		}
 	}
 
 	return req
+}
+
+func (m *Manager) buildArtifactPaths(spec Spec, caps *driver.CapabilityRequest) *driver.ArtifactPaths {
+	root := strings.TrimSpace(m.executionArtifactsRoot)
+	if root == "" || caps == nil {
+		return nil
+	}
+
+	execID := spec.ExecutionID.String()
+	artifactRoot := filepath.Join(root, execID, "artifacts")
+	paths := &driver.ArtifactPaths{
+		Root: artifactRoot,
+	}
+
+	if caps.Video {
+		paths.VideoDir = filepath.Join(artifactRoot, "videos")
+	}
+	if caps.HAR {
+		paths.HARPath = filepath.Join(artifactRoot, "har", fmt.Sprintf("execution-%s.har", execID))
+	}
+	if caps.Tracing {
+		paths.TracePath = filepath.Join(artifactRoot, "traces", fmt.Sprintf("execution-%s.zip", execID))
+	}
+
+	if strings.TrimSpace(paths.VideoDir) == "" && strings.TrimSpace(paths.HARPath) == "" && strings.TrimSpace(paths.TracePath) == "" {
+		return nil
+	}
+
+	return paths
 }
 
 // buildFrameCallbackURL constructs the frame callback URL based on mode.

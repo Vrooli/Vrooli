@@ -36,6 +36,14 @@ type CapabilityRequest struct {
 	MaxTimeout int  `json:"max_timeout_ms,omitempty"`
 }
 
+// ArtifactPaths controls where the driver should store execution-level artifacts.
+type ArtifactPaths struct {
+	Root      string `json:"root,omitempty"`
+	VideoDir  string `json:"video_dir,omitempty"`
+	HARPath   string `json:"har_path,omitempty"`
+	TracePath string `json:"trace_path,omitempty"`
+}
+
 // CreateSessionRequest is the unified request to create a browser session.
 // Used by both recording and execution modes.
 type CreateSessionRequest struct {
@@ -57,6 +65,9 @@ type CreateSessionRequest struct {
 
 	// Execution mode - required capabilities
 	RequiredCapabilities *CapabilityRequest `json:"required_capabilities,omitempty"`
+
+	// Execution mode - artifact storage paths
+	ArtifactPaths *ArtifactPaths `json:"artifact_paths,omitempty"`
 }
 
 // CreateSessionRequestFromUUID creates a session request using uuid.UUID types.
@@ -153,9 +164,9 @@ type ElementMeta struct {
 
 // GetActionsResponse is the response from getting recorded actions.
 type GetActionsResponse struct {
-	SessionID   string           `json:"session_id"`
-	IsRecording bool             `json:"is_recording"`
-	Actions     []RecordedAction `json:"actions"`
+	SessionID   string            `json:"session_id"`
+	IsRecording bool              `json:"is_recording"`
+	Actions     []RecordedAction  `json:"actions"`
 	Entries     []json.RawMessage `json:"entries,omitempty"`
 }
 
