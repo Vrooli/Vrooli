@@ -360,8 +360,8 @@ See [Directory Structure](directory-structure.md) for naming conventions, fixtur
 
 **Run iteratively while authoring** using the BAS CLI (recommended):
 ```bash
-browser-automation-studio execution create \
-  --file bas/cases/01-foundation/01-projects/new-project-create.json \
+browser-automation-studio workflow execute \
+  --from-file bas/cases/01-foundation/01-projects/new-project-create.json \
   --wait
 ```
 

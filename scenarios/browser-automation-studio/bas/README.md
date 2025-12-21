@@ -62,11 +62,22 @@ BAS workflows live under `bas/` and are hierarchical: **actions** are the smalle
 ## Run + Debug
 Run actions/flows/cases directly with the BAS CLI (test-genie only orchestrates them as part of scenario testing):
 ```bash
-browser-automation-studio execution create \
-  --file bas/cases/01-foundation/01-projects/new-project-create.json \
+browser-automation-studio workflow execute \
+  --from-file bas/cases/01-foundation/01-projects/new-project-create.json \
   --wait
 ```
-Use the BAS UI execution viewer for logs, screenshots, and timeline replay when a run fails.
+Notes:
+- `--from-file` executes the workflow definition as adhoc (no workflow persisted).
+- The CLI infers `project_root` from the nearest `bas/` folder in the file path.
+- If no `bas/` folder is found, pass `--project-root /abs/path/to/bas`.
+
+## Failure Triage (Signal Surface)
+When a playbook fails, use these signals first:
+- **Artifacts**: check `coverage/automation/<workflow>/` for screenshots, DOM snapshots, and timeline JSON.
+- **Driver hints**: API errors include a `[hint: ...]` string pointing to likely fixes (selectors, timeouts, driver health).
+- **Selectors**: validate `@selector/...` keys against `ui/src/constants/selectors.ts` before editing flows.
+
+If the failure is timing-related, add an explicit `wait` step or `settings.entrySelector` instead of increasing assert timeouts blindly.
 
 ## Notes
 - No compatibility shims: move files directly into this layout even if it causes short-term failures.

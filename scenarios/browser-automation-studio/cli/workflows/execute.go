@@ -12,12 +12,7 @@ import (
 )
 
 func runExecute(ctx *appctx.Context, args []string) error {
-	if len(args) == 0 || strings.HasPrefix(args[0], "--") {
-		return fmt.Errorf("workflow ID or name is required")
-	}
-
-	workflow := args[0]
-	args = args[1:]
+	workflow := ""
 
 	paramsRaw := "{}"
 	wait := false
@@ -25,6 +20,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	projectRoot := ""
 	adhoc := false
 	requiresVideo := false
+	fromFile := ""
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -33,6 +29,12 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				return fmt.Errorf("--params requires a value")
 			}
 			paramsRaw = args[i+1]
+			i++
+		case "--from-file":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--from-file requires a value")
+			}
+			fromFile = args[i+1]
 			i++
 		case "--wait":
 			wait = true
@@ -53,11 +55,37 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		case "--record-video", "--requires-video":
 			requiresVideo = true
 		default:
-			return fmt.Errorf("unknown option: %s", args[i])
+			if strings.HasPrefix(args[i], "--") {
+				return fmt.Errorf("unknown option: %s", args[i])
+			}
+			if workflow == "" {
+				workflow = args[i]
+			} else {
+				return fmt.Errorf("unexpected argument: %s", args[i])
+			}
 		}
 	}
 
-	fmt.Printf("Executing workflow: %s\n", workflow)
+	if strings.TrimSpace(fromFile) == "" && strings.TrimSpace(workflow) == "" {
+		return fmt.Errorf("workflow ID/name or --from-file is required")
+	}
+
+	if fromFile != "" {
+		fmt.Printf("Executing workflow file: %s\n", fromFile)
+	} else {
+		fmt.Printf("Executing workflow: %s\n", workflow)
+	}
+
+	if projectRoot == "" && fromFile != "" {
+		absFile, err := filepath.Abs(fromFile)
+		if err != nil {
+			return fmt.Errorf("resolve --from-file path: %w", err)
+		}
+		projectRoot = findBasRoot(filepath.Dir(absFile))
+		if projectRoot == "" {
+			return fmt.Errorf("unable to infer --project-root from file path; set --project-root /abs/path/to/bas")
+		}
+	}
 
 	if projectRoot == "" {
 		if envRoot := strings.TrimSpace(os.Getenv("BAS_PROJECT_ROOT")); envRoot != "" {
@@ -104,21 +132,36 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	var response []byte
 	if adhoc {
 		workflowID, err := resolveWorkflowID(ctx, workflow)
-		if err != nil {
-			return err
-		}
-		workflowDetail, err := getWorkflow(ctx, workflowID)
-		if err != nil {
-			return err
-		}
-		if len(workflowDetail.Workflow.FlowDefinition) == 0 || string(workflowDetail.Workflow.FlowDefinition) == "null" {
-			return fmt.Errorf("missing flow_definition for workflow %s", workflowID)
+		if fromFile == "" {
+			if err != nil {
+				return err
+			}
 		}
 
 		payload := map[string]any{
-			"flow_definition":     json.RawMessage(workflowDetail.Workflow.FlowDefinition),
 			"wait_for_completion": wait,
 			"parameters":          params,
+		}
+
+		if fromFile != "" {
+			data, err := os.ReadFile(fromFile)
+			if err != nil {
+				return fmt.Errorf("file not found: %s", fromFile)
+			}
+			var flowDef any
+			if err := json.Unmarshal(data, &flowDef); err != nil {
+				return fmt.Errorf("invalid JSON in %s", fromFile)
+			}
+			payload["flow_definition"] = flowDef
+		} else {
+			workflowDetail, err := getWorkflow(ctx, workflowID)
+			if err != nil {
+				return err
+			}
+			if len(workflowDetail.Workflow.FlowDefinition) == 0 || string(workflowDetail.Workflow.FlowDefinition) == "null" {
+				return fmt.Errorf("missing flow_definition for workflow %s", workflowID)
+			}
+			payload["flow_definition"] = json.RawMessage(workflowDetail.Workflow.FlowDefinition)
 		}
 
 		executePath := ctx.APIPath("/workflows/execute-adhoc")
@@ -232,6 +275,23 @@ func resolveWorkflowID(ctx *appctx.Context, workflow string) (string, error) {
 		return "", fmt.Errorf("multiple workflows match name '%s'", workflow)
 	}
 	return matches[0], nil
+}
+
+func findBasRoot(startDir string) string {
+	dir := strings.TrimSpace(startDir)
+	for dir != "" && dir != "." && dir != string(filepath.Separator) {
+		if filepath.Base(dir) == "bas" {
+			if info, err := os.Stat(dir); err == nil && info.IsDir() {
+				return dir
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return ""
 }
 
 func isUUID(value string) bool {
