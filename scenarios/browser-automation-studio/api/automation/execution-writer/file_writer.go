@@ -605,6 +605,12 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 			continue
 		}
 
+		artifactType := strings.TrimSpace(item.ArtifactType)
+		if artifactType == "" {
+			artifactType = "custom"
+		}
+		isVideo := isVideoArtifactType(artifactType)
+
 		payload := map[string]any{
 			"path":       path,
 			"size_bytes": info.Size(),
@@ -613,16 +619,11 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 			payload[key] = value
 		}
 
-		if info.Size() > 0 && info.Size() <= maxEmbeddedExternalBytes {
+		if !isVideo && info.Size() > 0 && info.Size() <= maxEmbeddedExternalBytes {
 			if data, readErr := os.ReadFile(path); readErr == nil {
 				payload["base64"] = base64.StdEncoding.EncodeToString(data)
 				payload["inline"] = true
 			}
-		}
-
-		artifactType := strings.TrimSpace(item.ArtifactType)
-		if artifactType == "" {
-			artifactType = "custom"
 		}
 		label := strings.TrimSpace(item.Label)
 		if label == "" {
@@ -632,7 +633,7 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 		var storageURL string
 		contentType := strings.TrimSpace(item.ContentType)
 		var sizeBytes *int64
-		if r.storage != nil && isVideoArtifactType(artifactType) {
+		if r.storage != nil && isVideo {
 			artifactInfo, storeErr := r.storage.StoreArtifactFromFile(ctx, plan.ExecutionID, label, path, item.ContentType)
 			if storeErr != nil {
 				if r.log != nil {

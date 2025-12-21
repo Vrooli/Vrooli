@@ -103,7 +103,6 @@ export const CONFIG_TIER_METADATA: Record<string, { tier: ConfigTier; defaultVal
   CONSOLE_MAX_ENTRIES: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Max console entries' },
   NETWORK_MAX_EVENTS: { tier: ConfigTier.INTERNAL, defaultValue: 200, description: 'Max network events' },
   HAR_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'HAR recording' },
-  VIDEO_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Video recording' },
   TRACING_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Playwright tracing' },
   LOG_FORMAT: { tier: ConfigTier.INTERNAL, defaultValue: 'json', description: 'Log format (json/text)' },
 };
@@ -207,9 +206,6 @@ const ConfigSchema = z.object({
       maxEvents: z.number().min(1).max(10000).default(200),
     }),
     har: z.object({
-      enabled: z.boolean().default(false),
-    }),
-    video: z.object({
       enabled: z.boolean().default(false),
     }),
     tracing: z.object({
@@ -407,9 +403,6 @@ export function loadConfig(): Config {
       },
       har: {
         enabled: process.env.HAR_ENABLED === 'true',
-      },
-      video: {
-        enabled: process.env.VIDEO_ENABLED === 'true',
       },
       tracing: {
         enabled: process.env.TRACING_ENABLED === 'true',

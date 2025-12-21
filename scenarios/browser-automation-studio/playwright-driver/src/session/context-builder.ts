@@ -69,7 +69,7 @@ export async function buildContext(
 
   // Video recording
   let videoDir: string | undefined;
-  if (spec.required_capabilities?.video && config.telemetry.video.enabled) {
+  if (spec.required_capabilities?.video) {
     videoDir = `/tmp/videos-${spec.execution_id}-${Date.now()}`;
     contextOptions.recordVideo = {
       dir: videoDir,

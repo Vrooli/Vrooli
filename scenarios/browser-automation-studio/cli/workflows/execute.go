@@ -204,20 +204,26 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	executionID := execResp.ExecutionID
 	fmt.Println("OK: Execution started!")
 	fmt.Printf("Execution ID: %s\n", executionID)
-	fmt.Println("")
-	fmt.Println("Execution artifacts")
-	fmt.Printf("Timeline: %s/executions/%s/timeline\n", ctx.ResolvedAPIV1Base(), executionID)
-	fmt.Printf("Screenshots: %s/executions/%s/screenshots\n", ctx.ResolvedAPIV1Base(), executionID)
+
+	recordingsRoot := ""
 	if ctx.ScenarioRoot != "" {
-		fmt.Printf("Recordings root: %s\n", filepath.Join(ctx.ScenarioRoot, "data", "recordings", executionID))
+		recordingsRoot = filepath.Join(ctx.ScenarioRoot, "data", "recordings", executionID)
 	}
-	fmt.Printf("Folder export: browser-automation-studio execution export %s --format folder --output-dir ./bas-export\n", executionID)
+
+	if !wait {
+		fmt.Println("")
+		fmt.Printf("Artifacts will be available after completion. Watch with: browser-automation-studio execution watch %s\n", executionID)
+		if recordingsRoot != "" {
+			fmt.Printf("Artifacts stored at: %s\n", recordingsRoot)
+		}
+	}
 
 	if wait {
 		fmt.Println("Waiting for completion...")
 		maxAttempts := 60
 		lastStatus := ""
 		completed := false
+		failed := false
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
 			statusResp, err := ctx.Core.APIClient.Get(ctx.APIPath("/executions/"+executionID), nil)
 			if err != nil {
@@ -241,11 +247,15 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				if errorMessage != "" {
 					fmt.Printf("Error: %s\n", errorMessage)
 				}
+				failed = true
 				completed = true
 				break
 			}
 			fmt.Print(".")
 			time.Sleep(5 * time.Second)
+		}
+		if completed {
+			printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo)
 		}
 		if !completed {
 			if lastStatus == "" {
@@ -263,6 +273,73 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	}
 
 	return nil
+}
+
+type executionResultSummary struct {
+	Artifacts []struct {
+		ArtifactType string `json:"artifact_type"`
+	} `json:"artifacts"`
+}
+
+func printCollectedArtifacts(ctx *appctx.Context, executionID, recordingsRoot string, failed bool, requiresVideo bool) {
+	fmt.Println("")
+	fmt.Println("Execution artifacts")
+
+	hasTimeline := false
+	hasScreenshots := false
+	hasVideos := false
+
+	if recordingsRoot != "" {
+		timelinePath := filepath.Join(recordingsRoot, "timeline.proto.json")
+		if info, err := os.Stat(timelinePath); err == nil && !info.IsDir() {
+			hasTimeline = true
+		}
+
+		resultPath := filepath.Join(recordingsRoot, "result.json")
+		if data, err := os.ReadFile(resultPath); err == nil {
+			var result executionResultSummary
+			if err := json.Unmarshal(data, &result); err == nil {
+				for _, artifact := range result.Artifacts {
+					switch strings.ToLower(strings.TrimSpace(artifact.ArtifactType)) {
+					case "screenshot", "screenshot_inline":
+						hasScreenshots = true
+					case "video", "video_meta":
+						hasVideos = true
+					}
+				}
+			}
+		}
+	}
+
+	if hasTimeline {
+		fmt.Printf("Timeline: %s/executions/%s/timeline\n", ctx.ResolvedAPIV1Base(), executionID)
+	}
+	if hasScreenshots {
+		fmt.Printf("Screenshots: %s/executions/%s/screenshots\n", ctx.ResolvedAPIV1Base(), executionID)
+	}
+	if hasVideos {
+		fmt.Printf("Recorded videos: %s/executions/%s/recorded-videos\n", ctx.ResolvedAPIV1Base(), executionID)
+	}
+	if !hasTimeline && !hasScreenshots && !hasVideos {
+		fmt.Println("No artifacts detected yet.")
+	}
+
+	if recordingsRoot != "" {
+		fmt.Printf("Artifacts stored at: %s\n", recordingsRoot)
+	}
+
+	if !hasVideos && requiresVideo {
+		fmt.Println("Video capture was requested but no recordings were produced.")
+		fmt.Println("Check playwright-driver logs for video capture errors.")
+	}
+
+	if !hasVideos && !requiresVideo {
+		optional := "To collect video recordings, rerun with: --requires-video"
+		if failed {
+			optional = "To collect video recordings on a retry, rerun with: --requires-video"
+		}
+		fmt.Println(optional)
+	}
 }
 
 func resolveWorkflowID(ctx *appctx.Context, workflow string) (string, error) {

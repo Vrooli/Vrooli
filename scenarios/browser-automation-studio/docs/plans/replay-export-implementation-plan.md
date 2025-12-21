@@ -15,7 +15,7 @@ Current State (facts)
   - Bash CLI download/extract: `scenarios/browser-automation-studio/cli/browser-automation-studio`
 - Playwright driver supports native video recording (recordVideo) but it is only enabled when:
   - `required_capabilities.video` is true AND
-  - `VIDEO_ENABLED=true` in driver config.
+  - `required_capabilities.video=true` in the session spec.
   - Driver config: `scenarios/browser-automation-studio/playwright-driver/src/config.ts`
   - Context creation: `scenarios/browser-automation-studio/playwright-driver/src/session/context-builder.ts`
 - Video artifacts exist in the engine metadata path, but are not surfaced for export or storage yet.
@@ -73,7 +73,7 @@ Phase 1: Persisted Replay Configuration
 Phase 2: Recorded Video Artifact Support
 - Ensure executions can request native video capture:
   - Mark `requiresVideo` in plan metadata or settings.
-  - Enable `VIDEO_ENABLED=true` in driver config for environments that support it.
+  - Ensure the execution spec sets `required_capabilities.video=true` for runs that need recordings.
 - Persist video artifacts:
   - Implement storage/upload for large video artifacts.
   - Persist URLs in execution artifacts (not just local paths).
@@ -154,7 +154,7 @@ Progress Notes
 - 2025-12-20: Added `/api/v1/executions/{id}/recorded-videos` to surface recorded video artifacts.
 - 2025-12-20: UI export dialog supports render source selection (auto/recorded/replay) persisted via replay config.
 - 2025-12-20: Added HTML bundle zip unit test coverage; resolved a helper name conflict in the HTML bundle generator.
-- 2025-12-20: Added handler tests for recorded videos endpoint and render-source webm guard; documented VIDEO_ENABLED in ENVIRONMENT.md.
+- 2025-12-20: Added handler tests for recorded videos endpoint and render-source webm guard; documented video capture requirements in ENVIRONMENT.md.
 - 2025-12-20: Ran Go tests for handlers, execution-writer, and export packages; adjusted HTML export font stack to avoid Inter defaults.
 - 2025-12-20: Fixed UI export typing issues (focused element bounding box, replay config branding mappings) to unblock UI build.
 
@@ -164,7 +164,7 @@ Progress Assessment (current)
 - Phase 3 complete: export handler supports `render_source` and recorded-video passthrough/transcode with fallback to replay render.
 - Phase 4 complete: API HTML export + CLI render updated; Node scripts removed.
 - Phase 5 complete: UI export mode selector shipped with recorded video availability hints, and execution start requests can opt into recorded video capture.
-- Remaining gaps: none blocking; recorded video capture still depends on `VIDEO_ENABLED=true` in the driver config and `required_capabilities.video` in the session spec.
+- Remaining gaps: none blocking; recorded video capture depends on `required_capabilities.video` in the session spec.
 
 Immediate Next Steps (recommended order)
 1) Optional: add service-level test coverage around execution video artifacts in `services/workflow` (result.json parsing).

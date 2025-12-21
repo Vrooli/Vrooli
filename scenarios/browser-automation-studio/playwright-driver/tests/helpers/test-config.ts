@@ -74,9 +74,6 @@ export function createTestConfig(overrides?: DeepPartial<Config>): Config {
       har: {
         enabled: false,
       },
-      video: {
-        enabled: false,
-      },
       tracing: {
         enabled: false,
       },
@@ -124,7 +121,6 @@ export function createTestConfig(overrides?: DeepPartial<Config>): Config {
       network: { ...defaultConfig.telemetry.network, ...overrides?.telemetry?.network },
       dom: { ...defaultConfig.telemetry.dom, ...overrides?.telemetry?.dom },
       har: { ...defaultConfig.telemetry.har, ...overrides?.telemetry?.har },
-      video: { ...defaultConfig.telemetry.video, ...overrides?.telemetry?.video },
       tracing: { ...defaultConfig.telemetry.tracing, ...overrides?.telemetry?.tracing },
     },
     logging: { ...defaultConfig.logging, ...overrides?.logging },

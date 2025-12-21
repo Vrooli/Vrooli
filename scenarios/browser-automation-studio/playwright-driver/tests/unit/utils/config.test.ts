@@ -101,13 +101,6 @@ describe('Config', () => {
       expect(config.telemetry.har.enabled).toBe(true);
     });
 
-    it('should enable video recording when VIDEO_ENABLED=true', () => {
-      process.env.VIDEO_ENABLED = 'true';
-      const config = loadConfig();
-
-      expect(config.telemetry.video.enabled).toBe(true);
-    });
-
     it('should enable tracing when TRACING_ENABLED=true', () => {
       process.env.TRACING_ENABLED = 'true';
       const config = loadConfig();

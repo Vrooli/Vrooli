@@ -146,7 +146,6 @@ Disables XPath fallback. Use when CSS selectors are preferred or XPath causes is
 | `NETWORK_ENABLED` | true | Capture network events |
 | `NETWORK_MAX_EVENTS` | 200 | Max network events per instruction |
 | `HAR_ENABLED` | false | Enable HAR file recording |
-| `VIDEO_ENABLED` | false | Enable video recording |
 | `TRACING_ENABLED` | false | Enable Playwright tracing |
 
 ## Browser Configuration

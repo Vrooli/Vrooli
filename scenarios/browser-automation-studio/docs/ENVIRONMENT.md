@@ -137,7 +137,6 @@ Keep inner timeouts smaller than outers to get actionable errors.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PLAYWRIGHT_DRIVER_URL` | Driver HTTP URL | `http://127.0.0.1:39400` |
-| `VIDEO_ENABLED` | Enable recorded video capture in the Playwright driver (requires `requires_video=true` on execution requests) | `false` |
 
 ## Entitlement Configuration (optional)
 

@@ -87,7 +87,7 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 	if _, ok := artifact.Payload["storage_object"]; !ok {
 		t.Fatalf("expected storage object payload")
 	}
-	if artifact.Payload["base64"] == "" {
-		t.Fatalf("expected inline base64 payload")
+	if _, ok := artifact.Payload["base64"]; ok {
+		t.Fatalf("did not expect inline base64 payload for video artifacts")
 	}
 }
