@@ -29,6 +29,9 @@ type VideoEncoder interface {
 	// targetWidth is the desired output width (height scales proportionally)
 	// fps is the target frame rate for the GIF
 	ConvertToGIF(ctx context.Context, inputPath, outputPath string, targetWidth int, fps int) error
+
+	// ConvertToMP4 transcodes a video file to MP4 (H.264).
+	ConvertToMP4(ctx context.Context, inputPath, outputPath string) error
 }
 
 // FFmpegEncoder implements VideoEncoder using the FFmpeg CLI.
@@ -131,6 +134,28 @@ func (e *FFmpegEncoder) ConvertToGIF(ctx context.Context, inputPath, outputPath 
 	return nil
 }
 
+// ConvertToMP4 transcodes a video file to MP4 (H.264).
+func (e *FFmpegEncoder) ConvertToMP4(ctx context.Context, inputPath, outputPath string) error {
+	args := []string{
+		"-y",
+		"-i", inputPath,
+		"-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2,format=yuv420p",
+		"-c:v", "libx264",
+		"-profile:v", "high",
+		"-level", "4.1",
+		"-crf", "21",
+		outputPath,
+	}
+	cmd := exec.CommandContext(ctx, e.ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stdout = io.Discard
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("ffmpeg mp4 transcode failed: %w (%s)", err, stderr.String())
+	}
+	return nil
+}
+
 // Compile-time interface enforcement
 var _ VideoEncoder = (*FFmpegEncoder)(nil)
 
@@ -138,10 +163,12 @@ var _ VideoEncoder = (*FFmpegEncoder)(nil)
 type MockVideoEncoder struct {
 	AssembleVideoErr error
 	ConvertGIFErr    error
+	ConvertMP4Err    error
 
 	AssembleCalls          []AssembleCall
 	AssembleWatermarkCalls []AssembleWatermarkCall
 	ConvertCalls           []ConvertCall
+	ConvertMP4Calls        []ConvertMP4Call
 }
 
 // AssembleCall records arguments to AssembleVideoFromSequence.
@@ -165,6 +192,12 @@ type ConvertCall struct {
 	OutputPath  string
 	TargetWidth int
 	FPS         int
+}
+
+// ConvertMP4Call records arguments to ConvertToMP4.
+type ConvertMP4Call struct {
+	InputPath  string
+	OutputPath string
 }
 
 // AssembleVideoFromSequence records the call and returns the configured error.
@@ -197,6 +230,15 @@ func (m *MockVideoEncoder) ConvertToGIF(_ context.Context, inputPath, outputPath
 		FPS:         fps,
 	})
 	return m.ConvertGIFErr
+}
+
+// ConvertToMP4 records the call and returns the configured error.
+func (m *MockVideoEncoder) ConvertToMP4(_ context.Context, inputPath, outputPath string) error {
+	m.ConvertMP4Calls = append(m.ConvertMP4Calls, ConvertMP4Call{
+		InputPath:  inputPath,
+		OutputPath: outputPath,
+	})
+	return m.ConvertMP4Err
 }
 
 // Compile-time interface enforcement

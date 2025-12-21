@@ -252,6 +252,9 @@ func main() {
 		r.Patch("/exports/{id}", handler.UpdateExport)
 		r.Delete("/exports/{id}", handler.DeleteExport)
 		r.Post("/exports/{id}/generate-caption", handler.GenerateExportCaption)
+		r.Get("/replay-config", handler.GetReplayConfig)
+		r.Put("/replay-config", handler.PutReplayConfig)
+		r.Delete("/replay-config", handler.DeleteReplayConfig)
 
 		// Scenario routes
 		r.Get("/scenarios", handler.ListScenarios)

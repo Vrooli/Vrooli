@@ -37,6 +37,9 @@ type ReplayMovieSpec struct {
 	Theme        ExportTheme             `json:"theme"`
 	Cursor       ExportCursorSpec        `json:"cursor"`
 	Decor        ExportDecor             `json:"decor"`
+	Watermark    *ExportWatermark        `json:"watermark,omitempty"`
+	IntroCard    *ExportIntroCard        `json:"intro_card,omitempty"`
+	OutroCard    *ExportOutroCard        `json:"outro_card,omitempty"`
 	Playback     ExportPlayback          `json:"playback"`
 	Presentation ExportPresentation      `json:"presentation"`
 	CursorMotion ExportCursorMotion      `json:"cursor_motion"`
@@ -97,6 +100,41 @@ type ExportDecor struct {
 	CursorScale          float64 `json:"cursor_scale,omitempty"`
 }
 
+// ExportWatermark defines watermark settings for replay exports.
+type ExportWatermark struct {
+	Enabled  bool   `json:"enabled"`
+	AssetID  string `json:"asset_id,omitempty"`
+	Position string `json:"position,omitempty"`
+	Size     int    `json:"size,omitempty"`
+	Opacity  int    `json:"opacity,omitempty"`
+	Margin   int    `json:"margin,omitempty"`
+}
+
+// ExportIntroCard defines intro card settings for replay exports.
+type ExportIntroCard struct {
+	Enabled           bool   `json:"enabled"`
+	Title             string `json:"title,omitempty"`
+	Subtitle          string `json:"subtitle,omitempty"`
+	LogoAssetID       string `json:"logo_asset_id,omitempty"`
+	BackgroundAssetID string `json:"background_asset_id,omitempty"`
+	BackgroundColor   string `json:"background_color,omitempty"`
+	TextColor         string `json:"text_color,omitempty"`
+	DurationMs        int    `json:"duration_ms,omitempty"`
+}
+
+// ExportOutroCard defines outro card settings for replay exports.
+type ExportOutroCard struct {
+	Enabled           bool   `json:"enabled"`
+	Title             string `json:"title,omitempty"`
+	CtaText           string `json:"cta_text,omitempty"`
+	CtaURL            string `json:"cta_url,omitempty"`
+	LogoAssetID       string `json:"logo_asset_id,omitempty"`
+	BackgroundAssetID string `json:"background_asset_id,omitempty"`
+	BackgroundColor   string `json:"background_color,omitempty"`
+	TextColor         string `json:"text_color,omitempty"`
+	DurationMs        int    `json:"duration_ms,omitempty"`
+}
+
 // ExportPlayback captures canonical playback configuration for renderers.
 type ExportPlayback struct {
 	FPS             int `json:"fps"`
@@ -149,38 +187,38 @@ type ExportClickPulse struct {
 
 // ExportFrame captures per-step replay metadata plus animation hints.
 type ExportFrame struct {
-	Index                   int                             `json:"index"`
-	StepIndex               int                             `json:"step_index"`
-	NodeID                  string                          `json:"node_id"`
-	StepType                string                          `json:"step_type"`
-	Title                   string                          `json:"title"`
-	Status                  string                          `json:"status"`
-	StartOffsetMs           int                             `json:"start_offset_ms"`
-	DurationMs              int                             `json:"duration_ms"`
-	HoldMs                  int                             `json:"hold_ms"`
-	Enter                   TransitionSpec                  `json:"enter"`
-	Exit                    TransitionSpec                  `json:"exit"`
-	ScreenshotAssetID       string                          `json:"screenshot_asset_id,omitempty"`
-	Viewport                ExportDimensions                `json:"viewport"`
-	ZoomFactor              float64                         `json:"zoom_factor,omitempty"`
+	Index                   int                              `json:"index"`
+	StepIndex               int                              `json:"step_index"`
+	NodeID                  string                           `json:"node_id"`
+	StepType                string                           `json:"step_type"`
+	Title                   string                           `json:"title"`
+	Status                  string                           `json:"status"`
+	StartOffsetMs           int                              `json:"start_offset_ms"`
+	DurationMs              int                              `json:"duration_ms"`
+	HoldMs                  int                              `json:"hold_ms"`
+	Enter                   TransitionSpec                   `json:"enter"`
+	Exit                    TransitionSpec                   `json:"exit"`
+	ScreenshotAssetID       string                           `json:"screenshot_asset_id,omitempty"`
+	Viewport                ExportDimensions                 `json:"viewport"`
+	ZoomFactor              float64                          `json:"zoom_factor,omitempty"`
 	HighlightRegions        []*autocontracts.HighlightRegion `json:"highlight_regions,omitempty"`
 	MaskRegions             []*autocontracts.MaskRegion      `json:"mask_regions,omitempty"`
-	FocusedElement          *autocontracts.ElementFocus     `json:"focused_element,omitempty"`
-	ElementBoundingBox      *autocontracts.BoundingBox      `json:"element_bounding_box,omitempty"`
-	NormalizedFocusBounds   *ExportNormalizedRect           `json:"normalized_focus_bounds,omitempty"`
-	NormalizedElementBounds *ExportNormalizedRect           `json:"normalized_element_bounds,omitempty"`
-	ClickPosition           *autocontracts.Point            `json:"click_position,omitempty"`
-	NormalizedClickPosition *ExportNormalizedPoint          `json:"normalized_click_position,omitempty"`
-	CursorTrail             []*autocontracts.Point          `json:"cursor_trail,omitempty"`
-	NormalizedCursorTrail   []ExportNormalizedPoint         `json:"normalized_cursor_trail,omitempty"`
-	ConsoleLogCount         int                             `json:"console_log_count,omitempty"`
-	NetworkEventCount       int                             `json:"network_event_count,omitempty"`
-	FinalURL                string                          `json:"final_url,omitempty"`
-	Error                   string                          `json:"error,omitempty"`
-	Assertion               *autocontracts.AssertionOutcome `json:"assertion,omitempty"`
-	DomSnapshotPreview      string                          `json:"dom_snapshot_preview,omitempty"`
-	DomSnapshotHTML         string                          `json:"dom_snapshot_html,omitempty"`
-	Resilience              ExportResilience                `json:"resilience"`
+	FocusedElement          *autocontracts.ElementFocus      `json:"focused_element,omitempty"`
+	ElementBoundingBox      *autocontracts.BoundingBox       `json:"element_bounding_box,omitempty"`
+	NormalizedFocusBounds   *ExportNormalizedRect            `json:"normalized_focus_bounds,omitempty"`
+	NormalizedElementBounds *ExportNormalizedRect            `json:"normalized_element_bounds,omitempty"`
+	ClickPosition           *autocontracts.Point             `json:"click_position,omitempty"`
+	NormalizedClickPosition *ExportNormalizedPoint           `json:"normalized_click_position,omitempty"`
+	CursorTrail             []*autocontracts.Point           `json:"cursor_trail,omitempty"`
+	NormalizedCursorTrail   []ExportNormalizedPoint          `json:"normalized_cursor_trail,omitempty"`
+	ConsoleLogCount         int                              `json:"console_log_count,omitempty"`
+	NetworkEventCount       int                              `json:"network_event_count,omitempty"`
+	FinalURL                string                           `json:"final_url,omitempty"`
+	Error                   string                           `json:"error,omitempty"`
+	Assertion               *autocontracts.AssertionOutcome  `json:"assertion,omitempty"`
+	DomSnapshotPreview      string                           `json:"dom_snapshot_preview,omitempty"`
+	DomSnapshotHTML         string                           `json:"dom_snapshot_html,omitempty"`
+	Resilience              ExportResilience                 `json:"resilience"`
 }
 
 // ExportResilience captures retry/backoff metadata for a step.

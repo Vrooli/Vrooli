@@ -2,18 +2,22 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
+	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/replay"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	"google.golang.org/protobuf/proto"
@@ -103,6 +107,16 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		format = "json"
 	}
 
+	renderSource, ok := normalizeRenderSource(body.RenderSource)
+	if !ok {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "unsupported render_source"}))
+		return
+	}
+	if renderSource == renderSourceReplayFrames && format == "webm" {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "webm format is only available for recorded video exports"}))
+		return
+	}
+
 	if format == "folder" {
 		outputDir := strings.TrimSpace(r.URL.Query().Get("output_dir"))
 		if body.OutputDir != "" {
@@ -134,6 +148,39 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if format != "json" && format != "html" && renderSource != renderSourceReplayFrames {
+		videoCtx, cancelVideo := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+		defer cancelVideo()
+
+		recordedVideo, videoErr := h.loadRecordedVideo(videoCtx, executionID)
+		if videoErr == nil && recordedVideo != nil {
+			if err := h.serveRecordedVideo(w, r, recordedVideo, format, body.FileName); err != nil {
+				h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to serve recorded video export")
+				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "recorded_video_export", "error": err.Error()}))
+			}
+			return
+		}
+		if renderSource == renderSourceRecordedVideo {
+			if errors.Is(videoErr, database.ErrNotFound) {
+				h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))
+				return
+			}
+			if errors.Is(videoErr, errRecordedVideoNotFound) {
+				h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "recorded video unavailable for execution"}))
+				return
+			}
+			if videoErr != nil {
+				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "recorded_video_export", "error": videoErr.Error()}))
+				return
+			}
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "recorded video unavailable for execution"}))
+			return
+		}
+		if videoErr != nil && !errors.Is(videoErr, errRecordedVideoNotFound) {
+			h.log.WithError(videoErr).WithField("execution_id", executionID).Warn("Failed to load recorded video; falling back to replay render")
+		}
+	}
+
 	previewCtx, cancelPreview := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancelPreview()
 
@@ -148,10 +195,17 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	replayConfig, configErr := h.loadReplayConfig(previewCtx)
+	if configErr != nil && h.log != nil {
+		h.log.WithError(configErr).Warn("Failed to load replay config for export")
+	}
+	replayOverrides := replayConfigToOverrides(replayConfig)
 	spec, specErr := buildExportSpec(preview.Package, body.MovieSpec, executionID)
 	if specErr != nil {
 		if errors.Is(specErr, errMovieSpecUnavailable) {
 			if format == "json" {
+				applyReplayConfigToSpec(preview.Package, replayConfig)
+				applyExportOverrides(preview.Package, replayOverrides)
 				applyExportOverrides(preview.Package, body.Overrides)
 				if pbPreview, err := protoconv.ExecutionExportPreviewToProto(preview); err == nil {
 					h.respondProto(w, http.StatusOK, pbPreview)
@@ -170,6 +224,8 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 	preview.Package = spec
 
 	if format == "json" {
+		applyReplayConfigToSpec(spec, replayConfig)
+		applyExportOverrides(spec, replayOverrides)
 		applyExportOverrides(spec, body.Overrides)
 		if pbPreview, err := protoconv.ExecutionExportPreviewToProto(preview); err == nil {
 			h.respondProto(w, http.StatusOK, pbPreview)
@@ -179,9 +235,27 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.Overrides != nil {
+	if format == "html" {
+		applyReplayConfigToSpec(spec, replayConfig)
+		applyExportOverrides(spec, replayOverrides)
 		applyExportOverrides(spec, body.Overrides)
+
+		filename := normalizeExportFilename(body.FileName, "replay-export", ".zip")
+		w.Header().Set("Content-Type", "application/zip")
+		if strings.TrimSpace(filename) != "" {
+			w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+		}
+
+		baseURL := requestBaseURL(r)
+		if err := exportservices.WriteHTMLBundle(previewCtx, w, spec, h.storage, h.log, baseURL); err != nil {
+			h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to build HTML replay export")
+		}
+		return
 	}
+
+	applyReplayConfigToSpec(spec, replayConfig)
+	applyExportOverrides(spec, replayOverrides)
+	applyExportOverrides(spec, body.Overrides)
 
 	renderTimeout := replay.EstimateReplayRenderTimeout(spec)
 	renderCtx, cancelRender := context.WithTimeout(r.Context(), renderTimeout)
@@ -229,6 +303,125 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.ServeContent(w, r, media.Filename, info.ModTime(), file)
+}
+
+func (h *Handler) loadRecordedVideo(ctx context.Context, executionID uuid.UUID) (*recordedVideoSource, error) {
+	if h.repo == nil {
+		return nil, errRecordedVideoNotFound
+	}
+	execution, err := h.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(execution.ResultPath) == "" {
+		return nil, errRecordedVideoNotFound
+	}
+	raw, err := os.ReadFile(execution.ResultPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, errRecordedVideoNotFound
+		}
+		return nil, err
+	}
+	var result executionwriter.ExecutionResultData
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return resolveRecordedVideoSource(result.Artifacts)
+}
+
+func (h *Handler) serveRecordedVideo(w http.ResponseWriter, r *http.Request, source *recordedVideoSource, format, fileName string) error {
+	if source == nil {
+		return errors.New("recorded video source missing")
+	}
+	if cleanup := source.Cleanup; cleanup != nil {
+		defer cleanup()
+	}
+
+	inputPath := source.Path
+	inputExt := strings.ToLower(filepath.Ext(inputPath))
+	outputPath := inputPath
+	outputType := source.ContentType
+	outputExt := inputExt
+	var outputCleanup func()
+
+	defer func() {
+		if outputCleanup != nil {
+			outputCleanup()
+		}
+	}()
+
+	switch format {
+	case "webm":
+		if inputExt != ".webm" {
+			return fmt.Errorf("recorded video is not webm")
+		}
+		outputType = "video/webm"
+		outputExt = ".webm"
+	case "mp4":
+		outputType = "video/mp4"
+		outputExt = ".mp4"
+		if inputExt != ".mp4" {
+			tmp, err := os.CreateTemp("", "bas-recorded-video-*.mp4")
+			if err != nil {
+				return err
+			}
+			_ = tmp.Close()
+			outputPath = tmp.Name()
+			outputCleanup = func() { _ = os.Remove(outputPath) }
+			encoder := replay.NewFFmpegEncoder(replay.DetectFFmpegBinary())
+			ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
+			defer cancel()
+			if err := encoder.ConvertToMP4(ctx, inputPath, outputPath); err != nil {
+				return err
+			}
+		}
+	case "gif":
+		outputType = "image/gif"
+		outputExt = ".gif"
+		tmp, err := os.CreateTemp("", "bas-recorded-video-*.gif")
+		if err != nil {
+			return err
+		}
+		_ = tmp.Close()
+		outputPath = tmp.Name()
+		outputCleanup = func() { _ = os.Remove(outputPath) }
+		encoder := replay.NewFFmpegEncoder(replay.DetectFFmpegBinary())
+		ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
+		defer cancel()
+		if err := encoder.ConvertToGIF(ctx, inputPath, outputPath, 0, 0); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unsupported export format %q", format)
+	}
+
+	if strings.TrimSpace(outputType) == "" {
+		outputType = detectVideoContentType(outputPath)
+	}
+	filename := normalizeExportFilename(fileName, "recorded-video", outputExt)
+
+	file, err := os.Open(outputPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", outputType)
+	if info.Size() > 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
+	}
+	if strings.TrimSpace(filename) != "" {
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	}
+
+	http.ServeContent(w, r, filename, info.ModTime(), file)
+	return nil
 }
 
 // GetExecution handles GET /api/v1/executions/{id}

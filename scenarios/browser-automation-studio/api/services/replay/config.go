@@ -101,3 +101,8 @@ func detectFFmpegBinary() string {
 	defaultPath := filepath.Join(os.Getenv("HOME"), ".ffmpeg", "bin", "ffmpeg")
 	return defaultPath
 }
+
+// DetectFFmpegBinary exposes the ffmpeg binary resolution used by replay rendering.
+func DetectFFmpegBinary() string {
+	return detectFFmpegBinary()
+}

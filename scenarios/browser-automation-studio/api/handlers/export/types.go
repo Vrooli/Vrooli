@@ -7,11 +7,12 @@ import (
 // Request represents the JSON payload for execution export endpoints.
 // This is HTTP-layer only; it wraps the service-layer types for JSON binding.
 type Request struct {
-	Format    string                     `json:"format,omitempty"`
-	FileName  string                     `json:"file_name,omitempty"`
-	OutputDir string                     `json:"output_dir,omitempty"`
-	Overrides *Overrides                 `json:"overrides,omitempty"`
-	MovieSpec *basexport.ReplayMovieSpec `json:"movie_spec,omitempty"`
+	Format       string                     `json:"format,omitempty"`
+	FileName     string                     `json:"file_name,omitempty"`
+	OutputDir    string                     `json:"output_dir,omitempty"`
+	RenderSource string                     `json:"render_source,omitempty"`
+	Overrides    *Overrides                 `json:"overrides,omitempty"`
+	MovieSpec    *basexport.ReplayMovieSpec `json:"movie_spec,omitempty"`
 }
 
 // Type aliases for backward compatibility - these delegate to services/export.
