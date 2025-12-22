@@ -118,11 +118,13 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 
 	// Create event store - use PostgreSQL when database is available
 	var eventStore event.Store
+	storageLabel := ""
 
 	if useInMemory || db == nil {
 		eventStore = event.NewMemoryStore()
 		// In-memory fallback
 		log.Printf("Using in-memory storage")
+		storageLabel = "memory (fallback)"
 		profileRepo = repository.NewMemoryProfileRepository()
 		taskRepo = repository.NewMemoryTaskRepository()
 		runRepo = repository.NewMemoryRunRepository()
@@ -131,6 +133,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 	} else {
 		// PostgreSQL persistence
 		log.Printf("Using PostgreSQL persistence")
+		storageLabel = string(db.Dialect())
 		eventStore = event.NewPostgresStore(db.DB, logger)
 		repos := database.NewRepositories(db, logger)
 		profileRepo = repos.Profiles
@@ -242,6 +245,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchestration.WithIdempotency(idempotencyRepo),
 		orchestration.WithBroadcaster(wsHub),
 		orchestration.WithTerminator(terminator),
+		orchestration.WithStorageLabel(storageLabel),
 	)
 
 	// Create reconciler for orphan detection and stale run recovery (Phase 2)

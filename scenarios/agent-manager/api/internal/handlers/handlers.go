@@ -386,6 +386,9 @@ func dependencyToJsonValue(dep *orchestration.DependencyStatus) *commonpb.JsonVa
 	if dep.Error != nil && *dep.Error != "" {
 		fields["error"] = &commonpb.JsonValue{Kind: &commonpb.JsonValue_StringValue{StringValue: *dep.Error}}
 	}
+	if dep.Storage != "" {
+		fields["storage"] = &commonpb.JsonValue{Kind: &commonpb.JsonValue_StringValue{StringValue: dep.Storage}}
+	}
 	return &commonpb.JsonValue{
 		Kind: &commonpb.JsonValue_ObjectValue{
 			ObjectValue: &commonpb.JsonObject{Fields: fields},

@@ -265,6 +265,7 @@ type DependencyStatus struct {
 	Connected bool    `json:"connected"`
 	LatencyMs *int64  `json:"latency_ms,omitempty"`
 	Error     *string `json:"error,omitempty"`
+	Storage   string  `json:"storage,omitempty"`
 }
 
 // ComponentStatus describes a component's health.
@@ -323,6 +324,9 @@ type Orchestrator struct {
 
 	// Configuration
 	config OrchestratorConfig
+
+	// Storage label for health reporting (e.g., postgres, sqlite, memory).
+	storageLabel string
 }
 
 // OrchestratorConfig holds service configuration.
@@ -419,6 +423,13 @@ func WithBroadcaster(b EventBroadcaster) Option {
 func WithTerminator(t *Terminator) Option {
 	return func(o *Orchestrator) {
 		o.terminator = t
+	}
+}
+
+// WithStorageLabel sets the storage label reported by health checks.
+func WithStorageLabel(label string) Option {
+	return func(o *Orchestrator) {
+		o.storageLabel = strings.TrimSpace(label)
 	}
 }
 
@@ -1272,12 +1283,13 @@ func (o *Orchestrator) GetHealth(ctx context.Context) (*HealthStatus, error) {
 
 	// Check database (repositories configured)
 	if o.profiles != nil && o.tasks != nil && o.runs != nil {
-		status.Dependencies.Database = &DependencyStatus{Connected: true}
+		status.Dependencies.Database = &DependencyStatus{Connected: true, Storage: o.storageLabel}
 	} else {
 		msg := "not configured"
 		status.Dependencies.Database = &DependencyStatus{
 			Connected: false,
 			Error:     &msg,
+			Storage:   o.storageLabel,
 		}
 	}
 

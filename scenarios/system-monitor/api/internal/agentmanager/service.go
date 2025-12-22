@@ -298,7 +298,7 @@ type ExecuteRequest struct {
 	// Optional override for model (uses profile default if empty)
 	Model string
 	// Optional inline config overrides
-	InlineConfig *domainpb.RunConfig
+	InlineConfig *domainpb.RunConfigOverrides
 }
 
 // ExecuteResult contains the result of agent execution.
@@ -349,12 +349,12 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 		runReq.InlineConfig = req.InlineConfig
 	} else if req.RunnerType != nil || req.Model != "" {
 		// Build inline config from individual overrides
-		runReq.InlineConfig = &domainpb.RunConfig{}
+		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
 		if req.RunnerType != nil {
-			runReq.InlineConfig.RunnerType = *req.RunnerType
+			runReq.InlineConfig.RunnerType = req.RunnerType
 		}
 		if req.Model != "" {
-			runReq.InlineConfig.Model = req.Model
+			runReq.InlineConfig.Model = &req.Model
 		}
 	}
 
@@ -434,6 +434,14 @@ func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (st
 
 	if req.InlineConfig != nil {
 		runReq.InlineConfig = req.InlineConfig
+	} else if req.RunnerType != nil || req.Model != "" {
+		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
+		if req.RunnerType != nil {
+			runReq.InlineConfig.RunnerType = req.RunnerType
+		}
+		if req.Model != "" {
+			runReq.InlineConfig.Model = &req.Model
+		}
 	}
 
 	run, err := s.client.CreateRun(ctx, runReq)

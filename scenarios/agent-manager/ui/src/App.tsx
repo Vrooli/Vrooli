@@ -290,6 +290,7 @@ export default function App() {
                     const status = plain?.status as string | undefined;
                     const latency = plain?.latency_ms as number | undefined;
                     const error = plain?.error as string | undefined;
+                    const storage = plain?.storage as string | undefined;
                     return (
                       <div key={name} className="flex flex-col gap-1 rounded-md border border-border/60 p-2">
                         <div className="flex items-center justify-between text-foreground">
@@ -300,6 +301,12 @@ export default function App() {
                           <span>Latency</span>
                           <span>{latency !== undefined ? `${latency}ms` : "n/a"}</span>
                         </div>
+                        {storage && (
+                          <div className="flex items-center justify-between">
+                            <span>Storage</span>
+                            <span>{storage}</span>
+                          </div>
+                        )}
                         {error && (
                           <div className="text-destructive">Error: {error}</div>
                         )}

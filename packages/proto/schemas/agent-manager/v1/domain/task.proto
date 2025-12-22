@@ -40,7 +40,7 @@ message Task {
 
   // Short title summarizing the task.
   // @constraint 1-200 characters
-  string title = 2 [(buf.validate.field).string = {min_len: 1, max_len: 200}];
+  string title = 2 [(buf.validate.field).string = {min_len: 1, max_len: 255}];
 
   // Detailed description of what needs to be done.
   // This is the main prompt sent to the agent.

@@ -639,11 +639,13 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xfd\x05\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xff\x05\n" +
 	"\fAgentProfile\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
-	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\x04name\x12*\n" +
-	"\vprofile_key\x18\x12 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
+	"\x04name\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\x04name\x12+\n" +
+	"\vprofile_key\x18\x12 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\n" +
 	"profileKey\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12I\n" +
 	"\vrunner_type\x18\x04 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
