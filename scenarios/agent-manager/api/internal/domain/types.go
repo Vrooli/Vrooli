@@ -129,6 +129,7 @@ type ContextAttachment struct {
 	Path    string `json:"path,omitempty"`
 	URL     string `json:"url,omitempty"`
 	Content string `json:"content,omitempty"`
+	Label   string `json:"label,omitempty"`
 }
 
 // -----------------------------------------------------------------------------

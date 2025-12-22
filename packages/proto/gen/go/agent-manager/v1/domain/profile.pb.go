@@ -416,9 +416,17 @@ type RunConfigOverrides struct {
 	// Paths the agent is allowed to access.
 	AllowedPaths []string `protobuf:"bytes,10,rep,name=allowed_paths,json=allowedPaths,proto3" json:"allowed_paths,omitempty"`
 	// Paths explicitly denied.
-	DeniedPaths   []string `protobuf:"bytes,11,rep,name=denied_paths,json=deniedPaths,proto3" json:"denied_paths,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DeniedPaths []string `protobuf:"bytes,11,rep,name=denied_paths,json=deniedPaths,proto3" json:"denied_paths,omitempty"`
+	// Clear allowed tools inherited from profile.
+	ClearAllowedTools bool `protobuf:"varint,12,opt,name=clear_allowed_tools,json=clearAllowedTools,proto3" json:"clear_allowed_tools,omitempty"`
+	// Clear denied tools inherited from profile.
+	ClearDeniedTools bool `protobuf:"varint,13,opt,name=clear_denied_tools,json=clearDeniedTools,proto3" json:"clear_denied_tools,omitempty"`
+	// Clear allowed paths inherited from profile.
+	ClearAllowedPaths bool `protobuf:"varint,14,opt,name=clear_allowed_paths,json=clearAllowedPaths,proto3" json:"clear_allowed_paths,omitempty"`
+	// Clear denied paths inherited from profile.
+	ClearDeniedPaths bool `protobuf:"varint,15,opt,name=clear_denied_paths,json=clearDeniedPaths,proto3" json:"clear_denied_paths,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RunConfigOverrides) Reset() {
@@ -526,6 +534,34 @@ func (x *RunConfigOverrides) GetDeniedPaths() []string {
 		return x.DeniedPaths
 	}
 	return nil
+}
+
+func (x *RunConfigOverrides) GetClearAllowedTools() bool {
+	if x != nil {
+		return x.ClearAllowedTools
+	}
+	return false
+}
+
+func (x *RunConfigOverrides) GetClearDeniedTools() bool {
+	if x != nil {
+		return x.ClearDeniedTools
+	}
+	return false
+}
+
+func (x *RunConfigOverrides) GetClearAllowedPaths() bool {
+	if x != nil {
+		return x.ClearAllowedPaths
+	}
+	return false
+}
+
+func (x *RunConfigOverrides) GetClearDeniedPaths() bool {
+	if x != nil {
+		return x.ClearDeniedPaths
+	}
+	return false
 }
 
 // HeartbeatConfig defines heartbeat behavior for long-running operations.
@@ -644,7 +680,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x11requires_approval\x18\t \x01(\bR\x10requiresApproval\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
-	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\x82\x05\n" +
+	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\xbe\x06\n" +
 	"\x12RunConfigOverrides\x12N\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
@@ -659,7 +695,11 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x11requires_approval\x18\t \x01(\bH\x06R\x10requiresApproval\x88\x01\x01\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
-	"\fdenied_paths\x18\v \x03(\tR\vdeniedPathsB\x0e\n" +
+	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\x12.\n" +
+	"\x13clear_allowed_tools\x18\f \x01(\bR\x11clearAllowedTools\x12,\n" +
+	"\x12clear_denied_tools\x18\r \x01(\bR\x10clearDeniedTools\x12.\n" +
+	"\x13clear_allowed_paths\x18\x0e \x01(\bR\x11clearAllowedPaths\x12,\n" +
+	"\x12clear_denied_paths\x18\x0f \x01(\bR\x10clearDeniedPathsB\x0e\n" +
 	"\f_runner_typeB\b\n" +
 	"\x06_modelB\f\n" +
 	"\n" +

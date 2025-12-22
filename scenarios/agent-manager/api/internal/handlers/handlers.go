@@ -1271,10 +1271,10 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			timeout := inline.Timeout.AsDuration()
 			req.Timeout = &timeout
 		}
-		if inline.AllowedTools != nil {
+		if len(inline.AllowedTools) > 0 || inline.ClearAllowedTools {
 			req.AllowedTools = inline.AllowedTools
 		}
-		if inline.DeniedTools != nil {
+		if len(inline.DeniedTools) > 0 || inline.ClearDeniedTools {
 			req.DeniedTools = inline.DeniedTools
 		}
 		if inline.SkipPermissionPrompt != nil {
@@ -1289,10 +1289,10 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			requiresApproval := inline.GetRequiresApproval()
 			req.RequiresApproval = &requiresApproval
 		}
-		if inline.AllowedPaths != nil {
+		if len(inline.AllowedPaths) > 0 || inline.ClearAllowedPaths {
 			req.AllowedPaths = inline.AllowedPaths
 		}
-		if inline.DeniedPaths != nil {
+		if len(inline.DeniedPaths) > 0 || inline.ClearDeniedPaths {
 			req.DeniedPaths = inline.DeniedPaths
 		}
 	}

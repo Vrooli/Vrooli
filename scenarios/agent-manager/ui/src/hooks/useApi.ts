@@ -203,9 +203,15 @@ function buildRunConfigOverrides(run: RunFormData) {
   }
   if (run.allowedTools !== undefined) {
     payload.allowedTools = run.allowedTools;
+    if (run.allowedTools.length === 0) {
+      payload.clearAllowedTools = true;
+    }
   }
   if (run.deniedTools !== undefined) {
     payload.deniedTools = run.deniedTools;
+    if (run.deniedTools.length === 0) {
+      payload.clearDeniedTools = true;
+    }
   }
   if (typeof run.skipPermissionPrompt === "boolean") {
     payload.skipPermissionPrompt = run.skipPermissionPrompt;
@@ -218,9 +224,15 @@ function buildRunConfigOverrides(run: RunFormData) {
   }
   if (run.allowedPaths !== undefined) {
     payload.allowedPaths = run.allowedPaths;
+    if (run.allowedPaths.length === 0) {
+      payload.clearAllowedPaths = true;
+    }
   }
   if (run.deniedPaths !== undefined) {
     payload.deniedPaths = run.deniedPaths;
+    if (run.deniedPaths.length === 0) {
+      payload.clearDeniedPaths = true;
+    }
   }
   return create(RunConfigOverridesSchema, payload);
 }

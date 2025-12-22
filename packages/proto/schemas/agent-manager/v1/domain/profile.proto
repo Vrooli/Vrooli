@@ -192,6 +192,18 @@ message RunConfigOverrides {
 
   // Paths explicitly denied.
   repeated string denied_paths = 11;
+
+  // Clear allowed tools inherited from profile.
+  bool clear_allowed_tools = 12;
+
+  // Clear denied tools inherited from profile.
+  bool clear_denied_tools = 13;
+
+  // Clear allowed paths inherited from profile.
+  bool clear_allowed_paths = 14;
+
+  // Clear denied paths inherited from profile.
+  bool clear_denied_paths = 15;
 }
 
 // =============================================================================

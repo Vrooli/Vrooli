@@ -101,6 +101,7 @@ func TaskToProto(t *domain.Task) *pb.Task {
 			Path:    a.Path,
 			Url:     a.URL,
 			Content: a.Content,
+			Label:   a.Label,
 		}
 	}
 
@@ -137,6 +138,7 @@ func TaskFromProto(t *pb.Task) *domain.Task {
 			Path:    a.Path,
 			URL:     a.Url,
 			Content: a.Content,
+			Label:   a.Label,
 		}
 	}
 

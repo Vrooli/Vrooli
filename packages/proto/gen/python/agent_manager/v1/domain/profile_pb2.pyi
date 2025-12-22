@@ -91,6 +91,10 @@ class RunConfigOverrides(_message.Message):
     REQUIRES_APPROVAL_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_PATHS_FIELD_NUMBER: _ClassVar[int]
     DENIED_PATHS_FIELD_NUMBER: _ClassVar[int]
+    CLEAR_ALLOWED_TOOLS_FIELD_NUMBER: _ClassVar[int]
+    CLEAR_DENIED_TOOLS_FIELD_NUMBER: _ClassVar[int]
+    CLEAR_ALLOWED_PATHS_FIELD_NUMBER: _ClassVar[int]
+    CLEAR_DENIED_PATHS_FIELD_NUMBER: _ClassVar[int]
     runner_type: _types_pb2.RunnerType
     model: str
     max_turns: int
@@ -102,7 +106,11 @@ class RunConfigOverrides(_message.Message):
     requires_approval: bool
     allowed_paths: _containers.RepeatedScalarFieldContainer[str]
     denied_paths: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., requires_sandbox: _Optional[bool] = ..., requires_approval: _Optional[bool] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ...) -> None: ...
+    clear_allowed_tools: bool
+    clear_denied_tools: bool
+    clear_allowed_paths: bool
+    clear_denied_paths: bool
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., requires_sandbox: _Optional[bool] = ..., requires_approval: _Optional[bool] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., clear_allowed_tools: _Optional[bool] = ..., clear_denied_tools: _Optional[bool] = ..., clear_allowed_paths: _Optional[bool] = ..., clear_denied_paths: _Optional[bool] = ...) -> None: ...
 
 class HeartbeatConfig(_message.Message):
     __slots__ = ()
