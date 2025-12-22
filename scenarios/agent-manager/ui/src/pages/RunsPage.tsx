@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Square,
   Terminal,
+  Trash2,
   Wrench,
   X,
   XCircle,
@@ -48,6 +49,7 @@ interface RunsPageProps {
   loading: boolean;
   error: string | null;
   onStopRun: (id: string) => Promise<void>;
+  onDeleteRun: (id: string) => Promise<void>;
   onRetryRun: (run: Run) => Promise<Run>;
   onGetEvents: (id: string) => Promise<RunEvent[]>;
   onGetDiff: (id: string) => Promise<RunDiff>;
@@ -67,6 +69,7 @@ export function RunsPage({
   loading,
   error,
   onStopRun,
+  onDeleteRun,
   onRetryRun,
   onGetEvents,
   onGetDiff,
@@ -89,6 +92,7 @@ export function RunsPage({
   const [approvalForm, setApprovalForm] = useState({ actor: "", commitMsg: "" });
   const [rejectForm, setRejectForm] = useState({ actor: "", reason: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Subscribe to WebSocket events for the selected run
   useEffect(() => {
@@ -249,6 +253,25 @@ export function RunsPage({
     }
   };
 
+  const canDeleteRun = (run: Run | null): boolean => {
+    if (!run) return false;
+    return ![RunStatus.PENDING, RunStatus.STARTING, RunStatus.RUNNING].includes(run.status);
+  };
+
+  const handleDelete = async (run: Run) => {
+    if (!confirm("Delete this run? This removes its history and events.")) return;
+    setDeleteLoading(true);
+    try {
+      await onDeleteRun(run.id);
+      if (selectedRun?.id === run.id) {
+        setSelectedRun(null);
+        navigate("/runs");
+      }
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const sortedRuns = [...runs].sort((a, b) => {
     const aTime = a.createdAt ? timestampMs(a.createdAt) : 0;
     const bTime = b.createdAt ? timestampMs(b.createdAt) : 0;
@@ -372,6 +395,20 @@ export function RunsPage({
                             <Square className="h-3 w-3" />
                           </Button>
                         )}
+                        {canDeleteRun(run) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            aria-label={`Delete run ${getTaskTitle(run.taskId)}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(run);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
@@ -440,6 +477,18 @@ export function RunsPage({
                           Re-run
                         </Button>
                       ) : null}
+                      {canDeleteRun(selectedRun) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(selectedRun)}
+                          className="gap-1 text-destructive hover:text-destructive"
+                          disabled={deleteLoading}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Delete
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {selectedRun.errorMsg && (

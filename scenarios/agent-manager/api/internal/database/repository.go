@@ -72,7 +72,7 @@ type profileRow struct {
 	Description          string      `db:"description"`
 	RunnerType           string      `db:"runner_type"`
 	Model                string      `db:"model"`
-	ModelPreset          string      `db:"model_preset"`
+	ModelPreset          sql.NullString `db:"model_preset"`
 	MaxTurns             int         `db:"max_turns"`
 	TimeoutMs            int64       `db:"timeout_ms"`
 	AllowedTools         StringSlice `db:"allowed_tools"`
@@ -88,6 +88,10 @@ type profileRow struct {
 }
 
 func (r *profileRow) toDomain() *domain.AgentProfile {
+	modelPreset := domain.ModelPresetUnspecified
+	if r.ModelPreset.Valid {
+		modelPreset = domain.ModelPreset(r.ModelPreset.String)
+	}
 	return &domain.AgentProfile{
 		ID:                   r.ID,
 		Name:                 r.Name,
@@ -95,7 +99,7 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 		Description:          r.Description,
 		RunnerType:           domain.RunnerType(r.RunnerType),
 		Model:                r.Model,
-		ModelPreset:          domain.ModelPreset(r.ModelPreset),
+		ModelPreset:          modelPreset,
 		MaxTurns:             r.MaxTurns,
 		Timeout:              time.Duration(r.TimeoutMs) * time.Millisecond,
 		AllowedTools:         r.AllowedTools,
@@ -112,6 +116,10 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 }
 
 func profileFromDomain(p *domain.AgentProfile) *profileRow {
+	modelPreset := sql.NullString{}
+	if p.ModelPreset != "" {
+		modelPreset = sql.NullString{String: string(p.ModelPreset), Valid: true}
+	}
 	return &profileRow{
 		ID:                   p.ID,
 		Name:                 p.Name,
@@ -119,7 +127,7 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 		Description:          p.Description,
 		RunnerType:           string(p.RunnerType),
 		Model:                p.Model,
-		ModelPreset:          string(p.ModelPreset),
+		ModelPreset:          modelPreset,
 		MaxTurns:             p.MaxTurns,
 		TimeoutMs:            int64(p.Timeout / time.Millisecond),
 		AllowedTools:         p.AllowedTools,

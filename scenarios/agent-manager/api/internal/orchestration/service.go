@@ -59,6 +59,7 @@ type Service interface {
 	GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
 	GetRunByTag(ctx context.Context, tag string) (*domain.Run, error)
 	ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error)
+	DeleteRun(ctx context.Context, id uuid.UUID) error
 	StopRun(ctx context.Context, id uuid.UUID) error
 	StopRunByTag(ctx context.Context, tag string) error
 	StopAllRuns(ctx context.Context, opts StopAllOptions) (*StopAllResult, error)
@@ -972,6 +973,19 @@ func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*do
 		Status:         opts.Status,
 		TagPrefix:      opts.TagPrefix,
 	})
+}
+
+func (o *Orchestrator) DeleteRun(ctx context.Context, id uuid.UUID) error {
+	run, err := o.GetRun(ctx, id)
+	if err != nil {
+		return err
+	}
+	if run.Status == domain.RunStatusPending ||
+		run.Status == domain.RunStatusStarting ||
+		run.Status == domain.RunStatusRunning {
+		return domain.NewStateError("Run", string(run.Status), "delete", "stop the run before deleting it")
+	}
+	return o.runs.Delete(ctx, id)
 }
 
 // GetRunByTag retrieves a run by its custom tag.

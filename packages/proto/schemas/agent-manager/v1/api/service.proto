@@ -183,6 +183,13 @@ service AgentManagerService {
     };
   }
 
+  // DeleteRun permanently removes a run.
+  rpc DeleteRun(DeleteRunRequest) returns (DeleteRunResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/runs/{run_id}"
+    };
+  }
+
   // StopRun stops a running run.
   rpc StopRun(StopRunRequest) returns (StopRunResponse) {
     option (google.api.http) = {
@@ -533,6 +540,19 @@ message CreateRunRequest {
   // Optional prompt override for this run.
   // If omitted, the task description is used.
   optional string prompt = 9;
+}
+
+// DeleteRunRequest identifies a run to delete.
+message DeleteRunRequest {
+  // Run ID.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// DeleteRunResponse confirms deletion.
+message DeleteRunResponse {
+  // Whether deletion was successful.
+  bool success = 1;
 }
 
 // CreateRunResponse returns the created run.

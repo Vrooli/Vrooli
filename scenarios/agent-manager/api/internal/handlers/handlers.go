@@ -110,6 +110,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
 	r.HandleFunc("/api/v1/runs/tag/{tag}/stop", h.StopRunByTag).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
+	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/events", h.GetRunEvents).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/diff", h.GetRunDiff).Methods("GET")
@@ -1447,6 +1448,27 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 		Runs:  protoconv.RunsToProto(runs),
 		Total: int32(len(runs)),
 	})
+}
+
+// DeleteRun permanently removes a run.
+func (h *Handler) DeleteRun(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	req := apipb.DeleteRunRequest{RunId: idStr}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	id, err := uuid.Parse(req.RunId)
+	if err != nil {
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+
+	if err := h.svc.DeleteRun(r.Context(), id); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.DeleteRunResponse{Success: true})
 }
 
 // StopRun stops a running run.

@@ -973,6 +973,7 @@ export default function App() {
                   loading={runs.loading}
                   error={runs.error}
                   onStopRun={runs.stopRun}
+                  onDeleteRun={runs.deleteRun}
                   onRetryRun={runs.retryRun}
                   onGetEvents={runs.getRunEvents}
                   onGetDiff={runs.getRunDiff}

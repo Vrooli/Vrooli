@@ -511,6 +511,14 @@ export function useRuns() {
     [fetchRuns]
   );
 
+  const deleteRun = useCallback(
+    async (id: string): Promise<void> => {
+      await apiRequest<void>("/runs/" + id, { method: "DELETE" });
+      await fetchRuns();
+    },
+    [fetchRuns]
+  );
+
   const getRunEvents = useCallback(
     async (id: string): Promise<RunEvent[]> => {
       const data = await apiRequest<unknown>("/runs/" + id + "/events");
@@ -573,6 +581,7 @@ export function useRuns() {
     retryRun,
     getRun,
     stopRun,
+    deleteRun,
     getRunEvents,
     getRunDiff,
     approveRun,
