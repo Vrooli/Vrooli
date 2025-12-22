@@ -156,3 +156,43 @@ func (s *Server) handlePlaybooksSeedCleanup(w http.ResponseWriter, r *http.Reque
 		"run_id":   session.Session.RunID,
 	})
 }
+
+func (s *Server) handlePlaybooksSeedCleanupForce(w http.ResponseWriter, r *http.Request) {
+	if s.scenarios == nil {
+		s.writeError(w, http.StatusInternalServerError, "scenario directory service unavailable")
+		return
+	}
+	params := mux.Vars(r)
+	name := strings.TrimSpace(params["name"])
+	if name == "" {
+		s.writeError(w, http.StatusBadRequest, "scenario name is required")
+		return
+	}
+	if strings.ToLower(strings.TrimSpace(r.URL.Query().Get("force"))) != "true" {
+		s.writeError(w, http.StatusBadRequest, "force=true is required to cleanup without a token")
+		return
+	}
+
+	s.seedSessionsMu.Lock()
+	token := s.seedSessionsByScenario[name]
+	session, ok := s.seedSessions[token]
+	delete(s.seedSessions, token)
+	delete(s.seedSessionsByScenario, name)
+	s.seedSessionsMu.Unlock()
+
+	if !ok || session == nil || session.Session == nil {
+		s.writeError(w, http.StatusNotFound, "seed session not found")
+		return
+	}
+
+	if err := session.Session.Cleanup(r.Context()); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	s.writeJSON(w, http.StatusOK, map[string]any{
+		"status":   "cleaned",
+		"scenario": name,
+		"run_id":   session.Session.RunID,
+	})
+}

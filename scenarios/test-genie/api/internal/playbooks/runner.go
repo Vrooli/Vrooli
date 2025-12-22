@@ -468,6 +468,11 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry) Result {
 		ProjectRoot:   projectRoot,
 		InitialParams: r.seedState,
 	}
+	if r.config.ScenarioName == BASScenarioName && len(r.seedState) > 0 {
+		execParams.Env = map[string]any{
+			"seed_applied": true,
+		}
+	}
 	executionID, err := r.basClient.ExecuteWorkflowWithParams(ctx, definition, execName, execDescription, execParams)
 	if err != nil {
 		execErr := NewExecuteError(entry.File, err)

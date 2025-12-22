@@ -151,3 +151,30 @@ func TestServer_handlePlaybooksSeedCleanup_Conflict(t *testing.T) {
 		t.Fatalf("expected 409, got %d", rec.Code)
 	}
 }
+
+func TestServer_handlePlaybooksSeedCleanupForce_Success(t *testing.T) {
+	token := "cleanup-token"
+	server := &Server{
+		config:    Config{Port: "0"},
+		router:    mux.NewRouter(),
+		scenarios: &stubScenarioDirectory{scenarioRoot: "/tmp"},
+		logger:    log.New(io.Discard, "", 0),
+		seedSessions: map[string]*seedSession{
+			token: {
+				Scenario: "demo",
+				Session:  &phases.PlaybooksSeedSession{RunID: "run-123"},
+			},
+		},
+		seedSessionsByScenario: map[string]string{"demo": token},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/playbooks/seed/cleanup-force?force=true", strings.NewReader(`{}`))
+	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
+	rec := httptest.NewRecorder()
+
+	server.handlePlaybooksSeedCleanupForce(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+}

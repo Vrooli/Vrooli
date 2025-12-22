@@ -82,21 +82,21 @@ type phaseCatalog interface {
 
 // Server wires the HTTP router, configuration, and service dependencies behind intentional seams.
 type Server struct {
-	config              Config
-	db                  *sql.DB
-	router              *mux.Router
-	suiteRequests       suiteRequestQueue
-	executionHistory    execution.ExecutionHistory
-	executionSvc        suiteExecutor
-	scenarios           scenarioDirectory
-	phaseCatalog        phaseCatalog
-	logger              Logger
-	agentService        *agents.AgentService
-	containmentSelector containment.ProviderSelector
-	wsManager           *WebSocketManager
-	seedSessions        map[string]*seedSession
+	config                 Config
+	db                     *sql.DB
+	router                 *mux.Router
+	suiteRequests          suiteRequestQueue
+	executionHistory       execution.ExecutionHistory
+	executionSvc           suiteExecutor
+	scenarios              scenarioDirectory
+	phaseCatalog           phaseCatalog
+	logger                 Logger
+	agentService           *agents.AgentService
+	containmentSelector    containment.ProviderSelector
+	wsManager              *WebSocketManager
+	seedSessions           map[string]*seedSession
 	seedSessionsByScenario map[string]string
-	seedSessionsMu      sync.Mutex
+	seedSessionsMu         sync.Mutex
 }
 
 // New creates a configured HTTP server instance.
@@ -140,19 +140,19 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	wsManager := NewWebSocketManager()
 
 	srv := &Server{
-		config:              config,
-		db:                  deps.DB,
-		router:              mux.NewRouter(),
-		suiteRequests:       deps.SuiteQueue,
-		executionHistory:    deps.Executions,
-		executionSvc:        deps.ExecutionSvc,
-		scenarios:           deps.Scenarios,
-		phaseCatalog:        deps.PhaseCatalog,
-		logger:              logger,
-		agentService:        deps.AgentService,
-		containmentSelector: containmentSel,
-		wsManager:           wsManager,
-		seedSessions:        make(map[string]*seedSession),
+		config:                 config,
+		db:                     deps.DB,
+		router:                 mux.NewRouter(),
+		suiteRequests:          deps.SuiteQueue,
+		executionHistory:       deps.Executions,
+		executionSvc:           deps.ExecutionSvc,
+		scenarios:              deps.Scenarios,
+		phaseCatalog:           deps.PhaseCatalog,
+		logger:                 logger,
+		agentService:           deps.AgentService,
+		containmentSelector:    containmentSel,
+		wsManager:              wsManager,
+		seedSessions:           make(map[string]*seedSession),
 		seedSessionsByScenario: make(map[string]string),
 	}
 
@@ -186,6 +186,7 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}/ui-smoke", s.handleUISmoke).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/apply", s.handlePlaybooksSeedApply).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/cleanup", s.handlePlaybooksSeedCleanup).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/cleanup-force", s.handlePlaybooksSeedCleanupForce).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/files", s.handleListScenarioFiles).Methods("GET")
 	apiRouter.HandleFunc("/agents/models", s.handleListAgentModels).Methods("GET")
 	apiRouter.HandleFunc("/agents/spawn", s.handleSpawnAgents).Methods("POST")
