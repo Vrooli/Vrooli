@@ -33,11 +33,19 @@ func (s *Server) handleCreateIngestJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.TrimSpace(req.ExternalID) != "" && s.metadata != nil {
+		if mapping, ok, err := s.metadata.LookupExternalIDMapping(r.Context(), req.Namespace, req.ExternalID, "document"); err == nil && ok && strings.TrimSpace(mapping.DocumentID) != "" {
+			req.DocumentID = mapping.DocumentID
+		}
+	}
+
 	jobID, err := s.jobStore.EnqueueDocumentIngest(r.Context(), ports.DocumentIngestJobRequest{
 		Namespace:    req.Namespace,
 		Collection:   req.Collection,
 		DocumentID:   req.DocumentID,
+		ExternalID:   req.ExternalID,
 		Content:      req.Content,
+		Tags:         normalizeStringList(req.Tags),
 		Metadata:     req.Metadata,
 		Visibility:   req.Visibility,
 		Source:       req.Source,
@@ -92,4 +100,3 @@ func (s *Server) handleGetIngestJob(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(status)
 }
-

@@ -22,4 +22,3 @@ func main() {
 		log.Fatalf("server stopped with error: %v", err)
 	}
 }
-

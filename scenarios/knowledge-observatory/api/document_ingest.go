@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"knowledge-observatory/internal/ports"
 	"knowledge-observatory/internal/services/ingest"
 )
 
@@ -22,7 +23,9 @@ type IngestDocumentRequest struct {
 	Namespace    string                 `json:"namespace"`
 	Collection   string                 `json:"collection,omitempty"`
 	DocumentID   string                 `json:"document_id,omitempty"`
+	ExternalID   string                 `json:"external_id,omitempty"`
 	Content      string                 `json:"content"`
+	Tags         []string               `json:"tags,omitempty"`
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 	Visibility   string                 `json:"visibility,omitempty"`
 	Source       string                 `json:"source,omitempty"`
@@ -45,6 +48,7 @@ func (r *IngestDocumentRequest) normalize() error {
 	r.Namespace = strings.TrimSpace(r.Namespace)
 	r.Collection = normalizeKnowledgeCollection(r.Collection)
 	r.DocumentID = strings.TrimSpace(r.DocumentID)
+	r.ExternalID = strings.TrimSpace(r.ExternalID)
 	r.Content = strings.TrimSpace(r.Content)
 	r.Source = strings.TrimSpace(r.Source)
 	r.SourceType = strings.TrimSpace(r.SourceType)
@@ -62,7 +66,11 @@ func (r *IngestDocumentRequest) normalize() error {
 		return errors.New("content is required")
 	}
 	if r.DocumentID == "" {
-		r.DocumentID = newUUIDv4()
+		if r.ExternalID != "" {
+			r.DocumentID = ingest.HashExternalID(r.Namespace, r.ExternalID)
+		} else {
+			r.DocumentID = ingest.HashDocument(r.Namespace, r.Content)
+		}
 	}
 
 	if r.ChunkSize <= 0 {
@@ -101,8 +109,15 @@ func (s *Server) handleIngestDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.TrimSpace(req.ExternalID) != "" && s.metadata != nil {
+		if mapping, ok, err := s.metadata.LookupExternalIDMapping(r.Context(), req.Namespace, req.ExternalID, "document"); err == nil && ok && strings.TrimSpace(mapping.DocumentID) != "" {
+			req.DocumentID = mapping.DocumentID
+		}
+	}
+
 	chunks := ingest.ChunkText(req.Content, req.ChunkSize, req.ChunkOverlap, maxChunksPerDoc)
 	recordIDs := make([]string, 0, len(chunks))
+	tags := normalizeStringList(req.Tags)
 	for i, chunk := range chunks {
 		idx := i
 		recordID := ingest.RecordIDForChunk(req.Namespace, req.DocumentID, i, chunk)
@@ -111,8 +126,10 @@ func (s *Server) handleIngestDocument(w http.ResponseWriter, r *http.Request) {
 			Collection: req.Collection,
 			RecordID:   recordID,
 			DocumentID: req.DocumentID,
+			ExternalID: req.ExternalID,
 			ChunkIndex: &idx,
 			Content:    chunk,
+			Tags:       tags,
 			Metadata:   req.Metadata,
 			Visibility: req.Visibility,
 			Source:     req.Source,
@@ -134,6 +151,16 @@ func (s *Server) handleIngestDocument(w http.ResponseWriter, r *http.Request) {
 		RecordIDs:   recordIDs,
 		ContentHash: ingest.HashDocument(req.Namespace, req.Content),
 		TookMS:      time.Since(start).Milliseconds(),
+	}
+
+	if strings.TrimSpace(req.ExternalID) != "" && s != nil && s.metadata != nil {
+		_ = s.metadata.UpsertExternalIDMapping(r.Context(), ports.ExternalIDMapping{
+			Namespace:   req.Namespace,
+			ExternalID:  req.ExternalID,
+			Kind:        "document",
+			DocumentID:  req.DocumentID,
+			ContentHash: ingest.HashDocument(req.Namespace, req.Content),
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")

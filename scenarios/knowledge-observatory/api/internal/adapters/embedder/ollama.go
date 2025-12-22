@@ -70,4 +70,3 @@ func (o *Ollama) Embed(ctx context.Context, text string) ([]float64, error) {
 
 	return decoded.Embedding, nil
 }
-

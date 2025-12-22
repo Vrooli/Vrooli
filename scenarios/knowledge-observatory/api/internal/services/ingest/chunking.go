@@ -13,6 +13,13 @@ func HashDocument(namespace, content string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func HashExternalID(namespace, externalID string) string {
+	normalizedNamespace := strings.TrimSpace(namespace)
+	normalizedExternalID := strings.TrimSpace(externalID)
+	sum := sha256.Sum256([]byte(normalizedNamespace + "\n" + normalizedExternalID))
+	return hex.EncodeToString(sum[:])
+}
+
 func ChunkText(text string, chunkSize, chunkOverlap int, maxChunks int) []string {
 	runes := []rune(text)
 	if len(runes) == 0 {
@@ -56,4 +63,3 @@ func RecordIDForChunk(namespace, documentID string, chunkIndex int, chunk string
 	sum := sha256.Sum256([]byte(strings.TrimSpace(namespace) + "\n" + strings.TrimSpace(documentID) + "\n" + strconv.Itoa(chunkIndex) + "\n" + chunk))
 	return hex.EncodeToString(sum[:])
 }
-

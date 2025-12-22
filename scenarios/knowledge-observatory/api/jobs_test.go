@@ -107,4 +107,3 @@ func TestHandleGetIngestJobFound(t *testing.T) {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
 }
-

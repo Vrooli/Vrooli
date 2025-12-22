@@ -14,13 +14,19 @@ import (
 type Service struct {
 	VectorStore ports.VectorStore
 	Embedder    ports.Embedder
+	Metadata    ports.MetadataStore
 }
 
 type Request struct {
-	Query      string
-	Collection string
-	Limit      int
-	Threshold  float64
+	Query            string
+	Collection       string
+	Namespaces       []string
+	Visibility       []string
+	Tags             []string
+	IngestedAfterMS  *int64
+	IngestedBeforeMS *int64
+	Limit            int
+	Threshold        float64
 }
 
 type Result struct {
@@ -109,8 +115,18 @@ func (s *Service) Search(ctx context.Context, req Request) (Response, error) {
 	}
 
 	all := make([]Result, 0, req.Limit*len(collections))
+	filter := &ports.VectorFilter{
+		Namespaces:       req.Namespaces,
+		Visibility:       req.Visibility,
+		Tags:             req.Tags,
+		IngestedAfterMS:  req.IngestedAfterMS,
+		IngestedBeforeMS: req.IngestedBeforeMS,
+	}
+	if len(filter.Namespaces) == 0 && len(filter.Visibility) == 0 && len(filter.Tags) == 0 && filter.IngestedAfterMS == nil && filter.IngestedBeforeMS == nil {
+		filter = nil
+	}
 	for _, coll := range collections {
-		found, err := s.VectorStore.Search(ctx, coll, embedding, req.Limit, req.Threshold)
+		found, err := s.VectorStore.Search(ctx, coll, embedding, req.Limit, req.Threshold, filter)
 		if err != nil {
 			continue
 		}
@@ -131,10 +147,28 @@ func (s *Service) Search(ctx context.Context, req Request) (Response, error) {
 		all = all[:req.Limit]
 	}
 
+	if s.Metadata != nil {
+		var avgScore *float64
+		if len(all) > 0 {
+			sum := 0.0
+			for _, r := range all {
+				sum += r.Score
+			}
+			v := sum / float64(len(all))
+			avgScore = &v
+		}
+		_ = s.Metadata.InsertSearchHistory(ctx, ports.SearchHistoryRow{
+			Query:          req.Query,
+			Collection:     req.Collection,
+			ResultCount:    len(all),
+			AvgScore:       avgScore,
+			ResponseTimeMS: time.Since(start).Milliseconds(),
+		})
+	}
+
 	return Response{
 		Results: all,
 		Query:   req.Query,
 		TookMS:  time.Since(start).Milliseconds(),
 	}, nil
 }
-

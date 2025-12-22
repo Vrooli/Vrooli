@@ -29,7 +29,7 @@ func TestNewServerValidation(t *testing.T) {
 				os.Unsetenv("DATABASE_URL")
 			},
 			wantErr:    true, // Will fail to connect to non-existent DB, but validates config parsing
-			errContain: "", // Accept any error since DB won't exist
+			errContain: "",   // Accept any error since DB won't exist
 		},
 		{
 			name: "initializes successfully with individual postgres vars",
@@ -231,10 +231,10 @@ func TestHandleHealthWithDB(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		setupDB        func() *sql.DB
-		wantStatusOK   bool
-		wantDBHealthy  bool
+		name          string
+		setupDB       func() *sql.DB
+		wantStatusOK  bool
+		wantDBHealthy bool
 	}{
 		{
 			name: "reports unhealthy when db is nil",

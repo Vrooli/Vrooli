@@ -15,9 +15,9 @@ import (
 )
 
 type fakeVectorStore struct {
-	deletedID        string
+	deletedID         string
 	deletedCollection string
-	deleteErr        error
+	deleteErr         error
 }
 
 func (f *fakeVectorStore) EnsureCollection(ctx context.Context, collection string, vectorSize int) error {
@@ -31,12 +31,17 @@ func (f *fakeVectorStore) DeletePoint(ctx context.Context, collection string, id
 	f.deletedID = id
 	return f.deleteErr
 }
-func (f *fakeVectorStore) Search(ctx context.Context, collection string, vector []float64, limit int, threshold float64) ([]ports.VectorSearchResult, error) {
+func (f *fakeVectorStore) Search(ctx context.Context, collection string, vector []float64, limit int, threshold float64, filter *ports.VectorFilter) ([]ports.VectorSearchResult, error) {
 	return nil, nil
 }
-func (f *fakeVectorStore) ListCollections(ctx context.Context) ([]string, error) { return []string{}, nil }
+func (f *fakeVectorStore) ListCollections(ctx context.Context) ([]string, error) {
+	return []string{}, nil
+}
 func (f *fakeVectorStore) CountPoints(ctx context.Context, collection string) (int, error) {
 	return 0, nil
+}
+func (f *fakeVectorStore) SamplePoints(ctx context.Context, collection string, limit int) ([]ports.VectorPoint, error) {
+	return []ports.VectorPoint{}, nil
 }
 
 type fakeMetadataStore struct {
@@ -51,8 +56,26 @@ func (f *fakeMetadataStore) UpsertKnowledgeMetadata(ctx context.Context, vectorI
 func (f *fakeMetadataStore) InsertIngestHistory(ctx context.Context, row ports.IngestHistoryRow) error {
 	return nil
 }
+func (f *fakeMetadataStore) InsertSearchHistory(ctx context.Context, row ports.SearchHistoryRow) error {
+	return nil
+}
 func (f *fakeMetadataStore) LookupCollectionForVectorID(ctx context.Context, vectorID string) (string, bool, error) {
 	return f.collection, f.ok, f.err
+}
+func (f *fakeMetadataStore) UpsertExternalIDMapping(ctx context.Context, mapping ports.ExternalIDMapping) error {
+	return nil
+}
+func (f *fakeMetadataStore) LookupExternalIDMapping(ctx context.Context, namespace, externalID, kind string) (ports.ExternalIDMapping, bool, error) {
+	return ports.ExternalIDMapping{}, false, nil
+}
+func (f *fakeMetadataStore) UpsertQualityMetrics(ctx context.Context, row ports.QualityMetricsRow) error {
+	return nil
+}
+func (f *fakeMetadataStore) UpsertCollectionStats(ctx context.Context, row ports.CollectionStatsRow) error {
+	return nil
+}
+func (f *fakeMetadataStore) UpsertRelationshipEdges(ctx context.Context, edges []ports.RelationshipEdgeRow) error {
+	return nil
 }
 
 func TestHandleDeleteRecord(t *testing.T) {
@@ -126,4 +149,3 @@ func TestHandleDeleteRecordVectorStoreError(t *testing.T) {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
 }
-

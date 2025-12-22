@@ -78,7 +78,12 @@ normalize_api_base() {
     if [[ -z "$value" || "$value" == "null" ]]; then
         return 1
     fi
-    echo "${value%/}"
+    value="${value%/}"
+    if [[ "$value" == */api/v1 ]]; then
+        echo "$value"
+        return 0
+    fi
+    echo "${value}/api/v1"
 }
 
 resolve_api_base() {
@@ -96,6 +101,15 @@ resolve_api_base() {
     fi
 
     return 1
+}
+
+api_root() {
+    local base="${API_BASE%/}"
+    if [[ "$base" == */api/v1 ]]; then
+        echo "${base%/api/v1}"
+        return 0
+    fi
+    echo "$base"
 }
 
 api_request() {
@@ -123,7 +137,9 @@ api_request() {
 
 cmd_status() {
     echo -e "${BLUE}Checking system health...${NC}"
-    response=$(api_request GET "/health" || true)
+    local root
+    root="$(api_root)"
+    response=$(curl -s -X GET -H 'Content-Type: application/json' "${root}/health" || true)
     if [[ -z "$response" ]]; then
         echo -e "${RED}✗${NC} API is not reachable"
         return 1
@@ -141,6 +157,89 @@ cmd_status() {
         "  Version: \(.version // "unknown")",
         "  Database: \(.dependencies.database // "unknown")"
     ' 2>/dev/null || true
+}
+
+cmd_health() {
+    api_request GET "/knowledge/health"
+}
+
+cmd_graph() {
+    local center="${1:-}"
+    shift || true
+
+    local collection=""
+    local namespaces=""
+    local visibility=""
+    local tags=""
+    local depth=""
+    local limit=""
+    local threshold=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --collection)
+                collection="${2:-}"
+                shift 2
+                ;;
+            --namespaces)
+                namespaces="${2:-}"
+                shift 2
+                ;;
+            --visibility)
+                visibility="${2:-}"
+                shift 2
+                ;;
+            --tags)
+                tags="${2:-}"
+                shift 2
+                ;;
+            --depth)
+                depth="${2:-}"
+                shift 2
+                ;;
+            --limit)
+                limit="${2:-}"
+                shift 2
+                ;;
+            --threshold)
+                threshold="${2:-}"
+                shift 2
+                ;;
+            *)
+                echo -e "${RED}✗${NC} Unknown option: $1" >&2
+                return 1
+                ;;
+        esac
+    done
+
+    if [[ -z "$center" ]]; then
+        echo -e "${RED}✗${NC} center_concept is required" >&2
+        return 1
+    fi
+
+    local payload
+    payload="$(jq -n \
+        --arg center "$center" \
+        --arg collection "$collection" \
+        --arg namespaces "$namespaces" \
+        --arg visibility "$visibility" \
+        --arg tags "$tags" \
+        --arg depth "$depth" \
+        --arg limit "$limit" \
+        --arg threshold "$threshold" \
+        '{
+            center_concept: $center
+        }
+        + ( ($collection | length) > 0 ? {collection: $collection} : {} )
+        + ( ($namespaces | length) > 0 ? {namespaces: ($namespaces | split(",") | map(gsub("^\\s+|\\s+$";"")) | map(select(length>0)))} : {} )
+        + ( ($visibility | length) > 0 ? {visibility: ($visibility | split(",") | map(gsub("^\\s+|\\s+$";"")) | map(select(length>0)))} : {} )
+        + ( ($tags | length) > 0 ? {tags: ($tags | split(",") | map(gsub("^\\s+|\\s+$";"")) | map(select(length>0)))} : {} )
+        + ( ($depth | length) > 0 ? {depth: ($depth | tonumber)} : {} )
+        + ( ($limit | length) > 0 ? {limit: ($limit | tonumber)} : {} )
+        + ( ($threshold | length) > 0 ? {threshold: ($threshold | tonumber)} : {} )
+        ')"
+
+    api_request POST "/knowledge/graph" "$payload"
 }
 
 cmd_search() {
@@ -440,6 +539,9 @@ Commands:
     ingest          Ingest a record (calls KO API write path)
     ingest-job      Enqueue an async document ingest job
     job-status      Get async ingest job status
+    health          Knowledge health metrics (GET /api/v1/knowledge/health)
+    metrics         Alias for health
+    graph           Knowledge graph (calls KO API)
     configure       View or update CLI configuration
     version         Show CLI version
     help            Show this help message
@@ -468,7 +570,7 @@ main() {
         API_BASE="${env_api_base%/}"
     fi
 
-    if [[ "$command" == "status" || "$command" == "search" || "$command" == "ingest" || "$command" == "ingest-job" || "$command" == "job-status" ]]; then
+    if [[ "$command" == "status" || "$command" == "search" || "$command" == "ingest" || "$command" == "ingest-job" || "$command" == "job-status" || "$command" == "health" || "$command" == "metrics" || "$command" == "graph" ]]; then
         if [[ -z "$API_BASE" ]]; then
             if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
                 echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it with '$CLI_NAME configure api_base <url>'."
@@ -492,6 +594,15 @@ main() {
             ;;
         job-status)
             cmd_job_status "$@"
+            ;;
+        health)
+            cmd_health "$@"
+            ;;
+        metrics)
+            cmd_health "$@"
+            ;;
+        graph)
+            cmd_graph "$@"
             ;;
         configure|config)
             cmd_configure "$@"

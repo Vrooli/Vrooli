@@ -24,6 +24,7 @@ import (
 	"knowledge-observatory/internal/adapters/metadatastore"
 	"knowledge-observatory/internal/adapters/vectorstore"
 	"knowledge-observatory/internal/ports"
+	"knowledge-observatory/internal/services/graph"
 	"knowledge-observatory/internal/services/ingest"
 	"knowledge-observatory/internal/services/ingestjobs"
 	"knowledge-observatory/internal/services/search"
@@ -31,7 +32,7 @@ import (
 
 // Config holds minimal runtime configuration
 type Config struct {
-	Port                  string
+	Port                   string
 	DatabaseURL            string
 	QdrantURL              string
 	QdrantAPIKey           string
@@ -54,8 +55,10 @@ type Server struct {
 
 	ingestService *ingest.Service
 	searchService *search.Service
+	graphService  *graph.Service
 
 	ingestJobRunner *ingestjobs.Runner
+	materializer    *Materializer
 }
 
 // NewServer initializes configuration, database, and routes
@@ -66,7 +69,7 @@ func NewServer() (*Server, error) {
 	}
 
 	cfg := &Config{
-		Port:                  requireEnv("API_PORT"),
+		Port:                   requireEnv("API_PORT"),
 		DatabaseURL:            dbURL,
 		QdrantURL:              strings.TrimSpace(os.Getenv("QDRANT_URL")),
 		QdrantAPIKey:           strings.TrimSpace(os.Getenv("QDRANT_API_KEY")),
@@ -130,15 +133,35 @@ func (s *Server) setupServices() {
 	s.searchService = &search.Service{
 		VectorStore: vs,
 		Embedder:    emb,
+		Metadata:    meta,
+	}
+
+	s.graphService = &graph.Service{
+		VectorStore: vs,
+		Embedder:    emb,
 	}
 
 	if js != nil {
 		s.ingestJobRunner = &ingestjobs.Runner{
-			Jobs:    js,
-			Ingest:  s.ingestService,
-			Now:     time.Now,
-			Sleep:   time.Sleep,
+			Jobs:      js,
+			Ingest:    s.ingestService,
+			Now:       time.Now,
+			Sleep:     time.Sleep,
 			MaxChunks: maxChunksPerDoc,
+		}
+	}
+
+	if meta != nil {
+		s.materializer = &Materializer{
+			VectorStore:           vs,
+			Metadata:              meta,
+			Now:                   time.Now,
+			Sleep:                 time.Sleep,
+			Interval:              5 * time.Minute,
+			SampleLimit:           200,
+			RelationshipThreshold: 0.85,
+			MaxEdges:              500,
+			MaxPairsPerVector:     25,
 		}
 	}
 }
@@ -153,6 +176,9 @@ func (s *Server) setupRoutes() {
 
 	// Knowledge health metrics endpoint [REQ:KO-QM-004]
 	s.router.HandleFunc("/api/v1/knowledge/health", s.handleHealthEndpoint).Methods("GET")
+
+	// Knowledge graph endpoint
+	s.router.HandleFunc("/api/v1/knowledge/graph", s.handleGraph).Methods("GET", "POST")
 
 	// Canonical knowledge write path (records) - sync upsert
 	s.router.HandleFunc("/api/v1/knowledge/records/upsert", s.handleUpsertRecord).Methods("POST")
@@ -174,6 +200,9 @@ func (s *Server) Start() error {
 	runnerCtx, runnerCancel := context.WithCancel(context.Background())
 	if s.ingestJobRunner != nil && s.db != nil {
 		go s.ingestJobRunner.Run(runnerCtx)
+	}
+	if s.materializer != nil && s.db != nil {
+		go s.materializer.Run(runnerCtx)
 	}
 
 	httpServer := &http.Server{

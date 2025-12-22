@@ -221,10 +221,11 @@ func (q *Qdrant) DeletePoint(ctx context.Context, collection string, id string) 
 }
 
 type searchRequest struct {
-	Vector         []float64 `json:"vector"`
-	Limit          int       `json:"limit"`
-	WithPayload    bool      `json:"with_payload"`
-	ScoreThreshold *float64  `json:"score_threshold,omitempty"`
+	Vector         []float64   `json:"vector"`
+	Limit          int         `json:"limit"`
+	WithPayload    bool        `json:"with_payload"`
+	Filter         interface{} `json:"filter,omitempty"`
+	ScoreThreshold *float64    `json:"score_threshold,omitempty"`
 }
 
 type searchResponse struct {
@@ -233,6 +234,57 @@ type searchResponse struct {
 		Score   float64                `json:"score"`
 		Payload map[string]interface{} `json:"payload"`
 	} `json:"result"`
+}
+
+type matchAny struct {
+	Any []string `json:"any"`
+}
+
+type matchClause struct {
+	Match matchAny `json:"match"`
+	Key   string   `json:"key"`
+}
+
+type rangeClause struct {
+	Range map[string]int64 `json:"range"`
+	Key   string           `json:"key"`
+}
+
+type qdrantFilter struct {
+	Must []interface{} `json:"must,omitempty"`
+}
+
+func buildFilter(filter *ports.VectorFilter) *qdrantFilter {
+	if filter == nil {
+		return nil
+	}
+
+	must := make([]interface{}, 0, 4)
+	if len(filter.Namespaces) > 0 {
+		must = append(must, matchClause{Key: "namespace", Match: matchAny{Any: filter.Namespaces}})
+	}
+	if len(filter.Visibility) > 0 {
+		must = append(must, matchClause{Key: "visibility", Match: matchAny{Any: filter.Visibility}})
+	}
+	if len(filter.Tags) > 0 {
+		must = append(must, matchClause{Key: "tags", Match: matchAny{Any: filter.Tags}})
+	}
+
+	if filter.IngestedAfterMS != nil || filter.IngestedBeforeMS != nil {
+		rng := map[string]int64{}
+		if filter.IngestedAfterMS != nil {
+			rng["gte"] = *filter.IngestedAfterMS
+		}
+		if filter.IngestedBeforeMS != nil {
+			rng["lte"] = *filter.IngestedBeforeMS
+		}
+		must = append(must, rangeClause{Key: "ingested_at_unix_ms", Range: rng})
+	}
+
+	if len(must) == 0 {
+		return nil
+	}
+	return &qdrantFilter{Must: must}
 }
 
 func stringifyID(id interface{}) string {
@@ -246,7 +298,7 @@ func stringifyID(id interface{}) string {
 	}
 }
 
-func (q *Qdrant) Search(ctx context.Context, collection string, vector []float64, limit int, threshold float64) ([]ports.VectorSearchResult, error) {
+func (q *Qdrant) Search(ctx context.Context, collection string, vector []float64, limit int, threshold float64, filter *ports.VectorFilter) ([]ports.VectorSearchResult, error) {
 	collection = strings.TrimSpace(collection)
 	if collection == "" {
 		return nil, fmt.Errorf("collection is required")
@@ -265,6 +317,9 @@ func (q *Qdrant) Search(ctx context.Context, collection string, vector []float64
 		Vector:      vector,
 		Limit:       limit,
 		WithPayload: true,
+	}
+	if built := buildFilter(filter); built != nil {
+		reqObj.Filter = built
 	}
 	if threshold > 0 {
 		reqObj.ScoreThreshold = &threshold
@@ -301,6 +356,86 @@ func (q *Qdrant) Search(ctx context.Context, collection string, vector []float64
 			ID:      stringifyID(r.ID),
 			Score:   r.Score,
 			Payload: r.Payload,
+		})
+	}
+	return out, nil
+}
+
+type scrollRequest struct {
+	Limit       int         `json:"limit"`
+	WithPayload bool        `json:"with_payload"`
+	WithVectors bool        `json:"with_vectors"`
+	Filter      interface{} `json:"filter,omitempty"`
+	Offset      interface{} `json:"offset,omitempty"`
+}
+
+type scrollResponse struct {
+	Result struct {
+		Points []struct {
+			ID      interface{}            `json:"id"`
+			Vector  []float64              `json:"vector"`
+			Payload map[string]interface{} `json:"payload"`
+		} `json:"points"`
+		NextPageOffset interface{} `json:"next_page_offset"`
+	} `json:"result"`
+}
+
+func (q *Qdrant) SamplePoints(ctx context.Context, collection string, limit int) ([]ports.VectorPoint, error) {
+	collection = strings.TrimSpace(collection)
+	if collection == "" {
+		return nil, fmt.Errorf("collection is required")
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+
+	base, err := q.baseURL()
+	if err != nil {
+		return nil, err
+	}
+	u, err := url.Parse(base)
+	if err != nil {
+		return nil, fmt.Errorf("invalid qdrant url: %w", err)
+	}
+	u.Path = fmt.Sprintf("%s/collections/%s/points/scroll", strings.TrimRight(u.Path, "/"), collection)
+
+	reqObj := scrollRequest{
+		Limit:       limit,
+		WithPayload: true,
+		WithVectors: true,
+	}
+	body, err := json.Marshal(reqObj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal scroll request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", u.String(), bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := q.do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("qdrant scroll returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+
+	var decoded scrollResponse
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return nil, fmt.Errorf("failed to decode scroll response: %w", err)
+	}
+
+	out := make([]ports.VectorPoint, 0, len(decoded.Result.Points))
+	for _, p := range decoded.Result.Points {
+		out = append(out, ports.VectorPoint{
+			ID:      stringifyID(p.ID),
+			Vector:  p.Vector,
+			Payload: p.Payload,
 		})
 	}
 	return out, nil
@@ -401,4 +536,3 @@ func (q *Qdrant) CountPoints(ctx context.Context, collection string) (int, error
 	}
 	return decoded.Result.Count, nil
 }
-

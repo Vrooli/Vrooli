@@ -19,4 +19,3 @@ func (s *Server) qdrantDo(req *http.Request) (*http.Response, error) {
 	}
 	return resp, nil
 }
-

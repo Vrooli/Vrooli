@@ -54,4 +54,3 @@ func (s *Server) listQdrantCollectionsHTTP(ctx context.Context) ([]string, error
 	}
 	return out, nil
 }
-

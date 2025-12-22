@@ -31,4 +31,3 @@ func normalizeVisibility(value string) (string, error) {
 		return "", errors.New("visibility must be one of: private, shared, global")
 	}
 }
-

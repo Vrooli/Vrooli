@@ -23,9 +23,11 @@ type UpsertRecordRequest struct {
 	Namespace  string
 	Collection string
 	RecordID   string
+	ExternalID string
 	DocumentID string
 	ChunkIndex *int
 	Content    string
+	Tags       []string
 	Metadata   map[string]interface{}
 	Visibility string
 	Source     string
@@ -44,6 +46,7 @@ func (r *UpsertRecordRequest) Validate() error {
 	r.Namespace = strings.TrimSpace(r.Namespace)
 	r.Collection = strings.TrimSpace(r.Collection)
 	r.RecordID = strings.TrimSpace(r.RecordID)
+	r.ExternalID = strings.TrimSpace(r.ExternalID)
 	r.Content = strings.TrimSpace(r.Content)
 	r.Visibility = strings.TrimSpace(r.Visibility)
 	r.Source = strings.TrimSpace(r.Source)
@@ -103,20 +106,26 @@ func (s *Service) UpsertRecord(ctx context.Context, req UpsertRecordRequest) (Up
 		return UpsertRecordResponse{}, fmt.Errorf("ensure collection failed: %w", err)
 	}
 
+	now := s.now().UTC()
 	payload := map[string]interface{}{
-		"schema_version": "ko.knowledge.v1",
-		"namespace":      req.Namespace,
-		"visibility":     req.Visibility,
-		"document_id":    strings.TrimSpace(req.DocumentID),
-		"record_id":      req.RecordID,
-		"chunk_index":    req.ChunkIndex,
-		"content":        req.Content,
-		"content_hash":   hash,
-		"ingested_at":    s.now().UTC().Format(time.RFC3339),
-		"metadata":       req.Metadata,
+		"schema_version":      "ko.knowledge.v1",
+		"namespace":           req.Namespace,
+		"visibility":          req.Visibility,
+		"document_id":         strings.TrimSpace(req.DocumentID),
+		"record_id":           req.RecordID,
+		"external_id":         req.ExternalID,
+		"chunk_index":         req.ChunkIndex,
+		"content":             req.Content,
+		"content_hash":        hash,
+		"ingested_at":         now.Format(time.RFC3339),
+		"ingested_at_unix_ms": now.UnixMilli(),
+		"metadata":            req.Metadata,
 	}
 	if strings.TrimSpace(req.DocumentID) == "" {
 		delete(payload, "document_id")
+	}
+	if strings.TrimSpace(req.ExternalID) == "" {
+		delete(payload, "external_id")
 	}
 	if req.ChunkIndex == nil {
 		delete(payload, "chunk_index")
@@ -126,6 +135,9 @@ func (s *Service) UpsertRecord(ctx context.Context, req UpsertRecordRequest) (Up
 	}
 	if req.SourceType != "" {
 		payload["source_type"] = req.SourceType
+	}
+	if len(req.Tags) > 0 {
+		payload["tags"] = req.Tags
 	}
 
 	if err := s.VectorStore.UpsertPoint(ctx, req.Collection, req.RecordID, embedding, payload); err != nil {
@@ -141,6 +153,15 @@ func (s *Service) UpsertRecord(ctx context.Context, req UpsertRecordRequest) (Up
 		if err := s.Metadata.UpsertKnowledgeMetadata(ctx, req.RecordID, req.Collection, hash, req.Namespace, sourceType); err != nil {
 			_ = s.writeHistory(ctx, req, hash, "failure", err.Error(), time.Since(start).Milliseconds())
 			return UpsertRecordResponse{}, fmt.Errorf("metadata upsert failed: %w", err)
+		}
+		if strings.TrimSpace(req.ExternalID) != "" {
+			_ = s.Metadata.UpsertExternalIDMapping(ctx, ports.ExternalIDMapping{
+				Namespace:   req.Namespace,
+				ExternalID:  req.ExternalID,
+				Kind:        "record",
+				RecordID:    req.RecordID,
+				ContentHash: hash,
+			})
 		}
 	}
 

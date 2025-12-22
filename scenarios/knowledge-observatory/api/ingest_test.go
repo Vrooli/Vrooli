@@ -2,12 +2,48 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
+
+	"knowledge-observatory/internal/ports"
+	"knowledge-observatory/internal/services/ingest"
 )
+
+type fakeIngestEmbedder struct{}
+
+func (fakeIngestEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+	return []float64{0.1, 0.2, 0.3}, nil
+}
+
+type fakeIngestVectorStore struct {
+	upserts int
+}
+
+func (f *fakeIngestVectorStore) EnsureCollection(ctx context.Context, collection string, vectorSize int) error {
+	return nil
+}
+func (f *fakeIngestVectorStore) UpsertPoint(ctx context.Context, collection string, id string, vector []float64, payload map[string]interface{}) error {
+	f.upserts++
+	return nil
+}
+func (f *fakeIngestVectorStore) DeletePoint(ctx context.Context, collection string, id string) error {
+	return nil
+}
+func (f *fakeIngestVectorStore) Search(ctx context.Context, collection string, vector []float64, limit int, threshold float64, filter *ports.VectorFilter) ([]ports.VectorSearchResult, error) {
+	return nil, nil
+}
+func (f *fakeIngestVectorStore) ListCollections(ctx context.Context) ([]string, error) {
+	return []string{}, nil
+}
+func (f *fakeIngestVectorStore) CountPoints(ctx context.Context, collection string) (int, error) {
+	return 0, nil
+}
+func (f *fakeIngestVectorStore) SamplePoints(ctx context.Context, collection string, limit int) ([]ports.VectorPoint, error) {
+	return []ports.VectorPoint{}, nil
+}
 
 func TestHandleUpsertRecordValidation(t *testing.T) {
 	srv := &Server{
@@ -53,54 +89,15 @@ func TestHandleUpsertRecordValidation(t *testing.T) {
 }
 
 func TestHandleUpsertRecordSuccess(t *testing.T) {
-	mockOllama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/embeddings" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"embedding":[0.1,0.2,0.3]}`))
-	}))
-	defer mockOllama.Close()
-
-	mockQdrant := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == "GET" && r.URL.Path == "/collections/knowledge_chunks_v1":
-			w.WriteHeader(http.StatusNotFound)
-			return
-		case r.Method == "PUT" && r.URL.Path == "/collections/knowledge_chunks_v1":
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"result":true}`))
-			return
-		case r.Method == "PUT" && r.URL.Path == "/collections/knowledge_chunks_v1/points":
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"status":"ok"}`))
-			return
-		default:
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-	}))
-	defer mockQdrant.Close()
-
-	os.Setenv("OLLAMA_URL", mockOllama.URL)
-	os.Setenv("QDRANT_URL", mockQdrant.URL)
-	defer func() {
-		os.Unsetenv("OLLAMA_URL")
-		os.Unsetenv("QDRANT_URL")
-	}()
-
+	vs := &fakeIngestVectorStore{}
 	srv := &Server{
-		config: &Config{
-			QdrantURL: mockQdrant.URL,
-			OllamaURL: mockOllama.URL,
+		config: &Config{Port: "8080"},
+		ingestService: &ingest.Service{
+			VectorStore: vs,
+			Embedder:    fakeIngestEmbedder{},
+			Metadata:    nil,
 		},
-		db:     nil,
 	}
-	srv.setupServices()
 
 	reqBody := map[string]interface{}{
 		"namespace": "ecosystem-manager",

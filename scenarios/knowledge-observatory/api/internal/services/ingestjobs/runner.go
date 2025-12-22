@@ -66,7 +66,9 @@ func (r *Runner) processOne(ctx context.Context) (bool, error) {
 	req.Namespace = strings.TrimSpace(req.Namespace)
 	req.Collection = strings.TrimSpace(req.Collection)
 	req.DocumentID = strings.TrimSpace(req.DocumentID)
+	req.ExternalID = strings.TrimSpace(req.ExternalID)
 	req.Content = strings.TrimSpace(req.Content)
+	req.Tags = normalizeTags(req.Tags)
 
 	chunks := ingest.ChunkText(req.Content, req.ChunkSize, req.ChunkOverlap, r.MaxChunks)
 	_ = r.Jobs.UpdateJobProgress(ctx, job.JobID, 0, len(chunks))
@@ -79,8 +81,10 @@ func (r *Runner) processOne(ctx context.Context) (bool, error) {
 			Collection: req.Collection,
 			RecordID:   recordID,
 			DocumentID: req.DocumentID,
+			ExternalID: req.ExternalID,
 			ChunkIndex: &idx,
 			Content:    chunk,
+			Tags:       req.Tags,
 			Metadata:   req.Metadata,
 			Visibility: req.Visibility,
 			Source:     req.Source,
@@ -97,3 +101,19 @@ func (r *Runner) processOne(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
+func normalizeTags(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	return out
+}

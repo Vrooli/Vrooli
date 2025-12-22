@@ -24,10 +24,15 @@ const (
 
 // SearchRequest defines the input schema for semantic search
 type SearchRequest struct {
-	Query      string  `json:"query"`
-	Collection string  `json:"collection,omitempty"`
-	Limit      int     `json:"limit,omitempty"`
-	Threshold  float64 `json:"threshold,omitempty"`
+	Query          string   `json:"query"`
+	Collection     string   `json:"collection,omitempty"`
+	Namespaces     []string `json:"namespaces,omitempty"`
+	Visibility     []string `json:"visibility,omitempty"`
+	Tags           []string `json:"tags,omitempty"`
+	IngestedAfter  string   `json:"ingested_after,omitempty"`
+	IngestedBefore string   `json:"ingested_before,omitempty"`
+	Limit          int      `json:"limit,omitempty"`
+	Threshold      float64  `json:"threshold,omitempty"`
 }
 
 // SearchResult represents a single search result
@@ -82,6 +87,15 @@ func validateAndNormalizeSearchRequest(req *SearchRequest) error {
 		return errors.New("Query parameter is required")
 	}
 
+	req.Collection = strings.TrimSpace(req.Collection)
+	req.Namespaces = normalizeStringList(req.Namespaces)
+	req.Tags = normalizeStringList(req.Tags)
+	visibility, err := normalizeVisibilityListStrict(req.Visibility)
+	if err != nil {
+		return err
+	}
+	req.Visibility = visibility
+
 	if req.Limit <= 0 {
 		req.Limit = defaultSearchLimit
 	}
@@ -92,6 +106,36 @@ func validateAndNormalizeSearchRequest(req *SearchRequest) error {
 		req.Threshold = defaultSearchThreshold
 	}
 	return nil
+}
+
+func normalizeStringList(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	return out
+}
+
+func parseRFC3339Millis(value string) (*int64, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return nil, err
+	}
+	ms := parsed.UnixMilli()
+	return &ms, nil
 }
 
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
@@ -113,11 +157,27 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	afterMS, err := parseRFC3339Millis(req.IngestedAfter)
+	if err != nil {
+		s.respondError(w, http.StatusBadRequest, "Invalid ingested_after (must be RFC3339)")
+		return
+	}
+	beforeMS, err := parseRFC3339Millis(req.IngestedBefore)
+	if err != nil {
+		s.respondError(w, http.StatusBadRequest, "Invalid ingested_before (must be RFC3339)")
+		return
+	}
+
 	out, err := s.searchService.Search(r.Context(), search.Request{
-		Query:      req.Query,
-		Collection: req.Collection,
-		Limit:      req.Limit,
-		Threshold:  req.Threshold,
+		Query:            req.Query,
+		Collection:       req.Collection,
+		Namespaces:       req.Namespaces,
+		Visibility:       req.Visibility,
+		Tags:             req.Tags,
+		IngestedAfterMS:  afterMS,
+		IngestedBeforeMS: beforeMS,
+		Limit:            req.Limit,
+		Threshold:        req.Threshold,
 	})
 	if err != nil {
 		s.log("search failed", map[string]interface{}{"error": err.Error()})

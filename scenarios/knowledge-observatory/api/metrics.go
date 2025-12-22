@@ -5,11 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"math"
 	"net/http"
+	"net/url"
+	"sort"
 	"strings"
 	"time"
+
+	"knowledge-observatory/internal/ports"
 )
 
 const (
@@ -29,8 +32,8 @@ type QualityMetrics struct {
 
 // CollectionHealth represents health metrics for a single collection
 type CollectionHealth struct {
-	Name    string         `json:"name"`
-	Size    *int           `json:"size,omitempty"`
+	Name    string          `json:"name"`
+	Size    *int            `json:"size,omitempty"`
 	Metrics *QualityMetrics `json:"metrics,omitempty"`
 }
 
@@ -155,12 +158,13 @@ func cosineSimilarity(a, b []float64) float64 {
 
 // getCollectionHealth calculates health metrics for a collection
 func (s *Server) getCollectionHealth(ctx context.Context, collection string) (*CollectionHealth, error) {
-	// For now, return basic metrics.
-	// We can fetch the real vector count from Qdrant, but quality metrics are still placeholders.
+	var (
+		size    *int
+		metrics *QualityMetrics
+	)
 
-	var size *int
-	if base := strings.TrimSpace(s.qdrantURL()); base != "" {
-		if count, err := s.getCollectionPointCount(ctx, base, collection); err == nil {
+	if s != nil && s.vectorStore != nil {
+		if count, err := s.vectorStore.CountPoints(ctx, collection); err == nil {
 			size = &count
 		} else {
 			s.log("failed to retrieve collection point count", map[string]interface{}{
@@ -168,16 +172,69 @@ func (s *Server) getCollectionHealth(ctx context.Context, collection string) (*C
 				"error":      err.Error(),
 			})
 		}
+
+		points, err := s.vectorStore.SamplePoints(ctx, collection, 200)
+		if err != nil {
+			s.log("failed to sample points for metrics", map[string]interface{}{
+				"collection": collection,
+				"error":      err.Error(),
+			})
+		} else {
+			vectors, timestamps := vectorsAndTimestamps(points)
+			if len(vectors) > 0 {
+				m := calculateQualityMetrics(vectors, timestamps)
+				metrics = &m
+			}
+		}
+	} else if base := strings.TrimSpace(s.qdrantURL()); base != "" {
+		if count, err := s.getCollectionPointCount(ctx, base, collection); err == nil {
+			size = &count
+		}
 	}
 
-	health := &CollectionHealth{
-		Name: collection,
-		Size: size,
-		// Metrics are intentionally omitted unless computed from real underlying data.
-		Metrics: nil,
+	return &CollectionHealth{
+		Name:    collection,
+		Size:    size,
+		Metrics: metrics,
+	}, nil
+}
+
+func vectorsAndTimestamps(points []ports.VectorPoint) ([][]float64, []time.Time) {
+	vectors := make([][]float64, 0, len(points))
+	timestamps := make([]time.Time, 0, len(points))
+
+	for _, p := range points {
+		if len(p.Vector) > 0 {
+			vectors = append(vectors, p.Vector)
+		}
+		if p.Payload == nil {
+			continue
+		}
+
+		if raw, ok := p.Payload["ingested_at_unix_ms"]; ok {
+			switch v := raw.(type) {
+			case float64:
+				timestamps = append(timestamps, time.UnixMilli(int64(v)))
+				continue
+			case int64:
+				timestamps = append(timestamps, time.UnixMilli(v))
+				continue
+			case json.Number:
+				if n, err := v.Int64(); err == nil {
+					timestamps = append(timestamps, time.UnixMilli(n))
+					continue
+				}
+			}
+		}
+		if raw, ok := p.Payload["ingested_at"].(string); ok {
+			if parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(raw)); err == nil {
+				timestamps = append(timestamps, parsed)
+				continue
+			}
+		}
 	}
 
-	return health, nil
+	return vectors, timestamps
 }
 
 type qdrantCountRequest struct {
@@ -230,7 +287,15 @@ func (s *Server) handleHealthEndpoint(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get list of collections
-	collections, err := s.getCollections(ctx)
+	var (
+		collections []string
+		err         error
+	)
+	if s != nil && s.vectorStore != nil {
+		collections, err = s.vectorStore.ListCollections(ctx)
+	} else {
+		collections, err = s.getCollections(ctx)
+	}
 	if err != nil {
 		s.log("failed to list collections", map[string]interface{}{"error": err.Error()})
 		s.respondError(w, http.StatusInternalServerError, "Failed to retrieve collections")
@@ -289,7 +354,7 @@ func averageCollectionMetrics(collectionHealths []CollectionHealth) *QualityMetr
 
 	var (
 		sumCoherence, sumFreshness, sumRedundancy, sumCoverage float64
-		count                                                 int
+		count                                                  int
 	)
 
 	for _, health := range collectionHealths {
@@ -365,4 +430,158 @@ func formatHealthStatus(score *float64) string {
 	default:
 		return "poor"
 	}
+}
+
+type Materializer struct {
+	VectorStore ports.VectorStore
+	Metadata    ports.MetadataStore
+
+	Now   func() time.Time
+	Sleep func(time.Duration)
+
+	Interval time.Duration
+
+	SampleLimit           int
+	RelationshipThreshold float64
+	MaxEdges              int
+	MaxPairsPerVector     int
+}
+
+func (m *Materializer) Run(ctx context.Context) {
+	interval := m.Interval
+	if interval <= 0 {
+		interval = 5 * time.Minute
+	}
+	sleep := m.Sleep
+	if sleep == nil {
+		sleep = time.Sleep
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		_ = m.MaterializeOnce(ctx)
+		sleep(interval)
+	}
+}
+
+func (m *Materializer) MaterializeOnce(ctx context.Context) error {
+	if m == nil || m.VectorStore == nil || m.Metadata == nil {
+		return nil
+	}
+
+	collections, err := m.VectorStore.ListCollections(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, collection := range collections {
+		count, err := m.VectorStore.CountPoints(ctx, collection)
+		if err != nil {
+			continue
+		}
+		_ = m.Metadata.UpsertCollectionStats(ctx, ports.CollectionStatsRow{
+			CollectionName: collection,
+			TotalEntries:   count,
+		})
+
+		points, err := m.VectorStore.SamplePoints(ctx, collection, m.sampleLimit())
+		if err != nil {
+			continue
+		}
+		vectors, timestamps := vectorsAndTimestamps(points)
+		if len(vectors) > 0 {
+			metrics := calculateQualityMetrics(vectors, timestamps)
+			_ = m.Metadata.UpsertQualityMetrics(ctx, ports.QualityMetricsRow{
+				CollectionName: collection,
+				Coherence:      metrics.Coherence,
+				Freshness:      metrics.Freshness,
+				Redundancy:     metrics.Redundancy,
+				Coverage:       metrics.Coverage,
+				TotalEntries:   count,
+			})
+		}
+
+		if edges := m.deriveRelationshipEdges(points); len(edges) > 0 {
+			_ = m.Metadata.UpsertRelationshipEdges(ctx, edges)
+		}
+	}
+
+	return nil
+}
+
+func (m *Materializer) sampleLimit() int {
+	if m == nil || m.SampleLimit <= 0 {
+		return 200
+	}
+	return m.SampleLimit
+}
+
+func (m *Materializer) deriveRelationshipEdges(points []ports.VectorPoint) []ports.RelationshipEdgeRow {
+	if m == nil || m.RelationshipThreshold <= 0 || len(points) < 2 {
+		return nil
+	}
+
+	type edge struct {
+		src string
+		dst string
+		w   float64
+	}
+	candidates := make([]edge, 0, 128)
+
+	maxPairs := m.MaxPairsPerVector
+	if maxPairs <= 0 {
+		maxPairs = 25
+	}
+
+	for i := 0; i < len(points); i++ {
+		if len(points[i].Vector) == 0 {
+			continue
+		}
+		maxJ := len(points)
+		if i+maxPairs+1 < maxJ {
+			maxJ = i + maxPairs + 1
+		}
+		for j := i + 1; j < maxJ; j++ {
+			if len(points[j].Vector) == 0 {
+				continue
+			}
+			w := cosineSimilarity(points[i].Vector, points[j].Vector)
+			if w >= m.RelationshipThreshold {
+				candidates = append(candidates, edge{src: points[i].ID, dst: points[j].ID, w: w})
+			}
+		}
+	}
+
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	sort.SliceStable(candidates, func(i, j int) bool { return candidates[i].w > candidates[j].w })
+	maxEdges := m.MaxEdges
+	if maxEdges <= 0 {
+		maxEdges = 500
+	}
+	if len(candidates) > maxEdges {
+		candidates = candidates[:maxEdges]
+	}
+
+	out := make([]ports.RelationshipEdgeRow, 0, len(candidates))
+	for _, c := range candidates {
+		src := strings.TrimSpace(c.src)
+		dst := strings.TrimSpace(c.dst)
+		if src == "" || dst == "" || src == dst {
+			continue
+		}
+		out = append(out, ports.RelationshipEdgeRow{
+			SourceID:         src,
+			TargetID:         dst,
+			RelationshipType: "semantic_similarity",
+			Weight:           c.w,
+		})
+	}
+	return out
 }

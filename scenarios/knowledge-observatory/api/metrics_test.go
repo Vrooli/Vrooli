@@ -1,13 +1,40 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"knowledge-observatory/internal/ports"
 )
+
+type fakeMetricsVectorStore struct{}
+
+func (fakeMetricsVectorStore) EnsureCollection(ctx context.Context, collection string, vectorSize int) error {
+	return nil
+}
+func (fakeMetricsVectorStore) UpsertPoint(ctx context.Context, collection string, id string, vector []float64, payload map[string]interface{}) error {
+	return nil
+}
+func (fakeMetricsVectorStore) DeletePoint(ctx context.Context, collection string, id string) error {
+	return nil
+}
+func (fakeMetricsVectorStore) Search(ctx context.Context, collection string, vector []float64, limit int, threshold float64, filter *ports.VectorFilter) ([]ports.VectorSearchResult, error) {
+	return nil, nil
+}
+func (fakeMetricsVectorStore) ListCollections(ctx context.Context) ([]string, error) {
+	return []string{}, nil
+}
+func (fakeMetricsVectorStore) CountPoints(ctx context.Context, collection string) (int, error) {
+	return 0, nil
+}
+func (fakeMetricsVectorStore) SamplePoints(ctx context.Context, collection string, limit int) ([]ports.VectorPoint, error) {
+	return []ports.VectorPoint{}, nil
+}
 
 // TestCalculateCoherence validates coherence score calculation [REQ:KO-QM-001]
 func TestCalculateCoherence(t *testing.T) {
@@ -82,7 +109,7 @@ func TestCalculateFreshness(t *testing.T) {
 	t.Run("lower freshness for old timestamps [REQ:KO-QM-002]", func(t *testing.T) {
 		now := time.Now()
 		timestamps := []time.Time{
-			now.Add(-90 * 24 * time.Hour), // 90 days old
+			now.Add(-90 * 24 * time.Hour),  // 90 days old
 			now.Add(-120 * 24 * time.Hour), // 120 days old
 		}
 
@@ -271,7 +298,8 @@ func TestCalculateQualityMetrics(t *testing.T) {
 // TestHandleHealthEndpoint validates health API endpoint [REQ:KO-QM-004]
 func TestHandleHealthEndpoint(t *testing.T) {
 	server := &Server{
-		config: &Config{Port: "8080"},
+		config:      &Config{Port: "8080"},
+		vectorStore: fakeMetricsVectorStore{},
 	}
 
 	t.Run("returns valid health response [REQ:KO-QM-004]", func(t *testing.T) {

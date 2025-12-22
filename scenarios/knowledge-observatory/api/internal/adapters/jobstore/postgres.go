@@ -18,15 +18,15 @@ type Postgres struct {
 }
 
 type jobRow struct {
-	ID             string
-	Status         string
-	ErrorMessage   sql.NullString
-	CreatedAt      time.Time
-	StartedAt      sql.NullTime
-	FinishedAt     sql.NullTime
-	TotalChunks    int
+	ID              string
+	Status          string
+	ErrorMessage    sql.NullString
+	CreatedAt       time.Time
+	StartedAt       sql.NullTime
+	FinishedAt      sql.NullTime
+	TotalChunks     int
 	CompletedChunks int
-	RequestJSON    []byte
+	RequestJSON     []byte
 }
 
 func (p *Postgres) EnqueueDocumentIngest(ctx context.Context, req ports.DocumentIngestJobRequest) (string, error) {
