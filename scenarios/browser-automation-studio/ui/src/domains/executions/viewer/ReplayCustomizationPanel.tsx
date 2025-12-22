@@ -9,6 +9,8 @@ import {
   CURSOR_SCALE_MIN,
   CURSOR_SCALE_MAX,
 } from "@/domains/exports/replay/replayThemeOptions";
+import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from "@/domains/exports/replay/constants";
+import { RangeSlider } from "@shared/ui";
 import type { ReplayCustomizationController } from "./useReplayCustomization";
 
 interface ReplayCustomizationPanelProps {
@@ -34,6 +36,7 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
     replayCursorInitialPosition,
     replayCursorClickAnimation,
     replayCursorScale,
+    replayBrowserScale,
     setReplayChromeTheme,
     setIsCustomizationCollapsed,
     isCustomizationCollapsed,
@@ -54,6 +57,7 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
     handleCursorPositionSelect,
     handleCursorClickAnimationSelect,
     handleCursorScaleChange,
+    handleBrowserScaleChange,
   } = controller;
 
   return (
@@ -117,6 +121,24 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
                   {option.label}
                 </button>
               ))}
+            </div>
+            <div className="mt-4 rounded-xl border border-white/10 bg-slate-900/60 px-3 py-2">
+              <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                <span>Browser size</span>
+                <span>{Math.round(replayBrowserScale * 100)}%</span>
+              </div>
+              <RangeSlider
+                min={MIN_BROWSER_SCALE}
+                max={MAX_BROWSER_SCALE}
+                step={0.05}
+                value={replayBrowserScale}
+                onChange={handleBrowserScaleChange}
+                ariaLabel="Browser size"
+                className="mt-2"
+              />
+              <div className="mt-1 text-[11px] text-slate-500">
+                Scale how much of the canvas the browser occupies.
+              </div>
             </div>
           </div>
 

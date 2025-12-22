@@ -25,6 +25,7 @@ import {
   type CursorOption,
   type CursorPositionOption,
 } from "@/domains/exports/replay/replayThemeOptions";
+import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from "@/domains/exports/replay/constants";
 import type { ExportRenderSource } from "./exportConfig";
 import { getConfig } from "@/config";
 
@@ -35,6 +36,7 @@ export interface ReplayCustomizationController {
   replayCursorInitialPosition: ReplayCursorInitialPosition;
   replayCursorClickAnimation: ReplayCursorClickAnimation;
   replayCursorScale: number;
+  replayBrowserScale: number;
   replayRenderSource: ExportRenderSource;
   setReplayChromeTheme: (value: ReplayChromeTheme) => void;
   setReplayBackgroundTheme: (value: ReplayBackgroundTheme) => void;
@@ -42,6 +44,7 @@ export interface ReplayCustomizationController {
   setReplayCursorInitialPosition: (value: ReplayCursorInitialPosition) => void;
   setReplayCursorClickAnimation: (value: ReplayCursorClickAnimation) => void;
   setReplayCursorScale: (value: number) => void;
+  setReplayBrowserScale: (value: number) => void;
   setReplayRenderSource: (value: ExportRenderSource) => void;
   selectedChromeOption: (typeof REPLAY_CHROME_OPTIONS)[number];
   selectedBackgroundOption: BackgroundOption;
@@ -69,6 +72,7 @@ export interface ReplayCustomizationController {
   handleCursorPositionSelect: (value: ReplayCursorInitialPosition) => void;
   handleCursorClickAnimationSelect: (value: ReplayCursorClickAnimation) => void;
   handleCursorScaleChange: (value: number) => void;
+  handleBrowserScaleChange: (value: number) => void;
 }
 
 const persistToLocalStorage = (key: string, value: string, context?: Record<string, unknown>) => {
@@ -83,6 +87,7 @@ const persistToLocalStorage = (key: string, value: string, context?: Record<stri
 };
 
 const clampCursorScale = (value: number) => Math.min(CURSOR_SCALE_MAX, Math.max(CURSOR_SCALE_MIN, value));
+const clampBrowserScale = (value: number) => Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, value));
 
 const parseReplayConfig = (value: unknown): Record<string, unknown> | null => {
   if (!value || typeof value !== "object") {
@@ -176,6 +181,20 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     }
     return 1;
   });
+  const [replayBrowserScale, setReplayBrowserScale] = useState<number>(() => {
+    if (typeof window === "undefined") {
+      return 1;
+    }
+    const stored = window.localStorage.getItem("browserAutomation.replayBrowserScale");
+    if (!stored) {
+      return 1;
+    }
+    const parsed = Number.parseFloat(stored);
+    if (Number.isFinite(parsed)) {
+      return clampBrowserScale(parsed);
+    }
+    return 1;
+  });
   const [replayRenderSource, setReplayRenderSource] = useState<ExportRenderSource>(() => {
     if (typeof window === "undefined") {
       return "auto";
@@ -237,6 +256,10 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
         if (typeof cursorScale === "number" && Number.isFinite(cursorScale)) {
           setReplayCursorScale(clampCursorScale(cursorScale));
         }
+        const browserScale = config.browserScale ?? config.browser_scale;
+        if (typeof browserScale === "number" && Number.isFinite(browserScale)) {
+          setReplayBrowserScale(clampBrowserScale(browserScale));
+        }
         const renderSource = config.renderSource;
         if (isReplayRenderSource(renderSource)) {
           setReplayRenderSource(renderSource);
@@ -265,6 +288,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
       cursorInitialPosition: replayCursorInitialPosition,
       cursorClickAnimation: replayCursorClickAnimation,
       cursorScale: replayCursorScale,
+      browserScale: replayBrowserScale,
       renderSource: replayRenderSource,
     };
     const serialized = JSON.stringify(payload);
@@ -302,6 +326,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     replayCursorInitialPosition,
     replayCursorScale,
     replayCursorTheme,
+    replayBrowserScale,
     replayRenderSource,
   ]);
 
@@ -336,6 +361,10 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
   useEffect(() => {
     persistToLocalStorage("browserAutomation.replayCursorScale", replayCursorScale.toFixed(2), { executionId });
   }, [replayCursorScale, executionId]);
+
+  useEffect(() => {
+    persistToLocalStorage("browserAutomation.replayBrowserScale", replayBrowserScale.toFixed(2), { executionId });
+  }, [replayBrowserScale, executionId]);
 
   useEffect(() => {
     persistToLocalStorage("browserAutomation.replayRenderSource", replayRenderSource, { executionId });
@@ -461,6 +490,13 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     setReplayCursorScale(clamped);
   }, []);
 
+  const handleBrowserScaleChange = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    setReplayBrowserScale(clampBrowserScale(value));
+  }, []);
+
   return {
     replayChromeTheme,
     replayBackgroundTheme,
@@ -468,6 +504,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     replayCursorInitialPosition,
     replayCursorClickAnimation,
     replayCursorScale,
+    replayBrowserScale,
     replayRenderSource,
     setReplayChromeTheme,
     setReplayBackgroundTheme,
@@ -475,6 +512,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     setReplayCursorInitialPosition,
     setReplayCursorClickAnimation,
     setReplayCursorScale,
+    setReplayBrowserScale,
     setReplayRenderSource,
     selectedChromeOption,
     selectedBackgroundOption,
@@ -502,5 +540,6 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     handleCursorPositionSelect,
     handleCursorClickAnimationSelect,
     handleCursorScaleChange,
+    handleBrowserScaleChange,
   };
 }

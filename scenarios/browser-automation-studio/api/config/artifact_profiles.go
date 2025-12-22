@@ -1,9 +1,9 @@
 // Package config provides artifact collection configuration and preset profiles.
 //
 // Artifact collection can be configured via:
-//   1. Preset profiles: "full", "standard", "minimal", "debug", "none"
-//   2. Custom configuration: Set profile to "custom" and toggle individual artifacts
-//   3. Environment variables: Override default limits globally
+//  1. Preset profiles: "full", "standard", "minimal", "debug", "none"
+//  2. Custom configuration: Set profile to "custom" and toggle individual artifacts
+//  3. Environment variables: Override default limits globally
 //
 // The configuration flows from ExecutionParameters.ArtifactConfig through the
 // executor to the FileWriter, which uses it to decide what to persist.
@@ -19,14 +19,14 @@ import (
 // It merges proto config, profile defaults, and system defaults into a single struct.
 type ArtifactCollectionSettings struct {
 	// Artifact toggles
-	CollectScreenshots    bool
-	CollectDOMSnapshots   bool
-	CollectConsoleLogs    bool
-	CollectNetworkEvents  bool
-	CollectExtractedData  bool
-	CollectAssertions     bool
-	CollectCursorTrails   bool
-	CollectTelemetry      bool
+	CollectScreenshots   bool
+	CollectDOMSnapshots  bool
+	CollectConsoleLogs   bool
+	CollectNetworkEvents bool
+	CollectExtractedData bool
+	CollectAssertions    bool
+	CollectCursorTrails  bool
+	CollectTelemetry     bool
 
 	// Size limits (in bytes)
 	MaxScreenshotBytes     int
@@ -44,16 +44,16 @@ type ArtifactProfile struct {
 
 // Default size limits (can be overridden via config or proto).
 const (
-	DefaultMaxScreenshotBytes     = 512 * 1024  // 512KB
-	DefaultMaxDOMSnapshotBytes    = 512 * 1024  // 512KB
-	DefaultMaxConsoleEntryBytes   = 16 * 1024   // 16KB
-	DefaultMaxNetworkPreviewBytes = 64 * 1024   // 64KB
+	DefaultMaxScreenshotBytes     = 4 * 1024 * 1024 // 4MB
+	DefaultMaxDOMSnapshotBytes    = 512 * 1024      // 512KB
+	DefaultMaxConsoleEntryBytes   = 16 * 1024       // 16KB
+	DefaultMaxNetworkPreviewBytes = 64 * 1024       // 64KB
 
 	// Debug profile uses larger limits for troubleshooting.
-	DebugMaxScreenshotBytes     = 2 * 1024 * 1024  // 2MB
-	DebugMaxDOMSnapshotBytes    = 2 * 1024 * 1024  // 2MB
-	DebugMaxConsoleEntryBytes   = 64 * 1024        // 64KB
-	DebugMaxNetworkPreviewBytes = 256 * 1024       // 256KB
+	DebugMaxScreenshotBytes     = 4 * 1024 * 1024 // 4MB
+	DebugMaxDOMSnapshotBytes    = 2 * 1024 * 1024 // 2MB
+	DebugMaxConsoleEntryBytes   = 64 * 1024       // 64KB
+	DebugMaxNetworkPreviewBytes = 256 * 1024      // 256KB
 )
 
 // Profile names as constants for type safety.

@@ -245,6 +245,7 @@ export interface ReplayPlayerProps {
   cursorInitialPosition?: ReplayCursorInitialPosition;
   cursorScale?: number;
   cursorClickAnimation?: ReplayCursorClickAnimation;
+  browserScale?: number;
   cursorDefaultSpeedProfile?: CursorSpeedProfile;
   cursorDefaultPathStyle?: CursorPathStyle;
   exposeController?: (controller: ReplayPlayerController | null) => void;

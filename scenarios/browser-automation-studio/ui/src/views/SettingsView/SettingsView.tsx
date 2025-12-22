@@ -33,6 +33,7 @@ import {
   isReplayCursorInitialPosition,
   isReplayCursorTheme,
 } from '@/domains/exports/replay/replayThemeOptions';
+import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from '@/domains/exports/replay/constants';
 import {
   DisplaySection,
   ReplaySection,
@@ -84,6 +85,10 @@ const toNumber = (value: unknown): number | null => {
     return value;
   }
   return null;
+};
+
+const clampBrowserScale = (value: number): number => {
+  return Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, value));
 };
 
 const coerceBoolean = (value: unknown, fallback: boolean): boolean => {
@@ -229,6 +234,10 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
         if (cursorScale != null) {
           setReplaySetting('cursorScale', cursorScale);
         }
+        const browserScale = toNumber(config.browserScale ?? config.browser_scale);
+        if (browserScale != null) {
+          setReplaySetting('browserScale', clampBrowserScale(browserScale));
+        }
         if (isValidSpeedProfile(config.cursorSpeedProfile)) {
           setReplaySetting('cursorSpeedProfile', config.cursorSpeedProfile);
         }
@@ -275,6 +284,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
       cursorInitialPosition: replay.cursorInitialPosition,
       cursorClickAnimation: replay.cursorClickAnimation,
       cursorScale: replay.cursorScale,
+      browserScale: replay.browserScale,
       cursorSpeedProfile: replay.cursorSpeedProfile,
       cursorPathStyle: replay.cursorPathStyle,
       renderSource: replay.exportRenderSource,
@@ -310,6 +320,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
   }, [
     isReplayConfigReady,
     replay.backgroundTheme,
+    replay.browserScale,
     replay.chromeTheme,
     replay.cursorClickAnimation,
     replay.cursorInitialPosition,
@@ -595,6 +606,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
                         cursorInitialPosition={replay.cursorInitialPosition}
                         cursorScale={replay.cursorScale}
                         cursorClickAnimation={replay.cursorClickAnimation}
+                        browserScale={replay.browserScale}
                         cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
                         cursorDefaultPathStyle={replay.cursorPathStyle}
                         watermark={replay.watermark}

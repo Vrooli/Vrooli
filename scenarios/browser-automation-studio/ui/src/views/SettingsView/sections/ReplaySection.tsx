@@ -30,6 +30,7 @@ import { RangeSlider } from '@shared/ui';
 import { WatermarkSettings } from '@/domains/exports/replay/WatermarkSettings';
 import { IntroCardSettings } from '@/domains/exports/replay/IntroCardSettings';
 import { OutroCardSettings } from '@/domains/exports/replay/OutroCardSettings';
+import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from '@/domains/exports/replay/constants';
 import { SettingSection, OptionGrid, ToggleSwitch } from './shared';
 
 const SPEED_PROFILE_OPTIONS: Array<{ id: CursorSpeedProfile; label: string; description: string }> = [
@@ -287,6 +288,21 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
           onChange={(v) => setReplaySetting('chromeTheme', v)}
           columns={4}
         />
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm text-gray-300">Browser size</label>
+            <span className="text-sm text-gray-400">{Math.round(replay.browserScale * 100)}%</span>
+          </div>
+          <RangeSlider
+            min={MIN_BROWSER_SCALE}
+            max={MAX_BROWSER_SCALE}
+            step={0.05}
+            value={replay.browserScale}
+            onChange={(next) => setReplaySetting('browserScale', next)}
+            ariaLabel="Browser size"
+          />
+          <p className="mt-2 text-xs text-gray-500">Scale how much of the replay canvas the browser frame occupies.</p>
+        </div>
       </SettingSection>
 
       <SettingSection title="Replay Dimensions" tooltip="Set the default canvas size for styled replays.">

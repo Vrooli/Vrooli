@@ -13,6 +13,7 @@ import ReplayPlayer, {
   type CursorSpeedProfile,
   type CursorPathStyle,
 } from "@/domains/exports/replay/ReplayPlayer";
+import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from "@/domains/exports/replay/constants";
 import {
   mapAssertion,
   mapRegions,
@@ -1395,6 +1396,10 @@ const ReplayExportPage = () => {
     decor.cursor_scale ?? motion?.cursor_scale ?? movieSpec?.cursor?.scale ?? 1;
   const cursorDefaultSpeedProfile = asCursorSpeedProfile(motion?.speed_profile);
   const cursorDefaultPathStyle = asCursorPathStyle(motion?.path_style);
+  const browserFrameWidth = movieSpec?.presentation?.browser_frame?.width;
+  const browserScale = browserFrameWidth && effectiveCanvasWidth > 0
+    ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, browserFrameWidth / effectiveCanvasWidth))
+    : 1;
 
   const handleFrameChange = useCallback(
     (_frame: ReplayFrame, index: number) => {
@@ -1482,6 +1487,7 @@ const ReplayExportPage = () => {
           cursorInitialPosition={cursorInitialPosition}
           cursorScale={cursorScale}
           cursorClickAnimation={cursorClickAnimation}
+          browserScale={browserScale}
           cursorDefaultSpeedProfile={cursorDefaultSpeedProfile}
           cursorDefaultPathStyle={cursorDefaultPathStyle}
           watermark={watermark ?? undefined}

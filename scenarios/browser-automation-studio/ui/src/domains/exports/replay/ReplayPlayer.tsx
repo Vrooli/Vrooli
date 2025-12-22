@@ -33,6 +33,8 @@ import type {
 import {
   MIN_CURSOR_SCALE,
   MAX_CURSOR_SCALE,
+  MIN_BROWSER_SCALE,
+  MAX_BROWSER_SCALE,
   DEFAULT_SPEED_PROFILE,
   DEFAULT_PATH_STYLE,
   FALLBACK_DIMENSIONS,
@@ -83,6 +85,7 @@ export function ReplayPlayer({
   cursorInitialPosition = 'center',
   cursorScale = 1,
   cursorClickAnimation = 'none',
+  browserScale = 1,
   cursorDefaultSpeedProfile,
   cursorDefaultPathStyle,
   exposeController,
@@ -96,6 +99,7 @@ export function ReplayPlayer({
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const captureAreaRef = useRef<HTMLDivElement | null>(null);
+  const browserFrameRef = useRef<HTMLDivElement | null>(null);
 
   const isExternallyControlled = typeof exposeController === 'function';
   const baseSpeedProfile = cursorDefaultSpeedProfile ?? DEFAULT_SPEED_PROFILE;
@@ -200,6 +204,10 @@ export function ReplayPlayer({
       ? Math.min(MAX_CURSOR_SCALE, Math.max(MIN_CURSOR_SCALE, cursorScale))
       : 1;
   const cursorTrailStrokeWidth = cursorDecor.trailWidth * pointerScale;
+  const frameScale =
+    typeof browserScale === 'number' && !Number.isNaN(browserScale)
+      ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, browserScale))
+      : 1;
 
   // Callbacks for frame changes
   useEffect(() => {
@@ -220,7 +228,7 @@ export function ReplayPlayer({
       pause: () => setIsPlaying(false),
       getViewportElement: () => {
         if (isExportPresentation) {
-          return captureAreaRef.current ?? screenshotRef.current ?? playerContainerRef.current;
+          return browserFrameRef.current ?? captureAreaRef.current ?? screenshotRef.current ?? playerContainerRef.current;
         }
         return playerContainerRef.current ?? screenshotRef.current;
       },
@@ -444,74 +452,76 @@ export function ReplayPlayer({
           )}
 
           <div ref={captureAreaRef} className={clsx('space-y-3', { 'mt-4': showInterfaceChrome })}>
-            <div className={clsx('overflow-hidden rounded-2xl', !isExportPresentation && 'transition-all duration-300', chromeDecor.frameClass)}>
-              {chromeDecor.header}
-              <div className={clsx('relative overflow-hidden', chromeDecor.contentClass)}>
-                <div className="relative" style={{ paddingTop: `${aspectRatio}%` }}>
-                  <div
-                    ref={screenshotRef}
-                    className="absolute inset-0"
-                    style={{ transform: `scale(${zoom})`, transformOrigin: anchorStyle, transition: screenshotTransition }}
-                  >
-                    {currentFrame.screenshot?.url ? (
-                      <img
-                        src={currentFrame.screenshot.url}
-                        alt={currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`}
-                        loading="lazy"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-slate-900 text-slate-500">
-                        Screenshot unavailable
-                      </div>
-                    )}
-
-                    {watermark && <WatermarkOverlay settings={watermark} />}
-
-                    <div className="absolute inset-0">
-                      {overlayRegions(currentFrame.maskRegions, 'mask')}
-                      {overlayRegions(currentFrame.highlightRegions, 'highlight')}
-
-                      {currentFrame.focusedElement?.boundingBox && (
-                        <div
-                          className="absolute rounded-2xl border border-sky-400/70 bg-sky-400/10 shadow-[0_0_60px_rgba(56,189,248,0.35)]"
-                          style={toRectStyle(currentFrame.focusedElement.boundingBox, dimensions)}
+            <div ref={browserFrameRef} className="mx-auto w-full" style={{ width: `${frameScale * 100}%` }}>
+              <div className={clsx('overflow-hidden rounded-2xl', !isExportPresentation && 'transition-all duration-300', chromeDecor.frameClass)}>
+                {chromeDecor.header}
+                <div className={clsx('relative overflow-hidden', chromeDecor.contentClass)}>
+                  <div className="relative" style={{ paddingTop: `${aspectRatio}%` }}>
+                    <div
+                      ref={screenshotRef}
+                      className="absolute inset-0"
+                      style={{ transform: `scale(${zoom})`, transformOrigin: anchorStyle, transition: screenshotTransition }}
+                    >
+                      {currentFrame.screenshot?.url ? (
+                        <img
+                          src={currentFrame.screenshot.url}
+                          alt={currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`}
+                          loading="lazy"
+                          className="h-full w-full object-cover"
                         />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-slate-900 text-slate-500">
+                          Screenshot unavailable
+                        </div>
                       )}
 
-                      {hasTrail && (
-                        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                          <polyline
-                            points={renderTrailPoints.map((p) => `${p.x},${p.y}`).join(' ')}
-                            stroke={cursorDecor.trailColor}
-                            strokeWidth={cursorTrailStrokeWidth}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            fill="none"
+                      {watermark && <WatermarkOverlay settings={watermark} />}
+
+                      <div className="absolute inset-0">
+                        {overlayRegions(currentFrame.maskRegions, 'mask')}
+                        {overlayRegions(currentFrame.highlightRegions, 'highlight')}
+
+                        {currentFrame.focusedElement?.boundingBox && (
+                          <div
+                            className="absolute rounded-2xl border border-sky-400/70 bg-sky-400/10 shadow-[0_0_60px_rgba(56,189,248,0.35)]"
+                            style={toRectStyle(currentFrame.focusedElement.boundingBox, dimensions)}
                           />
-                        </svg>
-                      )}
+                        )}
 
-                      {ghostWrapperStyle && cursorDecor.renderBase && (
-                        <div
-                          role="presentation"
-                          className={clsx('absolute pointer-events-none select-none transition-all duration-500 ease-out', cursorDecor.wrapperClass)}
-                          style={ghostWrapperStyle}
-                        >
-                          {cursorDecor.renderBase}
-                        </div>
-                      )}
+                        {hasTrail && (
+                          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            <polyline
+                              points={renderTrailPoints.map((p) => `${p.x},${p.y}`).join(' ')}
+                              stroke={cursorDecor.trailColor}
+                              strokeWidth={cursorTrailStrokeWidth}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              fill="none"
+                            />
+                          </svg>
+                        )}
 
-                      {pointerWrapperStyle && cursorDecor.renderBase && (
-                        <div role="presentation" className={pointerWrapperClassName} style={pointerWrapperStyle} {...pointerEventProps}>
-                          {clickEffectElement}
-                          {cursorDecor.renderBase}
-                        </div>
-                      )}
+                        {ghostWrapperStyle && cursorDecor.renderBase && (
+                          <div
+                            role="presentation"
+                            className={clsx('absolute pointer-events-none select-none transition-all duration-500 ease-out', cursorDecor.wrapperClass)}
+                            style={ghostWrapperStyle}
+                          >
+                            {cursorDecor.renderBase}
+                          </div>
+                        )}
+
+                        {pointerWrapperStyle && cursorDecor.renderBase && (
+                          <div role="presentation" className={pointerWrapperClassName} style={pointerWrapperStyle} {...pointerEventProps}>
+                            {clickEffectElement}
+                            {cursorDecor.renderBase}
+                          </div>
+                        )}
+                      </div>
+
+                      {playbackPhase === 'intro' && introCard && <IntroCard settings={introCard} />}
+                      {playbackPhase === 'outro' && outroCard && <OutroCard settings={outroCard} />}
                     </div>
-
-                    {playbackPhase === 'intro' && introCard && <IntroCard settings={introCard} />}
-                    {playbackPhase === 'outro' && outroCard && <OutroCard settings={outroCard} />}
                   </div>
                 </div>
               </div>

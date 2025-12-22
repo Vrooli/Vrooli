@@ -341,13 +341,48 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		lastStatus := ""
 		completed := false
 		failed := false
+		missingExecution := false
+		consecutiveErrors := 0
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
+			if err := refreshScenarioAPIBase(ctx, ctx.Name); err != nil {
+				fmt.Print(".")
+				time.Sleep(5 * time.Second)
+				continue
+			}
 			statusResp, err := ctx.Core.APIClient.Get(ctx.APIPath("/executions/"+executionID), nil)
 			if err != nil {
+				if isExecutionNotFoundErr(err) {
+					fmt.Println("")
+					fmt.Printf("ERROR: Execution record not found (id: %s).\n", executionID)
+					fmt.Println("This can happen when the test subject restarts into a new database after seed cleanup.")
+					fmt.Println("Hint: re-run without --wait or use test-genie playbooks to orchestrate seeds.")
+					missingExecution = true
+					failed = true
+					completed = true
+					break
+				}
+				consecutiveErrors++
+				if consecutiveErrors >= 3 && seedCleanupToken != "" {
+					fmt.Println("")
+					fmt.Println("WARN: API unreachable after seed apply; the test subject may have restarted and the execution record may no longer be available.")
+					missingExecution = true
+					failed = true
+					completed = true
+					break
+				}
+				if consecutiveErrors >= 2 {
+					if err := waitForScenarioRecovery(ctx, ctx.Name, 15*time.Second); err != nil {
+						fmt.Print(".")
+						time.Sleep(5 * time.Second)
+						continue
+					}
+					consecutiveErrors = 0
+				}
 				fmt.Println(".")
 				time.Sleep(5 * time.Second)
 				continue
 			}
+			consecutiveErrors = 0
 			status := normalizeExecutionStatus(extractString(statusResp, "status"))
 			lastStatus = status
 			if status == "completed" {
@@ -372,7 +407,9 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			time.Sleep(5 * time.Second)
 		}
 		if completed {
-			printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo, requiresTrace, requiresHAR)
+			if !missingExecution {
+				printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo, requiresTrace, requiresHAR)
+			}
 			if seedCleanupToken != "" && !seedCleanupScheduled {
 				if err := cleanupSeedViaTestGenie(seedScenario, seedCleanupToken); err != nil {
 					fmt.Printf("WARN: seed cleanup failed: %v\n", err)
@@ -390,6 +427,9 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			}
 			fmt.Println("")
 			fmt.Printf("TIMEOUT: Execution did not finish after %d seconds (last status: %s). Use: browser-automation-studio execution watch %s\n", maxAttempts*5, lastStatus, executionID)
+			if seedCleanupToken != "" {
+				fmt.Println("Hint: if the test subject restarted during seed cleanup, the execution record may no longer be visible.")
+			}
 			if seedCleanupToken != "" && !seedCleanupScheduled {
 				if err := scheduleSeedCleanup(ctx, executionID, seedScenario, seedCleanupToken); err != nil {
 					fmt.Printf("WARN: seed cleanup scheduling failed: %v\n", err)
@@ -409,6 +449,61 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		}
 	}
 
+	return nil
+}
+
+func isExecutionNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "execution_not_found") || strings.Contains(message, "execution not found")
+}
+
+func refreshScenarioAPIBase(ctx *appctx.Context, scenarioName string) error {
+	if ctx == nil || ctx.Core == nil {
+		return fmt.Errorf("CLI context not configured")
+	}
+	if strings.TrimSpace(scenarioName) == "" {
+		return fmt.Errorf("scenario name is required to resolve API base")
+	}
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	base, err := resolveScenarioBase(ctxWithTimeout, scenarioName)
+	if err != nil {
+		return err
+	}
+	base = strings.TrimRight(base, "/")
+	current := strings.TrimRight(ctx.APIRoot(), "/")
+	if current == "" {
+		current = strings.TrimRight(ctx.ResolvedAPIRoot(), "/")
+	}
+	if base != "" && base != current {
+		ctx.Core.APIOverride = base
+		fmt.Printf("Re-resolved API base: %s\n", strings.TrimRight(base, "/")+"/api/v1")
+	}
+	return nil
+}
+
+func waitForScenarioRecovery(ctx *appctx.Context, scenarioName string, timeout time.Duration) error {
+	if ctx == nil || ctx.Core == nil {
+		return fmt.Errorf("CLI context not configured")
+	}
+	if strings.TrimSpace(scenarioName) == "" {
+		return fmt.Errorf("scenario name is required to resolve API base")
+	}
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	base, err := resolveScenarioBase(ctxWithTimeout, scenarioName)
+	if err != nil {
+		return err
+	}
+	if err := waitForScenarioHealth(ctxWithTimeout, base); err != nil {
+		return err
+	}
+	ctx.Core.APIOverride = strings.TrimRight(base, "/")
 	return nil
 }
 

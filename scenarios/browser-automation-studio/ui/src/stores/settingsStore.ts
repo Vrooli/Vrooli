@@ -22,6 +22,7 @@ import {
   REPLAY_CURSOR_POSITIONS,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
 } from '@/domains/exports/replay/replayThemeOptions';
+import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from '@/domains/exports/replay/constants';
 import type { ExportRenderSource } from '@/domains/executions/viewer/exportConfig';
 
 const STORAGE_PREFIX = 'browserAutomation.settings.';
@@ -66,12 +67,17 @@ const clampCursorScale = (value: number): number => {
   return Math.min(CURSOR_SCALE_MAX, Math.max(CURSOR_SCALE_MIN, value));
 };
 
+const clampBrowserScale = (value: number): number => {
+  return Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, value));
+};
+
 // Default values
 const DEFAULT_CHROME_THEME: ReplayChromeTheme = 'aurora';
 const DEFAULT_BACKGROUND_THEME: ReplayBackgroundTheme = 'aurora';
 const DEFAULT_CURSOR_THEME: ReplayCursorTheme = 'white';
 const DEFAULT_CURSOR_POSITION: ReplayCursorInitialPosition = 'center';
 const DEFAULT_CURSOR_SCALE = 1;
+const DEFAULT_BROWSER_SCALE = 1;
 const DEFAULT_CLICK_ANIMATION: ReplayCursorClickAnimation = 'pulse';
 const DEFAULT_SPEED_PROFILE: CursorSpeedProfile = 'easeInOut';
 const DEFAULT_PATH_STYLE: CursorPathStyle = 'linear';
@@ -155,6 +161,7 @@ export interface ReplaySettings {
   cursorInitialPosition: ReplayCursorInitialPosition;
   cursorScale: number;
   cursorClickAnimation: ReplayCursorClickAnimation;
+  browserScale: number;
   cursorSpeedProfile: CursorSpeedProfile;
   cursorPathStyle: CursorPathStyle;
   frameDuration: number;
@@ -223,6 +230,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       cursorInitialPosition: 'center',
       cursorScale: 1,
       cursorClickAnimation: 'pulse',
+      browserScale: DEFAULT_BROWSER_SCALE,
       cursorSpeedProfile: 'easeInOut',
       cursorPathStyle: 'linear',
       frameDuration: 1600,
@@ -248,6 +256,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       cursorInitialPosition: 'center',
       cursorScale: 1.2,
       cursorClickAnimation: 'ripple',
+      browserScale: DEFAULT_BROWSER_SCALE,
       cursorSpeedProfile: 'easeInOut',
       cursorPathStyle: 'cubic',
       frameDuration: 2500,
@@ -273,6 +282,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       cursorInitialPosition: 'top-left',
       cursorScale: 0.9,
       cursorClickAnimation: 'none',
+      browserScale: DEFAULT_BROWSER_SCALE,
       cursorSpeedProfile: 'linear',
       cursorPathStyle: 'linear',
       frameDuration: 1200,
@@ -298,6 +308,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       cursorInitialPosition: 'center',
       cursorScale: 1.4,
       cursorClickAnimation: 'pulse',
+      browserScale: DEFAULT_BROWSER_SCALE,
       cursorSpeedProfile: 'easeOut',
       cursorPathStyle: 'parabolicUp',
       frameDuration: 2000,
@@ -323,6 +334,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       cursorInitialPosition: 'bottom-right',
       cursorScale: 1.1,
       cursorClickAnimation: 'ripple',
+      browserScale: DEFAULT_BROWSER_SCALE,
       cursorSpeedProfile: 'easeInOut',
       cursorPathStyle: 'parabolicDown',
       frameDuration: 2200,
@@ -381,6 +393,7 @@ const loadReplaySettings = (): ReplaySettings => {
   const storedPosition = safeGetItem(`${STORAGE_PREFIX}replay.cursorInitialPosition`);
   const storedScale = safeGetItem(`${STORAGE_PREFIX}replay.cursorScale`);
   const storedClickAnim = safeGetItem(`${STORAGE_PREFIX}replay.cursorClickAnimation`);
+  const storedBrowserScale = safeGetItem(`${STORAGE_PREFIX}replay.browserScale`);
   const storedSpeed = safeGetItem(`${STORAGE_PREFIX}replay.cursorSpeedProfile`);
   const storedPath = safeGetItem(`${STORAGE_PREFIX}replay.cursorPathStyle`);
   const storedDuration = safeGetItem(`${STORAGE_PREFIX}replay.frameDuration`);
@@ -402,6 +415,7 @@ const loadReplaySettings = (): ReplaySettings => {
     cursorInitialPosition: isReplayCursorInitialPosition(storedPosition) ? storedPosition : DEFAULT_CURSOR_POSITION,
     cursorScale: storedScale ? clampCursorScale(parseFloat(storedScale)) : DEFAULT_CURSOR_SCALE,
     cursorClickAnimation: isReplayCursorClickAnimation(storedClickAnim) ? storedClickAnim : DEFAULT_CLICK_ANIMATION,
+    browserScale: storedBrowserScale ? clampBrowserScale(parseFloat(storedBrowserScale)) : DEFAULT_BROWSER_SCALE,
     cursorSpeedProfile: isValidSpeedProfile(storedSpeed) ? storedSpeed : DEFAULT_SPEED_PROFILE,
     cursorPathStyle: isValidPathStyle(storedPath) ? storedPath : DEFAULT_PATH_STYLE,
     frameDuration: storedDuration ? Math.max(800, Math.min(6000, parseInt(storedDuration, 10))) : DEFAULT_FRAME_DURATION,
@@ -433,6 +447,7 @@ const getDefaultReplaySettings = (): ReplaySettings => ({
   cursorInitialPosition: DEFAULT_CURSOR_POSITION,
   cursorScale: DEFAULT_CURSOR_SCALE,
   cursorClickAnimation: DEFAULT_CLICK_ANIMATION,
+  browserScale: DEFAULT_BROWSER_SCALE,
   cursorSpeedProfile: DEFAULT_SPEED_PROFILE,
   cursorPathStyle: DEFAULT_PATH_STYLE,
   frameDuration: DEFAULT_FRAME_DURATION,
@@ -608,6 +623,7 @@ const generateRandomSettings = (): ReplaySettings => {
     cursorInitialPosition: randomChoice(REPLAY_CURSOR_POSITIONS).id,
     cursorScale: Math.round((CURSOR_SCALE_MIN + Math.random() * (CURSOR_SCALE_MAX - CURSOR_SCALE_MIN)) * 10) / 10,
     cursorClickAnimation: randomChoice(REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS).id,
+    browserScale: Math.round((MIN_BROWSER_SCALE + Math.random() * (MAX_BROWSER_SCALE - MIN_BROWSER_SCALE)) * 20) / 20,
     cursorSpeedProfile: randomChoice(SPEED_PROFILES),
     cursorPathStyle: randomChoice(PATH_STYLES),
     frameDuration: Math.round((800 + Math.random() * 5200) / 100) * 100, // 800-6000 in 100ms steps

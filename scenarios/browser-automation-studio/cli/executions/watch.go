@@ -1,6 +1,7 @@
 package executions
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	"browser-automation-studio/cli/internal/output"
 
 	"github.com/gorilla/websocket"
+	"github.com/vrooli/api-core/discovery"
 )
 
 type heartbeatState struct {
@@ -306,6 +308,7 @@ func checkHeartbeat(state *heartbeatState) {
 
 func pollExecution(ctx *appctx.Context, executionID string, stop <-chan struct{}, done chan<- struct{}) {
 	defer close(done)
+	consecutiveErrors := 0
 	for {
 		select {
 		case <-stop:
@@ -315,10 +318,21 @@ func pollExecution(ctx *appctx.Context, executionID string, stop <-chan struct{}
 		}
 		detail, _, err := getExecution(ctx, executionID)
 		if err != nil {
+			if isExecutionNotFoundErr(err) {
+				fmt.Println("\nERROR: Execution record not found. The test subject may have restarted into a new database.")
+				return
+			}
+			consecutiveErrors++
+			if consecutiveErrors >= 2 {
+				if err := refreshScenarioAPIBase(ctx); err == nil {
+					consecutiveErrors = 0
+				}
+			}
 			fmt.Printf("\rStatus: unknown | Progress: ? | Step: ?")
 			time.Sleep(2 * time.Second)
 			continue
 		}
+		consecutiveErrors = 0
 		fmt.Printf("\rStatus: %s | Progress: %d%% | Step: %s", detail.Status, detail.Progress, detail.CurrentStep)
 		if detail.Status == "completed" || detail.Status == "failed" {
 			fmt.Println("")
@@ -349,6 +363,39 @@ func printTimelineSummary(ctx *appctx.Context, executionID string) error {
 	fmt.Println("Timeline Summary")
 	for _, line := range lines {
 		fmt.Println(line)
+	}
+	return nil
+}
+
+func isExecutionNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "execution_not_found") || strings.Contains(message, "execution not found")
+}
+
+func refreshScenarioAPIBase(ctx *appctx.Context) error {
+	if ctx == nil || ctx.Core == nil {
+		return fmt.Errorf("CLI context not configured")
+	}
+	scenarioName := strings.TrimSpace(ctx.Name)
+	if scenarioName == "" {
+		return fmt.Errorf("scenario name unavailable for API refresh")
+	}
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resolver := discovery.NewResolver(discovery.ResolverConfig{})
+	base, err := resolver.ResolveScenarioURLDefault(ctxWithTimeout, scenarioName)
+	if err != nil {
+		return err
+	}
+	base = strings.TrimRight(base, "/")
+	current := strings.TrimRight(ctx.Core.HTTPClient.BaseURL(), "/")
+	if base != "" && base != current {
+		ctx.Core.APIOverride = base
+		fmt.Printf("\n[stream] Re-resolved API base: %s\n", strings.TrimRight(base, "/")+"/api/v1")
 	}
 	return nil
 }

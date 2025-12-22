@@ -9,6 +9,7 @@ import { usePerfStats } from '../hooks/usePerfStats';
 import { useSettingsStore } from '@stores/settingsStore';
 import { buildBackgroundDecor, buildChromeDecor } from '@/domains/exports/replay/themes';
 import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
+import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from '@/domains/exports/replay/constants';
 import { ReplaySection } from '@/views/SettingsView/sections/ReplaySection';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
 import clsx from 'clsx';
@@ -107,17 +108,26 @@ export function RecordPreviewPanel({
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
+  const activeViewport = useMemo(() => {
+    if (!showReplayStyle && previewBounds) {
+      const width = Math.min(3840, Math.max(320, Math.round(previewBounds.width)));
+      const height = Math.min(3840, Math.max(320, Math.round(previewBounds.height)));
+      return { width, height };
+    }
     const width = Math.min(3840, Math.max(320, Math.round(replay.presentationWidth)));
     const height = Math.min(3840, Math.max(320, Math.round(replay.presentationHeight)));
-    const target = { width, height };
+    return { width, height };
+  }, [previewBounds, replay.presentationHeight, replay.presentationWidth, showReplayStyle]);
+
+  useEffect(() => {
+    const target = activeViewport;
     const last = lastViewportRef.current;
     if (!last || last.width !== target.width || last.height !== target.height) {
       lastViewportRef.current = target;
       setCurrentViewport(target);
       onViewportChange?.(target);
     }
-  }, [onViewportChange, replay.presentationHeight, replay.presentationWidth]);
+  }, [activeViewport, onViewportChange]);
 
   const backgroundDecor = useMemo(
     () => buildBackgroundDecor(replay.backgroundTheme),
@@ -129,18 +139,22 @@ export function RecordPreviewPanel({
     [replay.chromeTheme, pageTitle, effectiveUrl],
   );
 
-  const targetWidth = currentViewport?.width ?? 1280;
-  const targetHeight = currentViewport?.height ?? 720;
+  const targetWidth = activeViewport.width;
+  const targetHeight = activeViewport.height;
   const previewScale = useMemo(() => {
-    if (!previewBounds) return 1;
+    if (!previewBounds || !showReplayStyle) return 1;
     const scaleX = previewBounds.width / targetWidth;
     const scaleY = previewBounds.height / targetHeight;
     const nextScale = Math.min(scaleX, scaleY, 1);
     return Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1;
-  }, [previewBounds, targetHeight, targetWidth]);
+  }, [previewBounds, showReplayStyle, targetHeight, targetWidth]);
 
   const scaledWidth = Math.round(targetWidth * previewScale);
   const scaledHeight = Math.round(targetHeight * previewScale);
+  const frameScale =
+    typeof replay.browserScale === 'number' && !Number.isNaN(replay.browserScale)
+      ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, replay.browserScale))
+      : 1;
 
   const handleSavePreset = useCallback(() => {
     const trimmedName = newPresetName.trim();
@@ -213,11 +227,15 @@ export function RecordPreviewPanel({
       <div className="flex-1 overflow-hidden" ref={previewBoundsRef}>
         <div
           className={clsx(
-            'h-full w-full flex items-center justify-center p-4',
+            'h-full w-full flex',
             showReplayStyle ? 'bg-slate-950/95' : 'bg-transparent',
+            showReplayStyle ? 'items-center justify-center p-4' : 'items-stretch justify-stretch',
           )}
         >
-          <div style={{ width: scaledWidth, height: scaledHeight }} className="relative">
+          <div
+            style={showReplayStyle ? { width: scaledWidth, height: scaledHeight } : { width: '100%', height: '100%' }}
+            className={clsx('relative', !showReplayStyle && 'h-full w-full')}
+          >
             <div
               style={{ width: targetWidth, height: targetHeight, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}
               className="relative"
@@ -231,27 +249,32 @@ export function RecordPreviewPanel({
                   {backgroundDecor.baseLayer}
                   {backgroundDecor.overlay}
                   <div className={clsx('relative z-10 h-full w-full', backgroundDecor.contentClass)}>
-                    <div className={clsx('flex h-full w-full flex-col overflow-hidden', chromeDecor.frameClass)}>
-                      {chromeDecor.header}
-                      <div className={clsx('relative flex-1 overflow-hidden', chromeDecor.contentClass)}>
-                        {sessionId ? (
-                          effectiveUrl ? (
-                            <PlaywrightView
-                              sessionId={sessionId}
-                              refreshToken={liveRefreshToken}
-                              viewport={currentViewport ?? undefined}
-                              quality={streamSettings.quality}
-                              fps={streamSettings.fps}
-                              onStatsUpdate={handleStatsUpdate}
-                              onPageMetadataChange={handlePageMetadataChange}
-                            />
+                    <div className="flex h-full w-full items-center justify-center">
+                      <div
+                        style={{ width: `${frameScale * 100}%`, height: `${frameScale * 100}%` }}
+                        className={clsx('flex flex-col overflow-hidden', chromeDecor.frameClass)}
+                      >
+                        {chromeDecor.header}
+                        <div className={clsx('relative flex-1 overflow-hidden', chromeDecor.contentClass)}>
+                          {sessionId ? (
+                            effectiveUrl ? (
+                              <PlaywrightView
+                                sessionId={sessionId}
+                                refreshToken={liveRefreshToken}
+                                viewport={currentViewport ?? undefined}
+                                quality={streamSettings.quality}
+                                fps={streamSettings.fps}
+                                onStatsUpdate={handleStatsUpdate}
+                                onPageMetadataChange={handlePageMetadataChange}
+                              />
+                            ) : (
+                              <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
+                            )
                           ) : (
-                            <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
-                          )
-                        ) : (
-                          <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
-                        )}
-                        <WatermarkOverlay settings={replay.watermark} />
+                            <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
+                          )}
+                          <WatermarkOverlay settings={replay.watermark} />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -288,7 +311,7 @@ export function RecordPreviewPanel({
         ariaLabel="Replay settings"
         size="xl"
       >
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-h-[85vh] overflow-y-auto">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl max-h-[85vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-semibold text-surface">Replay Settings</h2>

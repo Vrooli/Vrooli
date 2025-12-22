@@ -432,7 +432,7 @@ type StorageConfig struct {
 // These are global defaults that can be overridden per-execution via ArtifactCollectionConfig.
 type ArtifactLimitsConfig struct {
 	// MaxScreenshotBytes is the maximum screenshot size before truncation.
-	// Env: BAS_ARTIFACT_MAX_SCREENSHOT_BYTES (default: 524288, 512KB)
+	// Env: BAS_ARTIFACT_MAX_SCREENSHOT_BYTES (default: 4194304, 4MB)
 	MaxScreenshotBytes int
 
 	// MaxDOMSnapshotBytes is the maximum DOM snapshot HTML size before truncation.
@@ -664,7 +664,7 @@ func loadFromEnv() *Config {
 			MaxEmbeddedExternalBytes: parseInt64("BAS_STORAGE_MAX_EMBEDDED_EXTERNAL_BYTES", 5242880),
 		},
 		ArtifactLimits: ArtifactLimitsConfig{
-			MaxScreenshotBytes:     parseInt("BAS_ARTIFACT_MAX_SCREENSHOT_BYTES", 524288),
+			MaxScreenshotBytes:     parseInt("BAS_ARTIFACT_MAX_SCREENSHOT_BYTES", 4*1024*1024),
 			MaxDOMSnapshotBytes:    parseInt("BAS_ARTIFACT_MAX_DOM_SNAPSHOT_BYTES", 524288),
 			MaxConsoleEntryBytes:   parseInt("BAS_ARTIFACT_MAX_CONSOLE_ENTRY_BYTES", 16384),
 			MaxNetworkPreviewBytes: parseInt("BAS_ARTIFACT_MAX_NETWORK_PREVIEW_BYTES", 65536),

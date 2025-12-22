@@ -35,10 +35,10 @@ type SimpleExecutor struct {
 }
 
 type executionContext struct {
-	caps      contracts.EngineCapabilities
-	compiler  PlanCompiler
-	maxDepth  int
-	callStack []uuid.UUID
+	caps       contracts.EngineCapabilities
+	compiler   PlanCompiler
+	maxDepth   int
+	callStack  []uuid.UUID
 	navigation *navigationState
 }
 
@@ -1357,6 +1357,26 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 
 		outcome.Attempt = attempt
 		outcome = e.normalizeOutcome(req.Plan, instruction, attempt, attemptStart, outcome, err)
+		if shouldIgnoreFailure(instruction, outcome) {
+			message := "screenshot capture failed"
+			code := "SCREENSHOT_FAILED"
+			if outcome.Failure != nil {
+				if strings.TrimSpace(outcome.Failure.Message) != "" {
+					message = outcome.Failure.Message
+				}
+				if strings.TrimSpace(outcome.Failure.Code) != "" {
+					code = outcome.Failure.Code
+				}
+			}
+			outcome.Success = true
+			outcome.Failure = nil
+			if outcome.Notes == nil {
+				outcome.Notes = map[string]string{}
+			}
+			outcome.Notes["non_fatal_failure"] = message
+			outcome.Notes["non_fatal_failure_code"] = code
+			return outcome, nil
+		}
 
 		if req.Recorder != nil && outcome.Failure != nil {
 			_ = req.Recorder.RecordTelemetry(ctx, req.Plan, contracts.StepTelemetry{
@@ -1393,6 +1413,16 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 	}
 
 	return lastOutcome, lastErr
+}
+
+func shouldIgnoreFailure(instruction contracts.CompiledInstruction, outcome contracts.StepOutcome) bool {
+	if outcome.Success {
+		return false
+	}
+	if InstructionStepType(instruction) != "screenshot" {
+		return false
+	}
+	return true
 }
 
 type retryConfig struct {

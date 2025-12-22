@@ -35,6 +35,7 @@ import { resolveUrl } from "@utils/executionTypeMappers";
 import { toast } from "react-hot-toast";
 import { getConfig } from "@/config";
 import { useComposerApiBase } from "./useComposerApiBase";
+import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from "@/domains/exports/replay/constants";
 
 type UseExecutionExportParams = {
   execution: Execution;
@@ -78,6 +79,7 @@ export const useExecutionExport = ({
     replayCursorInitialPosition,
     replayCursorClickAnimation,
     replayCursorScale,
+    replayBrowserScale,
     replayRenderSource,
     setReplayRenderSource,
   } = replayCustomization;
@@ -381,6 +383,31 @@ export const useExecutionExport = ({
     const cursorSpec = movieSpec.cursor ?? {};
     const decor = movieSpec.decor ?? {};
     const motion = movieSpec.cursor_motion ?? {};
+    const presentation = movieSpec.presentation ?? {};
+    const canvasWidth =
+      presentation.canvas?.width ??
+      presentation.viewport?.width ??
+      0;
+    const canvasHeight =
+      presentation.canvas?.height ??
+      presentation.viewport?.height ??
+      0;
+    const clampedBrowserScale =
+      typeof replayBrowserScale === "number" && Number.isFinite(replayBrowserScale)
+        ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, replayBrowserScale))
+        : 1;
+    const browserWidth = canvasWidth > 0 ? Math.round(canvasWidth * clampedBrowserScale) : 0;
+    const browserHeight = canvasHeight > 0 ? Math.round(canvasHeight * clampedBrowserScale) : 0;
+    const browserFrameRadius = presentation.browser_frame?.radius ?? 24;
+    const browserFrame = canvasWidth > 0 && canvasHeight > 0
+      ? {
+          x: Math.round((canvasWidth - browserWidth) / 2),
+          y: Math.round((canvasHeight - browserHeight) / 2),
+          width: browserWidth,
+          height: browserHeight,
+          radius: browserFrameRadius,
+        }
+      : presentation.browser_frame;
     return {
       ...movieSpec,
       cursor: {
@@ -398,6 +425,12 @@ export const useExecutionExport = ({
         cursor_click_animation: replayCursorClickAnimation,
         cursor_scale: replayCursorScale,
       },
+      presentation: browserFrame
+        ? {
+            ...presentation,
+            browser_frame: browserFrame,
+          }
+        : presentation,
       cursor_motion: {
         ...motion,
         initial_position: replayCursorInitialPosition,
@@ -413,6 +446,7 @@ export const useExecutionExport = ({
     replayCursorInitialPosition,
     replayCursorClickAnimation,
     replayCursorScale,
+    replayBrowserScale,
   ]);
 
   const dimensionPresetOptions = useMemo(
@@ -751,6 +785,7 @@ export const useExecutionExport = ({
             backgroundTheme: replayBackgroundTheme,
             cursorTheme: replayCursorTheme,
             cursorScale: replayCursorScale,
+            browserScale: replayBrowserScale,
             renderSource: replayRenderSource,
           },
           fileSizeBytes: blob.size,
