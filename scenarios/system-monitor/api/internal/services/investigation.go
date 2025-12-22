@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -730,7 +729,7 @@ func (s *InvestigationService) loadTriggersFromConfig() error {
 		configPath = filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
 	}
 
-	data, err := ioutil.ReadFile(configPath)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
 	}
@@ -1045,7 +1044,7 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 	}
 
 	// Read existing configuration to preserve extra fields
-	existingData, err := ioutil.ReadFile(configPath)
+	existingData, err := os.ReadFile(configPath)
 	var existingConfig map[string]interface{}
 	if err == nil {
 		json.Unmarshal(existingData, &existingConfig)
@@ -1115,5 +1114,5 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 		return err
 	}
 
-	return ioutil.WriteFile(configPath, data, 0644)
+	return os.WriteFile(configPath, data, 0644)
 }

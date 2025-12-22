@@ -3,7 +3,6 @@ package services
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -108,7 +107,9 @@ func NewSettingsManager() *SettingsManager {
 		// Log the error but continue with defaults
 		fmt.Printf("Warning: Could not load settings from file (%v), using defaults\n", err)
 		// Save defaults to create the config file
-		sm.saveToFile()
+		if err := sm.saveToFile(); err != nil {
+			fmt.Printf("Warning: Could not save default settings (%v)\n", err)
+		}
 	}
 
 	return sm
@@ -195,7 +196,7 @@ func (sm *SettingsManager) SetActiveChangedCallback(callback func(active bool)) 
 
 // loadFromFile loads settings from JSON file
 func (sm *SettingsManager) loadFromFile() error {
-	data, err := ioutil.ReadFile(sm.configPath)
+	data, err := os.ReadFile(sm.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
@@ -239,7 +240,7 @@ func (sm *SettingsManager) saveToFile() error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := ioutil.WriteFile(sm.configPath, data, 0644); err != nil {
+	if err := os.WriteFile(sm.configPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 

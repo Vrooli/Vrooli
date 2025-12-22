@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"system-monitor-api/internal/config"
+	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/services"
 )
 
@@ -24,51 +25,60 @@ func NewMetricsHandler(cfg *config.Config, monitorSvc *services.MonitorService) 
 // GetCurrentMetrics handles GET /api/v1/metrics/current
 func (h *MetricsHandler) GetCurrentMetrics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	
-	metrics, err := h.monitorSvc.GetCurrentMetrics(ctx)
+
+	fresh := r.URL.Query().Get("fresh")
+	var (
+		metrics *models.MetricsResponse
+		err     error
+	)
+	if fresh == "1" || fresh == "true" {
+		metrics, err = h.monitorSvc.GetCurrentMetricsFresh(ctx)
+	} else {
+		metrics, err = h.monitorSvc.GetCurrentMetrics(ctx)
+	}
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	respondWithJSON(w, http.StatusOK, metrics)
 }
 
 // GetDetailedMetrics handles GET /api/v1/metrics/detailed
 func (h *MetricsHandler) GetDetailedMetrics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	
+
 	metrics, err := h.monitorSvc.GetDetailedMetrics(ctx)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	respondWithJSON(w, http.StatusOK, metrics)
 }
 
 // GetProcessMonitor handles GET /api/v1/metrics/processes
 func (h *MetricsHandler) GetProcessMonitor(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	
+
 	data, err := h.monitorSvc.GetProcessMonitorData(ctx)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	respondWithJSON(w, http.StatusOK, data)
 }
 
 // GetInfrastructureMonitor handles GET /api/v1/metrics/infrastructure
 func (h *MetricsHandler) GetInfrastructureMonitor(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	
+
 	data, err := h.monitorSvc.GetInfrastructureMonitorData(ctx)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	respondWithJSON(w, http.StatusOK, data)
 }

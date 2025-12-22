@@ -44,6 +44,10 @@ func Run(cfg *config.Config) error {
 	investigationSvc := services.NewInvestigationService(cfg, repo, alertSvc, agentSvc)
 	reportSvc := services.NewReportService(cfg, repo)
 	settingsMgr := services.NewSettingsManager()
+	monitorSvc.SetActive(settingsMgr.IsActive())
+	settingsMgr.SetActiveChangedCallback(func(active bool) {
+		monitorSvc.SetActive(active)
+	})
 
 	if err := monitorSvc.Start(); err != nil {
 		return fmt.Errorf("start monitor service: %w", err)

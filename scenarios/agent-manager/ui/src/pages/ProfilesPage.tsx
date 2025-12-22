@@ -33,7 +33,7 @@ interface ProfilesPageProps {
   loading: boolean;
   error: string | null;
   onCreateProfile: (profile: CreateProfileRequest) => Promise<AgentProfile>;
-  onUpdateProfile: (id: string, profile: Partial<CreateProfileRequest>) => Promise<AgentProfile>;
+  onUpdateProfile: (id: string, profile: CreateProfileRequest) => Promise<AgentProfile>;
   onDeleteProfile: (id: string) => Promise<void>;
   onRefresh: () => void;
   runners?: Record<string, RunnerStatus>;

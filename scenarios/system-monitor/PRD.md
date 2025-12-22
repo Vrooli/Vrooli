@@ -674,7 +674,7 @@ vrooli scenario test system-monitor
 ### External Resources
 - [QuestDB Documentation](https://questdb.io/docs/)
 - [Prometheus Metric Types](https://prometheus.io/docs/concepts/metric_types/)
-- [Matrix Digital Rain](https://en.wikipedia.org/wiki/Matrix_digital_rain)
+- [Matrix Code](https://matrix.fandom.com/wiki/Matrix_code)
 
 ---
 

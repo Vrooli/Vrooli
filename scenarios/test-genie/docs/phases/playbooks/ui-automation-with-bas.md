@@ -365,6 +365,16 @@ browser-automation-studio workflow execute \
   --wait
 ```
 
+If a workflow does **not** include a `navigate` node (common for `actions/` subflows),
+provide a starting URL:
+
+```bash
+browser-automation-studio workflow execute \
+  --from-file bas/actions/open-project.json \
+  --start-url http://localhost:8080/ \
+  --wait
+```
+
 **Run in the Playbooks phase** using test-genie:
 ```bash
 test-genie execute my-scenario --preset comprehensive

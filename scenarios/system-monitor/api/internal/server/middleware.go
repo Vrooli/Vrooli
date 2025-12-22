@@ -19,9 +19,5 @@ func buildMiddleware(cfg *config.Config, router *mux.Router) http.Handler {
 	logger := log.New(os.Stdout, "[HTTP] ", log.LstdFlags)
 	handler = middleware.Logging(logger)(handler)
 
-	if cfg.Alerts.EnableWebhooks {
-		// API key auth could be enforced here.
-	}
-
 	return handler
 }

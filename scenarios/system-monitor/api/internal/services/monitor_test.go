@@ -86,7 +86,7 @@ func TestMonitorService_StartStop(t *testing.T) {
 	// Start service
 	err := svc.Start()
 	if err != nil {
-		t.Errorf("Failed to start service: %v", err)
+		t.Fatalf("Failed to start service: %v", err)
 	}
 	
 	// Let it run briefly
@@ -99,6 +99,10 @@ func TestMonitorService_StartStop(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	
 	// Service should be stopped (context canceled)
+	if svc.ctx == nil {
+		t.Fatal("Service context not initialized after Start()")
+	}
+
 	select {
 	case <-svc.ctx.Done():
 		// Expected - context should be canceled

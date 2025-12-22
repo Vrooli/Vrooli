@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { buildApiUrl } from '../../../shared/api/apiBase';
 import type {
   MetricsResponse,
@@ -23,6 +23,15 @@ interface UseSystemMonitorReturn {
   error: APIError | null;
   refresh: () => void;
   refreshMetrics: () => void;
+}
+
+type MaintenanceState = 'active' | 'inactive' | string;
+
+interface MaintenanceStateResponse {
+  success?: boolean;
+  maintenanceState?: MaintenanceState;
+  maintenance_state?: MaintenanceState;
+  error?: string;
 }
 
 const DISK_HISTORY_LIMIT = 180;
@@ -62,6 +71,11 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   const [metricHistory, setMetricHistory] = useState<MetricHistory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<APIError | null>(null);
+  const [uiBoostActive, setUiBoostActive] = useState(false);
+  const maintenanceStateRef = useRef<{ previous: MaintenanceState | null; activated: boolean }>({
+    previous: null,
+    activated: false
+  });
 
   const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => {
     try {
@@ -110,7 +124,8 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   }, []);
 
   const fetchMetrics = useCallback(async () => {
-    const data = await handleApiCall<MetricsResponse>('/metrics/current');
+    const url = uiBoostActive ? '/metrics/current?fresh=1' : '/metrics/current';
+    const data = await handleApiCall<MetricsResponse>(url);
     if (data) {
       setMetrics(data);
       setError(null);
@@ -128,6 +143,59 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
         });
       }
     }
+  }, [handleApiCall, uiBoostActive]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const activateMonitoring = async () => {
+      const state = await handleApiCall<MaintenanceStateResponse>('/maintenance/state');
+      if (cancelled || !state) {
+        return;
+      }
+
+      const currentState = state.maintenanceState ?? state.maintenance_state ?? 'inactive';
+      maintenanceStateRef.current.previous = currentState;
+
+      if (currentState !== 'active') {
+        try {
+          const response = await fetch(buildApiUrl('/maintenance/state'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ maintenanceState: 'active' })
+          });
+          if (response.ok) {
+            maintenanceStateRef.current.activated = true;
+          }
+        } catch (postError) {
+          console.warn('Failed to activate monitoring:', postError);
+        }
+      }
+
+      if (!cancelled) {
+        setUiBoostActive(true);
+      }
+    };
+
+    void activateMonitoring();
+
+    return () => {
+      cancelled = true;
+      const previous = maintenanceStateRef.current.previous;
+      if (maintenanceStateRef.current.activated && previous && previous !== 'active') {
+        fetch(buildApiUrl('/maintenance/state'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ maintenanceState: previous })
+        }).catch(unmountError => {
+          console.warn('Failed to restore monitoring state:', unmountError);
+        });
+      }
+    };
   }, [handleApiCall]);
 
   const fetchDetailedMetrics = useCallback(async () => {
