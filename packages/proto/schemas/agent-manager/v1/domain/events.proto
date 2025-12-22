@@ -96,6 +96,122 @@ message RunEvent {
 }
 
 // =============================================================================
+// WEBSOCKET STREAMING
+// =============================================================================
+
+// AgentManagerWsMessageType enumerates WebSocket message types.
+//
+// @usage AgentManagerWsMessage.type
+enum AgentManagerWsMessageType {
+  AGENT_MANAGER_WS_MESSAGE_TYPE_UNSPECIFIED = 0;
+  AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT = 1;
+  AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS = 2;
+  AGENT_MANAGER_WS_MESSAGE_TYPE_TASK_STATUS = 3;
+  AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS = 4;
+  AGENT_MANAGER_WS_MESSAGE_TYPE_CONNECTED = 5;
+  AGENT_MANAGER_WS_MESSAGE_TYPE_PONG = 6;
+}
+
+// AgentManagerWsMessage wraps agent-manager WebSocket payloads.
+//
+// @usage WebSocket /api/v1/ws
+message AgentManagerWsMessage {
+  // Message type for routing and parsing.
+  AgentManagerWsMessageType type = 1;
+
+  // Optional run identifier for subscription routing.
+  // @format uuid
+  optional string run_id = 2;
+
+  // Message payload (exactly one set based on type).
+  oneof payload {
+    RunEvent run_event = 10; // AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT
+    RunStatusUpdate run_status = 11; // AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS
+    TaskStatusUpdate task_status = 12; // AGENT_MANAGER_WS_MESSAGE_TYPE_TASK_STATUS
+    ProgressEventData run_progress = 13; // AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS
+    WsConnected connected = 14; // AGENT_MANAGER_WS_MESSAGE_TYPE_CONNECTED
+    WsPong pong = 15; // AGENT_MANAGER_WS_MESSAGE_TYPE_PONG
+  }
+}
+
+// RunStatusUpdate reports a run status change.
+//
+// @usage AgentManagerWsMessage.run_status
+message RunStatusUpdate {
+  // Run ID.
+  // @format uuid
+  string run_id = 1;
+
+  // New status.
+  RunStatus status = 2;
+}
+
+// TaskStatusUpdate reports a task status change.
+//
+// @usage AgentManagerWsMessage.task_status
+message TaskStatusUpdate {
+  // Task ID.
+  // @format uuid
+  string task_id = 1;
+
+  // New status.
+  TaskStatus status = 2;
+}
+
+// WsConnected confirms WebSocket connectivity.
+//
+// @usage AgentManagerWsMessage.connected
+message WsConnected {
+  // Connection status message.
+  string message = 1;
+
+  // Connection timestamp.
+  google.protobuf.Timestamp timestamp = 2;
+}
+
+// WsPong responds to a ping.
+//
+// @usage AgentManagerWsMessage.pong
+message WsPong {
+  // Pong timestamp.
+  google.protobuf.Timestamp timestamp = 1;
+}
+
+// AgentManagerWsClientMessageType enumerates client -> server message types.
+//
+// @usage AgentManagerWsClientMessage.type
+enum AgentManagerWsClientMessageType {
+  AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSPECIFIED = 0;
+  AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE = 1;
+  AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE = 2;
+  AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE_ALL = 3;
+  AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE_ALL = 4;
+  AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_PING = 5;
+}
+
+// AgentManagerWsClientMessage is the client -> server envelope.
+//
+// @usage WebSocket /api/v1/ws
+message AgentManagerWsClientMessage {
+  // Message type for routing and parsing.
+  AgentManagerWsClientMessageType type = 1;
+
+  // Message payload (set based on type).
+  oneof payload {
+    RunSubscription run_subscription = 10; // SUBSCRIBE/UNSUBSCRIBE
+  }
+}
+
+// RunSubscription identifies a run to subscribe or unsubscribe from.
+//
+// @usage AgentManagerWsClientMessage.run_subscription
+message RunSubscription {
+  // Run ID.
+  // @format uuid
+  string run_id = 1;
+}
+
+// =============================================================================
 // LOG EVENT
 // =============================================================================
 

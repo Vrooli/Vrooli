@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // =============================================================================
@@ -89,7 +91,7 @@ func (a *App) taskList(args []string) error {
 
 	if *quiet {
 		for _, t := range tasks {
-			fmt.Println(t.ID)
+			fmt.Println(t.Id)
 		}
 		return nil
 	}
@@ -106,11 +108,12 @@ func (a *App) taskList(args []string) error {
 		if len(title) > 30 {
 			title = title[:27] + "..."
 		}
-		created := t.CreatedAt
+		created := formatTimestamp(t.CreatedAt)
 		if len(created) > 20 {
 			created = created[:19]
 		}
-		fmt.Printf("%-36s  %-30s  %-12s  %-20s\n", t.ID, title, t.Status, created)
+		status := formatEnumValue(t.Status, "TASK_STATUS_", "_")
+		fmt.Printf("%-36s  %-30s  %-12s  %-20s\n", t.Id, title, status, created)
 	}
 
 	return nil
@@ -144,12 +147,12 @@ func (a *App) taskGet(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("ID:          %s\n", task.ID)
+	fmt.Printf("ID:          %s\n", task.Id)
 	fmt.Printf("Title:       %s\n", task.Title)
 	if task.Description != "" {
 		fmt.Printf("Description: %s\n", task.Description)
 	}
-	fmt.Printf("Status:      %s\n", task.Status)
+	fmt.Printf("Status:      %s\n", formatEnumValue(task.Status, "TASK_STATUS_", "_"))
 	if task.ScopePath != "" {
 		fmt.Printf("Scope Path:  %s\n", task.ScopePath)
 	}
@@ -159,11 +162,14 @@ func (a *App) taskGet(args []string) error {
 	if len(task.ContextAttachments) > 0 {
 		fmt.Println("Context Attachments:")
 		for _, att := range task.ContextAttachments {
+			if att == nil {
+				continue
+			}
 			switch att.Type {
 			case "file":
 				fmt.Printf("  - [file] %s\n", att.Path)
 			case "link":
-				fmt.Printf("  - [link] %s\n", att.URL)
+				fmt.Printf("  - [link] %s\n", att.Url)
 			case "note":
 				fmt.Printf("  - [note] %s\n", truncate(att.Content, 50))
 			}
@@ -172,11 +178,11 @@ func (a *App) taskGet(args []string) error {
 	if task.CreatedBy != "" {
 		fmt.Printf("Created By:  %s\n", task.CreatedBy)
 	}
-	if task.CreatedAt != "" {
-		fmt.Printf("Created:     %s\n", task.CreatedAt)
+	if created := formatTimestamp(task.CreatedAt); created != "" {
+		fmt.Printf("Created:     %s\n", created)
 	}
-	if task.UpdatedAt != "" {
-		fmt.Printf("Updated:     %s\n", task.UpdatedAt)
+	if updated := formatTimestamp(task.UpdatedAt); updated != "" {
+		fmt.Printf("Updated:     %s\n", updated)
 	}
 
 	return nil
@@ -203,7 +209,7 @@ func (a *App) taskCreate(args []string) error {
 		return fmt.Errorf("--title is required")
 	}
 
-	req := CreateTaskRequest{
+	req := &domainpb.Task{
 		Title:       *title,
 		Description: *description,
 		ScopePath:   *scopePath,
@@ -221,7 +227,7 @@ func (a *App) taskCreate(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Created task: %s (%s)\n", task.Title, task.ID)
+	fmt.Printf("Created task: %s (%s)\n", task.Title, task.Id)
 	return nil
 }
 

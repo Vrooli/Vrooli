@@ -212,6 +212,7 @@ class CreateRunRequest(_message.Message):
     FORCE_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     PROFILE_REF_FIELD_NUMBER: _ClassVar[int]
+    PROMPT_FIELD_NUMBER: _ClassVar[int]
     task_id: str
     agent_profile_id: str
     tag: str
@@ -220,7 +221,8 @@ class CreateRunRequest(_message.Message):
     force: bool
     idempotency_key: str
     profile_ref: ProfileRef
-    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2_1.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ...) -> None: ...
+    prompt: str
+    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2_1.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ...) -> None: ...
 
 class CreateRunResponse(_message.Message):
     __slots__ = ()

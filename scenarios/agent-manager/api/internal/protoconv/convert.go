@@ -71,7 +71,7 @@ func RunnerTypeFromProto(r pb.RunnerType) domain.RunnerType {
 	case pb.RunnerType_RUNNER_TYPE_OPENCODE:
 		return domain.RunnerTypeOpenCode
 	default:
-		return domain.RunnerTypeClaudeCode // Default fallback
+		return domain.RunnerType("")
 	}
 }
 

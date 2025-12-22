@@ -51,8 +51,7 @@ class ActionTelemetry(_message.Message):
     URL_FIELD_NUMBER: _ClassVar[int]
     FRAME_ID_FIELD_NUMBER: _ClassVar[int]
     SCREENSHOT_FIELD_NUMBER: _ClassVar[int]
-    DOM_SNAPSHOT_PREVIEW_FIELD_NUMBER: _ClassVar[int]
-    DOM_SNAPSHOT_HTML_FIELD_NUMBER: _ClassVar[int]
+    DOM_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
     CLICK_POSITION_FIELD_NUMBER: _ClassVar[int]
     CURSOR_POSITION_FIELD_NUMBER: _ClassVar[int]
@@ -60,13 +59,12 @@ class ActionTelemetry(_message.Message):
     HIGHLIGHT_REGIONS_FIELD_NUMBER: _ClassVar[int]
     MASK_REGIONS_FIELD_NUMBER: _ClassVar[int]
     ZOOM_FACTOR_FIELD_NUMBER: _ClassVar[int]
-    CONSOLE_LOGS_FIELD_NUMBER: _ClassVar[int]
-    NETWORK_EVENTS_FIELD_NUMBER: _ClassVar[int]
+    CONSOLE_LOG_ARTIFACT_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_EVENT_ARTIFACT_FIELD_NUMBER: _ClassVar[int]
     url: str
     frame_id: str
     screenshot: TimelineScreenshot
-    dom_snapshot_preview: str
-    dom_snapshot_html: str
+    dom_snapshot: TelemetryArtifact
     element_bounding_box: _geometry_pb2.BoundingBox
     click_position: _geometry_pb2.Point
     cursor_position: _geometry_pb2.Point
@@ -74,9 +72,9 @@ class ActionTelemetry(_message.Message):
     highlight_regions: _containers.RepeatedCompositeFieldContainer[_selectors_pb2.HighlightRegion]
     mask_regions: _containers.RepeatedCompositeFieldContainer[_selectors_pb2.MaskRegion]
     zoom_factor: float
-    console_logs: _containers.RepeatedCompositeFieldContainer[ConsoleLogEntry]
-    network_events: _containers.RepeatedCompositeFieldContainer[NetworkEvent]
-    def __init__(self, url: _Optional[str] = ..., frame_id: _Optional[str] = ..., screenshot: _Optional[_Union[TimelineScreenshot, _Mapping]] = ..., dom_snapshot_preview: _Optional[str] = ..., dom_snapshot_html: _Optional[str] = ..., element_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., cursor_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., cursor_trail: _Optional[_Iterable[_Union[_geometry_pb2.Point, _Mapping]]] = ..., highlight_regions: _Optional[_Iterable[_Union[_selectors_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_selectors_pb2.MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., console_logs: _Optional[_Iterable[_Union[ConsoleLogEntry, _Mapping]]] = ..., network_events: _Optional[_Iterable[_Union[NetworkEvent, _Mapping]]] = ...) -> None: ...
+    console_log_artifact: TelemetryArtifact
+    network_event_artifact: TelemetryArtifact
+    def __init__(self, url: _Optional[str] = ..., frame_id: _Optional[str] = ..., screenshot: _Optional[_Union[TimelineScreenshot, _Mapping]] = ..., dom_snapshot: _Optional[_Union[TelemetryArtifact, _Mapping]] = ..., element_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., cursor_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., cursor_trail: _Optional[_Iterable[_Union[_geometry_pb2.Point, _Mapping]]] = ..., highlight_regions: _Optional[_Iterable[_Union[_selectors_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_selectors_pb2.MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., console_log_artifact: _Optional[_Union[TelemetryArtifact, _Mapping]] = ..., network_event_artifact: _Optional[_Union[TelemetryArtifact, _Mapping]] = ...) -> None: ...
 
 class TimelineScreenshot(_message.Message):
     __slots__ = ()
@@ -87,6 +85,7 @@ class TimelineScreenshot(_message.Message):
     HEIGHT_FIELD_NUMBER: _ClassVar[int]
     CONTENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
     artifact_id: str
     url: str
     thumbnail_url: str
@@ -94,4 +93,19 @@ class TimelineScreenshot(_message.Message):
     height: int
     content_type: str
     size_bytes: int
-    def __init__(self, artifact_id: _Optional[str] = ..., url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., content_type: _Optional[str] = ..., size_bytes: _Optional[int] = ...) -> None: ...
+    path: str
+    def __init__(self, artifact_id: _Optional[str] = ..., url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., content_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., path: _Optional[str] = ...) -> None: ...
+
+class TelemetryArtifact(_message.Message):
+    __slots__ = ()
+    ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_URL_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    artifact_id: str
+    storage_url: str
+    path: str
+    content_type: str
+    size_bytes: int
+    def __init__(self, artifact_id: _Optional[str] = ..., storage_url: _Optional[str] = ..., path: _Optional[str] = ..., content_type: _Optional[str] = ..., size_bytes: _Optional[int] = ...) -> None: ...

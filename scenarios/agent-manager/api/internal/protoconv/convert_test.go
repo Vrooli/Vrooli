@@ -47,7 +47,7 @@ func TestRunnerTypeFromProto(t *testing.T) {
 		{"claude-code", pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE, domain.RunnerTypeClaudeCode},
 		{"codex", pb.RunnerType_RUNNER_TYPE_CODEX, domain.RunnerTypeCodex},
 		{"opencode", pb.RunnerType_RUNNER_TYPE_OPENCODE, domain.RunnerTypeOpenCode},
-		{"unspecified", pb.RunnerType_RUNNER_TYPE_UNSPECIFIED, domain.RunnerTypeClaudeCode},
+		{"unspecified", pb.RunnerType_RUNNER_TYPE_UNSPECIFIED, domain.RunnerType("")},
 	}
 
 	for _, tt := range tests {

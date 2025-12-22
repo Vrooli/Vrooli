@@ -105,16 +105,14 @@ message TimelineEntryAggregates {
   int32 network_event_count = 4;
   // Related artifacts (console logs, traces, custom artifacts).
   repeated TimelineArtifact artifacts = 5;
-  // DOM snapshot artifact reference.
-  optional TimelineArtifact dom_snapshot = 6;
-  // Truncated DOM snapshot preview text for quick display.
-  optional string dom_snapshot_preview = 7;
   // Preview of extracted data from evaluate steps.
   optional common.v1.JsonValue extracted_data_preview = 8;
   // Focused element metadata for screenshot framing.
   optional ElementFocus focused_element = 9;
   // Execution progress percentage at this step (0-100).
   optional int32 progress = 10;
+
+  reserved 6, 7;
 }
 
 // =============================================================================

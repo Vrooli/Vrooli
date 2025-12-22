@@ -108,6 +108,15 @@ export default function App() {
                   className="gap-1 cursor-pointer"
                   onClick={() => ws.status !== "connected" && ws.reconnect()}
                   title={ws.status === "connected" ? "WebSocket connected" : "Click to reconnect"}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={ws.status === "connected" ? "WebSocket connected" : "Reconnect WebSocket"}
+                  onKeyDown={(event) => {
+                    if ((event.key === "Enter" || event.key === " ") && ws.status !== "connected") {
+                      event.preventDefault();
+                      ws.reconnect();
+                    }
+                  }}
                 >
                   {ws.status === "connected" ? (
                     <Wifi className="h-3 w-3" />

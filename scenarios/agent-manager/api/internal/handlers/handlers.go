@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"agent-manager/internal/adapters/event"
@@ -37,6 +38,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // Handler provides HTTP handlers for all API endpoints.
@@ -148,6 +151,167 @@ func writeProtoJSON(w http.ResponseWriter, status int, msg proto.Message) {
 		return
 	}
 	_, _ = w.Write(data)
+}
+
+// queryFirst returns the first non-empty query value for any of the keys.
+func queryFirst(r *http.Request, keys ...string) string {
+	query := r.URL.Query()
+	for _, key := range keys {
+		if value := strings.TrimSpace(query.Get(key)); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func parseQueryInt(r *http.Request, keys ...string) (int, bool) {
+	raw := queryFirst(r, keys...)
+	if raw == "" {
+		return 0, false
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
+}
+
+func parseQueryInt64(r *http.Request, keys ...string) (int64, bool) {
+	raw := queryFirst(r, keys...)
+	if raw == "" {
+		return 0, false
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
+}
+
+func parseRunnerType(raw string) (domain.RunnerType, bool) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "", false
+	}
+	if strings.HasPrefix(value, "RUNNER_TYPE_") {
+		value = strings.ToLower(strings.TrimPrefix(value, "RUNNER_TYPE_"))
+		value = strings.ReplaceAll(value, "_", "-")
+	}
+	runnerType := domain.RunnerType(value)
+	if !runnerType.IsValid() {
+		return "", false
+	}
+	return runnerType, true
+}
+
+func parseTaskStatus(raw string) (domain.TaskStatus, bool) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "", false
+	}
+	if strings.HasPrefix(value, "TASK_STATUS_") {
+		value = strings.ToLower(strings.TrimPrefix(value, "TASK_STATUS_"))
+	}
+	status := domain.TaskStatus(value)
+	switch status {
+	case domain.TaskStatusQueued,
+		domain.TaskStatusRunning,
+		domain.TaskStatusNeedsReview,
+		domain.TaskStatusApproved,
+		domain.TaskStatusRejected,
+		domain.TaskStatusFailed,
+		domain.TaskStatusCancelled:
+		return status, true
+	default:
+		return "", false
+	}
+}
+
+func parseRunStatus(raw string) (domain.RunStatus, bool) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "", false
+	}
+	if strings.HasPrefix(value, "RUN_STATUS_") {
+		value = strings.ToLower(strings.TrimPrefix(value, "RUN_STATUS_"))
+	}
+	status := domain.RunStatus(value)
+	switch status {
+	case domain.RunStatusPending,
+		domain.RunStatusStarting,
+		domain.RunStatusRunning,
+		domain.RunStatusNeedsReview,
+		domain.RunStatusComplete,
+		domain.RunStatusFailed,
+		domain.RunStatusCancelled:
+		return status, true
+	default:
+		return "", false
+	}
+}
+
+func parseEventTypes(values []string) []domain.RunEventType {
+	var types []domain.RunEventType
+	for _, value := range values {
+		for _, raw := range strings.Split(value, ",") {
+			trimmed := strings.TrimSpace(raw)
+			if trimmed == "" {
+				continue
+			}
+			if strings.HasPrefix(trimmed, "RUN_EVENT_TYPE_") {
+				trimmed = strings.ToLower(strings.TrimPrefix(trimmed, "RUN_EVENT_TYPE_"))
+			}
+			switch domain.RunEventType(trimmed) {
+			case domain.EventTypeLog,
+				domain.EventTypeMessage,
+				domain.EventTypeToolCall,
+				domain.EventTypeToolResult,
+				domain.EventTypeStatus,
+				domain.EventTypeMetric,
+				domain.EventTypeArtifact,
+				domain.EventTypeError:
+				types = append(types, domain.RunEventType(trimmed))
+			}
+		}
+	}
+	return types
+}
+
+func healthStatusToProto(status string) commonpb.HealthStatus {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "healthy":
+		return commonpb.HealthStatus_HEALTH_STATUS_HEALTHY
+	case "degraded":
+		return commonpb.HealthStatus_HEALTH_STATUS_DEGRADED
+	case "unhealthy":
+		return commonpb.HealthStatus_HEALTH_STATUS_UNHEALTHY
+	default:
+		return commonpb.HealthStatus_HEALTH_STATUS_UNSPECIFIED
+	}
+}
+
+func dependencyToJsonValue(dep *orchestration.DependencyStatus) *commonpb.JsonValue {
+	if dep == nil {
+		return nil
+	}
+	status := "unhealthy"
+	if dep.Connected {
+		status = "healthy"
+	}
+	fields := map[string]*commonpb.JsonValue{
+		"status": {Kind: &commonpb.JsonValue_StringValue{StringValue: status}},
+	}
+	if dep.LatencyMs != nil {
+		fields["latency_ms"] = &commonpb.JsonValue{Kind: &commonpb.JsonValue_IntValue{IntValue: *dep.LatencyMs}}
+	}
+	if dep.Error != nil && *dep.Error != "" {
+		fields["error"] = &commonpb.JsonValue{Kind: &commonpb.JsonValue_StringValue{StringValue: *dep.Error}}
+	}
+	return &commonpb.JsonValue{
+		Kind: &commonpb.JsonValue_ObjectValue{
+			ObjectValue: &commonpb.JsonObject{Fields: fields},
+		},
+	}
 }
 
 // writeError writes a structured error response using domain.ErrorResponse.
@@ -264,7 +428,34 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, status)
+	dependencies := map[string]*commonpb.JsonValue{}
+	if status.Dependencies != nil {
+		if dep := dependencyToJsonValue(status.Dependencies.Database); dep != nil {
+			dependencies["database"] = dep
+		}
+		if dep := dependencyToJsonValue(status.Dependencies.Sandbox); dep != nil {
+			dependencies["sandbox"] = dep
+		}
+		for name, dep := range status.Dependencies.Runners {
+			if depValue := dependencyToJsonValue(dep); depValue != nil {
+				dependencies["runner_"+name] = depValue
+			}
+		}
+	}
+
+	metrics := map[string]*commonpb.JsonValue{
+		"active_runs":  {Kind: &commonpb.JsonValue_IntValue{IntValue: int64(status.ActiveRuns)}},
+		"queued_tasks": {Kind: &commonpb.JsonValue_IntValue{IntValue: int64(status.QueuedTasks)}},
+	}
+
+	writeProtoJSON(w, http.StatusOK, &commonpb.HealthResponse{
+		Status:       healthStatusToProto(status.Status),
+		Service:      status.Service,
+		Timestamp:    status.Timestamp,
+		Readiness:    status.Readiness,
+		Dependencies: dependencies,
+		Metrics:      metrics,
+	})
 }
 
 // =============================================================================
@@ -273,11 +464,23 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 
 // CreateProfile creates a new agent profile.
 func (h *Handler) CreateProfile(w http.ResponseWriter, r *http.Request) {
-	var profile domain.AgentProfile
-	if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.CreateProfileRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
+	if req.Profile == nil {
+		writeSimpleError(w, r, "profile", "profile is required")
+		return
+	}
+
+	profile := protoconv.AgentProfileFromProto(req.Profile)
 
 	// Validate before sending to service
 	if err := profile.Validate(); err != nil {
@@ -285,13 +488,15 @@ func (h *Handler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.CreateProfile(r.Context(), &profile)
+	result, err := h.svc.CreateProfile(r.Context(), profile)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
 
-	writeProtoJSON(w, http.StatusCreated, protoconv.AgentProfileToProto(result))
+	writeProtoJSON(w, http.StatusCreated, &apipb.CreateProfileResponse{
+		Profile: protoconv.AgentProfileToProto(result),
+	})
 }
 
 // EnsureProfile resolves a profile by key, creating it with defaults if needed.
@@ -339,15 +544,43 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeProtoJSON(w, http.StatusOK, protoconv.AgentProfileToProto(profile))
+	writeProtoJSON(w, http.StatusOK, &apipb.GetProfileResponse{
+		Profile: protoconv.AgentProfileToProto(profile),
+	})
 }
 
 // ListProfiles returns all agent profiles.
 func (h *Handler) ListProfiles(w http.ResponseWriter, r *http.Request) {
-	profiles, err := h.svc.ListProfiles(r.Context(), orchestration.ListOptions{})
+	limit, _ := parseQueryInt(r, "limit")
+	offset, _ := parseQueryInt(r, "offset")
+	runnerTypeRaw := queryFirst(r, "runner_type", "runnerType")
+	var runnerTypeFilter *domain.RunnerType
+	if runnerTypeRaw != "" {
+		if parsed, ok := parseRunnerType(runnerTypeRaw); ok {
+			runnerTypeFilter = &parsed
+		} else {
+			writeSimpleError(w, r, "runner_type", "invalid runner type")
+			return
+		}
+	}
+
+	profiles, err := h.svc.ListProfiles(r.Context(), orchestration.ListOptions{
+		Limit:  limit,
+		Offset: offset,
+	})
 	if err != nil {
 		writeError(w, r, err)
 		return
+	}
+
+	if runnerTypeFilter != nil {
+		filtered := make([]*domain.AgentProfile, 0, len(profiles))
+		for _, profile := range profiles {
+			if profile.RunnerType == *runnerTypeFilter {
+				filtered = append(filtered, profile)
+			}
+		}
+		profiles = filtered
 	}
 
 	writeProtoJSON(w, http.StatusOK, &apipb.ListProfilesResponse{
@@ -364,11 +597,29 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var profile domain.AgentProfile
-	if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.UpdateProfileRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
+	if req.Profile == nil {
+		writeSimpleError(w, r, "profile", "profile is required")
+		return
+	}
+	if req.ProfileId != "" {
+		if req.ProfileId != id.String() {
+			writeSimpleError(w, r, "profile_id", "profile_id does not match URL")
+			return
+		}
+	}
+
+	profile := protoconv.AgentProfileFromProto(req.Profile)
 	profile.ID = id
 
 	// Validate before sending to service
@@ -377,13 +628,15 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.UpdateProfile(r.Context(), &profile)
+	result, err := h.svc.UpdateProfile(r.Context(), profile)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
 
-	writeProtoJSON(w, http.StatusOK, protoconv.AgentProfileToProto(result))
+	writeProtoJSON(w, http.StatusOK, &apipb.UpdateProfileResponse{
+		Profile: protoconv.AgentProfileToProto(result),
+	})
 }
 
 // DeleteProfile removes a profile.
@@ -408,11 +661,23 @@ func (h *Handler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 
 // CreateTask creates a new task.
 func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
-	var task domain.Task
-	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.CreateTaskRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
+	if req.Task == nil {
+		writeSimpleError(w, r, "task", "task is required")
+		return
+	}
+
+	task := protoconv.TaskFromProto(req.Task)
 
 	// Validate before sending to service
 	if err := task.Validate(); err != nil {
@@ -420,13 +685,15 @@ func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.CreateTask(r.Context(), &task)
+	result, err := h.svc.CreateTask(r.Context(), task)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
 
-	writeProtoJSON(w, http.StatusCreated, protoconv.TaskToProto(result))
+	writeProtoJSON(w, http.StatusCreated, &apipb.CreateTaskResponse{
+		Task: protoconv.TaskToProto(result),
+	})
 }
 
 // GetTask retrieves a task by ID.
@@ -443,15 +710,49 @@ func (h *Handler) GetTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeProtoJSON(w, http.StatusOK, protoconv.TaskToProto(task))
+	writeProtoJSON(w, http.StatusOK, &apipb.GetTaskResponse{
+		Task: protoconv.TaskToProto(task),
+	})
 }
 
 // ListTasks returns all tasks.
 func (h *Handler) ListTasks(w http.ResponseWriter, r *http.Request) {
-	tasks, err := h.svc.ListTasks(r.Context(), orchestration.ListOptions{})
+	limit, _ := parseQueryInt(r, "limit")
+	offset, _ := parseQueryInt(r, "offset")
+	statusRaw := queryFirst(r, "status")
+	scopePrefix := queryFirst(r, "scope_prefix", "scopePrefix")
+
+	var statusFilter *domain.TaskStatus
+	if statusRaw != "" {
+		if parsed, ok := parseTaskStatus(statusRaw); ok {
+			statusFilter = &parsed
+		} else {
+			writeSimpleError(w, r, "status", "invalid task status")
+			return
+		}
+	}
+
+	tasks, err := h.svc.ListTasks(r.Context(), orchestration.ListOptions{
+		Limit:  limit,
+		Offset: offset,
+	})
 	if err != nil {
 		writeError(w, r, err)
 		return
+	}
+
+	if statusFilter != nil || scopePrefix != "" {
+		filtered := make([]*domain.Task, 0, len(tasks))
+		for _, task := range tasks {
+			if statusFilter != nil && task.Status != *statusFilter {
+				continue
+			}
+			if scopePrefix != "" && !strings.HasPrefix(task.ScopePath, scopePrefix) {
+				continue
+			}
+			filtered = append(filtered, task)
+		}
+		tasks = filtered
 	}
 
 	writeProtoJSON(w, http.StatusOK, &apipb.ListTasksResponse{
@@ -468,11 +769,29 @@ func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var task domain.Task
-	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.UpdateTaskRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
+	if req.Task == nil {
+		writeSimpleError(w, r, "task", "task is required")
+		return
+	}
+	if req.TaskId != "" {
+		if req.TaskId != id.String() {
+			writeSimpleError(w, r, "task_id", "task_id does not match URL")
+			return
+		}
+	}
+
+	task := protoconv.TaskFromProto(req.Task)
 	task.ID = id
 
 	// Validate before sending to service
@@ -481,13 +800,15 @@ func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.UpdateTask(r.Context(), &task)
+	result, err := h.svc.UpdateTask(r.Context(), task)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
 
-	writeProtoJSON(w, http.StatusOK, protoconv.TaskToProto(result))
+	writeProtoJSON(w, http.StatusOK, &apipb.UpdateTaskResponse{
+		Task: protoconv.TaskToProto(result),
+	})
 }
 
 // CancelTask cancels a queued or running task.
@@ -528,10 +849,85 @@ func (h *Handler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 
 // CreateRun creates a new run.
 func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
-	var req orchestration.CreateRunRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var protoReq apipb.CreateRunRequest
+	if err := protoconv.UnmarshalJSON(body, &protoReq); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
+	}
+	if protoReq.TaskId == "" {
+		writeSimpleError(w, r, "task_id", "task_id is required")
+		return
+	}
+
+	taskID, err := uuid.Parse(protoReq.TaskId)
+	if err != nil {
+		writeSimpleError(w, r, "task_id", "invalid UUID format for task ID")
+		return
+	}
+
+	req := orchestration.CreateRunRequest{
+		TaskID: taskID,
+		Force:  protoReq.Force,
+	}
+	if protoReq.AgentProfileId != nil {
+		agentProfileID, err := uuid.Parse(protoReq.GetAgentProfileId())
+		if err != nil {
+			writeSimpleError(w, r, "agent_profile_id", "invalid UUID format for agent profile ID")
+			return
+		}
+		req.AgentProfileID = &agentProfileID
+	}
+	if protoReq.Tag != nil {
+		req.Tag = protoReq.GetTag()
+	}
+	if protoReq.RunMode != nil {
+		mode := protoconv.RunModeFromProto(*protoReq.RunMode)
+		req.RunMode = &mode
+	}
+	if protoReq.IdempotencyKey != nil {
+		req.IdempotencyKey = protoReq.GetIdempotencyKey()
+	}
+	if protoReq.Prompt != nil {
+		req.Prompt = protoReq.GetPrompt()
+	}
+	if protoReq.ProfileRef != nil {
+		req.ProfileRef = &orchestration.ProfileRef{
+			ProfileKey: protoReq.ProfileRef.ProfileKey,
+			Defaults:   protoconv.AgentProfileFromProto(protoReq.ProfileRef.Defaults),
+		}
+	}
+	if protoReq.InlineConfig != nil {
+		inline := protoReq.InlineConfig
+		if inline.RunnerType != domainpb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
+			runner := protoconv.RunnerTypeFromProto(inline.RunnerType)
+			req.RunnerType = &runner
+		}
+		if inline.Model != "" {
+			model := inline.Model
+			req.Model = &model
+		}
+		if inline.MaxTurns != 0 {
+			maxTurns := int(inline.MaxTurns)
+			req.MaxTurns = &maxTurns
+		}
+		if inline.Timeout != nil {
+			timeout := inline.Timeout.AsDuration()
+			req.Timeout = &timeout
+		}
+		if len(inline.AllowedTools) > 0 {
+			req.AllowedTools = inline.AllowedTools
+		}
+		if len(inline.DeniedTools) > 0 {
+			req.DeniedTools = inline.DeniedTools
+		}
+		skipPermissionPrompt := inline.SkipPermissionPrompt
+		req.SkipPermissionPrompt = &skipPermissionPrompt
 	}
 
 	run, err := h.svc.CreateRun(r.Context(), req)
@@ -540,7 +936,9 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeProtoJSON(w, http.StatusCreated, protoconv.RunToProto(run))
+	writeProtoJSON(w, http.StatusCreated, &apipb.CreateRunResponse{
+		Run: protoconv.RunToProto(run),
+	})
 }
 
 // GetRun retrieves a run by ID.
@@ -557,7 +955,9 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeProtoJSON(w, http.StatusOK, protoconv.RunToProto(run))
+	writeProtoJSON(w, http.StatusOK, &apipb.GetRunResponse{
+		Run: protoconv.RunToProto(run),
+	})
 }
 
 // ListRuns returns all runs, with optional filtering.
@@ -570,28 +970,39 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	opts := orchestration.RunListOptions{}
 
 	// Parse status filter
-	if statusStr := r.URL.Query().Get("status"); statusStr != "" {
-		status := domain.RunStatus(statusStr)
-		opts.Status = &status
+	if statusStr := queryFirst(r, "status"); statusStr != "" {
+		if status, ok := parseRunStatus(statusStr); ok {
+			opts.Status = &status
+		} else {
+			writeSimpleError(w, r, "status", "invalid run status")
+			return
+		}
 	}
 
 	// Parse task ID filter
-	if taskIDStr := r.URL.Query().Get("taskId"); taskIDStr != "" {
+	if taskIDStr := queryFirst(r, "task_id", "taskId"); taskIDStr != "" {
 		if taskID, err := uuid.Parse(taskIDStr); err == nil {
 			opts.TaskID = &taskID
 		}
 	}
 
 	// Parse profile ID filter
-	if profileIDStr := r.URL.Query().Get("profileId"); profileIDStr != "" {
+	if profileIDStr := queryFirst(r, "agent_profile_id", "profileId", "agentProfileId"); profileIDStr != "" {
 		if profileID, err := uuid.Parse(profileIDStr); err == nil {
 			opts.AgentProfileID = &profileID
 		}
 	}
 
 	// Parse tag prefix filter
-	if tagPrefix := r.URL.Query().Get("tagPrefix"); tagPrefix != "" {
+	if tagPrefix := queryFirst(r, "tag_prefix", "tagPrefix"); tagPrefix != "" {
 		opts.TagPrefix = tagPrefix
+	}
+
+	if limit, ok := parseQueryInt(r, "limit"); ok {
+		opts.Limit = limit
+	}
+	if offset, ok := parseQueryInt(r, "offset"); ok {
+		opts.Offset = offset
 	}
 
 	runs, err := h.svc.ListRuns(r.Context(), opts)
@@ -636,7 +1047,9 @@ func (h *Handler) GetRunByTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeProtoJSON(w, http.StatusOK, protoconv.RunToProto(run))
+	writeProtoJSON(w, http.StatusOK, &apipb.GetRunByTagResponse{
+		Run: protoconv.RunToProto(run),
+	})
 }
 
 // StopRunByTag stops a run identified by its custom tag.
@@ -659,17 +1072,26 @@ func (h *Handler) StopRunByTag(w http.ResponseWriter, r *http.Request) {
 // POST /api/v1/runs/stop-all
 // Body: {"tagPrefix": "ecosystem-", "force": true}
 func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		TagPrefix string `json:"tagPrefix"`
-		Force     bool   `json:"force"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
-		writeSimpleError(w, r, "body", "invalid JSON request body")
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
 		return
 	}
 
+	var req apipb.StopAllRunsRequest
+	if len(body) > 0 {
+		if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+			writeSimpleError(w, r, "body", "invalid JSON request body")
+			return
+		}
+	}
+	tagPrefix := ""
+	if req.TagPrefix != nil {
+		tagPrefix = *req.TagPrefix
+	}
+
 	result, err := h.svc.StopAllRuns(r.Context(), orchestration.StopAllOptions{
-		TagPrefix: req.TagPrefix,
+		TagPrefix: tagPrefix,
 		Force:     req.Force,
 	})
 	if err != nil {
@@ -695,7 +1117,20 @@ func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	events, err := h.svc.GetRunEvents(r.Context(), id, event.GetOptions{})
+	opts := event.GetOptions{}
+	if after, ok := parseQueryInt64(r, "after_sequence", "afterSequence"); ok {
+		opts.AfterSequence = after
+	}
+	if limit, ok := parseQueryInt(r, "limit"); ok {
+		opts.Limit = limit
+	}
+	eventTypesRaw := r.URL.Query()["event_types"]
+	if len(eventTypesRaw) == 0 {
+		eventTypesRaw = r.URL.Query()["eventTypes"]
+	}
+	opts.EventTypes = parseEventTypes(eventTypesRaw)
+
+	events, err := h.svc.GetRunEvents(r.Context(), id, opts)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -751,12 +1186,14 @@ func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		Actor     string `json:"actor"`
-		CommitMsg string `json:"commitMsg"`
-		Force     bool   `json:"force"`
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+
+	var req apipb.ApproveRunRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
@@ -764,7 +1201,7 @@ func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 	result, err := h.svc.ApproveRun(r.Context(), orchestration.ApproveRequest{
 		RunID:     id,
 		Actor:     req.Actor,
-		CommitMsg: req.CommitMsg,
+		CommitMsg: req.GetCommitMsg(),
 		Force:     req.Force,
 	})
 	if err != nil {
@@ -792,11 +1229,14 @@ func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		Actor  string `json:"actor"`
-		Reason string `json:"reason"`
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+
+	var req apipb.RejectRunRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}

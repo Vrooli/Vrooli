@@ -6,6 +6,11 @@ import (
 	"net/url"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // =============================================================================
@@ -38,7 +43,7 @@ type ProfileService struct {
 }
 
 // List retrieves all profiles.
-func (s *ProfileService) List(limit, offset int) ([]byte, []Profile, error) {
+func (s *ProfileService) List(limit, offset int) ([]byte, []*domainpb.AgentProfile, error) {
 	query := url.Values{}
 	if limit > 0 {
 		query.Set("limit", fmt.Sprintf("%d", limit))
@@ -52,53 +57,61 @@ func (s *ProfileService) List(limit, offset int) ([]byte, []Profile, error) {
 		return body, nil, err
 	}
 
-	var profiles []Profile
-	if err := json.Unmarshal(body, &profiles); err != nil {
+	var resp apipb.ListProfilesResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil // Return raw body for fallback
 	}
-	return body, profiles, nil
+	return body, resp.Profiles, nil
 }
 
 // Get retrieves a single profile by ID.
-func (s *ProfileService) Get(id string) ([]byte, *Profile, error) {
+func (s *ProfileService) Get(id string) ([]byte, *domainpb.AgentProfile, error) {
 	body, err := s.api.Get("/api/v1/profiles/"+id, nil)
 	if err != nil {
 		return body, nil, err
 	}
 
-	var profile Profile
-	if err := json.Unmarshal(body, &profile); err != nil {
+	var resp apipb.GetProfileResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, &profile, nil
+	return body, resp.Profile, nil
 }
 
 // Create creates a new profile.
-func (s *ProfileService) Create(req CreateProfileRequest) ([]byte, *Profile, error) {
-	body, err := s.api.Request("POST", "/api/v1/profiles", nil, req)
+func (s *ProfileService) Create(profile *domainpb.AgentProfile) ([]byte, *domainpb.AgentProfile, error) {
+	payload, err := marshalProtoRequest(&apipb.CreateProfileRequest{Profile: profile})
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/profiles", nil, payload)
 	if err != nil {
 		return body, nil, err
 	}
 
-	var profile Profile
-	if err := json.Unmarshal(body, &profile); err != nil {
+	var resp apipb.CreateProfileResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, &profile, nil
+	return body, resp.Profile, nil
 }
 
 // Update updates an existing profile.
-func (s *ProfileService) Update(id string, req CreateProfileRequest) ([]byte, *Profile, error) {
-	body, err := s.api.Request("PUT", "/api/v1/profiles/"+id, nil, req)
+func (s *ProfileService) Update(id string, profile *domainpb.AgentProfile) ([]byte, *domainpb.AgentProfile, error) {
+	payload, err := marshalProtoRequest(&apipb.UpdateProfileRequest{ProfileId: id, Profile: profile})
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("PUT", "/api/v1/profiles/"+id, nil, payload)
 	if err != nil {
 		return body, nil, err
 	}
 
-	var profile Profile
-	if err := json.Unmarshal(body, &profile); err != nil {
+	var resp apipb.UpdateProfileResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, &profile, nil
+	return body, resp.Profile, nil
 }
 
 // Delete removes a profile.
@@ -117,7 +130,7 @@ type TaskService struct {
 }
 
 // List retrieves all tasks.
-func (s *TaskService) List(limit, offset int, status string) ([]byte, []Task, error) {
+func (s *TaskService) List(limit, offset int, status string) ([]byte, []*domainpb.Task, error) {
 	query := url.Values{}
 	if limit > 0 {
 		query.Set("limit", fmt.Sprintf("%d", limit))
@@ -134,39 +147,43 @@ func (s *TaskService) List(limit, offset int, status string) ([]byte, []Task, er
 		return body, nil, err
 	}
 
-	var tasks []Task
-	if err := json.Unmarshal(body, &tasks); err != nil {
+	var resp apipb.ListTasksResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, tasks, nil
+	return body, resp.Tasks, nil
 }
 
 // Get retrieves a single task by ID.
-func (s *TaskService) Get(id string) ([]byte, *Task, error) {
+func (s *TaskService) Get(id string) ([]byte, *domainpb.Task, error) {
 	body, err := s.api.Get("/api/v1/tasks/"+id, nil)
 	if err != nil {
 		return body, nil, err
 	}
 
-	var task Task
-	if err := json.Unmarshal(body, &task); err != nil {
+	var resp apipb.GetTaskResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, &task, nil
+	return body, resp.Task, nil
 }
 
 // Create creates a new task.
-func (s *TaskService) Create(req CreateTaskRequest) ([]byte, *Task, error) {
-	body, err := s.api.Request("POST", "/api/v1/tasks", nil, req)
+func (s *TaskService) Create(task *domainpb.Task) ([]byte, *domainpb.Task, error) {
+	payload, err := marshalProtoRequest(&apipb.CreateTaskRequest{Task: task})
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/tasks", nil, payload)
 	if err != nil {
 		return body, nil, err
 	}
 
-	var task Task
-	if err := json.Unmarshal(body, &task); err != nil {
+	var resp apipb.CreateTaskResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, &task, nil
+	return body, resp.Task, nil
 }
 
 // Cancel cancels a task.
@@ -184,7 +201,7 @@ type RunService struct {
 }
 
 // List retrieves runs with optional filters.
-func (s *RunService) List(limit, offset int, taskID, profileID, status, tagPrefix string) ([]byte, []Run, error) {
+func (s *RunService) List(limit, offset int, taskID, profileID, status, tagPrefix string) ([]byte, []*domainpb.Run, error) {
 	query := url.Values{}
 	if limit > 0 {
 		query.Set("limit", fmt.Sprintf("%d", limit))
@@ -210,39 +227,43 @@ func (s *RunService) List(limit, offset int, taskID, profileID, status, tagPrefi
 		return body, nil, err
 	}
 
-	var runs []Run
-	if err := json.Unmarshal(body, &runs); err != nil {
+	var resp apipb.ListRunsResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, runs, nil
+	return body, resp.Runs, nil
 }
 
 // Get retrieves a single run by ID.
-func (s *RunService) Get(id string) ([]byte, *Run, error) {
+func (s *RunService) Get(id string) ([]byte, *domainpb.Run, error) {
 	body, err := s.api.Get("/api/v1/runs/"+id, nil)
 	if err != nil {
 		return body, nil, err
 	}
 
-	var run Run
-	if err := json.Unmarshal(body, &run); err != nil {
+	var resp apipb.GetRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, &run, nil
+	return body, resp.Run, nil
 }
 
 // Create creates a new run.
-func (s *RunService) Create(req CreateRunRequest) ([]byte, *Run, error) {
-	body, err := s.api.Request("POST", "/api/v1/runs", nil, req)
+func (s *RunService) Create(req *apipb.CreateRunRequest) ([]byte, *domainpb.Run, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs", nil, payload)
 	if err != nil {
 		return body, nil, err
 	}
 
-	var run Run
-	if err := json.Unmarshal(body, &run); err != nil {
+	var resp apipb.CreateRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, &run, nil
+	return body, resp.Run, nil
 }
 
 // Stop stops a running execution.
@@ -251,17 +272,17 @@ func (s *RunService) Stop(id string) ([]byte, error) {
 }
 
 // GetByTag retrieves a run by its custom tag.
-func (s *RunService) GetByTag(tag string) ([]byte, *Run, error) {
+func (s *RunService) GetByTag(tag string) ([]byte, *domainpb.Run, error) {
 	body, err := s.api.Get("/api/v1/runs/tag/"+tag, nil)
 	if err != nil {
 		return body, nil, err
 	}
 
-	var run Run
-	if err := json.Unmarshal(body, &run); err != nil {
+	var resp apipb.GetRunByTagResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, &run, nil
+	return body, resp.Run, nil
 }
 
 // StopByTag stops a run identified by its custom tag.
@@ -269,60 +290,67 @@ func (s *RunService) StopByTag(tag string) ([]byte, error) {
 	return s.api.Request("POST", "/api/v1/runs/tag/"+tag+"/stop", nil, nil)
 }
 
-// StopAllRequest is the request body for the stop-all endpoint.
-type StopAllRequest struct {
-	TagPrefix string `json:"tagPrefix,omitempty"`
-	Force     bool   `json:"force,omitempty"`
-}
-
-// StopAllResult is the result of a bulk stop operation.
-type StopAllResult struct {
-	Stopped   int      `json:"stopped"`
-	Failed    int      `json:"failed"`
-	Skipped   int      `json:"skipped"`
-	FailedIDs []string `json:"failedIds"`
-}
-
 // StopAll stops all running runs, optionally filtered by tag prefix.
-func (s *RunService) StopAll(req StopAllRequest) ([]byte, *StopAllResult, error) {
-	body, err := s.api.Request("POST", "/api/v1/runs/stop-all", nil, req)
+func (s *RunService) StopAll(req *apipb.StopAllRunsRequest) ([]byte, *domainpb.StopAllResult, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/stop-all", nil, payload)
 	if err != nil {
 		return body, nil, err
 	}
 
-	var result StopAllResult
-	if err := json.Unmarshal(body, &result); err != nil {
+	var resp apipb.StopAllRunsResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, &result, nil
+	return body, resp.Result, nil
 }
 
 // Approve approves a run.
-func (s *RunService) Approve(id string, req ApproveRequest) ([]byte, *ApproveResult, error) {
-	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/approve", nil, req)
+func (s *RunService) Approve(id string, req *apipb.ApproveRunRequest) ([]byte, *domainpb.ApproveResult, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/approve", nil, payload)
 	if err != nil {
 		return body, nil, err
 	}
 
-	var result ApproveResult
-	if err := json.Unmarshal(body, &result); err != nil {
+	var resp apipb.ApproveRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, &result, nil
+	return body, resp.Result, nil
 }
 
 // Reject rejects a run.
-func (s *RunService) Reject(id string, req RejectRequest) ([]byte, error) {
-	return s.api.Request("POST", "/api/v1/runs/"+id+"/reject", nil, req)
+func (s *RunService) Reject(id string, req *apipb.RejectRunRequest) ([]byte, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return s.api.Request("POST", "/api/v1/runs/"+id+"/reject", nil, payload)
 }
 
 // GetDiff retrieves the diff for a run.
-func (s *RunService) GetDiff(id string) ([]byte, error) {
-	return s.api.Get("/api/v1/runs/"+id+"/diff", nil)
+func (s *RunService) GetDiff(id string) ([]byte, *domainpb.RunDiff, error) {
+	body, err := s.api.Get("/api/v1/runs/"+id+"/diff", nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.GetRunDiffResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Diff, nil
 }
 
 // GetEvents retrieves events for a run.
-func (s *RunService) GetEvents(id string, limit int) ([]byte, []RunEvent, error) {
+func (s *RunService) GetEvents(id string, limit int) ([]byte, []*domainpb.RunEvent, error) {
 	query := url.Values{}
 	if limit > 0 {
 		query.Set("limit", fmt.Sprintf("%d", limit))
@@ -333,9 +361,30 @@ func (s *RunService) GetEvents(id string, limit int) ([]byte, []RunEvent, error)
 		return body, nil, err
 	}
 
-	var events []RunEvent
-	if err := json.Unmarshal(body, &events); err != nil {
+	var resp apipb.GetRunEventsResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
 		return body, nil, nil
 	}
-	return body, events, nil
+	return body, resp.Events, nil
+}
+
+var protoMarshalOptions = protojson.MarshalOptions{
+	UseProtoNames:   true,
+	EmitUnpopulated: false,
+}
+
+var protoUnmarshalOptions = protojson.UnmarshalOptions{
+	DiscardUnknown: true,
+}
+
+func marshalProtoRequest(msg proto.Message) (json.RawMessage, error) {
+	data, err := protoMarshalOptions.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(data), nil
+}
+
+func unmarshalProtoResponse(data []byte, msg proto.Message) error {
+	return protoUnmarshalOptions.Unmarshal(data, msg)
 }

@@ -517,6 +517,10 @@ message CreateRunRequest {
 
   // Profile reference for key-based resolution (optional).
   optional ProfileRef profile_ref = 8;
+
+  // Optional prompt override for this run.
+  // If omitted, the task description is used.
+  optional string prompt = 9;
 }
 
 // CreateRunResponse returns the created run.

@@ -66,8 +66,6 @@ class TimelineEntryAggregates(_message.Message):
     CONSOLE_LOG_COUNT_FIELD_NUMBER: _ClassVar[int]
     NETWORK_EVENT_COUNT_FIELD_NUMBER: _ClassVar[int]
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
-    DOM_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
-    DOM_SNAPSHOT_PREVIEW_FIELD_NUMBER: _ClassVar[int]
     EXTRACTED_DATA_PREVIEW_FIELD_NUMBER: _ClassVar[int]
     FOCUSED_ELEMENT_FIELD_NUMBER: _ClassVar[int]
     PROGRESS_FIELD_NUMBER: _ClassVar[int]
@@ -76,12 +74,10 @@ class TimelineEntryAggregates(_message.Message):
     console_log_count: int
     network_event_count: int
     artifacts: _containers.RepeatedCompositeFieldContainer[TimelineArtifact]
-    dom_snapshot: TimelineArtifact
-    dom_snapshot_preview: str
     extracted_data_preview: _types_pb2.JsonValue
     focused_element: ElementFocus
     progress: int
-    def __init__(self, status: _Optional[_Union[_shared_pb2.StepStatus, str]] = ..., final_url: _Optional[str] = ..., console_log_count: _Optional[int] = ..., network_event_count: _Optional[int] = ..., artifacts: _Optional[_Iterable[_Union[TimelineArtifact, _Mapping]]] = ..., dom_snapshot: _Optional[_Union[TimelineArtifact, _Mapping]] = ..., dom_snapshot_preview: _Optional[str] = ..., extracted_data_preview: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., focused_element: _Optional[_Union[ElementFocus, _Mapping]] = ..., progress: _Optional[int] = ...) -> None: ...
+    def __init__(self, status: _Optional[_Union[_shared_pb2.StepStatus, str]] = ..., final_url: _Optional[str] = ..., console_log_count: _Optional[int] = ..., network_event_count: _Optional[int] = ..., artifacts: _Optional[_Iterable[_Union[TimelineArtifact, _Mapping]]] = ..., extracted_data_preview: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., focused_element: _Optional[_Union[ElementFocus, _Mapping]] = ..., progress: _Optional[int] = ...) -> None: ...
 
 class TimelineArtifact(_message.Message):
     __slots__ = ()

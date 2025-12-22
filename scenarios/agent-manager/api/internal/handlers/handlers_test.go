@@ -40,6 +40,15 @@ func decodeProtoJSON(t *testing.T, body []byte, msg proto.Message) {
 	}
 }
 
+func encodeProtoJSON(t *testing.T, msg proto.Message) []byte {
+	t.Helper()
+	body, err := protoconv.MarshalJSON(msg)
+	if err != nil {
+		t.Fatalf("failed to encode proto JSON: %v", err)
+	}
+	return body
+}
+
 // setupTestHandler creates a handler with in-memory repositories for testing.
 func setupTestHandler() (*Handler, *mux.Router) {
 	// Create in-memory repositories
@@ -84,13 +93,14 @@ func setupTestHandler() (*Handler, *mux.Router) {
 func TestCreateProfile_Success(t *testing.T) {
 	_, router := setupTestHandler()
 
-	profile := map[string]interface{}{
-		"name":        "test-profile",
-		"description": "Test profile for unit tests",
-		"runnerType":  "claude-code",
-		"maxTurns":    100,
-	}
-	body, _ := json.Marshal(profile)
+	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
+		Profile: &pb.AgentProfile{
+			Name:        "test-profile",
+			Description: "Test profile for unit tests",
+			RunnerType:  pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+			MaxTurns:    100,
+		},
+	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -102,13 +112,13 @@ func TestCreateProfile_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
 	}
 
-	var result pb.AgentProfile
-	decodeProtoJSON(t, rr.Body.Bytes(), &result)
+	var response apipb.CreateProfileResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
 
-	if result.Name != "test-profile" {
-		t.Errorf("expected name 'test-profile', got '%s'", result.Name)
+	if response.Profile.GetName() != "test-profile" {
+		t.Errorf("expected name 'test-profile', got '%s'", response.Profile.GetName())
 	}
-	if result.Id == "" {
+	if response.Profile.GetId() == "" {
 		t.Error("expected profile ID to be assigned")
 	}
 }
@@ -120,29 +130,29 @@ func TestCreateProfile_ValidationError(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		profile map[string]interface{}
+		profile *pb.AgentProfile
 		errCode string
 	}{
 		{
 			name:    "empty name",
-			profile: map[string]interface{}{"name": "", "runnerType": "claude-code"},
+			profile: &pb.AgentProfile{Name: "", RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE},
 			errCode: "VALIDATION",
 		},
 		{
 			name:    "invalid runner type",
-			profile: map[string]interface{}{"name": "test", "runnerType": "invalid"},
+			profile: &pb.AgentProfile{Name: "test", RunnerType: pb.RunnerType_RUNNER_TYPE_UNSPECIFIED},
 			errCode: "VALIDATION",
 		},
 		{
 			name:    "negative max turns",
-			profile: map[string]interface{}{"name": "test", "runnerType": "claude-code", "maxTurns": -1},
+			profile: &pb.AgentProfile{Name: "test", RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE, MaxTurns: -1},
 			errCode: "VALIDATION",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			body, _ := json.Marshal(tt.profile)
+			body := encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: tt.profile})
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			rr := httptest.NewRecorder()
@@ -162,19 +172,21 @@ func TestGetProfile_Success(t *testing.T) {
 	_, router := setupTestHandler()
 
 	// First create a profile
-	profile := map[string]interface{}{
-		"name":       "test-profile",
-		"runnerType": "claude-code",
-	}
-	body, _ := json.Marshal(profile)
+	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
+		Profile: &pb.AgentProfile{
+			Name:       "test-profile",
+			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		},
+	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created pb.AgentProfile
-	decodeProtoJSON(t, rr.Body.Bytes(), &created)
+	var createdResp apipb.CreateProfileResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdResp)
+	created := createdResp.Profile
 
 	// Now retrieve it
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+created.Id, nil)
@@ -185,11 +197,12 @@ func TestGetProfile_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
 	}
 
-	var retrieved pb.AgentProfile
-	decodeProtoJSON(t, rr.Body.Bytes(), &retrieved)
+	var retrievedResp apipb.GetProfileResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &retrievedResp)
+	retrieved := retrievedResp.Profile
 
-	if retrieved.Id != created.Id {
-		t.Errorf("expected ID %s, got %s", created.Id, retrieved.Id)
+	if retrieved.GetId() != created.Id {
+		t.Errorf("expected ID %s, got %s", created.Id, retrieved.GetId())
 	}
 }
 
@@ -214,11 +227,12 @@ func TestListProfiles(t *testing.T) {
 
 	// Create multiple profiles
 	for i := 0; i < 3; i++ {
-		profile := map[string]interface{}{
-			"name":       "profile-" + string(rune('A'+i)),
-			"runnerType": "claude-code",
-		}
-		body, _ := json.Marshal(profile)
+		body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
+			Profile: &pb.AgentProfile{
+				Name:       "profile-" + string(rune('A'+i)),
+				RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+			},
+		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		rr := httptest.NewRecorder()
@@ -249,26 +263,30 @@ func TestUpdateProfile_Success(t *testing.T) {
 	_, router := setupTestHandler()
 
 	// Create profile
-	profile := map[string]interface{}{
-		"name":       "original-name",
-		"runnerType": "claude-code",
-	}
-	body, _ := json.Marshal(profile)
+	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
+		Profile: &pb.AgentProfile{
+			Name:       "original-name",
+			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		},
+	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created pb.AgentProfile
-	decodeProtoJSON(t, rr.Body.Bytes(), &created)
+	var createdResp apipb.CreateProfileResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdResp)
+	created := createdResp.Profile
 
 	// Update profile
-	updateData := map[string]interface{}{
-		"name":        "updated-name",
-		"description": "Updated description",
-		"runnerType":  "claude-code",
-	}
-	body, _ = json.Marshal(updateData)
+	body = encodeProtoJSON(t, &apipb.UpdateProfileRequest{
+		ProfileId: created.Id,
+		Profile: &pb.AgentProfile{
+			Name:        "updated-name",
+			Description: "Updated description",
+			RunnerType:  pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		},
+	})
 	req = httptest.NewRequest(http.MethodPut, "/api/v1/profiles/"+created.Id, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr = httptest.NewRecorder()
@@ -278,14 +296,15 @@ func TestUpdateProfile_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
 	}
 
-	var updated pb.AgentProfile
-	decodeProtoJSON(t, rr.Body.Bytes(), &updated)
+	var updatedResp apipb.UpdateProfileResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &updatedResp)
+	updated := updatedResp.Profile
 
-	if updated.Name != "updated-name" {
-		t.Errorf("expected name 'updated-name', got '%s'", updated.Name)
+	if updated.GetName() != "updated-name" {
+		t.Errorf("expected name 'updated-name', got '%s'", updated.GetName())
 	}
-	if updated.Description != "Updated description" {
-		t.Errorf("expected description 'Updated description', got '%s'", updated.Description)
+	if updated.GetDescription() != "Updated description" {
+		t.Errorf("expected description 'Updated description', got '%s'", updated.GetDescription())
 	}
 }
 
@@ -295,18 +314,20 @@ func TestDeleteProfile_Success(t *testing.T) {
 	_, router := setupTestHandler()
 
 	// Create profile
-	profile := map[string]interface{}{
-		"name":       "to-delete",
-		"runnerType": "claude-code",
-	}
-	body, _ := json.Marshal(profile)
+	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
+		Profile: &pb.AgentProfile{
+			Name:       "to-delete",
+			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		},
+	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created pb.AgentProfile
-	decodeProtoJSON(t, rr.Body.Bytes(), &created)
+	var createdResp apipb.CreateProfileResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdResp)
+	created := createdResp.Profile
 
 	// Delete profile
 	req = httptest.NewRequest(http.MethodDelete, "/api/v1/profiles/"+created.Id, nil)
@@ -337,12 +358,13 @@ func TestDeleteProfile_Success(t *testing.T) {
 func TestCreateTask_Success(t *testing.T) {
 	_, router := setupTestHandler()
 
-	task := map[string]interface{}{
-		"title":       "Fix login bug",
-		"description": "Users cannot login with email",
-		"scopePath":   "src/auth",
-	}
-	body, _ := json.Marshal(task)
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:       "Fix login bug",
+			Description: "Users cannot login with email",
+			ScopePath:   "src/auth",
+		},
+	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -354,14 +376,14 @@ func TestCreateTask_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
 	}
 
-	var result pb.Task
-	decodeProtoJSON(t, rr.Body.Bytes(), &result)
+	var response apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
 
-	if result.Title != "Fix login bug" {
-		t.Errorf("expected title 'Fix login bug', got '%s'", result.Title)
+	if response.Task.GetTitle() != "Fix login bug" {
+		t.Errorf("expected title 'Fix login bug', got '%s'", response.Task.GetTitle())
 	}
-	if result.Status != pb.TaskStatus_TASK_STATUS_QUEUED {
-		t.Errorf("expected status TASK_STATUS_QUEUED, got '%s'", result.Status)
+	if response.Task.GetStatus() != pb.TaskStatus_TASK_STATUS_QUEUED {
+		t.Errorf("expected status TASK_STATUS_QUEUED, got '%s'", response.Task.GetStatus())
 	}
 }
 
@@ -372,25 +394,25 @@ func TestCreateTask_ValidationError(t *testing.T) {
 
 	tests := []struct {
 		name string
-		task map[string]interface{}
+		task *pb.Task
 	}{
 		{
 			name: "empty title",
-			task: map[string]interface{}{"title": "", "scopePath": "src/"},
+			task: &pb.Task{Title: "", ScopePath: "src/"},
 		},
 		{
 			name: "empty scope path",
-			task: map[string]interface{}{"title": "Test", "scopePath": ""},
+			task: &pb.Task{Title: "Test", ScopePath: ""},
 		},
 		{
 			name: "path traversal",
-			task: map[string]interface{}{"title": "Test", "scopePath": "../outside"},
+			task: &pb.Task{Title: "Test", ScopePath: "../outside"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			body, _ := json.Marshal(tt.task)
+			body := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: tt.task})
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			rr := httptest.NewRecorder()
@@ -410,18 +432,20 @@ func TestGetTask_Success(t *testing.T) {
 	_, router := setupTestHandler()
 
 	// Create task
-	task := map[string]interface{}{
-		"title":     "Test task",
-		"scopePath": "src/",
-	}
-	body, _ := json.Marshal(task)
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:     "Test task",
+			ScopePath: "src/",
+		},
+	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created pb.Task
-	decodeProtoJSON(t, rr.Body.Bytes(), &created)
+	var createdResp apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdResp)
+	created := createdResp.Task
 
 	// Get task
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/tasks/"+created.Id, nil)
@@ -432,11 +456,12 @@ func TestGetTask_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
 	}
 
-	var retrieved pb.Task
-	decodeProtoJSON(t, rr.Body.Bytes(), &retrieved)
+	var retrievedResp apipb.GetTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &retrievedResp)
+	retrieved := retrievedResp.Task
 
-	if retrieved.Id != created.Id {
-		t.Errorf("expected ID %s, got %s", created.Id, retrieved.Id)
+	if retrieved.GetId() != created.Id {
+		t.Errorf("expected ID %s, got %s", created.Id, retrieved.GetId())
 	}
 }
 
@@ -447,11 +472,12 @@ func TestListTasks(t *testing.T) {
 
 	// Create tasks
 	for i := 0; i < 3; i++ {
-		task := map[string]interface{}{
-			"title":     "Task " + string(rune('A'+i)),
-			"scopePath": "src/",
-		}
-		body, _ := json.Marshal(task)
+		body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+			Task: &pb.Task{
+				Title:     "Task " + string(rune('A'+i)),
+				ScopePath: "src/",
+			},
+		})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		rr := httptest.NewRecorder()
@@ -482,18 +508,20 @@ func TestCancelTask_Success(t *testing.T) {
 	_, router := setupTestHandler()
 
 	// Create task
-	task := map[string]interface{}{
-		"title":     "To cancel",
-		"scopePath": "src/",
-	}
-	body, _ := json.Marshal(task)
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:     "To cancel",
+			ScopePath: "src/",
+		},
+	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created pb.Task
-	decodeProtoJSON(t, rr.Body.Bytes(), &created)
+	var createdResp apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdResp)
+	created := createdResp.Task
 
 	// Cancel task
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+created.Id+"/cancel", nil)
@@ -570,39 +598,43 @@ func TestCreateRun_Success(t *testing.T) {
 	_, router := setupTestHandler()
 
 	// First create a profile
-	profile := map[string]interface{}{
-		"name":       "runner-profile",
-		"runnerType": "claude-code",
-	}
-	body, _ := json.Marshal(profile)
+	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
+		Profile: &pb.AgentProfile{
+			Name:       "runner-profile",
+			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		},
+	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var createdProfile pb.AgentProfile
-	decodeProtoJSON(t, rr.Body.Bytes(), &createdProfile)
+	var createdProfileResp apipb.CreateProfileResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdProfileResp)
+	createdProfile := createdProfileResp.Profile
 
 	// Create a task
-	task := map[string]interface{}{
-		"title":     "Test task for run",
-		"scopePath": "src/",
-	}
-	body, _ = json.Marshal(task)
+	body = encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:     "Test task for run",
+			ScopePath: "src/",
+		},
+	})
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var createdTask pb.Task
-	decodeProtoJSON(t, rr.Body.Bytes(), &createdTask)
+	var createdTaskResp apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdTaskResp)
+	createdTask := createdTaskResp.Task
 
 	// Create a run
-	runReq := map[string]interface{}{
-		"taskId":         createdTask.Id,
-		"agentProfileId": createdProfile.Id,
-	}
-	body, _ = json.Marshal(runReq)
+	agentProfileID := createdProfile.Id
+	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
+		TaskId:         createdTask.Id,
+		AgentProfileId: &agentProfileID,
+	})
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr = httptest.NewRecorder()
@@ -612,11 +644,12 @@ func TestCreateRun_Success(t *testing.T) {
 		t.Errorf("expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
 	}
 
-	var createdRun pb.Run
-	decodeProtoJSON(t, rr.Body.Bytes(), &createdRun)
+	var createdRunResp apipb.CreateRunResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdRunResp)
+	createdRun := createdRunResp.Run
 
-	if createdRun.TaskId != createdTask.Id {
-		t.Errorf("expected task ID %s, got %s", createdTask.Id, createdRun.TaskId)
+	if createdRun.GetTaskId() != createdTask.Id {
+		t.Errorf("expected task ID %s, got %s", createdTask.Id, createdRun.GetTaskId())
 	}
 	if createdRun.AgentProfileId == nil || *createdRun.AgentProfileId != createdProfile.Id {
 		t.Errorf("expected profile ID %s, got %v", createdProfile.Id, createdRun.AgentProfileId)
@@ -875,8 +908,14 @@ func TestCreateRun_MalformedJSON(t *testing.T) {
 func TestUpdateProfile_InvalidUUID(t *testing.T) {
 	_, router := setupTestHandler()
 
-	body := `{"name": "updated", "runnerType": "claude-code"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/profiles/invalid-uuid", bytes.NewReader([]byte(body)))
+	body := encodeProtoJSON(t, &apipb.UpdateProfileRequest{
+		ProfileId: "invalid-uuid",
+		Profile: &pb.AgentProfile{
+			Name:       "updated",
+			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		},
+	})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/profiles/invalid-uuid", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
@@ -975,12 +1014,13 @@ func TestLargePayload_Profile(t *testing.T) {
 		longDesc[i] = 'a'
 	}
 
-	profile := map[string]interface{}{
-		"name":        "test-profile",
-		"description": string(longDesc),
-		"runnerType":  "claude-code",
-	}
-	body, _ := json.Marshal(profile)
+	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
+		Profile: &pb.AgentProfile{
+			Name:        "test-profile",
+			Description: string(longDesc),
+			RunnerType:  pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		},
+	})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -1002,11 +1042,12 @@ func TestLargePayload_Profile(t *testing.T) {
 
 // createTestProfile is a helper to create a profile for testing.
 func createTestProfile(t *testing.T, router *mux.Router) *pb.AgentProfile {
-	profile := map[string]interface{}{
-		"name":       "test-profile-" + uuid.New().String()[:8],
-		"runnerType": "claude-code",
-	}
-	body, _ := json.Marshal(profile)
+	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
+		Profile: &pb.AgentProfile{
+			Name:       "test-profile-" + uuid.New().String()[:8],
+			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		},
+	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -1016,18 +1057,19 @@ func createTestProfile(t *testing.T, router *mux.Router) *pb.AgentProfile {
 		t.Fatalf("failed to create test profile: %d %s", rr.Code, rr.Body.String())
 	}
 
-	var result pb.AgentProfile
+	var result apipb.CreateProfileResponse
 	decodeProtoJSON(t, rr.Body.Bytes(), &result)
-	return &result
+	return result.Profile
 }
 
 // createTestTask is a helper to create a task for testing.
 func createTestTask(t *testing.T, router *mux.Router) *pb.Task {
-	task := map[string]interface{}{
-		"title":     "test-task-" + uuid.New().String()[:8],
-		"scopePath": "src/",
-	}
-	body, _ := json.Marshal(task)
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:     "test-task-" + uuid.New().String()[:8],
+			ScopePath: "src/",
+		},
+	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -1037,9 +1079,9 @@ func createTestTask(t *testing.T, router *mux.Router) *pb.Task {
 		t.Fatalf("failed to create test task: %d %s", rr.Code, rr.Body.String())
 	}
 
-	var result pb.Task
+	var result apipb.CreateTaskResponse
 	decodeProtoJSON(t, rr.Body.Bytes(), &result)
-	return &result
+	return result.Task
 }
 
 // =============================================================================
@@ -1057,18 +1099,19 @@ func TestStopRun_Success(t *testing.T) {
 	profile := createTestProfile(t, router)
 	task := createTestTask(t, router)
 
-	runReq := map[string]interface{}{
-		"taskId":         task.Id,
-		"agentProfileId": profile.Id,
-	}
-	body, _ := json.Marshal(runReq)
+	agentProfileID := profile.Id
+	body := encodeProtoJSON(t, &apipb.CreateRunRequest{
+		TaskId:         task.Id,
+		AgentProfileId: &agentProfileID,
+	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var createdRun pb.Run
-	decodeProtoJSON(t, rr.Body.Bytes(), &createdRun)
+	var createdRunResp apipb.CreateRunResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdRunResp)
+	createdRun := createdRunResp.Run
 
 	// Stop the run
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+createdRun.Id+"/stop", nil)
@@ -1137,8 +1180,12 @@ func TestStopRunByTag_NotFound(t *testing.T) {
 func TestStopAllRuns_Success(t *testing.T) {
 	_, router := setupTestHandler()
 
-	body := `{"tagPrefix": "", "force": false}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/stop-all", bytes.NewReader([]byte(body)))
+	tagPrefix := ""
+	body := encodeProtoJSON(t, &apipb.StopAllRunsRequest{
+		TagPrefix: &tagPrefix,
+		Force:     false,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/stop-all", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1158,8 +1205,12 @@ func TestStopAllRuns_Success(t *testing.T) {
 func TestStopAllRuns_WithTagPrefix(t *testing.T) {
 	_, router := setupTestHandler()
 
-	body := `{"tagPrefix": "test-", "force": true}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/stop-all", bytes.NewReader([]byte(body)))
+	tagPrefix := "test-"
+	body := encodeProtoJSON(t, &apipb.StopAllRunsRequest{
+		TagPrefix: &tagPrefix,
+		Force:     true,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/stop-all", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1192,18 +1243,19 @@ func TestGetRunEvents_Success(t *testing.T) {
 	profile := createTestProfile(t, router)
 	task := createTestTask(t, router)
 
-	runReq := map[string]interface{}{
-		"taskId":         task.Id,
-		"agentProfileId": profile.Id,
-	}
-	body, _ := json.Marshal(runReq)
+	agentProfileID := profile.Id
+	body := encodeProtoJSON(t, &apipb.CreateRunRequest{
+		TaskId:         task.Id,
+		AgentProfileId: &agentProfileID,
+	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var createdRun pb.Run
-	decodeProtoJSON(t, rr.Body.Bytes(), &createdRun)
+	var createdRunResp apipb.CreateRunResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdRunResp)
+	createdRun := createdRunResp.Run
 
 	// Get events for the run
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+createdRun.Id+"/events", nil)
@@ -1277,8 +1329,11 @@ func TestGetRunDiff_InvalidUUID(t *testing.T) {
 func TestApproveRun_NotFound(t *testing.T) {
 	_, router := setupTestHandler()
 
-	body := `{"actor": "test-user", "commitMsg": "Apply changes"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+uuid.New().String()+"/approve", bytes.NewReader([]byte(body)))
+	body := encodeProtoJSON(t, &apipb.ApproveRunRequest{
+		Actor:     "test-user",
+		CommitMsg: func() *string { msg := "Apply changes"; return &msg }(),
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+uuid.New().String()+"/approve", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1292,8 +1347,10 @@ func TestApproveRun_NotFound(t *testing.T) {
 func TestApproveRun_InvalidUUID(t *testing.T) {
 	_, router := setupTestHandler()
 
-	body := `{"actor": "test-user"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/invalid-uuid/approve", bytes.NewReader([]byte(body)))
+	body := encodeProtoJSON(t, &apipb.ApproveRunRequest{
+		Actor: "test-user",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/invalid-uuid/approve", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1321,8 +1378,11 @@ func TestApproveRun_MalformedBody(t *testing.T) {
 func TestRejectRun_NotFound(t *testing.T) {
 	_, router := setupTestHandler()
 
-	body := `{"actor": "test-user", "reason": "Changes not acceptable"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+uuid.New().String()+"/reject", bytes.NewReader([]byte(body)))
+	body := encodeProtoJSON(t, &apipb.RejectRunRequest{
+		Actor:  "test-user",
+		Reason: "Changes not acceptable",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+uuid.New().String()+"/reject", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1336,8 +1396,11 @@ func TestRejectRun_NotFound(t *testing.T) {
 func TestRejectRun_InvalidUUID(t *testing.T) {
 	_, router := setupTestHandler()
 
-	body := `{"actor": "test-user", "reason": "test"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/invalid-uuid/reject", bytes.NewReader([]byte(body)))
+	body := encodeProtoJSON(t, &apipb.RejectRunRequest{
+		Actor:  "test-user",
+		Reason: "test",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/invalid-uuid/reject", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1377,10 +1440,8 @@ func TestListRuns_WithStatusFilter(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rr.Code)
 	}
 
-	var runs []interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&runs); err != nil {
-		t.Fatalf("decode runs failed: %v", err)
-	}
+	var response apipb.ListRunsResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &response)
 	// All returned runs should have status "running" (or empty if none)
 }
 
@@ -1450,12 +1511,14 @@ func TestUpdateTask_Success(t *testing.T) {
 	task := createTestTask(t, router)
 
 	// Update task
-	updateData := map[string]interface{}{
-		"title":       "Updated Title",
-		"description": "Updated description",
-		"scopePath":   "src/updated",
-	}
-	body, _ := json.Marshal(updateData)
+	body := encodeProtoJSON(t, &apipb.UpdateTaskRequest{
+		TaskId: task.Id,
+		Task: &pb.Task{
+			Title:       "Updated Title",
+			Description: "Updated description",
+			ScopePath:   "src/updated",
+		},
+	})
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/tasks/"+task.Id, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -1465,11 +1528,12 @@ func TestUpdateTask_Success(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	var updated pb.Task
-	decodeProtoJSON(t, rr.Body.Bytes(), &updated)
+	var updatedResp apipb.UpdateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &updatedResp)
+	updated := updatedResp.Task
 
-	if updated.Title != "Updated Title" {
-		t.Errorf("expected title 'Updated Title', got '%s'", updated.Title)
+	if updated.GetTitle() != "Updated Title" {
+		t.Errorf("expected title 'Updated Title', got '%s'", updated.GetTitle())
 	}
 }
 
@@ -1477,8 +1541,15 @@ func TestUpdateTask_Success(t *testing.T) {
 func TestUpdateTask_NotFound(t *testing.T) {
 	_, router := setupTestHandler()
 
-	body := `{"title": "Test", "scopePath": "src/"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/tasks/"+uuid.New().String(), bytes.NewReader([]byte(body)))
+	missingID := uuid.New().String()
+	body := encodeProtoJSON(t, &apipb.UpdateTaskRequest{
+		TaskId: missingID,
+		Task: &pb.Task{
+			Title:     "Test",
+			ScopePath: "src/",
+		},
+	})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/tasks/"+missingID, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1493,8 +1564,14 @@ func TestUpdateTask_NotFound(t *testing.T) {
 func TestUpdateTask_InvalidUUID(t *testing.T) {
 	_, router := setupTestHandler()
 
-	body := `{"title": "Test", "scopePath": "src/"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/tasks/invalid-uuid", bytes.NewReader([]byte(body)))
+	body := encodeProtoJSON(t, &apipb.UpdateTaskRequest{
+		TaskId: "invalid-uuid",
+		Task: &pb.Task{
+			Title:     "Test",
+			ScopePath: "src/",
+		},
+	})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/tasks/invalid-uuid", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1508,15 +1585,20 @@ func TestUpdateTask_InvalidUUID(t *testing.T) {
 func TestUpdateTask_MalformedBody(t *testing.T) {
 	_, router := setupTestHandler()
 
-	task := map[string]interface{}{"title": "Test", "scopePath": "src/"}
-	body, _ := json.Marshal(task)
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:     "Test",
+			ScopePath: "src/",
+		},
+	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	var created pb.Task
-	decodeProtoJSON(t, rr.Body.Bytes(), &created)
+	var createdResp apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createdResp)
+	created := createdResp.Task
 
 	// Try to update with malformed JSON
 	req = httptest.NewRequest(http.MethodPut, "/api/v1/tasks/"+created.Id, bytes.NewReader([]byte("{broken")))

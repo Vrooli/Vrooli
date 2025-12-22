@@ -272,10 +272,6 @@ type TimelineEntryAggregates struct {
 	NetworkEventCount int32 `protobuf:"varint,4,opt,name=network_event_count,json=networkEventCount,proto3" json:"network_event_count,omitempty"`
 	// Related artifacts (console logs, traces, custom artifacts).
 	Artifacts []*TimelineArtifact `protobuf:"bytes,5,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
-	// DOM snapshot artifact reference.
-	DomSnapshot *TimelineArtifact `protobuf:"bytes,6,opt,name=dom_snapshot,json=domSnapshot,proto3,oneof" json:"dom_snapshot,omitempty"`
-	// Truncated DOM snapshot preview text for quick display.
-	DomSnapshotPreview *string `protobuf:"bytes,7,opt,name=dom_snapshot_preview,json=domSnapshotPreview,proto3,oneof" json:"dom_snapshot_preview,omitempty"`
 	// Preview of extracted data from evaluate steps.
 	ExtractedDataPreview *v1.JsonValue `protobuf:"bytes,8,opt,name=extracted_data_preview,json=extractedDataPreview,proto3,oneof" json:"extracted_data_preview,omitempty"`
 	// Focused element metadata for screenshot framing.
@@ -349,20 +345,6 @@ func (x *TimelineEntryAggregates) GetArtifacts() []*TimelineArtifact {
 		return x.Artifacts
 	}
 	return nil
-}
-
-func (x *TimelineEntryAggregates) GetDomSnapshot() *TimelineArtifact {
-	if x != nil {
-		return x.DomSnapshot
-	}
-	return nil
-}
-
-func (x *TimelineEntryAggregates) GetDomSnapshotPreview() string {
-	if x != nil && x.DomSnapshotPreview != nil {
-		return *x.DomSnapshotPreview
-	}
-	return ""
 }
 
 func (x *TimelineEntryAggregates) GetExtractedDataPreview() *v1.JsonValue {
@@ -953,26 +935,22 @@ const file_browser_automation_studio_v1_timeline_entry_proto_rawDesc = "" +
 	"\x12_total_duration_msB\r\n" +
 	"\v_aggregatesB\v\n" +
 	"\t_trace_idB\x11\n" +
-	"\x0f_correlation_id\"\xf6\x05\n" +
+	"\x0f_correlation_id\"\xc9\x04\n" +
 	"\x17TimelineEntryAggregates\x12@\n" +
 	"\x06status\x18\x01 \x01(\x0e2(.browser_automation_studio.v1.StepStatusR\x06status\x12 \n" +
 	"\tfinal_url\x18\x02 \x01(\tH\x00R\bfinalUrl\x88\x01\x01\x12*\n" +
 	"\x11console_log_count\x18\x03 \x01(\x05R\x0fconsoleLogCount\x12.\n" +
 	"\x13network_event_count\x18\x04 \x01(\x05R\x11networkEventCount\x12L\n" +
-	"\tartifacts\x18\x05 \x03(\v2..browser_automation_studio.v1.TimelineArtifactR\tartifacts\x12V\n" +
-	"\fdom_snapshot\x18\x06 \x01(\v2..browser_automation_studio.v1.TimelineArtifactH\x01R\vdomSnapshot\x88\x01\x01\x125\n" +
-	"\x14dom_snapshot_preview\x18\a \x01(\tH\x02R\x12domSnapshotPreview\x88\x01\x01\x12O\n" +
-	"\x16extracted_data_preview\x18\b \x01(\v2\x14.common.v1.JsonValueH\x03R\x14extractedDataPreview\x88\x01\x01\x12X\n" +
-	"\x0ffocused_element\x18\t \x01(\v2*.browser_automation_studio.v1.ElementFocusH\x04R\x0efocusedElement\x88\x01\x01\x12\x1f\n" +
+	"\tartifacts\x18\x05 \x03(\v2..browser_automation_studio.v1.TimelineArtifactR\tartifacts\x12O\n" +
+	"\x16extracted_data_preview\x18\b \x01(\v2\x14.common.v1.JsonValueH\x01R\x14extractedDataPreview\x88\x01\x01\x12X\n" +
+	"\x0ffocused_element\x18\t \x01(\v2*.browser_automation_studio.v1.ElementFocusH\x02R\x0efocusedElement\x88\x01\x01\x12\x1f\n" +
 	"\bprogress\x18\n" +
-	" \x01(\x05H\x05R\bprogress\x88\x01\x01B\f\n" +
+	" \x01(\x05H\x03R\bprogress\x88\x01\x01B\f\n" +
 	"\n" +
-	"_final_urlB\x0f\n" +
-	"\r_dom_snapshotB\x17\n" +
-	"\x15_dom_snapshot_previewB\x19\n" +
+	"_final_urlB\x19\n" +
 	"\x17_extracted_data_previewB\x12\n" +
 	"\x10_focused_elementB\v\n" +
-	"\t_progress\"\x9c\x04\n" +
+	"\t_progressJ\x04\b\x06\x10\aJ\x04\b\a\x10\b\"\x9c\x04\n" +
 	"\x10TimelineArtifact\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.browser_automation_studio.v1.ArtifactTypeR\x04type\x12\x19\n" +
@@ -1077,27 +1055,26 @@ var file_browser_automation_studio_v1_timeline_entry_proto_depIdxs = []int32{
 	2,  // 4: browser_automation_studio.v1.TimelineEntry.aggregates:type_name -> browser_automation_studio.v1.TimelineEntryAggregates
 	14, // 5: browser_automation_studio.v1.TimelineEntryAggregates.status:type_name -> browser_automation_studio.v1.StepStatus
 	3,  // 6: browser_automation_studio.v1.TimelineEntryAggregates.artifacts:type_name -> browser_automation_studio.v1.TimelineArtifact
-	3,  // 7: browser_automation_studio.v1.TimelineEntryAggregates.dom_snapshot:type_name -> browser_automation_studio.v1.TimelineArtifact
-	15, // 8: browser_automation_studio.v1.TimelineEntryAggregates.extracted_data_preview:type_name -> common.v1.JsonValue
-	4,  // 9: browser_automation_studio.v1.TimelineEntryAggregates.focused_element:type_name -> browser_automation_studio.v1.ElementFocus
-	16, // 10: browser_automation_studio.v1.TimelineArtifact.type:type_name -> browser_automation_studio.v1.ArtifactType
-	9,  // 11: browser_automation_studio.v1.TimelineArtifact.payload:type_name -> browser_automation_studio.v1.TimelineArtifact.PayloadEntry
-	17, // 12: browser_automation_studio.v1.ElementFocus.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	18, // 13: browser_automation_studio.v1.TimelineLog.level:type_name -> browser_automation_studio.v1.LogLevel
-	10, // 14: browser_automation_studio.v1.TimelineLog.timestamp:type_name -> google.protobuf.Timestamp
-	0,  // 15: browser_automation_studio.v1.TimelineStreamMessage.type:type_name -> browser_automation_studio.v1.TimelineMessageType
-	1,  // 16: browser_automation_studio.v1.TimelineStreamMessage.entry:type_name -> browser_automation_studio.v1.TimelineEntry
-	7,  // 17: browser_automation_studio.v1.TimelineStreamMessage.status:type_name -> browser_automation_studio.v1.TimelineStatusUpdate
-	8,  // 18: browser_automation_studio.v1.TimelineStreamMessage.heartbeat:type_name -> browser_automation_studio.v1.TimelineHeartbeat
-	5,  // 19: browser_automation_studio.v1.TimelineStreamMessage.log:type_name -> browser_automation_studio.v1.TimelineLog
-	19, // 20: browser_automation_studio.v1.TimelineStatusUpdate.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	10, // 21: browser_automation_studio.v1.TimelineHeartbeat.timestamp:type_name -> google.protobuf.Timestamp
-	15, // 22: browser_automation_studio.v1.TimelineArtifact.PayloadEntry.value:type_name -> common.v1.JsonValue
-	23, // [23:23] is the sub-list for method output_type
-	23, // [23:23] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	15, // 7: browser_automation_studio.v1.TimelineEntryAggregates.extracted_data_preview:type_name -> common.v1.JsonValue
+	4,  // 8: browser_automation_studio.v1.TimelineEntryAggregates.focused_element:type_name -> browser_automation_studio.v1.ElementFocus
+	16, // 9: browser_automation_studio.v1.TimelineArtifact.type:type_name -> browser_automation_studio.v1.ArtifactType
+	9,  // 10: browser_automation_studio.v1.TimelineArtifact.payload:type_name -> browser_automation_studio.v1.TimelineArtifact.PayloadEntry
+	17, // 11: browser_automation_studio.v1.ElementFocus.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	18, // 12: browser_automation_studio.v1.TimelineLog.level:type_name -> browser_automation_studio.v1.LogLevel
+	10, // 13: browser_automation_studio.v1.TimelineLog.timestamp:type_name -> google.protobuf.Timestamp
+	0,  // 14: browser_automation_studio.v1.TimelineStreamMessage.type:type_name -> browser_automation_studio.v1.TimelineMessageType
+	1,  // 15: browser_automation_studio.v1.TimelineStreamMessage.entry:type_name -> browser_automation_studio.v1.TimelineEntry
+	7,  // 16: browser_automation_studio.v1.TimelineStreamMessage.status:type_name -> browser_automation_studio.v1.TimelineStatusUpdate
+	8,  // 17: browser_automation_studio.v1.TimelineStreamMessage.heartbeat:type_name -> browser_automation_studio.v1.TimelineHeartbeat
+	5,  // 18: browser_automation_studio.v1.TimelineStreamMessage.log:type_name -> browser_automation_studio.v1.TimelineLog
+	19, // 19: browser_automation_studio.v1.TimelineStatusUpdate.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	10, // 20: browser_automation_studio.v1.TimelineHeartbeat.timestamp:type_name -> google.protobuf.Timestamp
+	15, // 21: browser_automation_studio.v1.TimelineArtifact.PayloadEntry.value:type_name -> common.v1.JsonValue
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_timeline_entry_proto_init() }

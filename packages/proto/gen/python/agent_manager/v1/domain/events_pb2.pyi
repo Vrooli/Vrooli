@@ -4,12 +4,45 @@ from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf import struct_pb2 as _struct_pb2
 from agent_manager.v1.domain import types_pb2 as _types_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class AgentManagerWsMessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    AGENT_MANAGER_WS_MESSAGE_TYPE_UNSPECIFIED: _ClassVar[AgentManagerWsMessageType]
+    AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT: _ClassVar[AgentManagerWsMessageType]
+    AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS: _ClassVar[AgentManagerWsMessageType]
+    AGENT_MANAGER_WS_MESSAGE_TYPE_TASK_STATUS: _ClassVar[AgentManagerWsMessageType]
+    AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS: _ClassVar[AgentManagerWsMessageType]
+    AGENT_MANAGER_WS_MESSAGE_TYPE_CONNECTED: _ClassVar[AgentManagerWsMessageType]
+    AGENT_MANAGER_WS_MESSAGE_TYPE_PONG: _ClassVar[AgentManagerWsMessageType]
+
+class AgentManagerWsClientMessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSPECIFIED: _ClassVar[AgentManagerWsClientMessageType]
+    AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE: _ClassVar[AgentManagerWsClientMessageType]
+    AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE: _ClassVar[AgentManagerWsClientMessageType]
+    AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE_ALL: _ClassVar[AgentManagerWsClientMessageType]
+    AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE_ALL: _ClassVar[AgentManagerWsClientMessageType]
+    AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_PING: _ClassVar[AgentManagerWsClientMessageType]
+AGENT_MANAGER_WS_MESSAGE_TYPE_UNSPECIFIED: AgentManagerWsMessageType
+AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT: AgentManagerWsMessageType
+AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS: AgentManagerWsMessageType
+AGENT_MANAGER_WS_MESSAGE_TYPE_TASK_STATUS: AgentManagerWsMessageType
+AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS: AgentManagerWsMessageType
+AGENT_MANAGER_WS_MESSAGE_TYPE_CONNECTED: AgentManagerWsMessageType
+AGENT_MANAGER_WS_MESSAGE_TYPE_PONG: AgentManagerWsMessageType
+AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSPECIFIED: AgentManagerWsClientMessageType
+AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE: AgentManagerWsClientMessageType
+AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE: AgentManagerWsClientMessageType
+AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE_ALL: AgentManagerWsClientMessageType
+AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE_ALL: AgentManagerWsClientMessageType
+AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_PING: AgentManagerWsClientMessageType
 
 class RunEvent(_message.Message):
     __slots__ = ()
@@ -46,6 +79,70 @@ class RunEvent(_message.Message):
     cost: CostEventData
     rate_limit: RateLimitEventData
     def __init__(self, id: _Optional[str] = ..., run_id: _Optional[str] = ..., sequence: _Optional[int] = ..., event_type: _Optional[_Union[_types_pb2.RunEventType, str]] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., log: _Optional[_Union[LogEventData, _Mapping]] = ..., message: _Optional[_Union[MessageEventData, _Mapping]] = ..., tool_call: _Optional[_Union[ToolCallEventData, _Mapping]] = ..., tool_result: _Optional[_Union[ToolResultEventData, _Mapping]] = ..., status: _Optional[_Union[StatusEventData, _Mapping]] = ..., metric: _Optional[_Union[MetricEventData, _Mapping]] = ..., artifact: _Optional[_Union[ArtifactEventData, _Mapping]] = ..., error: _Optional[_Union[ErrorEventData, _Mapping]] = ..., progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., cost: _Optional[_Union[CostEventData, _Mapping]] = ..., rate_limit: _Optional[_Union[RateLimitEventData, _Mapping]] = ...) -> None: ...
+
+class AgentManagerWsMessage(_message.Message):
+    __slots__ = ()
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_EVENT_FIELD_NUMBER: _ClassVar[int]
+    RUN_STATUS_FIELD_NUMBER: _ClassVar[int]
+    TASK_STATUS_FIELD_NUMBER: _ClassVar[int]
+    RUN_PROGRESS_FIELD_NUMBER: _ClassVar[int]
+    CONNECTED_FIELD_NUMBER: _ClassVar[int]
+    PONG_FIELD_NUMBER: _ClassVar[int]
+    type: AgentManagerWsMessageType
+    run_id: str
+    run_event: RunEvent
+    run_status: RunStatusUpdate
+    task_status: TaskStatusUpdate
+    run_progress: ProgressEventData
+    connected: WsConnected
+    pong: WsPong
+    def __init__(self, type: _Optional[_Union[AgentManagerWsMessageType, str]] = ..., run_id: _Optional[str] = ..., run_event: _Optional[_Union[RunEvent, _Mapping]] = ..., run_status: _Optional[_Union[RunStatusUpdate, _Mapping]] = ..., task_status: _Optional[_Union[TaskStatusUpdate, _Mapping]] = ..., run_progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., connected: _Optional[_Union[WsConnected, _Mapping]] = ..., pong: _Optional[_Union[WsPong, _Mapping]] = ...) -> None: ...
+
+class RunStatusUpdate(_message.Message):
+    __slots__ = ()
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    status: _types_pb2.RunStatus
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ...) -> None: ...
+
+class TaskStatusUpdate(_message.Message):
+    __slots__ = ()
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    task_id: str
+    status: _types_pb2.TaskStatus
+    def __init__(self, task_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.TaskStatus, str]] = ...) -> None: ...
+
+class WsConnected(_message.Message):
+    __slots__ = ()
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    message: str
+    timestamp: _timestamp_pb2.Timestamp
+    def __init__(self, message: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class WsPong(_message.Message):
+    __slots__ = ()
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    timestamp: _timestamp_pb2.Timestamp
+    def __init__(self, timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class AgentManagerWsClientMessage(_message.Message):
+    __slots__ = ()
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    RUN_SUBSCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    type: AgentManagerWsClientMessageType
+    run_subscription: RunSubscription
+    def __init__(self, type: _Optional[_Union[AgentManagerWsClientMessageType, str]] = ..., run_subscription: _Optional[_Union[RunSubscription, _Mapping]] = ...) -> None: ...
+
+class RunSubscription(_message.Message):
+    __slots__ = ()
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    def __init__(self, run_id: _Optional[str] = ...) -> None: ...
 
 class LogEventData(_message.Message):
     __slots__ = ()

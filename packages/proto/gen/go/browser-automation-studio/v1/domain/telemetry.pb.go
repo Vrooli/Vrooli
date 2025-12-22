@@ -229,10 +229,8 @@ type ActionTelemetry struct {
 	FrameId *string `protobuf:"bytes,2,opt,name=frame_id,json=frameId,proto3,oneof" json:"frame_id,omitempty"`
 	// Visual captures.
 	Screenshot *TimelineScreenshot `protobuf:"bytes,10,opt,name=screenshot,proto3,oneof" json:"screenshot,omitempty"`
-	// Truncated DOM preview text.
-	DomSnapshotPreview *string `protobuf:"bytes,11,opt,name=dom_snapshot_preview,json=domSnapshotPreview,proto3,oneof" json:"dom_snapshot_preview,omitempty"`
-	// Full DOM HTML snapshot.
-	DomSnapshotHtml *string `protobuf:"bytes,12,opt,name=dom_snapshot_html,json=domSnapshotHtml,proto3,oneof" json:"dom_snapshot_html,omitempty"`
+	// DOM snapshot reference (file-backed artifact).
+	DomSnapshot *TelemetryArtifact `protobuf:"bytes,13,opt,name=dom_snapshot,json=domSnapshot,proto3,oneof" json:"dom_snapshot,omitempty"`
 	// Element interaction data.
 	ElementBoundingBox *base.BoundingBox  `protobuf:"bytes,20,opt,name=element_bounding_box,json=elementBoundingBox,proto3,oneof" json:"element_bounding_box,omitempty"`
 	ClickPosition      *base.Point        `protobuf:"bytes,21,opt,name=click_position,json=clickPosition,proto3,oneof" json:"click_position,omitempty"`
@@ -243,10 +241,10 @@ type ActionTelemetry struct {
 	// Zoom factor applied during capture (1.0 = 100%).
 	ZoomFactor *float64 `protobuf:"fixed64,26,opt,name=zoom_factor,json=zoomFactor,proto3,oneof" json:"zoom_factor,omitempty"`
 	// Browser telemetry.
-	ConsoleLogs   []*ConsoleLogEntry `protobuf:"bytes,30,rep,name=console_logs,json=consoleLogs,proto3" json:"console_logs,omitempty"`
-	NetworkEvents []*NetworkEvent    `protobuf:"bytes,31,rep,name=network_events,json=networkEvents,proto3" json:"network_events,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ConsoleLogArtifact   *TelemetryArtifact `protobuf:"bytes,32,opt,name=console_log_artifact,json=consoleLogArtifact,proto3,oneof" json:"console_log_artifact,omitempty"`
+	NetworkEventArtifact *TelemetryArtifact `protobuf:"bytes,33,opt,name=network_event_artifact,json=networkEventArtifact,proto3,oneof" json:"network_event_artifact,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ActionTelemetry) Reset() {
@@ -300,18 +298,11 @@ func (x *ActionTelemetry) GetScreenshot() *TimelineScreenshot {
 	return nil
 }
 
-func (x *ActionTelemetry) GetDomSnapshotPreview() string {
-	if x != nil && x.DomSnapshotPreview != nil {
-		return *x.DomSnapshotPreview
+func (x *ActionTelemetry) GetDomSnapshot() *TelemetryArtifact {
+	if x != nil {
+		return x.DomSnapshot
 	}
-	return ""
-}
-
-func (x *ActionTelemetry) GetDomSnapshotHtml() string {
-	if x != nil && x.DomSnapshotHtml != nil {
-		return *x.DomSnapshotHtml
-	}
-	return ""
+	return nil
 }
 
 func (x *ActionTelemetry) GetElementBoundingBox() *base.BoundingBox {
@@ -363,16 +354,16 @@ func (x *ActionTelemetry) GetZoomFactor() float64 {
 	return 0
 }
 
-func (x *ActionTelemetry) GetConsoleLogs() []*ConsoleLogEntry {
+func (x *ActionTelemetry) GetConsoleLogArtifact() *TelemetryArtifact {
 	if x != nil {
-		return x.ConsoleLogs
+		return x.ConsoleLogArtifact
 	}
 	return nil
 }
 
-func (x *ActionTelemetry) GetNetworkEvents() []*NetworkEvent {
+func (x *ActionTelemetry) GetNetworkEventArtifact() *TelemetryArtifact {
 	if x != nil {
-		return x.NetworkEvents
+		return x.NetworkEventArtifact
 	}
 	return nil
 }
@@ -396,7 +387,9 @@ type TimelineScreenshot struct {
 	// Image MIME type (e.g., "image/png", "image/jpeg").
 	ContentType string `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
 	// Size in bytes for the screenshot.
-	SizeBytes     *int64 `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3,oneof" json:"size_bytes,omitempty"`
+	SizeBytes *int64 `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3,oneof" json:"size_bytes,omitempty"`
+	// Absolute path on disk when stored locally.
+	Path          *string `protobuf:"bytes,8,opt,name=path,proto3,oneof" json:"path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -480,6 +473,98 @@ func (x *TimelineScreenshot) GetSizeBytes() int64 {
 	return 0
 }
 
+func (x *TimelineScreenshot) GetPath() string {
+	if x != nil && x.Path != nil {
+		return *x.Path
+	}
+	return ""
+}
+
+// TelemetryArtifact references a file-backed artifact captured during execution.
+//
+// @usage ActionTelemetry.dom_snapshot, ActionTelemetry.console_log_artifact, ActionTelemetry.network_event_artifact
+type TelemetryArtifact struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique artifact ID.
+	// @format uuid
+	ArtifactId string `protobuf:"bytes,1,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
+	// URL to download the artifact content.
+	StorageUrl string `protobuf:"bytes,2,opt,name=storage_url,json=storageUrl,proto3" json:"storage_url,omitempty"`
+	// Absolute path on disk when stored locally.
+	Path *string `protobuf:"bytes,3,opt,name=path,proto3,oneof" json:"path,omitempty"`
+	// MIME type for the artifact.
+	ContentType string `protobuf:"bytes,4,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	// Size in bytes.
+	SizeBytes     *int64 `protobuf:"varint,5,opt,name=size_bytes,json=sizeBytes,proto3,oneof" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TelemetryArtifact) Reset() {
+	*x = TelemetryArtifact{}
+	mi := &file_browser_automation_studio_v1_domain_telemetry_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TelemetryArtifact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TelemetryArtifact) ProtoMessage() {}
+
+func (x *TelemetryArtifact) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_domain_telemetry_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TelemetryArtifact.ProtoReflect.Descriptor instead.
+func (*TelemetryArtifact) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_domain_telemetry_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *TelemetryArtifact) GetArtifactId() string {
+	if x != nil {
+		return x.ArtifactId
+	}
+	return ""
+}
+
+func (x *TelemetryArtifact) GetStorageUrl() string {
+	if x != nil {
+		return x.StorageUrl
+	}
+	return ""
+}
+
+func (x *TelemetryArtifact) GetPath() string {
+	if x != nil && x.Path != nil {
+		return *x.Path
+	}
+	return ""
+}
+
+func (x *TelemetryArtifact) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *TelemetryArtifact) GetSizeBytes() int64 {
+	if x != nil && x.SizeBytes != nil {
+		return *x.SizeBytes
+	}
+	return 0
+}
+
 var File_browser_automation_studio_v1_domain_telemetry_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_domain_telemetry_proto_rawDesc = "" +
@@ -507,34 +592,34 @@ const file_browser_automation_studio_v1_domain_telemetry_proto_rawDesc = "" +
 	"\a_statusB\x05\n" +
 	"\x03_okB\n" +
 	"\n" +
-	"\b_failure\"\xdf\b\n" +
+	"\b_failure\"\xad\t\n" +
 	"\x0fActionTelemetry\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x1e\n" +
 	"\bframe_id\x18\x02 \x01(\tH\x00R\aframeId\x88\x01\x01\x12U\n" +
 	"\n" +
 	"screenshot\x18\n" +
 	" \x01(\v20.browser_automation_studio.v1.TimelineScreenshotH\x01R\n" +
-	"screenshot\x88\x01\x01\x125\n" +
-	"\x14dom_snapshot_preview\x18\v \x01(\tH\x02R\x12domSnapshotPreview\x88\x01\x01\x12/\n" +
-	"\x11dom_snapshot_html\x18\f \x01(\tH\x03R\x0fdomSnapshotHtml\x88\x01\x01\x12`\n" +
-	"\x14element_bounding_box\x18\x14 \x01(\v2).browser_automation_studio.v1.BoundingBoxH\x04R\x12elementBoundingBox\x88\x01\x01\x12O\n" +
-	"\x0eclick_position\x18\x15 \x01(\v2#.browser_automation_studio.v1.PointH\x05R\rclickPosition\x88\x01\x01\x12Q\n" +
-	"\x0fcursor_position\x18\x16 \x01(\v2#.browser_automation_studio.v1.PointH\x06R\x0ecursorPosition\x88\x01\x01\x12F\n" +
+	"screenshot\x88\x01\x01\x12W\n" +
+	"\fdom_snapshot\x18\r \x01(\v2/.browser_automation_studio.v1.TelemetryArtifactH\x02R\vdomSnapshot\x88\x01\x01\x12`\n" +
+	"\x14element_bounding_box\x18\x14 \x01(\v2).browser_automation_studio.v1.BoundingBoxH\x03R\x12elementBoundingBox\x88\x01\x01\x12O\n" +
+	"\x0eclick_position\x18\x15 \x01(\v2#.browser_automation_studio.v1.PointH\x04R\rclickPosition\x88\x01\x01\x12Q\n" +
+	"\x0fcursor_position\x18\x16 \x01(\v2#.browser_automation_studio.v1.PointH\x05R\x0ecursorPosition\x88\x01\x01\x12F\n" +
 	"\fcursor_trail\x18\x17 \x03(\v2#.browser_automation_studio.v1.PointR\vcursorTrail\x12Z\n" +
 	"\x11highlight_regions\x18\x18 \x03(\v2-.browser_automation_studio.v1.HighlightRegionR\x10highlightRegions\x12K\n" +
 	"\fmask_regions\x18\x19 \x03(\v2(.browser_automation_studio.v1.MaskRegionR\vmaskRegions\x12$\n" +
-	"\vzoom_factor\x18\x1a \x01(\x01H\aR\n" +
-	"zoomFactor\x88\x01\x01\x12P\n" +
-	"\fconsole_logs\x18\x1e \x03(\v2-.browser_automation_studio.v1.ConsoleLogEntryR\vconsoleLogs\x12Q\n" +
-	"\x0enetwork_events\x18\x1f \x03(\v2*.browser_automation_studio.v1.NetworkEventR\rnetworkEventsB\v\n" +
+	"\vzoom_factor\x18\x1a \x01(\x01H\x06R\n" +
+	"zoomFactor\x88\x01\x01\x12f\n" +
+	"\x14console_log_artifact\x18  \x01(\v2/.browser_automation_studio.v1.TelemetryArtifactH\aR\x12consoleLogArtifact\x88\x01\x01\x12j\n" +
+	"\x16network_event_artifact\x18! \x01(\v2/.browser_automation_studio.v1.TelemetryArtifactH\bR\x14networkEventArtifact\x88\x01\x01B\v\n" +
 	"\t_frame_idB\r\n" +
-	"\v_screenshotB\x17\n" +
-	"\x15_dom_snapshot_previewB\x14\n" +
-	"\x12_dom_snapshot_htmlB\x17\n" +
+	"\v_screenshotB\x0f\n" +
+	"\r_dom_snapshotB\x17\n" +
 	"\x15_element_bounding_boxB\x11\n" +
 	"\x0f_click_positionB\x12\n" +
 	"\x10_cursor_positionB\x0e\n" +
-	"\f_zoom_factor\"\xf0\x01\n" +
+	"\f_zoom_factorB\x17\n" +
+	"\x15_console_log_artifactB\x19\n" +
+	"\x17_network_event_artifactJ\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x1e\x10\x1fJ\x04\b\x1f\x10 \"\x92\x02\n" +
 	"\x12TimelineScreenshot\x12\x1f\n" +
 	"\vartifact_id\x18\x01 \x01(\tR\n" +
 	"artifactId\x12\x10\n" +
@@ -544,7 +629,20 @@ const file_browser_automation_studio_v1_domain_telemetry_proto_rawDesc = "" +
 	"\x06height\x18\x05 \x01(\x05R\x06height\x12!\n" +
 	"\fcontent_type\x18\x06 \x01(\tR\vcontentType\x12\"\n" +
 	"\n" +
-	"size_bytes\x18\a \x01(\x03H\x00R\tsizeBytes\x88\x01\x01B\r\n" +
+	"size_bytes\x18\a \x01(\x03H\x00R\tsizeBytes\x88\x01\x01\x12\x17\n" +
+	"\x04path\x18\b \x01(\tH\x01R\x04path\x88\x01\x01B\r\n" +
+	"\v_size_bytesB\a\n" +
+	"\x05_path\"\xcd\x01\n" +
+	"\x11TelemetryArtifact\x12\x1f\n" +
+	"\vartifact_id\x18\x01 \x01(\tR\n" +
+	"artifactId\x12\x1f\n" +
+	"\vstorage_url\x18\x02 \x01(\tR\n" +
+	"storageUrl\x12\x17\n" +
+	"\x04path\x18\x03 \x01(\tH\x00R\x04path\x88\x01\x01\x12!\n" +
+	"\fcontent_type\x18\x04 \x01(\tR\vcontentType\x12\"\n" +
+	"\n" +
+	"size_bytes\x18\x05 \x01(\x03H\x01R\tsizeBytes\x88\x01\x01B\a\n" +
+	"\x05_pathB\r\n" +
 	"\v_size_bytesB[ZYgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain;domainb\x06proto3"
 
 var (
@@ -559,39 +657,41 @@ func file_browser_automation_studio_v1_domain_telemetry_proto_rawDescGZIP() []by
 	return file_browser_automation_studio_v1_domain_telemetry_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_domain_telemetry_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_browser_automation_studio_v1_domain_telemetry_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_browser_automation_studio_v1_domain_telemetry_proto_goTypes = []any{
 	(*ConsoleLogEntry)(nil),       // 0: browser_automation_studio.v1.ConsoleLogEntry
 	(*NetworkEvent)(nil),          // 1: browser_automation_studio.v1.NetworkEvent
 	(*ActionTelemetry)(nil),       // 2: browser_automation_studio.v1.ActionTelemetry
 	(*TimelineScreenshot)(nil),    // 3: browser_automation_studio.v1.TimelineScreenshot
-	(base.LogLevel)(0),            // 4: browser_automation_studio.v1.LogLevel
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
-	(base.NetworkEventType)(0),    // 6: browser_automation_studio.v1.NetworkEventType
-	(*base.BoundingBox)(nil),      // 7: browser_automation_studio.v1.BoundingBox
-	(*base.Point)(nil),            // 8: browser_automation_studio.v1.Point
-	(*HighlightRegion)(nil),       // 9: browser_automation_studio.v1.HighlightRegion
-	(*MaskRegion)(nil),            // 10: browser_automation_studio.v1.MaskRegion
+	(*TelemetryArtifact)(nil),     // 4: browser_automation_studio.v1.TelemetryArtifact
+	(base.LogLevel)(0),            // 5: browser_automation_studio.v1.LogLevel
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(base.NetworkEventType)(0),    // 7: browser_automation_studio.v1.NetworkEventType
+	(*base.BoundingBox)(nil),      // 8: browser_automation_studio.v1.BoundingBox
+	(*base.Point)(nil),            // 9: browser_automation_studio.v1.Point
+	(*HighlightRegion)(nil),       // 10: browser_automation_studio.v1.HighlightRegion
+	(*MaskRegion)(nil),            // 11: browser_automation_studio.v1.MaskRegion
 }
 var file_browser_automation_studio_v1_domain_telemetry_proto_depIdxs = []int32{
-	4,  // 0: browser_automation_studio.v1.ConsoleLogEntry.level:type_name -> browser_automation_studio.v1.LogLevel
-	5,  // 1: browser_automation_studio.v1.ConsoleLogEntry.timestamp:type_name -> google.protobuf.Timestamp
-	6,  // 2: browser_automation_studio.v1.NetworkEvent.type:type_name -> browser_automation_studio.v1.NetworkEventType
-	5,  // 3: browser_automation_studio.v1.NetworkEvent.timestamp:type_name -> google.protobuf.Timestamp
+	5,  // 0: browser_automation_studio.v1.ConsoleLogEntry.level:type_name -> browser_automation_studio.v1.LogLevel
+	6,  // 1: browser_automation_studio.v1.ConsoleLogEntry.timestamp:type_name -> google.protobuf.Timestamp
+	7,  // 2: browser_automation_studio.v1.NetworkEvent.type:type_name -> browser_automation_studio.v1.NetworkEventType
+	6,  // 3: browser_automation_studio.v1.NetworkEvent.timestamp:type_name -> google.protobuf.Timestamp
 	3,  // 4: browser_automation_studio.v1.ActionTelemetry.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
-	7,  // 5: browser_automation_studio.v1.ActionTelemetry.element_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	8,  // 6: browser_automation_studio.v1.ActionTelemetry.click_position:type_name -> browser_automation_studio.v1.Point
-	8,  // 7: browser_automation_studio.v1.ActionTelemetry.cursor_position:type_name -> browser_automation_studio.v1.Point
-	8,  // 8: browser_automation_studio.v1.ActionTelemetry.cursor_trail:type_name -> browser_automation_studio.v1.Point
-	9,  // 9: browser_automation_studio.v1.ActionTelemetry.highlight_regions:type_name -> browser_automation_studio.v1.HighlightRegion
-	10, // 10: browser_automation_studio.v1.ActionTelemetry.mask_regions:type_name -> browser_automation_studio.v1.MaskRegion
-	0,  // 11: browser_automation_studio.v1.ActionTelemetry.console_logs:type_name -> browser_automation_studio.v1.ConsoleLogEntry
-	1,  // 12: browser_automation_studio.v1.ActionTelemetry.network_events:type_name -> browser_automation_studio.v1.NetworkEvent
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	4,  // 5: browser_automation_studio.v1.ActionTelemetry.dom_snapshot:type_name -> browser_automation_studio.v1.TelemetryArtifact
+	8,  // 6: browser_automation_studio.v1.ActionTelemetry.element_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	9,  // 7: browser_automation_studio.v1.ActionTelemetry.click_position:type_name -> browser_automation_studio.v1.Point
+	9,  // 8: browser_automation_studio.v1.ActionTelemetry.cursor_position:type_name -> browser_automation_studio.v1.Point
+	9,  // 9: browser_automation_studio.v1.ActionTelemetry.cursor_trail:type_name -> browser_automation_studio.v1.Point
+	10, // 10: browser_automation_studio.v1.ActionTelemetry.highlight_regions:type_name -> browser_automation_studio.v1.HighlightRegion
+	11, // 11: browser_automation_studio.v1.ActionTelemetry.mask_regions:type_name -> browser_automation_studio.v1.MaskRegion
+	4,  // 12: browser_automation_studio.v1.ActionTelemetry.console_log_artifact:type_name -> browser_automation_studio.v1.TelemetryArtifact
+	4,  // 13: browser_automation_studio.v1.ActionTelemetry.network_event_artifact:type_name -> browser_automation_studio.v1.TelemetryArtifact
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_domain_telemetry_proto_init() }
@@ -604,13 +704,14 @@ func file_browser_automation_studio_v1_domain_telemetry_proto_init() {
 	file_browser_automation_studio_v1_domain_telemetry_proto_msgTypes[1].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_domain_telemetry_proto_msgTypes[2].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_domain_telemetry_proto_msgTypes[3].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_domain_telemetry_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_domain_telemetry_proto_rawDesc), len(file_browser_automation_studio_v1_domain_telemetry_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -4,8 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // =============================================================================
@@ -89,7 +94,7 @@ func (a *App) profileList(args []string) error {
 
 	if *quiet {
 		for _, p := range profiles {
-			fmt.Println(p.ID)
+			fmt.Println(p.Id)
 		}
 		return nil
 	}
@@ -114,7 +119,8 @@ func (a *App) profileList(args []string) error {
 		if p.RequiresApproval {
 			approval = "yes"
 		}
-		fmt.Printf("%-36s  %-20s  %-12s  %-8s  %-7s\n", p.ID, name, p.RunnerType, sandbox, approval)
+		runner := formatEnumValue(p.RunnerType, "RUNNER_TYPE_", "-")
+		fmt.Printf("%-36s  %-20s  %-12s  %-8s  %-7s\n", p.Id, name, runner, sandbox, approval)
 	}
 
 	return nil
@@ -148,20 +154,23 @@ func (a *App) profileGet(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("ID:             %s\n", profile.ID)
+	fmt.Printf("ID:             %s\n", profile.Id)
 	fmt.Printf("Name:           %s\n", profile.Name)
 	if profile.Description != "" {
 		fmt.Printf("Description:    %s\n", profile.Description)
 	}
-	fmt.Printf("Runner Type:    %s\n", profile.RunnerType)
+	if profile.ProfileKey != "" {
+		fmt.Printf("Profile Key:    %s\n", profile.ProfileKey)
+	}
+	fmt.Printf("Runner Type:    %s\n", formatEnumValue(profile.RunnerType, "RUNNER_TYPE_", "-"))
 	if profile.Model != "" {
 		fmt.Printf("Model:          %s\n", profile.Model)
 	}
 	if profile.MaxTurns > 0 {
 		fmt.Printf("Max Turns:      %d\n", profile.MaxTurns)
 	}
-	if profile.Timeout != "" {
-		fmt.Printf("Timeout:        %s\n", profile.Timeout)
+	if timeout := formatDuration(profile.Timeout); timeout != "" {
+		fmt.Printf("Timeout:        %s\n", timeout)
 	}
 	fmt.Printf("Requires Sandbox:  %v\n", profile.RequiresSandbox)
 	fmt.Printf("Requires Approval: %v\n", profile.RequiresApproval)
@@ -171,11 +180,11 @@ func (a *App) profileGet(args []string) error {
 	if len(profile.DeniedTools) > 0 {
 		fmt.Printf("Denied Tools:   %s\n", strings.Join(profile.DeniedTools, ", "))
 	}
-	if profile.CreatedAt != "" {
-		fmt.Printf("Created:        %s\n", profile.CreatedAt)
+	if created := formatTimestamp(profile.CreatedAt); created != "" {
+		fmt.Printf("Created:        %s\n", created)
 	}
-	if profile.UpdatedAt != "" {
-		fmt.Printf("Updated:        %s\n", profile.UpdatedAt)
+	if updated := formatTimestamp(profile.UpdatedAt); updated != "" {
+		fmt.Printf("Updated:        %s\n", updated)
 	}
 
 	return nil
@@ -209,17 +218,23 @@ func (a *App) profileCreate(args []string) error {
 		return fmt.Errorf("--name is required")
 	}
 
-	req := CreateProfileRequest{
+	req := &domainpb.AgentProfile{
 		Name:                 *name,
 		Description:          *description,
-		RunnerType:           *runnerType,
+		RunnerType:           parseRunnerType(*runnerType),
 		Model:                *model,
-		MaxTurns:             *maxTurns,
-		Timeout:              *timeout,
+		MaxTurns:             int32(*maxTurns),
 		RequiresSandbox:      *requiresSandbox,
 		RequiresApproval:     *requiresApproval,
 		SkipPermissionPrompt: *skipPermissions,
 		CreatedBy:            *createdBy,
+	}
+	if *timeout != "" {
+		parsed, err := time.ParseDuration(*timeout)
+		if err != nil {
+			return fmt.Errorf("invalid timeout: %w", err)
+		}
+		req.Timeout = durationpb.New(parsed)
 	}
 
 	if *allowedTools != "" {
@@ -239,7 +254,7 @@ func (a *App) profileCreate(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Created profile: %s (%s)\n", profile.Name, profile.ID)
+	fmt.Printf("Created profile: %s (%s)\n", profile.Name, profile.Id)
 	return nil
 }
 
@@ -284,18 +299,7 @@ func (a *App) profileUpdate(args []string) error {
 	}
 
 	// Build update request, preserving existing values
-	req := CreateProfileRequest{
-		Name:             existing.Name,
-		Description:      existing.Description,
-		RunnerType:       existing.RunnerType,
-		Model:            existing.Model,
-		MaxTurns:         existing.MaxTurns,
-		Timeout:          existing.Timeout,
-		RequiresSandbox:  existing.RequiresSandbox,
-		RequiresApproval: existing.RequiresApproval,
-		AllowedTools:     existing.AllowedTools,
-		DeniedTools:      existing.DeniedTools,
-	}
+	req := proto.Clone(existing).(*domainpb.AgentProfile)
 
 	// Apply updates
 	if *name != "" {
@@ -305,16 +309,20 @@ func (a *App) profileUpdate(args []string) error {
 		req.Description = *description
 	}
 	if *runnerType != "" {
-		req.RunnerType = *runnerType
+		req.RunnerType = parseRunnerType(*runnerType)
 	}
 	if *model != "" {
 		req.Model = *model
 	}
 	if *maxTurns > 0 {
-		req.MaxTurns = *maxTurns
+		req.MaxTurns = int32(*maxTurns)
 	}
 	if *timeout != "" {
-		req.Timeout = *timeout
+		parsed, err := time.ParseDuration(*timeout)
+		if err != nil {
+			return fmt.Errorf("invalid timeout: %w", err)
+		}
+		req.Timeout = durationpb.New(parsed)
 	}
 	req.RequiresSandbox = *requiresSandbox
 	req.RequiresApproval = *requiresApproval
@@ -329,7 +337,7 @@ func (a *App) profileUpdate(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Updated profile: %s (%s)\n", profile.Name, profile.ID)
+	fmt.Printf("Updated profile: %s (%s)\n", profile.Name, profile.Id)
 	return nil
 }
 

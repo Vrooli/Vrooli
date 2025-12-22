@@ -4,9 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 const (
@@ -155,4 +162,87 @@ func (a *App) cmdStatus(_ []string) error {
 
 	cliutil.PrintJSON(body)
 	return nil
+}
+
+func formatEnumValue(value fmt.Stringer, prefix, separator string) string {
+	if value == nil {
+		return ""
+	}
+	name := value.String()
+	if strings.HasPrefix(name, prefix) {
+		name = strings.TrimPrefix(name, prefix)
+	}
+	name = strings.ToLower(name)
+	if separator != "_" {
+		name = strings.ReplaceAll(name, "_", separator)
+	}
+	return name
+}
+
+func formatTimestamp(timestamp *timestamppb.Timestamp) string {
+	if timestamp == nil {
+		return ""
+	}
+	return timestamp.AsTime().UTC().Format(time.RFC3339)
+}
+
+func trimTimestamp(value string) string {
+	if len(value) > 19 {
+		return value[:19]
+	}
+	return value
+}
+
+func formatDuration(duration *durationpb.Duration) string {
+	if duration == nil {
+		return ""
+	}
+	return duration.AsDuration().String()
+}
+
+func parseRunnerType(value string) domainpb.RunnerType {
+	switch strings.ToLower(value) {
+	case "claude-code":
+		return domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE
+	case "codex":
+		return domainpb.RunnerType_RUNNER_TYPE_CODEX
+	case "opencode":
+		return domainpb.RunnerType_RUNNER_TYPE_OPENCODE
+	default:
+		return domainpb.RunnerType_RUNNER_TYPE_UNSPECIFIED
+	}
+}
+
+func parseRunMode(value string) domainpb.RunMode {
+	switch strings.ToLower(value) {
+	case "sandboxed":
+		return domainpb.RunMode_RUN_MODE_SANDBOXED
+	case "in_place", "in-place":
+		return domainpb.RunMode_RUN_MODE_IN_PLACE
+	default:
+		return domainpb.RunMode_RUN_MODE_UNSPECIFIED
+	}
+}
+
+func protoString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+var cliProtoMarshalOptions = protojson.MarshalOptions{
+	UseProtoNames:   true,
+	EmitUnpopulated: false,
+}
+
+func marshalProtoJSON(msg proto.Message) string {
+	if msg == nil {
+		return ""
+	}
+	data, err := cliProtoMarshalOptions.Marshal(msg)
+	if err != nil {
+		return ""
+	}
+	return string(data)
 }

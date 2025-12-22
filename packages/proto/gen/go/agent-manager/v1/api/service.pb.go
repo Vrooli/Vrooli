@@ -1393,7 +1393,10 @@ type CreateRunRequest struct {
 	// Idempotency key for replay safety.
 	IdempotencyKey *string `protobuf:"bytes,7,opt,name=idempotency_key,json=idempotencyKey,proto3,oneof" json:"idempotency_key,omitempty"`
 	// Profile reference for key-based resolution (optional).
-	ProfileRef    *ProfileRef `protobuf:"bytes,8,opt,name=profile_ref,json=profileRef,proto3,oneof" json:"profile_ref,omitempty"`
+	ProfileRef *ProfileRef `protobuf:"bytes,8,opt,name=profile_ref,json=profileRef,proto3,oneof" json:"profile_ref,omitempty"`
+	// Optional prompt override for this run.
+	// If omitted, the task description is used.
+	Prompt        *string `protobuf:"bytes,9,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1482,6 +1485,13 @@ func (x *CreateRunRequest) GetProfileRef() *ProfileRef {
 		return x.ProfileRef
 	}
 	return nil
+}
+
+func (x *CreateRunRequest) GetPrompt() string {
+	if x != nil && x.Prompt != nil {
+		return *x.Prompt
+	}
+	return ""
 }
 
 // CreateRunResponse returns the created run.
@@ -2881,7 +2891,7 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"ProfileRef\x12*\n" +
 	"\vprofile_key\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\n" +
 	"profileKey\x12:\n" +
-	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\"\xe5\x03\n" +
+	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\"\x8d\x04\n" +
 	"\x10CreateRunRequest\x12!\n" +
 	"\atask_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
 	"\x10agent_profile_id\x18\x02 \x01(\tH\x00R\x0eagentProfileId\x88\x01\x01\x12\x15\n" +
@@ -2891,13 +2901,15 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x05force\x18\x06 \x01(\bR\x05force\x12,\n" +
 	"\x0fidempotency_key\x18\a \x01(\tH\x04R\x0eidempotencyKey\x88\x01\x01\x12B\n" +
 	"\vprofile_ref\x18\b \x01(\v2\x1c.agent_manager.v1.ProfileRefH\x05R\n" +
-	"profileRef\x88\x01\x01B\x13\n" +
+	"profileRef\x88\x01\x01\x12\x1b\n" +
+	"\x06prompt\x18\t \x01(\tH\x06R\x06prompt\x88\x01\x01B\x13\n" +
 	"\x11_agent_profile_idB\x06\n" +
 	"\x04_tagB\v\n" +
 	"\t_run_modeB\x10\n" +
 	"\x0e_inline_configB\x12\n" +
 	"\x10_idempotency_keyB\x0e\n" +
-	"\f_profile_ref\"<\n" +
+	"\f_profile_refB\t\n" +
+	"\a_prompt\"<\n" +
 	"\x11CreateRunResponse\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.agent_manager.v1.RunR\x03run\"0\n" +
 	"\rGetRunRequest\x12\x1f\n" +

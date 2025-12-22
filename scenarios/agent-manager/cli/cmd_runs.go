@@ -6,6 +6,10 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/proto"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // =============================================================================
@@ -120,7 +124,7 @@ func (a *App) runList(args []string) error {
 
 	if *quiet {
 		for _, r := range runs {
-			fmt.Println(r.ID)
+			fmt.Println(r.Id)
 		}
 		return nil
 	}
@@ -133,16 +137,17 @@ func (a *App) runList(args []string) error {
 	fmt.Printf("%-36s  %-12s  %-18s  %-4s  %-20s\n", "ID", "STATUS", "PHASE", "PROG", "UPDATED")
 	fmt.Printf("%-36s  %-12s  %-18s  %-4s  %-20s\n", strings.Repeat("-", 36), strings.Repeat("-", 12), strings.Repeat("-", 18), strings.Repeat("-", 4), strings.Repeat("-", 20))
 	for _, r := range runs {
-		phase := r.Phase
+		phase := formatEnumValue(r.Phase, "RUN_PHASE_", "_")
 		if len(phase) > 18 {
 			phase = phase[:15] + "..."
 		}
-		updated := r.UpdatedAt
+		updated := formatTimestamp(r.UpdatedAt)
 		if len(updated) > 20 {
 			updated = updated[:19]
 		}
 		progress := fmt.Sprintf("%d%%", r.ProgressPercent)
-		fmt.Printf("%-36s  %-12s  %-18s  %-4s  %-20s\n", r.ID, r.Status, phase, progress, updated)
+		status := formatEnumValue(r.Status, "RUN_STATUS_", "_")
+		fmt.Printf("%-36s  %-12s  %-18s  %-4s  %-20s\n", r.Id, status, phase, progress, updated)
 	}
 
 	return nil
@@ -176,24 +181,26 @@ func (a *App) runGet(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("ID:              %s\n", run.ID)
-	fmt.Printf("Task ID:         %s\n", run.TaskID)
-	fmt.Printf("Profile ID:      %s\n", run.AgentProfileID)
-	fmt.Printf("Status:          %s\n", run.Status)
-	fmt.Printf("Phase:           %s\n", run.Phase)
+	fmt.Printf("ID:              %s\n", run.Id)
+	fmt.Printf("Task ID:         %s\n", run.TaskId)
+	if run.AgentProfileId != nil {
+		fmt.Printf("Profile ID:      %s\n", run.GetAgentProfileId())
+	}
+	fmt.Printf("Status:          %s\n", formatEnumValue(run.Status, "RUN_STATUS_", "_"))
+	fmt.Printf("Phase:           %s\n", formatEnumValue(run.Phase, "RUN_PHASE_", "_"))
 	fmt.Printf("Progress:        %d%%\n", run.ProgressPercent)
-	fmt.Printf("Run Mode:        %s\n", run.RunMode)
-	if run.SandboxID != "" {
-		fmt.Printf("Sandbox ID:      %s\n", run.SandboxID)
+	fmt.Printf("Run Mode:        %s\n", formatEnumValue(run.RunMode, "RUN_MODE_", "_"))
+	if run.SandboxId != nil && run.GetSandboxId() != "" {
+		fmt.Printf("Sandbox ID:      %s\n", run.GetSandboxId())
 	}
-	if run.StartedAt != "" {
-		fmt.Printf("Started:         %s\n", run.StartedAt)
+	if started := formatTimestamp(run.StartedAt); started != "" {
+		fmt.Printf("Started:         %s\n", started)
 	}
-	if run.EndedAt != "" {
-		fmt.Printf("Ended:           %s\n", run.EndedAt)
+	if ended := formatTimestamp(run.EndedAt); ended != "" {
+		fmt.Printf("Ended:           %s\n", ended)
 	}
-	if run.ApprovalState != "" && run.ApprovalState != "none" {
-		fmt.Printf("Approval State:  %s\n", run.ApprovalState)
+	if approval := formatEnumValue(run.ApprovalState, "APPROVAL_STATE_", "_"); approval != "" && approval != "none" {
+		fmt.Printf("Approval State:  %s\n", approval)
 		if run.ApprovedBy != "" {
 			fmt.Printf("Approved By:     %s\n", run.ApprovedBy)
 		}
@@ -217,7 +224,7 @@ func (a *App) runGet(args []string) error {
 		fmt.Printf("Error:           %s\n", run.ErrorMsg)
 	}
 	if run.ExitCode != nil {
-		fmt.Printf("Exit Code:       %d\n", *run.ExitCode)
+		fmt.Printf("Exit Code:       %d\n", run.GetExitCode())
 	}
 	if run.ChangedFiles > 0 {
 		fmt.Printf("Changed Files:   %d\n", run.ChangedFiles)
@@ -251,13 +258,27 @@ func (a *App) runCreate(args []string) error {
 		return fmt.Errorf("--profile-id is required")
 	}
 
-	req := CreateRunRequest{
-		TaskID:         *taskID,
-		AgentProfileID: *profileID,
-		Prompt:         *prompt,
-		RunMode:        *runMode,
-		ForceInPlace:   *forceInPlace,
-		IdempotencyKey: *idempotencyKey,
+	req := &apipb.CreateRunRequest{
+		TaskId: *taskID,
+	}
+	if *profileID != "" {
+		req.AgentProfileId = protoString(*profileID)
+	}
+	if *prompt != "" {
+		req.Prompt = protoString(*prompt)
+	}
+	if *idempotencyKey != "" {
+		req.IdempotencyKey = protoString(*idempotencyKey)
+	}
+	if *runMode != "" {
+		mode := parseRunMode(*runMode)
+		if mode == domainpb.RunMode_RUN_MODE_UNSPECIFIED {
+			return fmt.Errorf("invalid run mode: %s", *runMode)
+		}
+		req.RunMode = &mode
+	} else if *forceInPlace {
+		mode := domainpb.RunMode_RUN_MODE_IN_PLACE
+		req.RunMode = &mode
 	}
 
 	body, run, err := a.services.Runs.Create(req)
@@ -270,9 +291,9 @@ func (a *App) runCreate(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Created run: %s\n", run.ID)
-	fmt.Printf("Status: %s\n", run.Status)
-	fmt.Printf("Phase: %s\n", run.Phase)
+	fmt.Printf("Created run: %s\n", run.Id)
+	fmt.Printf("Status: %s\n", formatEnumValue(run.Status, "RUN_STATUS_", "_"))
+	fmt.Printf("Phase: %s\n", formatEnumValue(run.Phase, "RUN_PHASE_", "_"))
 	return nil
 }
 
@@ -346,14 +367,14 @@ func (a *App) runGetByTag(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("ID:              %s\n", run.ID)
+	fmt.Printf("ID:              %s\n", run.Id)
 	fmt.Printf("Tag:             %s\n", run.Tag)
-	fmt.Printf("Task ID:         %s\n", run.TaskID)
-	fmt.Printf("Status:          %s\n", run.Status)
-	fmt.Printf("Phase:           %s\n", run.Phase)
+	fmt.Printf("Task ID:         %s\n", run.TaskId)
+	fmt.Printf("Status:          %s\n", formatEnumValue(run.Status, "RUN_STATUS_", "_"))
+	fmt.Printf("Phase:           %s\n", formatEnumValue(run.Phase, "RUN_PHASE_", "_"))
 	fmt.Printf("Progress:        %d%%\n", run.ProgressPercent)
-	if run.StartedAt != "" {
-		fmt.Printf("Started:         %s\n", run.StartedAt)
+	if started := formatTimestamp(run.StartedAt); started != "" {
+		fmt.Printf("Started:         %s\n", started)
 	}
 	if run.ErrorMsg != "" {
 		fmt.Printf("Error:           %s\n", run.ErrorMsg)
@@ -413,10 +434,11 @@ func (a *App) runStopAll(args []string) error {
 		return err
 	}
 
-	body, result, err := a.services.Runs.StopAll(StopAllRequest{
-		TagPrefix: *tagPrefix,
-		Force:     *force,
-	})
+	req := &apipb.StopAllRunsRequest{Force: *force}
+	if *tagPrefix != "" {
+		req.TagPrefix = protoString(*tagPrefix)
+	}
+	body, result, err := a.services.Runs.StopAll(req)
 	if err != nil {
 		return err
 	}
@@ -426,11 +448,21 @@ func (a *App) runStopAll(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Stopped:  %d\n", result.Stopped)
-	fmt.Printf("Failed:   %d\n", result.Failed)
-	fmt.Printf("Skipped:  %d\n", result.Skipped)
-	if len(result.FailedIDs) > 0 {
-		fmt.Printf("Failed IDs: %v\n", result.FailedIDs)
+	if result != nil {
+		fmt.Printf("Stopped:  %d\n", result.StoppedCount)
+		if len(result.Failures) > 0 {
+			fmt.Printf("Failed:   %d\n", len(result.Failures))
+			failedIDs := make([]string, 0, len(result.Failures))
+			for _, failure := range result.Failures {
+				if failure == nil {
+					continue
+				}
+				failedIDs = append(failedIDs, failure.RunId)
+			}
+			if len(failedIDs) > 0 {
+				fmt.Printf("Failed IDs: %v\n", failedIDs)
+			}
+		}
 	}
 	return nil
 }
@@ -461,10 +493,13 @@ func (a *App) runApprove(args []string) error {
 		return fmt.Errorf("usage: agent-manager run approve <id> [options]")
 	}
 
-	req := ApproveRequest{
-		Actor:     *actor,
-		CommitMsg: *commitMsg,
-		Force:     *force,
+	req := &apipb.ApproveRunRequest{
+		RunId: id,
+		Actor: *actor,
+		Force: *force,
+	}
+	if *commitMsg != "" {
+		req.CommitMsg = protoString(*commitMsg)
 	}
 
 	body, result, err := a.services.Runs.Approve(id, req)
@@ -477,14 +512,18 @@ func (a *App) runApprove(args []string) error {
 		return nil
 	}
 
-	if result.Success {
+	if result != nil && result.Success {
 		fmt.Printf("Approved run: %s\n", id)
-		fmt.Printf("Applied: %d files\n", result.Applied)
+		fmt.Printf("Applied: %d files\n", result.FilesApplied)
 		if result.CommitHash != "" {
 			fmt.Printf("Commit: %s\n", result.CommitHash)
 		}
 	} else {
-		fmt.Printf("Approval failed: %s\n", result.ErrorMsg)
+		message := ""
+		if result != nil {
+			message = result.Message
+		}
+		fmt.Printf("Approval failed: %s\n", message)
 	}
 	return nil
 }
@@ -514,7 +553,8 @@ func (a *App) runReject(args []string) error {
 		return fmt.Errorf("usage: agent-manager run reject <id> [options]")
 	}
 
-	req := RejectRequest{
+	req := &apipb.RejectRunRequest{
+		RunId:  id,
 		Actor:  *actor,
 		Reason: *reason,
 	}
@@ -555,13 +595,17 @@ func (a *App) runDiff(args []string) error {
 		return fmt.Errorf("usage: agent-manager run diff <id>")
 	}
 
-	body, err := a.services.Runs.GetDiff(id)
+	body, diff, err := a.services.Runs.GetDiff(id)
 	if err != nil {
 		return err
 	}
 
 	// Just print the diff output directly
-	fmt.Println(string(body))
+	if diff != nil && diff.Content != "" {
+		fmt.Println(diff.Content)
+	} else {
+		fmt.Println(string(body))
+	}
 	return nil
 }
 
@@ -617,18 +661,55 @@ func (a *App) runEvents(args []string) error {
 	fmt.Printf("%-6s  %-12s  %-24s  %s\n", "SEQ", "TYPE", "TIMESTAMP", "DATA")
 	fmt.Printf("%-6s  %-12s  %-24s  %s\n", strings.Repeat("-", 6), strings.Repeat("-", 12), strings.Repeat("-", 24), strings.Repeat("-", 40))
 	for _, e := range events {
-		dataStr := ""
-		if e.Data != nil {
-			dataStr = fmt.Sprintf("%v", e.Data)
-			if len(dataStr) > 60 {
-				dataStr = dataStr[:57] + "..."
-			}
+		dataStr := runEventDataString(e)
+		if len(dataStr) > 60 {
+			dataStr = dataStr[:57] + "..."
 		}
-		timestamp := e.Timestamp.Format("2006-01-02 15:04:05")
-		fmt.Printf("%-6d  %-12s  %-24s  %s\n", e.Sequence, e.EventType, timestamp, dataStr)
+		timestamp := formatTimestamp(e.Timestamp)
+		if timestamp != "" {
+			timestamp = trimTimestamp(timestamp)
+		}
+		eventType := formatEnumValue(e.EventType, "RUN_EVENT_TYPE_", "_")
+		fmt.Printf("%-6d  %-12s  %-24s  %s\n", e.Sequence, eventType, timestamp, dataStr)
 	}
 
 	return nil
 }
 
 // streamEvents is implemented in cmd_events.go
+
+func runEventDataString(event *domainpb.RunEvent) string {
+	if event == nil {
+		return ""
+	}
+
+	var payload proto.Message
+	switch data := event.Data.(type) {
+	case *domainpb.RunEvent_Log:
+		payload = data.Log
+	case *domainpb.RunEvent_Message:
+		payload = data.Message
+	case *domainpb.RunEvent_ToolCall:
+		payload = data.ToolCall
+	case *domainpb.RunEvent_ToolResult:
+		payload = data.ToolResult
+	case *domainpb.RunEvent_Status:
+		payload = data.Status
+	case *domainpb.RunEvent_Metric:
+		payload = data.Metric
+	case *domainpb.RunEvent_Artifact:
+		payload = data.Artifact
+	case *domainpb.RunEvent_Error:
+		payload = data.Error
+	case *domainpb.RunEvent_Progress:
+		payload = data.Progress
+	case *domainpb.RunEvent_Cost:
+		payload = data.Cost
+	case *domainpb.RunEvent_RateLimit:
+		payload = data.RateLimit
+	default:
+		return ""
+	}
+
+	return marshalProtoJSON(payload)
+}

@@ -25,6 +25,7 @@ import type {
   RunEvent,
   RunEventData,
   RunSummary,
+  RunMode,
   RunnerStatus,
   RunnerType,
   Task,
@@ -145,6 +146,101 @@ function parseDurationToNanoseconds(value: unknown): number | undefined {
     }
   }
   return undefined;
+}
+
+function formatDurationSeconds(nanoseconds?: number): string | undefined {
+  if (typeof nanoseconds !== "number" || Number.isNaN(nanoseconds)) return undefined;
+  const seconds = nanoseconds / 1_000_000_000;
+  if (!Number.isFinite(seconds)) return undefined;
+  const fixed = seconds.toFixed(9);
+  const trimmed = fixed.replace(/\.?0+$/, "");
+  return `${trimmed}s`;
+}
+
+function toProtoRunnerType(type?: RunnerType): string | undefined {
+  switch (type) {
+    case "claude-code":
+      return "RUNNER_TYPE_CLAUDE_CODE";
+    case "codex":
+      return "RUNNER_TYPE_CODEX";
+    case "opencode":
+      return "RUNNER_TYPE_OPENCODE";
+    default:
+      return undefined;
+  }
+}
+
+function toProtoRunMode(mode?: RunMode): string | undefined {
+  switch (mode) {
+    case "sandboxed":
+      return "RUN_MODE_SANDBOXED";
+    case "in_place":
+      return "RUN_MODE_IN_PLACE";
+    default:
+      return undefined;
+  }
+}
+
+function buildProfilePayload(profile: CreateProfileRequest) {
+  return {
+    profile: {
+      name: profile.name,
+      profileKey: profile.profileKey,
+      description: profile.description,
+      runnerType: toProtoRunnerType(profile.runnerType),
+      model: profile.model,
+      maxTurns: profile.maxTurns,
+      timeout: formatDurationSeconds(profile.timeout),
+      allowedTools: profile.allowedTools,
+      deniedTools: profile.deniedTools,
+      skipPermissionPrompt: profile.skipPermissionPrompt,
+      requiresSandbox: profile.requiresSandbox,
+      requiresApproval: profile.requiresApproval,
+      allowedPaths: profile.allowedPaths,
+      deniedPaths: profile.deniedPaths,
+    },
+  };
+}
+
+function buildTaskPayload(task: CreateTaskRequest) {
+  return {
+    task: {
+      title: task.title,
+      description: task.description,
+      scopePath: task.scopePath,
+      projectRoot: task.projectRoot,
+      contextAttachments: task.contextAttachments,
+    },
+  };
+}
+
+function buildRunPayload(run: CreateRunRequest) {
+  const inlineConfig: Record<string, unknown> = {};
+  const runnerType = toProtoRunnerType(run.runnerType);
+  if (runnerType) inlineConfig.runnerType = runnerType;
+  if (run.model) inlineConfig.model = run.model;
+  if (typeof run.maxTurns === "number") inlineConfig.maxTurns = run.maxTurns;
+  const timeout = formatDurationSeconds(run.timeout);
+  if (timeout) inlineConfig.timeout = timeout;
+  if (run.allowedTools?.length) inlineConfig.allowedTools = run.allowedTools;
+  if (run.deniedTools?.length) inlineConfig.deniedTools = run.deniedTools;
+  if (typeof run.skipPermissionPrompt === "boolean") {
+    inlineConfig.skipPermissionPrompt = run.skipPermissionPrompt;
+  }
+
+  const hasInlineConfig = Object.keys(inlineConfig).length > 0;
+  const runMode = toProtoRunMode(run.runMode);
+  const resolvedRunMode = run.forceInPlace && !runMode ? "RUN_MODE_IN_PLACE" : runMode;
+
+  return {
+    taskId: run.taskId,
+    agentProfileId: run.agentProfileId,
+    tag: run.tag,
+    runMode: resolvedRunMode,
+    inlineConfig: hasInlineConfig ? inlineConfig : undefined,
+    idempotencyKey: run.idempotencyKey,
+    prompt: run.prompt,
+  };
 }
 
 function normalizeEnumValue(value: unknown, prefix: string): string | undefined {
@@ -528,11 +624,11 @@ export function useProfiles() {
 
   const createProfile = useCallback(
     async (profile: CreateProfileRequest): Promise<AgentProfile> => {
-      const created = await apiRequest<AgentProfile>("/profiles", {
+      const created = await apiRequest<AgentProfile | { profile: AgentProfile }>("/profiles", {
         method: "POST",
-        body: JSON.stringify(profile),
+        body: JSON.stringify(buildProfilePayload(profile)),
       });
-      const mapped = mapAgentProfile(created);
+      const mapped = mapAgentProfile(unwrapField<AgentProfile>(created, "profile"));
       await fetchProfiles();
       return mapped;
     },
@@ -540,12 +636,13 @@ export function useProfiles() {
   );
 
   const updateProfile = useCallback(
-    async (id: string, profile: Partial<CreateProfileRequest>): Promise<AgentProfile> => {
-      const updated = await apiRequest<AgentProfile>("/profiles/" + id, {
+    async (id: string, profile: CreateProfileRequest): Promise<AgentProfile> => {
+      const payload = buildProfilePayload(profile);
+      const updated = await apiRequest<AgentProfile | { profile: AgentProfile }>("/profiles/" + id, {
         method: "PUT",
-        body: JSON.stringify(profile),
+        body: JSON.stringify({ profileId: id, ...payload }),
       });
-      const mapped = mapAgentProfile(updated);
+      const mapped = mapAgentProfile(unwrapField<AgentProfile>(updated, "profile"));
       await fetchProfiles();
       return mapped;
     },
@@ -593,11 +690,11 @@ export function useTasks() {
 
   const createTask = useCallback(
     async (task: CreateTaskRequest): Promise<Task> => {
-      const created = await apiRequest<Task>("/tasks", {
+      const created = await apiRequest<Task | { task: Task }>("/tasks", {
         method: "POST",
-        body: JSON.stringify(task),
+        body: JSON.stringify(buildTaskPayload(task)),
       });
-      const mapped = mapTask(created);
+      const mapped = mapTask(unwrapField<Task>(created, "task"));
       await fetchTasks();
       return mapped;
     },
@@ -605,8 +702,8 @@ export function useTasks() {
   );
 
   const getTask = useCallback(async (id: string): Promise<Task> => {
-    const task = await apiRequest<Task>("/tasks/" + id);
-    return mapTask(task);
+    const task = await apiRequest<Task | { task: Task }>("/tasks/" + id);
+    return mapTask(unwrapField<Task>(task, "task"));
   }, []);
 
   const cancelTask = useCallback(
@@ -659,11 +756,11 @@ export function useRuns() {
 
   const createRun = useCallback(
     async (run: CreateRunRequest): Promise<Run> => {
-      const created = await apiRequest<Run>("/runs", {
+      const created = await apiRequest<Run | { run: Run }>("/runs", {
         method: "POST",
-        body: JSON.stringify(run),
+        body: JSON.stringify(buildRunPayload(run)),
       });
-      const mapped = mapRun(created);
+      const mapped = mapRun(unwrapField<Run>(created, "run"));
       await fetchRuns();
       return mapped;
     },
@@ -682,8 +779,8 @@ export function useRuns() {
   );
 
   const getRun = useCallback(async (id: string): Promise<Run> => {
-    const run = await apiRequest<Run>("/runs/" + id);
-    return mapRun(run);
+    const run = await apiRequest<Run | { run: Run }>("/runs/" + id);
+    return mapRun(unwrapField<Run>(run, "run"));
   }, []);
 
   const stopRun = useCallback(

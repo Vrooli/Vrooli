@@ -94,10 +94,8 @@ message ActionTelemetry {
 
   // Visual captures.
   optional TimelineScreenshot screenshot = 10;
-  // Truncated DOM preview text.
-  optional string dom_snapshot_preview = 11;
-  // Full DOM HTML snapshot.
-  optional string dom_snapshot_html = 12;
+  // DOM snapshot reference (file-backed artifact).
+  optional TelemetryArtifact dom_snapshot = 13;
 
   // Element interaction data.
   optional BoundingBox element_bounding_box = 20;
@@ -110,8 +108,11 @@ message ActionTelemetry {
   optional double zoom_factor = 26;
 
   // Browser telemetry.
-  repeated ConsoleLogEntry console_logs = 30;
-  repeated NetworkEvent network_events = 31;
+  optional TelemetryArtifact console_log_artifact = 32;
+  optional TelemetryArtifact network_event_artifact = 33;
+
+  reserved 11, 12;
+  reserved 30, 31;
 }
 
 // =============================================================================
@@ -137,4 +138,23 @@ message TimelineScreenshot {
   string content_type = 6;
   // Size in bytes for the screenshot.
   optional int64 size_bytes = 7;
+  // Absolute path on disk when stored locally.
+  optional string path = 8;
+}
+
+// TelemetryArtifact references a file-backed artifact captured during execution.
+//
+// @usage ActionTelemetry.dom_snapshot, ActionTelemetry.console_log_artifact, ActionTelemetry.network_event_artifact
+message TelemetryArtifact {
+  // Unique artifact ID.
+  // @format uuid
+  string artifact_id = 1;
+  // URL to download the artifact content.
+  string storage_url = 2;
+  // Absolute path on disk when stored locally.
+  optional string path = 3;
+  // MIME type for the artifact.
+  string content_type = 4;
+  // Size in bytes.
+  optional int64 size_bytes = 5;
 }

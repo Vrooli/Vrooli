@@ -359,6 +359,7 @@ export function ProfilesPage({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
+                        aria-label={`Edit ${profile.name}`}
                         onClick={() => handleEdit(profile)}
                       >
                         <Edit className="h-4 w-4" />
@@ -367,6 +368,7 @@ export function ProfilesPage({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
+                        aria-label={`Delete ${profile.name}`}
                         onClick={() => handleDelete(profile.id)}
                       >
                         <Trash2 className="h-4 w-4" />

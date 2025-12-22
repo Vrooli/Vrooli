@@ -317,6 +317,15 @@ export function RunsPage({
                         navigate(`/runs/${run.id}`);
                         loadRunDetails(run);
                       }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          navigate(`/runs/${run.id}`);
+                          loadRunDetails(run);
+                        }
+                      }}
                     >
                       <div className="flex items-center gap-3">
                         <RunStatusIcon status={run.status} />
@@ -348,6 +357,7 @@ export function RunsPage({
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6"
+                            aria-label={`Stop run ${getTaskTitle(run.taskId)}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleStop(run.id);

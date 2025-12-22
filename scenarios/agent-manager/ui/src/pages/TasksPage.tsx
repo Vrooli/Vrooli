@@ -307,12 +307,14 @@ export function TasksPage({
             placeholder="Search tasks..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search tasks"
             className="h-9 pl-9"
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter tasks by status"
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         >
           <option value="all">All Status</option>
@@ -327,6 +329,7 @@ export function TasksPage({
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "title")}
+          aria-label="Sort tasks"
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         >
           <option value="newest">Newest First</option>
@@ -824,6 +827,7 @@ export function TasksPage({
                             size="sm"
                             onClick={() => handleCancel(task.id)}
                             className="text-destructive hover:text-destructive"
+                            aria-label={`Cancel ${task.title}`}
                           >
                             <XCircle className="h-4 w-4" />
                           </Button>

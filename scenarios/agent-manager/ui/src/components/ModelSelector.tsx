@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
@@ -19,6 +19,9 @@ export function ModelSelector({
   label = "Model",
   placeholder = "Enter custom model...",
 }: ModelSelectorProps) {
+  const selectId = useId();
+  const inputId = useId();
+  const labelText = label || "Model";
   const actualValue = value ?? "";
   // Determine if current value is a custom one (not in the models list)
   const isCustomValue = actualValue !== "" && !models.includes(actualValue);
@@ -61,11 +64,13 @@ export function ModelSelector({
 
   return (
     <div className="space-y-2">
-      {label && <Label>{label}</Label>}
+      {labelText && <Label htmlFor={selectId}>{labelText}</Label>}
       <div className="flex gap-2">
         <select
+          id={selectId}
           value={isCustomMode ? CUSTOM_OPTION : actualValue}
           onChange={handleSelectChange}
+          aria-label={labelText}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {models.length === 0 && !isCustomMode && (
@@ -83,9 +88,11 @@ export function ModelSelector({
       </div>
       {isCustomMode && (
         <Input
+          id={inputId}
           value={customValue}
           onChange={handleCustomChange}
           placeholder={placeholder}
+          aria-label={placeholder ?? "Custom model"}
           className="mt-2"
         />
       )}
