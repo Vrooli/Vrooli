@@ -91,6 +91,13 @@ func TestServer_handlePlaybooksSeedApply_Conflict(t *testing.T) {
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("expected 409, got %d", rec.Code)
 	}
+	var payload map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode conflict response: %v", err)
+	}
+	if payload["cleanup_token"] != "existing-token" {
+		t.Fatalf("expected cleanup_token existing-token, got %#v", payload["cleanup_token"])
+	}
 }
 
 func TestServer_handlePlaybooksSeedCleanup_Success(t *testing.T) {

@@ -443,6 +443,7 @@ export function ReplayPlayer({
       >
         {backgroundDecor.baseLayer}
         {backgroundDecor.overlay}
+        {watermark && <WatermarkOverlay settings={watermark} />}
         <div className={clsx('relative z-[1]', backgroundDecor.contentClass)}>
           {showInterfaceChrome && (
             <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-200/80">
@@ -474,8 +475,6 @@ export function ReplayPlayer({
                           Screenshot unavailable
                         </div>
                       )}
-
-                      {watermark && <WatermarkOverlay settings={watermark} />}
 
                       <div className="absolute inset-0">
                         {overlayRegions(currentFrame.maskRegions, 'mask')}

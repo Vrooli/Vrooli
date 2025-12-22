@@ -25,8 +25,11 @@
 package entitlement
 
 import (
+	"strings"
 	"time"
 )
+
+const OverrideTierSettingKey = "entitlement_override_tier"
 
 // Tier represents a subscription tier with its capabilities.
 type Tier string
@@ -119,6 +122,25 @@ func (t Tier) Order() int {
 // AtLeast returns true if this tier is at least as high as the given tier.
 func (t Tier) AtLeast(other Tier) bool {
 	return t.Order() >= other.Order()
+}
+
+// ParseTier normalizes a tier string into a Tier enum.
+func ParseTier(value string) (Tier, bool) {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	switch normalized {
+	case string(TierFree):
+		return TierFree, true
+	case string(TierSolo):
+		return TierSolo, true
+	case string(TierPro):
+		return TierPro, true
+	case string(TierStudio):
+		return TierStudio, true
+	case string(TierBusiness):
+		return TierBusiness, true
+	default:
+		return "", false
+	}
 }
 
 // entitlementResponse matches the response from landing-page-business-suite /api/v1/entitlements.

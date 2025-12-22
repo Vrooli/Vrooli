@@ -56,7 +56,11 @@ func (s *Server) handlePlaybooksSeedApply(w http.ResponseWriter, r *http.Request
 	s.seedSessionsMu.Lock()
 	if token, ok := s.seedSessionsByScenario[name]; ok && token != "" {
 		s.seedSessionsMu.Unlock()
-		s.writeError(w, http.StatusConflict, "seed session already active for scenario")
+		s.writeJSON(w, http.StatusConflict, map[string]any{
+			"error":         "seed session already active for scenario",
+			"scenario":      name,
+			"cleanup_token": token,
+		})
 		return
 	}
 	s.seedSessionsMu.Unlock()

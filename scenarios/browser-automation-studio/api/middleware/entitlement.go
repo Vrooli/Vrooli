@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -11,17 +12,29 @@ import (
 
 // EntitlementMiddleware provides request-scoped entitlement checking.
 type EntitlementMiddleware struct {
-	service *entitlement.Service
-	log     *logrus.Logger
-	cfg     config.EntitlementConfig
+	service      *entitlement.Service
+	log          *logrus.Logger
+	cfg          config.EntitlementConfig
+	settingsRepo EntitlementSettingsRepository
+}
+
+// EntitlementSettingsRepository defines the interface for user settings storage.
+type EntitlementSettingsRepository interface {
+	GetSetting(ctx context.Context, key string) (string, error)
 }
 
 // NewEntitlementMiddleware creates a new entitlement middleware.
-func NewEntitlementMiddleware(service *entitlement.Service, log *logrus.Logger, cfg config.EntitlementConfig) *EntitlementMiddleware {
+func NewEntitlementMiddleware(
+	service *entitlement.Service,
+	log *logrus.Logger,
+	cfg config.EntitlementConfig,
+	settingsRepo EntitlementSettingsRepository,
+) *EntitlementMiddleware {
 	return &EntitlementMiddleware{
-		service: service,
-		log:     log,
-		cfg:     cfg,
+		service:      service,
+		log:          log,
+		cfg:          cfg,
+		settingsRepo: settingsRepo,
 	}
 }
 
@@ -31,9 +44,20 @@ func (m *EntitlementMiddleware) InjectEntitlement(next http.Handler) http.Handle
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Extract user identity from request
 		userIdentity := resolveUserIdentity(r)
+		if userIdentity == "" {
+			userIdentity = m.resolveStoredUserIdentity(r.Context())
+		}
 
 		// Add to context even if empty (handlers can check)
 		ctx := entitlement.WithUserIdentity(r.Context(), userIdentity)
+
+		overrideTier := m.resolveOverrideTier(r.Context())
+		if overrideTier != "" {
+			ent := m.service.BuildOverrideEntitlement(userIdentity, overrideTier)
+			ctx = entitlement.WithEntitlement(ctx, ent)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
 
 		// If entitlements are enabled and we have a user, fetch and inject entitlement
 		if m.cfg.Enabled && userIdentity != "" {
@@ -54,7 +78,7 @@ func (m *EntitlementMiddleware) InjectEntitlement(next http.Handler) http.Handle
 // Returns 403 if subscription is not active.
 func (m *EntitlementMiddleware) RequireActiveSubscription(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !m.cfg.Enabled {
+		if !m.entitlementsEnabled(r.Context()) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -74,7 +98,7 @@ func (m *EntitlementMiddleware) RequireActiveSubscription(next http.Handler) htt
 func (m *EntitlementMiddleware) RequireTier(minTier entitlement.Tier) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !m.cfg.Enabled {
+			if !m.entitlementsEnabled(r.Context()) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -94,13 +118,13 @@ func (m *EntitlementMiddleware) RequireTier(minTier entitlement.Tier) func(http.
 // RequireAIAccess returns middleware that requires AI feature access.
 func (m *EntitlementMiddleware) RequireAIAccess(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !m.cfg.Enabled {
+		if !m.entitlementsEnabled(r.Context()) {
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		userIdentity := entitlement.UserIdentityFromContext(r.Context())
-		if !m.service.CanUseAI(r.Context(), userIdentity) {
+		if !m.canUseAI(r.Context(), userIdentity) {
 			writeEntitlementError(w, http.StatusForbidden, "AI_ACCESS_REQUIRED",
 				"AI features require Pro tier or higher")
 			return
@@ -113,13 +137,13 @@ func (m *EntitlementMiddleware) RequireAIAccess(next http.Handler) http.Handler 
 // RequireRecordingAccess returns middleware that requires recording feature access.
 func (m *EntitlementMiddleware) RequireRecordingAccess(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !m.cfg.Enabled {
+		if !m.entitlementsEnabled(r.Context()) {
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		userIdentity := entitlement.UserIdentityFromContext(r.Context())
-		if !m.service.CanUseRecording(r.Context(), userIdentity) {
+		if !m.canUseRecording(r.Context(), userIdentity) {
 			writeEntitlementError(w, http.StatusForbidden, "RECORDING_ACCESS_REQUIRED",
 				"Recording features require Solo tier or higher")
 			return
@@ -148,6 +172,53 @@ func resolveUserIdentity(r *http.Request) string {
 	}
 
 	return ""
+}
+
+func (m *EntitlementMiddleware) entitlementsEnabled(ctx context.Context) bool {
+	if m.cfg.Enabled {
+		return true
+	}
+	return entitlement.FromContext(ctx) != nil
+}
+
+func (m *EntitlementMiddleware) canUseAI(ctx context.Context, userIdentity string) bool {
+	if ent := entitlement.FromContext(ctx); ent != nil {
+		return m.service.TierCanUseAI(ent.Tier)
+	}
+	return m.service.CanUseAI(ctx, userIdentity)
+}
+
+func (m *EntitlementMiddleware) canUseRecording(ctx context.Context, userIdentity string) bool {
+	if ent := entitlement.FromContext(ctx); ent != nil {
+		return m.service.TierCanUseRecording(ent.Tier)
+	}
+	return m.service.CanUseRecording(ctx, userIdentity)
+}
+
+func (m *EntitlementMiddleware) resolveStoredUserIdentity(ctx context.Context) string {
+	if m.settingsRepo == nil {
+		return ""
+	}
+	value, err := m.settingsRepo.GetSetting(ctx, "user_identity")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(strings.ToLower(value))
+}
+
+func (m *EntitlementMiddleware) resolveOverrideTier(ctx context.Context) entitlement.Tier {
+	if m.settingsRepo == nil {
+		return ""
+	}
+	value, err := m.settingsRepo.GetSetting(ctx, entitlement.OverrideTierSettingKey)
+	if err != nil || value == "" {
+		return ""
+	}
+	tier, ok := entitlement.ParseTier(value)
+	if !ok {
+		return ""
+	}
+	return tier
 }
 
 // writeEntitlementError writes a standardized entitlement error response.

@@ -18,6 +18,7 @@ export interface EntitlementStatusResponse {
   tier: SubscriptionTier;
   is_active: boolean;
   features: string[];
+  feature_access?: FeatureAccessSummary[];
   monthly_limit: number; // -1 for unlimited
   monthly_used: number;
   monthly_remaining: number; // -1 for unlimited
@@ -25,12 +26,22 @@ export interface EntitlementStatusResponse {
   can_use_ai: boolean;
   can_use_recording: boolean;
   entitlements_enabled: boolean;
+  override_tier?: SubscriptionTier;
+}
+
+export interface FeatureAccessSummary {
+  id: string;
+  label: string;
+  description: string;
+  required_tier?: SubscriptionTier;
+  has_access: boolean;
 }
 
 interface EntitlementState {
   // State
   userEmail: string;
   status: EntitlementStatusResponse | null;
+  overrideTier: SubscriptionTier | null;
   isLoading: boolean;
   error: string | null;
   lastFetched: Date | null;
@@ -42,6 +53,7 @@ interface EntitlementState {
   clearUserEmail: () => Promise<void>;
   refreshEntitlement: () => Promise<void>;
   getUserEmail: () => Promise<string>;
+  setOverrideTier: (tier: SubscriptionTier | null) => Promise<void>;
 }
 
 // Helper to check if email is valid (basic client-side validation)
@@ -100,6 +112,7 @@ export const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: s
 export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   userEmail: '',
   status: null,
+  overrideTier: null,
   isLoading: false,
   error: null,
   lastFetched: null,
@@ -125,6 +138,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       set({
         status: data,
         userEmail: data.user_identity || '',
+        overrideTier: data.override_tier ?? null,
         isLoading: false,
         lastFetched: new Date(),
         isOffline: false,
@@ -198,6 +212,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       set({
         userEmail: '',
         status: null,
+        overrideTier: null,
         isLoading: false,
         lastFetched: new Date(),
       });
@@ -230,6 +245,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       set({
         status: data,
         userEmail: data.user_identity || '',
+        overrideTier: data.override_tier ?? null,
         isLoading: false,
         lastFetched: new Date(),
         isOffline: false,
@@ -265,6 +281,33 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       return email;
     } catch {
       return '';
+    }
+  },
+
+  setOverrideTier: async (tier: SubscriptionTier | null) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(joinApi(API_BASE, 'entitlement/override'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ tier: tier ?? '' }),
+      });
+
+      if (!response.ok && response.status !== 204) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to set override tier: ${response.status}`);
+      }
+
+      await get().fetchStatus();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to set override tier';
+      set({
+        error: errorMessage,
+        isLoading: false,
+      });
     }
   },
 }));

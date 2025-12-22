@@ -248,6 +248,7 @@ export function RecordPreviewPanel({
                 >
                   {backgroundDecor.baseLayer}
                   {backgroundDecor.overlay}
+                  <WatermarkOverlay settings={replay.watermark} />
                   <div className={clsx('relative z-10 h-full w-full', backgroundDecor.contentClass)}>
                     <div className="flex h-full w-full items-center justify-center">
                       <div
@@ -273,7 +274,6 @@ export function RecordPreviewPanel({
                           ) : (
                             <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
                           )}
-                          <WatermarkOverlay settings={replay.watermark} />
                         </div>
                       </div>
                     </div>
@@ -311,7 +311,7 @@ export function RecordPreviewPanel({
         ariaLabel="Replay settings"
         size="xl"
       >
-        <div className="bg-gray-900 border border-gray-800 rounded-xl max-h-[85vh] overflow-y-auto">
+        <div className="max-h-[85vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-semibold text-surface">Replay Settings</h2>

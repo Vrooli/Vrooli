@@ -117,7 +117,7 @@ func main() {
 	entitlementSvc := entitlement.NewService(cfg.Entitlement, log)
 	usageTracker := entitlement.NewUsageTracker(db.RawDB(), log)
 	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, usageTracker, repo)
-	entitlementMiddleware := middleware.NewEntitlementMiddleware(entitlementSvc, log, cfg.Entitlement)
+	entitlementMiddleware := middleware.NewEntitlementMiddleware(entitlementSvc, log, cfg.Entitlement, repo)
 
 	if cfg.Entitlement.Enabled {
 		log.WithFields(logrus.Fields{
@@ -325,6 +325,9 @@ func main() {
 		r.Delete("/entitlement/identity", entitlementHandler.ClearUserIdentity)
 		r.Get("/entitlement/usage", entitlementHandler.GetUsageSummary)
 		r.Post("/entitlement/refresh", entitlementHandler.RefreshEntitlement)
+		r.Get("/entitlement/override", entitlementHandler.GetEntitlementOverride)
+		r.Post("/entitlement/override", entitlementHandler.SetEntitlementOverride)
+		r.Delete("/entitlement/override", entitlementHandler.ClearEntitlementOverride)
 
 		// UX metrics routes (Pro tier and above)
 		r.Get("/executions/{id}/ux-metrics", uxHandler.GetExecutionMetrics)

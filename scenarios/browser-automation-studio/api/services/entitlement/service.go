@@ -42,6 +42,11 @@ func NewService(cfg config.EntitlementConfig, log *logrus.Logger) *Service {
 	}
 }
 
+// IsEnabled reports whether entitlement checks are enabled.
+func (s *Service) IsEnabled() bool {
+	return s.cfg.Enabled
+}
+
 // GetEntitlement retrieves the entitlement for a user, using cache when available.
 func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Entitlement, error) {
 	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
@@ -185,6 +190,18 @@ func (s *Service) InvalidateCache(userIdentity string) {
 	s.cacheMu.Unlock()
 }
 
+// BuildOverrideEntitlement creates a local entitlement for tier overrides.
+func (s *Service) BuildOverrideEntitlement(userIdentity string, tier Tier) *Entitlement {
+	now := time.Now()
+	return &Entitlement{
+		UserIdentity: userIdentity,
+		Status:       StatusActive,
+		Tier:         tier,
+		FetchedAt:    now,
+		ExpiresAt:    now.Add(s.cfg.CacheTTL),
+	}
+}
+
 // fetchEntitlement calls the remote entitlement service.
 func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*Entitlement, error) {
 	if s.cfg.ServiceURL == "" {
@@ -307,6 +324,69 @@ func (s *Service) unlimitedEntitlement(userIdentity string) *Entitlement {
 		FetchedAt:    now,
 		ExpiresAt:    now.Add(24 * time.Hour),
 	}
+}
+
+// TierLimit returns the execution limit for a tier, independent of entitlement enablement.
+// Returns -1 for unlimited.
+func (s *Service) TierLimit(tier Tier) int {
+	return s.getTierLimit(tier)
+}
+
+// TierRequiresWatermark checks if a tier requires watermarked exports.
+func (s *Service) TierRequiresWatermark(tier Tier) bool {
+	return s.tierRequiresWatermark(tier)
+}
+
+// TierCanUseAI checks if a tier has access to AI features.
+func (s *Service) TierCanUseAI(tier Tier) bool {
+	return s.tierCanUseAI(tier)
+}
+
+// TierCanUseRecording checks if a tier has access to recording features.
+func (s *Service) TierCanUseRecording(tier Tier) bool {
+	return s.tierCanUseRecording(tier)
+}
+
+// MinTierForAI returns the lowest tier that grants AI access.
+func (s *Service) MinTierForAI() Tier {
+	return minTierFromList(s.cfg.AITiers)
+}
+
+// MinTierForRecording returns the lowest tier that grants recording access.
+func (s *Service) MinTierForRecording() Tier {
+	return minTierFromList(s.cfg.RecordingTiers)
+}
+
+// MinTierWithoutWatermark returns the lowest tier that removes watermarks.
+func (s *Service) MinTierWithoutWatermark() Tier {
+	watermarkTiers := make(map[string]struct{}, len(s.cfg.WatermarkTiers))
+	for _, tier := range s.cfg.WatermarkTiers {
+		normalized := strings.TrimSpace(strings.ToLower(tier))
+		if normalized != "" {
+			watermarkTiers[normalized] = struct{}{}
+		}
+	}
+
+	for _, tier := range []Tier{TierFree, TierSolo, TierPro, TierStudio, TierBusiness} {
+		if _, exists := watermarkTiers[string(tier)]; !exists {
+			return tier
+		}
+	}
+	return ""
+}
+
+func minTierFromList(tiers []string) Tier {
+	var selected Tier
+	for _, entry := range tiers {
+		tier, ok := ParseTier(entry)
+		if !ok {
+			continue
+		}
+		if selected == "" || tier.Order() < selected.Order() {
+			selected = tier
+		}
+	}
+	return selected
 }
 
 // getTierLimit returns the execution limit for a tier.

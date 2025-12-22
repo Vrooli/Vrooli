@@ -67,21 +67,20 @@ export function WatermarkOverlay({ settings }: WatermarkOverlayProps) {
         };
 
   return (
-    <div
-      className={`absolute pointer-events-none z-10 ${positionClass}`}
-      style={marginStyle}
-    >
-      <img
-        src={imageUrl}
-        alt="Watermark"
-        className="max-w-none"
-        style={{
-          width: `${settings.size}%`,
-          height: 'auto',
-          opacity: settings.opacity / 100,
-        }}
-        draggable={false}
-      />
+    <div className="absolute inset-0 pointer-events-none z-20">
+      <div className={`absolute ${positionClass}`} style={marginStyle}>
+        <img
+          src={imageUrl}
+          alt="Watermark"
+          className="max-w-none"
+          style={{
+            width: `${settings.size}%`,
+            height: 'auto',
+            opacity: settings.opacity / 100,
+          }}
+          draggable={false}
+        />
+      </div>
     </div>
   );
 }
