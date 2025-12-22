@@ -101,6 +101,7 @@ export default function App() {
   );
   const [selectedFile, setSelectedFile] = useState<string | undefined>();
   const [selectedIsStaged, setSelectedIsStaged] = useState(false);
+  const [selectedIsUntracked, setSelectedIsUntracked] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Array<{ path: string; staged: boolean }>>([]);
   const lastSelectedKeyRef = useRef<string | null>(null);
   const [confirmingDiscard, setConfirmingDiscard] = useState<string | null>(null);
@@ -152,7 +153,7 @@ export default function App() {
   const historyQuery = useRepoHistory(historyLimit, historyNeedsDetails);
   const syncStatusQuery = useSyncStatus();
   const approvedChangesQuery = useApprovedChanges();
-  const diffQuery = useDiff(selectedFile, selectedIsStaged);
+  const diffQuery = useDiff(selectedFile, selectedIsStaged, selectedIsUntracked);
 
   // Mutations
   const stageMutation = useStageFiles();
@@ -184,10 +185,17 @@ export default function App() {
     queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges });
     if (selectedFile) {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.diff(selectedFile, selectedIsStaged)
+        queryKey: queryKeys.diff(selectedFile, selectedIsStaged, selectedIsUntracked)
       });
     }
-  }, [historyLimit, historyNeedsDetails, queryClient, selectedFile, selectedIsStaged]);
+  }, [
+    historyLimit,
+    historyNeedsDetails,
+    queryClient,
+    selectedFile,
+    selectedIsStaged,
+    selectedIsUntracked
+  ]);
 
   const orderedFiles = useMemo(() => {
     const files = statusQuery.data?.files;
@@ -200,6 +208,10 @@ export default function App() {
       ...(files.untracked ?? []).map((path) => ({ path, staged: false }))
     ];
   }, [statusQuery.data?.files]);
+  const untrackedSet = useMemo(
+    () => new Set(statusQuery.data?.files?.untracked ?? []),
+    [statusQuery.data?.files?.untracked]
+  );
 
   const workingSetPaths = useMemo(() => {
     const files = statusQuery.data?.files;
@@ -319,6 +331,7 @@ export default function App() {
       if (nextSelection.length === 0) {
         setSelectedFile(undefined);
         setSelectedIsStaged(false);
+        setSelectedIsUntracked(false);
         return;
       }
 
@@ -328,13 +341,15 @@ export default function App() {
         : nextSelection[nextSelection.length - 1];
       setSelectedFile(primary.path);
       setSelectedIsStaged(primary.staged);
+      setSelectedIsUntracked(!primary.staged && untrackedSet.has(primary.path));
     },
     [
       orderedIndexMap,
       orderedKeyToEntry,
       orderedKeys,
       selectionKey,
-      selectedFiles
+      selectedFiles,
+      untrackedSet
     ]
   );
 
@@ -353,13 +368,17 @@ export default function App() {
             // If we were viewing this file's unstaged diff, switch to staged
             if (selectedFile === path && !selectedIsStaged) {
               setSelectedIsStaged(true);
+              setSelectedIsUntracked(false);
             }
             pathsToStage.forEach((stagedPath) => {
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, false)
+                queryKey: queryKeys.diff(stagedPath, false, false)
               });
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, true)
+                queryKey: queryKeys.diff(stagedPath, false, true)
+              });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.diff(stagedPath, true, false)
               });
             });
           }
@@ -384,13 +403,17 @@ export default function App() {
             // If we were viewing this file's staged diff, switch to unstaged
             if (selectedFile === path && selectedIsStaged) {
               setSelectedIsStaged(false);
+              setSelectedIsUntracked(false);
             }
             pathsToUnstage.forEach((unstagedPath) => {
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, false)
+                queryKey: queryKeys.diff(unstagedPath, false, false)
               });
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, true)
+                queryKey: queryKeys.diff(unstagedPath, false, true)
+              });
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.diff(unstagedPath, true, false)
               });
             });
           }
@@ -705,6 +728,7 @@ export default function App() {
       setSelectedFiles([]);
       setSelectedFile(undefined);
       setSelectedIsStaged(false);
+      setSelectedIsUntracked(false);
       lastSelectedKeyRef.current = null;
       return;
     }
@@ -721,11 +745,20 @@ export default function App() {
       const fallback = selectedFiles[selectedFiles.length - 1];
       setSelectedFile(fallback.path);
       setSelectedIsStaged(fallback.staged);
+      setSelectedIsUntracked(!fallback.staged && untrackedSet.has(fallback.path));
     } else {
       setSelectedFile(undefined);
       setSelectedIsStaged(false);
+      setSelectedIsUntracked(false);
     }
-  }, [orderedKeySet, selectedFile, selectedFiles, selectedIsStaged, selectionKey]);
+  }, [
+    orderedKeySet,
+    selectedFile,
+    selectedFiles,
+    selectedIsStaged,
+    selectionKey,
+    untrackedSet
+  ]);
 
   useEffect(() => {
     if (!stackRef.current || typeof ResizeObserver === "undefined") return;
@@ -1056,6 +1089,7 @@ export default function App() {
               diff={diffQuery.data}
               selectedFile={selectedFile}
               isStaged={selectedIsStaged}
+              isUntracked={selectedIsUntracked}
               isLoading={diffQuery.isLoading}
               error={diffQuery.error}
               repoDir={statusQuery.data?.repo_dir}

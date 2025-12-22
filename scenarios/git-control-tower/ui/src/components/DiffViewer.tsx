@@ -10,6 +10,7 @@ interface DiffViewerProps {
   diff?: DiffResponse;
   selectedFile?: string;
   isStaged: boolean;
+  isUntracked: boolean;
   isLoading: boolean;
   error?: Error | null;
   repoDir?: string;
@@ -93,6 +94,7 @@ export function DiffViewer({
   diff,
   selectedFile,
   isStaged,
+  isUntracked,
   isLoading,
   error,
   repoDir
@@ -146,6 +148,10 @@ export function DiffViewer({
 
   const showBinaryNotice =
     selectedFile && !isLoading && !error && diff?.has_diff && isBinaryDiff && !showBinary;
+  const showFullContent = Boolean(
+    selectedFile && !isLoading && !error && isUntracked && diff?.full_content !== undefined
+  );
+  const fullLines = showFullContent ? diff?.full_content?.split("\n") ?? [] : [];
 
   return (
     <Card className="h-full flex flex-col" data-testid="diff-viewer-panel">
@@ -176,8 +182,8 @@ export function DiffViewer({
             </button>
           )}
           {selectedFile && (
-            <Badge variant={isStaged ? "staged" : "unstaged"}>
-              {isStaged ? "staged" : "unstaged"}
+            <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
+              {isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}
             </Badge>
           )}
         </div>
@@ -224,7 +230,7 @@ export function DiffViewer({
           )}
 
           {/* No diff content */}
-          {selectedFile && !isLoading && !error && diff && !diff.has_diff && (
+          {selectedFile && !isLoading && !error && diff && !diff.has_diff && !showFullContent && (
             <div className="flex flex-col items-center justify-center py-12 text-center" data-testid="diff-no-changes">
               <FileDiff className="h-10 w-10 text-slate-700 mb-4" />
               <p className="text-sm text-slate-500">No changes detected</p>
@@ -234,8 +240,24 @@ export function DiffViewer({
             </div>
           )}
 
+          {/* Full file content for untracked files */}
+          {showFullContent && (
+            <div className="divide-y divide-slate-800/30" data-testid="diff-untracked-content">
+              {fullLines.map((line, index) => (
+                <div key={index} className="flex font-mono text-xs text-slate-300">
+                  <span className="w-12 flex-shrink-0 px-2 py-0.5 text-right select-none border-r border-slate-800 text-slate-600">
+                    {index + 1}
+                  </span>
+                  <pre className="flex-1 px-3 py-0.5 whitespace-pre overflow-x-auto">
+                    {line || " "}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Diff content */}
-          {selectedFile && !isLoading && !error && diff?.has_diff && diff.hunks && (
+          {selectedFile && !isLoading && !error && diff?.has_diff && diff.hunks && !showFullContent && (
             <div data-testid="diff-content">
               {diff.hunks.map((hunk, index) => (
                 <HunkDisplay key={index} hunk={hunk} index={index} />

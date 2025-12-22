@@ -92,11 +92,13 @@ export interface DiffResponse {
   repo_dir: string;
   path?: string;
   staged: boolean;
+  untracked?: boolean;
   base?: string;
   has_diff: boolean;
   hunks?: DiffHunk[];
   stats: DiffStats;
   raw?: string;
+  full_content?: string;
   timestamp: string;
 }
 
@@ -282,11 +284,13 @@ export async function fetchRepoHistory(
 
 export async function fetchDiff(
   path?: string,
-  staged = false
+  staged = false,
+  untracked = false
 ): Promise<DiffResponse> {
   const params = new URLSearchParams();
   if (path) params.set("path", path);
   if (staged) params.set("staged", "true");
+  if (untracked) params.set("untracked", "true");
 
   const url = buildApiUrl(`/repo/diff?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -25,6 +27,36 @@ func GetDiff(ctx context.Context, deps DiffDeps, req DiffRequest) (*DiffResponse
 		return nil, fmt.Errorf("repo dir is required")
 	}
 
+	if req.Untracked {
+		cleanPath := cleanFilePath(req.Path)
+		if cleanPath == "" || strings.HasPrefix(cleanPath, "..") {
+			return nil, fmt.Errorf("invalid path")
+		}
+		absPath := filepath.Join(repoDir, cleanPath)
+		content, err := os.ReadFile(absPath)
+		if err != nil {
+			return nil, fmt.Errorf("read file: %w", err)
+		}
+		fileText := string(content)
+		lineCount := 0
+		if len(fileText) > 0 {
+			lineCount = strings.Count(fileText, "\n")
+			if !strings.HasSuffix(fileText, "\n") {
+				lineCount++
+			}
+		}
+		return &DiffResponse{
+			RepoDir:     repoDir,
+			Path:        cleanPath,
+			Staged:      false,
+			Untracked:   true,
+			HasDiff:     true,
+			Stats:       DiffStats{Additions: lineCount, Deletions: 0, Files: 1},
+			FullContent: fileText,
+			Timestamp:   time.Now().UTC(),
+		}, nil
+	}
+
 	out, err := deps.Git.Diff(ctx, repoDir, req.Path, req.Staged)
 	if err != nil {
 		return nil, err
@@ -34,6 +66,7 @@ func GetDiff(ctx context.Context, deps DiffDeps, req DiffRequest) (*DiffResponse
 	parsed.RepoDir = repoDir
 	parsed.Path = req.Path
 	parsed.Staged = req.Staged
+	parsed.Untracked = req.Untracked
 	parsed.Base = req.Base
 	parsed.Timestamp = time.Now().UTC()
 

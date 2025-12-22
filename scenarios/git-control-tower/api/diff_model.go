@@ -4,9 +4,10 @@ import "time"
 
 // DiffRequest specifies what diff to retrieve
 type DiffRequest struct {
-	Path   string `json:"path"`
-	Staged bool   `json:"staged"`
-	Base   string `json:"base,omitempty"`
+	Path      string `json:"path"`
+	Staged    bool   `json:"staged"`
+	Untracked bool   `json:"untracked"`
+	Base      string `json:"base,omitempty"`
 }
 
 // DiffResponse contains the diff output and metadata
@@ -14,11 +15,13 @@ type DiffResponse struct {
 	RepoDir   string     `json:"repo_dir"`
 	Path      string     `json:"path,omitempty"`
 	Staged    bool       `json:"staged"`
+	Untracked bool       `json:"untracked"`
 	Base      string     `json:"base,omitempty"`
 	HasDiff   bool       `json:"has_diff"`
 	Hunks     []DiffHunk `json:"hunks,omitempty"`
 	Stats     DiffStats  `json:"stats"`
 	Raw       string     `json:"raw,omitempty"`
+	FullContent string   `json:"full_content,omitempty"`
 	Timestamp time.Time  `json:"timestamp"`
 }
 

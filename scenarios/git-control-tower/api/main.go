@@ -233,9 +233,10 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		Git:     s.git,
 		RepoDir: repoDir,
 	}, DiffRequest{
-		Path:   query.Get("path"),
-		Staged: query.Get("staged") == "true",
-		Base:   query.Get("base"),
+		Path:      query.Get("path"),
+		Staged:    query.Get("staged") == "true",
+		Untracked: query.Get("untracked") == "true",
+		Base:      query.Get("base"),
 	})
 	if err != nil {
 		resp.InternalError(err.Error())
