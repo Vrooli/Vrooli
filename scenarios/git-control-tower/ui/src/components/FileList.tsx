@@ -413,7 +413,7 @@ export function FileList({
   const hasUnstaged = (files?.unstaged?.length ?? 0) > 0 || (files?.untracked?.length ?? 0) > 0;
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
-  const [maxPathChars, setMaxPathChars] = useState(48);
+  const [maxPathChars, setMaxPathChars] = useState(72);
   const binarySet = useMemo(() => new Set(files?.binary ?? []), [files?.binary]);
   const handleDiscardUnstaged = useCallback(
     (path: string) => onDiscardFile(path, false),
@@ -433,8 +433,8 @@ export function FileList({
 
     const update = () => {
       const width = scrollAreaRef.current?.clientWidth ?? 0;
-      const usable = Math.max(0, width - 96);
-      const nextMax = Math.max(12, Math.min(64, Math.floor(usable / 7)));
+      const usable = Math.max(0, width - 64);
+      const nextMax = Math.max(12, Math.min(140, Math.floor(usable / 7)));
       setMaxPathChars(nextMax);
     };
 

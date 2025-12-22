@@ -654,7 +654,7 @@ export default function App() {
                       : "minmax(0, 1fr)"
                 }}
               >
-                <div className="min-h-0">
+                <div className="min-h-0 min-w-0">
                   <FileList
                     files={statusQuery.data?.files}
                     selectedFiles={selectedFiles}
@@ -713,7 +713,7 @@ export default function App() {
                   }
                   aria-hidden="true"
                 />
-                <div className="min-h-0">
+                <div className="min-h-0 min-w-0">
                   <GitHistory
                     lines={historyQuery.data?.lines}
                     isLoading={historyQuery.isLoading}
