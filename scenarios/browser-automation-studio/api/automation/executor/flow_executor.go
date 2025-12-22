@@ -126,6 +126,11 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	instruction := planStepToInstruction(step)
 	stepIndex := instruction.Index
 
+	session, err := e.ensureNavigation(ctx, req, execCtx, eng, spec, session, instruction.NodeID, PlanStepType(step))
+	if err != nil {
+		return contracts.StepOutcome{}, session, err
+	}
+
 	stepCtx, cancel := context.WithCancel(ctx)
 	startedAt := time.Now().UTC()
 	attempt := 1
@@ -198,9 +203,16 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 		}
 	}
 
+	if normalized.Success && isNavigateInstruction(instruction) {
+		markNavigation(execCtx.navigation)
+	}
+
 	newSession, resetErr := e.maybeResetSession(ctx, eng, spec, session, reuseMode)
 	if resetErr != nil {
 		return normalized, session, fmt.Errorf("reset session: %w", resetErr)
+	}
+	if shouldResetNavigation(reuseMode, newSession) {
+		resetNavigation(execCtx.navigation)
 	}
 	session = newSession
 

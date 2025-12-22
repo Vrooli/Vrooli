@@ -23,6 +23,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	requiresTrace := false
 	requiresHAR := false
 	fromFile := ""
+	startURL := ""
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -51,6 +52,12 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				return fmt.Errorf("--project-root requires a value")
 			}
 			projectRoot = args[i+1]
+			i++
+		case "--start-url":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--start-url requires a value")
+			}
+			startURL = args[i+1]
 			i++
 		case "--adhoc":
 			adhoc = true
@@ -124,6 +131,9 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	} else {
 		fmt.Println("Execution mode: direct")
 	}
+	if startURL != "" {
+		fmt.Printf("Start URL: %s\n", startURL)
+	}
 
 	var params map[string]any
 	if err := json.Unmarshal([]byte(paramsRaw), &params); err != nil {
@@ -133,6 +143,9 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	if projectRoot != "" {
 		params["project_root"] = projectRoot
 		fmt.Println("Project root injected into parameters as project_root.")
+	}
+	if startURL != "" {
+		params["start_url"] = startURL
 	}
 
 	var response []byte

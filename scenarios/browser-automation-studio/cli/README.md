@@ -33,3 +33,12 @@ browser-automation-studio workflow execute <workflow-id>
 browser-automation-studio execution watch <execution-id>
 browser-automation-studio recording import <archive.zip>
 ```
+
+Adhoc execution with a starting URL:
+
+```bash
+browser-automation-studio workflow execute \
+  --from-file bas/actions/open-project.json \
+  --start-url http://localhost:8080/ \
+  --wait
+```

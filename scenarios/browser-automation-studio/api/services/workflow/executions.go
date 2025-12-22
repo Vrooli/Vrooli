@@ -102,7 +102,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		return nil, err
 	}
 
-	initialStore, initialParams, env, artifactCfg, projectRoot := executionParametersToMaps(req.Parameters)
+	initialStore, initialParams, env, artifactCfg, projectRoot, startURL := executionParametersToMaps(req.Parameters)
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
@@ -132,7 +132,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
-	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, opts, projectRoot)
+	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, opts, projectRoot, startURL)
 
 	if req.WaitForCompletion {
 		// Poll for completion; execution updates are persisted to the DB index by the runner.
@@ -183,15 +183,15 @@ func (s *WorkflowService) resolveWorkflowForExecution(ctx context.Context, workf
 	return getResp.Workflow, nil
 }
 
-// executionParametersToMaps extracts namespace maps, artifact config, and project root from ExecutionParameters.
-// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, and projectRoot.
+// executionParametersToMaps extracts namespace maps, artifact config, project root, and start URL from ExecutionParameters.
+// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, projectRoot, startURL.
 // projectRoot is used for filesystem-based subflow resolution when the calling workflow has no database project.
-func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
+func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string, startURL string) {
 	store = map[string]any{}
 	params = map[string]any{}
 	env = map[string]any{}
 	if p == nil {
-		return store, params, env, nil, ""
+		return store, params, env, nil, "", ""
 	}
 
 	for k, v := range p.InitialStore {
@@ -222,7 +222,9 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 		projectRoot = strings.TrimSpace(*p.ProjectRoot)
 	}
 
-	return store, params, env, artifactCfg, projectRoot
+	startURL = strings.TrimSpace(p.GetStartUrl())
+
+	return store, params, env, artifactCfg, projectRoot, startURL
 }
 
 func jsonValueToAny(v *commonv1.JsonValue) any {
@@ -237,25 +239,25 @@ func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary,
 }
 
 func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
-	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, projectRoot)
+	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, projectRoot, "")
 }
 
-func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions, projectRoot string) {
+func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions, projectRoot string, startURL string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.storeExecutionCancel(executionID, cancel)
-	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, opts, projectRoot)
+	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, opts, projectRoot, startURL)
 }
 
 // executeWorkflowAsync is the single implementation for running workflows asynchronously.
 // It handles both legacy (flat parameters in store) and new (namespaced store/params/env) callers.
 // artifactCfg controls what artifacts are collected; nil means use default (full profile).
 func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
-	s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, nil, "")
+	s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, nil, "", "")
 }
 
 // executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
 // projectRoot is the absolute path to the project root for filesystem-based subflow resolution.
-func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions, projectRoot string) {
+func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions, projectRoot string, startURL string) {
 	defer s.cancelExecutionByID(executionID)
 
 	persistenceCtx := context.Background()
@@ -353,6 +355,7 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		InitialStore:       store,
 		InitialParams:      params,
 		Env:                env,
+		StartURL:           strings.TrimSpace(startURL),
 		ArtifactConfig:     artifactCfg,
 	}
 

@@ -39,6 +39,11 @@ type executionContext struct {
 	compiler  PlanCompiler
 	maxDepth  int
 	callStack []uuid.UUID
+	navigation *navigationState
+}
+
+type navigationState struct {
+	hasNavigated bool
 }
 
 // NewSimpleExecutor constructs a SimpleExecutor. If no sequencer is supplied,
@@ -250,6 +255,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 			}
 			return stack
 		}(),
+		navigation: &navigationState{},
 	}
 
 	session, err = e.runPlan(ctx, req, execCtx, eng, spec, session, execState, reuseMode)
@@ -269,7 +275,7 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 		}).Info("Resuming execution from checkpoint")
 	}
 
-	session, err = e.maybeRunEntrypointProbe(ctx, req.Plan, eng, spec, session, execState)
+	session, err = e.maybeRunEntrypointProbe(ctx, req.Plan, eng, spec, session, execState, req.StartURL)
 	if err != nil {
 		return session, err
 	}
@@ -340,6 +346,11 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			return session, ctx.Err()
 		}
 
+		session, err = e.ensureNavigation(ctx, req, execCtx, eng, spec, session, instruction.NodeID, instrStepType)
+		if err != nil {
+			return session, err
+		}
+
 		stepCtx, cancel := context.WithCancel(ctx)
 		startedAt := time.Now().UTC()
 		attempt := 1
@@ -403,9 +414,16 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			}
 		}
 
+		if normalized.Success && isNavigateInstruction(instruction) {
+			markNavigation(execCtx.navigation)
+		}
+
 		newSession, resetErr := e.maybeResetSession(ctx, eng, spec, session, reuseMode)
 		if resetErr != nil {
 			return session, fmt.Errorf("reset session: %w", resetErr)
+		}
+		if shouldResetNavigation(reuseMode, newSession) {
+			resetNavigation(execCtx.navigation)
 		}
 		session = newSession
 
@@ -604,8 +622,12 @@ const (
 	minEntryTimeoutMs     = 250
 )
 
-func (e *SimpleExecutor) maybeRunEntrypointProbe(ctx context.Context, plan contracts.ExecutionPlan, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, execState *state.ExecutionState) (engine.EngineSession, error) {
+func (e *SimpleExecutor) maybeRunEntrypointProbe(ctx context.Context, plan contracts.ExecutionPlan, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, execState *state.ExecutionState, startURL string) (engine.EngineSession, error) {
 	if execState == nil || execState.HasCheckedEntry() {
+		return session, nil
+	}
+	if strings.TrimSpace(startURL) != "" {
+		execState.MarkEntryChecked()
 		return session, nil
 	}
 	selector, timeoutMs := entrySelectorFromPlan(plan)
@@ -974,6 +996,91 @@ func (e *SimpleExecutor) maybeResetSession(ctx context.Context, eng engine.Autom
 	default:
 		return session, nil
 	}
+}
+
+func (e *SimpleExecutor) ensureNavigation(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, nodeID string, stepType string) (engine.EngineSession, error) {
+	if !requiresNavigationStepType(stepType) {
+		return session, nil
+	}
+	if execCtx.navigation != nil && execCtx.navigation.hasNavigated {
+		return session, nil
+	}
+	startURL := strings.TrimSpace(req.StartURL)
+	if startURL == "" {
+		return session, fmt.Errorf(
+			"navigation required before step %q (%s): no prior navigate step and no start_url provided; "+
+				"add a navigate node in a parent workflow or pass execution parameters start_url (CLI: --start-url <url>)",
+			nodeID,
+			stepType,
+		)
+	}
+	if session == nil {
+		newSession, err := eng.StartSession(ctx, spec)
+		if err != nil {
+			return session, fmt.Errorf("start session for start_url navigation: %w", err)
+		}
+		session = newSession
+	}
+
+	instruction := contracts.CompiledInstruction{
+		Index:  -1,
+		NodeID: "__start_url__",
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+			Params: &basactions.ActionDefinition_Navigate{
+				Navigate: &basactions.NavigateParams{
+					Url: startURL,
+				},
+			},
+		},
+	}
+
+	outcome, err := session.Run(ctx, instruction)
+	if err != nil {
+		return session, fmt.Errorf("start_url navigation failed (%s) before step %q: %w", startURL, nodeID, err)
+	}
+	if !outcome.Success {
+		return session, fmt.Errorf("start_url navigation failed (%s) before step %q: %s", startURL, nodeID, e.failureMessage(outcome))
+	}
+
+	markNavigation(execCtx.navigation)
+	return session, nil
+}
+
+func requiresNavigationStepType(stepType string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(stepType))
+	normalized = strings.ReplaceAll(normalized, "_", "")
+	switch normalized {
+	case "", "navigate", "setvariable", "subflow", "loop", "conditional":
+		return false
+	default:
+		return true
+	}
+}
+
+func isNavigateInstruction(instruction contracts.CompiledInstruction) bool {
+	return IsActionType(instruction, basactions.ActionType_ACTION_TYPE_NAVIGATE)
+}
+
+func markNavigation(state *navigationState) {
+	if state == nil {
+		return
+	}
+	state.hasNavigated = true
+}
+
+func resetNavigation(state *navigationState) {
+	if state == nil {
+		return
+	}
+	state.hasNavigated = false
+}
+
+func shouldResetNavigation(reuseMode engine.SessionReuseMode, session engine.EngineSession) bool {
+	if reuseMode == engine.ReuseModeClean || reuseMode == engine.ReuseModeFresh {
+		return true
+	}
+	return session == nil
 }
 
 type sessionArtifactCloser interface {

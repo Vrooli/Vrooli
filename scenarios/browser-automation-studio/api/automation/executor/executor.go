@@ -41,6 +41,7 @@ type Request struct {
 	InitialStore  map[string]any // Initial @store/ values - pre-seeded runtime state.
 	InitialParams map[string]any // Initial @params/ values - workflow input contract.
 	Env           map[string]any // Environment values - project/user configuration.
+	StartURL      string         // Initial URL to navigate to before non-navigate steps.
 
 	// ArtifactConfig controls what artifacts are collected during execution.
 	// When nil, defaults to "full" profile (all artifacts collected).
