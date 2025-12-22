@@ -82,6 +82,9 @@ type GitRunner interface {
 	// DiffNumstat returns numstat output for changes.
 	// If staged is true, returns staged stats (--cached).
 	DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error)
+
+	// RemoveFromIndex removes paths from the git index without deleting working files.
+	RemoveFromIndex(ctx context.Context, repoDir string, paths []string) error
 }
 
 // CommitOptions configures author overrides for commit operations.
@@ -465,4 +468,20 @@ func (r *ExecGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged 
 		return nil, fmt.Errorf("git diff --numstat failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
 	}
 	return nil, fmt.Errorf("git diff --numstat failed: %w", err)
+}
+
+func (r *ExecGitRunner) RemoveFromIndex(ctx context.Context, repoDir string, paths []string) error {
+	args := []string{"-C", repoDir, "rm", "--cached", "--ignore-unmatch", "--"}
+	args = append(args, paths...)
+
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git rm --cached failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git rm --cached failed: %w", err)
+	}
+	return nil
 }

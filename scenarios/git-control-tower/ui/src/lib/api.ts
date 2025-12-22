@@ -154,6 +154,19 @@ export interface DiscardResponse {
   timestamp: string;
 }
 
+export interface IgnoreRequest {
+  path: string;
+}
+
+export interface IgnoreResponse {
+  success: boolean;
+  ignored: string[];
+  failed?: string[];
+  errors?: string[];
+  gitignore_path?: string;
+  timestamp: string;
+}
+
 export interface PushRequest {
   remote?: string;
   branch?: string;
@@ -321,6 +334,16 @@ export async function discardFiles(request: DiscardRequest): Promise<DiscardResp
     body: JSON.stringify(request)
   });
   return handleResponse<DiscardResponse>(res);
+}
+
+export async function ignoreFile(request: IgnoreRequest): Promise<IgnoreResponse> {
+  const url = buildApiUrl("/repo/ignore", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<IgnoreResponse>(res);
 }
 
 export async function pushToRemote(request: PushRequest = {}): Promise<PushResponse> {

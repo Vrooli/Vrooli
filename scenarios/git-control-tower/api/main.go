@@ -91,6 +91,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/approved-changes/preview", s.handleApprovedChangesPreview).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/sync-status", s.handleSyncStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/discard", s.handleDiscard).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/ignore", s.handleIgnore).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/push", s.handlePush).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/pull", s.handlePull).Methods("POST")
 	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
@@ -495,6 +496,65 @@ func (s *Server) handleDiscard(w http.ResponseWriter, r *http.Request) {
 		auditEntry.Paths = result.Discarded
 	}
 	// Log asynchronously
+	go func() {
+		logCtx, logCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer logCancel()
+		_ = s.audit.Log(logCtx, auditEntry)
+	}()
+
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	if !result.Success {
+		resp.UnprocessableEntity(result)
+		return
+	}
+	resp.OK(result)
+}
+
+// handleIgnore handles POST /api/v1/repo/ignore
+func (s *Server) handleIgnore(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	var req IgnoreRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	if strings.TrimSpace(req.Path) == "" {
+		resp.BadRequest("path is required")
+		return
+	}
+
+	result, err := IgnorePath(ctx, IgnoreDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+
+	auditEntry := AuditEntry{
+		Operation: AuditOpIgnore,
+		RepoDir:   repoDir,
+		Paths:     []string{req.Path},
+		Success:   result != nil && result.Success,
+	}
+	if err != nil {
+		auditEntry.Error = err.Error()
+	} else if result != nil && !result.Success {
+		auditEntry.Error = strings.Join(result.Errors, "; ")
+	}
+	if result != nil && len(result.Ignored) > 0 {
+		auditEntry.Paths = result.Ignored
+	}
 	go func() {
 		logCtx, logCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer logCancel()

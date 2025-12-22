@@ -11,6 +11,7 @@ const (
 	AuditOpUnstage AuditOperation = "unstage"
 	AuditOpCommit  AuditOperation = "commit"
 	AuditOpDiscard AuditOperation = "discard"
+	AuditOpIgnore  AuditOperation = "ignore"
 	AuditOpPush    AuditOperation = "push"
 	AuditOpPull    AuditOperation = "pull"
 )

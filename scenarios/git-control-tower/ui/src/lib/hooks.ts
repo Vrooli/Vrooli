@@ -11,6 +11,7 @@ import {
   unstageFiles,
   createCommit,
   discardFiles,
+  ignoreFile,
   pushToRemote,
   pullFromRemote,
   type RepoHistoryResponse,
@@ -18,6 +19,7 @@ import {
   type UnstageRequest,
   type CommitRequest,
   type DiscardRequest,
+  type IgnoreRequest,
   type PushRequest,
   type PullRequest,
   type ApprovedChangesPreviewRequest
@@ -113,6 +115,17 @@ export function useDiscardFiles() {
 
   return useMutation({
     mutationFn: (request: DiscardRequest) => discardFiles(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+    }
+  });
+}
+
+export function useIgnoreFile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: IgnoreRequest) => ignoreFile(request),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
     }

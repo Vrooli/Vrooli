@@ -24,6 +24,7 @@ import {
   useUnstageFiles,
   useCommit,
   useDiscardFiles,
+  useIgnoreFile,
   usePush,
   usePull,
   queryKeys
@@ -103,6 +104,7 @@ export default function App() {
   const [selectedFiles, setSelectedFiles] = useState<Array<{ path: string; staged: boolean }>>([]);
   const lastSelectedKeyRef = useRef<string | null>(null);
   const [confirmingDiscard, setConfirmingDiscard] = useState<string | null>(null);
+  const [confirmingIgnore, setConfirmingIgnore] = useState<string | null>(null);
   const [lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
   const [commitMessage, setCommitMessage] = useState("");
@@ -157,12 +159,14 @@ export default function App() {
   const unstageMutation = useUnstageFiles();
   const commitMutation = useCommit();
   const discardMutation = useDiscardFiles();
+  const ignoreMutation = useIgnoreFile();
   const pushMutation = usePush();
   const pullMutation = usePull();
   const approvedPreviewMutation = useApprovedChangesPreview();
 
   const isStaging = stageMutation.isPending || unstageMutation.isPending;
   const isDiscarding = discardMutation.isPending;
+  const isIgnoring = ignoreMutation.isPending;
   const repoDir = statusQuery.data?.repo_dir;
   const repoKey = useMemo(
     () => (repoDir ? encodeURIComponent(repoDir) : "unknown"),
@@ -482,6 +486,38 @@ export default function App() {
     },
     [discardMutation, queryClient, selectedFile]
   );
+
+  const handleIgnoreFile = useCallback(
+    (path: string) => {
+      ignoreMutation.mutate(
+        { path },
+        {
+          onSuccess: () => {
+            if (selectedFile === path) {
+              setSelectedFile(undefined);
+            }
+            setSelectedFiles((prev) => prev.filter((entry) => entry.path !== path));
+            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+          }
+        }
+      );
+    },
+    [ignoreMutation, queryClient, selectedFile]
+  );
+
+  const handleConfirmDiscard = useCallback((path: string | null) => {
+    setConfirmingDiscard(path);
+    if (path) {
+      setConfirmingIgnore(null);
+    }
+  }, []);
+
+  const handleConfirmIgnore = useCallback((path: string | null) => {
+    setConfirmingIgnore(path);
+    if (path) {
+      setConfirmingDiscard(null);
+    }
+  }, []);
 
   const handleCommit = useCallback(
     (
@@ -940,12 +976,16 @@ export default function App() {
             onStageFile={handleStageFile}
             onUnstageFile={handleUnstageFile}
             onDiscardFile={handleDiscardFile}
+            onIgnoreFile={handleIgnoreFile}
             onStageAll={handleStageAll}
             onUnstageAll={handleUnstageAll}
             isStaging={isStaging}
             isDiscarding={isDiscarding}
+            isIgnoring={isIgnoring}
             confirmingDiscard={confirmingDiscard}
-            onConfirmDiscard={setConfirmingDiscard}
+            onConfirmDiscard={handleConfirmDiscard}
+            confirmingIgnore={confirmingIgnore}
+            onConfirmIgnore={handleConfirmIgnore}
             collapsed={changesCollapsed}
             onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
             fillHeight={isMain || !changesCollapsed}
@@ -1145,6 +1185,7 @@ export default function App() {
       {(stageMutation.error ||
         unstageMutation.error ||
         discardMutation.error ||
+        ignoreMutation.error ||
         pushMutation.error ||
         pullMutation.error) && (
         <div
@@ -1157,6 +1198,7 @@ export default function App() {
               stageMutation.error ||
               unstageMutation.error ||
               discardMutation.error ||
+              ignoreMutation.error ||
               pushMutation.error ||
               pullMutation.error
             )?.message}

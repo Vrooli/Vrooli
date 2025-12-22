@@ -7,6 +7,7 @@ import {
   Plus,
   Minus,
   Trash2,
+  EyeOff,
   Binary,
   ChevronDown,
   ChevronRight,
@@ -48,12 +49,16 @@ interface FileListProps {
   onStageFile: (path: string) => void;
   onUnstageFile: (path: string) => void;
   onDiscardFile: (path: string, untracked: boolean) => void;
+  onIgnoreFile: (path: string) => void;
   onStageAll: () => void;
   onUnstageAll: () => void;
   isStaging: boolean;
   isDiscarding: boolean;
+  isIgnoring: boolean;
   confirmingDiscard: string | null;
   onConfirmDiscard: (path: string | null) => void;
+  confirmingIgnore: string | null;
+  onConfirmIgnore: (path: string | null) => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   fillHeight?: boolean;
@@ -87,6 +92,10 @@ interface FileSectionProps {
   isDiscarding?: boolean;
   confirmingDiscard?: string | null;
   onConfirmDiscard?: (path: string | null) => void;
+  onIgnore?: (path: string) => void;
+  isIgnoring?: boolean;
+  confirmingIgnore?: string | null;
+  onConfirmIgnore?: (path: string | null) => void;
 }
 
 const statusStyleMap = {
@@ -153,21 +162,26 @@ interface FileRowProps {
   badge: { label: string; style: string };
   isSelected: boolean;
   isStaged: boolean;
-  isConfirming: boolean;
   canDiscard: boolean;
   isLoading: boolean;
   isDiscarding: boolean;
+  isIgnoring: boolean;
   isBinary: boolean;
   isApproved: boolean;
   itemTestId: string;
   actionTestId: string;
   discardTestId: string;
+  ignoreTestId: string;
   actionIcon: React.ReactNode;
   actionLabel: string;
   onSelectFile: (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => void;
   onAction: (path: string) => void;
   onDiscard?: (path: string) => void;
   onConfirmDiscard?: (path: string | null) => void;
+  onIgnore?: (path: string) => void;
+  onConfirmIgnore?: (path: string | null) => void;
+  confirmingDiscard?: string | null;
+  confirmingIgnore?: string | null;
 }
 
 const FileRow = memo(function FileRow({
@@ -176,22 +190,30 @@ const FileRow = memo(function FileRow({
   badge,
   isSelected,
   isStaged,
-  isConfirming,
   canDiscard,
   isLoading,
   isDiscarding,
+  isIgnoring,
   isBinary,
   isApproved,
   itemTestId,
   actionTestId,
   discardTestId,
+  ignoreTestId,
   actionIcon,
   actionLabel,
   onSelectFile,
   onAction,
   onDiscard,
-  onConfirmDiscard
+  onConfirmDiscard,
+  onIgnore,
+  onConfirmIgnore,
+  confirmingDiscard,
+  confirmingIgnore
 }: FileRowProps) {
+  const isConfirmingIgnore = confirmingIgnore === file;
+  const isConfirmingDiscard = confirmingDiscard === file;
+  const showActionButtons = !(isConfirmingIgnore || isConfirmingDiscard);
   return (
     <li
       className={`group w-full flex items-center gap-2 px-2 py-1 rounded text-sm cursor-pointer transition-colors min-w-0 overflow-hidden select-none ${
@@ -237,7 +259,31 @@ const FileRow = memo(function FileRow({
         </span>
       )}
 
-      {isConfirming && onConfirmDiscard && onDiscard && (
+      {isConfirmingIgnore && onConfirmIgnore && onIgnore && (
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <span className="text-xs text-amber-300 mr-1">Ignore?</span>
+          <button
+            className="px-1.5 py-0.5 text-xs bg-amber-500 hover:bg-amber-400 text-slate-900 rounded transition-colors"
+            onClick={() => {
+              onIgnore(file);
+              onConfirmIgnore(null);
+            }}
+            disabled={isIgnoring}
+            data-testid="confirm-ignore-yes"
+          >
+            Yes
+          </button>
+          <button
+            className="px-1.5 py-0.5 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
+            onClick={() => onConfirmIgnore(null)}
+            data-testid="confirm-ignore-no"
+          >
+            No
+          </button>
+        </div>
+      )}
+
+      {isConfirmingDiscard && onConfirmDiscard && onDiscard && (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <span className="text-xs text-red-400 mr-1">Discard?</span>
           <button
@@ -261,7 +307,7 @@ const FileRow = memo(function FileRow({
         </div>
       )}
 
-      {!isConfirming && (
+      {showActionButtons && (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
           <button
             className="p-1 rounded hover:bg-slate-700 transition-all"
@@ -269,7 +315,7 @@ const FileRow = memo(function FileRow({
               e.stopPropagation();
               onAction(file);
             }}
-            disabled={isLoading}
+            disabled={isLoading || isIgnoring}
             title={actionLabel}
             data-testid={actionTestId}
           >
@@ -279,6 +325,24 @@ const FileRow = memo(function FileRow({
               actionIcon
             )}
           </button>
+          {onConfirmIgnore && onIgnore && (
+            <button
+              className="p-1 rounded hover:bg-amber-900/40 transition-all"
+              onClick={(e) => {
+                e.stopPropagation();
+                onConfirmIgnore(file);
+              }}
+              disabled={isIgnoring}
+              title="Ignore file"
+              data-testid={ignoreTestId}
+            >
+              {isIgnoring ? (
+                <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+              ) : (
+                <EyeOff className="h-3 w-3 text-amber-300" />
+              )}
+            </button>
+          )}
           {canDiscard && onConfirmDiscard && (
             <button
               className="p-1 rounded hover:bg-red-900/50 transition-all"
@@ -286,7 +350,7 @@ const FileRow = memo(function FileRow({
                 e.stopPropagation();
                 onConfirmDiscard(file);
               }}
-              disabled={isDiscarding}
+              disabled={isDiscarding || isIgnoring}
               title="Discard changes"
               data-testid={discardTestId}
             >
@@ -324,7 +388,11 @@ function FileSection({
   onDiscard,
   isDiscarding,
   confirmingDiscard,
-  onConfirmDiscard
+  onConfirmDiscard,
+  onIgnore,
+  isIgnoring,
+  confirmingIgnore,
+  onConfirmIgnore
 }: FileSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
@@ -379,21 +447,26 @@ function FileSection({
               badge={entry.badge}
               isSelected={selectedKeys?.has(entry.key) ?? false}
               isStaged={isStaged}
-              isConfirming={confirmingDiscard === entry.file}
               canDiscard={canDiscard}
               isLoading={isLoading}
               isDiscarding={isDiscarding ?? false}
+              isIgnoring={isIgnoring ?? false}
               isBinary={entry.isBinary}
               isApproved={entry.isApproved}
               itemTestId={`file-item-${category}`}
               actionTestId={`file-action-${category}`}
               discardTestId={`file-discard-${category}`}
+              ignoreTestId={`file-ignore-${category}`}
               actionIcon={actionIcon}
               actionLabel={actionLabel}
               onSelectFile={onSelectFile}
               onAction={onAction}
               onDiscard={onDiscard}
               onConfirmDiscard={onConfirmDiscard}
+              onIgnore={onIgnore}
+              onConfirmIgnore={onConfirmIgnore}
+              confirmingDiscard={confirmingDiscard}
+              confirmingIgnore={confirmingIgnore}
             />
           ))}
         </ul>
@@ -420,12 +493,16 @@ export function FileList({
   onStageFile,
   onUnstageFile,
   onDiscardFile,
+  onIgnoreFile,
   onStageAll,
   onUnstageAll,
   isStaging,
   isDiscarding,
+  isIgnoring,
   confirmingDiscard,
   onConfirmDiscard,
+  confirmingIgnore,
+  onConfirmIgnore,
   collapsed = false,
   onToggleCollapse,
   fillHeight = true,
@@ -469,6 +546,7 @@ export function FileList({
     (path: string) => onDiscardFile(path, true),
     [onDiscardFile]
   );
+  const handleIgnoreFile = useCallback((path: string) => onIgnoreFile(path), [onIgnoreFile]);
 
   useEffect(() => {
     if (!scrollAreaRef.current || typeof ResizeObserver === "undefined") return;
@@ -842,6 +920,10 @@ export function FileList({
                         actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
                         actionLabel="Stage file"
                         isLoading={isStaging}
+                        onIgnore={handleIgnoreFile}
+                        isIgnoring={isIgnoring}
+                        confirmingIgnore={confirmingIgnore}
+                        onConfirmIgnore={onConfirmIgnore}
                       />
                       <FileSection
                         key={`${group.id}-staged`}
@@ -861,6 +943,10 @@ export function FileList({
                         actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
                         actionLabel="Unstage file"
                         isLoading={isStaging}
+                        onIgnore={handleIgnoreFile}
+                        isIgnoring={isIgnoring}
+                        confirmingIgnore={confirmingIgnore}
+                        onConfirmIgnore={onConfirmIgnore}
                       />
                       <FileSection
                         key={`${group.id}-unstaged`}
@@ -884,6 +970,10 @@ export function FileList({
                         isDiscarding={isDiscarding}
                         confirmingDiscard={confirmingDiscard}
                         onConfirmDiscard={onConfirmDiscard}
+                        onIgnore={handleIgnoreFile}
+                        isIgnoring={isIgnoring}
+                        confirmingIgnore={confirmingIgnore}
+                        onConfirmIgnore={onConfirmIgnore}
                       />
                       <FileSection
                         key={`${group.id}-untracked`}
@@ -908,6 +998,10 @@ export function FileList({
                         isDiscarding={isDiscarding}
                         confirmingDiscard={confirmingDiscard}
                         onConfirmDiscard={onConfirmDiscard}
+                        onIgnore={handleIgnoreFile}
+                        isIgnoring={isIgnoring}
+                        confirmingIgnore={confirmingIgnore}
+                        onConfirmIgnore={onConfirmIgnore}
                       />
                     </div>
                   </div>
@@ -933,6 +1027,10 @@ export function FileList({
                   actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
                   actionLabel="Stage file"
                   isLoading={isStaging}
+                  onIgnore={handleIgnoreFile}
+                  isIgnoring={isIgnoring}
+                  confirmingIgnore={confirmingIgnore}
+                  onConfirmIgnore={onConfirmIgnore}
                 />
 
                 {/* Staged Changes */}
@@ -953,6 +1051,10 @@ export function FileList({
                   actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
                   actionLabel="Unstage file"
                   isLoading={isStaging}
+                  onIgnore={handleIgnoreFile}
+                  isIgnoring={isIgnoring}
+                  confirmingIgnore={confirmingIgnore}
+                  onConfirmIgnore={onConfirmIgnore}
                 />
 
                 {/* Unstaged Changes */}
@@ -977,6 +1079,10 @@ export function FileList({
                   isDiscarding={isDiscarding}
                   confirmingDiscard={confirmingDiscard}
                   onConfirmDiscard={onConfirmDiscard}
+                  onIgnore={handleIgnoreFile}
+                  isIgnoring={isIgnoring}
+                  confirmingIgnore={confirmingIgnore}
+                  onConfirmIgnore={onConfirmIgnore}
                 />
 
                 {/* Untracked Files */}
@@ -1002,6 +1108,10 @@ export function FileList({
                   isDiscarding={isDiscarding}
                   confirmingDiscard={confirmingDiscard}
                   onConfirmDiscard={onConfirmDiscard}
+                  onIgnore={handleIgnoreFile}
+                  isIgnoring={isIgnoring}
+                  confirmingIgnore={confirmingIgnore}
+                  onConfirmIgnore={onConfirmIgnore}
                 />
               </>
             )}

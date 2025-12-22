@@ -46,6 +46,7 @@ type FakeGitRunner struct {
 	PushError      error
 	PullError      error
 	LogError       error
+	RemoveFromIndexError error
 
 	// Commit tracking
 	LastCommitMessage     string
@@ -473,6 +474,20 @@ func (f *FakeGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged 
 		return nil, f.DiffError
 	}
 	return []byte(strings.Join(f.NumstatLines, "\n")), nil
+}
+
+func (f *FakeGitRunner) RemoveFromIndex(ctx context.Context, repoDir string, paths []string) error {
+	f.recordCall("RemoveFromIndex", append([]string{repoDir}, paths...)...)
+
+	if f.RemoveFromIndexError != nil {
+		return f.RemoveFromIndexError
+	}
+
+	for _, path := range paths {
+		delete(f.Staged, path)
+		delete(f.Unstaged, path)
+	}
+	return nil
 }
 
 // --- Test helpers ---
