@@ -506,8 +506,8 @@ message CreateRunRequest {
   // Execution mode.
   optional RunMode run_mode = 4;
 
-  // Inline configuration (overrides profile).
-  optional RunConfig inline_config = 5;
+  // Inline configuration overrides (applied only when fields are set).
+  optional RunConfigOverrides inline_config = 5;
 
   // Bypass capacity limits.
   bool force = 6;

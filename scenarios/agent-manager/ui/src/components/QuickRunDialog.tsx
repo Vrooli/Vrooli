@@ -26,44 +26,38 @@ import { Label } from "./ui/label";
 import { ModelSelector } from "./ModelSelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
-import { cn } from "../lib/utils";
+import { cn, runnerTypeLabel } from "../lib/utils";
 import type {
   AgentProfile,
-  CreateRunRequest,
-  CreateTaskRequest,
   Run,
+  RunFormData,
   RunnerStatus,
   RunnerType,
   Task,
+  TaskFormData,
 } from "../types";
+import { RunMode, RunnerType as RunnerTypeEnum } from "../types";
 
-const RUNNER_TYPES: RunnerType[] = ["claude-code", "codex", "opencode"];
+const RUNNER_TYPES: RunnerType[] = [
+  RunnerTypeEnum.CLAUDE_CODE,
+  RunnerTypeEnum.CODEX,
+  RunnerTypeEnum.OPENCODE,
+];
 
-const DEFAULT_MODELS: Record<RunnerType, string> = {
-  "claude-code": "sonnet",
-  "codex": "o4-mini",
-  "opencode": "anthropic/claude-sonnet-4-5",
+const DEFAULT_MODELS: Record<number, string> = {
+  [RunnerTypeEnum.CLAUDE_CODE]: "sonnet",
+  [RunnerTypeEnum.CODEX]: "o4-mini",
+  [RunnerTypeEnum.OPENCODE]: "anthropic/claude-sonnet-4-5",
 };
-
-// Convert minutes to nanoseconds for Go's time.Duration
-const minutesToNanoseconds = (minutes: number): number =>
-  minutes * 60 * 1_000_000_000;
 
 interface QuickRunDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profiles: AgentProfile[];
   runners?: Record<string, RunnerStatus>;
-  onCreateTask: (task: CreateTaskRequest) => Promise<Task>;
-  onCreateRun: (run: CreateRunRequest) => Promise<Run>;
+  onCreateTask: (task: TaskFormData) => Promise<Task>;
+  onCreateRun: (run: RunFormData) => Promise<Run>;
   onRunCreated?: (run: Run) => void;
-}
-
-interface TaskFormData {
-  title: string;
-  description: string;
-  scopePath: string;
-  projectRoot: string;
 }
 
 interface AgentConfigData {
@@ -73,7 +67,7 @@ interface AgentConfigData {
   model: string;
   maxTurns: number;
   timeoutMinutes: number;
-  runMode: "sandboxed" | "in_place";
+  runMode: RunMode;
   skipPermissionPrompt: boolean;
 }
 
@@ -110,17 +104,17 @@ export function QuickRunDialog({
   const [agentConfig, setAgentConfig] = useState<AgentConfigData>({
     mode: profiles.length > 0 ? "profile" : "custom",
     profileId: "",
-    runnerType: "claude-code",
+    runnerType: RunnerTypeEnum.CLAUDE_CODE,
     model: "sonnet",
     maxTurns: 100,
     timeoutMinutes: 30,
-    runMode: "sandboxed",
+    runMode: RunMode.SANDBOXED,
     skipPermissionPrompt: true,
   });
 
   const getModelsForRunner = (runnerType: RunnerType): string[] => {
     const runner = runners?.[runnerType];
-    return runner?.capabilities?.SupportedModels ?? [];
+    return runner?.supportedModels ?? [];
   };
 
   const getDefaultModelForRunner = (runnerType: RunnerType): string => {
@@ -143,11 +137,11 @@ export function QuickRunDialog({
     setAgentConfig({
       mode: profiles.length > 0 ? "profile" : "custom",
       profileId: "",
-      runnerType: "claude-code",
+      runnerType: RunnerTypeEnum.CLAUDE_CODE,
       model: "sonnet",
       maxTurns: 100,
       timeoutMinutes: 30,
-      runMode: "sandboxed",
+      runMode: RunMode.SANDBOXED,
       skipPermissionPrompt: true,
     });
   };
@@ -165,7 +159,7 @@ export function QuickRunDialog({
     if (agentConfig.mode === "profile") {
       return agentConfig.profileId.length > 0;
     }
-    return agentConfig.runnerType.length > 0;
+    return agentConfig.runnerType !== RunnerTypeEnum.UNSPECIFIED;
   };
 
   const handleNext = () => {
@@ -212,7 +206,7 @@ export function QuickRunDialog({
       });
 
       // Step 2: Create the run
-      const runRequest: CreateRunRequest = {
+      const runRequest: RunFormData = {
         taskId: task.id,
       };
 
@@ -222,7 +216,7 @@ export function QuickRunDialog({
         runRequest.runnerType = agentConfig.runnerType;
         runRequest.model = agentConfig.model;
         runRequest.maxTurns = agentConfig.maxTurns;
-        runRequest.timeout = minutesToNanoseconds(agentConfig.timeoutMinutes);
+        runRequest.timeoutMinutes = agentConfig.timeoutMinutes;
         runRequest.runMode = agentConfig.runMode;
         runRequest.skipPermissionPrompt = agentConfig.skipPermissionPrompt;
       }
@@ -403,7 +397,7 @@ export function QuickRunDialog({
                         <option value="">Select a profile...</option>
                         {profiles.map((profile) => (
                           <option key={profile.id} value={profile.id}>
-                            {profile.name} ({profile.runnerType})
+                            {profile.name} ({runnerTypeLabel(profile.runnerType)})
                           </option>
                         ))}
                       </select>
@@ -420,7 +414,7 @@ export function QuickRunDialog({
                               <div className="space-y-2 text-sm">
                                 <div className="flex flex-wrap gap-2">
                                   <Badge variant="secondary">
-                                    {profile.runnerType}
+                                    {runnerTypeLabel(profile.runnerType)}
                                   </Badge>
                                   {profile.model && (
                                     <Badge variant="outline">
@@ -450,26 +444,26 @@ export function QuickRunDialog({
 
                 <TabsContent value="custom" className="mt-4 space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="runnerType">Runner Type *</Label>
-                    <select
-                      id="runnerType"
-                      value={agentConfig.runnerType}
-                      onChange={(e) => {
-                        const newRunnerType = e.target.value as RunnerType;
-                        setAgentConfig({
-                          ...agentConfig,
-                          runnerType: newRunnerType,
-                          model: getDefaultModelForRunner(newRunnerType),
-                        });
-                      }}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      {RUNNER_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
+                  <Label htmlFor="runnerType">Runner Type *</Label>
+                  <select
+                    id="runnerType"
+                    value={String(agentConfig.runnerType)}
+                    onChange={(e) => {
+                      const newRunnerType = Number(e.target.value) as RunnerType;
+                      setAgentConfig({
+                        ...agentConfig,
+                        runnerType: newRunnerType,
+                        model: getDefaultModelForRunner(newRunnerType),
+                      });
+                    }}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    {RUNNER_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {runnerTypeLabel(type)}
+                      </option>
+                    ))}
+                  </select>
                   </div>
 
                   <ModelSelector
@@ -518,21 +512,21 @@ export function QuickRunDialog({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="runMode">Run Mode *</Label>
-                    <select
-                      id="runMode"
-                      value={agentConfig.runMode}
-                      onChange={(e) =>
-                        setAgentConfig({
-                          ...agentConfig,
-                          runMode: e.target.value as "sandboxed" | "in_place",
-                        })
-                      }
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="sandboxed">Sandboxed (isolated copy)</option>
-                      <option value="in_place">In-place (direct changes)</option>
-                    </select>
+                  <Label htmlFor="runMode">Run Mode *</Label>
+                  <select
+                    id="runMode"
+                    value={String(agentConfig.runMode)}
+                    onChange={(e) =>
+                      setAgentConfig({
+                        ...agentConfig,
+                        runMode: Number(e.target.value) as RunMode,
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value={RunMode.SANDBOXED}>Sandboxed (isolated copy)</option>
+                    <option value={RunMode.IN_PLACE}>In-place (direct changes)</option>
+                  </select>
                   </div>
 
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -617,7 +611,7 @@ export function QuickRunDialog({
                               <span className="font-medium">{profile.name}</span>
                             </div>
                             <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="outline">{profile.runnerType}</Badge>
+                              <Badge variant="outline">{runnerTypeLabel(profile.runnerType)}</Badge>
                               {profile.model && (
                                 <Badge variant="outline">{profile.model}</Badge>
                               )}
@@ -639,10 +633,10 @@ export function QuickRunDialog({
                         <Badge variant="secondary">Custom Config</Badge>
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        <Badge variant="outline">{agentConfig.runnerType}</Badge>
+                        <Badge variant="outline">{runnerTypeLabel(agentConfig.runnerType)}</Badge>
                         <Badge variant="outline">{agentConfig.model}</Badge>
                         <Badge variant="outline">
-                          {agentConfig.runMode === "sandboxed"
+                          {agentConfig.runMode === RunMode.SANDBOXED
                             ? "Sandboxed"
                             : "In-place"}
                         </Badge>

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { create } from "@bufbuild/protobuf";
+import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   Activity,
   AlertCircle,
@@ -21,18 +23,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { ScrollArea } from "../components/ui/scroll-area";
 import { QuickRunDialog } from "../components/QuickRunDialog";
 import { probeRunner } from "../hooks/useApi";
-import { formatRelativeTime } from "../lib/utils";
-import type { AgentProfile, CreateRunRequest, CreateTaskRequest, HealthStatus, ProbeResult, Run, RunnerStatus, RunnerType, Task } from "../types";
+import { formatRelativeTime, jsonValueToPlain, runnerTypeFromSlug, runnerTypeLabel } from "../lib/utils";
+import type { AgentProfile, ProbeResult, Run, RunnerStatus, RunnerType, Task, TaskFormData, RunFormData, HealthResponse, JsonValue } from "../types";
+import { RunStatus } from "../types";
+import { ProbeResultSchema } from "@vrooli/proto-types/agent-manager/v1/domain/run_pb";
 
 interface DashboardPageProps {
-  health: HealthStatus | null;
+  health: HealthResponse | null;
   profiles: AgentProfile[];
   tasks: Task[];
   runs: Run[];
   runners?: Record<string, RunnerStatus>;
   onRefresh: () => void;
-  onCreateTask: (task: CreateTaskRequest) => Promise<Task>;
-  onCreateRun: (run: CreateRunRequest) => Promise<Run>;
+  onCreateTask: (task: TaskFormData) => Promise<Task>;
+  onCreateRun: (run: RunFormData) => Promise<Run>;
   onRunCreated?: (run: Run) => void;
   onNavigateToRun?: (runId: string) => void;
 }
@@ -51,11 +55,15 @@ export function DashboardPage({
 }: DashboardPageProps) {
   const [showQuickRun, setShowQuickRun] = useState(false);
   const activeRuns = runs.filter(
-    (r) => r.status === "running" || r.status === "starting"
+    (r) => r.status === RunStatus.RUNNING || r.status === RunStatus.STARTING
   );
-  const pendingReview = runs.filter((r) => r.status === "needs_review");
+  const pendingReview = runs.filter((r) => r.status === RunStatus.NEEDS_REVIEW);
   const recentRuns = [...runs]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .sort((a, b) => {
+      const aTime = a.createdAt ? timestampMs(a.createdAt) : 0;
+      const bTime = b.createdAt ? timestampMs(b.createdAt) : 0;
+      return bTime - aTime;
+    })
     .slice(0, 5);
 
   return (
@@ -137,24 +145,40 @@ export function DashboardPage({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Sandbox Status */}
-            <HealthItem
-              name="Workspace Sandbox"
-              available={health?.dependencies?.sandbox?.connected ?? false}
-              message={health?.dependencies?.sandbox?.error}
-            />
+            {(() => {
+              const dependencies = health?.dependencies ?? {};
+              const sandboxDep = parseDependency(dependencies["sandbox"]);
+              const runnerDeps = Object.entries(dependencies)
+                .filter(([name]) => name.startsWith("runner_"))
+                .map(([name, value]) => {
+                  const runnerKey = name.replace("runner_", "");
+                  return {
+                    name: formatRunnerName(runnerKey),
+                    status: parseDependency(value),
+                    runnerType: runnerTypeFromSlug(runnerKey),
+                  };
+                });
 
-            {/* Runner Status */}
-            {health?.dependencies?.runners &&
-              Object.entries(health.dependencies.runners).map(([name, runner]) => (
-                <HealthItem
-                  key={name}
-                  name={formatRunnerName(name)}
-                  available={runner.connected}
-                  message={runner.error}
-                  runnerType={name as RunnerType}
-                />
-              ))}
+              return (
+                <>
+                  <HealthItem
+                    name="Workspace Sandbox"
+                    available={sandboxDep?.status === "healthy"}
+                    message={sandboxDep?.error}
+                  />
+
+                  {runnerDeps.map((runner) => (
+                    <HealthItem
+                      key={runner.name}
+                      name={runner.name}
+                      available={runner.status?.status === "healthy"}
+                      message={runner.status?.error}
+                      runnerType={runner.runnerType}
+                    />
+                  ))}
+                </>
+              );
+            })()}
 
             {!health && (
               <div className="flex items-center gap-2 text-muted-foreground">
@@ -278,11 +302,44 @@ function StatusCard({
 }
 
 // Format runner name for display (e.g., "claude-code" -> "Claude Code")
+function parseDependency(value?: JsonValue): { status: string; error?: string } | null {
+  const parsed = jsonValueToPlain(value) as Record<string, unknown> | undefined;
+  if (!parsed) return null;
+  const status = typeof parsed.status === "string" ? parsed.status : "unknown";
+  const error = typeof parsed.error === "string" ? parsed.error : undefined;
+  return { status, error };
+}
+
 function formatRunnerName(name: string): string {
+  const runnerType = runnerTypeFromSlug(name);
+  if (runnerType !== undefined) {
+    return runnerTypeLabel(runnerType);
+  }
   return name
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+function runStatusLabel(status: RunStatus): string {
+  switch (status) {
+    case RunStatus.PENDING:
+      return "pending";
+    case RunStatus.STARTING:
+      return "starting";
+    case RunStatus.RUNNING:
+      return "running";
+    case RunStatus.NEEDS_REVIEW:
+      return "needs_review";
+    case RunStatus.COMPLETE:
+      return "complete";
+    case RunStatus.FAILED:
+      return "failed";
+    case RunStatus.CANCELLED:
+      return "cancelled";
+    default:
+      return "pending";
+  }
 }
 
 function HealthItem({
@@ -300,6 +357,14 @@ function HealthItem({
   const [probeCopied, setProbeCopied] = useState(false);
   const [probing, setProbing] = useState(false);
   const [probeResult, setProbeResult] = useState<ProbeResult | null>(null);
+  const probeDetails = probeResult?.details ?? {};
+  const probeMessage =
+    probeResult?.error ||
+    (probeResult?.success ? "Probe succeeded" : "Probe failed");
+  const probeLatencyMs =
+    typeof probeResult?.latencyMs === "bigint"
+      ? Number(probeResult.latencyMs)
+      : Number(probeResult?.latencyMs ?? 0);
 
   const handleCopy = async () => {
     if (!message) return;
@@ -316,11 +381,11 @@ function HealthItem({
     if (!probeResult) return;
     // Build a comprehensive copy string with all probe info
     const copyText = [
-      `Runner: ${probeResult.runnerType}`,
+      `Runner: ${runnerType ? runnerTypeLabel(runnerType) : "Unknown"}`,
       `Status: ${probeResult.success ? "Success" : "Failed"}`,
-      `Message: ${probeResult.message}`,
-      `Duration: ${probeResult.durationMs}ms`,
-      probeResult.response ? `Response: ${probeResult.response}` : null,
+      `Message: ${probeMessage}`,
+      `Duration: ${probeLatencyMs}ms`,
+      typeof probeDetails.response === "string" ? `Response: ${probeDetails.response}` : null,
     ]
       .filter(Boolean)
       .join("\n");
@@ -342,12 +407,12 @@ function HealthItem({
       const result = await probeRunner(runnerType);
       setProbeResult(result);
     } catch (err) {
-      setProbeResult({
-        runnerType,
+      setProbeResult(create(ProbeResultSchema, {
         success: false,
-        message: (err as Error).message,
-        durationMs: 0,
-      });
+        latencyMs: 0n,
+        error: (err as Error).message,
+        details: {},
+      }));
     } finally {
       setProbing(false);
     }
@@ -425,7 +490,7 @@ function HealthItem({
               {probeResult.success ? "✓ Probe successful" : "✗ Probe failed"}
             </span>
             <div className="flex items-center gap-1">
-              <span className="text-muted-foreground">{probeResult.durationMs}ms</span>
+              <span className="text-muted-foreground">{probeLatencyMs}ms</span>
               <button
                 onClick={handleCopyProbeResult}
                 className="p-1 rounded hover:bg-black/10 transition-colors"
@@ -448,13 +513,13 @@ function HealthItem({
               </button>
             </div>
           </div>
-          {probeResult.response && (
-            <p className="mt-1 font-mono text-[10px] opacity-80 break-all whitespace-pre-wrap max-h-24 overflow-y-auto" title={probeResult.response}>
-              {probeResult.response}
+          {typeof probeDetails.response === "string" && (
+            <p className="mt-1 font-mono text-[10px] opacity-80 break-all whitespace-pre-wrap max-h-24 overflow-y-auto" title={probeDetails.response}>
+              {probeDetails.response}
             </p>
           )}
-          {!probeResult.success && probeResult.message && (
-            <p className="mt-1 opacity-80">{probeResult.message}</p>
+          {!probeResult.success && probeMessage && (
+            <p className="mt-1 opacity-80">{probeMessage}</p>
           )}
         </div>
       )}
@@ -490,25 +555,34 @@ function RunActivityItem({
           </p>
         </div>
       </div>
-      <Badge variant={run.status as "running" | "complete" | "failed" | "pending"}>
-        {run.status.replace("_", " ")}
+      <Badge
+        variant={
+          runStatusLabel(run.status) as
+            | "pending"
+            | "starting"
+            | "running"
+            | "needs_review"
+            | "complete"
+            | "failed"
+            | "cancelled"
+        }
+      >
+        {runStatusLabel(run.status).replace("_", " ")}
       </Badge>
     </div>
   );
 }
 
-function RunStatusIcon({ status }: { status: string }) {
+function RunStatusIcon({ status }: { status: RunStatus }) {
   switch (status) {
-    case "complete":
-    case "approved":
+    case RunStatus.COMPLETE:
       return <CheckCircle2 className="h-5 w-5 text-success" />;
-    case "failed":
-    case "rejected":
+    case RunStatus.FAILED:
       return <XCircle className="h-5 w-5 text-destructive" />;
-    case "running":
-    case "starting":
+    case RunStatus.RUNNING:
+    case RunStatus.STARTING:
       return <Activity className="h-5 w-5 text-primary animate-pulse" />;
-    case "needs_review":
+    case RunStatus.NEEDS_REVIEW:
       return <Clock className="h-5 w-5 text-warning" />;
     default:
       return <Clock className="h-5 w-5 text-muted-foreground" />;

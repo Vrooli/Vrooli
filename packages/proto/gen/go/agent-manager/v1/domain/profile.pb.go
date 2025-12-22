@@ -387,6 +387,147 @@ func (x *RunConfig) GetDeniedPaths() []string {
 	return nil
 }
 
+// RunConfigOverrides contains optional overrides for run configuration.
+//
+// This is intended for inline run requests where fields should only override
+// the profile when explicitly set.
+//
+// @usage CreateRunRequest.inline_config
+type RunConfigOverrides struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Which agent runner to use.
+	RunnerType *RunnerType `protobuf:"varint,1,opt,name=runner_type,json=runnerType,proto3,enum=agent_manager.v1.RunnerType,oneof" json:"runner_type,omitempty"`
+	// Model to use for execution.
+	Model *string `protobuf:"bytes,2,opt,name=model,proto3,oneof" json:"model,omitempty"`
+	// Maximum conversation turns.
+	MaxTurns *int32 `protobuf:"varint,3,opt,name=max_turns,json=maxTurns,proto3,oneof" json:"max_turns,omitempty"`
+	// Maximum execution time.
+	Timeout *durationpb.Duration `protobuf:"bytes,4,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
+	// Tools the agent is allowed to use.
+	AllowedTools []string `protobuf:"bytes,5,rep,name=allowed_tools,json=allowedTools,proto3" json:"allowed_tools,omitempty"`
+	// Tools explicitly denied.
+	DeniedTools []string `protobuf:"bytes,6,rep,name=denied_tools,json=deniedTools,proto3" json:"denied_tools,omitempty"`
+	// Skip permission prompts.
+	SkipPermissionPrompt *bool `protobuf:"varint,7,opt,name=skip_permission_prompt,json=skipPermissionPrompt,proto3,oneof" json:"skip_permission_prompt,omitempty"`
+	// Require sandbox isolation.
+	RequiresSandbox *bool `protobuf:"varint,8,opt,name=requires_sandbox,json=requiresSandbox,proto3,oneof" json:"requires_sandbox,omitempty"`
+	// Require human approval.
+	RequiresApproval *bool `protobuf:"varint,9,opt,name=requires_approval,json=requiresApproval,proto3,oneof" json:"requires_approval,omitempty"`
+	// Paths the agent is allowed to access.
+	AllowedPaths []string `protobuf:"bytes,10,rep,name=allowed_paths,json=allowedPaths,proto3" json:"allowed_paths,omitempty"`
+	// Paths explicitly denied.
+	DeniedPaths   []string `protobuf:"bytes,11,rep,name=denied_paths,json=deniedPaths,proto3" json:"denied_paths,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunConfigOverrides) Reset() {
+	*x = RunConfigOverrides{}
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunConfigOverrides) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunConfigOverrides) ProtoMessage() {}
+
+func (x *RunConfigOverrides) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunConfigOverrides.ProtoReflect.Descriptor instead.
+func (*RunConfigOverrides) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RunConfigOverrides) GetRunnerType() RunnerType {
+	if x != nil && x.RunnerType != nil {
+		return *x.RunnerType
+	}
+	return RunnerType_RUNNER_TYPE_UNSPECIFIED
+}
+
+func (x *RunConfigOverrides) GetModel() string {
+	if x != nil && x.Model != nil {
+		return *x.Model
+	}
+	return ""
+}
+
+func (x *RunConfigOverrides) GetMaxTurns() int32 {
+	if x != nil && x.MaxTurns != nil {
+		return *x.MaxTurns
+	}
+	return 0
+}
+
+func (x *RunConfigOverrides) GetTimeout() *durationpb.Duration {
+	if x != nil {
+		return x.Timeout
+	}
+	return nil
+}
+
+func (x *RunConfigOverrides) GetAllowedTools() []string {
+	if x != nil {
+		return x.AllowedTools
+	}
+	return nil
+}
+
+func (x *RunConfigOverrides) GetDeniedTools() []string {
+	if x != nil {
+		return x.DeniedTools
+	}
+	return nil
+}
+
+func (x *RunConfigOverrides) GetSkipPermissionPrompt() bool {
+	if x != nil && x.SkipPermissionPrompt != nil {
+		return *x.SkipPermissionPrompt
+	}
+	return false
+}
+
+func (x *RunConfigOverrides) GetRequiresSandbox() bool {
+	if x != nil && x.RequiresSandbox != nil {
+		return *x.RequiresSandbox
+	}
+	return false
+}
+
+func (x *RunConfigOverrides) GetRequiresApproval() bool {
+	if x != nil && x.RequiresApproval != nil {
+		return *x.RequiresApproval
+	}
+	return false
+}
+
+func (x *RunConfigOverrides) GetAllowedPaths() []string {
+	if x != nil {
+		return x.AllowedPaths
+	}
+	return nil
+}
+
+func (x *RunConfigOverrides) GetDeniedPaths() []string {
+	if x != nil {
+		return x.DeniedPaths
+	}
+	return nil
+}
+
 // HeartbeatConfig defines heartbeat behavior for long-running operations.
 //
 // Used for stale run detection and health monitoring.
@@ -409,7 +550,7 @@ type HeartbeatConfig struct {
 
 func (x *HeartbeatConfig) Reset() {
 	*x = HeartbeatConfig{}
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[2]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -421,7 +562,7 @@ func (x *HeartbeatConfig) String() string {
 func (*HeartbeatConfig) ProtoMessage() {}
 
 func (x *HeartbeatConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[2]
+	mi := &file_agent_manager_v1_domain_profile_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +575,7 @@ func (x *HeartbeatConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatConfig.ProtoReflect.Descriptor instead.
 func (*HeartbeatConfig) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{2}
+	return file_agent_manager_v1_domain_profile_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *HeartbeatConfig) GetInterval() *durationpb.Duration {
@@ -502,7 +643,30 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x11requires_approval\x18\t \x01(\bR\x10requiresApproval\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
-	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\xa7\x01\n" +
+	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\xf6\x04\n" +
+	"\x12RunConfigOverrides\x12B\n" +
+	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeH\x00R\n" +
+	"runnerType\x88\x01\x01\x12\x19\n" +
+	"\x05model\x18\x02 \x01(\tH\x01R\x05model\x88\x01\x01\x12 \n" +
+	"\tmax_turns\x18\x03 \x01(\x05H\x02R\bmaxTurns\x88\x01\x01\x128\n" +
+	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x03R\atimeout\x88\x01\x01\x12#\n" +
+	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
+	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x129\n" +
+	"\x16skip_permission_prompt\x18\a \x01(\bH\x04R\x14skipPermissionPrompt\x88\x01\x01\x12.\n" +
+	"\x10requires_sandbox\x18\b \x01(\bH\x05R\x0frequiresSandbox\x88\x01\x01\x120\n" +
+	"\x11requires_approval\x18\t \x01(\bH\x06R\x10requiresApproval\x88\x01\x01\x12#\n" +
+	"\rallowed_paths\x18\n" +
+	" \x03(\tR\fallowedPaths\x12!\n" +
+	"\fdenied_paths\x18\v \x03(\tR\vdeniedPathsB\x0e\n" +
+	"\f_runner_typeB\b\n" +
+	"\x06_modelB\f\n" +
+	"\n" +
+	"_max_turnsB\n" +
+	"\n" +
+	"\b_timeoutB\x19\n" +
+	"\x17_skip_permission_promptB\x13\n" +
+	"\x11_requires_sandboxB\x14\n" +
+	"\x12_requires_approval\"\xa7\x01\n" +
 	"\x0fHeartbeatConfig\x125\n" +
 	"\binterval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\binterval\x123\n" +
 	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12(\n" +
@@ -520,29 +684,32 @@ func file_agent_manager_v1_domain_profile_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_domain_profile_proto_rawDescData
 }
 
-var file_agent_manager_v1_domain_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_agent_manager_v1_domain_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_agent_manager_v1_domain_profile_proto_goTypes = []any{
 	(*AgentProfile)(nil),          // 0: agent_manager.v1.AgentProfile
 	(*RunConfig)(nil),             // 1: agent_manager.v1.RunConfig
-	(*HeartbeatConfig)(nil),       // 2: agent_manager.v1.HeartbeatConfig
-	(RunnerType)(0),               // 3: agent_manager.v1.RunnerType
-	(*durationpb.Duration)(nil),   // 4: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+	(*RunConfigOverrides)(nil),    // 2: agent_manager.v1.RunConfigOverrides
+	(*HeartbeatConfig)(nil),       // 3: agent_manager.v1.HeartbeatConfig
+	(RunnerType)(0),               // 4: agent_manager.v1.RunnerType
+	(*durationpb.Duration)(nil),   // 5: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
 }
 var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
-	3, // 0: agent_manager.v1.AgentProfile.runner_type:type_name -> agent_manager.v1.RunnerType
-	4, // 1: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
-	5, // 2: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
-	5, // 3: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
-	3, // 4: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
-	4, // 5: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
-	4, // 6: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
-	4, // 7: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	4,  // 0: agent_manager.v1.AgentProfile.runner_type:type_name -> agent_manager.v1.RunnerType
+	5,  // 1: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
+	6,  // 2: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
+	6,  // 3: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
+	4,  // 4: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
+	5,  // 5: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
+	4,  // 6: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
+	5,  // 7: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
+	5,  // 8: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
+	5,  // 9: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_profile_proto_init() }
@@ -551,13 +718,14 @@ func file_agent_manager_v1_domain_profile_proto_init() {
 		return
 	}
 	file_agent_manager_v1_domain_types_proto_init()
+	file_agent_manager_v1_domain_profile_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_profile_proto_rawDesc), len(file_agent_manager_v1_domain_profile_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

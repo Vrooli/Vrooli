@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file agent-manager/v1/domain/profile.proto.
  */
 export const file_agent_manager_v1_domain_profile: GenFile = /*@__PURE__*/
-  fileDesc("CiVhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9wcm9maWxlLnByb3RvEhBhZ2VudF9tYW5hZ2VyLnYxIpgECgxBZ2VudFByb2ZpbGUSCgoCaWQYASABKAkSFwoEbmFtZRgCIAEoCUIJukgGcgQQARhkEh4KC3Byb2ZpbGVfa2V5GBIgASgJQgm6SAZyBBABGGQSEwoLZGVzY3JpcHRpb24YAyABKAkSMQoLcnVubmVyX3R5cGUYBCABKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lclR5cGUSDQoFbW9kZWwYBSABKAkSHQoJbWF4X3R1cm5zGAYgASgFQgq6SAcaBRjoBygAEioKB3RpbWVvdXQYByABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SFQoNYWxsb3dlZF90b29scxgIIAMoCRIUCgxkZW5pZWRfdG9vbHMYCSADKAkSHgoWc2tpcF9wZXJtaXNzaW9uX3Byb21wdBgKIAEoCBIYChByZXF1aXJlc19zYW5kYm94GAsgASgIEhkKEXJlcXVpcmVzX2FwcHJvdmFsGAwgASgIEhUKDWFsbG93ZWRfcGF0aHMYDSADKAkSFAoMZGVuaWVkX3BhdGhzGA4gAygJEhIKCmNyZWF0ZWRfYnkYDyABKAkSLgoKY3JlYXRlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgRIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiuwIKCVJ1bkNvbmZpZxIxCgtydW5uZXJfdHlwZRgBIAEoDjIcLmFnZW50X21hbmFnZXIudjEuUnVubmVyVHlwZRINCgVtb2RlbBgCIAEoCRIRCgltYXhfdHVybnMYAyABKAUSKgoHdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIVCg1hbGxvd2VkX3Rvb2xzGAUgAygJEhQKDGRlbmllZF90b29scxgGIAMoCRIeChZza2lwX3Blcm1pc3Npb25fcHJvbXB0GAcgASgIEhgKEHJlcXVpcmVzX3NhbmRib3gYCCABKAgSGQoRcmVxdWlyZXNfYXBwcm92YWwYCSABKAgSFQoNYWxsb3dlZF9wYXRocxgKIAMoCRIUCgxkZW5pZWRfcGF0aHMYCyADKAkihAEKD0hlYXJ0YmVhdENvbmZpZxIrCghpbnRlcnZhbBgBIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIqCgd0aW1lb3V0GAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uEhgKEG1heF9taXNzZWRfYmVhdHMYAyABKAVCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9hZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_google_protobuf_timestamp, file_google_protobuf_duration, file_buf_validate_validate, file_agent_manager_v1_domain_types]);
+  fileDesc("CiVhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9wcm9maWxlLnByb3RvEhBhZ2VudF9tYW5hZ2VyLnYxIpgECgxBZ2VudFByb2ZpbGUSCgoCaWQYASABKAkSFwoEbmFtZRgCIAEoCUIJukgGcgQQARhkEh4KC3Byb2ZpbGVfa2V5GBIgASgJQgm6SAZyBBABGGQSEwoLZGVzY3JpcHRpb24YAyABKAkSMQoLcnVubmVyX3R5cGUYBCABKA4yHC5hZ2VudF9tYW5hZ2VyLnYxLlJ1bm5lclR5cGUSDQoFbW9kZWwYBSABKAkSHQoJbWF4X3R1cm5zGAYgASgFQgq6SAcaBRjoBygAEioKB3RpbWVvdXQYByABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SFQoNYWxsb3dlZF90b29scxgIIAMoCRIUCgxkZW5pZWRfdG9vbHMYCSADKAkSHgoWc2tpcF9wZXJtaXNzaW9uX3Byb21wdBgKIAEoCBIYChByZXF1aXJlc19zYW5kYm94GAsgASgIEhkKEXJlcXVpcmVzX2FwcHJvdmFsGAwgASgIEhUKDWFsbG93ZWRfcGF0aHMYDSADKAkSFAoMZGVuaWVkX3BhdGhzGA4gAygJEhIKCmNyZWF0ZWRfYnkYDyABKAkSLgoKY3JlYXRlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgRIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiuwIKCVJ1bkNvbmZpZxIxCgtydW5uZXJfdHlwZRgBIAEoDjIcLmFnZW50X21hbmFnZXIudjEuUnVubmVyVHlwZRINCgVtb2RlbBgCIAEoCRIRCgltYXhfdHVybnMYAyABKAUSKgoHdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIVCg1hbGxvd2VkX3Rvb2xzGAUgAygJEhQKDGRlbmllZF90b29scxgGIAMoCRIeChZza2lwX3Blcm1pc3Npb25fcHJvbXB0GAcgASgIEhgKEHJlcXVpcmVzX3NhbmRib3gYCCABKAgSGQoRcmVxdWlyZXNfYXBwcm92YWwYCSABKAgSFQoNYWxsb3dlZF9wYXRocxgKIAMoCRIUCgxkZW5pZWRfcGF0aHMYCyADKAki4QMKElJ1bkNvbmZpZ092ZXJyaWRlcxI2CgtydW5uZXJfdHlwZRgBIAEoDjIcLmFnZW50X21hbmFnZXIudjEuUnVubmVyVHlwZUgAiAEBEhIKBW1vZGVsGAIgASgJSAGIAQESFgoJbWF4X3R1cm5zGAMgASgFSAKIAQESLwoHdGltZW91dBgEIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbkgDiAEBEhUKDWFsbG93ZWRfdG9vbHMYBSADKAkSFAoMZGVuaWVkX3Rvb2xzGAYgAygJEiMKFnNraXBfcGVybWlzc2lvbl9wcm9tcHQYByABKAhIBIgBARIdChByZXF1aXJlc19zYW5kYm94GAggASgISAWIAQESHgoRcmVxdWlyZXNfYXBwcm92YWwYCSABKAhIBogBARIVCg1hbGxvd2VkX3BhdGhzGAogAygJEhQKDGRlbmllZF9wYXRocxgLIAMoCUIOCgxfcnVubmVyX3R5cGVCCAoGX21vZGVsQgwKCl9tYXhfdHVybnNCCgoIX3RpbWVvdXRCGQoXX3NraXBfcGVybWlzc2lvbl9wcm9tcHRCEwoRX3JlcXVpcmVzX3NhbmRib3hCFAoSX3JlcXVpcmVzX2FwcHJvdmFsIoQBCg9IZWFydGJlYXRDb25maWcSKwoIaW50ZXJ2YWwYASABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKgoHdGltZW91dBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIYChBtYXhfbWlzc2VkX2JlYXRzGAMgASgFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWdlbnQtbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_google_protobuf_timestamp, file_google_protobuf_duration, file_buf_validate_validate, file_agent_manager_v1_domain_types]);
 
 /**
  * AgentProfile defines the configuration for running an agent.
@@ -277,6 +277,102 @@ export const RunConfigSchema: GenMessage<RunConfig> = /*@__PURE__*/
   messageDesc(file_agent_manager_v1_domain_profile, 1);
 
 /**
+ * RunConfigOverrides contains optional overrides for run configuration.
+ *
+ * This is intended for inline run requests where fields should only override
+ * the profile when explicitly set.
+ *
+ * @usage CreateRunRequest.inline_config
+ *
+ * @generated from message agent_manager.v1.RunConfigOverrides
+ */
+export type RunConfigOverrides = Message<"agent_manager.v1.RunConfigOverrides"> & {
+  /**
+   * Which agent runner to use.
+   *
+   * @generated from field: optional agent_manager.v1.RunnerType runner_type = 1;
+   */
+  runnerType?: RunnerType;
+
+  /**
+   * Model to use for execution.
+   *
+   * @generated from field: optional string model = 2;
+   */
+  model?: string;
+
+  /**
+   * Maximum conversation turns.
+   *
+   * @generated from field: optional int32 max_turns = 3;
+   */
+  maxTurns?: number;
+
+  /**
+   * Maximum execution time.
+   *
+   * @generated from field: optional google.protobuf.Duration timeout = 4;
+   */
+  timeout?: Duration;
+
+  /**
+   * Tools the agent is allowed to use.
+   *
+   * @generated from field: repeated string allowed_tools = 5;
+   */
+  allowedTools: string[];
+
+  /**
+   * Tools explicitly denied.
+   *
+   * @generated from field: repeated string denied_tools = 6;
+   */
+  deniedTools: string[];
+
+  /**
+   * Skip permission prompts.
+   *
+   * @generated from field: optional bool skip_permission_prompt = 7;
+   */
+  skipPermissionPrompt?: boolean;
+
+  /**
+   * Require sandbox isolation.
+   *
+   * @generated from field: optional bool requires_sandbox = 8;
+   */
+  requiresSandbox?: boolean;
+
+  /**
+   * Require human approval.
+   *
+   * @generated from field: optional bool requires_approval = 9;
+   */
+  requiresApproval?: boolean;
+
+  /**
+   * Paths the agent is allowed to access.
+   *
+   * @generated from field: repeated string allowed_paths = 10;
+   */
+  allowedPaths: string[];
+
+  /**
+   * Paths explicitly denied.
+   *
+   * @generated from field: repeated string denied_paths = 11;
+   */
+  deniedPaths: string[];
+};
+
+/**
+ * Describes the message agent_manager.v1.RunConfigOverrides.
+ * Use `create(RunConfigOverridesSchema)` to create a new message.
+ */
+export const RunConfigOverridesSchema: GenMessage<RunConfigOverrides> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_profile, 2);
+
+/**
  * HeartbeatConfig defines heartbeat behavior for long-running operations.
  *
  * Used for stale run detection and health monitoring.
@@ -316,5 +412,5 @@ export type HeartbeatConfig = Message<"agent_manager.v1.HeartbeatConfig"> & {
  * Use `create(HeartbeatConfigSchema)` to create a new message.
  */
 export const HeartbeatConfigSchema: GenMessage<HeartbeatConfig> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_profile, 2);
+  messageDesc(file_agent_manager_v1_domain_profile, 3);
 

@@ -25,32 +25,39 @@ import { Label } from "../components/ui/label";
 import { ModelSelector } from "../components/ModelSelector";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Textarea } from "../components/ui/textarea";
-import { formatDate } from "../lib/utils";
-import type { AgentProfile, CreateProfileRequest, RunnerStatus, RunnerType } from "../types";
+import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
+import { formatDate, runnerTypeLabel } from "../lib/utils";
+import type { AgentProfile, ProfileFormData, RunnerStatus, RunnerType } from "../types";
+import { RunnerType as RunnerTypeEnum } from "../types";
 
 interface ProfilesPageProps {
   profiles: AgentProfile[];
   loading: boolean;
   error: string | null;
-  onCreateProfile: (profile: CreateProfileRequest) => Promise<AgentProfile>;
-  onUpdateProfile: (id: string, profile: CreateProfileRequest) => Promise<AgentProfile>;
+  onCreateProfile: (profile: ProfileFormData) => Promise<AgentProfile>;
+  onUpdateProfile: (id: string, profile: ProfileFormData) => Promise<AgentProfile>;
   onDeleteProfile: (id: string) => Promise<void>;
   onRefresh: () => void;
   runners?: Record<string, RunnerStatus>;
 }
 
-const RUNNER_TYPES: RunnerType[] = ["claude-code", "codex", "opencode"];
+const RUNNER_TYPES: RunnerType[] = [
+  RunnerTypeEnum.CLAUDE_CODE,
+  RunnerTypeEnum.CODEX,
+  RunnerTypeEnum.OPENCODE,
+];
 
-// Convert minutes to nanoseconds for Go's time.Duration
-const minutesToNanoseconds = (minutes: number): number => minutes * 60 * 1_000_000_000;
-// Convert nanoseconds to minutes for display
-const nanosecondsToMinutes = (ns: number | undefined): number => ns ? Math.round(ns / (60 * 1_000_000_000)) : 30;
+const durationToMinutes = (duration: Duration | undefined): number => {
+  if (!duration) return 30;
+  const ms = durationMs(duration);
+  return Math.max(1, Math.round(ms / 60_000));
+};
 
 // Default models for each runner type
-const DEFAULT_MODELS: Record<RunnerType, string> = {
-  "claude-code": "sonnet",
-  "codex": "o4-mini",
-  "opencode": "anthropic/claude-sonnet-4-5",
+const DEFAULT_MODELS: Record<number, string> = {
+  [RunnerTypeEnum.CLAUDE_CODE]: "sonnet",
+  [RunnerTypeEnum.CODEX]: "o4-mini",
+  [RunnerTypeEnum.OPENCODE]: "anthropic/claude-sonnet-4-5",
 };
 
 export function ProfilesPage({
@@ -66,7 +73,7 @@ export function ProfilesPage({
   // Helper to get models for a runner type from capabilities
   const getModelsForRunner = (runnerType: RunnerType): string[] => {
     const runner = runners?.[runnerType];
-    return runner?.capabilities?.SupportedModels ?? [];
+    return runner?.supportedModels ?? [];
   };
 
   // Helper to get default model for a runner type
@@ -76,29 +83,29 @@ export function ProfilesPage({
 
   const [showForm, setShowForm] = useState(false);
   const [editingProfile, setEditingProfile] = useState<AgentProfile | null>(null);
-  const [formData, setFormData] = useState<CreateProfileRequest>({
+  const [formData, setFormData] = useState<ProfileFormData>({
     name: "",
     description: "",
-    runnerType: "claude-code",
+    runnerType: RunnerTypeEnum.CLAUDE_CODE,
     model: "sonnet",
     maxTurns: 100,
     requiresSandbox: true,
     requiresApproval: true,
+    timeoutMinutes: 30,
   });
-  const [timeoutMinutes, setTimeoutMinutes] = useState(30);
   const [submitting, setSubmitting] = useState(false);
 
   const resetForm = () => {
     setFormData({
       name: "",
       description: "",
-      runnerType: "claude-code",
+      runnerType: RunnerTypeEnum.CLAUDE_CODE,
       model: "sonnet",
       maxTurns: 100,
       requiresSandbox: true,
       requiresApproval: true,
+      timeoutMinutes: 30,
     });
-    setTimeoutMinutes(30);
     setEditingProfile(null);
     setShowForm(false);
   };
@@ -115,8 +122,8 @@ export function ProfilesPage({
       requiresApproval: profile.requiresApproval,
       allowedTools: profile.allowedTools,
       deniedTools: profile.deniedTools,
+      timeoutMinutes: durationToMinutes(profile.timeout),
     });
-    setTimeoutMinutes(nanosecondsToMinutes(profile.timeout));
     setShowForm(true);
   };
 
@@ -124,9 +131,9 @@ export function ProfilesPage({
     e.preventDefault();
     setSubmitting(true);
     try {
-      const dataWithTimeout: CreateProfileRequest = {
+      const dataWithTimeout: ProfileFormData = {
         ...formData,
-        timeout: minutesToNanoseconds(timeoutMinutes),
+        timeoutMinutes: formData.timeoutMinutes ?? 30,
       };
       if (editingProfile) {
         await onUpdateProfile(editingProfile.id, dataWithTimeout);
@@ -213,9 +220,9 @@ export function ProfilesPage({
                   <Label htmlFor="runnerType">Runner Type *</Label>
                   <select
                     id="runnerType"
-                    value={formData.runnerType}
+                    value={String(formData.runnerType)}
                     onChange={(e) => {
-                      const newRunnerType = e.target.value as RunnerType;
+                      const newRunnerType = Number(e.target.value) as RunnerType;
                       setFormData({
                         ...formData,
                         runnerType: newRunnerType,
@@ -226,7 +233,7 @@ export function ProfilesPage({
                   >
                     {RUNNER_TYPES.map((type) => (
                       <option key={type} value={type}>
-                        {type}
+                        {runnerTypeLabel(type)}
                       </option>
                     ))}
                   </select>
@@ -273,9 +280,12 @@ export function ProfilesPage({
                   <Input
                     id="timeout"
                     type="number"
-                    value={timeoutMinutes}
+                    value={formData.timeoutMinutes ?? 30}
                     onChange={(e) =>
-                      setTimeoutMinutes(parseInt(e.target.value) || 30)
+                      setFormData({
+                        ...formData,
+                        timeoutMinutes: parseInt(e.target.value) || 30,
+                      })
                     }
                     min={1}
                     max={1440}
@@ -381,7 +391,7 @@ export function ProfilesPage({
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">{profile.runnerType}</Badge>
+                    <Badge variant="secondary">{runnerTypeLabel(profile.runnerType)}</Badge>
                     {profile.model && (
                       <Badge variant="outline" className="text-xs">
                         {profile.model}

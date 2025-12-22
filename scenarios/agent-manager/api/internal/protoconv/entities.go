@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"agent-manager/internal/domain"
 
@@ -401,9 +403,16 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 			},
 		}
 	case *domain.ToolCallEventData:
+		var input *structpb.Struct
+		if len(data.Input) > 0 {
+			if parsed, err := structpb.NewStruct(data.Input); err == nil {
+				input = parsed
+			}
+		}
 		event.Data = &pb.RunEvent_ToolCall{
 			ToolCall: &pb.ToolCallEventData{
 				ToolName: data.ToolName,
+				Input:    input,
 			},
 		}
 	case *domain.ToolResultEventData:
@@ -413,6 +422,7 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 				ToolCallId: data.ToolCallID,
 				Output:     data.Output,
 				Error:      data.Error,
+				Success:    data.Success,
 			},
 		}
 	case *domain.StatusEventData:
@@ -423,23 +433,81 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 				Reason:    data.Reason,
 			},
 		}
+	case *domain.MetricEventData:
+		event.Data = &pb.RunEvent_Metric{
+			Metric: &pb.MetricEventData{
+				Name:  data.Name,
+				Value: data.Value,
+				Unit:  data.Unit,
+				Tags:  data.Tags,
+			},
+		}
+	case *domain.ArtifactEventData:
+		event.Data = &pb.RunEvent_Artifact{
+			Artifact: &pb.ArtifactEventData{
+				Type:     data.Type,
+				Path:     data.Path,
+				Size:     data.Size,
+				MimeType: data.MimeType,
+			},
+		}
 	case *domain.CostEventData:
 		event.Data = &pb.RunEvent_Cost{
 			Cost: &pb.CostEventData{
-				InputTokens:         int32(data.InputTokens),
-				OutputTokens:        int32(data.OutputTokens),
-				CacheCreationTokens: int32(data.CacheCreationTokens),
-				CacheReadTokens:     int32(data.CacheReadTokens),
-				TotalCostUsd:        data.TotalCostUSD,
-				Model:               data.Model,
+				InputTokens:           int32(data.InputTokens),
+				OutputTokens:          int32(data.OutputTokens),
+				CacheCreationTokens:   int32(data.CacheCreationTokens),
+				CacheReadTokens:       int32(data.CacheReadTokens),
+				TotalCostUsd:          data.TotalCostUSD,
+				ServiceTier:           data.ServiceTier,
+				Model:                 data.Model,
+				WebSearchRequests:     int32(data.WebSearchRequests),
+				ServerToolUseRequests: int32(data.ServerToolUseRequests),
+			},
+		}
+	case *domain.ProgressEventData:
+		event.Data = &pb.RunEvent_Progress{
+			Progress: &pb.ProgressEventData{
+				Phase:              RunPhaseToProto(data.Phase),
+				PercentComplete:    int32(data.PercentComplete),
+				CurrentAction:      data.CurrentAction,
+				TurnsCompleted:     int32(data.TurnsCompleted),
+				TurnsTotal:         int32(data.TurnsTotal),
+				TokensUsed:         int32(data.TokensUsed),
+				ElapsedSeconds:     data.ElapsedSeconds,
+				EstimatedRemaining: data.EstimatedRemaining,
+			},
+		}
+	case *domain.RateLimitEventData:
+		var resetTime *timestamppb.Timestamp
+		if data.ResetTime != nil {
+			resetTime = TimestampToProto(*data.ResetTime)
+		}
+		event.Data = &pb.RunEvent_RateLimit{
+			RateLimit: &pb.RateLimitEventData{
+				LimitType:   data.LimitType,
+				ResetTime:   resetTime,
+				RetryAfter:  int32(data.RetryAfter),
+				CurrentUsed: int32(data.CurrentUsed),
+				Limit:       int32(data.Limit),
+				Message:     data.Message,
 			},
 		}
 	case *domain.ErrorEventData:
+		var details *structpb.Struct
+		if len(data.Details) > 0 {
+			if parsed, err := structpb.NewStruct(data.Details); err == nil {
+				details = parsed
+			}
+		}
 		event.Data = &pb.RunEvent_Error{
 			Error: &pb.ErrorEventData{
-				Code:      data.Code,
-				Message:   data.Message,
-				Retryable: data.Retryable,
+				Code:       data.Code,
+				Message:    data.Message,
+				Retryable:  data.Retryable,
+				Recovery:   RecoveryActionToProto(data.Recovery),
+				StackTrace: data.StackTrace,
+				Details:    details,
 			},
 		}
 	}

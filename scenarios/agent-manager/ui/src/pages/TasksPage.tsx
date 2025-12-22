@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   AlertCircle,
   ClipboardList,
@@ -29,30 +30,56 @@ import { ModelSelector } from "../components/ModelSelector";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
-import { formatRelativeTime } from "../lib/utils";
-import type { AgentProfile, CreateProfileRequest, CreateRunRequest, CreateTaskRequest, Run, RunnerStatus, RunnerType, Task } from "../types";
+import { formatRelativeTime, runnerTypeLabel } from "../lib/utils";
+import type { AgentProfile, ProfileFormData, Run, RunFormData, RunnerStatus, RunnerType, Task, TaskFormData } from "../types";
+import { RunMode, RunnerType as RunnerTypeEnum, TaskStatus } from "../types";
 
-const RUNNER_TYPES: RunnerType[] = ["claude-code", "codex", "opencode"];
+const RUNNER_TYPES: RunnerType[] = [
+  RunnerTypeEnum.CLAUDE_CODE,
+  RunnerTypeEnum.CODEX,
+  RunnerTypeEnum.OPENCODE,
+];
 
 interface TasksPageProps {
   tasks: Task[];
   profiles: AgentProfile[];
   loading: boolean;
   error: string | null;
-  onCreateTask: (task: CreateTaskRequest) => Promise<Task>;
+  onCreateTask: (task: TaskFormData) => Promise<Task>;
   onCancelTask: (id: string) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
-  onCreateRun: (run: CreateRunRequest) => Promise<Run>;
-  onCreateProfile: (profile: CreateProfileRequest) => Promise<AgentProfile>;
+  onCreateRun: (run: RunFormData) => Promise<Run>;
+  onCreateProfile: (profile: ProfileFormData) => Promise<AgentProfile>;
   onRefresh: () => void;
   runners?: Record<string, RunnerStatus>;
 }
 
 // Default models for each runner type
-const DEFAULT_MODELS: Record<RunnerType, string> = {
-  "claude-code": "sonnet",
-  "codex": "o4-mini",
-  "opencode": "anthropic/claude-sonnet-4-5",
+const DEFAULT_MODELS: Record<number, string> = {
+  [RunnerTypeEnum.CLAUDE_CODE]: "sonnet",
+  [RunnerTypeEnum.CODEX]: "o4-mini",
+  [RunnerTypeEnum.OPENCODE]: "anthropic/claude-sonnet-4-5",
+};
+
+const taskStatusLabel = (status: TaskStatus): string => {
+  switch (status) {
+    case TaskStatus.QUEUED:
+      return "queued";
+    case TaskStatus.RUNNING:
+      return "running";
+    case TaskStatus.NEEDS_REVIEW:
+      return "needs_review";
+    case TaskStatus.APPROVED:
+      return "approved";
+    case TaskStatus.REJECTED:
+      return "rejected";
+    case TaskStatus.FAILED:
+      return "failed";
+    case TaskStatus.CANCELLED:
+      return "cancelled";
+    default:
+      return "queued";
+  }
 };
 
 interface InlineRunConfig {
@@ -60,12 +87,9 @@ interface InlineRunConfig {
   model: string;
   maxTurns: number;
   timeoutMinutes: number;
-  runMode: "sandboxed" | "in_place";
+  runMode: RunMode;
   skipPermissionPrompt: boolean;
 }
-
-// Convert minutes to nanoseconds for Go's time.Duration
-const minutesToNanoseconds = (minutes: number): number => minutes * 60 * 1_000_000_000;
 
 export function TasksPage({
   tasks,
@@ -83,7 +107,7 @@ export function TasksPage({
   // Helper to get models for a runner type from capabilities
   const getModelsForRunner = (runnerType: RunnerType): string[] => {
     const runner = runners?.[runnerType];
-    return runner?.capabilities?.SupportedModels ?? [];
+    return runner?.supportedModels ?? [];
   };
 
   // Helper to get default model for a runner type
@@ -93,7 +117,7 @@ export function TasksPage({
   const [showForm, setShowForm] = useState(false);
   const [showRunDialog, setShowRunDialog] = useState<Task | null>(null);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
-  const [formData, setFormData] = useState<CreateTaskRequest>({
+  const [formData, setFormData] = useState<TaskFormData>({
     title: "",
     description: "",
     scopePath: ".",
@@ -102,23 +126,23 @@ export function TasksPage({
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [runConfigMode, setRunConfigMode] = useState<"profile" | "custom">("profile");
   const [inlineConfig, setInlineConfig] = useState<InlineRunConfig>({
-    runnerType: "claude-code",
+    runnerType: RunnerTypeEnum.CLAUDE_CODE,
     model: "sonnet",
     maxTurns: 100,
     timeoutMinutes: 30,
-    runMode: "sandboxed",
+    runMode: RunMode.SANDBOXED,
     skipPermissionPrompt: true,
   });
-  const [profileFormData, setProfileFormData] = useState<CreateProfileRequest>({
+  const [profileFormData, setProfileFormData] = useState<ProfileFormData>({
     name: "",
     description: "",
-    runnerType: "claude-code",
+    runnerType: RunnerTypeEnum.CLAUDE_CODE,
     model: "sonnet",
     maxTurns: 100,
     requiresSandbox: true,
     requiresApproval: true,
+    timeoutMinutes: 30,
   });
-  const [profileTimeoutMinutes, setProfileTimeoutMinutes] = useState(30);
   const [submitting, setSubmitting] = useState(false);
 
   // Filter/sort/search state
@@ -157,7 +181,7 @@ export function TasksPage({
 
     setSubmitting(true);
     try {
-      const request: CreateRunRequest = {
+      const request: RunFormData = {
         taskId: showRunDialog.id,
       };
 
@@ -168,7 +192,7 @@ export function TasksPage({
         request.runnerType = inlineConfig.runnerType;
         request.model = inlineConfig.model;
         request.maxTurns = inlineConfig.maxTurns;
-        request.timeout = minutesToNanoseconds(inlineConfig.timeoutMinutes);
+        request.timeoutMinutes = inlineConfig.timeoutMinutes;
         request.runMode = inlineConfig.runMode;
         request.skipPermissionPrompt = inlineConfig.skipPermissionPrompt;
       }
@@ -188,13 +212,13 @@ export function TasksPage({
     setProfileFormData({
       name: "",
       description: "",
-      runnerType: "claude-code",
+      runnerType: RunnerTypeEnum.CLAUDE_CODE,
       model: "claude-sonnet-4-20250514",
       maxTurns: 100,
       requiresSandbox: true,
       requiresApproval: true,
+      timeoutMinutes: 30,
     });
-    setProfileTimeoutMinutes(30);
     setShowProfileDialog(false);
   };
 
@@ -202,11 +226,10 @@ export function TasksPage({
     e.preventDefault();
     setSubmitting(true);
     try {
-      const profileWithTimeout: CreateProfileRequest = {
+      const newProfile = await onCreateProfile({
         ...profileFormData,
-        timeout: minutesToNanoseconds(profileTimeoutMinutes),
-      };
-      const newProfile = await onCreateProfile(profileWithTimeout);
+        timeoutMinutes: profileFormData.timeoutMinutes ?? 30,
+      });
       // Auto-select the new profile and switch to profile mode
       setSelectedProfileId(newProfile.id);
       setRunConfigMode("profile");
@@ -241,7 +264,8 @@ export function TasksPage({
 
     // Filter by status
     if (statusFilter !== "all") {
-      result = result.filter((t) => t.status === statusFilter);
+      const statusValue = Number(statusFilter) as TaskStatus;
+      result = result.filter((t) => t.status === statusValue);
     }
 
     // Filter by search query
@@ -256,10 +280,12 @@ export function TasksPage({
 
     // Sort
     result.sort((a, b) => {
+      const createdAtA = a.createdAt ? timestampMs(a.createdAt) : 0;
+      const createdAtB = b.createdAt ? timestampMs(b.createdAt) : 0;
       if (sortBy === "newest") {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return createdAtB - createdAtA;
       } else if (sortBy === "oldest") {
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return createdAtA - createdAtB;
       } else {
         return a.title.localeCompare(b.title);
       }
@@ -318,13 +344,13 @@ export function TasksPage({
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         >
           <option value="all">All Status</option>
-          <option value="queued">Queued</option>
-          <option value="running">Running</option>
-          <option value="needs_review">Needs Review</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-          <option value="failed">Failed</option>
-          <option value="cancelled">Cancelled</option>
+          <option value={String(TaskStatus.QUEUED)}>Queued</option>
+          <option value={String(TaskStatus.RUNNING)}>Running</option>
+          <option value={String(TaskStatus.NEEDS_REVIEW)}>Needs Review</option>
+          <option value={String(TaskStatus.APPROVED)}>Approved</option>
+          <option value={String(TaskStatus.REJECTED)}>Rejected</option>
+          <option value={String(TaskStatus.FAILED)}>Failed</option>
+          <option value={String(TaskStatus.CANCELLED)}>Cancelled</option>
         </select>
         <select
           value={sortBy}
@@ -476,7 +502,7 @@ export function TasksPage({
                         <option value="">Select a profile...</option>
                         {profiles.map((profile) => (
                           <option key={profile.id} value={profile.id}>
-                            {profile.name} ({profile.runnerType})
+                            {profile.name} ({runnerTypeLabel(profile.runnerType)})
                           </option>
                         ))}
                       </select>
@@ -503,9 +529,9 @@ export function TasksPage({
                   <Label htmlFor="runnerType">Runner Type *</Label>
                   <select
                     id="runnerType"
-                    value={inlineConfig.runnerType}
+                    value={String(inlineConfig.runnerType)}
                     onChange={(e) => {
-                      const newRunnerType = e.target.value as RunnerType;
+                      const newRunnerType = Number(e.target.value) as RunnerType;
                       setInlineConfig({
                         ...inlineConfig,
                         runnerType: newRunnerType,
@@ -516,7 +542,7 @@ export function TasksPage({
                   >
                     {RUNNER_TYPES.map((type) => (
                       <option key={type} value={type}>
-                        {type}
+                        {runnerTypeLabel(type)}
                       </option>
                     ))}
                   </select>
@@ -569,17 +595,17 @@ export function TasksPage({
                   <Label htmlFor="runMode">Run Mode *</Label>
                   <select
                     id="runMode"
-                    value={inlineConfig.runMode}
+                    value={String(inlineConfig.runMode)}
                     onChange={(e) =>
                       setInlineConfig({
                         ...inlineConfig,
-                        runMode: e.target.value as "sandboxed" | "in_place",
+                        runMode: Number(e.target.value) as RunMode,
                       })
                     }
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
-                    <option value="sandboxed">Sandboxed (isolated copy)</option>
-                    <option value="in_place">In-place (direct changes)</option>
+                    <option value={RunMode.SANDBOXED}>Sandboxed (isolated copy)</option>
+                    <option value={RunMode.IN_PLACE}>In-place (direct changes)</option>
                   </select>
                   <p className="text-xs text-muted-foreground">
                     Sandboxed runs in an isolated copy; in-place modifies files directly.
@@ -655,9 +681,9 @@ export function TasksPage({
                   <Label htmlFor="profileRunnerType">Runner Type *</Label>
                   <select
                     id="profileRunnerType"
-                    value={profileFormData.runnerType}
+                    value={String(profileFormData.runnerType)}
                     onChange={(e) => {
-                      const newRunnerType = e.target.value as RunnerType;
+                      const newRunnerType = Number(e.target.value) as RunnerType;
                       setProfileFormData({
                         ...profileFormData,
                         runnerType: newRunnerType,
@@ -668,7 +694,7 @@ export function TasksPage({
                   >
                     {RUNNER_TYPES.map((type) => (
                       <option key={type} value={type}>
-                        {type}
+                        {runnerTypeLabel(type)}
                       </option>
                     ))}
                   </select>
@@ -718,9 +744,12 @@ export function TasksPage({
                   <Input
                     id="profileTimeout"
                     type="number"
-                    value={profileTimeoutMinutes}
+                    value={profileFormData.timeoutMinutes ?? 30}
                     onChange={(e) =>
-                      setProfileTimeoutMinutes(parseInt(e.target.value) || 30)
+                      setProfileFormData({
+                        ...profileFormData,
+                        timeoutMinutes: parseInt(e.target.value) || 30,
+                      })
                     }
                     min={1}
                     max={1440}
@@ -802,8 +831,19 @@ export function TasksPage({
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <CardTitle className="text-base">{task.title}</CardTitle>
-                        <Badge variant={task.status as "queued" | "running" | "failed"}>
-                          {task.status.replace("_", " ")}
+                        <Badge
+                          variant={
+                            taskStatusLabel(task.status) as
+                              | "queued"
+                              | "running"
+                              | "needs_review"
+                              | "approved"
+                              | "rejected"
+                              | "failed"
+                              | "cancelled"
+                          }
+                        >
+                          {taskStatusLabel(task.status).replace("_", " ")}
                         </Badge>
                       </div>
                       <CardDescription className="line-clamp-2">
@@ -811,7 +851,7 @@ export function TasksPage({
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      {task.status === "queued" && (
+                      {task.status === TaskStatus.QUEUED && (
                         <>
                           <Button
                             variant="default"
@@ -833,7 +873,7 @@ export function TasksPage({
                           </Button>
                         </>
                       )}
-                      {task.status === "cancelled" && (
+                      {task.status === TaskStatus.CANCELLED && (
                         <Button
                           variant="ghost"
                           size="sm"

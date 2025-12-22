@@ -2,6 +2,7 @@
 package protoconv
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -400,6 +401,230 @@ func TestRunNilHandling(t *testing.T) {
 	if RunFromProto(nil) != nil {
 		t.Error("expected nil for nil input")
 	}
+}
+
+func TestRunEventToProtoPayloads(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	runID := uuid.New()
+
+	t.Run("tool call", func(t *testing.T) {
+		event := &domain.RunEvent{
+			ID:        uuid.New(),
+			RunID:     runID,
+			EventType: domain.EventTypeToolCall,
+			Timestamp: now,
+			Sequence:  1,
+			Data: &domain.ToolCallEventData{
+				ToolName: "Read",
+				Input:    map[string]interface{}{"path": "README.md"},
+			},
+		}
+		proto := RunEventToProto(event)
+		payload := proto.GetToolCall()
+		if payload == nil {
+			t.Fatalf("expected tool_call payload, got nil")
+		}
+		if payload.ToolName != "Read" {
+			t.Errorf("ToolName: expected Read, got %s", payload.ToolName)
+		}
+		if payload.Input == nil || payload.Input.AsMap()["path"] != "README.md" {
+			t.Errorf("Input: expected path README.md, got %#v", payload.Input)
+		}
+	})
+
+	t.Run("tool result", func(t *testing.T) {
+		event := &domain.RunEvent{
+			ID:        uuid.New(),
+			RunID:     runID,
+			EventType: domain.EventTypeToolResult,
+			Timestamp: now,
+			Sequence:  2,
+			Data: &domain.ToolResultEventData{
+				ToolName:   "Write",
+				ToolCallID: "toolu_123",
+				Output:     "ok",
+				Success:    true,
+			},
+		}
+		proto := RunEventToProto(event)
+		payload := proto.GetToolResult()
+		if payload == nil {
+			t.Fatalf("expected tool_result payload, got nil")
+		}
+		if payload.ToolCallId != "toolu_123" {
+			t.Errorf("ToolCallId: expected toolu_123, got %s", payload.ToolCallId)
+		}
+		if !payload.Success {
+			t.Errorf("Success: expected true, got false")
+		}
+	})
+
+	t.Run("metric", func(t *testing.T) {
+		event := &domain.RunEvent{
+			ID:        uuid.New(),
+			RunID:     runID,
+			EventType: domain.EventTypeMetric,
+			Timestamp: now,
+			Sequence:  3,
+			Data: &domain.MetricEventData{
+				Name:  "tokens_used",
+				Value: 42,
+				Unit:  "tokens",
+				Tags:  map[string]string{"scope": "unit"},
+			},
+		}
+		proto := RunEventToProto(event)
+		payload := proto.GetMetric()
+		if payload == nil {
+			t.Fatalf("expected metric payload, got nil")
+		}
+		if payload.Name != "tokens_used" || payload.Unit != "tokens" {
+			t.Errorf("Metric: expected tokens_used/tokens, got %s/%s", payload.Name, payload.Unit)
+		}
+		if !reflect.DeepEqual(payload.Tags, map[string]string{"scope": "unit"}) {
+			t.Errorf("Tags: unexpected value %#v", payload.Tags)
+		}
+	})
+
+	t.Run("artifact", func(t *testing.T) {
+		event := &domain.RunEvent{
+			ID:        uuid.New(),
+			RunID:     runID,
+			EventType: domain.EventTypeArtifact,
+			Timestamp: now,
+			Sequence:  4,
+			Data: &domain.ArtifactEventData{
+				Type:     "diff",
+				Path:     "/tmp/diff",
+				Size:     123,
+				MimeType: "text/plain",
+			},
+		}
+		proto := RunEventToProto(event)
+		payload := proto.GetArtifact()
+		if payload == nil {
+			t.Fatalf("expected artifact payload, got nil")
+		}
+		if payload.MimeType != "text/plain" {
+			t.Errorf("MimeType: expected text/plain, got %s", payload.MimeType)
+		}
+	})
+
+	t.Run("progress", func(t *testing.T) {
+		event := &domain.RunEvent{
+			ID:        uuid.New(),
+			RunID:     runID,
+			EventType: domain.EventTypeStatus,
+			Timestamp: now,
+			Sequence:  5,
+			Data: &domain.ProgressEventData{
+				Phase:              domain.RunPhaseExecuting,
+				PercentComplete:    60,
+				CurrentAction:      "executing",
+				TurnsCompleted:     2,
+				TurnsTotal:         4,
+				TokensUsed:         120,
+				ElapsedSeconds:     10.5,
+				EstimatedRemaining: 5.5,
+			},
+		}
+		proto := RunEventToProto(event)
+		payload := proto.GetProgress()
+		if payload == nil {
+			t.Fatalf("expected progress payload, got nil")
+		}
+		if payload.Phase != pb.RunPhase_RUN_PHASE_EXECUTING {
+			t.Errorf("Phase: expected EXECUTING, got %v", payload.Phase)
+		}
+		if payload.PercentComplete != 60 {
+			t.Errorf("PercentComplete: expected 60, got %d", payload.PercentComplete)
+		}
+	})
+
+	t.Run("rate limit", func(t *testing.T) {
+		reset := now.Add(2 * time.Minute)
+		event := &domain.RunEvent{
+			ID:        uuid.New(),
+			RunID:     runID,
+			EventType: domain.EventTypeError,
+			Timestamp: now,
+			Sequence:  6,
+			Data: &domain.RateLimitEventData{
+				LimitType:   "daily",
+				ResetTime:   &reset,
+				RetryAfter:  120,
+				CurrentUsed: 10,
+				Limit:       12,
+				Message:     "rate limited",
+			},
+		}
+		proto := RunEventToProto(event)
+		payload := proto.GetRateLimit()
+		if payload == nil {
+			t.Fatalf("expected rate_limit payload, got nil")
+		}
+		if payload.ResetTime == nil || !payload.ResetTime.AsTime().Equal(reset) {
+			t.Errorf("ResetTime: expected %v, got %v", reset, payload.ResetTime)
+		}
+	})
+
+	t.Run("cost", func(t *testing.T) {
+		event := &domain.RunEvent{
+			ID:        uuid.New(),
+			RunID:     runID,
+			EventType: domain.EventTypeMetric,
+			Timestamp: now,
+			Sequence:  7,
+			Data: &domain.CostEventData{
+				InputTokens:           10,
+				OutputTokens:          20,
+				CacheCreationTokens:   1,
+				CacheReadTokens:       2,
+				TotalCostUSD:          0.12,
+				ServiceTier:           "standard",
+				Model:                 "o4-mini",
+				WebSearchRequests:     3,
+				ServerToolUseRequests: 4,
+			},
+		}
+		proto := RunEventToProto(event)
+		payload := proto.GetCost()
+		if payload == nil {
+			t.Fatalf("expected cost payload, got nil")
+		}
+		if payload.ServiceTier != "standard" || payload.Model != "o4-mini" {
+			t.Errorf("Cost: expected standard/o4-mini, got %s/%s", payload.ServiceTier, payload.Model)
+		}
+	})
+
+	t.Run("error", func(t *testing.T) {
+		event := &domain.RunEvent{
+			ID:        uuid.New(),
+			RunID:     runID,
+			EventType: domain.EventTypeError,
+			Timestamp: now,
+			Sequence:  8,
+			Data: &domain.ErrorEventData{
+				Code:       "E_TEST",
+				Message:    "failure",
+				Retryable:  true,
+				Recovery:   domain.RecoveryFixInput,
+				StackTrace: "stack",
+				Details:    map[string]interface{}{"field": "value"},
+			},
+		}
+		proto := RunEventToProto(event)
+		payload := proto.GetError()
+		if payload == nil {
+			t.Fatalf("expected error payload, got nil")
+		}
+		if payload.Recovery != pb.RecoveryAction_RECOVERY_ACTION_FIX_INPUT {
+			t.Errorf("Recovery: expected FIX_INPUT, got %v", payload.Recovery)
+		}
+		if payload.Details == nil || payload.Details.AsMap()["field"] != "value" {
+			t.Errorf("Details: expected field=value, got %#v", payload.Details)
+		}
+	})
 }
 
 // =============================================================================

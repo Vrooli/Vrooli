@@ -20,6 +20,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { ProfilesPage } from "./pages/ProfilesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { RunsPage } from "./pages/RunsPage";
+import { HealthStatus, RunStatus } from "./types";
 
 export default function App() {
   const navigate = useNavigate();
@@ -74,7 +75,7 @@ export default function App() {
     navigate(`/${value === "dashboard" ? "" : value}`);
   }, [navigate]);
 
-  const isHealthy = health.data?.status === "healthy";
+  const isHealthy = health.data?.status === HealthStatus.HEALTHY;
 
   return (
     <div className="min-h-screen bg-transparent text-foreground">
@@ -157,7 +158,7 @@ export default function App() {
                 label="Active"
                 value={
                   runs.data?.filter(
-                    (r) => r.status === "running" || r.status === "starting"
+                    (r) => r.status === RunStatus.RUNNING || r.status === RunStatus.STARTING
                   ).length ?? 0
                 }
               />

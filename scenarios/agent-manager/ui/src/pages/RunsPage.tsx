@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -29,14 +30,15 @@ import { Textarea } from "../components/ui/textarea";
 import { cn, formatDate, formatDuration, formatRelativeTime } from "../lib/utils";
 import type {
   AgentProfile,
-  ApprovalResult,
-  ApproveRequest,
-  DiffResult,
-  RejectRequest,
+  ApproveFormData,
+  ApproveResult,
+  RejectFormData,
   Run,
+  RunDiff,
   RunEvent,
   Task,
 } from "../types";
+import { ApprovalState, RunEventType, RunMode, RunPhase, RunStatus } from "../types";
 import type { MessageHandler, WebSocketMessage } from "../hooks/useWebSocket";
 
 interface RunsPageProps {
@@ -48,9 +50,9 @@ interface RunsPageProps {
   onStopRun: (id: string) => Promise<void>;
   onRetryRun: (run: Run) => Promise<Run>;
   onGetEvents: (id: string) => Promise<RunEvent[]>;
-  onGetDiff: (id: string) => Promise<DiffResult>;
-  onApproveRun: (id: string, req: ApproveRequest) => Promise<ApprovalResult>;
-  onRejectRun: (id: string, req: RejectRequest) => Promise<void>;
+  onGetDiff: (id: string) => Promise<RunDiff>;
+  onApproveRun: (id: string, req: ApproveFormData) => Promise<ApproveResult>;
+  onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
   onRefresh: () => void;
   wsSubscribe: (runId: string) => void;
   wsUnsubscribe: (runId: string) => void;
@@ -80,7 +82,7 @@ export function RunsPage({
   const navigate = useNavigate();
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [events, setEvents] = useState<RunEvent[]>([]);
-  const [diff, setDiff] = useState<DiffResult | null>(null);
+  const [diff, setDiff] = useState<RunDiff | null>(null);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [diffLoading, setDiffLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"events" | "diff">("events");
@@ -155,9 +157,9 @@ export function RunsPage({
 
       // Load diff if run needs review or is complete
       if (
-        run.status === "needs_review" ||
-        run.status === "complete" ||
-        run.approvalState !== "none"
+        run.status === RunStatus.NEEDS_REVIEW ||
+        run.status === RunStatus.COMPLETE ||
+        run.approvalState !== ApprovalState.NONE
       ) {
         setDiffLoading(true);
         try {
@@ -247,14 +249,16 @@ export function RunsPage({
     }
   };
 
-  const sortedRuns = [...runs].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  const sortedRuns = [...runs].sort((a, b) => {
+    const aTime = a.createdAt ? timestampMs(a.createdAt) : 0;
+    const bTime = b.createdAt ? timestampMs(b.createdAt) : 0;
+    return bTime - aTime;
+  });
 
   const getTaskTitle = (taskId: string) =>
     tasks.find((t) => t.id === taskId)?.title || "Unknown Task";
-  const getProfileName = (profileId: string) =>
-    profiles.find((p) => p.id === profileId)?.name || "Unknown Profile";
+  const getProfileName = (profileId?: string) =>
+    profileId ? profiles.find((p) => p.id === profileId)?.name || "Unknown Profile" : "Unknown Profile";
 
   return (
     <div className="space-y-6">
@@ -342,17 +346,19 @@ export function RunsPage({
                       <div className="flex items-center gap-2">
                         <Badge
                           variant={
-                            run.status as
+                            runStatusLabel(run.status) as
+                              | "pending"
+                              | "starting"
                               | "running"
+                              | "needs_review"
                               | "complete"
                               | "failed"
-                              | "pending"
-                              | "needs_review"
+                              | "cancelled"
                           }
                         >
-                          {run.status.replace("_", " ")}
+                          {runStatusLabel(run.status).replace("_", " ")}
                         </Badge>
-                        {(run.status === "running" || run.status === "starting") && (
+                        {(run.status === RunStatus.RUNNING || run.status === RunStatus.STARTING) && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -401,16 +407,26 @@ export function RunsPage({
                     <div className="flex items-center gap-2">
                       <Badge
                         variant={
-                          selectedRun.status as
+                          runStatusLabel(selectedRun.status) as
+                            | "pending"
+                            | "starting"
                             | "running"
+                            | "needs_review"
                             | "complete"
                             | "failed"
-                            | "pending"
+                            | "cancelled"
                         }
                       >
-                        {selectedRun.status.replace("_", " ")}
+                        {runStatusLabel(selectedRun.status).replace("_", " ")}
                       </Badge>
-                      {["failed", "cancelled", "complete", "approved", "rejected"].includes(selectedRun.status) && (
+                      {[
+                        RunStatus.FAILED,
+                        RunStatus.CANCELLED,
+                        RunStatus.COMPLETE,
+                      ].includes(selectedRun.status) || [
+                        ApprovalState.APPROVED,
+                        ApprovalState.REJECTED,
+                      ].includes(selectedRun.approvalState) ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -423,7 +439,7 @@ export function RunsPage({
                           <RotateCcw className="h-3 w-3" />
                           Re-run
                         </Button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
@@ -433,11 +449,11 @@ export function RunsPage({
                     </div>
                     <div>
                       <span className="text-muted-foreground">Mode: </span>
-                      {selectedRun.runMode}
+                      {runModeLabel(selectedRun.runMode)}
                     </div>
                     <div>
                       <span className="text-muted-foreground">Phase: </span>
-                      {selectedRun.phase.replace("_", " ")}
+                      {runPhaseLabel(selectedRun.phase).replace("_", " ")}
                     </div>
                     <div>
                       <span className="text-muted-foreground">Progress: </span>
@@ -453,8 +469,8 @@ export function RunsPage({
                       <div>
                         <span className="text-muted-foreground">Duration: </span>
                         {formatDuration(
-                          new Date(selectedRun.endedAt).getTime() -
-                            new Date(selectedRun.startedAt).getTime()
+                          timestampMs(selectedRun.endedAt) -
+                            timestampMs(selectedRun.startedAt)
                         )}
                       </div>
                     )}
@@ -521,7 +537,7 @@ export function RunsPage({
                 </ScrollArea>
 
                 {/* Approval Actions */}
-                {selectedRun.status === "needs_review" && (
+                {selectedRun.status === RunStatus.NEEDS_REVIEW && (
                   <div className="space-y-4 pt-4 border-t border-border">
                     <h4 className="font-semibold text-sm">Review Actions</h4>
                     <div className="grid gap-3 md:grid-cols-2">
@@ -625,18 +641,75 @@ export function RunsPage({
   );
 }
 
-function RunStatusIcon({ status }: { status: string }) {
+function runStatusLabel(status: RunStatus): string {
   switch (status) {
-    case "complete":
-    case "approved":
+    case RunStatus.PENDING:
+      return "pending";
+    case RunStatus.STARTING:
+      return "starting";
+    case RunStatus.RUNNING:
+      return "running";
+    case RunStatus.NEEDS_REVIEW:
+      return "needs_review";
+    case RunStatus.COMPLETE:
+      return "complete";
+    case RunStatus.FAILED:
+      return "failed";
+    case RunStatus.CANCELLED:
+      return "cancelled";
+    default:
+      return "pending";
+  }
+}
+
+function runModeLabel(mode: RunMode): string {
+  switch (mode) {
+    case RunMode.SANDBOXED:
+      return "sandboxed";
+    case RunMode.IN_PLACE:
+      return "in_place";
+    default:
+      return "unspecified";
+  }
+}
+
+function runPhaseLabel(phase: RunPhase): string {
+  switch (phase) {
+    case RunPhase.QUEUED:
+      return "queued";
+    case RunPhase.INITIALIZING:
+      return "initializing";
+    case RunPhase.SANDBOX_CREATING:
+      return "sandbox_creating";
+    case RunPhase.RUNNER_ACQUIRING:
+      return "runner_acquiring";
+    case RunPhase.EXECUTING:
+      return "executing";
+    case RunPhase.COLLECTING_RESULTS:
+      return "collecting_results";
+    case RunPhase.AWAITING_REVIEW:
+      return "awaiting_review";
+    case RunPhase.APPLYING:
+      return "applying";
+    case RunPhase.CLEANING_UP:
+      return "cleaning_up";
+    case RunPhase.COMPLETED:
+      return "completed";
+    default:
+      return "queued";
+  }
+}
+
+function RunStatusIcon({ status }: { status: RunStatus }) {
+  switch (status) {
+    case RunStatus.COMPLETE:
       return <Check className="h-5 w-5 text-success" />;
-    case "failed":
-    case "rejected":
+    case RunStatus.FAILED:
       return <XCircle className="h-5 w-5 text-destructive" />;
-    case "running":
-    case "starting":
+    case RunStatus.RUNNING:
+    case RunStatus.STARTING:
       return <Activity className="h-5 w-5 text-primary animate-pulse" />;
-    case "needs_review":
+    case RunStatus.NEEDS_REVIEW:
       return <Clock className="h-5 w-5 text-warning" />;
     default:
       return <Clock className="h-5 w-5 text-muted-foreground" />;
@@ -645,25 +718,21 @@ function RunStatusIcon({ status }: { status: string }) {
 
 function EventItem({ event }: { event: RunEvent }) {
   const [expanded, setExpanded] = useState(false);
-  const data = event.data;
-
-  // Check if this is a sandbox conflict error
-  const hasConflicts = event.eventType === "error" &&
-    data.details?.conflicts &&
-    data.details.conflicts.length > 0;
+  const payload = event.data;
+  const payloadValue = payload.value as any;
 
   const getIcon = () => {
     switch (event.eventType) {
-      case "log":
+      case RunEventType.LOG:
         return <Terminal className="h-4 w-4" />;
-      case "message":
+      case RunEventType.MESSAGE:
         return <MessageSquare className="h-4 w-4" />;
-      case "tool_call":
-      case "tool_result":
+      case RunEventType.TOOL_CALL:
+      case RunEventType.TOOL_RESULT:
         return <Wrench className="h-4 w-4" />;
-      case "status":
+      case RunEventType.STATUS:
         return <Activity className="h-4 w-4" />;
-      case "error":
+      case RunEventType.ERROR:
         return <AlertCircle className="h-4 w-4 text-destructive" />;
       default:
         return <ChevronRight className="h-4 w-4" />;
@@ -671,24 +740,35 @@ function EventItem({ event }: { event: RunEvent }) {
   };
 
   const getSummary = () => {
-    switch (event.eventType) {
+    switch (payload.case) {
       case "log":
-        return data.message || "Log entry";
+        return payloadValue.message || "Log entry";
       case "message":
-        return (data.role || "unknown") + ": " + (data.content?.slice(0, 100) || "");
-      case "tool_call":
-        return "Called " + (data.toolName || "unknown tool");
-      case "tool_result":
-        return (data.success ? "Success" : "Failed") + ": " + (data.toolName || "");
+        return (payloadValue.role || "unknown") + ": " + (payloadValue.content?.slice(0, 100) || "");
+      case "toolCall":
+        return "Called " + (payloadValue.toolName || "unknown tool");
+      case "toolResult":
+        return (payloadValue.success ? "Success" : "Failed") + ": " + (payloadValue.toolName || "");
       case "status":
-        return (data.oldStatus || "?") + " -> " + (data.newStatus || "?");
+        return (
+          runStatusLabel(payloadValue.oldStatus ?? RunStatus.UNSPECIFIED) +
+          " -> " +
+          runStatusLabel(payloadValue.newStatus ?? RunStatus.UNSPECIFIED)
+        );
+      case "metric":
+        return `${payloadValue.name || "metric"}: ${payloadValue.value ?? 0}`;
+      case "artifact":
+        return payloadValue.path ? `Artifact: ${payloadValue.path}` : "Artifact";
+      case "progress":
+        return `Progress ${payloadValue.percentComplete ?? 0}%`;
+      case "cost":
+        return "Cost update";
+      case "rateLimit":
+        return "Rate limit";
       case "error":
-        if (hasConflicts) {
-          return `Sandbox conflict: ${data.details!.conflicts!.length} conflicting sandbox(es)`;
-        }
-        return data.message || data.code || "Error occurred";
+        return payloadValue.message || payloadValue.code || "Error occurred";
       default:
-        return event.eventType;
+        return runEventTypeLabel(event.eventType);
     }
   };
 
@@ -696,7 +776,7 @@ function EventItem({ event }: { event: RunEvent }) {
     <div
       className={cn(
         "rounded border border-border p-2 text-xs",
-        event.eventType === "error" && "border-destructive/50 bg-destructive/5"
+        event.eventType === RunEventType.ERROR && "border-destructive/50 bg-destructive/5"
       )}
     >
       <div
@@ -706,7 +786,7 @@ function EventItem({ event }: { event: RunEvent }) {
         {getIcon()}
         <span className="flex-1 truncate">{getSummary()}</span>
         <span className="text-muted-foreground">
-          {new Date(event.timestamp).toLocaleTimeString()}
+          {formatDate(event.timestamp)}
         </span>
         {expanded ? (
           <ChevronDown className="h-3 w-3" />
@@ -716,45 +796,8 @@ function EventItem({ event }: { event: RunEvent }) {
       </div>
       {expanded && (
         <div className="mt-2 space-y-2">
-          {/* Show conflict details in a user-friendly format */}
-          {hasConflicts && (
-            <div className="p-2 bg-destructive/10 rounded border border-destructive/20">
-              <div className="font-medium text-destructive mb-2">
-                Conflicting Sandboxes
-              </div>
-              <div className="space-y-2">
-                {data.details!.conflicts!.map((conflict) => (
-                  <div
-                    key={conflict.sandboxId}
-                    className="p-2 bg-background rounded border border-border"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px] font-mono">
-                        {conflict.sandboxId.slice(0, 8)}...
-                      </Badge>
-                      <span className="text-muted-foreground">
-                        {conflict.conflictType === "new_contains_existing"
-                          ? "Your scope contains this sandbox"
-                          : "This sandbox contains your scope"}
-                      </span>
-                    </div>
-                    <div className="mt-1 font-mono text-[10px] text-muted-foreground truncate">
-                      {conflict.scope}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-2 text-[10px] text-muted-foreground">
-                To resolve: Delete or stop the conflicting sandbox(es) using the workspace-sandbox CLI:
-                <code className="block mt-1 p-1 bg-muted rounded font-mono">
-                  workspace-sandbox delete {data.details!.conflicts![0]?.sandboxId || "<sandbox-id>"}
-                </code>
-              </div>
-            </div>
-          )}
-          {/* Show raw JSON data */}
           <pre className="p-2 bg-muted rounded text-[10px] overflow-x-auto">
-            {JSON.stringify(data, null, 2)}
+            {JSON.stringify(payloadValue, null, 2)}
           </pre>
         </div>
       )}
@@ -762,15 +805,48 @@ function EventItem({ event }: { event: RunEvent }) {
   );
 }
 
-function DiffViewer({ diff }: { diff: DiffResult }) {
+function runEventTypeLabel(eventType: RunEventType): string {
+  switch (eventType) {
+    case RunEventType.LOG:
+      return "log";
+    case RunEventType.MESSAGE:
+      return "message";
+    case RunEventType.TOOL_CALL:
+      return "tool_call";
+    case RunEventType.TOOL_RESULT:
+      return "tool_result";
+    case RunEventType.STATUS:
+      return "status";
+    case RunEventType.METRIC:
+      return "metric";
+    case RunEventType.ARTIFACT:
+      return "artifact";
+    case RunEventType.ERROR:
+      return "error";
+    default:
+      return "event";
+  }
+}
+
+function DiffViewer({ diff }: { diff: RunDiff }) {
+  const fileCount = diff.files?.length ?? 0;
+  const totals = (diff.files ?? []).reduce(
+    (acc, file) => {
+      acc.additions += file.additions || 0;
+      acc.deletions += file.deletions || 0;
+      return acc;
+    },
+    { additions: 0, deletions: 0 }
+  );
+
   return (
     <div className="space-y-3">
       {/* Stats */}
       <div className="flex gap-4 text-xs">
-        <span className="text-success">+{diff.stats?.additions || 0}</span>
-        <span className="text-destructive">-{diff.stats?.deletions || 0}</span>
+        <span className="text-success">+{totals.additions}</span>
+        <span className="text-destructive">-{totals.deletions}</span>
         <span className="text-muted-foreground">
-          {diff.stats?.filesChanged || 0} files
+          {fileCount} files
         </span>
       </div>
 
@@ -784,15 +860,15 @@ function DiffViewer({ diff }: { diff: DiffResult }) {
             >
               <Badge
                 variant={
-                  file.status === "added"
+                  file.changeType === "added"
                     ? "success"
-                    : file.status === "deleted"
+                    : file.changeType === "deleted"
                     ? "destructive"
                     : "secondary"
                 }
                 className="text-[10px] px-1"
               >
-                {file.status}
+                {file.changeType}
               </Badge>
               <span className="font-mono truncate">{file.path}</span>
               <span className="text-success">+{file.additions}</span>
@@ -803,9 +879,9 @@ function DiffViewer({ diff }: { diff: DiffResult }) {
       )}
 
       {/* Unified Diff */}
-      {diff.unified && (
+      {diff.content && (
         <pre className="text-[10px] font-mono bg-muted/50 rounded p-3 overflow-x-auto whitespace-pre-wrap">
-          {diff.unified.split("\n").map((line, i) => (
+          {diff.content.split("\n").map((line, i) => (
             <div
               key={i}
               className={cn(

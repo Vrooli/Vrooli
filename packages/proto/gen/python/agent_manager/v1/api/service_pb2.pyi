@@ -217,12 +217,12 @@ class CreateRunRequest(_message.Message):
     agent_profile_id: str
     tag: str
     run_mode: _types_pb2_1.RunMode
-    inline_config: _profile_pb2.RunConfig
+    inline_config: _profile_pb2.RunConfigOverrides
     force: bool
     idempotency_key: str
     profile_ref: ProfileRef
     prompt: str
-    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2_1.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ...) -> None: ...
+    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2_1.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ...) -> None: ...
 
 class CreateRunResponse(_message.Message):
     __slots__ = ()

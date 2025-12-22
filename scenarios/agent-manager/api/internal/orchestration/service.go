@@ -126,6 +126,10 @@ type CreateRunRequest struct {
 	AllowedTools         []string           `json:"allowedTools,omitempty"`
 	DeniedTools          []string           `json:"deniedTools,omitempty"`
 	SkipPermissionPrompt *bool              `json:"skipPermissionPrompt,omitempty"`
+	RequiresSandbox      *bool              `json:"requiresSandbox,omitempty"`
+	RequiresApproval     *bool              `json:"requiresApproval,omitempty"`
+	AllowedPaths         []string           `json:"allowedPaths,omitempty"`
+	DeniedPaths          []string           `json:"deniedPaths,omitempty"`
 
 	// Execution options
 	Prompt       string          `json:"prompt,omitempty"` // Optional override prompt
@@ -830,14 +834,26 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.Timeout != nil {
 		cfg.Timeout = *req.Timeout
 	}
-	if len(req.AllowedTools) > 0 {
+	if req.AllowedTools != nil {
 		cfg.AllowedTools = req.AllowedTools
 	}
-	if len(req.DeniedTools) > 0 {
+	if req.DeniedTools != nil {
 		cfg.DeniedTools = req.DeniedTools
 	}
 	if req.SkipPermissionPrompt != nil {
 		cfg.SkipPermissionPrompt = *req.SkipPermissionPrompt
+	}
+	if req.RequiresSandbox != nil {
+		cfg.RequiresSandbox = *req.RequiresSandbox
+	}
+	if req.RequiresApproval != nil {
+		cfg.RequiresApproval = *req.RequiresApproval
+	}
+	if req.AllowedPaths != nil {
+		cfg.AllowedPaths = req.AllowedPaths
+	}
+	if req.DeniedPaths != nil {
+		cfg.DeniedPaths = req.DeniedPaths
 	}
 
 	// Validate the resolved config

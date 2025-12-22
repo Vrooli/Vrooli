@@ -1386,8 +1386,8 @@ type CreateRunRequest struct {
 	Tag *string `protobuf:"bytes,3,opt,name=tag,proto3,oneof" json:"tag,omitempty"`
 	// Execution mode.
 	RunMode *domain.RunMode `protobuf:"varint,4,opt,name=run_mode,json=runMode,proto3,enum=agent_manager.v1.RunMode,oneof" json:"run_mode,omitempty"`
-	// Inline configuration (overrides profile).
-	InlineConfig *domain.RunConfig `protobuf:"bytes,5,opt,name=inline_config,json=inlineConfig,proto3,oneof" json:"inline_config,omitempty"`
+	// Inline configuration overrides (applied only when fields are set).
+	InlineConfig *domain.RunConfigOverrides `protobuf:"bytes,5,opt,name=inline_config,json=inlineConfig,proto3,oneof" json:"inline_config,omitempty"`
 	// Bypass capacity limits.
 	Force bool `protobuf:"varint,6,opt,name=force,proto3" json:"force,omitempty"`
 	// Idempotency key for replay safety.
@@ -1459,7 +1459,7 @@ func (x *CreateRunRequest) GetRunMode() domain.RunMode {
 	return domain.RunMode(0)
 }
 
-func (x *CreateRunRequest) GetInlineConfig() *domain.RunConfig {
+func (x *CreateRunRequest) GetInlineConfig() *domain.RunConfigOverrides {
 	if x != nil {
 		return x.InlineConfig
 	}
@@ -2891,13 +2891,13 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"ProfileRef\x12*\n" +
 	"\vprofile_key\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\n" +
 	"profileKey\x12:\n" +
-	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\"\x8d\x04\n" +
+	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\"\x96\x04\n" +
 	"\x10CreateRunRequest\x12!\n" +
 	"\atask_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
 	"\x10agent_profile_id\x18\x02 \x01(\tH\x00R\x0eagentProfileId\x88\x01\x01\x12\x15\n" +
 	"\x03tag\x18\x03 \x01(\tH\x01R\x03tag\x88\x01\x01\x129\n" +
-	"\brun_mode\x18\x04 \x01(\x0e2\x19.agent_manager.v1.RunModeH\x02R\arunMode\x88\x01\x01\x12E\n" +
-	"\rinline_config\x18\x05 \x01(\v2\x1b.agent_manager.v1.RunConfigH\x03R\finlineConfig\x88\x01\x01\x12\x14\n" +
+	"\brun_mode\x18\x04 \x01(\x0e2\x19.agent_manager.v1.RunModeH\x02R\arunMode\x88\x01\x01\x12N\n" +
+	"\rinline_config\x18\x05 \x01(\v2$.agent_manager.v1.RunConfigOverridesH\x03R\finlineConfig\x88\x01\x01\x12\x14\n" +
 	"\x05force\x18\x06 \x01(\bR\x05force\x12,\n" +
 	"\x0fidempotency_key\x18\a \x01(\tH\x04R\x0eidempotencyKey\x88\x01\x01\x12B\n" +
 	"\vprofile_ref\x18\b \x01(\v2\x1c.agent_manager.v1.ProfileRefH\x05R\n" +
@@ -3043,74 +3043,74 @@ func file_agent_manager_v1_api_service_proto_rawDescGZIP() []byte {
 
 var file_agent_manager_v1_api_service_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
 var file_agent_manager_v1_api_service_proto_goTypes = []any{
-	(*HealthRequest)(nil),           // 0: agent_manager.v1.HealthRequest
-	(*CreateProfileRequest)(nil),    // 1: agent_manager.v1.CreateProfileRequest
-	(*CreateProfileResponse)(nil),   // 2: agent_manager.v1.CreateProfileResponse
-	(*EnsureProfileRequest)(nil),    // 3: agent_manager.v1.EnsureProfileRequest
-	(*EnsureProfileResponse)(nil),   // 4: agent_manager.v1.EnsureProfileResponse
-	(*GetProfileRequest)(nil),       // 5: agent_manager.v1.GetProfileRequest
-	(*GetProfileResponse)(nil),      // 6: agent_manager.v1.GetProfileResponse
-	(*ListProfilesRequest)(nil),     // 7: agent_manager.v1.ListProfilesRequest
-	(*ListProfilesResponse)(nil),    // 8: agent_manager.v1.ListProfilesResponse
-	(*UpdateProfileRequest)(nil),    // 9: agent_manager.v1.UpdateProfileRequest
-	(*UpdateProfileResponse)(nil),   // 10: agent_manager.v1.UpdateProfileResponse
-	(*DeleteProfileRequest)(nil),    // 11: agent_manager.v1.DeleteProfileRequest
-	(*DeleteProfileResponse)(nil),   // 12: agent_manager.v1.DeleteProfileResponse
-	(*CreateTaskRequest)(nil),       // 13: agent_manager.v1.CreateTaskRequest
-	(*CreateTaskResponse)(nil),      // 14: agent_manager.v1.CreateTaskResponse
-	(*GetTaskRequest)(nil),          // 15: agent_manager.v1.GetTaskRequest
-	(*GetTaskResponse)(nil),         // 16: agent_manager.v1.GetTaskResponse
-	(*ListTasksRequest)(nil),        // 17: agent_manager.v1.ListTasksRequest
-	(*ListTasksResponse)(nil),       // 18: agent_manager.v1.ListTasksResponse
-	(*UpdateTaskRequest)(nil),       // 19: agent_manager.v1.UpdateTaskRequest
-	(*UpdateTaskResponse)(nil),      // 20: agent_manager.v1.UpdateTaskResponse
-	(*DeleteTaskRequest)(nil),       // 21: agent_manager.v1.DeleteTaskRequest
-	(*DeleteTaskResponse)(nil),      // 22: agent_manager.v1.DeleteTaskResponse
-	(*CancelTaskRequest)(nil),       // 23: agent_manager.v1.CancelTaskRequest
-	(*CancelTaskResponse)(nil),      // 24: agent_manager.v1.CancelTaskResponse
-	(*ProfileRef)(nil),              // 25: agent_manager.v1.ProfileRef
-	(*CreateRunRequest)(nil),        // 26: agent_manager.v1.CreateRunRequest
-	(*CreateRunResponse)(nil),       // 27: agent_manager.v1.CreateRunResponse
-	(*GetRunRequest)(nil),           // 28: agent_manager.v1.GetRunRequest
-	(*GetRunResponse)(nil),          // 29: agent_manager.v1.GetRunResponse
-	(*GetRunByTagRequest)(nil),      // 30: agent_manager.v1.GetRunByTagRequest
-	(*GetRunByTagResponse)(nil),     // 31: agent_manager.v1.GetRunByTagResponse
-	(*ListRunsRequest)(nil),         // 32: agent_manager.v1.ListRunsRequest
-	(*ListRunsResponse)(nil),        // 33: agent_manager.v1.ListRunsResponse
-	(*StopRunRequest)(nil),          // 34: agent_manager.v1.StopRunRequest
-	(*StopRunResponse)(nil),         // 35: agent_manager.v1.StopRunResponse
-	(*StopRunByTagRequest)(nil),     // 36: agent_manager.v1.StopRunByTagRequest
-	(*StopRunByTagResponse)(nil),    // 37: agent_manager.v1.StopRunByTagResponse
-	(*StopAllRunsRequest)(nil),      // 38: agent_manager.v1.StopAllRunsRequest
-	(*StopAllRunsResponse)(nil),     // 39: agent_manager.v1.StopAllRunsResponse
-	(*GetRunEventsRequest)(nil),     // 40: agent_manager.v1.GetRunEventsRequest
-	(*GetRunEventsResponse)(nil),    // 41: agent_manager.v1.GetRunEventsResponse
-	(*GetRunDiffRequest)(nil),       // 42: agent_manager.v1.GetRunDiffRequest
-	(*GetRunDiffResponse)(nil),      // 43: agent_manager.v1.GetRunDiffResponse
-	(*ApproveRunRequest)(nil),       // 44: agent_manager.v1.ApproveRunRequest
-	(*ApproveRunResponse)(nil),      // 45: agent_manager.v1.ApproveRunResponse
-	(*RejectRunRequest)(nil),        // 46: agent_manager.v1.RejectRunRequest
-	(*RejectRunResponse)(nil),       // 47: agent_manager.v1.RejectRunResponse
-	(*GetRunnerStatusRequest)(nil),  // 48: agent_manager.v1.GetRunnerStatusRequest
-	(*GetRunnerStatusResponse)(nil), // 49: agent_manager.v1.GetRunnerStatusResponse
-	(*ProbeRunnerRequest)(nil),      // 50: agent_manager.v1.ProbeRunnerRequest
-	(*ProbeRunnerResponse)(nil),     // 51: agent_manager.v1.ProbeRunnerResponse
-	(*domain.AgentProfile)(nil),     // 52: agent_manager.v1.AgentProfile
-	(domain.RunnerType)(0),          // 53: agent_manager.v1.RunnerType
-	(*domain.Task)(nil),             // 54: agent_manager.v1.Task
-	(domain.TaskStatus)(0),          // 55: agent_manager.v1.TaskStatus
-	(domain.RunMode)(0),             // 56: agent_manager.v1.RunMode
-	(*domain.RunConfig)(nil),        // 57: agent_manager.v1.RunConfig
-	(*domain.Run)(nil),              // 58: agent_manager.v1.Run
-	(domain.RunStatus)(0),           // 59: agent_manager.v1.RunStatus
-	(*domain.StopAllResult)(nil),    // 60: agent_manager.v1.StopAllResult
-	(domain.RunEventType)(0),        // 61: agent_manager.v1.RunEventType
-	(*domain.RunEvent)(nil),         // 62: agent_manager.v1.RunEvent
-	(*domain.RunDiff)(nil),          // 63: agent_manager.v1.RunDiff
-	(*domain.ApproveResult)(nil),    // 64: agent_manager.v1.ApproveResult
-	(*domain.RunnerStatus)(nil),     // 65: agent_manager.v1.RunnerStatus
-	(*domain.ProbeResult)(nil),      // 66: agent_manager.v1.ProbeResult
-	(*v1.HealthResponse)(nil),       // 67: common.v1.HealthResponse
+	(*HealthRequest)(nil),             // 0: agent_manager.v1.HealthRequest
+	(*CreateProfileRequest)(nil),      // 1: agent_manager.v1.CreateProfileRequest
+	(*CreateProfileResponse)(nil),     // 2: agent_manager.v1.CreateProfileResponse
+	(*EnsureProfileRequest)(nil),      // 3: agent_manager.v1.EnsureProfileRequest
+	(*EnsureProfileResponse)(nil),     // 4: agent_manager.v1.EnsureProfileResponse
+	(*GetProfileRequest)(nil),         // 5: agent_manager.v1.GetProfileRequest
+	(*GetProfileResponse)(nil),        // 6: agent_manager.v1.GetProfileResponse
+	(*ListProfilesRequest)(nil),       // 7: agent_manager.v1.ListProfilesRequest
+	(*ListProfilesResponse)(nil),      // 8: agent_manager.v1.ListProfilesResponse
+	(*UpdateProfileRequest)(nil),      // 9: agent_manager.v1.UpdateProfileRequest
+	(*UpdateProfileResponse)(nil),     // 10: agent_manager.v1.UpdateProfileResponse
+	(*DeleteProfileRequest)(nil),      // 11: agent_manager.v1.DeleteProfileRequest
+	(*DeleteProfileResponse)(nil),     // 12: agent_manager.v1.DeleteProfileResponse
+	(*CreateTaskRequest)(nil),         // 13: agent_manager.v1.CreateTaskRequest
+	(*CreateTaskResponse)(nil),        // 14: agent_manager.v1.CreateTaskResponse
+	(*GetTaskRequest)(nil),            // 15: agent_manager.v1.GetTaskRequest
+	(*GetTaskResponse)(nil),           // 16: agent_manager.v1.GetTaskResponse
+	(*ListTasksRequest)(nil),          // 17: agent_manager.v1.ListTasksRequest
+	(*ListTasksResponse)(nil),         // 18: agent_manager.v1.ListTasksResponse
+	(*UpdateTaskRequest)(nil),         // 19: agent_manager.v1.UpdateTaskRequest
+	(*UpdateTaskResponse)(nil),        // 20: agent_manager.v1.UpdateTaskResponse
+	(*DeleteTaskRequest)(nil),         // 21: agent_manager.v1.DeleteTaskRequest
+	(*DeleteTaskResponse)(nil),        // 22: agent_manager.v1.DeleteTaskResponse
+	(*CancelTaskRequest)(nil),         // 23: agent_manager.v1.CancelTaskRequest
+	(*CancelTaskResponse)(nil),        // 24: agent_manager.v1.CancelTaskResponse
+	(*ProfileRef)(nil),                // 25: agent_manager.v1.ProfileRef
+	(*CreateRunRequest)(nil),          // 26: agent_manager.v1.CreateRunRequest
+	(*CreateRunResponse)(nil),         // 27: agent_manager.v1.CreateRunResponse
+	(*GetRunRequest)(nil),             // 28: agent_manager.v1.GetRunRequest
+	(*GetRunResponse)(nil),            // 29: agent_manager.v1.GetRunResponse
+	(*GetRunByTagRequest)(nil),        // 30: agent_manager.v1.GetRunByTagRequest
+	(*GetRunByTagResponse)(nil),       // 31: agent_manager.v1.GetRunByTagResponse
+	(*ListRunsRequest)(nil),           // 32: agent_manager.v1.ListRunsRequest
+	(*ListRunsResponse)(nil),          // 33: agent_manager.v1.ListRunsResponse
+	(*StopRunRequest)(nil),            // 34: agent_manager.v1.StopRunRequest
+	(*StopRunResponse)(nil),           // 35: agent_manager.v1.StopRunResponse
+	(*StopRunByTagRequest)(nil),       // 36: agent_manager.v1.StopRunByTagRequest
+	(*StopRunByTagResponse)(nil),      // 37: agent_manager.v1.StopRunByTagResponse
+	(*StopAllRunsRequest)(nil),        // 38: agent_manager.v1.StopAllRunsRequest
+	(*StopAllRunsResponse)(nil),       // 39: agent_manager.v1.StopAllRunsResponse
+	(*GetRunEventsRequest)(nil),       // 40: agent_manager.v1.GetRunEventsRequest
+	(*GetRunEventsResponse)(nil),      // 41: agent_manager.v1.GetRunEventsResponse
+	(*GetRunDiffRequest)(nil),         // 42: agent_manager.v1.GetRunDiffRequest
+	(*GetRunDiffResponse)(nil),        // 43: agent_manager.v1.GetRunDiffResponse
+	(*ApproveRunRequest)(nil),         // 44: agent_manager.v1.ApproveRunRequest
+	(*ApproveRunResponse)(nil),        // 45: agent_manager.v1.ApproveRunResponse
+	(*RejectRunRequest)(nil),          // 46: agent_manager.v1.RejectRunRequest
+	(*RejectRunResponse)(nil),         // 47: agent_manager.v1.RejectRunResponse
+	(*GetRunnerStatusRequest)(nil),    // 48: agent_manager.v1.GetRunnerStatusRequest
+	(*GetRunnerStatusResponse)(nil),   // 49: agent_manager.v1.GetRunnerStatusResponse
+	(*ProbeRunnerRequest)(nil),        // 50: agent_manager.v1.ProbeRunnerRequest
+	(*ProbeRunnerResponse)(nil),       // 51: agent_manager.v1.ProbeRunnerResponse
+	(*domain.AgentProfile)(nil),       // 52: agent_manager.v1.AgentProfile
+	(domain.RunnerType)(0),            // 53: agent_manager.v1.RunnerType
+	(*domain.Task)(nil),               // 54: agent_manager.v1.Task
+	(domain.TaskStatus)(0),            // 55: agent_manager.v1.TaskStatus
+	(domain.RunMode)(0),               // 56: agent_manager.v1.RunMode
+	(*domain.RunConfigOverrides)(nil), // 57: agent_manager.v1.RunConfigOverrides
+	(*domain.Run)(nil),                // 58: agent_manager.v1.Run
+	(domain.RunStatus)(0),             // 59: agent_manager.v1.RunStatus
+	(*domain.StopAllResult)(nil),      // 60: agent_manager.v1.StopAllResult
+	(domain.RunEventType)(0),          // 61: agent_manager.v1.RunEventType
+	(*domain.RunEvent)(nil),           // 62: agent_manager.v1.RunEvent
+	(*domain.RunDiff)(nil),            // 63: agent_manager.v1.RunDiff
+	(*domain.ApproveResult)(nil),      // 64: agent_manager.v1.ApproveResult
+	(*domain.RunnerStatus)(nil),       // 65: agent_manager.v1.RunnerStatus
+	(*domain.ProbeResult)(nil),        // 66: agent_manager.v1.ProbeResult
+	(*v1.HealthResponse)(nil),         // 67: common.v1.HealthResponse
 }
 var file_agent_manager_v1_api_service_proto_depIdxs = []int32{
 	52, // 0: agent_manager.v1.CreateProfileRequest.profile:type_name -> agent_manager.v1.AgentProfile
@@ -3131,7 +3131,7 @@ var file_agent_manager_v1_api_service_proto_depIdxs = []int32{
 	54, // 15: agent_manager.v1.UpdateTaskResponse.task:type_name -> agent_manager.v1.Task
 	52, // 16: agent_manager.v1.ProfileRef.defaults:type_name -> agent_manager.v1.AgentProfile
 	56, // 17: agent_manager.v1.CreateRunRequest.run_mode:type_name -> agent_manager.v1.RunMode
-	57, // 18: agent_manager.v1.CreateRunRequest.inline_config:type_name -> agent_manager.v1.RunConfig
+	57, // 18: agent_manager.v1.CreateRunRequest.inline_config:type_name -> agent_manager.v1.RunConfigOverrides
 	25, // 19: agent_manager.v1.CreateRunRequest.profile_ref:type_name -> agent_manager.v1.ProfileRef
 	58, // 20: agent_manager.v1.CreateRunResponse.run:type_name -> agent_manager.v1.Run
 	58, // 21: agent_manager.v1.GetRunResponse.run:type_name -> agent_manager.v1.Run

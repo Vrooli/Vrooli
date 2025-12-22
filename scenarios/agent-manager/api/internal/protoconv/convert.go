@@ -352,6 +352,34 @@ func RunEventTypeFromProto(t pb.RunEventType) domain.RunEventType {
 }
 
 // =============================================================================
+// RECOVERY ACTION
+// =============================================================================
+
+// RecoveryActionToProto converts domain RecoveryAction to proto RecoveryAction.
+func RecoveryActionToProto(a domain.RecoveryAction) pb.RecoveryAction {
+	switch a {
+	case domain.RecoveryNone:
+		return pb.RecoveryAction_RECOVERY_ACTION_NONE
+	case domain.RecoveryRetryImmediate:
+		return pb.RecoveryAction_RECOVERY_ACTION_RETRY
+	case domain.RecoveryRetryBackoff:
+		return pb.RecoveryAction_RECOVERY_ACTION_RETRY_BACKOFF
+	case domain.RecoveryFixInput:
+		return pb.RecoveryAction_RECOVERY_ACTION_FIX_INPUT
+	case domain.RecoveryWait:
+		return pb.RecoveryAction_RECOVERY_ACTION_WAIT
+	case domain.RecoveryEscalate:
+		return pb.RecoveryAction_RECOVERY_ACTION_ESCALATE
+	case domain.RecoveryAbort:
+		return pb.RecoveryAction_RECOVERY_ACTION_NONE
+	case domain.RecoveryUseAlternative:
+		return pb.RecoveryAction_RECOVERY_ACTION_UNSPECIFIED
+	default:
+		return pb.RecoveryAction_RECOVERY_ACTION_UNSPECIFIED
+	}
+}
+
+// =============================================================================
 // HELPERS
 // =============================================================================
 

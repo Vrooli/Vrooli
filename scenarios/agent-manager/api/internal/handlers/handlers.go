@@ -23,6 +23,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -33,9 +35,11 @@ import (
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/protoconv"
 
+	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -44,13 +48,18 @@ import (
 
 // Handler provides HTTP handlers for all API endpoints.
 type Handler struct {
-	svc orchestration.Service
-	hub *WebSocketHub
+	svc       orchestration.Service
+	hub       *WebSocketHub
+	validator protovalidate.Validator
 }
 
 // New creates a new Handler with the given orchestration service.
 func New(svc orchestration.Service) *Handler {
-	return &Handler{svc: svc}
+	validator, err := protovalidate.New()
+	if err != nil {
+		validator = nil
+	}
+	return &Handler{svc: svc, validator: validator}
 }
 
 // SetWebSocketHub sets the WebSocket hub for event broadcasting.
@@ -131,14 +140,6 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 // RESPONSE HELPERS
 // =============================================================================
 
-// writeJSON writes a JSON response with the given status code.
-// For non-proto types (legacy compatibility).
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(data)
-}
-
 // writeProtoJSON writes a proto message as JSON using protojson.
 // This ensures consistent snake_case field names per the proto schema.
 func writeProtoJSON(w http.ResponseWriter, status int, msg proto.Message) {
@@ -151,6 +152,36 @@ func writeProtoJSON(w http.ResponseWriter, status int, msg proto.Message) {
 		return
 	}
 	_, _ = w.Write(data)
+}
+
+func (h *Handler) validateProto(w http.ResponseWriter, r *http.Request, msg proto.Message) bool {
+	if h.validator == nil {
+		return true
+	}
+	if err := h.validator.Validate(msg); err != nil {
+		writeError(w, r, protovalidateToDomainError(err))
+		return false
+	}
+	return true
+}
+
+func protovalidateToDomainError(err error) error {
+	var valErr *protovalidate.ValidationError
+	if errors.As(err, &valErr) {
+		if len(valErr.Violations) > 0 {
+			violation := valErr.Violations[0]
+			field := protovalidate.FieldPathString(violation.Proto.GetField())
+			if field == "" {
+				field = "body"
+			}
+			message := violation.Proto.GetMessage()
+			if message == "" {
+				message = "validation failed"
+			}
+			return domain.NewValidationError(field, message)
+		}
+	}
+	return domain.NewValidationError("body", "validation failed")
 }
 
 // queryFirst returns the first non-empty query value for any of the keys.
@@ -340,13 +371,171 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 		}
 	}
 
-	writeJSON(w, status, errResp)
+	writeProtoJSON(w, status, toProtoErrorResponse(errResp))
 }
 
 // writeSimpleError creates a simple validation error for request parsing issues.
 func writeSimpleError(w http.ResponseWriter, r *http.Request, field, message string) {
 	err := domain.NewValidationError(field, message)
 	writeError(w, r, err)
+}
+
+func toProtoErrorResponse(errResp domain.ErrorResponse) *commonpb.ErrorResponse {
+	details := map[string]*commonpb.JsonValue{}
+	for key, value := range errResp.Details {
+		if jsonValue := toJsonValue(value); jsonValue != nil {
+			details[key] = jsonValue
+		}
+	}
+	if errResp.UserMessage != "" {
+		details["user_message"] = &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_StringValue{StringValue: errResp.UserMessage},
+		}
+	}
+	if errResp.Recovery != "" {
+		details["recovery"] = &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_StringValue{StringValue: string(errResp.Recovery)},
+		}
+	}
+	details["retryable"] = &commonpb.JsonValue{
+		Kind: &commonpb.JsonValue_BoolValue{BoolValue: errResp.Retryable},
+	}
+	if errResp.RequestID != "" {
+		details["request_id"] = &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_StringValue{StringValue: errResp.RequestID},
+		}
+	}
+
+	var detailsProto *commonpb.JsonObject
+	if len(details) > 0 {
+		detailsProto = &commonpb.JsonObject{Fields: details}
+	}
+
+	return &commonpb.ErrorResponse{
+		Code:    string(errResp.Code),
+		Message: errResp.Message,
+		Details: detailsProto,
+	}
+}
+
+func toJsonValue(value interface{}) *commonpb.JsonValue {
+	switch v := value.(type) {
+	case nil:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE},
+		}
+	case bool:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_BoolValue{BoolValue: v},
+		}
+	case string:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_StringValue{StringValue: v},
+		}
+	case json.Number:
+		if i, err := v.Int64(); err == nil {
+			return &commonpb.JsonValue{
+				Kind: &commonpb.JsonValue_IntValue{IntValue: i},
+			}
+		}
+		if f, err := v.Float64(); err == nil {
+			return &commonpb.JsonValue{
+				Kind: &commonpb.JsonValue_DoubleValue{DoubleValue: f},
+			}
+		}
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_StringValue{StringValue: v.String()},
+		}
+	case int:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_IntValue{IntValue: int64(v)},
+		}
+	case int8:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_IntValue{IntValue: int64(v)},
+		}
+	case int16:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_IntValue{IntValue: int64(v)},
+		}
+	case int32:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_IntValue{IntValue: int64(v)},
+		}
+	case int64:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_IntValue{IntValue: v},
+		}
+	case uint:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_IntValue{IntValue: int64(v)},
+		}
+	case uint8:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_IntValue{IntValue: int64(v)},
+		}
+	case uint16:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_IntValue{IntValue: int64(v)},
+		}
+	case uint32:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_IntValue{IntValue: int64(v)},
+		}
+	case uint64:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_IntValue{IntValue: int64(v)},
+		}
+	case float32:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_DoubleValue{DoubleValue: float64(v)},
+		}
+	case float64:
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_DoubleValue{DoubleValue: v},
+		}
+	case []string:
+		values := make([]*commonpb.JsonValue, 0, len(v))
+		for _, item := range v {
+			values = append(values, toJsonValue(item))
+		}
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_ListValue{ListValue: &commonpb.JsonList{Values: values}},
+		}
+	case []interface{}:
+		values := make([]*commonpb.JsonValue, 0, len(v))
+		for _, item := range v {
+			values = append(values, toJsonValue(item))
+		}
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_ListValue{ListValue: &commonpb.JsonList{Values: values}},
+		}
+	case map[string]interface{}:
+		fields := map[string]*commonpb.JsonValue{}
+		for key, item := range v {
+			fields[key] = toJsonValue(item)
+		}
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_ObjectValue{ObjectValue: &commonpb.JsonObject{Fields: fields}},
+		}
+	case map[string]string:
+		fields := map[string]*commonpb.JsonValue{}
+		for key, item := range v {
+			fields[key] = toJsonValue(item)
+		}
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_ObjectValue{ObjectValue: &commonpb.JsonObject{Fields: fields}},
+		}
+	default:
+		if marshaled, err := json.Marshal(v); err == nil {
+			return &commonpb.JsonValue{
+				Kind: &commonpb.JsonValue_StringValue{StringValue: string(marshaled)},
+			}
+		}
+		return &commonpb.JsonValue{
+			Kind: &commonpb.JsonValue_StringValue{StringValue: fmt.Sprint(v)},
+		}
+	}
 }
 
 // parseUUID extracts and parses a UUID from the request path.
@@ -475,6 +664,9 @@ func (h *Handler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
 	if req.Profile == nil {
 		writeSimpleError(w, r, "profile", "profile is required")
 		return
@@ -510,6 +702,9 @@ func (h *Handler) EnsureProfile(w http.ResponseWriter, r *http.Request) {
 	var req apipb.EnsureProfileRequest
 	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
 		return
 	}
 
@@ -608,6 +803,9 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
 	if req.Profile == nil {
 		writeSimpleError(w, r, "profile", "profile is required")
 		return
@@ -670,6 +868,9 @@ func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	var req apipb.CreateTaskRequest
 	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
 		return
 	}
 	if req.Task == nil {
@@ -780,6 +981,9 @@ func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
 	if req.Task == nil {
 		writeSimpleError(w, r, "task", "task is required")
 		return
@@ -860,6 +1064,9 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
+	if !h.validateProto(w, r, &protoReq) {
+		return
+	}
 	if protoReq.TaskId == "" {
 		writeSimpleError(w, r, "task_id", "task_id is required")
 		return
@@ -904,30 +1111,46 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if protoReq.InlineConfig != nil {
 		inline := protoReq.InlineConfig
-		if inline.RunnerType != domainpb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
-			runner := protoconv.RunnerTypeFromProto(inline.RunnerType)
+		if inline.RunnerType != nil && *inline.RunnerType != domainpb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
+			runner := protoconv.RunnerTypeFromProto(*inline.RunnerType)
 			req.RunnerType = &runner
 		}
-		if inline.Model != "" {
-			model := inline.Model
+		if inline.Model != nil {
+			model := inline.GetModel()
 			req.Model = &model
 		}
-		if inline.MaxTurns != 0 {
-			maxTurns := int(inline.MaxTurns)
+		if inline.MaxTurns != nil {
+			maxTurns := int(inline.GetMaxTurns())
 			req.MaxTurns = &maxTurns
 		}
 		if inline.Timeout != nil {
 			timeout := inline.Timeout.AsDuration()
 			req.Timeout = &timeout
 		}
-		if len(inline.AllowedTools) > 0 {
+		if inline.AllowedTools != nil {
 			req.AllowedTools = inline.AllowedTools
 		}
-		if len(inline.DeniedTools) > 0 {
+		if inline.DeniedTools != nil {
 			req.DeniedTools = inline.DeniedTools
 		}
-		skipPermissionPrompt := inline.SkipPermissionPrompt
-		req.SkipPermissionPrompt = &skipPermissionPrompt
+		if inline.SkipPermissionPrompt != nil {
+			skipPermissionPrompt := inline.GetSkipPermissionPrompt()
+			req.SkipPermissionPrompt = &skipPermissionPrompt
+		}
+		if inline.RequiresSandbox != nil {
+			requiresSandbox := inline.GetRequiresSandbox()
+			req.RequiresSandbox = &requiresSandbox
+		}
+		if inline.RequiresApproval != nil {
+			requiresApproval := inline.GetRequiresApproval()
+			req.RequiresApproval = &requiresApproval
+		}
+		if inline.AllowedPaths != nil {
+			req.AllowedPaths = inline.AllowedPaths
+		}
+		if inline.DeniedPaths != nil {
+			req.DeniedPaths = inline.DeniedPaths
+		}
 	}
 
 	run, err := h.svc.CreateRun(r.Context(), req)
@@ -1084,6 +1307,9 @@ func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
 			writeSimpleError(w, r, "body", "invalid JSON request body")
 			return
 		}
+		if !h.validateProto(w, r, &req) {
+			return
+		}
 	}
 	tagPrefix := ""
 	if req.TagPrefix != nil {
@@ -1197,6 +1423,9 @@ func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
 
 	result, err := h.svc.ApproveRun(r.Context(), orchestration.ApproveRequest{
 		RunID:     id,
@@ -1238,6 +1467,9 @@ func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 	var req apipb.RejectRunRequest
 	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
 		return
 	}
 

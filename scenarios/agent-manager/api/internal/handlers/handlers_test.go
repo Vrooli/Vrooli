@@ -25,6 +25,7 @@ import (
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // =============================================================================
@@ -96,6 +97,7 @@ func TestCreateProfile_Success(t *testing.T) {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:        "test-profile",
+			ProfileKey:  "test-profile-key",
 			Description: "Test profile for unit tests",
 			RunnerType:  pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 			MaxTurns:    100,
@@ -135,17 +137,17 @@ func TestCreateProfile_ValidationError(t *testing.T) {
 	}{
 		{
 			name:    "empty name",
-			profile: &pb.AgentProfile{Name: "", RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE},
+			profile: &pb.AgentProfile{Name: "", ProfileKey: "test-key", RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE},
 			errCode: "VALIDATION",
 		},
 		{
 			name:    "invalid runner type",
-			profile: &pb.AgentProfile{Name: "test", RunnerType: pb.RunnerType_RUNNER_TYPE_UNSPECIFIED},
+			profile: &pb.AgentProfile{Name: "test", ProfileKey: "test-key", RunnerType: pb.RunnerType_RUNNER_TYPE_UNSPECIFIED},
 			errCode: "VALIDATION",
 		},
 		{
 			name:    "negative max turns",
-			profile: &pb.AgentProfile{Name: "test", RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE, MaxTurns: -1},
+			profile: &pb.AgentProfile{Name: "test", ProfileKey: "test-key", RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE, MaxTurns: -1},
 			errCode: "VALIDATION",
 		},
 	}
@@ -175,6 +177,7 @@ func TestGetProfile_Success(t *testing.T) {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:       "test-profile",
+			ProfileKey: "test-profile-key",
 			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 		},
 	})
@@ -230,6 +233,7 @@ func TestListProfiles(t *testing.T) {
 		body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 			Profile: &pb.AgentProfile{
 				Name:       "profile-" + string(rune('A'+i)),
+				ProfileKey: "profile-key-" + string(rune('A'+i)),
 				RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 			},
 		})
@@ -266,6 +270,7 @@ func TestUpdateProfile_Success(t *testing.T) {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:       "original-name",
+			ProfileKey: "original-key",
 			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 		},
 	})
@@ -283,6 +288,7 @@ func TestUpdateProfile_Success(t *testing.T) {
 		ProfileId: created.Id,
 		Profile: &pb.AgentProfile{
 			Name:        "updated-name",
+			ProfileKey:  "updated-key",
 			Description: "Updated description",
 			RunnerType:  pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 		},
@@ -317,6 +323,7 @@ func TestDeleteProfile_Success(t *testing.T) {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:       "to-delete",
+			ProfileKey: "to-delete-key",
 			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 		},
 	})
@@ -601,6 +608,7 @@ func TestCreateRun_Success(t *testing.T) {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:       "runner-profile",
+			ProfileKey: "runner-profile-key",
 			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 		},
 	})
@@ -739,8 +747,8 @@ func TestErrorResponse_Format(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusNotFound, rr.Code)
 	}
 
-	var errResp domain.ErrorResponse
-	if err := json.NewDecoder(rr.Body).Decode(&errResp); err != nil {
+	var errResp commonpb.ErrorResponse
+	if err := protoconv.UnmarshalJSON(rr.Body.Bytes(), &errResp); err != nil {
 		t.Fatalf("failed to decode error response: %v", err)
 	}
 
@@ -750,8 +758,8 @@ func TestErrorResponse_Format(t *testing.T) {
 	if errResp.Message == "" {
 		t.Error("error response should have message")
 	}
-	if errResp.RequestID == "" {
-		t.Error("error response should have requestId")
+	if errResp.Details == nil || errResp.Details.Fields["request_id"] == nil {
+		t.Error("error response should include request_id")
 	}
 }
 
@@ -912,6 +920,7 @@ func TestUpdateProfile_InvalidUUID(t *testing.T) {
 		ProfileId: "invalid-uuid",
 		Profile: &pb.AgentProfile{
 			Name:       "updated",
+			ProfileKey: "updated-key",
 			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 		},
 	})
@@ -1017,6 +1026,7 @@ func TestLargePayload_Profile(t *testing.T) {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:        "test-profile",
+			ProfileKey:  "test-profile-key",
 			Description: string(longDesc),
 			RunnerType:  pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 		},
@@ -1045,6 +1055,7 @@ func createTestProfile(t *testing.T, router *mux.Router) *pb.AgentProfile {
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
 			Name:       "test-profile-" + uuid.New().String()[:8],
+			ProfileKey: "test-profile-key-" + uuid.New().String()[:8],
 			RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 		},
 	})
@@ -1329,11 +1340,13 @@ func TestGetRunDiff_InvalidUUID(t *testing.T) {
 func TestApproveRun_NotFound(t *testing.T) {
 	_, router := setupTestHandler()
 
+	runID := uuid.New().String()
 	body := encodeProtoJSON(t, &apipb.ApproveRunRequest{
+		RunId:     runID,
 		Actor:     "test-user",
 		CommitMsg: func() *string { msg := "Apply changes"; return &msg }(),
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+uuid.New().String()+"/approve", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+runID+"/approve", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1348,6 +1361,7 @@ func TestApproveRun_InvalidUUID(t *testing.T) {
 	_, router := setupTestHandler()
 
 	body := encodeProtoJSON(t, &apipb.ApproveRunRequest{
+		RunId: "invalid-uuid",
 		Actor: "test-user",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/invalid-uuid/approve", bytes.NewReader(body))
@@ -1378,11 +1392,13 @@ func TestApproveRun_MalformedBody(t *testing.T) {
 func TestRejectRun_NotFound(t *testing.T) {
 	_, router := setupTestHandler()
 
+	runID := uuid.New().String()
 	body := encodeProtoJSON(t, &apipb.RejectRunRequest{
+		RunId:  runID,
 		Actor:  "test-user",
 		Reason: "Changes not acceptable",
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+uuid.New().String()+"/reject", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+runID+"/reject", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1397,6 +1413,7 @@ func TestRejectRun_InvalidUUID(t *testing.T) {
 	_, router := setupTestHandler()
 
 	body := encodeProtoJSON(t, &apipb.RejectRunRequest{
+		RunId:  "invalid-uuid",
 		Actor:  "test-user",
 		Reason: "test",
 	})
