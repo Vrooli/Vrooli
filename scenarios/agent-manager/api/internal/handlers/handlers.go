@@ -57,7 +57,7 @@ type Handler struct {
 func New(svc orchestration.Service) *Handler {
 	validator, err := protovalidate.New()
 	if err != nil {
-		validator = nil
+		panic(fmt.Sprintf("failed to initialize protovalidate: %v", err))
 	}
 	return &Handler{svc: svc, validator: validator}
 }
@@ -117,7 +117,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 	// Status endpoints
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
-	r.HandleFunc("/api/v1/runners/{type}/probe", h.ProbeRunner).Methods("POST")
+	r.HandleFunc("/api/v1/runners/{runner_type}/probe", h.ProbeRunner).Methods("POST")
 }
 
 // =============================================================================
@@ -219,16 +219,48 @@ func parseQueryInt64(r *http.Request, keys ...string) (int64, bool) {
 	return value, true
 }
 
+func parseQueryIntStrict(r *http.Request, keys ...string) (int, bool, error) {
+	raw := queryFirst(r, keys...)
+	if raw == "" {
+		return 0, false, nil
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, true, err
+	}
+	return value, true, nil
+}
+
+func parseQueryInt64Strict(r *http.Request, keys ...string) (int64, bool, error) {
+	raw := queryFirst(r, keys...)
+	if raw == "" {
+		return 0, false, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, true, err
+	}
+	return value, true, nil
+}
+
 func parseRunnerType(raw string) (domain.RunnerType, bool) {
 	value := strings.TrimSpace(raw)
 	if value == "" {
 		return "", false
 	}
-	if strings.HasPrefix(value, "RUNNER_TYPE_") {
-		value = strings.ToLower(strings.TrimPrefix(value, "RUNNER_TYPE_"))
-		value = strings.ReplaceAll(value, "_", "-")
+	if numeric, err := strconv.Atoi(value); err == nil {
+		parsed := protoconv.RunnerTypeFromProto(domainpb.RunnerType(numeric))
+		return parsed, parsed.IsValid()
 	}
-	runnerType := domain.RunnerType(value)
+	normalized := strings.ToUpper(value)
+	if strings.HasPrefix(normalized, "RUNNER_TYPE_") {
+		normalized = strings.TrimPrefix(normalized, "RUNNER_TYPE_")
+	}
+	normalized = strings.ToLower(normalized)
+	if strings.Contains(normalized, "_") {
+		normalized = strings.ReplaceAll(normalized, "_", "-")
+	}
+	runnerType := domain.RunnerType(normalized)
 	if !runnerType.IsValid() {
 		return "", false
 	}
@@ -240,10 +272,15 @@ func parseTaskStatus(raw string) (domain.TaskStatus, bool) {
 	if value == "" {
 		return "", false
 	}
-	if strings.HasPrefix(value, "TASK_STATUS_") {
-		value = strings.ToLower(strings.TrimPrefix(value, "TASK_STATUS_"))
+	if numeric, err := strconv.Atoi(value); err == nil {
+		parsed := protoconv.TaskStatusFromProto(domainpb.TaskStatus(numeric))
+		return parsed, parsed != ""
 	}
-	status := domain.TaskStatus(value)
+	normalized := strings.ToUpper(value)
+	if strings.HasPrefix(normalized, "TASK_STATUS_") {
+		normalized = strings.TrimPrefix(normalized, "TASK_STATUS_")
+	}
+	status := domain.TaskStatus(strings.ToLower(normalized))
 	switch status {
 	case domain.TaskStatusQueued,
 		domain.TaskStatusRunning,
@@ -263,10 +300,15 @@ func parseRunStatus(raw string) (domain.RunStatus, bool) {
 	if value == "" {
 		return "", false
 	}
-	if strings.HasPrefix(value, "RUN_STATUS_") {
-		value = strings.ToLower(strings.TrimPrefix(value, "RUN_STATUS_"))
+	if numeric, err := strconv.Atoi(value); err == nil {
+		parsed := protoconv.RunStatusFromProto(domainpb.RunStatus(numeric))
+		return parsed, parsed != ""
 	}
-	status := domain.RunStatus(value)
+	normalized := strings.ToUpper(value)
+	if strings.HasPrefix(normalized, "RUN_STATUS_") {
+		normalized = strings.TrimPrefix(normalized, "RUN_STATUS_")
+	}
+	status := domain.RunStatus(strings.ToLower(normalized))
 	switch status {
 	case domain.RunStatusPending,
 		domain.RunStatusStarting,
@@ -281,8 +323,9 @@ func parseRunStatus(raw string) (domain.RunStatus, bool) {
 	}
 }
 
-func parseEventTypes(values []string) []domain.RunEventType {
+func parseEventTypes(values []string) ([]domain.RunEventType, []string) {
 	var types []domain.RunEventType
+	var invalid []string
 	for _, value := range values {
 		for _, raw := range strings.Split(value, ",") {
 			trimmed := strings.TrimSpace(raw)
@@ -302,10 +345,12 @@ func parseEventTypes(values []string) []domain.RunEventType {
 				domain.EventTypeArtifact,
 				domain.EventTypeError:
 				types = append(types, domain.RunEventType(trimmed))
+			default:
+				invalid = append(invalid, trimmed)
 			}
 		}
 	}
-	return types
+	return types, invalid
 }
 
 func healthStatusToProto(status string) commonpb.HealthStatus {
@@ -727,9 +772,14 @@ func (h *Handler) EnsureProfile(w http.ResponseWriter, r *http.Request) {
 
 // GetProfile retrieves a profile by ID.
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUID(r, "id")
+	idStr := mux.Vars(r)["id"]
+	req := apipb.GetProfileRequest{ProfileId: idStr}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	id, err := uuid.Parse(req.ProfileId)
 	if err != nil {
-		writeSimpleError(w, r, "id", "invalid UUID format for profile ID")
+		writeSimpleError(w, r, "profile_id", "invalid UUID format for profile ID")
 		return
 	}
 
@@ -746,22 +796,56 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 // ListProfiles returns all agent profiles.
 func (h *Handler) ListProfiles(w http.ResponseWriter, r *http.Request) {
-	limit, _ := parseQueryInt(r, "limit")
-	offset, _ := parseQueryInt(r, "offset")
+	limit, limitProvided, err := parseQueryIntStrict(r, "limit")
+	if err != nil {
+		writeSimpleError(w, r, "limit", "must be a number")
+		return
+	}
+	offset, offsetProvided, err := parseQueryIntStrict(r, "offset")
+	if err != nil {
+		writeSimpleError(w, r, "offset", "must be a number")
+		return
+	}
 	runnerTypeRaw := queryFirst(r, "runner_type", "runnerType")
 	var runnerTypeFilter *domain.RunnerType
+	var runnerTypeProto *domainpb.RunnerType
 	if runnerTypeRaw != "" {
 		if parsed, ok := parseRunnerType(runnerTypeRaw); ok {
 			runnerTypeFilter = &parsed
+			converted := protoconv.RunnerTypeToProto(parsed)
+			runnerTypeProto = &converted
 		} else {
 			writeSimpleError(w, r, "runner_type", "invalid runner type")
 			return
 		}
 	}
 
+	req := apipb.ListProfilesRequest{}
+	if limitProvided {
+		value := int32(limit)
+		req.Limit = &value
+	}
+	if offsetProvided {
+		value := int32(offset)
+		req.Offset = &value
+	}
+	if runnerTypeProto != nil {
+		req.RunnerType = runnerTypeProto
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	opts := orchestration.ListOptions{}
+	if req.Limit != nil {
+		opts.Limit = int(req.GetLimit())
+	}
+	if req.Offset != nil {
+		opts.Offset = int(req.GetOffset())
+	}
 	profiles, err := h.svc.ListProfiles(r.Context(), orchestration.ListOptions{
-		Limit:  limit,
-		Offset: offset,
+		Limit:  opts.Limit,
+		Offset: opts.Offset,
 	})
 	if err != nil {
 		writeError(w, r, err)
@@ -839,9 +923,14 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 // DeleteProfile removes a profile.
 func (h *Handler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUID(r, "id")
+	idStr := mux.Vars(r)["id"]
+	req := apipb.DeleteProfileRequest{ProfileId: idStr}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	id, err := uuid.Parse(req.ProfileId)
 	if err != nil {
-		writeSimpleError(w, r, "id", "invalid UUID format for profile ID")
+		writeSimpleError(w, r, "profile_id", "invalid UUID format for profile ID")
 		return
 	}
 
@@ -850,7 +939,7 @@ func (h *Handler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	writeProtoJSON(w, http.StatusOK, &apipb.DeleteProfileResponse{Success: true})
 }
 
 // =============================================================================
@@ -899,9 +988,14 @@ func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 
 // GetTask retrieves a task by ID.
 func (h *Handler) GetTask(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUID(r, "id")
+	idStr := mux.Vars(r)["id"]
+	req := apipb.GetTaskRequest{TaskId: idStr}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	id, err := uuid.Parse(req.TaskId)
 	if err != nil {
-		writeSimpleError(w, r, "id", "invalid UUID format for task ID")
+		writeSimpleError(w, r, "task_id", "invalid UUID format for task ID")
 		return
 	}
 
@@ -918,24 +1012,61 @@ func (h *Handler) GetTask(w http.ResponseWriter, r *http.Request) {
 
 // ListTasks returns all tasks.
 func (h *Handler) ListTasks(w http.ResponseWriter, r *http.Request) {
-	limit, _ := parseQueryInt(r, "limit")
-	offset, _ := parseQueryInt(r, "offset")
+	limit, limitProvided, err := parseQueryIntStrict(r, "limit")
+	if err != nil {
+		writeSimpleError(w, r, "limit", "must be a number")
+		return
+	}
+	offset, offsetProvided, err := parseQueryIntStrict(r, "offset")
+	if err != nil {
+		writeSimpleError(w, r, "offset", "must be a number")
+		return
+	}
 	statusRaw := queryFirst(r, "status")
 	scopePrefix := queryFirst(r, "scope_prefix", "scopePrefix")
 
 	var statusFilter *domain.TaskStatus
+	var statusProto *domainpb.TaskStatus
 	if statusRaw != "" {
 		if parsed, ok := parseTaskStatus(statusRaw); ok {
 			statusFilter = &parsed
+			converted := protoconv.TaskStatusToProto(parsed)
+			statusProto = &converted
 		} else {
 			writeSimpleError(w, r, "status", "invalid task status")
 			return
 		}
 	}
 
+	req := apipb.ListTasksRequest{}
+	if statusProto != nil {
+		req.Status = statusProto
+	}
+	if scopePrefix != "" {
+		req.ScopePrefix = &scopePrefix
+	}
+	if limitProvided {
+		value := int32(limit)
+		req.Limit = &value
+	}
+	if offsetProvided {
+		value := int32(offset)
+		req.Offset = &value
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	opts := orchestration.ListOptions{}
+	if req.Limit != nil {
+		opts.Limit = int(req.GetLimit())
+	}
+	if req.Offset != nil {
+		opts.Offset = int(req.GetOffset())
+	}
 	tasks, err := h.svc.ListTasks(r.Context(), orchestration.ListOptions{
-		Limit:  limit,
-		Offset: offset,
+		Limit:  opts.Limit,
+		Offset: opts.Offset,
 	})
 	if err != nil {
 		writeError(w, r, err)
@@ -1017,9 +1148,14 @@ func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 
 // CancelTask cancels a queued or running task.
 func (h *Handler) CancelTask(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUID(r, "id")
+	idStr := mux.Vars(r)["id"]
+	req := apipb.CancelTaskRequest{TaskId: idStr}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	id, err := uuid.Parse(req.TaskId)
 	if err != nil {
-		writeSimpleError(w, r, "id", "invalid UUID format for task ID")
+		writeSimpleError(w, r, "task_id", "invalid UUID format for task ID")
 		return
 	}
 
@@ -1033,9 +1169,14 @@ func (h *Handler) CancelTask(w http.ResponseWriter, r *http.Request) {
 
 // DeleteTask permanently removes a cancelled task.
 func (h *Handler) DeleteTask(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUID(r, "id")
+	idStr := mux.Vars(r)["id"]
+	req := apipb.DeleteTaskRequest{TaskId: idStr}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	id, err := uuid.Parse(req.TaskId)
 	if err != nil {
-		writeSimpleError(w, r, "id", "invalid UUID format for task ID")
+		writeSimpleError(w, r, "task_id", "invalid UUID format for task ID")
 		return
 	}
 
@@ -1044,7 +1185,7 @@ func (h *Handler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	writeProtoJSON(w, http.StatusOK, &apipb.DeleteTaskResponse{Success: true})
 }
 
 // =============================================================================
@@ -1166,9 +1307,14 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 
 // GetRun retrieves a run by ID.
 func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUID(r, "id")
+	idStr := mux.Vars(r)["id"]
+	req := apipb.GetRunRequest{RunId: idStr}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	id, err := uuid.Parse(req.RunId)
 	if err != nil {
-		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
 		return
 	}
 
@@ -1190,12 +1336,13 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 //   - profileId: Filter by agent profile ID
 //   - tagPrefix: Filter by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
 func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
-	opts := orchestration.RunListOptions{}
+	req := apipb.ListRunsRequest{}
 
 	// Parse status filter
 	if statusStr := queryFirst(r, "status"); statusStr != "" {
 		if status, ok := parseRunStatus(statusStr); ok {
-			opts.Status = &status
+			converted := protoconv.RunStatusToProto(status)
+			req.Status = &converted
 		} else {
 			writeSimpleError(w, r, "status", "invalid run status")
 			return
@@ -1204,28 +1351,71 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 
 	// Parse task ID filter
 	if taskIDStr := queryFirst(r, "task_id", "taskId"); taskIDStr != "" {
-		if taskID, err := uuid.Parse(taskIDStr); err == nil {
-			opts.TaskID = &taskID
+		if _, err := uuid.Parse(taskIDStr); err == nil {
+			req.TaskId = &taskIDStr
+		} else {
+			writeSimpleError(w, r, "task_id", "invalid UUID format for task ID")
+			return
 		}
 	}
 
 	// Parse profile ID filter
 	if profileIDStr := queryFirst(r, "agent_profile_id", "profileId", "agentProfileId"); profileIDStr != "" {
-		if profileID, err := uuid.Parse(profileIDStr); err == nil {
-			opts.AgentProfileID = &profileID
+		if _, err := uuid.Parse(profileIDStr); err == nil {
+			req.AgentProfileId = &profileIDStr
+		} else {
+			writeSimpleError(w, r, "agent_profile_id", "invalid UUID format for agent profile ID")
+			return
 		}
 	}
 
 	// Parse tag prefix filter
 	if tagPrefix := queryFirst(r, "tag_prefix", "tagPrefix"); tagPrefix != "" {
-		opts.TagPrefix = tagPrefix
+		req.TagPrefix = &tagPrefix
 	}
 
-	if limit, ok := parseQueryInt(r, "limit"); ok {
-		opts.Limit = limit
+	if limit, limitProvided, err := parseQueryIntStrict(r, "limit"); err != nil {
+		writeSimpleError(w, r, "limit", "must be a number")
+		return
+	} else if limitProvided {
+		value := int32(limit)
+		req.Limit = &value
 	}
-	if offset, ok := parseQueryInt(r, "offset"); ok {
-		opts.Offset = offset
+	if offset, offsetProvided, err := parseQueryIntStrict(r, "offset"); err != nil {
+		writeSimpleError(w, r, "offset", "must be a number")
+		return
+	} else if offsetProvided {
+		value := int32(offset)
+		req.Offset = &value
+	}
+
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	opts := orchestration.RunListOptions{}
+	if req.Status != nil {
+		status := protoconv.RunStatusFromProto(req.GetStatus())
+		if status != "" {
+			opts.Status = &status
+		}
+	}
+	if req.TaskId != nil {
+		taskID, _ := uuid.Parse(req.GetTaskId())
+		opts.TaskID = &taskID
+	}
+	if req.AgentProfileId != nil {
+		profileID, _ := uuid.Parse(req.GetAgentProfileId())
+		opts.AgentProfileID = &profileID
+	}
+	if req.TagPrefix != nil {
+		opts.TagPrefix = req.GetTagPrefix()
+	}
+	if req.Limit != nil {
+		opts.Limit = int(req.GetLimit())
+	}
+	if req.Offset != nil {
+		opts.Offset = int(req.GetOffset())
 	}
 
 	runs, err := h.svc.ListRuns(r.Context(), opts)
@@ -1242,9 +1432,14 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 
 // StopRun stops a running run.
 func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUID(r, "id")
+	idStr := mux.Vars(r)["id"]
+	req := apipb.StopRunRequest{RunId: idStr}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	id, err := uuid.Parse(req.RunId)
 	if err != nil {
-		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
 		return
 	}
 
@@ -1259,8 +1454,8 @@ func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 // GetRunByTag retrieves a run by its custom tag.
 func (h *Handler) GetRunByTag(w http.ResponseWriter, r *http.Request) {
 	tag := mux.Vars(r)["tag"]
-	if tag == "" {
-		writeSimpleError(w, r, "tag", "tag is required")
+	req := apipb.GetRunByTagRequest{Tag: tag}
+	if !h.validateProto(w, r, &req) {
 		return
 	}
 
@@ -1278,8 +1473,8 @@ func (h *Handler) GetRunByTag(w http.ResponseWriter, r *http.Request) {
 // StopRunByTag stops a run identified by its custom tag.
 func (h *Handler) StopRunByTag(w http.ResponseWriter, r *http.Request) {
 	tag := mux.Vars(r)["tag"]
-	if tag == "" {
-		writeSimpleError(w, r, "tag", "tag is required")
+	req := apipb.StopRunByTagRequest{Tag: tag}
+	if !h.validateProto(w, r, &req) {
 		return
 	}
 
@@ -1343,18 +1538,54 @@ func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req := apipb.GetRunEventsRequest{RunId: id.String()}
+	if after, provided, err := parseQueryInt64Strict(r, "after_sequence", "afterSequence"); err != nil {
+		writeSimpleError(w, r, "after_sequence", "must be a number")
+		return
+	} else if provided {
+		value := after
+		req.AfterSequence = &value
+	}
+	if limit, provided, err := parseQueryIntStrict(r, "limit"); err != nil {
+		writeSimpleError(w, r, "limit", "must be a number")
+		return
+	} else if provided {
+		value := int32(limit)
+		req.Limit = &value
+	}
+
 	opts := event.GetOptions{}
-	if after, ok := parseQueryInt64(r, "after_sequence", "afterSequence"); ok {
-		opts.AfterSequence = after
-	}
-	if limit, ok := parseQueryInt(r, "limit"); ok {
-		opts.Limit = limit
-	}
 	eventTypesRaw := r.URL.Query()["event_types"]
 	if len(eventTypesRaw) == 0 {
 		eventTypesRaw = r.URL.Query()["eventTypes"]
 	}
-	opts.EventTypes = parseEventTypes(eventTypesRaw)
+	if len(eventTypesRaw) > 0 {
+		types, invalid := parseEventTypes(eventTypesRaw)
+		if len(invalid) > 0 {
+			writeSimpleError(w, r, "event_types", "invalid event type")
+			return
+		}
+		req.EventTypes = make([]domainpb.RunEventType, len(types))
+		for i, t := range types {
+			req.EventTypes[i] = protoconv.RunEventTypeToProto(t)
+		}
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	if req.AfterSequence != nil {
+		opts.AfterSequence = req.GetAfterSequence()
+	}
+	if req.Limit != nil {
+		opts.Limit = int(req.GetLimit())
+	}
+	if len(req.EventTypes) > 0 {
+		opts.EventTypes = make([]domain.RunEventType, len(req.EventTypes))
+		for i, t := range req.EventTypes {
+			opts.EventTypes[i] = protoconv.RunEventTypeFromProto(t)
+		}
+	}
 
 	events, err := h.svc.GetRunEvents(r.Context(), id, opts)
 	if err != nil {
@@ -1369,9 +1600,14 @@ func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 
 // GetRunDiff returns the diff for a run.
 func (h *Handler) GetRunDiff(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUID(r, "id")
+	idStr := mux.Vars(r)["id"]
+	req := apipb.GetRunDiffRequest{RunId: idStr}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	id, err := uuid.Parse(req.RunId)
 	if err != nil {
-		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
 		return
 	}
 
@@ -1426,6 +1662,10 @@ func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 	if !h.validateProto(w, r, &req) {
 		return
 	}
+	if req.RunId != "" && req.RunId != id.String() {
+		writeSimpleError(w, r, "run_id", "run_id does not match URL")
+		return
+	}
 
 	result, err := h.svc.ApproveRun(r.Context(), orchestration.ApproveRequest{
 		RunID:     id,
@@ -1472,6 +1712,10 @@ func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 	if !h.validateProto(w, r, &req) {
 		return
 	}
+	if req.RunId != "" && req.RunId != id.String() {
+		writeSimpleError(w, r, "run_id", "run_id does not match URL")
+		return
+	}
 
 	if err := h.svc.RejectRun(r.Context(), id, req.Actor, req.Reason); err != nil {
 		writeError(w, r, err)
@@ -1515,13 +1759,18 @@ func (h *Handler) GetRunnerStatus(w http.ResponseWriter, r *http.Request) {
 
 // ProbeRunner sends a test request to verify a runner can respond.
 func (h *Handler) ProbeRunner(w http.ResponseWriter, r *http.Request) {
-	runnerType := mux.Vars(r)["type"]
+	runnerType := mux.Vars(r)["runner_type"]
 	if runnerType == "" {
-		writeSimpleError(w, r, "type", "runner type is required")
+		writeSimpleError(w, r, "runner_type", "runner type is required")
+		return
+	}
+	parsed, ok := parseRunnerType(runnerType)
+	if !ok {
+		writeSimpleError(w, r, "runner_type", "invalid runner type")
 		return
 	}
 
-	result, err := h.svc.ProbeRunner(r.Context(), domain.RunnerType(runnerType))
+	result, err := h.svc.ProbeRunner(r.Context(), parsed)
 	if err != nil {
 		writeError(w, r, err)
 		return

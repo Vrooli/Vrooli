@@ -325,7 +325,7 @@ message GetProfileResponse {
 // ListProfilesRequest filters and paginates profile listings.
 message ListProfilesRequest {
   // Filter by runner type.
-  optional RunnerType runner_type = 1;
+  optional RunnerType runner_type = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
 
   // Pagination limit (default: 50, max: 100).
   optional int32 limit = 2 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
@@ -504,7 +504,7 @@ message CreateRunRequest {
   optional string tag = 3;
 
   // Execution mode.
-  optional RunMode run_mode = 4;
+  optional RunMode run_mode = 4 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
 
   // Inline configuration overrides (applied only when fields are set).
   optional RunConfigOverrides inline_config = 5;
@@ -735,7 +735,7 @@ message GetRunnerStatusResponse {
 // ProbeRunnerRequest tests runner connectivity.
 message ProbeRunnerRequest {
   // Runner type to probe.
-  RunnerType runner_type = 1;
+  RunnerType runner_type = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
 }
 
 // ProbeRunnerResponse returns probe result.

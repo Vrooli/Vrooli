@@ -603,14 +603,15 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xf1\x05\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xfd\x05\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\x04name\x12*\n" +
 	"\vprofile_key\x18\x12 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\n" +
 	"profileKey\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12=\n" +
-	"\vrunner_type\x18\x04 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12I\n" +
+	"\vrunner_type\x18\x04 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
 	"runnerType\x12\x14\n" +
 	"\x05model\x18\x05 \x01(\tR\x05model\x12'\n" +
 	"\tmax_turns\x18\x06 \x01(\x05B\n" +
@@ -643,9 +644,10 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x11requires_approval\x18\t \x01(\bR\x10requiresApproval\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
-	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\xf6\x04\n" +
-	"\x12RunConfigOverrides\x12B\n" +
-	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeH\x00R\n" +
+	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\x82\x05\n" +
+	"\x12RunConfigOverrides\x12N\n" +
+	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
 	"runnerType\x88\x01\x01\x12\x19\n" +
 	"\x05model\x18\x02 \x01(\tH\x01R\x05model\x88\x01\x01\x12 \n" +
 	"\tmax_turns\x18\x03 \x01(\x05H\x02R\bmaxTurns\x88\x01\x01\x128\n" +

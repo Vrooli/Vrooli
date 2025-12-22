@@ -135,6 +135,7 @@ export function TasksPage({
   });
   const [profileFormData, setProfileFormData] = useState<ProfileFormData>({
     name: "",
+    profileKey: "",
     description: "",
     runnerType: RunnerTypeEnum.CLAUDE_CODE,
     model: "sonnet",
@@ -144,6 +145,7 @@ export function TasksPage({
     timeoutMinutes: 30,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [profileFormError, setProfileFormError] = useState<string | null>(null);
 
   // Filter/sort/search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -211,6 +213,7 @@ export function TasksPage({
   const resetProfileForm = () => {
     setProfileFormData({
       name: "",
+      profileKey: "",
       description: "",
       runnerType: RunnerTypeEnum.CLAUDE_CODE,
       model: "claude-sonnet-4-20250514",
@@ -220,11 +223,13 @@ export function TasksPage({
       timeoutMinutes: 30,
     });
     setShowProfileDialog(false);
+    setProfileFormError(null);
   };
 
   const handleCreateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setProfileFormError(null);
     try {
       const newProfile = await onCreateProfile({
         ...profileFormData,
@@ -235,6 +240,7 @@ export function TasksPage({
       setRunConfigMode("profile");
       resetProfileForm();
     } catch (err) {
+      setProfileFormError((err as Error).message);
       console.error("Failed to create profile:", err);
     } finally {
       setSubmitting(false);
@@ -664,6 +670,14 @@ export function TasksPage({
           </DialogHeader>
           <form onSubmit={handleCreateProfile}>
             <DialogBody className="space-y-4">
+              {profileFormError && (
+                <Card className="border-destructive/50 bg-destructive/10">
+                  <CardContent className="flex items-center gap-3 py-3">
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                    <p className="text-sm text-destructive">{profileFormError}</p>
+                  </CardContent>
+                </Card>
+              )}
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="profileName">Name *</Label>
@@ -699,6 +713,18 @@ export function TasksPage({
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="profileKey">Profile Key</Label>
+                <Input
+                  id="profileKey"
+                  value={profileFormData.profileKey ?? ""}
+                  onChange={(e) =>
+                    setProfileFormData({ ...profileFormData, profileKey: e.target.value })
+                  }
+                  placeholder="auto-generated from name if left blank"
+                />
               </div>
 
               <div className="space-y-2">

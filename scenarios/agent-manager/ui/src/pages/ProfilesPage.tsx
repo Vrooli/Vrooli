@@ -85,6 +85,7 @@ export function ProfilesPage({
   const [editingProfile, setEditingProfile] = useState<AgentProfile | null>(null);
   const [formData, setFormData] = useState<ProfileFormData>({
     name: "",
+    profileKey: "",
     description: "",
     runnerType: RunnerTypeEnum.CLAUDE_CODE,
     model: "sonnet",
@@ -94,10 +95,12 @@ export function ProfilesPage({
     timeoutMinutes: 30,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const resetForm = () => {
     setFormData({
       name: "",
+      profileKey: "",
       description: "",
       runnerType: RunnerTypeEnum.CLAUDE_CODE,
       model: "sonnet",
@@ -108,12 +111,14 @@ export function ProfilesPage({
     });
     setEditingProfile(null);
     setShowForm(false);
+    setFormError(null);
   };
 
   const handleEdit = (profile: AgentProfile) => {
     setEditingProfile(profile);
     setFormData({
       name: profile.name,
+      profileKey: profile.profileKey || "",
       description: profile.description || "",
       runnerType: profile.runnerType,
       model: profile.model || "",
@@ -130,6 +135,7 @@ export function ProfilesPage({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setFormError(null);
     try {
       const dataWithTimeout: ProfileFormData = {
         ...formData,
@@ -142,6 +148,7 @@ export function ProfilesPage({
       }
       resetForm();
     } catch (err) {
+      setFormError((err as Error).message);
       console.error("Failed to save profile:", err);
     } finally {
       setSubmitting(false);
@@ -203,6 +210,14 @@ export function ProfilesPage({
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <DialogBody className="space-y-4">
+              {formError && (
+                <Card className="border-destructive/50 bg-destructive/10">
+                  <CardContent className="flex items-center gap-3 py-3">
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                    <p className="text-sm text-destructive">{formError}</p>
+                  </CardContent>
+                </Card>
+              )}
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name *</Label>
@@ -238,6 +253,18 @@ export function ProfilesPage({
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="profileKey">Profile Key</Label>
+                <Input
+                  id="profileKey"
+                  value={formData.profileKey ?? ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, profileKey: e.target.value })
+                  }
+                  placeholder="auto-generated from name if left blank"
+                />
               </div>
 
               <div className="space-y-2">

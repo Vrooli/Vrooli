@@ -52,7 +52,7 @@ message AgentProfile {
   string description = 3;
 
   // Which agent runner to use (claude-code, codex, opencode).
-  RunnerType runner_type = 4;
+  RunnerType runner_type = 4 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
 
   // Model to use (e.g., "claude-sonnet-4-5", "gpt-4o", "anthropic/claude-opus-4-5").
   // If empty, uses the runner's default model.
@@ -161,7 +161,7 @@ message RunConfig {
 // @usage CreateRunRequest.inline_config
 message RunConfigOverrides {
   // Which agent runner to use.
-  optional RunnerType runner_type = 1;
+  optional RunnerType runner_type = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
 
   // Model to use for execution.
   optional string model = 2;

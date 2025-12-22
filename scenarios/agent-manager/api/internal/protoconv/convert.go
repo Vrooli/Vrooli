@@ -29,8 +29,9 @@ var JSONMarshalOptions = protojson.MarshalOptions{
 }
 
 // JSONUnmarshalOptions are the protojson options for API deserialization.
+// DiscardUnknown is false to fail fast on schema mismatches.
 var JSONUnmarshalOptions = protojson.UnmarshalOptions{
-	DiscardUnknown: true,
+	DiscardUnknown: false,
 }
 
 // MarshalJSON marshals a proto message to JSON bytes.
@@ -119,7 +120,7 @@ func TaskStatusFromProto(s pb.TaskStatus) domain.TaskStatus {
 	case pb.TaskStatus_TASK_STATUS_CANCELLED:
 		return domain.TaskStatusCancelled
 	default:
-		return domain.TaskStatusQueued
+		return domain.TaskStatus("")
 	}
 }
 
@@ -167,7 +168,7 @@ func RunStatusFromProto(s pb.RunStatus) domain.RunStatus {
 	case pb.RunStatus_RUN_STATUS_CANCELLED:
 		return domain.RunStatusCancelled
 	default:
-		return domain.RunStatusPending
+		return domain.RunStatus("")
 	}
 }
 

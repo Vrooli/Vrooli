@@ -131,10 +131,28 @@ function durationFromMinutes(minutes?: number) {
   return durationFromMs(minutes * 60_000);
 }
 
+function generateProfileKey(name: string): string {
+  const base = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (base) {
+    return base;
+  }
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `profile-${rand}`;
+}
+
+function resolveProfileKey(profile: ProfileFormData): string {
+  const provided = profile.profileKey?.trim();
+  return provided && provided.length > 0 ? provided : generateProfileKey(profile.name);
+}
+
 function buildProfile(profile: ProfileFormData): AgentProfile {
   return create(AgentProfileSchema, {
     name: profile.name,
-    profileKey: profile.profileKey ?? "",
+    profileKey: resolveProfileKey(profile),
     description: profile.description ?? "",
     runnerType: profile.runnerType,
     model: profile.model ?? "",
@@ -422,7 +440,7 @@ export function useRuns() {
         taskId: run.taskId,
         agentProfileId: run.agentProfileId,
         tag: run.tag,
-        runMode: run.runMode ?? 0,
+        runMode: run.runMode,
         inlineConfig,
         idempotencyKey: run.idempotencyKey,
         prompt: run.prompt,

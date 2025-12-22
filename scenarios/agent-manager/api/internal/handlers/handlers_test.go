@@ -341,8 +341,14 @@ func TestDeleteProfile_Success(t *testing.T) {
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("expected status %d, got %d", http.StatusNoContent, rr.Code)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	var deleteResp apipb.DeleteProfileResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &deleteResp)
+	if !deleteResp.Success {
+		t.Errorf("expected success true, got false")
 	}
 
 	// Verify it's gone
@@ -944,8 +950,8 @@ func TestDeleteProfile_InvalidUUID(t *testing.T) {
 
 	router.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest && rr.Code != http.StatusNotFound && rr.Code != http.StatusNoContent {
-		t.Errorf("expected status 400, 404, or 204, got %d", rr.Code)
+	if rr.Code != http.StatusBadRequest && rr.Code != http.StatusNotFound {
+		t.Errorf("expected status 400 or 404, got %d", rr.Code)
 	}
 }
 

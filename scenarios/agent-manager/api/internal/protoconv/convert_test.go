@@ -87,6 +87,12 @@ func TestTaskStatusRoundTrip(t *testing.T) {
 	}
 }
 
+func TestTaskStatusFromProtoUnspecified(t *testing.T) {
+	if got := TaskStatusFromProto(pb.TaskStatus_TASK_STATUS_UNSPECIFIED); got != "" {
+		t.Fatalf("expected empty status for unspecified, got %q", got)
+	}
+}
+
 // =============================================================================
 // RUN STATUS TESTS
 // =============================================================================
@@ -110,6 +116,12 @@ func TestRunStatusRoundTrip(t *testing.T) {
 				t.Errorf("round-trip failed: expected %v, got %v", status, result)
 			}
 		})
+	}
+}
+
+func TestRunStatusFromProtoUnspecified(t *testing.T) {
+	if got := RunStatusFromProto(pb.RunStatus_RUN_STATUS_UNSPECIFIED); got != "" {
+		t.Fatalf("expected empty status for unspecified, got %q", got)
 	}
 }
 

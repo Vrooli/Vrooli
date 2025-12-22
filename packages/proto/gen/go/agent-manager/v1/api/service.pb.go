@@ -2828,9 +2828,10 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\n" +
 	"profile_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tprofileId\"N\n" +
 	"\x12GetProfileResponse\x128\n" +
-	"\aprofile\x18\x01 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\aprofile\"\xca\x01\n" +
-	"\x13ListProfilesRequest\x12B\n" +
-	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeH\x00R\n" +
+	"\aprofile\x18\x01 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\aprofile\"\xd6\x01\n" +
+	"\x13ListProfilesRequest\x12N\n" +
+	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
 	"runnerType\x88\x01\x01\x12$\n" +
 	"\x05limit\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01H\x01R\x05limit\x88\x01\x01\x12$\n" +
 	"\x06offset\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x02R\x06offset\x88\x01\x01B\x0e\n" +
@@ -2891,12 +2892,13 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"ProfileRef\x12*\n" +
 	"\vprofile_key\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\n" +
 	"profileKey\x12:\n" +
-	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\"\x96\x04\n" +
+	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\"\xa2\x04\n" +
 	"\x10CreateRunRequest\x12!\n" +
 	"\atask_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
 	"\x10agent_profile_id\x18\x02 \x01(\tH\x00R\x0eagentProfileId\x88\x01\x01\x12\x15\n" +
-	"\x03tag\x18\x03 \x01(\tH\x01R\x03tag\x88\x01\x01\x129\n" +
-	"\brun_mode\x18\x04 \x01(\x0e2\x19.agent_manager.v1.RunModeH\x02R\arunMode\x88\x01\x01\x12N\n" +
+	"\x03tag\x18\x03 \x01(\tH\x01R\x03tag\x88\x01\x01\x12E\n" +
+	"\brun_mode\x18\x04 \x01(\x0e2\x19.agent_manager.v1.RunModeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x02R\arunMode\x88\x01\x01\x12N\n" +
 	"\rinline_config\x18\x05 \x01(\v2$.agent_manager.v1.RunConfigOverridesH\x03R\finlineConfig\x88\x01\x01\x12\x14\n" +
 	"\x05force\x18\x06 \x01(\bR\x05force\x12,\n" +
 	"\x0fidempotency_key\x18\a \x01(\tH\x04R\x0eidempotencyKey\x88\x01\x01\x12B\n" +
@@ -2988,9 +2990,10 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\tR\x06status\"\x18\n" +
 	"\x16GetRunnerStatusRequest\"S\n" +
 	"\x17GetRunnerStatusResponse\x128\n" +
-	"\arunners\x18\x01 \x03(\v2\x1e.agent_manager.v1.RunnerStatusR\arunners\"S\n" +
-	"\x12ProbeRunnerRequest\x12=\n" +
-	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
+	"\arunners\x18\x01 \x03(\v2\x1e.agent_manager.v1.RunnerStatusR\arunners\"_\n" +
+	"\x12ProbeRunnerRequest\x12I\n" +
+	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
 	"runnerType\"L\n" +
 	"\x13ProbeRunnerResponse\x125\n" +
 	"\x06result\x18\x01 \x01(\v2\x1d.agent_manager.v1.ProbeResultR\x06result2\x93\x19\n" +
