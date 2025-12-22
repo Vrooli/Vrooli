@@ -8,9 +8,10 @@ type RepoStatusDeps struct {
 }
 
 type RepoHistoryDeps struct {
-	Git     GitRunner
-	RepoDir string
-	Limit   int
+	Git          GitRunner
+	RepoDir      string
+	Limit        int
+	IncludeFiles bool
 }
 
 type RepoStatus struct {
@@ -25,10 +26,19 @@ type RepoStatus struct {
 }
 
 type RepoHistory struct {
-	RepoDir   string    `json:"repo_dir"`
-	Lines     []string  `json:"lines"`
-	Limit     int       `json:"limit"`
-	Timestamp time.Time `json:"timestamp"`
+	RepoDir   string             `json:"repo_dir"`
+	Lines     []string           `json:"lines"`
+	Entries   []RepoHistoryEntry `json:"entries,omitempty"`
+	Limit     int                `json:"limit"`
+	Timestamp time.Time          `json:"timestamp"`
+}
+
+type RepoHistoryEntry struct {
+	Hash    string   `json:"hash"`
+	Author  string   `json:"author,omitempty"`
+	Date    string   `json:"date,omitempty"`
+	Subject string   `json:"subject"`
+	Files   []string `json:"files"`
 }
 
 type RepoAuthorStatus struct {

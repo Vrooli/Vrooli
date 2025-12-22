@@ -54,8 +54,9 @@ type FakeGitRunner struct {
 	CommitCount           int
 
 	// History tracking
-	HistoryLines []string
-	NumstatLines []string
+	HistoryLines   []string
+	HistoryDetails []RepoHistoryEntry
+	NumstatLines   []string
 
 	// Config values
 	ConfigValues map[string]string
@@ -437,6 +438,33 @@ func (f *FakeGitRunner) LogGraph(ctx context.Context, repoDir string, limit int)
 		lines = lines[:limit]
 	}
 	return []byte(strings.Join(lines, "\n")), nil
+}
+
+func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit int) ([]byte, error) {
+	f.recordCall("LogDetails", repoDir, fmt.Sprintf("limit=%d", limit))
+
+	if f.LogError != nil {
+		return nil, f.LogError
+	}
+
+	entries := f.HistoryDetails
+	if limit > 0 && len(entries) > limit {
+		entries = entries[:limit]
+	}
+
+	var out strings.Builder
+	for index, entry := range entries {
+		if index > 0 {
+			out.WriteString("\n\n")
+		}
+		out.WriteString(fmt.Sprintf("%s\x00%s\x00%s\x00%s", entry.Hash, entry.Author, entry.Date, entry.Subject))
+		for _, file := range entry.Files {
+			out.WriteString("\n")
+			out.WriteString(file)
+		}
+	}
+
+	return []byte(out.String()), nil
 }
 
 func (f *FakeGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error) {

@@ -76,6 +76,9 @@ type GitRunner interface {
 	// Use a limit to cap the number of log entries.
 	LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error)
 
+	// LogDetails returns structured log details including file lists.
+	LogDetails(ctx context.Context, repoDir string, limit int) ([]byte, error)
+
 	// DiffNumstat returns numstat output for changes.
 	// If staged is true, returns staged stats (--cached).
 	DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error)
@@ -417,6 +420,32 @@ func (r *ExecGitRunner) LogGraph(ctx context.Context, repoDir string, limit int)
 		return nil, fmt.Errorf("git log failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
 	}
 	return nil, fmt.Errorf("git log failed: %w", err)
+}
+
+func (r *ExecGitRunner) LogDetails(ctx context.Context, repoDir string, limit int) ([]byte, error) {
+	if limit <= 0 {
+		limit = 30
+	}
+	args := []string{
+		"-C", repoDir,
+		"log",
+		"--name-only",
+		"--pretty=format:%H%x00%an%x00%ad%x00%s",
+		"--date=iso",
+		"-n", fmt.Sprintf("%d", limit),
+	}
+
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+	if err == nil {
+		return out, nil
+	}
+
+	exitErr := &exec.ExitError{}
+	if errors.As(err, &exitErr) {
+		return nil, fmt.Errorf("git log --name-only failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+	}
+	return nil, fmt.Errorf("git log --name-only failed: %w", err)
 }
 
 func (r *ExecGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error) {

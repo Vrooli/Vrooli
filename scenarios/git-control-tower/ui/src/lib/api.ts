@@ -60,8 +60,17 @@ export interface RepoStatus {
 export interface RepoHistoryResponse {
   repo_dir: string;
   lines: string[];
+  entries?: RepoHistoryEntry[];
   limit: number;
   timestamp: string;
+}
+
+export interface RepoHistoryEntry {
+  hash: string;
+  author?: string;
+  date?: string;
+  subject: string;
+  files: string[];
 }
 
 export interface DiffHunk {
@@ -242,9 +251,13 @@ export async function fetchRepoStatus(): Promise<RepoStatus> {
   return handleResponse<RepoStatus>(res);
 }
 
-export async function fetchRepoHistory(limit = 30): Promise<RepoHistoryResponse> {
+export async function fetchRepoHistory(
+  limit = 30,
+  includeFiles = false
+): Promise<RepoHistoryResponse> {
   const params = new URLSearchParams();
   if (limit > 0) params.set("limit", String(limit));
+  if (includeFiles) params.set("include", "files");
 
   const url = buildApiUrl(`/repo/history?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {

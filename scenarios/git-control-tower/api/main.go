@@ -186,6 +186,8 @@ func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	limit := 30
+	includeParam := strings.TrimSpace(r.URL.Query().Get("include"))
+	includeFiles := includeParam == "files" || includeParam == "details"
 	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil || parsed <= 0 {
@@ -199,9 +201,10 @@ func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	history, err := GetRepoHistory(ctx, RepoHistoryDeps{
-		Git:     s.git,
-		RepoDir: repoDir,
-		Limit:   limit,
+		Git:          s.git,
+		RepoDir:      repoDir,
+		Limit:        limit,
+		IncludeFiles: includeFiles,
 	})
 	if err != nil {
 		resp.InternalError(err.Error())

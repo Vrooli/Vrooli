@@ -26,7 +26,8 @@ import {
 export const queryKeys = {
   health: ["health"] as const,
   repoStatus: ["repo", "status"] as const,
-  repoHistory: (limit?: number) => ["repo", "history", limit] as const,
+  repoHistory: (limit?: number, includeFiles?: boolean) =>
+    ["repo", "history", limit, includeFiles] as const,
   syncStatus: ["repo", "sync-status"] as const,
   diff: (path?: string, staged?: boolean) => ["repo", "diff", path, staged] as const,
   approvedChanges: ["repo", "approved-changes"] as const
@@ -48,10 +49,10 @@ export function useRepoStatus() {
   });
 }
 
-export function useRepoHistory(limit = 30) {
+export function useRepoHistory(limit = 30, includeFiles = false) {
   return useQuery<RepoHistoryResponse, Error>({
-    queryKey: queryKeys.repoHistory(limit),
-    queryFn: () => fetchRepoHistory(limit),
+    queryKey: queryKeys.repoHistory(limit, includeFiles),
+    queryFn: () => fetchRepoHistory(limit, includeFiles),
     refetchInterval: 30000
   });
 }

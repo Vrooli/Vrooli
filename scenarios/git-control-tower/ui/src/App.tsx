@@ -52,6 +52,10 @@ export default function App() {
   const [isResizingHistory, setIsResizingHistory] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(50);
   const historyMaxLimit = 200;
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyScopeFilter, setHistoryScopeFilter] = useState<string | null>(null);
+  const [historyWorkingSetOnly, setHistoryWorkingSetOnly] = useState(false);
+  const [isHistoryFiltersOpen, setIsHistoryFiltersOpen] = useState(false);
   const sidebarResize = useRef<{ left: number; max: number } | null>(null);
   const splitResize = useRef<{ top: number; height: number } | null>(null);
   const historyResize = useRef<{ bottom: number } | null>(null);
@@ -62,6 +66,12 @@ export default function App() {
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
   const [groupingDefaultsPending, setGroupingDefaultsPending] = useState(false);
   const [isGroupingSettingsOpen, setIsGroupingSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!groupingEnabled || groupingRules.length === 0) {
+      setHistoryScopeFilter(null);
+    }
+  }, [groupingEnabled, groupingRules.length]);
 
   // Selected file state
   const selectionKey = useCallback(
@@ -80,7 +90,13 @@ export default function App() {
   // Queries
   const healthQuery = useHealth();
   const statusQuery = useRepoStatus();
-  const historyQuery = useRepoHistory(historyLimit);
+  const historyNeedsDetails = Boolean(
+    historySearch.trim() ||
+      historyScopeFilter ||
+      historyWorkingSetOnly ||
+      (groupingEnabled && groupingRules.length > 0)
+  );
+  const historyQuery = useRepoHistory(historyLimit, historyNeedsDetails);
   const syncStatusQuery = useSyncStatus();
   const approvedChangesQuery = useApprovedChanges();
   const diffQuery = useDiff(selectedFile, selectedIsStaged);
@@ -106,7 +122,9 @@ export default function App() {
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.health });
     queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
-    queryClient.invalidateQueries({ queryKey: queryKeys.repoHistory(historyLimit) });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.repoHistory(historyLimit, historyNeedsDetails)
+    });
     queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
     queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges });
     if (selectedFile) {
@@ -114,7 +132,7 @@ export default function App() {
         queryKey: queryKeys.diff(selectedFile, selectedIsStaged)
       });
     }
-  }, [historyLimit, queryClient, selectedFile, selectedIsStaged]);
+  }, [historyLimit, historyNeedsDetails, queryClient, selectedFile, selectedIsStaged]);
 
   const orderedFiles = useMemo(() => {
     const files = statusQuery.data?.files;
@@ -125,6 +143,17 @@ export default function App() {
       ...(files.staged ?? []).map((path) => ({ path, staged: true })),
       ...(files.unstaged ?? []).map((path) => ({ path, staged: false })),
       ...(files.untracked ?? []).map((path) => ({ path, staged: false }))
+    ];
+  }, [statusQuery.data?.files]);
+
+  const workingSetPaths = useMemo(() => {
+    const files = statusQuery.data?.files;
+    if (!files) return [] as string[];
+    return [
+      ...(files.staged ?? []),
+      ...(files.unstaged ?? []),
+      ...(files.untracked ?? []),
+      ...(files.conflicts ?? [])
     ];
   }, [statusQuery.data?.files]);
 
@@ -856,6 +885,7 @@ export default function App() {
                 <div className="min-h-0 min-w-0">
                   <GitHistory
                     lines={historyQuery.data?.lines}
+                    entries={historyQuery.data?.entries}
                     isLoading={historyQuery.isLoading}
                     error={historyQuery.error}
                     collapsed={historyCollapsed}
@@ -867,6 +897,18 @@ export default function App() {
                       (historyQuery.data?.lines?.length ?? 0) >= historyLimit &&
                       historyLimit < historyMaxLimit
                     }
+                    searchQuery={historySearch}
+                    onSearchQueryChange={setHistorySearch}
+                    scopeFilter={historyScopeFilter}
+                    onScopeFilterChange={setHistoryScopeFilter}
+                    groupingEnabled={groupingEnabled}
+                    groupingRules={groupingRules}
+                    workingSetPaths={workingSetPaths}
+                    workingSetOnly={historyWorkingSetOnly}
+                    onWorkingSetOnlyChange={setHistoryWorkingSetOnly}
+                    filtersOpen={isHistoryFiltersOpen}
+                    onOpenFilters={() => setIsHistoryFiltersOpen(true)}
+                    onCloseFilters={() => setIsHistoryFiltersOpen(false)}
                   />
                 </div>
               </div>

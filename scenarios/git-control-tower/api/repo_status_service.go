@@ -119,12 +119,68 @@ func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, er
 		lines = strings.Split(raw, "\n")
 	}
 
-	return &RepoHistory{
+	history := &RepoHistory{
 		RepoDir:   repoDir,
 		Lines:     lines,
 		Limit:     limit,
 		Timestamp: time.Now().UTC(),
-	}, nil
+	}
+
+	if deps.IncludeFiles {
+		detailsRaw, err := deps.Git.LogDetails(ctx, repoDir, limit)
+		if err != nil {
+			return nil, err
+		}
+		entries := parseHistoryDetails(detailsRaw)
+		history.Entries = entries
+	}
+
+	return history, nil
+}
+
+func parseHistoryDetails(out []byte) []RepoHistoryEntry {
+	raw := strings.TrimSpace(string(out))
+	if raw == "" {
+		return []RepoHistoryEntry{}
+	}
+
+	blocks := strings.Split(raw, "\n\n")
+	entries := make([]RepoHistoryEntry, 0, len(blocks))
+	for _, block := range blocks {
+		block = strings.TrimSpace(block)
+		if block == "" {
+			continue
+		}
+		lines := strings.Split(block, "\n")
+		if len(lines) == 0 {
+			continue
+		}
+		header := lines[0]
+		parts := strings.Split(header, "\x00")
+		if len(parts) < 4 {
+			continue
+		}
+		entry := RepoHistoryEntry{
+			Hash:    strings.TrimSpace(parts[0]),
+			Author:  strings.TrimSpace(parts[1]),
+			Date:    strings.TrimSpace(parts[2]),
+			Subject: strings.TrimSpace(parts[3]),
+			Files:   []string{},
+		}
+		for _, line := range lines[1:] {
+			path := strings.TrimSpace(line)
+			if path == "" {
+				continue
+			}
+			entry.Files = append(entry.Files, path)
+		}
+		if entry.Hash == "" {
+			continue
+		}
+		entries = append(entries, entry)
+	}
+
+	return entries
 }
 
 func detectScopes(files RepoFilesStatus) map[string][]string {
