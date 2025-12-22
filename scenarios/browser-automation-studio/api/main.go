@@ -247,6 +247,7 @@ func main() {
 		r.Get("/executions/{id}/recorded-traces", handler.GetExecutionRecordedTraces)
 		r.Get("/executions/{id}/recorded-har", handler.GetExecutionRecordedHar)
 		r.Post("/executions/{executionId}/frames", handler.ReceiveExecutionFrame) // Frame streaming callback from playwright-driver
+		r.Post("/executions/{id}/seed-cleanup", handler.ScheduleExecutionSeedCleanup)
 
 		// Export library routes
 		r.Get("/exports", handler.ListExports)

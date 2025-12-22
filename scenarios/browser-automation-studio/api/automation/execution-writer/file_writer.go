@@ -58,14 +58,14 @@ type FileWriter struct {
 // ExecutionResultData accumulates execution results to be written to disk.
 // This is the file format stored at ExecutionIndex.ResultPath.
 type ExecutionResultData struct {
-	ExecutionID     string              `json:"execution_id"`
-	WorkflowID      string              `json:"workflow_id"`
-	Steps           []StepResultData    `json:"steps"`
-	Artifacts       []ArtifactData      `json:"artifacts"`
-	Telemetry       []TelemetryData     `json:"telemetry"`
-	TimelineFrame   []TimelineFrameData `json:"timeline_frames"`
-	Summary         ExecutionSummary    `json:"summary"`
-	mu              sync.Mutex          `json:"-"`
+	ExecutionID   string              `json:"execution_id"`
+	WorkflowID    string              `json:"workflow_id"`
+	Steps         []StepResultData    `json:"steps"`
+	Artifacts     []ArtifactData      `json:"artifacts"`
+	Telemetry     []TelemetryData     `json:"telemetry"`
+	TimelineFrame []TimelineFrameData `json:"timeline_frames"`
+	Summary       ExecutionSummary    `json:"summary"`
+	mu            sync.Mutex          `json:"-"`
 }
 
 type executionTimelineData struct {
@@ -188,12 +188,12 @@ func (r *FileWriter) getOrCreateResult(plan contracts.ExecutionPlan) *ExecutionR
 	}
 
 	result := &ExecutionResultData{
-		ExecutionID:     plan.ExecutionID.String(),
-		WorkflowID:      plan.WorkflowID.String(),
-		Steps:           make([]StepResultData, 0),
-		Artifacts:       make([]ArtifactData, 0),
-		Telemetry:       make([]TelemetryData, 0),
-		TimelineFrame:   make([]TimelineFrameData, 0),
+		ExecutionID:   plan.ExecutionID.String(),
+		WorkflowID:    plan.WorkflowID.String(),
+		Steps:         make([]StepResultData, 0),
+		Artifacts:     make([]ArtifactData, 0),
+		Telemetry:     make([]TelemetryData, 0),
+		TimelineFrame: make([]TimelineFrameData, 0),
 		Summary: ExecutionSummary{
 			LastUpdated: time.Now().UTC(),
 		},
@@ -435,6 +435,21 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	}
 	result.Summary.TotalDurationMs += outcome.DurationMs
 	result.mu.Unlock()
+
+	if !outcome.Success && r.repo != nil {
+		exec, err := r.repo.GetExecution(ctx, plan.ExecutionID)
+		if err == nil && exec != nil {
+			if exec.Status == database.ExecutionStatusRunning || exec.Status == database.ExecutionStatusPending {
+				now := time.Now().UTC()
+				msg := strings.TrimSpace(outcomeFailureMessage(outcome))
+				var errMsg *string
+				if msg != "" {
+					errMsg = &msg
+				}
+				_ = r.repo.UpdateExecutionStatus(ctx, plan.ExecutionID, database.ExecutionStatusFailed, errMsg, &now, now)
+			}
+		}
+	}
 
 	// Store core outcome payload as artifact (always recorded - essential for debugging)
 	outcomeArtifactID := uuid.New()
@@ -1394,6 +1409,16 @@ func statusFromOutcome(outcome contracts.StepOutcome) string {
 		return "failed"
 	}
 	return "failed"
+}
+
+func outcomeFailureMessage(outcome contracts.StepOutcome) string {
+	if outcome.Failure != nil && strings.TrimSpace(outcome.Failure.Message) != "" {
+		return outcome.Failure.Message
+	}
+	if outcome.Assertion != nil && strings.TrimSpace(outcome.Assertion.Message) != "" {
+		return outcome.Assertion.Message
+	}
+	return "step failed"
 }
 
 func deriveStepLabel(outcome contracts.StepOutcome) string {

@@ -97,6 +97,9 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	if err := validateSeedRequirements(req.FlowDefinition, store, params, env); err != nil {
 		return nil, err
 	}
+	if err := s.validateAdhocSubflows(ctx, req.FlowDefinition, workflowID, projectRoot); err != nil {
+		return nil, err
+	}
 
 	execIndex := &database.ExecutionIndex{
 		ID:        executionID,

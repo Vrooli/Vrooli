@@ -1,8 +1,12 @@
 package workflows
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -10,6 +14,8 @@ import (
 	"time"
 
 	"browser-automation-studio/cli/internal/appctx"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 func runExecute(ctx *appctx.Context, args []string) error {
@@ -200,6 +206,35 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		fmt.Println("Seed flag: applied")
 	}
 
+	if seedMode == "needs-applying" && seedScenario == "" {
+		seedScenario = ctx.Name
+	}
+
+	var seedCleanupToken string
+	if seedMode == "needs-applying" && strings.EqualFold(seedScenario, ctx.Name) {
+		fmt.Println("Seed mode: needs-applying (self-seed handshake via test-genie)")
+		seedResp, err := applySeedViaTestGenie(seedScenario)
+		if err != nil {
+			return err
+		}
+		seedCleanupToken = seedResp.CleanupToken
+		fmt.Printf("Seed cleanup token: %s\n", seedCleanupToken)
+		mergeSeedStateIntoParams(params, seedResp.SeedState)
+
+		env, ok := params["env"].(map[string]any)
+		if !ok || env == nil {
+			env = map[string]any{}
+		}
+		env["seed_applied"] = true
+		params["env"] = env
+
+		seedMode = "applied"
+		if err := refreshScenarioAPI(ctx, ctx.Name); err != nil {
+			return err
+		}
+		fmt.Println("Seed applied via test-genie; proceeding with execution.")
+	}
+
 	var response []byte
 	if adhoc {
 		workflowID, err := resolveWorkflowID(ctx, workflow)
@@ -276,6 +311,17 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	fmt.Println("OK: Execution started!")
 	fmt.Printf("Execution ID: %s\n", executionID)
 
+	seedCleanupScheduled := false
+	if seedCleanupToken != "" {
+		if err := scheduleSeedCleanup(ctx, executionID, seedScenario, seedCleanupToken); err != nil {
+			fmt.Printf("WARN: seed cleanup scheduling failed: %v\n", err)
+			fmt.Printf("Manual cleanup: test-genie playbooks-seed cleanup --scenario %s --token %s\n", seedScenario, seedCleanupToken)
+		} else {
+			fmt.Println("Seed cleanup scheduled after execution completes.")
+			seedCleanupScheduled = true
+		}
+	}
+
 	recordingsRoot := ""
 	if ctx.ScenarioRoot != "" {
 		recordingsRoot = filepath.Join(ctx.ScenarioRoot, "data", "recordings", executionID)
@@ -327,6 +373,16 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		}
 		if completed {
 			printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo, requiresTrace, requiresHAR)
+			if seedCleanupToken != "" && !seedCleanupScheduled {
+				if err := cleanupSeedViaTestGenie(seedScenario, seedCleanupToken); err != nil {
+					fmt.Printf("WARN: seed cleanup failed: %v\n", err)
+					fmt.Printf("Manual cleanup: test-genie playbooks-seed cleanup --scenario %s --token %s\n", seedScenario, seedCleanupToken)
+				} else {
+					fmt.Println("Seed cleanup completed.")
+				}
+			} else if seedCleanupToken != "" {
+				fmt.Println("Seed cleanup already scheduled; no manual cleanup needed.")
+			}
 		}
 		if !completed {
 			if lastStatus == "" {
@@ -334,6 +390,16 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			}
 			fmt.Println("")
 			fmt.Printf("TIMEOUT: Execution did not finish after %d seconds (last status: %s). Use: browser-automation-studio execution watch %s\n", maxAttempts*5, lastStatus, executionID)
+			if seedCleanupToken != "" && !seedCleanupScheduled {
+				if err := scheduleSeedCleanup(ctx, executionID, seedScenario, seedCleanupToken); err != nil {
+					fmt.Printf("WARN: seed cleanup scheduling failed: %v\n", err)
+					fmt.Printf("Manual cleanup: test-genie playbooks-seed cleanup --scenario %s --token %s\n", seedScenario, seedCleanupToken)
+				} else {
+					fmt.Println("Seed cleanup scheduled after execution completes.")
+				}
+			} else if seedCleanupToken != "" {
+				fmt.Println("Seed cleanup already scheduled; no manual cleanup needed.")
+			}
 		}
 	}
 
@@ -389,9 +455,9 @@ func appendExecuteQuery(base string, requiresVideo bool, requiresTrace bool, req
 	}
 	if seedMode == "needs-applying" {
 		pairs = append(pairs, "seed=needs-applying")
-	}
-	if seedScenario != "" {
-		pairs = append(pairs, fmt.Sprintf("seed_scenario=%s", url.QueryEscape(seedScenario)))
+		if seedScenario != "" {
+			pairs = append(pairs, fmt.Sprintf("seed_scenario=%s", url.QueryEscape(seedScenario)))
+		}
 	}
 	if len(pairs) == 0 {
 		return base
@@ -580,5 +646,189 @@ func normalizeExecutionStatus(raw string) string {
 		return "cancelled"
 	default:
 		return strings.ToLower(strings.TrimSpace(raw))
+	}
+}
+
+type seedApplyResponse struct {
+	SeedState    map[string]any `json:"seed_state"`
+	CleanupToken string         `json:"cleanup_token"`
+}
+
+type seedCleanupResponse struct {
+	Status string `json:"status"`
+}
+
+func applySeedViaTestGenie(seedScenario string) (*seedApplyResponse, error) {
+	baseURL, err := resolveTestGenieAPIV1()
+	if err != nil {
+		return nil, err
+	}
+	endpoint := fmt.Sprintf("%s/scenarios/%s/playbooks/seed/apply", baseURL, url.PathEscape(seedScenario))
+	payload := map[string]any{"retain": false}
+
+	var resp seedApplyResponse
+	if err := postJSON(endpoint, payload, &resp); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(resp.CleanupToken) == "" {
+		return nil, fmt.Errorf("test-genie seed apply returned empty cleanup_token")
+	}
+	return &resp, nil
+}
+
+func cleanupSeedViaTestGenie(seedScenario, cleanupToken string) error {
+	baseURL, err := resolveTestGenieAPIV1()
+	if err != nil {
+		return err
+	}
+	endpoint := fmt.Sprintf("%s/scenarios/%s/playbooks/seed/cleanup", baseURL, url.PathEscape(seedScenario))
+	payload := map[string]any{"cleanup_token": cleanupToken}
+
+	var resp seedCleanupResponse
+	if err := postJSON(endpoint, payload, &resp); err != nil {
+		return err
+	}
+	if strings.TrimSpace(resp.Status) == "" {
+		return fmt.Errorf("test-genie seed cleanup returned empty status")
+	}
+	return nil
+}
+
+func scheduleSeedCleanup(ctx *appctx.Context, executionID, seedScenario, cleanupToken string) error {
+	if ctx == nil || ctx.Core == nil {
+		return fmt.Errorf("CLI context is not configured")
+	}
+	payload := map[string]any{
+		"cleanup_token": cleanupToken,
+	}
+	if strings.TrimSpace(seedScenario) != "" {
+		payload["seed_scenario"] = seedScenario
+	}
+	path := ctx.APIPath("/executions/" + executionID + "/seed-cleanup")
+	_, err := ctx.Core.APIClient.Request("POST", path, nil, payload)
+	return err
+}
+
+func mergeSeedStateIntoParams(params map[string]any, seedState map[string]any) {
+	if params == nil || len(seedState) == 0 {
+		return
+	}
+	initialParams, ok := params["initial_params"].(map[string]any)
+	if !ok || initialParams == nil {
+		initialParams = map[string]any{}
+	}
+	for key, value := range seedState {
+		initialParams[key] = value
+	}
+	params["initial_params"] = initialParams
+}
+
+func resolveTestGenieAPIV1() (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	resolver := discovery.NewResolver(discovery.ResolverConfig{})
+	base, err := resolver.ResolveScenarioURLDefault(ctx, "test-genie")
+	if err != nil {
+		return "", fmt.Errorf("resolve test-genie API: %w", err)
+	}
+	return strings.TrimRight(base, "/") + "/api/v1", nil
+}
+
+func postJSON(endpoint string, payload any, dest any) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("encode request: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 2 * time.Minute}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("request failed (%s): %s", resp.Status, strings.TrimSpace(string(respBody)))
+	}
+
+	if dest == nil {
+		return nil
+	}
+	if err := json.Unmarshal(respBody, dest); err != nil {
+		return fmt.Errorf("decode response: %w", err)
+	}
+	return nil
+}
+
+func refreshScenarioAPI(ctx *appctx.Context, scenarioName string) error {
+	if ctx == nil || ctx.Core == nil {
+		return fmt.Errorf("CLI context not configured")
+	}
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	base, err := resolveScenarioBase(ctxWithTimeout, scenarioName)
+	if err != nil {
+		return err
+	}
+	ctx.Core.APIOverride = base
+	fmt.Printf("Re-resolved API base: %s\n", strings.TrimRight(base, "/")+"/api/v1")
+
+	if err := waitForScenarioHealth(ctxWithTimeout, base); err != nil {
+		return err
+	}
+	return nil
+}
+
+func resolveScenarioBase(ctx context.Context, scenarioName string) (string, error) {
+	if strings.TrimSpace(scenarioName) == "" {
+		return "", fmt.Errorf("scenario name is required to resolve API base")
+	}
+	resolver := discovery.NewResolver(discovery.ResolverConfig{})
+	base, err := resolver.ResolveScenarioURLDefault(ctx, scenarioName)
+	if err != nil {
+		return "", fmt.Errorf("resolve %s API: %w", scenarioName, err)
+	}
+	return strings.TrimRight(base, "/"), nil
+}
+
+func waitForScenarioHealth(ctx context.Context, base string) error {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if base == "" {
+		return fmt.Errorf("API base is empty while waiting for health")
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	paths := []string{"/health", "/api/v1/health"}
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		for _, path := range paths {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
+			if err != nil {
+				continue
+			}
+			resp, err := client.Do(req)
+			if err == nil && resp != nil {
+				resp.Body.Close()
+				if resp.StatusCode < 400 {
+					return nil
+				}
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout waiting for API health at %s", base)
+		case <-ticker.C:
+		}
 	}
 }

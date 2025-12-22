@@ -263,9 +263,9 @@ func parseBoolQuery(r *http.Request, keys ...string) bool {
 }
 
 type seedCleanupPlan struct {
-	cleanup       func(context.Context) error
-	cleanupToken  string
-	seedScenario  string
+	cleanup      func(context.Context) error
+	cleanupToken string
+	seedScenario string
 }
 
 func applySeedIfNeeded(ctx context.Context, r *http.Request, params **basexecution.ExecutionParameters) (*seedCleanupPlan, error) {
@@ -278,6 +278,9 @@ func applySeedIfNeeded(ctx context.Context, r *http.Request, params **basexecuti
 	}
 
 	seedScenario := seedScenarioFromRequest(r)
+	if strings.EqualFold(seedScenario, "browser-automation-studio") {
+		return nil, fmt.Errorf("seed=needs-applying is not supported when targeting browser-automation-studio directly; run via test-genie or the CLI handshake")
+	}
 	client := testgenie.NewClient(nil, nil)
 	applyResp, err := client.ApplySeed(ctx, seedScenario, false)
 	if err != nil {
