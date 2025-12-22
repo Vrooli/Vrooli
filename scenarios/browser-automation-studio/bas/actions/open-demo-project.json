@@ -4,6 +4,8 @@
     "description": "Navigates to the BAS dashboard and opens the seeded demo project",
     "labels": {
       "fixture_id": "open-demo-project",
+      "seed_required": "true",
+      "seed_keys": "projectId,projectName,projectFolder",
       "reset": "none",
       "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
       "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier created by the seed script\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Project name created by the seed script\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Seed project folder path\"}]"

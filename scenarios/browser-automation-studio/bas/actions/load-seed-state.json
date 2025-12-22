@@ -4,6 +4,8 @@
     "description": "Loads dynamic BAS seed info and stores it for downstream fixtures",
     "labels": {
       "fixture_id": "load-seed-state",
+      "seed_required": "true",
+      "seed_keys": "projectId,projectName,projectFolder,workflowId,workflowName",
       "reset": "none",
       "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
       "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier returned by the API\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Human-readable project name\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Workflow folder path\"},{\"name\":\"workflowId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/workflowId\",\"description\":\"Seed workflow identifier\"},{\"name\":\"workflowName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/workflowName\",\"description\":\"Seed workflow label\"}]"

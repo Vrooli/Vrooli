@@ -17,6 +17,8 @@ import (
 	"test-genie/internal/playbooks/isolation"
 )
 
+var applyPlaybooksSeed = phases.ApplyPlaybooksSeed
+
 type seedSession struct {
 	Scenario string
 	Created  time.Time
@@ -71,7 +73,7 @@ func (s *Server) handlePlaybooksSeedApply(w http.ResponseWriter, r *http.Request
 
 	retain := payload.Retain || isolation.ShouldRetainFromEnv()
 
-	session, err := phases.ApplyPlaybooksSeed(r.Context(), env, nil, retain)
+	session, err := applyPlaybooksSeed(r.Context(), env, nil, retain)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err.Error())
 		return

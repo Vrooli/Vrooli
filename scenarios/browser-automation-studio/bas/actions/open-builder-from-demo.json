@@ -4,6 +4,8 @@
     "description": "Ensures the workflow builder is opened from the Demo project",
     "labels": {
       "fixture_id": "open-builder-from-demo",
+      "seed_required": "true",
+      "seed_keys": "projectId,projectName,projectFolder",
       "reset": "none",
       "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
       "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier to load\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Project to load before entering the builder\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Folder path for the seeded project\"}]"

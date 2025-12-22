@@ -583,6 +583,8 @@ type stubScenarioDirectory struct {
 	uiSmokeUIURL          string
 	uiSmokeBrowserlessURL string
 	uiSmokeTimeoutMs      int64
+
+	scenarioRoot string
 }
 
 func (s *stubScenarioDirectory) ListSummaries(ctx context.Context) ([]scenarios.ScenarioSummary, error) {
@@ -639,6 +641,10 @@ func (s *stubScenarioDirectory) RunUISmokeWithOpts(ctx context.Context, name str
 		return nil, s.uiSmokeErr
 	}
 	return s.uiSmokeResp, nil
+}
+
+func (s *stubScenarioDirectory) ScenarioRoot() string {
+	return s.scenarioRoot
 }
 
 type stubSuiteExecutor struct {

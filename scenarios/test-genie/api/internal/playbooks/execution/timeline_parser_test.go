@@ -1,6 +1,3 @@
-//go:build legacyproto
-// +build legacyproto
-
 package execution
 
 import (
@@ -9,17 +6,22 @@ import (
 	"testing"
 	"time"
 
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var timelineMarshalOpts = protojson.MarshalOptions{UseProtoNames: true}
 
 func strPtr(s string) *string { return &s }
+func int32Ptr(v int32) *int32 { return &v }
+func boolPtr(v bool) *bool    { return &v }
 
-func marshalTimeline(t *testing.T, tl *browser_automation_studio_v1.ExecutionTimeline) []byte {
+func marshalTimeline(t *testing.T, tl *bastimeline.ExecutionTimeline) []byte {
 	t.Helper()
 	data, err := timelineMarshalOpts.Marshal(tl)
 	if err != nil {
@@ -64,32 +66,44 @@ func TestParseFullTimeline_UnknownFieldFails(t *testing.T) {
 }
 
 func TestParseFullTimeline_BasicTimeline(t *testing.T) {
-	timeline := &browser_automation_studio_v1.ExecutionTimeline{
+	timeline := &bastimeline.ExecutionTimeline{
 		ExecutionId: "exec-123",
 		WorkflowId:  "wf-456",
-		Status:      browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
 		Progress:    100,
-		Frames: []*browser_automation_studio_v1.TimelineFrame{
+		Entries: []*bastimeline.TimelineEntry{
 			{
-				StepIndex:  0,
-				NodeId:     "navigate-1",
-				StepType:   browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE,
-				Status:     browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
-				Success:    true,
-				DurationMs: 1500,
+				StepIndex: int32Ptr(0),
+				NodeId:    strPtr("navigate-1"),
+				Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
+				Context: &basbase.EventContext{
+					Success: boolPtr(true),
+				},
+				Aggregates: &bastimeline.TimelineEntryAggregates{
+					Status: basbase.StepStatus_STEP_STATUS_COMPLETED,
+				},
 			},
 			{
-				StepIndex: 1,
-				NodeId:    "assert-1",
-				StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT,
-				Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
-				Success:   true,
+				StepIndex: int32Ptr(1),
+				NodeId:    strPtr("assert-1"),
+				Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_ASSERT},
+				Context: &basbase.EventContext{
+					Success: boolPtr(true),
+					Assertion: &basbase.AssertionResult{
+						Mode:     basbase.AssertionMode_ASSERTION_MODE_TEXT_EQUALS,
+						Selector: "#title",
+						Success:  true,
+					},
+				},
+				Aggregates: &bastimeline.TimelineEntryAggregates{
+					Status: basbase.StepStatus_STEP_STATUS_COMPLETED,
+				},
 			},
 		},
-		Logs: []*browser_automation_studio_v1.TimelineLog{
+		Logs: []*bastimeline.TimelineLog{
 			{
 				Id:        "log-1",
-				Level:     browser_automation_studio_v1.LogLevel_LOG_LEVEL_INFO,
+				Level:     basbase.LogLevel_LOG_LEVEL_INFO,
 				Message:   "Test message",
 				StepName:  strPtr("navigate-1"),
 				Timestamp: timestamppb.Now(),
@@ -130,24 +144,32 @@ func TestParseFullTimeline_BasicTimeline(t *testing.T) {
 }
 
 func TestParseFullTimeline_WithFailedFrame(t *testing.T) {
-	timeline := &browser_automation_studio_v1.ExecutionTimeline{
+	timeline := &bastimeline.ExecutionTimeline{
 		ExecutionId: "exec-123",
-		Status:      browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_FAILED,
-		Frames: []*browser_automation_studio_v1.TimelineFrame{
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_FAILED,
+		Entries: []*bastimeline.TimelineEntry{
 			{
-				StepIndex: 0,
-				NodeId:    "navigate-1",
-				StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE,
-				Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
-				Success:   true,
+				StepIndex: int32Ptr(0),
+				NodeId:    strPtr("navigate-1"),
+				Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
+				Context: &basbase.EventContext{
+					Success: boolPtr(true),
+				},
+				Aggregates: &bastimeline.TimelineEntryAggregates{
+					Status: basbase.StepStatus_STEP_STATUS_COMPLETED,
+				},
 			},
 			{
-				StepIndex: 1,
-				NodeId:    "click-1",
-				StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_CLICK,
-				Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED,
-				Success:   false,
-				Error:     strPtr("element not found"),
+				StepIndex: int32Ptr(1),
+				NodeId:    strPtr("click-1"),
+				Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK},
+				Context: &basbase.EventContext{
+					Success: boolPtr(false),
+					Error:   strPtr("element not found"),
+				},
+				Aggregates: &bastimeline.TimelineEntryAggregates{
+					Status: basbase.StepStatus_STEP_STATUS_FAILED,
+				},
 			},
 		},
 	}
@@ -214,20 +236,26 @@ func TestParseFullTimeline_GoldenFailureFixture(t *testing.T) {
 }
 
 func TestParseFullTimeline_WithScreenshots(t *testing.T) {
-	timeline := &browser_automation_studio_v1.ExecutionTimeline{
+	timeline := &bastimeline.ExecutionTimeline{
 		ExecutionId: "exec-123",
-		Status:      browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
-		Frames: []*browser_automation_studio_v1.TimelineFrame{
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
+		Entries: []*bastimeline.TimelineEntry{
 			{
-				StepIndex: 0,
-				StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE,
-				Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
-				Success:   true,
-				Screenshot: &browser_automation_studio_v1.TimelineScreenshot{
-					ArtifactId: "ss-123",
-					Url:        "/api/v1/screenshots/ss-123",
-					Width:      1920,
-					Height:     1080,
+				StepIndex: int32Ptr(0),
+				Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
+				Context: &basbase.EventContext{
+					Success: boolPtr(true),
+				},
+				Telemetry: &basdomain.ActionTelemetry{
+					Screenshot: &basdomain.TimelineScreenshot{
+						ArtifactId: "ss-123",
+						Url:        "/api/v1/screenshots/ss-123",
+						Width:      1920,
+						Height:     1080,
+					},
+				},
+				Aggregates: &bastimeline.TimelineEntryAggregates{
+					Status: basbase.StepStatus_STEP_STATUS_COMPLETED,
 				},
 			},
 		},
@@ -254,35 +282,43 @@ func TestParseFullTimeline_WithScreenshots(t *testing.T) {
 }
 
 func TestParseFullTimeline_WithAssertions(t *testing.T) {
-	timeline := &browser_automation_studio_v1.ExecutionTimeline{
+	timeline := &bastimeline.ExecutionTimeline{
 		ExecutionId: "exec-123",
-		Status:      browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_FAILED,
-		Frames: []*browser_automation_studio_v1.TimelineFrame{
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_FAILED,
+		Entries: []*bastimeline.TimelineEntry{
 			{
-				StepIndex: 0,
-				NodeId:    "assert-1",
-				StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT,
-				Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
-				Success:   true,
-				Assertion: &browser_automation_studio_v1.AssertionOutcome{
-					Mode:     "visible",
-					Selector: "[data-testid='header']",
-					Success:  true,
+				StepIndex: int32Ptr(0),
+				NodeId:    strPtr("assert-1"),
+				Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_ASSERT},
+				Context: &basbase.EventContext{
+					Success: boolPtr(true),
+					Assertion: &basbase.AssertionResult{
+						Mode:     basbase.AssertionMode_ASSERTION_MODE_VISIBLE,
+						Selector: "[data-testid='header']",
+						Success:  true,
+					},
+				},
+				Aggregates: &bastimeline.TimelineEntryAggregates{
+					Status: basbase.StepStatus_STEP_STATUS_COMPLETED,
 				},
 			},
 			{
-				StepIndex: 1,
-				NodeId:    "assert-2",
-				StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT,
-				Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED,
-				Success:   false,
-				Assertion: &browser_automation_studio_v1.AssertionOutcome{
-					Mode:     "text",
-					Selector: "[data-testid='title']",
-					Expected: structpb.NewStringValue("Welcome"),
-					Actual:   structpb.NewStringValue("Loading..."),
-					Success:  false,
-					Message:  "Text mismatch",
+				StepIndex: int32Ptr(1),
+				NodeId:    strPtr("assert-2"),
+				Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_ASSERT},
+				Context: &basbase.EventContext{
+					Success: boolPtr(false),
+					Assertion: &basbase.AssertionResult{
+						Mode:     basbase.AssertionMode_ASSERTION_MODE_TEXT_EQUALS,
+						Selector: "[data-testid='title']",
+						Expected: &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: "Welcome"}},
+						Actual:   &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: "Loading..."}},
+						Success:  false,
+						Message:  strPtr("Text mismatch"),
+					},
+				},
+				Aggregates: &bastimeline.TimelineEntryAggregates{
+					Status: basbase.StepStatus_STEP_STATUS_FAILED,
 				},
 			},
 		},
@@ -302,8 +338,8 @@ func TestParseFullTimeline_WithAssertions(t *testing.T) {
 	if !parsed.Assertions[0].Passed {
 		t.Error("expected first assertion to pass")
 	}
-	if parsed.Assertions[0].AssertionType != "visible" {
-		t.Errorf("expected assertion type 'visible', got %s", parsed.Assertions[0].AssertionType)
+	if parsed.Assertions[0].AssertionType != "ASSERTION_MODE_VISIBLE" {
+		t.Errorf("expected assertion type 'ASSERTION_MODE_VISIBLE', got %s", parsed.Assertions[0].AssertionType)
 	}
 
 	// Second assertion (failed)
@@ -320,21 +356,21 @@ func TestParseFullTimeline_WithAssertions(t *testing.T) {
 
 func TestParseFullTimeline_WithLogs(t *testing.T) {
 	now := time.Now().UTC()
-	timeline := &browser_automation_studio_v1.ExecutionTimeline{
+	timeline := &bastimeline.ExecutionTimeline{
 		ExecutionId: "exec-123",
-		Status:      browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
-		Frames:      []*browser_automation_studio_v1.TimelineFrame{},
-		Logs: []*browser_automation_studio_v1.TimelineLog{
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
+		Entries:     []*bastimeline.TimelineEntry{},
+		Logs: []*bastimeline.TimelineLog{
 			{
 				Id:        "log-1",
-				Level:     browser_automation_studio_v1.LogLevel_LOG_LEVEL_ERROR,
+				Level:     basbase.LogLevel_LOG_LEVEL_ERROR,
 				Message:   "Failed to load resource",
 				StepName:  strPtr("navigate-1"),
 				Timestamp: timestamppb.New(now),
 			},
 			{
 				Id:        "log-2",
-				Level:     browser_automation_studio_v1.LogLevel_LOG_LEVEL_WARN,
+				Level:     basbase.LogLevel_LOG_LEVEL_WARN,
 				Message:   "Deprecated API usage",
 				Timestamp: timestamppb.New(now),
 			},
@@ -362,21 +398,28 @@ func TestParseFullTimeline_WithLogs(t *testing.T) {
 }
 
 func TestParseFullTimeline_WithDOMSnapshot(t *testing.T) {
-	timeline := &browser_automation_studio_v1.ExecutionTimeline{
+	timeline := &bastimeline.ExecutionTimeline{
 		ExecutionId: "exec-123",
-		Status:      browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
-		Frames: []*browser_automation_studio_v1.TimelineFrame{
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
+		Entries: []*bastimeline.TimelineEntry{
 			{
-				StepIndex:          0,
-				StepType:           browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE,
-				Status:             browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
-				Success:            true,
-				DomSnapshotPreview: "<html>...</html>",
-				DomSnapshot: &browser_automation_studio_v1.TimelineArtifact{
-					Id:         "dom-123",
-					StorageUrl: "/api/v1/artifacts/dom-123",
-					Payload: map[string]*structpb.Value{
-						"html": structpb.NewStringValue("<html><body>Full DOM</body></html>"),
+				StepIndex: int32Ptr(0),
+				Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
+				Context: &basbase.EventContext{
+					Success: boolPtr(true),
+				},
+				Aggregates: &bastimeline.TimelineEntryAggregates{
+					Status: basbase.StepStatus_STEP_STATUS_COMPLETED,
+					Artifacts: []*bastimeline.TimelineArtifact{
+						{
+							Id:         "dom-123",
+							Type:       basbase.ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT,
+							StorageUrl: "/api/v1/artifacts/dom-123",
+							Payload: map[string]*commonv1.JsonValue{
+								"html":                 {Kind: &commonv1.JsonValue_StringValue{StringValue: "<html><body>Full DOM</body></html>"}},
+								"dom_snapshot_preview": {Kind: &commonv1.JsonValue_StringValue{StringValue: "<html>...</html>"}},
+							},
+						},
 					},
 				},
 			},

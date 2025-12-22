@@ -4,6 +4,8 @@
     "description": "Loads the demo project and opens the seeded workflow for builder interactions",
     "labels": {
       "fixture_id": "open-demo-workflow",
+      "seed_required": "true",
+      "seed_keys": "projectId,projectName,projectFolder,workflowId,workflowName",
       "reset": "none",
       "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
       "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier containing the workflow\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Project containing the workflow\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Folder path for the seeded project\"},{\"name\":\"workflowId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/workflowId\",\"description\":\"Seed workflow identifier\"},{\"name\":\"workflowName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/workflowName\",\"description\":\"Seed workflow to open\"}]"

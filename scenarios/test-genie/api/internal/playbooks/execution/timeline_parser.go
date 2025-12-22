@@ -8,6 +8,7 @@ import (
 	"test-genie/internal/playbooks/types"
 
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -147,23 +148,13 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 
 		// Track DOM snapshots from aggregates
 		if agg := entry.GetAggregates(); agg != nil {
-			if agg.GetDomSnapshot() != nil {
-				if html := extractHTMLFromArtifact(agg.GetDomSnapshot()); html != "" {
+			if ds := findDomSnapshotArtifact(agg); ds != nil {
+				if html := extractHTMLFromArtifact(ds); html != "" {
 					lastDOMFull = html
 				}
-			}
-			if agg.GetDomSnapshotPreview() != "" {
-				lastDOMPreview = agg.GetDomSnapshotPreview()
-			}
-		}
-
-		// Also check telemetry for DOM snapshots
-		if tel := entry.GetTelemetry(); tel != nil {
-			if tel.GetDomSnapshotHtml() != "" {
-				lastDOMFull = tel.GetDomSnapshotHtml()
-			}
-			if tel.GetDomSnapshotPreview() != "" {
-				lastDOMPreview = tel.GetDomSnapshotPreview()
+				if preview := extractPreviewFromArtifact(ds); preview != "" {
+					lastDOMPreview = preview
+				}
 			}
 		}
 
@@ -250,23 +241,13 @@ func FromProtoTimeline(timeline *bastimeline.ExecutionTimeline) *ParsedTimeline 
 
 		// Track DOM snapshots from aggregates
 		if agg := entry.GetAggregates(); agg != nil {
-			if agg.GetDomSnapshot() != nil {
-				if html := extractHTMLFromArtifact(agg.GetDomSnapshot()); html != "" {
+			if ds := findDomSnapshotArtifact(agg); ds != nil {
+				if html := extractHTMLFromArtifact(ds); html != "" {
 					lastDOMFull = html
 				}
-			}
-			if agg.GetDomSnapshotPreview() != "" {
-				lastDOMPreview = agg.GetDomSnapshotPreview()
-			}
-		}
-
-		// Also check telemetry for DOM snapshots
-		if tel := entry.GetTelemetry(); tel != nil {
-			if tel.GetDomSnapshotHtml() != "" {
-				lastDOMFull = tel.GetDomSnapshotHtml()
-			}
-			if tel.GetDomSnapshotPreview() != "" {
-				lastDOMPreview = tel.GetDomSnapshotPreview()
+				if preview := extractPreviewFromArtifact(ds); preview != "" {
+					lastDOMPreview = preview
+				}
 			}
 		}
 
@@ -369,16 +350,22 @@ func entryToFrame(entry *bastimeline.TimelineEntry) ParsedFrame {
 		}
 	}
 
-	// Extract DOM snapshot info from aggregates
+	// Extract DOM snapshot info from aggregates or telemetry
 	if agg := entry.GetAggregates(); agg != nil {
-		if agg.GetDomSnapshot() != nil || agg.GetDomSnapshotPreview() != "" {
-			frame.DOMSnapshot = &FrameDOMSnapshot{}
-			if ds := agg.GetDomSnapshot(); ds != nil {
-				frame.DOMSnapshot.ArtifactID = ds.GetId()
-				frame.DOMSnapshot.StorageURL = ds.GetStorageUrl()
+		if ds := findDomSnapshotArtifact(agg); ds != nil {
+			frame.DOMSnapshot = &FrameDOMSnapshot{
+				ArtifactID: ds.GetId(),
+				StorageURL: ds.GetStorageUrl(),
+				Preview:    extractPreviewFromArtifact(ds),
 			}
-			if agg.GetDomSnapshotPreview() != "" {
-				frame.DOMSnapshot.Preview = agg.GetDomSnapshotPreview()
+		}
+	}
+	if frame.DOMSnapshot == nil {
+		if tel := entry.GetTelemetry(); tel != nil && tel.GetDomSnapshot() != nil {
+			ds := tel.GetDomSnapshot()
+			frame.DOMSnapshot = &FrameDOMSnapshot{
+				ArtifactID: ds.GetArtifactId(),
+				StorageURL: ds.GetStorageUrl(),
 			}
 		}
 	}
@@ -491,6 +478,34 @@ func extractHTMLFromArtifact(artifact *bastimeline.TimelineArtifact) string {
 		return jsonValueToString(val)
 	}
 	return ""
+}
+
+func extractPreviewFromArtifact(artifact *bastimeline.TimelineArtifact) string {
+	if artifact == nil {
+		return ""
+	}
+	payload := artifact.GetPayload()
+	if payload == nil {
+		return ""
+	}
+	for _, key := range []string{"preview", "dom_snapshot_preview", "domSnapshotPreview"} {
+		if val, ok := payload[key]; ok {
+			return jsonValueToString(val)
+		}
+	}
+	return ""
+}
+
+func findDomSnapshotArtifact(agg *bastimeline.TimelineEntryAggregates) *bastimeline.TimelineArtifact {
+	if agg == nil {
+		return nil
+	}
+	for _, artifact := range agg.GetArtifacts() {
+		if artifact != nil && artifact.GetType() == basbase.ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT {
+			return artifact
+		}
+	}
+	return nil
 }
 
 // jsonValueToString converts a commonv1.JsonValue to a string representation.
