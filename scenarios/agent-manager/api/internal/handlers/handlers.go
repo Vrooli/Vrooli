@@ -118,6 +118,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Status endpoints
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
 	r.HandleFunc("/api/v1/runners/{runner_type}/probe", h.ProbeRunner).Methods("POST")
+
+	// Maintenance endpoints
+	r.HandleFunc("/api/v1/maintenance/purge", h.PurgeData).Methods("POST")
 }
 
 // =============================================================================
@@ -1785,4 +1788,69 @@ func (h *Handler) ProbeRunner(w http.ResponseWriter, r *http.Request) {
 			DurationMs: result.DurationMs,
 		}),
 	})
+}
+
+// PurgeData deletes profiles, tasks, or runs matching a regex pattern.
+func (h *Handler) PurgeData(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.PurgeDataRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	if req.Pattern == "" {
+		writeSimpleError(w, r, "pattern", "pattern is required")
+		return
+	}
+	if len(req.Targets) == 0 {
+		writeSimpleError(w, r, "targets", "targets are required")
+		return
+	}
+
+	targets := make([]orchestration.PurgeTarget, 0, len(req.Targets))
+	for _, target := range req.Targets {
+		switch target {
+		case apipb.PurgeTarget_PURGE_TARGET_PROFILES:
+			targets = append(targets, orchestration.PurgeTargetProfiles)
+		case apipb.PurgeTarget_PURGE_TARGET_TASKS:
+			targets = append(targets, orchestration.PurgeTargetTasks)
+		case apipb.PurgeTarget_PURGE_TARGET_RUNS:
+			targets = append(targets, orchestration.PurgeTargetRuns)
+		default:
+			writeSimpleError(w, r, "targets", "invalid purge target")
+			return
+		}
+	}
+
+	result, err := h.svc.PurgeData(r.Context(), orchestration.PurgeRequest{
+		Pattern: req.Pattern,
+		Targets: targets,
+		DryRun:  req.DryRun,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.PurgeDataResponse{
+		Matched: purgeCountsToProto(result.Matched),
+		Deleted: purgeCountsToProto(result.Deleted),
+		DryRun:  result.DryRun,
+	})
+}
+
+func purgeCountsToProto(counts orchestration.PurgeCounts) *apipb.PurgeCounts {
+	return &apipb.PurgeCounts{
+		Profiles: int32(counts.Profiles),
+		Tasks:    int32(counts.Tasks),
+		Runs:     int32(counts.Runs),
+	}
 }

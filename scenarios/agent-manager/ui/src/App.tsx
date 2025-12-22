@@ -12,22 +12,28 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Badge } from "./components/ui/badge";
+import { Button } from "./components/ui/button";
 import { Card, CardContent } from "./components/ui/card";
 import {
   Dialog,
   DialogBody,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "./components/ui/dialog";
+import { Input } from "./components/ui/input";
+import { Label } from "./components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { useHealth, useProfiles, useRuns, useRunners, useTasks } from "./hooks/useApi";
+import { useHealth, useMaintenance, useProfiles, useRuns, useRunners, useTasks } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ProfilesPage } from "./pages/ProfilesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { RunsPage } from "./pages/RunsPage";
 import { HealthStatus, RunStatus } from "./types";
+import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 import { formatDate, jsonValueToPlain } from "./lib/utils";
 
 export default function App() {
@@ -38,6 +44,7 @@ export default function App() {
   const tasks = useTasks();
   const runs = useRuns();
   const runners = useRunners();
+  const maintenance = useMaintenance();
 
   // Derive active tab from current path
   const getActiveTab = useCallback(() => {
@@ -85,6 +92,15 @@ export default function App() {
 
   const isHealthy = health.data?.status === HealthStatus.HEALTHY;
   const [statusOpen, setStatusOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [purgePattern, setPurgePattern] = useState("^test-.*");
+  const [purgeError, setPurgeError] = useState<string | null>(null);
+  const [purgeLoading, setPurgeLoading] = useState(false);
+  const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false);
+  const [purgeConfirmText, setPurgeConfirmText] = useState("");
+  const [purgePreview, setPurgePreview] = useState<{ profiles: number; tasks: number; runs: number } | null>(null);
+  const [purgeTargets, setPurgeTargets] = useState<PurgeTarget[]>([]);
+  const [purgeActionLabel, setPurgeActionLabel] = useState("");
   const wsLabel =
     ws.status === "connected" ? "Live" : ws.status === "connecting" ? "Connecting" : "Offline";
   const healthLabel = health.data ? (isHealthy ? "Healthy" : "Degraded") : "Unknown";
@@ -97,6 +113,50 @@ export default function App() {
   const statusText = `${healthLabel} • ${wsLabel}`;
   const dependencyEntries = Object.entries(health.data?.dependencies ?? {});
   const metricEntries = Object.entries(health.data?.metrics ?? {});
+
+  const handlePurgePreview = useCallback(
+    async (targets: PurgeTarget[], label: string) => {
+      setPurgeError(null);
+      setPurgeLoading(true);
+      try {
+        const counts = await maintenance.previewPurge(purgePattern, targets);
+        setPurgePreview({
+          profiles: counts.profiles ?? 0,
+          tasks: counts.tasks ?? 0,
+          runs: counts.runs ?? 0,
+        });
+        setPurgeTargets(targets);
+        setPurgeActionLabel(label);
+        setPurgeConfirmText("");
+        setPurgeConfirmOpen(true);
+      } catch (err) {
+        setPurgeError((err as Error).message);
+      } finally {
+        setPurgeLoading(false);
+      }
+    },
+    [maintenance, purgePattern]
+  );
+
+  const handlePurgeExecute = useCallback(async () => {
+    if (purgeConfirmText.trim() !== "DELETE") {
+      return;
+    }
+    setPurgeError(null);
+    setPurgeLoading(true);
+    try {
+      await maintenance.executePurge(purgePattern, purgeTargets);
+      setPurgeConfirmOpen(false);
+      setSettingsOpen(false);
+      profiles.refetch();
+      tasks.refetch();
+      runs.refetch();
+    } catch (err) {
+      setPurgeError((err as Error).message);
+    } finally {
+      setPurgeLoading(false);
+    }
+  }, [maintenance, purgeConfirmText, purgePattern, purgeTargets, profiles, runs, tasks]);
 
   return (
     <div className="min-h-screen bg-transparent text-foreground">
@@ -143,7 +203,7 @@ export default function App() {
             </div>
 
             {/* Quick Stats */}
-            <div className="flex gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <QuickStat
                 icon={<Settings2 className="h-4 w-4" />}
                 label="Profiles"
@@ -168,6 +228,15 @@ export default function App() {
                   ).length ?? 0
                 }
               />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSettingsOpen(true)}
+                className="gap-2"
+              >
+                <Settings2 className="h-4 w-4" />
+                Settings
+              </Button>
             </div>
           </div>
         </header>
@@ -267,6 +336,149 @@ export default function App() {
               </Card>
             )}
           </DialogBody>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Settings</DialogTitle>
+            <DialogDescription>Manage maintenance actions and future controls.</DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-6">
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Danger Zone</h3>
+              <Card className="border-destructive/40 bg-destructive/5">
+                <CardContent className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="purgePattern">Regex Pattern</Label>
+                    <Input
+                      id="purgePattern"
+                      value={purgePattern}
+                      onChange={(event) => setPurgePattern(event.target.value)}
+                      placeholder="^test-.*"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Matches profile keys (profiles), titles (tasks), and tags (runs; falls back to run ID if empty). Use <code>.*</code> to match everything.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button
+                      variant="destructive"
+                      onClick={() => handlePurgePreview([PurgeTarget.PROFILES], "Delete Profiles")}
+                      disabled={purgeLoading}
+                    >
+                      Delete Profiles
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => handlePurgePreview([PurgeTarget.TASKS], "Delete Tasks")}
+                      disabled={purgeLoading}
+                    >
+                      Delete Tasks
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => handlePurgePreview([PurgeTarget.RUNS], "Delete Runs")}
+                      disabled={purgeLoading}
+                    >
+                      Delete Runs
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() =>
+                        handlePurgePreview(
+                          [
+                            PurgeTarget.PROFILES,
+                            PurgeTarget.TASKS,
+                            PurgeTarget.RUNS,
+                          ],
+                          "Delete All"
+                        )
+                      }
+                      disabled={purgeLoading}
+                    >
+                      Delete All
+                    </Button>
+                  </div>
+                  {purgeError && (
+                    <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                      {purgeError}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Service Controls</h3>
+              <p>Future settings like pausing new runs or offline mode will live here.</p>
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={purgeConfirmOpen} onOpenChange={setPurgeConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{purgeActionLabel}</DialogTitle>
+            <DialogDescription>
+              This action deletes data that matches the regex pattern. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Pattern</span>
+                <span className="font-mono text-xs">{purgePattern}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Profiles</span>
+                <span>{purgePreview?.profiles ?? 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Tasks</span>
+                <span>{purgePreview?.tasks ?? 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Runs</span>
+                <span>{purgePreview?.runs ?? 0}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="purgeConfirm">Type DELETE to confirm</Label>
+              <Input
+                id="purgeConfirm"
+                value={purgeConfirmText}
+                onChange={(event) => setPurgeConfirmText(event.target.value)}
+                placeholder="DELETE"
+              />
+            </div>
+            {purgeError && (
+              <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {purgeError}
+              </div>
+            )}
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPurgeConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handlePurgeExecute}
+              disabled={purgeLoading || purgeConfirmText.trim() !== "DELETE"}
+            >
+              {purgeLoading ? "Deleting..." : "Confirm Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

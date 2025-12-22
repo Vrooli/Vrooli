@@ -260,6 +260,18 @@ service AgentManagerService {
       post: "/api/v1/runners/{runner_type}/probe"
     };
   }
+
+  // ==========================================================================
+  // MAINTENANCE
+  // ==========================================================================
+
+  // PurgeData deletes profiles, tasks, or runs matching a regex pattern.
+  rpc PurgeData(PurgeDataRequest) returns (PurgeDataResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/maintenance/purge"
+      body: "*"
+    };
+  }
 }
 
 // =============================================================================
@@ -742,4 +754,47 @@ message ProbeRunnerRequest {
 message ProbeRunnerResponse {
   // Probe result.
   ProbeResult result = 1;
+}
+
+// =============================================================================
+// MAINTENANCE MESSAGES
+// =============================================================================
+
+// PurgeTarget identifies which entities to purge.
+enum PurgeTarget {
+  PURGE_TARGET_UNSPECIFIED = 0;
+  PURGE_TARGET_PROFILES = 1;
+  PURGE_TARGET_TASKS = 2;
+  PURGE_TARGET_RUNS = 3;
+}
+
+// PurgeDataRequest requests a purge by regex pattern.
+message PurgeDataRequest {
+  // Regex pattern to match.
+  string pattern = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Targets to purge.
+  repeated PurgeTarget targets = 2 [(buf.validate.field).repeated.min_items = 1];
+
+  // When true, only returns counts without deleting.
+  bool dry_run = 3;
+}
+
+// PurgeCounts reports how many items were matched/deleted.
+message PurgeCounts {
+  int32 profiles = 1;
+  int32 tasks = 2;
+  int32 runs = 3;
+}
+
+// PurgeDataResponse returns purge counts.
+message PurgeDataResponse {
+  // Counts that match the pattern.
+  PurgeCounts matched = 1;
+
+  // Counts deleted (zero when dry_run=true).
+  PurgeCounts deleted = 2;
+
+  // Echoes dry_run for clarity.
+  bool dry_run = 3;
 }

@@ -41,6 +41,9 @@ import {
   ListProfilesResponseSchema,
   ListRunsResponseSchema,
   ListTasksResponseSchema,
+  PurgeDataRequestSchema,
+  PurgeDataResponseSchema,
+  PurgeTarget,
   ProbeRunnerResponseSchema,
   RejectRunRequestSchema,
   UpdateProfileRequestSchema,
@@ -71,6 +74,12 @@ function useApiState<T>(initialData: T | null = null): ApiState<T> & {
 
 const protoReadOptions = { ignoreUnknownFields: true, protoFieldName: true };
 const protoWriteOptions = { useProtoFieldName: true };
+
+type PurgeCounts = {
+  profiles?: number;
+  tasks?: number;
+  runs?: number;
+};
 
 function parseProto<T>(schema: any, raw: unknown): T {
   return fromJson(schema, raw as any, protoReadOptions) as T;
@@ -587,4 +596,40 @@ export async function probeRunner(runnerType: RunnerType): Promise<ProbeResult> 
   });
   const message = parseProto<any>(ProbeRunnerResponseSchema, data);
   return message.result as ProbeResult;
+}
+
+// Maintenance hook
+export function useMaintenance() {
+  const previewPurge = useCallback(async (pattern: string, targets: PurgeTarget[]): Promise<PurgeCounts> => {
+    const payload = create(PurgeDataRequestSchema, {
+      pattern,
+      targets,
+      dryRun: true,
+    });
+    const data = await apiRequest<unknown>("/maintenance/purge", {
+      method: "POST",
+      body: JSON.stringify(toProtoJson(PurgeDataRequestSchema, payload)),
+    });
+    const message = parseProto<any>(PurgeDataResponseSchema, data);
+    return message.matched ?? {};
+  }, []);
+
+  const executePurge = useCallback(async (pattern: string, targets: PurgeTarget[]): Promise<PurgeCounts> => {
+    const payload = create(PurgeDataRequestSchema, {
+      pattern,
+      targets,
+      dryRun: false,
+    });
+    const data = await apiRequest<unknown>("/maintenance/purge", {
+      method: "POST",
+      body: JSON.stringify(toProtoJson(PurgeDataRequestSchema, payload)),
+    });
+    const message = parseProto<any>(PurgeDataResponseSchema, data);
+    return message.deleted ?? {};
+  }, []);
+
+  return {
+    previewPurge,
+    executePurge,
+  };
 }

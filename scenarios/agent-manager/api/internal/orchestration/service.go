@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -82,6 +83,9 @@ type Service interface {
 	GetHealth(ctx context.Context) (*HealthStatus, error)
 	GetRunnerStatus(ctx context.Context) ([]*RunnerStatus, error)
 	ProbeRunner(ctx context.Context, runnerType domain.RunnerType) (*ProbeResult, error)
+
+	// --- Maintenance Operations ---
+	PurgeData(ctx context.Context, req PurgeRequest) (*PurgeResult, error)
 }
 
 // -----------------------------------------------------------------------------
@@ -101,6 +105,36 @@ type RunListOptions struct {
 	AgentProfileID *uuid.UUID
 	Status         *domain.RunStatus
 	TagPrefix      string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+}
+
+// PurgeTarget identifies entities eligible for purge.
+type PurgeTarget int
+
+const (
+	PurgeTargetProfiles PurgeTarget = iota + 1
+	PurgeTargetTasks
+	PurgeTargetRuns
+)
+
+// PurgeRequest specifies a purge by regex pattern.
+type PurgeRequest struct {
+	Pattern string
+	Targets []PurgeTarget
+	DryRun  bool
+}
+
+// PurgeCounts reports matched/deleted counts.
+type PurgeCounts struct {
+	Profiles int
+	Tasks    int
+	Runs     int
+}
+
+// PurgeResult summarizes a purge operation.
+type PurgeResult struct {
+	Matched PurgeCounts
+	Deleted PurgeCounts
+	DryRun  bool
 }
 
 // CreateRunRequest contains parameters for creating a new run.
@@ -1478,6 +1512,112 @@ func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.Runner
 		Response:   "",
 		DurationMs: duration.Milliseconds(),
 	}, nil
+}
+
+// PurgeData deletes profiles, tasks, or runs matching a regex pattern.
+func (o *Orchestrator) PurgeData(ctx context.Context, req PurgeRequest) (*PurgeResult, error) {
+	pattern := strings.TrimSpace(req.Pattern)
+	if pattern == "" {
+		return nil, domain.NewValidationError("pattern", "pattern is required")
+	}
+	if len(req.Targets) == 0 {
+		return nil, domain.NewValidationError("targets", "at least one target is required")
+	}
+
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, domain.NewValidationError("pattern", "invalid regex pattern")
+	}
+
+	targets := map[PurgeTarget]bool{}
+	for _, t := range req.Targets {
+		targets[t] = true
+	}
+
+	result := &PurgeResult{
+		Matched: PurgeCounts{},
+		Deleted: PurgeCounts{},
+		DryRun:  req.DryRun,
+	}
+
+	var profileIDs []uuid.UUID
+	if targets[PurgeTargetProfiles] {
+		profiles, err := o.profiles.List(ctx, repository.ListFilter{})
+		if err != nil {
+			return nil, err
+		}
+		for _, profile := range profiles {
+			if re.MatchString(profile.ProfileKey) {
+				result.Matched.Profiles++
+				profileIDs = append(profileIDs, profile.ID)
+			}
+		}
+	}
+
+	var taskIDs []uuid.UUID
+	if targets[PurgeTargetTasks] {
+		tasks, err := o.tasks.List(ctx, repository.ListFilter{})
+		if err != nil {
+			return nil, err
+		}
+		for _, task := range tasks {
+			if re.MatchString(task.Title) {
+				result.Matched.Tasks++
+				taskIDs = append(taskIDs, task.ID)
+			}
+		}
+	}
+
+	var runIDs []uuid.UUID
+	if targets[PurgeTargetRuns] {
+		runs, err := o.runs.List(ctx, repository.RunListFilter{})
+		if err != nil {
+			return nil, err
+		}
+		for _, run := range runs {
+			if re.MatchString(run.GetTag()) {
+				result.Matched.Runs++
+				runIDs = append(runIDs, run.ID)
+			}
+		}
+	}
+
+	if req.DryRun {
+		return result, nil
+	}
+
+	for _, id := range runIDs {
+		if o.events != nil {
+			if err := o.events.Delete(ctx, id); err != nil {
+				return nil, err
+			}
+		}
+		if o.checkpoints != nil {
+			if err := o.checkpoints.Delete(ctx, id); err != nil {
+				return nil, err
+			}
+		}
+		if err := o.runs.Delete(ctx, id); err != nil {
+			return nil, err
+		}
+		result.Deleted.Runs++
+	}
+
+	for _, id := range taskIDs {
+		if err := o.tasks.Delete(ctx, id); err != nil {
+			return nil, err
+		}
+		result.Deleted.Tasks++
+	}
+
+	for _, id := range profileIDs {
+		if err := o.profiles.Delete(ctx, id); err != nil {
+			return nil, err
+		}
+		result.Deleted.Profiles++
+	}
+
+	return result, nil
 }
 
 // stripANSI removes ANSI escape codes from a string

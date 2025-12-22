@@ -7,12 +7,24 @@ from agent_manager.v1.domain import task_pb2 as _task_pb2
 from agent_manager.v1.domain import run_pb2 as _run_pb2
 from agent_manager.v1.domain import events_pb2 as _events_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class PurgeTarget(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PURGE_TARGET_UNSPECIFIED: _ClassVar[PurgeTarget]
+    PURGE_TARGET_PROFILES: _ClassVar[PurgeTarget]
+    PURGE_TARGET_TASKS: _ClassVar[PurgeTarget]
+    PURGE_TARGET_RUNS: _ClassVar[PurgeTarget]
+PURGE_TARGET_UNSPECIFIED: PurgeTarget
+PURGE_TARGET_PROFILES: PurgeTarget
+PURGE_TARGET_TASKS: PurgeTarget
+PURGE_TARGET_RUNS: PurgeTarget
 
 class HealthRequest(_message.Message):
     __slots__ = ()
@@ -407,3 +419,33 @@ class ProbeRunnerResponse(_message.Message):
     RESULT_FIELD_NUMBER: _ClassVar[int]
     result: _run_pb2.ProbeResult
     def __init__(self, result: _Optional[_Union[_run_pb2.ProbeResult, _Mapping]] = ...) -> None: ...
+
+class PurgeDataRequest(_message.Message):
+    __slots__ = ()
+    PATTERN_FIELD_NUMBER: _ClassVar[int]
+    TARGETS_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    pattern: str
+    targets: _containers.RepeatedScalarFieldContainer[PurgeTarget]
+    dry_run: bool
+    def __init__(self, pattern: _Optional[str] = ..., targets: _Optional[_Iterable[_Union[PurgeTarget, str]]] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class PurgeCounts(_message.Message):
+    __slots__ = ()
+    PROFILES_FIELD_NUMBER: _ClassVar[int]
+    TASKS_FIELD_NUMBER: _ClassVar[int]
+    RUNS_FIELD_NUMBER: _ClassVar[int]
+    profiles: int
+    tasks: int
+    runs: int
+    def __init__(self, profiles: _Optional[int] = ..., tasks: _Optional[int] = ..., runs: _Optional[int] = ...) -> None: ...
+
+class PurgeDataResponse(_message.Message):
+    __slots__ = ()
+    MATCHED_FIELD_NUMBER: _ClassVar[int]
+    DELETED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    matched: PurgeCounts
+    deleted: PurgeCounts
+    dry_run: bool
+    def __init__(self, matched: _Optional[_Union[PurgeCounts, _Mapping]] = ..., deleted: _Optional[_Union[PurgeCounts, _Mapping]] = ..., dry_run: _Optional[bool] = ...) -> None: ...
