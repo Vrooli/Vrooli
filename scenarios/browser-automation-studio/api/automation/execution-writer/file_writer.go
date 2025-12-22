@@ -177,6 +177,7 @@ func (r *FileWriter) GetArtifactConfig() config.ArtifactCollectionSettings {
 const (
 	resultFileName        = "result.json"
 	protoTimelineFileName = "timeline.proto.json"
+	readmeFileName        = "README.md"
 )
 
 // getOrCreateResult gets or creates the result data for an execution.
@@ -227,6 +228,10 @@ func (r *FileWriter) protoTimelineFilePath(executionID uuid.UUID) string {
 	return filepath.Join(r.dataDir, executionID.String(), protoTimelineFileName)
 }
 
+func (r *FileWriter) readmeFilePath(executionID uuid.UUID) string {
+	return filepath.Join(r.dataDir, executionID.String(), readmeFileName)
+}
+
 // writeResultFile persists the execution result data to disk.
 func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionResultData, timeline *executionTimelineData) error {
 	if result != nil {
@@ -247,6 +252,10 @@ func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionRes
 		return fmt.Errorf("create result directory: %w", err)
 	}
 
+	if err := r.writeReadmeFile(executionID); err != nil {
+		return err
+	}
+
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal result data: %w", err)
@@ -256,6 +265,37 @@ func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionRes
 		return fmt.Errorf("write result file: %w", err)
 	}
 
+	return nil
+}
+
+func (r *FileWriter) writeReadmeFile(executionID uuid.UUID) error {
+	path := r.readmeFilePath(executionID)
+	if info, err := os.Stat(path); err == nil && !info.IsDir() {
+		return nil
+	}
+
+	content := []byte(`# Browser Automation Studio Execution Artifacts
+
+This folder contains artifacts captured during a single workflow execution.
+
+## Top-level files
+- execution.proto.json: execution metadata snapshot (status, timestamps, workflow ID).
+- result.json: normalized execution timeline (proto-aligned JSON).
+- timeline.proto.json: raw timeline protobuf JSON.
+
+## artifacts/
+- artifacts/screenshots: per-step replay screenshots (ordered by step number).
+- artifacts/videos: Playwright recordings (per page).
+- artifacts/traces: Playwright traces (.zip).
+- artifacts/har: HAR captures (.har).
+- artifacts/dom: per-step DOM snapshots (.html) when enabled.
+
+If an artifact type is missing, it was not requested or the engine failed to produce it.
+`)
+
+	if err := os.WriteFile(path, content, 0644); err != nil {
+		return fmt.Errorf("write readme file: %w", err)
+	}
 	return nil
 }
 

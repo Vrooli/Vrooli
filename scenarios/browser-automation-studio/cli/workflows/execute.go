@@ -252,7 +252,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		fmt.Println("")
 		fmt.Printf("Artifacts will be available after completion. Watch with: browser-automation-studio execution watch %s\n", executionID)
 		if recordingsRoot != "" {
-			fmt.Printf("Artifacts stored at: %s\n", recordingsRoot)
+			fmt.Printf("Find more info at: %s\n", filepath.Join(recordingsRoot, "README.md"))
 		}
 	}
 
@@ -406,7 +406,7 @@ func printCollectedArtifacts(ctx *appctx.Context, executionID, recordingsRoot st
 	}
 
 	if recordingsRoot != "" {
-		fmt.Printf("Artifacts stored at: %s\n", recordingsRoot)
+		fmt.Printf("Find more info at: %s\n", filepath.Join(recordingsRoot, "README.md"))
 	}
 
 	if !hasVideos && requiresVideo {
