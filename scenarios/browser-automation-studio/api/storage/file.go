@@ -113,6 +113,8 @@ func (f *FileStorage) StoreScreenshot(_ context.Context, executionID uuid.UUID, 
 		SizeBytes:    int64(len(data)),
 		Width:        width,
 		Height:       height,
+		ObjectName:   objectName,
+		Path:         path,
 	}, nil
 }
 

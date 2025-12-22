@@ -7,13 +7,15 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
-	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
+	bastelemetry "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -98,11 +100,9 @@ func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID 
 		}, nil
 	}
 
-	// Read the execution result file
-	resultData, err := s.readExecutionResult(execution.ResultPath)
+	pbTimeline, err := s.GetExecutionTimelineProto(ctx, executionID)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Result file not found, return minimal timeline
 			return &ExecutionTimeline{
 				ExecutionID: execution.ID,
 				WorkflowID:  execution.WorkflowID,
@@ -113,29 +113,21 @@ func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID 
 				Logs:        []TimelineLog{},
 			}, nil
 		}
-		return nil, fmt.Errorf("read result file: %w", err)
+		return nil, fmt.Errorf("read timeline proto: %w", err)
 	}
 
-	// Build indexes for artifacts and steps
-	stepByIndex := make(map[int]*executionwriter.StepResultData, len(resultData.Steps))
-	for i := range resultData.Steps {
-		step := &resultData.Steps[i]
-		stepByIndex[step.StepIndex] = step
-	}
+	return timelineProtoToExport(execution, pbTimeline), nil
+}
 
-	artifactByID := make(map[string]*executionwriter.ArtifactData, len(resultData.Artifacts))
-	for i := range resultData.Artifacts {
-		artifact := &resultData.Artifacts[i]
-		artifactByID[artifact.ArtifactID] = artifact
-	}
-
-	// Build timeline frames from timeline frame data
-	frames := make([]TimelineFrame, 0, len(resultData.TimelineFrame))
-	for _, frameData := range resultData.TimelineFrame {
-		frame := s.buildTimelineFrameFromData(&frameData, artifactByID, stepByIndex)
+func timelineProtoToExport(execution *database.ExecutionIndex, pb *bastimeline.ExecutionTimeline) *ExecutionTimeline {
+	frames := make([]TimelineFrame, 0, len(pb.Entries))
+	for _, entry := range pb.Entries {
+		if entry == nil {
+			continue
+		}
+		frame := timelineEntryToFrame(entry)
 		frames = append(frames, frame)
 	}
-
 	sort.Slice(frames, func(i, j int) bool {
 		if frames[i].StepIndex != frames[j].StepIndex {
 			return frames[i].StepIndex < frames[j].StepIndex
@@ -143,228 +135,161 @@ func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID 
 		return frames[i].NodeID < frames[j].NodeID
 	})
 
-	// Build logs from telemetry data (telemetry can contain log-level information)
-	timelineLogs := make([]TimelineLog, 0)
-	for i, telemetry := range resultData.Telemetry {
-		message := strings.TrimSpace(telemetry.Data.Note)
-		level := "info"
-		switch telemetry.Data.Kind {
-		case "console":
-			level = "info"
-			if len(telemetry.Data.Console) > 0 && strings.TrimSpace(message) == "" {
-				first := telemetry.Data.Console[0]
-				message = strings.TrimSpace(first.Text)
-				if t := strings.TrimSpace(first.Type); t != "" {
-					level = strings.ToLower(t)
-				}
-			}
-		case "network":
-			level = "debug"
-			if len(telemetry.Data.Network) > 0 && strings.TrimSpace(message) == "" {
-				first := telemetry.Data.Network[0]
-				message = strings.TrimSpace(first.URL)
-			}
-		case "retry":
-			level = "warn"
-		case "progress":
-			level = "info"
-		case "heartbeat":
-			level = "info"
-			if telemetry.Data.Heartbeat != nil && strings.TrimSpace(message) == "" {
-				message = strings.TrimSpace(telemetry.Data.Heartbeat.Message)
-			}
-		}
-
-		if message == "" {
+	logs := make([]TimelineLog, 0, len(pb.Logs))
+	for _, log := range pb.Logs {
+		if log == nil {
 			continue
 		}
-
-		timelineLogs = append(timelineLogs, TimelineLog{
-			ID:        fmt.Sprintf("log-%d", i),
-			Level:     level,
-			Message:   message,
-			StepName:  fmt.Sprintf("step-%d", telemetry.StepIndex),
-			Timestamp: telemetry.Timestamp,
-		})
+		entry := TimelineLog{
+			ID:      log.Id,
+			Level:   strings.ToLower(log.Level.String()),
+			Message: log.Message,
+		}
+		if log.Timestamp != nil {
+			entry.Timestamp = autocontracts.TimestampToTime(log.Timestamp)
+		}
+		if log.StepName != nil {
+			entry.StepName = *log.StepName
+		}
+		logs = append(logs, entry)
 	}
 
-	// Calculate progress from summary
-	progress := 0
-	if resultData.Summary.TotalSteps > 0 {
-		progress = (resultData.Summary.CompletedSteps * 100) / resultData.Summary.TotalSteps
+	startedAt := execution.StartedAt
+	if pb.StartedAt != nil {
+		startedAt = autocontracts.TimestampToTime(pb.StartedAt)
+	}
+	completedAt := execution.CompletedAt
+	if pb.CompletedAt != nil {
+		completedAt = autocontracts.TimestampToTimePtr(pb.CompletedAt)
 	}
 
 	return &ExecutionTimeline{
 		ExecutionID: execution.ID,
 		WorkflowID:  execution.WorkflowID,
 		Status:      execution.Status,
-		Progress:    progress,
-		StartedAt:   execution.StartedAt,
-		CompletedAt: execution.CompletedAt,
+		Progress:    int(pb.Progress),
+		StartedAt:   startedAt,
+		CompletedAt: completedAt,
 		Frames:      frames,
-		Logs:        timelineLogs,
-	}, nil
+		Logs:        logs,
+	}
 }
 
-// buildTimelineFrameFromData constructs a TimelineFrame from recorder data types.
-// This reads from the execution result JSON file format.
-func (s *WorkflowService) buildTimelineFrameFromData(
-	frameData *executionwriter.TimelineFrameData,
-	artifacts map[string]*executionwriter.ArtifactData,
-	stepsByIndex map[int]*executionwriter.StepResultData,
-) TimelineFrame {
-	payload := frameData.Payload
-	if payload == nil {
-		payload = map[string]any{}
+func timelineEntryToFrame(entry *bastimeline.TimelineEntry) TimelineFrame {
+	frame := TimelineFrame{}
+
+	if entry.StepIndex != nil {
+		frame.StepIndex = int(*entry.StepIndex)
+	} else {
+		frame.StepIndex = int(entry.SequenceNum)
 	}
-
-	// Extract data from payload (timeline frame metadata)
-	stepIndex := frameData.StepIndex
-	nodeID := frameData.NodeID
-	stepType := frameData.StepType
-	success := frameData.Success
-	duration := frameData.DurationMs
-
-	// Additional metadata from payload
-	progress := typeconv.ToInt(payload["progress"])
-	finalURL := typeconv.ToString(payload["finalUrl"])
-	errorMsg := typeconv.ToString(payload["error"])
-	consoleCount := typeconv.ToInt(payload["consoleLogCount"])
-	networkCount := typeconv.ToInt(payload["networkEventCount"])
-	zoomFactor := typeconv.ToFloat(payload["zoomFactor"])
-	extractedPreview := payload["extractedDataPreview"]
-	cursorTrail := typeconv.ToPointSlice(payload["cursorTrail"])
-	assertion := typeconv.ToAssertionOutcome(payload["assertion"])
-	totalDuration := typeconv.ToInt(payload["totalDurationMs"])
-
-	// Retry information
-	retryAttempt := frameData.Attempt
-	if retryAttempt == 0 {
-		retryAttempt = typeconv.ToInt(payload["retryAttempt"])
+	if entry.NodeId != nil {
+		frame.NodeID = *entry.NodeId
 	}
-	retryMaxAttempts := typeconv.ToInt(payload["retryMaxAttempts"])
-	retryConfigured := typeconv.ToInt(payload["retryConfigured"])
-	retryDelayMs := typeconv.ToInt(payload["retryDelayMs"])
-	retryBackoff := typeconv.ToFloat(payload["retryBackoffFactor"])
-	retryHistory := typeconv.ToRetryHistory(payload["retryHistory"])
-
-	// DOM snapshot info
-	domSnapshotPreview := typeconv.ToString(payload["domSnapshotPreview"])
-	domSnapshotArtifactID := frameData.DOMSnapshotArtifactID
-	if domSnapshotArtifactID == "" {
-		domSnapshotArtifactID = typeconv.ToString(payload["domSnapshotArtifactId"])
+	if entry.Action != nil {
+		frame.StepType = enums.ActionTypeToString(entry.Action.Type)
 	}
-
-	// Timestamps
-	startedAt := typeconv.ToTimePtr(payload["startedAt"])
-	completedAt := typeconv.ToTimePtr(payload["completedAt"])
-
-	// Determine status
-	var status string
-	if success {
-		status = "completed"
-	} else if errorMsg != "" {
-		status = "failed"
+	if entry.DurationMs != nil {
+		frame.DurationMs = int(*entry.DurationMs)
 	}
-
-	// Enrich from step data if available
-	if step := stepsByIndex[stepIndex]; step != nil {
-		if status == "" && step.Status != "" {
-			status = step.Status
-		}
-		if duration == 0 && step.DurationMs > 0 {
-			duration = step.DurationMs
-		}
-		if startedAt == nil {
-			startedAt = &step.StartedAt
-		}
-		if completedAt == nil && step.CompletedAt != nil {
-			completedAt = step.CompletedAt
-		}
-		if errorMsg == "" && step.Error != "" {
-			errorMsg = step.Error
+	if entry.TotalDurationMs != nil {
+		frame.TotalDurationMs = int(*entry.TotalDurationMs)
+	}
+	if entry.Timestamp != nil {
+		started := autocontracts.TimestampToTime(entry.Timestamp)
+		frame.StartedAt = &started
+		if entry.DurationMs != nil {
+			completed := started.Add(time.Duration(*entry.DurationMs) * time.Millisecond)
+			frame.CompletedAt = &completed
 		}
 	}
-
-	if status == "" {
-		if success {
-			status = "completed"
-		} else if errorMsg != "" {
-			status = "failed"
+	if entry.Context != nil {
+		if entry.Context.Success != nil {
+			frame.Success = *entry.Context.Success
+		}
+		if entry.Context.Error != nil {
+			frame.Error = *entry.Context.Error
+		}
+		if entry.Context.Assertion != nil {
+			frame.Assertion = &autocontracts.AssertionOutcome{
+				Mode:          entry.Context.Assertion.Mode.String(),
+				Selector:      entry.Context.Assertion.Selector,
+				Success:       entry.Context.Assertion.Success,
+				Negated:       entry.Context.Assertion.Negated,
+				CaseSensitive: entry.Context.Assertion.CaseSensitive,
+			}
+			if entry.Context.Assertion.Message != nil {
+				frame.Assertion.Message = *entry.Context.Assertion.Message
+			}
+			if entry.Context.Assertion.Expected != nil {
+				frame.Assertion.Expected = typeconv.JsonValueToAny(entry.Context.Assertion.Expected)
+			}
+			if entry.Context.Assertion.Actual != nil {
+				frame.Assertion.Actual = typeconv.JsonValueToAny(entry.Context.Assertion.Actual)
+			}
+		}
+	}
+	if entry.Telemetry != nil {
+		frame.FinalURL = entry.Telemetry.Url
+		frame.ElementBoundingBox = entry.Telemetry.ElementBoundingBox
+		frame.ClickPosition = entry.Telemetry.ClickPosition
+		frame.CursorTrail = entry.Telemetry.CursorTrail
+		frame.HighlightRegions = entry.Telemetry.HighlightRegions
+		frame.MaskRegions = entry.Telemetry.MaskRegions
+		if entry.Telemetry.ZoomFactor != nil {
+			frame.ZoomFactor = *entry.Telemetry.ZoomFactor
+		}
+		if entry.Telemetry.Screenshot != nil {
+			frame.Screenshot = timelineScreenshotFromProto(entry.Telemetry.Screenshot)
+		}
+		frame.ConsoleLogCount = len(entry.Telemetry.ConsoleLogs)
+		frame.NetworkEventCount = len(entry.Telemetry.NetworkEvents)
+	}
+	if entry.Aggregates != nil {
+		frame.Status = enums.StepStatusToString(entry.Aggregates.Status)
+		if entry.Aggregates.FinalUrl != nil {
+			frame.FinalURL = *entry.Aggregates.FinalUrl
+		}
+		if entry.Aggregates.Progress != nil {
+			frame.Progress = int(*entry.Aggregates.Progress)
+		}
+		if entry.Aggregates.ConsoleLogCount != 0 {
+			frame.ConsoleLogCount = int(entry.Aggregates.ConsoleLogCount)
+		}
+		if entry.Aggregates.NetworkEventCount != 0 {
+			frame.NetworkEventCount = int(entry.Aggregates.NetworkEventCount)
+		}
+		if entry.Aggregates.ExtractedDataPreview != nil {
+			frame.ExtractedDataPreview = typeconv.JsonValueToAny(entry.Aggregates.ExtractedDataPreview)
+		}
+		if entry.Aggregates.DomSnapshotPreview != nil {
+			frame.DomSnapshotPreview = *entry.Aggregates.DomSnapshotPreview
+		}
+		if entry.Aggregates.FocusedElement != nil {
+			frame.FocusedElement = entry.Aggregates.FocusedElement
+		}
+	}
+	if frame.Status == "" {
+		if frame.Success {
+			frame.Status = "completed"
 		} else {
-			status = "unknown"
+			frame.Status = "failed"
 		}
 	}
+	return frame
+}
 
-	// Visual metadata
-	highlightRegions := typeconv.ToHighlightRegions(payload["highlightRegions"])
-	maskRegions := typeconv.ToMaskRegions(payload["maskRegions"])
-	focusedElement := typeconv.ToElementFocus(payload["focusedElement"])
-	elementBoundingBox := typeconv.ToBoundingBox(payload["elementBoundingBox"])
-	clickPosition := typeconv.ToPoint(payload["clickPosition"])
-
-	// Screenshot
-	var screenshot *TimelineScreenshot
-	screenshotID := frameData.ScreenshotArtifactID
-	if screenshotID == "" {
-		screenshotID = typeconv.ToString(payload["screenshotArtifactId"])
+func timelineScreenshotFromProto(shot *bastelemetry.TimelineScreenshot) *TimelineScreenshot {
+	if shot == nil {
+		return nil
 	}
-	if screenshotID != "" {
-		if artifact := artifacts[screenshotID]; artifact != nil {
-			screenshot = typeconv.ToTimelineScreenshot(artifact)
-		}
-	}
-
-	// Related artifacts
-	artifactRefs := make([]TimelineArtifact, 0)
-	for _, id := range typeconv.ToStringSlice(payload["artifactIds"]) {
-		if artifact := artifacts[id]; artifact != nil {
-			artifactRefs = append(artifactRefs, typeconv.ToTimelineArtifact(artifact))
-		}
-	}
-
-	// DOM snapshot artifact
-	var domSnapshot *TimelineArtifact
-	if domSnapshotArtifactID != "" {
-		if artifact := artifacts[domSnapshotArtifactID]; artifact != nil {
-			artifactCopy := typeconv.ToTimelineArtifact(artifact)
-			domSnapshot = &artifactCopy
-		}
-	}
-
-	return TimelineFrame{
-		StepIndex:            stepIndex,
-		NodeID:               nodeID,
-		StepType:             stepType,
-		Status:               status,
-		Success:              success,
-		DurationMs:           duration,
-		TotalDurationMs:      totalDuration,
-		Progress:             progress,
-		StartedAt:            startedAt,
-		CompletedAt:          completedAt,
-		FinalURL:             finalURL,
-		Error:                errorMsg,
-		ConsoleLogCount:      consoleCount,
-		NetworkEventCount:    networkCount,
-		ExtractedDataPreview: extractedPreview,
-		HighlightRegions:     highlightRegions,
-		MaskRegions:          maskRegions,
-		FocusedElement:       focusedElement,
-		ElementBoundingBox:   elementBoundingBox,
-		ClickPosition:        clickPosition,
-		CursorTrail:          cursorTrail,
-		ZoomFactor:           zoomFactor,
-		Screenshot:           screenshot,
-		Artifacts:            artifactRefs,
-		Assertion:            assertion,
-		RetryAttempt:         retryAttempt,
-		RetryMaxAttempts:     retryMaxAttempts,
-		RetryConfigured:      retryConfigured,
-		RetryDelayMs:         retryDelayMs,
-		RetryBackoffFactor:   retryBackoff,
-		RetryHistory:         retryHistory,
-		DomSnapshotPreview:   domSnapshotPreview,
-		DomSnapshot:          domSnapshot,
+	return &TimelineScreenshot{
+		ArtifactID:   shot.ArtifactId,
+		URL:          shot.Url,
+		ThumbnailURL: shot.ThumbnailUrl,
+		Width:        int(shot.Width),
+		Height:       int(shot.Height),
+		ContentType:  shot.ContentType,
+		SizeBytes:    shot.SizeBytes,
 	}
 }

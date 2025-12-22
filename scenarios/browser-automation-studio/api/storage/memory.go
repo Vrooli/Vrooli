@@ -76,6 +76,7 @@ func (m *MemoryStorage) StoreScreenshot(ctx context.Context, executionID uuid.UU
 		SizeBytes:    int64(len(data)),
 		Width:        1920, // Default test values
 		Height:       1080,
+		ObjectName:   objectName,
 	}, nil
 }
 

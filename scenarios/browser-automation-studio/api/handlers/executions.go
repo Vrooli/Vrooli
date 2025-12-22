@@ -2,18 +2,18 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
@@ -420,21 +420,43 @@ func (h *Handler) loadRecordedVideo(ctx context.Context, executionID uuid.UUID) 
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(execution.ResultPath) == "" {
+	if strings.TrimSpace(h.recordingsRoot) == "" || strings.TrimSpace(execution.ResultPath) == "" {
 		return nil, errRecordedVideoNotFound
 	}
-	raw, err := os.ReadFile(execution.ResultPath)
+	videoDir := filepath.Join(h.recordingsRoot, executionID.String(), "artifacts", "videos")
+	entries, err := os.ReadDir(videoDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, errRecordedVideoNotFound
 		}
 		return nil, err
 	}
-	var result executionwriter.ExecutionResultData
-	if err := json.Unmarshal(raw, &result); err != nil {
-		return nil, err
+
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		files = append(files, entry.Name())
 	}
-	return resolveRecordedVideoSource(result.Artifacts, h.storage)
+	if len(files) == 0 {
+		return nil, errRecordedVideoNotFound
+	}
+	sort.Strings(files)
+	path := filepath.Join(videoDir, files[0])
+	contentType := mime.TypeByExtension(filepath.Ext(path))
+	if contentType == "" {
+		if data, readErr := os.ReadFile(path); readErr == nil {
+			contentType = http.DetectContentType(data)
+		}
+	}
+	if contentType == "" {
+		contentType = "video/webm"
+	}
+	return &recordedVideoSource{
+		Path:        path,
+		ContentType: contentType,
+	}, nil
 }
 
 func (h *Handler) serveRecordedVideo(w http.ResponseWriter, r *http.Request, source *recordedVideoSource, format, fileName string) error {

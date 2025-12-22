@@ -29,6 +29,8 @@ type ScreenshotInfo struct {
 	SizeBytes    int64
 	Width        int
 	Height       int
+	ObjectName   string
+	Path         string
 }
 
 // NewMinIOClient creates a new MinIO client for screenshot storage
@@ -137,6 +139,7 @@ func (m *MinIOClient) StoreScreenshot(ctx context.Context, executionID uuid.UUID
 		SizeBytes:    int64(len(data)),
 		Width:        width,  // Should be parsed from actual image
 		Height:       height, // Should be parsed from actual image
+		ObjectName:   objectName,
 	}, nil
 }
 

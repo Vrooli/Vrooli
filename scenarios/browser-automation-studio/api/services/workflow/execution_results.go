@@ -2,27 +2,30 @@ package workflow
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"mime"
+	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/database"
-	bastelemetry "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func (s *WorkflowService) readExecutionResult(resultPath string) (*executionwriter.ExecutionResultData, error) {
+func (s *WorkflowService) readExecutionTimeline(resultPath string) (*bastimeline.ExecutionTimeline, error) {
 	data, err := os.ReadFile(resultPath)
 	if err != nil {
 		return nil, err
 	}
-	var result executionwriter.ExecutionResultData
-	if err := json.Unmarshal(data, &result); err != nil {
+	var result bastimeline.ExecutionTimeline
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(data, &result); err != nil {
 		return nil, fmt.Errorf("parse result JSON: %w", err)
 	}
 	return &result, nil
@@ -38,7 +41,7 @@ func (s *WorkflowService) GetExecutionScreenshots(ctx context.Context, execution
 		return []*basexecution.ExecutionScreenshot{}, nil
 	}
 
-	resultData, err := s.readExecutionResult(execution.ResultPath)
+	resultData, err := s.readExecutionTimeline(execution.ResultPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []*basexecution.ExecutionScreenshot{}, nil
@@ -46,39 +49,41 @@ func (s *WorkflowService) GetExecutionScreenshots(ctx context.Context, execution
 		return nil, fmt.Errorf("read result file: %w", err)
 	}
 
-	screenshots := make([]*basexecution.ExecutionScreenshot, 0)
-	for _, artifact := range resultData.Artifacts {
-		if artifact.ArtifactType != "screenshot" && artifact.ArtifactType != "screenshot_inline" {
+	screenshots := make([]*basexecution.ExecutionScreenshot, 0, len(resultData.Entries))
+	for _, entry := range resultData.Entries {
+		if entry == nil || entry.Telemetry == nil || entry.Telemetry.Screenshot == nil {
 			continue
 		}
+		stepIndex := int32(0)
+		if entry.StepIndex != nil {
+			stepIndex = *entry.StepIndex
+		}
+		nodeID := ""
+		if entry.NodeId != nil {
+			nodeID = *entry.NodeId
+		}
 		screenshot := &basexecution.ExecutionScreenshot{
-			Screenshot: &bastelemetry.TimelineScreenshot{
-				ArtifactId:   artifact.ArtifactID,
-				Url:          artifact.StorageURL,
-				ThumbnailUrl: artifact.ThumbnailURL,
-				ContentType:  artifact.ContentType,
-			},
-			NodeId: "",
+			Screenshot: entry.Telemetry.Screenshot,
+			StepIndex:  stepIndex,
+			NodeId:     nodeID,
 		}
-		if artifact.SizeBytes != nil {
-			screenshot.Screenshot.SizeBytes = artifact.SizeBytes
-		}
-		if artifact.StepIndex != nil {
-			screenshot.StepIndex = int32(*artifact.StepIndex)
-		}
-		if artifact.Label != "" {
-			screenshot.StepLabel = &artifact.Label
-		}
-
-		// Find the step to get node ID
-		for _, step := range resultData.Steps {
-			if artifact.StepIndex != nil && step.StepIndex == *artifact.StepIndex {
-				screenshot.NodeId = step.NodeID
-				break
+		if entry.Action != nil && entry.Action.Metadata != nil && entry.Action.Metadata.Label != nil {
+			label := strings.TrimSpace(*entry.Action.Metadata.Label)
+			if label != "" {
+				screenshot.StepLabel = &label
 			}
+		}
+		if entry.Timestamp != nil {
+			screenshot.Timestamp = entry.Timestamp
 		}
 		screenshots = append(screenshots, screenshot)
 	}
+	sort.Slice(screenshots, func(i, j int) bool {
+		if screenshots[i].StepIndex != screenshots[j].StepIndex {
+			return screenshots[i].StepIndex < screenshots[j].StepIndex
+		}
+		return screenshots[i].NodeId < screenshots[j].NodeId
+	})
 	return screenshots, nil
 }
 
@@ -104,90 +109,76 @@ type ExecutionFileArtifact struct {
 
 // GetExecutionVideoArtifacts reads recorded video artifacts from the execution result file.
 func (s *WorkflowService) GetExecutionVideoArtifacts(ctx context.Context, executionID uuid.UUID) ([]ExecutionVideoArtifact, error) {
-	execution, err := s.repo.GetExecution(ctx, executionID)
+	files, err := s.listExecutionArtifacts(ctx, executionID, "videos")
 	if err != nil {
-		return nil, fmt.Errorf("get execution: %w", err)
+		return nil, err
 	}
-	if execution.ResultPath == "" {
-		return []ExecutionVideoArtifact{}, nil
-	}
-
-	resultData, err := s.readExecutionResult(execution.ResultPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []ExecutionVideoArtifact{}, nil
-		}
-		return nil, fmt.Errorf("read result file: %w", err)
-	}
-
-	videos := make([]ExecutionVideoArtifact, 0)
-	for _, artifact := range resultData.Artifacts {
-		if artifact.ArtifactType != "video_meta" && artifact.ArtifactType != "video" {
-			continue
-		}
-		videos = append(videos, ExecutionVideoArtifact{
-			ArtifactID:  artifact.ArtifactID,
-			StorageURL:  artifact.StorageURL,
-			ContentType: artifact.ContentType,
-			Label:       artifact.Label,
-			SizeBytes:   artifact.SizeBytes,
-			Payload:     artifact.Payload,
-		})
+	videos := make([]ExecutionVideoArtifact, 0, len(files))
+	for _, file := range files {
+		videos = append(videos, ExecutionVideoArtifact(file))
 	}
 	return videos, nil
 }
 
 // GetExecutionTraceArtifacts reads trace artifacts from the execution result file.
 func (s *WorkflowService) GetExecutionTraceArtifacts(ctx context.Context, executionID uuid.UUID) ([]ExecutionFileArtifact, error) {
-	return s.getExecutionFileArtifacts(ctx, executionID, map[string]bool{
-		"trace":      true,
-		"trace_meta": true,
-	})
+	return s.listExecutionArtifacts(ctx, executionID, "traces")
 }
 
 // GetExecutionHarArtifacts reads HAR artifacts from the execution result file.
 func (s *WorkflowService) GetExecutionHarArtifacts(ctx context.Context, executionID uuid.UUID) ([]ExecutionFileArtifact, error) {
-	return s.getExecutionFileArtifacts(ctx, executionID, map[string]bool{
-		"har":      true,
-		"har_meta": true,
-	})
+	return s.listExecutionArtifacts(ctx, executionID, "har")
 }
 
-func (s *WorkflowService) getExecutionFileArtifacts(ctx context.Context, executionID uuid.UUID, types map[string]bool) ([]ExecutionFileArtifact, error) {
-	execution, err := s.repo.GetExecution(ctx, executionID)
-	if err != nil {
-		return nil, fmt.Errorf("get execution: %w", err)
-	}
-	if execution.ResultPath == "" {
+func (s *WorkflowService) listExecutionArtifacts(ctx context.Context, executionID uuid.UUID, folder string) ([]ExecutionFileArtifact, error) {
+	_ = ctx
+	if strings.TrimSpace(s.executionDataRoot) == "" {
 		return []ExecutionFileArtifact{}, nil
 	}
-
-	resultData, err := s.readExecutionResult(execution.ResultPath)
+	base := filepath.Join(s.executionDataRoot, executionID.String(), "artifacts", folder)
+	entries, err := os.ReadDir(base)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []ExecutionFileArtifact{}, nil
 		}
-		return nil, fmt.Errorf("read result file: %w", err)
+		return nil, fmt.Errorf("read artifacts directory: %w", err)
 	}
 
-	items := make([]ExecutionFileArtifact, 0)
-	for _, artifact := range resultData.Artifacts {
-		if !types[strings.ToLower(strings.TrimSpace(artifact.ArtifactType))] {
+	items := make([]ExecutionFileArtifact, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
 			continue
 		}
-		storageURL := artifact.StorageURL
-		if storageURL == "" {
-			storageURL = s.assetURLFromPayload(executionID, artifact.Payload)
+		name := entry.Name()
+		path := filepath.Join(base, name)
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		size := info.Size()
+		sizeBytes := &size
+		contentType := mime.TypeByExtension(filepath.Ext(name))
+		if contentType == "" {
+			if data, readErr := os.ReadFile(path); readErr == nil {
+				contentType = http.DetectContentType(data)
+			}
+		}
+		payload := map[string]any{
+			"path":       path,
+			"size_bytes": size,
 		}
 		items = append(items, ExecutionFileArtifact{
-			ArtifactID:  artifact.ArtifactID,
-			StorageURL:  storageURL,
-			ContentType: artifact.ContentType,
-			Label:       artifact.Label,
-			SizeBytes:   artifact.SizeBytes,
-			Payload:     artifact.Payload,
+			ArtifactID:  name,
+			StorageURL:  s.assetURLFromPayload(executionID, payload),
+			ContentType: contentType,
+			Label:       strings.TrimSuffix(name, filepath.Ext(name)),
+			SizeBytes:   sizeBytes,
+			Payload:     payload,
 		})
 	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].ArtifactID < items[j].ArtifactID
+	})
 	return items, nil
 }
 

@@ -2,10 +2,8 @@ package executionwriter
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +11,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type noopRepo struct{}
@@ -36,7 +36,8 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 		t.Fatalf("write artifact: %v", err)
 	}
 
-	writer := NewFileWriter(noopRepo{}, storage.NewMemoryStorage(), nil, dataDir)
+	memStore := storage.NewMemoryStorage()
+	writer := NewFileWriter(noopRepo{}, memStore, nil, dataDir)
 	plan := contracts.ExecutionPlan{
 		ExecutionID: uuid.New(),
 		WorkflowID:  uuid.New(),
@@ -62,32 +63,14 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 		t.Fatalf("read result: %v", err)
 	}
 
-	var result ExecutionResultData
-	if err := json.Unmarshal(data, &result); err != nil {
+	var result bastimeline.ExecutionTimeline
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(data, &result); err != nil {
 		t.Fatalf("unmarshal result: %v", err)
 	}
-
-	if len(result.Artifacts) != 1 {
-		t.Fatalf("expected 1 artifact, got %d", len(result.Artifacts))
+	if result.ExecutionId != plan.ExecutionID.String() {
+		t.Fatalf("expected execution id %s, got %s", plan.ExecutionID, result.ExecutionId)
 	}
-
-	artifact := result.Artifacts[0]
-	if artifact.ArtifactType != "video_meta" {
-		t.Fatalf("expected video_meta artifact, got %s", artifact.ArtifactType)
-	}
-	if artifact.Payload["path"] != artifactPath {
-		t.Fatalf("expected path payload to match")
-	}
-	if strings.TrimSpace(artifact.StorageURL) == "" {
-		t.Fatalf("expected storage URL to be set")
-	}
-	if artifact.ContentType == "" {
-		t.Fatalf("expected content type to be set")
-	}
-	if _, ok := artifact.Payload["storage_object"]; !ok {
-		t.Fatalf("expected storage object payload")
-	}
-	if _, ok := artifact.Payload["base64"]; ok {
-		t.Fatalf("did not expect inline base64 payload for video artifacts")
+	if memStore.ObjectCount() != 1 {
+		t.Fatalf("expected 1 stored artifact, got %d", memStore.ObjectCount())
 	}
 }

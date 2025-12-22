@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/storage"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -57,14 +58,15 @@ type FileWriter struct {
 // ExecutionResultData accumulates execution results to be written to disk.
 // This is the file format stored at ExecutionIndex.ResultPath.
 type ExecutionResultData struct {
-	ExecutionID   string              `json:"execution_id"`
-	WorkflowID    string              `json:"workflow_id"`
-	Steps         []StepResultData    `json:"steps"`
-	Artifacts     []ArtifactData      `json:"artifacts"`
-	Telemetry     []TelemetryData     `json:"telemetry"`
-	TimelineFrame []TimelineFrameData `json:"timeline_frames"`
-	Summary       ExecutionSummary    `json:"summary"`
-	mu            sync.Mutex          `json:"-"`
+	ExecutionID     string              `json:"execution_id"`
+	WorkflowID      string              `json:"workflow_id"`
+	Steps           []StepResultData    `json:"steps"`
+	Artifacts       []ArtifactData      `json:"artifacts"`
+	Telemetry       []TelemetryData     `json:"telemetry"`
+	TimelineFrame   []TimelineFrameData `json:"timeline_frames"`
+	Summary         ExecutionSummary    `json:"summary"`
+	ScreenshotPaths map[string]string   `json:"-"`
+	mu              sync.Mutex          `json:"-"`
 }
 
 type executionTimelineData struct {
@@ -113,6 +115,7 @@ type TimelineFrameData struct {
 	NodeID                string         `json:"node_id"`
 	StepType              string         `json:"step_type"`
 	ScreenshotURL         string         `json:"screenshot_url,omitempty"`
+	ScreenshotPath        string         `json:"screenshot_path,omitempty"`
 	ScreenshotArtifactID  string         `json:"screenshot_artifact_id,omitempty"`
 	DOMSnapshotArtifactID string         `json:"dom_snapshot_artifact_id,omitempty"`
 	Success               bool           `json:"success"`
@@ -185,12 +188,13 @@ func (r *FileWriter) getOrCreateResult(plan contracts.ExecutionPlan) *ExecutionR
 	}
 
 	result := &ExecutionResultData{
-		ExecutionID:   plan.ExecutionID.String(),
-		WorkflowID:    plan.WorkflowID.String(),
-		Steps:         make([]StepResultData, 0),
-		Artifacts:     make([]ArtifactData, 0),
-		Telemetry:     make([]TelemetryData, 0),
-		TimelineFrame: make([]TimelineFrameData, 0),
+		ExecutionID:     plan.ExecutionID.String(),
+		WorkflowID:      plan.WorkflowID.String(),
+		Steps:           make([]StepResultData, 0),
+		Artifacts:       make([]ArtifactData, 0),
+		Telemetry:       make([]TelemetryData, 0),
+		TimelineFrame:   make([]TimelineFrameData, 0),
+		ScreenshotPaths: make(map[string]string),
 		Summary: ExecutionSummary{
 			LastUpdated: time.Now().UTC(),
 		},
@@ -226,11 +230,17 @@ func (r *FileWriter) protoTimelineFilePath(executionID uuid.UUID) string {
 }
 
 // writeResultFile persists the execution result data to disk.
-func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionResultData) error {
-	result.mu.Lock()
-	defer result.mu.Unlock()
+func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionResultData, timeline *executionTimelineData) error {
+	if result != nil {
+		result.mu.Lock()
+		result.Summary.LastUpdated = time.Now().UTC()
+		result.mu.Unlock()
+	}
 
-	result.Summary.LastUpdated = time.Now().UTC()
+	payload, err := r.buildResultPayload(executionID, result, timeline)
+	if err != nil {
+		return err
+	}
 
 	filePath := r.resultFilePath(executionID)
 	dir := filepath.Dir(filePath)
@@ -239,7 +249,7 @@ func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionRes
 		return fmt.Errorf("create result directory: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
+	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal result data: %w", err)
 	}
@@ -249,6 +259,83 @@ func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionRes
 	}
 
 	return nil
+}
+
+func (r *FileWriter) buildResultPayload(executionID uuid.UUID, result *ExecutionResultData, timeline *executionTimelineData) (map[string]any, error) {
+	payload := map[string]any{}
+
+	if timeline != nil && timeline.pb != nil {
+		raw, err := protojson.MarshalOptions{
+			UseProtoNames:   true,
+			EmitUnpopulated: false,
+		}.Marshal(timeline.pb)
+		if err != nil {
+			return nil, fmt.Errorf("marshal timeline payload: %w", err)
+		}
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return nil, fmt.Errorf("parse timeline payload: %w", err)
+		}
+	}
+
+	if len(payload) == 0 {
+		payload["execution_id"] = executionID.String()
+		if result != nil && strings.TrimSpace(result.WorkflowID) != "" {
+			payload["workflow_id"] = result.WorkflowID
+		}
+		return payload, nil
+	}
+
+	if result != nil && result.Summary.TotalSteps > 0 {
+		status := "EXECUTION_STATUS_RUNNING"
+		if result.Summary.FailedSteps > 0 {
+			status = "EXECUTION_STATUS_FAILED"
+		} else if result.Summary.CompletedSteps >= result.Summary.TotalSteps {
+			status = "EXECUTION_STATUS_COMPLETED"
+		}
+		payload["status"] = status
+	}
+
+	entriesRaw, ok := payload["entries"].([]any)
+	if !ok || len(entriesRaw) == 0 {
+		return payload, nil
+	}
+
+	var screenshotPaths map[string]string
+	if result != nil && len(result.ScreenshotPaths) > 0 {
+		screenshotPaths = result.ScreenshotPaths
+	}
+
+	for _, entryRaw := range entriesRaw {
+		entry, ok := entryRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if aggregates, ok := entry["aggregates"].(map[string]any); ok {
+			delete(aggregates, "artifacts")
+		}
+		if screenshotPaths == nil {
+			continue
+		}
+		entryID, _ := entry["id"].(string)
+		if entryID == "" {
+			continue
+		}
+		path := screenshotPaths[entryID]
+		if strings.TrimSpace(path) == "" {
+			continue
+		}
+		telemetryRaw, ok := entry["telemetry"].(map[string]any)
+		if !ok {
+			continue
+		}
+		screenshotRaw, ok := telemetryRaw["screenshot"].(map[string]any)
+		if !ok {
+			continue
+		}
+		screenshotRaw["path"] = path
+	}
+
+	return payload, nil
 }
 
 func (r *FileWriter) writeProtoTimelineFile(executionID uuid.UUID, timeline *executionTimelineData) error {
@@ -436,6 +523,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 
 	var timelineScreenshotURL string
 	var timelineScreenshotID *uuid.UUID
+	var timelineScreenshotPath string
 
 	// Persist screenshot if available - controlled by CollectScreenshots
 	if cfg.CollectScreenshots && outcome.Screenshot != nil && len(outcome.Screenshot.Data) > 0 {
@@ -445,6 +533,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		}
 		if screenshotInfo != nil {
 			id := uuid.New()
+			entryID := timelineEntryID(plan.ExecutionID, outcome.StepIndex, outcome.Attempt)
 			artifact := ArtifactData{
 				ArtifactID:   id.String(),
 				StepID:       stepID.String(),
@@ -460,26 +549,11 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 					"hash":       outcome.Screenshot.Hash,
 				},
 			}
-			result.mu.Lock()
-			result.Artifacts = append(result.Artifacts, artifact)
-			result.mu.Unlock()
-			artifactIDs = append(artifactIDs, id)
-			protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
-			timelineScreenshotID = &id
-			timelineScreenshotURL = screenshotInfo.URL
-		} else {
-			// Fallback: embed base64 if storage is unavailable
-			id := uuid.New()
-			artifact := ArtifactData{
-				ArtifactID:   id.String(),
-				StepID:       stepID.String(),
-				StepIndex:    &outcome.StepIndex,
-				ArtifactType: "screenshot_inline",
-				ContentType:  outcome.Screenshot.MediaType,
-				Payload: map[string]any{
-					"base64": base64.StdEncoding.EncodeToString(outcome.Screenshot.Data),
-					"hash":   outcome.Screenshot.Hash,
-				},
+			if screenshotInfo.Path != "" {
+				artifact.Payload["path"] = screenshotInfo.Path
+			}
+			if screenshotInfo.ObjectName != "" {
+				artifact.Payload["storage_object"] = screenshotInfo.ObjectName
 			}
 			result.mu.Lock()
 			result.Artifacts = append(result.Artifacts, artifact)
@@ -487,12 +561,25 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			artifactIDs = append(artifactIDs, id)
 			protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 			timelineScreenshotID = &id
-			timelineScreenshotURL = fmt.Sprintf("inline:%s", deriveStepLabel(outcome))
+			timelineScreenshotURL = screenshotInfo.URL
+			timelineScreenshotPath = screenshotInfo.Path
+			if screenshotInfo.Path != "" {
+				result.mu.Lock()
+				result.ScreenshotPaths[entryID] = screenshotInfo.Path
+				result.mu.Unlock()
+			}
+		} else if r.log != nil {
+			r.log.WithFields(logrus.Fields{
+				"execution_id": plan.ExecutionID,
+				"step_index":   outcome.StepIndex,
+				"node_id":      outcome.NodeID,
+			}).Warn("Screenshot capture skipped: storage unavailable")
 		}
 	}
 
 	var domSnapshotArtifactID *uuid.UUID
 	var domSnapshotPreview string
+	var domSnapshotHTML string
 
 	// DOM snapshot - controlled by CollectDOMSnapshots
 	if cfg.CollectDOMSnapshots && outcome.DOMSnapshot != nil && outcome.DOMSnapshot.HTML != "" {
@@ -527,19 +614,21 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 		domSnapshotArtifactID = &id
 		domSnapshotPreview = truncateRunes(html, 256)
+		domSnapshotHTML = html
 	}
 
 	// Build timeline frame
 	timelinePayload := buildTimelinePayload(outcome, timelineScreenshotURL, timelineScreenshotID, domSnapshotArtifactID, domSnapshotPreview, artifactIDs)
 	timelineFrame := TimelineFrameData{
-		StepIndex:     outcome.StepIndex,
-		NodeID:        outcome.NodeID,
-		StepType:      outcome.StepType,
-		ScreenshotURL: timelineScreenshotURL,
-		Success:       outcome.Success,
-		Attempt:       outcome.Attempt,
-		DurationMs:    outcome.DurationMs,
-		Payload:       timelinePayload,
+		StepIndex:      outcome.StepIndex,
+		NodeID:         outcome.NodeID,
+		StepType:       outcome.StepType,
+		ScreenshotURL:  timelineScreenshotURL,
+		ScreenshotPath: timelineScreenshotPath,
+		Success:        outcome.Success,
+		Attempt:        outcome.Attempt,
+		DurationMs:     outcome.DurationMs,
+		Payload:        timelinePayload,
 	}
 	if timelineScreenshotID != nil {
 		timelineFrame.ScreenshotArtifactID = timelineScreenshotID.String()
@@ -551,15 +640,15 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	result.TimelineFrame = append(result.TimelineFrame, timelineFrame)
 	result.mu.Unlock()
 
-	// Write result to file
-	if err := r.writeResultFile(plan.ExecutionID, result); err != nil {
-		if r.log != nil {
-			r.log.WithError(err).Warn("Failed to write execution result file")
-		}
-	}
-	if err := r.appendProtoTimelineEntry(plan, outcome, protoArtifacts, timelineScreenshotID, timelineScreenshotURL, domSnapshotArtifactID, domSnapshotPreview, timeline); err != nil {
+	if err := r.appendProtoTimelineEntry(plan, outcome, protoArtifacts, timelineScreenshotID, timelineScreenshotURL, domSnapshotArtifactID, domSnapshotPreview, domSnapshotHTML, timeline); err != nil {
 		if r.log != nil {
 			r.log.WithError(err).Warn("Failed to write proto timeline file")
+		}
+	}
+	// Write result to file
+	if err := r.writeResultFile(plan.ExecutionID, result, timeline); err != nil {
+		if r.log != nil {
+			r.log.WithError(err).Warn("Failed to write execution result file")
 		}
 	}
 
@@ -588,6 +677,7 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 	}
 
 	result := r.getOrCreateResult(plan)
+	timeline := r.getOrCreateTimeline(plan)
 
 	const maxEmbeddedExternalBytes = 5 * 1024 * 1024
 
@@ -665,7 +755,7 @@ func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contract
 		result.mu.Unlock()
 	}
 
-	return r.writeResultFile(plan.ExecutionID, result)
+	return r.writeResultFile(plan.ExecutionID, result, timeline)
 }
 
 func isVideoArtifactType(kind string) bool {
@@ -694,6 +784,7 @@ func (r *FileWriter) appendProtoTimelineEntry(
 	screenshotURL string,
 	domSnapshotArtifactID *uuid.UUID,
 	domSnapshotPreview string,
+	domSnapshotHTML string,
 	timeline *executionTimelineData,
 ) error {
 	if r == nil || timeline == nil || timeline.pb == nil {
@@ -721,6 +812,83 @@ func (r *FileWriter) appendProtoTimelineEntry(
 		}
 		preview := domSnapshotPreview
 		entry.Telemetry.DomSnapshotPreview = &preview
+	}
+	if strings.TrimSpace(domSnapshotHTML) != "" {
+		if entry.Telemetry == nil {
+			entry.Telemetry = &basdomain.ActionTelemetry{}
+		}
+		html := domSnapshotHTML
+		entry.Telemetry.DomSnapshotHtml = &html
+	}
+	if entry.Telemetry == nil {
+		entry.Telemetry = &basdomain.ActionTelemetry{}
+	}
+	if outcome.ElementBoundingBox != nil {
+		entry.Telemetry.ElementBoundingBox = outcome.ElementBoundingBox
+	}
+	if outcome.ClickPosition != nil {
+		entry.Telemetry.ClickPosition = outcome.ClickPosition
+	}
+	if len(outcome.CursorTrail) > 0 {
+		entry.Telemetry.CursorTrail = extractCursorPoints(outcome.CursorTrail)
+	}
+	if len(outcome.HighlightRegions) > 0 {
+		entry.Telemetry.HighlightRegions = outcome.HighlightRegions
+	}
+	if len(outcome.MaskRegions) > 0 {
+		entry.Telemetry.MaskRegions = outcome.MaskRegions
+	}
+	if outcome.ZoomFactor != 0 {
+		zoom := outcome.ZoomFactor
+		entry.Telemetry.ZoomFactor = &zoom
+	}
+	if len(outcome.ConsoleLogs) > 0 {
+		entry.Telemetry.ConsoleLogs = make([]*basdomain.ConsoleLogEntry, 0, len(outcome.ConsoleLogs))
+		for _, log := range outcome.ConsoleLogs {
+			item := &basdomain.ConsoleLogEntry{
+				Level: enums.StringToLogLevel(log.Type),
+				Text:  log.Text,
+			}
+			if log.Stack != "" {
+				item.Stack = &log.Stack
+			}
+			if log.Location != "" {
+				item.Location = &log.Location
+			}
+			if !log.Timestamp.IsZero() {
+				item.Timestamp = contracts.TimeToTimestamp(log.Timestamp)
+			}
+			entry.Telemetry.ConsoleLogs = append(entry.Telemetry.ConsoleLogs, item)
+		}
+	}
+	if len(outcome.Network) > 0 {
+		entry.Telemetry.NetworkEvents = make([]*basdomain.NetworkEvent, 0, len(outcome.Network))
+		for _, evt := range outcome.Network {
+			item := &basdomain.NetworkEvent{
+				Type: enums.StringToNetworkEventType(evt.Type),
+				Url:  evt.URL,
+			}
+			if evt.Method != "" {
+				item.Method = &evt.Method
+			}
+			if evt.ResourceType != "" {
+				item.ResourceType = &evt.ResourceType
+			}
+			if evt.Status != 0 {
+				status := int32(evt.Status)
+				item.Status = &status
+			}
+			if evt.OK {
+				item.Ok = &evt.OK
+			}
+			if evt.Failure != "" {
+				item.Failure = &evt.Failure
+			}
+			if !evt.Timestamp.IsZero() {
+				item.Timestamp = contracts.TimeToTimestamp(evt.Timestamp)
+			}
+			entry.Telemetry.NetworkEvents = append(entry.Telemetry.NetworkEvents, item)
+		}
 	}
 
 	if entry.Aggregates == nil {
@@ -806,7 +974,7 @@ func artifactTypeToProto(kind string) basbase.ArtifactType {
 		return basbase.ArtifactType_ARTIFACT_TYPE_CONSOLE_LOG
 	case "network":
 		return basbase.ArtifactType_ARTIFACT_TYPE_NETWORK_EVENT
-	case "screenshot", "screenshot_inline":
+	case "screenshot":
 		return basbase.ArtifactType_ARTIFACT_TYPE_SCREENSHOT
 	case "dom_snapshot":
 		return basbase.ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT
@@ -891,7 +1059,7 @@ func (r *FileWriter) RecordTelemetry(ctx context.Context, plan contracts.Executi
 		}
 	}
 
-	return r.writeResultFile(plan.ExecutionID, result)
+	return r.writeResultFile(plan.ExecutionID, result, timeline)
 }
 
 func telemetryToTimelineLog(t TelemetryData) *bastimeline.TimelineLog {
@@ -935,9 +1103,8 @@ func telemetryToTimelineLog(t TelemetryData) *bastimeline.TimelineLog {
 }
 
 func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.UUID) *bastimeline.TimelineEntry {
-	entryID := fmt.Sprintf("%s-step-%d-attempt-%d", executionID.String(), outcome.StepIndex, outcome.Attempt)
+	entryID := timelineEntryID(executionID, outcome.StepIndex, outcome.Attempt)
 	stepIndex := int32(outcome.StepIndex)
-
 	success := outcome.Success
 	ctx := &basbase.EventContext{
 		Success: &success,
@@ -945,6 +1112,9 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 	if outcome.Failure != nil && strings.TrimSpace(outcome.Failure.Message) != "" {
 		msg := outcome.Failure.Message
 		ctx.Error = &msg
+		if code := strings.TrimSpace(outcome.Failure.Code); code != "" {
+			ctx.ErrorCode = &code
+		}
 	}
 
 	entry := &bastimeline.TimelineEntry{
@@ -952,7 +1122,7 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 		SequenceNum: int32(outcome.StepIndex),
 		StepIndex:   &stepIndex,
 		Action: &basactions.ActionDefinition{
-			Type: stepTypeToActionType(outcome.StepType),
+			Type: enums.StringToActionType(outcome.StepType),
 		},
 		Context: ctx,
 	}
@@ -968,46 +1138,12 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 		dur := int32(outcome.DurationMs)
 		entry.DurationMs = &dur
 	}
-
-	// Minimal telemetry - enriched later when persisted screenshot is available.
-	entry.Telemetry = &basdomain.ActionTelemetry{
-		Url: outcome.FinalURL,
+	if entry.Telemetry == nil {
+		entry.Telemetry = &basdomain.ActionTelemetry{}
 	}
+	entry.Telemetry.Url = outcome.FinalURL
 
 	return entry
-}
-
-func stepTypeToActionType(stepType string) basactions.ActionType {
-	switch strings.ToLower(strings.TrimSpace(stepType)) {
-	case "navigate":
-		return basactions.ActionType_ACTION_TYPE_NAVIGATE
-	case "click":
-		return basactions.ActionType_ACTION_TYPE_CLICK
-	case "input", "type":
-		return basactions.ActionType_ACTION_TYPE_INPUT
-	case "wait":
-		return basactions.ActionType_ACTION_TYPE_WAIT
-	case "assert":
-		return basactions.ActionType_ACTION_TYPE_ASSERT
-	case "scroll":
-		return basactions.ActionType_ACTION_TYPE_SCROLL
-	case "hover":
-		return basactions.ActionType_ACTION_TYPE_HOVER
-	case "keyboard":
-		return basactions.ActionType_ACTION_TYPE_KEYBOARD
-	case "screenshot":
-		return basactions.ActionType_ACTION_TYPE_SCREENSHOT
-	case "select":
-		return basactions.ActionType_ACTION_TYPE_SELECT
-	case "evaluate":
-		return basactions.ActionType_ACTION_TYPE_EVALUATE
-	case "focus":
-		return basactions.ActionType_ACTION_TYPE_FOCUS
-	case "blur":
-		return basactions.ActionType_ACTION_TYPE_BLUR
-	default:
-		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
-	}
 }
 
 func anyToJsonValue(v any) *commonv1.JsonValue {
@@ -1060,6 +1196,23 @@ func anyToJsonValue(v any) *commonv1.JsonValue {
 	}
 }
 
+func timelineEntryID(executionID uuid.UUID, stepIndex int, attempt int) string {
+	return fmt.Sprintf("%s-step-%d-attempt-%d", executionID.String(), stepIndex, attempt)
+}
+
+func extractCursorPoints(trail []contracts.CursorPosition) []*basbase.Point {
+	if len(trail) == 0 {
+		return nil
+	}
+	points := make([]*basbase.Point, 0, len(trail))
+	for _, entry := range trail {
+		if entry.Point != nil {
+			points = append(points, entry.Point)
+		}
+	}
+	return points
+}
+
 // MarkCrash records a crash event and updates the execution index.
 func (r *FileWriter) MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error {
 	if r == nil {
@@ -1092,7 +1245,7 @@ func (r *FileWriter) MarkCrash(ctx context.Context, executionID uuid.UUID, failu
 	result.Summary.FailedSteps++
 	result.mu.Unlock()
 
-	if err := r.writeResultFile(executionID, result); err != nil {
+	if err := r.writeResultFile(executionID, result, timeline); err != nil {
 		if r.log != nil {
 			r.log.WithError(err).Warn("Failed to write crash to result file")
 		}
@@ -1162,7 +1315,7 @@ func (r *FileWriter) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID
 		_ = r.writeProtoTimelineFile(executionID, timeline)
 	}
 
-	return r.writeResultFile(executionID, result)
+	return r.writeResultFile(executionID, result, timeline)
 }
 
 // updateExecutionIndex updates the database index with the result path.
