@@ -131,9 +131,6 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	} else {
 		fmt.Println("Execution mode: direct")
 	}
-	if startURL != "" {
-		fmt.Printf("Start URL: %s\n", startURL)
-	}
 
 	var params map[string]any
 	if err := json.Unmarshal([]byte(paramsRaw), &params); err != nil {
@@ -141,11 +138,33 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	}
 
 	if projectRoot != "" {
-		params["project_root"] = projectRoot
-		fmt.Println("Project root injected into parameters as project_root.")
+		params["projectRoot"] = projectRoot
+		fmt.Println("Project root injected into parameters as projectRoot.")
+	}
+	startURLFromParams := false
+	if startURL == "" {
+		if v, ok := params["start_url"].(string); ok {
+			startURL = strings.TrimSpace(v)
+			startURLFromParams = startURL != ""
+		}
+		if startURL == "" {
+			if v, ok := params["startUrl"].(string); ok {
+				startURL = strings.TrimSpace(v)
+				startURLFromParams = startURL != ""
+			}
+		}
+	}
+	delete(params, "start_url")
+	delete(params, "startUrl")
+	if startURL != "" {
+		params["startUrl"] = startURL
 	}
 	if startURL != "" {
-		params["start_url"] = startURL
+		if startURLFromParams {
+			fmt.Printf("Start URL (from params): %s\n", startURL)
+		} else {
+			fmt.Printf("Start URL: %s\n", startURL)
+		}
 	}
 
 	var response []byte
@@ -345,12 +364,6 @@ func appendExecuteQuery(base string, requiresVideo bool, requiresTrace bool, req
 	return base + sep + strings.Join(pairs, "&")
 }
 
-type executionResultSummary struct {
-	Artifacts []struct {
-		ArtifactType string `json:"artifact_type"`
-	} `json:"artifacts"`
-}
-
 func printCollectedArtifacts(ctx *appctx.Context, executionID, recordingsRoot string, failed bool, requiresVideo bool, requiresTrace bool, requiresHAR bool) {
 	fmt.Println("")
 	fmt.Println("Execution artifacts")
@@ -362,29 +375,15 @@ func printCollectedArtifacts(ctx *appctx.Context, executionID, recordingsRoot st
 	hasHAR := false
 
 	if recordingsRoot != "" {
-		timelinePath := filepath.Join(recordingsRoot, "timeline.proto.json")
-		if info, err := os.Stat(timelinePath); err == nil && !info.IsDir() {
+		if fileExists(filepath.Join(recordingsRoot, "timeline.proto.json")) || fileExists(filepath.Join(recordingsRoot, "timeline.json")) {
 			hasTimeline = true
 		}
 
-		resultPath := filepath.Join(recordingsRoot, "result.json")
-		if data, err := os.ReadFile(resultPath); err == nil {
-			var result executionResultSummary
-			if err := json.Unmarshal(data, &result); err == nil {
-				for _, artifact := range result.Artifacts {
-					switch strings.ToLower(strings.TrimSpace(artifact.ArtifactType)) {
-					case "screenshot", "screenshot_inline":
-						hasScreenshots = true
-					case "video", "video_meta":
-						hasVideos = true
-					case "trace", "trace_meta":
-						hasTraces = true
-					case "har", "har_meta":
-						hasHAR = true
-					}
-				}
-			}
-		}
+		artifactsRoot := filepath.Join(recordingsRoot, "artifacts")
+		hasScreenshots = dirHasFiles(filepath.Join(artifactsRoot, "screenshots"))
+		hasVideos = dirHasFiles(filepath.Join(artifactsRoot, "videos"))
+		hasTraces = dirHasFiles(filepath.Join(artifactsRoot, "traces"))
+		hasHAR = dirHasFiles(filepath.Join(artifactsRoot, "har"))
 	}
 
 	if hasTimeline {
@@ -444,6 +443,27 @@ func printCollectedArtifacts(ctx *appctx.Context, executionID, recordingsRoot st
 		}
 		fmt.Println(optional)
 	}
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
+}
+
+func dirHasFiles(path string) bool {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			return true
+		}
+	}
+	return false
 }
 
 func resolveWorkflowID(ctx *appctx.Context, workflow string) (string, error) {
