@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import {
   Activity,
@@ -13,6 +13,13 @@ import {
 } from "lucide-react";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent } from "./components/ui/card";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "./components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { useHealth, useProfiles, useRuns, useRunners, useTasks } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
@@ -21,6 +28,7 @@ import { ProfilesPage } from "./pages/ProfilesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { RunsPage } from "./pages/RunsPage";
 import { HealthStatus, RunStatus } from "./types";
+import { formatDate, jsonValueToPlain } from "./lib/utils";
 
 export default function App() {
   const navigate = useNavigate();
@@ -76,6 +84,19 @@ export default function App() {
   }, [navigate]);
 
   const isHealthy = health.data?.status === HealthStatus.HEALTHY;
+  const [statusOpen, setStatusOpen] = useState(false);
+  const wsLabel =
+    ws.status === "connected" ? "Live" : ws.status === "connecting" ? "Connecting" : "Offline";
+  const healthLabel = health.data ? (isHealthy ? "Healthy" : "Degraded") : "Unknown";
+  const statusVariant =
+    !isHealthy || ws.status === "disconnected"
+      ? "destructive"
+      : ws.status === "connecting"
+      ? "secondary"
+      : "success";
+  const statusText = `${healthLabel} • ${wsLabel}`;
+  const dependencyEntries = Object.entries(health.data?.dependencies ?? {});
+  const metricEntries = Object.entries(health.data?.metrics ?? {});
 
   return (
     <div className="min-h-screen bg-transparent text-foreground">
@@ -94,37 +115,22 @@ export default function App() {
                   Agent Manager
                 </Badge>
                 <Badge
-                  variant={isHealthy ? "success" : "destructive"}
-                  className="gap-1"
-                >
-                  {isHealthy ? (
-                    <CheckCircle2 className="h-3 w-3" />
-                  ) : (
-                    <AlertCircle className="h-3 w-3" />
-                  )}
-                  {isHealthy ? "Healthy" : "Degraded"}
-                </Badge>
-                <Badge
-                  variant={ws.status === "connected" ? "success" : ws.status === "connecting" ? "secondary" : "outline"}
+                  variant={statusVariant}
                   className="gap-1 cursor-pointer"
-                  onClick={() => ws.status !== "connected" && ws.reconnect()}
-                  title={ws.status === "connected" ? "WebSocket connected" : "Click to reconnect"}
+                  onClick={() => setStatusOpen(true)}
                   role="button"
                   tabIndex={0}
-                  aria-label={ws.status === "connected" ? "WebSocket connected" : "Reconnect WebSocket"}
+                  aria-label="Open status details"
                   onKeyDown={(event) => {
-                    if ((event.key === "Enter" || event.key === " ") && ws.status !== "connected") {
+                    if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      ws.reconnect();
+                      setStatusOpen(true);
                     }
                   }}
                 >
-                  {ws.status === "connected" ? (
-                    <Wifi className="h-3 w-3" />
-                  ) : (
-                    <WifiOff className="h-3 w-3" />
-                  )}
-                  {ws.status === "connected" ? "Live" : ws.status === "connecting" ? "Connecting..." : "Offline"}
+                  {isHealthy ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                  {ws.status === "connected" ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                  {statusText}
                 </Badge>
               </div>
               <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
@@ -166,6 +172,103 @@ export default function App() {
           </div>
         </header>
       </div>
+
+      <Dialog open={statusOpen} onOpenChange={setStatusOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Status Details</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant={isHealthy ? "success" : "destructive"} className="gap-1">
+                {isHealthy ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                {healthLabel}
+              </Badge>
+              <Badge
+                variant={ws.status === "connected" ? "success" : ws.status === "connecting" ? "secondary" : "outline"}
+                className="gap-1"
+              >
+                {ws.status === "connected" ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                {wsLabel}
+              </Badge>
+            </div>
+
+            <div className="grid gap-3 text-sm">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Service</span>
+                <span className="text-foreground">{health.data?.service || "Unknown"}</span>
+              </div>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Readiness</span>
+                <span className="text-foreground">{health.data?.readiness ? "Ready" : "Not ready"}</span>
+              </div>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Version</span>
+                <span className="text-foreground">{health.data?.version || "Unknown"}</span>
+              </div>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Timestamp</span>
+                <span className="text-foreground">{formatDate(health.data?.timestamp)}</span>
+              </div>
+            </div>
+
+            {dependencyEntries.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold">Dependencies</p>
+                <div className="space-y-2 text-xs text-muted-foreground">
+                  {dependencyEntries.map(([name, value]) => {
+                    const plain = jsonValueToPlain(value) as Record<string, unknown> | undefined;
+                    const status = plain?.status as string | undefined;
+                    const latency = plain?.latency_ms as number | undefined;
+                    const error = plain?.error as string | undefined;
+                    return (
+                      <div key={name} className="flex flex-col gap-1 rounded-md border border-border/60 p-2">
+                        <div className="flex items-center justify-between text-foreground">
+                          <span className="font-semibold">{name}</span>
+                          <span>{status || "unknown"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Latency</span>
+                          <span>{latency !== undefined ? `${latency}ms` : "n/a"}</span>
+                        </div>
+                        {error && (
+                          <div className="text-destructive">Error: {error}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {metricEntries.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold">Metrics</p>
+                <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                  {metricEntries.map(([name, value]) => (
+                    <div key={name} className="flex items-center justify-between rounded-md border border-border/60 p-2">
+                      <span>{name}</span>
+                      <span className="text-foreground">{String(jsonValueToPlain(value) ?? "n/a")}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {health.error && (
+              <Card className="border-destructive/40 bg-destructive/10 text-xs">
+                <CardContent className="flex items-start gap-2 py-3">
+                  <AlertCircle className="h-4 w-4 text-destructive" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-destructive">API Error</p>
+                    <p className="text-destructive/80">{health.error}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
 
       {/* Main Content */}
       <main className="flex flex-1 flex-col gap-6 px-6 py-6 sm:px-10">

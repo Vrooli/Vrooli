@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_agent_profiles_name ON agent_profiles(name);
-CREATE INDEX IF NOT EXISTS idx_agent_profiles_profile_key ON agent_profiles(profile_key);
 
 -- ============================================================================
 -- Tasks - Defines WHAT needs to be done
