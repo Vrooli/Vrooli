@@ -11,7 +11,8 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
-  ShieldCheck
+  ShieldCheck,
+  Settings
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -21,6 +22,13 @@ import type { RepoFilesStatus } from "../lib/api";
 type FileCategory = "staged" | "unstaged" | "untracked" | "conflicts";
 
 type SelectedFileEntry = { path: string; staged: boolean };
+
+export type GroupingRule = {
+  id: string;
+  label: string;
+  prefix: string;
+  mode?: "prefix" | "segment";
+};
 
 interface FileListProps {
   files?: RepoFilesStatus;
@@ -49,6 +57,12 @@ interface FileListProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   fillHeight?: boolean;
+  groupingEnabled?: boolean;
+  groupingRules?: GroupingRule[];
+  onToggleGrouping?: () => void;
+  onOpenGroupingSettings?: () => void;
+  onStagePaths?: (paths: string[]) => void;
+  onDiscardPaths?: (paths: string[], untracked: boolean) => void;
 }
 
 interface FileSectionProps {
@@ -83,6 +97,13 @@ const statusStyleMap = {
   U: "text-red-300 border-red-500/40 bg-red-500/10",
   "?": "text-slate-300 border-slate-500/40 bg-slate-500/10"
 };
+
+function normalizePrefix(prefix: string) {
+  const trimmed = prefix.trim();
+  if (!trimmed) return "";
+  if (trimmed === "/") return "/";
+  return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
+}
 
 function formatPath(path: string, maxChars: number) {
   if (path.length <= maxChars) return path;
@@ -407,14 +428,35 @@ export function FileList({
   onConfirmDiscard,
   collapsed = false,
   onToggleCollapse,
-  fillHeight = true
+  fillHeight = true,
+  groupingEnabled = false,
+  groupingRules = [],
+  onToggleGrouping,
+  onOpenGroupingSettings,
+  onStagePaths,
+  onDiscardPaths
 }: FileListProps) {
   const hasStaged = (files?.staged?.length ?? 0) > 0;
   const hasUnstaged = (files?.unstaged?.length ?? 0) > 0 || (files?.untracked?.length ?? 0) > 0;
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [maxPathChars, setMaxPathChars] = useState(72);
+  const [confirmingGroup, setConfirmingGroup] = useState<string | null>(null);
   const binarySet = useMemo(() => new Set(files?.binary ?? []), [files?.binary]);
+  const normalizedRules = useMemo(
+    () =>
+      groupingRules
+        .map((rule) => ({
+          ...rule,
+          mode: rule.mode ?? "prefix",
+          normalizedPrefix: normalizePrefix(rule.prefix),
+          label: rule.label.trim() || rule.prefix.trim()
+        }))
+        .filter((rule) => rule.normalizedPrefix),
+    [groupingRules]
+  );
+  const groupingAvailable = normalizedRules.length > 0;
+  const groupingActive = groupingEnabled && groupingAvailable;
   const handleDiscardUnstaged = useCallback(
     (path: string) => onDiscardFile(path, false),
     [onDiscardFile]
@@ -443,6 +485,109 @@ export function FileList({
     observer.observe(scrollAreaRef.current);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!groupingActive) {
+      setConfirmingGroup(null);
+    }
+  }, [groupingActive]);
+
+  const groupedSections = useMemo(() => {
+    if (!groupingActive) return [];
+    const groupMap = new Map<
+      string,
+      {
+        id: string;
+        label: string;
+        prefix: string;
+        displayPrefix: string;
+        files: Record<FileCategory, string[]>;
+      }
+    >();
+    const groupOrder: string[] = [];
+    const ensureGroup = (id: string, label: string, prefix: string, displayPrefix: string) => {
+      if (!groupMap.has(id)) {
+        groupMap.set(id, {
+          id,
+          label,
+          prefix,
+          displayPrefix,
+          files: {
+            conflicts: [],
+            staged: [],
+            unstaged: [],
+            untracked: []
+          }
+        });
+        groupOrder.push(id);
+      }
+      return groupMap.get(id)!;
+    };
+    const otherGroup = {
+      id: "other",
+      label: "Other",
+      prefix: "",
+      displayPrefix: "",
+      files: {
+        conflicts: [] as string[],
+        staged: [] as string[],
+        unstaged: [] as string[],
+        untracked: [] as string[]
+      }
+    };
+
+    const addFile = (file: string, category: FileCategory) => {
+      for (const rule of normalizedRules) {
+        if (!file.startsWith(rule.normalizedPrefix)) continue;
+        if (rule.mode === "segment") {
+          const rest = file.slice(rule.normalizedPrefix.length);
+          const segment = rest.split("/")[0];
+          const segmentLabel = segment || rule.label;
+          const segmentPrefix = segment ? `${rule.normalizedPrefix}${segment}/` : rule.normalizedPrefix;
+          const groupId = segment ? `${rule.id}:${segment}` : rule.id;
+          const group = ensureGroup(groupId, segmentLabel, segmentPrefix, segmentPrefix);
+          group.files[category].push(file);
+        } else {
+          const group = ensureGroup(rule.id, rule.label, rule.normalizedPrefix, rule.prefix.trim());
+          group.files[category].push(file);
+        }
+        return;
+      }
+      otherGroup.files[category].push(file);
+    };
+
+    (files?.conflicts ?? []).forEach((file) => addFile(file, "conflicts"));
+    (files?.staged ?? []).forEach((file) => addFile(file, "staged"));
+    (files?.unstaged ?? []).forEach((file) => addFile(file, "unstaged"));
+    (files?.untracked ?? []).forEach((file) => addFile(file, "untracked"));
+
+    const filledGroups = groupOrder
+      .map((id) => groupMap.get(id)!)
+      .filter(
+        (group) =>
+          group.files.conflicts.length +
+            group.files.staged.length +
+            group.files.unstaged.length +
+            group.files.untracked.length >
+          0
+      );
+    const hasOther =
+      otherGroup.files.conflicts.length +
+        otherGroup.files.staged.length +
+        otherGroup.files.unstaged.length +
+        otherGroup.files.untracked.length >
+      0;
+
+    return hasOther ? [...filledGroups, otherGroup] : filledGroups;
+  }, [files, groupingActive, normalizedRules]);
+
+  const handleToggleGrouping = onToggleGrouping ?? (() => {});
+  const handleOpenGroupingSettings = onOpenGroupingSettings ?? (() => {});
+  const totalFilesCount =
+    (files?.conflicts?.length ?? 0) +
+    (files?.staged?.length ?? 0) +
+    (files?.unstaged?.length ?? 0) +
+    (files?.untracked?.length ?? 0);
 
   return (
     <Card
@@ -492,188 +637,385 @@ export function FileList({
               Unstage All
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleToggleGrouping}
+            disabled={!groupingAvailable}
+            className={`min-w-0 whitespace-normal px-3 ${
+              groupingActive ? "bg-white/10 text-white" : ""
+            }`}
+            data-testid="toggle-grouping-button"
+          >
+            Group
+          </Button>
+          <button
+            type="button"
+            onClick={handleOpenGroupingSettings}
+            className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-white/20 text-slate-200 hover:bg-white/10 transition-colors"
+            title="Grouping settings"
+            aria-label="Grouping settings"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
         </div>
       </CardHeader>
 
       {!collapsed && (
         <CardContent className="flex-1 min-w-0 p-0 overflow-hidden">
-        {showApprovedBanner && (
-          <div className="mx-2 mt-2 mb-1 rounded-md border border-emerald-800/50 bg-emerald-950/20 p-2 text-xs text-emerald-200">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
-                <span>Approved changes ready</span>
-                <span className="text-emerald-300">
-                  {approvedChanges?.committableFiles ?? 0} file
-                  {(approvedChanges?.committableFiles ?? 0) !== 1 ? "s" : ""}
-                </span>
+          {showApprovedBanner && (
+            <div className="mx-2 mt-2 mb-1 rounded-md border border-emerald-800/50 bg-emerald-950/20 p-2 text-xs text-emerald-200">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
+                  <span>Approved changes ready</span>
+                  <span className="text-emerald-300">
+                    {approvedChanges?.committableFiles ?? 0} file
+                    {(approvedChanges?.committableFiles ?? 0) !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onStageApproved}
+                  disabled={isStagingApproved}
+                  className="h-7 px-2"
+                  data-testid="stage-approved-button"
+                >
+                  Stage approved
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onStageApproved}
-                disabled={isStagingApproved}
-                className="h-7 px-2"
-                data-testid="stage-approved-button"
-              >
-                Stage approved
-              </Button>
+              {approvedChanges?.warning && (
+                <div className="mt-1 text-[11px] text-emerald-300/80">
+                  {approvedChanges.warning}
+                </div>
+              )}
             </div>
-            {approvedChanges?.warning && (
-              <div className="mt-1 text-[11px] text-emerald-300/80">
-                {approvedChanges.warning}
+          )}
+          {showSync && (
+            <div className="mx-2 mt-2 mb-1 rounded-md border border-slate-800/60 bg-slate-900/50 p-2 text-xs text-slate-300">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400">Sync</span>
+                  {syncStatus?.ahead ? (
+                    <span className="text-emerald-300">{syncStatus.ahead} ahead</span>
+                  ) : null}
+                  {syncStatus?.behind ? (
+                    <span className="text-amber-300">{syncStatus.behind} behind</span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-1">
+                  {syncStatus?.behind ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onPull}
+                      disabled={isPulling || !syncStatus?.canPull}
+                      title={syncStatus?.warning || "Pull from remote"}
+                      className="h-7 px-2"
+                    >
+                      Pull
+                    </Button>
+                  ) : null}
+                  {syncStatus?.ahead ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onPush}
+                      disabled={isPushing || !syncStatus?.canPush}
+                      title={syncStatus?.warning || "Push to remote"}
+                      className="h-7 px-2"
+                    >
+                      Push
+                    </Button>
+                  ) : null}
+                </div>
               </div>
-            )}
-          </div>
-        )}
-        {showSync && (
-          <div className="mx-2 mt-2 mb-1 rounded-md border border-slate-800/60 bg-slate-900/50 p-2 text-xs text-slate-300">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400">Sync</span>
-                {syncStatus?.ahead ? (
-                  <span className="text-emerald-300">{syncStatus.ahead} ahead</span>
-                ) : null}
-                {syncStatus?.behind ? (
-                  <span className="text-amber-300">{syncStatus.behind} behind</span>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-1">
-                {syncStatus?.behind ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onPull}
-                    disabled={isPulling || !syncStatus?.canPull}
-                    title={syncStatus?.warning || "Pull from remote"}
-                    className="h-7 px-2"
-                  >
-                    Pull
-                  </Button>
-                ) : null}
-                {syncStatus?.ahead ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onPush}
-                    disabled={isPushing || !syncStatus?.canPush}
-                    title={syncStatus?.warning || "Push to remote"}
-                    className="h-7 px-2"
-                  >
-                    Push
-                  </Button>
-                ) : null}
-              </div>
+              {syncStatus?.warning && (
+                <div className="mt-1 text-[11px] text-amber-400">{syncStatus.warning}</div>
+              )}
             </div>
-            {syncStatus?.warning && (
-              <div className="mt-1 text-[11px] text-amber-400">{syncStatus.warning}</div>
+          )}
+          <ScrollArea className="h-full min-w-0 px-2 py-2 select-none" ref={scrollAreaRef}>
+          {groupingActive
+            ? groupedSections.map((group) => {
+                const stageable = [
+                  ...group.files.unstaged,
+                  ...group.files.untracked,
+                  ...group.files.conflicts
+                ];
+                const discardTracked = group.files.unstaged;
+                const discardUntracked = group.files.untracked;
+                const discardCount = discardTracked.length + discardUntracked.length;
+                const groupCount =
+                  group.files.conflicts.length +
+                  group.files.staged.length +
+                  group.files.unstaged.length +
+                  group.files.untracked.length;
+
+                return (
+                  <div
+                    key={group.id}
+                    className="mb-4 rounded-lg border border-slate-800/80 bg-slate-950/40"
+                    data-testid={`file-group-${group.id}`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-slate-800/70">
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                          {group.label}
+                        </div>
+                        {group.displayPrefix && (
+                          <div className="text-[11px] text-slate-500">{group.displayPrefix}</div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span>{groupCount} files</span>
+                        {stageable.length > 0 && onStagePaths && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onStagePaths(stageable)}
+                            disabled={isStaging}
+                            className="h-7 px-2"
+                          >
+                            Stage All
+                          </Button>
+                        )}
+                        {discardCount > 0 && onDiscardPaths && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setConfirmingGroup(group.id)}
+                            disabled={isDiscarding}
+                            className="h-7 px-2 border-red-400/40 text-red-200 hover:bg-red-900/20"
+                          >
+                            Discard All
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {confirmingGroup === group.id && discardCount > 0 && (
+                      <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-red-200 bg-red-950/30 border-b border-red-900/40">
+                        <span>Discard {discardCount} changes in this group?</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="px-2 py-1 rounded border border-red-400/40 text-red-100 hover:bg-red-900/30"
+                            onClick={() => {
+                              if (discardTracked.length > 0) {
+                                onDiscardPaths?.(discardTracked, false);
+                              }
+                              if (discardUntracked.length > 0) {
+                                onDiscardPaths?.(discardUntracked, true);
+                              }
+                              setConfirmingGroup(null);
+                            }}
+                          >
+                            Discard
+                          </button>
+                          <button
+                            type="button"
+                            className="px-2 py-1 rounded border border-slate-600 text-slate-200 hover:bg-slate-800/50"
+                            onClick={() => setConfirmingGroup(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="px-2 py-2">
+                      <FileSection
+                        key={`${group.id}-conflicts`}
+                        title="Conflicts"
+                        category="conflicts"
+                        files={group.files.conflicts}
+                        fileStatuses={files?.statuses}
+                        binaryFiles={binarySet}
+                        approvedFiles={approvedPaths}
+                        maxPathChars={maxPathChars}
+                        icon={<AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
+                        selectedFiles={selectedFiles}
+                        selectedKeySet={selectedKeySet}
+                        selectionKey={selectionKey}
+                        onSelectFile={onSelectFile}
+                        onAction={onStageFile}
+                        actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
+                        actionLabel="Stage file"
+                        isLoading={isStaging}
+                      />
+                      <FileSection
+                        key={`${group.id}-staged`}
+                        title="Staged"
+                        category="staged"
+                        files={group.files.staged}
+                        fileStatuses={files?.statuses}
+                        binaryFiles={binarySet}
+                        approvedFiles={approvedPaths}
+                        maxPathChars={maxPathChars}
+                        icon={<FilePlus className="h-3.5 w-3.5 text-emerald-500" />}
+                        selectedFiles={selectedFiles}
+                        selectedKeySet={selectedKeySet}
+                        selectionKey={selectionKey}
+                        onSelectFile={onSelectFile}
+                        onAction={onUnstageFile}
+                        actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
+                        actionLabel="Unstage file"
+                        isLoading={isStaging}
+                      />
+                      <FileSection
+                        key={`${group.id}-unstaged`}
+                        title="Modified"
+                        category="unstaged"
+                        files={group.files.unstaged}
+                        fileStatuses={files?.statuses}
+                        binaryFiles={binarySet}
+                        approvedFiles={approvedPaths}
+                        maxPathChars={maxPathChars}
+                        icon={<FileX className="h-3.5 w-3.5 text-amber-500" />}
+                        selectedFiles={selectedFiles}
+                        selectedKeySet={selectedKeySet}
+                        selectionKey={selectionKey}
+                        onSelectFile={onSelectFile}
+                        onAction={onStageFile}
+                        actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
+                        actionLabel="Stage file"
+                        isLoading={isStaging}
+                        onDiscard={handleDiscardUnstaged}
+                        isDiscarding={isDiscarding}
+                        confirmingDiscard={confirmingDiscard}
+                        onConfirmDiscard={onConfirmDiscard}
+                      />
+                      <FileSection
+                        key={`${group.id}-untracked`}
+                        title="Untracked"
+                        category="untracked"
+                        files={group.files.untracked}
+                        fileStatuses={files?.statuses}
+                        binaryFiles={binarySet}
+                        approvedFiles={approvedPaths}
+                        maxPathChars={maxPathChars}
+                        icon={<File className="h-3.5 w-3.5 text-slate-500" />}
+                        selectedFiles={selectedFiles}
+                        selectedKeySet={selectedKeySet}
+                        selectionKey={selectionKey}
+                        onSelectFile={onSelectFile}
+                        onAction={onStageFile}
+                        actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
+                        actionLabel="Stage file"
+                        isLoading={isStaging}
+                        defaultExpanded={false}
+                        onDiscard={handleDiscardUntracked}
+                        isDiscarding={isDiscarding}
+                        confirmingDiscard={confirmingDiscard}
+                        onConfirmDiscard={onConfirmDiscard}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            : (
+              <>
+                {/* Conflicts - Always show first if any */}
+                <FileSection
+                  title="Conflicts"
+                  category="conflicts"
+                  files={files?.conflicts ?? []}
+                  fileStatuses={files?.statuses}
+                  binaryFiles={binarySet}
+                  approvedFiles={approvedPaths}
+                  maxPathChars={maxPathChars}
+                  icon={<AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
+                  selectedFiles={selectedFiles}
+                  selectedKeySet={selectedKeySet}
+                  selectionKey={selectionKey}
+                  onSelectFile={onSelectFile}
+                  onAction={onStageFile}
+                  actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
+                  actionLabel="Stage file"
+                  isLoading={isStaging}
+                />
+
+                {/* Staged Changes */}
+                <FileSection
+                  title="Staged"
+                  category="staged"
+                  files={files?.staged ?? []}
+                  fileStatuses={files?.statuses}
+                  binaryFiles={binarySet}
+                  approvedFiles={approvedPaths}
+                  maxPathChars={maxPathChars}
+                  icon={<FilePlus className="h-3.5 w-3.5 text-emerald-500" />}
+                  selectedFiles={selectedFiles}
+                  selectedKeySet={selectedKeySet}
+                  selectionKey={selectionKey}
+                  onSelectFile={onSelectFile}
+                  onAction={onUnstageFile}
+                  actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
+                  actionLabel="Unstage file"
+                  isLoading={isStaging}
+                />
+
+                {/* Unstaged Changes */}
+                <FileSection
+                  title="Modified"
+                  category="unstaged"
+                  files={files?.unstaged ?? []}
+                  fileStatuses={files?.statuses}
+                  binaryFiles={binarySet}
+                  approvedFiles={approvedPaths}
+                  maxPathChars={maxPathChars}
+                  icon={<FileX className="h-3.5 w-3.5 text-amber-500" />}
+                  selectedFiles={selectedFiles}
+                  selectedKeySet={selectedKeySet}
+                  selectionKey={selectionKey}
+                  onSelectFile={onSelectFile}
+                  onAction={onStageFile}
+                  actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
+                  actionLabel="Stage file"
+                  isLoading={isStaging}
+                  onDiscard={handleDiscardUnstaged}
+                  isDiscarding={isDiscarding}
+                  confirmingDiscard={confirmingDiscard}
+                  onConfirmDiscard={onConfirmDiscard}
+                />
+
+                {/* Untracked Files */}
+                <FileSection
+                  title="Untracked"
+                  category="untracked"
+                  files={files?.untracked ?? []}
+                  fileStatuses={files?.statuses}
+                  binaryFiles={binarySet}
+                  approvedFiles={approvedPaths}
+                  maxPathChars={maxPathChars}
+                  icon={<File className="h-3.5 w-3.5 text-slate-500" />}
+                  selectedFiles={selectedFiles}
+                  selectedKeySet={selectedKeySet}
+                  selectionKey={selectionKey}
+                  onSelectFile={onSelectFile}
+                  onAction={onStageFile}
+                  actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
+                  actionLabel="Stage file"
+                  isLoading={isStaging}
+                  defaultExpanded={false}
+                  onDiscard={handleDiscardUntracked}
+                  isDiscarding={isDiscarding}
+                  confirmingDiscard={confirmingDiscard}
+                  onConfirmDiscard={onConfirmDiscard}
+                />
+              </>
             )}
-          </div>
-        )}
-        <ScrollArea className="h-full min-w-0 px-2 py-2 select-none" ref={scrollAreaRef}>
-            {/* Conflicts - Always show first if any */}
-            <FileSection
-              title="Conflicts"
-              category="conflicts"
-              files={files?.conflicts ?? []}
-              fileStatuses={files?.statuses}
-              binaryFiles={binarySet}
-              approvedFiles={approvedPaths}
-              maxPathChars={maxPathChars}
-              icon={<AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
-              selectedFiles={selectedFiles}
-              selectedKeySet={selectedKeySet}
-              selectionKey={selectionKey}
-              onSelectFile={onSelectFile}
-              onAction={onStageFile}
-              actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-              actionLabel="Stage file"
-              isLoading={isStaging}
-            />
-
-          {/* Staged Changes */}
-            <FileSection
-              title="Staged"
-              category="staged"
-              files={files?.staged ?? []}
-              fileStatuses={files?.statuses}
-              binaryFiles={binarySet}
-              approvedFiles={approvedPaths}
-              maxPathChars={maxPathChars}
-              icon={<FilePlus className="h-3.5 w-3.5 text-emerald-500" />}
-              selectedFiles={selectedFiles}
-              selectedKeySet={selectedKeySet}
-              selectionKey={selectionKey}
-              onSelectFile={onSelectFile}
-              onAction={onUnstageFile}
-              actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
-              actionLabel="Unstage file"
-              isLoading={isStaging}
-            />
-
-          {/* Unstaged Changes */}
-            <FileSection
-              title="Modified"
-              category="unstaged"
-              files={files?.unstaged ?? []}
-              fileStatuses={files?.statuses}
-              binaryFiles={binarySet}
-              approvedFiles={approvedPaths}
-              maxPathChars={maxPathChars}
-              icon={<FileX className="h-3.5 w-3.5 text-amber-500" />}
-              selectedFiles={selectedFiles}
-              selectedKeySet={selectedKeySet}
-              selectionKey={selectionKey}
-              onSelectFile={onSelectFile}
-              onAction={onStageFile}
-              actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-              actionLabel="Stage file"
-              isLoading={isStaging}
-              onDiscard={handleDiscardUnstaged}
-              isDiscarding={isDiscarding}
-              confirmingDiscard={confirmingDiscard}
-              onConfirmDiscard={onConfirmDiscard}
-            />
-
-          {/* Untracked Files */}
-            <FileSection
-              title="Untracked"
-              category="untracked"
-              files={files?.untracked ?? []}
-              fileStatuses={files?.statuses}
-              binaryFiles={binarySet}
-              approvedFiles={approvedPaths}
-              maxPathChars={maxPathChars}
-              icon={<File className="h-3.5 w-3.5 text-slate-500" />}
-              selectedFiles={selectedFiles}
-              selectedKeySet={selectedKeySet}
-              selectionKey={selectionKey}
-              onSelectFile={onSelectFile}
-              onAction={onStageFile}
-              actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-              actionLabel="Stage file"
-              isLoading={isStaging}
-              defaultExpanded={false}
-              onDiscard={handleDiscardUntracked}
-              isDiscarding={isDiscarding}
-              confirmingDiscard={confirmingDiscard}
-              onConfirmDiscard={onConfirmDiscard}
-            />
 
           {/* Empty State */}
-            {files &&
-             (files.staged?.length ?? 0) === 0 &&
-             (files.unstaged?.length ?? 0) === 0 &&
-             (files.untracked?.length ?? 0) === 0 &&
-             (files.conflicts?.length ?? 0) === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 text-center" data-testid="empty-state">
-                <File className="h-8 w-8 text-slate-700 mb-3" />
-                <p className="text-sm text-slate-500">No changes detected</p>
-                <p className="text-xs text-slate-600 mt-1">
-                  Working directory is clean
-                </p>
-              </div>
-            )}
+          {files && totalFilesCount === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center" data-testid="empty-state">
+              <File className="h-8 w-8 text-slate-700 mb-3" />
+              <p className="text-sm text-slate-500">No changes detected</p>
+              <p className="text-xs text-slate-600 mt-1">
+                Working directory is clean
+              </p>
+            </div>
+          )}
         </ScrollArea>
         </CardContent>
       )}

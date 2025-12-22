@@ -5,6 +5,8 @@ import { FileList } from "./components/FileList";
 import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
 import { GitHistory } from "./components/GitHistory";
+import { GroupingSettingsModal } from "./components/GroupingSettingsModal";
+import type { GroupingRule } from "./components/FileList";
 import {
   useHealth,
   useRepoStatus,
@@ -55,6 +57,11 @@ export default function App() {
   const historyResize = useRef<{ bottom: number } | null>(null);
   const sidebarMinWidth = 200;
   const diffMinWidth = 320;
+  const [groupingEnabled, setGroupingEnabled] = useState(false);
+  const [groupingRules, setGroupingRules] = useState<GroupingRule[]>([]);
+  const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
+  const [groupingDefaultsPending, setGroupingDefaultsPending] = useState(false);
+  const [isGroupingSettingsOpen, setIsGroupingSettingsOpen] = useState(false);
 
   // Selected file state
   const selectionKey = useCallback(
@@ -89,6 +96,11 @@ export default function App() {
 
   const isStaging = stageMutation.isPending || unstageMutation.isPending;
   const isDiscarding = discardMutation.isPending;
+  const repoDir = statusQuery.data?.repo_dir;
+  const repoKey = useMemo(
+    () => (repoDir ? encodeURIComponent(repoDir) : "unknown"),
+    [repoDir]
+  );
 
   // Handlers
   const handleRefresh = useCallback(() => {
@@ -126,6 +138,39 @@ export default function App() {
   const approvedPendingSet = useMemo(
     () => new Set(approvedPendingPaths),
     [approvedPendingPaths]
+  );
+
+  const createGroupingRule = useCallback(
+    (label: string, prefix: string, mode: GroupingRule["mode"] = "prefix"): GroupingRule => {
+      return {
+        id: `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        label,
+        prefix,
+        mode: mode ?? "prefix"
+      };
+    },
+    []
+  );
+  const normalizeGroupingRules = useCallback(
+    (rawRules: GroupingRule[]) => {
+      return rawRules
+        .map((rule, index) => {
+          const prefix = typeof rule?.prefix === "string" ? rule.prefix : "";
+          if (!prefix.trim()) return null;
+          const label =
+            typeof rule?.label === "string" && rule.label.trim()
+              ? rule.label.trim()
+              : prefix.trim();
+          const mode = rule?.mode === "segment" ? "segment" : "prefix";
+          const id =
+            typeof rule?.id === "string" && rule.id.trim()
+              ? rule.id.trim()
+              : `group-${Date.now()}-${index}`;
+          return { id, label, prefix, mode } as GroupingRule;
+        })
+        .filter((rule): rule is GroupingRule => Boolean(rule));
+    },
+    []
   );
 
   const approvedStagedPaths = useMemo(() => {
@@ -285,6 +330,14 @@ export default function App() {
     stageMutation.mutate({ paths: allUnstaged });
   }, [stageMutation, statusQuery.data]);
 
+  const handleStagePaths = useCallback(
+    (paths: string[]) => {
+      if (paths.length === 0) return;
+      stageMutation.mutate({ paths });
+    },
+    [stageMutation]
+  );
+
   const handleStageApproved = useCallback(() => {
     const suggestedMessage = approvedChangesQuery.data?.suggestedMessage ?? "";
     if (approvedPendingPaths.length === 0) return;
@@ -307,6 +360,27 @@ export default function App() {
 
     unstageMutation.mutate({ paths: files.staged ?? [] });
   }, [unstageMutation, statusQuery.data]);
+
+  const handleDiscardPaths = useCallback(
+    (paths: string[], untracked: boolean) => {
+      if (paths.length === 0) return;
+      discardMutation.mutate(
+        { paths, untracked },
+        {
+          onSuccess: () => {
+            if (selectedFile && paths.includes(selectedFile)) {
+              setSelectedFile(undefined);
+            }
+            setSelectedFiles((prev) =>
+              prev.filter((entry) => entry.staged || !paths.includes(entry.path))
+            );
+            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+          }
+        }
+      );
+    },
+    [discardMutation, queryClient, selectedFile]
+  );
 
   const handleDiscardFile = useCallback(
     (path: string, untracked: boolean) => {
@@ -411,6 +485,66 @@ export default function App() {
     if (typeof window === "undefined") return;
     localStorage.setItem("gct.historyHeight", String(historyHeight));
   }, [historyHeight]);
+
+  useEffect(() => {
+    if (!repoDir) return;
+    if (groupingLoadedKey === repoKey) return;
+
+    const enabledKey = `gct.grouping.${repoKey}.enabled`;
+    const rulesKey = `gct.grouping.${repoKey}.rules`;
+    const storedEnabled = localStorage.getItem(enabledKey);
+    const storedRules = localStorage.getItem(rulesKey);
+    setGroupingEnabled(storedEnabled === "true");
+    if (storedRules) {
+      try {
+        const parsed = JSON.parse(storedRules) as GroupingRule[];
+        setGroupingRules(Array.isArray(parsed) ? normalizeGroupingRules(parsed) : []);
+        setGroupingDefaultsPending(false);
+      } catch {
+        setGroupingRules([]);
+        setGroupingDefaultsPending(true);
+      }
+    } else {
+      setGroupingRules([]);
+      setGroupingDefaultsPending(true);
+    }
+    setGroupingLoadedKey(repoKey);
+  }, [repoDir, repoKey, groupingLoadedKey, normalizeGroupingRules]);
+
+  useEffect(() => {
+    if (!repoDir || groupingLoadedKey !== repoKey) return;
+    const enabledKey = `gct.grouping.${repoKey}.enabled`;
+    const rulesKey = `gct.grouping.${repoKey}.rules`;
+    localStorage.setItem(enabledKey, String(groupingEnabled));
+    localStorage.setItem(rulesKey, JSON.stringify(groupingRules));
+  }, [repoDir, repoKey, groupingLoadedKey, groupingEnabled, groupingRules]);
+
+  useEffect(() => {
+    if (!groupingDefaultsPending || !repoDir) return;
+    const files = statusQuery.data?.files;
+    if (!files) return;
+    const allFiles = [
+      ...(files.staged ?? []),
+      ...(files.unstaged ?? []),
+      ...(files.untracked ?? []),
+      ...(files.conflicts ?? [])
+    ];
+    const hasScenarios = allFiles.some((path) => path.startsWith("scenarios/"));
+    const hasResources = allFiles.some((path) => path.startsWith("resources/"));
+    if (hasScenarios || hasResources) {
+      const defaults: GroupingRule[] = [];
+      if (hasScenarios) defaults.push(createGroupingRule("Scenarios", "scenarios/", "segment"));
+      if (hasResources) defaults.push(createGroupingRule("Resources", "resources/", "segment"));
+      setGroupingRules(defaults);
+    }
+    setGroupingDefaultsPending(false);
+  }, [groupingDefaultsPending, repoDir, statusQuery.data?.files, createGroupingRule]);
+
+  useEffect(() => {
+    if (groupingRules.length === 0 && groupingEnabled) {
+      setGroupingEnabled(false);
+    }
+  }, [groupingRules, groupingEnabled]);
 
   useEffect(() => {
     if (!orderedKeySet.size) {
@@ -700,6 +834,12 @@ export default function App() {
                     collapsed={changesCollapsed}
                     onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
                     fillHeight={!changesCollapsed}
+                    groupingEnabled={groupingEnabled}
+                    groupingRules={groupingRules}
+                    onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
+                    onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+                    onStagePaths={handleStagePaths}
+                    onDiscardPaths={handleDiscardPaths}
                   />
                 </div>
                 <div
@@ -803,6 +943,15 @@ export default function App() {
           </p>
         </div>
       )}
+      <GroupingSettingsModal
+        isOpen={isGroupingSettingsOpen}
+        repoDir={repoDir}
+        groupingEnabled={groupingEnabled}
+        onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
+        rules={groupingRules}
+        onChangeRules={setGroupingRules}
+        onClose={() => setIsGroupingSettingsOpen(false)}
+      />
     </div>
   );
 }
