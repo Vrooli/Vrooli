@@ -6,6 +6,11 @@ import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
 import { GitHistory } from "./components/GitHistory";
 import { GroupingSettingsModal } from "./components/GroupingSettingsModal";
+import {
+  LayoutSettingsModal,
+  type LayoutPreset,
+  type LayoutSection
+} from "./components/LayoutSettingsModal";
 import type { GroupingRule } from "./components/FileList";
 import {
   useHealth,
@@ -24,10 +29,12 @@ import {
   queryKeys
 } from "./lib/hooks";
 
+const layoutOrder: LayoutSection[] = ["changes", "history", "diff", "commit"];
+
 export default function App() {
   const queryClient = useQueryClient();
   const mainRef = useRef<HTMLDivElement | null>(null);
-  const sidebarRef = useRef<HTMLDivElement | null>(null);
+  const stackRef = useRef<HTMLDivElement | null>(null);
 
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     if (typeof window === "undefined") return 320;
@@ -47,7 +54,7 @@ export default function App() {
   const [changesCollapsed, setChangesCollapsed] = useState(false);
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [commitCollapsed, setCommitCollapsed] = useState(false);
-  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [isResizingStack, setIsResizingStack] = useState(false);
   const [isResizingSplit, setIsResizingSplit] = useState(false);
   const [isResizingHistory, setIsResizingHistory] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(50);
@@ -56,7 +63,11 @@ export default function App() {
   const [historyScopeFilter, setHistoryScopeFilter] = useState<string | null>(null);
   const [historyWorkingSetOnly, setHistoryWorkingSetOnly] = useState(false);
   const [isHistoryFiltersOpen, setIsHistoryFiltersOpen] = useState(false);
-  const sidebarResize = useRef<{ left: number; max: number } | null>(null);
+  const stackResize = useRef<
+    | { mode: "left" | "right"; start: number; max: number }
+    | { mode: "bottom"; top: number; height: number }
+    | null
+  >(null);
   const splitResize = useRef<{ top: number; height: number } | null>(null);
   const historyResize = useRef<{ bottom: number } | null>(null);
   const sidebarMinWidth = 200;
@@ -66,6 +77,15 @@ export default function App() {
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
   const [groupingDefaultsPending, setGroupingDefaultsPending] = useState(false);
   const [isGroupingSettingsOpen, setIsGroupingSettingsOpen] = useState(false);
+  const [layoutPreset, setLayoutPreset] = useState<LayoutPreset>("classic");
+  const [primaryPanel, setPrimaryPanel] = useState<LayoutSection>("diff");
+  const [layoutLoadedKey, setLayoutLoadedKey] = useState<string | null>(null);
+  const [stackHeight, setStackHeight] = useState(() => {
+    if (typeof window === "undefined") return 320;
+    const stored = Number(localStorage.getItem("gct.stackHeight"));
+    return Number.isFinite(stored) && stored > 0 ? stored : 320;
+  });
+  const [isLayoutSettingsOpen, setIsLayoutSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (!groupingEnabled || groupingRules.length === 0) {
@@ -86,6 +106,37 @@ export default function App() {
   const [lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
   const [commitMessage, setCommitMessage] = useState("");
+  const stackPosition: "left" | "right" | "bottom" =
+    layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
+  const stackPanels = useMemo(
+    () => layoutOrder.filter((section) => section !== primaryPanel),
+    [primaryPanel]
+  );
+  const stackSlots = useMemo(() => {
+    const remaining = new Set(stackPanels);
+    const middle = remaining.has("history") ? "history" : stackPanels[0];
+    remaining.delete(middle);
+    const bottom = remaining.has("commit") ? "commit" : stackPanels[1] ?? stackPanels[0];
+    remaining.delete(bottom);
+    const top = Array.from(remaining)[0] ?? middle;
+    return { top, middle, bottom };
+  }, [stackPanels]);
+  const collapsedBySection = useMemo(
+    () => ({
+      changes: changesCollapsed,
+      history: historyCollapsed,
+      commit: commitCollapsed,
+      diff: false
+    }),
+    [changesCollapsed, historyCollapsed, commitCollapsed]
+  );
+  const topPanel = stackSlots.top;
+  const middlePanel = stackSlots.middle;
+  const bottomPanel = stackSlots.bottom;
+  const topCollapsed = collapsedBySection[topPanel];
+  const middleCollapsed = collapsedBySection[middlePanel];
+  const bottomCollapsed = collapsedBySection[bottomPanel];
+  const topStackCollapsed = topCollapsed && middleCollapsed;
 
   // Queries
   const healthQuery = useHealth();
@@ -541,12 +592,50 @@ export default function App() {
   }, [repoDir, repoKey, groupingLoadedKey, normalizeGroupingRules]);
 
   useEffect(() => {
+    if (!repoDir) return;
+    if (layoutLoadedKey === repoKey) return;
+    const presetKey = `gct.layout.${repoKey}.preset`;
+    const primaryKey = `gct.layout.${repoKey}.primary`;
+    const stackKey = `gct.layout.${repoKey}.stackHeight`;
+    const storedPreset = localStorage.getItem(presetKey) as LayoutPreset | null;
+    const storedPrimary = localStorage.getItem(primaryKey) as LayoutSection | null;
+    const storedStackHeight = Number(localStorage.getItem(stackKey));
+    setLayoutPreset(
+      storedPreset === "classic" || storedPreset === "split" || storedPreset === "bottom"
+        ? storedPreset
+        : "classic"
+    );
+    setPrimaryPanel(
+      storedPrimary === "changes" ||
+        storedPrimary === "history" ||
+        storedPrimary === "commit" ||
+        storedPrimary === "diff"
+        ? storedPrimary
+        : "diff"
+    );
+    if (Number.isFinite(storedStackHeight) && storedStackHeight > 0) {
+      setStackHeight(storedStackHeight);
+    }
+    setLayoutLoadedKey(repoKey);
+  }, [repoDir, repoKey, layoutLoadedKey]);
+
+  useEffect(() => {
     if (!repoDir || groupingLoadedKey !== repoKey) return;
     const enabledKey = `gct.grouping.${repoKey}.enabled`;
     const rulesKey = `gct.grouping.${repoKey}.rules`;
     localStorage.setItem(enabledKey, String(groupingEnabled));
     localStorage.setItem(rulesKey, JSON.stringify(groupingRules));
   }, [repoDir, repoKey, groupingLoadedKey, groupingEnabled, groupingRules]);
+
+  useEffect(() => {
+    if (!repoDir || layoutLoadedKey !== repoKey) return;
+    const presetKey = `gct.layout.${repoKey}.preset`;
+    const primaryKey = `gct.layout.${repoKey}.primary`;
+    const stackKey = `gct.layout.${repoKey}.stackHeight`;
+    localStorage.setItem(presetKey, layoutPreset);
+    localStorage.setItem(primaryKey, primaryPanel);
+    localStorage.setItem(stackKey, String(stackHeight));
+  }, [repoDir, repoKey, layoutLoadedKey, layoutPreset, primaryPanel, stackHeight]);
 
   useEffect(() => {
     if (!groupingDefaultsPending || !repoDir) return;
@@ -603,21 +692,21 @@ export default function App() {
   }, [orderedKeySet, selectedFile, selectedFiles, selectedIsStaged, selectionKey]);
 
   useEffect(() => {
-    if (!sidebarRef.current || typeof ResizeObserver === "undefined") return;
+    if (!stackRef.current || typeof ResizeObserver === "undefined") return;
 
     const minChanges = 200;
     const minHistory = 140;
     const dividerHeight = 6;
     const minBottom = 180;
     const clamp = () => {
-      if (!sidebarRef.current || commitCollapsed) return;
-      const height = sidebarRef.current.clientHeight;
+      if (!stackRef.current || bottomCollapsed) return;
+      const height = stackRef.current.clientHeight;
       const minTop =
-        changesCollapsed && historyCollapsed
+        topCollapsed && middleCollapsed
           ? minChanges
-          : changesCollapsed
+          : topCollapsed
             ? minHistory
-            : historyCollapsed
+            : middleCollapsed
               ? minChanges
               : minChanges + minHistory + dividerHeight;
       const maxHeight = Math.max(minTop, height - minBottom);
@@ -630,12 +719,12 @@ export default function App() {
 
     clamp();
     const observer = new ResizeObserver(clamp);
-    observer.observe(sidebarRef.current);
+    observer.observe(stackRef.current);
     return () => observer.disconnect();
-  }, [changesHeight, changesCollapsed, historyCollapsed, commitCollapsed]);
+  }, [changesHeight, topCollapsed, middleCollapsed, bottomCollapsed]);
 
   useEffect(() => {
-    if (changesCollapsed || historyCollapsed) return;
+    if (topCollapsed || middleCollapsed) return;
     const minChanges = 200;
     const minHistory = 140;
     const maxHistory = Math.max(minHistory, changesHeight - minChanges);
@@ -644,27 +733,61 @@ export default function App() {
     } else if (historyHeight < minHistory) {
       setHistoryHeight(Math.min(minHistory, maxHistory));
     }
-  }, [changesHeight, historyHeight, changesCollapsed, historyCollapsed]);
+  }, [changesHeight, historyHeight, topCollapsed, middleCollapsed]);
 
   useEffect(() => {
-    if (!isResizingSidebar) return;
+    if (stackPosition !== "bottom" || !mainRef.current || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const minStack = 220;
+    const minMain = 240;
+    const clamp = () => {
+      if (!mainRef.current) return;
+      const height = mainRef.current.clientHeight;
+      const maxStack = height - minMain;
+      if (stackHeight > maxStack) {
+        setStackHeight(Math.max(minStack, maxStack));
+      }
+    };
+    clamp();
+    const observer = new ResizeObserver(clamp);
+    observer.observe(mainRef.current);
+    return () => observer.disconnect();
+  }, [stackHeight, stackPosition]);
+
+  useEffect(() => {
+    if (!isResizingStack) return;
 
     const handleMove = (event: MouseEvent) => {
-      if (!sidebarResize.current) return;
+      if (!stackResize.current) return;
+      if (stackResize.current.mode === "bottom") {
+        const minStack = 220;
+        const minMain = 240;
+        const nextHeight =
+          stackResize.current.height - (event.clientY - stackResize.current.top);
+        const maxHeight = stackResize.current.height - minMain;
+        const clampedHeight = Math.max(minStack, Math.min(maxHeight, nextHeight));
+        setStackHeight(clampedHeight);
+        return;
+      }
+
       const minWidth = sidebarMinWidth;
-      const nextWidth = event.clientX - sidebarResize.current.left;
-      const clampedWidth = Math.max(minWidth, Math.min(sidebarResize.current.max, nextWidth));
+      const nextWidth =
+        stackResize.current.mode === "left"
+          ? event.clientX - stackResize.current.start
+          : stackResize.current.start - event.clientX;
+      const clampedWidth = Math.max(minWidth, Math.min(stackResize.current.max, nextWidth));
       setSidebarWidth(clampedWidth);
     };
 
     const handleUp = () => {
-      setIsResizingSidebar(false);
-      sidebarResize.current = null;
+      setIsResizingStack(false);
+      stackResize.current = null;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
 
-    document.body.style.cursor = "col-resize";
+    document.body.style.cursor = stackPosition === "bottom" ? "row-resize" : "col-resize";
     document.body.style.userSelect = "none";
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("mouseup", handleUp);
@@ -675,7 +798,7 @@ export default function App() {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isResizingSidebar]);
+  }, [isResizingStack, stackPosition]);
 
   useEffect(() => {
     if (!isResizingSplit) return;
@@ -743,43 +866,222 @@ export default function App() {
     };
   }, [isResizingHistory, changesHeight]);
 
-  const handleSidebarResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handleStackResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
     if (!mainRef.current) return;
     const rect = mainRef.current.getBoundingClientRect();
-    const minDiffWidth = diffMinWidth;
-    const minWidth = sidebarMinWidth;
-    sidebarResize.current = {
-      left: rect.left,
-      max: Math.max(minWidth, rect.width - minDiffWidth)
-    };
-    setIsResizingSidebar(true);
+    if (stackPosition === "bottom") {
+      stackResize.current = { mode: "bottom", top: rect.top, height: rect.height };
+    } else {
+      const minWidth = sidebarMinWidth;
+      stackResize.current = {
+        mode: stackPosition,
+        start: stackPosition === "left" ? rect.left : rect.right,
+        max: Math.max(minWidth, rect.width - diffMinWidth)
+      };
+    }
+    setIsResizingStack(true);
   };
 
   const handleSplitResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
-    if (!sidebarRef.current || commitCollapsed || (changesCollapsed && historyCollapsed)) return;
-    const rect = sidebarRef.current.getBoundingClientRect();
+    if (!stackRef.current || bottomCollapsed || topStackCollapsed) return;
+    const rect = stackRef.current.getBoundingClientRect();
     splitResize.current = { top: rect.top, height: rect.height };
     setIsResizingSplit(true);
   };
 
   const handleHistoryResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
-    if (!sidebarRef.current || changesCollapsed || historyCollapsed) return;
-    const rect = sidebarRef.current.getBoundingClientRect();
+    if (!stackRef.current || topCollapsed || middleCollapsed) return;
+    const rect = stackRef.current.getBoundingClientRect();
     historyResize.current = { bottom: rect.top + changesHeight };
     setIsResizingHistory(true);
   };
 
-  const topCollapsed = changesCollapsed && historyCollapsed;
-  const showSplitHandle = !commitCollapsed && !topCollapsed;
+  const renderPanel = (panel: LayoutSection, slot: "top" | "middle" | "bottom" | "main") => {
+    const isMain = slot === "main";
+    switch (panel) {
+      case "changes":
+        return (
+          <FileList
+            files={statusQuery.data?.files}
+            selectedFiles={selectedFiles}
+            selectedKeySet={selectedKeySet}
+            selectionKey={selectionKey}
+            syncStatus={
+              syncStatusQuery.data
+                ? {
+                    ahead: syncStatusQuery.data.ahead,
+                    behind: syncStatusQuery.data.behind,
+                    canPush: syncStatusQuery.data.can_push,
+                    canPull: syncStatusQuery.data.can_pull,
+                    warning: syncStatusQuery.data.safety_warnings?.join("; ")
+                  }
+                : undefined
+            }
+            approvedChanges={
+              approvedChangesQuery.data
+                ? {
+                    available: approvedChangesQuery.data.available,
+                    committableFiles: approvedChangesQuery.data.committableFiles,
+                    warning: approvedChangesQuery.data.warning
+                  }
+                : undefined
+            }
+            approvedPaths={approvedPendingSet}
+            onStageApproved={handleStageApproved}
+            isStagingApproved={isStaging}
+            onPush={handlePush}
+            onPull={handlePull}
+            isPushing={pushMutation.isPending}
+            isPulling={pullMutation.isPending}
+            onSelectFile={handleSelectFile}
+            onStageFile={handleStageFile}
+            onUnstageFile={handleUnstageFile}
+            onDiscardFile={handleDiscardFile}
+            onStageAll={handleStageAll}
+            onUnstageAll={handleUnstageAll}
+            isStaging={isStaging}
+            isDiscarding={isDiscarding}
+            confirmingDiscard={confirmingDiscard}
+            onConfirmDiscard={setConfirmingDiscard}
+            collapsed={changesCollapsed}
+            onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
+            fillHeight={isMain || !changesCollapsed}
+            groupingEnabled={groupingEnabled}
+            groupingRules={groupingRules}
+            onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
+            onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+            onStagePaths={handleStagePaths}
+            onDiscardPaths={handleDiscardPaths}
+          />
+        );
+      case "history":
+        return (
+          <GitHistory
+            lines={historyQuery.data?.lines}
+            entries={historyQuery.data?.entries}
+            isLoading={historyQuery.isLoading}
+            error={historyQuery.error}
+            collapsed={historyCollapsed}
+            onToggleCollapse={() => setHistoryCollapsed((prev) => !prev)}
+            height={slot === "middle" ? historyHeight : undefined}
+            fillHeight={isMain}
+            onLoadMore={handleLoadMoreHistory}
+            isFetching={historyQuery.isFetching}
+            hasMore={
+              (historyQuery.data?.lines?.length ?? 0) >= historyLimit &&
+              historyLimit < historyMaxLimit
+            }
+            searchQuery={historySearch}
+            onSearchQueryChange={setHistorySearch}
+            scopeFilter={historyScopeFilter}
+            onScopeFilterChange={setHistoryScopeFilter}
+            groupingEnabled={groupingEnabled}
+            groupingRules={groupingRules}
+            workingSetPaths={workingSetPaths}
+            workingSetOnly={historyWorkingSetOnly}
+            onWorkingSetOnlyChange={setHistoryWorkingSetOnly}
+            filtersOpen={isHistoryFiltersOpen}
+            onOpenFilters={() => setIsHistoryFiltersOpen(true)}
+            onCloseFilters={() => setIsHistoryFiltersOpen(false)}
+          />
+        );
+      case "commit":
+        return (
+          <CommitPanel
+            stagedCount={statusQuery.data?.summary.staged ?? 0}
+            commitMessage={commitMessage}
+            onCommitMessageChange={setCommitMessage}
+            canUseApprovedMessage={canUseApprovedMessage}
+            onUseApprovedMessage={handleUseApprovedMessage}
+            isUsingApprovedMessage={approvedPreviewMutation.isPending}
+            onCommit={handleCommit}
+            isCommitting={commitMutation.isPending}
+            lastCommitHash={lastCommitHash}
+            commitError={commitError}
+            defaultAuthorName={statusQuery.data?.author?.name}
+            defaultAuthorEmail={statusQuery.data?.author?.email}
+            collapsed={commitCollapsed}
+            onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
+            fillHeight={isMain || !commitCollapsed}
+          />
+        );
+      case "diff":
+      default:
+        return (
+          <div className="h-full min-h-0">
+            <DiffViewer
+              diff={diffQuery.data}
+              selectedFile={selectedFile}
+              isStaged={selectedIsStaged}
+              isLoading={diffQuery.isLoading}
+              error={diffQuery.error}
+              repoDir={statusQuery.data?.repo_dir}
+            />
+          </div>
+        );
+    }
+  };
+
+  const showSplitHandle = !bottomCollapsed && !topStackCollapsed;
   const sidebarRows = (() => {
-    if (topCollapsed && commitCollapsed) return "auto 0px auto";
-    if (topCollapsed) return "auto 0px minmax(0, 1fr)";
-    if (commitCollapsed) return "minmax(0, 1fr) 0px auto";
+    if (topStackCollapsed && bottomCollapsed) return "auto 0px auto";
+    if (topStackCollapsed) return "auto 0px minmax(0, 1fr)";
+    if (bottomCollapsed) return "minmax(0, 1fr) 0px auto";
     return `minmax(0, ${changesHeight}px) 6px minmax(0, 1fr)`;
   })();
+  const topStackRows =
+    !topCollapsed && !middleCollapsed
+      ? `minmax(0, 1fr) 6px minmax(0, ${historyHeight}px)`
+      : "minmax(0, 1fr)";
+  const isBottomLayout = stackPosition === "bottom";
+  const stackBorderClass =
+    stackPosition === "bottom"
+      ? "border-t"
+      : stackPosition === "left"
+        ? "border-r"
+        : "border-l";
+  const stackPanel = (
+    <div
+      className={`flex-shrink-0 overflow-hidden min-w-0 ${stackBorderClass} border-slate-800`}
+      style={
+        isBottomLayout
+          ? { height: stackHeight }
+          : { width: sidebarWidth, minWidth: sidebarMinWidth }
+      }
+      ref={stackRef}
+    >
+      <div className="h-full min-h-0 min-w-0 grid overflow-hidden" style={{ gridTemplateRows: sidebarRows }}>
+        <div className="min-h-0 min-w-0 overflow-hidden">
+          <div className="h-full min-h-0 min-w-0 grid" style={{ gridTemplateRows: topStackRows }}>
+            <div className="min-h-0 min-w-0">{renderPanel(topPanel, "top")}</div>
+            <div
+              className={`${
+                !topCollapsed && !middleCollapsed
+                  ? "cursor-row-resize bg-slate-900 hover:bg-slate-800"
+                  : "bg-transparent"
+              }`}
+              onMouseDown={!topCollapsed && !middleCollapsed ? handleHistoryResizeStart : undefined}
+              aria-hidden="true"
+            />
+            <div className="min-h-0 min-w-0">{renderPanel(middlePanel, "middle")}</div>
+          </div>
+        </div>
+        <div
+          className={`${
+            showSplitHandle ? "cursor-row-resize bg-slate-900 hover:bg-slate-800" : "bg-transparent"
+          }`}
+          onMouseDown={showSplitHandle ? handleSplitResizeStart : undefined}
+          aria-hidden="true"
+        />
+        <div className="min-h-0 min-w-0 border-t border-slate-800 overflow-hidden">
+          {renderPanel(bottomPanel, "bottom")}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -793,174 +1095,50 @@ export default function App() {
         syncStatus={syncStatusQuery.data}
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
+        onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
       />
 
-      {/* Main Content - Split Pane */}
-      <div className="flex-1 flex overflow-hidden" ref={mainRef}>
-        {/* File List Panel + Commit Panel */}
-        <div
-          className="flex-shrink-0 border-r border-slate-800 overflow-hidden min-w-0"
-          style={{ width: sidebarWidth, minWidth: sidebarMinWidth }}
-        >
-          <div
-            className="h-full min-h-0 min-w-0 grid overflow-hidden"
-            style={{ gridTemplateRows: sidebarRows }}
-            ref={sidebarRef}
-          >
-            <div className="min-h-0 min-w-0 overflow-hidden">
-              <div
-                className="h-full min-h-0 min-w-0 grid"
-                style={{
-                  gridTemplateRows:
-                    !changesCollapsed && !historyCollapsed
-                      ? `minmax(0, 1fr) 6px minmax(0, ${historyHeight}px)`
-                      : "minmax(0, 1fr)"
-                }}
-              >
-                <div className="min-h-0 min-w-0">
-                  <FileList
-                    files={statusQuery.data?.files}
-                    selectedFiles={selectedFiles}
-                    selectedKeySet={selectedKeySet}
-                    selectionKey={selectionKey}
-                    syncStatus={
-                      syncStatusQuery.data
-                        ? {
-                            ahead: syncStatusQuery.data.ahead,
-                            behind: syncStatusQuery.data.behind,
-                            canPush: syncStatusQuery.data.can_push,
-                            canPull: syncStatusQuery.data.can_pull,
-                            warning: syncStatusQuery.data.safety_warnings?.join("; ")
-                          }
-                        : undefined
-                    }
-                    approvedChanges={
-                      approvedChangesQuery.data
-                        ? {
-                            available: approvedChangesQuery.data.available,
-                            committableFiles: approvedChangesQuery.data.committableFiles,
-                            warning: approvedChangesQuery.data.warning
-                          }
-                        : undefined
-                    }
-                    approvedPaths={approvedPendingSet}
-                    onStageApproved={handleStageApproved}
-                    isStagingApproved={isStaging}
-                    onPush={handlePush}
-                    onPull={handlePull}
-                    isPushing={pushMutation.isPending}
-                    isPulling={pullMutation.isPending}
-                    onSelectFile={handleSelectFile}
-                    onStageFile={handleStageFile}
-                    onUnstageFile={handleUnstageFile}
-                    onDiscardFile={handleDiscardFile}
-                    onStageAll={handleStageAll}
-                    onUnstageAll={handleUnstageAll}
-                    isStaging={isStaging}
-                    isDiscarding={isDiscarding}
-                    confirmingDiscard={confirmingDiscard}
-                    onConfirmDiscard={setConfirmingDiscard}
-                    collapsed={changesCollapsed}
-                    onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
-                    fillHeight={!changesCollapsed}
-                    groupingEnabled={groupingEnabled}
-                    groupingRules={groupingRules}
-                    onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
-                    onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
-                    onStagePaths={handleStagePaths}
-                    onDiscardPaths={handleDiscardPaths}
-                  />
-                </div>
-                <div
-                  className={`${
-                    !changesCollapsed && !historyCollapsed
-                      ? "cursor-row-resize bg-slate-900 hover:bg-slate-800"
-                      : "bg-transparent"
-                  }`}
-                  onMouseDown={
-                    !changesCollapsed && !historyCollapsed ? handleHistoryResizeStart : undefined
-                  }
-                  aria-hidden="true"
-                />
-                <div className="min-h-0 min-w-0">
-                  <GitHistory
-                    lines={historyQuery.data?.lines}
-                    entries={historyQuery.data?.entries}
-                    isLoading={historyQuery.isLoading}
-                    error={historyQuery.error}
-                    collapsed={historyCollapsed}
-                    onToggleCollapse={() => setHistoryCollapsed((prev) => !prev)}
-                    height={historyHeight}
-                    onLoadMore={handleLoadMoreHistory}
-                    isFetching={historyQuery.isFetching}
-                    hasMore={
-                      (historyQuery.data?.lines?.length ?? 0) >= historyLimit &&
-                      historyLimit < historyMaxLimit
-                    }
-                    searchQuery={historySearch}
-                    onSearchQueryChange={setHistorySearch}
-                    scopeFilter={historyScopeFilter}
-                    onScopeFilterChange={setHistoryScopeFilter}
-                    groupingEnabled={groupingEnabled}
-                    groupingRules={groupingRules}
-                    workingSetPaths={workingSetPaths}
-                    workingSetOnly={historyWorkingSetOnly}
-                    onWorkingSetOnlyChange={setHistoryWorkingSetOnly}
-                    filtersOpen={isHistoryFiltersOpen}
-                    onOpenFilters={() => setIsHistoryFiltersOpen(true)}
-                    onCloseFilters={() => setIsHistoryFiltersOpen(false)}
-                  />
-                </div>
-              </div>
-            </div>
+      {/* Main Content - Layout */}
+      <div
+        className={`flex-1 overflow-hidden ${isBottomLayout ? "flex flex-col" : "flex"}`}
+        ref={mainRef}
+      >
+        {!isBottomLayout && stackPosition === "left" && (
+          <>
+            {stackPanel}
             <div
-              className={`${
-                showSplitHandle
-                  ? "cursor-row-resize bg-slate-900 hover:bg-slate-800"
-                  : "bg-transparent"
-              }`}
-              onMouseDown={showSplitHandle ? handleSplitResizeStart : undefined}
+              className="w-1 bg-slate-900 hover:bg-slate-800 cursor-col-resize"
+              onMouseDown={handleStackResizeStart}
               aria-hidden="true"
             />
-            <div className="min-h-0 min-w-0 border-t border-slate-800 overflow-hidden">
-              <CommitPanel
-                stagedCount={statusQuery.data?.summary.staged ?? 0}
-                commitMessage={commitMessage}
-                onCommitMessageChange={setCommitMessage}
-                canUseApprovedMessage={canUseApprovedMessage}
-                onUseApprovedMessage={handleUseApprovedMessage}
-                isUsingApprovedMessage={approvedPreviewMutation.isPending}
-                onCommit={handleCommit}
-                isCommitting={commitMutation.isPending}
-                lastCommitHash={lastCommitHash}
-                commitError={commitError}
-                defaultAuthorName={statusQuery.data?.author?.name}
-                defaultAuthorEmail={statusQuery.data?.author?.email}
-                collapsed={commitCollapsed}
-                onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
-                fillHeight={!commitCollapsed}
-              />
-            </div>
-          </div>
+          </>
+        )}
+
+        <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
+          {renderPanel(primaryPanel, "main")}
         </div>
 
-        <div
-          className="w-1 bg-slate-900 hover:bg-slate-800 cursor-col-resize"
-          onMouseDown={handleSidebarResizeStart}
-          aria-hidden="true"
-        />
+        {!isBottomLayout && stackPosition === "right" && (
+          <>
+            <div
+              className="w-1 bg-slate-900 hover:bg-slate-800 cursor-col-resize"
+              onMouseDown={handleStackResizeStart}
+              aria-hidden="true"
+            />
+            {stackPanel}
+          </>
+        )}
 
-        {/* Diff Viewer Panel */}
-        <div className="flex-1 overflow-hidden">
-          <DiffViewer
-            diff={diffQuery.data}
-            selectedFile={selectedFile}
-            isStaged={selectedIsStaged}
-            isLoading={diffQuery.isLoading}
-            error={diffQuery.error}
-            repoDir={statusQuery.data?.repo_dir}
-          />
-        </div>
+        {isBottomLayout && (
+          <>
+            <div
+              className="h-1 bg-slate-900 hover:bg-slate-800 cursor-row-resize"
+              onMouseDown={handleStackResizeStart}
+              aria-hidden="true"
+            />
+            {stackPanel}
+          </>
+        )}
       </div>
 
       {/* Error Toast for Mutations */}
@@ -993,6 +1171,20 @@ export default function App() {
         rules={groupingRules}
         onChangeRules={setGroupingRules}
         onClose={() => setIsGroupingSettingsOpen(false)}
+      />
+      <LayoutSettingsModal
+        isOpen={isLayoutSettingsOpen}
+        repoDir={repoDir}
+        preset={layoutPreset}
+        primaryPanel={primaryPanel}
+        onChangePreset={setLayoutPreset}
+        onChangePrimary={setPrimaryPanel}
+        onReset={() => {
+          setLayoutPreset("classic");
+          setPrimaryPanel("diff");
+          setStackHeight(320);
+        }}
+        onClose={() => setIsLayoutSettingsOpen(false)}
       />
     </div>
   );

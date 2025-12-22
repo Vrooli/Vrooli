@@ -6,7 +6,8 @@ import {
   CheckCircle,
   AlertCircle,
   Circle,
-  RefreshCw
+  RefreshCw,
+  LayoutGrid
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
@@ -17,6 +18,7 @@ interface StatusHeaderProps {
   syncStatus?: SyncStatusResponse;
   isLoading: boolean;
   onRefresh: () => void;
+  onOpenLayoutSettings: () => void;
 }
 
 export function StatusHeader({
@@ -24,7 +26,8 @@ export function StatusHeader({
   health,
   syncStatus,
   isLoading,
-  onRefresh
+  onRefresh,
+  onOpenLayoutSettings
 }: StatusHeaderProps) {
   const isHealthy = health?.readiness ?? false;
   const ahead = status?.branch.ahead ?? syncStatus?.ahead ?? 0;
@@ -117,6 +120,15 @@ export function StatusHeader({
             <Circle className="h-4 w-4 text-slate-600" />
           )}
         </div>
+
+        <button
+          onClick={onOpenLayoutSettings}
+          className="p-2 rounded-md hover:bg-slate-800 transition-colors"
+          data-testid="layout-settings-button"
+          aria-label="Open layout settings"
+        >
+          <LayoutGrid className="h-4 w-4 text-slate-400" />
+        </button>
 
         {/* Refresh Button */}
         <button

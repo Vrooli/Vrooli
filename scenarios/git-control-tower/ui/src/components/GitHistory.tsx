@@ -13,8 +13,9 @@ interface GitHistoryProps {
   isLoading: boolean;
   error?: Error | null;
   collapsed?: boolean;
-  onToggleCollapse?: () => void;
   height?: number;
+  fillHeight?: boolean;
+  onToggleCollapse?: () => void;
   onLoadMore?: () => void;
   isFetching?: boolean;
   hasMore?: boolean;
@@ -117,6 +118,7 @@ export function GitHistory({
   collapsed = false,
   onToggleCollapse,
   height = 200,
+  fillHeight = false,
   onLoadMore,
   isFetching = false,
   hasMore = false,
@@ -327,7 +329,7 @@ export function GitHistory({
     <>
       <Card
         className="flex flex-col min-w-0"
-        style={{ height: collapsed ? "auto" : height }}
+        style={{ height: collapsed ? "auto" : fillHeight ? "100%" : height }}
         data-testid="git-history-panel"
       >
         <CardHeader className="flex-row items-center justify-between space-y-0 py-3 gap-2 min-w-0">
