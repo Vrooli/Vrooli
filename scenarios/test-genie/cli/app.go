@@ -6,6 +6,7 @@ import (
 
 	"test-genie/cli/execute"
 	"test-genie/cli/generate"
+	"test-genie/cli/playbooksseed"
 	"test-genie/cli/registry"
 	"test-genie/cli/requirements"
 	"test-genie/cli/runlocal"
@@ -36,6 +37,7 @@ type App struct {
 	executeClient  *execute.Client
 	runlocalClient *runlocal.Client
 	uismokeClient  *uismoke.Client
+	seedClient     *playbooksseed.Client
 }
 
 // NewApp creates a new CLI application instance.
@@ -70,6 +72,7 @@ func NewApp() (*App, error) {
 		executeClient:  execute.NewClient(core.APIClient, core.HTTPClient),
 		runlocalClient: runlocal.NewClient(core.APIClient),
 		uismokeClient:  uismoke.NewClient(core.APIClient),
+		seedClient:     playbooksseed.NewClient(core.APIClient),
 	}
 	app.core.SetCommands(app.registerCommands())
 	return app, nil
@@ -129,6 +132,12 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 				NeedsAPI:    false,
 				Description: "Inspect and sync scenario requirements",
 				Run:         func(args []string) error { return requirements.Run(args) },
+			},
+			{
+				Name:        "playbooks-seed",
+				NeedsAPI:    true,
+				Description: "Manage playbooks seed lifecycle (apply/cleanup)",
+				Run:         func(args []string) error { return playbooksseed.Run(a.seedClient, args) },
 			},
 		},
 	}

@@ -94,6 +94,9 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 
 	store, params, env, artifactCfg, projectRoot, startURL := executionParametersToMaps(req.Parameters)
+	if err := validateSeedRequirements(req.FlowDefinition, store, params, env); err != nil {
+		return nil, err
+	}
 
 	execIndex := &database.ExecutionIndex{
 		ID:        executionID,

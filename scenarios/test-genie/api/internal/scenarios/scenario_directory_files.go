@@ -124,6 +124,14 @@ func (s *ScenarioDirectoryService) ListFilesWithMeta(ctx context.Context, scenar
 	return s.listScenarioPath(ctx, root, normalizedPath, limit, opts.IncludeHidden, coverage)
 }
 
+// ScenarioRoot returns the configured root directory for scenarios.
+func (s *ScenarioDirectoryService) ScenarioRoot() string {
+	if s == nil {
+		return ""
+	}
+	return s.scenariosRoot
+}
+
 func (s *ScenarioDirectoryService) listScenarioPath(ctx context.Context, root, relative string, limit int, includeHidden bool, coverage map[string]float64) (FileListResult, error) {
 	// Root listing: show allowed roots that exist
 	if relative == "" {

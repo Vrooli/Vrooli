@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -70,6 +71,7 @@ type scenarioDirectory interface {
 	RunUISmokeWithOpts(ctx context.Context, name string, opts scenarios.UISmokeOptions) (*scenarios.UISmokeResult, error)
 	ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error)
 	ListFilesWithMeta(ctx context.Context, name string, opts scenarios.FileListOptions) (scenarios.FileListResult, error)
+	ScenarioRoot() string
 }
 
 type phaseCatalog interface {
@@ -92,6 +94,9 @@ type Server struct {
 	agentService        *agents.AgentService
 	containmentSelector containment.ProviderSelector
 	wsManager           *WebSocketManager
+	seedSessions        map[string]*seedSession
+	seedSessionsByScenario map[string]string
+	seedSessionsMu      sync.Mutex
 }
 
 // New creates a configured HTTP server instance.
@@ -147,6 +152,8 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		agentService:        deps.AgentService,
 		containmentSelector: containmentSel,
 		wsManager:           wsManager,
+		seedSessions:        make(map[string]*seedSession),
+		seedSessionsByScenario: make(map[string]string),
 	}
 
 	srv.setupRoutes()
@@ -177,6 +184,8 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}", s.handleGetScenario).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/run-tests", s.handleRunScenarioTests).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/ui-smoke", s.handleUISmoke).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/apply", s.handlePlaybooksSeedApply).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/cleanup", s.handlePlaybooksSeedCleanup).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/files", s.handleListScenarioFiles).Methods("GET")
 	apiRouter.HandleFunc("/agents/models", s.handleListAgentModels).Methods("GET")
 	apiRouter.HandleFunc("/agents/spawn", s.handleSpawnAgents).Methods("POST")

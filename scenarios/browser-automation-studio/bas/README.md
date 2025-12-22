@@ -34,6 +34,7 @@ BAS workflows live under `bas/` and are hierarchical: **actions** are the smalle
 7. Reuse fixtures by setting `"workflowPath": "actions/<slug>.json"` with optional `"params"` instead of duplicating steps.
 8. If a fixture guarantees requirement coverage, list those requirement IDs under `metadata.requirements` so coverage propagates.
 9. Regenerate `registry.json` after edits and confirm ordering with `browser-automation-studio playbooks order`.
+10. If a workflow depends on seeded data, add `metadata.labels.seed_required = "true"`. Optionally set `metadata.labels.seed_keys` (comma-separated) to declare required seed fields (e.g., `projectId,workflowId`).
 
 ## CLI Helpers
 - `browser-automation-studio playbooks scaffold <folder> <name>` creates a stub workflow under `bas/`.
@@ -70,6 +71,8 @@ Notes:
 - `--from-file` executes the workflow definition as adhoc (no workflow persisted).
 - The CLI infers `project_root` from the nearest `bas/` folder in the file path.
 - If no `bas/` folder is found, pass `--project-root /abs/path/to/bas`.
+- If a workflow declares `seed_required`, you must provide seed params in `parameters.initial_params` or pass `--seed applied`.
+- Use `--seed needs-applying` to have BAS call test-genie to apply seeds and clean up after the run.
 
 ## Failure Triage (Signal Surface)
 When a playbook fails, use these signals first:

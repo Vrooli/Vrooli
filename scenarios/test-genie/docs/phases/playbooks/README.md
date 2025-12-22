@@ -12,6 +12,48 @@ Core contract:
 - workflows are executed **as-authored** (no placeholder substitution or scenario URL rewriting in test-genie)
 - test-genie provides BAS `project_root` (absolute path to `bas/`) and `initial_params` (seed-state.json) and handles isolation + cleanup
 
+## Seed Lifecycle (Isolation + Seed State)
+
+Playbooks run in an isolated data environment. The playbooks phase:
+- provisions temporary Postgres/Redis when required
+- applies optional SQL migrations under `bas/seeds/migrations/`
+- restarts the scenario against the temporary resources
+- runs `bas/seeds/seed.go` (or `seed.sh`) to produce `coverage/runtime/seed-state.json`
+- injects seed values into BAS as `parameters.initial_params`
+- restarts the scenario back to normal resources and tears down isolation
+
+Workflows that depend on seed data should declare it explicitly:
+- `metadata.labels.seed_required = "true"`
+- `metadata.labels.seed_keys = "projectId,workflowId"` (optional, comma-separated)
+
+## Manual Seed Lifecycle (API + CLI)
+
+If you need to apply seeds outside the playbooks phase, use the test-genie API or CLI.
+
+API endpoints:
+- `POST /api/v1/scenarios/{name}/playbooks/seed/apply` → returns `seed_state` + `cleanup_token`
+- `POST /api/v1/scenarios/{name}/playbooks/seed/cleanup` → teardown + restart normal resources
+
+CLI wrapper:
+```bash
+test-genie playbooks-seed apply --scenario <scenario> [--retain]
+test-genie playbooks-seed cleanup --scenario <scenario> --token <cleanup-token>
+```
+
+## BAS Direct Runs (No Test-Genie Orchestrator)
+
+When running BAS workflows directly:
+- pass `initial_params` yourself, or
+- use `--seed needs-applying` (BAS will call test-genie seed apply/cleanup).
+
+Example:
+```bash
+browser-automation-studio workflow execute \
+  --from-file bas/actions/open-demo-project.json \
+  --seed needs-applying \
+  --wait
+```
+
 ## What Gets Tested
 
 ```mermaid

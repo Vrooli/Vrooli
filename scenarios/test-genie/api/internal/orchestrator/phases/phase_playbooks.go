@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 
 	"test-genie/internal/orchestrator/workspace"
@@ -182,87 +179,4 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 	}
 
 	return report
-}
-
-// applyPlaybooksMigrations applies optional .sql files under bas/seeds/migrations
-// against the current DATABASE_URL (already set via isolation env). Files execute in lexicographic order.
-func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, requirePostgres bool, logWriter io.Writer) error {
-	if !requirePostgres {
-		return nil
-	}
-
-	migrationsDir := filepath.Join(env.ScenarioDir, "bas", "seeds", "migrations")
-	entries, err := os.ReadDir(migrationsDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("read migrations dir: %w", err)
-	}
-
-	if err := EnsureCommandAvailable("psql"); err != nil {
-		return fmt.Errorf("psql not available for playbooks migrations: %w", err)
-	}
-
-	connURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	if connURL == "" {
-		return fmt.Errorf("DATABASE_URL is not set for playbooks migrations")
-	}
-
-	var files []string
-	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".sql" {
-			continue
-		}
-		files = append(files, filepath.Join(migrationsDir, entry.Name()))
-	}
-	if len(files) == 0 {
-		return nil
-	}
-	sort.Strings(files)
-
-	shared.LogStep(logWriter, "applying playbooks migrations (%d file(s))", len(files))
-	for _, file := range files {
-		shared.LogInfo(logWriter, "  psql -f %s", file)
-		if err := phaseCommandExecutor(ctx, env.ScenarioDir, logWriter, "psql", "-d", connURL, "-v", "ON_ERROR_STOP=1", "-f", file); err != nil {
-			return fmt.Errorf("psql apply %s: %w", file, err)
-		}
-	}
-	return nil
-}
-
-// detectResourceNeeds inspects the scenario service manifest and returns whether
-// Postgres and Redis should be provisioned for Playbooks isolation. Defaults to
-// provisioning both when the manifest cannot be read or does not declare resources.
-func detectResourceNeeds(env workspace.Environment, logWriter io.Writer) (requirePostgres bool, requireRedis bool) {
-	manifestPath := filepath.Join(env.ScenarioDir, ".vrooli", "service.json")
-	manifest, err := workspace.LoadServiceManifest(manifestPath)
-	if err != nil {
-		shared.LogWarn(logWriter, "unable to read service manifest (%v); defaulting to Postgres + Redis isolation", err)
-		return true, true
-	}
-
-	if manifest.Dependencies.Resources == nil || len(manifest.Dependencies.Resources) == 0 {
-		return true, true
-	}
-
-	for _, res := range manifest.Dependencies.Resources {
-		if !res.Enabled && !res.Required {
-			continue
-		}
-		switch strings.ToLower(res.Type) {
-		case "postgres":
-			requirePostgres = true
-		case "redis":
-			requireRedis = true
-		}
-	}
-
-	// If nothing matched, assume both to avoid false negatives.
-	if !requirePostgres && !requireRedis {
-		shared.LogWarn(logWriter, "service manifest declares no postgres/redis resources; defaulting to provision both for playbooks isolation")
-		return true, true
-	}
-
-	return requirePostgres, requireRedis
 }

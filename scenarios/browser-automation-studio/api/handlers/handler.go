@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
@@ -57,6 +58,7 @@ type Handler struct {
 
 	// Performance monitoring
 	perfRegistry *performance.CollectorRegistry
+	seedCleanupManager *testgenie.SeedCleanupManager
 
 	// AI subhandlers
 	screenshotHandler      *aihandlers.ScreenshotHandler
@@ -211,6 +213,14 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 		cfg.Performance.BufferSize,
 	)
 
+	seedCleanupManager := testgenie.NewSeedCleanupManager(
+		deps.ExecutionService,
+		nil,
+		log,
+		cfg.Execution.CompletionPollInterval,
+		cfg.Execution.SeedCleanupTimeout,
+	)
+
 	handler := &Handler{
 		catalogService:    deps.CatalogService,
 		executionService:  deps.ExecutionService,
@@ -228,6 +238,7 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 		wsAllowedOrigins:  allowedCopy,
 		upgrader:          websocket.Upgrader{},
 		perfRegistry:      perfRegistry,
+		seedCleanupManager: seedCleanupManager,
 	}
 	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 

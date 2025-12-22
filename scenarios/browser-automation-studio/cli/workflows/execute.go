@@ -3,6 +3,7 @@ package workflows
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,8 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	requiresHAR := false
 	fromFile := ""
 	startURL := ""
+	seedMode := ""
+	seedScenario := ""
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -67,6 +70,26 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			requiresTrace = true
 		case "--record-har", "--requires-har":
 			requiresHAR = true
+		case "--seed":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--seed requires a value (use 'applied' or 'needs-applying')")
+			}
+			raw := strings.TrimSpace(strings.ToLower(args[i+1]))
+			switch raw {
+			case "applied":
+				seedMode = raw
+			case "needs-applying":
+				seedMode = raw
+			default:
+				return fmt.Errorf("unsupported --seed value %q (use 'applied' or 'needs-applying')", args[i+1])
+			}
+			i++
+		case "--seed-scenario":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--seed-scenario requires a value")
+			}
+			seedScenario = strings.TrimSpace(args[i+1])
+			i++
 		default:
 			if strings.HasPrefix(args[i], "--") {
 				return fmt.Errorf("unknown option: %s", args[i])
@@ -167,6 +190,16 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		}
 	}
 
+	if seedMode == "applied" {
+		env, ok := params["env"].(map[string]any)
+		if !ok || env == nil {
+			env = map[string]any{}
+		}
+		env["seed_applied"] = true
+		params["env"] = env
+		fmt.Println("Seed flag: applied")
+	}
+
 	var response []byte
 	if adhoc {
 		workflowID, err := resolveWorkflowID(ctx, workflow)
@@ -207,14 +240,14 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		}
 
 		executePath := ctx.APIPath("/workflows/execute-adhoc")
-		executePath = appendExecuteQuery(executePath, requiresVideo, requiresTrace, requiresHAR)
+		executePath = appendExecuteQuery(executePath, requiresVideo, requiresTrace, requiresHAR, seedMode, seedScenario)
 		response, err = ctx.Core.APIClient.Request("POST", executePath, nil, payload)
 		if err != nil {
 			return err
 		}
 	} else {
 		executePath := ctx.APIPath("/workflows/" + workflow + "/execute")
-		executePath = appendExecuteQuery(executePath, requiresVideo, requiresTrace, requiresHAR)
+		executePath = appendExecuteQuery(executePath, requiresVideo, requiresTrace, requiresHAR, seedMode, seedScenario)
 		payload := map[string]any{
 			"parameters":          params,
 			"wait_for_completion": wait,
@@ -343,8 +376,8 @@ func extractWorkflowName(flowDef any) string {
 	return ""
 }
 
-func appendExecuteQuery(base string, requiresVideo bool, requiresTrace bool, requiresHAR bool) string {
-	pairs := make([]string, 0, 3)
+func appendExecuteQuery(base string, requiresVideo bool, requiresTrace bool, requiresHAR bool, seedMode string, seedScenario string) string {
+	pairs := make([]string, 0, 5)
 	if requiresVideo {
 		pairs = append(pairs, "requires_video=true")
 	}
@@ -353,6 +386,12 @@ func appendExecuteQuery(base string, requiresVideo bool, requiresTrace bool, req
 	}
 	if requiresHAR {
 		pairs = append(pairs, "requires_har=true")
+	}
+	if seedMode == "needs-applying" {
+		pairs = append(pairs, "seed=needs-applying")
+	}
+	if seedScenario != "" {
+		pairs = append(pairs, fmt.Sprintf("seed_scenario=%s", url.QueryEscape(seedScenario)))
 	}
 	if len(pairs) == 0 {
 		return base

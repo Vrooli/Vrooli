@@ -103,6 +103,9 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 
 	initialStore, initialParams, env, artifactCfg, projectRoot, startURL := executionParametersToMaps(req.Parameters)
+	if err := validateSeedRequirements(workflowSummary.FlowDefinition, initialStore, initialParams, env); err != nil {
+		return nil, err
+	}
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{

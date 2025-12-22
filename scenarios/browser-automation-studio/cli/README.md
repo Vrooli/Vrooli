@@ -42,3 +42,26 @@ browser-automation-studio workflow execute \
   --start-url http://localhost:8080/ \
   --wait
 ```
+
+Seeded workflows (actions that rely on test-genie seed state) can declare
+`metadata.labels.seed_required = "true"`. Use `--seed applied` to satisfy the
+seed gate when running workflows directly:
+
+```bash
+browser-automation-studio workflow execute \
+  --from-file bas/actions/open-demo-project.json \
+  --params '{"initial_params": {...}}' \
+  --seed applied \
+  --wait
+```
+
+To auto-apply seeds (through test-genie) and clean up afterward, use:
+
+```bash
+browser-automation-studio workflow execute \
+  --from-file bas/actions/open-demo-project.json \
+  --seed needs-applying \
+  --wait
+```
+
+For async runs, `--seed needs-applying` schedules cleanup automatically after the execution reaches a terminal state.

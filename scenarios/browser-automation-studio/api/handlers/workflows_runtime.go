@@ -16,12 +16,17 @@ import (
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/compat"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
+
+const seedCleanupTimeout = 30 * time.Second
 
 func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
@@ -78,11 +83,63 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		opts.RequiresHAR = true
 	}
 
+	seedPlan, seedErr := applySeedIfNeeded(ctx, r, &req.Parameters)
+	if seedErr != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": seedErr.Error()}))
+		return
+	}
+
 	resp, err := h.executionService.ExecuteWorkflowAPIWithOptions(ctx, &req, opts)
 	if err != nil {
+		if seedPlan != nil && seedPlan.cleanup != nil {
+			_ = seedPlan.cleanup(context.Background())
+		}
+		var seedErr *workflowservice.SeedRequirementError
+		if errors.As(err, &seedErr) {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+				"error":        seedErr.Error(),
+				"missing_keys": strings.Join(seedErr.MissingKeys, ", "),
+				"hint":         "run the BAS seed script or test-genie before executing; or pass parameters.env.seed_applied=true",
+			}))
+			return
+		}
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "execute_workflow", "error": err.Error()}))
 		return
 	}
+
+	if seedPlan != nil {
+		if req.WaitForCompletion {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), seedCleanupTimeout)
+			defer cancel()
+			if err := seedPlan.cleanup(cleanupCtx); err != nil {
+				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+					"error":         "seed cleanup failed",
+					"details":       err.Error(),
+					"execution_id":  resp.GetExecutionId(),
+					"seed_scenario": seedPlan.seedScenario,
+				}))
+				return
+			}
+		} else if h.seedCleanupManager != nil {
+			if err := h.seedCleanupManager.Schedule(resp.GetExecutionId(), seedPlan.seedScenario, seedPlan.cleanupToken); err != nil {
+				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+					"error":         "seed cleanup scheduling failed",
+					"details":       err.Error(),
+					"execution_id":  resp.GetExecutionId(),
+					"seed_scenario": seedPlan.seedScenario,
+				}))
+				return
+			}
+		} else {
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+				"error":         "seed cleanup manager unavailable",
+				"execution_id":  resp.GetExecutionId(),
+				"seed_scenario": seedPlan.seedScenario,
+			}))
+			return
+		}
+	}
+
 	h.respondProto(w, http.StatusOK, resp)
 }
 
@@ -126,10 +183,61 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 		}
 		opts.RequiresHAR = true
 	}
+
+	seedPlan, seedErr := applySeedIfNeeded(ctx, r, &req.Parameters)
+	if seedErr != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": seedErr.Error()}))
+		return
+	}
 	resp, err := h.executionService.ExecuteAdhocWorkflowAPIWithOptions(ctx, &req, opts)
 	if err != nil {
+		if seedPlan != nil && seedPlan.cleanup != nil {
+			_ = seedPlan.cleanup(context.Background())
+		}
+		var seedErr *workflowservice.SeedRequirementError
+		if errors.As(err, &seedErr) {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+				"error":        seedErr.Error(),
+				"missing_keys": strings.Join(seedErr.MissingKeys, ", "),
+				"hint":         "run the BAS seed script or test-genie before executing; or pass parameters.env.seed_applied=true",
+			}))
+			return
+		}
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "execute_adhoc", "error": err.Error()}))
 		return
+	}
+
+	if seedPlan != nil {
+		if req.WaitForCompletion {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), seedCleanupTimeout)
+			defer cancel()
+			if err := seedPlan.cleanup(cleanupCtx); err != nil {
+				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+					"error":         "seed cleanup failed",
+					"details":       err.Error(),
+					"execution_id":  resp.GetExecutionId(),
+					"seed_scenario": seedPlan.seedScenario,
+				}))
+				return
+			}
+		} else if h.seedCleanupManager != nil {
+			if err := h.seedCleanupManager.Schedule(resp.GetExecutionId(), seedPlan.seedScenario, seedPlan.cleanupToken); err != nil {
+				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+					"error":         "seed cleanup scheduling failed",
+					"details":       err.Error(),
+					"execution_id":  resp.GetExecutionId(),
+					"seed_scenario": seedPlan.seedScenario,
+				}))
+				return
+			}
+		} else {
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+				"error":         "seed cleanup manager unavailable",
+				"execution_id":  resp.GetExecutionId(),
+				"seed_scenario": seedPlan.seedScenario,
+			}))
+			return
+		}
 	}
 	h.respondProto(w, http.StatusOK, resp)
 }
@@ -152,6 +260,86 @@ func parseBoolQuery(r *http.Request, keys ...string) bool {
 		}
 	}
 	return false
+}
+
+type seedCleanupPlan struct {
+	cleanup       func(context.Context) error
+	cleanupToken  string
+	seedScenario  string
+}
+
+func applySeedIfNeeded(ctx context.Context, r *http.Request, params **basexecution.ExecutionParameters) (*seedCleanupPlan, error) {
+	mode := seedModeFromRequest(r)
+	if mode == "" {
+		return nil, nil
+	}
+	if mode != "needs-applying" {
+		return nil, fmt.Errorf("unsupported seed mode %q", mode)
+	}
+
+	seedScenario := seedScenarioFromRequest(r)
+	client := testgenie.NewClient(nil, nil)
+	applyResp, err := client.ApplySeed(ctx, seedScenario, false)
+	if err != nil {
+		return nil, err
+	}
+
+	mergeSeedState(params, applyResp.SeedState)
+
+	return &seedCleanupPlan{
+		cleanup: func(cleanupCtx context.Context) error {
+			_, err := client.CleanupSeed(cleanupCtx, seedScenario, applyResp.CleanupToken)
+			return err
+		},
+		cleanupToken: applyResp.CleanupToken,
+		seedScenario: seedScenario,
+	}, nil
+}
+
+func seedModeFromRequest(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	raw := strings.TrimSpace(r.URL.Query().Get("seed"))
+	if raw == "" {
+		raw = strings.TrimSpace(r.URL.Query().Get("seed_mode"))
+	}
+	return strings.ToLower(raw)
+}
+
+func seedScenarioFromRequest(r *http.Request) string {
+	if r == nil {
+		return "browser-automation-studio"
+	}
+	raw := strings.TrimSpace(r.URL.Query().Get("seed_scenario"))
+	if raw == "" {
+		return "browser-automation-studio"
+	}
+	return raw
+}
+
+func mergeSeedState(params **basexecution.ExecutionParameters, seedState map[string]any) {
+	if params == nil {
+		return
+	}
+	if *params == nil {
+		*params = &basexecution.ExecutionParameters{}
+	}
+	if (*params).InitialParams == nil {
+		(*params).InitialParams = map[string]*commonv1.JsonValue{}
+	}
+	for key, value := range seedState {
+		if _, exists := (*params).InitialParams[key]; exists {
+			continue
+		}
+		(*params).InitialParams[key] = typeconv.AnyToJsonValue(value)
+	}
+	if (*params).Env == nil {
+		(*params).Env = map[string]*commonv1.JsonValue{}
+	}
+	if _, exists := (*params).Env["seed_applied"]; !exists {
+		(*params).Env["seed_applied"] = typeconv.AnyToJsonValue(true)
+	}
 }
 
 func (h *Handler) ListWorkflowVersions(w http.ResponseWriter, r *http.Request) {

@@ -237,6 +237,10 @@ type ExecutionConfig struct {
 	// Env: BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS (default: 600000, 10 minutes)
 	AdhocRetentionPeriod time.Duration
 
+	// SeedCleanupTimeout is the max time to wait before forcing seed cleanup for async runs.
+	// Env: BAS_EXECUTION_SEED_CLEANUP_TIMEOUT_MS (default: 900000, 15 minutes)
+	SeedCleanupTimeout time.Duration
+
 	// HeartbeatInterval controls the cadence of mid-step heartbeats emitted while
 	// instructions are running. Set to 0 to disable heartbeats (not recommended
 	// unless running in extremely constrained environments).
@@ -610,6 +614,7 @@ func loadFromEnv() *Config {
 			CompletionPollInterval: parseDurationMs("BAS_EXECUTION_COMPLETION_POLL_INTERVAL_MS", 250),
 			AdhocCleanupInterval:   parseDurationMs("BAS_EXECUTION_ADHOC_CLEANUP_INTERVAL_MS", 5000),
 			AdhocRetentionPeriod:   parseDurationMs("BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS", 600000),
+			SeedCleanupTimeout:     parseDurationMs("BAS_EXECUTION_SEED_CLEANUP_TIMEOUT_MS", 900000),
 			HeartbeatInterval:      parseDurationMs("BAS_EXECUTION_HEARTBEAT_INTERVAL_MS", 2000),
 		},
 		WebSocket: WebSocketConfig{

@@ -113,6 +113,11 @@ cli/
 │   ├── client.go               # API client
 │   └── types.go                # Request/Response types
 │
+├── playbooksseed/              # DOMAIN: Playbooks Seed Lifecycle
+│   ├── run.go                  # CLI command handler
+│   ├── client.go               # API client
+│   └── types.go                # Request/Response types
+│
 ├── status/                      # DOMAIN: Health & Status
 │   ├── command.go              # Status command
 │   ├── client.go               # Health API client
