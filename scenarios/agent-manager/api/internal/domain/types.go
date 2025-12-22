@@ -27,10 +27,11 @@ type AgentProfile struct {
 	Description string    `json:"description,omitempty" db:"description"`
 
 	// Runner configuration
-	RunnerType RunnerType    `json:"runnerType" db:"runner_type"`
-	Model      string        `json:"model,omitempty" db:"model"`
-	MaxTurns   int           `json:"maxTurns,omitempty" db:"max_turns"`
-	Timeout    time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
+	RunnerType  RunnerType   `json:"runnerType" db:"runner_type"`
+	Model       string       `json:"model,omitempty" db:"model"`
+	ModelPreset ModelPreset  `json:"modelPreset,omitempty" db:"model_preset"`
+	MaxTurns    int          `json:"maxTurns,omitempty" db:"max_turns"`
+	Timeout     time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
 
 	// Tool permissions
 	AllowedTools []string `json:"allowedTools,omitempty" db:"allowed_tools"`
@@ -79,6 +80,26 @@ func (r RunnerType) IsValid() bool {
 		}
 	}
 	return false
+}
+
+// ModelPreset describes a high-level model selection preset.
+type ModelPreset string
+
+const (
+	ModelPresetUnspecified ModelPreset = ""
+	ModelPresetFast        ModelPreset = "FAST"
+	ModelPresetCheap       ModelPreset = "CHEAP"
+	ModelPresetSmart       ModelPreset = "SMART"
+)
+
+// IsValid reports whether the preset is a supported value.
+func (p ModelPreset) IsValid() bool {
+	switch p {
+	case ModelPresetUnspecified, ModelPresetFast, ModelPresetCheap, ModelPresetSmart:
+		return true
+	default:
+		return false
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -275,10 +296,11 @@ type RunSummary struct {
 // This can be loaded from a profile, provided inline, or a combination of both.
 type RunConfig struct {
 	// Runner configuration
-	RunnerType RunnerType    `json:"runnerType"`
-	Model      string        `json:"model,omitempty"`
-	MaxTurns   int           `json:"maxTurns,omitempty"`
-	Timeout    time.Duration `json:"timeout,omitempty"`
+	RunnerType  RunnerType   `json:"runnerType"`
+	Model       string       `json:"model,omitempty"`
+	ModelPreset ModelPreset  `json:"modelPreset,omitempty"`
+	MaxTurns    int          `json:"maxTurns,omitempty"`
+	Timeout     time.Duration `json:"timeout,omitempty"`
 
 	// Tool permissions
 	AllowedTools []string `json:"allowedTools,omitempty"`
@@ -303,6 +325,7 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	}
 	c.RunnerType = profile.RunnerType
 	c.Model = profile.Model
+	c.ModelPreset = profile.ModelPreset
 	c.MaxTurns = profile.MaxTurns
 	c.Timeout = profile.Timeout
 	c.AllowedTools = profile.AllowedTools

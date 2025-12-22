@@ -196,10 +196,10 @@ func (r *CodexRunner) Capabilities() Capabilities {
 		SupportsCancellation: true,
 		MaxTurns:             0, // unlimited
 		SupportedModels: []string{
-			"o4-mini",
-			"o3",
-			"codex-mini-latest",
-			"gpt-5-codex",
+			"gpt-5.2-codex",
+			"gpt-5.1-codex-max",
+			"gpt-5.1-codex-mini",
+			"gpt-5.2",
 		},
 	}
 }

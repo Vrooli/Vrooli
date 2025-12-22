@@ -7,6 +7,7 @@ import type {
   ApproveFormData,
   ApproveResult,
   HealthResponse,
+  ModelRegistry,
   ProfileFormData,
   ProbeResult,
   RejectFormData,
@@ -19,6 +20,7 @@ import type {
   Task,
   TaskFormData,
 } from "../types";
+import { ModelPreset } from "../types";
 import {
   AgentProfileSchema,
   RunConfigOverridesSchema,
@@ -159,12 +161,14 @@ function resolveProfileKey(profile: ProfileFormData): string {
 }
 
 function buildProfile(profile: ProfileFormData): AgentProfile {
+  const model = profile.model?.trim() ?? "";
   return create(AgentProfileSchema, {
     name: profile.name,
     profileKey: resolveProfileKey(profile),
     description: profile.description ?? "",
     runnerType: profile.runnerType,
-    model: profile.model ?? "",
+    model,
+    modelPreset: profile.modelPreset ?? ModelPreset.UNSPECIFIED,
     maxTurns: profile.maxTurns ?? 0,
     timeout: durationFromMinutes(profile.timeoutMinutes),
     allowedTools: profile.allowedTools ?? [],
@@ -192,7 +196,10 @@ function buildRunConfigOverrides(run: RunFormData) {
   if (run.runnerType !== undefined) {
     payload.runnerType = run.runnerType;
   }
-  if (run.model !== undefined) {
+  if (run.modelPreset !== undefined) {
+    payload.modelPreset = run.modelPreset;
+  }
+  if (run.model !== undefined && run.model.trim() !== "") {
     payload.model = run.model;
   }
   if (run.maxTurns !== undefined) {
@@ -241,6 +248,7 @@ function hasInlineConfig(run: RunFormData): boolean {
   return Boolean(
     run.runnerType !== undefined ||
       run.model !== undefined ||
+      run.modelPreset !== undefined ||
       run.maxTurns !== undefined ||
       run.timeoutMinutes !== undefined ||
       run.allowedTools !== undefined ||
@@ -599,6 +607,48 @@ export function useRunners() {
   }, [fetchRunners]);
 
   return { ...state, refetch: fetchRunners };
+}
+
+// Model registry hook
+export function useModelRegistry() {
+  const state = useApiState<ModelRegistry | null>(null);
+
+  const fetchRegistry = useCallback(async () => {
+    state.setLoading(true);
+    state.setError(null);
+    try {
+      const data = await apiRequest<ModelRegistry>("/runner-models");
+      state.setData(data);
+    } catch (err) {
+      state.setError((err as Error).message);
+    } finally {
+      state.setLoading(false);
+    }
+  }, []);
+
+  const updateRegistry = useCallback(async (registry: ModelRegistry): Promise<ModelRegistry> => {
+    state.setLoading(true);
+    state.setError(null);
+    try {
+      const data = await apiRequest<ModelRegistry>("/runner-models", {
+        method: "PUT",
+        body: JSON.stringify(registry),
+      });
+      state.setData(data);
+      return data;
+    } catch (err) {
+      state.setError((err as Error).message);
+      throw err;
+    } finally {
+      state.setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRegistry();
+  }, [fetchRegistry]);
+
+  return { ...state, refetch: fetchRegistry, updateRegistry };
 }
 
 // Probe runner function (standalone for use in components)

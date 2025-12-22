@@ -1,9 +1,10 @@
-import { RunMode, RunnerType } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
+import { ModelPreset, RunMode, RunnerType } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 import type { ContextAttachment } from "@vrooli/proto-types/agent-manager/v1/domain/task_pb";
 export type { ContextAttachment } from "@vrooli/proto-types/agent-manager/v1/domain/task_pb";
 
 export {
   RunnerType,
+  ModelPreset,
   TaskStatus,
   RunStatus,
   ApprovalState,
@@ -45,12 +46,25 @@ export type {
 
 export { HealthStatus } from "@vrooli/proto-types/common/v1/types_pb";
 
+export type ModelOption = string | { id: string; description?: string };
+
+export interface RunnerModelRegistry {
+  models: ModelOption[];
+  presets: Record<string, string>;
+}
+
+export interface ModelRegistry {
+  version: number;
+  runners: Record<string, RunnerModelRegistry>;
+}
+
 export interface ProfileFormData {
   name: string;
   profileKey?: string;
   description?: string;
   runnerType: RunnerType;
   model?: string;
+  modelPreset?: ModelPreset;
   maxTurns?: number;
   timeoutMinutes?: number;
   allowedTools?: string[];
@@ -76,6 +90,7 @@ export interface RunFormData {
   tag?: string;
   runnerType?: RunnerType;
   model?: string;
+  modelPreset?: ModelPreset;
   maxTurns?: number;
   timeoutMinutes?: number;
   allowedTools?: string[];

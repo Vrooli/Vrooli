@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     description TEXT,
     runner_type VARCHAR(50) NOT NULL,
     model VARCHAR(100),
+    model_preset VARCHAR(20),
     max_turns INTEGER,
     timeout_ms BIGINT,
     allowed_tools JSONB DEFAULT '[]',

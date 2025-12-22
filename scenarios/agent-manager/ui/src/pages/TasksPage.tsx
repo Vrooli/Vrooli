@@ -26,13 +26,13 @@ import {
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { ModelSelector } from "../components/ModelSelector";
+import { ModelConfigSelector, type ModelSelectionMode } from "../components/ModelConfigSelector";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
-import { formatRelativeTime, runnerTypeLabel } from "../lib/utils";
-import type { AgentProfile, ProfileFormData, Run, RunFormData, RunnerStatus, RunnerType, Task, TaskFormData } from "../types";
-import { RunMode, RunnerType as RunnerTypeEnum, TaskStatus } from "../types";
+import { formatRelativeTime, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
+import type { AgentProfile, ModelRegistry, ProfileFormData, Run, RunFormData, RunnerStatus, RunnerType, Task, TaskFormData } from "../types";
+import { ModelPreset, RunMode, RunnerType as RunnerTypeEnum, TaskStatus } from "../types";
 
 const RUNNER_TYPES: RunnerType[] = [
   RunnerTypeEnum.CLAUDE_CODE,
@@ -52,14 +52,8 @@ interface TasksPageProps {
   onCreateProfile: (profile: ProfileFormData) => Promise<AgentProfile>;
   onRefresh: () => void;
   runners?: Record<string, RunnerStatus>;
+  modelRegistry?: ModelRegistry;
 }
-
-// Default models for each runner type
-const DEFAULT_MODELS: Record<number, string> = {
-  [RunnerTypeEnum.CLAUDE_CODE]: "sonnet",
-  [RunnerTypeEnum.CODEX]: "o4-mini",
-  [RunnerTypeEnum.OPENCODE]: "anthropic/claude-sonnet-4-5",
-};
 
 const taskStatusLabel = (status: TaskStatus): string => {
   switch (status) {
@@ -82,14 +76,34 @@ const taskStatusLabel = (status: TaskStatus): string => {
   }
 };
 
+const resolveModelMode = (model: string | undefined, preset: ModelPreset | undefined): ModelSelectionMode => {
+  if (preset !== undefined && preset !== ModelPreset.UNSPECIFIED) {
+    return "preset";
+  }
+  if (model && model.trim() !== "") {
+    return "model";
+  }
+  return "default";
+};
+
+const getModelId = (model: string | { id: string }): string => {
+  return typeof model === "string" ? model : model.id;
+};
+
 interface InlineRunConfig {
   runnerType: RunnerType;
   model: string;
+  modelPreset: ModelPreset;
+  modelMode: ModelSelectionMode;
   maxTurns: number;
   timeoutMinutes: number;
   runMode: RunMode;
   skipPermissionPrompt: boolean;
 }
+
+type ProfileFormState = ProfileFormData & {
+  modelMode: ModelSelectionMode;
+};
 
 export function TasksPage({
   tasks,
@@ -103,16 +117,24 @@ export function TasksPage({
   onCreateProfile,
   onRefresh,
   runners,
+  modelRegistry,
 }: TasksPageProps) {
-  // Helper to get models for a runner type from capabilities
-  const getModelsForRunner = (runnerType: RunnerType): string[] => {
+  const getRegistryForRunner = (runnerType: RunnerType) => {
+    return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
+  };
+
+  // Helper to get models for a runner type from registry, fallback to capabilities
+  const getModelsForRunner = (runnerType: RunnerType) => {
+    const registry = getRegistryForRunner(runnerType);
+    if (registry?.models?.length) {
+      return registry.models;
+    }
     const runner = runners?.[runnerType];
     return runner?.supportedModels ?? [];
   };
 
-  // Helper to get default model for a runner type
-  const getDefaultModelForRunner = (runnerType: RunnerType): string => {
-    return DEFAULT_MODELS[runnerType] ?? "";
+  const getPresetMapForRunner = (runnerType: RunnerType) => {
+    return getRegistryForRunner(runnerType)?.presets ?? {};
   };
   const [showForm, setShowForm] = useState(false);
   const [showRunDialog, setShowRunDialog] = useState<Task | null>(null);
@@ -127,18 +149,22 @@ export function TasksPage({
   const [runConfigMode, setRunConfigMode] = useState<"profile" | "custom">("profile");
   const [inlineConfig, setInlineConfig] = useState<InlineRunConfig>({
     runnerType: RunnerTypeEnum.CLAUDE_CODE,
-    model: "sonnet",
+    model: "",
+    modelPreset: ModelPreset.UNSPECIFIED,
+    modelMode: "default",
     maxTurns: 100,
     timeoutMinutes: 30,
     runMode: RunMode.SANDBOXED,
     skipPermissionPrompt: true,
   });
-  const [profileFormData, setProfileFormData] = useState<ProfileFormData>({
+  const [profileFormData, setProfileFormData] = useState<ProfileFormState>({
     name: "",
     profileKey: "",
     description: "",
     runnerType: RunnerTypeEnum.CLAUDE_CODE,
-    model: "sonnet",
+    model: "",
+    modelPreset: ModelPreset.UNSPECIFIED,
+    modelMode: "default",
     maxTurns: 100,
     requiresSandbox: true,
     requiresApproval: true,
@@ -192,7 +218,12 @@ export function TasksPage({
       } else {
         // Use inline config
         request.runnerType = inlineConfig.runnerType;
-        request.model = inlineConfig.model;
+        if (inlineConfig.modelMode === "model" && inlineConfig.model.trim() !== "") {
+          request.model = inlineConfig.model;
+        }
+        if (inlineConfig.modelMode === "preset") {
+          request.modelPreset = inlineConfig.modelPreset;
+        }
         request.maxTurns = inlineConfig.maxTurns;
         request.timeoutMinutes = inlineConfig.timeoutMinutes;
         request.runMode = inlineConfig.runMode;
@@ -216,7 +247,9 @@ export function TasksPage({
       profileKey: "",
       description: "",
       runnerType: RunnerTypeEnum.CLAUDE_CODE,
-      model: "claude-sonnet-4-20250514",
+      model: "",
+      modelPreset: ModelPreset.UNSPECIFIED,
+      modelMode: "default",
       maxTurns: 100,
       requiresSandbox: true,
       requiresApproval: true,
@@ -233,6 +266,14 @@ export function TasksPage({
     try {
       const newProfile = await onCreateProfile({
         ...profileFormData,
+        model:
+          profileFormData.modelMode === "model"
+            ? profileFormData.model?.trim() ?? ""
+            : "",
+        modelPreset:
+          profileFormData.modelMode === "preset"
+            ? profileFormData.modelPreset ?? ModelPreset.FAST
+            : ModelPreset.UNSPECIFIED,
         timeoutMinutes: profileFormData.timeoutMinutes ?? 30,
       });
       // Auto-select the new profile and switch to profile mode
@@ -538,10 +579,15 @@ export function TasksPage({
                     value={String(inlineConfig.runnerType)}
                     onChange={(e) => {
                       const newRunnerType = Number(e.target.value) as RunnerType;
+                      const availableModels = getModelsForRunner(newRunnerType);
+                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0]) : "";
                       setInlineConfig({
                         ...inlineConfig,
                         runnerType: newRunnerType,
-                        model: getDefaultModelForRunner(newRunnerType),
+                        model:
+                          inlineConfig.modelMode === "model"
+                            ? firstModel
+                            : inlineConfig.model,
                       });
                     }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -554,12 +600,23 @@ export function TasksPage({
                   </select>
                 </div>
 
-                <ModelSelector
-                  value={inlineConfig.model}
-                  onChange={(model) => setInlineConfig({ ...inlineConfig, model })}
+                <ModelConfigSelector
+                  value={{
+                    mode: inlineConfig.modelMode,
+                    model: inlineConfig.model,
+                    preset: inlineConfig.modelPreset,
+                  }}
+                  onChange={(selection) =>
+                    setInlineConfig({
+                      ...inlineConfig,
+                      modelMode: selection.mode,
+                      model: selection.model,
+                      modelPreset: selection.preset,
+                    })
+                  }
                   models={getModelsForRunner(inlineConfig.runnerType)}
-                  label="Model"
-                  placeholder="Enter custom model..."
+                  presetMap={getPresetMapForRunner(inlineConfig.runnerType)}
+                  label="Model Selection"
                 />
 
                 <div className="grid gap-4 grid-cols-2">
@@ -698,10 +755,15 @@ export function TasksPage({
                     value={String(profileFormData.runnerType)}
                     onChange={(e) => {
                       const newRunnerType = Number(e.target.value) as RunnerType;
+                      const availableModels = getModelsForRunner(newRunnerType);
+                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0]) : "";
                       setProfileFormData({
                         ...profileFormData,
                         runnerType: newRunnerType,
-                        model: getDefaultModelForRunner(newRunnerType),
+                        model:
+                          profileFormData.modelMode === "model"
+                            ? firstModel
+                            : profileFormData.model,
                       });
                     }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -740,12 +802,23 @@ export function TasksPage({
                 />
               </div>
 
-              <ModelSelector
-                value={profileFormData.model}
-                onChange={(model) => setProfileFormData({ ...profileFormData, model })}
+              <ModelConfigSelector
+                value={{
+                  mode: profileFormData.modelMode,
+                  model: profileFormData.model ?? "",
+                  preset: profileFormData.modelPreset ?? ModelPreset.UNSPECIFIED,
+                }}
+                onChange={(selection) =>
+                  setProfileFormData({
+                    ...profileFormData,
+                    modelMode: selection.mode,
+                    model: selection.model,
+                    modelPreset: selection.preset,
+                  })
+                }
                 models={getModelsForRunner(profileFormData.runnerType)}
-                label="Model"
-                placeholder="Enter custom model..."
+                presetMap={getPresetMapForRunner(profileFormData.runnerType)}
+                label="Model Selection"
               />
 
               <div className="grid gap-4 md:grid-cols-2">

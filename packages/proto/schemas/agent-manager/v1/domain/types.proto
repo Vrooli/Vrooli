@@ -55,6 +55,21 @@ enum RunnerType {
 }
 
 // =============================================================================
+// MODEL PRESETS
+// =============================================================================
+
+// ModelPreset provides a stable, high-level model selection.
+//
+// Presets are resolved to concrete models via the model registry.
+// @usage AgentProfile.model_preset, RunConfig.model_preset
+enum ModelPreset {
+  MODEL_PRESET_UNSPECIFIED = 0;
+  MODEL_PRESET_FAST = 1;
+  MODEL_PRESET_CHEAP = 2;
+  MODEL_PRESET_SMART = 3;
+}
+
+// =============================================================================
 // TASK STATUS
 // =============================================================================
 

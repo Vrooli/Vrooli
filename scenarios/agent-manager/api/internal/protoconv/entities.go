@@ -28,6 +28,7 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 		Description:          p.Description,
 		RunnerType:           RunnerTypeToProto(p.RunnerType),
 		Model:                p.Model,
+		ModelPreset:          ModelPresetToProto(p.ModelPreset),
 		MaxTurns:             int32(p.MaxTurns),
 		Timeout:              DurationToProto(p.Timeout),
 		AllowedTools:         p.AllowedTools,
@@ -55,6 +56,7 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 		Description:          p.Description,
 		RunnerType:           RunnerTypeFromProto(p.RunnerType),
 		Model:                p.Model,
+		ModelPreset:          ModelPresetFromProto(p.ModelPreset),
 		MaxTurns:             int(p.MaxTurns),
 		Timeout:              DurationFromProto(p.Timeout),
 		AllowedTools:         p.AllowedTools,
@@ -338,6 +340,7 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 	return &pb.RunConfig{
 		RunnerType:           RunnerTypeToProto(c.RunnerType),
 		Model:                c.Model,
+		ModelPreset:          ModelPresetToProto(c.ModelPreset),
 		MaxTurns:             int32(c.MaxTurns),
 		Timeout:              DurationToProto(c.Timeout),
 		AllowedTools:         c.AllowedTools,
@@ -358,6 +361,7 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 	return &domain.RunConfig{
 		RunnerType:           RunnerTypeFromProto(c.RunnerType),
 		Model:                c.Model,
+		ModelPreset:          ModelPresetFromProto(c.ModelPreset),
 		MaxTurns:             int(c.MaxTurns),
 		Timeout:              DurationFromProto(c.Timeout),
 		AllowedTools:         c.AllowedTools,

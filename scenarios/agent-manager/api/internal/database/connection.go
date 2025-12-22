@@ -272,6 +272,10 @@ func (db *DB) initSchema() error {
 		db.log.WithError(err).Error("Failed to backfill profile keys")
 		return err
 	}
+	if err := db.ensureModelPresetColumn(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to backfill model preset column")
+		return err
+	}
 
 	db.log.Info("Database schema initialized successfully")
 	return nil
@@ -327,6 +331,40 @@ func (db *DB) ensureProfileKeyColumn(ctx context.Context) error {
 		return fmt.Errorf("unsupported dialect: %s", db.dialect)
 	}
 
+	return nil
+}
+
+func (db *DB) ensureModelPresetColumn(ctx context.Context) error {
+	switch db.dialect {
+	case DialectPostgres:
+		var exists bool
+		if err := db.QueryRowContext(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_name = 'agent_profiles'
+				AND column_name = 'model_preset'
+			)`).Scan(&exists); err != nil {
+			return fmt.Errorf("check model_preset column: %w", err)
+		}
+		if !exists {
+			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN model_preset VARCHAR(20)`); err != nil {
+				return fmt.Errorf("add model_preset column: %w", err)
+			}
+		}
+	case DialectSQLite:
+		exists, err := sqliteColumnExists(ctx, db, "agent_profiles", "model_preset")
+		if err != nil {
+			return fmt.Errorf("check model_preset column: %w", err)
+		}
+		if !exists {
+			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN model_preset TEXT`); err != nil {
+				return fmt.Errorf("add model_preset column: %w", err)
+			}
+		}
+	default:
+		return fmt.Errorf("unsupported dialect: %s", db.dialect)
+	}
 	return nil
 }
 

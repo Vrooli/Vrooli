@@ -6,9 +6,10 @@ interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
+  contentClassName?: string;
 }
 
-export function Dialog({ open, onOpenChange, children }: DialogProps) {
+export function Dialog({ open, onOpenChange, children, contentClassName }: DialogProps) {
   // Handle escape key
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -43,7 +44,12 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
         aria-hidden="true"
       />
       {/* Content */}
-      <div className="relative z-50 w-full max-w-lg mx-4 animate-in fade-in-0 zoom-in-95 duration-200">
+      <div
+        className={cn(
+          "relative z-50 w-full max-w-lg mx-4 animate-in fade-in-0 zoom-in-95 duration-200",
+          contentClassName
+        )}
+      >
         {children}
       </div>
     </div>

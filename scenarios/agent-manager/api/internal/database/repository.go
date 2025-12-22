@@ -72,6 +72,7 @@ type profileRow struct {
 	Description          string      `db:"description"`
 	RunnerType           string      `db:"runner_type"`
 	Model                string      `db:"model"`
+	ModelPreset          string      `db:"model_preset"`
 	MaxTurns             int         `db:"max_turns"`
 	TimeoutMs            int64       `db:"timeout_ms"`
 	AllowedTools         StringSlice `db:"allowed_tools"`
@@ -94,6 +95,7 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 		Description:          r.Description,
 		RunnerType:           domain.RunnerType(r.RunnerType),
 		Model:                r.Model,
+		ModelPreset:          domain.ModelPreset(r.ModelPreset),
 		MaxTurns:             r.MaxTurns,
 		Timeout:              time.Duration(r.TimeoutMs) * time.Millisecond,
 		AllowedTools:         r.AllowedTools,
@@ -117,6 +119,7 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 		Description:          p.Description,
 		RunnerType:           string(p.RunnerType),
 		Model:                p.Model,
+		ModelPreset:          string(p.ModelPreset),
 		MaxTurns:             p.MaxTurns,
 		TimeoutMs:            int64(p.Timeout / time.Millisecond),
 		AllowedTools:         p.AllowedTools,
@@ -132,7 +135,7 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 	}
 }
 
-const profileColumns = `id, name, profile_key, description, runner_type, model, max_turns, timeout_ms,
+const profileColumns = `id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
 	allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
 	allowed_paths, denied_paths, created_by, created_at, updated_at`
 
@@ -145,10 +148,10 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 	profile.UpdatedAt = now
 
 	row := profileFromDomain(profile)
-	query := `INSERT INTO agent_profiles (id, name, profile_key, description, runner_type, model, max_turns, timeout_ms,
+	query := `INSERT INTO agent_profiles (id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
 		allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
 		allowed_paths, denied_paths, created_by, created_at, updated_at)
-		VALUES (:id, :name, :profile_key, :description, :runner_type, :model, :max_turns, :timeout_ms,
+		VALUES (:id, :name, :profile_key, :description, :runner_type, :model, :model_preset, :max_turns, :timeout_ms,
 		:allowed_tools, :denied_tools, :skip_permission_prompt, :requires_sandbox, :requires_approval,
 		:allowed_paths, :denied_paths, :created_by, :created_at, :updated_at)`
 
@@ -218,7 +221,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 	row := profileFromDomain(profile)
 
 	query := `UPDATE agent_profiles SET name = :name, profile_key = :profile_key, description = :description,
-		runner_type = :runner_type, model = :model, max_turns = :max_turns, timeout_ms = :timeout_ms,
+		runner_type = :runner_type, model = :model, model_preset = :model_preset, max_turns = :max_turns, timeout_ms = :timeout_ms,
 		allowed_tools = :allowed_tools, denied_tools = :denied_tools,
 		skip_permission_prompt = :skip_permission_prompt, requires_sandbox = :requires_sandbox,
 		requires_approval = :requires_approval, allowed_paths = :allowed_paths, denied_paths = :denied_paths,

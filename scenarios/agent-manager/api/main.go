@@ -18,6 +18,7 @@ import (
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/handlers"
+	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
@@ -228,6 +229,12 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchestration.DefaultTerminatorConfig(),
 	)
 
+	modelRegistryPath := modelregistry.ResolvePath()
+	modelRegistryStore, err := modelregistry.NewStore(modelRegistryPath)
+	if err != nil {
+		log.Printf("Warning: Failed to load model registry from %s: %v", modelRegistryPath, err)
+	}
+
 	// Build orchestrator with all dependencies including WebSocket broadcaster and terminator
 	orch := orchestration.New(
 		profileRepo,
@@ -246,6 +253,7 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchestration.WithBroadcaster(wsHub),
 		orchestration.WithTerminator(terminator),
 		orchestration.WithStorageLabel(storageLabel),
+		orchestration.WithModelRegistry(modelRegistryStore),
 	)
 
 	// Create reconciler for orphan detection and stale run recovery (Phase 2)

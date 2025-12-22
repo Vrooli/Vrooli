@@ -77,6 +77,38 @@ func RunnerTypeFromProto(r pb.RunnerType) domain.RunnerType {
 }
 
 // =============================================================================
+// MODEL PRESET
+// =============================================================================
+
+// ModelPresetToProto converts domain ModelPreset to proto ModelPreset.
+func ModelPresetToProto(preset domain.ModelPreset) pb.ModelPreset {
+	switch preset {
+	case domain.ModelPresetFast:
+		return pb.ModelPreset_MODEL_PRESET_FAST
+	case domain.ModelPresetCheap:
+		return pb.ModelPreset_MODEL_PRESET_CHEAP
+	case domain.ModelPresetSmart:
+		return pb.ModelPreset_MODEL_PRESET_SMART
+	default:
+		return pb.ModelPreset_MODEL_PRESET_UNSPECIFIED
+	}
+}
+
+// ModelPresetFromProto converts proto ModelPreset to domain ModelPreset.
+func ModelPresetFromProto(preset pb.ModelPreset) domain.ModelPreset {
+	switch preset {
+	case pb.ModelPreset_MODEL_PRESET_FAST:
+		return domain.ModelPresetFast
+	case pb.ModelPreset_MODEL_PRESET_CHEAP:
+		return domain.ModelPresetCheap
+	case pb.ModelPreset_MODEL_PRESET_SMART:
+		return domain.ModelPresetSmart
+	default:
+		return domain.ModelPresetUnspecified
+	}
+}
+
+// =============================================================================
 // TASK STATUS
 // =============================================================================
 

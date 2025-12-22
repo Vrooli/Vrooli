@@ -24,7 +24,7 @@ import { ScrollArea } from "../components/ui/scroll-area";
 import { QuickRunDialog } from "../components/QuickRunDialog";
 import { probeRunner } from "../hooks/useApi";
 import { formatRelativeTime, jsonValueToPlain, runnerTypeFromSlug, runnerTypeLabel } from "../lib/utils";
-import type { AgentProfile, ProbeResult, Run, RunnerStatus, RunnerType, Task, TaskFormData, RunFormData, HealthResponse, JsonValue } from "../types";
+import type { AgentProfile, ModelRegistry, ProbeResult, Run, RunnerStatus, RunnerType, Task, TaskFormData, RunFormData, HealthResponse, JsonValue } from "../types";
 import { RunStatus } from "../types";
 import { ProbeResultSchema } from "@vrooli/proto-types/agent-manager/v1/domain/run_pb";
 
@@ -34,6 +34,7 @@ interface DashboardPageProps {
   tasks: Task[];
   runs: Run[];
   runners?: Record<string, RunnerStatus>;
+  modelRegistry?: ModelRegistry;
   onRefresh: () => void;
   onCreateTask: (task: TaskFormData) => Promise<Task>;
   onCreateRun: (run: RunFormData) => Promise<Run>;
@@ -47,6 +48,7 @@ export function DashboardPage({
   tasks,
   runs,
   runners,
+  modelRegistry,
   onRefresh,
   onCreateTask,
   onCreateRun,
@@ -94,6 +96,7 @@ export function DashboardPage({
         onOpenChange={setShowQuickRun}
         profiles={profiles}
         runners={runners}
+        modelRegistry={modelRegistry}
         onCreateTask={onCreateTask}
         onCreateRun={onCreateRun}
         onRunCreated={onRunCreated}

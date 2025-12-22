@@ -22,13 +22,14 @@ import {
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { ModelSelector } from "../components/ModelSelector";
+import { ModelConfigSelector, type ModelSelectionMode } from "../components/ModelConfigSelector";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Textarea } from "../components/ui/textarea";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
 import { formatDate, runnerTypeLabel } from "../lib/utils";
-import type { AgentProfile, ProfileFormData, RunnerStatus, RunnerType } from "../types";
-import { RunnerType as RunnerTypeEnum } from "../types";
+import type { AgentProfile, ModelRegistry, ProfileFormData, RunnerStatus, RunnerType } from "../types";
+import { ModelPreset, RunnerType as RunnerTypeEnum } from "../types";
+import { runnerTypeToSlug } from "../lib/utils";
 
 interface ProfilesPageProps {
   profiles: AgentProfile[];
@@ -39,6 +40,7 @@ interface ProfilesPageProps {
   onDeleteProfile: (id: string) => Promise<void>;
   onRefresh: () => void;
   runners?: Record<string, RunnerStatus>;
+  modelRegistry?: ModelRegistry;
 }
 
 const RUNNER_TYPES: RunnerType[] = [
@@ -53,11 +55,35 @@ const durationToMinutes = (duration: Duration | undefined): number => {
   return Math.max(1, Math.round(ms / 60_000));
 };
 
-// Default models for each runner type
-const DEFAULT_MODELS: Record<number, string> = {
-  [RunnerTypeEnum.CLAUDE_CODE]: "sonnet",
-  [RunnerTypeEnum.CODEX]: "o4-mini",
-  [RunnerTypeEnum.OPENCODE]: "anthropic/claude-sonnet-4-5",
+const resolveModelMode = (model: string | undefined, preset: ModelPreset | undefined): ModelSelectionMode => {
+  if (preset !== undefined && preset !== ModelPreset.UNSPECIFIED) {
+    return "preset";
+  }
+  if (model && model.trim() !== "") {
+    return "model";
+  }
+  return "default";
+};
+
+const getModelId = (model: string | { id: string }): string => {
+  return typeof model === "string" ? model : model.id;
+};
+
+type ProfileFormState = ProfileFormData & {
+  modelMode: ModelSelectionMode;
+};
+
+const modelPresetLabel = (preset?: ModelPreset) => {
+  switch (preset) {
+    case ModelPreset.FAST:
+      return "Fast";
+    case ModelPreset.CHEAP:
+      return "Cheap";
+    case ModelPreset.SMART:
+      return "Smart";
+    default:
+      return "";
+  }
 };
 
 export function ProfilesPage({
@@ -69,26 +95,36 @@ export function ProfilesPage({
   onDeleteProfile,
   onRefresh,
   runners,
+  modelRegistry,
 }: ProfilesPageProps) {
-  // Helper to get models for a runner type from capabilities
-  const getModelsForRunner = (runnerType: RunnerType): string[] => {
+  const getRegistryForRunner = (runnerType: RunnerType) => {
+    return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
+  };
+
+  // Helper to get models for a runner type from registry, fallback to capabilities
+  const getModelsForRunner = (runnerType: RunnerType) => {
+    const registry = getRegistryForRunner(runnerType);
+    if (registry?.models?.length) {
+      return registry.models;
+    }
     const runner = runners?.[runnerType];
     return runner?.supportedModels ?? [];
   };
 
-  // Helper to get default model for a runner type
-  const getDefaultModelForRunner = (runnerType: RunnerType): string => {
-    return DEFAULT_MODELS[runnerType] ?? "";
+  const getPresetMapForRunner = (runnerType: RunnerType) => {
+    return getRegistryForRunner(runnerType)?.presets ?? {};
   };
 
   const [showForm, setShowForm] = useState(false);
   const [editingProfile, setEditingProfile] = useState<AgentProfile | null>(null);
-  const [formData, setFormData] = useState<ProfileFormData>({
+  const [formData, setFormData] = useState<ProfileFormState>({
     name: "",
     profileKey: "",
     description: "",
     runnerType: RunnerTypeEnum.CLAUDE_CODE,
-    model: "sonnet",
+    model: "",
+    modelPreset: ModelPreset.UNSPECIFIED,
+    modelMode: "default",
     maxTurns: 100,
     requiresSandbox: true,
     requiresApproval: true,
@@ -103,7 +139,9 @@ export function ProfilesPage({
       profileKey: "",
       description: "",
       runnerType: RunnerTypeEnum.CLAUDE_CODE,
-      model: "sonnet",
+      model: "",
+      modelPreset: ModelPreset.UNSPECIFIED,
+      modelMode: "default",
       maxTurns: 100,
       requiresSandbox: true,
       requiresApproval: true,
@@ -122,6 +160,8 @@ export function ProfilesPage({
       description: profile.description || "",
       runnerType: profile.runnerType,
       model: profile.model || "",
+      modelPreset: profile.modelPreset ?? ModelPreset.UNSPECIFIED,
+      modelMode: resolveModelMode(profile.model, profile.modelPreset),
       maxTurns: profile.maxTurns || 100,
       requiresSandbox: profile.requiresSandbox,
       requiresApproval: profile.requiresApproval,
@@ -137,14 +177,22 @@ export function ProfilesPage({
     setSubmitting(true);
     setFormError(null);
     try {
-      const dataWithTimeout: ProfileFormData = {
+      const normalizedProfile: ProfileFormData = {
         ...formData,
+        model:
+          formData.modelMode === "model"
+            ? formData.model?.trim() ?? ""
+            : "",
+        modelPreset:
+          formData.modelMode === "preset"
+            ? formData.modelPreset ?? ModelPreset.FAST
+            : ModelPreset.UNSPECIFIED,
         timeoutMinutes: formData.timeoutMinutes ?? 30,
       };
       if (editingProfile) {
-        await onUpdateProfile(editingProfile.id, dataWithTimeout);
+        await onUpdateProfile(editingProfile.id, normalizedProfile);
       } else {
-        await onCreateProfile(dataWithTimeout);
+        await onCreateProfile(normalizedProfile);
       }
       resetForm();
     } catch (err) {
@@ -238,10 +286,15 @@ export function ProfilesPage({
                     value={String(formData.runnerType)}
                     onChange={(e) => {
                       const newRunnerType = Number(e.target.value) as RunnerType;
+                      const availableModels = getModelsForRunner(newRunnerType);
+                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0]) : "";
                       setFormData({
                         ...formData,
                         runnerType: newRunnerType,
-                        model: getDefaultModelForRunner(newRunnerType),
+                        model:
+                          formData.modelMode === "model"
+                            ? firstModel
+                            : formData.model,
                       });
                     }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -280,12 +333,23 @@ export function ProfilesPage({
                 />
               </div>
 
-              <ModelSelector
-                value={formData.model}
-                onChange={(model) => setFormData({ ...formData, model })}
+              <ModelConfigSelector
+                value={{
+                  mode: formData.modelMode,
+                  model: formData.model ?? "",
+                  preset: formData.modelPreset ?? ModelPreset.UNSPECIFIED,
+                }}
+                onChange={(selection) =>
+                  setFormData({
+                    ...formData,
+                    modelMode: selection.mode,
+                    model: selection.model,
+                    modelPreset: selection.preset,
+                  })
+                }
                 models={getModelsForRunner(formData.runnerType)}
-                label="Model"
-                placeholder="Enter custom model..."
+                presetMap={getPresetMapForRunner(formData.runnerType)}
+                label="Model Selection"
               />
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -419,7 +483,12 @@ export function ProfilesPage({
                 <CardContent className="space-y-3">
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary">{runnerTypeLabel(profile.runnerType)}</Badge>
-                    {profile.model && (
+                    {profile.modelPreset !== ModelPreset.UNSPECIFIED && (
+                        <Badge variant="outline" className="text-xs">
+                          Preset: {modelPresetLabel(profile.modelPreset)}
+                        </Badge>
+                      )}
+                    {profile.model && profile.model.trim() !== "" && (
                       <Badge variant="outline" className="text-xs">
                         {profile.model}
                       </Badge>

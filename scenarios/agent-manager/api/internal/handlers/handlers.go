@@ -32,6 +32,7 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/protoconv"
 
@@ -118,6 +119,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Status endpoints
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
 	r.HandleFunc("/api/v1/runners/{runner_type}/probe", h.ProbeRunner).Methods("POST")
+	r.HandleFunc("/api/v1/runner-models", h.GetRunnerModels).Methods("GET")
+	r.HandleFunc("/api/v1/runner-models", h.UpdateRunnerModels).Methods("PUT")
 
 	// Maintenance endpoints
 	r.HandleFunc("/api/v1/maintenance/purge", h.PurgeData).Methods("POST")
@@ -155,6 +158,12 @@ func writeProtoJSON(w http.ResponseWriter, status int, msg proto.Message) {
 		return
 	}
 	_, _ = w.Write(data)
+}
+
+func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(payload)
 }
 
 func (h *Handler) validateProto(w http.ResponseWriter, r *http.Request, msg proto.Message) bool {
@@ -1266,6 +1275,10 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			model := inline.GetModel()
 			req.Model = &model
 		}
+		if inline.ModelPreset != nil {
+			preset := protoconv.ModelPresetFromProto(*inline.ModelPreset)
+			req.ModelPreset = &preset
+		}
 		if inline.MaxTurns != nil {
 			maxTurns := int(inline.GetMaxTurns())
 			req.MaxTurns = &maxTurns
@@ -1791,6 +1804,31 @@ func (h *Handler) ProbeRunner(w http.ResponseWriter, r *http.Request) {
 			DurationMs: result.DurationMs,
 		}),
 	})
+}
+
+// GetRunnerModels returns the model registry for all runners.
+func (h *Handler) GetRunnerModels(w http.ResponseWriter, r *http.Request) {
+	registry, err := h.svc.GetModelRegistry(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, registry)
+}
+
+// UpdateRunnerModels replaces the model registry with the provided payload.
+func (h *Handler) UpdateRunnerModels(w http.ResponseWriter, r *http.Request) {
+	var registry modelregistry.Registry
+	if err := json.NewDecoder(r.Body).Decode(&registry); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	updated, err := h.svc.UpdateModelRegistry(r.Context(), &registry)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
 }
 
 // PurgeData deletes profiles, tasks, or runs matching a regex pattern.

@@ -49,6 +49,9 @@ type AgentProfile struct {
 	// Model to use (e.g., "claude-sonnet-4-5", "gpt-4o", "anthropic/claude-opus-4-5").
 	// If empty, uses the runner's default model.
 	Model string `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	// Preset to use for model selection (FAST/CHEAP/SMART).
+	// Mutually exclusive with model.
+	ModelPreset ModelPreset `protobuf:"varint,19,opt,name=model_preset,json=modelPreset,proto3,enum=agent_manager.v1.ModelPreset" json:"model_preset,omitempty"`
 	// Maximum number of conversation turns before stopping.
 	// 0 means unlimited (use with caution).
 	// @constraint 0-1000
@@ -158,6 +161,13 @@ func (x *AgentProfile) GetModel() string {
 	return ""
 }
 
+func (x *AgentProfile) GetModelPreset() ModelPreset {
+	if x != nil {
+		return x.ModelPreset
+	}
+	return ModelPreset_MODEL_PRESET_UNSPECIFIED
+}
+
 func (x *AgentProfile) GetMaxTurns() int32 {
 	if x != nil {
 		return x.MaxTurns
@@ -258,6 +268,9 @@ type RunConfig struct {
 	RunnerType RunnerType `protobuf:"varint,1,opt,name=runner_type,json=runnerType,proto3,enum=agent_manager.v1.RunnerType" json:"runner_type,omitempty"`
 	// Model to use for execution.
 	Model string `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"`
+	// Preset to use for model selection (FAST/CHEAP/SMART).
+	// Mutually exclusive with model.
+	ModelPreset ModelPreset `protobuf:"varint,12,opt,name=model_preset,json=modelPreset,proto3,enum=agent_manager.v1.ModelPreset" json:"model_preset,omitempty"`
 	// Maximum conversation turns.
 	MaxTurns int32 `protobuf:"varint,3,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
 	// Maximum execution time.
@@ -322,6 +335,13 @@ func (x *RunConfig) GetModel() string {
 		return x.Model
 	}
 	return ""
+}
+
+func (x *RunConfig) GetModelPreset() ModelPreset {
+	if x != nil {
+		return x.ModelPreset
+	}
+	return ModelPreset_MODEL_PRESET_UNSPECIFIED
 }
 
 func (x *RunConfig) GetMaxTurns() int32 {
@@ -399,6 +419,9 @@ type RunConfigOverrides struct {
 	RunnerType *RunnerType `protobuf:"varint,1,opt,name=runner_type,json=runnerType,proto3,enum=agent_manager.v1.RunnerType,oneof" json:"runner_type,omitempty"`
 	// Model to use for execution.
 	Model *string `protobuf:"bytes,2,opt,name=model,proto3,oneof" json:"model,omitempty"`
+	// Preset to use for model selection (FAST/CHEAP/SMART).
+	// Mutually exclusive with model.
+	ModelPreset *ModelPreset `protobuf:"varint,16,opt,name=model_preset,json=modelPreset,proto3,enum=agent_manager.v1.ModelPreset,oneof" json:"model_preset,omitempty"`
 	// Maximum conversation turns.
 	MaxTurns *int32 `protobuf:"varint,3,opt,name=max_turns,json=maxTurns,proto3,oneof" json:"max_turns,omitempty"`
 	// Maximum execution time.
@@ -471,6 +494,13 @@ func (x *RunConfigOverrides) GetModel() string {
 		return *x.Model
 	}
 	return ""
+}
+
+func (x *RunConfigOverrides) GetModelPreset() ModelPreset {
+	if x != nil && x.ModelPreset != nil {
+		return *x.ModelPreset
+	}
+	return ModelPreset_MODEL_PRESET_UNSPECIFIED
 }
 
 func (x *RunConfigOverrides) GetMaxTurns() int32 {
@@ -639,7 +669,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xff\x05\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xc1\x06\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -651,7 +681,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\vrunner_type\x18\x04 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
 	"runnerType\x12\x14\n" +
-	"\x05model\x18\x05 \x01(\tR\x05model\x12'\n" +
+	"\x05model\x18\x05 \x01(\tR\x05model\x12@\n" +
+	"\fmodel_preset\x18\x13 \x01(\x0e2\x1d.agent_manager.v1.ModelPresetR\vmodelPreset\x12'\n" +
 	"\tmax_turns\x18\x06 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x00R\bmaxTurns\x123\n" +
 	"\atimeout\x18\a \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
@@ -668,11 +699,12 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xd0\x03\n" +
+	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x92\x04\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
-	"\x05model\x18\x02 \x01(\tR\x05model\x12\x1b\n" +
+	"\x05model\x18\x02 \x01(\tR\x05model\x12@\n" +
+	"\fmodel_preset\x18\f \x01(\x0e2\x1d.agent_manager.v1.ModelPresetR\vmodelPreset\x12\x1b\n" +
 	"\tmax_turns\x18\x03 \x01(\x05R\bmaxTurns\x123\n" +
 	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
@@ -682,19 +714,20 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x11requires_approval\x18\t \x01(\bR\x10requiresApproval\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
-	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\xbe\x06\n" +
+	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\x96\a\n" +
 	"\x12RunConfigOverrides\x12N\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
 	"runnerType\x88\x01\x01\x12\x19\n" +
-	"\x05model\x18\x02 \x01(\tH\x01R\x05model\x88\x01\x01\x12 \n" +
-	"\tmax_turns\x18\x03 \x01(\x05H\x02R\bmaxTurns\x88\x01\x01\x128\n" +
-	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x03R\atimeout\x88\x01\x01\x12#\n" +
+	"\x05model\x18\x02 \x01(\tH\x01R\x05model\x88\x01\x01\x12E\n" +
+	"\fmodel_preset\x18\x10 \x01(\x0e2\x1d.agent_manager.v1.ModelPresetH\x02R\vmodelPreset\x88\x01\x01\x12 \n" +
+	"\tmax_turns\x18\x03 \x01(\x05H\x03R\bmaxTurns\x88\x01\x01\x128\n" +
+	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x04R\atimeout\x88\x01\x01\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
 	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x129\n" +
-	"\x16skip_permission_prompt\x18\a \x01(\bH\x04R\x14skipPermissionPrompt\x88\x01\x01\x12.\n" +
-	"\x10requires_sandbox\x18\b \x01(\bH\x05R\x0frequiresSandbox\x88\x01\x01\x120\n" +
-	"\x11requires_approval\x18\t \x01(\bH\x06R\x10requiresApproval\x88\x01\x01\x12#\n" +
+	"\x16skip_permission_prompt\x18\a \x01(\bH\x05R\x14skipPermissionPrompt\x88\x01\x01\x12.\n" +
+	"\x10requires_sandbox\x18\b \x01(\bH\x06R\x0frequiresSandbox\x88\x01\x01\x120\n" +
+	"\x11requires_approval\x18\t \x01(\bH\aR\x10requiresApproval\x88\x01\x01\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
 	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\x12.\n" +
@@ -703,7 +736,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x13clear_allowed_paths\x18\x0e \x01(\bR\x11clearAllowedPaths\x12,\n" +
 	"\x12clear_denied_paths\x18\x0f \x01(\bR\x10clearDeniedPathsB\x0e\n" +
 	"\f_runner_typeB\b\n" +
-	"\x06_modelB\f\n" +
+	"\x06_modelB\x0f\n" +
+	"\r_model_presetB\f\n" +
 	"\n" +
 	"_max_turnsB\n" +
 	"\n" +
@@ -735,25 +769,29 @@ var file_agent_manager_v1_domain_profile_proto_goTypes = []any{
 	(*RunConfigOverrides)(nil),    // 2: agent_manager.v1.RunConfigOverrides
 	(*HeartbeatConfig)(nil),       // 3: agent_manager.v1.HeartbeatConfig
 	(RunnerType)(0),               // 4: agent_manager.v1.RunnerType
-	(*durationpb.Duration)(nil),   // 5: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(ModelPreset)(0),              // 5: agent_manager.v1.ModelPreset
+	(*durationpb.Duration)(nil),   // 6: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
 }
 var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
 	4,  // 0: agent_manager.v1.AgentProfile.runner_type:type_name -> agent_manager.v1.RunnerType
-	5,  // 1: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
-	6,  // 2: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
-	6,  // 3: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
-	4,  // 4: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
-	5,  // 5: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
-	4,  // 6: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
-	5,  // 7: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
-	5,  // 8: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
-	5,  // 9: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	5,  // 1: agent_manager.v1.AgentProfile.model_preset:type_name -> agent_manager.v1.ModelPreset
+	6,  // 2: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
+	7,  // 3: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
+	7,  // 4: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
+	4,  // 5: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
+	5,  // 6: agent_manager.v1.RunConfig.model_preset:type_name -> agent_manager.v1.ModelPreset
+	6,  // 7: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
+	4,  // 8: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
+	5,  // 9: agent_manager.v1.RunConfigOverrides.model_preset:type_name -> agent_manager.v1.ModelPreset
+	6,  // 10: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
+	6,  // 11: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
+	6,  // 12: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_profile_proto_init() }

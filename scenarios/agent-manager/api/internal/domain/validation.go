@@ -174,6 +174,14 @@ func (p *AgentProfile) Validate() error {
 			"valid types: claude-code, codex, opencode")
 	}
 
+	// Model and ModelPreset are mutually exclusive
+	if strings.TrimSpace(p.Model) != "" && p.ModelPreset != ModelPresetUnspecified {
+		return NewValidationError("modelPreset", "cannot set model and model preset together")
+	}
+	if p.ModelPreset != ModelPresetUnspecified && !isValidModelPreset(p.ModelPreset) {
+		return NewValidationError("modelPreset", "invalid model preset")
+	}
+
 	// MaxTurns must be non-negative
 	if p.MaxTurns < 0 {
 		return NewValidationError("maxTurns", "cannot be negative")
@@ -197,6 +205,15 @@ func (p *AgentProfile) Validate() error {
 	}
 
 	return nil
+}
+
+func isValidModelPreset(preset ModelPreset) bool {
+	switch preset {
+	case ModelPresetFast, ModelPresetCheap, ModelPresetSmart:
+		return true
+	default:
+		return false
+	}
 }
 
 // =============================================================================

@@ -23,12 +23,13 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { ModelSelector } from "./ModelSelector";
+import { ModelConfigSelector, type ModelSelectionMode } from "./ModelConfigSelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
-import { cn, runnerTypeLabel } from "../lib/utils";
+import { cn, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
 import type {
   AgentProfile,
+  ModelRegistry,
   Run,
   RunFormData,
   RunnerStatus,
@@ -36,7 +37,7 @@ import type {
   Task,
   TaskFormData,
 } from "../types";
-import { RunMode, RunnerType as RunnerTypeEnum } from "../types";
+import { ModelPreset, RunMode, RunnerType as RunnerTypeEnum } from "../types";
 
 const RUNNER_TYPES: RunnerType[] = [
   RunnerTypeEnum.CLAUDE_CODE,
@@ -44,17 +45,12 @@ const RUNNER_TYPES: RunnerType[] = [
   RunnerTypeEnum.OPENCODE,
 ];
 
-const DEFAULT_MODELS: Record<number, string> = {
-  [RunnerTypeEnum.CLAUDE_CODE]: "sonnet",
-  [RunnerTypeEnum.CODEX]: "o4-mini",
-  [RunnerTypeEnum.OPENCODE]: "anthropic/claude-sonnet-4-5",
-};
-
 interface QuickRunDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profiles: AgentProfile[];
   runners?: Record<string, RunnerStatus>;
+  modelRegistry?: ModelRegistry;
   onCreateTask: (task: TaskFormData) => Promise<Task>;
   onCreateRun: (run: RunFormData) => Promise<Run>;
   onRunCreated?: (run: Run) => void;
@@ -65,6 +61,8 @@ interface AgentConfigData {
   profileId: string;
   runnerType: RunnerType;
   model: string;
+  modelPreset: ModelPreset;
+  modelMode: ModelSelectionMode;
   maxTurns: number;
   timeoutMinutes: number;
   runMode: RunMode;
@@ -79,11 +77,16 @@ const STEPS: { num: Step; label: string; icon: React.ReactNode }[] = [
   { num: 3, label: "Review", icon: <Rocket className="h-4 w-4" /> },
 ];
 
+const getModelId = (model: string | { id: string }): string => {
+  return typeof model === "string" ? model : model.id;
+};
+
 export function QuickRunDialog({
   open,
   onOpenChange,
   profiles,
   runners,
+  modelRegistry,
   onCreateTask,
   onCreateRun,
   onRunCreated,
@@ -105,20 +108,30 @@ export function QuickRunDialog({
     mode: profiles.length > 0 ? "profile" : "custom",
     profileId: "",
     runnerType: RunnerTypeEnum.CLAUDE_CODE,
-    model: "sonnet",
+    model: "",
+    modelPreset: ModelPreset.UNSPECIFIED,
+    modelMode: "default",
     maxTurns: 100,
     timeoutMinutes: 30,
     runMode: RunMode.SANDBOXED,
     skipPermissionPrompt: true,
   });
 
-  const getModelsForRunner = (runnerType: RunnerType): string[] => {
+  const getRegistryForRunner = (runnerType: RunnerType) => {
+    return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
+  };
+
+  const getModelsForRunner = (runnerType: RunnerType) => {
+    const registry = getRegistryForRunner(runnerType);
+    if (registry?.models?.length) {
+      return registry.models;
+    }
     const runner = runners?.[runnerType];
     return runner?.supportedModels ?? [];
   };
 
-  const getDefaultModelForRunner = (runnerType: RunnerType): string => {
-    return DEFAULT_MODELS[runnerType] ?? "";
+  const getPresetMapForRunner = (runnerType: RunnerType) => {
+    return getRegistryForRunner(runnerType)?.presets ?? {};
   };
 
   const getSelectedProfile = (): AgentProfile | undefined => {
@@ -138,7 +151,9 @@ export function QuickRunDialog({
       mode: profiles.length > 0 ? "profile" : "custom",
       profileId: "",
       runnerType: RunnerTypeEnum.CLAUDE_CODE,
-      model: "sonnet",
+      model: "",
+      modelPreset: ModelPreset.UNSPECIFIED,
+      modelMode: "default",
       maxTurns: 100,
       timeoutMinutes: 30,
       runMode: RunMode.SANDBOXED,
@@ -214,7 +229,12 @@ export function QuickRunDialog({
         runRequest.agentProfileId = agentConfig.profileId;
       } else {
         runRequest.runnerType = agentConfig.runnerType;
-        runRequest.model = agentConfig.model;
+        if (agentConfig.modelMode === "model" && agentConfig.model.trim() !== "") {
+          runRequest.model = agentConfig.model;
+        }
+        if (agentConfig.modelMode === "preset") {
+          runRequest.modelPreset = agentConfig.modelPreset;
+        }
         runRequest.maxTurns = agentConfig.maxTurns;
         runRequest.timeoutMinutes = agentConfig.timeoutMinutes;
         runRequest.runMode = agentConfig.runMode;
@@ -450,10 +470,15 @@ export function QuickRunDialog({
                     value={String(agentConfig.runnerType)}
                     onChange={(e) => {
                       const newRunnerType = Number(e.target.value) as RunnerType;
+                      const availableModels = getModelsForRunner(newRunnerType);
+                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0]) : "";
                       setAgentConfig({
                         ...agentConfig,
                         runnerType: newRunnerType,
-                        model: getDefaultModelForRunner(newRunnerType),
+                        model:
+                          agentConfig.modelMode === "model"
+                            ? firstModel
+                            : agentConfig.model,
                       });
                     }}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -466,14 +491,23 @@ export function QuickRunDialog({
                   </select>
                   </div>
 
-                  <ModelSelector
-                    value={agentConfig.model}
-                    onChange={(model) =>
-                      setAgentConfig({ ...agentConfig, model })
+                  <ModelConfigSelector
+                    value={{
+                      mode: agentConfig.modelMode,
+                      model: agentConfig.model,
+                      preset: agentConfig.modelPreset,
+                    }}
+                    onChange={(selection) =>
+                      setAgentConfig({
+                        ...agentConfig,
+                        modelMode: selection.mode,
+                        model: selection.model,
+                        modelPreset: selection.preset,
+                      })
                     }
                     models={getModelsForRunner(agentConfig.runnerType)}
-                    label="Model"
-                    placeholder="Enter custom model..."
+                    presetMap={getPresetMapForRunner(agentConfig.runnerType)}
+                    label="Model Selection"
                   />
 
                   <div className="grid gap-4 grid-cols-2">

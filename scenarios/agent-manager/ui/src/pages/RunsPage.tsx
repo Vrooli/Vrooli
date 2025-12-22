@@ -442,6 +442,19 @@ export function RunsPage({
                       ) : null}
                     </div>
                   </div>
+                  {selectedRun.errorMsg && (
+                    <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="mt-0.5 h-4 w-4" />
+                        <div className="space-y-1">
+                          <p className="font-medium">Failure reason</p>
+                          <p className="break-words text-xs text-destructive/90">
+                            {selectedRun.errorMsg}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
                       <span className="text-muted-foreground">Profile: </span>

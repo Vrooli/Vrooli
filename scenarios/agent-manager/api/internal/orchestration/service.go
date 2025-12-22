@@ -25,6 +25,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/policy"
 	"agent-manager/internal/repository"
 	"github.com/google/uuid"
@@ -78,6 +79,10 @@ type Service interface {
 
 	// --- Diff Operations ---
 	GetRunDiff(ctx context.Context, runID uuid.UUID) (*sandbox.DiffResult, error)
+
+	// --- Model Registry Operations ---
+	GetModelRegistry(ctx context.Context) (*modelregistry.Registry, error)
+	UpdateModelRegistry(ctx context.Context, registry *modelregistry.Registry) (*modelregistry.Registry, error)
 
 	// --- Status Operations ---
 	GetHealth(ctx context.Context) (*HealthStatus, error)
@@ -155,6 +160,7 @@ type CreateRunRequest struct {
 	// Inline config (optional - used if no profile, or overrides profile)
 	RunnerType           *domain.RunnerType `json:"runnerType,omitempty"`
 	Model                *string            `json:"model,omitempty"`
+	ModelPreset          *domain.ModelPreset `json:"modelPreset,omitempty"`
 	MaxTurns             *int               `json:"maxTurns,omitempty"`
 	Timeout              *time.Duration     `json:"timeout,omitempty"`
 	AllowedTools         []string           `json:"allowedTools,omitempty"`
@@ -327,6 +333,9 @@ type Orchestrator struct {
 
 	// Storage label for health reporting (e.g., postgres, sqlite, memory).
 	storageLabel string
+
+	// Model registry for runner model catalogs and presets.
+	modelRegistry *modelregistry.Store
 }
 
 // OrchestratorConfig holds service configuration.
@@ -430,6 +439,13 @@ func WithTerminator(t *Terminator) Option {
 func WithStorageLabel(label string) Option {
 	return func(o *Orchestrator) {
 		o.storageLabel = strings.TrimSpace(label)
+	}
+}
+
+// WithModelRegistry sets the model registry store.
+func WithModelRegistry(store *modelregistry.Store) Option {
+	return func(o *Orchestrator) {
+		o.modelRegistry = store
 	}
 }
 
@@ -870,8 +886,17 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.RunnerType != nil {
 		cfg.RunnerType = *req.RunnerType
 	}
+	if req.ModelPreset != nil {
+		cfg.ModelPreset = *req.ModelPreset
+		if cfg.ModelPreset != domain.ModelPresetUnspecified {
+			cfg.Model = ""
+		}
+	}
 	if req.Model != nil {
 		cfg.Model = *req.Model
+		if strings.TrimSpace(cfg.Model) != "" {
+			cfg.ModelPreset = domain.ModelPresetUnspecified
+		}
 	}
 	if req.MaxTurns != nil {
 		cfg.MaxTurns = *req.MaxTurns
@@ -904,6 +929,22 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	// Validate the resolved config
 	if !cfg.RunnerType.IsValid() {
 		return nil, nil, domain.NewValidationError("runnerType", "invalid runner type: "+string(cfg.RunnerType))
+	}
+	if !cfg.ModelPreset.IsValid() {
+		return nil, nil, domain.NewValidationError("modelPreset", "invalid model preset")
+	}
+	if strings.TrimSpace(cfg.Model) != "" && cfg.ModelPreset != domain.ModelPresetUnspecified {
+		return nil, nil, domain.NewValidationError("modelPreset", "cannot set model and model preset together")
+	}
+	if strings.TrimSpace(cfg.Model) == "" && cfg.ModelPreset != domain.ModelPresetUnspecified {
+		if o.modelRegistry == nil {
+			return nil, nil, domain.NewValidationError("modelPreset", "model registry not configured")
+		}
+		resolved, ok := o.modelRegistry.ResolvePreset(string(cfg.RunnerType), string(cfg.ModelPreset))
+		if !ok {
+			return nil, nil, domain.NewValidationError("modelPreset", "preset not mapped for runner")
+		}
+		cfg.Model = resolved
 	}
 
 	return cfg, profile, nil
@@ -1264,6 +1305,24 @@ func (o *Orchestrator) GetRunDiff(ctx context.Context, runID uuid.UUID) (*sandbo
 	}
 
 	return o.sandbox.GetDiff(ctx, *run.SandboxID)
+}
+
+// -----------------------------------------------------------------------------
+// Model Registry Operations
+// -----------------------------------------------------------------------------
+
+func (o *Orchestrator) GetModelRegistry(ctx context.Context) (*modelregistry.Registry, error) {
+	if o.modelRegistry == nil {
+		return nil, domain.NewStateError("ModelRegistry", "unconfigured", "get", "model registry not configured")
+	}
+	return o.modelRegistry.Get(), nil
+}
+
+func (o *Orchestrator) UpdateModelRegistry(ctx context.Context, registry *modelregistry.Registry) (*modelregistry.Registry, error) {
+	if o.modelRegistry == nil {
+		return nil, domain.NewStateError("ModelRegistry", "unconfigured", "update", "model registry not configured")
+	}
+	return o.modelRegistry.Update(registry)
 }
 
 // -----------------------------------------------------------------------------

@@ -58,6 +58,10 @@ message AgentProfile {
   // If empty, uses the runner's default model.
   string model = 5;
 
+  // Preset to use for model selection (FAST/CHEAP/SMART).
+  // Mutually exclusive with model.
+  ModelPreset model_preset = 19;
+
   // Maximum number of conversation turns before stopping.
   // 0 means unlimited (use with caution).
   // @constraint 0-1000
@@ -125,6 +129,10 @@ message RunConfig {
   // Model to use for execution.
   string model = 2;
 
+  // Preset to use for model selection (FAST/CHEAP/SMART).
+  // Mutually exclusive with model.
+  ModelPreset model_preset = 12;
+
   // Maximum conversation turns.
   int32 max_turns = 3;
 
@@ -165,6 +173,10 @@ message RunConfigOverrides {
 
   // Model to use for execution.
   optional string model = 2;
+
+  // Preset to use for model selection (FAST/CHEAP/SMART).
+  // Mutually exclusive with model.
+  optional ModelPreset model_preset = 16;
 
   // Maximum conversation turns.
   optional int32 max_turns = 3;

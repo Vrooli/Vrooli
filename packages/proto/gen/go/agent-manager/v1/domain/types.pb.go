@@ -89,6 +89,62 @@ func (RunnerType) EnumDescriptor() ([]byte, []int) {
 	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{0}
 }
 
+// ModelPreset provides a stable, high-level model selection.
+//
+// Presets are resolved to concrete models via the model registry.
+// @usage AgentProfile.model_preset, RunConfig.model_preset
+type ModelPreset int32
+
+const (
+	ModelPreset_MODEL_PRESET_UNSPECIFIED ModelPreset = 0
+	ModelPreset_MODEL_PRESET_FAST        ModelPreset = 1
+	ModelPreset_MODEL_PRESET_CHEAP       ModelPreset = 2
+	ModelPreset_MODEL_PRESET_SMART       ModelPreset = 3
+)
+
+// Enum value maps for ModelPreset.
+var (
+	ModelPreset_name = map[int32]string{
+		0: "MODEL_PRESET_UNSPECIFIED",
+		1: "MODEL_PRESET_FAST",
+		2: "MODEL_PRESET_CHEAP",
+		3: "MODEL_PRESET_SMART",
+	}
+	ModelPreset_value = map[string]int32{
+		"MODEL_PRESET_UNSPECIFIED": 0,
+		"MODEL_PRESET_FAST":        1,
+		"MODEL_PRESET_CHEAP":       2,
+		"MODEL_PRESET_SMART":       3,
+	}
+)
+
+func (x ModelPreset) Enum() *ModelPreset {
+	p := new(ModelPreset)
+	*p = x
+	return p
+}
+
+func (x ModelPreset) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ModelPreset) Descriptor() protoreflect.EnumDescriptor {
+	return file_agent_manager_v1_domain_types_proto_enumTypes[1].Descriptor()
+}
+
+func (ModelPreset) Type() protoreflect.EnumType {
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[1]
+}
+
+func (x ModelPreset) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ModelPreset.Descriptor instead.
+func (ModelPreset) EnumDescriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{1}
+}
+
 // TaskStatus represents the lifecycle state of a task.
 //
 // Tasks progress through states as runs are created and completed.
@@ -157,11 +213,11 @@ func (x TaskStatus) String() string {
 }
 
 func (TaskStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[1].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[2].Descriptor()
 }
 
 func (TaskStatus) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[1]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[2]
 }
 
 func (x TaskStatus) Number() protoreflect.EnumNumber {
@@ -170,7 +226,7 @@ func (x TaskStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TaskStatus.Descriptor instead.
 func (TaskStatus) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{1}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{2}
 }
 
 // RunStatus represents the lifecycle state of a run.
@@ -241,11 +297,11 @@ func (x RunStatus) String() string {
 }
 
 func (RunStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[2].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[3].Descriptor()
 }
 
 func (RunStatus) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[2]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[3]
 }
 
 func (x RunStatus) Number() protoreflect.EnumNumber {
@@ -254,7 +310,7 @@ func (x RunStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunStatus.Descriptor instead.
 func (RunStatus) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{2}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{3}
 }
 
 // RunPhase represents the detailed execution phase within a run.
@@ -331,11 +387,11 @@ func (x RunPhase) String() string {
 }
 
 func (RunPhase) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[3].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[4].Descriptor()
 }
 
 func (RunPhase) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[3]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[4]
 }
 
 func (x RunPhase) Number() protoreflect.EnumNumber {
@@ -344,7 +400,7 @@ func (x RunPhase) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunPhase.Descriptor instead.
 func (RunPhase) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{3}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{4}
 }
 
 // RunMode indicates whether the run uses sandbox isolation.
@@ -391,11 +447,11 @@ func (x RunMode) String() string {
 }
 
 func (RunMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[4].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[5].Descriptor()
 }
 
 func (RunMode) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[4]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[5]
 }
 
 func (x RunMode) Number() protoreflect.EnumNumber {
@@ -404,7 +460,7 @@ func (x RunMode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunMode.Descriptor instead.
 func (RunMode) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{4}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{5}
 }
 
 // ApprovalState represents the approval workflow state for a run.
@@ -461,11 +517,11 @@ func (x ApprovalState) String() string {
 }
 
 func (ApprovalState) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[5].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[6].Descriptor()
 }
 
 func (ApprovalState) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[5]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[6]
 }
 
 func (x ApprovalState) Number() protoreflect.EnumNumber {
@@ -474,7 +530,7 @@ func (x ApprovalState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ApprovalState.Descriptor instead.
 func (ApprovalState) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{5}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{6}
 }
 
 // RunEventType categorizes events in the run's event stream.
@@ -543,11 +599,11 @@ func (x RunEventType) String() string {
 }
 
 func (RunEventType) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[6].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[7].Descriptor()
 }
 
 func (RunEventType) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[6]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[7]
 }
 
 func (x RunEventType) Number() protoreflect.EnumNumber {
@@ -556,7 +612,7 @@ func (x RunEventType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunEventType.Descriptor instead.
 func (RunEventType) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{6}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{7}
 }
 
 // RecoveryAction indicates the recommended action after an error.
@@ -616,11 +672,11 @@ func (x RecoveryAction) String() string {
 }
 
 func (RecoveryAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[7].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[8].Descriptor()
 }
 
 func (RecoveryAction) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[7]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[8]
 }
 
 func (x RecoveryAction) Number() protoreflect.EnumNumber {
@@ -629,7 +685,7 @@ func (x RecoveryAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RecoveryAction.Descriptor instead.
 func (RecoveryAction) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{7}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{8}
 }
 
 // IdempotencyStatus indicates the state of an idempotent operation.
@@ -677,11 +733,11 @@ func (x IdempotencyStatus) String() string {
 }
 
 func (IdempotencyStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[8].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[9].Descriptor()
 }
 
 func (IdempotencyStatus) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[8]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[9]
 }
 
 func (x IdempotencyStatus) Number() protoreflect.EnumNumber {
@@ -690,7 +746,7 @@ func (x IdempotencyStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use IdempotencyStatus.Descriptor instead.
 func (IdempotencyStatus) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{8}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{9}
 }
 
 // RunOutcome classifies how a run completed.
@@ -754,11 +810,11 @@ func (x RunOutcome) String() string {
 }
 
 func (RunOutcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[9].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[10].Descriptor()
 }
 
 func (RunOutcome) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[9]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[10]
 }
 
 func (x RunOutcome) Number() protoreflect.EnumNumber {
@@ -767,7 +823,7 @@ func (x RunOutcome) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunOutcome.Descriptor instead.
 func (RunOutcome) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{9}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{10}
 }
 
 // StaleRunAction indicates what action to take for a stale run.
@@ -819,11 +875,11 @@ func (x StaleRunAction) String() string {
 }
 
 func (StaleRunAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_agent_manager_v1_domain_types_proto_enumTypes[10].Descriptor()
+	return file_agent_manager_v1_domain_types_proto_enumTypes[11].Descriptor()
 }
 
 func (StaleRunAction) Type() protoreflect.EnumType {
-	return &file_agent_manager_v1_domain_types_proto_enumTypes[10]
+	return &file_agent_manager_v1_domain_types_proto_enumTypes[11]
 }
 
 func (x StaleRunAction) Number() protoreflect.EnumNumber {
@@ -832,7 +888,7 @@ func (x StaleRunAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StaleRunAction.Descriptor instead.
 func (StaleRunAction) EnumDescriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{10}
+	return file_agent_manager_v1_domain_types_proto_rawDescGZIP(), []int{11}
 }
 
 var File_agent_manager_v1_domain_types_proto protoreflect.FileDescriptor
@@ -845,7 +901,12 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x17RUNNER_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17RUNNER_TYPE_CLAUDE_CODE\x10\x01\x12\x15\n" +
 	"\x11RUNNER_TYPE_CODEX\x10\x02\x12\x18\n" +
-	"\x14RUNNER_TYPE_OPENCODE\x10\x03*\xdf\x01\n" +
+	"\x14RUNNER_TYPE_OPENCODE\x10\x03*r\n" +
+	"\vModelPreset\x12\x1c\n" +
+	"\x18MODEL_PRESET_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11MODEL_PRESET_FAST\x10\x01\x12\x16\n" +
+	"\x12MODEL_PRESET_CHEAP\x10\x02\x12\x16\n" +
+	"\x12MODEL_PRESET_SMART\x10\x03*\xdf\x01\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -941,19 +1002,20 @@ func file_agent_manager_v1_domain_types_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_domain_types_proto_rawDescData
 }
 
-var file_agent_manager_v1_domain_types_proto_enumTypes = make([]protoimpl.EnumInfo, 11)
+var file_agent_manager_v1_domain_types_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
 var file_agent_manager_v1_domain_types_proto_goTypes = []any{
 	(RunnerType)(0),        // 0: agent_manager.v1.RunnerType
-	(TaskStatus)(0),        // 1: agent_manager.v1.TaskStatus
-	(RunStatus)(0),         // 2: agent_manager.v1.RunStatus
-	(RunPhase)(0),          // 3: agent_manager.v1.RunPhase
-	(RunMode)(0),           // 4: agent_manager.v1.RunMode
-	(ApprovalState)(0),     // 5: agent_manager.v1.ApprovalState
-	(RunEventType)(0),      // 6: agent_manager.v1.RunEventType
-	(RecoveryAction)(0),    // 7: agent_manager.v1.RecoveryAction
-	(IdempotencyStatus)(0), // 8: agent_manager.v1.IdempotencyStatus
-	(RunOutcome)(0),        // 9: agent_manager.v1.RunOutcome
-	(StaleRunAction)(0),    // 10: agent_manager.v1.StaleRunAction
+	(ModelPreset)(0),       // 1: agent_manager.v1.ModelPreset
+	(TaskStatus)(0),        // 2: agent_manager.v1.TaskStatus
+	(RunStatus)(0),         // 3: agent_manager.v1.RunStatus
+	(RunPhase)(0),          // 4: agent_manager.v1.RunPhase
+	(RunMode)(0),           // 5: agent_manager.v1.RunMode
+	(ApprovalState)(0),     // 6: agent_manager.v1.ApprovalState
+	(RunEventType)(0),      // 7: agent_manager.v1.RunEventType
+	(RecoveryAction)(0),    // 8: agent_manager.v1.RecoveryAction
+	(IdempotencyStatus)(0), // 9: agent_manager.v1.IdempotencyStatus
+	(RunOutcome)(0),        // 10: agent_manager.v1.RunOutcome
+	(StaleRunAction)(0),    // 11: agent_manager.v1.StaleRunAction
 }
 var file_agent_manager_v1_domain_types_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -973,7 +1035,7 @@ func file_agent_manager_v1_domain_types_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_types_proto_rawDesc), len(file_agent_manager_v1_domain_types_proto_rawDesc)),
-			NumEnums:      11,
+			NumEnums:      12,
 			NumMessages:   0,
 			NumExtensions: 0,
 			NumServices:   0,

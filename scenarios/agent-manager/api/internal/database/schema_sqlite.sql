@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     description TEXT,
     runner_type TEXT NOT NULL,
     model TEXT,
+    model_preset TEXT,
     max_turns INTEGER,
     timeout_ms INTEGER,
     allowed_tools TEXT DEFAULT '[]',
