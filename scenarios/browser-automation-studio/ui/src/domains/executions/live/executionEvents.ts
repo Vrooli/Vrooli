@@ -146,7 +146,6 @@ export const streamMessageToExecutionEvent = (
           retry_attempt: context?.retryStatus?.currentAttempt ?? undefined,
           retry_max_attempts: context?.retryStatus?.maxAttempts ?? undefined,
           retry_delay_ms: context?.retryStatus?.delayMs ?? undefined,
-          dom_snapshot_preview: aggregates?.domSnapshotPreview ?? undefined,
         },
       };
     }

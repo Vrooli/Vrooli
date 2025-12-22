@@ -53,8 +53,6 @@ type TimelineFrame struct {
 	RetryDelayMs         int                             `json:"retry_delay_ms,omitempty"`
 	RetryBackoffFactor   float64                         `json:"retry_backoff_factor,omitempty"`
 	RetryHistory         []RetryHistoryEntry             `json:"retry_history,omitempty"`
-	DomSnapshotPreview   string                          `json:"dom_snapshot_preview,omitempty"`
-	DomSnapshot          *TimelineArtifact               `json:"dom_snapshot,omitempty"`
 }
 
 // Type aliases for backward compatibility with existing code.

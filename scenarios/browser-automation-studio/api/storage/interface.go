@@ -32,6 +32,9 @@ type StorageInterface interface {
 	// StoreArtifactFromFile stores a non-screenshot artifact from a file path.
 	StoreArtifactFromFile(ctx context.Context, executionID uuid.UUID, label string, filePath string, contentType string) (*ArtifactInfo, error)
 
+	// StoreArtifact stores a non-screenshot artifact at a specific object name.
+	StoreArtifact(ctx context.Context, objectName string, data []byte, contentType string) (*ArtifactInfo, error)
+
 	// HealthCheck checks if storage is accessible
 	HealthCheck(ctx context.Context) error
 

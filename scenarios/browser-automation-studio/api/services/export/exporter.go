@@ -216,8 +216,6 @@ type ExportFrame struct {
 	FinalURL                string                           `json:"final_url,omitempty"`
 	Error                   string                           `json:"error,omitempty"`
 	Assertion               *autocontracts.AssertionOutcome  `json:"assertion,omitempty"`
-	DomSnapshotPreview      string                           `json:"dom_snapshot_preview,omitempty"`
-	DomSnapshotHTML         string                           `json:"dom_snapshot_html,omitempty"`
 	Resilience              ExportResilience                 `json:"resilience"`
 }
 
@@ -367,18 +365,6 @@ func BuildReplayMovieSpec(
 		}
 		normalizedElement := normalizeRect(frame.ElementBoundingBox, dims)
 
-		domSnapshotHTML := ""
-		if frame.DomSnapshot != nil && frame.DomSnapshot.Payload != nil {
-			if raw := frame.DomSnapshot.Payload["html"]; raw != nil {
-				switch v := raw.(type) {
-				case string:
-					domSnapshotHTML = v
-				case fmt.Stringer:
-					domSnapshotHTML = v.String()
-				}
-			}
-		}
-
 		frames = append(frames, ExportFrame{
 			Index:                   index,
 			StepIndex:               frame.StepIndex,
@@ -409,8 +395,6 @@ func BuildReplayMovieSpec(
 			FinalURL:                frame.FinalURL,
 			Error:                   strings.TrimSpace(frame.Error),
 			Assertion:               frame.Assertion,
-			DomSnapshotPreview:      frame.DomSnapshotPreview,
-			DomSnapshotHTML:         domSnapshotHTML,
 			Resilience: ExportResilience{
 				Attempt:           frame.RetryAttempt,
 				MaxAttempts:       frame.RetryMaxAttempts,

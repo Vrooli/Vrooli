@@ -175,9 +175,6 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 		entry.Aggregates.FinalUrl = &frame.FinalURL
 	}
 
-	if frame.DomSnapshotPreview != "" {
-		entry.Aggregates.DomSnapshotPreview = &frame.DomSnapshotPreview
-	}
 
 	if frame.ExtractedDataPreview != nil {
 		entry.Aggregates.ExtractedDataPreview = typeconv.AnyToJsonValue(frame.ExtractedDataPreview)
@@ -196,15 +193,6 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 			}
 			entry.Aggregates.Artifacts = append(entry.Aggregates.Artifacts, pbArtifact)
 		}
-	}
-
-	// Add DOM snapshot artifact to aggregates
-	if frame.DomSnapshot != nil {
-		dom, err := convertArtifact(*frame.DomSnapshot)
-		if err != nil {
-			return nil, fmt.Errorf("dom_snapshot: %w", err)
-		}
-		entry.Aggregates.DomSnapshot = dom
 	}
 
 	return entry, nil
@@ -532,4 +520,3 @@ func mapToExecutionResult(source map[string]any) *basexecution.ExecutionResult {
 	}
 	return result
 }
-

@@ -89,6 +89,13 @@ func (s *recordingFileStore) StoreArtifactFromFile(_ context.Context, executionI
 	return nil, fmt.Errorf("recording file store does not support StoreArtifactFromFile")
 }
 
+func (s *recordingFileStore) StoreArtifact(_ context.Context, objectName string, data []byte, contentType string) (*storage.ArtifactInfo, error) {
+	_ = objectName
+	_ = data
+	_ = contentType
+	return nil, fmt.Errorf("recording file store does not support StoreArtifact")
+}
+
 func (s *recordingFileStore) HealthCheck(_ context.Context) error {
 	return nil
 }

@@ -14,80 +14,9 @@ import (
 	"strings"
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 )
-
-// =============================================================================
-// CONSOLE LOG CONVERSION
-// =============================================================================
-
-// ConvertConsoleLogs converts a slice of contracts.ConsoleLogEntry to proto format.
-// Used by both recording and execution paths to ensure consistent console log handling.
-func ConvertConsoleLogs(logs []contracts.ConsoleLogEntry) []*basdomain.ConsoleLogEntry {
-	if len(logs) == 0 {
-		return nil
-	}
-	result := make([]*basdomain.ConsoleLogEntry, 0, len(logs))
-	for _, log := range logs {
-		entry := &basdomain.ConsoleLogEntry{
-			Level: enums.StringToLogLevel(log.Type),
-			Text:  log.Text,
-		}
-		if log.Stack != "" {
-			entry.Stack = &log.Stack
-		}
-		if log.Location != "" {
-			entry.Location = &log.Location
-		}
-		if !log.Timestamp.IsZero() {
-			entry.Timestamp = contracts.TimeToTimestamp(log.Timestamp)
-		}
-		result = append(result, entry)
-	}
-	return result
-}
-
-// =============================================================================
-// NETWORK EVENT CONVERSION
-// =============================================================================
-
-// ConvertNetworkEvents converts a slice of contracts.NetworkEvent to proto format.
-// Used by both recording and execution paths to ensure consistent network event handling.
-func ConvertNetworkEvents(events []contracts.NetworkEvent) []*basdomain.NetworkEvent {
-	if len(events) == 0 {
-		return nil
-	}
-	result := make([]*basdomain.NetworkEvent, 0, len(events))
-	for _, net := range events {
-		event := &basdomain.NetworkEvent{
-			Type: enums.StringToNetworkEventType(net.Type),
-			Url:  net.URL,
-		}
-		if net.Method != "" {
-			event.Method = &net.Method
-		}
-		if net.ResourceType != "" {
-			event.ResourceType = &net.ResourceType
-		}
-		if net.Status != 0 {
-			status := int32(net.Status)
-			event.Status = &status
-		}
-		if net.OK {
-			event.Ok = &net.OK
-		}
-		if net.Failure != "" {
-			event.Failure = &net.Failure
-		}
-		if !net.Timestamp.IsZero() {
-			event.Timestamp = contracts.TimeToTimestamp(net.Timestamp)
-		}
-		result = append(result, event)
-	}
-	return result
-}
 
 // =============================================================================
 // GEOMETRY HELPERS
@@ -260,26 +189,19 @@ func (b *TelemetryBuilder) WithScreenshot(screenshot *contracts.Screenshot) *Tel
 
 // WithDOMSnapshot sets DOM snapshot data.
 func (b *TelemetryBuilder) WithDOMSnapshot(snapshot *contracts.DOMSnapshot) *TelemetryBuilder {
-	if snapshot != nil {
-		if snapshot.Preview != "" {
-			b.tel.DomSnapshotPreview = &snapshot.Preview
-		}
-		if snapshot.HTML != "" {
-			b.tel.DomSnapshotHtml = &snapshot.HTML
-		}
-	}
+	_ = snapshot
 	return b
 }
 
 // WithConsoleLogs sets console logs.
 func (b *TelemetryBuilder) WithConsoleLogs(logs []contracts.ConsoleLogEntry) *TelemetryBuilder {
-	b.tel.ConsoleLogs = ConvertConsoleLogs(logs)
+	_ = logs
 	return b
 }
 
 // WithNetworkEvents sets network events.
 func (b *TelemetryBuilder) WithNetworkEvents(events []contracts.NetworkEvent) *TelemetryBuilder {
-	b.tel.NetworkEvents = ConvertNetworkEvents(events)
+	_ = events
 	return b
 }
 

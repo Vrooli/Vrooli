@@ -39,7 +39,6 @@ describe('mapTimelineEntryToFrame', () => {
           status: 'STEP_STATUS_COMPLETED',
           progress: 42,
           final_url: 'https://example.test',
-          dom_snapshot_preview: '<html>preview</html>',
         },
       },
       { jsonOptions: { useProtoNames: true, ignoreUnknownFields: false } }
@@ -61,6 +60,5 @@ describe('mapTimelineEntryToFrame', () => {
     expect(mapped.clickPosition).toMatchObject({ x: 5, y: 6 });
     expect(mapped.retryAttempt).toBe(2);
     expect(mapped.retryMaxAttempts).toBe(3);
-    expect(mapped.domSnapshotPreview).toBe('<html>preview</html>');
   });
 });

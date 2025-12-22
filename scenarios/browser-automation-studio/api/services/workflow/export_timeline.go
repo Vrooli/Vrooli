@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -242,8 +243,25 @@ func timelineEntryToFrame(entry *bastimeline.TimelineEntry) TimelineFrame {
 		if entry.Telemetry.Screenshot != nil {
 			frame.Screenshot = timelineScreenshotFromProto(entry.Telemetry.Screenshot)
 		}
-		frame.ConsoleLogCount = len(entry.Telemetry.ConsoleLogs)
-		frame.NetworkEventCount = len(entry.Telemetry.NetworkEvents)
+		if entry.Telemetry.ConsoleLogArtifact != nil {
+			if entries, err := loadTelemetryJSONSlice(entry.Telemetry.ConsoleLogArtifact.Path); err == nil {
+				frame.ConsoleLogCount = len(entries)
+				frame.Artifacts = append(frame.Artifacts, telemetryArtifactToExport("console", entry.Telemetry.ConsoleLogArtifact, map[string]any{
+					"entries": entries,
+				}))
+			}
+		}
+		if entry.Telemetry.NetworkEventArtifact != nil {
+			if events, err := loadTelemetryJSONSlice(entry.Telemetry.NetworkEventArtifact.Path); err == nil {
+				frame.NetworkEventCount = len(events)
+				frame.Artifacts = append(frame.Artifacts, telemetryArtifactToExport("network", entry.Telemetry.NetworkEventArtifact, map[string]any{
+					"events": events,
+				}))
+			}
+		}
+		if entry.Telemetry.DomSnapshot != nil {
+			frame.Artifacts = append(frame.Artifacts, telemetryArtifactToExport("dom_snapshot", entry.Telemetry.DomSnapshot, map[string]any{}))
+		}
 	}
 	if entry.Aggregates != nil {
 		frame.Status = enums.StepStatusToString(entry.Aggregates.Status)
@@ -261,9 +279,6 @@ func timelineEntryToFrame(entry *bastimeline.TimelineEntry) TimelineFrame {
 		}
 		if entry.Aggregates.ExtractedDataPreview != nil {
 			frame.ExtractedDataPreview = typeconv.JsonValueToAny(entry.Aggregates.ExtractedDataPreview)
-		}
-		if entry.Aggregates.DomSnapshotPreview != nil {
-			frame.DomSnapshotPreview = *entry.Aggregates.DomSnapshotPreview
 		}
 		if entry.Aggregates.FocusedElement != nil {
 			frame.FocusedElement = entry.Aggregates.FocusedElement
@@ -292,4 +307,41 @@ func timelineScreenshotFromProto(shot *bastelemetry.TimelineScreenshot) *Timelin
 		ContentType:  shot.ContentType,
 		SizeBytes:    shot.SizeBytes,
 	}
+}
+
+func loadTelemetryJSONSlice(path *string) ([]any, error) {
+	if path == nil || strings.TrimSpace(*path) == "" {
+		return nil, nil
+	}
+	raw, err := os.ReadFile(*path)
+	if err != nil {
+		return nil, err
+	}
+	var entries []any
+	if err := json.Unmarshal(raw, &entries); err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
+
+func telemetryArtifactToExport(kind string, artifact *bastelemetry.TelemetryArtifact, payload map[string]any) TimelineArtifact {
+	out := TimelineArtifact{
+		Type:    kind,
+		Label:   kind,
+		Payload: payload,
+	}
+	if artifact == nil {
+		return out
+	}
+	out.ID = artifact.ArtifactId
+	out.StorageURL = artifact.StorageUrl
+	out.ContentType = artifact.ContentType
+	out.SizeBytes = artifact.SizeBytes
+	if artifact.Path != nil {
+		if out.Payload == nil {
+			out.Payload = map[string]any{}
+		}
+		out.Payload["path"] = *artifact.Path
+	}
+	return out
 }

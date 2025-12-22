@@ -83,12 +83,6 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 						Selector:    "#cta",
 						BoundingBox: &autocontracts.BoundingBox{X: 120, Y: 200, Width: 240, Height: 80},
 					},
-					DomSnapshotPreview: "<div>Preview</div>",
-					DomSnapshot: &TimelineArtifact{
-						ID:      "dom-2",
-						Type:    "dom_snapshot",
-						Payload: map[string]any{"html": "<html><body>Full DOM</body></html>"},
-					},
 					RetryAttempt:       2,
 					RetryMaxAttempts:   3,
 					RetryConfigured:    2,
@@ -148,13 +142,6 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 		if second.NormalizedFocusBounds == nil {
 			t.Errorf("expected normalized focus bounds to be populated")
 		}
-		if second.DomSnapshotPreview != "<div>Preview</div>" {
-			t.Errorf("expected DOM snapshot preview to be preserved, got %q", second.DomSnapshotPreview)
-		}
-		if second.DomSnapshotHTML != "<html><body>Full DOM</body></html>" {
-			t.Errorf("expected DOM snapshot HTML to be propagated")
-		}
-
 		if len(pkg.Assets) != 2 {
 			t.Errorf("expected 2 assets, got %d", len(pkg.Assets))
 		}

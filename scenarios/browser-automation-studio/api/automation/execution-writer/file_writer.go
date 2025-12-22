@@ -65,7 +65,6 @@ type ExecutionResultData struct {
 	Telemetry       []TelemetryData     `json:"telemetry"`
 	TimelineFrame   []TimelineFrameData `json:"timeline_frames"`
 	Summary         ExecutionSummary    `json:"summary"`
-	ScreenshotPaths map[string]string   `json:"-"`
 	mu              sync.Mutex          `json:"-"`
 }
 
@@ -194,7 +193,6 @@ func (r *FileWriter) getOrCreateResult(plan contracts.ExecutionPlan) *ExecutionR
 		Artifacts:       make([]ArtifactData, 0),
 		Telemetry:       make([]TelemetryData, 0),
 		TimelineFrame:   make([]TimelineFrameData, 0),
-		ScreenshotPaths: make(map[string]string),
 		Summary: ExecutionSummary{
 			LastUpdated: time.Now().UTC(),
 		},
@@ -300,11 +298,6 @@ func (r *FileWriter) buildResultPayload(executionID uuid.UUID, result *Execution
 		return payload, nil
 	}
 
-	var screenshotPaths map[string]string
-	if result != nil && len(result.ScreenshotPaths) > 0 {
-		screenshotPaths = result.ScreenshotPaths
-	}
-
 	for _, entryRaw := range entriesRaw {
 		entry, ok := entryRaw.(map[string]any)
 		if !ok {
@@ -313,26 +306,6 @@ func (r *FileWriter) buildResultPayload(executionID uuid.UUID, result *Execution
 		if aggregates, ok := entry["aggregates"].(map[string]any); ok {
 			delete(aggregates, "artifacts")
 		}
-		if screenshotPaths == nil {
-			continue
-		}
-		entryID, _ := entry["id"].(string)
-		if entryID == "" {
-			continue
-		}
-		path := screenshotPaths[entryID]
-		if strings.TrimSpace(path) == "" {
-			continue
-		}
-		telemetryRaw, ok := entry["telemetry"].(map[string]any)
-		if !ok {
-			continue
-		}
-		screenshotRaw, ok := telemetryRaw["screenshot"].(map[string]any)
-		if !ok {
-			continue
-		}
-		screenshotRaw["path"] = path
 	}
 
 	return payload, nil
@@ -438,40 +411,38 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	artifactIDs = append(artifactIDs, outcomeArtifactID)
 	protoArtifacts = append(protoArtifacts, artifactDataToProto(&outcomeArtifact))
 
+	artifactBaseName := buildScreenshotBaseName(plan, outcome)
+	var consoleArtifact *telemetryArtifactRef
+	var networkArtifact *telemetryArtifactRef
+
 	// Console logs - controlled by CollectConsoleLogs
 	if cfg.CollectConsoleLogs && len(outcome.ConsoleLogs) > 0 {
-		id := uuid.New()
-		artifact := ArtifactData{
-			ArtifactID:   id.String(),
-			StepID:       stepID.String(),
-			StepIndex:    &outcome.StepIndex,
-			ArtifactType: "console",
-			Label:        deriveStepLabel(outcome),
-			Payload:      map[string]any{"entries": outcome.ConsoleLogs},
+		payload, err := json.Marshal(outcome.ConsoleLogs)
+		if err != nil && r.log != nil {
+			r.log.WithError(err).Warn("Failed to serialize console logs")
+		} else if err == nil {
+			ref, err := r.persistTelemetryArtifact(ctx, plan.ExecutionID, "console", artifactBaseName, ".json", "application/json", payload)
+			if err != nil && r.log != nil {
+				r.log.WithError(err).Warn("Failed to persist console log artifact")
+			} else if ref != nil {
+				consoleArtifact = ref
+			}
 		}
-		result.mu.Lock()
-		result.Artifacts = append(result.Artifacts, artifact)
-		result.mu.Unlock()
-		artifactIDs = append(artifactIDs, id)
-		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 	}
 
 	// Network events - controlled by CollectNetworkEvents
 	if cfg.CollectNetworkEvents && len(outcome.Network) > 0 {
-		id := uuid.New()
-		artifact := ArtifactData{
-			ArtifactID:   id.String(),
-			StepID:       stepID.String(),
-			StepIndex:    &outcome.StepIndex,
-			ArtifactType: "network",
-			Label:        deriveStepLabel(outcome),
-			Payload:      map[string]any{"events": outcome.Network},
+		payload, err := json.Marshal(outcome.Network)
+		if err != nil && r.log != nil {
+			r.log.WithError(err).Warn("Failed to serialize network events")
+		} else if err == nil {
+			ref, err := r.persistTelemetryArtifact(ctx, plan.ExecutionID, "network", artifactBaseName, ".json", "application/json", payload)
+			if err != nil && r.log != nil {
+				r.log.WithError(err).Warn("Failed to persist network event artifact")
+			} else if ref != nil {
+				networkArtifact = ref
+			}
 		}
-		result.mu.Lock()
-		result.Artifacts = append(result.Artifacts, artifact)
-		result.mu.Unlock()
-		artifactIDs = append(artifactIDs, id)
-		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 	}
 
 	// Assertion result - controlled by CollectAssertions
@@ -522,8 +493,10 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	}
 
 	var timelineScreenshotURL string
+	var timelineScreenshotThumbURL string
 	var timelineScreenshotID *uuid.UUID
 	var timelineScreenshotPath string
+	var timelineScreenshotSizeBytes int64
 
 	// Persist screenshot if available - controlled by CollectScreenshots
 	if cfg.CollectScreenshots && outcome.Screenshot != nil && len(outcome.Screenshot.Data) > 0 {
@@ -533,7 +506,6 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		}
 		if screenshotInfo != nil {
 			id := uuid.New()
-			entryID := timelineEntryID(plan.ExecutionID, outcome.StepIndex, outcome.Attempt)
 			artifact := ArtifactData{
 				ArtifactID:   id.String(),
 				StepID:       stepID.String(),
@@ -562,12 +534,9 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 			timelineScreenshotID = &id
 			timelineScreenshotURL = screenshotInfo.URL
+			timelineScreenshotThumbURL = screenshotInfo.ThumbnailURL
 			timelineScreenshotPath = screenshotInfo.Path
-			if screenshotInfo.Path != "" {
-				result.mu.Lock()
-				result.ScreenshotPaths[entryID] = screenshotInfo.Path
-				result.mu.Unlock()
-			}
+			timelineScreenshotSizeBytes = screenshotInfo.SizeBytes
 		} else if r.log != nil {
 			r.log.WithFields(logrus.Fields{
 				"execution_id": plan.ExecutionID,
@@ -577,48 +546,29 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		}
 	}
 
-	var domSnapshotArtifactID *uuid.UUID
-	var domSnapshotPreview string
-	var domSnapshotHTML string
+	var domSnapshotArtifact *telemetryArtifactRef
 
 	// DOM snapshot - controlled by CollectDOMSnapshots
 	if cfg.CollectDOMSnapshots && outcome.DOMSnapshot != nil && outcome.DOMSnapshot.HTML != "" {
 		html := outcome.DOMSnapshot.HTML
-		truncated := false
 		maxBytes := cfg.MaxDOMSnapshotBytes
 		if maxBytes <= 0 {
 			maxBytes = contracts.DOMSnapshotMaxBytes
 		}
 		if len(html) > maxBytes {
 			html = html[:maxBytes]
-			truncated = true
 			outcome.DOMSnapshot.Truncated = true
 		}
-		id := uuid.New()
-		payload := map[string]any{"html": html}
-		if truncated {
-			payload["truncated"] = true
+		ref, err := r.persistTelemetryArtifact(ctx, plan.ExecutionID, "dom", artifactBaseName, ".html", "text/html", []byte(html))
+		if err != nil && r.log != nil {
+			r.log.WithError(err).Warn("Failed to persist DOM snapshot artifact")
+		} else if ref != nil {
+			domSnapshotArtifact = ref
 		}
-		artifact := ArtifactData{
-			ArtifactID:   id.String(),
-			StepID:       stepID.String(),
-			StepIndex:    &outcome.StepIndex,
-			ArtifactType: "dom_snapshot",
-			Label:        deriveStepLabel(outcome),
-			Payload:      payload,
-		}
-		result.mu.Lock()
-		result.Artifacts = append(result.Artifacts, artifact)
-		result.mu.Unlock()
-		artifactIDs = append(artifactIDs, id)
-		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
-		domSnapshotArtifactID = &id
-		domSnapshotPreview = truncateRunes(html, 256)
-		domSnapshotHTML = html
 	}
 
 	// Build timeline frame
-	timelinePayload := buildTimelinePayload(outcome, timelineScreenshotURL, timelineScreenshotID, domSnapshotArtifactID, domSnapshotPreview, artifactIDs)
+	timelinePayload := buildTimelinePayload(outcome, timelineScreenshotURL, timelineScreenshotID, artifactIDs)
 	timelineFrame := TimelineFrameData{
 		StepIndex:      outcome.StepIndex,
 		NodeID:         outcome.NodeID,
@@ -633,14 +583,11 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 	if timelineScreenshotID != nil {
 		timelineFrame.ScreenshotArtifactID = timelineScreenshotID.String()
 	}
-	if domSnapshotArtifactID != nil {
-		timelineFrame.DOMSnapshotArtifactID = domSnapshotArtifactID.String()
-	}
 	result.mu.Lock()
 	result.TimelineFrame = append(result.TimelineFrame, timelineFrame)
 	result.mu.Unlock()
 
-	if err := r.appendProtoTimelineEntry(plan, outcome, protoArtifacts, timelineScreenshotID, timelineScreenshotURL, domSnapshotArtifactID, domSnapshotPreview, domSnapshotHTML, timeline); err != nil {
+	if err := r.appendProtoTimelineEntry(plan, outcome, protoArtifacts, timelineScreenshotID, timelineScreenshotURL, timelineScreenshotThumbURL, timelineScreenshotPath, timelineScreenshotSizeBytes, domSnapshotArtifact, consoleArtifact, networkArtifact, timeline); err != nil {
 		if r.log != nil {
 			r.log.WithError(err).Warn("Failed to write proto timeline file")
 		}
@@ -782,9 +729,12 @@ func (r *FileWriter) appendProtoTimelineEntry(
 	artifacts []*bastimeline.TimelineArtifact,
 	screenshotArtifactID *uuid.UUID,
 	screenshotURL string,
-	domSnapshotArtifactID *uuid.UUID,
-	domSnapshotPreview string,
-	domSnapshotHTML string,
+	screenshotThumbURL string,
+	screenshotPath string,
+	screenshotSizeBytes int64,
+	domSnapshotArtifact *telemetryArtifactRef,
+	consoleArtifact *telemetryArtifactRef,
+	networkArtifact *telemetryArtifactRef,
 	timeline *executionTimelineData,
 ) error {
 	if r == nil || timeline == nil || timeline.pb == nil {
@@ -805,20 +755,78 @@ func (r *FileWriter) appendProtoTimelineEntry(
 		}
 		entry.Telemetry.Screenshot.ArtifactId = screenshotArtifactID.String()
 		entry.Telemetry.Screenshot.Url = screenshotURL
+		if strings.TrimSpace(screenshotThumbURL) != "" {
+			entry.Telemetry.Screenshot.ThumbnailUrl = screenshotThumbURL
+		}
+		if screenshotPath != "" {
+			entry.Telemetry.Screenshot.Path = &screenshotPath
+		}
+		if screenshotSizeBytes > 0 {
+			size := screenshotSizeBytes
+			entry.Telemetry.Screenshot.SizeBytes = &size
+		}
+		if outcome.Screenshot != nil {
+			if outcome.Screenshot.Width > 0 {
+				entry.Telemetry.Screenshot.Width = int32(outcome.Screenshot.Width)
+			}
+			if outcome.Screenshot.Height > 0 {
+				entry.Telemetry.Screenshot.Height = int32(outcome.Screenshot.Height)
+			}
+			if outcome.Screenshot.MediaType != "" {
+				entry.Telemetry.Screenshot.ContentType = outcome.Screenshot.MediaType
+			}
+		}
 	}
-	if strings.TrimSpace(domSnapshotPreview) != "" {
+	if domSnapshotArtifact != nil {
 		if entry.Telemetry == nil {
 			entry.Telemetry = &basdomain.ActionTelemetry{}
 		}
-		preview := domSnapshotPreview
-		entry.Telemetry.DomSnapshotPreview = &preview
+		entry.Telemetry.DomSnapshot = &basdomain.TelemetryArtifact{
+			ArtifactId:  domSnapshotArtifact.ID.String(),
+			StorageUrl:  domSnapshotArtifact.URL,
+			ContentType: domSnapshotArtifact.ContentType,
+		}
+		if domSnapshotArtifact.Path != "" {
+			entry.Telemetry.DomSnapshot.Path = &domSnapshotArtifact.Path
+		}
+		if domSnapshotArtifact.SizeBytes > 0 {
+			size := domSnapshotArtifact.SizeBytes
+			entry.Telemetry.DomSnapshot.SizeBytes = &size
+		}
 	}
-	if strings.TrimSpace(domSnapshotHTML) != "" {
+	if consoleArtifact != nil {
 		if entry.Telemetry == nil {
 			entry.Telemetry = &basdomain.ActionTelemetry{}
 		}
-		html := domSnapshotHTML
-		entry.Telemetry.DomSnapshotHtml = &html
+		entry.Telemetry.ConsoleLogArtifact = &basdomain.TelemetryArtifact{
+			ArtifactId:  consoleArtifact.ID.String(),
+			StorageUrl:  consoleArtifact.URL,
+			ContentType: consoleArtifact.ContentType,
+		}
+		if consoleArtifact.Path != "" {
+			entry.Telemetry.ConsoleLogArtifact.Path = &consoleArtifact.Path
+		}
+		if consoleArtifact.SizeBytes > 0 {
+			size := consoleArtifact.SizeBytes
+			entry.Telemetry.ConsoleLogArtifact.SizeBytes = &size
+		}
+	}
+	if networkArtifact != nil {
+		if entry.Telemetry == nil {
+			entry.Telemetry = &basdomain.ActionTelemetry{}
+		}
+		entry.Telemetry.NetworkEventArtifact = &basdomain.TelemetryArtifact{
+			ArtifactId:  networkArtifact.ID.String(),
+			StorageUrl:  networkArtifact.URL,
+			ContentType: networkArtifact.ContentType,
+		}
+		if networkArtifact.Path != "" {
+			entry.Telemetry.NetworkEventArtifact.Path = &networkArtifact.Path
+		}
+		if networkArtifact.SizeBytes > 0 {
+			size := networkArtifact.SizeBytes
+			entry.Telemetry.NetworkEventArtifact.SizeBytes = &size
+		}
 	}
 	if entry.Telemetry == nil {
 		entry.Telemetry = &basdomain.ActionTelemetry{}
@@ -842,55 +850,6 @@ func (r *FileWriter) appendProtoTimelineEntry(
 		zoom := outcome.ZoomFactor
 		entry.Telemetry.ZoomFactor = &zoom
 	}
-	if len(outcome.ConsoleLogs) > 0 {
-		entry.Telemetry.ConsoleLogs = make([]*basdomain.ConsoleLogEntry, 0, len(outcome.ConsoleLogs))
-		for _, log := range outcome.ConsoleLogs {
-			item := &basdomain.ConsoleLogEntry{
-				Level: enums.StringToLogLevel(log.Type),
-				Text:  log.Text,
-			}
-			if log.Stack != "" {
-				item.Stack = &log.Stack
-			}
-			if log.Location != "" {
-				item.Location = &log.Location
-			}
-			if !log.Timestamp.IsZero() {
-				item.Timestamp = contracts.TimeToTimestamp(log.Timestamp)
-			}
-			entry.Telemetry.ConsoleLogs = append(entry.Telemetry.ConsoleLogs, item)
-		}
-	}
-	if len(outcome.Network) > 0 {
-		entry.Telemetry.NetworkEvents = make([]*basdomain.NetworkEvent, 0, len(outcome.Network))
-		for _, evt := range outcome.Network {
-			item := &basdomain.NetworkEvent{
-				Type: enums.StringToNetworkEventType(evt.Type),
-				Url:  evt.URL,
-			}
-			if evt.Method != "" {
-				item.Method = &evt.Method
-			}
-			if evt.ResourceType != "" {
-				item.ResourceType = &evt.ResourceType
-			}
-			if evt.Status != 0 {
-				status := int32(evt.Status)
-				item.Status = &status
-			}
-			if evt.OK {
-				item.Ok = &evt.OK
-			}
-			if evt.Failure != "" {
-				item.Failure = &evt.Failure
-			}
-			if !evt.Timestamp.IsZero() {
-				item.Timestamp = contracts.TimeToTimestamp(evt.Timestamp)
-			}
-			entry.Telemetry.NetworkEvents = append(entry.Telemetry.NetworkEvents, item)
-		}
-	}
-
 	if entry.Aggregates == nil {
 		entry.Aggregates = &bastimeline.TimelineEntryAggregates{}
 	}
@@ -899,20 +858,18 @@ func (r *FileWriter) appendProtoTimelineEntry(
 	} else {
 		entry.Aggregates.Status = basbase.StepStatus_STEP_STATUS_FAILED
 	}
+	if consoleArtifact != nil {
+		entry.Aggregates.ConsoleLogCount = int32(len(outcome.ConsoleLogs))
+	}
+	if networkArtifact != nil {
+		entry.Aggregates.NetworkEventCount = int32(len(outcome.Network))
+	}
 
 	for _, a := range artifacts {
 		if a == nil {
 			continue
 		}
 		entry.Aggregates.Artifacts = append(entry.Aggregates.Artifacts, a)
-	}
-	if domSnapshotArtifactID != nil {
-		for _, a := range entry.Aggregates.Artifacts {
-			if a != nil && a.Id == domSnapshotArtifactID.String() {
-				entry.Aggregates.DomSnapshot = a
-				break
-			}
-		}
 	}
 
 	timeline.mu.Lock()
@@ -1349,6 +1306,46 @@ func (r *FileWriter) persistScreenshot(ctx context.Context, plan contracts.Execu
 	return r.storage.StoreScreenshot(ctx, executionID, stepName, outcome.Screenshot.Data, contentType)
 }
 
+type telemetryArtifactRef struct {
+	ID          uuid.UUID
+	URL         string
+	Path        string
+	ContentType string
+	SizeBytes   int64
+	ObjectName  string
+}
+
+func (r *FileWriter) persistTelemetryArtifact(ctx context.Context, executionID uuid.UUID, folder string, baseName string, ext string, contentType string, data []byte) (*telemetryArtifactRef, error) {
+	if r.storage == nil {
+		return nil, nil
+	}
+	if len(data) == 0 {
+		return nil, nil
+	}
+	if strings.TrimSpace(ext) == "" {
+		ext = ".bin"
+	}
+	if !strings.HasPrefix(ext, ".") {
+		ext = "." + ext
+	}
+	objectName := fmt.Sprintf("%s/artifacts/%s/%s%s", executionID.String(), folder, baseName, ext)
+	info, err := r.storage.StoreArtifact(ctx, objectName, data, contentType)
+	if err != nil {
+		return nil, err
+	}
+	if info == nil {
+		return nil, nil
+	}
+	return &telemetryArtifactRef{
+		ID:          uuid.New(),
+		URL:         info.URL,
+		Path:        info.Path,
+		ContentType: info.ContentType,
+		SizeBytes:   info.SizeBytes,
+		ObjectName:  info.ObjectName,
+	}, nil
+}
+
 func statusFromOutcome(outcome contracts.StepOutcome) string {
 	if outcome.Success {
 		return "completed"
@@ -1620,18 +1617,7 @@ func toStringIDs(ids []uuid.UUID) []string {
 	return out
 }
 
-func truncateRunes(s string, limit int) string {
-	if limit <= 0 {
-		return ""
-	}
-	runes := []rune(s)
-	if len(runes) <= limit {
-		return s
-	}
-	return string(runes[:limit])
-}
-
-func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, screenshotID *uuid.UUID, domSnapshotID *uuid.UUID, domSnapshotPreview string, artifactIDs []uuid.UUID) map[string]any {
+func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, screenshotID *uuid.UUID, artifactIDs []uuid.UUID) map[string]any {
 	payload := map[string]any{
 		"stepIndex":     outcome.StepIndex,
 		"nodeId":        outcome.NodeID,
@@ -1691,12 +1677,6 @@ func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, s
 	}
 	if screenshotID != nil {
 		payload["screenshotArtifactId"] = screenshotID.String()
-	}
-	if domSnapshotID != nil {
-		payload["domSnapshotArtifactId"] = domSnapshotID.String()
-	}
-	if domSnapshotPreview != "" {
-		payload["domSnapshotPreview"] = domSnapshotPreview
 	}
 	if len(artifactIDs) > 0 {
 		payload["artifactIds"] = toStringIDs(artifactIDs)

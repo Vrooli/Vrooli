@@ -168,14 +168,7 @@ func buildProtoActionTelemetry(tel *ActionTelemetry) *basdomain.ActionTelemetry 
 	}
 
 	// DOM snapshot
-	if tel.DOMSnapshot != nil {
-		if tel.DOMSnapshot.Preview != "" {
-			at.DomSnapshotPreview = &tel.DOMSnapshot.Preview
-		}
-		if tel.DOMSnapshot.HTML != "" {
-			at.DomSnapshotHtml = &tel.DOMSnapshot.HTML
-		}
-	}
+	// DOM snapshots are now stored as file-backed artifacts.
 
 	// Geometry
 	at.ElementBoundingBox = tel.BoundingBox
@@ -189,57 +182,7 @@ func buildProtoActionTelemetry(tel *ActionTelemetry) *basdomain.ActionTelemetry 
 		at.ZoomFactor = &tel.ZoomFactor
 	}
 
-	// Console logs
-	if len(tel.ConsoleLogs) > 0 {
-		at.ConsoleLogs = make([]*basdomain.ConsoleLogEntry, len(tel.ConsoleLogs))
-		for i, log := range tel.ConsoleLogs {
-			entry := &basdomain.ConsoleLogEntry{
-				Level: enums.StringToLogLevel(log.Type),
-				Text:  log.Text,
-			}
-			if log.Stack != "" {
-				entry.Stack = &log.Stack
-			}
-			if log.Location != "" {
-				entry.Location = &log.Location
-			}
-			if !log.Timestamp.IsZero() {
-				entry.Timestamp = contracts.TimeToTimestamp(log.Timestamp)
-			}
-			at.ConsoleLogs[i] = entry
-		}
-	}
-
-	// Network events
-	if len(tel.Network) > 0 {
-		at.NetworkEvents = make([]*basdomain.NetworkEvent, len(tel.Network))
-		for i, evt := range tel.Network {
-			event := &basdomain.NetworkEvent{
-				Type: enums.StringToNetworkEventType(evt.Type),
-				Url:  evt.URL,
-			}
-			if evt.Method != "" {
-				event.Method = &evt.Method
-			}
-			if evt.ResourceType != "" {
-				event.ResourceType = &evt.ResourceType
-			}
-			if evt.Status != 0 {
-				status := int32(evt.Status)
-				event.Status = &status
-			}
-			if evt.OK {
-				event.Ok = &evt.OK
-			}
-			if evt.Failure != "" {
-				event.Failure = &evt.Failure
-			}
-			if !evt.Timestamp.IsZero() {
-				event.Timestamp = contracts.TimeToTimestamp(evt.Timestamp)
-			}
-			at.NetworkEvents[i] = event
-		}
-	}
+	// Console and network telemetry are stored as file-backed artifacts.
 
 	return at
 }

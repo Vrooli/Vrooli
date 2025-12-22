@@ -172,6 +172,36 @@ func (f *FileStorage) StoreArtifactFromFile(_ context.Context, executionID uuid.
 		SizeBytes:   info.Size(),
 		ContentType: derivedType,
 		ObjectName:  objectName,
+		Path:        destPath,
+	}, nil
+}
+
+// StoreArtifact writes raw bytes to a specific object name.
+func (f *FileStorage) StoreArtifact(_ context.Context, objectName string, data []byte, contentType string) (*ArtifactInfo, error) {
+	path, err := f.objectPath(objectName)
+	if err != nil {
+		return nil, err
+	}
+	if err := f.ensureParent(path); err != nil {
+		return nil, fmt.Errorf("failed to ensure artifact directory: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return nil, fmt.Errorf("failed to write artifact: %w", err)
+	}
+	if contentType == "" {
+		if ext := filepath.Ext(path); ext != "" {
+			contentType = mime.TypeByExtension(ext)
+		}
+		if contentType == "" {
+			contentType = http.DetectContentType(data)
+		}
+	}
+	return &ArtifactInfo{
+		URL:         artifactURL(objectName),
+		SizeBytes:   int64(len(data)),
+		ContentType: contentType,
+		ObjectName:  objectName,
+		Path:        path,
 	}, nil
 }
 

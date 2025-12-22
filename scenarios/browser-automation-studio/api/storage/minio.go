@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"mime"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -213,6 +215,34 @@ func (m *MinIOClient) StoreArtifactFromFile(ctx context.Context, executionID uui
 		URL:         artifactURL(objectName),
 		SizeBytes:   info.Size(),
 		ContentType: derivedType,
+		ObjectName:  objectName,
+	}, nil
+}
+
+// StoreArtifact stores raw bytes at a specific object name in MinIO.
+func (m *MinIOClient) StoreArtifact(ctx context.Context, objectName string, data []byte, contentType string) (*ArtifactInfo, error) {
+	if strings.TrimSpace(objectName) == "" {
+		return nil, fmt.Errorf("object name is required")
+	}
+	if contentType == "" {
+		if ext := filepath.Ext(objectName); ext != "" {
+			contentType = mime.TypeByExtension(ext)
+		}
+		if contentType == "" {
+			contentType = http.DetectContentType(data)
+		}
+	}
+	reader := bytes.NewReader(data)
+	_, err := m.client.PutObject(ctx, m.bucketName, objectName, reader, int64(len(data)), minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to store artifact: %w", err)
+	}
+	return &ArtifactInfo{
+		URL:         artifactURL(objectName),
+		SizeBytes:   int64(len(data)),
+		ContentType: contentType,
 		ObjectName:  objectName,
 	}, nil
 }

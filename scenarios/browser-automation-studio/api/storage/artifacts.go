@@ -17,6 +17,7 @@ type ArtifactInfo struct {
 	SizeBytes   int64
 	ContentType string
 	ObjectName  string
+	Path        string
 }
 
 func artifactObjectName(executionID uuid.UUID, label string, ext string) string {

@@ -23,6 +23,7 @@ import type {
   TimelineLog as ProtoTimelineLog,
   TimelineArtifact as ProtoTimelineArtifact,
 } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
+import type { TelemetryArtifact as ProtoTelemetryArtifact } from '@vrooli/proto-types/browser-automation-studio/v1/domain/telemetry_pb';
 import { ExecuteWorkflowResponseSchema } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
 import { AssertionMode } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 import { create } from 'zustand';
@@ -298,6 +299,26 @@ const mapTimelineArtifactFromProto = (artifact?: ProtoTimelineArtifact): Timelin
   };
 };
 
+const mapTelemetryArtifactFromProto = (
+  type: string,
+  artifact?: ProtoTelemetryArtifact | null,
+): TimelineArtifact | undefined => {
+  if (!artifact) return undefined;
+  const payload: Record<string, unknown> = {};
+  if (artifact.path) {
+    payload.path = artifact.path;
+  }
+  return {
+    id: artifact.artifactId || createId(),
+    type,
+    label: type,
+    storage_url: artifact.storageUrl || undefined,
+    content_type: artifact.contentType || undefined,
+    size_bytes: toNumber(artifact.sizeBytes),
+    payload: Object.keys(payload).length > 0 ? payload : undefined,
+  };
+};
+
 /**
  * Map a TimelineEntry from proto to our TimelineFrame format.
  * This is the new unified format - TimelineFrame is now just a wrapper.
@@ -311,7 +332,11 @@ export const mapTimelineEntryToFrame = (entry: ProtoTimelineEntry): TimelineFram
 
   // Map artifacts from aggregates
   const artifacts = aggregates?.artifacts?.map((a) => mapTimelineArtifactFromProto(a)!).filter(Boolean) ?? [];
-  const domSnapshotArtifact = aggregates?.domSnapshot ? mapTimelineArtifactFromProto(aggregates.domSnapshot) : undefined;
+  const telemetryArtifacts = [
+    mapTelemetryArtifactFromProto('dom_snapshot', telemetry?.domSnapshot),
+    mapTelemetryArtifactFromProto('console', telemetry?.consoleLogArtifact),
+    mapTelemetryArtifactFromProto('network', telemetry?.networkEventArtifact),
+  ].filter(Boolean) as TimelineArtifact[];
 
   // Map screenshot from telemetry
   const screenshot = telemetry?.screenshot
@@ -390,10 +415,9 @@ export const mapTimelineEntryToFrame = (entry: ProtoTimelineEntry): TimelineFram
       callDurationMs: undefined, // Not in new proto
       error: h.error || undefined,
     })) ?? [],
-    domSnapshotPreview: aggregates?.domSnapshotPreview || undefined,
-    domSnapshotArtifactId: domSnapshotArtifact?.id || undefined,
+    domSnapshotArtifactId: telemetry?.domSnapshot?.artifactId || undefined,
     domSnapshotHtml: undefined, // Would need to fetch from artifact
-    artifacts: domSnapshotArtifact ? [...artifacts, domSnapshotArtifact] : artifacts,
+    artifacts: [...artifacts, ...telemetryArtifacts],
   };
 };
 

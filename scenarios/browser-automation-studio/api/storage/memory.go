@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -131,6 +132,30 @@ func (m *MemoryStorage) StoreArtifactFromFile(ctx context.Context, executionID u
 		URL:         artifactURL(objectName),
 		SizeBytes:   info.Size(),
 		ContentType: derivedType,
+		ObjectName:  objectName,
+	}, nil
+}
+
+// StoreArtifact stores raw bytes under a specific object name.
+func (m *MemoryStorage) StoreArtifact(ctx context.Context, objectName string, data []byte, contentType string) (*ArtifactInfo, error) {
+	if strings.TrimSpace(objectName) == "" {
+		return nil, fmt.Errorf("object name is required")
+	}
+	if contentType == "" {
+		contentType = http.DetectContentType(data)
+	}
+	m.mu.Lock()
+	m.objects[objectName] = memoryObject{
+		data:        append([]byte{}, data...),
+		contentType: contentType,
+		storedAt:    time.Now(),
+	}
+	m.mu.Unlock()
+
+	return &ArtifactInfo{
+		URL:         artifactURL(objectName),
+		SizeBytes:   int64(len(data)),
+		ContentType: contentType,
 		ObjectName:  objectName,
 	}, nil
 }

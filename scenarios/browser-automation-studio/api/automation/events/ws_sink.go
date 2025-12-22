@@ -392,9 +392,6 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.Tim
 	if outcome != nil && outcome.FinalURL != "" {
 		entry.Aggregates.FinalUrl = &outcome.FinalURL
 	}
-	if outcome != nil && outcome.DOMSnapshot != nil && outcome.DOMSnapshot.Preview != "" {
-		entry.Aggregates.DomSnapshotPreview = &outcome.DOMSnapshot.Preview
-	}
 	if outcome != nil && outcome.FocusedElement != nil {
 		entry.Aggregates.FocusedElement = convertElementFocus(outcome.FocusedElement)
 	}
