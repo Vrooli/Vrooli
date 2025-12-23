@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties, type Ref } from 'react';
+import { useEffect, useRef, type CSSProperties, type Ref, type ReactNode } from 'react';
 import clsx from 'clsx';
 import type { BackgroundDecor, ChromeDecor } from '../catalog';
 import type { ReplayLayoutModel, ReplayRect } from '@/domains/replay-layout';

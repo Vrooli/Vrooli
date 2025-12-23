@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { logger } from '@utils/logger';
-import { useAssetStore } from '@stores/assetStore';
 import type {
   ReplayBackgroundSource,
   ReplayBackgroundTheme,
@@ -10,19 +9,14 @@ import type {
   ReplayCursorTheme,
 } from '@/domains/replay-style';
 import {
-  REPLAY_BACKGROUND_OPTIONS,
   REPLAY_CHROME_OPTIONS,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
   REPLAY_CURSOR_OPTIONS,
   REPLAY_CURSOR_POSITIONS,
-  getReplayBackgroundOption,
   clampReplayBrowserScale,
   clampReplayCursorScale,
   getReplayBackgroundThemeId,
-  DEFAULT_REPLAY_GRADIENT_SPEC,
-  buildGradientPreviewStyle,
   useReplayStyle,
-  type BackgroundOption,
   type ClickAnimationOption,
   type CursorOption,
   type CursorPositionOption,
@@ -40,7 +34,6 @@ export interface ReplayCustomizationController {
   replayBrowserScale: number;
   replayRenderSource: ExportRenderSource;
   setReplayChromeTheme: (value: ReplayChromeTheme) => void;
-  setReplayBackgroundTheme: (value: ReplayBackgroundTheme) => void;
   setReplayBackground: (value: ReplayBackgroundSource) => void;
   setReplayCursorTheme: (value: ReplayCursorTheme) => void;
   setReplayCursorInitialPosition: (value: ReplayCursorInitialPosition) => void;
@@ -49,31 +42,21 @@ export interface ReplayCustomizationController {
   setReplayBrowserScale: (value: number) => void;
   setReplayRenderSource: (value: ExportRenderSource) => void;
   selectedChromeOption: (typeof REPLAY_CHROME_OPTIONS)[number];
-  selectedBackgroundOption: BackgroundOption;
   selectedCursorOption: CursorOption;
   selectedCursorPositionOption: CursorPositionOption;
   selectedCursorClickAnimationOption: ClickAnimationOption;
-  backgroundLabel: string;
-  backgroundSubtitle: string;
-  backgroundPreviewStyle: React.CSSProperties;
-  backgroundPreviewNode?: React.ReactNode;
-  backgroundOptionsByGroup: Record<BackgroundOption['kind'], BackgroundOption[]>;
   cursorOptionsByGroup: Record<CursorOption['group'], CursorOption[]>;
   isCustomizationCollapsed: boolean;
   setIsCustomizationCollapsed: (value: boolean) => void;
-  isBackgroundMenuOpen: boolean;
-  setIsBackgroundMenuOpen: (value: boolean) => void;
   isCursorMenuOpen: boolean;
   setIsCursorMenuOpen: (value: boolean) => void;
   isCursorPositionMenuOpen: boolean;
   setIsCursorPositionMenuOpen: (value: boolean) => void;
   isCursorClickAnimationMenuOpen: boolean;
   setIsCursorClickAnimationMenuOpen: (value: boolean) => void;
-  backgroundSelectorRef: React.MutableRefObject<HTMLDivElement | null>;
   cursorSelectorRef: React.MutableRefObject<HTMLDivElement | null>;
   cursorPositionSelectorRef: React.MutableRefObject<HTMLDivElement | null>;
   cursorClickAnimationSelectorRef: React.MutableRefObject<HTMLDivElement | null>;
-  handleBackgroundSelect: (option: BackgroundOption) => void;
   handleCursorThemeSelect: (value: ReplayCursorTheme) => void;
   handleCursorPositionSelect: (value: ReplayCursorInitialPosition) => void;
   handleCursorClickAnimationSelect: (value: ReplayCursorClickAnimation) => void;
@@ -146,7 +129,6 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     style,
     setChromeTheme,
     setBackground,
-    setBackgroundTheme,
     setCursorTheme,
     setCursorInitialPosition,
     setCursorClickAnimation,
@@ -157,13 +139,9 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
   } = useReplayStyle({ executionId, extraConfig });
 
   const [isCustomizationCollapsed, setIsCustomizationCollapsed] = useState(true);
-  const [isBackgroundMenuOpen, setIsBackgroundMenuOpen] = useState(false);
   const [isCursorMenuOpen, setIsCursorMenuOpen] = useState(false);
   const [isCursorPositionMenuOpen, setIsCursorPositionMenuOpen] = useState(false);
   const [isCursorClickAnimationMenuOpen, setIsCursorClickAnimationMenuOpen] = useState(false);
-  const { assets, isInitialized, initialize } = useAssetStore();
-
-  const backgroundSelectorRef = useRef<HTMLDivElement | null>(null);
   const cursorSelectorRef = useRef<HTMLDivElement | null>(null);
   const cursorPositionSelectorRef = useRef<HTMLDivElement | null>(null);
   const cursorClickAnimationSelectorRef = useRef<HTMLDivElement | null>(null);
@@ -171,12 +149,6 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
   useEffect(() => {
     persistToLocalStorage('browserAutomation.replayRenderSource', replayRenderSource, { executionId });
   }, [replayRenderSource, executionId]);
-
-  useEffect(() => {
-    if (!isInitialized) {
-      void initialize();
-    }
-  }, [initialize, isInitialized]);
 
   useEffect(() => {
     if (!isServerReady || hasAppliedServerRenderSource.current) {
@@ -189,10 +161,6 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     hasAppliedServerRenderSource.current = true;
   }, [hasUserEditedRenderSource, isServerReady, serverExtraConfig]);
 
-  useEffect(
-    () => setupDismissListeners(isBackgroundMenuOpen, backgroundSelectorRef, () => setIsBackgroundMenuOpen(false)),
-    [isBackgroundMenuOpen],
-  );
   useEffect(
     () => setupDismissListeners(isCursorMenuOpen, cursorSelectorRef, () => setIsCursorMenuOpen(false)),
     [isCursorMenuOpen],
@@ -220,24 +188,10 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     if (!isCustomizationCollapsed) {
       return;
     }
-    setIsBackgroundMenuOpen(false);
     setIsCursorMenuOpen(false);
     setIsCursorPositionMenuOpen(false);
     setIsCursorClickAnimationMenuOpen(false);
   }, [isCustomizationCollapsed]);
-
-  const backgroundOptionsByGroup = useMemo(() => {
-    const base: Record<BackgroundOption['kind'], BackgroundOption[]> = {
-      abstract: [],
-      solid: [],
-      minimal: [],
-      geometric: [],
-    };
-    for (const option of REPLAY_BACKGROUND_OPTIONS) {
-      base[option.kind].push(option);
-    }
-    return base;
-  }, []);
 
   const cursorOptionsByGroup = useMemo(() => {
     const base: Record<CursorOption['group'], CursorOption[]> = {
@@ -257,60 +211,6 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     [style.chromeTheme],
   );
 
-  const selectedBackgroundOption = useMemo<BackgroundOption>(() => {
-    if (style.background.type === 'theme') {
-      return getReplayBackgroundOption(style.background.id);
-    }
-    const fallbackThemeId = getReplayBackgroundThemeId(style.background);
-    return getReplayBackgroundOption(fallbackThemeId);
-  }, [style.background]);
-  const selectedBackgroundAsset = useMemo(() => {
-    const background = style.background;
-    if (background.type !== 'image') {
-      return null;
-    }
-    const assetId = background.assetId;
-    if (!assetId) {
-      return null;
-    }
-    return assets.find((asset) => asset.id === assetId) ?? null;
-  }, [assets, style.background]);
-
-  const backgroundSummary = useMemo(() => {
-    if (style.background.type === 'theme') {
-      return {
-        label: selectedBackgroundOption.label,
-        subtitle: selectedBackgroundOption.subtitle,
-        previewStyle: selectedBackgroundOption.previewStyle,
-        previewNode: selectedBackgroundOption.previewNode,
-      };
-    }
-    if (style.background.type === 'gradient') {
-      return {
-        label: 'Custom Gradient',
-        subtitle: 'Linear gradient blend',
-        previewStyle: buildGradientPreviewStyle(style.background.value ?? DEFAULT_REPLAY_GRADIENT_SPEC),
-        previewNode: undefined,
-      };
-    }
-    const fit = style.background.fit ?? 'cover';
-    const previewUrl = selectedBackgroundAsset?.thumbnail;
-    return {
-      label: selectedBackgroundAsset?.name ?? 'Background Image',
-      subtitle: selectedBackgroundAsset
-        ? `${selectedBackgroundAsset.width}x${selectedBackgroundAsset.height}`
-        : 'Select a brand asset',
-      previewStyle: previewUrl
-        ? {
-            backgroundImage: `url(${previewUrl})`,
-            backgroundSize: fit,
-            backgroundPosition: 'center',
-          }
-        : { backgroundColor: '#0b1120' },
-      previewNode: undefined,
-    };
-  }, [selectedBackgroundAsset, selectedBackgroundOption, style.background]);
-
   const selectedCursorOption = useMemo<CursorOption>(
     () => REPLAY_CURSOR_OPTIONS.find((option) => option.id === style.cursorTheme) || REPLAY_CURSOR_OPTIONS[0],
     [style.cursorTheme],
@@ -329,11 +229,6 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
       REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS[0],
     [style.cursorClickAnimation],
   );
-
-  const handleBackgroundSelect = useCallback((option: BackgroundOption) => {
-    setBackgroundTheme(option.id);
-    setIsBackgroundMenuOpen(false);
-  }, [setBackgroundTheme]);
 
   const handleCursorThemeSelect = useCallback((value: ReplayCursorTheme) => {
     setCursorTheme(value);
@@ -375,7 +270,6 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     replayBrowserScale: style.browserScale,
     replayRenderSource,
     setReplayChromeTheme: setChromeTheme,
-    setReplayBackgroundTheme: setBackgroundTheme,
     setReplayBackground: setBackground,
     setReplayCursorTheme: setCursorTheme,
     setReplayCursorInitialPosition: setCursorInitialPosition,
@@ -384,31 +278,21 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     setReplayBrowserScale: setBrowserScale,
     setReplayRenderSource,
     selectedChromeOption,
-    selectedBackgroundOption,
     selectedCursorOption,
     selectedCursorPositionOption,
     selectedCursorClickAnimationOption,
-    backgroundLabel: backgroundSummary.label,
-    backgroundSubtitle: backgroundSummary.subtitle,
-    backgroundPreviewStyle: backgroundSummary.previewStyle,
-    backgroundPreviewNode: backgroundSummary.previewNode,
-    backgroundOptionsByGroup,
     cursorOptionsByGroup,
     isCustomizationCollapsed,
     setIsCustomizationCollapsed,
-    isBackgroundMenuOpen,
-    setIsBackgroundMenuOpen,
     isCursorMenuOpen,
     setIsCursorMenuOpen,
     isCursorPositionMenuOpen,
     setIsCursorPositionMenuOpen,
     isCursorClickAnimationMenuOpen,
     setIsCursorClickAnimationMenuOpen,
-    backgroundSelectorRef,
     cursorSelectorRef,
     cursorPositionSelectorRef,
     cursorClickAnimationSelectorRef,
-    handleBackgroundSelect,
     handleCursorThemeSelect,
     handleCursorPositionSelect,
     handleCursorClickAnimationSelect,

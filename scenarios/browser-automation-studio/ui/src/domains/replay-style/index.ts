@@ -11,6 +11,7 @@ export * from './adapters/storage';
 export { ReplayCanvas } from './renderer/ReplayCanvas';
 export { ReplayCursorOverlay } from './renderer/ReplayCursorOverlay';
 export { ReplayStyleFrame } from './renderer/ReplayStyleFrame';
+export { ReplayBackgroundSettings } from './components/ReplayBackgroundSettings';
 export type {
   BackgroundDecor,
   BackgroundOption,

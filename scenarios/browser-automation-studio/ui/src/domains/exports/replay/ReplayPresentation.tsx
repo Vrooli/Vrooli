@@ -44,7 +44,6 @@ export function ReplayPresentation({
       backgroundDecor={model.backgroundDecor}
       chromeDecor={model.chromeDecor}
       layout={model.layout}
-      showInterfaceChrome={false}
       overlayNode={overlayNode}
       overlayTransformStyle={overlayTransformStyle}
       viewportContentRect={viewportContentRect}

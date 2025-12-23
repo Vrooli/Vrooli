@@ -55,7 +55,7 @@ export interface ChromeThemeOption {
   subtitle: string;
 }
 
-export type BackgroundKind = 'abstract' | 'solid' | 'minimal' | 'geometric';
+export type BackgroundKind = 'gradient' | 'solid' | 'pattern' | 'disabled';
 
 export interface BackgroundOption {
   id: ReplayBackgroundTheme;
@@ -105,7 +105,7 @@ export const REPLAY_BACKGROUND_OPTIONS: BackgroundOption[] = [
       backgroundImage:
         'linear-gradient(135deg, rgba(56,189,248,0.7), rgba(129,140,248,0.7))',
     },
-    kind: 'abstract',
+    kind: 'gradient',
   },
   {
     id: 'sunset',
@@ -116,7 +116,7 @@ export const REPLAY_BACKGROUND_OPTIONS: BackgroundOption[] = [
         'linear-gradient(135deg, rgba(244,114,182,0.9), rgba(251,191,36,0.88))',
       backgroundColor: '#43112d',
     },
-    kind: 'abstract',
+    kind: 'gradient',
   },
   {
     id: 'ocean',
@@ -126,7 +126,7 @@ export const REPLAY_BACKGROUND_OPTIONS: BackgroundOption[] = [
       backgroundImage:
         'linear-gradient(135deg, rgba(14,165,233,0.78), rgba(30,64,175,0.82))',
     },
-    kind: 'abstract',
+    kind: 'gradient',
   },
   {
     id: 'nebula',
@@ -136,7 +136,7 @@ export const REPLAY_BACKGROUND_OPTIONS: BackgroundOption[] = [
       backgroundImage:
         'linear-gradient(135deg, rgba(147,51,234,0.78), rgba(99,102,241,0.78))',
     },
-    kind: 'abstract',
+    kind: 'gradient',
   },
   {
     id: 'grid',
@@ -148,7 +148,7 @@ export const REPLAY_BACKGROUND_OPTIONS: BackgroundOption[] = [
         'linear-gradient(rgba(96,165,250,0.34) 1px, transparent 1px), linear-gradient(90deg, rgba(96,165,250,0.31) 1px, transparent 1px)',
       backgroundSize: '14px 14px',
     },
-    kind: 'abstract',
+    kind: 'pattern',
   },
   {
     id: 'charcoal',
@@ -187,7 +187,7 @@ export const REPLAY_BACKGROUND_OPTIONS: BackgroundOption[] = [
         'linear-gradient(45deg, rgba(148,163,184,0.35) 25%, transparent 25%, transparent 50%, rgba(148,163,184,0.35) 50%, rgba(148,163,184,0.35) 75%, transparent 75%, transparent)',
       backgroundSize: '10px 10px',
     },
-    kind: 'minimal',
+    kind: 'disabled',
   },
   {
     id: 'geoPrism',
@@ -208,7 +208,7 @@ export const REPLAY_BACKGROUND_OPTIONS: BackgroundOption[] = [
         <span className="absolute inset-0 bg-slate-950/45" />
       </span>
     ),
-    kind: 'geometric',
+    kind: 'pattern',
   },
   {
     id: 'geoOrbit',
@@ -229,7 +229,7 @@ export const REPLAY_BACKGROUND_OPTIONS: BackgroundOption[] = [
         <span className="absolute inset-0 bg-slate-950/45" />
       </span>
     ),
-    kind: 'geometric',
+    kind: 'pattern',
   },
   {
     id: 'geoMosaic',
@@ -250,7 +250,7 @@ export const REPLAY_BACKGROUND_OPTIONS: BackgroundOption[] = [
         <span className="absolute inset-0 bg-slate-950/45" />
       </span>
     ),
-    kind: 'geometric',
+    kind: 'pattern',
   },
 ];
 
@@ -258,10 +258,9 @@ export const BACKGROUND_GROUP_ORDER: Array<{
   id: BackgroundKind;
   label: string;
 }> = [
-  { id: 'abstract', label: 'Abstract' },
   { id: 'solid', label: 'Solid' },
-  { id: 'minimal', label: 'Minimal' },
-  { id: 'geometric', label: 'Geometric' },
+  { id: 'gradient', label: 'Gradient' },
+  { id: 'pattern', label: 'Pattern' },
 ];
 
 const HAND_POINTER_PATHS = [
