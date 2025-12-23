@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -207,7 +208,12 @@ func (r *CodexRunner) Capabilities() Capabilities {
 // Execute runs Codex with the given configuration.
 func (r *CodexRunner) Execute(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error) {
 	if !r.available {
-		return nil, fmt.Errorf("codex runner is not available: %s", r.message)
+		return nil, &domain.RunnerError{
+			RunnerType:  domain.RunnerTypeCodex,
+			Operation:   "availability",
+			Cause:       errors.New(r.message),
+			IsTransient: false,
+		}
 	}
 
 	// Use JSON streaming if available, otherwise fall back to wrapper
@@ -247,23 +253,39 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 	// Create pipes for stdout/stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Provide prompt via stdin
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stdin pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Start command
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start codex: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Emit starting event
@@ -278,7 +300,11 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 
 	// Write prompt and close stdin
 	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
-		return nil, fmt.Errorf("failed to write prompt: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 	stdin.Close()
 
@@ -405,23 +431,39 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 	// Create pipes for stdout/stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Provide prompt via stdin
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stdin pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Start command
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start resource-codex: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Emit starting event
@@ -436,7 +478,11 @@ func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest
 
 	// Write prompt and close stdin
 	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
-		return nil, fmt.Errorf("failed to write prompt: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeCodex,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 	stdin.Close()
 
@@ -529,7 +575,7 @@ func (r *CodexRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	r.mu.Unlock()
 
 	if !exists {
-		return fmt.Errorf("run %s not found", runID)
+		return domain.NewNotFoundErrorWithID("Run", runID.String())
 	}
 
 	// Try graceful termination first (SIGTERM)

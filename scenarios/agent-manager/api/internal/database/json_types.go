@@ -27,10 +27,10 @@ func (s *StringSlice) Scan(src interface{}) error {
 	case string:
 		data = []byte(v)
 	default:
-		return fmt.Errorf("cannot scan %T into StringSlice", src)
+		return scanTypeError("StringSlice", src)
 	}
 
-	return json.Unmarshal(data, s)
+	return wrapScanError("StringSlice", json.Unmarshal(data, s))
 }
 
 // Value implements driver.Valuer for StringSlice.
@@ -58,10 +58,10 @@ func (u *UUIDSlice) Scan(src interface{}) error {
 	case string:
 		data = []byte(v)
 	default:
-		return fmt.Errorf("cannot scan %T into UUIDSlice", src)
+		return scanTypeError("UUIDSlice", src)
 	}
 
-	return json.Unmarshal(data, u)
+	return wrapScanError("UUIDSlice", json.Unmarshal(data, u))
 }
 
 // Value implements driver.Valuer for UUIDSlice.
@@ -89,10 +89,10 @@ func (c *ContextAttachmentSlice) Scan(src interface{}) error {
 	case string:
 		data = []byte(v)
 	default:
-		return fmt.Errorf("cannot scan %T into ContextAttachmentSlice", src)
+		return scanTypeError("ContextAttachmentSlice", src)
 	}
 
-	return json.Unmarshal(data, c)
+	return wrapScanError("ContextAttachmentSlice", json.Unmarshal(data, c))
 }
 
 // Value implements driver.Valuer for ContextAttachmentSlice.
@@ -122,11 +122,11 @@ func (n *NullableRunSummary) Scan(src interface{}) error {
 	case string:
 		data = []byte(v)
 	default:
-		return fmt.Errorf("cannot scan %T into NullableRunSummary", src)
+		return scanTypeError("NullableRunSummary", src)
 	}
 
 	n.V = &domain.RunSummary{}
-	return json.Unmarshal(data, n.V)
+	return wrapScanError("NullableRunSummary", json.Unmarshal(data, n.V))
 }
 
 // Value implements driver.Valuer for NullableRunSummary.
@@ -156,11 +156,11 @@ func (n *NullableRunConfig) Scan(src interface{}) error {
 	case string:
 		data = []byte(v)
 	default:
-		return fmt.Errorf("cannot scan %T into NullableRunConfig", src)
+		return scanTypeError("NullableRunConfig", src)
 	}
 
 	n.V = &domain.RunConfig{}
-	return json.Unmarshal(data, n.V)
+	return wrapScanError("NullableRunConfig", json.Unmarshal(data, n.V))
 }
 
 // Value implements driver.Valuer for NullableRunConfig.
@@ -190,10 +190,10 @@ func (p *PolicyRulesJSON) Scan(src interface{}) error {
 	case string:
 		data = []byte(v)
 	default:
-		return fmt.Errorf("cannot scan %T into PolicyRulesJSON", src)
+		return scanTypeError("PolicyRulesJSON", src)
 	}
 
-	return json.Unmarshal(data, &p.V)
+	return wrapScanError("PolicyRulesJSON", json.Unmarshal(data, &p.V))
 }
 
 // Value implements driver.Valuer for PolicyRulesJSON.
@@ -221,13 +221,13 @@ func (e *EventDataJSON) Scan(src interface{}) error {
 	case string:
 		data = []byte(v)
 	default:
-		return fmt.Errorf("cannot scan %T into EventDataJSON", src)
+		return scanTypeError("EventDataJSON", src)
 	}
 
 	// Parse into legacy RunEventData first, then convert
 	var legacy domain.RunEventData
 	if err := json.Unmarshal(data, &legacy); err != nil {
-		return err
+		return wrapScanError("EventDataJSON", err)
 	}
 	e.V = legacy.ToTypedPayload()
 	return nil
@@ -258,10 +258,10 @@ func (m *MetadataMap) Scan(src interface{}) error {
 	case string:
 		data = []byte(v)
 	default:
-		return fmt.Errorf("cannot scan %T into MetadataMap", src)
+		return scanTypeError("MetadataMap", src)
 	}
 
-	return json.Unmarshal(data, m)
+	return wrapScanError("MetadataMap", json.Unmarshal(data, m))
 }
 
 // Value implements driver.Valuer for MetadataMap.
@@ -301,7 +301,11 @@ func parseTimeString(s string) (time.Time, error) {
 			return t, nil
 		}
 	}
-	return time.Time{}, fmt.Errorf("cannot parse time string %q", s)
+	return time.Time{}, &domain.DatabaseError{
+		Operation:  "parse_time",
+		EntityType: "Time",
+		Cause:      fmt.Errorf("cannot parse time string %q", s),
+	}
 }
 
 // SQLiteTime is a time.Time that can be scanned from SQLite TEXT columns.
@@ -334,7 +338,7 @@ func (t *SQLiteTime) Scan(src interface{}) error {
 		*t = SQLiteTime(parsed)
 		return nil
 	default:
-		return fmt.Errorf("cannot scan %T into SQLiteTime", src)
+		return scanTypeError("SQLiteTime", src)
 	}
 }
 
@@ -375,7 +379,11 @@ func (n *NullableTime) Scan(src interface{}) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("cannot parse time string %q into NullableTime", v)
+		return &domain.DatabaseError{
+			Operation:  "parse_time",
+			EntityType: "NullableTime",
+			Cause:      fmt.Errorf("cannot parse time string %q into NullableTime", v),
+		}
 	case []byte:
 		// Some drivers return []byte for strings
 		s := string(v)
@@ -386,9 +394,13 @@ func (n *NullableTime) Scan(src interface{}) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("cannot parse time bytes %q into NullableTime", s)
+		return &domain.DatabaseError{
+			Operation:  "parse_time",
+			EntityType: "NullableTime",
+			Cause:      fmt.Errorf("cannot parse time bytes %q into NullableTime", s),
+		}
 	default:
-		return fmt.Errorf("cannot scan %T into NullableTime", src)
+		return scanTypeError("NullableTime", src)
 	}
 }
 
@@ -435,7 +447,7 @@ func (n *NullableUUID) Scan(src interface{}) error {
 	case []byte:
 		parsed, err := uuid.ParseBytes(v)
 		if err != nil {
-			return err
+			return wrapScanError("NullableUUID", err)
 		}
 		n.UUID = parsed
 		n.Valid = true
@@ -443,13 +455,35 @@ func (n *NullableUUID) Scan(src interface{}) error {
 	case string:
 		parsed, err := uuid.Parse(v)
 		if err != nil {
-			return err
+			return wrapScanError("NullableUUID", err)
 		}
 		n.UUID = parsed
 		n.Valid = true
 		return nil
 	default:
-		return fmt.Errorf("cannot scan %T into NullableUUID", src)
+		return scanTypeError("NullableUUID", src)
+	}
+}
+
+func scanTypeError(target string, src interface{}) error {
+	return &domain.DatabaseError{
+		Operation:  "scan",
+		EntityType: target,
+		Cause:      fmt.Errorf("cannot scan %T into %s", src, target),
+	}
+}
+
+func wrapScanError(entityType string, err error) error {
+	if err == nil {
+		return nil
+	}
+	if domain.AsDomainError(err) != nil {
+		return err
+	}
+	return &domain.DatabaseError{
+		Operation:  "scan",
+		EntityType: entityType,
+		Cause:      err,
 	}
 }
 

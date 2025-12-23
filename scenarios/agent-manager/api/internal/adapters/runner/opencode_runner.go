@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -116,7 +117,12 @@ func (r *OpenCodeRunner) Capabilities() Capabilities {
 // Execute runs OpenCode with the given configuration.
 func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error) {
 	if !r.available {
-		return nil, fmt.Errorf("opencode runner is not available: %s", r.message)
+		return nil, &domain.RunnerError{
+			RunnerType:  domain.RunnerTypeOpenCode,
+			Operation:   "availability",
+			Cause:       errors.New(r.message),
+			IsTransient: false,
+		}
 	}
 
 	startTime := time.Now()
@@ -151,24 +157,40 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 	// Create pipes for stdout/stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeOpenCode,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeOpenCode,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Create stdin pipe and close it immediately after start
 	// This signals to OpenCode that there's no additional input coming
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stdin pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeOpenCode,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Start command
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start resource-opencode: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeOpenCode,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Close stdin immediately - we pass prompt via command line args
@@ -332,7 +354,7 @@ func (r *OpenCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	r.mu.Unlock()
 
 	if !exists {
-		return fmt.Errorf("run %s not found", runID)
+		return domain.NewNotFoundErrorWithID("Run", runID.String())
 	}
 
 	// Try graceful termination first (SIGTERM)
@@ -548,7 +570,7 @@ func (r *OpenCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*dom
 
 	var streamEvent OpenCodeStreamEvent
 	if err := json.Unmarshal([]byte(line), &streamEvent); err != nil {
-		return nil, fmt.Errorf("invalid JSON: %w", err)
+		return nil, domain.NewInternalError("invalid opencode JSON", err)
 	}
 
 	// Handle error events

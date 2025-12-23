@@ -7,7 +7,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -47,14 +46,14 @@ func (r *MemoryProfileRepository) Create(ctx context.Context, profile *domain.Ag
 	}
 
 	if _, exists := r.profiles[profile.ID]; exists {
-		return fmt.Errorf("profile already exists: %s", profile.ID)
+		return domain.NewValidationErrorWithCode("profile.id", "already exists", domain.ErrCodeValidationConflict)
 	}
 	if _, exists := r.byName[profile.Name]; exists {
-		return fmt.Errorf("profile name already exists: %s", profile.Name)
+		return domain.NewValidationErrorWithCode("profile.name", "already exists", domain.ErrCodeValidationConflict)
 	}
 	if profileKey != "" {
 		if _, exists := r.byKey[profileKey]; exists {
-			return fmt.Errorf("profile key already exists: %s", profileKey)
+			return domain.NewValidationErrorWithCode("profile.profileKey", "already exists", domain.ErrCodeValidationConflict)
 		}
 	}
 
@@ -139,7 +138,7 @@ func (r *MemoryProfileRepository) Update(ctx context.Context, profile *domain.Ag
 
 	existing, exists := r.profiles[profile.ID]
 	if !exists {
-		return fmt.Errorf("profile not found: %s", profile.ID)
+		return domain.NewNotFoundError("AgentProfile", profile.ID)
 	}
 
 	profileKey := strings.TrimSpace(profile.ProfileKey)
@@ -211,7 +210,7 @@ func (r *MemoryTaskRepository) Create(ctx context.Context, task *domain.Task) er
 	defer r.mu.Unlock()
 
 	if _, exists := r.tasks[task.ID]; exists {
-		return fmt.Errorf("task already exists: %s", task.ID)
+		return domain.NewValidationErrorWithCode("task.id", "already exists", domain.ErrCodeValidationConflict)
 	}
 
 	copy := *task
@@ -284,7 +283,7 @@ func (r *MemoryTaskRepository) Update(ctx context.Context, task *domain.Task) er
 	defer r.mu.Unlock()
 
 	if _, exists := r.tasks[task.ID]; !exists {
-		return fmt.Errorf("task not found: %s", task.ID)
+		return domain.NewNotFoundError("Task", task.ID)
 	}
 
 	copy := *task
@@ -325,7 +324,7 @@ func (r *MemoryRunRepository) Create(ctx context.Context, run *domain.Run) error
 	defer r.mu.Unlock()
 
 	if _, exists := r.runs[run.ID]; exists {
-		return fmt.Errorf("run already exists: %s", run.ID)
+		return domain.NewValidationErrorWithCode("run.id", "already exists", domain.ErrCodeValidationConflict)
 	}
 
 	copy := *run
@@ -401,7 +400,7 @@ func (r *MemoryRunRepository) Update(ctx context.Context, run *domain.Run) error
 	defer r.mu.Unlock()
 
 	if _, exists := r.runs[run.ID]; !exists {
-		return fmt.Errorf("run not found: %s", run.ID)
+		return domain.NewNotFoundError("Run", run.ID)
 	}
 
 	copy := *run
@@ -654,7 +653,7 @@ func (r *MemoryIdempotencyRepository) Reserve(ctx context.Context, key string, t
 	// Check if key already exists and is not expired
 	if existing, exists := r.records[key]; exists {
 		if time.Now().Before(existing.ExpiresAt) {
-			return nil, fmt.Errorf("idempotency key already reserved: %s", key)
+			return nil, domain.NewValidationErrorWithCode("idempotencyKey", "already reserved", domain.ErrCodeValidationConflict)
 		}
 	}
 
@@ -676,7 +675,7 @@ func (r *MemoryIdempotencyRepository) Complete(ctx context.Context, key string, 
 
 	rec, exists := r.records[key]
 	if !exists {
-		return fmt.Errorf("idempotency record not found: %s", key)
+		return domain.NewNotFoundErrorWithID("IdempotencyRecord", key)
 	}
 
 	rec.Status = domain.IdempotencyStatusComplete

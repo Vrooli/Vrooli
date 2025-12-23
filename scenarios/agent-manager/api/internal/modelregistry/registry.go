@@ -2,7 +2,6 @@ package modelregistry
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,12 +20,12 @@ type ModelOption struct {
 
 func (m *ModelOption) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 {
-		return errors.New("model option payload is empty")
+		return domain.NewValidationErrorWithCode("modelOption", "payload is empty", domain.ErrCodeValidationRequired)
 	}
 	if data[0] == '"' {
 		var id string
 		if err := json.Unmarshal(data, &id); err != nil {
-			return err
+			return domain.NewValidationErrorWithCode("modelOption", "invalid string payload", domain.ErrCodeValidationFormat)
 		}
 		m.ID = strings.TrimSpace(id)
 		m.Description = ""
@@ -38,7 +37,7 @@ func (m *ModelOption) UnmarshalJSON(data []byte) error {
 		Description string `json:"description,omitempty"`
 	}
 	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
+		return domain.NewValidationErrorWithCode("modelOption", "invalid object payload", domain.ErrCodeValidationFormat)
 	}
 	m.ID = strings.TrimSpace(aux.ID)
 	m.Description = strings.TrimSpace(aux.Description)
@@ -100,13 +99,13 @@ func (r *Registry) Clone() *Registry {
 
 func (r *Registry) Validate() error {
 	if r == nil {
-		return errors.New("model registry is required")
+		return domain.NewValidationErrorWithCode("modelRegistry", "field is required", domain.ErrCodeValidationRequired)
 	}
 	if r.Version <= 0 {
-		return errors.New("model registry version must be greater than zero")
+		return domain.NewValidationError("modelRegistry.version", "must be greater than zero")
 	}
 	if len(r.Runners) == 0 {
-		return errors.New("model registry must define at least one runner")
+		return domain.NewValidationError("modelRegistry.runners", "must define at least one runner")
 	}
 
 	if err := validateFallbackRunnerTypes(r.FallbackRunnerTypes); err != nil {
@@ -115,17 +114,17 @@ func (r *Registry) Validate() error {
 
 	for runnerKey, runner := range r.Runners {
 		if strings.TrimSpace(runnerKey) == "" {
-			return errors.New("runner key cannot be empty")
+			return domain.NewValidationError("modelRegistry.runners", "runner key cannot be empty")
 		}
 
 		seen := make(map[string]struct{}, len(runner.Models))
 		for _, model := range runner.Models {
 			id := strings.TrimSpace(model.ID)
 			if id == "" {
-				return fmt.Errorf("runner %s has a model with empty id", runnerKey)
+				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".models", "model id cannot be empty")
 			}
 			if _, exists := seen[id]; exists {
-				return fmt.Errorf("runner %s has duplicate model id %s", runnerKey, id)
+				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".models", fmt.Sprintf("duplicate model id %s", id))
 			}
 			seen[id] = struct{}{}
 		}
@@ -133,17 +132,17 @@ func (r *Registry) Validate() error {
 		for presetKey, modelID := range runner.Presets {
 			key := strings.ToUpper(strings.TrimSpace(presetKey))
 			if key == "" {
-				return fmt.Errorf("runner %s has an empty preset key", runnerKey)
+				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".presets", "preset key cannot be empty")
 			}
 			if !isKnownPreset(key) {
-				return fmt.Errorf("runner %s has invalid preset key %s", runnerKey, key)
+				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".presets", fmt.Sprintf("invalid preset key %s", key))
 			}
 			modelID = strings.TrimSpace(modelID)
 			if modelID == "" {
-				return fmt.Errorf("runner %s preset %s has empty model id", runnerKey, key)
+				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".presets", "preset model id cannot be empty")
 			}
 			if _, exists := seen[modelID]; !exists {
-				return fmt.Errorf("runner %s preset %s references unknown model %s", runnerKey, key, modelID)
+				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".presets", fmt.Sprintf("unknown model id %s", modelID))
 			}
 		}
 	}
@@ -159,13 +158,13 @@ func validateFallbackRunnerTypes(values []string) error {
 	for _, value := range values {
 		trimmed := strings.TrimSpace(value)
 		if trimmed == "" {
-			return errors.New("fallbackRunnerTypes contains empty runner type")
+			return domain.NewValidationError("fallbackRunnerTypes", "contains empty runner type")
 		}
 		if !domain.RunnerType(trimmed).IsValid() {
-			return fmt.Errorf("fallbackRunnerTypes contains invalid runner type %s", trimmed)
+			return domain.NewValidationError("fallbackRunnerTypes", fmt.Sprintf("contains invalid runner type %s", trimmed))
 		}
 		if _, exists := seen[trimmed]; exists {
-			return fmt.Errorf("fallbackRunnerTypes contains duplicate runner type %s", trimmed)
+			return domain.NewValidationError("fallbackRunnerTypes", fmt.Sprintf("contains duplicate runner type %s", trimmed))
 		}
 		seen[trimmed] = struct{}{}
 	}
@@ -204,7 +203,7 @@ func (s *Store) Get() *Registry {
 
 func (s *Store) Update(registry *Registry) (*Registry, error) {
 	if registry == nil {
-		return nil, errors.New("model registry is required")
+		return nil, domain.NewValidationErrorWithCode("modelRegistry", "field is required", domain.ErrCodeValidationRequired)
 	}
 	if err := registry.Validate(); err != nil {
 		return nil, err
@@ -237,12 +236,12 @@ func (s *Store) ResolvePreset(runner string, preset string) (string, bool) {
 func Load(path string) (*Registry, error) {
 	bytes, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read model registry: %w", err)
+		return nil, domain.NewConfigInvalidError("modelRegistry", "failed to read model registry", err)
 	}
 
 	var registry Registry
 	if err := json.Unmarshal(bytes, &registry); err != nil {
-		return nil, fmt.Errorf("parse model registry: %w", err)
+		return nil, domain.NewConfigInvalidError("modelRegistry", "failed to parse model registry", err)
 	}
 	if err := registry.Validate(); err != nil {
 		return nil, err
@@ -253,21 +252,21 @@ func Load(path string) (*Registry, error) {
 // Save writes the model registry to disk.
 func Save(path string, registry *Registry) error {
 	if registry == nil {
-		return errors.New("model registry is required")
+		return domain.NewValidationErrorWithCode("modelRegistry", "field is required", domain.ErrCodeValidationRequired)
 	}
 	if err := registry.Validate(); err != nil {
 		return err
 	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("ensure model registry dir: %w", err)
+		return domain.NewConfigInvalidError("modelRegistry", "failed to create model registry directory", err)
 	}
 	payload, err := json.MarshalIndent(registry, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshal model registry: %w", err)
+		return domain.NewConfigInvalidError("modelRegistry", "failed to marshal model registry", err)
 	}
 	if err := os.WriteFile(path, payload, 0o644); err != nil {
-		return fmt.Errorf("write model registry: %w", err)
+		return domain.NewConfigInvalidError("modelRegistry", "failed to write model registry", err)
 	}
 	return nil
 }

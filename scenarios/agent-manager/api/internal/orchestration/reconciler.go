@@ -140,7 +140,7 @@ func (r *Reconciler) Start(ctx context.Context) error {
 	r.mu.Lock()
 	if r.running {
 		r.mu.Unlock()
-		return fmt.Errorf("reconciler already running")
+		return domain.NewStateError("Reconciler", "running", "start", "already running")
 	}
 	r.running = true
 	r.stopCh = make(chan struct{})
@@ -536,6 +536,7 @@ func extractTagFromEnv(pid int) string {
 
 	return ""
 }
+
 // looksLikeAgentManagerTag checks if a tag looks like it was created by agent-manager.
 func looksLikeAgentManagerTag(tag string) bool {
 	// Check if it's a UUID

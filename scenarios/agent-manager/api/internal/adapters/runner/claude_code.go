@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -125,7 +126,12 @@ func (r *ClaudeCodeRunner) Capabilities() Capabilities {
 // Execute runs Claude Code with the given configuration.
 func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error) {
 	if !r.available {
-		return nil, fmt.Errorf("claude-code runner is not available: %s", r.message)
+		return nil, &domain.RunnerError{
+			RunnerType:  domain.RunnerTypeClaudeCode,
+			Operation:   "availability",
+			Cause:       errors.New(r.message),
+			IsTransient: false,
+		}
 	}
 
 	startTime := time.Now()
@@ -153,23 +159,39 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	// Create pipes for stdout/stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Provide prompt via stdin
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create stdin pipe: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Start command
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start resource-claude-code: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 
 	// Emit starting event
@@ -184,7 +206,11 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 
 	// Write prompt and close stdin
 	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
-		return nil, fmt.Errorf("failed to write prompt: %w", err)
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Operation:  "execute",
+			Cause:      err,
+		}
 	}
 	stdin.Close()
 
@@ -299,7 +325,7 @@ func (r *ClaudeCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	r.mu.Unlock()
 
 	if !exists {
-		return fmt.Errorf("run %s not found", runID)
+		return domain.NewNotFoundErrorWithID("Run", runID.String())
 	}
 
 	// Try graceful termination first (SIGTERM)

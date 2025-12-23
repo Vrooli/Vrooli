@@ -154,7 +154,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
 		r.log.WithError(err).Error("Failed to create run")
-		return fmt.Errorf("failed to create run: %w", err)
+		return wrapDBError("create", "Run", run.ID.String(), err)
 	}
 	return nil
 }
@@ -166,7 +166,7 @@ func (r *runRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Run, err
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get run: %w", err)
+		return nil, wrapDBError("get", "Run", id.String(), err)
 	}
 	return row.toDomain(), nil
 }
@@ -204,7 +204,7 @@ func (r *runRepository) List(ctx context.Context, filter repository.RunListFilte
 
 	var rows []runRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to list runs: %w", err)
+		return nil, wrapDBError("list", "Run", "", err)
 	}
 
 	result := make([]*domain.Run, len(rows))
@@ -238,7 +238,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
-		return fmt.Errorf("failed to update run: %w", err)
+		return wrapDBError("update", "Run", run.ID.String(), err)
 	}
 	return nil
 }
@@ -247,7 +247,7 @@ func (r *runRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := r.db.Rebind(`DELETE FROM runs WHERE id = ?`)
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to delete run: %w", err)
+		return wrapDBError("delete", "Run", id.String(), err)
 	}
 	return nil
 }
@@ -256,7 +256,7 @@ func (r *runRepository) CountByStatus(ctx context.Context, status domain.RunStat
 	query := r.db.Rebind(`SELECT COUNT(*) FROM runs WHERE status = ?`)
 	var count int
 	if err := r.db.GetContext(ctx, &count, query, string(status)); err != nil {
-		return 0, fmt.Errorf("failed to count runs by status: %w", err)
+		return 0, wrapDBError("count_by_status", "Run", string(status), err)
 	}
 	return count, nil
 }
@@ -310,7 +310,7 @@ func (r *eventRepository) Append(ctx context.Context, runID uuid.UUID, events ..
 	var maxSeq int64
 	query := r.db.Rebind(`SELECT COALESCE(MAX(sequence), -1) FROM run_events WHERE run_id = ?`)
 	if err := r.db.GetContext(ctx, &maxSeq, query, runID); err != nil {
-		return fmt.Errorf("failed to get max sequence: %w", err)
+		return wrapDBError("get_max_sequence", "RunEvent", runID.String(), err)
 	}
 
 	for _, evt := range events {
@@ -326,7 +326,7 @@ func (r *eventRepository) Append(ctx context.Context, runID uuid.UUID, events ..
 
 		data, err := json.Marshal(evt.Data)
 		if err != nil {
-			return fmt.Errorf("failed to marshal event data: %w", err)
+			return wrapDBError("marshal_event", "RunEvent", runID.String(), err)
 		}
 
 		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, data)
@@ -349,7 +349,7 @@ func (r *eventRepository) Append(ctx context.Context, runID uuid.UUID, events ..
 		}
 
 		if _, err := r.db.NamedExecContext(ctx, insertQuery, row); err != nil {
-			return fmt.Errorf("failed to insert event: %w", err)
+			return wrapDBError("insert_event", "RunEvent", runID.String(), err)
 		}
 	}
 
@@ -368,7 +368,7 @@ func (r *eventRepository) Get(ctx context.Context, runID uuid.UUID, afterSequenc
 
 	var rows []eventRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to get events: %w", err)
+		return nil, wrapDBError("get_events", "RunEvent", runID.String(), err)
 	}
 
 	result := make([]*domain.RunEvent, len(rows))
@@ -402,7 +402,7 @@ func (r *eventRepository) GetByType(ctx context.Context, runID uuid.UUID, types 
 
 	var rows []eventRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to get events by type: %w", err)
+		return nil, wrapDBError("get_events_by_type", "RunEvent", runID.String(), err)
 	}
 
 	result := make([]*domain.RunEvent, len(rows))
@@ -416,7 +416,7 @@ func (r *eventRepository) Count(ctx context.Context, runID uuid.UUID) (int64, er
 	query := r.db.Rebind(`SELECT COUNT(*) FROM run_events WHERE run_id = ?`)
 	var count int64
 	if err := r.db.GetContext(ctx, &count, query, runID); err != nil {
-		return 0, fmt.Errorf("failed to count events: %w", err)
+		return 0, wrapDBError("count_events", "RunEvent", runID.String(), err)
 	}
 	return count, nil
 }
@@ -425,7 +425,7 @@ func (r *eventRepository) Delete(ctx context.Context, runID uuid.UUID) error {
 	query := r.db.Rebind(`DELETE FROM run_events WHERE run_id = ?`)
 	_, err := r.db.ExecContext(ctx, query, runID)
 	if err != nil {
-		return fmt.Errorf("failed to delete events: %w", err)
+		return wrapDBError("delete_events", "RunEvent", runID.String(), err)
 	}
 	return nil
 }

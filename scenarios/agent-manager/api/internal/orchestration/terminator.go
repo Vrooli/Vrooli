@@ -105,7 +105,7 @@ func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*Terminate
 	// Get the run
 	run, err := t.runs.Get(ctx, runID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get run: %w", err)
+		return nil, err
 	}
 	if run == nil {
 		return nil, domain.NewNotFoundError("Run", runID)
@@ -210,10 +210,10 @@ func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*Terminate
 		run.UpdatedAt = now
 		if err := t.runs.Update(ctx, run); err != nil {
 			// Log but don't fail - the process is dead
-			result.Error = fmt.Errorf("process terminated but failed to update DB: %w", err)
+			result.Error = err
 		}
 	} else {
-		result.Error = fmt.Errorf("failed to terminate run after %d attempts", result.Attempts)
+		result.Error = domain.NewInternalError(fmt.Sprintf("failed to terminate run after %d attempts", result.Attempts), nil)
 	}
 
 	return result, nil
@@ -282,7 +282,7 @@ func (t *Terminator) TerminateByTag(ctx context.Context, tag string) (*Terminate
 
 	result.Duration = time.Since(start)
 	if !result.Success {
-		result.Error = fmt.Errorf("failed to terminate process with tag %s after %d attempts", tag, result.Attempts)
+		result.Error = domain.NewInternalError(fmt.Sprintf("failed to terminate process with tag %s after %d attempts", tag, result.Attempts), nil)
 	}
 
 	return result, nil

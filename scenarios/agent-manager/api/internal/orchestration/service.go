@@ -502,7 +502,7 @@ func (o *Orchestrator) CreateProfile(ctx context.Context, profile *domain.AgentP
 	}
 
 	if err := o.profiles.Create(ctx, profile); err != nil {
-		return nil, fmt.Errorf("failed to create profile: %w", err)
+		return nil, err
 	}
 
 	return profile, nil
@@ -534,7 +534,7 @@ func (o *Orchestrator) UpdateProfile(ctx context.Context, profile *domain.AgentP
 	}
 
 	if err := o.profiles.Update(ctx, profile); err != nil {
-		return nil, fmt.Errorf("failed to update profile: %w", err)
+		return nil, err
 	}
 	return profile, nil
 }
@@ -553,7 +553,7 @@ func (o *Orchestrator) EnsureProfile(ctx context.Context, req EnsureProfileReque
 
 	existing, err := o.profiles.GetByKey(ctx, key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get profile by key: %w", err)
+		return nil, err
 	}
 
 	if existing != nil && !req.UpdateExisting {
@@ -583,7 +583,7 @@ func (o *Orchestrator) EnsureProfile(ctx context.Context, req EnsureProfileReque
 			return nil, err
 		}
 		if err := o.profiles.Create(ctx, &candidate); err != nil {
-			return nil, fmt.Errorf("failed to create profile: %w", err)
+			return nil, err
 		}
 		return &EnsureProfileResult{Profile: &candidate, Created: true}, nil
 	}
@@ -599,7 +599,7 @@ func (o *Orchestrator) EnsureProfile(ctx context.Context, req EnsureProfileReque
 		return nil, err
 	}
 	if err := o.profiles.Update(ctx, &candidate); err != nil {
-		return nil, fmt.Errorf("failed to update profile: %w", err)
+		return nil, err
 	}
 
 	return &EnsureProfileResult{Profile: &candidate, Updated: true}, nil
@@ -636,7 +636,7 @@ func (o *Orchestrator) CreateTask(ctx context.Context, task *domain.Task) (*doma
 	task.UpdatedAt = task.CreatedAt
 
 	if err := o.tasks.Create(ctx, task); err != nil {
-		return nil, fmt.Errorf("failed to create task: %w", err)
+		return nil, err
 	}
 
 	return task, nil
@@ -683,7 +683,7 @@ func (o *Orchestrator) UpdateTask(ctx context.Context, task *domain.Task) (*doma
 	updated.UpdatedAt = time.Now()
 
 	if err := o.tasks.Update(ctx, &updated); err != nil {
-		return nil, fmt.Errorf("failed to update task: %w", err)
+		return nil, err
 	}
 	return &updated, nil
 }
@@ -725,7 +725,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	if req.IdempotencyKey != "" && o.idempotency != nil {
 		existing, err := o.idempotency.Check(ctx, req.IdempotencyKey)
 		if err != nil {
-			return nil, fmt.Errorf("idempotency check failed: %w", err)
+			return nil, err
 		}
 		if existing != nil {
 			// Request already processed - return cached result
@@ -754,12 +754,12 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		runningCount, err := o.runs.CountByStatus(ctx, domain.RunStatusRunning)
 		if err != nil {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-			return nil, fmt.Errorf("failed to count running runs: %w", err)
+			return nil, err
 		}
 		startingCount, err := o.runs.CountByStatus(ctx, domain.RunStatusStarting)
 		if err != nil {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-			return nil, fmt.Errorf("failed to count starting runs: %w", err)
+			return nil, err
 		}
 
 		activeCount := runningCount + startingCount
@@ -804,7 +804,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		})
 		if err != nil {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-			return nil, fmt.Errorf("policy evaluation failed: %w", err)
+			return nil, domain.NewInternalError("policy evaluation failed", err)
 		}
 		if !policyDecision.Allowed {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
@@ -836,13 +836,13 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		}
 		if o.sandbox == nil {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-			return nil, fmt.Errorf("sandbox provider not configured")
+			return nil, domain.NewConfigMissingError("sandbox", "provider not configured", nil)
 		}
 
 		sbx, err := o.sandbox.Get(ctx, *req.ExistingSandboxID)
 		if err != nil {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-			return nil, fmt.Errorf("get sandbox %s: %w", req.ExistingSandboxID.String(), err)
+			return nil, err
 		}
 		switch sbx.Status {
 		case sandbox.SandboxStatusDeleted, sandbox.SandboxStatusRejected, sandbox.SandboxStatusApproved, sandbox.SandboxStatusError:
@@ -852,7 +852,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		case sandbox.SandboxStatusStopped:
 			if err := o.sandbox.Start(ctx, sbx.ID); err != nil {
 				o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-				return nil, fmt.Errorf("start sandbox %s: %w", sbx.ID.String(), err)
+				return nil, err
 			}
 		}
 
@@ -873,7 +873,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 			workDir, err := o.sandbox.GetWorkspacePath(ctx, sbx.ID)
 			if err != nil {
 				o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-				return nil, fmt.Errorf("get sandbox workdir %s: %w", sbx.ID.String(), err)
+				return nil, err
 			}
 			existingSandboxWorkDir = workDir
 		}
@@ -905,7 +905,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 
 	if err := o.runs.Create(ctx, run); err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-		return nil, fmt.Errorf("failed to create run: %w", err)
+		return nil, err
 	}
 
 	// Mark idempotency as complete
@@ -1161,7 +1161,7 @@ func (o *Orchestrator) StopAllRuns(ctx context.Context, opts StopAllOptions) (*S
 		TagPrefix: opts.TagPrefix,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list running runs: %w", err)
+		return nil, err
 	}
 
 	// Also get starting runs
@@ -1171,7 +1171,7 @@ func (o *Orchestrator) StopAllRuns(ctx context.Context, opts StopAllOptions) (*S
 		TagPrefix: opts.TagPrefix,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list starting runs: %w", err)
+		return nil, err
 	}
 	runs = append(runs, startingRuns...)
 
@@ -1226,7 +1226,7 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 	if o.runners != nil && runnerType != "" {
 		if r, err := o.runners.Get(runnerType); err == nil {
 			if err := r.Stop(ctx, run.ID); err != nil {
-				return fmt.Errorf("failed to stop runner: %w", err)
+				return err
 			}
 		}
 	}
@@ -1299,7 +1299,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 	if o.checkpoints != nil {
 		checkpoint, err = o.checkpoints.Get(ctx, id)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get checkpoint: %w", err)
+		return nil, err
 		}
 	}
 
@@ -1311,7 +1311,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 	// Get associated entities
 	task, err := o.GetTask(ctx, run.TaskID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get task for resume: %w", err)
+		return nil, err
 	}
 
 	// Get profile if available (may be nil for inline config runs)
@@ -1319,7 +1319,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 	if run.AgentProfileID != nil {
 		profile, err = o.GetProfile(ctx, *run.AgentProfileID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get profile for resume: %w", err)
+			return nil, err
 		}
 	}
 
@@ -1327,7 +1327,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 	run.Status = domain.RunStatusRunning
 	run.UpdatedAt = time.Now()
 	if err := o.runs.Update(ctx, run); err != nil {
-		return nil, fmt.Errorf("failed to update run status: %w", err)
+		return nil, err
 	}
 
 	// Start execution asynchronously with resumption
@@ -1404,7 +1404,7 @@ func (o *Orchestrator) ListStaleRuns(ctx context.Context, staleDuration time.Dur
 		Status: &runningStatus,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list running runs: %w", err)
+		return nil, err
 	}
 
 	// Filter to stale runs
@@ -1427,14 +1427,14 @@ func (o *Orchestrator) ListStaleRuns(ctx context.Context, staleDuration time.Dur
 
 func (o *Orchestrator) GetRunEvents(ctx context.Context, runID uuid.UUID, opts event.GetOptions) ([]*domain.RunEvent, error) {
 	if o.events == nil {
-		return nil, fmt.Errorf("no event store configured")
+		return nil, domain.NewConfigMissingError("eventStore", "not configured", nil)
 	}
 	return o.events.Get(ctx, runID, opts)
 }
 
 func (o *Orchestrator) StreamRunEvents(ctx context.Context, runID uuid.UUID, opts event.StreamOptions) (<-chan *domain.RunEvent, error) {
 	if o.events == nil {
-		return nil, fmt.Errorf("no event store configured")
+		return nil, domain.NewConfigMissingError("eventStore", "not configured", nil)
 	}
 	return o.events.Stream(ctx, runID, opts)
 }
@@ -1454,7 +1454,7 @@ func (o *Orchestrator) GetRunDiff(ctx context.Context, runID uuid.UUID) (*sandbo
 	}
 
 	if o.sandbox == nil {
-		return nil, fmt.Errorf("no sandbox provider configured")
+		return nil, domain.NewConfigMissingError("sandbox", "provider not configured", nil)
 	}
 
 	return o.sandbox.GetDiff(ctx, *run.SandboxID)

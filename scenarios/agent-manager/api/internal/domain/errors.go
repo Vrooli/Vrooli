@@ -201,6 +201,11 @@ func NewNotFoundError(entityType string, id uuid.UUID) *NotFoundError {
 	return &NotFoundError{EntityType: entityType, ID: id.String()}
 }
 
+// NewNotFoundErrorWithID creates a NotFoundError for string identifiers.
+func NewNotFoundErrorWithID(entityType, id string) *NotFoundError {
+	return &NotFoundError{EntityType: entityType, ID: id}
+}
+
 // =============================================================================
 // VALIDATION ERROR
 // =============================================================================
@@ -767,6 +772,154 @@ func (e *DatabaseError) Details() map[string]interface{} {
 }
 
 // =============================================================================
+// CONFIG ERROR
+// =============================================================================
+
+// ConfigError indicates invalid or missing configuration.
+type ConfigError struct {
+	Setting string
+	Message string
+	Cause   error
+	Missing bool
+}
+
+func (e *ConfigError) Error() string {
+	if e.Setting != "" {
+		return fmt.Sprintf("config error for %s: %s", e.Setting, e.Message)
+	}
+	return fmt.Sprintf("config error: %s", e.Message)
+}
+
+func (e *ConfigError) Unwrap() error {
+	return e.Cause
+}
+
+func (e *ConfigError) Code() ErrorCode {
+	if e.Missing {
+		return ErrCodeConfigMissing
+	}
+	return ErrCodeConfigInvalid
+}
+
+func (e *ConfigError) Recovery() RecoveryAction {
+	return RecoveryFixInput
+}
+
+func (e *ConfigError) Retryable() bool {
+	return false
+}
+
+func (e *ConfigError) UserMessage() string {
+	if e.Missing {
+		return "Required configuration is missing. Please update settings and retry."
+	}
+	return "Configuration is invalid. Please update settings and retry."
+}
+
+func (e *ConfigError) Details() map[string]interface{} {
+	d := map[string]interface{}{
+		"message": e.Message,
+	}
+	if e.Setting != "" {
+		d["setting"] = e.Setting
+	}
+	if e.Cause != nil {
+		d["cause"] = e.Cause.Error()
+	}
+	return d
+}
+
+func NewConfigMissingError(setting, message string, cause error) *ConfigError {
+	return &ConfigError{
+		Setting: setting,
+		Message: message,
+		Cause:   cause,
+		Missing: true,
+	}
+}
+
+func NewConfigInvalidError(setting, message string, cause error) *ConfigError {
+	return &ConfigError{
+		Setting: setting,
+		Message: message,
+		Cause:   cause,
+	}
+}
+
+// =============================================================================
+// INTERNAL ERROR
+// =============================================================================
+
+// InternalError indicates an unexpected failure in the system.
+type InternalError struct {
+	Message string
+	Cause   error
+	CodeTag ErrorCode
+}
+
+func (e *InternalError) Error() string {
+	if e.Message != "" {
+		if e.Cause != nil {
+			return fmt.Sprintf("%s: %v", e.Message, e.Cause)
+		}
+		return e.Message
+	}
+	if e.Cause != nil {
+		return e.Cause.Error()
+	}
+	return "internal error"
+}
+
+func (e *InternalError) Unwrap() error {
+	return e.Cause
+}
+
+func (e *InternalError) Code() ErrorCode {
+	if e.CodeTag != "" {
+		return e.CodeTag
+	}
+	return ErrCodeInternal
+}
+
+func (e *InternalError) Recovery() RecoveryAction {
+	return RecoveryEscalate
+}
+
+func (e *InternalError) Retryable() bool {
+	return false
+}
+
+func (e *InternalError) UserMessage() string {
+	return "An unexpected error occurred. Please try again or contact support."
+}
+
+func (e *InternalError) Details() map[string]interface{} {
+	d := map[string]interface{}{}
+	if e.Cause != nil {
+		d["cause"] = e.Cause.Error()
+	}
+	return d
+}
+
+func NewInternalError(message string, cause error) *InternalError {
+	return &InternalError{
+		Message: message,
+		Cause:   cause,
+	}
+}
+
+// AsDomainError guarantees a DomainError for consistent error handling.
+func AsDomainError(err error) DomainError {
+	if err == nil {
+		return NewInternalError("nil error", nil)
+	}
+	if de, ok := err.(DomainError); ok {
+		return de
+	}
+	return NewInternalError("internal error", err)
+}
+
+// =============================================================================
 // ERROR RESPONSE TYPE (for HTTP responses)
 // =============================================================================
 
@@ -783,10 +936,11 @@ type ErrorResponse struct {
 
 // ToErrorResponse converts a DomainError to an ErrorResponse.
 func ToErrorResponse(err error, requestID string) ErrorResponse {
-	if de, ok := err.(DomainError); ok {
+	de := AsDomainError(err)
+	if de != nil {
 		return ErrorResponse{
 			Code:        de.Code(),
-			Message:     err.Error(),
+			Message:     de.Error(),
 			UserMessage: de.UserMessage(),
 			Recovery:    de.Recovery(),
 			Retryable:   de.Retryable(),
@@ -794,15 +948,7 @@ func ToErrorResponse(err error, requestID string) ErrorResponse {
 			RequestID:   requestID,
 		}
 	}
-	// Fallback for non-domain errors
-	return ErrorResponse{
-		Code:        ErrCodeInternal,
-		Message:     err.Error(),
-		UserMessage: "An unexpected error occurred. Please try again.",
-		Recovery:    RecoveryEscalate,
-		Retryable:   false,
-		RequestID:   requestID,
-	}
+	return ErrorResponse{}
 }
 
 // =============================================================================
@@ -811,24 +957,15 @@ func ToErrorResponse(err error, requestID string) ErrorResponse {
 
 // IsRetryable returns true if the error can be retried.
 func IsRetryable(err error) bool {
-	if de, ok := err.(DomainError); ok {
-		return de.Retryable()
-	}
-	return false
+	return AsDomainError(err).Retryable()
 }
 
 // GetRecoveryAction returns the recommended recovery action for an error.
 func GetRecoveryAction(err error) RecoveryAction {
-	if de, ok := err.(DomainError); ok {
-		return de.Recovery()
-	}
-	return RecoveryEscalate
+	return AsDomainError(err).Recovery()
 }
 
 // GetErrorCode returns the error code for an error.
 func GetErrorCode(err error) ErrorCode {
-	if de, ok := err.(DomainError); ok {
-		return de.Code()
-	}
-	return ErrCodeInternal
+	return AsDomainError(err).Code()
 }

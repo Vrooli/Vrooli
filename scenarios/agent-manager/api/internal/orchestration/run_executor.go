@@ -28,6 +28,7 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -453,7 +454,7 @@ func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
 		e.failWithError(ctx, &domain.RunnerError{
 			RunnerType:  e.getRunnerType(),
 			Operation:   "timeout",
-			Cause:       fmt.Errorf("execution exceeded timeout of %v", e.config.Timeout),
+			Cause:       errors.New(fmt.Sprintf("execution exceeded timeout of %v", e.config.Timeout)),
 			IsTransient: false,
 		})
 		e.outcome = domain.RunOutcomeTimeout
@@ -498,12 +499,7 @@ func (e *RunExecutor) setupWorkspace(ctx context.Context) error {
 
 func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 	if e.sandbox == nil {
-		return &domain.SandboxError{
-			Operation:   "create",
-			Cause:       fmt.Errorf("sandbox provider not configured"),
-			IsTransient: false,
-			CanRetry:    false,
-		}
+		return domain.NewConfigMissingError("sandbox", "provider not configured", nil)
 	}
 
 	// Use idempotency key to allow safe retries of sandbox creation
@@ -517,21 +513,7 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
-		sandboxErr := &domain.SandboxError{
-			Operation:   "create",
-			Cause:       err,
-			IsTransient: true, // sandbox service might be temporarily unavailable
-			CanRetry:    true,
-		}
-		// Extract rich error details if available (e.g., conflicting sandboxes)
-		if apiErr, ok := err.(*sandbox.SandboxAPIError); ok {
-			sandboxErr.CanRetry = apiErr.Retryable
-			sandboxErr.IsTransient = apiErr.Retryable
-			if apiErr.Details != nil {
-				sandboxErr.ExtraDetails = apiErr.Details
-			}
-		}
-		return sandboxErr
+		return err
 	}
 
 	e.sandboxID = &sbx.ID
@@ -591,7 +573,7 @@ func (e *RunExecutor) acquireRunner(ctx context.Context) (runner.Runner, error) 
 		return nil, &domain.RunnerError{
 			RunnerType:  runnerType,
 			Operation:   "acquire",
-			Cause:       fmt.Errorf("no runner registry configured"),
+			Cause:       domain.NewConfigMissingError("runnerRegistry", "not configured", nil),
 			IsTransient: false,
 		}
 	}
@@ -621,7 +603,7 @@ func (e *RunExecutor) acquireRunner(ctx context.Context) (runner.Runner, error) 
 		return nil, &domain.RunnerError{
 			RunnerType:  runnerType,
 			Operation:   "availability_check",
-			Cause:       fmt.Errorf("%s", msg),
+			Cause:       errors.New(msg),
 			IsTransient: true, // runner might become available
 			Alternative: alternative,
 		}

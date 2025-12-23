@@ -7,7 +7,6 @@ package orchestration
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -41,7 +40,7 @@ func (o *Orchestrator) ApproveRun(ctx context.Context, req ApproveRequest) (*App
 		Force:     req.Force,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("sandbox approval failed: %w", err)
+		return nil, err
 	}
 
 	// Update run to approved state
@@ -112,7 +111,7 @@ func (o *Orchestrator) PartialApprove(ctx context.Context, req PartialApproveReq
 		CommitMsg: req.CommitMsg,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("partial approval failed: %w", err)
+		return nil, err
 	}
 
 	// Update run state based on remaining files
@@ -142,7 +141,7 @@ func (o *Orchestrator) getRunForApproval(ctx context.Context, runID uuid.UUID) (
 	}
 
 	if o.sandbox == nil {
-		return nil, fmt.Errorf("no sandbox provider configured")
+		return nil, domain.NewConfigMissingError("sandbox", "sandbox provider not configured", nil)
 	}
 
 	return run, nil

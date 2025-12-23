@@ -8,11 +8,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
+	"agent-manager/internal/domain"
 	"github.com/google/uuid"
 )
 
@@ -51,17 +53,25 @@ func (p *WorkspaceSandboxProvider) Create(ctx context.Context, req CreateRequest
 
 	resp, err := p.doRequest(ctx, "POST", "/api/v1/sandboxes", body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create sandbox: %w", err)
+		return nil, &domain.SandboxError{
+			Operation:   "create",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, p.parseError(resp)
+		return nil, p.parseError("create", nil, resp)
 	}
 
 	var result wsSandboxResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, &domain.SandboxError{
+			Operation: "create",
+			Cause:     err,
+		}
 	}
 
 	return result.toSandbox(), nil
@@ -71,20 +81,30 @@ func (p *WorkspaceSandboxProvider) Create(ctx context.Context, req CreateRequest
 func (p *WorkspaceSandboxProvider) Get(ctx context.Context, id uuid.UUID) (*Sandbox, error) {
 	resp, err := p.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/sandboxes/%s", id), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get sandbox: %w", err)
+		return nil, &domain.SandboxError{
+			SandboxID:   &id,
+			Operation:   "get",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("sandbox not found: %s", id)
+		return nil, domain.NewNotFoundErrorWithID("Sandbox", id.String())
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, p.parseError(resp)
+		return nil, p.parseError("get", &id, resp)
 	}
 
 	var result wsSandboxResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, &domain.SandboxError{
+			SandboxID: &id,
+			Operation: "get",
+			Cause:     err,
+		}
 	}
 
 	return result.toSandbox(), nil
@@ -94,12 +114,18 @@ func (p *WorkspaceSandboxProvider) Get(ctx context.Context, id uuid.UUID) (*Sand
 func (p *WorkspaceSandboxProvider) Delete(ctx context.Context, id uuid.UUID) error {
 	resp, err := p.doRequest(ctx, "DELETE", fmt.Sprintf("/api/v1/sandboxes/%s", id), nil)
 	if err != nil {
-		return fmt.Errorf("failed to delete sandbox: %w", err)
+		return &domain.SandboxError{
+			SandboxID:   &id,
+			Operation:   "delete",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		return p.parseError(resp)
+		return p.parseError("delete", &id, resp)
 	}
 
 	return nil
@@ -118,17 +144,27 @@ func (p *WorkspaceSandboxProvider) GetWorkspacePath(ctx context.Context, id uuid
 func (p *WorkspaceSandboxProvider) GetDiff(ctx context.Context, id uuid.UUID) (*DiffResult, error) {
 	resp, err := p.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/sandboxes/%s/diff", id), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get diff: %w", err)
+		return nil, &domain.SandboxError{
+			SandboxID:   &id,
+			Operation:   "diff",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, p.parseError(resp)
+		return nil, p.parseError("diff", &id, resp)
 	}
 
 	var result wsDiffResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, &domain.SandboxError{
+			SandboxID: &id,
+			Operation: "diff",
+			Cause:     err,
+		}
 	}
 
 	return result.toDiffResult(id), nil
@@ -144,17 +180,27 @@ func (p *WorkspaceSandboxProvider) Approve(ctx context.Context, req ApproveReque
 
 	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/approve", req.SandboxID), body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to approve sandbox: %w", err)
+		return nil, &domain.SandboxError{
+			SandboxID:   &req.SandboxID,
+			Operation:   "approve",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, p.parseError(resp)
+		return nil, p.parseError("approve", &req.SandboxID, resp)
 	}
 
 	var result wsApproveResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, &domain.SandboxError{
+			SandboxID: &req.SandboxID,
+			Operation: "approve",
+			Cause:     err,
+		}
 	}
 
 	return result.toApproveResult(), nil
@@ -168,12 +214,18 @@ func (p *WorkspaceSandboxProvider) Reject(ctx context.Context, id uuid.UUID, act
 
 	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/reject", id), body)
 	if err != nil {
-		return fmt.Errorf("failed to reject sandbox: %w", err)
+		return &domain.SandboxError{
+			SandboxID:   &id,
+			Operation:   "reject",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return p.parseError(resp)
+		return p.parseError("reject", &id, resp)
 	}
 
 	return nil
@@ -195,17 +247,27 @@ func (p *WorkspaceSandboxProvider) PartialApprove(ctx context.Context, req Parti
 
 	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/partial-approve", req.SandboxID), body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to partial approve sandbox: %w", err)
+		return nil, &domain.SandboxError{
+			SandboxID:   &req.SandboxID,
+			Operation:   "partial_approve",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, p.parseError(resp)
+		return nil, p.parseError("partial_approve", &req.SandboxID, resp)
 	}
 
 	var result wsApproveResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, &domain.SandboxError{
+			SandboxID: &req.SandboxID,
+			Operation: "partial_approve",
+			Cause:     err,
+		}
 	}
 
 	return result.toApproveResult(), nil
@@ -215,12 +277,18 @@ func (p *WorkspaceSandboxProvider) PartialApprove(ctx context.Context, req Parti
 func (p *WorkspaceSandboxProvider) Stop(ctx context.Context, id uuid.UUID) error {
 	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/stop", id), nil)
 	if err != nil {
-		return fmt.Errorf("failed to stop sandbox: %w", err)
+		return &domain.SandboxError{
+			SandboxID:   &id,
+			Operation:   "stop",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return p.parseError(resp)
+		return p.parseError("stop", &id, resp)
 	}
 
 	return nil
@@ -230,12 +298,18 @@ func (p *WorkspaceSandboxProvider) Stop(ctx context.Context, id uuid.UUID) error
 func (p *WorkspaceSandboxProvider) Start(ctx context.Context, id uuid.UUID) error {
 	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/start", id), nil)
 	if err != nil {
-		return fmt.Errorf("failed to start sandbox: %w", err)
+		return &domain.SandboxError{
+			SandboxID:   &id,
+			Operation:   "start",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return p.parseError(resp)
+		return p.parseError("start", &id, resp)
 	}
 
 	return nil
@@ -277,14 +351,14 @@ func (p *WorkspaceSandboxProvider) doRequest(ctx context.Context, method, path s
 	if body != nil {
 		jsonData, err := json.Marshal(body)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal request body: %w", err)
+			return nil, err
 		}
 		bodyReader = bytes.NewReader(jsonData)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, p.baseURL+path, bodyReader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, err
 	}
 
 	if body != nil {
@@ -349,17 +423,40 @@ func (e *SandboxAPIError) GetConflicts() []ConflictingSandbox {
 	return conflicts
 }
 
-func (p *WorkspaceSandboxProvider) parseError(resp *http.Response) error {
+func (p *WorkspaceSandboxProvider) parseError(operation string, sandboxID *uuid.UUID, resp *http.Response) error {
 	body, _ := io.ReadAll(resp.Body)
 	var errResp SandboxAPIError
 	if err := json.Unmarshal(body, &errResp); err != nil {
-		return fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+		return &domain.SandboxError{
+			SandboxID: sandboxID,
+			Operation: operation,
+			Cause:     domain.NewInternalError("failed to parse sandbox error response", err),
+		}
 	}
 	errResp.Code = resp.StatusCode
 	if errResp.ErrorMsg != "" {
-		return &errResp
+		details := map[string]interface{}{}
+		for k, v := range errResp.Details {
+			details[k] = v
+		}
+		if errResp.Hint != "" {
+			details["hint"] = errResp.Hint
+		}
+		return &domain.SandboxError{
+			SandboxID:    sandboxID,
+			Operation:    operation,
+			Cause:        errors.New(errResp.ErrorMsg),
+			IsTransient:  errResp.Retryable || resp.StatusCode >= http.StatusInternalServerError,
+			CanRetry:     errResp.Retryable,
+			ExtraDetails: details,
+		}
 	}
-	return fmt.Errorf("request failed with status %d", resp.StatusCode)
+	return &domain.SandboxError{
+		SandboxID:   sandboxID,
+		Operation:   operation,
+		Cause:       errors.New(fmt.Sprintf("request failed with status %d", resp.StatusCode)),
+		IsTransient: resp.StatusCode >= http.StatusInternalServerError,
+	}
 }
 
 // =============================================================================
@@ -478,19 +575,27 @@ func (r *wsApproveResponse) toApproveResult() *ApproveResult {
 func (p *WorkspaceSandboxProvider) CheckConflicts(ctx context.Context, scopePath string) ([]ConflictingSandbox, error) {
 	resp, err := p.doRequest(ctx, "GET", "/api/v1/sandboxes", nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list sandboxes: %w", err)
+		return nil, &domain.SandboxError{
+			Operation:   "check_conflicts",
+			Cause:       err,
+			IsTransient: true,
+		}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, p.parseError(resp)
+		return nil, p.parseError("check_conflicts", nil, resp)
 	}
 
 	var result struct {
 		Sandboxes []wsSandboxResponse `json:"sandboxes"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, &domain.SandboxError{
+			Operation:   "check_conflicts",
+			Cause:       err,
+			IsTransient: false,
+		}
 	}
 
 	// Check for overlapping scopes
@@ -555,19 +660,27 @@ func (p *WorkspaceSandboxProvider) List(ctx context.Context, status string) ([]*
 
 	resp, err := p.doRequest(ctx, "GET", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list sandboxes: %w", err)
+		return nil, &domain.SandboxError{
+			Operation:   "list",
+			Cause:       err,
+			IsTransient: true,
+		}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, p.parseError(resp)
+		return nil, p.parseError("list", nil, resp)
 	}
 
 	var result struct {
 		Sandboxes []wsSandboxResponse `json:"sandboxes"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, &domain.SandboxError{
+			Operation:   "list",
+			Cause:       err,
+			IsTransient: false,
+		}
 	}
 
 	sandboxes := make([]*Sandbox, len(result.Sandboxes))
@@ -582,7 +695,7 @@ func (p *WorkspaceSandboxProvider) List(ctx context.Context, status string) ([]*
 func (p *WorkspaceSandboxProvider) CleanupStaleSandboxes(ctx context.Context, olderThan time.Duration) (int, error) {
 	sandboxes, err := p.List(ctx, "")
 	if err != nil {
-		return 0, fmt.Errorf("failed to list sandboxes: %w", err)
+		return 0, err
 	}
 
 	cutoff := time.Now().Add(-olderThan)

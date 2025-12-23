@@ -6,7 +6,7 @@ package runner
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 
 	"agent-manager/internal/domain"
@@ -37,7 +37,7 @@ func (r *DefaultRegistry) Register(runner Runner) error {
 
 	rt := runner.Type()
 	if _, exists := r.runners[rt]; exists {
-		return fmt.Errorf("runner already registered: %s", rt)
+		return domain.NewValidationErrorWithCode("runnerType", "runner already registered", domain.ErrCodeValidationConflict)
 	}
 
 	r.runners[rt] = runner
@@ -51,7 +51,7 @@ func (r *DefaultRegistry) Get(runnerType domain.RunnerType) (Runner, error) {
 
 	runner, exists := r.runners[runnerType]
 	if !exists {
-		return nil, fmt.Errorf("runner not found: %s", runnerType)
+		return nil, domain.NewNotFoundErrorWithID("Runner", string(runnerType))
 	}
 
 	return runner, nil
@@ -204,11 +204,21 @@ func (s *StubRunner) Capabilities() Capabilities {
 }
 
 func (s *StubRunner) Execute(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error) {
-	return nil, fmt.Errorf("runner %s is not available: %s", s.runnerType, s.message)
+	return nil, &domain.RunnerError{
+		RunnerType:  s.runnerType,
+		Operation:   "availability",
+		Cause:       errors.New(s.message),
+		IsTransient: false,
+	}
 }
 
 func (s *StubRunner) Stop(ctx context.Context, runID uuid.UUID) error {
-	return fmt.Errorf("runner %s is not available", s.runnerType)
+	return &domain.RunnerError{
+		RunnerType:  s.runnerType,
+		Operation:   "availability",
+		Cause:       errors.New(s.message),
+		IsTransient: false,
+	}
 }
 
 func (s *StubRunner) IsAvailable(ctx context.Context) (bool, string) {

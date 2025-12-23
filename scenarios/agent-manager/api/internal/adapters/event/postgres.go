@@ -130,7 +130,7 @@ func (s *PostgresStore) Append(ctx context.Context, runID uuid.UUID, events ...*
 	// Use a transaction for consistency
 	tx, err := s.db.BeginTxx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return dbError("begin_transaction", err)
 	}
 	defer func() {
 		_ = tx.Rollback()
@@ -140,7 +140,7 @@ func (s *PostgresStore) Append(ctx context.Context, runID uuid.UUID, events ...*
 	var maxSeq int64
 	query := `SELECT COALESCE(MAX(sequence), -1) FROM run_events WHERE run_id = $1`
 	if err := tx.GetContext(ctx, &maxSeq, query, runID); err != nil {
-		return fmt.Errorf("failed to get max sequence: %w", err)
+		return dbError("get_max_sequence", err)
 	}
 
 	storedEvents := make([]*domain.RunEvent, 0, len(events))
@@ -159,7 +159,7 @@ func (s *PostgresStore) Append(ctx context.Context, runID uuid.UUID, events ...*
 		// Marshal event data to JSON
 		data, err := s.marshalEventData(evt)
 		if err != nil {
-			return fmt.Errorf("failed to marshal event data: %w", err)
+			return dbError("marshal_event", err)
 		}
 
 		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, data)
@@ -167,7 +167,7 @@ func (s *PostgresStore) Append(ctx context.Context, runID uuid.UUID, events ...*
 
 		if _, err := tx.ExecContext(ctx, insertQuery,
 			evt.ID, evt.RunID, evt.Sequence, string(evt.EventType), evt.Timestamp, data); err != nil {
-			return fmt.Errorf("failed to insert event: %w", err)
+			return dbError("insert_event", err)
 		}
 
 		// Keep a copy for notification
@@ -176,7 +176,7 @@ func (s *PostgresStore) Append(ctx context.Context, runID uuid.UUID, events ...*
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return dbError("commit_transaction", err)
 	}
 
 	// Notify subscribers after successful commit
@@ -264,7 +264,7 @@ func (s *PostgresStore) Get(ctx context.Context, runID uuid.UUID, opts GetOption
 
 	var rows []eventRow
 	if err := s.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to get events: %w", err)
+		return nil, dbError("get_events", err)
 	}
 
 	result := make([]*domain.RunEvent, len(rows))
@@ -341,7 +341,7 @@ func (s *PostgresStore) Count(ctx context.Context, runID uuid.UUID) (int64, erro
 	query := `SELECT COUNT(*) FROM run_events WHERE run_id = $1`
 	var count int64
 	if err := s.db.GetContext(ctx, &count, query, runID); err != nil {
-		return 0, fmt.Errorf("failed to count events: %w", err)
+		return 0, dbError("count_events", err)
 	}
 	return count, nil
 }
@@ -351,7 +351,7 @@ func (s *PostgresStore) Delete(ctx context.Context, runID uuid.UUID) error {
 	query := `DELETE FROM run_events WHERE run_id = $1`
 	_, err := s.db.ExecContext(ctx, query, runID)
 	if err != nil {
-		return fmt.Errorf("failed to delete events: %w", err)
+		return dbError("delete_events", err)
 	}
 
 	// Clean up subscribers
@@ -367,3 +367,11 @@ func (s *PostgresStore) Delete(ctx context.Context, runID uuid.UUID) error {
 
 // Verify interface compliance
 var _ Store = (*PostgresStore)(nil)
+
+func dbError(operation string, err error) error {
+	return &domain.DatabaseError{
+		Operation:  operation,
+		EntityType: "RunEvent",
+		Cause:      err,
+	}
+}

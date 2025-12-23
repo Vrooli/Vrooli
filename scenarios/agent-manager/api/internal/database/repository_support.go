@@ -92,7 +92,7 @@ func (r *checkpointRepository) Save(ctx context.Context, checkpoint *domain.RunC
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
-		return fmt.Errorf("failed to save checkpoint: %w", err)
+		return wrapDBError("save_checkpoint", "RunCheckpoint", checkpoint.RunID.String(), err)
 	}
 	return nil
 }
@@ -104,7 +104,7 @@ func (r *checkpointRepository) Get(ctx context.Context, runID uuid.UUID) (*domai
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get checkpoint: %w", err)
+		return nil, wrapDBError("get_checkpoint", "RunCheckpoint", runID.String(), err)
 	}
 	return row.toDomain(), nil
 }
@@ -113,7 +113,7 @@ func (r *checkpointRepository) Delete(ctx context.Context, runID uuid.UUID) erro
 	query := r.db.Rebind(`DELETE FROM run_checkpoints WHERE run_id = ?`)
 	_, err := r.db.ExecContext(ctx, query, runID)
 	if err != nil {
-		return fmt.Errorf("failed to delete checkpoint: %w", err)
+		return wrapDBError("delete_checkpoint", "RunCheckpoint", runID.String(), err)
 	}
 	return nil
 }
@@ -124,7 +124,7 @@ func (r *checkpointRepository) ListStale(ctx context.Context, olderThan time.Dur
 
 	var rows []checkpointRow
 	if err := r.db.SelectContext(ctx, &rows, query, cutoff); err != nil {
-		return nil, fmt.Errorf("failed to list stale checkpoints: %w", err)
+		return nil, wrapDBError("list_stale_checkpoints", "RunCheckpoint", "", err)
 	}
 
 	result := make([]*domain.RunCheckpoint, len(rows))
@@ -138,7 +138,7 @@ func (r *checkpointRepository) Heartbeat(ctx context.Context, runID uuid.UUID) e
 	query := r.db.Rebind(`UPDATE run_checkpoints SET last_heartbeat = ? WHERE run_id = ?`)
 	_, err := r.db.ExecContext(ctx, query, time.Now(), runID)
 	if err != nil {
-		return fmt.Errorf("failed to update checkpoint heartbeat: %w", err)
+		return wrapDBError("update_checkpoint", "RunCheckpoint", runID.String(), err)
 	}
 	return nil
 }
@@ -190,7 +190,7 @@ func (r *idempotencyRepository) Check(ctx context.Context, key string) (*domain.
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to check idempotency: %w", err)
+		return nil, wrapDBError("check_idempotency", "IdempotencyRecord", key, err)
 	}
 	return row.toDomain(), nil
 }
@@ -221,7 +221,7 @@ func (r *idempotencyRepository) Reserve(ctx context.Context, key string, ttl tim
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
-		return nil, fmt.Errorf("failed to reserve idempotency key: %w", err)
+		return nil, wrapDBError("reserve_idempotency", "IdempotencyRecord", key, err)
 	}
 	return record, nil
 }
@@ -230,7 +230,7 @@ func (r *idempotencyRepository) Complete(ctx context.Context, key string, entity
 	query := r.db.Rebind(`UPDATE idempotency_records SET status = ?, entity_id = ?, entity_type = ?, response = ? WHERE key = ?`)
 	_, err := r.db.ExecContext(ctx, query, string(domain.IdempotencyStatusComplete), entityID, entityType, response, key)
 	if err != nil {
-		return fmt.Errorf("failed to complete idempotency: %w", err)
+		return wrapDBError("complete_idempotency", "IdempotencyRecord", key, err)
 	}
 	return nil
 }
@@ -239,7 +239,7 @@ func (r *idempotencyRepository) Fail(ctx context.Context, key string) error {
 	query := r.db.Rebind(`UPDATE idempotency_records SET status = ? WHERE key = ?`)
 	_, err := r.db.ExecContext(ctx, query, string(domain.IdempotencyStatusFailed), key)
 	if err != nil {
-		return fmt.Errorf("failed to fail idempotency: %w", err)
+		return wrapDBError("fail_idempotency", "IdempotencyRecord", key, err)
 	}
 	return nil
 }
@@ -248,7 +248,7 @@ func (r *idempotencyRepository) CleanupExpired(ctx context.Context) (int, error)
 	query := r.db.Rebind(`DELETE FROM idempotency_records WHERE expires_at < ?`)
 	result, err := r.db.ExecContext(ctx, query, time.Now())
 	if err != nil {
-		return 0, fmt.Errorf("failed to cleanup expired idempotency records: %w", err)
+		return 0, wrapDBError("cleanup_idempotency", "IdempotencyRecord", "", err)
 	}
 	count, _ := result.RowsAffected()
 	return int(count), nil
@@ -325,7 +325,7 @@ func (r *policyRepository) Create(ctx context.Context, policy *domain.Policy) er
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
-		return fmt.Errorf("failed to create policy: %w", err)
+		return wrapDBError("create", "Policy", policy.ID.String(), err)
 	}
 	return nil
 }
@@ -337,7 +337,7 @@ func (r *policyRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Polic
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get policy: %w", err)
+		return nil, wrapDBError("get", "Policy", id.String(), err)
 	}
 	return row.toDomain(), nil
 }
@@ -349,7 +349,7 @@ func (r *policyRepository) List(ctx context.Context, filter repository.ListFilte
 
 	var rows []policyRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to list policies: %w", err)
+		return nil, wrapDBError("list", "Policy", "", err)
 	}
 
 	result := make([]*domain.Policy, len(rows))
@@ -364,7 +364,7 @@ func (r *policyRepository) ListEnabled(ctx context.Context) ([]*domain.Policy, e
 
 	var rows []policyRow
 	if err := r.db.SelectContext(ctx, &rows, query); err != nil {
-		return nil, fmt.Errorf("failed to list enabled policies: %w", err)
+		return nil, wrapDBError("list_enabled", "Policy", "", err)
 	}
 
 	result := make([]*domain.Policy, len(rows))
@@ -385,7 +385,7 @@ func (r *policyRepository) Update(ctx context.Context, policy *domain.Policy) er
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
-		return fmt.Errorf("failed to update policy: %w", err)
+		return wrapDBError("update", "Policy", policy.ID.String(), err)
 	}
 	return nil
 }
@@ -394,7 +394,7 @@ func (r *policyRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := r.db.Rebind(`DELETE FROM policies WHERE id = ?`)
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to delete policy: %w", err)
+		return wrapDBError("delete", "Policy", id.String(), err)
 	}
 	return nil
 }
@@ -406,7 +406,7 @@ func (r *policyRepository) FindByScope(ctx context.Context, scopePath string) ([
 
 	var rows []policyRow
 	if err := r.db.SelectContext(ctx, &rows, query, scopePath); err != nil {
-		return nil, fmt.Errorf("failed to find policies by scope: %w", err)
+		return nil, wrapDBError("find_by_scope", "Policy", scopePath, err)
 	}
 
 	result := make([]*domain.Policy, len(rows))
@@ -477,7 +477,7 @@ func (r *lockRepository) Acquire(ctx context.Context, lock *domain.ScopeLock) er
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
-		return fmt.Errorf("failed to acquire lock: %w", err)
+		return wrapDBError("acquire_lock", "ScopeLock", lock.ScopePath, err)
 	}
 	return nil
 }
@@ -486,7 +486,7 @@ func (r *lockRepository) Release(ctx context.Context, id uuid.UUID) error {
 	query := r.db.Rebind(`DELETE FROM scope_locks WHERE id = ?`)
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to release lock: %w", err)
+		return wrapDBError("release_lock", "ScopeLock", id.String(), err)
 	}
 	return nil
 }
@@ -495,7 +495,7 @@ func (r *lockRepository) ReleaseByRun(ctx context.Context, runID uuid.UUID) erro
 	query := r.db.Rebind(`DELETE FROM scope_locks WHERE run_id = ?`)
 	_, err := r.db.ExecContext(ctx, query, runID)
 	if err != nil {
-		return fmt.Errorf("failed to release locks by run: %w", err)
+		return wrapDBError("release_locks_by_run", "ScopeLock", runID.String(), err)
 	}
 	return nil
 }
@@ -506,7 +506,7 @@ func (r *lockRepository) Check(ctx context.Context, scopePath, projectRoot strin
 
 	var rows []lockRow
 	if err := r.db.SelectContext(ctx, &rows, query, scopePath, projectRoot, time.Now()); err != nil {
-		return nil, fmt.Errorf("failed to check locks: %w", err)
+		return nil, wrapDBError("check_locks", "ScopeLock", "", err)
 	}
 
 	result := make([]*domain.ScopeLock, len(rows))
@@ -521,7 +521,7 @@ func (r *lockRepository) Refresh(ctx context.Context, id uuid.UUID, newExpiry in
 	query := r.db.Rebind(`UPDATE scope_locks SET expires_at = ? WHERE id = ?`)
 	_, err := r.db.ExecContext(ctx, query, expiresAt, id)
 	if err != nil {
-		return fmt.Errorf("failed to refresh lock: %w", err)
+		return wrapDBError("refresh_lock", "ScopeLock", id.String(), err)
 	}
 	return nil
 }
@@ -530,7 +530,7 @@ func (r *lockRepository) CleanupExpired(ctx context.Context) (int, error) {
 	query := r.db.Rebind(`DELETE FROM scope_locks WHERE expires_at < ?`)
 	result, err := r.db.ExecContext(ctx, query, time.Now())
 	if err != nil {
-		return 0, fmt.Errorf("failed to cleanup expired locks: %w", err)
+		return 0, wrapDBError("cleanup_locks", "ScopeLock", "", err)
 	}
 	count, _ := result.RowsAffected()
 	return int(count), nil

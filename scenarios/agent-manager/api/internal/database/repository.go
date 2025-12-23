@@ -66,28 +66,28 @@ var _ repository.ProfileRepository = (*profileRepository)(nil)
 
 // profileRow is the database row representation for agent_profiles.
 type profileRow struct {
-	ID                   uuid.UUID   `db:"id"`
-	Name                 string      `db:"name"`
-	ProfileKey           string      `db:"profile_key"`
-	Description          string      `db:"description"`
-	RunnerType           string      `db:"runner_type"`
-	Model                string      `db:"model"`
+	ID                   uuid.UUID      `db:"id"`
+	Name                 string         `db:"name"`
+	ProfileKey           string         `db:"profile_key"`
+	Description          string         `db:"description"`
+	RunnerType           string         `db:"runner_type"`
+	Model                string         `db:"model"`
 	ModelPreset          sql.NullString `db:"model_preset"`
-	MaxTurns             int         `db:"max_turns"`
-	TimeoutMs            int64       `db:"timeout_ms"`
-	FallbackRunnerTypes  StringSlice `db:"fallback_runner_types"`
-	AllowedTools         StringSlice `db:"allowed_tools"`
-	DeniedTools          StringSlice `db:"denied_tools"`
-	SkipPermissionPrompt bool        `db:"skip_permission_prompt"`
-	RequiresSandbox      bool        `db:"requires_sandbox"`
-	RequiresApproval     bool        `db:"requires_approval"`
+	MaxTurns             int            `db:"max_turns"`
+	TimeoutMs            int64          `db:"timeout_ms"`
+	FallbackRunnerTypes  StringSlice    `db:"fallback_runner_types"`
+	AllowedTools         StringSlice    `db:"allowed_tools"`
+	DeniedTools          StringSlice    `db:"denied_tools"`
+	SkipPermissionPrompt bool           `db:"skip_permission_prompt"`
+	RequiresSandbox      bool           `db:"requires_sandbox"`
+	RequiresApproval     bool           `db:"requires_approval"`
 	SandboxRetentionMode sql.NullString `db:"sandbox_retention_mode"`
 	SandboxRetentionTTL  sql.NullInt64  `db:"sandbox_retention_ttl_ms"`
-	AllowedPaths         StringSlice `db:"allowed_paths"`
-	DeniedPaths          StringSlice `db:"denied_paths"`
-	CreatedBy            string      `db:"created_by"`
-	CreatedAt            SQLiteTime  `db:"created_at"`
-	UpdatedAt            SQLiteTime  `db:"updated_at"`
+	AllowedPaths         StringSlice    `db:"allowed_paths"`
+	DeniedPaths          StringSlice    `db:"denied_paths"`
+	CreatedBy            string         `db:"created_by"`
+	CreatedAt            SQLiteTime     `db:"created_at"`
+	UpdatedAt            SQLiteTime     `db:"updated_at"`
 }
 
 func (r *profileRow) toDomain() *domain.AgentProfile {
@@ -222,7 +222,7 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
 		r.log.WithError(err).Error("Failed to create agent profile")
-		return fmt.Errorf("failed to create profile: %w", err)
+		return wrapDBError("create", "AgentProfile", profile.ID.String(), err)
 	}
 	return nil
 }
@@ -234,7 +234,7 @@ func (r *profileRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Agen
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get profile: %w", err)
+		return nil, wrapDBError("get", "AgentProfile", id.String(), err)
 	}
 	return row.toDomain(), nil
 }
@@ -246,7 +246,7 @@ func (r *profileRepository) GetByName(ctx context.Context, name string) (*domain
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get profile by name: %w", err)
+		return nil, wrapDBError("get_by_name", "AgentProfile", name, err)
 	}
 	return row.toDomain(), nil
 }
@@ -258,7 +258,7 @@ func (r *profileRepository) GetByKey(ctx context.Context, key string) (*domain.A
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get profile by key: %w", err)
+		return nil, wrapDBError("get_by_key", "AgentProfile", key, err)
 	}
 	return row.toDomain(), nil
 }
@@ -270,7 +270,7 @@ func (r *profileRepository) List(ctx context.Context, filter repository.ListFilt
 
 	var rows []profileRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to list profiles: %w", err)
+		return nil, wrapDBError("list", "AgentProfile", "", err)
 	}
 
 	result := make([]*domain.AgentProfile, len(rows))
@@ -295,7 +295,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
-		return fmt.Errorf("failed to update profile: %w", err)
+		return wrapDBError("update", "AgentProfile", profile.ID.String(), err)
 	}
 	return nil
 }
@@ -304,7 +304,7 @@ func (r *profileRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := r.db.Rebind(`DELETE FROM agent_profiles WHERE id = ?`)
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to delete profile: %w", err)
+		return wrapDBError("delete", "AgentProfile", id.String(), err)
 	}
 	return nil
 }
@@ -387,7 +387,7 @@ func (r *taskRepository) Create(ctx context.Context, task *domain.Task) error {
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
 		r.log.WithError(err).Error("Failed to create task")
-		return fmt.Errorf("failed to create task: %w", err)
+		return wrapDBError("create", "Task", task.ID.String(), err)
 	}
 	return nil
 }
@@ -399,7 +399,7 @@ func (r *taskRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Task, e
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get task: %w", err)
+		return nil, wrapDBError("get", "Task", id.String(), err)
 	}
 	return row.toDomain(), nil
 }
@@ -411,7 +411,7 @@ func (r *taskRepository) List(ctx context.Context, filter repository.ListFilter)
 
 	var rows []taskRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to list tasks: %w", err)
+		return nil, wrapDBError("list", "Task", "", err)
 	}
 
 	result := make([]*domain.Task, len(rows))
@@ -429,7 +429,7 @@ func (r *taskRepository) ListByStatus(ctx context.Context, status domain.TaskSta
 
 	var rows []taskRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to list tasks by status: %w", err)
+		return nil, wrapDBError("list_by_status", "Task", "", err)
 	}
 
 	result := make([]*domain.Task, len(rows))
@@ -451,7 +451,7 @@ func (r *taskRepository) Update(ctx context.Context, task *domain.Task) error {
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
-		return fmt.Errorf("failed to update task: %w", err)
+		return wrapDBError("update", "Task", task.ID.String(), err)
 	}
 	return nil
 }
@@ -460,7 +460,7 @@ func (r *taskRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := r.db.Rebind(`DELETE FROM tasks WHERE id = ?`)
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to delete task: %w", err)
+		return wrapDBError("delete", "Task", id.String(), err)
 	}
 	return nil
 }
