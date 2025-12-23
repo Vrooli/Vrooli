@@ -1,38 +1,83 @@
-import type { ReactNode, CSSProperties, Ref } from 'react';
+import { useEffect, useRef, type ReactNode, type CSSProperties, type Ref } from 'react';
 import clsx from 'clsx';
 import type { BackgroundDecor, ChromeDecor } from '../catalog';
+import type { ReplayLayoutModel, ReplayRect } from '@/domains/replay-layout';
+import { OverlayRegistry, OverlayRegistryContext } from '@/domains/replay-layout';
 
 interface ReplayStyleFrameProps {
   backgroundDecor: BackgroundDecor;
   chromeDecor: ChromeDecor;
-  frameScale?: number;
-  frameStyle?: CSSProperties;
+  layout: ReplayLayoutModel;
+  presentationStyle?: CSSProperties;
+  presentationClassName?: string;
+  containerStyle?: CSSProperties;
   showInterfaceChrome?: boolean;
   header?: ReactNode;
   footer?: ReactNode;
-  watermarkNode?: ReactNode;
+  overlayNode?: ReactNode;
   containerClassName?: string;
   contentClassName?: string;
   captureAreaRef?: Ref<HTMLDivElement>;
+  presentationRef?: Ref<HTMLDivElement>;
+  viewportRef?: Ref<HTMLDivElement>;
   browserFrameRef?: Ref<HTMLDivElement>;
+  viewportContentRect?: ReplayRect;
+  overlayTransformStyle?: CSSProperties;
   children: ReactNode;
 }
 
 export function ReplayStyleFrame({
   backgroundDecor,
   chromeDecor,
-  frameScale = 1,
-  frameStyle,
+  layout,
+  presentationStyle,
+  presentationClassName,
+  containerStyle,
   showInterfaceChrome = false,
   header,
   footer,
-  watermarkNode,
+  overlayNode,
   containerClassName,
   contentClassName,
   captureAreaRef,
+  presentationRef,
+  viewportRef,
   browserFrameRef,
+  viewportContentRect,
+  overlayTransformStyle,
   children,
 }: ReplayStyleFrameProps) {
+  const chromeHeaderHeight = chromeDecor.header ? chromeDecor.headerHeight : 0;
+  const contentInset = layout.contentInset ?? { x: 0, y: 0 };
+  const contentStyle =
+    contentInset.x > 0 || contentInset.y > 0
+      ? { padding: `${contentInset.y}px ${contentInset.x}px` }
+      : undefined;
+  const registryRef = useRef<OverlayRegistry | null>(null);
+  if (!registryRef.current) {
+    registryRef.current = new OverlayRegistry();
+  }
+
+  useEffect(() => {
+    const registry = registryRef.current;
+    if (!registry) {
+      return;
+    }
+    registry.setRect('overlay-root', {
+      x: 0,
+      y: 0,
+      width: layout.viewportRect.width,
+      height: layout.viewportRect.height,
+    });
+    const contentRect = viewportContentRect ?? {
+      x: 0,
+      y: 0,
+      width: layout.viewportRect.width,
+      height: layout.viewportRect.height,
+    };
+    registry.setRect('browser-content', contentRect);
+  }, [layout.viewportRect.height, layout.viewportRect.width, viewportContentRect]);
+
   return (
     <div
       className={clsx(
@@ -40,26 +85,75 @@ export function ReplayStyleFrame({
         backgroundDecor.containerClass,
         containerClassName,
       )}
-      style={backgroundDecor.containerStyle}
+      style={{ ...backgroundDecor.containerStyle, ...containerStyle }}
     >
       {backgroundDecor.baseLayer}
       {backgroundDecor.overlay}
-      {watermarkNode}
-      <div className={clsx('relative z-[1]', backgroundDecor.contentClass, contentClassName)}>
+      <div
+        className={clsx('relative z-[1]', backgroundDecor.contentClass, contentClassName)}
+        style={contentStyle}
+      >
         {header}
         <div
           ref={captureAreaRef}
           className={clsx('space-y-3', showInterfaceChrome && 'mt-4')}
         >
           <div
-            ref={browserFrameRef}
-            className="mx-auto w-full"
-            style={{ width: `${frameScale * 100}%`, ...(frameStyle ?? {}) }}
+            ref={presentationRef}
+            data-testid="replay-presentation"
+            className={clsx('relative', presentationClassName)}
+            style={{
+              width: `${layout.display.width}px`,
+              height: `${layout.display.height}px`,
+              ...(presentationStyle ?? {}),
+            }}
           >
-            <div className={clsx('overflow-hidden rounded-2xl', chromeDecor.frameClass)}>
-              {chromeDecor.header}
-              <div className={clsx('relative overflow-hidden', chromeDecor.contentClass)}>
-                {children}
+            <div
+              ref={browserFrameRef}
+              data-testid="replay-frame"
+              className="absolute"
+              style={{
+                left: `${layout.frameRect.x}px`,
+                top: `${layout.frameRect.y}px`,
+                width: `${layout.frameRect.width}px`,
+                height: `${layout.frameRect.height}px`,
+              }}
+            >
+              <div className={clsx('flex h-full w-full flex-col overflow-hidden rounded-2xl', chromeDecor.frameClass)}>
+                {chromeDecor.header && (
+                  <div className="flex-shrink-0" style={{ height: `${chromeHeaderHeight}px` }}>
+                    {chromeDecor.header}
+                  </div>
+                )}
+                <div
+                  ref={viewportRef}
+                  data-testid="replay-viewport"
+                  className={clsx('relative overflow-hidden', chromeDecor.contentClass)}
+                  style={{
+                    width: `${layout.viewportRect.width}px`,
+                    height: `${layout.viewportRect.height}px`,
+                  }}
+                >
+                  {overlayNode && (
+                    <OverlayRegistryContext.Provider value={registryRef.current}>
+                      <div style={{ position: 'absolute', inset: 0 }}>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: 0,
+                            top: 0,
+                            width: '100%',
+                            height: '100%',
+                            ...(overlayTransformStyle ?? {}),
+                          }}
+                        >
+                          {overlayNode}
+                        </div>
+                      </div>
+                    </OverlayRegistryContext.Provider>
+                  )}
+                  {children}
+                </div>
               </div>
             </div>
           </div>

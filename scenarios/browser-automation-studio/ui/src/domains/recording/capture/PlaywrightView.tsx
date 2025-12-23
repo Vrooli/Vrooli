@@ -72,6 +72,8 @@ interface PlaywrightViewProps {
   onStatsUpdate?: (stats: FrameStats) => void;
   /** Callback when page metadata (title, url) changes */
   onPageMetadataChange?: (metadata: PageMetadata) => void;
+  /** Callback with the rendered content rect (relative to the container) */
+  onContentRectChange?: (rect: { x: number; y: number; width: number; height: number }) => void;
 }
 
 /**
@@ -112,6 +114,7 @@ export function PlaywrightView({
   viewport,
   onStatsUpdate,
   onPageMetadataChange,
+  onContentRectChange,
 }: PlaywrightViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -145,6 +148,8 @@ export function PlaywrightView({
   const onPageMetadataChangeRef = useRef(onPageMetadataChange);
   onPageMetadataChangeRef.current = onPageMetadataChange;
   const lastPageMetadataRef = useRef<PageMetadata | null>(null);
+  const onContentRectChangeRef = useRef(onContentRectChange);
+  onContentRectChangeRef.current = onContentRectChange;
 
   // Track displayed timestamp for UI (updated via ref to avoid re-renders)
   const [displayedTimestamp, setDisplayedTimestamp] = useState<string | null>(null);
@@ -170,6 +175,47 @@ export function PlaywrightView({
   const pollInterval = useMemo(() => Math.max(300, Math.floor(1000 / fps)), [fps]);
   const pollIntervalRef = useRef(pollInterval);
   pollIntervalRef.current = pollInterval;
+
+  const reportContentRect = useCallback(() => {
+    if (!onContentRectChangeRef.current || !hasFrame) {
+      return;
+    }
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) {
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    if (containerRect.width <= 0 || containerRect.height <= 0 || canvasRect.width <= 0 || canvasRect.height <= 0) {
+      return;
+    }
+    onContentRectChangeRef.current({
+      x: canvasRect.left - containerRect.left,
+      y: canvasRect.top - containerRect.top,
+      width: canvasRect.width,
+      height: canvasRect.height,
+    });
+  }, [hasFrame]);
+
+  useEffect(() => {
+    if (!onContentRectChangeRef.current) {
+      return;
+    }
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      reportContentRect();
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [reportContentRect]);
+
+  useEffect(() => {
+    reportContentRect();
+  }, [displayDimensions, reportContentRect]);
 
   // Subscribe to recording frames via WebSocket
   useEffect(() => {

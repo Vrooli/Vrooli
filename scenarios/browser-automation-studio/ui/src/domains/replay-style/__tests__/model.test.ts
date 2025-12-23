@@ -14,14 +14,14 @@ import {
 import { buildGradientCss, parseGradientCss } from '../gradient';
 
 describe('normalizeReplayStyle', () => {
-  it('normalizes legacy keys and clamps scale values', () => {
+  it('clamps scale values', () => {
     const normalized = normalizeReplayStyle({
-      replayChromeTheme: 'midnight',
-      background_theme: 'ocean',
-      cursor_scale: '999',
-      browser_scale: '0.1',
-      cursor_click_animation: 'pulse',
-      cursor_initial_position: 'top-left',
+      chromeTheme: 'midnight',
+      background: { type: 'theme', id: 'ocean' },
+      cursorScale: '999',
+      browserScale: '0.1',
+      cursorClickAnimation: 'pulse',
+      cursorInitialPosition: 'top-left',
     });
 
     expect(normalized.chromeTheme).toBe('midnight');

@@ -202,7 +202,6 @@ const normalizeGradientSpec = (value: unknown): ReplayGradientSpec | null => {
 const normalizeBackgroundSource = (
   raw: Record<string, unknown> | undefined,
   fallback: ReplayBackgroundSource,
-  legacyTheme?: string,
 ): ReplayBackgroundSource => {
   if (raw) {
     const type = readString(raw, ['type']);
@@ -233,10 +232,6 @@ const normalizeBackgroundSource = (
     }
   }
 
-  if (isReplayBackgroundTheme(legacyTheme)) {
-    return { type: 'theme', id: legacyTheme };
-  }
-
   return fallback;
 };
 
@@ -258,27 +253,18 @@ export const normalizeReplayStyle = (
 ): ReplayStyleConfig => {
   const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
 
-  const chrome = readString(source, ['chromeTheme', 'replayChromeTheme', 'chrome_theme']);
-  const backgroundTheme = readString(source, ['backgroundTheme', 'replayBackgroundTheme', 'background_theme']);
-  const backgroundSource = readObject(source, ['background', 'replayBackground', 'background_source']);
-  const cursor = readString(source, ['cursorTheme', 'replayCursorTheme', 'cursor_theme']);
-  const cursorInitial = readString(source, [
-    'cursorInitialPosition',
-    'replayCursorInitialPosition',
-    'cursor_initial_position',
-  ]);
-  const cursorClick = readString(source, [
-    'cursorClickAnimation',
-    'replayCursorClickAnimation',
-    'cursor_click_animation',
-  ]);
-  const cursorScale = readNumber(source, ['cursorScale', 'replayCursorScale', 'cursor_scale']);
-  const browserScale = readNumber(source, ['browserScale', 'replayBrowserScale', 'browser_scale']);
+  const chrome = readString(source, ['chromeTheme']);
+  const backgroundSource = readObject(source, ['background']);
+  const cursor = readString(source, ['cursorTheme']);
+  const cursorInitial = readString(source, ['cursorInitialPosition']);
+  const cursorClick = readString(source, ['cursorClickAnimation']);
+  const cursorScale = readNumber(source, ['cursorScale']);
+  const browserScale = readNumber(source, ['browserScale']);
 
   return {
     version: REPLAY_STYLE_VERSION,
     chromeTheme: isReplayChromeTheme(chrome) ? chrome : fallback.chromeTheme,
-    background: normalizeBackgroundSource(backgroundSource, fallback.background, backgroundTheme),
+    background: normalizeBackgroundSource(backgroundSource, fallback.background),
     cursorTheme: isReplayCursorTheme(cursor) ? cursor : fallback.cursorTheme,
     cursorInitialPosition: isReplayCursorInitialPosition(cursorInitial)
       ? cursorInitial

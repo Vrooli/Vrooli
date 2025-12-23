@@ -26,6 +26,7 @@ export type BackgroundDecor = {
   containerClass: string;
   containerStyle?: CSSProperties;
   contentClass: string;
+  contentInset?: { x: number; y: number };
   baseLayer?: ReactNode;
   overlay?: ReactNode;
   image?: BackgroundImageDecor;
@@ -45,6 +46,7 @@ export type ChromeDecor = {
   frameClass: string;
   contentClass?: string;
   header: ReactNode | null;
+  headerHeight: number;
 };
 
 export interface ChromeThemeOption {
@@ -453,6 +455,9 @@ export const CURSOR_GROUP_ORDER: Array<{ id: CursorGroup; label: string }> = [
   { id: 'hand', label: 'Pointing Hands' },
 ];
 
+const DEFAULT_CONTENT_INSET = { x: 24, y: 24 };
+const ZERO_CONTENT_INSET = { x: 0, y: 0 };
+
 export const REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS: ClickAnimationOption[] = [
   {
     id: 'none',
@@ -732,7 +737,8 @@ export const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDe
             'linear-gradient(135deg, rgba(244,114,182,0.92) 0%, rgba(251,191,36,0.88) 100%)',
           backgroundColor: '#43112d',
         },
-        contentClass: 'p-6 sm:p-7 backdrop-blur-[1.2px]',
+        contentClass: 'relative backdrop-blur-[1.2px]',
+        contentInset: DEFAULT_CONTENT_INSET,
         baseLayer: (
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <div
@@ -765,7 +771,8 @@ export const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDe
       return {
         containerClass:
           'border border-sky-300/25 bg-gradient-to-br from-sky-900 via-slate-950 to-slate-900 shadow-[0_24px_65px_rgba(14,165,233,0.38)]',
-        contentClass: 'p-6 sm:p-7 backdrop-blur-[1px]',
+        contentClass: 'relative backdrop-blur-[1px]',
+        contentInset: DEFAULT_CONTENT_INSET,
         overlay: (
           <div
             className="pointer-events-none absolute inset-0 opacity-45"
@@ -780,7 +787,8 @@ export const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDe
       return {
         containerClass:
           'border border-purple-300/30 bg-gradient-to-br from-violet-800 via-indigo-950 to-slate-950 shadow-[0_26px_70px_rgba(124,58,237,0.36)]',
-        contentClass: 'p-6 sm:p-7 backdrop-blur-[1.5px]',
+        contentClass: 'relative backdrop-blur-[1.5px]',
+        contentInset: DEFAULT_CONTENT_INSET,
         overlay: (
           <div
             className="pointer-events-none absolute inset-0 opacity-55 mix-blend-screen"
@@ -795,7 +803,8 @@ export const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDe
       return {
         containerClass:
           'border border-cyan-300/25 bg-slate-950 shadow-[0_24px_60px_rgba(8,47,73,0.5)]',
-        contentClass: 'p-6 sm:p-7',
+        contentClass: 'relative',
+        contentInset: DEFAULT_CONTENT_INSET,
         baseLayer: (
           <div className="pointer-events-none absolute inset-0">
             <div
@@ -826,7 +835,8 @@ export const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDe
         containerStyle: {
           backgroundColor: '#0f172a',
         },
-        contentClass: 'p-6 sm:p-7 bg-slate-950/35',
+        contentClass: 'relative bg-slate-950/35',
+        contentInset: DEFAULT_CONTENT_INSET,
         baseLayer: (
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <img src={geometricPrismUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -851,7 +861,8 @@ export const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDe
         containerStyle: {
           backgroundColor: '#0b1120',
         },
-        contentClass: 'p-6 sm:p-7 bg-slate-950/40',
+        contentClass: 'relative bg-slate-950/40',
+        contentInset: DEFAULT_CONTENT_INSET,
         baseLayer: (
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <img src={geometricOrbitUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -876,7 +887,8 @@ export const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDe
         containerStyle: {
           backgroundColor: '#0b1526',
         },
-        contentClass: 'p-6 sm:p-7 bg-slate-950/38',
+        contentClass: 'relative bg-slate-950/38',
+        contentInset: DEFAULT_CONTENT_INSET,
         baseLayer: (
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             <img src={geometricMosaicUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -897,18 +909,21 @@ export const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDe
     case 'charcoal':
       return {
         containerClass: 'border border-slate-700/60 bg-slate-950 shadow-[0_18px_55px_rgba(15,23,42,0.55)]',
-        contentClass: 'p-6 sm:p-7',
+        contentClass: 'relative',
+        contentInset: DEFAULT_CONTENT_INSET,
       };
     case 'steel':
       return {
         containerClass: 'border border-slate-600/60 bg-slate-800 shadow-[0_18px_52px_rgba(30,41,59,0.52)]',
-        contentClass: 'p-6 sm:p-7',
+        contentClass: 'relative',
+        contentInset: DEFAULT_CONTENT_INSET,
       };
     case 'emerald':
       return {
         containerClass:
           'border border-emerald-300/30 bg-gradient-to-br from-emerald-900 via-emerald-950 to-slate-950 shadow-[0_22px_60px_rgba(16,185,129,0.35)]',
-        contentClass: 'p-6 sm:p-7 backdrop-blur-[1px]',
+        contentClass: 'relative backdrop-blur-[1px]',
+        contentInset: DEFAULT_CONTENT_INSET,
         overlay: (
           <div
             className="pointer-events-none absolute inset-0 opacity-45"
@@ -922,14 +937,16 @@ export const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDe
     case 'none':
       return {
         containerClass: 'border border-transparent bg-transparent shadow-none',
-        contentClass: 'p-0',
+        contentClass: 'relative',
+        contentInset: ZERO_CONTENT_INSET,
       };
     case 'aurora':
     default:
       return {
         containerClass:
           'border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-black shadow-[0_20px_60px_rgba(15,23,42,0.4)]',
-        contentClass: 'p-6 sm:p-7',
+        contentClass: 'relative',
+        contentInset: DEFAULT_CONTENT_INSET,
         overlay: (
           <div
             className="pointer-events-none absolute inset-0 opacity-55"
@@ -951,7 +968,8 @@ export const buildGradientBackgroundDecor = (spec: ReplayGradientSpec): Backgrou
       backgroundImage: gradient,
       backgroundColor: '#0b1120',
     },
-    contentClass: 'p-6 sm:p-7 backdrop-blur-[1px]',
+    contentClass: 'relative backdrop-blur-[1px]',
+    contentInset: DEFAULT_CONTENT_INSET,
   };
 };
 
@@ -960,7 +978,8 @@ export const buildImageBackgroundDecor = (image: BackgroundImageDecor): Backgrou
   containerStyle: {
     backgroundColor: '#0b1120',
   },
-  contentClass: 'p-6 sm:p-7 bg-slate-950/35',
+  contentClass: 'relative bg-slate-950/35',
+  contentInset: DEFAULT_CONTENT_INSET,
   baseLayer: image.url ? (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       <img
@@ -1003,18 +1022,18 @@ export function buildChromeDecor(theme: ReplayChromeTheme, title: string): Chrom
         frameClass: 'border border-[#c4c8ce] bg-[#dee1e6] shadow-[0_24px_70px_rgba(15,23,42,0.4)] rounded-lg',
         contentClass: 'bg-white',
         header: (
-          <div className="bg-[#dee1e6]">
-            <div className="flex items-end gap-1 px-3 pt-2">
+          <div className="flex h-full flex-col bg-[#dee1e6]">
+            <div className="flex h-10 items-end gap-1 px-3">
               <div className="flex h-8 w-36 items-center rounded-t-lg border border-b-0 border-[#c4c8ce] bg-white px-3 text-[11px] font-medium text-slate-700 shadow-sm">
                 <span className="truncate">New Tab</span>
               </div>
-              <div className="ml-auto flex items-center gap-2 pb-2 pr-1">
+              <div className="ml-auto flex items-center gap-2 pr-1">
                 <span className="h-2.5 w-2.5 rounded-full bg-slate-400/60 hover:bg-slate-400" />
                 <span className="h-2.5 w-2.5 rounded-full bg-slate-400/60 hover:bg-slate-400" />
                 <span className="h-2.5 w-2.5 rounded-full bg-slate-400/60 hover:bg-slate-400" />
               </div>
             </div>
-            <div className="flex items-center gap-2 border-b border-[#c4c8ce] bg-white px-3 py-2">
+            <div className="flex h-11 items-center gap-2 border-b border-[#c4c8ce] bg-white px-3">
               <div className="flex items-center gap-1">
                 <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" aria-label="Back">
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -1044,13 +1063,14 @@ export function buildChromeDecor(theme: ReplayChromeTheme, title: string): Chrom
             </div>
           </div>
         ),
+        headerHeight: 84,
       };
     case 'midnight':
       return {
         frameClass: 'border border-indigo-500/15 bg-gradient-to-br from-indigo-950/85 via-slate-950/80 to-black/75 shadow-[0_32px_90px_rgba(79,70,229,0.35)]',
         contentClass: 'bg-slate-950/25',
         header: (
-          <div className="flex items-center justify-between border-b border-indigo-400/15 bg-gradient-to-r from-indigo-950/50 via-slate-950/35 to-indigo-900/35 px-5 py-3 text-[11px] uppercase tracking-[0.22em] text-indigo-200/80">
+          <div className="flex h-full items-center justify-between border-b border-indigo-400/15 bg-gradient-to-r from-indigo-950/50 via-slate-950/35 to-indigo-900/35 px-5 text-[11px] uppercase tracking-[0.22em] text-indigo-200/80">
             <div className="flex items-center gap-3 text-indigo-300/70">
               <span className="h-2 w-8 rounded-full bg-indigo-400/70" />
               <span className="h-2 w-4 rounded-full bg-indigo-400/40" />
@@ -1062,12 +1082,14 @@ export function buildChromeDecor(theme: ReplayChromeTheme, title: string): Chrom
             </div>
           </div>
         ),
+        headerHeight: 40,
       };
     case 'minimal':
       return {
         frameClass: 'border border-transparent bg-transparent shadow-none',
         contentClass: 'bg-transparent',
         header: null,
+        headerHeight: 0,
       };
     case 'aurora':
     default:
@@ -1075,7 +1097,7 @@ export function buildChromeDecor(theme: ReplayChromeTheme, title: string): Chrom
         frameClass: 'border border-white/10 bg-slate-950/60 backdrop-blur-sm shadow-[0_20px_60px_rgba(15,23,42,0.4)]',
         contentClass: 'bg-slate-950/35',
         header: (
-          <div className="flex items-center gap-3 border-b border-white/5 bg-slate-950/40 px-5 py-3 text-xs text-slate-300">
+          <div className="flex h-full items-center gap-3 border-b border-white/5 bg-slate-950/40 px-5 text-xs text-slate-300">
             <div className="flex items-center gap-2">
               <span className="inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
               <span className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-400" />
@@ -1084,6 +1106,7 @@ export function buildChromeDecor(theme: ReplayChromeTheme, title: string): Chrom
             <div className="truncate text-slate-200">{title}</div>
           </div>
         ),
+        headerHeight: 40,
       };
   }
 };

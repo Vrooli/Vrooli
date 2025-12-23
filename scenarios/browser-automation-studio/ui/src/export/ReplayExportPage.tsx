@@ -83,6 +83,11 @@ type ExportPreviewPayload = {
   execution_id?: string | null;
 };
 
+type PresentationBounds = {
+  width: number;
+  height: number;
+};
+
 type BootstrapPayload = {
   payloadJson?: string | null;
   payloadBase64?: string | null;
@@ -603,6 +608,8 @@ const ReplayExportPage = () => {
     "standalone",
   );
   const [isAwaitingSpec, setIsAwaitingSpec] = useState(false);
+  const presentationBoundsRef = useRef<HTMLDivElement | null>(null);
+  const [presentationBounds, setPresentationBounds] = useState<PresentationBounds | null>(null);
   const fetchingRef = useRef(false);
   const pendingRetryRef = useRef<number | null>(null);
   const parentOriginRef = useRef<string | null>(null);
@@ -825,6 +832,27 @@ const ReplayExportPage = () => {
       document.body.style.alignItems = originalStyles.alignItems;
       document.body.style.padding = originalStyles.padding;
     };
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode === "capture") {
+      return;
+    }
+    const node = presentationBoundsRef.current;
+    if (!node || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const width = entry.contentRect.width;
+      const height = entry.contentRect.height;
+      if (width <= 0 || height <= 0) return;
+      setPresentationBounds({ width, height });
+    });
+
+    observer.observe(node);
+    return () => observer.disconnect();
   }, [mode]);
 
   const assetMap = useMemo(() => {
@@ -1226,9 +1254,18 @@ const ReplayExportPage = () => {
       },
       getViewportRect: () => {
         const controller = controllerRef.current;
+        const layout = controller?.getLayout?.();
         const element =
           controller?.getPresentationElement?.() ??
           controller?.getViewportElement();
+        if (layout) {
+          return {
+            x: Math.round(layout.viewportRect.x),
+            y: Math.round(layout.viewportRect.y),
+            width: Math.round(layout.viewportRect.width),
+            height: Math.round(layout.viewportRect.height),
+          };
+        }
         if (!element) {
           return { x: 0, y: 0, width: 0, height: 0 };
         }
@@ -1244,6 +1281,7 @@ const ReplayExportPage = () => {
       },
       getMetadata: () => {
         const controller = controllerRef.current;
+        const layout = controller?.getLayout?.();
         const presentationElement = controller?.getPresentationElement?.();
         const viewportElement = controller?.getViewportElement();
         const presentationRect = presentationElement
@@ -1258,21 +1296,38 @@ const ReplayExportPage = () => {
           : 0;
         const specId =
           movieSpec?.execution?.execution_id ?? executionSourceRef.current;
-        const viewportWidth = viewportRect
-          ? Math.max(1, Math.round(viewportRect.width))
-          : effectiveCanvasWidth;
-        const viewportHeight = viewportRect
-          ? Math.max(1, Math.round(viewportRect.height))
-          : effectiveCanvasHeight;
-        const canvasWidth = presentationRect
-          ? Math.max(1, Math.round(presentationRect.width))
-          : effectiveCanvasWidth;
-        const canvasHeight = presentationRect
-          ? Math.max(1, Math.round(presentationRect.height))
-          : effectiveCanvasHeight;
+        const viewportWidth = layout
+          ? Math.max(1, Math.round(layout.viewportRect.width))
+          : viewportRect
+            ? Math.max(1, Math.round(viewportRect.width))
+            : effectiveCanvasWidth;
+        const viewportHeight = layout
+          ? Math.max(1, Math.round(layout.viewportRect.height))
+          : viewportRect
+            ? Math.max(1, Math.round(viewportRect.height))
+            : effectiveCanvasHeight;
+        const canvasWidth = layout
+          ? Math.max(1, Math.round(layout.display.width))
+          : presentationRect
+            ? Math.max(1, Math.round(presentationRect.width))
+            : effectiveCanvasWidth;
+        const canvasHeight = layout
+          ? Math.max(1, Math.round(layout.display.height))
+          : presentationRect
+            ? Math.max(1, Math.round(presentationRect.height))
+            : effectiveCanvasHeight;
         const browserFrameRadius =
           movieSpec?.presentation?.browser_frame?.radius ?? undefined;
         const browserFrame = (() => {
+          if (layout) {
+            return {
+              x: Math.round(layout.viewportRect.x),
+              y: Math.round(layout.viewportRect.y),
+              width: viewportWidth,
+              height: viewportHeight,
+              radius: browserFrameRadius,
+            } as ExportMetadata["browserFrame"];
+          }
           if (presentationRect && viewportRect) {
             return {
               x: Math.round(viewportRect.left - presentationRect.left),
@@ -1459,8 +1514,9 @@ const ReplayExportPage = () => {
       }}
     >
       <div
+        ref={presentationBoundsRef}
         className={clsx(
-          "relative transition-all duration-500",
+          "relative flex items-center justify-center transition-all duration-500",
           mode === "standalone" ? "w-full" : "h-full w-full",
           {
             "opacity-100": mode !== "standalone" || controllerRef.current,
@@ -1488,6 +1544,8 @@ const ReplayExportPage = () => {
           onFrameProgressChange={handleProgressChange}
           exposeController={handleExposeController}
           presentationMode={mode === "standalone" ? "default" : "export"}
+          presentationFit={mode === "capture" ? "none" : "contain"}
+          presentationBounds={mode === "capture" ? undefined : presentationBounds ?? undefined}
           allowPointerEditing={mode === "standalone"}
           presentationDimensions={{
             width: effectiveCanvasWidth,

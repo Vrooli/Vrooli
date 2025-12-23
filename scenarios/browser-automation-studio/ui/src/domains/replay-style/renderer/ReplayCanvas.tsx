@@ -1,7 +1,8 @@
 import type { ReactNode, Ref } from 'react';
 
 interface ReplayCanvasProps {
-  aspectRatio: number;
+  width: number;
+  height: number;
   zoom: number;
   anchorStyle: string;
   screenshotRef?: Ref<HTMLDivElement>;
@@ -13,7 +14,8 @@ interface ReplayCanvasProps {
 }
 
 export function ReplayCanvas({
-  aspectRatio,
+  width,
+  height,
   zoom,
   anchorStyle,
   screenshotRef,
@@ -24,7 +26,7 @@ export function ReplayCanvas({
   children,
 }: ReplayCanvasProps) {
   return (
-    <div className="relative" style={{ paddingTop: `${aspectRatio}%` }}>
+    <div className="relative" style={{ width: `${width}px`, height: `${height}px` }}>
       <div
         ref={screenshotRef}
         className="absolute inset-0"

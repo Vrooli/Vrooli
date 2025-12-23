@@ -183,6 +183,7 @@ func applyReplayConfigToSpec(spec *exportservices.ReplayMovieSpec, config map[st
 	merged := mergeReplayConfig(style, extra)
 	backgroundTheme := readBackgroundTheme(merged)
 	backgroundSource := readBackgroundSource(merged, backgroundTheme)
+	chromeTheme := firstString(merged, "chromeTheme", "replayChromeTheme", "chrome_theme")
 
 	if speed := firstString(merged, "cursorSpeedProfile", "cursor_speed_profile"); speed != "" {
 		spec.CursorMotion.SpeedProfile = speed
@@ -191,7 +192,7 @@ func applyReplayConfigToSpec(spec *exportservices.ReplayMovieSpec, config map[st
 		spec.CursorMotion.PathStyle = pathStyle
 	}
 	if browserScale, ok := firstFloat(merged, "browserScale", "replayBrowserScale", "browser_scale"); ok {
-		applyBrowserScaleToSpec(spec, browserScale)
+		applyBrowserScaleToSpec(spec, browserScale, chromeTheme)
 	}
 
 	if backgroundSource != nil {
@@ -214,7 +215,7 @@ func applyReplayConfigToSpec(spec *exportservices.ReplayMovieSpec, config map[st
 	}
 }
 
-func applyBrowserScaleToSpec(spec *exportservices.ReplayMovieSpec, scale float64) {
+func applyBrowserScaleToSpec(spec *exportservices.ReplayMovieSpec, scale float64, chromeTheme string) {
 	if spec == nil || !isFiniteFloat(scale) {
 		return
 	}
@@ -228,21 +229,77 @@ func applyBrowserScaleToSpec(spec *exportservices.ReplayMovieSpec, scale float64
 		return
 	}
 	clamped := clampBrowserScale(scale)
-	browserWidth := int(math.Round(float64(canvasWidth) * clamped))
-	browserHeight := int(math.Round(float64(canvasHeight) * clamped))
-	if browserWidth <= 0 || browserHeight <= 0 {
-		return
-	}
 	radius := spec.Presentation.BrowserFrame.Radius
 	if radius <= 0 {
 		radius = 24
 	}
+	headerHeight := chromeHeaderHeight(chromeTheme)
+	viewportWidth := spec.Presentation.Viewport.Width
+	viewportHeight := spec.Presentation.Viewport.Height
+	if viewportWidth <= 0 || viewportHeight <= 0 {
+		viewportWidth = canvasWidth
+		viewportHeight = canvasHeight
+	}
+	frameRect := computeBrowserFrameRect(
+		float64(canvasWidth),
+		float64(canvasHeight),
+		float64(viewportWidth),
+		float64(viewportHeight),
+		clamped,
+		float64(headerHeight),
+	)
+	if frameRect.Width <= 0 || frameRect.Height <= 0 {
+		return
+	}
 	spec.Presentation.BrowserFrame = exportservices.ExportFrameRect{
-		X:      int(math.Round(float64(canvasWidth-browserWidth) / 2)),
-		Y:      int(math.Round(float64(canvasHeight-browserHeight) / 2)),
-		Width:  browserWidth,
-		Height: browserHeight,
+		X:      int(math.Round(frameRect.X)),
+		Y:      int(math.Round(frameRect.Y)),
+		Width:  int(math.Round(frameRect.Width)),
+		Height: int(math.Round(frameRect.Height)),
 		Radius: radius,
+	}
+}
+
+type frameRect struct {
+	X      float64
+	Y      float64
+	Width  float64
+	Height float64
+}
+
+func computeBrowserFrameRect(canvasWidth, canvasHeight, viewportWidth, viewportHeight, browserScale, chromeHeaderHeight float64) frameRect {
+	if canvasWidth <= 0 || canvasHeight <= 0 || viewportWidth <= 0 || viewportHeight <= 0 {
+		return frameRect{}
+	}
+	availableHeight := math.Max(1, canvasHeight-chromeHeaderHeight)
+	aspect := viewportHeight / viewportWidth
+	targetViewportWidth := canvasWidth * browserScale
+	maxViewportWidthByHeight := availableHeight / aspect
+	viewportWidthScaled := math.Max(1, math.Min(targetViewportWidth, maxViewportWidthByHeight))
+	viewportHeightScaled := math.Max(1, viewportWidthScaled*aspect)
+	viewportX := math.Max(0, (canvasWidth-viewportWidthScaled)/2)
+	viewportY := chromeHeaderHeight + math.Max(0, (availableHeight-viewportHeightScaled)/2)
+
+	return frameRect{
+		X:      viewportX,
+		Y:      math.Max(0, viewportY-chromeHeaderHeight),
+		Width:  viewportWidthScaled,
+		Height: viewportHeightScaled + chromeHeaderHeight,
+	}
+}
+
+func chromeHeaderHeight(theme string) int {
+	switch theme {
+	case "chromium":
+		return 84
+	case "midnight":
+		return 40
+	case "minimal":
+		return 0
+	case "aurora":
+		return 40
+	default:
+		return 40
 	}
 }
 

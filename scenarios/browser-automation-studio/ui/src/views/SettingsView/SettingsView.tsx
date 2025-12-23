@@ -279,15 +279,6 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
     const height = Math.round(replay.presentationHeight);
     return Math.min(3840, Math.max(320, height));
   }, [replay.presentationHeight]);
-  const previewScale = useMemo(() => {
-    if (!previewBounds) return 1;
-    const scaleX = previewBounds.width / targetWidth;
-    const scaleY = previewBounds.height / targetHeight;
-    const nextScale = Math.min(scaleX, scaleY, 1);
-    return Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1;
-  }, [previewBounds, targetHeight, targetWidth]);
-  const scaledWidth = Math.round(targetWidth * previewScale);
-  const scaledHeight = Math.round(targetHeight * previewScale);
 
   useEffect(() => {
     const node = previewBoundsRef.current;
@@ -510,35 +501,27 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
                     </div>
                   }
                 >
-                  <div style={{ width: scaledWidth, height: scaledHeight }} className="relative">
-                    <div
-                      style={{
-                        width: targetWidth,
-                        height: targetHeight,
-                        transform: `scale(${previewScale})`,
-                        transformOrigin: 'top left',
-                      }}
-                      className="relative"
-                    >
-                      <ReplayPlayer
-                        frames={demoFrames}
-                        autoPlay={isPreviewPlaying}
-                        loop={replay.loop}
-                        chromeTheme={replay.chromeTheme}
-                        background={replay.background}
-                        cursorTheme={replay.cursorTheme}
-                        cursorInitialPosition={replay.cursorInitialPosition}
-                        cursorScale={replay.cursorScale}
-                        cursorClickAnimation={replay.cursorClickAnimation}
-                        browserScale={replay.browserScale}
-                        cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
-                        cursorDefaultPathStyle={replay.cursorPathStyle}
-                        watermark={replay.watermark}
-                        introCard={replay.introCard}
-                        outroCard={replay.outroCard}
-                        presentationDimensions={{ width: targetWidth, height: targetHeight }}
-                      />
-                    </div>
+                  <div className="relative h-full w-full flex items-center justify-center">
+                    <ReplayPlayer
+                      frames={demoFrames}
+                      autoPlay={isPreviewPlaying}
+                      loop={replay.loop}
+                      chromeTheme={replay.chromeTheme}
+                      background={replay.background}
+                      cursorTheme={replay.cursorTheme}
+                      cursorInitialPosition={replay.cursorInitialPosition}
+                      cursorScale={replay.cursorScale}
+                      cursorClickAnimation={replay.cursorClickAnimation}
+                      browserScale={replay.browserScale}
+                      cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
+                      cursorDefaultPathStyle={replay.cursorPathStyle}
+                      watermark={replay.watermark}
+                      introCard={replay.introCard}
+                      outroCard={replay.outroCard}
+                      presentationDimensions={{ width: targetWidth, height: targetHeight }}
+                      presentationBounds={previewBounds ?? undefined}
+                      presentationFit="contain"
+                    />
                   </div>
                 </Suspense>
               </div>

@@ -40,6 +40,7 @@ import {
 import { clamp01, isSamePoint } from './utils/cursorMath';
 import { toAbsolutePoint, toRectStyle, toPointStyle, pickZoomAnchor } from './utils/geometry';
 import { parseRgbaComponents, rgbaWithAlpha } from './utils/formatting';
+import { computeReplayLayout } from '@/domains/replay-layout';
 
 // Theme builders
 import {
@@ -93,6 +94,8 @@ export function ReplayPlayer({
   cursorDefaultPathStyle,
   exposeController,
   presentationMode = 'default',
+  presentationFit,
+  presentationBounds,
   allowPointerEditing = true,
   presentationDimensions,
   watermark,
@@ -102,6 +105,8 @@ export function ReplayPlayer({
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const captureAreaRef = useRef<HTMLDivElement | null>(null);
+  const presentationRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   const browserFrameRef = useRef<HTMLDivElement | null>(null);
 
   const isExternallyControlled = typeof exposeController === 'function';
@@ -235,30 +240,6 @@ export function ReplayPlayer({
     onFrameProgressChange?.(currentIndex, frameProgress);
   }, [currentIndex, frameProgress, onFrameProgressChange]);
 
-  // Controller
-  const controller = useMemo<ReplayPlayerController | null>(() => {
-    if (!exposeController) return null;
-    return {
-      seek: ({ frameIndex, progress }) => seekToFrame(frameIndex, progress),
-      play: () => setIsPlaying(true),
-      pause: () => setIsPlaying(false),
-      getViewportElement: () => {
-        if (isExportPresentation) {
-          return browserFrameRef.current ?? captureAreaRef.current ?? screenshotRef.current ?? playerContainerRef.current;
-        }
-        return playerContainerRef.current ?? screenshotRef.current;
-      },
-      getPresentationElement: () => playerContainerRef.current,
-      getFrameCount: () => normalizedFramesRef.current.length,
-    };
-  }, [exposeController, isExportPresentation, seekToFrame, setIsPlaying, normalizedFramesRef]);
-
-  useEffect(() => {
-    if (!exposeController) return;
-    exposeController(controller);
-    return () => exposeController(null);
-  }, [controller, exposeController]);
-
   // Metadata panel state
   const [isMetadataCollapsed, setIsMetadataCollapsed] = useState(true);
 
@@ -291,18 +272,75 @@ export function ReplayPlayer({
   }
 
   // Dimensions
-  const dimensions: Dimensions = {
+  const canvasDimensions: Dimensions = {
     width: presentationDimensions?.width || currentFrame.screenshot?.width || FALLBACK_DIMENSIONS.width,
     height: presentationDimensions?.height || currentFrame.screenshot?.height || FALLBACK_DIMENSIONS.height,
   };
-  const aspectRatio = dimensions.width > 0 ? (dimensions.height / dimensions.width) * 100 : 56.25;
+  const viewportDimensions: Dimensions = {
+    width: currentFrame.screenshot?.width || FALLBACK_DIMENSIONS.width,
+    height: currentFrame.screenshot?.height || FALLBACK_DIMENSIONS.height,
+  };
+  const layout = useMemo(
+    () =>
+      computeReplayLayout({
+        canvas: canvasDimensions,
+        viewport: viewportDimensions,
+        browserScale: frameScale,
+        chromeHeaderHeight: chromeDecor.headerHeight,
+        contentInset: backgroundDecor.contentInset,
+        container: presentationBounds,
+        fit: presentationFit ?? (presentationBounds ? 'contain' : 'none'),
+      }),
+    [
+      canvasDimensions,
+      viewportDimensions,
+      frameScale,
+      presentationBounds,
+      presentationFit,
+      chromeDecor.headerHeight,
+      backgroundDecor.contentInset,
+    ],
+  );
+  const aspectRatio = viewportDimensions.width > 0
+    ? (viewportDimensions.height / viewportDimensions.width) * 100
+    : 56.25;
+
+  // Controller
+  const controller = useMemo<ReplayPlayerController | null>(() => {
+    if (!exposeController) return null;
+    return {
+      seek: ({ frameIndex, progress }) => seekToFrame(frameIndex, progress),
+      play: () => setIsPlaying(true),
+      pause: () => setIsPlaying(false),
+      getViewportElement: () => {
+        if (isExportPresentation) {
+          return viewportRef.current
+            ?? browserFrameRef.current
+            ?? captureAreaRef.current
+            ?? presentationRef.current
+            ?? screenshotRef.current
+            ?? playerContainerRef.current;
+        }
+        return viewportRef.current ?? presentationRef.current ?? playerContainerRef.current ?? screenshotRef.current;
+      },
+      getPresentationElement: () => presentationRef.current ?? playerContainerRef.current,
+      getLayout: () => layout,
+      getFrameCount: () => normalizedFramesRef.current.length,
+    };
+  }, [exposeController, isExportPresentation, seekToFrame, setIsPlaying, normalizedFramesRef, layout]);
+
+  useEffect(() => {
+    if (!exposeController) return;
+    exposeController(controller);
+    return () => exposeController(null);
+  }, [controller, exposeController]);
 
   // Zoom
   const zoom = currentFrame.zoomFactor && currentFrame.zoomFactor > 1 ? Math.min(currentFrame.zoomFactor, 3) : 1;
   const zoomAnchor = pickZoomAnchor(currentFrame);
   const anchorStyle = (() => {
     if (!zoomAnchor) return '50% 50%';
-    const style = toRectStyle(zoomAnchor, dimensions);
+    const style = toRectStyle(zoomAnchor, viewportDimensions);
     if (!style) return '50% 50%';
     const left = parseFloat(style.left);
     const top = parseFloat(style.top);
@@ -329,7 +367,7 @@ export function ReplayPlayer({
 
   // Pointer styles
   const pointerStyle = isCursorEnabled && cursorPosition
-    ? toPointStyle(cursorPosition, currentCursorPlan?.dims ?? dimensions)
+    ? toPointStyle(cursorPosition, currentCursorPlan?.dims ?? viewportDimensions)
     : undefined;
   const pointerOffsetX = cursorDecor.offset?.x ?? 0;
   const pointerOffsetY = cursorDecor.offset?.y ?? 0;
@@ -348,8 +386,12 @@ export function ReplayPlayer({
     : undefined;
 
   // Ghost cursor
-  const ghostAbsolutePoint = currentCursorPlan ? toAbsolutePoint(currentCursorPlan.startNormalized, currentCursorPlan.dims) : undefined;
-  const ghostStyle = ghostAbsolutePoint && currentCursorPlan ? toPointStyle(ghostAbsolutePoint, currentCursorPlan.dims) : undefined;
+  const ghostAbsolutePoint = currentCursorPlan
+    ? toAbsolutePoint(currentCursorPlan.startNormalized, currentCursorPlan.dims)
+    : undefined;
+  const ghostStyle = ghostAbsolutePoint && currentCursorPlan
+    ? toPointStyle(ghostAbsolutePoint, currentCursorPlan.dims)
+    : undefined;
   const ghostWrapperStyle = shouldRenderGhost && ghostStyle
     ? {
         ...ghostStyle,
@@ -408,7 +450,7 @@ export function ReplayPlayer({
   const overlayRegions = (regions: ReplayRegion[] | undefined, variant: 'highlight' | 'mask') => {
     if (!regions?.length) return null;
     return regions.map((region, index) => {
-      const style = toRectStyle(region.boundingBox, dimensions);
+      const style = toRectStyle(region.boundingBox, viewportDimensions);
       if (!style) return null;
       const color = region.color || '#38bdf8';
       const opacity = typeof region.opacity === 'number' ? region.opacity : variant === 'mask' ? 0.45 : 0.15;
@@ -446,17 +488,49 @@ export function ReplayPlayer({
     />
   ) : undefined;
 
+  const overlayTransformStyle: CSSProperties | undefined = zoom !== 1
+    ? { transform: `scale(${zoom})`, transformOrigin: anchorStyle, transition: screenshotTransition }
+    : undefined;
+
   return (
-    <div className="flex flex-col gap-4">
+    <div ref={playerContainerRef} className="flex flex-col gap-4">
       <ReplayStyleFrame
         backgroundDecor={backgroundDecor}
         chromeDecor={chromeDecor}
-        frameScale={frameScale}
+        layout={layout}
+        presentationRef={presentationRef}
+        viewportRef={viewportRef}
         showInterfaceChrome={showInterfaceChrome}
-        watermarkNode={watermark ? <WatermarkOverlay settings={watermark} /> : null}
         captureAreaRef={captureAreaRef}
         browserFrameRef={browserFrameRef}
         containerClassName={clsx(!isExportPresentation && 'transition-all duration-500')}
+        overlayTransformStyle={overlayTransformStyle}
+        overlayNode={
+          <>
+            {watermark ? <WatermarkOverlay settings={watermark} /> : null}
+            {overlayRegions(currentFrame.maskRegions, 'mask')}
+            {overlayRegions(currentFrame.highlightRegions, 'highlight')}
+            {currentFrame.focusedElement?.boundingBox && (
+              <div
+                className="absolute rounded-2xl border border-sky-400/70 bg-sky-400/10 shadow-[0_0_60px_rgba(56,189,248,0.35)]"
+                style={toRectStyle(currentFrame.focusedElement.boundingBox, viewportDimensions)}
+              />
+            )}
+            <ReplayCursorOverlay
+              cursorDecor={cursorDecor}
+              trailPoints={renderTrailPoints}
+              trailStrokeWidth={cursorTrailStrokeWidth}
+              showTrail={hasTrail}
+              ghostStyle={ghostWrapperStyle}
+              pointerStyle={pointerWrapperStyle}
+              pointerClassName={pointerWrapperClassName}
+              pointerEventProps={pointerEventProps}
+              clickEffect={clickEffectElement}
+            />
+            {playbackPhase === 'intro' && introCard && <IntroCard settings={introCard} />}
+            {playbackPhase === 'outro' && outroCard && <OutroCard settings={outroCard} />}
+          </>
+        }
         header={showInterfaceChrome ? (
           <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-200/80">
             <span>Replay</span>
@@ -476,7 +550,8 @@ export function ReplayPlayer({
       >
         <div className={clsx(!isExportPresentation && 'transition-all duration-300')}>
           <ReplayCanvas
-            aspectRatio={aspectRatio}
+            width={layout.viewportRect.width}
+            height={layout.viewportRect.height}
             zoom={zoom}
             anchorStyle={anchorStyle}
             screenshotRef={screenshotRef}
@@ -484,30 +559,7 @@ export function ReplayPlayer({
             screenshotAlt={currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`}
             transition={screenshotTransition}
           >
-            {overlayRegions(currentFrame.maskRegions, 'mask')}
-            {overlayRegions(currentFrame.highlightRegions, 'highlight')}
-
-            {currentFrame.focusedElement?.boundingBox && (
-              <div
-                className="absolute rounded-2xl border border-sky-400/70 bg-sky-400/10 shadow-[0_0_60px_rgba(56,189,248,0.35)]"
-                style={toRectStyle(currentFrame.focusedElement.boundingBox, dimensions)}
-              />
-            )}
-
-            <ReplayCursorOverlay
-              cursorDecor={cursorDecor}
-              trailPoints={renderTrailPoints}
-              trailStrokeWidth={cursorTrailStrokeWidth}
-              showTrail={hasTrail}
-              ghostStyle={ghostWrapperStyle}
-              pointerStyle={pointerWrapperStyle}
-              pointerClassName={pointerWrapperClassName}
-              pointerEventProps={pointerEventProps}
-              clickEffect={clickEffectElement}
-            />
-
-            {playbackPhase === 'intro' && introCard && <IntroCard settings={introCard} />}
-            {playbackPhase === 'outro' && outroCard && <OutroCard settings={outroCard} />}
+            {null}
           </ReplayCanvas>
         </div>
       </ReplayStyleFrame>

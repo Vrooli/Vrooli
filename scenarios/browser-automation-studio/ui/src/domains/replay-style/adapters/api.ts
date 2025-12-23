@@ -2,32 +2,6 @@ import { getConfig } from '@/config';
 import type { ReplayStyleConfig } from '../model';
 import { normalizeReplayStyle, REPLAY_STYLE_VERSION } from '../model';
 
-const STYLE_KEYS = new Set([
-  'chromeTheme',
-  'backgroundTheme',
-  'background',
-  'cursorTheme',
-  'cursorInitialPosition',
-  'cursorClickAnimation',
-  'cursorScale',
-  'browserScale',
-  'version',
-  'replayChromeTheme',
-  'replayBackgroundTheme',
-  'replayCursorTheme',
-  'replayCursorInitialPosition',
-  'replayCursorClickAnimation',
-  'replayCursorScale',
-  'replayBrowserScale',
-  'chrome_theme',
-  'background_theme',
-  'cursor_theme',
-  'cursor_initial_position',
-  'cursor_click_animation',
-  'cursor_scale',
-  'browser_scale',
-]);
-
 export interface ReplayStylePayload {
   style: ReplayStyleConfig;
   extra: Record<string, unknown>;
@@ -35,14 +9,6 @@ export interface ReplayStylePayload {
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-
-const parseLegacyPayload = (config: Record<string, unknown>): ReplayStylePayload => {
-  const style = normalizeReplayStyle(config);
-  const extra = Object.fromEntries(
-    Object.entries(config).filter(([key]) => !STYLE_KEYS.has(key)),
-  );
-  return { style, extra };
-};
 
 export const fetchReplayStylePayload = async (): Promise<ReplayStylePayload | null> => {
   const { API_URL } = await getConfig();
@@ -60,7 +26,7 @@ export const fetchReplayStylePayload = async (): Promise<ReplayStylePayload | nu
     const extra = isPlainObject(config.extra) ? config.extra : {};
     return { style, extra };
   }
-  return parseLegacyPayload(config);
+  return null;
 };
 
 export const fetchReplayStyleConfig = async (): Promise<ReplayStyleConfig | null> => {

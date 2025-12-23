@@ -26,4 +26,33 @@ describe('ReplayPlayer', () => {
     expect(screen.getByText('https://example.com')).toBeInTheDocument();
     expect(screen.getByAltText('Step 1')).toBeInTheDocument();
   });
+
+  it('sizes the viewport from the layout model', () => {
+    const frames: ReplayFrame[] = [
+      {
+        id: 'frame-1',
+        stepIndex: 0,
+        success: true,
+        screenshot: {
+          artifactId: 'shot-1',
+          url: 'https://example.com/screenshot.png',
+          width: 1280,
+          height: 720,
+        },
+      },
+    ];
+
+    render(
+      <ReplayPlayer
+        frames={frames}
+        autoPlay={false}
+        loop={false}
+        browserScale={0.5}
+        presentationDimensions={{ width: 1280, height: 720 }}
+      />,
+    );
+
+    const viewport = screen.getByTestId('replay-viewport');
+    expect(viewport).toHaveStyle({ width: '640px', height: '360px' });
+  });
 });

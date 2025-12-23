@@ -19,6 +19,7 @@ import type {
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
 } from '@/domains/replay-style';
+import type { ReplayFitMode, ReplayLayoutModel } from '@/domains/replay-layout';
 
 // Re-export settings types for convenience
 export type { WatermarkSettings, IntroCardSettings, OutroCardSettings };
@@ -203,6 +204,7 @@ export interface ReplayPlayerController {
   pause: () => void;
   getViewportElement: () => HTMLElement | null;
   getPresentationElement: () => HTMLElement | null;
+  getLayout?: () => ReplayLayoutModel;
   getFrameCount: () => number;
 }
 
@@ -232,6 +234,8 @@ export interface ReplayPlayerProps {
   cursorDefaultPathStyle?: CursorPathStyle;
   exposeController?: (controller: ReplayPlayerController | null) => void;
   presentationMode?: ReplayPlayerPresentationMode;
+  presentationFit?: ReplayFitMode;
+  presentationBounds?: Dimensions;
   allowPointerEditing?: boolean;
   presentationDimensions?: ReplayPlayerPresentationDimensions;
   watermark?: WatermarkSettings;

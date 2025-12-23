@@ -12,6 +12,11 @@ export interface ReplayEmptyStateProps {
 }
 
 export function ReplayEmptyState({ backgroundDecor }: ReplayEmptyStateProps) {
+  const contentInset = backgroundDecor.contentInset ?? { x: 0, y: 0 };
+  const contentStyle =
+    contentInset.x > 0 || contentInset.y > 0
+      ? { padding: `${contentInset.y}px ${contentInset.x}px` }
+      : undefined;
   return (
     <div
       className={clsx(
@@ -27,6 +32,7 @@ export function ReplayEmptyState({ backgroundDecor }: ReplayEmptyStateProps) {
           'relative z-[1] flex h-full w-full items-center justify-center text-center',
           backgroundDecor.contentClass,
         )}
+        style={contentStyle}
       >
         <span className="max-w-sm text-xs text-slate-200/80 sm:text-sm">
           Replay timeline will appear once executions capture timeline artifacts.

@@ -20,9 +20,13 @@ describe('replay style api adapter', () => {
       ok: true,
       json: async () => ({
         config: {
-          chromeTheme: 'midnight',
-          cursorSpeedProfile: 'linear',
-          watermark: { enabled: true },
+          style: {
+            chromeTheme: 'midnight',
+          },
+          extra: {
+            cursorSpeedProfile: 'linear',
+            watermark: { enabled: true },
+          },
         },
       }),
     } as Response);
@@ -34,7 +38,6 @@ describe('replay style api adapter', () => {
       cursorSpeedProfile: 'linear',
       watermark: { enabled: true },
     });
-    expect(payload?.extra).not.toHaveProperty('chromeTheme');
   });
 
   it('persists replay style with extra config', async () => {

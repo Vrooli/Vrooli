@@ -16,6 +16,7 @@ import {
   useReplaySettingsSync,
   useResolvedReplayBackground,
 } from '@/domains/replay-style';
+import { computeReplayLayout, type ReplayRect } from '@/domains/replay-layout';
 import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
 import { ReplaySection } from '@/views/SettingsView/sections/ReplaySection';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
@@ -48,6 +49,8 @@ export function RecordPreviewPanel({
 
   const [liveRefreshToken, setLiveRefreshToken] = useState(0);
   const previewBoundsRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const playwrightContainerRef = useRef<HTMLDivElement | null>(null);
   const [previewBounds, setPreviewBounds] = useState<{ width: number; height: number } | null>(null);
   const lastViewportRef = useRef<{ width: number; height: number } | null>(null);
   // Track viewport for passing to PlaywrightView (for coordinate mapping)
@@ -56,6 +59,7 @@ export function RecordPreviewPanel({
   const [showReplaySettings, setShowReplaySettings] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
+  const [previewContentRect, setPreviewContentRect] = useState<ReplayRect | null>(null);
 
   // Stream settings management
   const { preset, settings: streamSettings, showStats, setPreset, setShowStats } = useStreamSettings();
@@ -193,16 +197,6 @@ export function RecordPreviewPanel({
 
   const targetWidth = activeViewport.width;
   const targetHeight = activeViewport.height;
-  const previewScale = useMemo(() => {
-    if (!previewBounds || !showReplayStyle) return 1;
-    const scaleX = previewBounds.width / targetWidth;
-    const scaleY = previewBounds.height / targetHeight;
-    const nextScale = Math.min(scaleX, scaleY, 1);
-    return Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1;
-  }, [previewBounds, showReplayStyle, targetHeight, targetWidth]);
-
-  const scaledWidth = Math.round(targetWidth * previewScale);
-  const scaledHeight = Math.round(targetHeight * previewScale);
   const resolvedStyle = useMemo(
     () =>
       normalizeReplayStyle({
@@ -239,6 +233,29 @@ export function RecordPreviewPanel({
       ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, resolvedStyle.browserScale))
       : 1;
 
+  const previewLayout = useMemo(() => {
+    if (!showReplayStyle) return null;
+    const bounds = previewBounds ?? undefined;
+    return computeReplayLayout({
+      canvas: { width: targetWidth, height: targetHeight },
+      viewport: currentViewport ?? { width: targetWidth, height: targetHeight },
+      browserScale: frameScale,
+      chromeHeaderHeight: chromeDecor.headerHeight,
+      contentInset: backgroundDecor.contentInset,
+      container: bounds,
+      fit: bounds ? 'contain' : 'none',
+    });
+  }, [
+    showReplayStyle,
+    previewBounds,
+    targetHeight,
+    targetWidth,
+    currentViewport,
+    frameScale,
+    chromeDecor.headerHeight,
+    backgroundDecor.contentInset,
+  ]);
+
   const handleSavePreset = useCallback(() => {
     const trimmedName = newPresetName.trim();
     if (!trimmedName) return;
@@ -246,6 +263,26 @@ export function RecordPreviewPanel({
     setNewPresetName('');
     setShowSaveDialog(false);
   }, [newPresetName, saveAsPreset]);
+
+  const handleContentRectChange = useCallback(
+    (rect: ReplayRect) => {
+      const viewportNode = viewportRef.current;
+      const containerNode = playwrightContainerRef.current;
+      if (!viewportNode || !containerNode) {
+        setPreviewContentRect(rect);
+        return;
+      }
+      const viewportBounds = viewportNode.getBoundingClientRect();
+      const containerBounds = containerNode.getBoundingClientRect();
+      setPreviewContentRect({
+        x: rect.x + (containerBounds.left - viewportBounds.left),
+        y: rect.y + (containerBounds.top - viewportBounds.top),
+        width: rect.width,
+        height: rect.height,
+      });
+    },
+    [],
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -316,70 +353,74 @@ export function RecordPreviewPanel({
           )}
         >
           <div
-            style={showReplayStyle ? { width: scaledWidth, height: scaledHeight } : { width: '100%', height: '100%' }}
+            style={
+              showReplayStyle && previewLayout
+                ? {
+                    width: previewLayout.display.width + previewLayout.contentInset.x * 2,
+                    height: previewLayout.display.height + previewLayout.contentInset.y * 2,
+                  }
+                : { width: '100%', height: '100%' }
+            }
             className={clsx('relative', !showReplayStyle && 'h-full w-full')}
           >
-            <div
-              style={{ width: targetWidth, height: targetHeight, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}
-              className="relative"
-            >
-              {showReplayStyle ? (
-                <div data-theme="dark" className="relative h-full w-full">
-                  <ReplayStyleFrame
-                    backgroundDecor={backgroundDecor}
-                    chromeDecor={chromeDecor}
-                    frameScale={frameScale}
-                    frameStyle={{ height: `${frameScale * 100}%` }}
-                    showInterfaceChrome={false}
-                    watermarkNode={replay.watermark ? <WatermarkOverlay settings={replay.watermark} /> : null}
-                    containerClassName="h-full w-full"
-                    contentClassName="h-full w-full"
-                  >
-                    <div className="flex h-full w-full items-center justify-center">
-                      <div className="relative flex h-full w-full overflow-hidden">
-                        {sessionId ? (
-                          effectiveUrl ? (
-                            <PlaywrightView
-                              sessionId={sessionId}
-                              refreshToken={liveRefreshToken}
-                              viewport={currentViewport ?? undefined}
-                              quality={streamSettings.quality}
-                              fps={streamSettings.fps}
-                              onStatsUpdate={handleStatsUpdate}
-                              onPageMetadataChange={handlePageMetadataChange}
-                            />
-                          ) : (
-                            <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
-                          )
+            {showReplayStyle && previewLayout ? (
+              <div data-theme="dark" className="relative h-full w-full">
+                <ReplayStyleFrame
+                  backgroundDecor={backgroundDecor}
+                  chromeDecor={chromeDecor}
+                  layout={previewLayout}
+                  showInterfaceChrome={false}
+                  viewportContentRect={previewContentRect ?? undefined}
+                  viewportRef={viewportRef}
+                  overlayNode={replay.watermark ? <WatermarkOverlay settings={replay.watermark} /> : null}
+                  containerClassName="h-full w-full"
+                  contentClassName="h-full w-full"
+                >
+                  <div className="flex h-full w-full items-center justify-center">
+                    <div ref={playwrightContainerRef} className="relative flex h-full w-full overflow-hidden">
+                      {sessionId ? (
+                        effectiveUrl ? (
+                          <PlaywrightView
+                            sessionId={sessionId}
+                            refreshToken={liveRefreshToken}
+                            viewport={currentViewport ?? undefined}
+                            quality={streamSettings.quality}
+                            fps={streamSettings.fps}
+                            onStatsUpdate={handleStatsUpdate}
+                            onPageMetadataChange={handlePageMetadataChange}
+                            onContentRectChange={handleContentRectChange}
+                          />
                         ) : (
-                          <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
-                        )}
-                      </div>
+                          <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
+                        )
+                      ) : (
+                        <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
+                      )}
                     </div>
-                  </ReplayStyleFrame>
-                </div>
-              ) : (
-                <div className="h-full w-full">
-                  {sessionId ? (
-                    effectiveUrl ? (
-                      <PlaywrightView
-                        sessionId={sessionId}
-                        refreshToken={liveRefreshToken}
-                        viewport={currentViewport ?? undefined}
-                        quality={streamSettings.quality}
-                        fps={streamSettings.fps}
-                        onStatsUpdate={handleStatsUpdate}
-                        onPageMetadataChange={handlePageMetadataChange}
-                      />
-                    ) : (
-                      <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
-                    )
+                  </div>
+                </ReplayStyleFrame>
+              </div>
+            ) : (
+              <div className="h-full w-full">
+                {sessionId ? (
+                  effectiveUrl ? (
+                    <PlaywrightView
+                      sessionId={sessionId}
+                      refreshToken={liveRefreshToken}
+                      viewport={currentViewport ?? undefined}
+                      quality={streamSettings.quality}
+                      fps={streamSettings.fps}
+                      onStatsUpdate={handleStatsUpdate}
+                      onPageMetadataChange={handlePageMetadataChange}
+                    />
                   ) : (
-                    <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
-                  )}
-                </div>
-              )}
-            </div>
+                    <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
+                  )
+                ) : (
+                  <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
