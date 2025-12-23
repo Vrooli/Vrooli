@@ -6,10 +6,13 @@ import {
   REPLAY_CHROME_OPTIONS,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
   REPLAY_CURSOR_POSITIONS,
-  CURSOR_SCALE_MIN,
-  CURSOR_SCALE_MAX,
-} from "@/domains/exports/replay/replayThemeOptions";
-import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from "@/domains/exports/replay/constants";
+} from "@/domains/replay-style/catalog";
+import {
+  MAX_BROWSER_SCALE,
+  MIN_BROWSER_SCALE,
+  MAX_CURSOR_SCALE,
+  MIN_CURSOR_SCALE,
+} from "@/domains/exports/replay/constants";
 import { RangeSlider } from "@shared/ui";
 import type { ReplayCustomizationController } from "./useReplayCustomization";
 
@@ -513,8 +516,8 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
                 </span>
                 <input
                   type="range"
-                  min={CURSOR_SCALE_MIN}
-                  max={CURSOR_SCALE_MAX}
+                min={MIN_CURSOR_SCALE}
+                max={MAX_CURSOR_SCALE}
                   step={0.05}
                   value={replayCursorScale}
                   onChange={(event) => handleCursorScaleChange(Number(event.target.value))}

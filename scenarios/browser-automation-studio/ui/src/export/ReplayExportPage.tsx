@@ -14,6 +14,7 @@ import ReplayPlayer, {
   type CursorPathStyle,
 } from "@/domains/exports/replay/ReplayPlayer";
 import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from "@/domains/exports/replay/constants";
+import { resolveReplayStyleFromSpec } from "@/domains/replay-style/adapters/spec";
 import {
   mapAssertion,
   mapRegions,
@@ -1376,30 +1377,21 @@ const ReplayExportPage = () => {
     });
   }, [currentFrameIndex, currentProgress, mode, postToParent, replayFrames]);
 
-  const decor = movieSpec?.decor ?? {};
   const motion = movieSpec?.cursor_motion;
   const watermark = mapWatermarkSettings(movieSpec?.watermark);
   const introCard = mapIntroCardSettings(movieSpec?.intro_card);
   const outroCard = mapOutroCardSettings(movieSpec?.outro_card);
-  const chromeTheme = (decor.chrome_theme ?? "aurora") as any;
-  const backgroundTheme = (decor.background_theme ?? "aurora") as any;
-  const cursorTheme = (decor.cursor_theme ?? "white") as any;
-  const cursorInitialPosition = (decor.cursor_initial_position ??
-    motion?.initial_position ??
-    movieSpec?.cursor?.initial_position ??
-    "center") as any;
-  const cursorClickAnimation = (decor.cursor_click_animation ??
-    motion?.click_animation ??
-    movieSpec?.cursor?.click_animation ??
-    "none") as any;
-  const cursorScale =
-    decor.cursor_scale ?? motion?.cursor_scale ?? movieSpec?.cursor?.scale ?? 1;
+  const styleFromSpec = resolveReplayStyleFromSpec(movieSpec);
   const cursorDefaultSpeedProfile = asCursorSpeedProfile(motion?.speed_profile);
   const cursorDefaultPathStyle = asCursorPathStyle(motion?.path_style);
   const browserFrameWidth = movieSpec?.presentation?.browser_frame?.width;
   const browserScale = browserFrameWidth && effectiveCanvasWidth > 0
     ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, browserFrameWidth / effectiveCanvasWidth))
     : 1;
+  const resolvedStyle = {
+    ...styleFromSpec,
+    browserScale,
+  };
 
   const handleFrameChange = useCallback(
     (_frame: ReplayFrame, index: number) => {
@@ -1481,13 +1473,13 @@ const ReplayExportPage = () => {
           frames={replayFrames}
           autoPlay={false}
           loop={false}
-          chromeTheme={chromeTheme}
-          backgroundTheme={backgroundTheme}
-          cursorTheme={cursorTheme}
-          cursorInitialPosition={cursorInitialPosition}
-          cursorScale={cursorScale}
-          cursorClickAnimation={cursorClickAnimation}
-          browserScale={browserScale}
+          chromeTheme={resolvedStyle.chromeTheme}
+          backgroundTheme={resolvedStyle.backgroundTheme}
+          cursorTheme={resolvedStyle.cursorTheme}
+          cursorInitialPosition={resolvedStyle.cursorInitialPosition}
+          cursorScale={resolvedStyle.cursorScale}
+          cursorClickAnimation={resolvedStyle.cursorClickAnimation}
+          browserScale={resolvedStyle.browserScale}
           cursorDefaultSpeedProfile={cursorDefaultSpeedProfile}
           cursorDefaultPathStyle={cursorDefaultPathStyle}
           watermark={watermark ?? undefined}

@@ -9,9 +9,9 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSPropertie
 import clsx from 'clsx';
 
 // Sub-components
-import { WatermarkOverlay } from './WatermarkOverlay';
 import { IntroCard } from './IntroCard';
 import { OutroCard } from './OutroCard';
+import { WatermarkOverlay } from './WatermarkOverlay';
 import {
   ReplayControls,
   ReplayStoryboard,
@@ -46,7 +46,10 @@ import { toAbsolutePoint, toRectStyle, toPointStyle, pickZoomAnchor } from './ut
 import { parseRgbaComponents, rgbaWithAlpha } from './utils/formatting';
 
 // Theme builders
-import { buildBackgroundDecor, buildCursorDecor, buildChromeDecor } from './themes';
+import { buildBackgroundDecor, buildCursorDecor } from '@/domains/replay-style/catalog';
+import { ReplayStyleFrame } from '@/domains/replay-style/renderer/ReplayStyleFrame';
+import { ReplayCanvas } from '@/domains/replay-style/renderer/ReplayCanvas';
+import { ReplayCursorOverlay } from '@/domains/replay-style/renderer/ReplayCursorOverlay';
 
 // Hooks
 import { usePlayback } from './hooks/usePlayback';
@@ -84,7 +87,7 @@ export function ReplayPlayer({
   cursorTheme = 'white',
   cursorInitialPosition = 'center',
   cursorScale = 1,
-  cursorClickAnimation = 'none',
+  cursorClickAnimation = 'pulse',
   browserScale = 1,
   cursorDefaultSpeedProfile,
   cursorDefaultPathStyle,
@@ -193,10 +196,6 @@ export function ReplayPlayer({
     ? currentFrame.finalUrl || currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`
     : 'Replay';
   const chromeVariant = chromeTheme ?? 'aurora';
-  const chromeDecor = useMemo(
-    () => buildChromeDecor(chromeVariant, headerTitle),
-    [chromeVariant, headerTitle],
-  );
 
   // Cursor scale
   const pointerScale =
@@ -432,113 +431,70 @@ export function ReplayPlayer({
 
   return (
     <div className="flex flex-col gap-4">
-      <div
-        ref={playerContainerRef}
-        className={clsx(
-          'relative overflow-hidden rounded-3xl',
-          !isExportPresentation && 'transition-all duration-500',
-          backgroundDecor.containerClass,
-        )}
-        style={backgroundDecor.containerStyle}
+      <ReplayStyleFrame
+        backgroundTheme={backgroundTheme ?? 'aurora'}
+        chromeTheme={chromeVariant}
+        title={headerTitle}
+        frameScale={frameScale}
+        showInterfaceChrome={showInterfaceChrome}
+        watermarkNode={watermark ? <WatermarkOverlay settings={watermark} /> : null}
+        captureAreaRef={captureAreaRef}
+        browserFrameRef={browserFrameRef}
+        containerClassName={clsx(!isExportPresentation && 'transition-all duration-500')}
+        header={showInterfaceChrome ? (
+          <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-200/80">
+            <span>Replay</span>
+            <span>Step {currentIndex + 1} / {normalizedFrames.length}</span>
+          </div>
+        ) : null}
+        footer={showInterfaceChrome ? (
+          <ReplayControls
+            isPlaying={isPlaying}
+            onPlayPause={() => setIsPlaying((prev) => !prev)}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            frameProgress={frameProgress}
+            displayDurationMs={displayDurationMs}
+          />
+        ) : null}
       >
-        {backgroundDecor.baseLayer}
-        {backgroundDecor.overlay}
-        {watermark && <WatermarkOverlay settings={watermark} />}
-        <div className={clsx('relative z-[1]', backgroundDecor.contentClass)}>
-          {showInterfaceChrome && (
-            <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-200/80">
-              <span>Replay</span>
-              <span>Step {currentIndex + 1} / {normalizedFrames.length}</span>
-            </div>
-          )}
+        <div className={clsx(!isExportPresentation && 'transition-all duration-300')}>
+          <ReplayCanvas
+            aspectRatio={aspectRatio}
+            zoom={zoom}
+            anchorStyle={anchorStyle}
+            screenshotRef={screenshotRef}
+            screenshotUrl={currentFrame.screenshot?.url}
+            screenshotAlt={currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`}
+            transition={screenshotTransition}
+          >
+            {overlayRegions(currentFrame.maskRegions, 'mask')}
+            {overlayRegions(currentFrame.highlightRegions, 'highlight')}
 
-          <div ref={captureAreaRef} className={clsx('space-y-3', { 'mt-4': showInterfaceChrome })}>
-            <div ref={browserFrameRef} className="mx-auto w-full" style={{ width: `${frameScale * 100}%` }}>
-              <div className={clsx('overflow-hidden rounded-2xl', !isExportPresentation && 'transition-all duration-300', chromeDecor.frameClass)}>
-                {chromeDecor.header}
-                <div className={clsx('relative overflow-hidden', chromeDecor.contentClass)}>
-                  <div className="relative" style={{ paddingTop: `${aspectRatio}%` }}>
-                    <div
-                      ref={screenshotRef}
-                      className="absolute inset-0"
-                      style={{ transform: `scale(${zoom})`, transformOrigin: anchorStyle, transition: screenshotTransition }}
-                    >
-                      {currentFrame.screenshot?.url ? (
-                        <img
-                          src={currentFrame.screenshot.url}
-                          alt={currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`}
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-slate-900 text-slate-500">
-                          Screenshot unavailable
-                        </div>
-                      )}
-
-                      <div className="absolute inset-0">
-                        {overlayRegions(currentFrame.maskRegions, 'mask')}
-                        {overlayRegions(currentFrame.highlightRegions, 'highlight')}
-
-                        {currentFrame.focusedElement?.boundingBox && (
-                          <div
-                            className="absolute rounded-2xl border border-sky-400/70 bg-sky-400/10 shadow-[0_0_60px_rgba(56,189,248,0.35)]"
-                            style={toRectStyle(currentFrame.focusedElement.boundingBox, dimensions)}
-                          />
-                        )}
-
-                        {hasTrail && (
-                          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                            <polyline
-                              points={renderTrailPoints.map((p) => `${p.x},${p.y}`).join(' ')}
-                              stroke={cursorDecor.trailColor}
-                              strokeWidth={cursorTrailStrokeWidth}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              fill="none"
-                            />
-                          </svg>
-                        )}
-
-                        {ghostWrapperStyle && cursorDecor.renderBase && (
-                          <div
-                            role="presentation"
-                            className={clsx('absolute pointer-events-none select-none transition-all duration-500 ease-out', cursorDecor.wrapperClass)}
-                            style={ghostWrapperStyle}
-                          >
-                            {cursorDecor.renderBase}
-                          </div>
-                        )}
-
-                        {pointerWrapperStyle && cursorDecor.renderBase && (
-                          <div role="presentation" className={pointerWrapperClassName} style={pointerWrapperStyle} {...pointerEventProps}>
-                            {clickEffectElement}
-                            {cursorDecor.renderBase}
-                          </div>
-                        )}
-                      </div>
-
-                      {playbackPhase === 'intro' && introCard && <IntroCard settings={introCard} />}
-                      {playbackPhase === 'outro' && outroCard && <OutroCard settings={outroCard} />}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {showInterfaceChrome && (
-              <ReplayControls
-                isPlaying={isPlaying}
-                onPlayPause={() => setIsPlaying((prev) => !prev)}
-                onPrevious={handlePrevious}
-                onNext={handleNext}
-                frameProgress={frameProgress}
-                displayDurationMs={displayDurationMs}
+            {currentFrame.focusedElement?.boundingBox && (
+              <div
+                className="absolute rounded-2xl border border-sky-400/70 bg-sky-400/10 shadow-[0_0_60px_rgba(56,189,248,0.35)]"
+                style={toRectStyle(currentFrame.focusedElement.boundingBox, dimensions)}
               />
             )}
-          </div>
+
+            <ReplayCursorOverlay
+              cursorDecor={cursorDecor}
+              trailPoints={renderTrailPoints}
+              trailStrokeWidth={cursorTrailStrokeWidth}
+              showTrail={hasTrail}
+              ghostStyle={ghostWrapperStyle}
+              pointerStyle={pointerWrapperStyle}
+              pointerClassName={pointerWrapperClassName}
+              pointerEventProps={pointerEventProps}
+              clickEffect={clickEffectElement}
+            />
+
+            {playbackPhase === 'intro' && introCard && <IntroCard settings={introCard} />}
+            {playbackPhase === 'outro' && outroCard && <OutroCard settings={outroCard} />}
+          </ReplayCanvas>
         </div>
-      </div>
+      </ReplayStyleFrame>
 
       {showInterfaceChrome && (
         <ReplayMetadataPanel

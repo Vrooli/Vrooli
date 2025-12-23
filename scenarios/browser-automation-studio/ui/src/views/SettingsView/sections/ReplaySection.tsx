@@ -21,16 +21,19 @@ import {
   CURSOR_GROUP_ORDER,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
   REPLAY_CURSOR_POSITIONS,
-  CURSOR_SCALE_MIN,
-  CURSOR_SCALE_MAX,
-} from '@/domains/exports/replay/replayThemeOptions';
+} from '@/domains/replay-style/catalog';
 import type { CursorSpeedProfile, CursorPathStyle } from '@/domains/exports/replay/ReplayPlayer';
 import Tooltip from '@shared/ui/Tooltip';
 import { RangeSlider } from '@shared/ui';
 import { WatermarkSettings } from '@/domains/exports/replay/WatermarkSettings';
 import { IntroCardSettings } from '@/domains/exports/replay/IntroCardSettings';
 import { OutroCardSettings } from '@/domains/exports/replay/OutroCardSettings';
-import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from '@/domains/exports/replay/constants';
+import {
+  MAX_BROWSER_SCALE,
+  MIN_BROWSER_SCALE,
+  MAX_CURSOR_SCALE,
+  MIN_CURSOR_SCALE,
+} from '@/domains/exports/replay/constants';
 import { SettingSection, OptionGrid, ToggleSwitch } from './shared';
 
 const SPEED_PROFILE_OPTIONS: Array<{ id: CursorSpeedProfile; label: string; description: string }> = [
@@ -414,8 +417,8 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
       <SettingSection title="Cursor Size" tooltip="Scale the cursor size.">
         <div className="flex items-center gap-4">
           <RangeSlider
-            min={CURSOR_SCALE_MIN}
-            max={CURSOR_SCALE_MAX}
+            min={MIN_CURSOR_SCALE}
+            max={MAX_CURSOR_SCALE}
             step={0.1}
             value={replay.cursorScale}
             onChange={(next) => setReplaySetting('cursorScale', next)}

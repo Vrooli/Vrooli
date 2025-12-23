@@ -35,7 +35,8 @@ import { resolveUrl } from "@utils/executionTypeMappers";
 import { toast } from "react-hot-toast";
 import { getConfig } from "@/config";
 import { useComposerApiBase } from "./useComposerApiBase";
-import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from "@/domains/exports/replay/constants";
+import { applyReplayStyleToSpec } from "@/domains/replay-style/adapters/spec";
+import { normalizeReplayStyle } from "@/domains/replay-style/model";
 
 type UseExecutionExportParams = {
   execution: Execution;
@@ -376,77 +377,36 @@ export const useExecutionExport = ({
     );
   }, [replayFrames, timelineForReplay]);
 
+  const replayStyle = useMemo(
+    () =>
+      normalizeReplayStyle({
+        chromeTheme: replayChromeTheme,
+        backgroundTheme: replayBackgroundTheme,
+        cursorTheme: replayCursorTheme,
+        cursorInitialPosition: replayCursorInitialPosition,
+        cursorClickAnimation: replayCursorClickAnimation,
+        cursorScale: replayCursorScale,
+        browserScale: replayBrowserScale,
+      }),
+    [
+      replayBackgroundTheme,
+      replayBrowserScale,
+      replayChromeTheme,
+      replayCursorClickAnimation,
+      replayCursorInitialPosition,
+      replayCursorScale,
+      replayCursorTheme,
+    ],
+  );
+
   const decoratedMovieSpec = useMemo<ReplayMovieSpec | null>(() => {
     if (!movieSpec) {
       return null;
     }
-    const cursorSpec = movieSpec.cursor ?? {};
-    const decor = movieSpec.decor ?? {};
-    const motion = movieSpec.cursor_motion ?? {};
-    const presentation = movieSpec.presentation ?? {};
-    const canvasWidth =
-      presentation.canvas?.width ??
-      presentation.viewport?.width ??
-      0;
-    const canvasHeight =
-      presentation.canvas?.height ??
-      presentation.viewport?.height ??
-      0;
-    const clampedBrowserScale =
-      typeof replayBrowserScale === "number" && Number.isFinite(replayBrowserScale)
-        ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, replayBrowserScale))
-        : 1;
-    const browserWidth = canvasWidth > 0 ? Math.round(canvasWidth * clampedBrowserScale) : 0;
-    const browserHeight = canvasHeight > 0 ? Math.round(canvasHeight * clampedBrowserScale) : 0;
-    const browserFrameRadius = presentation.browser_frame?.radius ?? 24;
-    const browserFrame = canvasWidth > 0 && canvasHeight > 0
-      ? {
-          x: Math.round((canvasWidth - browserWidth) / 2),
-          y: Math.round((canvasHeight - browserHeight) / 2),
-          width: browserWidth,
-          height: browserHeight,
-          radius: browserFrameRadius,
-        }
-      : presentation.browser_frame;
-    return {
-      ...movieSpec,
-      cursor: {
-        ...cursorSpec,
-        scale: replayCursorScale,
-        initial_position: replayCursorInitialPosition,
-        click_animation: replayCursorClickAnimation,
-      },
-      decor: {
-        ...decor,
-        chrome_theme: replayChromeTheme,
-        background_theme: replayBackgroundTheme,
-        cursor_theme: replayCursorTheme,
-        cursor_initial_position: replayCursorInitialPosition,
-        cursor_click_animation: replayCursorClickAnimation,
-        cursor_scale: replayCursorScale,
-      },
-      presentation: browserFrame
-        ? {
-            ...presentation,
-            browser_frame: browserFrame,
-          }
-        : presentation,
-      cursor_motion: {
-        ...motion,
-        initial_position: replayCursorInitialPosition,
-        click_animation: replayCursorClickAnimation,
-        cursor_scale: replayCursorScale,
-      },
-    };
+    return applyReplayStyleToSpec(movieSpec, replayStyle);
   }, [
     movieSpec,
-    replayBackgroundTheme,
-    replayChromeTheme,
-    replayCursorTheme,
-    replayCursorInitialPosition,
-    replayCursorClickAnimation,
-    replayCursorScale,
-    replayBrowserScale,
+    replayStyle,
   ]);
 
   const dimensionPresetOptions = useMemo(

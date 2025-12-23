@@ -296,3 +296,30 @@ func TestReplayConfigOverridePrecedence(t *testing.T) {
 		t.Fatalf("expected background theme dawn, got %s", spec.Decor.BackgroundTheme)
 	}
 }
+
+func TestReplayConfigBrowserScale(t *testing.T) {
+	spec := &exportservices.ReplayMovieSpec{
+		Presentation: exportservices.ExportPresentation{
+			Canvas: exportservices.ExportDimensions{
+				Width:  1000,
+				Height: 800,
+			},
+		},
+	}
+	config := map[string]any{
+		"browser_scale": 0.4,
+	}
+
+	applyReplayConfigToSpec(spec, config)
+
+	frame := spec.Presentation.BrowserFrame
+	if frame.Width != 600 || frame.Height != 480 {
+		t.Fatalf("expected browser frame 600x480, got %dx%d", frame.Width, frame.Height)
+	}
+	if frame.X != 200 || frame.Y != 160 {
+		t.Fatalf("expected centered browser frame at 200,160 got %d,%d", frame.X, frame.Y)
+	}
+	if frame.Radius != 24 {
+		t.Fatalf("expected default browser frame radius 24, got %d", frame.Radius)
+	}
+}

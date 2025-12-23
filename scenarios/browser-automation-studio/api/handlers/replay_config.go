@@ -13,7 +13,11 @@ import (
 	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 )
 
-const replayConfigSettingsKey = "replay_config.v1"
+const (
+	replayConfigSettingsKey = "replay_config.v1"
+	minBrowserScale         = 0.6
+	maxBrowserScale         = 1.0
+)
 
 // ReplayConfigRequest captures a persisted replay configuration payload.
 type ReplayConfigRequest struct {
@@ -128,12 +132,12 @@ func replayConfigToOverrides(config map[string]any) *executionExportOverrides {
 		return nil
 	}
 
-	chromeTheme := firstString(config, "chromeTheme", "replayChromeTheme")
-	backgroundTheme := firstString(config, "backgroundTheme", "replayBackgroundTheme")
-	cursorTheme := firstString(config, "cursorTheme", "replayCursorTheme")
-	cursorInitial := firstString(config, "cursorInitialPosition", "replayCursorInitialPosition")
-	clickAnimation := firstString(config, "cursorClickAnimation", "replayCursorClickAnimation")
-	cursorScale, hasScale := firstFloat(config, "cursorScale", "replayCursorScale")
+	chromeTheme := firstString(config, "chromeTheme", "replayChromeTheme", "chrome_theme")
+	backgroundTheme := firstString(config, "backgroundTheme", "replayBackgroundTheme", "background_theme")
+	cursorTheme := firstString(config, "cursorTheme", "replayCursorTheme", "cursor_theme")
+	cursorInitial := firstString(config, "cursorInitialPosition", "replayCursorInitialPosition", "cursor_initial_position")
+	clickAnimation := firstString(config, "cursorClickAnimation", "replayCursorClickAnimation", "cursor_click_animation")
+	cursorScale, hasScale := firstFloat(config, "cursorScale", "replayCursorScale", "cursor_scale")
 
 	var themePreset *themePresetOverride
 	if chromeTheme != "" || backgroundTheme != "" {
@@ -176,6 +180,9 @@ func applyReplayConfigToSpec(spec *exportservices.ReplayMovieSpec, config map[st
 	if pathStyle := firstString(config, "cursorPathStyle", "cursor_path_style"); pathStyle != "" {
 		spec.CursorMotion.PathStyle = pathStyle
 	}
+	if browserScale, ok := firstFloat(config, "browserScale", "replayBrowserScale", "browser_scale"); ok {
+		applyBrowserScaleToSpec(spec, browserScale)
+	}
 
 	if watermark := mapWatermark(config["watermark"]); watermark != nil {
 		spec.Watermark = watermark
@@ -186,6 +193,48 @@ func applyReplayConfigToSpec(spec *exportservices.ReplayMovieSpec, config map[st
 	if outro := mapOutroCard(config["outroCard"]); outro != nil {
 		spec.OutroCard = outro
 	}
+}
+
+func applyBrowserScaleToSpec(spec *exportservices.ReplayMovieSpec, scale float64) {
+	if spec == nil || !isFiniteFloat(scale) {
+		return
+	}
+	canvasWidth := spec.Presentation.Canvas.Width
+	canvasHeight := spec.Presentation.Canvas.Height
+	if canvasWidth <= 0 || canvasHeight <= 0 {
+		canvasWidth = spec.Presentation.Viewport.Width
+		canvasHeight = spec.Presentation.Viewport.Height
+	}
+	if canvasWidth <= 0 || canvasHeight <= 0 {
+		return
+	}
+	clamped := clampBrowserScale(scale)
+	browserWidth := int(math.Round(float64(canvasWidth) * clamped))
+	browserHeight := int(math.Round(float64(canvasHeight) * clamped))
+	if browserWidth <= 0 || browserHeight <= 0 {
+		return
+	}
+	radius := spec.Presentation.BrowserFrame.Radius
+	if radius <= 0 {
+		radius = 24
+	}
+	spec.Presentation.BrowserFrame = exportservices.ExportFrameRect{
+		X:      int(math.Round(float64(canvasWidth-browserWidth) / 2)),
+		Y:      int(math.Round(float64(canvasHeight-browserHeight) / 2)),
+		Width:  browserWidth,
+		Height: browserHeight,
+		Radius: radius,
+	}
+}
+
+func clampBrowserScale(value float64) float64 {
+	if value < minBrowserScale {
+		return minBrowserScale
+	}
+	if value > maxBrowserScale {
+		return maxBrowserScale
+	}
+	return value
 }
 
 func firstString(config map[string]any, keys ...string) string {

@@ -5,24 +5,21 @@ import type {
   ReplayCursorTheme,
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
-  CursorSpeedProfile,
-  CursorPathStyle,
-} from '@/domains/exports/replay/ReplayPlayer';
+} from '@/domains/replay-style/model';
+import type { CursorSpeedProfile, CursorPathStyle } from '@/domains/exports/replay/ReplayPlayer';
 import {
-  isReplayChromeTheme,
-  isReplayBackgroundTheme,
-  isReplayCursorTheme,
-  isReplayCursorInitialPosition,
-  isReplayCursorClickAnimation,
-  CURSOR_SCALE_MIN,
-  CURSOR_SCALE_MAX,
   REPLAY_CHROME_OPTIONS,
   REPLAY_BACKGROUND_OPTIONS,
   REPLAY_CURSOR_OPTIONS,
   REPLAY_CURSOR_POSITIONS,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
-} from '@/domains/exports/replay/replayThemeOptions';
-import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from '@/domains/exports/replay/constants';
+} from '@/domains/replay-style/catalog';
+import {
+  normalizeReplayStyle,
+  REPLAY_STYLE_DEFAULTS,
+} from '@/domains/replay-style/model';
+import { readReplayStyleFromStorage, writeReplayStyleToStorage } from '@/domains/replay-style/adapters/storage';
+import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE, MAX_CURSOR_SCALE, MIN_CURSOR_SCALE } from '@/domains/exports/replay/constants';
 import type { ExportRenderSource } from '@/domains/executions/viewer/exportConfig';
 
 const STORAGE_PREFIX = 'browserAutomation.settings.';
@@ -50,6 +47,15 @@ const safeSetItem = (key: string, value: string): void => {
   }
 };
 
+const safeRemoveItem = (key: string): void => {
+  try {
+    if (typeof window === 'undefined') return;
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage errors (e.g., quota exceeded, private mode)
+  }
+};
+
 // Validation helpers
 const isValidSpeedProfile = (value: unknown): value is CursorSpeedProfile => {
   return ['instant', 'linear', 'easeIn', 'easeOut', 'easeInOut'].includes(value as string);
@@ -63,22 +69,8 @@ const isValidRenderSource = (value: unknown): value is ExportRenderSource => {
   return ['auto', 'recorded_video', 'replay_frames'].includes(value as string);
 };
 
-const clampCursorScale = (value: number): number => {
-  return Math.min(CURSOR_SCALE_MAX, Math.max(CURSOR_SCALE_MIN, value));
-};
-
-const clampBrowserScale = (value: number): number => {
-  return Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, value));
-};
-
 // Default values
-const DEFAULT_CHROME_THEME: ReplayChromeTheme = 'aurora';
-const DEFAULT_BACKGROUND_THEME: ReplayBackgroundTheme = 'aurora';
-const DEFAULT_CURSOR_THEME: ReplayCursorTheme = 'white';
-const DEFAULT_CURSOR_POSITION: ReplayCursorInitialPosition = 'center';
-const DEFAULT_CURSOR_SCALE = 1;
-const DEFAULT_BROWSER_SCALE = 1;
-const DEFAULT_CLICK_ANIMATION: ReplayCursorClickAnimation = 'pulse';
+const DEFAULT_STYLE = REPLAY_STYLE_DEFAULTS;
 const DEFAULT_SPEED_PROFILE: CursorSpeedProfile = 'easeInOut';
 const DEFAULT_PATH_STYLE: CursorPathStyle = 'linear';
 const DEFAULT_FRAME_DURATION = 1600;
@@ -173,6 +165,21 @@ export interface ReplaySettings {
   outroCard: OutroCardSettings;
 }
 
+const REPLAY_STYLE_SETTING_KEYS = [
+  'chromeTheme',
+  'backgroundTheme',
+  'cursorTheme',
+  'cursorInitialPosition',
+  'cursorScale',
+  'cursorClickAnimation',
+  'browserScale',
+] as const;
+
+type ReplayStyleSettingKey = (typeof REPLAY_STYLE_SETTING_KEYS)[number];
+
+const isReplayStyleSettingKey = (key: keyof ReplaySettings): key is ReplayStyleSettingKey =>
+  (REPLAY_STYLE_SETTING_KEYS as readonly string[]).includes(key);
+
 export interface WorkflowDefaultSettings {
   defaultTimeout: number; // in seconds
   stepTimeout: number; // in seconds
@@ -230,7 +237,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       cursorInitialPosition: 'center',
       cursorScale: 1,
       cursorClickAnimation: 'pulse',
-      browserScale: DEFAULT_BROWSER_SCALE,
+      browserScale: DEFAULT_STYLE.browserScale,
       cursorSpeedProfile: 'easeInOut',
       cursorPathStyle: 'linear',
       frameDuration: 1600,
@@ -256,7 +263,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       cursorInitialPosition: 'center',
       cursorScale: 1.2,
       cursorClickAnimation: 'ripple',
-      browserScale: DEFAULT_BROWSER_SCALE,
+      browserScale: DEFAULT_STYLE.browserScale,
       cursorSpeedProfile: 'easeInOut',
       cursorPathStyle: 'cubic',
       frameDuration: 2500,
@@ -282,7 +289,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       cursorInitialPosition: 'top-left',
       cursorScale: 0.9,
       cursorClickAnimation: 'none',
-      browserScale: DEFAULT_BROWSER_SCALE,
+      browserScale: DEFAULT_STYLE.browserScale,
       cursorSpeedProfile: 'linear',
       cursorPathStyle: 'linear',
       frameDuration: 1200,
@@ -308,7 +315,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       cursorInitialPosition: 'center',
       cursorScale: 1.4,
       cursorClickAnimation: 'pulse',
-      browserScale: DEFAULT_BROWSER_SCALE,
+      browserScale: DEFAULT_STYLE.browserScale,
       cursorSpeedProfile: 'easeOut',
       cursorPathStyle: 'parabolicUp',
       frameDuration: 2000,
@@ -334,7 +341,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       cursorInitialPosition: 'bottom-right',
       cursorScale: 1.1,
       cursorClickAnimation: 'ripple',
-      browserScale: DEFAULT_BROWSER_SCALE,
+      browserScale: DEFAULT_STYLE.browserScale,
       cursorSpeedProfile: 'easeInOut',
       cursorPathStyle: 'parabolicDown',
       frameDuration: 2200,
@@ -383,17 +390,22 @@ const loadBrandingSettings = <T extends object>(key: string, defaults: T): T => 
   }
 };
 
+const clearReplayStyleSettingsStorage = (): void => {
+  REPLAY_STYLE_SETTING_KEYS.forEach((key) => {
+    safeRemoveItem(`${STORAGE_PREFIX}replay.${key}`);
+  });
+};
+
+const updateReplayStyleStorage = (key: ReplayStyleSettingKey, value: ReplaySettings[ReplayStyleSettingKey]): void => {
+  const current = readReplayStyleFromStorage();
+  const next = normalizeReplayStyle({ ...current, [key]: value }, current);
+  writeReplayStyleToStorage(next);
+};
+
 const loadReplaySettings = (): ReplaySettings => {
   const storedWidth = safeGetItem(`${STORAGE_PREFIX}replay.presentationWidth`);
   const storedHeight = safeGetItem(`${STORAGE_PREFIX}replay.presentationHeight`);
   const storedUseCustom = safeGetItem(`${STORAGE_PREFIX}replay.useCustomDimensions`);
-  const storedChrome = safeGetItem(`${STORAGE_PREFIX}replay.chromeTheme`);
-  const storedBackground = safeGetItem(`${STORAGE_PREFIX}replay.backgroundTheme`);
-  const storedCursor = safeGetItem(`${STORAGE_PREFIX}replay.cursorTheme`);
-  const storedPosition = safeGetItem(`${STORAGE_PREFIX}replay.cursorInitialPosition`);
-  const storedScale = safeGetItem(`${STORAGE_PREFIX}replay.cursorScale`);
-  const storedClickAnim = safeGetItem(`${STORAGE_PREFIX}replay.cursorClickAnimation`);
-  const storedBrowserScale = safeGetItem(`${STORAGE_PREFIX}replay.browserScale`);
   const storedSpeed = safeGetItem(`${STORAGE_PREFIX}replay.cursorSpeedProfile`);
   const storedPath = safeGetItem(`${STORAGE_PREFIX}replay.cursorPathStyle`);
   const storedDuration = safeGetItem(`${STORAGE_PREFIX}replay.frameDuration`);
@@ -405,17 +417,19 @@ const loadReplaySettings = (): ReplaySettings => {
   const normalizedWidth = Number.isFinite(parsedWidth) ? Math.min(3840, Math.max(320, parsedWidth)) : 1280;
   const normalizedHeight = Number.isFinite(parsedHeight) ? Math.min(3840, Math.max(320, parsedHeight)) : 720;
 
+  const resolvedStyle = readReplayStyleFromStorage();
+
   return {
     presentationWidth: normalizedWidth,
     presentationHeight: normalizedHeight,
     useCustomDimensions: storedUseCustom === 'true',
-    chromeTheme: isReplayChromeTheme(storedChrome) ? storedChrome : DEFAULT_CHROME_THEME,
-    backgroundTheme: isReplayBackgroundTheme(storedBackground) ? storedBackground : DEFAULT_BACKGROUND_THEME,
-    cursorTheme: isReplayCursorTheme(storedCursor) ? storedCursor : DEFAULT_CURSOR_THEME,
-    cursorInitialPosition: isReplayCursorInitialPosition(storedPosition) ? storedPosition : DEFAULT_CURSOR_POSITION,
-    cursorScale: storedScale ? clampCursorScale(parseFloat(storedScale)) : DEFAULT_CURSOR_SCALE,
-    cursorClickAnimation: isReplayCursorClickAnimation(storedClickAnim) ? storedClickAnim : DEFAULT_CLICK_ANIMATION,
-    browserScale: storedBrowserScale ? clampBrowserScale(parseFloat(storedBrowserScale)) : DEFAULT_BROWSER_SCALE,
+    chromeTheme: resolvedStyle.chromeTheme,
+    backgroundTheme: resolvedStyle.backgroundTheme,
+    cursorTheme: resolvedStyle.cursorTheme,
+    cursorInitialPosition: resolvedStyle.cursorInitialPosition,
+    cursorScale: resolvedStyle.cursorScale,
+    cursorClickAnimation: resolvedStyle.cursorClickAnimation,
+    browserScale: resolvedStyle.browserScale,
     cursorSpeedProfile: isValidSpeedProfile(storedSpeed) ? storedSpeed : DEFAULT_SPEED_PROFILE,
     cursorPathStyle: isValidPathStyle(storedPath) ? storedPath : DEFAULT_PATH_STYLE,
     frameDuration: storedDuration ? Math.max(800, Math.min(6000, parseInt(storedDuration, 10))) : DEFAULT_FRAME_DURATION,
@@ -429,6 +443,11 @@ const loadReplaySettings = (): ReplaySettings => {
 };
 
 const saveReplaySetting = <K extends keyof ReplaySettings>(key: K, value: ReplaySettings[K]): void => {
+  if (isReplayStyleSettingKey(key)) {
+    updateReplayStyleStorage(key, value as ReplaySettings[ReplayStyleSettingKey]);
+    safeRemoveItem(`${STORAGE_PREFIX}replay.${key}`);
+    return;
+  }
   // For nested objects (watermark, introCard, outroCard), serialize as JSON
   if (typeof value === 'object' && value !== null) {
     safeSetItem(`${STORAGE_PREFIX}replay.${key}`, JSON.stringify(value));
@@ -441,13 +460,13 @@ const getDefaultReplaySettings = (): ReplaySettings => ({
   presentationWidth: 1280,
   presentationHeight: 720,
   useCustomDimensions: false,
-  chromeTheme: DEFAULT_CHROME_THEME,
-  backgroundTheme: DEFAULT_BACKGROUND_THEME,
-  cursorTheme: DEFAULT_CURSOR_THEME,
-  cursorInitialPosition: DEFAULT_CURSOR_POSITION,
-  cursorScale: DEFAULT_CURSOR_SCALE,
-  cursorClickAnimation: DEFAULT_CLICK_ANIMATION,
-  browserScale: DEFAULT_BROWSER_SCALE,
+  chromeTheme: DEFAULT_STYLE.chromeTheme,
+  backgroundTheme: DEFAULT_STYLE.backgroundTheme,
+  cursorTheme: DEFAULT_STYLE.cursorTheme,
+  cursorInitialPosition: DEFAULT_STYLE.cursorInitialPosition,
+  cursorScale: DEFAULT_STYLE.cursorScale,
+  cursorClickAnimation: DEFAULT_STYLE.cursorClickAnimation,
+  browserScale: DEFAULT_STYLE.browserScale,
   cursorSpeedProfile: DEFAULT_SPEED_PROFILE,
   cursorPathStyle: DEFAULT_PATH_STYLE,
   frameDuration: DEFAULT_FRAME_DURATION,
@@ -621,7 +640,7 @@ const generateRandomSettings = (): ReplaySettings => {
     backgroundTheme: randomChoice(REPLAY_BACKGROUND_OPTIONS).id,
     cursorTheme: randomChoice(REPLAY_CURSOR_OPTIONS).id,
     cursorInitialPosition: randomChoice(REPLAY_CURSOR_POSITIONS).id,
-    cursorScale: Math.round((CURSOR_SCALE_MIN + Math.random() * (CURSOR_SCALE_MAX - CURSOR_SCALE_MIN)) * 10) / 10,
+    cursorScale: Math.round((MIN_CURSOR_SCALE + Math.random() * (MAX_CURSOR_SCALE - MIN_CURSOR_SCALE)) * 10) / 10,
     cursorClickAnimation: randomChoice(REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS).id,
     browserScale: Math.round((MIN_BROWSER_SCALE + Math.random() * (MAX_BROWSER_SCALE - MIN_BROWSER_SCALE)) * 20) / 20,
     cursorSpeedProfile: randomChoice(SPEED_PROFILES),
@@ -675,14 +694,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     const defaults = getDefaultReplaySettings();
     // Clear all replay settings from storage
     Object.keys(defaults).forEach((key) => {
-      try {
-        if (typeof window !== 'undefined') {
-          window.localStorage.removeItem(`${STORAGE_PREFIX}replay.${key}`);
-        }
-      } catch {
-        // Ignore
+      if (!isReplayStyleSettingKey(key as keyof ReplaySettings)) {
+        safeRemoveItem(`${STORAGE_PREFIX}replay.${key}`);
       }
     });
+    clearReplayStyleSettingsStorage();
+    writeReplayStyleToStorage(REPLAY_STYLE_DEFAULTS);
     set({ replay: defaults, activePresetId: 'default' });
   },
 

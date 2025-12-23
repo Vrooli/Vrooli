@@ -10,6 +10,13 @@
 
 import type { CSSProperties, ReactNode } from 'react';
 import type { WatermarkSettings, IntroCardSettings, OutroCardSettings } from '@stores/settingsStore';
+import type {
+  ReplayChromeTheme,
+  ReplayBackgroundTheme,
+  ReplayCursorTheme,
+  ReplayCursorInitialPosition,
+  ReplayCursorClickAnimation,
+} from '@/domains/replay-style/model';
 
 // Re-export settings types for convenience
 export type { WatermarkSettings, IntroCardSettings, OutroCardSettings };
@@ -146,42 +153,13 @@ export interface ReplayFrame {
 // Theme Types
 // =============================================================================
 
-export type ReplayChromeTheme = 'aurora' | 'chromium' | 'midnight' | 'minimal';
-
-export type ReplayBackgroundTheme =
-  | 'aurora'
-  | 'sunset'
-  | 'ocean'
-  | 'nebula'
-  | 'grid'
-  | 'charcoal'
-  | 'steel'
-  | 'emerald'
-  | 'none'
-  | 'geoPrism'
-  | 'geoOrbit'
-  | 'geoMosaic';
-
-export type ReplayCursorTheme =
-  | 'disabled'
-  | 'white'
-  | 'black'
-  | 'aura'
-  | 'arrowLight'
-  | 'arrowDark'
-  | 'arrowNeon'
-  | 'handNeutral'
-  | 'handAura';
-
-export type ReplayCursorInitialPosition =
-  | 'center'
-  | 'top-left'
-  | 'top-right'
-  | 'bottom-left'
-  | 'bottom-right'
-  | 'random';
-
-export type ReplayCursorClickAnimation = 'none' | 'pulse' | 'ripple';
+export type {
+  ReplayChromeTheme,
+  ReplayBackgroundTheme,
+  ReplayCursorTheme,
+  ReplayCursorInitialPosition,
+  ReplayCursorClickAnimation,
+};
 
 // =============================================================================
 // Theme Decor Types (for theme builder return values)

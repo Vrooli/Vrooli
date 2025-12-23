@@ -7,7 +7,7 @@ import { FrameStatsDisplay } from '../capture/FrameStatsDisplay';
 import { BrowserUrlBar } from '../capture/BrowserUrlBar';
 import { usePerfStats } from '../hooks/usePerfStats';
 import { useSettingsStore } from '@stores/settingsStore';
-import { buildBackgroundDecor, buildChromeDecor } from '@/domains/exports/replay/themes';
+import { ReplayStyleFrame } from '@/domains/replay-style/renderer/ReplayStyleFrame';
 import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
 import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from '@/domains/exports/replay/constants';
 import { ReplaySection } from '@/views/SettingsView/sections/ReplaySection';
@@ -129,16 +129,6 @@ export function RecordPreviewPanel({
     }
   }, [activeViewport, onViewportChange]);
 
-  const backgroundDecor = useMemo(
-    () => buildBackgroundDecor(replay.backgroundTheme),
-    [replay.backgroundTheme],
-  );
-
-  const chromeDecor = useMemo(
-    () => buildChromeDecor(replay.chromeTheme, pageTitle || effectiveUrl || 'Live Preview'),
-    [replay.chromeTheme, pageTitle, effectiveUrl],
-  );
-
   const targetWidth = activeViewport.width;
   const targetHeight = activeViewport.height;
   const previewScale = useMemo(() => {
@@ -241,43 +231,40 @@ export function RecordPreviewPanel({
               className="relative"
             >
               {showReplayStyle ? (
-                <div
-                  data-theme="dark"
-                  className={clsx('relative h-full w-full', backgroundDecor.containerClass)}
-                  style={backgroundDecor.containerStyle}
-                >
-                  {backgroundDecor.baseLayer}
-                  {backgroundDecor.overlay}
-                  <WatermarkOverlay settings={replay.watermark} />
-                  <div className={clsx('relative z-10 h-full w-full', backgroundDecor.contentClass)}>
+                <div data-theme="dark" className="relative h-full w-full">
+                  <ReplayStyleFrame
+                    backgroundTheme={replay.backgroundTheme}
+                    chromeTheme={replay.chromeTheme}
+                    title={pageTitle || effectiveUrl || 'Live Preview'}
+                    frameScale={frameScale}
+                    frameStyle={{ height: `${frameScale * 100}%` }}
+                    showInterfaceChrome={false}
+                    watermarkNode={replay.watermark ? <WatermarkOverlay settings={replay.watermark} /> : null}
+                    containerClassName="h-full w-full"
+                    contentClassName="h-full w-full"
+                  >
                     <div className="flex h-full w-full items-center justify-center">
-                      <div
-                        style={{ width: `${frameScale * 100}%`, height: `${frameScale * 100}%` }}
-                        className={clsx('flex flex-col overflow-hidden', chromeDecor.frameClass)}
-                      >
-                        {chromeDecor.header}
-                        <div className={clsx('relative flex-1 overflow-hidden', chromeDecor.contentClass)}>
-                          {sessionId ? (
-                            effectiveUrl ? (
-                              <PlaywrightView
-                                sessionId={sessionId}
-                                refreshToken={liveRefreshToken}
-                                viewport={currentViewport ?? undefined}
-                                quality={streamSettings.quality}
-                                fps={streamSettings.fps}
-                                onStatsUpdate={handleStatsUpdate}
-                                onPageMetadataChange={handlePageMetadataChange}
-                              />
-                            ) : (
-                              <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
-                            )
+                      <div className="relative flex h-full w-full overflow-hidden">
+                        {sessionId ? (
+                          effectiveUrl ? (
+                            <PlaywrightView
+                              sessionId={sessionId}
+                              refreshToken={liveRefreshToken}
+                              viewport={currentViewport ?? undefined}
+                              quality={streamSettings.quality}
+                              fps={streamSettings.fps}
+                              onStatsUpdate={handleStatsUpdate}
+                              onPageMetadataChange={handlePageMetadataChange}
+                            />
                           ) : (
-                            <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
-                          )}
-                        </div>
+                            <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
+                          )
+                        ) : (
+                          <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
+                        )}
                       </div>
                     </div>
-                  </div>
+                  </ReplayStyleFrame>
                 </div>
               ) : (
                 <div className="h-full w-full">

@@ -24,16 +24,11 @@ import { BrandingTab } from './sections/branding';
 import { SessionProfilesTab } from './sections/SessionProfilesSection';
 import { SubscriptionTab } from './sections/subscription';
 import { SchedulesTab } from './sections/schedules';
-import { getConfig } from '@/config';
 import { logger } from '@utils/logger';
 import {
-  isReplayBackgroundTheme,
-  isReplayChromeTheme,
-  isReplayCursorClickAnimation,
-  isReplayCursorInitialPosition,
-  isReplayCursorTheme,
-} from '@/domains/exports/replay/replayThemeOptions';
-import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from '@/domains/exports/replay/constants';
+  normalizeReplayStyle,
+} from '@/domains/replay-style/model';
+import { fetchReplayStylePayload, persistReplayStyleConfig } from '@/domains/replay-style/adapters/api';
 import {
   DisplaySection,
   ReplaySection,
@@ -78,17 +73,6 @@ const asObject = (value: unknown): Record<string, unknown> | null => {
     return null;
   }
   return value as Record<string, unknown>;
-};
-
-const toNumber = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  return null;
-};
-
-const clampBrowserScale = (value: number): number => {
-  return Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, value));
 };
 
 const coerceBoolean = (value: unknown, fallback: boolean): boolean => {
@@ -199,64 +183,39 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
     let isCancelled = false;
     void (async () => {
       try {
-        const { API_URL } = await getConfig();
-        const response = await fetch(`${API_URL}/replay-config`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch replay config (${response.status})`);
-        }
-        const payload = (await response.json()) as { config?: unknown };
-        const config = asObject(payload.config);
-        if (!config || isCancelled) {
+        const payload = await fetchReplayStylePayload();
+        if (!payload || isCancelled) {
           return;
         }
+        const { style, extraConfig } = payload;
+        const normalizedStyle = normalizeReplayStyle(style);
 
-        const chromeTheme = config.chromeTheme;
-        if (isReplayChromeTheme(chromeTheme)) {
-          setReplaySetting('chromeTheme', chromeTheme);
+        setReplaySetting('chromeTheme', normalizedStyle.chromeTheme);
+        setReplaySetting('backgroundTheme', normalizedStyle.backgroundTheme);
+        setReplaySetting('cursorTheme', normalizedStyle.cursorTheme);
+        setReplaySetting('cursorInitialPosition', normalizedStyle.cursorInitialPosition);
+        setReplaySetting('cursorClickAnimation', normalizedStyle.cursorClickAnimation);
+        setReplaySetting('cursorScale', normalizedStyle.cursorScale);
+        setReplaySetting('browserScale', normalizedStyle.browserScale);
+        if (isValidSpeedProfile(extraConfig.cursorSpeedProfile)) {
+          setReplaySetting('cursorSpeedProfile', extraConfig.cursorSpeedProfile);
         }
-        const backgroundTheme = config.backgroundTheme;
-        if (isReplayBackgroundTheme(backgroundTheme)) {
-          setReplaySetting('backgroundTheme', backgroundTheme);
+        if (isValidPathStyle(extraConfig.cursorPathStyle)) {
+          setReplaySetting('cursorPathStyle', extraConfig.cursorPathStyle);
         }
-        const cursorTheme = config.cursorTheme;
-        if (isReplayCursorTheme(cursorTheme)) {
-          setReplaySetting('cursorTheme', cursorTheme);
-        }
-        const cursorInitialPosition = config.cursorInitialPosition;
-        if (isReplayCursorInitialPosition(cursorInitialPosition)) {
-          setReplaySetting('cursorInitialPosition', cursorInitialPosition);
-        }
-        const cursorClickAnimation = config.cursorClickAnimation;
-        if (isReplayCursorClickAnimation(cursorClickAnimation)) {
-          setReplaySetting('cursorClickAnimation', cursorClickAnimation);
-        }
-        const cursorScale = toNumber(config.cursorScale);
-        if (cursorScale != null) {
-          setReplaySetting('cursorScale', cursorScale);
-        }
-        const browserScale = toNumber(config.browserScale ?? config.browser_scale);
-        if (browserScale != null) {
-          setReplaySetting('browserScale', clampBrowserScale(browserScale));
-        }
-        if (isValidSpeedProfile(config.cursorSpeedProfile)) {
-          setReplaySetting('cursorSpeedProfile', config.cursorSpeedProfile);
-        }
-        if (isValidPathStyle(config.cursorPathStyle)) {
-          setReplaySetting('cursorPathStyle', config.cursorPathStyle);
-        }
-        if (isValidRenderSource(config.renderSource)) {
-          setReplaySetting('exportRenderSource', config.renderSource);
+        if (isValidRenderSource(extraConfig.renderSource)) {
+          setReplaySetting('exportRenderSource', extraConfig.renderSource);
         }
 
-        const watermark = coerceWatermarkSettings(asObject(config.watermark), replay.watermark);
+        const watermark = coerceWatermarkSettings(asObject(extraConfig.watermark), replay.watermark);
         if (watermark) {
           setReplaySetting('watermark', watermark);
         }
-        const introCard = coerceIntroCardSettings(asObject(config.introCard), replay.introCard);
+        const introCard = coerceIntroCardSettings(asObject(extraConfig.introCard), replay.introCard);
         if (introCard) {
           setReplaySetting('introCard', introCard);
         }
-        const outroCard = coerceOutroCardSettings(asObject(config.outroCard), replay.outroCard);
+        const outroCard = coerceOutroCardSettings(asObject(extraConfig.outroCard), replay.outroCard);
         if (outroCard) {
           setReplaySetting('outroCard', outroCard);
         }
@@ -277,7 +236,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
     if (!isReplayConfigReady) {
       return;
     }
-    const payload = {
+    const styleConfig = normalizeReplayStyle({
       chromeTheme: replay.chromeTheme,
       backgroundTheme: replay.backgroundTheme,
       cursorTheme: replay.cursorTheme,
@@ -285,6 +244,8 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
       cursorClickAnimation: replay.cursorClickAnimation,
       cursorScale: replay.cursorScale,
       browserScale: replay.browserScale,
+    });
+    const extraConfig = {
       cursorSpeedProfile: replay.cursorSpeedProfile,
       cursorPathStyle: replay.cursorPathStyle,
       renderSource: replay.exportRenderSource,
@@ -292,7 +253,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
       introCard: replay.introCard,
       outroCard: replay.outroCard,
     };
-    const serialized = JSON.stringify(payload);
+    const serialized = JSON.stringify({ ...styleConfig, ...extraConfig });
     if (lastSyncedReplayConfigRef.current === serialized) {
       return;
     }
@@ -302,15 +263,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
     syncTimerRef.current = window.setTimeout(() => {
       void (async () => {
         try {
-          const { API_URL } = await getConfig();
-          const response = await fetch(`${API_URL}/replay-config`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ config: payload }),
-          });
-          if (!response.ok) {
-            throw new Error(`Failed to persist replay config (${response.status})`);
-          }
+          await persistReplayStyleConfig(styleConfig, extraConfig);
           lastSyncedReplayConfigRef.current = serialized;
         } catch (error) {
           logger.warn('Failed to persist replay config', { component: 'SettingsView' }, error);
