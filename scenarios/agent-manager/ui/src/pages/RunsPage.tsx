@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  DollarSign,
   Eye,
   FileCode,
   MessageSquare,
@@ -88,11 +89,13 @@ export function RunsPage({
   const [diff, setDiff] = useState<RunDiff | null>(null);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [diffLoading, setDiffLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"events" | "diff">("events");
+  const [activeTab, setActiveTab] = useState<"events" | "diff" | "response" | "cost">("events");
   const [approvalForm, setApprovalForm] = useState({ actor: "", commitMsg: "" });
   const [rejectForm, setRejectForm] = useState({ actor: "", reason: "" });
   const [submitting, setSubmitting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const finalResponse = getFinalResponse(events);
+  const costTotals = getCostTotals(events);
 
   // Subscribe to WebSocket events for the selected run
   useEffect(() => {
@@ -556,6 +559,18 @@ export function RunsPage({
                   <button
                     className={cn(
                       "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+                      activeTab === "response"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => setActiveTab("response")}
+                  >
+                    <MessageSquare className="h-4 w-4 inline mr-2" />
+                    Response
+                  </button>
+                  <button
+                    className={cn(
+                      "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
                       activeTab === "diff"
                         ? "border-primary text-primary"
                         : "border-transparent text-muted-foreground hover:text-foreground"
@@ -564,6 +579,18 @@ export function RunsPage({
                   >
                     <FileCode className="h-4 w-4 inline mr-2" />
                     Diff
+                  </button>
+                  <button
+                    className={cn(
+                      "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+                      activeTab === "cost"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => setActiveTab("cost")}
+                  >
+                    <DollarSign className="h-4 w-4 inline mr-2" />
+                    Cost
                   </button>
                 </div>
 
@@ -585,16 +612,47 @@ export function RunsPage({
                         ))}
                       </div>
                     )
-                  ) : diffLoading ? (
+                  ) : activeTab === "response" ? (
+                    eventsLoading ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        Loading response...
+                      </div>
+                    ) : !finalResponse ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        No response available
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="rounded border border-border bg-muted/40 p-3 text-xs whitespace-pre-wrap">
+                          {finalResponse.content}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {formatDate(finalResponse.timestamp)}
+                        </div>
+                      </div>
+                    )
+                  ) : activeTab === "diff" ? (
+                    diffLoading ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        Loading diff...
+                      </div>
+                    ) : !diff ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        No diff available
+                      </div>
+                    ) : (
+                      <DiffViewer diff={diff} />
+                    )
+                  ) : eventsLoading ? (
                     <div className="py-8 text-center text-muted-foreground">
-                      Loading diff...
+                      Loading cost...
                     </div>
-                  ) : !diff ? (
+                  ) : costTotals.events === 0 ? (
                     <div className="py-8 text-center text-muted-foreground">
-                      No diff available
+                      No cost data available
                     </div>
                   ) : (
-                    <DiffViewer diff={diff} />
+                    <CostBreakdown totals={costTotals} />
                   )}
                 </ScrollArea>
 
@@ -888,6 +946,129 @@ function runEventTypeLabel(eventType: RunEventType): string {
     default:
       return "event";
   }
+}
+
+type CostTotals = {
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  totalCostUsd: number;
+  webSearchRequests: number;
+  serverToolUseRequests: number;
+  models: string[];
+  serviceTiers: string[];
+  events: number;
+};
+
+type FinalResponse = {
+  content: string;
+  timestamp: Date;
+};
+
+function getFinalResponse(events: RunEvent[]): FinalResponse | null {
+  const messageEvents = events.filter((event) => event.data.case === "message");
+  if (messageEvents.length === 0) return null;
+
+  const assistantMessages = messageEvents.filter((event) => {
+    const payload = event.data.value as any;
+    return (payload.role || "").toLowerCase() === "assistant";
+  });
+  const targetEvents = assistantMessages.length > 0 ? assistantMessages : messageEvents;
+  const lastEvent = targetEvents[targetEvents.length - 1];
+  const payload = lastEvent.data.value as any;
+
+  return {
+    content: payload.content || "",
+    timestamp: lastEvent.timestamp ? new Date(timestampMs(lastEvent.timestamp)) : new Date(),
+  };
+}
+
+function getCostTotals(events: RunEvent[]): CostTotals {
+  const models = new Set<string>();
+  const serviceTiers = new Set<string>();
+  const totals: CostTotals = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheCreationTokens: 0,
+    cacheReadTokens: 0,
+    totalCostUsd: 0,
+    webSearchRequests: 0,
+    serverToolUseRequests: 0,
+    models: [],
+    serviceTiers: [],
+    events: 0,
+  };
+
+  for (const event of events) {
+    if (event.data.case !== "cost") continue;
+    const payload = event.data.value as any;
+    totals.events += 1;
+    totals.inputTokens += payload.inputTokens || 0;
+    totals.outputTokens += payload.outputTokens || 0;
+    totals.cacheCreationTokens += payload.cacheCreationTokens || 0;
+    totals.cacheReadTokens += payload.cacheReadTokens || 0;
+    totals.totalCostUsd += payload.totalCostUsd || 0;
+    totals.webSearchRequests += payload.webSearchRequests || 0;
+    totals.serverToolUseRequests += payload.serverToolUseRequests || 0;
+    if (payload.model) models.add(payload.model);
+    if (payload.serviceTier) serviceTiers.add(payload.serviceTier);
+  }
+
+  totals.models = Array.from(models);
+  totals.serviceTiers = Array.from(serviceTiers);
+  return totals;
+}
+
+function formatCurrency(value: number): string {
+  return `$${value.toFixed(4)}`;
+}
+
+function CostBreakdown({ totals }: { totals: CostTotals }) {
+  const totalTokens =
+    totals.inputTokens +
+    totals.outputTokens +
+    totals.cacheCreationTokens +
+    totals.cacheReadTokens;
+
+  return (
+    <div className="space-y-3 text-xs">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded border border-border p-3">
+          <div className="text-muted-foreground">Total cost</div>
+          <div className="text-lg font-semibold">{formatCurrency(totals.totalCostUsd)}</div>
+        </div>
+        <div className="rounded border border-border p-3">
+          <div className="text-muted-foreground">Total tokens</div>
+          <div className="text-lg font-semibold">{totalTokens.toLocaleString()}</div>
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded border border-border p-3 space-y-1">
+          <div className="text-muted-foreground">Token breakdown</div>
+          <div>Input: {totals.inputTokens.toLocaleString()}</div>
+          <div>Output: {totals.outputTokens.toLocaleString()}</div>
+          <div>Cache creation: {totals.cacheCreationTokens.toLocaleString()}</div>
+          <div>Cache read: {totals.cacheReadTokens.toLocaleString()}</div>
+        </div>
+        <div className="rounded border border-border p-3 space-y-1">
+          <div className="text-muted-foreground">Request breakdown</div>
+          <div>Web search: {totals.webSearchRequests.toLocaleString()}</div>
+          <div>Server tool use: {totals.serverToolUseRequests.toLocaleString()}</div>
+          <div>Cost events: {totals.events.toLocaleString()}</div>
+        </div>
+      </div>
+      {(totals.models.length > 0 || totals.serviceTiers.length > 0) && (
+        <div className="rounded border border-border p-3 space-y-1">
+          <div className="text-muted-foreground">Usage context</div>
+          {totals.models.length > 0 && <div>Models: {totals.models.join(", ")}</div>}
+          {totals.serviceTiers.length > 0 && (
+            <div>Service tiers: {totals.serviceTiers.join(", ")}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function DiffViewer({ diff }: { diff: RunDiff }) {

@@ -1,4 +1,4 @@
-import { createScenarioServer, proxyWebSocketUpgrade } from '@vrooli/api-base/server'
+import { createScenarioServer, injectBaseTag, proxyWebSocketUpgrade } from '@vrooli/api-base/server'
 
 const uiPort = process.env.UI_PORT || 3000
 const apiPort = process.env.API_PORT || 8080
@@ -10,6 +10,28 @@ const app = createScenarioServer({
   serviceName: 'agent-manager',
   corsOrigins: '*',
   verbose: process.env.NODE_ENV === 'development',
+  setupRoutes: (appInstance) => {
+    appInstance.use((_req, res, next) => {
+      const originalSend = res.send.bind(res)
+
+      res.send = (body) => {
+        const contentType = res.getHeader('content-type')
+        const isHtml = typeof contentType === 'string' && contentType.includes('text/html')
+
+        if (isHtml && typeof body === 'string') {
+          const modifiedBody = injectBaseTag(body, '/', {
+            skipIfExists: true,
+            dataAttribute: 'data-agent-manager-base',
+          })
+          return originalSend(modifiedBody)
+        }
+
+        return originalSend(body)
+      }
+
+      next()
+    })
+  },
 })
 
 const server = app.listen(uiPort, () => {
