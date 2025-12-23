@@ -7,6 +7,7 @@ interface ReplayCursorOverlayProps {
   trailPoints: Array<{ x: number; y: number }>;
   trailStrokeWidth: number;
   showTrail: boolean;
+  overlayBounds?: { width: number; height: number } | null;
   ghostStyle?: CSSProperties;
   pointerStyle?: CSSProperties;
   pointerClassName: string;
@@ -19,16 +20,25 @@ export function ReplayCursorOverlay({
   trailPoints,
   trailStrokeWidth,
   showTrail,
+  overlayBounds,
   ghostStyle,
   pointerStyle,
   pointerClassName,
   pointerEventProps,
   clickEffect,
 }: ReplayCursorOverlayProps) {
+  const overlayWidth = overlayBounds?.width ?? 0;
+  const overlayHeight = overlayBounds?.height ?? 0;
+  const shouldRenderTrail = showTrail && overlayWidth > 0 && overlayHeight > 0 && trailPoints.length >= 2;
+
   return (
     <>
-      {showTrail && (
-        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+      {shouldRenderTrail && (
+        <svg
+          className="absolute inset-0 h-full w-full"
+          viewBox={`0 0 ${overlayWidth} ${overlayHeight}`}
+          preserveAspectRatio="none"
+        >
           <polyline
             points={trailPoints.map((p) => `${p.x},${p.y}`).join(' ')}
             stroke={cursorDecor.trailColor}

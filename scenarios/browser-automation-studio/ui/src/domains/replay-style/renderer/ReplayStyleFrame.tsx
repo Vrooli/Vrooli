@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode, type CSSProperties, type Ref } from 
 import clsx from 'clsx';
 import type { BackgroundDecor, ChromeDecor } from '../catalog';
 import type { ReplayLayoutModel, ReplayRect } from '@/domains/replay-layout';
-import { OverlayRegistry, OverlayRegistryContext } from '@/domains/replay-layout';
+import { OverlayRegistry, OverlayRegistryContext } from '@/domains/replay-positioning';
 
 interface ReplayStyleFrameProps {
   backgroundDecor: BackgroundDecor;
@@ -76,7 +76,18 @@ export function ReplayStyleFrame({
       height: layout.viewportRect.height,
     };
     registry.setRect('browser-content', contentRect);
-  }, [layout.viewportRect.height, layout.viewportRect.width, viewportContentRect]);
+    registry.setRect('browser-frame', {
+      x: 0,
+      y: -chromeHeaderHeight,
+      width: layout.viewportRect.width,
+      height: layout.viewportRect.height + chromeHeaderHeight,
+    });
+  }, [
+    chromeHeaderHeight,
+    layout.viewportRect.height,
+    layout.viewportRect.width,
+    viewportContentRect,
+  ]);
 
   return (
     <div
@@ -134,28 +145,33 @@ export function ReplayStyleFrame({
                     height: `${layout.viewportRect.height}px`,
                   }}
                 >
-                  {overlayNode && (
-                    <OverlayRegistryContext.Provider value={registryRef.current}>
-                      <div style={{ position: 'absolute', inset: 0 }}>
-                        <div
-                          style={{
-                            position: 'absolute',
-                            left: 0,
-                            top: 0,
-                            width: '100%',
-                            height: '100%',
-                            ...(overlayTransformStyle ?? {}),
-                          }}
-                        >
-                          {overlayNode}
-                        </div>
-                      </div>
-                    </OverlayRegistryContext.Provider>
-                  )}
                   {children}
                 </div>
               </div>
             </div>
+            {overlayNode && (
+              <OverlayRegistryContext.Provider value={registryRef.current}>
+                <div
+                  className="absolute z-[5]"
+                  style={{
+                    left: `${layout.viewportRect.x}px`,
+                    top: `${layout.viewportRect.y}px`,
+                    width: `${layout.viewportRect.width}px`,
+                    height: `${layout.viewportRect.height}px`,
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      ...(overlayTransformStyle ?? {}),
+                    }}
+                  >
+                    {overlayNode}
+                  </div>
+                </div>
+              </OverlayRegistryContext.Provider>
+            )}
           </div>
           {footer}
         </div>

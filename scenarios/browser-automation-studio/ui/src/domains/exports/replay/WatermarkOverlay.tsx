@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { WatermarkSettings, WatermarkPosition } from '@stores/settingsStore';
 import { useAssetStore } from '@stores/assetStore';
-import { useOverlayRegistry } from '@/domains/replay-layout';
+import { useOverlayRegistry } from '@/domains/replay-positioning';
 
 interface WatermarkOverlayProps {
   settings: WatermarkSettings;

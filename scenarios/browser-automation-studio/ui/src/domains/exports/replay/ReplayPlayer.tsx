@@ -27,6 +27,10 @@ import type {
   ReplayPlayerController,
   ReplayPlayerProps,
   Dimensions,
+  CursorPlan,
+  ReplayPoint,
+  PlaybackPhase,
+  ReplayBoundingBox,
 } from './types';
 
 // Constants
@@ -37,10 +41,11 @@ import {
 } from './constants';
 
 // Utilities
-import { clamp01, isSamePoint } from './utils/cursorMath';
-import { toAbsolutePoint, toRectStyle, toPointStyle, pickZoomAnchor } from './utils/geometry';
+import { isSamePoint } from './utils/cursorMath';
+import { toAbsolutePoint, pickZoomAnchor } from './utils/geometry';
 import { parseRgbaComponents, rgbaWithAlpha } from './utils/formatting';
 import { computeReplayLayout } from '@/domains/replay-layout';
+import { toOverlayPointStyle, toOverlayRectStyle, useOverlayRegistry } from '@/domains/replay-positioning';
 
 // Theme builders
 import {
@@ -51,6 +56,7 @@ import {
   ReplayCursorOverlay,
   useResolvedReplayBackground,
 } from '@/domains/replay-style';
+import type { CursorDecor } from '@/domains/replay-style';
 
 // Hooks
 import { usePlayback } from './hooks/usePlayback';
@@ -75,6 +81,191 @@ export type {
   CursorSpeedProfile,
   CursorPathStyle,
 } from './types';
+
+interface ReplayOverlayLayerProps {
+  frame: ReplayFrame;
+  viewportDimensions: Dimensions;
+  watermark?: ReplayPlayerProps['watermark'];
+  cursorDecor: CursorDecor;
+  cursorPlan?: CursorPlan;
+  cursorPosition: ReplayPoint | undefined;
+  cursorTrailStrokeWidth: number;
+  cursorScale: number;
+  shouldRenderGhost: boolean;
+  isCursorEnabled: boolean;
+  pointerClassName: string;
+  pointerEventProps?: React.HTMLAttributes<HTMLDivElement>;
+  clickEffect?: ReactNode;
+  introCard?: ReplayPlayerProps['introCard'];
+  outroCard?: ReplayPlayerProps['outroCard'];
+  playbackPhase: PlaybackPhase;
+}
+
+const hasPoint = (point: ReplayPoint | undefined): point is { x: number; y: number } =>
+  typeof point?.x === 'number' && typeof point?.y === 'number';
+
+const hasRect = (rect: ReplayBoundingBox | undefined): rect is { x: number; y: number; width: number; height: number } =>
+  typeof rect?.x === 'number'
+  && typeof rect?.y === 'number'
+  && typeof rect?.width === 'number'
+  && typeof rect?.height === 'number';
+
+function ReplayOverlayLayer({
+  frame,
+  viewportDimensions,
+  watermark,
+  cursorDecor,
+  cursorPlan,
+  cursorPosition,
+  cursorTrailStrokeWidth,
+  cursorScale,
+  shouldRenderGhost,
+  isCursorEnabled,
+  pointerClassName,
+  pointerEventProps,
+  clickEffect,
+  introCard,
+  outroCard,
+  playbackPhase,
+}: ReplayOverlayLayerProps) {
+  const registry = useOverlayRegistry();
+  const overlayBounds = registry?.getRect('overlay-root') ?? null;
+
+  const resolvePointStyle = (point: ReplayPoint | undefined, dims: Dimensions) => {
+    if (!registry || !hasPoint(point)) {
+      return undefined;
+    }
+    const resolved = registry.resolvePoint({ point, source: dims });
+    return toOverlayPointStyle(resolved);
+  };
+
+  const resolveRectStyle = (box: ReplayBoundingBox | undefined) => {
+    if (!registry || !hasRect(box)) {
+      return undefined;
+    }
+    const resolved = registry.resolveRect({ rect: box, source: viewportDimensions });
+    return toOverlayRectStyle(resolved);
+  };
+
+  const pointerOffsetX = cursorDecor.offset?.x ?? 0;
+  const pointerOffsetY = cursorDecor.offset?.y ?? 0;
+  const basePointerTransform = `translate(calc(-50% + ${pointerOffsetX}px), calc(-50% + ${pointerOffsetY}px))${
+    cursorScale !== 1 ? ` scale(${cursorScale})` : ''
+  }`;
+  const wrapperTransform = (cursorDecor.wrapperStyle as (CSSProperties & { transform?: string }) | undefined)?.transform;
+  const pointerStyle = isCursorEnabled && cursorPosition
+    ? resolvePointStyle(cursorPosition, cursorPlan?.dims ?? viewportDimensions)
+    : undefined;
+  const pointerWrapperStyle = pointerStyle && isCursorEnabled
+    ? {
+        ...pointerStyle,
+        ...cursorDecor.wrapperStyle,
+        transform: wrapperTransform ? `${basePointerTransform} ${wrapperTransform}` : basePointerTransform,
+        transformOrigin: cursorDecor.transformOrigin ?? '50% 50%',
+        transitionProperty: 'left, top, transform',
+      }
+    : undefined;
+
+  const ghostAbsolutePoint = cursorPlan
+    ? toAbsolutePoint(cursorPlan.startNormalized, cursorPlan.dims)
+    : undefined;
+  const ghostStyle = ghostAbsolutePoint && cursorPlan
+    ? resolvePointStyle(ghostAbsolutePoint, cursorPlan.dims)
+    : undefined;
+  const ghostWrapperStyle = shouldRenderGhost && ghostStyle
+    ? {
+        ...ghostStyle,
+        ...cursorDecor.wrapperStyle,
+        transform: wrapperTransform ? `${basePointerTransform} ${wrapperTransform}` : basePointerTransform,
+        transformOrigin: cursorDecor.transformOrigin ?? '50% 50%',
+        pointerEvents: 'none' as const,
+        opacity: 0.45,
+        transitionProperty: 'left, top, transform',
+      }
+    : undefined;
+
+  const cursorPathPoints = useMemo(() => {
+    if (!isCursorEnabled || !cursorPlan || !shouldRenderGhost) {
+      return [];
+    }
+    return [
+      cursorPlan.startNormalized,
+      ...cursorPlan.pathNormalized,
+      cursorPlan.targetNormalized,
+    ].map((point) => toAbsolutePoint(point, cursorPlan.dims));
+  }, [cursorPlan, isCursorEnabled, shouldRenderGhost]);
+
+  const resolvedTrailPoints = useMemo(() => {
+    if (!registry || cursorPathPoints.length === 0 || !cursorPlan) {
+      return [];
+    }
+    return cursorPathPoints
+      .map((point) => registry.resolvePoint({ point, source: cursorPlan.dims }))
+      .filter((point): point is { x: number; y: number } => Boolean(point));
+  }, [cursorPathPoints, cursorPlan, registry]);
+
+  const scaledTrailStrokeWidth = overlayBounds && overlayBounds.width > 0
+    ? cursorTrailStrokeWidth * (overlayBounds.width / 100)
+    : cursorTrailStrokeWidth;
+  const hasTrail = resolvedTrailPoints.length >= 2 && scaledTrailStrokeWidth > 0.05;
+
+  const overlayRegions = (regions: ReplayRegion[] | undefined, variant: 'highlight' | 'mask') => {
+    if (!regions?.length) return null;
+    return regions.map((region, index) => {
+      const style = resolveRectStyle(region.boundingBox);
+      if (!style) return null;
+      const color = region.color || '#38bdf8';
+      const opacity = typeof region.opacity === 'number' ? region.opacity : variant === 'mask' ? 0.45 : 0.15;
+
+      return (
+        <div
+          key={`${variant}-${index}`}
+          className={clsx('absolute rounded-xl pointer-events-none transition-all duration-500', {
+            'border-2 shadow-[0_0_35px_rgba(56,189,248,0.45)]': variant === 'highlight',
+          })}
+          style={{
+            ...style,
+            borderColor: variant === 'highlight' ? color : undefined,
+            background: variant === 'highlight' ? 'rgba(56, 189, 248, 0.14)' : `rgba(15, 23, 42, ${opacity})`,
+            boxShadow: variant === 'highlight' ? '0 16px 48px rgba(56, 189, 248, 0.35)' : undefined,
+          }}
+        />
+      );
+    });
+  };
+
+  const focusedElementStyle = frame.focusedElement?.boundingBox
+    ? resolveRectStyle(frame.focusedElement.boundingBox)
+    : undefined;
+
+  return (
+    <>
+      {watermark ? <WatermarkOverlay settings={watermark} /> : null}
+      {overlayRegions(frame.maskRegions, 'mask')}
+      {overlayRegions(frame.highlightRegions, 'highlight')}
+      {focusedElementStyle && (
+        <div
+          className="absolute rounded-2xl border border-sky-400/70 bg-sky-400/10 shadow-[0_0_60px_rgba(56,189,248,0.35)]"
+          style={focusedElementStyle}
+        />
+      )}
+      <ReplayCursorOverlay
+        cursorDecor={cursorDecor}
+        trailPoints={resolvedTrailPoints}
+        trailStrokeWidth={scaledTrailStrokeWidth}
+        showTrail={hasTrail}
+        overlayBounds={overlayBounds}
+        ghostStyle={ghostWrapperStyle}
+        pointerStyle={pointerWrapperStyle}
+        pointerClassName={pointerClassName}
+        pointerEventProps={pointerEventProps}
+        clickEffect={clickEffect}
+      />
+      {playbackPhase === 'intro' && introCard && <IntroCard settings={introCard} />}
+      {playbackPhase === 'outro' && outroCard && <OutroCard settings={outroCard} />}
+    </>
+  );
+}
 
 export function ReplayPlayer({
   frames,
@@ -340,69 +531,22 @@ export function ReplayPlayer({
   const zoomAnchor = pickZoomAnchor(currentFrame);
   const anchorStyle = (() => {
     if (!zoomAnchor) return '50% 50%';
-    const style = toRectStyle(zoomAnchor, viewportDimensions);
-    if (!style) return '50% 50%';
-    const left = parseFloat(style.left);
-    const top = parseFloat(style.top);
-    const width = parseFloat(style.width);
-    const height = parseFloat(style.height);
-    return `${left + width / 2}% ${top + height / 2}%`;
+    if (!viewportDimensions.width || !viewportDimensions.height) return '50% 50%';
+    const width = Math.max(0, Math.min(zoomAnchor.width ?? 0, viewportDimensions.width));
+    const height = Math.max(0, Math.min(zoomAnchor.height ?? 0, viewportDimensions.height));
+    const left = Math.max(0, Math.min(zoomAnchor.x ?? 0, viewportDimensions.width - width));
+    const top = Math.max(0, Math.min(zoomAnchor.y ?? 0, viewportDimensions.height - height));
+    const centerX = ((left + width / 2) / viewportDimensions.width) * 100;
+    const centerY = ((top + height / 2) / viewportDimensions.height) * 100;
+    return `${centerX}% ${centerY}%`;
   })();
 
   // Cursor rendering
   const currentCursorPlan = cursorPlans[currentIndex];
-  const cursorTrailPoints = isCursorEnabled && currentCursorPlan
-    ? [
-        currentCursorPlan.startNormalized,
-        ...currentCursorPlan.pathNormalized,
-        currentCursorPlan.targetNormalized,
-      ].map((point) => ({ x: clamp01(point.x) * 100, y: clamp01(point.y) * 100 }))
-    : [];
   const hasMovement = Boolean(
     currentCursorPlan && !isSamePoint(currentCursorPlan.startNormalized, currentCursorPlan.targetNormalized),
   );
   const shouldRenderGhost = Boolean(isCursorEnabled && currentCursorPlan && !isPlaying && hasMovement);
-  const renderTrailPoints = shouldRenderGhost ? cursorTrailPoints : [];
-  const hasTrail = renderTrailPoints.length >= 2 && cursorTrailStrokeWidth > 0.05;
-
-  // Pointer styles
-  const pointerStyle = isCursorEnabled && cursorPosition
-    ? toPointStyle(cursorPosition, currentCursorPlan?.dims ?? viewportDimensions)
-    : undefined;
-  const pointerOffsetX = cursorDecor.offset?.x ?? 0;
-  const pointerOffsetY = cursorDecor.offset?.y ?? 0;
-  const basePointerTransform = `translate(calc(-50% + ${pointerOffsetX}px), calc(-50% + ${pointerOffsetY}px))${
-    pointerScale !== 1 ? ` scale(${pointerScale})` : ''
-  }`;
-  const wrapperTransform = (cursorDecor.wrapperStyle as (CSSProperties & { transform?: string }) | undefined)?.transform;
-  const pointerWrapperStyle = pointerStyle && isCursorEnabled
-    ? {
-        ...pointerStyle,
-        ...cursorDecor.wrapperStyle,
-        transform: wrapperTransform ? `${basePointerTransform} ${wrapperTransform}` : basePointerTransform,
-        transformOrigin: cursorDecor.transformOrigin ?? '50% 50%',
-        transitionProperty: 'left, top, transform',
-      }
-    : undefined;
-
-  // Ghost cursor
-  const ghostAbsolutePoint = currentCursorPlan
-    ? toAbsolutePoint(currentCursorPlan.startNormalized, currentCursorPlan.dims)
-    : undefined;
-  const ghostStyle = ghostAbsolutePoint && currentCursorPlan
-    ? toPointStyle(ghostAbsolutePoint, currentCursorPlan.dims)
-    : undefined;
-  const ghostWrapperStyle = shouldRenderGhost && ghostStyle
-    ? {
-        ...ghostStyle,
-        ...cursorDecor.wrapperStyle,
-        transform: wrapperTransform ? `${basePointerTransform} ${wrapperTransform}` : basePointerTransform,
-        transformOrigin: cursorDecor.transformOrigin ?? '50% 50%',
-        pointerEvents: 'none' as const,
-        opacity: 0.45,
-        transitionProperty: 'left, top, transform',
-      }
-    : undefined;
 
   const pointerWrapperClassName = clsx(
     'absolute transition-all duration-500 ease-out select-none relative',
@@ -446,32 +590,6 @@ export function ReplayPlayer({
     }
   }
 
-  // Overlay regions helper
-  const overlayRegions = (regions: ReplayRegion[] | undefined, variant: 'highlight' | 'mask') => {
-    if (!regions?.length) return null;
-    return regions.map((region, index) => {
-      const style = toRectStyle(region.boundingBox, viewportDimensions);
-      if (!style) return null;
-      const color = region.color || '#38bdf8';
-      const opacity = typeof region.opacity === 'number' ? region.opacity : variant === 'mask' ? 0.45 : 0.15;
-
-      return (
-        <div
-          key={`${variant}-${index}`}
-          className={clsx('absolute rounded-xl pointer-events-none transition-all duration-500', {
-            'border-2 shadow-[0_0_35px_rgba(56,189,248,0.45)]': variant === 'highlight',
-          })}
-          style={{
-            ...style,
-            borderColor: variant === 'highlight' ? color : undefined,
-            background: variant === 'highlight' ? 'rgba(56, 189, 248, 0.14)' : `rgba(15, 23, 42, ${opacity})`,
-            boxShadow: variant === 'highlight' ? '0 16px 48px rgba(56, 189, 248, 0.35)' : undefined,
-          }}
-        />
-      );
-    });
-  };
-
   const displayDurationMs = currentFrame.totalDurationMs ?? currentFrame.durationMs;
   const screenshotTransition = isExportPresentation ? 'none' : 'transform 600ms ease, transform-origin 600ms ease';
 
@@ -506,30 +624,24 @@ export function ReplayPlayer({
         containerClassName={clsx(!isExportPresentation && 'transition-all duration-500')}
         overlayTransformStyle={overlayTransformStyle}
         overlayNode={
-          <>
-            {watermark ? <WatermarkOverlay settings={watermark} /> : null}
-            {overlayRegions(currentFrame.maskRegions, 'mask')}
-            {overlayRegions(currentFrame.highlightRegions, 'highlight')}
-            {currentFrame.focusedElement?.boundingBox && (
-              <div
-                className="absolute rounded-2xl border border-sky-400/70 bg-sky-400/10 shadow-[0_0_60px_rgba(56,189,248,0.35)]"
-                style={toRectStyle(currentFrame.focusedElement.boundingBox, viewportDimensions)}
-              />
-            )}
-            <ReplayCursorOverlay
-              cursorDecor={cursorDecor}
-              trailPoints={renderTrailPoints}
-              trailStrokeWidth={cursorTrailStrokeWidth}
-              showTrail={hasTrail}
-              ghostStyle={ghostWrapperStyle}
-              pointerStyle={pointerWrapperStyle}
-              pointerClassName={pointerWrapperClassName}
-              pointerEventProps={pointerEventProps}
-              clickEffect={clickEffectElement}
-            />
-            {playbackPhase === 'intro' && introCard && <IntroCard settings={introCard} />}
-            {playbackPhase === 'outro' && outroCard && <OutroCard settings={outroCard} />}
-          </>
+          <ReplayOverlayLayer
+            frame={currentFrame}
+            viewportDimensions={viewportDimensions}
+            watermark={watermark}
+            cursorDecor={cursorDecor}
+            cursorPlan={currentCursorPlan}
+            cursorPosition={cursorPosition}
+            cursorTrailStrokeWidth={cursorTrailStrokeWidth}
+            cursorScale={pointerScale}
+            shouldRenderGhost={shouldRenderGhost}
+            isCursorEnabled={isCursorEnabled}
+            pointerClassName={pointerWrapperClassName}
+            pointerEventProps={pointerEventProps}
+            clickEffect={clickEffectElement}
+            introCard={introCard}
+            outroCard={outroCard}
+            playbackPhase={playbackPhase}
+          />
         }
         header={showInterfaceChrome ? (
           <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-200/80">
