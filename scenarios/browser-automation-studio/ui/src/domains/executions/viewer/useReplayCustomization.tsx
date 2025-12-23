@@ -7,6 +7,7 @@ import type {
   ReplayCursorClickAnimation,
   ReplayCursorInitialPosition,
   ReplayCursorTheme,
+  ReplayPresentationMode,
 } from '@/domains/replay-style';
 import {
   REPLAY_CHROME_OPTIONS,
@@ -25,6 +26,7 @@ import type { ExportRenderSource } from './exportConfig';
 
 export interface ReplayCustomizationController {
   replayChromeTheme: ReplayChromeTheme;
+  replayPresentationMode: ReplayPresentationMode;
   replayBackgroundTheme: ReplayBackgroundTheme;
   replayBackground: ReplayBackgroundSource;
   replayCursorTheme: ReplayCursorTheme;
@@ -34,6 +36,7 @@ export interface ReplayCustomizationController {
   replayBrowserScale: number;
   replayRenderSource: ExportRenderSource;
   setReplayChromeTheme: (value: ReplayChromeTheme) => void;
+  setReplayPresentationMode: (value: ReplayPresentationMode) => void;
   setReplayBackground: (value: ReplayBackgroundSource) => void;
   setReplayCursorTheme: (value: ReplayCursorTheme) => void;
   setReplayCursorInitialPosition: (value: ReplayCursorInitialPosition) => void;
@@ -129,6 +132,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     style,
     setChromeTheme,
     setBackground,
+    setPresentationMode,
     setCursorTheme,
     setCursorInitialPosition,
     setCursorClickAnimation,
@@ -261,6 +265,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
 
   return {
     replayChromeTheme: style.chromeTheme,
+    replayPresentationMode: style.presentationMode,
     replayBackgroundTheme: getReplayBackgroundThemeId(style.background),
     replayBackground: style.background,
     replayCursorTheme: style.cursorTheme,
@@ -270,6 +275,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     replayBrowserScale: style.browserScale,
     replayRenderSource,
     setReplayChromeTheme: setChromeTheme,
+    setReplayPresentationMode: setPresentationMode,
     setReplayBackground: setBackground,
     setReplayCursorTheme: setCursorTheme,
     setReplayCursorInitialPosition: setCursorInitialPosition,

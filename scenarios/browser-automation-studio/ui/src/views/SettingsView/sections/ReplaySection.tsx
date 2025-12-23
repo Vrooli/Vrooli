@@ -16,6 +16,7 @@ import { useSettingsStore, BUILT_IN_PRESETS } from '@stores/settingsStore';
 import {
   REPLAY_CHROME_OPTIONS,
   ReplayBackgroundSettings,
+  ReplayPresentationModeSettings,
   REPLAY_CURSOR_OPTIONS,
   CURSOR_GROUP_ORDER,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
@@ -271,6 +272,14 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
           <span className="bg-flow-bg px-3 text-xs text-gray-500 uppercase tracking-wider">Individual Settings</span>
         </div>
       </div>
+
+      <SettingSection title="Replay Mode" tooltip="Choose the overall replay framing style.">
+        <ReplayPresentationModeSettings
+          mode={replay.presentationMode}
+          onChange={(value) => setReplaySetting('presentationMode', value)}
+          variant="settings"
+        />
+      </SettingSection>
 
       <SettingSection title="Browser Chrome" tooltip="Choose how the browser window frame looks.">
         <OptionGrid

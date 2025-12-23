@@ -37,12 +37,14 @@ export const REPLAY_CURSOR_INITIAL_POSITIONS = [
   'random',
 ] as const;
 export const REPLAY_CURSOR_CLICK_ANIMATIONS = ['none', 'pulse', 'ripple'] as const;
+export const REPLAY_PRESENTATION_MODES = ['desktop', 'frame', 'content'] as const;
 
 export type ReplayChromeTheme = (typeof REPLAY_CHROME_THEME_IDS)[number];
 export type ReplayBackgroundTheme = (typeof REPLAY_BACKGROUND_THEME_IDS)[number];
 export type ReplayCursorTheme = (typeof REPLAY_CURSOR_THEME_IDS)[number];
 export type ReplayCursorInitialPosition = (typeof REPLAY_CURSOR_INITIAL_POSITIONS)[number];
 export type ReplayCursorClickAnimation = (typeof REPLAY_CURSOR_CLICK_ANIMATIONS)[number];
+export type ReplayPresentationMode = (typeof REPLAY_PRESENTATION_MODES)[number];
 
 export type ReplayBackgroundImageFit = 'cover' | 'contain';
 
@@ -69,6 +71,7 @@ export const isReplayBackgroundImage = (
 
 export interface ReplayStyleConfig {
   version: typeof REPLAY_STYLE_VERSION;
+  presentationMode: ReplayPresentationMode;
   chromeTheme: ReplayChromeTheme;
   background: ReplayBackgroundSource;
   cursorTheme: ReplayCursorTheme;
@@ -84,6 +87,7 @@ export type ReplayStyleOverrides = Partial<Omit<ReplayStyleConfig, 'version'>> &
 
 export const REPLAY_STYLE_DEFAULTS: ReplayStyleConfig = {
   version: REPLAY_STYLE_VERSION,
+  presentationMode: 'desktop',
   chromeTheme: 'aurora',
   background: { type: 'theme', id: 'aurora' },
   cursorTheme: 'white',
@@ -115,6 +119,9 @@ export const isReplayCursorInitialPosition = (value: unknown): value is ReplayCu
 
 export const isReplayCursorClickAnimation = (value: unknown): value is ReplayCursorClickAnimation =>
   REPLAY_CURSOR_CLICK_ANIMATIONS.includes(value as ReplayCursorClickAnimation);
+
+export const isReplayPresentationMode = (value: unknown): value is ReplayPresentationMode =>
+  REPLAY_PRESENTATION_MODES.includes(value as ReplayPresentationMode);
 
 const isReplayBackgroundImageFit = (value: unknown): value is ReplayBackgroundImageFit =>
   value === 'cover' || value === 'contain';
@@ -253,6 +260,7 @@ export const normalizeReplayStyle = (
 ): ReplayStyleConfig => {
   const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
 
+  const presentationMode = readString(source, ['presentationMode', 'replayPresentationMode', 'presentation_mode']);
   const chrome = readString(source, ['chromeTheme']);
   const backgroundSource = readObject(source, ['background']);
   const cursor = readString(source, ['cursorTheme']);
@@ -263,6 +271,7 @@ export const normalizeReplayStyle = (
 
   return {
     version: REPLAY_STYLE_VERSION,
+    presentationMode: isReplayPresentationMode(presentationMode) ? presentationMode : fallback.presentationMode,
     chromeTheme: isReplayChromeTheme(chrome) ? chrome : fallback.chromeTheme,
     background: normalizeBackgroundSource(backgroundSource, fallback.background),
     cursorTheme: isReplayCursorTheme(cursor) ? cursor : fallback.cursorTheme,
@@ -295,4 +304,21 @@ export const resolveReplayStyle = (options: {
     ...(options.overrides ?? {}),
   };
   return normalizeReplayStyle(merged, defaults);
+};
+
+export const resolveReplayPresentationStyle = (style: ReplayStyleConfig): ReplayStyleConfig => {
+  if (style.presentationMode === 'frame') {
+    return {
+      ...style,
+      background: { type: 'theme', id: 'none' },
+    };
+  }
+  if (style.presentationMode === 'content') {
+    return {
+      ...style,
+      chromeTheme: 'minimal',
+      background: { type: 'theme', id: 'none' },
+    };
+  }
+  return style;
 };

@@ -1,7 +1,12 @@
 import type { ReplayMovieSpec } from '@/types/export';
 import { computeReplayLayout } from '@/domains/replay-layout';
 import type { ReplayStyleConfig, ReplayStyleOverrides } from '../model';
-import { getReplayBackgroundThemeId, normalizeReplayStyle, REPLAY_STYLE_DEFAULTS } from '../model';
+import {
+  getReplayBackgroundThemeId,
+  normalizeReplayStyle,
+  REPLAY_STYLE_DEFAULTS,
+  resolveReplayPresentationStyle,
+} from '../model';
 import { buildChromeDecor } from '../catalog';
 
 export const resolveReplayStyleFromSpec = (
@@ -43,8 +48,11 @@ export const applyReplayStyleToSpec = (
     presentation.canvas?.height ??
     presentation.viewport?.height ??
     0;
-  const browserFrameRadius = presentation.browser_frame?.radius ?? 24;
-  const chromeDecor = buildChromeDecor(style.chromeTheme, '');
+  const presentationStyle = resolveReplayPresentationStyle(style);
+  const browserFrameRadius = presentationStyle.presentationMode === 'desktop'
+    ? presentation.browser_frame?.radius ?? 24
+    : 0;
+  const chromeDecor = buildChromeDecor(presentationStyle.chromeTheme, '');
   const viewportWidth =
     presentation.viewport?.width ??
     presentation.canvas?.width ??
@@ -60,7 +68,7 @@ export const applyReplayStyleToSpec = (
           width: viewportWidth > 0 ? viewportWidth : canvasWidth,
           height: viewportHeight > 0 ? viewportHeight : canvasHeight,
         },
-        browserScale: style.browserScale,
+        browserScale: presentationStyle.browserScale,
         chromeHeaderHeight: chromeDecor.headerHeight,
         fit: 'none',
       })
@@ -85,9 +93,9 @@ export const applyReplayStyleToSpec = (
     },
     decor: {
       ...decor,
-      chrome_theme: style.chromeTheme,
-      background_theme: getReplayBackgroundThemeId(style.background),
-      background: style.background,
+      chrome_theme: presentationStyle.chromeTheme,
+      background_theme: getReplayBackgroundThemeId(presentationStyle.background),
+      background: presentationStyle.background,
       cursor_theme: style.cursorTheme,
       cursor_initial_position: style.cursorInitialPosition,
       cursor_click_animation: style.cursorClickAnimation,

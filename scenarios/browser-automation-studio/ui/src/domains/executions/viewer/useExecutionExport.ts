@@ -74,6 +74,7 @@ export const useExecutionExport = ({
 }: UseExecutionExportParams) => {
   const {
     replayChromeTheme,
+    replayPresentationMode,
     replayBackground,
     replayBackgroundTheme,
     replayCursorTheme,
@@ -381,6 +382,7 @@ export const useExecutionExport = ({
     () =>
       normalizeReplayStyle({
         chromeTheme: replayChromeTheme,
+        presentationMode: replayPresentationMode,
         background: replayBackground,
         cursorTheme: replayCursorTheme,
         cursorInitialPosition: replayCursorInitialPosition,
@@ -396,6 +398,7 @@ export const useExecutionExport = ({
       replayCursorInitialPosition,
       replayCursorScale,
       replayCursorTheme,
+      replayPresentationMode,
     ],
   );
 

@@ -12,6 +12,7 @@ export { ReplayCanvas } from './renderer/ReplayCanvas';
 export { ReplayCursorOverlay } from './renderer/ReplayCursorOverlay';
 export { ReplayStyleFrame } from './renderer/ReplayStyleFrame';
 export { ReplayBackgroundSettings } from './components/ReplayBackgroundSettings';
+export { ReplayPresentationModeSettings } from './components/ReplayPresentationModeSettings';
 export type {
   BackgroundDecor,
   BackgroundOption,

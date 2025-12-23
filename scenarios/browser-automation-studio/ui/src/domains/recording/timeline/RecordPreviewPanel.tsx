@@ -71,6 +71,7 @@ export function RecordPreviewPanel({
 
   const styleOverrides = useMemo(
     () => ({
+      presentationMode: replay.presentationMode,
       chromeTheme: replay.chromeTheme,
       background: replay.background,
       cursorTheme: replay.cursorTheme,
@@ -87,6 +88,7 @@ export function RecordPreviewPanel({
       replay.cursorInitialPosition,
       replay.cursorScale,
       replay.cursorTheme,
+      replay.presentationMode,
     ],
   );
 

@@ -10,6 +10,7 @@ import {
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
   REPLAY_CURSOR_POSITIONS,
   ReplayBackgroundSettings,
+  ReplayPresentationModeSettings,
 } from "@/domains/replay-style";
 import { RangeSlider } from "@shared/ui";
 import type { ReplayCustomizationController } from "./useReplayCustomization";
@@ -30,6 +31,7 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
     selectedCursorClickAnimationOption,
     cursorOptionsByGroup,
     replayChromeTheme,
+    replayPresentationMode,
     replayBackground,
     replayCursorTheme,
     replayCursorInitialPosition,
@@ -37,6 +39,7 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
     replayCursorScale,
     replayBrowserScale,
     setReplayChromeTheme,
+    setReplayPresentationMode,
     setReplayBackground,
     setIsCustomizationCollapsed,
     isCustomizationCollapsed,
@@ -56,6 +59,13 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
     handleBrowserScaleChange,
   } = controller;
 
+  const modeSummary =
+    replayPresentationMode === "desktop"
+      ? "Desktop"
+      : replayPresentationMode === "frame"
+        ? "Frame only"
+        : "Content only";
+
   const backgroundSummary =
     replayBackground.type === "theme" && replayBackground.id === "none"
       ? "Disabled"
@@ -73,6 +83,7 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
             Replay customization
           </span>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+            <span>Mode • {modeSummary}</span>
             <span>Chrome • {selectedChromeOption.label}</span>
             <span>Background • {backgroundSummary}</span>
             <span>Cursor • {selectedCursorOption.label}</span>
@@ -100,6 +111,21 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
       </div>
       {!isCustomizationCollapsed && (
         <div className="mt-4 space-y-4">
+          <div>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                Replay mode
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Choose how the replay is framed
+              </span>
+            </div>
+            <ReplayPresentationModeSettings
+              mode={replayPresentationMode}
+              onChange={setReplayPresentationMode}
+              variant="compact"
+            />
+          </div>
           <div>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">

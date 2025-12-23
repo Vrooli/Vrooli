@@ -175,6 +175,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
 
   const styleOverrides = useMemo(
     () => ({
+      presentationMode: replay.presentationMode,
       chromeTheme: replay.chromeTheme,
       background: replay.background,
       cursorTheme: replay.cursorTheme,
@@ -191,6 +192,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
       replay.cursorInitialPosition,
       replay.cursorScale,
       replay.cursorTheme,
+      replay.presentationMode,
     ],
   );
 
