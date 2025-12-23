@@ -15,6 +15,8 @@ package config
 import (
 	"fmt"
 	"time"
+
+	"agent-manager/internal/domain"
 )
 
 // =============================================================================
@@ -194,6 +196,10 @@ type RunnerLevers struct {
 	// Default: "opencode" (assumes in PATH).
 	OpenCodePath string `json:"opencodePath"`
 
+	// FallbackRunnerTypes is the ordered list of runners to try if the primary fails.
+	// Empty disables automatic fallback.
+	FallbackRunnerTypes []string `json:"fallbackRunnerTypes"`
+
 	// HealthCheckInterval is how often to verify runner availability.
 	// Lower = faster detection of unavailable runners.
 	// Range: 10s to 5m. Default: 1m.
@@ -314,6 +320,7 @@ func DefaultLevers() Levers {
 			ClaudeCodePath:      "claude",
 			CodexPath:           "codex",
 			OpenCodePath:        "opencode",
+			FallbackRunnerTypes: nil,
 			HealthCheckInterval: 1 * time.Minute,
 			StartupGracePeriod:  30 * time.Second,
 		},
@@ -428,6 +435,11 @@ func (a *ApprovalLevers) Validate() error {
 }
 
 func (r *RunnerLevers) Validate() error {
+	for _, runnerType := range r.FallbackRunnerTypes {
+		if !domain.RunnerType(runnerType).IsValid() {
+			return fmt.Errorf("fallbackRunnerTypes contains invalid runner type: %s", runnerType)
+		}
+	}
 	if r.HealthCheckInterval < 10*time.Second || r.HealthCheckInterval > 5*time.Minute {
 		return fmt.Errorf("healthCheckInterval must be between 10s and 5m, got %v", r.HealthCheckInterval)
 	}

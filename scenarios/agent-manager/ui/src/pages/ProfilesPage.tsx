@@ -129,6 +129,7 @@ export function ProfilesPage({
     requiresSandbox: true,
     requiresApproval: true,
     timeoutMinutes: 30,
+    fallbackRunnerTypes: [],
   });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -146,6 +147,7 @@ export function ProfilesPage({
       requiresSandbox: true,
       requiresApproval: true,
       timeoutMinutes: 30,
+      fallbackRunnerTypes: [],
     });
     setEditingProfile(null);
     setShowForm(false);
@@ -168,6 +170,7 @@ export function ProfilesPage({
       allowedTools: profile.allowedTools,
       deniedTools: profile.deniedTools,
       timeoutMinutes: durationToMinutes(profile.timeout),
+      fallbackRunnerTypes: profile.fallbackRunnerTypes ?? [],
     });
     setShowForm(true);
   };
@@ -188,6 +191,7 @@ export function ProfilesPage({
             ? formData.modelPreset ?? ModelPreset.FAST
             : ModelPreset.UNSPECIFIED,
         timeoutMinutes: formData.timeoutMinutes ?? 30,
+        fallbackRunnerTypes: formData.fallbackRunnerTypes ?? [],
       };
       if (editingProfile) {
         await onUpdateProfile(editingProfile.id, normalizedProfile);
@@ -210,6 +214,30 @@ export function ProfilesPage({
     } catch (err) {
       console.error("Failed to delete profile:", err);
     }
+  };
+
+  const handleAddFallbackRunner = () => {
+    setFormData((prev) => ({
+      ...prev,
+      fallbackRunnerTypes: [...(prev.fallbackRunnerTypes ?? []), RunnerTypeEnum.CLAUDE_CODE],
+    }));
+  };
+
+  const handleFallbackRunnerChange = (index: number, value: string) => {
+    const parsed = Number(value) as RunnerType;
+    setFormData((prev) => {
+      const fallback = [...(prev.fallbackRunnerTypes ?? [])];
+      fallback[index] = parsed;
+      return { ...prev, fallbackRunnerTypes: fallback };
+    });
+  };
+
+  const handleRemoveFallbackRunner = (index: number) => {
+    setFormData((prev) => {
+      const fallback = [...(prev.fallbackRunnerTypes ?? [])];
+      fallback.splice(index, 1);
+      return { ...prev, fallbackRunnerTypes: fallback };
+    });
   };
 
   return (
@@ -351,6 +379,47 @@ export function ProfilesPage({
                 presetMap={getPresetMapForRunner(formData.runnerType)}
                 label="Model Selection"
               />
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Fallback Runners</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={handleAddFallbackRunner}>
+                    Add
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Ordered runners to try if the primary runner is unavailable.
+                </p>
+                {(formData.fallbackRunnerTypes ?? []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {(formData.fallbackRunnerTypes ?? []).map((runnerType, index) => (
+                      <div key={`fallback-${index}`} className="flex items-center gap-2">
+                        <select
+                          value={String(runnerType)}
+                          onChange={(e) => handleFallbackRunnerChange(index, e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                          {RUNNER_TYPES.map((type) => (
+                            <option key={type} value={type}>
+                              {runnerTypeLabel(type)}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveFallbackRunner(index)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">

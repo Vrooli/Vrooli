@@ -32,6 +32,8 @@ type AgentProfile struct {
 	ModelPreset ModelPreset  `json:"modelPreset,omitempty" db:"model_preset"`
 	MaxTurns    int          `json:"maxTurns,omitempty" db:"max_turns"`
 	Timeout     time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
+	// Ordered runner fallback list (used when primary runner is unavailable)
+	FallbackRunnerTypes []RunnerType `json:"fallbackRunnerTypes,omitempty" db:"fallback_runner_types"`
 
 	// Tool permissions
 	AllowedTools []string `json:"allowedTools,omitempty" db:"allowed_tools"`
@@ -328,6 +330,8 @@ type RunConfig struct {
 	ModelPreset ModelPreset  `json:"modelPreset,omitempty"`
 	MaxTurns    int          `json:"maxTurns,omitempty"`
 	Timeout     time.Duration `json:"timeout,omitempty"`
+	// Ordered runner fallback list (used when primary runner is unavailable)
+	FallbackRunnerTypes []RunnerType `json:"fallbackRunnerTypes,omitempty"`
 
 	// Tool permissions
 	AllowedTools []string `json:"allowedTools,omitempty"`
@@ -359,6 +363,9 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	c.ModelPreset = profile.ModelPreset
 	c.MaxTurns = profile.MaxTurns
 	c.Timeout = profile.Timeout
+	if len(profile.FallbackRunnerTypes) > 0 {
+		c.FallbackRunnerTypes = append([]RunnerType(nil), profile.FallbackRunnerTypes...)
+	}
 	c.AllowedTools = profile.AllowedTools
 	c.DeniedTools = profile.DeniedTools
 	c.SkipPermissionPrompt = profile.SkipPermissionPrompt

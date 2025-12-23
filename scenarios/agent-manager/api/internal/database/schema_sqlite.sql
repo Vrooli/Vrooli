@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     model_preset TEXT,
     max_turns INTEGER,
     timeout_ms INTEGER,
+    fallback_runner_types TEXT DEFAULT '[]',
     allowed_tools TEXT DEFAULT '[]',
     denied_tools TEXT DEFAULT '[]',
     skip_permission_prompt INTEGER DEFAULT 0,

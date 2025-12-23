@@ -598,8 +598,10 @@ func (e *RunExecutor) acquireRunner(ctx context.Context) (runner.Runner, error) 
 
 	r, err := e.runners.Get(runnerType)
 	if err != nil {
-		// Try to find an alternative runner to suggest
-		alternative := e.findAlternativeRunner()
+		if fallback := e.tryFallbackRunner(ctx, runnerType); fallback != nil {
+			return fallback, nil
+		}
+		alternative := e.findFallbackAlternative(runnerType)
 		return nil, &domain.RunnerError{
 			RunnerType:  runnerType,
 			Operation:   "acquire",
@@ -612,8 +614,10 @@ func (e *RunExecutor) acquireRunner(ctx context.Context) (runner.Runner, error) 
 	// Verify runner is available
 	available, msg := r.IsAvailable(ctx)
 	if !available {
-		// Try to find an alternative runner to suggest
-		alternative := e.findAlternativeRunner()
+		if fallback := e.tryFallbackRunner(ctx, runnerType); fallback != nil {
+			return fallback, nil
+		}
+		alternative := e.findFallbackAlternative(runnerType)
 		return nil, &domain.RunnerError{
 			RunnerType:  runnerType,
 			Operation:   "availability_check",
@@ -664,6 +668,73 @@ func (e *RunExecutor) findAlternativeRunner() string {
 	}
 
 	return ""
+}
+
+func (e *RunExecutor) runnerFallbackCandidates(primary domain.RunnerType) []domain.RunnerType {
+	if e.run == nil || e.run.ResolvedConfig == nil || len(e.run.ResolvedConfig.FallbackRunnerTypes) == 0 {
+		return nil
+	}
+	seen := make(map[domain.RunnerType]struct{}, len(e.run.ResolvedConfig.FallbackRunnerTypes))
+	candidates := make([]domain.RunnerType, 0, len(e.run.ResolvedConfig.FallbackRunnerTypes))
+	for _, rt := range e.run.ResolvedConfig.FallbackRunnerTypes {
+		if !rt.IsValid() || rt == primary {
+			continue
+		}
+		if _, exists := seen[rt]; exists {
+			continue
+		}
+		seen[rt] = struct{}{}
+		candidates = append(candidates, rt)
+	}
+	return candidates
+}
+
+func (e *RunExecutor) findFallbackAlternative(primary domain.RunnerType) string {
+	if e.runners == nil {
+		return ""
+	}
+	for _, rt := range e.runnerFallbackCandidates(primary) {
+		if r, err := e.runners.Get(rt); err == nil {
+			if available, _ := r.IsAvailable(context.Background()); available {
+				return string(rt)
+			}
+		}
+	}
+	return e.findAlternativeRunner()
+}
+
+func (e *RunExecutor) tryFallbackRunner(ctx context.Context, primary domain.RunnerType) runner.Runner {
+	if e.runners == nil {
+		return nil
+	}
+	for _, rt := range e.runnerFallbackCandidates(primary) {
+		r, err := e.runners.Get(rt)
+		if err != nil {
+			continue
+		}
+		available, _ := r.IsAvailable(ctx)
+		if !available {
+			continue
+		}
+		e.applyRunnerFallback(ctx, primary, rt)
+		return r
+	}
+	return nil
+}
+
+func (e *RunExecutor) applyRunnerFallback(ctx context.Context, from, to domain.RunnerType) {
+	if e.run == nil {
+		return
+	}
+	if e.run.ResolvedConfig == nil {
+		e.run.ResolvedConfig = domain.DefaultRunConfig()
+	}
+	e.run.ResolvedConfig.RunnerType = to
+	e.run.UpdatedAt = time.Now()
+	if err := e.runs.Update(ctx, e.run); err != nil {
+		e.emitSystemEvent(ctx, "warn", "failed to persist runner fallback: "+err.Error())
+	}
+	e.emitSystemEvent(ctx, "warn", fmt.Sprintf("runner fallback: %s -> %s", from, to))
 }
 
 // =============================================================================

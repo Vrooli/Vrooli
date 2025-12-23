@@ -35,6 +35,8 @@ import {
   CreateRunResponseSchema,
   CreateTaskRequestSchema,
   CreateTaskResponseSchema,
+  UpdateTaskRequestSchema,
+  UpdateTaskResponseSchema,
   GetRunDiffResponseSchema,
   GetRunEventsResponseSchema,
   GetRunResponseSchema,
@@ -171,6 +173,7 @@ function buildProfile(profile: ProfileFormData): AgentProfile {
     modelPreset: profile.modelPreset ?? ModelPreset.UNSPECIFIED,
     maxTurns: profile.maxTurns ?? 0,
     timeout: durationFromMinutes(profile.timeoutMinutes),
+    fallbackRunnerTypes: profile.fallbackRunnerTypes ?? [],
     allowedTools: profile.allowedTools ?? [],
     deniedTools: profile.deniedTools ?? [],
     skipPermissionPrompt: profile.skipPermissionPrompt ?? false,
@@ -195,6 +198,12 @@ function buildRunConfigOverrides(run: RunFormData) {
   const payload: Record<string, unknown> = {};
   if (run.runnerType !== undefined) {
     payload.runnerType = run.runnerType;
+  }
+  if (run.fallbackRunnerTypes !== undefined) {
+    payload.fallbackRunnerTypes = run.fallbackRunnerTypes;
+    if (run.fallbackRunnerTypes.length === 0) {
+      payload.clearFallbackRunnerTypes = true;
+    }
   }
   if (run.modelPreset !== undefined) {
     payload.modelPreset = run.modelPreset;
@@ -247,6 +256,7 @@ function buildRunConfigOverrides(run: RunFormData) {
 function hasInlineConfig(run: RunFormData): boolean {
   return Boolean(
     run.runnerType !== undefined ||
+      run.fallbackRunnerTypes !== undefined ||
       run.model !== undefined ||
       run.modelPreset !== undefined ||
       run.maxTurns !== undefined ||
@@ -408,6 +418,24 @@ export function useTasks() {
     [fetchTasks]
   );
 
+  const updateTask = useCallback(
+    async (id: string, task: TaskFormData): Promise<Task> => {
+      const payload = create(UpdateTaskRequestSchema, {
+        taskId: id,
+        task: { ...buildTask(task), id },
+      });
+      const updated = await apiRequest<unknown>("/tasks/" + id, {
+        method: "PUT",
+        body: JSON.stringify(toProtoJson(UpdateTaskRequestSchema, payload)),
+      });
+      const message = parseProto<any>(UpdateTaskResponseSchema, updated);
+      const mapped = message.task as Task;
+      await fetchTasks();
+      return mapped;
+    },
+    [fetchTasks]
+  );
+
   const getTask = useCallback(async (id: string): Promise<Task> => {
     const task = await apiRequest<unknown>("/tasks/" + id);
     const message = parseProto<any>(GetTaskResponseSchema, task);
@@ -438,6 +466,7 @@ export function useTasks() {
     ...state,
     refetch: fetchTasks,
     createTask,
+    updateTask,
     getTask,
     cancelTask,
     deleteTask,

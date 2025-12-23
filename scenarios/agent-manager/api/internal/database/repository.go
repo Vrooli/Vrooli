@@ -75,6 +75,7 @@ type profileRow struct {
 	ModelPreset          sql.NullString `db:"model_preset"`
 	MaxTurns             int         `db:"max_turns"`
 	TimeoutMs            int64       `db:"timeout_ms"`
+	FallbackRunnerTypes  StringSlice `db:"fallback_runner_types"`
 	AllowedTools         StringSlice `db:"allowed_tools"`
 	DeniedTools          StringSlice `db:"denied_tools"`
 	SkipPermissionPrompt bool        `db:"skip_permission_prompt"`
@@ -112,6 +113,7 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 		ModelPreset:          modelPreset,
 		MaxTurns:             r.MaxTurns,
 		Timeout:              time.Duration(r.TimeoutMs) * time.Millisecond,
+		FallbackRunnerTypes:  toRunnerTypes(r.FallbackRunnerTypes),
 		AllowedTools:         r.AllowedTools,
 		DeniedTools:          r.DeniedTools,
 		SkipPermissionPrompt: r.SkipPermissionPrompt,
@@ -150,6 +152,7 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 		ModelPreset:          modelPreset,
 		MaxTurns:             p.MaxTurns,
 		TimeoutMs:            int64(p.Timeout / time.Millisecond),
+		FallbackRunnerTypes:  fromRunnerTypes(p.FallbackRunnerTypes),
 		AllowedTools:         p.AllowedTools,
 		DeniedTools:          p.DeniedTools,
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
@@ -165,8 +168,36 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 	}
 }
 
+func toRunnerTypes(values StringSlice) []domain.RunnerType {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make([]domain.RunnerType, 0, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		result = append(result, domain.RunnerType(value))
+	}
+	return result
+}
+
+func fromRunnerTypes(values []domain.RunnerType) StringSlice {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make(StringSlice, 0, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		result = append(result, string(value))
+	}
+	return result
+}
+
 const profileColumns = `id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
-	allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
+	fallback_runner_types, allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
 	sandbox_retention_mode, sandbox_retention_ttl_ms,
 	allowed_paths, denied_paths, created_by, created_at, updated_at`
 
@@ -180,11 +211,11 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 
 	row := profileFromDomain(profile)
 	query := `INSERT INTO agent_profiles (id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
-		allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
+		fallback_runner_types, allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
 		sandbox_retention_mode, sandbox_retention_ttl_ms,
 		allowed_paths, denied_paths, created_by, created_at, updated_at)
 		VALUES (:id, :name, :profile_key, :description, :runner_type, :model, :model_preset, :max_turns, :timeout_ms,
-		:allowed_tools, :denied_tools, :skip_permission_prompt, :requires_sandbox, :requires_approval,
+		:fallback_runner_types, :allowed_tools, :denied_tools, :skip_permission_prompt, :requires_sandbox, :requires_approval,
 		:sandbox_retention_mode, :sandbox_retention_ttl_ms,
 		:allowed_paths, :denied_paths, :created_by, :created_at, :updated_at)`
 
@@ -255,7 +286,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 
 	query := `UPDATE agent_profiles SET name = :name, profile_key = :profile_key, description = :description,
 		runner_type = :runner_type, model = :model, model_preset = :model_preset, max_turns = :max_turns, timeout_ms = :timeout_ms,
-		allowed_tools = :allowed_tools, denied_tools = :denied_tools,
+		fallback_runner_types = :fallback_runner_types, allowed_tools = :allowed_tools, denied_tools = :denied_tools,
 		skip_permission_prompt = :skip_permission_prompt, requires_sandbox = :requires_sandbox,
 		requires_approval = :requires_approval, sandbox_retention_mode = :sandbox_retention_mode,
 		sandbox_retention_ttl_ms = :sandbox_retention_ttl_ms, allowed_paths = :allowed_paths, denied_paths = :denied_paths,

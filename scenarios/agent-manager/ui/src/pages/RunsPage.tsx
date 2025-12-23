@@ -29,7 +29,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Textarea } from "../components/ui/textarea";
-import { cn, formatDate, formatDuration, formatRelativeTime } from "../lib/utils";
+import { cn, formatDate, formatDuration, formatRelativeTime, runnerTypeLabel } from "../lib/utils";
 import type {
   AgentProfile,
   ApproveFormData,
@@ -534,6 +534,14 @@ export function RunsPage({
                       <span className="text-muted-foreground">Progress: </span>
                       {selectedRun.progressPercent}%
                     </div>
+                    {selectedRun.resolvedConfig?.fallbackRunnerTypes?.length ? (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Fallbacks: </span>
+                        {selectedRun.resolvedConfig.fallbackRunnerTypes
+                          .map((runnerType) => runnerTypeLabel(runnerType))
+                          .join(", ")}
+                      </div>
+                    ) : null}
                     {selectedRun.sandboxId && (
                       <div className="col-span-2">
                         <span className="text-muted-foreground">Sandbox: </span>

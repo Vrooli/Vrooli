@@ -3,6 +3,7 @@ import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   AlertCircle,
   ClipboardList,
+  Edit,
   FolderOpen,
   Play,
   Plus,
@@ -46,6 +47,7 @@ interface TasksPageProps {
   loading: boolean;
   error: string | null;
   onCreateTask: (task: TaskFormData) => Promise<Task>;
+  onUpdateTask: (id: string, task: TaskFormData) => Promise<Task>;
   onCancelTask: (id: string) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
   onCreateRun: (run: RunFormData) => Promise<Run>;
@@ -99,6 +101,7 @@ interface InlineRunConfig {
   timeoutMinutes: number;
   runMode: RunMode;
   skipPermissionPrompt: boolean;
+  fallbackRunnerTypes: RunnerType[];
 }
 
 type ProfileFormState = ProfileFormData & {
@@ -111,6 +114,7 @@ export function TasksPage({
   loading,
   error,
   onCreateTask,
+  onUpdateTask,
   onCancelTask,
   onDeleteTask,
   onCreateRun,
@@ -137,9 +141,16 @@ export function TasksPage({
     return getRegistryForRunner(runnerType)?.presets ?? {};
   };
   const [showForm, setShowForm] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showRunDialog, setShowRunDialog] = useState<Task | null>(null);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [formData, setFormData] = useState<TaskFormData>({
+    title: "",
+    description: "",
+    scopePath: ".",
+    projectRoot: "",
+  });
+  const [editFormData, setEditFormData] = useState<TaskFormData>({
     title: "",
     description: "",
     scopePath: ".",
@@ -157,6 +168,7 @@ export function TasksPage({
     timeoutMinutes: 30,
     runMode: RunMode.SANDBOXED,
     skipPermissionPrompt: true,
+    fallbackRunnerTypes: [],
   });
   const [profileFormData, setProfileFormData] = useState<ProfileFormState>({
     name: "",
@@ -170,6 +182,7 @@ export function TasksPage({
     requiresSandbox: true,
     requiresApproval: true,
     timeoutMinutes: 30,
+    fallbackRunnerTypes: [],
   });
   const [submitting, setSubmitting] = useState(false);
   const [profileFormError, setProfileFormError] = useState<string | null>(null);
@@ -189,6 +202,26 @@ export function TasksPage({
     setShowForm(false);
   };
 
+  const resetEditForm = () => {
+    setEditFormData({
+      title: "",
+      description: "",
+      scopePath: ".",
+      projectRoot: "",
+    });
+    setEditingTask(null);
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setEditFormData({
+      title: task.title,
+      description: task.description ?? "",
+      scopePath: task.scopePath,
+      projectRoot: task.projectRoot ?? "",
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -197,6 +230,20 @@ export function TasksPage({
       resetForm();
     } catch (err) {
       console.error("Failed to create task:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+    setSubmitting(true);
+    try {
+      await onUpdateTask(editingTask.id, editFormData);
+      resetEditForm();
+    } catch (err) {
+      console.error("Failed to update task:", err);
     } finally {
       setSubmitting(false);
     }
@@ -229,6 +276,9 @@ export function TasksPage({
         request.timeoutMinutes = inlineConfig.timeoutMinutes;
         request.runMode = inlineConfig.runMode;
         request.skipPermissionPrompt = inlineConfig.skipPermissionPrompt;
+        if (inlineConfig.fallbackRunnerTypes.length > 0) {
+          request.fallbackRunnerTypes = inlineConfig.fallbackRunnerTypes;
+        }
       }
       if (existingSandboxId.trim() !== "") {
         request.existingSandboxId = existingSandboxId.trim();
@@ -258,6 +308,7 @@ export function TasksPage({
       requiresSandbox: true,
       requiresApproval: true,
       timeoutMinutes: 30,
+      fallbackRunnerTypes: [],
     });
     setShowProfileDialog(false);
     setProfileFormError(null);
@@ -279,6 +330,7 @@ export function TasksPage({
             ? profileFormData.modelPreset ?? ModelPreset.FAST
             : ModelPreset.UNSPECIFIED,
         timeoutMinutes: profileFormData.timeoutMinutes ?? 30,
+        fallbackRunnerTypes: profileFormData.fallbackRunnerTypes ?? [],
       });
       // Auto-select the new profile and switch to profile mode
       setSelectedProfileId(newProfile.id);
@@ -308,6 +360,54 @@ export function TasksPage({
     } catch (err) {
       console.error("Failed to delete task:", err);
     }
+  };
+
+  const handleAddInlineFallback = () => {
+    setInlineConfig((prev) => ({
+      ...prev,
+      fallbackRunnerTypes: [...prev.fallbackRunnerTypes, RunnerTypeEnum.CLAUDE_CODE],
+    }));
+  };
+
+  const handleInlineFallbackChange = (index: number, value: string) => {
+    const parsed = Number(value) as RunnerType;
+    setInlineConfig((prev) => {
+      const fallback = [...prev.fallbackRunnerTypes];
+      fallback[index] = parsed;
+      return { ...prev, fallbackRunnerTypes: fallback };
+    });
+  };
+
+  const handleRemoveInlineFallback = (index: number) => {
+    setInlineConfig((prev) => {
+      const fallback = [...prev.fallbackRunnerTypes];
+      fallback.splice(index, 1);
+      return { ...prev, fallbackRunnerTypes: fallback };
+    });
+  };
+
+  const handleAddProfileFallback = () => {
+    setProfileFormData((prev) => ({
+      ...prev,
+      fallbackRunnerTypes: [...(prev.fallbackRunnerTypes ?? []), RunnerTypeEnum.CLAUDE_CODE],
+    }));
+  };
+
+  const handleProfileFallbackChange = (index: number, value: string) => {
+    const parsed = Number(value) as RunnerType;
+    setProfileFormData((prev) => {
+      const fallback = [...(prev.fallbackRunnerTypes ?? [])];
+      fallback[index] = parsed;
+      return { ...prev, fallbackRunnerTypes: fallback };
+    });
+  };
+
+  const handleRemoveProfileFallback = (index: number) => {
+    setProfileFormData((prev) => {
+      const fallback = [...(prev.fallbackRunnerTypes ?? [])];
+      fallback.splice(index, 1);
+      return { ...prev, fallbackRunnerTypes: fallback };
+    });
   };
 
   const filteredAndSortedTasks = useMemo(() => {
@@ -493,6 +593,84 @@ export function TasksPage({
         </DialogContent>
       </Dialog>
 
+      {/* Edit Task Modal */}
+      <Dialog open={editingTask !== null} onOpenChange={(open) => !open && resetEditForm()}>
+        <DialogContent>
+          <DialogHeader onClose={resetEditForm}>
+            <DialogTitle>Edit Task</DialogTitle>
+            <DialogDescription>
+              Update task details and scope
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdate}>
+            <DialogBody className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="editTitle">Title *</Label>
+                <Input
+                  id="editTitle"
+                  value={editFormData.title}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, title: e.target.value })
+                  }
+                  placeholder="e.g., Fix authentication bug"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editDescription">Description</Label>
+                <Textarea
+                  id="editDescription"
+                  value={editFormData.description}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, description: e.target.value })
+                  }
+                  placeholder="Detailed instructions for the agent..."
+                  rows={4}
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="editScopePath">Scope Path *</Label>
+                  <Input
+                    id="editScopePath"
+                    value={editFormData.scopePath}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, scopePath: e.target.value })
+                    }
+                    placeholder="e.g., src/auth"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The directory scope where the agent can operate
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editProjectRoot">Project Root</Label>
+                  <Input
+                    id="editProjectRoot"
+                    value={editFormData.projectRoot}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, projectRoot: e.target.value })
+                    }
+                    placeholder="Optional: /path/to/project"
+                  />
+                </div>
+              </div>
+            </DialogBody>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={resetEditForm}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Start Run Modal */}
       <Dialog
         open={showRunDialog !== null}
@@ -635,6 +813,47 @@ export function TasksPage({
                   presetMap={getPresetMapForRunner(inlineConfig.runnerType)}
                   label="Model Selection"
                 />
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Fallback Runners</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={handleAddInlineFallback}>
+                      Add
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Ordered runners to try if the primary runner is unavailable.
+                  </p>
+                  {inlineConfig.fallbackRunnerTypes.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {inlineConfig.fallbackRunnerTypes.map((runnerType, index) => (
+                        <div key={`inline-fallback-${index}`} className="flex items-center gap-2">
+                          <select
+                            value={String(runnerType)}
+                            onChange={(e) => handleInlineFallbackChange(index, e.target.value)}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            {RUNNER_TYPES.map((type) => (
+                              <option key={type} value={type}>
+                                {runnerTypeLabel(type)}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveInlineFallback(index)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <div className="grid gap-4 grid-cols-2">
                   <div className="space-y-2">
@@ -851,6 +1070,47 @@ export function TasksPage({
                 label="Model Selection"
               />
 
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Fallback Runners</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={handleAddProfileFallback}>
+                    Add
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Ordered runners to try if the primary runner is unavailable.
+                </p>
+                {(profileFormData.fallbackRunnerTypes ?? []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {(profileFormData.fallbackRunnerTypes ?? []).map((runnerType, index) => (
+                      <div key={`profile-fallback-${index}`} className="flex items-center gap-2">
+                        <select
+                          value={String(runnerType)}
+                          onChange={(e) => handleProfileFallbackChange(index, e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                          {RUNNER_TYPES.map((type) => (
+                            <option key={type} value={type}>
+                              {runnerTypeLabel(type)}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveProfileFallback(index)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="profileMaxTurns">Max Turns</Label>
@@ -980,6 +1240,16 @@ export function TasksPage({
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditTask(task)}
+                        className="gap-1"
+                        aria-label={`Edit ${task.title}`}
+                      >
+                        <Edit className="h-4 w-4" />
+                        Edit
+                      </Button>
                       {task.status === TaskStatus.QUEUED && (
                         <>
                           <Button

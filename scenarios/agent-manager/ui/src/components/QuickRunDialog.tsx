@@ -67,6 +67,7 @@ interface AgentConfigData {
   timeoutMinutes: number;
   runMode: RunMode;
   skipPermissionPrompt: boolean;
+  fallbackRunnerTypes: RunnerType[];
 }
 
 type Step = 1 | 2 | 3;
@@ -115,6 +116,7 @@ export function QuickRunDialog({
     timeoutMinutes: 30,
     runMode: RunMode.SANDBOXED,
     skipPermissionPrompt: true,
+    fallbackRunnerTypes: [],
   });
   const [existingSandboxId, setExistingSandboxId] = useState("");
 
@@ -160,6 +162,7 @@ export function QuickRunDialog({
       timeoutMinutes: 30,
       runMode: RunMode.SANDBOXED,
       skipPermissionPrompt: true,
+      fallbackRunnerTypes: [],
     });
   };
 
@@ -209,6 +212,30 @@ export function QuickRunDialog({
     }
   };
 
+  const handleAddFallbackRunner = () => {
+    setAgentConfig((prev) => ({
+      ...prev,
+      fallbackRunnerTypes: [...prev.fallbackRunnerTypes, RunnerTypeEnum.CLAUDE_CODE],
+    }));
+  };
+
+  const handleFallbackRunnerChange = (index: number, value: string) => {
+    const parsed = Number(value) as RunnerType;
+    setAgentConfig((prev) => {
+      const fallback = [...prev.fallbackRunnerTypes];
+      fallback[index] = parsed;
+      return { ...prev, fallbackRunnerTypes: fallback };
+    });
+  };
+
+  const handleRemoveFallbackRunner = (index: number) => {
+    setAgentConfig((prev) => {
+      const fallback = [...prev.fallbackRunnerTypes];
+      fallback.splice(index, 1);
+      return { ...prev, fallbackRunnerTypes: fallback };
+    });
+  };
+
   const handleStartRun = async () => {
     setSubmitting(true);
     setError(null);
@@ -241,6 +268,9 @@ export function QuickRunDialog({
         runRequest.timeoutMinutes = agentConfig.timeoutMinutes;
         runRequest.runMode = agentConfig.runMode;
         runRequest.skipPermissionPrompt = agentConfig.skipPermissionPrompt;
+        if (agentConfig.fallbackRunnerTypes.length > 0) {
+          runRequest.fallbackRunnerTypes = agentConfig.fallbackRunnerTypes;
+        }
       }
       if (existingSandboxId.trim() !== "") {
         runRequest.existingSandboxId = existingSandboxId.trim();
@@ -514,6 +544,47 @@ export function QuickRunDialog({
                     presetMap={getPresetMapForRunner(agentConfig.runnerType)}
                     label="Model Selection"
                   />
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Fallback Runners</Label>
+                      <Button type="button" variant="outline" size="sm" onClick={handleAddFallbackRunner}>
+                        Add
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Ordered runners to try if the primary runner is unavailable.
+                    </p>
+                    {agentConfig.fallbackRunnerTypes.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {agentConfig.fallbackRunnerTypes.map((runnerType, index) => (
+                          <div key={`quick-fallback-${index}`} className="flex items-center gap-2">
+                            <select
+                              value={String(runnerType)}
+                              onChange={(e) => handleFallbackRunnerChange(index, e.target.value)}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                              {RUNNER_TYPES.map((type) => (
+                                <option key={type} value={type}>
+                                  {runnerTypeLabel(type)}
+                                </option>
+                              ))}
+                            </select>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveFallbackRunner(index)}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   <div className="grid gap-4 grid-cols-2">
                     <div className="space-y-2">

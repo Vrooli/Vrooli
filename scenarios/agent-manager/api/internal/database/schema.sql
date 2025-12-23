@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     model_preset VARCHAR(20),
     max_turns INTEGER,
     timeout_ms BIGINT,
+    fallback_runner_types JSONB DEFAULT '[]',
     allowed_tools JSONB DEFAULT '[]',
     denied_tools JSONB DEFAULT '[]',
     skip_permission_prompt BOOLEAN DEFAULT FALSE,

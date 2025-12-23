@@ -21,6 +21,10 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 	if p == nil {
 		return nil
 	}
+	fallback := make([]pb.RunnerType, 0, len(p.FallbackRunnerTypes))
+	for _, rt := range p.FallbackRunnerTypes {
+		fallback = append(fallback, RunnerTypeToProto(rt))
+	}
 	return &pb.AgentProfile{
 		Id:                   UUIDToString(p.ID),
 		Name:                 p.Name,
@@ -31,6 +35,7 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 		ModelPreset:          ModelPresetToProto(p.ModelPreset),
 		MaxTurns:             int32(p.MaxTurns),
 		Timeout:              DurationToProto(p.Timeout),
+		FallbackRunnerTypes:  fallback,
 		AllowedTools:         p.AllowedTools,
 		DeniedTools:          p.DeniedTools,
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
@@ -51,6 +56,13 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 	if p == nil {
 		return nil
 	}
+	fallback := make([]domain.RunnerType, 0, len(p.FallbackRunnerTypes))
+	for _, rt := range p.FallbackRunnerTypes {
+		if rt == pb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
+			continue
+		}
+		fallback = append(fallback, RunnerTypeFromProto(rt))
+	}
 	return &domain.AgentProfile{
 		ID:                   UUIDFromString(p.Id),
 		Name:                 p.Name,
@@ -61,6 +73,7 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 		ModelPreset:          ModelPresetFromProto(p.ModelPreset),
 		MaxTurns:             int(p.MaxTurns),
 		Timeout:              DurationFromProto(p.Timeout),
+		FallbackRunnerTypes:  fallback,
 		AllowedTools:         p.AllowedTools,
 		DeniedTools:          p.DeniedTools,
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
@@ -341,12 +354,17 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 	if c == nil {
 		return nil
 	}
+	fallback := make([]pb.RunnerType, 0, len(c.FallbackRunnerTypes))
+	for _, rt := range c.FallbackRunnerTypes {
+		fallback = append(fallback, RunnerTypeToProto(rt))
+	}
 	return &pb.RunConfig{
 		RunnerType:           RunnerTypeToProto(c.RunnerType),
 		Model:                c.Model,
 		ModelPreset:          ModelPresetToProto(c.ModelPreset),
 		MaxTurns:             int32(c.MaxTurns),
 		Timeout:              DurationToProto(c.Timeout),
+		FallbackRunnerTypes:  fallback,
 		AllowedTools:         c.AllowedTools,
 		DeniedTools:          c.DeniedTools,
 		SkipPermissionPrompt: c.SkipPermissionPrompt,
@@ -364,12 +382,20 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 	if c == nil {
 		return nil
 	}
+	fallback := make([]domain.RunnerType, 0, len(c.FallbackRunnerTypes))
+	for _, rt := range c.FallbackRunnerTypes {
+		if rt == pb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
+			continue
+		}
+		fallback = append(fallback, RunnerTypeFromProto(rt))
+	}
 	return &domain.RunConfig{
 		RunnerType:           RunnerTypeFromProto(c.RunnerType),
 		Model:                c.Model,
 		ModelPreset:          ModelPresetFromProto(c.ModelPreset),
 		MaxTurns:             int(c.MaxTurns),
 		Timeout:              DurationFromProto(c.Timeout),
+		FallbackRunnerTypes:  fallback,
 		AllowedTools:         c.AllowedTools,
 		DeniedTools:          c.DeniedTools,
 		SkipPermissionPrompt: c.SkipPermissionPrompt,

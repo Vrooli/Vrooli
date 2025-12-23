@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"agent-manager/internal/domain"
 )
 
 // ModelOption represents a selectable model with an optional description.
@@ -66,6 +68,7 @@ type RunnerModelRegistry struct {
 // Registry contains model catalog data for all runners.
 type Registry struct {
 	Version int                            `json:"version"`
+	FallbackRunnerTypes []string           `json:"fallbackRunnerTypes,omitempty"`
 	Runners map[string]RunnerModelRegistry `json:"runners"`
 }
 
@@ -76,6 +79,9 @@ func (r *Registry) Clone() *Registry {
 	clone := &Registry{
 		Version: r.Version,
 		Runners: make(map[string]RunnerModelRegistry, len(r.Runners)),
+	}
+	if len(r.FallbackRunnerTypes) > 0 {
+		clone.FallbackRunnerTypes = append([]string(nil), r.FallbackRunnerTypes...)
 	}
 	for key, runner := range r.Runners {
 		models := make([]ModelOption, len(runner.Models))
@@ -101,6 +107,10 @@ func (r *Registry) Validate() error {
 	}
 	if len(r.Runners) == 0 {
 		return errors.New("model registry must define at least one runner")
+	}
+
+	if err := validateFallbackRunnerTypes(r.FallbackRunnerTypes); err != nil {
+		return err
 	}
 
 	for runnerKey, runner := range r.Runners {
@@ -138,6 +148,27 @@ func (r *Registry) Validate() error {
 		}
 	}
 
+	return nil
+}
+
+func validateFallbackRunnerTypes(values []string) error {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			return errors.New("fallbackRunnerTypes contains empty runner type")
+		}
+		if !domain.RunnerType(trimmed).IsValid() {
+			return fmt.Errorf("fallbackRunnerTypes contains invalid runner type %s", trimmed)
+		}
+		if _, exists := seen[trimmed]; exists {
+			return fmt.Errorf("fallbackRunnerTypes contains duplicate runner type %s", trimmed)
+		}
+		seen[trimmed] = struct{}{}
+	}
 	return nil
 }
 

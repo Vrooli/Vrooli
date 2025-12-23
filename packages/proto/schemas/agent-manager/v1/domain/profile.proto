@@ -71,6 +71,10 @@ message AgentProfile {
   // Default: 30 minutes if not specified.
   google.protobuf.Duration timeout = 7;
 
+  // Ordered list of fallback runners to try if the primary is unavailable.
+  // Empty disables automatic fallback.
+  repeated RunnerType fallback_runner_types = 22 [(buf.validate.field).enum = {defined_only: true}];
+
   // Tools the agent is allowed to use.
   // Empty means use runner defaults.
   // Examples: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
@@ -145,6 +149,10 @@ message RunConfig {
   // Maximum execution time.
   google.protobuf.Duration timeout = 4;
 
+  // Ordered list of fallback runners to try if the primary is unavailable.
+  // Empty disables automatic fallback.
+  repeated RunnerType fallback_runner_types = 15;
+
   // Tools the agent is allowed to use.
   repeated string allowed_tools = 5;
 
@@ -196,6 +204,9 @@ message RunConfigOverrides {
   // Maximum execution time.
   optional google.protobuf.Duration timeout = 4;
 
+  // Ordered list of fallback runners to try if the primary is unavailable.
+  repeated RunnerType fallback_runner_types = 19;
+
   // Tools the agent is allowed to use.
   repeated string allowed_tools = 5;
 
@@ -234,6 +245,9 @@ message RunConfigOverrides {
 
   // Clear denied paths inherited from profile.
   bool clear_denied_paths = 15;
+
+  // Clear fallback runners inherited from profile.
+  bool clear_fallback_runner_types = 20;
 }
 
 // =============================================================================

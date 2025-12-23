@@ -164,6 +164,7 @@ type CreateRunRequest struct {
 	ModelPreset          *domain.ModelPreset          `json:"modelPreset,omitempty"`
 	MaxTurns             *int                         `json:"maxTurns,omitempty"`
 	Timeout              *time.Duration               `json:"timeout,omitempty"`
+	FallbackRunnerTypes  []domain.RunnerType          `json:"fallbackRunnerTypes,omitempty"`
 	AllowedTools         []string                     `json:"allowedTools,omitempty"`
 	DeniedTools          []string                     `json:"deniedTools,omitempty"`
 	SkipPermissionPrompt *bool                        `json:"skipPermissionPrompt,omitempty"`
@@ -353,6 +354,7 @@ type OrchestratorConfig struct {
 	RequireSandboxByDefault bool
 	SandboxRetentionMode    domain.SandboxRetentionMode
 	SandboxRetentionTTL     time.Duration
+	RunnerFallbackTypes     []domain.RunnerType
 }
 
 // DefaultConfig returns sensible defaults.
@@ -970,6 +972,9 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.Timeout != nil {
 		cfg.Timeout = *req.Timeout
 	}
+	if req.FallbackRunnerTypes != nil {
+		cfg.FallbackRunnerTypes = append([]domain.RunnerType(nil), req.FallbackRunnerTypes...)
+	}
 	if req.AllowedTools != nil {
 		cfg.AllowedTools = req.AllowedTools
 	}
@@ -1008,10 +1013,27 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if cfg.SandboxRetentionTTL <= 0 && o.config.SandboxRetentionTTL > 0 {
 		cfg.SandboxRetentionTTL = o.config.SandboxRetentionTTL
 	}
+	if len(cfg.FallbackRunnerTypes) == 0 && o.modelRegistry != nil {
+		registry := o.modelRegistry.Get()
+		if registry != nil && len(registry.FallbackRunnerTypes) > 0 {
+			cfg.FallbackRunnerTypes = make([]domain.RunnerType, 0, len(registry.FallbackRunnerTypes))
+			for _, rt := range registry.FallbackRunnerTypes {
+				cfg.FallbackRunnerTypes = append(cfg.FallbackRunnerTypes, domain.RunnerType(rt))
+			}
+		}
+	}
+	if len(cfg.FallbackRunnerTypes) == 0 && len(o.config.RunnerFallbackTypes) > 0 {
+		cfg.FallbackRunnerTypes = append([]domain.RunnerType(nil), o.config.RunnerFallbackTypes...)
+	}
 
 	// Validate the resolved config
 	if !cfg.RunnerType.IsValid() {
 		return nil, nil, domain.NewValidationError("runnerType", "invalid runner type: "+string(cfg.RunnerType))
+	}
+	for _, rt := range cfg.FallbackRunnerTypes {
+		if !rt.IsValid() {
+			return nil, nil, domain.NewValidationError("fallbackRunnerTypes", "invalid runner type: "+string(rt))
+		}
 	}
 	if !cfg.ModelPreset.IsValid() {
 		return nil, nil, domain.NewValidationError("modelPreset", "invalid model preset")

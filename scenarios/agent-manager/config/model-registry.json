@@ -1,5 +1,9 @@
 {
   "version": 1,
+  "fallbackRunnerTypes": [
+    "claude-code",
+    "codex"
+  ],
   "runners": {
     "claude-code": {
       "models": [
@@ -29,8 +33,8 @@
         }
       ],
       "presets": {
-        "FAST": "sonnet",
         "CHEAP": "haiku",
+        "FAST": "sonnet",
         "SMART": "opus"
       }
     },
@@ -54,8 +58,8 @@
         }
       ],
       "presets": {
-        "FAST": "gpt-5.1-codex-mini",
         "CHEAP": "gpt-5.1-codex-mini",
+        "FAST": "gpt-5.1-codex-mini",
         "SMART": "gpt-5.2-codex"
       }
     },
@@ -75,8 +79,8 @@
         }
       ],
       "presets": {
-        "FAST": "anthropic/claude-sonnet-4-5",
         "CHEAP": "anthropic/claude-haiku-4-5",
+        "FAST": "anthropic/claude-sonnet-4-5",
         "SMART": "anthropic/claude-opus-4-5"
       }
     }

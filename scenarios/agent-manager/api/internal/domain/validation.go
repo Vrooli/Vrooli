@@ -214,6 +214,10 @@ func (p *AgentProfile) Validate() error {
 		return NewValidationError("sandboxRetentionTtl", "cannot be negative")
 	}
 
+	if err := validateRunnerFallbackTypes("fallbackRunnerTypes", p.FallbackRunnerTypes); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -224,6 +228,23 @@ func isValidModelPreset(preset ModelPreset) bool {
 	default:
 		return false
 	}
+}
+
+func validateRunnerFallbackTypes(field string, fallback []RunnerType) error {
+	if len(fallback) == 0 {
+		return nil
+	}
+	seen := make(map[RunnerType]struct{}, len(fallback))
+	for _, rt := range fallback {
+		if !rt.IsValid() {
+			return NewValidationError(field, "invalid runner type: "+string(rt))
+		}
+		if _, exists := seen[rt]; exists {
+			return NewValidationError(field, "duplicate runner type: "+string(rt))
+		}
+		seen[rt] = struct{}{}
+	}
+	return nil
 }
 
 // =============================================================================

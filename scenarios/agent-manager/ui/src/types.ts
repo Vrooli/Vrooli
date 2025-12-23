@@ -55,6 +55,7 @@ export interface RunnerModelRegistry {
 
 export interface ModelRegistry {
   version: number;
+  fallbackRunnerTypes?: string[];
   runners: Record<string, RunnerModelRegistry>;
 }
 
@@ -67,6 +68,7 @@ export interface ProfileFormData {
   modelPreset?: ModelPreset;
   maxTurns?: number;
   timeoutMinutes?: number;
+  fallbackRunnerTypes?: RunnerType[];
   allowedTools?: string[];
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;
@@ -94,6 +96,7 @@ export interface RunFormData {
   modelPreset?: ModelPreset;
   maxTurns?: number;
   timeoutMinutes?: number;
+  fallbackRunnerTypes?: RunnerType[];
   allowedTools?: string[];
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;

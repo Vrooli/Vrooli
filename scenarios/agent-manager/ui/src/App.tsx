@@ -35,7 +35,7 @@ import { RunsPage } from "./pages/RunsPage";
 import type { ModelOption, ModelRegistry } from "./types";
 import { HealthStatus, RunStatus } from "./types";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
-import { formatDate, jsonValueToPlain } from "./lib/utils";
+import { formatDate, jsonValueToPlain, runnerTypeFromSlug, runnerTypeLabel } from "./lib/utils";
 
 export default function App() {
   const navigate = useNavigate();
@@ -226,6 +226,36 @@ export default function App() {
     setModelRegistryError(null);
     setNewRunnerKey("");
   }, [newRunnerKey, updateModelRegistryDraft]);
+
+  const handleAddFallbackRunner = useCallback(() => {
+    updateModelRegistryDraft((draft) => {
+      const fallback = draft.fallbackRunnerTypes ? [...draft.fallbackRunnerTypes] : [];
+      fallback.push("");
+      return { ...draft, fallbackRunnerTypes: fallback };
+    });
+  }, [updateModelRegistryDraft]);
+
+  const handleFallbackRunnerChange = useCallback(
+    (index: number, value: string) => {
+      updateModelRegistryDraft((draft) => {
+        const fallback = draft.fallbackRunnerTypes ? [...draft.fallbackRunnerTypes] : [];
+        fallback[index] = value;
+        return { ...draft, fallbackRunnerTypes: fallback };
+      });
+    },
+    [updateModelRegistryDraft]
+  );
+
+  const handleRemoveFallbackRunner = useCallback(
+    (index: number) => {
+      updateModelRegistryDraft((draft) => {
+        const fallback = draft.fallbackRunnerTypes ? [...draft.fallbackRunnerTypes] : [];
+        fallback.splice(index, 1);
+        return { ...draft, fallbackRunnerTypes: fallback };
+      });
+    },
+    [updateModelRegistryDraft]
+  );
 
   const handleRemoveRunner = useCallback(
     (runnerKey: string) => {
@@ -555,6 +585,69 @@ export default function App() {
 
                 {modelRegistryDraft && (
                   <div className="space-y-5">
+                    <Card className="border-border/60 bg-card/40">
+                      <CardContent className="space-y-4 py-5">
+                        <div className="space-y-1">
+                          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Global Fallbacks</h3>
+                          <p className="text-xs text-muted-foreground">
+                            Ordered runner list to try when the primary runner is unavailable. Empty disables fallback.
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          {(modelRegistryDraft.fallbackRunnerTypes ?? []).length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No global fallbacks configured.</p>
+                          ) : (
+                            (modelRegistryDraft.fallbackRunnerTypes ?? []).map((runnerKey, index) => {
+                              const resolvedRunner = runnerTypeFromSlug(runnerKey);
+                              const label = resolvedRunner ? runnerTypeLabel(resolvedRunner) : runnerKey;
+                              return (
+                                <div key={`fallback-${index}`} className="flex flex-wrap items-center gap-2">
+                                  <select
+                                    value={runnerKey}
+                                    onChange={(event) => handleFallbackRunnerChange(index, event.target.value)}
+                                    className="flex h-10 min-w-[200px] flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  >
+                                    <option value="">Select runner...</option>
+                                    {Array.from(
+                                      new Set([
+                                        ...Object.keys(modelRegistryDraft.runners),
+                                        "claude-code",
+                                        "codex",
+                                        "opencode",
+                                      ])
+                                    )
+                                      .sort((a, b) => a.localeCompare(b))
+                                      .map((option) => {
+                                        const resolvedOption = runnerTypeFromSlug(option);
+                                        const optionLabel = resolvedOption ? runnerTypeLabel(resolvedOption) : option;
+                                        return (
+                                          <option key={option} value={option}>
+                                            {optionLabel}
+                                          </option>
+                                        );
+                                      })}
+                                  </select>
+                                  <Badge variant="secondary">{label}</Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveFallbackRunner(index)}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              );
+                            })
+                          )}
+                          <div>
+                            <Button variant="outline" size="sm" onClick={handleAddFallbackRunner}>
+                              Add Fallback
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
                     {Object.entries(modelRegistryDraft.runners).length === 0 && (
                       <Card className="border-border/60 bg-card/40">
                         <CardContent className="py-6 text-sm text-muted-foreground">
@@ -953,6 +1046,7 @@ export default function App() {
                   loading={tasks.loading}
                   error={tasks.error}
                   onCreateTask={tasks.createTask}
+                  onUpdateTask={tasks.updateTask}
                   onCancelTask={tasks.cancelTask}
                   onDeleteTask={tasks.deleteTask}
                   onCreateRun={runs.createRun}
@@ -1034,6 +1128,13 @@ function normalizeModelOptions(options: ModelOption[]): EditableModelOption[] {
 
 function sanitizeModelRegistry(registry: ModelRegistry): ModelRegistry {
   const runners: ModelRegistry["runners"] = {};
+  const fallbackRunnerTypes = Array.from(
+    new Set(
+      (registry.fallbackRunnerTypes ?? [])
+        .map((runner) => runner.trim())
+        .filter((runner) => runner.length > 0)
+    )
+  );
   for (const [runnerKey, runner] of Object.entries(registry.runners)) {
     const normalizedModels = normalizeModelOptions(runner.models)
       .map((model) => ({
@@ -1058,6 +1159,7 @@ function sanitizeModelRegistry(registry: ModelRegistry): ModelRegistry {
   }
   return {
     ...registry,
+    fallbackRunnerTypes,
     runners,
   };
 }

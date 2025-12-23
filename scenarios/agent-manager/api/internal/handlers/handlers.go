@@ -1296,6 +1296,16 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			timeout := inline.Timeout.AsDuration()
 			req.Timeout = &timeout
 		}
+		if len(inline.FallbackRunnerTypes) > 0 || inline.ClearFallbackRunnerTypes {
+			fallback := make([]domain.RunnerType, 0, len(inline.FallbackRunnerTypes))
+			for _, rt := range inline.FallbackRunnerTypes {
+				if rt == domainpb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
+					continue
+				}
+				fallback = append(fallback, protoconv.RunnerTypeFromProto(rt))
+			}
+			req.FallbackRunnerTypes = fallback
+		}
 		if len(inline.AllowedTools) > 0 || inline.ClearAllowedTools {
 			req.AllowedTools = inline.AllowedTools
 		}

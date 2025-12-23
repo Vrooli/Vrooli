@@ -276,6 +276,10 @@ func (db *DB) initSchema() error {
 		db.log.WithError(err).Error("Failed to backfill model preset column")
 		return err
 	}
+	if err := db.ensureFallbackRunnerTypesColumn(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to backfill fallback runner types column")
+		return err
+	}
 	if err := db.ensureSandboxRetentionColumns(ctx); err != nil {
 		db.log.WithError(err).Error("Failed to backfill sandbox retention columns")
 		return err
@@ -364,6 +368,40 @@ func (db *DB) ensureModelPresetColumn(ctx context.Context) error {
 		if !exists {
 			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN model_preset TEXT`); err != nil {
 				return fmt.Errorf("add model_preset column: %w", err)
+			}
+		}
+	default:
+		return fmt.Errorf("unsupported dialect: %s", db.dialect)
+	}
+	return nil
+}
+
+func (db *DB) ensureFallbackRunnerTypesColumn(ctx context.Context) error {
+	switch db.dialect {
+	case DialectPostgres:
+		var exists bool
+		if err := db.QueryRowContext(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_name = 'agent_profiles'
+				AND column_name = 'fallback_runner_types'
+			)`).Scan(&exists); err != nil {
+			return fmt.Errorf("check fallback_runner_types column: %w", err)
+		}
+		if !exists {
+			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN fallback_runner_types JSONB DEFAULT '[]'`); err != nil {
+				return fmt.Errorf("add fallback_runner_types column: %w", err)
+			}
+		}
+	case DialectSQLite:
+		exists, err := sqliteColumnExists(ctx, db, "agent_profiles", "fallback_runner_types")
+		if err != nil {
+			return fmt.Errorf("check fallback_runner_types column: %w", err)
+		}
+		if !exists {
+			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN fallback_runner_types TEXT DEFAULT '[]'`); err != nil {
+				return fmt.Errorf("add fallback_runner_types column: %w", err)
 			}
 		}
 	default:

@@ -250,6 +250,21 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 			orchConfig.SandboxRetentionMode = mode
 		}
 		orchConfig.SandboxRetentionTTL = levers.Safety.SandboxRetentionTTL
+		if len(levers.Runners.FallbackRunnerTypes) > 0 {
+			seen := make(map[domain.RunnerType]struct{}, len(levers.Runners.FallbackRunnerTypes))
+			for _, runnerType := range levers.Runners.FallbackRunnerTypes {
+				rt := domain.RunnerType(runnerType)
+				if !rt.IsValid() {
+					log.Printf("Warning: skipping invalid fallback runner type: %s", runnerType)
+					continue
+				}
+				if _, exists := seen[rt]; exists {
+					continue
+				}
+				seen[rt] = struct{}{}
+				orchConfig.RunnerFallbackTypes = append(orchConfig.RunnerFallbackTypes, rt)
+			}
+		}
 	}
 
 	// Build orchestrator with all dependencies including WebSocket broadcaster and terminator

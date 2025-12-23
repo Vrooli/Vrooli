@@ -23,6 +23,7 @@ class AgentProfile(_message.Message):
     MODEL_PRESET_FIELD_NUMBER: _ClassVar[int]
     MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    FALLBACK_RUNNER_TYPES_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_TOOLS_FIELD_NUMBER: _ClassVar[int]
     DENIED_TOOLS_FIELD_NUMBER: _ClassVar[int]
     SKIP_PERMISSION_PROMPT_FIELD_NUMBER: _ClassVar[int]
@@ -44,6 +45,7 @@ class AgentProfile(_message.Message):
     model_preset: _types_pb2.ModelPreset
     max_turns: int
     timeout: _duration_pb2.Duration
+    fallback_runner_types: _containers.RepeatedScalarFieldContainer[_types_pb2.RunnerType]
     allowed_tools: _containers.RepeatedScalarFieldContainer[str]
     denied_tools: _containers.RepeatedScalarFieldContainer[str]
     skip_permission_prompt: bool
@@ -56,7 +58,7 @@ class AgentProfile(_message.Message):
     created_by: str
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., model_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., requires_sandbox: _Optional[bool] = ..., requires_approval: _Optional[bool] = ..., sandbox_retention_mode: _Optional[_Union[_types_pb2.SandboxRetentionMode, str]] = ..., sandbox_retention_ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., model_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., fallback_runner_types: _Optional[_Iterable[_Union[_types_pb2.RunnerType, str]]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., requires_sandbox: _Optional[bool] = ..., requires_approval: _Optional[bool] = ..., sandbox_retention_mode: _Optional[_Union[_types_pb2.SandboxRetentionMode, str]] = ..., sandbox_retention_ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class RunConfig(_message.Message):
     __slots__ = ()
@@ -65,6 +67,7 @@ class RunConfig(_message.Message):
     MODEL_PRESET_FIELD_NUMBER: _ClassVar[int]
     MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    FALLBACK_RUNNER_TYPES_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_TOOLS_FIELD_NUMBER: _ClassVar[int]
     DENIED_TOOLS_FIELD_NUMBER: _ClassVar[int]
     SKIP_PERMISSION_PROMPT_FIELD_NUMBER: _ClassVar[int]
@@ -79,6 +82,7 @@ class RunConfig(_message.Message):
     model_preset: _types_pb2.ModelPreset
     max_turns: int
     timeout: _duration_pb2.Duration
+    fallback_runner_types: _containers.RepeatedScalarFieldContainer[_types_pb2.RunnerType]
     allowed_tools: _containers.RepeatedScalarFieldContainer[str]
     denied_tools: _containers.RepeatedScalarFieldContainer[str]
     skip_permission_prompt: bool
@@ -88,7 +92,7 @@ class RunConfig(_message.Message):
     sandbox_retention_ttl: _duration_pb2.Duration
     allowed_paths: _containers.RepeatedScalarFieldContainer[str]
     denied_paths: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., model_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., requires_sandbox: _Optional[bool] = ..., requires_approval: _Optional[bool] = ..., sandbox_retention_mode: _Optional[_Union[_types_pb2.SandboxRetentionMode, str]] = ..., sandbox_retention_ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., model_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., fallback_runner_types: _Optional[_Iterable[_Union[_types_pb2.RunnerType, str]]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., requires_sandbox: _Optional[bool] = ..., requires_approval: _Optional[bool] = ..., sandbox_retention_mode: _Optional[_Union[_types_pb2.SandboxRetentionMode, str]] = ..., sandbox_retention_ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RunConfigOverrides(_message.Message):
     __slots__ = ()
@@ -97,6 +101,7 @@ class RunConfigOverrides(_message.Message):
     MODEL_PRESET_FIELD_NUMBER: _ClassVar[int]
     MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    FALLBACK_RUNNER_TYPES_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_TOOLS_FIELD_NUMBER: _ClassVar[int]
     DENIED_TOOLS_FIELD_NUMBER: _ClassVar[int]
     SKIP_PERMISSION_PROMPT_FIELD_NUMBER: _ClassVar[int]
@@ -110,11 +115,13 @@ class RunConfigOverrides(_message.Message):
     CLEAR_DENIED_TOOLS_FIELD_NUMBER: _ClassVar[int]
     CLEAR_ALLOWED_PATHS_FIELD_NUMBER: _ClassVar[int]
     CLEAR_DENIED_PATHS_FIELD_NUMBER: _ClassVar[int]
+    CLEAR_FALLBACK_RUNNER_TYPES_FIELD_NUMBER: _ClassVar[int]
     runner_type: _types_pb2.RunnerType
     model: str
     model_preset: _types_pb2.ModelPreset
     max_turns: int
     timeout: _duration_pb2.Duration
+    fallback_runner_types: _containers.RepeatedScalarFieldContainer[_types_pb2.RunnerType]
     allowed_tools: _containers.RepeatedScalarFieldContainer[str]
     denied_tools: _containers.RepeatedScalarFieldContainer[str]
     skip_permission_prompt: bool
@@ -128,7 +135,8 @@ class RunConfigOverrides(_message.Message):
     clear_denied_tools: bool
     clear_allowed_paths: bool
     clear_denied_paths: bool
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., model_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., requires_sandbox: _Optional[bool] = ..., requires_approval: _Optional[bool] = ..., sandbox_retention_mode: _Optional[_Union[_types_pb2.SandboxRetentionMode, str]] = ..., sandbox_retention_ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., clear_allowed_tools: _Optional[bool] = ..., clear_denied_tools: _Optional[bool] = ..., clear_allowed_paths: _Optional[bool] = ..., clear_denied_paths: _Optional[bool] = ...) -> None: ...
+    clear_fallback_runner_types: bool
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., model_preset: _Optional[_Union[_types_pb2.ModelPreset, str]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., fallback_runner_types: _Optional[_Iterable[_Union[_types_pb2.RunnerType, str]]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., requires_sandbox: _Optional[bool] = ..., requires_approval: _Optional[bool] = ..., sandbox_retention_mode: _Optional[_Union[_types_pb2.SandboxRetentionMode, str]] = ..., sandbox_retention_ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., clear_allowed_tools: _Optional[bool] = ..., clear_denied_tools: _Optional[bool] = ..., clear_allowed_paths: _Optional[bool] = ..., clear_denied_paths: _Optional[bool] = ..., clear_fallback_runner_types: _Optional[bool] = ...) -> None: ...
 
 class HeartbeatConfig(_message.Message):
     __slots__ = ()

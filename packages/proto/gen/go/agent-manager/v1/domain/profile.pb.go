@@ -59,6 +59,9 @@ type AgentProfile struct {
 	// Maximum execution time for the agent.
 	// Default: 30 minutes if not specified.
 	Timeout *durationpb.Duration `protobuf:"bytes,7,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	// Ordered list of fallback runners to try if the primary is unavailable.
+	// Empty disables automatic fallback.
+	FallbackRunnerTypes []RunnerType `protobuf:"varint,22,rep,packed,name=fallback_runner_types,json=fallbackRunnerTypes,proto3,enum=agent_manager.v1.RunnerType" json:"fallback_runner_types,omitempty"`
 	// Tools the agent is allowed to use.
 	// Empty means use runner defaults.
 	// Examples: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
@@ -186,6 +189,13 @@ func (x *AgentProfile) GetTimeout() *durationpb.Duration {
 	return nil
 }
 
+func (x *AgentProfile) GetFallbackRunnerTypes() []RunnerType {
+	if x != nil {
+		return x.FallbackRunnerTypes
+	}
+	return nil
+}
+
 func (x *AgentProfile) GetAllowedTools() []string {
 	if x != nil {
 		return x.AllowedTools
@@ -293,6 +303,9 @@ type RunConfig struct {
 	MaxTurns int32 `protobuf:"varint,3,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
 	// Maximum execution time.
 	Timeout *durationpb.Duration `protobuf:"bytes,4,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	// Ordered list of fallback runners to try if the primary is unavailable.
+	// Empty disables automatic fallback.
+	FallbackRunnerTypes []RunnerType `protobuf:"varint,15,rep,packed,name=fallback_runner_types,json=fallbackRunnerTypes,proto3,enum=agent_manager.v1.RunnerType" json:"fallback_runner_types,omitempty"`
 	// Tools the agent is allowed to use.
 	AllowedTools []string `protobuf:"bytes,5,rep,name=allowed_tools,json=allowedTools,proto3" json:"allowed_tools,omitempty"`
 	// Tools explicitly denied.
@@ -380,6 +393,13 @@ func (x *RunConfig) GetTimeout() *durationpb.Duration {
 	return nil
 }
 
+func (x *RunConfig) GetFallbackRunnerTypes() []RunnerType {
+	if x != nil {
+		return x.FallbackRunnerTypes
+	}
+	return nil
+}
+
 func (x *RunConfig) GetAllowedTools() []string {
 	if x != nil {
 		return x.AllowedTools
@@ -462,6 +482,8 @@ type RunConfigOverrides struct {
 	MaxTurns *int32 `protobuf:"varint,3,opt,name=max_turns,json=maxTurns,proto3,oneof" json:"max_turns,omitempty"`
 	// Maximum execution time.
 	Timeout *durationpb.Duration `protobuf:"bytes,4,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
+	// Ordered list of fallback runners to try if the primary is unavailable.
+	FallbackRunnerTypes []RunnerType `protobuf:"varint,19,rep,packed,name=fallback_runner_types,json=fallbackRunnerTypes,proto3,enum=agent_manager.v1.RunnerType" json:"fallback_runner_types,omitempty"`
 	// Tools the agent is allowed to use.
 	AllowedTools []string `protobuf:"bytes,5,rep,name=allowed_tools,json=allowedTools,proto3" json:"allowed_tools,omitempty"`
 	// Tools explicitly denied.
@@ -488,8 +510,10 @@ type RunConfigOverrides struct {
 	ClearAllowedPaths bool `protobuf:"varint,14,opt,name=clear_allowed_paths,json=clearAllowedPaths,proto3" json:"clear_allowed_paths,omitempty"`
 	// Clear denied paths inherited from profile.
 	ClearDeniedPaths bool `protobuf:"varint,15,opt,name=clear_denied_paths,json=clearDeniedPaths,proto3" json:"clear_denied_paths,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Clear fallback runners inherited from profile.
+	ClearFallbackRunnerTypes bool `protobuf:"varint,20,opt,name=clear_fallback_runner_types,json=clearFallbackRunnerTypes,proto3" json:"clear_fallback_runner_types,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *RunConfigOverrides) Reset() {
@@ -553,6 +577,13 @@ func (x *RunConfigOverrides) GetMaxTurns() int32 {
 func (x *RunConfigOverrides) GetTimeout() *durationpb.Duration {
 	if x != nil {
 		return x.Timeout
+	}
+	return nil
+}
+
+func (x *RunConfigOverrides) GetFallbackRunnerTypes() []RunnerType {
+	if x != nil {
+		return x.FallbackRunnerTypes
 	}
 	return nil
 }
@@ -648,6 +679,13 @@ func (x *RunConfigOverrides) GetClearDeniedPaths() bool {
 	return false
 }
 
+func (x *RunConfigOverrides) GetClearFallbackRunnerTypes() bool {
+	if x != nil {
+		return x.ClearFallbackRunnerTypes
+	}
+	return false
+}
+
 // HeartbeatConfig defines heartbeat behavior for long-running operations.
 //
 // Used for stale run detection and health monitoring.
@@ -723,7 +761,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xee\a\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xca\b\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -739,7 +777,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\fmodel_preset\x18\x13 \x01(\x0e2\x1d.agent_manager.v1.ModelPresetR\vmodelPreset\x12'\n" +
 	"\tmax_turns\x18\x06 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x00R\bmaxTurns\x123\n" +
-	"\atimeout\x18\a \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
+	"\atimeout\x18\a \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12Z\n" +
+	"\x15fallback_runner_types\x18\x16 \x03(\x0e2\x1c.agent_manager.v1.RunnerTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x13fallbackRunnerTypes\x12#\n" +
 	"\rallowed_tools\x18\b \x03(\tR\fallowedTools\x12!\n" +
 	"\fdenied_tools\x18\t \x03(\tR\vdeniedTools\x124\n" +
 	"\x16skip_permission_prompt\x18\n" +
@@ -755,14 +794,15 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xbf\x05\n" +
+	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x91\x06\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
 	"\x05model\x18\x02 \x01(\tR\x05model\x12@\n" +
 	"\fmodel_preset\x18\f \x01(\x0e2\x1d.agent_manager.v1.ModelPresetR\vmodelPreset\x12\x1b\n" +
 	"\tmax_turns\x18\x03 \x01(\x05R\bmaxTurns\x123\n" +
-	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12#\n" +
+	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12P\n" +
+	"\x15fallback_runner_types\x18\x0f \x03(\x0e2\x1c.agent_manager.v1.RunnerTypeR\x13fallbackRunnerTypes\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
 	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x124\n" +
 	"\x16skip_permission_prompt\x18\a \x01(\bR\x14skipPermissionPrompt\x12)\n" +
@@ -772,7 +812,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x15sandbox_retention_ttl\x18\x0e \x01(\v2\x19.google.protobuf.DurationR\x13sandboxRetentionTtl\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
-	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\x82\t\n" +
+	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\x93\n" +
+	"\n" +
 	"\x12RunConfigOverrides\x12N\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
@@ -780,7 +821,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x05model\x18\x02 \x01(\tH\x01R\x05model\x88\x01\x01\x12E\n" +
 	"\fmodel_preset\x18\x10 \x01(\x0e2\x1d.agent_manager.v1.ModelPresetH\x02R\vmodelPreset\x88\x01\x01\x12 \n" +
 	"\tmax_turns\x18\x03 \x01(\x05H\x03R\bmaxTurns\x88\x01\x01\x128\n" +
-	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x04R\atimeout\x88\x01\x01\x12#\n" +
+	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x04R\atimeout\x88\x01\x01\x12P\n" +
+	"\x15fallback_runner_types\x18\x13 \x03(\x0e2\x1c.agent_manager.v1.RunnerTypeR\x13fallbackRunnerTypes\x12#\n" +
 	"\rallowed_tools\x18\x05 \x03(\tR\fallowedTools\x12!\n" +
 	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x129\n" +
 	"\x16skip_permission_prompt\x18\a \x01(\bH\x05R\x14skipPermissionPrompt\x88\x01\x01\x12.\n" +
@@ -794,7 +836,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x13clear_allowed_tools\x18\f \x01(\bR\x11clearAllowedTools\x12,\n" +
 	"\x12clear_denied_tools\x18\r \x01(\bR\x10clearDeniedTools\x12.\n" +
 	"\x13clear_allowed_paths\x18\x0e \x01(\bR\x11clearAllowedPaths\x12,\n" +
-	"\x12clear_denied_paths\x18\x0f \x01(\bR\x10clearDeniedPathsB\x0e\n" +
+	"\x12clear_denied_paths\x18\x0f \x01(\bR\x10clearDeniedPaths\x12=\n" +
+	"\x1bclear_fallback_runner_types\x18\x14 \x01(\bR\x18clearFallbackRunnerTypesB\x0e\n" +
 	"\f_runner_typeB\b\n" +
 	"\x06_modelB\x0f\n" +
 	"\r_model_presetB\f\n" +
@@ -840,27 +883,30 @@ var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
 	4,  // 0: agent_manager.v1.AgentProfile.runner_type:type_name -> agent_manager.v1.RunnerType
 	5,  // 1: agent_manager.v1.AgentProfile.model_preset:type_name -> agent_manager.v1.ModelPreset
 	6,  // 2: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
-	7,  // 3: agent_manager.v1.AgentProfile.sandbox_retention_mode:type_name -> agent_manager.v1.SandboxRetentionMode
-	6,  // 4: agent_manager.v1.AgentProfile.sandbox_retention_ttl:type_name -> google.protobuf.Duration
-	8,  // 5: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
-	8,  // 6: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
-	4,  // 7: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
-	5,  // 8: agent_manager.v1.RunConfig.model_preset:type_name -> agent_manager.v1.ModelPreset
-	6,  // 9: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
-	7,  // 10: agent_manager.v1.RunConfig.sandbox_retention_mode:type_name -> agent_manager.v1.SandboxRetentionMode
-	6,  // 11: agent_manager.v1.RunConfig.sandbox_retention_ttl:type_name -> google.protobuf.Duration
-	4,  // 12: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
-	5,  // 13: agent_manager.v1.RunConfigOverrides.model_preset:type_name -> agent_manager.v1.ModelPreset
-	6,  // 14: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
-	7,  // 15: agent_manager.v1.RunConfigOverrides.sandbox_retention_mode:type_name -> agent_manager.v1.SandboxRetentionMode
-	6,  // 16: agent_manager.v1.RunConfigOverrides.sandbox_retention_ttl:type_name -> google.protobuf.Duration
-	6,  // 17: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
-	6,  // 18: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	4,  // 3: agent_manager.v1.AgentProfile.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
+	7,  // 4: agent_manager.v1.AgentProfile.sandbox_retention_mode:type_name -> agent_manager.v1.SandboxRetentionMode
+	6,  // 5: agent_manager.v1.AgentProfile.sandbox_retention_ttl:type_name -> google.protobuf.Duration
+	8,  // 6: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
+	8,  // 7: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
+	4,  // 8: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
+	5,  // 9: agent_manager.v1.RunConfig.model_preset:type_name -> agent_manager.v1.ModelPreset
+	6,  // 10: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
+	4,  // 11: agent_manager.v1.RunConfig.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
+	7,  // 12: agent_manager.v1.RunConfig.sandbox_retention_mode:type_name -> agent_manager.v1.SandboxRetentionMode
+	6,  // 13: agent_manager.v1.RunConfig.sandbox_retention_ttl:type_name -> google.protobuf.Duration
+	4,  // 14: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
+	5,  // 15: agent_manager.v1.RunConfigOverrides.model_preset:type_name -> agent_manager.v1.ModelPreset
+	6,  // 16: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
+	4,  // 17: agent_manager.v1.RunConfigOverrides.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
+	7,  // 18: agent_manager.v1.RunConfigOverrides.sandbox_retention_mode:type_name -> agent_manager.v1.SandboxRetentionMode
+	6,  // 19: agent_manager.v1.RunConfigOverrides.sandbox_retention_ttl:type_name -> google.protobuf.Duration
+	6,  // 20: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
+	6,  // 21: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_profile_proto_init() }
