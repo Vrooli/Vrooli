@@ -175,7 +175,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
 
   const styleOverrides = useMemo(
     () => ({
-      presentationMode: replay.presentationMode,
+      presentation: replay.presentation,
       chromeTheme: replay.chromeTheme,
       background: replay.background,
       cursorTheme: replay.cursorTheme,
@@ -192,7 +192,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
       replay.cursorInitialPosition,
       replay.cursorScale,
       replay.cursorTheme,
-      replay.presentationMode,
+      replay.presentation,
     ],
   );
 
@@ -217,6 +217,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
 
   const handleStyleHydrated = useCallback(
     (style: ReplayStyleConfig) => {
+      setReplaySetting('presentation', style.presentation);
       setReplaySetting('chromeTheme', style.chromeTheme);
       setReplaySetting('background', style.background);
       setReplaySetting('cursorTheme', style.cursorTheme);
@@ -508,6 +509,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
                       frames={demoFrames}
                       autoPlay={isPreviewPlaying}
                       loop={replay.loop}
+                      presentationSettings={replay.presentation}
                       chromeTheme={replay.chromeTheme}
                       background={replay.background}
                       cursorTheme={replay.cursorTheme}

@@ -37,16 +37,20 @@ export const REPLAY_CURSOR_INITIAL_POSITIONS = [
   'random',
 ] as const;
 export const REPLAY_CURSOR_CLICK_ANIMATIONS = ['none', 'pulse', 'ripple'] as const;
-export const REPLAY_PRESENTATION_MODES = ['desktop', 'frame', 'content'] as const;
 
 export type ReplayChromeTheme = (typeof REPLAY_CHROME_THEME_IDS)[number];
 export type ReplayBackgroundTheme = (typeof REPLAY_BACKGROUND_THEME_IDS)[number];
 export type ReplayCursorTheme = (typeof REPLAY_CURSOR_THEME_IDS)[number];
 export type ReplayCursorInitialPosition = (typeof REPLAY_CURSOR_INITIAL_POSITIONS)[number];
 export type ReplayCursorClickAnimation = (typeof REPLAY_CURSOR_CLICK_ANIMATIONS)[number];
-export type ReplayPresentationMode = (typeof REPLAY_PRESENTATION_MODES)[number];
 
 export type ReplayBackgroundImageFit = 'cover' | 'contain';
+
+export interface ReplayPresentationSettings {
+  showDesktop: boolean;
+  showBrowserFrame: boolean;
+  showDeviceFrame: boolean;
+}
 
 export interface ReplayGradientStop {
   color: string;
@@ -71,7 +75,7 @@ export const isReplayBackgroundImage = (
 
 export interface ReplayStyleConfig {
   version: typeof REPLAY_STYLE_VERSION;
-  presentationMode: ReplayPresentationMode;
+  presentation: ReplayPresentationSettings;
   chromeTheme: ReplayChromeTheme;
   background: ReplayBackgroundSource;
   cursorTheme: ReplayCursorTheme;
@@ -81,13 +85,18 @@ export interface ReplayStyleConfig {
   browserScale: number;
 }
 
-export type ReplayStyleOverrides = Partial<Omit<ReplayStyleConfig, 'version'>> & {
+export type ReplayStyleOverrides = Partial<Omit<ReplayStyleConfig, 'version' | 'presentation'>> & {
   version?: number;
+  presentation?: Partial<ReplayPresentationSettings>;
 };
 
 export const REPLAY_STYLE_DEFAULTS: ReplayStyleConfig = {
   version: REPLAY_STYLE_VERSION,
-  presentationMode: 'desktop',
+  presentation: {
+    showDesktop: true,
+    showBrowserFrame: true,
+    showDeviceFrame: false,
+  },
   chromeTheme: 'aurora',
   background: { type: 'theme', id: 'aurora' },
   cursorTheme: 'white',
@@ -120,9 +129,6 @@ export const isReplayCursorInitialPosition = (value: unknown): value is ReplayCu
 export const isReplayCursorClickAnimation = (value: unknown): value is ReplayCursorClickAnimation =>
   REPLAY_CURSOR_CLICK_ANIMATIONS.includes(value as ReplayCursorClickAnimation);
 
-export const isReplayPresentationMode = (value: unknown): value is ReplayPresentationMode =>
-  REPLAY_PRESENTATION_MODES.includes(value as ReplayPresentationMode);
-
 const isReplayBackgroundImageFit = (value: unknown): value is ReplayBackgroundImageFit =>
   value === 'cover' || value === 'contain';
 
@@ -152,6 +158,24 @@ const readNumber = (source: Record<string, unknown>, keys: string[]): number | u
   return undefined;
 };
 
+const readBoolean = (source: Record<string, unknown>, keys: string[]): boolean | undefined => {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      if (value === 'true') {
+        return true;
+      }
+      if (value === 'false') {
+        return false;
+      }
+    }
+  }
+  return undefined;
+};
+
 const readObject = (source: Record<string, unknown>, keys: string[]): Record<string, unknown> | undefined => {
   for (const key of keys) {
     const value = source[key];
@@ -160,6 +184,23 @@ const readObject = (source: Record<string, unknown>, keys: string[]): Record<str
     }
   }
   return undefined;
+};
+
+const normalizePresentationSettings = (
+  value: Record<string, unknown> | undefined,
+  fallback: ReplayPresentationSettings,
+): ReplayPresentationSettings => {
+  if (!value) {
+    return fallback;
+  }
+  const showDesktop = readBoolean(value, ['showDesktop']);
+  const showBrowserFrame = readBoolean(value, ['showBrowserFrame']);
+  const showDeviceFrame = readBoolean(value, ['showDeviceFrame']);
+  return {
+    showDesktop: typeof showDesktop === 'boolean' ? showDesktop : fallback.showDesktop,
+    showBrowserFrame: typeof showBrowserFrame === 'boolean' ? showBrowserFrame : fallback.showBrowserFrame,
+    showDeviceFrame: typeof showDeviceFrame === 'boolean' ? showDeviceFrame : fallback.showDeviceFrame,
+  };
 };
 
 const normalizeGradientStop = (value: unknown): ReplayGradientStop | null => {
@@ -260,7 +301,8 @@ export const normalizeReplayStyle = (
 ): ReplayStyleConfig => {
   const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
 
-  const presentationMode = readString(source, ['presentationMode', 'replayPresentationMode', 'presentation_mode']);
+  const presentationObject = readObject(source, ['presentation']);
+  const presentation = normalizePresentationSettings(presentationObject, fallback.presentation);
   const chrome = readString(source, ['chromeTheme']);
   const backgroundSource = readObject(source, ['background']);
   const cursor = readString(source, ['cursorTheme']);
@@ -271,7 +313,7 @@ export const normalizeReplayStyle = (
 
   return {
     version: REPLAY_STYLE_VERSION,
-    presentationMode: isReplayPresentationMode(presentationMode) ? presentationMode : fallback.presentationMode,
+    presentation,
     chromeTheme: isReplayChromeTheme(chrome) ? chrome : fallback.chromeTheme,
     background: normalizeBackgroundSource(backgroundSource, fallback.background),
     cursorTheme: isReplayCursorTheme(cursor) ? cursor : fallback.cursorTheme,
@@ -298,27 +340,26 @@ export const resolveReplayStyle = (options: {
   defaults?: ReplayStyleConfig;
 }): ReplayStyleConfig => {
   const defaults = options.defaults ?? REPLAY_STYLE_DEFAULTS;
+  const mergedPresentation = {
+    ...defaults.presentation,
+    ...(options.stored?.presentation ?? {}),
+    ...(options.overrides?.presentation ?? {}),
+  };
   const merged = {
     ...defaults,
     ...(options.stored ?? {}),
     ...(options.overrides ?? {}),
+    presentation: mergedPresentation,
   };
   return normalizeReplayStyle(merged, defaults);
 };
 
 export const resolveReplayPresentationStyle = (style: ReplayStyleConfig): ReplayStyleConfig => {
-  if (style.presentationMode === 'frame') {
-    return {
-      ...style,
-      background: { type: 'theme', id: 'none' },
-    };
-  }
-  if (style.presentationMode === 'content') {
-    return {
-      ...style,
-      chromeTheme: 'minimal',
-      background: { type: 'theme', id: 'none' },
-    };
-  }
-  return style;
+  const hasDesktop = style.presentation.showDesktop;
+  const hasBrowserFrame = style.presentation.showBrowserFrame;
+  return {
+    ...style,
+    background: hasDesktop ? style.background : { type: 'theme', id: 'none' },
+    chromeTheme: hasBrowserFrame ? style.chromeTheme : 'minimal',
+  };
 };

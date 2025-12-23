@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { ReplayStyleConfig, ReplayStyleOverrides } from '@/domains/replay-style';
 import {
   normalizeReplayStyle,
+  resolveReplayPresentationStyle,
   resolveReplayStyleTokens,
   useResolvedReplayBackground,
 } from '@/domains/replay-style';
@@ -38,7 +39,7 @@ export const useReplayPresentationModel = ({
   const normalizedStyle = useMemo(() => normalizeReplayStyle(style), [style]);
   const resolvedBackground = useResolvedReplayBackground(normalizedStyle.background);
   const resolvedStyle = useMemo(
-    () => ({ ...normalizedStyle, background: resolvedBackground }),
+    () => resolveReplayPresentationStyle({ ...normalizedStyle, background: resolvedBackground }),
     [normalizedStyle, resolvedBackground],
   );
 

@@ -10,7 +10,7 @@ import type {
   ReplayGradientSpec,
   ReplayGradientStop,
 } from '../model';
-import { REPLAY_STYLE_DEFAULTS, getReplayBackgroundThemeId } from '../model';
+import { getReplayBackgroundThemeId } from '../model';
 import { buildGradientCss, parseGradientCss, DEFAULT_REPLAY_GRADIENT_SPEC, normalizeGradientStops } from '../gradient';
 import { REPLAY_BACKGROUND_OPTIONS } from '../catalog';
 
@@ -40,9 +40,6 @@ const SECTION_LABELS: Record<BackgroundSection, string> = {
 };
 
 const getTabFromSection = (section: BackgroundSection): BackgroundTab => section;
-
-const isBackgroundDisabled = (background: ReplayBackgroundSource) =>
-  background.type === 'theme' && background.id === 'none';
 
 const buildSectionOptions = (section: Exclude<BackgroundSection, 'image'>) =>
   REPLAY_BACKGROUND_OPTIONS.filter((option) => option.kind === section);
@@ -113,7 +110,6 @@ export function ReplayBackgroundSettings({
     assetId: '',
     fit: 'cover',
   });
-  const [lastEnabledBackground, setLastEnabledBackground] = useState<ReplayBackgroundSource | null>(null);
   const { assets, isInitialized, initialize } = useAssetStore();
 
   useEffect(() => {
@@ -130,12 +126,6 @@ export function ReplayBackgroundSettings({
       assetId: background.assetId ?? '',
       fit: background.fit ?? 'cover',
     });
-  }, [background]);
-
-  useEffect(() => {
-    if (!isBackgroundDisabled(background)) {
-      setLastEnabledBackground(background);
-    }
   }, [background]);
 
   const gradientSpec =
@@ -158,7 +148,6 @@ export function ReplayBackgroundSettings({
   };
 
   const backgroundThemeId = getReplayBackgroundThemeId(background);
-  const isEnabled = !isBackgroundDisabled(background);
   const selectedBackgroundAsset = useMemo(() => {
     if (background.type !== 'image' || !background.assetId) {
       return null;
@@ -247,14 +236,6 @@ export function ReplayBackgroundSettings({
     }
     applyGradientSpec(parsed);
     setGradientCssError(null);
-  };
-
-  const handleToggleEnabled = (next: boolean) => {
-    if (!next) {
-      onBackgroundChange({ type: 'theme', id: 'none' });
-      return;
-    }
-    onBackgroundChange(lastEnabledBackground ?? REPLAY_STYLE_DEFAULTS.background);
   };
 
   const renderOptionGrid = (options: typeof REPLAY_BACKGROUND_OPTIONS, selectedId?: string) => {
@@ -360,34 +341,6 @@ export function ReplayBackgroundSettings({
 
       {activeTab === 'presets' && (
         <div className="space-y-4">
-          <div className={clsx('rounded-xl border p-3', styles.isCompact ? 'border-white/10 bg-slate-900/60' : 'border-gray-800 bg-gray-900/50')}>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className={clsx('text-sm font-medium', styles.isCompact ? 'text-white' : 'text-surface')}>
-                  Background enabled
-                </div>
-                <div className={styles.sectionSubtitle}>Toggle the stage behind the browser.</div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isEnabled}
-                onClick={() => handleToggleEnabled(!isEnabled)}
-                className={clsx(
-                  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-flow-accent/50',
-                  isEnabled ? 'bg-flow-accent' : styles.isCompact ? 'bg-slate-700' : 'bg-gray-700',
-                )}
-              >
-                <span
-                  className={clsx(
-                    'inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform',
-                    isEnabled ? 'translate-x-6' : 'translate-x-1',
-                  )}
-                />
-              </button>
-            </div>
-          </div>
-
           {renderPresetSection('solid', solidOptions)}
           {renderPresetSection('gradient', gradientOptions)}
           {renderPresetSection('pattern', patternOptions)}

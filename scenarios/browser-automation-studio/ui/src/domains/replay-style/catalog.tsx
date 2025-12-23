@@ -178,18 +178,6 @@ export const REPLAY_BACKGROUND_OPTIONS: BackgroundOption[] = [
     kind: 'solid',
   },
   {
-    id: 'none',
-    label: 'No Background',
-    subtitle: 'Edge-to-edge browser',
-    previewStyle: {
-      backgroundColor: 'transparent',
-      backgroundImage:
-        'linear-gradient(45deg, rgba(148,163,184,0.35) 25%, transparent 25%, transparent 50%, rgba(148,163,184,0.35) 50%, rgba(148,163,184,0.35) 75%, transparent 75%, transparent)',
-      backgroundSize: '10px 10px',
-    },
-    kind: 'disabled',
-  },
-  {
     id: 'geoPrism',
     label: 'Prismatic Peaks',
     subtitle: 'Layered neon triangles',

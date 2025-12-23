@@ -7,7 +7,7 @@ import type {
   ReplayCursorClickAnimation,
   ReplayCursorInitialPosition,
   ReplayCursorTheme,
-  ReplayPresentationMode,
+  ReplayPresentationSettings,
 } from '@/domains/replay-style';
 import {
   getReplayBackgroundThemeId,
@@ -17,7 +17,7 @@ import type { ExportRenderSource } from './exportConfig';
 
 export interface ReplayCustomizationController {
   replayChromeTheme: ReplayChromeTheme;
-  replayPresentationMode: ReplayPresentationMode;
+  replayPresentation: ReplayPresentationSettings;
   replayBackgroundTheme: ReplayBackgroundTheme;
   replayBackground: ReplayBackgroundSource;
   replayCursorTheme: ReplayCursorTheme;
@@ -27,7 +27,7 @@ export interface ReplayCustomizationController {
   replayBrowserScale: number;
   replayRenderSource: ExportRenderSource;
   setReplayChromeTheme: (value: ReplayChromeTheme) => void;
-  setReplayPresentationMode: (value: ReplayPresentationMode) => void;
+  setReplayPresentation: (value: ReplayPresentationSettings) => void;
   setReplayBackground: (value: ReplayBackgroundSource) => void;
   setReplayCursorTheme: (value: ReplayCursorTheme) => void;
   setReplayCursorInitialPosition: (value: ReplayCursorInitialPosition) => void;
@@ -76,7 +76,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     style,
     setChromeTheme,
     setBackground,
-    setPresentationMode,
+    setPresentation,
     setCursorTheme,
     setCursorInitialPosition,
     setCursorClickAnimation,
@@ -105,7 +105,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
 
   return {
     replayChromeTheme: style.chromeTheme,
-    replayPresentationMode: style.presentationMode,
+    replayPresentation: style.presentation,
     replayBackgroundTheme: getReplayBackgroundThemeId(style.background),
     replayBackground: style.background,
     replayCursorTheme: style.cursorTheme,
@@ -115,7 +115,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     replayBrowserScale: style.browserScale,
     replayRenderSource,
     setReplayChromeTheme: setChromeTheme,
-    setReplayPresentationMode: setPresentationMode,
+    setReplayPresentation: setPresentation,
     setReplayBackground: setBackground,
     setReplayCursorTheme: setCursorTheme,
     setReplayCursorInitialPosition: setCursorInitialPosition,

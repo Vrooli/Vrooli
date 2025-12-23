@@ -260,21 +260,23 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
 
       <SettingSection title="Replay Mode" tooltip="Choose the overall replay framing style.">
         <ReplayPresentationModeSettings
-          mode={replay.presentationMode}
-          onChange={(value) => setReplaySetting('presentationMode', value)}
+          presentation={replay.presentation}
+          onChange={(value) => setReplaySetting('presentation', value)}
           variant="settings"
         />
       </SettingSection>
 
-      <SettingSection title="Browser Chrome" tooltip="Choose how the browser window frame looks.">
-        <ReplayChromeSettings
-          chromeTheme={replay.chromeTheme}
-          browserScale={replay.browserScale}
-          onChromeThemeChange={(v) => setReplaySetting('chromeTheme', v)}
-          onBrowserScaleChange={(next) => setReplaySetting('browserScale', next)}
-          variant="settings"
-        />
-      </SettingSection>
+      {replay.presentation.showBrowserFrame && (
+        <SettingSection title="Browser Chrome" tooltip="Choose how the browser window frame looks.">
+          <ReplayChromeSettings
+            chromeTheme={replay.chromeTheme}
+            browserScale={replay.browserScale}
+            onChromeThemeChange={(v) => setReplaySetting('chromeTheme', v)}
+            onBrowserScaleChange={(next) => setReplaySetting('browserScale', next)}
+            variant="settings"
+          />
+        </SettingSection>
+      )}
 
       <SettingSection title="Replay Dimensions" tooltip="Set the default canvas size for styled replays.">
         <div className="space-y-4">
@@ -350,15 +352,31 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
         </div>
       </SettingSection>
 
-      <SettingSection title="Background" tooltip="The backdrop behind the browser window.">
-        <div className="space-y-4">
-          <ReplayBackgroundSettings
-            background={replay.background}
-            onBackgroundChange={(value) => setReplaySetting('background', value)}
-            variant="settings"
-          />
-        </div>
-      </SettingSection>
+      {replay.presentation.showDesktop && (
+        <SettingSection title="Background" tooltip="The backdrop behind the browser window.">
+          <div className="space-y-4">
+            <ReplayBackgroundSettings
+              background={replay.background}
+              onBackgroundChange={(value) => setReplaySetting('background', value)}
+              variant="settings"
+            />
+          </div>
+        </SettingSection>
+      )}
+
+      {replay.presentation.showDesktop && replay.presentation.showDeviceFrame && (
+        <SettingSection title="Device Frame" tooltip="A hardware-style frame around the desktop stage.">
+          <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="text-sm font-medium text-surface">Studio frame</div>
+                <div className="text-xs text-gray-500">Adds a subtle bezel around the background.</div>
+              </div>
+              <div className="h-14 w-24 rounded-2xl bg-slate-950/60 ring-1 ring-white/12 ring-offset-4 ring-offset-slate-950/80 shadow-[0_18px_45px_rgba(15,23,42,0.45)]" />
+            </div>
+          </div>
+        </SettingSection>
+      )}
 
       <SettingSection title="Cursor" tooltip="Style the virtual cursor shown during replay.">
         <ReplayCursorSettings

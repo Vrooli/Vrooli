@@ -271,6 +271,7 @@ export function ReplayPlayer({
   onFrameChange,
   onFrameProgressChange,
   executionStatus,
+  presentationSettings,
   chromeTheme = 'aurora',
   background,
   cursorTheme = 'white',
@@ -337,6 +338,7 @@ export function ReplayPlayer({
 
   const replayStyleOverrides = useMemo(
     () => ({
+      presentation: presentationSettings,
       chromeTheme,
       background,
       cursorTheme,
@@ -346,6 +348,7 @@ export function ReplayPlayer({
       browserScale,
     }),
     [
+      presentationSettings,
       chromeTheme,
       background,
       cursorTheme,

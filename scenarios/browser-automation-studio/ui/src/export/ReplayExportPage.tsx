@@ -1528,6 +1528,7 @@ const ReplayExportPage = () => {
           frames={replayFrames}
           autoPlay={false}
           loop={false}
+          presentationSettings={resolvedStyle.presentation}
           chromeTheme={resolvedStyle.chromeTheme}
           background={resolvedStyle.background}
           cursorTheme={resolvedStyle.cursorTheme}

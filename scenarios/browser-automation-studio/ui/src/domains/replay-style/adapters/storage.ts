@@ -4,7 +4,7 @@ import { normalizeReplayStyle, REPLAY_STYLE_DEFAULTS } from '../model';
 const STORAGE_KEY = 'browserAutomation.replayStyle';
 const ALLOWED_KEYS = new Set([
   'chromeTheme',
-  'presentationMode',
+  'presentation',
   'background',
   'cursorTheme',
   'cursorInitialPosition',

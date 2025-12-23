@@ -49,7 +49,8 @@ export const applyReplayStyleToSpec = (
     presentation.viewport?.height ??
     0;
   const presentationStyle = resolveReplayPresentationStyle(style);
-  const browserFrameRadius = presentationStyle.presentationMode === 'desktop'
+  const browserFrameRadius = presentationStyle.presentation.showBrowserFrame
+    && presentationStyle.presentation.showDesktop
     ? presentation.browser_frame?.radius ?? 24
     : 0;
   const chromeDecor = buildChromeDecor(presentationStyle.chromeTheme, '');

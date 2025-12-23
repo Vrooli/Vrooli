@@ -22,7 +22,7 @@ interface ReplayCustomizationPanelProps {
 export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPanelProps) {
   const {
     replayChromeTheme,
-    replayPresentationMode,
+    replayPresentation,
     replayBackground,
     replayCursorTheme,
     replayCursorInitialPosition,
@@ -30,7 +30,7 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
     replayCursorScale,
     replayBrowserScale,
     setReplayChromeTheme,
-    setReplayPresentationMode,
+    setReplayPresentation,
     setReplayBackground,
     setReplayCursorTheme,
     setReplayCursorInitialPosition,
@@ -45,21 +45,25 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
   const cursorOption = getReplayCursorOption(replayCursorTheme);
   const clickAnimationOption = getReplayCursorClickAnimationOption(replayCursorClickAnimation);
 
-  const modeSummary =
-    replayPresentationMode === "desktop"
-      ? "Desktop"
-      : replayPresentationMode === "frame"
-        ? "Frame only"
-        : "Content only";
+  const modeSummary = [
+    replayPresentation.showDesktop ? "Desktop" : null,
+    replayPresentation.showBrowserFrame ? "Browser" : null,
+    replayPresentation.showDesktop && replayPresentation.showDeviceFrame ? "Device Frame" : null,
+  ]
+    .filter(Boolean)
+    .join(" + ") || "Content only";
 
   const backgroundSummary =
-    replayBackground.type === "theme" && replayBackground.id === "none"
+    !replayPresentation.showDesktop
+      ? "Off"
+      : replayBackground.type === "theme" && replayBackground.id === "none"
       ? "Disabled"
       : replayBackground.type === "image"
         ? "Image"
         : replayBackground.type === "gradient"
           ? "Custom gradient"
           : "Theme";
+  const chromeSummary = replayPresentation.showBrowserFrame ? chromeOption.label : "Off";
 
   return (
     <div className="rounded-2xl border border-white/5 bg-slate-950/40 px-4 py-3 shadow-inner">
@@ -70,7 +74,7 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
           </span>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
             <span>Mode • {modeSummary}</span>
-            <span>Chrome • {chromeOption.label}</span>
+            <span>Chrome • {chromeSummary}</span>
             <span>Background • {backgroundSummary}</span>
             <span>Cursor • {cursorOption.label}</span>
             <span>Click • {clickAnimationOption.label}</span>
@@ -107,44 +111,67 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
               </span>
             </div>
             <ReplayPresentationModeSettings
-              mode={replayPresentationMode}
-              onChange={setReplayPresentationMode}
+              presentation={replayPresentation}
+              onChange={setReplayPresentation}
               variant="compact"
             />
           </div>
-          <div>
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
-                Browser frame
-              </span>
-              <span className="text-[11px] text-slate-500">
-                Customize the replay window
-              </span>
+          {replayPresentation.showBrowserFrame && (
+            <div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                  Browser frame
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Customize the replay window
+                </span>
+              </div>
+              <ReplayChromeSettings
+                chromeTheme={replayChromeTheme}
+                browserScale={replayBrowserScale}
+                onChromeThemeChange={setReplayChromeTheme}
+                onBrowserScaleChange={setReplayBrowserScale}
+                variant="compact"
+              />
             </div>
-            <ReplayChromeSettings
-              chromeTheme={replayChromeTheme}
-              browserScale={replayBrowserScale}
-              onChromeThemeChange={setReplayChromeTheme}
-              onBrowserScaleChange={setReplayBrowserScale}
-              variant="compact"
-            />
-          </div>
+          )}
 
-          <div className="border-t border-white/5 pt-3 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
-                Background
-              </span>
-              <span className="text-[11px] text-slate-500">
-                Set the stage behind the browser
-              </span>
+          {replayPresentation.showDesktop && (
+            <div className="border-t border-white/5 pt-3 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                  Background
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Set the stage behind the browser
+                </span>
+              </div>
+              <ReplayBackgroundSettings
+                background={replayBackground}
+                onBackgroundChange={setReplayBackground}
+                variant="compact"
+              />
             </div>
-            <ReplayBackgroundSettings
-              background={replayBackground}
-              onBackgroundChange={setReplayBackground}
-              variant="compact"
-            />
-          </div>
+          )}
+
+          {replayPresentation.showDesktop && replayPresentation.showDeviceFrame && (
+            <div className="border-t border-white/5 pt-3 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                  Device frame
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Subtle bezel around the stage
+                </span>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="flex items-center justify-between gap-3 text-[11px] text-slate-400">
+                  <span>Studio frame</span>
+                  <div className="h-8 w-14 rounded-lg bg-slate-950/60 ring-1 ring-white/12 ring-offset-2 ring-offset-slate-950/80 shadow-[0_12px_35px_rgba(15,23,42,0.45)]" />
+                </div>
+              </div>
+            </div>
+          )}
           <div className="border-t border-white/5 pt-3 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">

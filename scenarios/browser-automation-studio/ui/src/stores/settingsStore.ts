@@ -5,7 +5,7 @@ import type {
   ReplayCursorTheme,
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
-  ReplayPresentationMode,
+  ReplayPresentationSettings,
 } from '@/domains/replay-style';
 import type { CursorSpeedProfile, CursorPathStyle } from '@/domains/exports/replay/ReplayPlayer';
 import {
@@ -148,7 +148,7 @@ export interface ReplaySettings {
   presentationWidth: number;
   presentationHeight: number;
   useCustomDimensions: boolean;
-  presentationMode: ReplayPresentationMode;
+  presentation: ReplayPresentationSettings;
   chromeTheme: ReplayChromeTheme;
   background: ReplayBackgroundSource;
   cursorTheme: ReplayCursorTheme;
@@ -168,7 +168,7 @@ export interface ReplaySettings {
 }
 
 const REPLAY_STYLE_SETTING_KEYS = [
-  'presentationMode',
+  'presentation',
   'chromeTheme',
   'background',
   'cursorTheme',
@@ -234,7 +234,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       presentationWidth: 1280,
       presentationHeight: 720,
       useCustomDimensions: false,
-      presentationMode: 'desktop',
+      presentation: { ...DEFAULT_STYLE.presentation },
       chromeTheme: 'aurora',
       background: { type: 'theme', id: 'aurora' },
       cursorTheme: 'white',
@@ -261,7 +261,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       presentationWidth: 1280,
       presentationHeight: 720,
       useCustomDimensions: false,
-      presentationMode: 'desktop',
+      presentation: { ...DEFAULT_STYLE.presentation },
       chromeTheme: 'midnight',
       background: { type: 'theme', id: 'nebula' },
       cursorTheme: 'aura',
@@ -288,7 +288,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       presentationWidth: 1280,
       presentationHeight: 720,
       useCustomDimensions: false,
-      presentationMode: 'desktop',
+      presentation: { ...DEFAULT_STYLE.presentation },
       chromeTheme: 'minimal',
       background: { type: 'theme', id: 'charcoal' },
       cursorTheme: 'arrowLight',
@@ -315,7 +315,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       presentationWidth: 1280,
       presentationHeight: 720,
       useCustomDimensions: false,
-      presentationMode: 'desktop',
+      presentation: { ...DEFAULT_STYLE.presentation },
       chromeTheme: 'chromium',
       background: { type: 'theme', id: 'grid' },
       cursorTheme: 'arrowNeon',
@@ -342,7 +342,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       presentationWidth: 1280,
       presentationHeight: 720,
       useCustomDimensions: false,
-      presentationMode: 'desktop',
+      presentation: { ...DEFAULT_STYLE.presentation },
       chromeTheme: 'aurora',
       background: { type: 'theme', id: 'ocean' },
       cursorTheme: 'white',
@@ -425,7 +425,7 @@ const loadReplaySettings = (): ReplaySettings => {
     presentationWidth: normalizedWidth,
     presentationHeight: normalizedHeight,
     useCustomDimensions: storedUseCustom === 'true',
-    presentationMode: resolvedStyle.presentationMode,
+    presentation: resolvedStyle.presentation,
     chromeTheme: resolvedStyle.chromeTheme,
     background: resolvedStyle.background,
     cursorTheme: resolvedStyle.cursorTheme,
@@ -462,7 +462,7 @@ const getDefaultReplaySettings = (): ReplaySettings => ({
   presentationWidth: 1280,
   presentationHeight: 720,
   useCustomDimensions: false,
-  presentationMode: DEFAULT_STYLE.presentationMode,
+  presentation: { ...DEFAULT_STYLE.presentation },
   chromeTheme: DEFAULT_STYLE.chromeTheme,
   background: DEFAULT_STYLE.background,
   cursorTheme: DEFAULT_STYLE.cursorTheme,
@@ -639,7 +639,7 @@ const generateRandomSettings = (): ReplaySettings => {
     presentationWidth: 1280,
     presentationHeight: 720,
     useCustomDimensions: false,
-    presentationMode: DEFAULT_STYLE.presentationMode,
+    presentation: { ...DEFAULT_STYLE.presentation },
     chromeTheme: randomChoice(REPLAY_CHROME_OPTIONS).id,
     background: { type: 'theme', id: randomChoice(REPLAY_BACKGROUND_OPTIONS).id },
     cursorTheme: randomChoice(REPLAY_CURSOR_OPTIONS).id,

@@ -18,6 +18,7 @@ import type {
   ReplayCursorTheme,
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
+  ReplayPresentationSettings,
 } from '@/domains/replay-style';
 import type { ReplayFitMode, ReplayLayoutModel } from '@/domains/replay-layout';
 
@@ -223,6 +224,7 @@ export interface ReplayPlayerProps {
   onFrameChange?: (frame: ReplayFrame, index: number) => void;
   onFrameProgressChange?: (frameIndex: number, progress: number) => void;
   executionStatus?: 'pending' | 'running' | 'completed' | 'failed';
+  presentationSettings?: ReplayPresentationSettings;
   chromeTheme?: ReplayChromeTheme;
   background?: ReplayBackgroundSource;
   cursorTheme?: ReplayCursorTheme;
