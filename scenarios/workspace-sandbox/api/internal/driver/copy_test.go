@@ -186,6 +186,85 @@ func TestCopyDriverGetChangedFiles(t *testing.T) {
 	drv.Cleanup(ctx, sandbox)
 }
 
+func TestCopyDriverGetChangedFilesSkipsOpaqueAndWhiteouts(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	originalDir := filepath.Join(tmpDir, "original")
+	workspaceDir := filepath.Join(tmpDir, "workspace")
+
+	if err := os.MkdirAll(originalDir, 0o755); err != nil {
+		t.Fatalf("failed to create original dir: %v", err)
+	}
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("failed to create workspace dir: %v", err)
+	}
+
+	opaqueOriginal := filepath.Join(originalDir, "tmp", ".wh..opq")
+	if err := os.MkdirAll(filepath.Dir(opaqueOriginal), 0o755); err != nil {
+		t.Fatalf("failed to create opaque dir: %v", err)
+	}
+	if err := os.WriteFile(opaqueOriginal, []byte("opaque"), 0o644); err != nil {
+		t.Fatalf("failed to create opaque marker: %v", err)
+	}
+
+	whiteoutOriginal := filepath.Join(originalDir, "dir", ".wh.removed.txt")
+	if err := os.MkdirAll(filepath.Dir(whiteoutOriginal), 0o755); err != nil {
+		t.Fatalf("failed to create whiteout dir: %v", err)
+	}
+	if err := os.WriteFile(whiteoutOriginal, []byte("marker"), 0o644); err != nil {
+		t.Fatalf("failed to create whiteout marker: %v", err)
+	}
+
+	opaqueWorkspace := filepath.Join(workspaceDir, "tmp", ".wh..opq")
+	if err := os.MkdirAll(filepath.Dir(opaqueWorkspace), 0o755); err != nil {
+		t.Fatalf("failed to create workspace opaque dir: %v", err)
+	}
+	if err := os.WriteFile(opaqueWorkspace, []byte("opaque"), 0o644); err != nil {
+		t.Fatalf("failed to create workspace opaque marker: %v", err)
+	}
+
+	whiteoutWorkspace := filepath.Join(workspaceDir, "dir", ".wh.removed.txt")
+	if err := os.MkdirAll(filepath.Dir(whiteoutWorkspace), 0o755); err != nil {
+		t.Fatalf("failed to create workspace whiteout dir: %v", err)
+	}
+	if err := os.WriteFile(whiteoutWorkspace, []byte("marker"), 0o644); err != nil {
+		t.Fatalf("failed to create workspace whiteout marker: %v", err)
+	}
+
+	added := filepath.Join(workspaceDir, "added.txt")
+	if err := os.WriteFile(added, []byte("new"), 0o644); err != nil {
+		t.Fatalf("failed to create added file: %v", err)
+	}
+
+	drv := NewCopyDriver(DefaultConfig())
+	sandbox := &types.Sandbox{
+		ID:       uuid.New(),
+		LowerDir: originalDir,
+		UpperDir: workspaceDir,
+	}
+
+	changes, err := drv.GetChangedFiles(context.Background(), sandbox)
+	if err != nil {
+		t.Fatalf("GetChangedFiles() failed: %v", err)
+	}
+
+	for _, change := range changes {
+		if change.FilePath == "tmp/.wh..opq" || change.FilePath == "dir/.wh.removed.txt" {
+			t.Errorf("overlay marker should be skipped, got %s", change.FilePath)
+		}
+	}
+
+	var sawAdded bool
+	for _, change := range changes {
+		if change.FilePath == "added.txt" && change.ChangeType == types.ChangeTypeAdded {
+			sawAdded = true
+		}
+	}
+	if !sawAdded {
+		t.Error("expected added file change")
+	}
+}
+
 // TestCopyDriverIsMounted tests mount state checking
 func TestCopyDriverIsMounted(t *testing.T) {
 	tmpDir := t.TempDir()

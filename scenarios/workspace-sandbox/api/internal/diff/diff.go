@@ -202,12 +202,20 @@ func (g *Generator) diffNewFile(ctx context.Context, upperDir, relPath string) (
 	// Check if it's a directory
 	info, err := os.Stat(filePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
 		return "", err
 	}
 
 	if info.IsDir() {
 		return fmt.Sprintf("diff --git a/%s b/%s\nnew file mode 040755\n--- /dev/null\n+++ b/%s\n",
 			relPath, relPath, relPath), nil
+	}
+
+	if isSpecialFile(info) {
+		return fmt.Sprintf("diff --git a/%s b/%s\nnew file mode %06o\nBinary file %s\n",
+			relPath, relPath, info.Mode().Perm(), relPath), nil
 	}
 
 	// Read file content
@@ -253,6 +261,11 @@ func (g *Generator) diffDeletedFile(ctx context.Context, lowerDir, relPath strin
 	if info.IsDir() {
 		return fmt.Sprintf("diff --git a/%s b/%s\ndeleted file mode 040755\n",
 			relPath, relPath), nil
+	}
+
+	if isSpecialFile(info) {
+		return fmt.Sprintf("diff --git a/%s b/%s\ndeleted file mode %06o\nBinary file %s\n",
+			relPath, relPath, info.Mode().Perm(), relPath), nil
 	}
 
 	content, err := os.ReadFile(filePath)
@@ -317,6 +330,17 @@ func (g *Generator) isBinary(content []byte) bool {
 		checkLen = threshold
 	}
 	return bytes.Contains(content[:checkLen], []byte{0})
+}
+
+func isSpecialFile(info os.FileInfo) bool {
+	mode := info.Mode()
+	if mode&os.ModeCharDevice != 0 || mode&os.ModeDevice != 0 {
+		return true
+	}
+	if mode&os.ModeSocket != 0 || mode&os.ModeNamedPipe != 0 {
+		return true
+	}
+	return false
 }
 
 // isBinaryDefault is a package-level helper for code that doesn't have a Generator.

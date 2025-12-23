@@ -205,6 +205,46 @@ func (d *FuseOverlayfsDriver) GetChangedFiles(ctx context.Context, s *types.Sand
 			return nil
 		}
 
+		baseName := filepath.Base(relPath)
+		if baseName == ".wh..opq" {
+			return nil
+		}
+		if strings.HasPrefix(baseName, ".wh.") {
+			targetName := strings.TrimPrefix(baseName, ".wh.")
+			if targetName == "" {
+				return nil
+			}
+			if strings.HasPrefix(targetName, ".wh.") || targetName == ".wh..opq" {
+				return nil
+			}
+
+			targetRel := targetName
+			if dir := filepath.Dir(relPath); dir != "." {
+				targetRel = filepath.Join(dir, targetName)
+			}
+
+			var fileSize int64
+			var fileMode int
+			if lowerInfo, statErr := os.Stat(filepath.Join(s.LowerDir, targetRel)); statErr == nil {
+				fileSize = lowerInfo.Size()
+				fileMode = int(lowerInfo.Mode())
+			}
+
+			change := &types.FileChange{
+				ID:             StableFileID(s.ID, targetRel),
+				SandboxID:      s.ID,
+				FilePath:       targetRel,
+				ChangeType:     types.ChangeTypeDeleted,
+				FileSize:       fileSize,
+				FileMode:       fileMode,
+				DetectedAt:     time.Now(),
+				ApprovalStatus: types.ApprovalPending,
+			}
+
+			changes = append(changes, change)
+			return nil
+		}
+
 		// Determine change type
 		changeType := d.detectChangeType(s, relPath, info)
 

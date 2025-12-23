@@ -156,6 +156,10 @@ func (d *CopyDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*
 			return err
 		}
 
+		if isOverlayMarker(relPath) {
+			return nil
+		}
+
 		// Skip hidden files and directories that might be metadata
 		if strings.HasPrefix(relPath, ".") {
 			return nil
@@ -217,6 +221,10 @@ func (d *CopyDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*
 		relPath, err := filepath.Rel(originalDir, path)
 		if err != nil {
 			return err
+		}
+
+		if isOverlayMarker(relPath) {
+			return nil
 		}
 
 		// Skip hidden files
@@ -507,4 +515,12 @@ func filesAreDifferent(path1, path2 string, info1, info2 fs.FileInfo) bool {
 	// For larger files, modification time is a reasonable heuristic
 	// (though not perfect - content could differ even with same mtime)
 	return info1.ModTime() != info2.ModTime()
+}
+
+func isOverlayMarker(relPath string) bool {
+	baseName := filepath.Base(relPath)
+	if baseName == ".wh..opq" {
+		return true
+	}
+	return strings.HasPrefix(baseName, ".wh.")
 }
