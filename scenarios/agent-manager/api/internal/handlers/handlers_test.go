@@ -1349,7 +1349,7 @@ func TestApproveRun_NotFound(t *testing.T) {
 	runID := uuid.New().String()
 	body := encodeProtoJSON(t, &apipb.ApproveRunRequest{
 		RunId:     runID,
-		Actor:     "test-user",
+		Actor:     func() *string { actor := "test-user"; return &actor }(),
 		CommitMsg: func() *string { msg := "Apply changes"; return &msg }(),
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+runID+"/approve", bytes.NewReader(body))
@@ -1368,7 +1368,7 @@ func TestApproveRun_InvalidUUID(t *testing.T) {
 
 	body := encodeProtoJSON(t, &apipb.ApproveRunRequest{
 		RunId: "invalid-uuid",
-		Actor: "test-user",
+		Actor: func() *string { actor := "test-user"; return &actor }(),
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/invalid-uuid/approve", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -1401,7 +1401,7 @@ func TestRejectRun_NotFound(t *testing.T) {
 	runID := uuid.New().String()
 	body := encodeProtoJSON(t, &apipb.RejectRunRequest{
 		RunId:  runID,
-		Actor:  "test-user",
+		Actor:  func() *string { actor := "test-user"; return &actor }(),
 		Reason: "Changes not acceptable",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+runID+"/reject", bytes.NewReader(body))
@@ -1420,7 +1420,7 @@ func TestRejectRun_InvalidUUID(t *testing.T) {
 
 	body := encodeProtoJSON(t, &apipb.RejectRunRequest{
 		RunId:  "invalid-uuid",
-		Actor:  "test-user",
+		Actor:  func() *string { actor := "test-user"; return &actor }(),
 		Reason: "test",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/invalid-uuid/reject", bytes.NewReader(body))

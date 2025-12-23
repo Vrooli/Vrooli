@@ -44,6 +44,10 @@ type AgentProfile struct {
 	RequiresSandbox  bool `json:"requiresSandbox" db:"requires_sandbox"`
 	RequiresApproval bool `json:"requiresApproval" db:"requires_approval"`
 
+	// Sandbox retention settings
+	SandboxRetentionMode SandboxRetentionMode `json:"sandboxRetentionMode,omitempty" db:"sandbox_retention_mode"`
+	SandboxRetentionTTL  time.Duration        `json:"sandboxRetentionTtl,omitempty" db:"sandbox_retention_ttl_ms"`
+
 	// Path restrictions
 	AllowedPaths []string `json:"allowedPaths,omitempty" db:"allowed_paths"`
 	DeniedPaths  []string `json:"deniedPaths,omitempty" db:"denied_paths"`
@@ -96,6 +100,29 @@ const (
 func (p ModelPreset) IsValid() bool {
 	switch p {
 	case ModelPresetUnspecified, ModelPresetFast, ModelPresetCheap, ModelPresetSmart:
+		return true
+	default:
+		return false
+	}
+}
+
+// SandboxRetentionMode controls what happens to a sandbox after a run ends.
+type SandboxRetentionMode string
+
+const (
+	SandboxRetentionModeUnspecified     SandboxRetentionMode = ""
+	SandboxRetentionModeKeepActive      SandboxRetentionMode = "keep_active"
+	SandboxRetentionModeStopOnTerminal  SandboxRetentionMode = "stop_on_terminal"
+	SandboxRetentionModeDeleteOnTerminal SandboxRetentionMode = "delete_on_terminal"
+)
+
+// IsValid reports whether the retention mode is supported.
+func (m SandboxRetentionMode) IsValid() bool {
+	switch m {
+	case SandboxRetentionModeUnspecified,
+		SandboxRetentionModeKeepActive,
+		SandboxRetentionModeStopOnTerminal,
+		SandboxRetentionModeDeleteOnTerminal:
 		return true
 	default:
 		return false
@@ -313,6 +340,10 @@ type RunConfig struct {
 	RequiresSandbox  bool `json:"requiresSandbox"`
 	RequiresApproval bool `json:"requiresApproval"`
 
+	// Sandbox retention
+	SandboxRetentionMode SandboxRetentionMode `json:"sandboxRetentionMode,omitempty"`
+	SandboxRetentionTTL  time.Duration        `json:"sandboxRetentionTtl,omitempty"`
+
 	// Path restrictions
 	AllowedPaths []string `json:"allowedPaths,omitempty"`
 	DeniedPaths  []string `json:"deniedPaths,omitempty"`
@@ -333,6 +364,8 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	c.SkipPermissionPrompt = profile.SkipPermissionPrompt
 	c.RequiresSandbox = profile.RequiresSandbox
 	c.RequiresApproval = profile.RequiresApproval
+	c.SandboxRetentionMode = profile.SandboxRetentionMode
+	c.SandboxRetentionTTL = profile.SandboxRetentionTTL
 	c.AllowedPaths = profile.AllowedPaths
 	c.DeniedPaths = profile.DeniedPaths
 }
@@ -340,11 +373,13 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 // DefaultRunConfig returns sensible defaults for run configuration.
 func DefaultRunConfig() *RunConfig {
 	return &RunConfig{
-		RunnerType:       RunnerTypeClaudeCode,
-		MaxTurns:         30,
-		Timeout:          30 * time.Minute,
-		RequiresSandbox:  true,
-		RequiresApproval: true,
+		RunnerType:           RunnerTypeClaudeCode,
+		MaxTurns:             30,
+		Timeout:              30 * time.Minute,
+		RequiresSandbox:      true,
+		RequiresApproval:     true,
+		SandboxRetentionMode: SandboxRetentionModeUnspecified,
+		SandboxRetentionTTL:  0,
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/handlers"
@@ -108,6 +109,11 @@ type orchestratorDeps struct {
 
 // createOrchestrator creates the orchestration service with all dependencies
 func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSocketHub, logger *logrus.Logger) orchestratorDeps {
+	levers, err := agentconfig.LoadLevers()
+	if err != nil {
+		log.Printf("Warning: failed to load config levers: %v", err)
+	}
+
 	// Create repositories
 	var (
 		profileRepo     repository.ProfileRepository
@@ -235,16 +241,23 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		log.Printf("Warning: Failed to load model registry from %s: %v", modelRegistryPath, err)
 	}
 
+	orchConfig := orchestration.DefaultConfig()
+	if levers != nil {
+		orchConfig.DefaultTimeout = levers.Execution.DefaultTimeout
+		orchConfig.MaxConcurrentRuns = levers.Concurrency.MaxConcurrentRuns
+		orchConfig.RequireSandboxByDefault = levers.Safety.RequireSandboxByDefault
+		if mode := domain.SandboxRetentionMode(levers.Safety.SandboxRetentionMode); mode.IsValid() && mode != domain.SandboxRetentionModeUnspecified {
+			orchConfig.SandboxRetentionMode = mode
+		}
+		orchConfig.SandboxRetentionTTL = levers.Safety.SandboxRetentionTTL
+	}
+
 	// Build orchestrator with all dependencies including WebSocket broadcaster and terminator
 	orch := orchestration.New(
 		profileRepo,
 		taskRepo,
 		runRepo,
-		orchestration.WithConfig(orchestration.OrchestratorConfig{
-			DefaultTimeout:          30 * time.Minute,
-			MaxConcurrentRuns:       10,
-			RequireSandboxByDefault: true,
-		}),
+		orchestration.WithConfig(orchConfig),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithSandbox(sandboxProvider),

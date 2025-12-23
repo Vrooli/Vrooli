@@ -70,6 +70,26 @@ enum ModelPreset {
 }
 
 // =============================================================================
+// SANDBOX RETENTION
+// =============================================================================
+
+// SandboxRetentionMode controls what happens to a sandbox after a run ends.
+//
+// @usage AgentProfile.sandbox_retention_mode, RunConfig.sandbox_retention_mode
+enum SandboxRetentionMode {
+  SANDBOX_RETENTION_MODE_UNSPECIFIED = 0;
+
+  // Keep the sandbox active and reserved until manual cleanup.
+  SANDBOX_RETENTION_MODE_KEEP_ACTIVE = 1;
+
+  // Stop the sandbox on terminal run states, releasing reserved paths.
+  SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL = 2;
+
+  // Delete the sandbox on terminal run states.
+  SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL = 3;
+}
+
+// =============================================================================
 // TASK STATUS
 // =============================================================================
 

@@ -216,8 +216,8 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			break
 		}
 
-		// Parse the streaming event
-		event, err := r.parseStreamEvent(req.RunID, line)
+		// Parse the streaming event(s)
+		events, err := r.parseStreamEvents(req.RunID, line)
 		if err != nil {
 			// Log parsing error but continue
 			if req.EventSink != nil {
@@ -230,17 +230,22 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			continue
 		}
 
-		// Skip silently if parseStreamEvent returned nil, nil (non-JSON lines)
-		if event == nil {
+		// Skip silently if parseStreamEvents returned no events (non-JSON lines)
+		if len(events) == 0 {
 			continue
 		}
 
-		// Update metrics based on event
-		r.updateMetrics(event, &metrics, &lastAssistantMessage)
+		for _, event := range events {
+			if event == nil {
+				continue
+			}
+			// Update metrics based on event
+			r.updateMetrics(event, &metrics, &lastAssistantMessage)
 
-		// Emit to sink
-		if req.EventSink != nil {
-			_ = req.EventSink.Emit(event)
+			// Emit to sink
+			if req.EventSink != nil {
+				_ = req.EventSink.Emit(event)
+			}
 		}
 	}
 
@@ -369,8 +374,8 @@ func (r *OpenCodeRunner) buildArgs(req ExecuteRequest) []string {
 	// resource-opencode run passes through to opencode CLI
 	// Syntax: resource-opencode run run <message> [options]
 	args := []string{
-		"run",  // resource-opencode subcommand
-		"run",  // opencode subcommand
+		"run", // resource-opencode subcommand
+		"run", // opencode subcommand
 		req.Prompt,
 		"--format", "json", // Enable JSON output for event parsing
 	}
@@ -431,34 +436,34 @@ func (r *OpenCodeRunner) buildEnv(req ExecuteRequest) []string {
 // OpenCodeStreamEvent represents a single event from OpenCode's JSON output.
 // OpenCode format: {"type":"...", "timestamp":..., "sessionID":"...", "part":{...}}
 type OpenCodeStreamEvent struct {
-	Type      string          `json:"type"`
-	Timestamp int64           `json:"timestamp,omitempty"`
-	SessionID string          `json:"sessionID,omitempty"`
-	Part      *OpenCodePart   `json:"part,omitempty"`
-	Error     *OpenCodeError  `json:"error,omitempty"`
+	Type      string         `json:"type"`
+	Timestamp int64          `json:"timestamp,omitempty"`
+	SessionID string         `json:"sessionID,omitempty"`
+	Part      *OpenCodePart  `json:"part,omitempty"`
+	Error     *OpenCodeError `json:"error,omitempty"`
 }
 
 // OpenCodePart represents the part field in OpenCode events.
 // Contains the actual content/data for each event type.
 type OpenCodePart struct {
-	ID        string            `json:"id,omitempty"`
-	SessionID string            `json:"sessionID,omitempty"`
-	MessageID string            `json:"messageID,omitempty"`
-	Type      string            `json:"type"` // "text", "step-start", "step-finish", "tool"
-	Text      string            `json:"text,omitempty"`
-	Reason    string            `json:"reason,omitempty"`
-	Snapshot  string            `json:"snapshot,omitempty"`
-	Cost      float64           `json:"cost,omitempty"`
-	Tokens    *OpenCodeTokens   `json:"tokens,omitempty"`
-	Name      string            `json:"name,omitempty"`  // Legacy tool name field
-	Input     json.RawMessage   `json:"input,omitempty"` // Legacy tool input field
-	Output    string            `json:"output,omitempty"`
-	IsError   bool              `json:"isError,omitempty"`
-	Time      *OpenCodeTime     `json:"time,omitempty"`
+	ID        string          `json:"id,omitempty"`
+	SessionID string          `json:"sessionID,omitempty"`
+	MessageID string          `json:"messageID,omitempty"`
+	Type      string          `json:"type"` // "text", "step-start", "step-finish", "tool"
+	Text      string          `json:"text,omitempty"`
+	Reason    string          `json:"reason,omitempty"`
+	Snapshot  string          `json:"snapshot,omitempty"`
+	Cost      float64         `json:"cost,omitempty"`
+	Tokens    *OpenCodeTokens `json:"tokens,omitempty"`
+	Name      string          `json:"name,omitempty"`  // Legacy tool name field
+	Input     json.RawMessage `json:"input,omitempty"` // Legacy tool input field
+	Output    string          `json:"output,omitempty"`
+	IsError   bool            `json:"isError,omitempty"`
+	Time      *OpenCodeTime   `json:"time,omitempty"`
 	// New fields for actual OpenCode tool_use format
-	Tool   string          `json:"tool,omitempty"`   // Actual tool name (e.g., "write", "bash")
-	CallID string          `json:"callID,omitempty"` // Tool call ID
-	State  *OpenCodeState  `json:"state,omitempty"`  // Tool state with input/output
+	Tool   string         `json:"tool,omitempty"`   // Actual tool name (e.g., "write", "bash")
+	CallID string         `json:"callID,omitempty"` // Tool call ID
+	State  *OpenCodeState `json:"state,omitempty"`  // Tool state with input/output
 }
 
 // OpenCodeState represents the state field in tool_use events.
@@ -472,10 +477,10 @@ type OpenCodeState struct {
 
 // OpenCodeTokens represents token usage in step_finish events.
 type OpenCodeTokens struct {
-	Input     int             `json:"input"`
-	Output    int             `json:"output"`
-	Reasoning int             `json:"reasoning,omitempty"`
-	Cache     *OpenCodeCache  `json:"cache,omitempty"`
+	Input     int            `json:"input"`
+	Output    int            `json:"output"`
+	Reasoning int            `json:"reasoning,omitempty"`
+	Cache     *OpenCodeCache `json:"cache,omitempty"`
 }
 
 // OpenCodeCache represents cache token usage.
@@ -500,7 +505,34 @@ type OpenCodeError struct {
 // parseStreamEvent parses a single line from OpenCode's JSON output.
 // OpenCode format: {"type":"...", "timestamp":..., "sessionID":"...", "part":{...}}
 // Returns nil, nil for lines that should be silently skipped (non-JSON startup output).
+// This preserves legacy behavior for tests by selecting a primary event.
 func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain.RunEvent, error) {
+	events, err := r.parseStreamEvents(runID, line)
+	if err != nil || len(events) == 0 {
+		return nil, err
+	}
+	// Prefer tool results (completed tool_use) and metrics (step_finish) to preserve test expectations.
+	var fallback *domain.RunEvent
+	for _, event := range events {
+		if event == nil {
+			continue
+		}
+		if event.EventType == domain.EventTypeToolResult {
+			return event, nil
+		}
+		if event.EventType == domain.EventTypeMetric {
+			fallback = event
+		}
+		if fallback == nil {
+			fallback = event
+		}
+	}
+	return fallback, nil
+}
+
+// parseStreamEvents parses a single line from OpenCode's JSON output into one or more events.
+// Returns an empty slice for lines that should be silently skipped (non-JSON startup output).
+func (r *OpenCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*domain.RunEvent, error) {
 	// Skip empty lines
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -528,19 +560,19 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 		if code == "" {
 			code = "execution_error"
 		}
-		return domain.NewErrorEvent(runID, code, streamEvent.Error.Message, false), nil
+		return []*domain.RunEvent{domain.NewErrorEvent(runID, code, streamEvent.Error.Message, false)}, nil
 	}
 
 	// Handle events based on top-level type
 	switch streamEvent.Type {
 	case "step_start":
 		// Session/step started
-		return domain.NewLogEvent(runID, "info", "OpenCode step started"), nil
+		return []*domain.RunEvent{domain.NewLogEvent(runID, "info", "OpenCode step started")}, nil
 
 	case "text":
 		// Text response from assistant
 		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
-			return domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text), nil
+			return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text)}, nil
 		}
 
 	case "tool_call", "tool_use", "tool-call":
@@ -566,7 +598,7 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 
 			// Check if this is a completed tool call (OpenCode sometimes bundles result in same event)
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Status == "completed" {
-				// This tool_call includes the result - emit as tool_result instead
+				events := []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, input)}
 				output := streamEvent.Part.State.Output
 				if output == "" {
 					output = streamEvent.Part.Output
@@ -576,10 +608,11 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 				if streamEvent.Part.IsError {
 					errMsg = fmt.Errorf("%s", output)
 				}
-				return domain.NewToolResultEvent(runID, toolName, toolCallID, output, errMsg), nil
+				events = append(events, domain.NewToolResultEvent(runID, toolName, toolCallID, output, errMsg))
+				return events, nil
 			}
 
-			return domain.NewToolCallEvent(runID, toolName, input), nil
+			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, input)}, nil
 		}
 
 	case "tool_result", "tool-result":
@@ -599,11 +632,17 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 
 			toolCallID := streamEvent.Part.CallID
 			var errMsg error
+			events := []*domain.RunEvent{}
+			if streamEvent.Part.State != nil && streamEvent.Part.State.Input != nil {
+				events = append(events, domain.NewToolCallEvent(runID, toolName, streamEvent.Part.State.Input))
+			}
 			if streamEvent.Part.IsError {
 				errMsg = fmt.Errorf("%s", output)
-				return domain.NewToolResultEvent(runID, toolName, toolCallID, "", errMsg), nil
+				events = append(events, domain.NewToolResultEvent(runID, toolName, toolCallID, "", errMsg))
+				return events, nil
 			}
-			return domain.NewToolResultEvent(runID, toolName, toolCallID, output, nil), nil
+			events = append(events, domain.NewToolResultEvent(runID, toolName, toolCallID, output, nil))
+			return events, nil
 		}
 
 	case "step_finish":
@@ -612,31 +651,36 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 			// First, try to extract assistant message from Snapshot or Text
 			// This will be returned and the cost event will be handled in updateMetrics
 			// via the CostEventData that we embed
-			if msgEvent := r.extractAssistantMessage(runID, streamEvent.Part); msgEvent != nil {
-				// Return message event - cost data is already in metrics from step_finish
-				// We'll handle cost separately via parseStepFinishEvent called after
-				return msgEvent, nil
+			costEvent, err := r.parseStepFinishEvent(runID, streamEvent.Part)
+			if err != nil {
+				return nil, err
 			}
-			// If no message, return the cost event
-			return r.parseStepFinishEvent(runID, streamEvent.Part)
+			events := []*domain.RunEvent{}
+			if costEvent != nil {
+				events = append(events, costEvent)
+			}
+			if msgEvent := r.extractAssistantMessage(runID, streamEvent.Part); msgEvent != nil {
+				events = append(events, msgEvent)
+			}
+			return events, nil
 		}
 
 	case "error":
 		// Error event
 		if streamEvent.Part != nil && streamEvent.Part.IsError {
-			return domain.NewErrorEvent(runID, "execution_error", streamEvent.Part.Output, false), nil
+			return []*domain.RunEvent{domain.NewErrorEvent(runID, "execution_error", streamEvent.Part.Output, false)}, nil
 		}
 
 	case "user_message":
 		// User message echo
 		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
-			return domain.NewMessageEvent(runID, "user", streamEvent.Part.Text), nil
+			return []*domain.RunEvent{domain.NewMessageEvent(runID, "user", streamEvent.Part.Text)}, nil
 		}
 
 	case "thinking":
 		// Model reasoning/thinking
 		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
-			return domain.NewLogEvent(runID, "debug", fmt.Sprintf("Thinking: %s", streamEvent.Part.Text)), nil
+			return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", fmt.Sprintf("Thinking: %s", streamEvent.Part.Text))}, nil
 		}
 
 	case "assistant", "response", "message", "assistant_message":
@@ -647,7 +691,7 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 				text = streamEvent.Part.Output // Fallback to output field
 			}
 			if text != "" {
-				return domain.NewMessageEvent(runID, "assistant", text), nil
+				return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", text)}, nil
 			}
 		}
 
@@ -659,7 +703,7 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 			if streamEvent.Part.Type == "user" {
 				role = "user"
 			}
-			return domain.NewMessageEvent(runID, role, streamEvent.Part.Text), nil
+			return []*domain.RunEvent{domain.NewMessageEvent(runID, role, streamEvent.Part.Text)}, nil
 		}
 	}
 
@@ -670,7 +714,7 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 		switch streamEvent.Part.Type {
 		case "text", "assistant":
 			if streamEvent.Part.Text != "" {
-				return domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text), nil
+				return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text)}, nil
 			}
 		case "tool", "tool-call", "tool_call", "tool_use":
 			// OpenCode uses part.type="tool" with part.tool for the tool name
@@ -684,6 +728,10 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 
 			// Check if this is a completed tool (has result)
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Status == "completed" {
+				events := []*domain.RunEvent{}
+				if streamEvent.Part.State.Input != nil {
+					events = append(events, domain.NewToolCallEvent(runID, toolName, streamEvent.Part.State.Input))
+				}
 				output := streamEvent.Part.State.Output
 				if output == "" {
 					output = streamEvent.Part.Output
@@ -693,7 +741,8 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 				if streamEvent.Part.IsError {
 					errMsg = fmt.Errorf("%s", output)
 				}
-				return domain.NewToolResultEvent(runID, toolName, toolCallID, output, errMsg), nil
+				events = append(events, domain.NewToolResultEvent(runID, toolName, toolCallID, output, errMsg))
+				return events, nil
 			}
 
 			// Get input from state.input (actual OpenCode format)
@@ -703,7 +752,7 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 			} else if streamEvent.Part.Input != nil {
 				_ = json.Unmarshal(streamEvent.Part.Input, &input)
 			}
-			return domain.NewToolCallEvent(runID, toolName, input), nil
+			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, input)}, nil
 		case "tool-result", "tool_result":
 			toolName := streamEvent.Part.Tool
 			if toolName == "" {
@@ -718,16 +767,21 @@ func (r *OpenCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain
 			if streamEvent.Part.IsError {
 				errMsg = fmt.Errorf("%s", output)
 			}
-			return domain.NewToolResultEvent(runID, toolName, toolCallID, output, errMsg), nil
+			events := []*domain.RunEvent{}
+			if streamEvent.Part.State != nil && streamEvent.Part.State.Input != nil {
+				events = append(events, domain.NewToolCallEvent(runID, toolName, streamEvent.Part.State.Input))
+			}
+			events = append(events, domain.NewToolResultEvent(runID, toolName, toolCallID, output, errMsg))
+			return events, nil
 		}
 	}
 
 	// Unknown or unhandled event type - log it for debugging
-	return domain.NewLogEvent(
+	return []*domain.RunEvent{domain.NewLogEvent(
 		runID,
 		"debug",
 		fmt.Sprintf("OpenCode event [%s]", streamEvent.Type),
-	), nil
+	)}, nil
 }
 
 // parseStepFinishEvent handles the step_finish event with cost/token data.

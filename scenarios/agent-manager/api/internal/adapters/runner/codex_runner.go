@@ -45,9 +45,9 @@ type CodexItem struct {
 	ID       string            `json:"id"`
 	Type     string            `json:"type"` // agent_message, reasoning, file_change, tool_call, tool_result
 	Text     string            `json:"text,omitempty"`
-	Name     string            `json:"name,omitempty"`     // tool name
-	Input    json.RawMessage   `json:"input,omitempty"`    // tool input
-	Output   string            `json:"output,omitempty"`   // tool output
+	Name     string            `json:"name,omitempty"`   // tool name
+	Input    json.RawMessage   `json:"input,omitempty"`  // tool input
+	Output   string            `json:"output,omitempty"` // tool output
 	ExitCode *int              `json:"exit_code,omitempty"`
 	Changes  []CodexFileChange `json:"changes,omitempty"` // for file_change items
 	Status   string            `json:"status,omitempty"`  // for file_change items (e.g., "completed")
@@ -304,18 +304,23 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 			continue
 		}
 
-		// Parse the streaming event
-		event := r.parseCodexStreamEvent(req.RunID, line)
-		if event == nil {
+		// Parse the streaming event(s)
+		events := r.parseCodexStreamEvents(req.RunID, line)
+		if len(events) == 0 {
 			continue
 		}
 
-		// Update metrics based on event
-		r.updateCodexMetrics(event, &metrics, &lastAssistantMessage)
+		for _, event := range events {
+			if event == nil {
+				continue
+			}
+			// Update metrics based on event
+			r.updateCodexMetrics(event, &metrics, &lastAssistantMessage)
 
-		// Emit to sink
-		if req.EventSink != nil {
-			_ = req.EventSink.Emit(event)
+			// Emit to sink
+			if req.EventSink != nil {
+				_ = req.EventSink.Emit(event)
+			}
 		}
 	}
 
@@ -627,7 +632,18 @@ func (r *CodexRunner) buildJSONArgs(req ExecuteRequest) []string {
 }
 
 // parseCodexStreamEvent parses a single line from Codex's --json output.
+// It returns the primary event for compatibility with existing tests.
 func (r *CodexRunner) parseCodexStreamEvent(runID uuid.UUID, line string) *domain.RunEvent {
+	events := r.parseCodexStreamEvents(runID, line)
+	if len(events) == 0 {
+		return nil
+	}
+	return events[0]
+}
+
+// parseCodexStreamEvents parses a single line from Codex's --json output.
+// Some lines can map to multiple events (e.g., tool call + tool result).
+func (r *CodexRunner) parseCodexStreamEvents(runID uuid.UUID, line string) []*domain.RunEvent {
 	// Skip empty lines
 	line = strings.TrimSpace(line)
 	if line == "" || line[0] != '{' {
@@ -639,24 +655,44 @@ func (r *CodexRunner) parseCodexStreamEvent(runID uuid.UUID, line string) *domai
 		return nil
 	}
 
+	events := []*domain.RunEvent{}
+
+	// Handle top-level tool payloads (some Codex builds emit tool data outside item.completed).
+	if streamEvent.Tool != nil && streamEvent.Item == nil {
+		toolName := streamEvent.Tool.Name
+		var input map[string]interface{}
+		if streamEvent.Tool.Input != nil {
+			_ = json.Unmarshal(streamEvent.Tool.Input, &input)
+		}
+		if len(input) > 0 {
+			events = append(events, domain.NewToolCallEvent(runID, toolName, input))
+		}
+		if streamEvent.Tool.Output != "" {
+			events = append(events, domain.NewToolResultEvent(runID, toolName, "", streamEvent.Tool.Output, nil))
+		}
+		if len(events) > 0 {
+			return events
+		}
+	}
+
 	switch streamEvent.Type {
 	case "thread.started":
-		return domain.NewLogEvent(runID, "debug", "Thread started: "+streamEvent.ThreadID)
+		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Thread started: "+streamEvent.ThreadID)}
 
 	case "turn.started":
-		return domain.NewLogEvent(runID, "debug", "Turn started")
+		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Turn started")}
 
 	case "item.completed":
 		if streamEvent.Item != nil {
 			switch streamEvent.Item.Type {
 			case "agent_message":
 				if streamEvent.Item.Text != "" {
-					return domain.NewMessageEvent(runID, "assistant", streamEvent.Item.Text)
+					return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", streamEvent.Item.Text)}
 				}
 			case "reasoning":
 				// Codex outputs reasoning/thinking as a separate item type
 				if streamEvent.Item.Text != "" {
-					return domain.NewLogEvent(runID, "debug", "Reasoning: "+streamEvent.Item.Text)
+					return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Reasoning: "+streamEvent.Item.Text)}
 				}
 			case "file_change":
 				// Codex uses file_change instead of tool_call for file operations
@@ -675,22 +711,30 @@ func (r *CodexRunner) parseCodexStreamEvent(runID uuid.UUID, line string) *domai
 						})
 					}
 					input["files"] = files
-					return domain.NewToolCallEvent(runID, "file_change", input)
+					return []*domain.RunEvent{domain.NewToolCallEvent(runID, "file_change", input)}
 				}
 			case "tool_call":
 				var input map[string]interface{}
 				if streamEvent.Item.Input != nil {
 					_ = json.Unmarshal(streamEvent.Item.Input, &input)
 				}
-				return domain.NewToolCallEvent(runID, streamEvent.Item.Name, input)
+				return []*domain.RunEvent{domain.NewToolCallEvent(runID, streamEvent.Item.Name, input)}
 			case "tool_result":
-				return domain.NewToolResultEvent(
+				var input map[string]interface{}
+				if streamEvent.Item.Input != nil {
+					_ = json.Unmarshal(streamEvent.Item.Input, &input)
+				}
+				if len(input) > 0 {
+					events = append(events, domain.NewToolCallEvent(runID, streamEvent.Item.Name, input))
+				}
+				events = append(events, domain.NewToolResultEvent(
 					runID,
 					streamEvent.Item.Name,
 					"", // Codex doesn't provide tool call IDs
 					streamEvent.Item.Output,
 					nil,
-				)
+				))
+				return events
 			}
 		}
 
@@ -710,17 +754,17 @@ func (r *CodexRunner) parseCodexStreamEvent(runID uuid.UUID, line string) *domai
 					Model:           "o4-mini", // Codex default model
 				},
 			}
-			return costEvent
+			return []*domain.RunEvent{costEvent}
 		}
 
 	case "error":
 		if streamEvent.Error != nil {
-			return domain.NewErrorEvent(
+			return []*domain.RunEvent{domain.NewErrorEvent(
 				runID,
 				streamEvent.Error.Code,
 				streamEvent.Error.Message,
 				false,
-			)
+			)}
 		}
 	}
 

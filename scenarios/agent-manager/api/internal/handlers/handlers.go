@@ -1260,6 +1260,14 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	if protoReq.Prompt != nil {
 		req.Prompt = protoReq.GetPrompt()
 	}
+	if protoReq.ExistingSandboxId != nil {
+		existingSandboxID, err := uuid.Parse(protoReq.GetExistingSandboxId())
+		if err != nil {
+			writeSimpleError(w, r, "existing_sandbox_id", "invalid UUID format for existing sandbox ID")
+			return
+		}
+		req.ExistingSandboxID = &existingSandboxID
+	}
 	if protoReq.ProfileRef != nil {
 		req.ProfileRef = &orchestration.ProfileRef{
 			ProfileKey: protoReq.ProfileRef.ProfileKey,
@@ -1305,6 +1313,14 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		if inline.RequiresApproval != nil {
 			requiresApproval := inline.GetRequiresApproval()
 			req.RequiresApproval = &requiresApproval
+		}
+		if inline.SandboxRetentionMode != nil && *inline.SandboxRetentionMode != domainpb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_UNSPECIFIED {
+			mode := protoconv.SandboxRetentionModeFromProto(*inline.SandboxRetentionMode)
+			req.SandboxRetentionMode = &mode
+		}
+		if inline.SandboxRetentionTtl != nil {
+			ttl := inline.SandboxRetentionTtl.AsDuration()
+			req.SandboxRetentionTTL = &ttl
 		}
 		if len(inline.AllowedPaths) > 0 || inline.ClearAllowedPaths {
 			req.AllowedPaths = inline.AllowedPaths
@@ -1708,9 +1724,10 @@ func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	actor := normalizeActor(req.GetActor())
 	result, err := h.svc.ApproveRun(r.Context(), orchestration.ApproveRequest{
 		RunID:     id,
-		Actor:     req.Actor,
+		Actor:     actor,
 		CommitMsg: req.GetCommitMsg(),
 		Force:     req.Force,
 	})
@@ -1758,7 +1775,9 @@ func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.svc.RejectRun(r.Context(), id, req.Actor, req.Reason); err != nil {
+	actor := normalizeActor(req.GetActor())
+	reason := strings.TrimSpace(req.Reason)
+	if err := h.svc.RejectRun(r.Context(), id, actor, reason); err != nil {
 		writeError(w, r, err)
 		return
 	}
@@ -1916,4 +1935,12 @@ func purgeCountsToProto(counts orchestration.PurgeCounts) *apipb.PurgeCounts {
 		Tasks:    int32(counts.Tasks),
 		Runs:     int32(counts.Runs),
 	}
+}
+
+func normalizeActor(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "unknown"
+	}
+	return trimmed
 }

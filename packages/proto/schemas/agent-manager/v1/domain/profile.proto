@@ -91,6 +91,12 @@ message AgentProfile {
   // Default: true for safety.
   bool requires_approval = 12;
 
+  // Sandbox retention behavior after run completion.
+  SandboxRetentionMode sandbox_retention_mode = 20;
+
+  // Optional retention time before deleting the sandbox.
+  google.protobuf.Duration sandbox_retention_ttl = 21;
+
   // Paths the agent is allowed to access.
   // Empty means no path restrictions.
   repeated string allowed_paths = 13;
@@ -154,6 +160,12 @@ message RunConfig {
   // Require human approval.
   bool requires_approval = 9;
 
+  // Sandbox retention behavior after run completion.
+  SandboxRetentionMode sandbox_retention_mode = 13;
+
+  // Optional retention time before deleting the sandbox.
+  google.protobuf.Duration sandbox_retention_ttl = 14;
+
   // Paths the agent is allowed to access.
   repeated string allowed_paths = 10;
 
@@ -198,6 +210,12 @@ message RunConfigOverrides {
 
   // Require human approval.
   optional bool requires_approval = 9;
+
+  // Sandbox retention behavior after run completion.
+  optional SandboxRetentionMode sandbox_retention_mode = 17;
+
+  // Optional retention time before deleting the sandbox.
+  optional google.protobuf.Duration sandbox_retention_ttl = 18;
 
   // Paths the agent is allowed to access.
   repeated string allowed_paths = 10;

@@ -473,6 +473,7 @@ export function useRuns() {
         inlineConfig,
         idempotencyKey: run.idempotencyKey,
         prompt: run.prompt,
+        existingSandboxId: run.existingSandboxId,
       });
       const created = await apiRequest<unknown>("/runs", {
         method: "POST",
@@ -536,9 +537,10 @@ export function useRuns() {
 
   const approveRun = useCallback(
     async (id: string, req: ApproveFormData): Promise<ApproveResult> => {
+      const actor = req.actor?.trim();
       const payload = create(ApproveRunRequestSchema, {
         runId: id,
-        actor: req.actor,
+        actor: actor || undefined,
         commitMsg: req.commitMsg,
         force: req.force ?? false,
       });
@@ -556,9 +558,10 @@ export function useRuns() {
 
   const rejectRun = useCallback(
     async (id: string, req: RejectFormData): Promise<void> => {
+      const actor = req.actor?.trim();
       const payload = create(RejectRunRequestSchema, {
         runId: id,
-        actor: req.actor,
+        actor: actor || undefined,
         reason: req.reason,
       });
       await apiRequest<void>("/runs/" + id + "/reject", {

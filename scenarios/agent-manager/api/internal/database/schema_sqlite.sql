@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     skip_permission_prompt INTEGER DEFAULT 0,
     requires_sandbox INTEGER DEFAULT 1,
     requires_approval INTEGER DEFAULT 1,
+    sandbox_retention_mode TEXT,
+    sandbox_retention_ttl_ms INTEGER DEFAULT 0,
     allowed_paths TEXT DEFAULT '[]',
     denied_paths TEXT DEFAULT '[]',
     created_by TEXT,

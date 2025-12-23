@@ -117,6 +117,10 @@ type RunExecutor struct {
 
 	// Resumption state
 	isResuming bool
+
+	// Sandbox finalization state
+	sandboxFinalized        bool
+	sandboxCleanupScheduled bool
 }
 
 // NewRunExecutor creates a new executor for the given run.
@@ -155,6 +159,16 @@ func (e *RunExecutor) WithConfig(config ExecutorConfig) *RunExecutor {
 // WithCheckpointRepository enables checkpoint persistence.
 func (e *RunExecutor) WithCheckpointRepository(repo repository.CheckpointRepository) *RunExecutor {
 	e.checkpoints = repo
+	return e
+}
+
+// WithExistingSandbox reuses an existing sandbox for this run.
+func (e *RunExecutor) WithExistingSandbox(sandboxID uuid.UUID, workDir string) *RunExecutor {
+	e.sandboxID = &sandboxID
+	if workDir != "" {
+		e.workDir = workDir
+	}
+	e.checkpoint = e.checkpoint.WithSandbox(sandboxID, workDir)
 	return e
 }
 
@@ -228,17 +242,42 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 		return
 	}
 
-	// Step 2: Setup workspace (skip if resuming with existing sandbox)
-	if !e.shouldSkipPhase(domain.RunPhaseSandboxCreating) || e.sandboxID == nil {
-		e.advancePhase(execCtx, domain.RunPhaseSandboxCreating)
-		if err := e.setupWorkspace(execCtx); err != nil {
-			// setupWorkspace already returns domain errors
+	// Step 2: Setup workspace
+	if e.run.RunMode == domain.RunModeSandboxed {
+		if e.sandboxID == nil {
+			e.advancePhase(execCtx, domain.RunPhaseSandboxCreating)
+			if err := e.setupWorkspace(execCtx); err != nil {
+				// setupWorkspace already returns domain errors
+				e.failWithError(execCtx, err)
+				e.cleanupOnFailure(execCtx)
+				return
+			}
+		} else {
+			if !e.shouldSkipPhase(domain.RunPhaseSandboxCreating) {
+				e.advancePhase(execCtx, domain.RunPhaseSandboxCreating)
+			}
+			if e.workDir == "" && e.sandbox != nil {
+				if workDir, err := e.sandbox.GetWorkspacePath(execCtx, *e.sandboxID); err == nil {
+					e.workDir = workDir
+				}
+			}
+			if e.workDir == "" {
+				e.failWithError(execCtx, domain.NewValidationErrorWithHint("sandboxId", "sandbox workdir not available",
+					"ensure the sandbox is active and has a workdir"))
+				e.cleanupOnFailure(execCtx)
+				return
+			}
+			e.emitSystemEvent(ctx, "info", "reusing existing sandbox")
+		}
+	} else {
+		if !e.shouldSkipPhase(domain.RunPhaseSandboxCreating) {
+			e.advancePhase(execCtx, domain.RunPhaseSandboxCreating)
+		}
+		if err := e.useInPlaceWorkspace(); err != nil {
 			e.failWithError(execCtx, err)
 			e.cleanupOnFailure(execCtx)
 			return
 		}
-	} else {
-		e.emitSystemEvent(ctx, "info", "reusing existing sandbox from checkpoint")
 	}
 
 	// Check for cancellation between phases
@@ -690,13 +729,13 @@ func (e *RunExecutor) handleResult(ctx context.Context) {
 
 	switch {
 	case e.outcome.RequiresReview():
-		e.handleSuccessfulCompletion()
+		e.handleSuccessfulCompletion(ctx)
 	case e.outcome.IsTerminalFailure():
-		e.handleFailure()
+		e.handleFailure(ctx)
 	case e.outcome == domain.RunOutcomeCancelled:
-		e.handleCancellation()
+		e.handleCancellation(ctx)
 	default:
-		e.handleFailure() // Fallback
+		e.handleFailure(ctx) // Fallback
 	}
 
 	if err := e.runs.Update(ctx, e.run); err != nil {
@@ -718,7 +757,7 @@ func (e *RunExecutor) classifyOutcome() domain.RunOutcome {
 	)
 }
 
-func (e *RunExecutor) handleSuccessfulCompletion() {
+func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 	// Check if approval is required based on resolved config
 	requiresApproval := true // default to requiring approval for safety
 	if e.run.ResolvedConfig != nil {
@@ -733,25 +772,17 @@ func (e *RunExecutor) handleSuccessfulCompletion() {
 		e.run.Status = domain.RunStatusComplete
 		e.run.ApprovalState = domain.ApprovalStateNone
 
-		// Cleanup sandbox when approval not required - changes are discarded
-		// since the user chose not to review them in sandboxed mode
-		if e.run.RunMode == domain.RunModeSandboxed && e.sandboxID != nil && e.sandbox != nil {
-			ctx := context.Background()
-			if err := e.sandbox.Delete(ctx, *e.sandboxID); err != nil {
-				e.emitSystemEvent(ctx, "warn", "failed to cleanup sandbox on completion: "+err.Error())
-			} else {
-				e.emitSystemEvent(ctx, "info", "sandbox cleaned up (no approval required)")
-			}
-		}
 	}
 
 	if e.result != nil {
 		e.run.Summary = e.result.Summary
 		e.run.ExitCode = &e.result.ExitCode
 	}
+
+	e.applySandboxRetention(ctx, "run completed")
 }
 
-func (e *RunExecutor) handleFailure() {
+func (e *RunExecutor) handleFailure(ctx context.Context) {
 	e.run.Status = domain.RunStatusFailed
 
 	if e.execErr != nil {
@@ -760,10 +791,13 @@ func (e *RunExecutor) handleFailure() {
 		e.run.ErrorMsg = e.result.ErrorMessage
 		e.run.ExitCode = &e.result.ExitCode
 	}
+
+	e.applySandboxRetention(ctx, "run failed")
 }
 
-func (e *RunExecutor) handleCancellation() {
+func (e *RunExecutor) handleCancellation(ctx context.Context) {
 	e.run.Status = domain.RunStatusCancelled
+	e.applySandboxRetention(ctx, "run cancelled")
 }
 
 // =============================================================================
@@ -861,7 +895,81 @@ func (e *RunExecutor) cleanupOnFailure(ctx context.Context) {
 	// (Future: implement lock cleanup when lock manager is wired up)
 
 	// Emit final status event
-	e.emitSystemEvent(ctx, "info", "run failed - sandbox preserved for inspection")
+	if e.effectiveSandboxRetentionMode() == domain.SandboxRetentionModeKeepActive {
+		e.emitSystemEvent(ctx, "info", "run failed - sandbox preserved for inspection")
+	}
+
+	e.applySandboxRetention(ctx, "failure cleanup")
+}
+
+func (e *RunExecutor) applySandboxRetention(ctx context.Context, reason string) {
+	if e.sandboxFinalized {
+		return
+	}
+	if e.run.RunMode != domain.RunModeSandboxed || e.sandboxID == nil || e.sandbox == nil {
+		return
+	}
+
+	mode := e.effectiveSandboxRetentionMode()
+
+	switch mode {
+	case domain.SandboxRetentionModeStopOnTerminal:
+		if err := e.sandbox.Stop(ctx, *e.sandboxID); err != nil {
+			e.emitSystemEvent(ctx, "warn", "failed to stop sandbox: "+err.Error())
+		} else {
+			e.emitSystemEvent(ctx, "info", "sandbox stopped ("+reason+")")
+			e.sandboxFinalized = true
+		}
+	case domain.SandboxRetentionModeDeleteOnTerminal:
+		if err := e.sandbox.Delete(ctx, *e.sandboxID); err != nil {
+			e.emitSystemEvent(ctx, "warn", "failed to delete sandbox: "+err.Error())
+		} else {
+			e.emitSystemEvent(ctx, "info", "sandbox deleted ("+reason+")")
+			e.sandboxFinalized = true
+		}
+	case domain.SandboxRetentionModeKeepActive:
+		// keep active
+	default:
+		// Unrecognized mode; keep active to be safe.
+	}
+
+	if mode != domain.SandboxRetentionModeDeleteOnTerminal {
+		if ttl := e.effectiveSandboxRetentionTTL(); ttl > 0 {
+			e.scheduleSandboxCleanup(*e.sandboxID, ttl)
+		}
+	}
+}
+
+func (e *RunExecutor) effectiveSandboxRetentionMode() domain.SandboxRetentionMode {
+	if e.run.ResolvedConfig != nil && e.run.ResolvedConfig.SandboxRetentionMode != "" {
+		return e.run.ResolvedConfig.SandboxRetentionMode
+	}
+	return domain.SandboxRetentionModeKeepActive
+}
+
+func (e *RunExecutor) effectiveSandboxRetentionTTL() time.Duration {
+	if e.run.ResolvedConfig != nil {
+		return e.run.ResolvedConfig.SandboxRetentionTTL
+	}
+	return 0
+}
+
+func (e *RunExecutor) scheduleSandboxCleanup(sandboxID uuid.UUID, ttl time.Duration) {
+	if e.sandboxCleanupScheduled || e.sandbox == nil {
+		return
+	}
+	e.sandboxCleanupScheduled = true
+	go func() {
+		timer := time.NewTimer(ttl)
+		defer timer.Stop()
+		<-timer.C
+		ctx := context.Background()
+		if err := e.sandbox.Delete(ctx, sandboxID); err != nil {
+			e.emitSystemEvent(ctx, "warn", "failed to delete sandbox after TTL: "+err.Error())
+			return
+		}
+		e.emitSystemEvent(ctx, "info", "sandbox deleted after retention TTL")
+	}()
 }
 
 // =============================================================================

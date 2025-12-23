@@ -224,6 +224,19 @@ func parseRunMode(value string) domainpb.RunMode {
 	}
 }
 
+func parseSandboxRetentionMode(value string) domainpb.SandboxRetentionMode {
+	switch strings.ToLower(value) {
+	case "keep_active", "keep-active":
+		return domainpb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_KEEP_ACTIVE
+	case "stop_on_terminal", "stop-on-terminal":
+		return domainpb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL
+	case "delete_on_terminal", "delete-on-terminal":
+		return domainpb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL
+	default:
+		return domainpb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_UNSPECIFIED
+	}
+}
+
 func protoString(value string) *string {
 	if value == "" {
 		return nil

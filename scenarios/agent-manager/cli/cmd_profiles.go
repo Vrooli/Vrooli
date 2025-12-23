@@ -174,6 +174,12 @@ func (a *App) profileGet(args []string) error {
 	}
 	fmt.Printf("Requires Sandbox:  %v\n", profile.RequiresSandbox)
 	fmt.Printf("Requires Approval: %v\n", profile.RequiresApproval)
+	if mode := formatEnumValue(profile.SandboxRetentionMode, "SANDBOX_RETENTION_MODE_", "_"); mode != "" && mode != "unspecified" {
+		fmt.Printf("Sandbox Retention Mode: %s\n", mode)
+	}
+	if ttl := formatDuration(profile.SandboxRetentionTtl); ttl != "" {
+		fmt.Printf("Sandbox Retention TTL:  %s\n", ttl)
+	}
 	if len(profile.AllowedTools) > 0 {
 		fmt.Printf("Allowed Tools:  %s\n", strings.Join(profile.AllowedTools, ", "))
 	}
@@ -198,6 +204,7 @@ func (a *App) profileCreate(args []string) error {
 	fs := flag.NewFlagSet("profile create", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	name := fs.String("name", "", "Profile name (required)")
+	profileKey := fs.String("profile-key", "", "Stable profile key (defaults to name)")
 	description := fs.String("description", "", "Profile description")
 	runnerType := fs.String("runner-type", "claude-code", "Runner type (claude-code, codex, opencode)")
 	model := fs.String("model", "", "Model to use")
@@ -205,6 +212,8 @@ func (a *App) profileCreate(args []string) error {
 	timeout := fs.String("timeout", "", "Execution timeout (e.g., 30m)")
 	requiresSandbox := fs.Bool("sandbox", true, "Require sandbox execution")
 	requiresApproval := fs.Bool("approval", true, "Require approval before applying changes")
+	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
+	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Sandbox retention TTL (e.g., 2h, 30m)")
 	skipPermissions := fs.Bool("skip-permissions", false, "Skip permission prompts")
 	allowedTools := fs.String("allowed-tools", "", "Comma-separated list of allowed tools")
 	deniedTools := fs.String("denied-tools", "", "Comma-separated list of denied tools")
@@ -220,6 +229,7 @@ func (a *App) profileCreate(args []string) error {
 
 	req := &domainpb.AgentProfile{
 		Name:                 *name,
+		ProfileKey:           strings.TrimSpace(*profileKey),
 		Description:          *description,
 		RunnerType:           parseRunnerType(*runnerType),
 		Model:                *model,
@@ -229,12 +239,25 @@ func (a *App) profileCreate(args []string) error {
 		SkipPermissionPrompt: *skipPermissions,
 		CreatedBy:            *createdBy,
 	}
+	if req.ProfileKey == "" {
+		req.ProfileKey = strings.TrimSpace(*name)
+	}
 	if *timeout != "" {
 		parsed, err := time.ParseDuration(*timeout)
 		if err != nil {
 			return fmt.Errorf("invalid timeout: %w", err)
 		}
 		req.Timeout = durationpb.New(parsed)
+	}
+	if *sandboxRetentionMode != "" {
+		req.SandboxRetentionMode = parseSandboxRetentionMode(*sandboxRetentionMode)
+	}
+	if *sandboxRetentionTTL != "" {
+		parsed, err := time.ParseDuration(*sandboxRetentionTTL)
+		if err != nil {
+			return fmt.Errorf("invalid sandbox retention TTL: %w", err)
+		}
+		req.SandboxRetentionTtl = durationpb.New(parsed)
 	}
 
 	if *allowedTools != "" {
@@ -266,6 +289,7 @@ func (a *App) profileUpdate(args []string) error {
 	fs := flag.NewFlagSet("profile update", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	name := fs.String("name", "", "Profile name")
+	profileKey := fs.String("profile-key", "", "Stable profile key")
 	description := fs.String("description", "", "Profile description")
 	runnerType := fs.String("runner-type", "", "Runner type")
 	model := fs.String("model", "", "Model to use")
@@ -273,6 +297,8 @@ func (a *App) profileUpdate(args []string) error {
 	timeout := fs.String("timeout", "", "Execution timeout")
 	requiresSandbox := fs.Bool("sandbox", true, "Require sandbox execution")
 	requiresApproval := fs.Bool("approval", true, "Require approval")
+	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
+	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Sandbox retention TTL (e.g., 2h, 30m)")
 
 	// Parse with positional ID first
 	var id string
@@ -305,6 +331,9 @@ func (a *App) profileUpdate(args []string) error {
 	if *name != "" {
 		req.Name = *name
 	}
+	if *profileKey != "" {
+		req.ProfileKey = strings.TrimSpace(*profileKey)
+	}
 	if *description != "" {
 		req.Description = *description
 	}
@@ -323,6 +352,16 @@ func (a *App) profileUpdate(args []string) error {
 			return fmt.Errorf("invalid timeout: %w", err)
 		}
 		req.Timeout = durationpb.New(parsed)
+	}
+	if *sandboxRetentionMode != "" {
+		req.SandboxRetentionMode = parseSandboxRetentionMode(*sandboxRetentionMode)
+	}
+	if *sandboxRetentionTTL != "" {
+		parsed, err := time.ParseDuration(*sandboxRetentionTTL)
+		if err != nil {
+			return fmt.Errorf("invalid sandbox retention TTL: %w", err)
+		}
+		req.SandboxRetentionTtl = durationpb.New(parsed)
 	}
 	req.RequiresSandbox = *requiresSandbox
 	req.RequiresApproval = *requiresApproval

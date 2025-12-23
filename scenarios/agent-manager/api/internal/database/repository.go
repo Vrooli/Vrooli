@@ -80,6 +80,8 @@ type profileRow struct {
 	SkipPermissionPrompt bool        `db:"skip_permission_prompt"`
 	RequiresSandbox      bool        `db:"requires_sandbox"`
 	RequiresApproval     bool        `db:"requires_approval"`
+	SandboxRetentionMode sql.NullString `db:"sandbox_retention_mode"`
+	SandboxRetentionTTL  sql.NullInt64  `db:"sandbox_retention_ttl_ms"`
 	AllowedPaths         StringSlice `db:"allowed_paths"`
 	DeniedPaths          StringSlice `db:"denied_paths"`
 	CreatedBy            string      `db:"created_by"`
@@ -91,6 +93,14 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 	modelPreset := domain.ModelPresetUnspecified
 	if r.ModelPreset.Valid {
 		modelPreset = domain.ModelPreset(r.ModelPreset.String)
+	}
+	retentionMode := domain.SandboxRetentionModeUnspecified
+	if r.SandboxRetentionMode.Valid {
+		retentionMode = domain.SandboxRetentionMode(r.SandboxRetentionMode.String)
+	}
+	var retentionTTL time.Duration
+	if r.SandboxRetentionTTL.Valid {
+		retentionTTL = time.Duration(r.SandboxRetentionTTL.Int64) * time.Millisecond
 	}
 	return &domain.AgentProfile{
 		ID:                   r.ID,
@@ -107,6 +117,8 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 		SkipPermissionPrompt: r.SkipPermissionPrompt,
 		RequiresSandbox:      r.RequiresSandbox,
 		RequiresApproval:     r.RequiresApproval,
+		SandboxRetentionMode: retentionMode,
+		SandboxRetentionTTL:  retentionTTL,
 		AllowedPaths:         r.AllowedPaths,
 		DeniedPaths:          r.DeniedPaths,
 		CreatedBy:            r.CreatedBy,
@@ -119,6 +131,14 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 	modelPreset := sql.NullString{}
 	if p.ModelPreset != "" {
 		modelPreset = sql.NullString{String: string(p.ModelPreset), Valid: true}
+	}
+	retentionMode := sql.NullString{}
+	if p.SandboxRetentionMode != "" {
+		retentionMode = sql.NullString{String: string(p.SandboxRetentionMode), Valid: true}
+	}
+	retentionTTL := sql.NullInt64{}
+	if p.SandboxRetentionTTL > 0 {
+		retentionTTL = sql.NullInt64{Int64: int64(p.SandboxRetentionTTL / time.Millisecond), Valid: true}
 	}
 	return &profileRow{
 		ID:                   p.ID,
@@ -135,6 +155,8 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
 		RequiresSandbox:      p.RequiresSandbox,
 		RequiresApproval:     p.RequiresApproval,
+		SandboxRetentionMode: retentionMode,
+		SandboxRetentionTTL:  retentionTTL,
 		AllowedPaths:         p.AllowedPaths,
 		DeniedPaths:          p.DeniedPaths,
 		CreatedBy:            p.CreatedBy,
@@ -145,6 +167,7 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 
 const profileColumns = `id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
 	allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
+	sandbox_retention_mode, sandbox_retention_ttl_ms,
 	allowed_paths, denied_paths, created_by, created_at, updated_at`
 
 func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentProfile) error {
@@ -158,9 +181,11 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 	row := profileFromDomain(profile)
 	query := `INSERT INTO agent_profiles (id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
 		allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
+		sandbox_retention_mode, sandbox_retention_ttl_ms,
 		allowed_paths, denied_paths, created_by, created_at, updated_at)
 		VALUES (:id, :name, :profile_key, :description, :runner_type, :model, :model_preset, :max_turns, :timeout_ms,
 		:allowed_tools, :denied_tools, :skip_permission_prompt, :requires_sandbox, :requires_approval,
+		:sandbox_retention_mode, :sandbox_retention_ttl_ms,
 		:allowed_paths, :denied_paths, :created_by, :created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
@@ -232,7 +257,8 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 		runner_type = :runner_type, model = :model, model_preset = :model_preset, max_turns = :max_turns, timeout_ms = :timeout_ms,
 		allowed_tools = :allowed_tools, denied_tools = :denied_tools,
 		skip_permission_prompt = :skip_permission_prompt, requires_sandbox = :requires_sandbox,
-		requires_approval = :requires_approval, allowed_paths = :allowed_paths, denied_paths = :denied_paths,
+		requires_approval = :requires_approval, sandbox_retention_mode = :sandbox_retention_mode,
+		sandbox_retention_ttl_ms = :sandbox_retention_ttl_ms, allowed_paths = :allowed_paths, denied_paths = :denied_paths,
 		created_by = :created_by, updated_at = :updated_at
 		WHERE id = :id`
 

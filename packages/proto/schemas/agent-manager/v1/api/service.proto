@@ -540,6 +540,10 @@ message CreateRunRequest {
   // Optional prompt override for this run.
   // If omitted, the task description is used.
   optional string prompt = 9;
+
+  // Reuse an existing sandbox for this run (sandboxed mode only).
+  // @format uuid
+  optional string existing_sandbox_id = 10;
 }
 
 // DeleteRunRequest identifies a run to delete.
@@ -717,7 +721,7 @@ message ApproveRunRequest {
   string run_id = 1 [(buf.validate.field).string.uuid = true];
 
   // Actor approving (user identifier).
-  string actor = 2;
+  optional string actor = 2;
 
   // Commit message for the changes.
   optional string commit_msg = 3;
@@ -739,7 +743,7 @@ message RejectRunRequest {
   string run_id = 1 [(buf.validate.field).string.uuid = true];
 
   // Actor rejecting.
-  string actor = 2;
+  optional string actor = 2;
 
   // Reason for rejection.
   string reason = 3;

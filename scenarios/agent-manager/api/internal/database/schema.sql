@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     skip_permission_prompt BOOLEAN DEFAULT FALSE,
     requires_sandbox BOOLEAN DEFAULT TRUE,
     requires_approval BOOLEAN DEFAULT TRUE,
+    sandbox_retention_mode VARCHAR(50),
+    sandbox_retention_ttl_ms BIGINT DEFAULT 0,
     allowed_paths JSONB DEFAULT '[]',
     denied_paths JSONB DEFAULT '[]',
     created_by VARCHAR(255),

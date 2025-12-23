@@ -159,18 +159,24 @@ type CreateRunRequest struct {
 	Tag string `json:"tag,omitempty"`
 
 	// Inline config (optional - used if no profile, or overrides profile)
-	RunnerType           *domain.RunnerType `json:"runnerType,omitempty"`
-	Model                *string            `json:"model,omitempty"`
-	ModelPreset          *domain.ModelPreset `json:"modelPreset,omitempty"`
-	MaxTurns             *int               `json:"maxTurns,omitempty"`
-	Timeout              *time.Duration     `json:"timeout,omitempty"`
-	AllowedTools         []string           `json:"allowedTools,omitempty"`
-	DeniedTools          []string           `json:"deniedTools,omitempty"`
-	SkipPermissionPrompt *bool              `json:"skipPermissionPrompt,omitempty"`
-	RequiresSandbox      *bool              `json:"requiresSandbox,omitempty"`
-	RequiresApproval     *bool              `json:"requiresApproval,omitempty"`
-	AllowedPaths         []string           `json:"allowedPaths,omitempty"`
-	DeniedPaths          []string           `json:"deniedPaths,omitempty"`
+	RunnerType           *domain.RunnerType           `json:"runnerType,omitempty"`
+	Model                *string                      `json:"model,omitempty"`
+	ModelPreset          *domain.ModelPreset          `json:"modelPreset,omitempty"`
+	MaxTurns             *int                         `json:"maxTurns,omitempty"`
+	Timeout              *time.Duration               `json:"timeout,omitempty"`
+	AllowedTools         []string                     `json:"allowedTools,omitempty"`
+	DeniedTools          []string                     `json:"deniedTools,omitempty"`
+	SkipPermissionPrompt *bool                        `json:"skipPermissionPrompt,omitempty"`
+	RequiresSandbox      *bool                        `json:"requiresSandbox,omitempty"`
+	RequiresApproval     *bool                        `json:"requiresApproval,omitempty"`
+	SandboxRetentionMode *domain.SandboxRetentionMode `json:"sandboxRetentionMode,omitempty"`
+	SandboxRetentionTTL  *time.Duration               `json:"sandboxRetentionTtl,omitempty"`
+	AllowedPaths         []string                     `json:"allowedPaths,omitempty"`
+	DeniedPaths          []string                     `json:"deniedPaths,omitempty"`
+
+	// ExistingSandboxID reuses a pre-existing sandbox for the run.
+	// Only supported in sandboxed mode.
+	ExistingSandboxID *uuid.UUID `json:"existingSandboxId,omitempty"`
 
 	// Execution options
 	Prompt       string          `json:"prompt,omitempty"` // Optional override prompt
@@ -345,6 +351,8 @@ type OrchestratorConfig struct {
 	MaxConcurrentRuns       int
 	DefaultProjectRoot      string
 	RequireSandboxByDefault bool
+	SandboxRetentionMode    domain.SandboxRetentionMode
+	SandboxRetentionTTL     time.Duration
 }
 
 // DefaultConfig returns sensible defaults.
@@ -353,6 +361,8 @@ func DefaultConfig() OrchestratorConfig {
 		DefaultTimeout:          30 * time.Minute,
 		MaxConcurrentRuns:       10,
 		RequireSandboxByDefault: true,
+		SandboxRetentionMode:    domain.SandboxRetentionModeKeepActive,
+		SandboxRetentionTTL:     0,
 	}
 }
 
@@ -795,6 +805,58 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		runMode = domain.RunModeInPlace
 	}
 
+	existingSandboxWorkDir := ""
+	if req.ExistingSandboxID != nil {
+		if runMode != domain.RunModeSandboxed {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "existing sandbox requires sandboxed run mode",
+				"set runMode to sandboxed or enable requiresSandbox in the profile")
+		}
+		if o.sandbox == nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, fmt.Errorf("sandbox provider not configured")
+		}
+
+		sbx, err := o.sandbox.Get(ctx, *req.ExistingSandboxID)
+		if err != nil {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, fmt.Errorf("get sandbox %s: %w", req.ExistingSandboxID.String(), err)
+		}
+		switch sbx.Status {
+		case sandbox.SandboxStatusDeleted, sandbox.SandboxStatusRejected, sandbox.SandboxStatusApproved, sandbox.SandboxStatusError:
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "sandbox is not reusable",
+				fmt.Sprintf("sandbox status is %s", sbx.Status))
+		case sandbox.SandboxStatusStopped:
+			if err := o.sandbox.Start(ctx, sbx.ID); err != nil {
+				o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+				return nil, fmt.Errorf("start sandbox %s: %w", sbx.ID.String(), err)
+			}
+		}
+
+		if trimmed := strings.TrimSpace(task.ProjectRoot); trimmed != "" && strings.TrimSpace(sbx.ProjectRoot) != "" && trimmed != sbx.ProjectRoot {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "sandbox project root does not match task",
+				fmt.Sprintf("task projectRoot=%q, sandbox projectRoot=%q", trimmed, sbx.ProjectRoot))
+		}
+		if trimmed := strings.TrimSpace(task.ScopePath); trimmed != "" && strings.TrimSpace(sbx.ScopePath) != "" && trimmed != sbx.ScopePath {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "sandbox scope path does not match task",
+				fmt.Sprintf("task scopePath=%q, sandbox scopePath=%q", trimmed, sbx.ScopePath))
+		}
+
+		if sbx.WorkDir != "" {
+			existingSandboxWorkDir = sbx.WorkDir
+		} else {
+			workDir, err := o.sandbox.GetWorkspacePath(ctx, sbx.ID)
+			if err != nil {
+				o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+				return nil, fmt.Errorf("get sandbox workdir %s: %w", sbx.ID.String(), err)
+			}
+			existingSandboxWorkDir = workDir
+		}
+	}
+
 	// Create the run with progress tracking initialized
 	profileID := req.AgentProfileID
 	if profile != nil {
@@ -815,6 +877,9 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
+	if req.ExistingSandboxID != nil {
+		run.SandboxID = req.ExistingSandboxID
+	}
 
 	if err := o.runs.Create(ctx, run); err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
@@ -831,7 +896,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	}
 
 	// Start execution asynchronously
-	go o.executeRun(context.Background(), run, task, profile, prompt)
+	go o.executeRun(context.Background(), run, task, profile, prompt, existingSandboxWorkDir)
 
 	return run, nil
 }
@@ -920,11 +985,28 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.RequiresApproval != nil {
 		cfg.RequiresApproval = *req.RequiresApproval
 	}
+	if req.SandboxRetentionMode != nil {
+		cfg.SandboxRetentionMode = *req.SandboxRetentionMode
+	}
+	if req.SandboxRetentionTTL != nil {
+		cfg.SandboxRetentionTTL = *req.SandboxRetentionTTL
+	}
 	if req.AllowedPaths != nil {
 		cfg.AllowedPaths = req.AllowedPaths
 	}
 	if req.DeniedPaths != nil {
 		cfg.DeniedPaths = req.DeniedPaths
+	}
+
+	if cfg.SandboxRetentionMode == domain.SandboxRetentionModeUnspecified {
+		if o.config.SandboxRetentionMode != "" {
+			cfg.SandboxRetentionMode = o.config.SandboxRetentionMode
+		} else {
+			cfg.SandboxRetentionMode = domain.SandboxRetentionModeKeepActive
+		}
+	}
+	if cfg.SandboxRetentionTTL <= 0 && o.config.SandboxRetentionTTL > 0 {
+		cfg.SandboxRetentionTTL = o.config.SandboxRetentionTTL
 	}
 
 	// Validate the resolved config
@@ -946,6 +1028,12 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 			return nil, nil, domain.NewValidationError("modelPreset", "preset not mapped for runner")
 		}
 		cfg.Model = resolved
+	}
+	if !cfg.SandboxRetentionMode.IsValid() {
+		return nil, nil, domain.NewValidationError("sandboxRetentionMode", "invalid sandbox retention mode")
+	}
+	if cfg.SandboxRetentionTTL < 0 {
+		return nil, nil, domain.NewValidationError("sandboxRetentionTtl", "cannot be negative")
 	}
 
 	return cfg, profile, nil
@@ -1111,7 +1199,7 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 
 // executeRun handles the actual agent execution (runs in background).
 // This delegates to RunExecutor for the actual work.
-func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string) {
+func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, existingSandboxWorkDir string) {
 	executor := NewRunExecutor(
 		o.runs,
 		o.runners,
@@ -1125,6 +1213,15 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	// Configure executor with checkpoint repository if available
 	if o.checkpoints != nil {
 		executor.WithCheckpointRepository(o.checkpoints)
+	}
+	if run.SandboxID != nil {
+		workDir := existingSandboxWorkDir
+		if workDir == "" && o.sandbox != nil {
+			if resolved, err := o.sandbox.GetWorkspacePath(ctx, *run.SandboxID); err == nil {
+				workDir = resolved
+			}
+		}
+		executor.WithExistingSandbox(*run.SandboxID, workDir)
 	}
 	// Configure executor with broadcaster for real-time WebSocket updates
 	if o.broadcaster != nil {

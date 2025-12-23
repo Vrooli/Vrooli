@@ -92,6 +92,7 @@ export function RunsPage({
   const [activeTab, setActiveTab] = useState<"events" | "diff" | "response" | "cost">("events");
   const [approvalForm, setApprovalForm] = useState({ actor: "", commitMsg: "" });
   const [rejectForm, setRejectForm] = useState({ actor: "", reason: "" });
+  const [showRejectConfirm, setShowRejectConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const finalResponse = getFinalResponse(events);
@@ -150,6 +151,8 @@ export function RunsPage({
       setSelectedRun(run);
       setEvents([]);
       setDiff(null);
+      setShowRejectConfirm(false);
+      setRejectForm({ actor: "", reason: "" });
 
       // Load events
       setEventsLoading(true);
@@ -221,14 +224,15 @@ export function RunsPage({
   };
 
   const handleApprove = async () => {
-    if (!selectedRun || !approvalForm.actor) return;
+    if (!selectedRun) return;
     setSubmitting(true);
     try {
       await onApproveRun(selectedRun.id, {
-        actor: approvalForm.actor,
+        actor: approvalForm.actor.trim() || undefined,
         commitMsg: approvalForm.commitMsg || undefined,
       });
       setApprovalForm({ actor: "", commitMsg: "" });
+      setShowRejectConfirm(false);
       setSelectedRun(null);
       onRefresh();
     } catch (err) {
@@ -239,14 +243,15 @@ export function RunsPage({
   };
 
   const handleReject = async () => {
-    if (!selectedRun || !rejectForm.actor) return;
+    if (!selectedRun) return;
     setSubmitting(true);
     try {
       await onRejectRun(selectedRun.id, {
-        actor: rejectForm.actor,
+        actor: rejectForm.actor.trim() || undefined,
         reason: rejectForm.reason || undefined,
       });
       setRejectForm({ actor: "", reason: "" });
+      setShowRejectConfirm(false);
       setSelectedRun(null);
       onRefresh();
     } catch (err) {
@@ -459,6 +464,11 @@ export function RunsPage({
                       >
                         {runStatusLabel(selectedRun.status).replace("_", " ")}
                       </Badge>
+                      {selectedRun.approvalState !== ApprovalState.NONE && (
+                        <Badge variant="outline">
+                          {approvalStateLabel(selectedRun.approvalState)}
+                        </Badge>
+                      )}
                       {[
                         RunStatus.FAILED,
                         RunStatus.CANCELLED,
@@ -524,6 +534,14 @@ export function RunsPage({
                       <span className="text-muted-foreground">Progress: </span>
                       {selectedRun.progressPercent}%
                     </div>
+                    {selectedRun.sandboxId && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Sandbox: </span>
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                          {selectedRun.sandboxId}
+                        </code>
+                      </div>
+                    )}
                     {selectedRun.changedFiles > 0 && (
                       <div>
                         <span className="text-muted-foreground">Files: </span>
@@ -662,7 +680,7 @@ export function RunsPage({
                     <h4 className="font-semibold text-sm">Review Actions</h4>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="approveActor">Your Name *</Label>
+                        <Label htmlFor="approveActor">Your Name (optional)</Label>
                         <Input
                           id="approveActor"
                           value={approvalForm.actor}
@@ -672,7 +690,7 @@ export function RunsPage({
                               actor: e.target.value,
                             })
                           }
-                          placeholder="e.g., John Doe"
+                          placeholder="Leave blank to approve anonymously"
                         />
                       </div>
                       <div className="space-y-2">
@@ -694,7 +712,7 @@ export function RunsPage({
                       <Button
                         variant="success"
                         onClick={handleApprove}
-                        disabled={!approvalForm.actor || submitting}
+                        disabled={submitting}
                         className="gap-2"
                       >
                         <Check className="h-4 w-4" />
@@ -707,8 +725,9 @@ export function RunsPage({
                             actor: approvalForm.actor,
                             reason: "",
                           });
+                          setShowRejectConfirm(true);
                         }}
-                        disabled={!approvalForm.actor || submitting}
+                        disabled={submitting}
                         className="gap-2"
                       >
                         <X className="h-4 w-4" />
@@ -716,7 +735,7 @@ export function RunsPage({
                       </Button>
                     </div>
 
-                    {rejectForm.actor && (
+                    {showRejectConfirm && (
                       <div className="space-y-2 p-3 bg-destructive/10 rounded-lg">
                         <Label htmlFor="rejectReason">Rejection Reason</Label>
                         <Textarea
@@ -743,7 +762,10 @@ export function RunsPage({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setRejectForm({ actor: "", reason: "" })}
+                            onClick={() => {
+                              setRejectForm({ actor: "", reason: "" });
+                              setShowRejectConfirm(false);
+                            }}
                           >
                             Cancel
                           </Button>
@@ -817,6 +839,21 @@ function runPhaseLabel(phase: RunPhase): string {
       return "completed";
     default:
       return "queued";
+  }
+}
+
+function approvalStateLabel(state: ApprovalState): string {
+  switch (state) {
+    case ApprovalState.APPROVED:
+      return "approved";
+    case ApprovalState.REJECTED:
+      return "rejected";
+    case ApprovalState.PARTIALLY_APPROVED:
+      return "partial approval";
+    case ApprovalState.PENDING:
+      return "pending review";
+    default:
+      return "no approval";
   }
 }
 

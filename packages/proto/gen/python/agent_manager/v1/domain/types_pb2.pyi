@@ -11,6 +11,20 @@ class RunnerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUNNER_TYPE_CODEX: _ClassVar[RunnerType]
     RUNNER_TYPE_OPENCODE: _ClassVar[RunnerType]
 
+class ModelPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MODEL_PRESET_UNSPECIFIED: _ClassVar[ModelPreset]
+    MODEL_PRESET_FAST: _ClassVar[ModelPreset]
+    MODEL_PRESET_CHEAP: _ClassVar[ModelPreset]
+    MODEL_PRESET_SMART: _ClassVar[ModelPreset]
+
+class SandboxRetentionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SANDBOX_RETENTION_MODE_UNSPECIFIED: _ClassVar[SandboxRetentionMode]
+    SANDBOX_RETENTION_MODE_KEEP_ACTIVE: _ClassVar[SandboxRetentionMode]
+    SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL: _ClassVar[SandboxRetentionMode]
+    SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL: _ClassVar[SandboxRetentionMode]
+
 class TaskStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TASK_STATUS_UNSPECIFIED: _ClassVar[TaskStatus]
@@ -113,6 +127,14 @@ RUNNER_TYPE_UNSPECIFIED: RunnerType
 RUNNER_TYPE_CLAUDE_CODE: RunnerType
 RUNNER_TYPE_CODEX: RunnerType
 RUNNER_TYPE_OPENCODE: RunnerType
+MODEL_PRESET_UNSPECIFIED: ModelPreset
+MODEL_PRESET_FAST: ModelPreset
+MODEL_PRESET_CHEAP: ModelPreset
+MODEL_PRESET_SMART: ModelPreset
+SANDBOX_RETENTION_MODE_UNSPECIFIED: SandboxRetentionMode
+SANDBOX_RETENTION_MODE_KEEP_ACTIVE: SandboxRetentionMode
+SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL: SandboxRetentionMode
+SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL: SandboxRetentionMode
 TASK_STATUS_UNSPECIFIED: TaskStatus
 TASK_STATUS_QUEUED: TaskStatus
 TASK_STATUS_RUNNING: TaskStatus

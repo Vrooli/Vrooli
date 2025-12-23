@@ -147,6 +147,7 @@ export function TasksPage({
   });
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [runConfigMode, setRunConfigMode] = useState<"profile" | "custom">("profile");
+  const [existingSandboxId, setExistingSandboxId] = useState("");
   const [inlineConfig, setInlineConfig] = useState<InlineRunConfig>({
     runnerType: RunnerTypeEnum.CLAUDE_CODE,
     model: "",
@@ -228,6 +229,9 @@ export function TasksPage({
         request.timeoutMinutes = inlineConfig.timeoutMinutes;
         request.runMode = inlineConfig.runMode;
         request.skipPermissionPrompt = inlineConfig.skipPermissionPrompt;
+      }
+      if (existingSandboxId.trim() !== "") {
+        request.existingSandboxId = existingSandboxId.trim();
       }
 
       await onCreateRun(request);
@@ -497,6 +501,7 @@ export function TasksPage({
             setShowRunDialog(null);
             setSelectedProfileId("");
             setRunConfigMode("profile");
+            setExistingSandboxId("");
           }
         }}
       >
@@ -564,6 +569,18 @@ export function TasksPage({
                       <Plus className="h-4 w-4" />
                       Create New Profile
                     </Button>
+                    <div className="space-y-2">
+                      <Label htmlFor="existingSandboxIdProfile">Reuse Sandbox ID (optional)</Label>
+                      <Input
+                        id="existingSandboxIdProfile"
+                        value={existingSandboxId}
+                        onChange={(e) => setExistingSandboxId(e.target.value)}
+                        placeholder="UUID of an existing sandbox to reuse"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Only applies to sandboxed runs. The sandbox must match the task scope.
+                      </p>
+                    </div>
                   </>
                 )}
               </TabsContent>
@@ -690,6 +707,19 @@ export function TasksPage({
                     />
                     <span className="text-sm">Skip Permission Prompts</span>
                   </label>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="existingSandboxId">Reuse Sandbox ID (optional)</Label>
+                  <Input
+                    id="existingSandboxId"
+                    value={existingSandboxId}
+                    onChange={(e) => setExistingSandboxId(e.target.value)}
+                    placeholder="UUID of an existing sandbox to reuse"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Only applies to sandboxed runs. The sandbox must match the task scope.
+                  </p>
                 </div>
               </TabsContent>
             </Tabs>

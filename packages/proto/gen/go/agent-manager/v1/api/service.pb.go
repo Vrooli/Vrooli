@@ -1449,9 +1449,12 @@ type CreateRunRequest struct {
 	ProfileRef *ProfileRef `protobuf:"bytes,8,opt,name=profile_ref,json=profileRef,proto3,oneof" json:"profile_ref,omitempty"`
 	// Optional prompt override for this run.
 	// If omitted, the task description is used.
-	Prompt        *string `protobuf:"bytes,9,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Prompt *string `protobuf:"bytes,9,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`
+	// Reuse an existing sandbox for this run (sandboxed mode only).
+	// @format uuid
+	ExistingSandboxId *string `protobuf:"bytes,10,opt,name=existing_sandbox_id,json=existingSandboxId,proto3,oneof" json:"existing_sandbox_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *CreateRunRequest) Reset() {
@@ -1543,6 +1546,13 @@ func (x *CreateRunRequest) GetProfileRef() *ProfileRef {
 func (x *CreateRunRequest) GetPrompt() string {
 	if x != nil && x.Prompt != nil {
 		return *x.Prompt
+	}
+	return ""
+}
+
+func (x *CreateRunRequest) GetExistingSandboxId() string {
+	if x != nil && x.ExistingSandboxId != nil {
+		return *x.ExistingSandboxId
 	}
 	return ""
 }
@@ -2552,7 +2562,7 @@ type ApproveRunRequest struct {
 	// @format uuid
 	RunId string `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	// Actor approving (user identifier).
-	Actor string `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	Actor *string `protobuf:"bytes,2,opt,name=actor,proto3,oneof" json:"actor,omitempty"`
 	// Commit message for the changes.
 	CommitMsg *string `protobuf:"bytes,3,opt,name=commit_msg,json=commitMsg,proto3,oneof" json:"commit_msg,omitempty"`
 	// Force approval even with warnings.
@@ -2599,8 +2609,8 @@ func (x *ApproveRunRequest) GetRunId() string {
 }
 
 func (x *ApproveRunRequest) GetActor() string {
-	if x != nil {
-		return x.Actor
+	if x != nil && x.Actor != nil {
+		return *x.Actor
 	}
 	return ""
 }
@@ -2672,7 +2682,7 @@ type RejectRunRequest struct {
 	// @format uuid
 	RunId string `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	// Actor rejecting.
-	Actor string `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	Actor *string `protobuf:"bytes,2,opt,name=actor,proto3,oneof" json:"actor,omitempty"`
 	// Reason for rejection.
 	Reason        string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2717,8 +2727,8 @@ func (x *RejectRunRequest) GetRunId() string {
 }
 
 func (x *RejectRunRequest) GetActor() string {
-	if x != nil {
-		return x.Actor
+	if x != nil && x.Actor != nil {
+		return *x.Actor
 	}
 	return ""
 }
@@ -3227,7 +3237,7 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"ProfileRef\x12*\n" +
 	"\vprofile_key\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\n" +
 	"profileKey\x12:\n" +
-	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\"\xa2\x04\n" +
+	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\"\xef\x04\n" +
 	"\x10CreateRunRequest\x12!\n" +
 	"\atask_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
 	"\x10agent_profile_id\x18\x02 \x01(\tH\x00R\x0eagentProfileId\x88\x01\x01\x12\x15\n" +
@@ -3239,14 +3249,17 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x0fidempotency_key\x18\a \x01(\tH\x04R\x0eidempotencyKey\x88\x01\x01\x12B\n" +
 	"\vprofile_ref\x18\b \x01(\v2\x1c.agent_manager.v1.ProfileRefH\x05R\n" +
 	"profileRef\x88\x01\x01\x12\x1b\n" +
-	"\x06prompt\x18\t \x01(\tH\x06R\x06prompt\x88\x01\x01B\x13\n" +
+	"\x06prompt\x18\t \x01(\tH\x06R\x06prompt\x88\x01\x01\x123\n" +
+	"\x13existing_sandbox_id\x18\n" +
+	" \x01(\tH\aR\x11existingSandboxId\x88\x01\x01B\x13\n" +
 	"\x11_agent_profile_idB\x06\n" +
 	"\x04_tagB\v\n" +
 	"\t_run_modeB\x10\n" +
 	"\x0e_inline_configB\x12\n" +
 	"\x10_idempotency_keyB\x0e\n" +
 	"\f_profile_refB\t\n" +
-	"\a_prompt\"3\n" +
+	"\a_promptB\x16\n" +
+	"\x14_existing_sandbox_id\"3\n" +
 	"\x10DeleteRunRequest\x12\x1f\n" +
 	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\"-\n" +
 	"\x11DeleteRunResponse\x12\x18\n" +
@@ -3311,20 +3324,22 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x11GetRunDiffRequest\x12\x1f\n" +
 	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\"C\n" +
 	"\x12GetRunDiffResponse\x12-\n" +
-	"\x04diff\x18\x01 \x01(\v2\x19.agent_manager.v1.RunDiffR\x04diff\"\x93\x01\n" +
+	"\x04diff\x18\x01 \x01(\v2\x19.agent_manager.v1.RunDiffR\x04diff\"\xa2\x01\n" +
 	"\x11ApproveRunRequest\x12\x1f\n" +
-	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\x12\x14\n" +
-	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\"\n" +
+	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\x12\x19\n" +
+	"\x05actor\x18\x02 \x01(\tH\x00R\x05actor\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"commit_msg\x18\x03 \x01(\tH\x00R\tcommitMsg\x88\x01\x01\x12\x14\n" +
-	"\x05force\x18\x04 \x01(\bR\x05forceB\r\n" +
+	"commit_msg\x18\x03 \x01(\tH\x01R\tcommitMsg\x88\x01\x01\x12\x14\n" +
+	"\x05force\x18\x04 \x01(\bR\x05forceB\b\n" +
+	"\x06_actorB\r\n" +
 	"\v_commit_msg\"M\n" +
 	"\x12ApproveRunResponse\x127\n" +
-	"\x06result\x18\x01 \x01(\v2\x1f.agent_manager.v1.ApproveResultR\x06result\"a\n" +
+	"\x06result\x18\x01 \x01(\v2\x1f.agent_manager.v1.ApproveResultR\x06result\"p\n" +
 	"\x10RejectRunRequest\x12\x1f\n" +
-	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\x12\x14\n" +
-	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"+\n" +
+	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\x12\x19\n" +
+	"\x05actor\x18\x02 \x01(\tH\x00R\x05actor\x88\x01\x01\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reasonB\b\n" +
+	"\x06_actor\"+\n" +
 	"\x11RejectRunResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\"\x18\n" +
 	"\x16GetRunnerStatusRequest\"S\n" +
@@ -3592,6 +3607,7 @@ func file_agent_manager_v1_api_service_proto_init() {
 	file_agent_manager_v1_api_service_proto_msgTypes[40].OneofWrappers = []any{}
 	file_agent_manager_v1_api_service_proto_msgTypes[42].OneofWrappers = []any{}
 	file_agent_manager_v1_api_service_proto_msgTypes[46].OneofWrappers = []any{}
+	file_agent_manager_v1_api_service_proto_msgTypes[48].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

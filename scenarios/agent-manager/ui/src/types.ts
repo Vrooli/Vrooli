@@ -88,6 +88,7 @@ export interface RunFormData {
   taskId: string;
   agentProfileId?: string;
   tag?: string;
+  existingSandboxId?: string;
   runnerType?: RunnerType;
   model?: string;
   modelPreset?: ModelPreset;
@@ -106,12 +107,12 @@ export interface RunFormData {
 }
 
 export interface ApproveFormData {
-  actor: string;
+  actor?: string;
   commitMsg?: string;
   force?: boolean;
 }
 
 export interface RejectFormData {
-  actor: string;
+  actor?: string;
   reason?: string;
 }

@@ -116,6 +116,7 @@ export function QuickRunDialog({
     runMode: RunMode.SANDBOXED,
     skipPermissionPrompt: true,
   });
+  const [existingSandboxId, setExistingSandboxId] = useState("");
 
   const getRegistryForRunner = (runnerType: RunnerType) => {
     return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
@@ -141,6 +142,7 @@ export function QuickRunDialog({
   const resetForm = () => {
     setCurrentStep(1);
     setError(null);
+    setExistingSandboxId("");
     setTaskData({
       title: "",
       description: "",
@@ -239,6 +241,9 @@ export function QuickRunDialog({
         runRequest.timeoutMinutes = agentConfig.timeoutMinutes;
         runRequest.runMode = agentConfig.runMode;
         runRequest.skipPermissionPrompt = agentConfig.skipPermissionPrompt;
+      }
+      if (existingSandboxId.trim() !== "") {
+        runRequest.existingSandboxId = existingSandboxId.trim();
       }
 
       const run = await onCreateRun(runRequest);
@@ -577,6 +582,19 @@ export function QuickRunDialog({
                     />
                     <span className="text-sm">Skip Permission Prompts</span>
                   </label>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="existingSandboxId">Reuse Sandbox ID (optional)</Label>
+                    <Input
+                      id="existingSandboxId"
+                      value={existingSandboxId}
+                      onChange={(e) => setExistingSandboxId(e.target.value)}
+                      placeholder="UUID of an existing sandbox to reuse"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Only applies to sandboxed runs. The sandbox must match the task scope.
+                    </p>
+                  </div>
                 </TabsContent>
               </Tabs>
             </div>
@@ -682,6 +700,14 @@ export function QuickRunDialog({
                         </Badge>
                       </div>
                     </>
+                  )}
+                  {existingSandboxId.trim() !== "" && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Sandbox: </span>
+                      <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                        {existingSandboxId.trim()}
+                      </code>
+                    </div>
                   )}
                 </div>
               </div>

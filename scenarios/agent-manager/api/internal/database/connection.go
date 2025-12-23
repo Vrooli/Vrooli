@@ -276,6 +276,10 @@ func (db *DB) initSchema() error {
 		db.log.WithError(err).Error("Failed to backfill model preset column")
 		return err
 	}
+	if err := db.ensureSandboxRetentionColumns(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to backfill sandbox retention columns")
+		return err
+	}
 
 	db.log.Info("Database schema initialized successfully")
 	return nil
@@ -360,6 +364,63 @@ func (db *DB) ensureModelPresetColumn(ctx context.Context) error {
 		if !exists {
 			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN model_preset TEXT`); err != nil {
 				return fmt.Errorf("add model_preset column: %w", err)
+			}
+		}
+	default:
+		return fmt.Errorf("unsupported dialect: %s", db.dialect)
+	}
+	return nil
+}
+
+func (db *DB) ensureSandboxRetentionColumns(ctx context.Context) error {
+	switch db.dialect {
+	case DialectPostgres:
+		var exists bool
+		if err := db.QueryRowContext(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_name = 'agent_profiles'
+				AND column_name = 'sandbox_retention_mode'
+			)`).Scan(&exists); err != nil {
+			return fmt.Errorf("check sandbox_retention_mode column: %w", err)
+		}
+		if !exists {
+			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN sandbox_retention_mode VARCHAR(50)`); err != nil {
+				return fmt.Errorf("add sandbox_retention_mode column: %w", err)
+			}
+		}
+		if err := db.QueryRowContext(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_name = 'agent_profiles'
+				AND column_name = 'sandbox_retention_ttl_ms'
+			)`).Scan(&exists); err != nil {
+			return fmt.Errorf("check sandbox_retention_ttl_ms column: %w", err)
+		}
+		if !exists {
+			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN sandbox_retention_ttl_ms BIGINT DEFAULT 0`); err != nil {
+				return fmt.Errorf("add sandbox_retention_ttl_ms column: %w", err)
+			}
+		}
+	case DialectSQLite:
+		exists, err := sqliteColumnExists(ctx, db, "agent_profiles", "sandbox_retention_mode")
+		if err != nil {
+			return fmt.Errorf("check sandbox_retention_mode column: %w", err)
+		}
+		if !exists {
+			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN sandbox_retention_mode TEXT`); err != nil {
+				return fmt.Errorf("add sandbox_retention_mode column: %w", err)
+			}
+		}
+		exists, err = sqliteColumnExists(ctx, db, "agent_profiles", "sandbox_retention_ttl_ms")
+		if err != nil {
+			return fmt.Errorf("check sandbox_retention_ttl_ms column: %w", err)
+		}
+		if !exists {
+			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN sandbox_retention_ttl_ms INTEGER DEFAULT 0`); err != nil {
+				return fmt.Errorf("add sandbox_retention_ttl_ms column: %w", err)
 			}
 		}
 	default:

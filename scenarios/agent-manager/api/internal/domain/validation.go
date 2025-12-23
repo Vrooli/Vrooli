@@ -204,6 +204,16 @@ func (p *AgentProfile) Validate() error {
 			"same path cannot be both allowed and denied")
 	}
 
+	// Sandbox retention mode must be valid when set
+	if !p.SandboxRetentionMode.IsValid() {
+		return NewValidationError("sandboxRetentionMode", "invalid sandbox retention mode")
+	}
+
+	// Sandbox retention TTL must be non-negative
+	if p.SandboxRetentionTTL < 0 {
+		return NewValidationError("sandboxRetentionTtl", "cannot be negative")
+	}
+
 	return nil
 }
 

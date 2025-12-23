@@ -4,9 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -246,6 +248,9 @@ func (a *App) runCreate(args []string) error {
 	runMode := fs.String("run-mode", "", "Run mode (sandboxed or in_place)")
 	forceInPlace := fs.Bool("force-in-place", false, "Force in-place execution")
 	idempotencyKey := fs.String("idempotency-key", "", "Idempotency key for safe retries")
+	existingSandboxID := fs.String("existing-sandbox-id", "", "Reuse an existing sandbox ID (sandboxed runs only)")
+	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
+	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Sandbox retention TTL (e.g., 2h, 30m)")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -270,6 +275,9 @@ func (a *App) runCreate(args []string) error {
 	if *idempotencyKey != "" {
 		req.IdempotencyKey = protoString(*idempotencyKey)
 	}
+	if *existingSandboxID != "" {
+		req.ExistingSandboxId = protoString(*existingSandboxID)
+	}
 	if *runMode != "" {
 		mode := parseRunMode(*runMode)
 		if mode == domainpb.RunMode_RUN_MODE_UNSPECIFIED {
@@ -279,6 +287,21 @@ func (a *App) runCreate(args []string) error {
 	} else if *forceInPlace {
 		mode := domainpb.RunMode_RUN_MODE_IN_PLACE
 		req.RunMode = &mode
+	}
+	if *sandboxRetentionMode != "" || *sandboxRetentionTTL != "" {
+		inline := &domainpb.RunConfigOverrides{}
+		if *sandboxRetentionMode != "" {
+			mode := parseSandboxRetentionMode(*sandboxRetentionMode)
+			inline.SandboxRetentionMode = &mode
+		}
+		if *sandboxRetentionTTL != "" {
+			parsed, err := time.ParseDuration(*sandboxRetentionTTL)
+			if err != nil {
+				return fmt.Errorf("invalid sandbox retention TTL: %w", err)
+			}
+			inline.SandboxRetentionTtl = durationpb.New(parsed)
+		}
+		req.InlineConfig = inline
 	}
 
 	body, run, err := a.services.Runs.Create(req)
@@ -495,8 +518,10 @@ func (a *App) runApprove(args []string) error {
 
 	req := &apipb.ApproveRunRequest{
 		RunId: id,
-		Actor: *actor,
 		Force: *force,
+	}
+	if trimmed := strings.TrimSpace(*actor); trimmed != "" {
+		req.Actor = protoString(trimmed)
 	}
 	if *commitMsg != "" {
 		req.CommitMsg = protoString(*commitMsg)
@@ -555,8 +580,10 @@ func (a *App) runReject(args []string) error {
 
 	req := &apipb.RejectRunRequest{
 		RunId:  id,
-		Actor:  *actor,
 		Reason: *reason,
+	}
+	if trimmed := strings.TrimSpace(*actor); trimmed != "" {
+		req.Actor = protoString(trimmed)
 	}
 
 	body, err := a.services.Runs.Reject(id, req)

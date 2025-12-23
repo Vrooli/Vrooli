@@ -109,6 +109,38 @@ func ModelPresetFromProto(preset pb.ModelPreset) domain.ModelPreset {
 }
 
 // =============================================================================
+// SANDBOX RETENTION MODE
+// =============================================================================
+
+// SandboxRetentionModeToProto converts domain SandboxRetentionMode to proto.
+func SandboxRetentionModeToProto(mode domain.SandboxRetentionMode) pb.SandboxRetentionMode {
+	switch mode {
+	case domain.SandboxRetentionModeKeepActive:
+		return pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_KEEP_ACTIVE
+	case domain.SandboxRetentionModeStopOnTerminal:
+		return pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL
+	case domain.SandboxRetentionModeDeleteOnTerminal:
+		return pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL
+	default:
+		return pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_UNSPECIFIED
+	}
+}
+
+// SandboxRetentionModeFromProto converts proto SandboxRetentionMode to domain.
+func SandboxRetentionModeFromProto(mode pb.SandboxRetentionMode) domain.SandboxRetentionMode {
+	switch mode {
+	case pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_KEEP_ACTIVE:
+		return domain.SandboxRetentionModeKeepActive
+	case pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL:
+		return domain.SandboxRetentionModeStopOnTerminal
+	case pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL:
+		return domain.SandboxRetentionModeDeleteOnTerminal
+	default:
+		return domain.SandboxRetentionModeUnspecified
+	}
+}
+
+// =============================================================================
 // TASK STATUS
 // =============================================================================
 
