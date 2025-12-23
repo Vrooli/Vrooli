@@ -8,16 +8,12 @@ import { BrowserUrlBar } from '../capture/BrowserUrlBar';
 import { usePerfStats } from '../hooks/usePerfStats';
 import { useSettingsStore } from '@stores/settingsStore';
 import {
-  MAX_BROWSER_SCALE,
-  MIN_BROWSER_SCALE,
-  ReplayStyleFrame,
-  normalizeReplayStyle,
-  resolveReplayStyleTokens,
   useReplaySettingsSync,
-  useResolvedReplayBackground,
 } from '@/domains/replay-style';
-import { computeReplayLayout, type ReplayRect } from '@/domains/replay-layout';
+import type { ReplayRect } from '@/domains/replay-layout';
 import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
+import ReplayPresentation from '@/domains/exports/replay/ReplayPresentation';
+import { useReplayPresentationModel } from '@/domains/exports/replay/useReplayPresentationModel';
 import { ReplaySection } from '@/views/SettingsView/sections/ReplaySection';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
 import clsx from 'clsx';
@@ -197,64 +193,17 @@ export function RecordPreviewPanel({
 
   const targetWidth = activeViewport.width;
   const targetHeight = activeViewport.height;
-  const resolvedStyle = useMemo(
-    () =>
-      normalizeReplayStyle({
-        chromeTheme: replay.chromeTheme,
-        background: replay.background,
-        cursorTheme: replay.cursorTheme,
-        cursorInitialPosition: replay.cursorInitialPosition,
-        cursorClickAnimation: replay.cursorClickAnimation,
-        cursorScale: replay.cursorScale,
-        browserScale: replay.browserScale,
-      }),
-    [
-      replay.background,
-      replay.browserScale,
-      replay.chromeTheme,
-      replay.cursorClickAnimation,
-      replay.cursorInitialPosition,
-      replay.cursorScale,
-      replay.cursorTheme,
-    ],
-  );
-  const resolvedBackground = useResolvedReplayBackground(resolvedStyle.background);
-  const resolvedStyleWithAssets = useMemo(
-    () => ({ ...resolvedStyle, background: resolvedBackground }),
-    [resolvedBackground, resolvedStyle],
-  );
   const previewTitle = pageTitle || effectiveUrl || 'Live Preview';
-  const { backgroundDecor, chromeDecor } = useMemo(
-    () => resolveReplayStyleTokens(resolvedStyleWithAssets, { title: previewTitle }),
-    [resolvedStyleWithAssets, previewTitle],
-  );
-  const frameScale =
-    typeof resolvedStyle.browserScale === 'number' && !Number.isNaN(resolvedStyle.browserScale)
-      ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, resolvedStyle.browserScale))
-      : 1;
+  const presentationModel = useReplayPresentationModel({
+    style: styleOverrides,
+    title: previewTitle,
+    canvasDimensions: { width: targetWidth, height: targetHeight },
+    viewportDimensions: currentViewport ?? { width: targetWidth, height: targetHeight },
+    presentationBounds: previewBounds ?? undefined,
+    presentationFit: previewBounds ? 'contain' : 'none',
+  });
 
-  const previewLayout = useMemo(() => {
-    if (!showReplayStyle) return null;
-    const bounds = previewBounds ?? undefined;
-    return computeReplayLayout({
-      canvas: { width: targetWidth, height: targetHeight },
-      viewport: currentViewport ?? { width: targetWidth, height: targetHeight },
-      browserScale: frameScale,
-      chromeHeaderHeight: chromeDecor.headerHeight,
-      contentInset: backgroundDecor.contentInset,
-      container: bounds,
-      fit: bounds ? 'contain' : 'none',
-    });
-  }, [
-    showReplayStyle,
-    previewBounds,
-    targetHeight,
-    targetWidth,
-    currentViewport,
-    frameScale,
-    chromeDecor.headerHeight,
-    backgroundDecor.contentInset,
-  ]);
+  const previewLayout = showReplayStyle ? presentationModel.layout : null;
 
   const handleSavePreset = useCallback(() => {
     const trimmedName = newPresetName.trim();
@@ -365,11 +314,8 @@ export function RecordPreviewPanel({
           >
             {showReplayStyle && previewLayout ? (
               <div data-theme="dark" className="relative h-full w-full">
-                <ReplayStyleFrame
-                  backgroundDecor={backgroundDecor}
-                  chromeDecor={chromeDecor}
-                  layout={previewLayout}
-                  showInterfaceChrome={false}
+                <ReplayPresentation
+                  model={presentationModel}
                   viewportContentRect={previewContentRect ?? undefined}
                   viewportRef={viewportRef}
                   overlayNode={replay.watermark ? <WatermarkOverlay settings={replay.watermark} /> : null}
@@ -398,7 +344,7 @@ export function RecordPreviewPanel({
                       )}
                     </div>
                   </div>
-                </ReplayStyleFrame>
+                </ReplayPresentation>
               </div>
             ) : (
               <div className="h-full w-full">

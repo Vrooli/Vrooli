@@ -34,9 +34,17 @@ To add a theme:
 - `ReplayCanvas`: handles canvas sizing, zoom, and screenshot placement.
 - `ReplayCursorOverlay`: renders cursor visuals and trails.
 
-These primitives are consumed by `ReplayPlayer` and the live `RecordPreviewPanel`.
+These primitives are consumed by `ReplayPresentation` and the replay shell.
 
-Watermark rendering stays in the exports domain: `ReplayStyleFrame` accepts a `watermarkNode` so callers can inject `WatermarkOverlay` without coupling the replay-style domain to exports or settings types.
+Watermark rendering stays in the exports domain: `ReplayStyleFrame` accepts an `overlayNode` so callers can inject `WatermarkOverlay` without coupling the replay-style domain to exports or settings types.
+
+## Presentation + Playback
+Replay styling and layout now flow through a single presentation model:
+- `useReplayPresentationModel`: resolves the normalized style, theme tokens, and layout for a given canvas + viewport.
+- `ReplayPresentation`: renders the styled frame + overlay and accepts a child renderer (screenshots or live content).
+- `ReplayPlayer`: a shell that composes playback controls, metadata, and storyboard around the shared presentation.
+
+Live preview and replay preview both use the same presentation path to prevent layout drift.
 
 ## Persistence
 - **Local storage**: `adapters/storage.ts` stores the canonical config and reads legacy keys.

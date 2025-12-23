@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode, type CSSProperties, type Ref } from 'react';
+import { useEffect, useRef, type CSSProperties, type Ref } from 'react';
 import clsx from 'clsx';
 import type { BackgroundDecor, ChromeDecor } from '../catalog';
 import type { ReplayLayoutModel, ReplayRect } from '@/domains/replay-layout';
@@ -11,9 +11,6 @@ interface ReplayStyleFrameProps {
   presentationStyle?: CSSProperties;
   presentationClassName?: string;
   containerStyle?: CSSProperties;
-  showInterfaceChrome?: boolean;
-  header?: ReactNode;
-  footer?: ReactNode;
   overlayNode?: ReactNode;
   containerClassName?: string;
   contentClassName?: string;
@@ -33,9 +30,6 @@ export function ReplayStyleFrame({
   presentationStyle,
   presentationClassName,
   containerStyle,
-  showInterfaceChrome = false,
-  header,
-  footer,
   overlayNode,
   containerClassName,
   contentClassName,
@@ -104,10 +98,9 @@ export function ReplayStyleFrame({
         className={clsx('relative z-[1]', backgroundDecor.contentClass, contentClassName)}
         style={contentStyle}
       >
-        {header}
         <div
           ref={captureAreaRef}
-          className={clsx('space-y-3', showInterfaceChrome && 'mt-4')}
+          className="space-y-3"
         >
           <div
             ref={presentationRef}
@@ -173,7 +166,6 @@ export function ReplayStyleFrame({
               </OverlayRegistryContext.Provider>
             )}
           </div>
-          {footer}
         </div>
       </div>
     </div>

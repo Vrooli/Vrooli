@@ -44,19 +44,16 @@ import {
 import { isSamePoint } from './utils/cursorMath';
 import { toAbsolutePoint, pickZoomAnchor } from './utils/geometry';
 import { parseRgbaComponents, rgbaWithAlpha } from './utils/formatting';
-import { computeReplayLayout } from '@/domains/replay-layout';
 import { toOverlayPointStyle, toOverlayRectStyle, useOverlayRegistry } from '@/domains/replay-positioning';
 
 // Theme builders
 import {
-  normalizeReplayStyle,
-  resolveReplayStyleTokens,
-  ReplayStyleFrame,
   ReplayCanvas,
   ReplayCursorOverlay,
-  useResolvedReplayBackground,
 } from '@/domains/replay-style';
 import type { CursorDecor } from '@/domains/replay-style';
+import ReplayPresentation from './ReplayPresentation';
+import { useReplayPresentationModel } from './useReplayPresentationModel';
 
 // Hooks
 import { usePlayback } from './hooks/usePlayback';
@@ -335,18 +332,19 @@ export function ReplayPlayer({
     isExternallyControlled,
   });
 
-  // Derived values
-  const resolvedStyle = useMemo(
-    () =>
-      normalizeReplayStyle({
-        chromeTheme,
-        background,
-        cursorTheme,
-        cursorInitialPosition,
-        cursorScale,
-        cursorClickAnimation,
-        browserScale,
-      }),
+  // Current frame
+  const currentFrame = normalizedFrames.length > 0 ? normalizedFrames[currentIndex] : null;
+
+  const replayStyleOverrides = useMemo(
+    () => ({
+      chromeTheme,
+      background,
+      cursorTheme,
+      cursorInitialPosition,
+      cursorScale,
+      cursorClickAnimation,
+      browserScale,
+    }),
     [
       chromeTheme,
       background,
@@ -357,13 +355,27 @@ export function ReplayPlayer({
       browserScale,
     ],
   );
-  const resolvedBackground = useResolvedReplayBackground(resolvedStyle.background);
-  const resolvedStyleWithAssets = useMemo(
-    () => ({ ...resolvedStyle, background: resolvedBackground }),
-    [resolvedBackground, resolvedStyle],
-  );
 
-  const effectiveCursorTheme = resolvedStyle.cursorTheme;
+  const headerTitle = currentFrame
+    ? currentFrame.finalUrl || currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`
+    : 'Replay';
+
+  const presentationModel = useReplayPresentationModel({
+    style: replayStyleOverrides,
+    title: headerTitle,
+    canvasDimensions: {
+      width: presentationDimensions?.width || currentFrame?.screenshot?.width || FALLBACK_DIMENSIONS.width,
+      height: presentationDimensions?.height || currentFrame?.screenshot?.height || FALLBACK_DIMENSIONS.height,
+    },
+    viewportDimensions: {
+      width: currentFrame?.screenshot?.width || FALLBACK_DIMENSIONS.width,
+      height: currentFrame?.screenshot?.height || FALLBACK_DIMENSIONS.height,
+    },
+    presentationBounds,
+    presentationFit,
+  });
+
+  const effectiveCursorTheme = presentationModel.style.cursorTheme;
   const isCursorEnabled = effectiveCursorTheme !== 'disabled';
   const isExportPresentation = presentationMode === 'export';
   const showInterfaceChrome = !isExportPresentation;
@@ -391,35 +403,24 @@ export function ReplayPlayer({
     isPlaying,
     isCursorEnabled,
     cursorOverrides,
-    cursorInitialPosition: resolvedStyle.cursorInitialPosition,
+    cursorInitialPosition: presentationModel.style.cursorInitialPosition,
     basePathStyle,
     baseSpeedProfile,
   });
 
-  // Current frame
-  const currentFrame = normalizedFrames.length > 0 ? normalizedFrames[currentIndex] : null;
-
   // Click effects
   const { activeClickEffect, isClickEffectActive } = useClickEffect({
-    cursorClickAnimation: resolvedStyle.cursorClickAnimation,
+    cursorClickAnimation: presentationModel.style.cursorClickAnimation,
     currentFrame,
     frameProgress,
     isCursorEnabled,
   });
 
-  const headerTitle = currentFrame
-    ? currentFrame.finalUrl || currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`
-    : 'Replay';
-
-  const { backgroundDecor, chromeDecor, cursorDecor } = useMemo(
-    () => resolveReplayStyleTokens(resolvedStyleWithAssets, { title: headerTitle }),
-    [resolvedStyleWithAssets, headerTitle],
-  );
+  const { cursorDecor } = presentationModel;
 
   // Cursor scale
-  const pointerScale = resolvedStyle.cursorScale;
+  const pointerScale = presentationModel.style.cursorScale;
   const cursorTrailStrokeWidth = cursorDecor.trailWidth * pointerScale;
-  const frameScale = resolvedStyle.browserScale;
 
   // Callbacks for frame changes
   useEffect(() => {
@@ -459,39 +460,13 @@ export function ReplayPlayer({
 
   // Early return for empty frames
   if (normalizedFrames.length === 0 || !currentFrame) {
-    return <ReplayEmptyState backgroundDecor={backgroundDecor} />;
+    return <ReplayEmptyState backgroundDecor={presentationModel.backgroundDecor} />;
   }
 
-  // Dimensions
-  const canvasDimensions: Dimensions = {
-    width: presentationDimensions?.width || currentFrame.screenshot?.width || FALLBACK_DIMENSIONS.width,
-    height: presentationDimensions?.height || currentFrame.screenshot?.height || FALLBACK_DIMENSIONS.height,
-  };
   const viewportDimensions: Dimensions = {
     width: currentFrame.screenshot?.width || FALLBACK_DIMENSIONS.width,
     height: currentFrame.screenshot?.height || FALLBACK_DIMENSIONS.height,
   };
-  const layout = useMemo(
-    () =>
-      computeReplayLayout({
-        canvas: canvasDimensions,
-        viewport: viewportDimensions,
-        browserScale: frameScale,
-        chromeHeaderHeight: chromeDecor.headerHeight,
-        contentInset: backgroundDecor.contentInset,
-        container: presentationBounds,
-        fit: presentationFit ?? (presentationBounds ? 'contain' : 'none'),
-      }),
-    [
-      canvasDimensions,
-      viewportDimensions,
-      frameScale,
-      presentationBounds,
-      presentationFit,
-      chromeDecor.headerHeight,
-      backgroundDecor.contentInset,
-    ],
-  );
   const aspectRatio = viewportDimensions.width > 0
     ? (viewportDimensions.height / viewportDimensions.width) * 100
     : 56.25;
@@ -515,10 +490,10 @@ export function ReplayPlayer({
         return viewportRef.current ?? presentationRef.current ?? playerContainerRef.current ?? screenshotRef.current;
       },
       getPresentationElement: () => presentationRef.current ?? playerContainerRef.current,
-      getLayout: () => layout,
+      getLayout: () => presentationModel.layout,
       getFrameCount: () => normalizedFramesRef.current.length,
     };
-  }, [exposeController, isExportPresentation, seekToFrame, setIsPlaying, normalizedFramesRef, layout]);
+  }, [exposeController, isExportPresentation, seekToFrame, setIsPlaying, normalizedFramesRef, presentationModel.layout]);
 
   useEffect(() => {
     if (!exposeController) return;
@@ -612,13 +587,10 @@ export function ReplayPlayer({
 
   return (
     <div ref={playerContainerRef} className="flex flex-col gap-4">
-      <ReplayStyleFrame
-        backgroundDecor={backgroundDecor}
-        chromeDecor={chromeDecor}
-        layout={layout}
+      <ReplayPresentation
+        model={presentationModel}
         presentationRef={presentationRef}
         viewportRef={viewportRef}
-        showInterfaceChrome={showInterfaceChrome}
         captureAreaRef={captureAreaRef}
         browserFrameRef={browserFrameRef}
         containerClassName={clsx(!isExportPresentation && 'transition-all duration-500')}
@@ -643,38 +615,42 @@ export function ReplayPlayer({
             playbackPhase={playbackPhase}
           />
         }
-        header={showInterfaceChrome ? (
-          <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-200/80">
-            <span>Replay</span>
-            <span>Step {currentIndex + 1} / {normalizedFrames.length}</span>
-          </div>
-        ) : null}
-        footer={showInterfaceChrome ? (
-          <ReplayControls
-            isPlaying={isPlaying}
-            onPlayPause={() => setIsPlaying((prev) => !prev)}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            frameProgress={frameProgress}
-            displayDurationMs={displayDurationMs}
-          />
-        ) : null}
       >
-        <div className={clsx(!isExportPresentation && 'transition-all duration-300')}>
-          <ReplayCanvas
-            width={layout.viewportRect.width}
-            height={layout.viewportRect.height}
-            zoom={zoom}
-            anchorStyle={anchorStyle}
-            screenshotRef={screenshotRef}
-            screenshotUrl={currentFrame.screenshot?.url}
-            screenshotAlt={currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`}
-            transition={screenshotTransition}
-          >
-            {null}
-          </ReplayCanvas>
+        {(layout) => (
+          <div className={clsx(!isExportPresentation && 'transition-all duration-300')}>
+            <ReplayCanvas
+              width={layout.viewportRect.width}
+              height={layout.viewportRect.height}
+              zoom={zoom}
+              anchorStyle={anchorStyle}
+              screenshotRef={screenshotRef}
+              screenshotUrl={currentFrame.screenshot?.url}
+              screenshotAlt={currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`}
+              transition={screenshotTransition}
+            >
+              {null}
+            </ReplayCanvas>
+          </div>
+        )}
+      </ReplayPresentation>
+
+      {showInterfaceChrome && (
+        <div className="flex items-center justify-between px-2 text-xs uppercase tracking-[0.2em] text-slate-200/80">
+          <span>Replay</span>
+          <span>Step {currentIndex + 1} / {normalizedFrames.length}</span>
         </div>
-      </ReplayStyleFrame>
+      )}
+
+      {showInterfaceChrome && (
+        <ReplayControls
+          isPlaying={isPlaying}
+          onPlayPause={() => setIsPlaying((prev) => !prev)}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          frameProgress={frameProgress}
+          displayDurationMs={displayDurationMs}
+        />
+      )}
 
       {showInterfaceChrome && (
         <ReplayMetadataPanel

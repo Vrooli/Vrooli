@@ -2,7 +2,7 @@
  * Exports domain - handles replay generation, export rendering, and media output
  *
  * Structure:
- * - replay/: ReplayPlayer component and theming (backgrounds, cursors, chrome)
+ * - replay/: ReplayPresentation + ReplayPlayer shell (controls below), theming (backgrounds, cursors, chrome)
  * - renderer/: Export rendering components
  * - store.ts: Export state management
  */
