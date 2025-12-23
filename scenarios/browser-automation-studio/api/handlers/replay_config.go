@@ -132,12 +132,17 @@ func replayConfigToOverrides(config map[string]any) *executionExportOverrides {
 		return nil
 	}
 
-	chromeTheme := firstString(config, "chromeTheme", "replayChromeTheme", "chrome_theme")
-	backgroundTheme := firstString(config, "backgroundTheme", "replayBackgroundTheme", "background_theme")
-	cursorTheme := firstString(config, "cursorTheme", "replayCursorTheme", "cursor_theme")
-	cursorInitial := firstString(config, "cursorInitialPosition", "replayCursorInitialPosition", "cursor_initial_position")
-	clickAnimation := firstString(config, "cursorClickAnimation", "replayCursorClickAnimation", "cursor_click_animation")
-	cursorScale, hasScale := firstFloat(config, "cursorScale", "replayCursorScale", "cursor_scale")
+	style, _ := unwrapReplayConfig(config)
+	if style == nil {
+		return nil
+	}
+
+	chromeTheme := firstString(style, "chromeTheme", "replayChromeTheme", "chrome_theme")
+	backgroundTheme := readBackgroundTheme(style)
+	cursorTheme := firstString(style, "cursorTheme", "replayCursorTheme", "cursor_theme")
+	cursorInitial := firstString(style, "cursorInitialPosition", "replayCursorInitialPosition", "cursor_initial_position")
+	clickAnimation := firstString(style, "cursorClickAnimation", "replayCursorClickAnimation", "cursor_click_animation")
+	cursorScale, hasScale := firstFloat(style, "cursorScale", "replayCursorScale", "cursor_scale")
 
 	var themePreset *themePresetOverride
 	if chromeTheme != "" || backgroundTheme != "" {
@@ -174,23 +179,37 @@ func applyReplayConfigToSpec(spec *exportservices.ReplayMovieSpec, config map[st
 		return
 	}
 
-	if speed := firstString(config, "cursorSpeedProfile", "cursor_speed_profile"); speed != "" {
+	style, extra := unwrapReplayConfig(config)
+	merged := mergeReplayConfig(style, extra)
+	backgroundTheme := readBackgroundTheme(merged)
+	backgroundSource := readBackgroundSource(merged, backgroundTheme)
+
+	if speed := firstString(merged, "cursorSpeedProfile", "cursor_speed_profile"); speed != "" {
 		spec.CursorMotion.SpeedProfile = speed
 	}
-	if pathStyle := firstString(config, "cursorPathStyle", "cursor_path_style"); pathStyle != "" {
+	if pathStyle := firstString(merged, "cursorPathStyle", "cursor_path_style"); pathStyle != "" {
 		spec.CursorMotion.PathStyle = pathStyle
 	}
-	if browserScale, ok := firstFloat(config, "browserScale", "replayBrowserScale", "browser_scale"); ok {
+	if browserScale, ok := firstFloat(merged, "browserScale", "replayBrowserScale", "browser_scale"); ok {
 		applyBrowserScaleToSpec(spec, browserScale)
 	}
 
-	if watermark := mapWatermark(config["watermark"]); watermark != nil {
+	if backgroundSource != nil {
+		spec.Decor.Background = backgroundSource
+	} else if backgroundTheme != "" {
+		spec.Decor.Background = map[string]any{
+			"type": "theme",
+			"id":   backgroundTheme,
+		}
+	}
+
+	if watermark := mapWatermark(merged["watermark"]); watermark != nil {
 		spec.Watermark = watermark
 	}
-	if intro := mapIntroCard(config["introCard"]); intro != nil {
+	if intro := mapIntroCard(merged["introCard"]); intro != nil {
 		spec.IntroCard = intro
 	}
-	if outro := mapOutroCard(config["outroCard"]); outro != nil {
+	if outro := mapOutroCard(merged["outroCard"]); outro != nil {
 		spec.OutroCard = outro
 	}
 }
@@ -248,6 +267,73 @@ func firstString(config map[string]any, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func readBackgroundTheme(config map[string]any) string {
+	if config == nil {
+		return ""
+	}
+	if raw, ok := config["background"]; ok {
+		if background, okBackground := raw.(map[string]any); okBackground {
+			if kind := firstString(background, "type"); kind == "theme" {
+				return firstString(background, "id", "theme", "value")
+			}
+		}
+	}
+	return firstString(config, "backgroundTheme", "replayBackgroundTheme", "background_theme")
+}
+
+func readBackgroundSource(config map[string]any, fallbackTheme string) map[string]any {
+	if config == nil {
+		return nil
+	}
+	if raw, ok := config["background"]; ok {
+		if background, okBackground := raw.(map[string]any); okBackground {
+			return background
+		}
+	}
+	if fallbackTheme == "" {
+		return nil
+	}
+	return map[string]any{
+		"type": "theme",
+		"id":   fallbackTheme,
+	}
+}
+
+func unwrapReplayConfig(config map[string]any) (map[string]any, map[string]any) {
+	if config == nil {
+		return nil, nil
+	}
+	if styleRaw, ok := config["style"]; ok {
+		style, okStyle := styleRaw.(map[string]any)
+		if okStyle {
+			if extraRaw, okExtra := config["extra"]; okExtra {
+				if extra, okExtraMap := extraRaw.(map[string]any); okExtraMap {
+					return style, extra
+				}
+			}
+			return style, nil
+		}
+	}
+	return config, nil
+}
+
+func mergeReplayConfig(style map[string]any, extra map[string]any) map[string]any {
+	if style == nil && extra == nil {
+		return map[string]any{}
+	}
+	if extra == nil {
+		return style
+	}
+	merged := map[string]any{}
+	for key, value := range style {
+		merged[key] = value
+	}
+	for key, value := range extra {
+		merged[key] = value
+	}
+	return merged
 }
 
 func firstFloat(config map[string]any, keys ...string) (float64, bool) {

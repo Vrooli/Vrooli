@@ -13,8 +13,7 @@ import ReplayPlayer, {
   type CursorSpeedProfile,
   type CursorPathStyle,
 } from "@/domains/exports/replay/ReplayPlayer";
-import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from "@/domains/exports/replay/constants";
-import { resolveReplayStyleFromSpec } from "@/domains/replay-style/adapters/spec";
+import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE, resolveReplayStyleFromSpec } from "@/domains/replay-style";
 import {
   mapAssertion,
   mapRegions,
@@ -493,7 +492,7 @@ const toReplayFrame = (
     progress: 0,
     finalUrl: typeof frame.final_url === "string" ? frame.final_url : undefined,
     error: typeof frame.error === "string" ? frame.error : undefined,
-    extractedDataPreview: frame.dom_snapshot_preview,
+    extractedDataPreview: undefined,
     consoleLogCount: toNumber(frame.console_log_count),
     networkEventCount: toNumber(frame.network_event_count),
     screenshot: screenshotUrl
@@ -530,8 +529,8 @@ const toReplayFrame = (
     retryDelayMs: toNumber(retry?.delay_ms),
     retryBackoffFactor: toNumber(retry?.backoff_factor),
     retryHistory: mapRetryHistory(retry?.history),
-    domSnapshotPreview: frame.dom_snapshot_preview,
-    domSnapshotHtml: frame.dom_snapshot_html,
+    domSnapshotPreview: undefined,
+    domSnapshotHtml: undefined,
     domSnapshotArtifactId: undefined,
   };
 };
@@ -1474,7 +1473,7 @@ const ReplayExportPage = () => {
           autoPlay={false}
           loop={false}
           chromeTheme={resolvedStyle.chromeTheme}
-          backgroundTheme={resolvedStyle.backgroundTheme}
+          background={resolvedStyle.background}
           cursorTheme={resolvedStyle.cursorTheme}
           cursorInitialPosition={resolvedStyle.cursorInitialPosition}
           cursorScale={resolvedStyle.cursorScale}

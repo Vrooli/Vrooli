@@ -3,13 +3,14 @@ import {
   normalizeReplayStyle,
   resolveReplayStyle,
   REPLAY_STYLE_DEFAULTS,
+  getReplayBackgroundThemeId,
 } from '../model';
 import {
   MAX_BROWSER_SCALE,
   MIN_BROWSER_SCALE,
   MAX_CURSOR_SCALE,
   MIN_CURSOR_SCALE,
-} from '@/domains/exports/replay/constants';
+} from '@/domains/replay-style';
 
 describe('normalizeReplayStyle', () => {
   it('normalizes legacy keys and clamps scale values', () => {
@@ -23,7 +24,7 @@ describe('normalizeReplayStyle', () => {
     });
 
     expect(normalized.chromeTheme).toBe('midnight');
-    expect(normalized.backgroundTheme).toBe('ocean');
+    expect(getReplayBackgroundThemeId(normalized.background)).toBe('ocean');
     expect(normalized.cursorClickAnimation).toBe('pulse');
     expect(normalized.cursorInitialPosition).toBe('top-left');
     expect(normalized.cursorScale).toBe(MAX_CURSOR_SCALE);

@@ -94,6 +94,7 @@ type ExportCursorSpec struct {
 type ExportDecor struct {
 	ChromeTheme          string  `json:"chrome_theme,omitempty"`
 	BackgroundTheme      string  `json:"background_theme,omitempty"`
+	Background           map[string]any `json:"background,omitempty"`
 	CursorTheme          string  `json:"cursor_theme,omitempty"`
 	CursorInitial        string  `json:"cursor_initial_position,omitempty"`
 	CursorClickAnimation string  `json:"cursor_click_animation,omitempty"`
@@ -452,6 +453,7 @@ func BuildReplayMovieSpec(
 	decor := ExportDecor{
 		ChromeTheme:          "aurora",
 		BackgroundTheme:      "aurora",
+		Background:           map[string]any{"type": "theme", "id": "aurora"},
 		CursorTheme:          "white",
 		CursorInitial:        cursor.InitialPos,
 		CursorClickAnimation: cursor.ClickAnim,

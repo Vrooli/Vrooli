@@ -1,16 +1,26 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type {
   ReplayBackgroundTheme,
+  ReplayBackgroundImageFit,
+  ReplayBackgroundSource,
   ReplayChromeTheme,
   ReplayCursorTheme,
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
+  ReplayGradientSpec,
 } from './model';
-import { REPLAY_ARROW_CURSOR_PATH } from '@/domains/exports/replay/constants';
+import { REPLAY_ARROW_CURSOR_PATH } from './constants';
+import { buildGradientCss } from './gradient';
 
 import geometricPrismUrl from '@/assets/replay-backgrounds/geometric-prism.jpg';
 import geometricOrbitUrl from '@/assets/replay-backgrounds/geometric-orbit.jpg';
 import geometricMosaicUrl from '@/assets/replay-backgrounds/geometric-mosaic.jpg';
+
+export type BackgroundImageDecor = {
+  url?: string;
+  assetId?: string;
+  fit: ReplayBackgroundImageFit;
+};
 
 export type BackgroundDecor = {
   containerClass: string;
@@ -18,6 +28,7 @@ export type BackgroundDecor = {
   contentClass: string;
   baseLayer?: ReactNode;
   overlay?: ReactNode;
+  image?: BackgroundImageDecor;
 };
 
 export type CursorDecor = {
@@ -504,6 +515,22 @@ export const REPLAY_CURSOR_POSITIONS: CursorPositionOption[] = [
   },
 ];
 
+export const getReplayBackgroundOption = (id: ReplayBackgroundTheme): BackgroundOption =>
+  REPLAY_BACKGROUND_OPTIONS.find((option) => option.id === id) ?? REPLAY_BACKGROUND_OPTIONS[0];
+
+export const getReplayChromeOption = (id: ReplayChromeTheme): ChromeThemeOption =>
+  REPLAY_CHROME_OPTIONS.find((option) => option.id === id) ?? REPLAY_CHROME_OPTIONS[0];
+
+export const getReplayCursorOption = (id: ReplayCursorTheme): CursorOption =>
+  REPLAY_CURSOR_OPTIONS.find((option) => option.id === id) ?? REPLAY_CURSOR_OPTIONS[0];
+
+export const getReplayCursorPositionOption = (id: ReplayCursorInitialPosition): CursorPositionOption =>
+  REPLAY_CURSOR_POSITIONS.find((option) => option.id === id) ?? REPLAY_CURSOR_POSITIONS[0];
+
+export const getReplayCursorClickAnimationOption = (id: ReplayCursorClickAnimation): ClickAnimationOption =>
+  REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS.find((option) => option.id === id) ??
+  REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS[0];
+
 interface HaloConfig {
   wrapperClass?: string;
   wrapperStyle?: CSSProperties;
@@ -916,7 +943,60 @@ export const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDe
   }
 };
 
-export const buildChromeDecor = (theme: ReplayChromeTheme, title: string): ChromeDecor => {
+export const buildGradientBackgroundDecor = (spec: ReplayGradientSpec): BackgroundDecor => {
+  const gradient = buildGradientCss(spec);
+  return {
+    containerClass: 'border border-white/10 bg-slate-950 shadow-[0_20px_60px_rgba(15,23,42,0.4)]',
+    containerStyle: {
+      backgroundImage: gradient,
+      backgroundColor: '#0b1120',
+    },
+    contentClass: 'p-6 sm:p-7 backdrop-blur-[1px]',
+  };
+};
+
+export const buildImageBackgroundDecor = (image: BackgroundImageDecor): BackgroundDecor => ({
+  containerClass: 'border border-white/10 bg-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.45)]',
+  containerStyle: {
+    backgroundColor: '#0b1120',
+  },
+  contentClass: 'p-6 sm:p-7 bg-slate-950/35',
+  baseLayer: image.url ? (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <img
+        src={image.url}
+        alt=""
+        loading="lazy"
+        className="h-full w-full"
+        style={{ objectFit: image.fit }}
+      />
+      <div className="absolute inset-0 bg-slate-950/45" />
+    </div>
+  ) : undefined,
+  image,
+});
+
+export const resolveBackgroundDecor = (
+  source: ReplayBackgroundSource,
+  fallbackTheme: ReplayBackgroundTheme = 'aurora',
+): BackgroundDecor => {
+  if (source.type === 'theme') {
+    return buildBackgroundDecor(source.id);
+  }
+  if (source.type === 'gradient') {
+    return buildGradientBackgroundDecor(source.value);
+  }
+  if (source.type === 'image') {
+    return buildImageBackgroundDecor({
+      url: source.url,
+      assetId: source.assetId,
+      fit: source.fit ?? 'cover',
+    });
+  }
+  return buildBackgroundDecor(fallbackTheme);
+};
+
+export function buildChromeDecor(theme: ReplayChromeTheme, title: string): ChromeDecor {
   switch (theme) {
     case 'chromium':
       return {
@@ -1006,4 +1086,16 @@ export const buildChromeDecor = (theme: ReplayChromeTheme, title: string): Chrom
         ),
       };
   }
+};
+
+export const REPLAY_STYLE_REGISTRY = {
+  chromeThemes: REPLAY_CHROME_OPTIONS,
+  backgroundThemes: REPLAY_BACKGROUND_OPTIONS,
+  cursorThemes: REPLAY_CURSOR_OPTIONS,
+  cursorPositions: REPLAY_CURSOR_POSITIONS,
+  cursorClickAnimations: REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
+  buildChromeDecor,
+  buildBackgroundDecor,
+  buildCursorDecor,
+  resolveBackgroundDecor,
 };

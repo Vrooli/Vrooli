@@ -49,6 +49,10 @@ func applyDecorOverrides(spec *ReplayMovieSpec, overrides *Overrides) {
 		}
 		if background := strings.TrimSpace(preset.BackgroundTheme); background != "" {
 			spec.Decor.BackgroundTheme = background
+			spec.Decor.Background = map[string]any{
+				"type": "theme",
+				"id":   background,
+			}
 		}
 	}
 

@@ -7,9 +7,16 @@ import { FrameStatsDisplay } from '../capture/FrameStatsDisplay';
 import { BrowserUrlBar } from '../capture/BrowserUrlBar';
 import { usePerfStats } from '../hooks/usePerfStats';
 import { useSettingsStore } from '@stores/settingsStore';
-import { ReplayStyleFrame } from '@/domains/replay-style/renderer/ReplayStyleFrame';
+import {
+  MAX_BROWSER_SCALE,
+  MIN_BROWSER_SCALE,
+  ReplayStyleFrame,
+  normalizeReplayStyle,
+  resolveReplayStyleTokens,
+  useReplaySettingsSync,
+  useResolvedReplayBackground,
+} from '@/domains/replay-style';
 import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
-import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE } from '@/domains/exports/replay/constants';
 import { ReplaySection } from '@/views/SettingsView/sections/ReplaySection';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
 import clsx from 'clsx';
@@ -57,9 +64,64 @@ export function RecordPreviewPanel({
   const { stats: perfStats } = usePerfStats(sessionId ?? null, showStats);
   const {
     replay,
+    setReplaySetting,
     randomizeSettings,
     saveAsPreset,
   } = useSettingsStore();
+
+  const styleOverrides = useMemo(
+    () => ({
+      chromeTheme: replay.chromeTheme,
+      background: replay.background,
+      cursorTheme: replay.cursorTheme,
+      cursorInitialPosition: replay.cursorInitialPosition,
+      cursorClickAnimation: replay.cursorClickAnimation,
+      cursorScale: replay.cursorScale,
+      browserScale: replay.browserScale,
+    }),
+    [
+      replay.background,
+      replay.browserScale,
+      replay.chromeTheme,
+      replay.cursorClickAnimation,
+      replay.cursorInitialPosition,
+      replay.cursorScale,
+      replay.cursorTheme,
+    ],
+  );
+
+  const extraConfig = useMemo(
+    () => ({
+      cursorSpeedProfile: replay.cursorSpeedProfile,
+      cursorPathStyle: replay.cursorPathStyle,
+      renderSource: replay.exportRenderSource,
+      watermark: replay.watermark,
+      introCard: replay.introCard,
+      outroCard: replay.outroCard,
+    }),
+    [
+      replay.cursorPathStyle,
+      replay.cursorSpeedProfile,
+      replay.exportRenderSource,
+      replay.introCard,
+      replay.outroCard,
+      replay.watermark,
+    ],
+  );
+
+  useReplaySettingsSync({
+    styleOverrides,
+    extraConfig,
+    onStyleHydrated: (style) => {
+      setReplaySetting('chromeTheme', style.chromeTheme);
+      setReplaySetting('background', style.background);
+      setReplaySetting('cursorTheme', style.cursorTheme);
+      setReplaySetting('cursorInitialPosition', style.cursorInitialPosition);
+      setReplaySetting('cursorClickAnimation', style.cursorClickAnimation);
+      setReplaySetting('cursorScale', style.cursorScale);
+      setReplaySetting('browserScale', style.browserScale);
+    },
+  });
 
   // Frame statistics from PlaywrightView
   const [frameStats, setFrameStats] = useState<FrameStats | null>(null);
@@ -141,9 +203,40 @@ export function RecordPreviewPanel({
 
   const scaledWidth = Math.round(targetWidth * previewScale);
   const scaledHeight = Math.round(targetHeight * previewScale);
+  const resolvedStyle = useMemo(
+    () =>
+      normalizeReplayStyle({
+        chromeTheme: replay.chromeTheme,
+        background: replay.background,
+        cursorTheme: replay.cursorTheme,
+        cursorInitialPosition: replay.cursorInitialPosition,
+        cursorClickAnimation: replay.cursorClickAnimation,
+        cursorScale: replay.cursorScale,
+        browserScale: replay.browserScale,
+      }),
+    [
+      replay.background,
+      replay.browserScale,
+      replay.chromeTheme,
+      replay.cursorClickAnimation,
+      replay.cursorInitialPosition,
+      replay.cursorScale,
+      replay.cursorTheme,
+    ],
+  );
+  const resolvedBackground = useResolvedReplayBackground(resolvedStyle.background);
+  const resolvedStyleWithAssets = useMemo(
+    () => ({ ...resolvedStyle, background: resolvedBackground }),
+    [resolvedBackground, resolvedStyle],
+  );
+  const previewTitle = pageTitle || effectiveUrl || 'Live Preview';
+  const { backgroundDecor, chromeDecor } = useMemo(
+    () => resolveReplayStyleTokens(resolvedStyleWithAssets, { title: previewTitle }),
+    [resolvedStyleWithAssets, previewTitle],
+  );
   const frameScale =
-    typeof replay.browserScale === 'number' && !Number.isNaN(replay.browserScale)
-      ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, replay.browserScale))
+    typeof resolvedStyle.browserScale === 'number' && !Number.isNaN(resolvedStyle.browserScale)
+      ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, resolvedStyle.browserScale))
       : 1;
 
   const handleSavePreset = useCallback(() => {
@@ -233,9 +326,8 @@ export function RecordPreviewPanel({
               {showReplayStyle ? (
                 <div data-theme="dark" className="relative h-full w-full">
                   <ReplayStyleFrame
-                    backgroundTheme={replay.backgroundTheme}
-                    chromeTheme={replay.chromeTheme}
-                    title={pageTitle || effectiveUrl || 'Live Preview'}
+                    backgroundDecor={backgroundDecor}
+                    chromeDecor={chromeDecor}
                     frameScale={frameScale}
                     frameStyle={{ height: `${frameScale * 100}%` }}
                     showInterfaceChrome={false}

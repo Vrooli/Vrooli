@@ -1,6 +1,6 @@
-import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE, MAX_CURSOR_SCALE, MIN_CURSOR_SCALE } from '@/domains/exports/replay/constants';
+import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE, MAX_CURSOR_SCALE, MIN_CURSOR_SCALE } from './constants';
 
-export const REPLAY_STYLE_VERSION = 1 as const;
+export const REPLAY_STYLE_VERSION = 2 as const;
 
 export const REPLAY_CHROME_THEME_IDS = ['aurora', 'chromium', 'midnight', 'minimal'] as const;
 export const REPLAY_BACKGROUND_THEME_IDS = [
@@ -44,10 +44,32 @@ export type ReplayCursorTheme = (typeof REPLAY_CURSOR_THEME_IDS)[number];
 export type ReplayCursorInitialPosition = (typeof REPLAY_CURSOR_INITIAL_POSITIONS)[number];
 export type ReplayCursorClickAnimation = (typeof REPLAY_CURSOR_CLICK_ANIMATIONS)[number];
 
+export type ReplayBackgroundImageFit = 'cover' | 'contain';
+
+export interface ReplayGradientStop {
+  color: string;
+  position?: number;
+}
+
+export interface ReplayGradientSpec {
+  type?: 'linear';
+  angle?: number;
+  stops: ReplayGradientStop[];
+}
+
+export type ReplayBackgroundSource =
+  | { type: 'theme'; id: ReplayBackgroundTheme }
+  | { type: 'gradient'; value: ReplayGradientSpec }
+  | { type: 'image'; assetId?: string; url?: string; fit?: ReplayBackgroundImageFit };
+
+export const isReplayBackgroundImage = (
+  background: ReplayBackgroundSource,
+): background is Extract<ReplayBackgroundSource, { type: 'image' }> => background.type === 'image';
+
 export interface ReplayStyleConfig {
   version: typeof REPLAY_STYLE_VERSION;
   chromeTheme: ReplayChromeTheme;
-  backgroundTheme: ReplayBackgroundTheme;
+  background: ReplayBackgroundSource;
   cursorTheme: ReplayCursorTheme;
   cursorInitialPosition: ReplayCursorInitialPosition;
   cursorClickAnimation: ReplayCursorClickAnimation;
@@ -62,7 +84,7 @@ export type ReplayStyleOverrides = Partial<Omit<ReplayStyleConfig, 'version'>> &
 export const REPLAY_STYLE_DEFAULTS: ReplayStyleConfig = {
   version: REPLAY_STYLE_VERSION,
   chromeTheme: 'aurora',
-  backgroundTheme: 'aurora',
+  background: { type: 'theme', id: 'aurora' },
   cursorTheme: 'white',
   cursorInitialPosition: 'center',
   cursorClickAnimation: 'pulse',
@@ -93,6 +115,9 @@ export const isReplayCursorInitialPosition = (value: unknown): value is ReplayCu
 export const isReplayCursorClickAnimation = (value: unknown): value is ReplayCursorClickAnimation =>
   REPLAY_CURSOR_CLICK_ANIMATIONS.includes(value as ReplayCursorClickAnimation);
 
+const isReplayBackgroundImageFit = (value: unknown): value is ReplayBackgroundImageFit =>
+  value === 'cover' || value === 'contain';
+
 const readString = (source: Record<string, unknown>, keys: string[]): string | undefined => {
   for (const key of keys) {
     const value = source[key];
@@ -119,6 +144,102 @@ const readNumber = (source: Record<string, unknown>, keys: string[]): number | u
   return undefined;
 };
 
+const readObject = (source: Record<string, unknown>, keys: string[]): Record<string, unknown> | undefined => {
+  for (const key of keys) {
+    const value = source[key];
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+  }
+  return undefined;
+};
+
+const normalizeGradientStop = (value: unknown): ReplayGradientStop | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const stop = value as Record<string, unknown>;
+  const color = readString(stop, ['color', 'value']);
+  if (!color) {
+    return null;
+  }
+  const position = readNumber(stop, ['position', 'pos']);
+  return typeof position === 'number' ? { color, position } : { color };
+};
+
+const normalizeGradientSpec = (value: unknown): ReplayGradientSpec | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const spec = value as Record<string, unknown>;
+  const rawStops = spec.stops;
+  const stops = Array.isArray(rawStops)
+    ? rawStops.map(normalizeGradientStop).filter(Boolean)
+    : [];
+  if (stops.length < 2) {
+    return null;
+  }
+  const angle = readNumber(spec, ['angle', 'rotation']);
+  return {
+    type: 'linear',
+    angle: typeof angle === 'number' ? angle : undefined,
+    stops: stops as ReplayGradientStop[],
+  };
+};
+
+const normalizeBackgroundSource = (
+  raw: Record<string, unknown> | undefined,
+  fallback: ReplayBackgroundSource,
+  legacyTheme?: string,
+): ReplayBackgroundSource => {
+  if (raw) {
+    const type = readString(raw, ['type']);
+    if (type === 'theme') {
+      const theme = readString(raw, ['id', 'theme', 'value']);
+      if (isReplayBackgroundTheme(theme)) {
+        return { type: 'theme', id: theme };
+      }
+    }
+    if (type === 'gradient') {
+      const gradient = normalizeGradientSpec(raw.value ?? raw.gradient ?? raw.spec);
+      if (gradient) {
+        return { type: 'gradient', value: gradient };
+      }
+    }
+    if (type === 'image') {
+      const assetId = readString(raw, ['assetId', 'asset_id']);
+      const url = readString(raw, ['url', 'src']);
+      const fit = readString(raw, ['fit', 'objectFit']);
+      if (assetId || url) {
+        return {
+          type: 'image',
+          assetId: assetId ?? undefined,
+          url: url ?? undefined,
+          fit: isReplayBackgroundImageFit(fit) ? fit : fallback.type === 'image' ? fallback.fit : 'cover',
+        };
+      }
+    }
+  }
+
+  if (isReplayBackgroundTheme(legacyTheme)) {
+    return { type: 'theme', id: legacyTheme };
+  }
+
+  return fallback;
+};
+
+export const getReplayBackgroundThemeId = (
+  background: ReplayBackgroundSource,
+  fallback: ReplayBackgroundTheme = REPLAY_STYLE_DEFAULTS.background.type === 'theme'
+    ? REPLAY_STYLE_DEFAULTS.background.id
+    : 'aurora',
+): ReplayBackgroundTheme => {
+  if (background.type === 'theme') {
+    return background.id;
+  }
+  return fallback;
+};
+
 export const normalizeReplayStyle = (
   raw: unknown,
   fallback: ReplayStyleConfig = REPLAY_STYLE_DEFAULTS,
@@ -126,7 +247,8 @@ export const normalizeReplayStyle = (
   const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
 
   const chrome = readString(source, ['chromeTheme', 'replayChromeTheme', 'chrome_theme']);
-  const background = readString(source, ['backgroundTheme', 'replayBackgroundTheme', 'background_theme']);
+  const backgroundTheme = readString(source, ['backgroundTheme', 'replayBackgroundTheme', 'background_theme']);
+  const backgroundSource = readObject(source, ['background', 'replayBackground', 'background_source']);
   const cursor = readString(source, ['cursorTheme', 'replayCursorTheme', 'cursor_theme']);
   const cursorInitial = readString(source, [
     'cursorInitialPosition',
@@ -144,7 +266,7 @@ export const normalizeReplayStyle = (
   return {
     version: REPLAY_STYLE_VERSION,
     chromeTheme: isReplayChromeTheme(chrome) ? chrome : fallback.chromeTheme,
-    backgroundTheme: isReplayBackgroundTheme(background) ? background : fallback.backgroundTheme,
+    background: normalizeBackgroundSource(backgroundSource, fallback.background, backgroundTheme),
     cursorTheme: isReplayCursorTheme(cursor) ? cursor : fallback.cursorTheme,
     cursorInitialPosition: isReplayCursorInitialPosition(cursorInitial)
       ? cursorInitial

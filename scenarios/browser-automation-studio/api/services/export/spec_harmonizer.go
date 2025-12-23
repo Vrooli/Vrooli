@@ -211,6 +211,9 @@ func ensureDecor(spec, baseline *ReplayMovieSpec) {
 		if spec.Decor.BackgroundTheme == "" {
 			spec.Decor.BackgroundTheme = baseline.Decor.BackgroundTheme
 		}
+		if spec.Decor.Background == nil && baseline.Decor.Background != nil {
+			spec.Decor.Background = baseline.Decor.Background
+		}
 		if spec.Decor.CursorTheme == "" {
 			spec.Decor.CursorTheme = baseline.Decor.CursorTheme
 		}
@@ -232,6 +235,12 @@ func ensureDecor(spec, baseline *ReplayMovieSpec) {
 	}
 	if spec.Decor.BackgroundTheme == "" {
 		spec.Decor.BackgroundTheme = "aurora"
+	}
+	if spec.Decor.Background == nil {
+		spec.Decor.Background = map[string]any{
+			"type": "theme",
+			"id":   spec.Decor.BackgroundTheme,
+		}
 	}
 	if spec.Decor.CursorTheme == "" {
 		spec.Decor.CursorTheme = "white"

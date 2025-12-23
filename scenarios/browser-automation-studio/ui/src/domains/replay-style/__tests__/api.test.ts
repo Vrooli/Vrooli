@@ -30,11 +30,11 @@ describe('replay style api adapter', () => {
     const payload = await fetchReplayStylePayload();
 
     expect(payload?.style.chromeTheme).toBe('midnight');
-    expect(payload?.extraConfig).toMatchObject({
+    expect(payload?.extra).toMatchObject({
       cursorSpeedProfile: 'linear',
       watermark: { enabled: true },
     });
-    expect(payload?.extraConfig).not.toHaveProperty('chromeTheme');
+    expect(payload?.extra).not.toHaveProperty('chromeTheme');
   });
 
   it('persists replay style with extra config', async () => {
@@ -48,7 +48,7 @@ describe('replay style api adapter', () => {
     const body = JSON.parse((call[1] as RequestInit).body as string) as {
       config: Record<string, unknown>;
     };
-    expect(body.config.chromeTheme).toBe('chromium');
-    expect(body.config.cursorSpeedProfile).toBe('easeInOut');
+    expect((body.config.style as Record<string, unknown>).chromeTheme).toBe('chromium');
+    expect((body.config.extra as Record<string, unknown>).cursorSpeedProfile).toBe('easeInOut');
   });
 });

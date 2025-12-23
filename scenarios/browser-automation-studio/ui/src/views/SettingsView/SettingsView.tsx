@@ -24,11 +24,7 @@ import { BrandingTab } from './sections/branding';
 import { SessionProfilesTab } from './sections/SessionProfilesSection';
 import { SubscriptionTab } from './sections/subscription';
 import { SchedulesTab } from './sections/schedules';
-import { logger } from '@utils/logger';
-import {
-  normalizeReplayStyle,
-} from '@/domains/replay-style/model';
-import { fetchReplayStylePayload, persistReplayStyleConfig } from '@/domains/replay-style/adapters/api';
+import { useReplaySettingsSync, type ReplayStyleConfig } from '@/domains/replay-style';
 import {
   DisplaySection,
   ReplaySection,
@@ -166,9 +162,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
     (initialTab as SettingsTab) || 'display'
   );
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(true);
-  const [isReplayConfigReady, setIsReplayConfigReady] = useState(false);
-  const lastSyncedReplayConfigRef = useRef<string | null>(null);
-  const syncTimerRef = useRef<number | null>(null);
+  const hasAppliedServerExtrasRef = useRef(false);
 
   // Sync activeTab when initialTab prop changes (e.g., navigating from "Open export settings")
   useEffect(() => {
@@ -179,121 +173,98 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
 
-  useEffect(() => {
-    let isCancelled = false;
-    void (async () => {
-      try {
-        const payload = await fetchReplayStylePayload();
-        if (!payload || isCancelled) {
-          return;
-        }
-        const { style, extraConfig } = payload;
-        const normalizedStyle = normalizeReplayStyle(style);
-
-        setReplaySetting('chromeTheme', normalizedStyle.chromeTheme);
-        setReplaySetting('backgroundTheme', normalizedStyle.backgroundTheme);
-        setReplaySetting('cursorTheme', normalizedStyle.cursorTheme);
-        setReplaySetting('cursorInitialPosition', normalizedStyle.cursorInitialPosition);
-        setReplaySetting('cursorClickAnimation', normalizedStyle.cursorClickAnimation);
-        setReplaySetting('cursorScale', normalizedStyle.cursorScale);
-        setReplaySetting('browserScale', normalizedStyle.browserScale);
-        if (isValidSpeedProfile(extraConfig.cursorSpeedProfile)) {
-          setReplaySetting('cursorSpeedProfile', extraConfig.cursorSpeedProfile);
-        }
-        if (isValidPathStyle(extraConfig.cursorPathStyle)) {
-          setReplaySetting('cursorPathStyle', extraConfig.cursorPathStyle);
-        }
-        if (isValidRenderSource(extraConfig.renderSource)) {
-          setReplaySetting('exportRenderSource', extraConfig.renderSource);
-        }
-
-        const watermark = coerceWatermarkSettings(asObject(extraConfig.watermark), replay.watermark);
-        if (watermark) {
-          setReplaySetting('watermark', watermark);
-        }
-        const introCard = coerceIntroCardSettings(asObject(extraConfig.introCard), replay.introCard);
-        if (introCard) {
-          setReplaySetting('introCard', introCard);
-        }
-        const outroCard = coerceOutroCardSettings(asObject(extraConfig.outroCard), replay.outroCard);
-        if (outroCard) {
-          setReplaySetting('outroCard', outroCard);
-        }
-      } catch (error) {
-        logger.warn('Failed to load replay config from API', { component: 'SettingsView' }, error);
-      } finally {
-        if (!isCancelled) {
-          setIsReplayConfigReady(true);
-        }
-      }
-    })();
-    return () => {
-      isCancelled = true;
-    };
-  }, [setReplaySetting]);
-
-  useEffect(() => {
-    if (!isReplayConfigReady) {
-      return;
-    }
-    const styleConfig = normalizeReplayStyle({
+  const styleOverrides = useMemo(
+    () => ({
       chromeTheme: replay.chromeTheme,
-      backgroundTheme: replay.backgroundTheme,
+      background: replay.background,
       cursorTheme: replay.cursorTheme,
       cursorInitialPosition: replay.cursorInitialPosition,
       cursorClickAnimation: replay.cursorClickAnimation,
       cursorScale: replay.cursorScale,
       browserScale: replay.browserScale,
-    });
-    const extraConfig = {
+    }),
+    [
+      replay.background,
+      replay.browserScale,
+      replay.chromeTheme,
+      replay.cursorClickAnimation,
+      replay.cursorInitialPosition,
+      replay.cursorScale,
+      replay.cursorTheme,
+    ],
+  );
+
+  const extraConfig = useMemo(
+    () => ({
       cursorSpeedProfile: replay.cursorSpeedProfile,
       cursorPathStyle: replay.cursorPathStyle,
       renderSource: replay.exportRenderSource,
       watermark: replay.watermark,
       introCard: replay.introCard,
       outroCard: replay.outroCard,
-    };
-    const serialized = JSON.stringify({ ...styleConfig, ...extraConfig });
-    if (lastSyncedReplayConfigRef.current === serialized) {
-      return;
-    }
-    if (syncTimerRef.current !== null) {
-      window.clearTimeout(syncTimerRef.current);
-    }
-    syncTimerRef.current = window.setTimeout(() => {
-      void (async () => {
-        try {
-          await persistReplayStyleConfig(styleConfig, extraConfig);
-          lastSyncedReplayConfigRef.current = serialized;
-        } catch (error) {
-          logger.warn('Failed to persist replay config', { component: 'SettingsView' }, error);
-        }
-      })();
-    }, 600);
-  }, [
-    isReplayConfigReady,
-    replay.backgroundTheme,
-    replay.browserScale,
-    replay.chromeTheme,
-    replay.cursorClickAnimation,
-    replay.cursorInitialPosition,
-    replay.cursorPathStyle,
-    replay.cursorScale,
-    replay.cursorSpeedProfile,
-    replay.cursorTheme,
-    replay.exportRenderSource,
-    replay.introCard,
-    replay.outroCard,
-    replay.watermark,
-  ]);
+    }),
+    [
+      replay.cursorPathStyle,
+      replay.cursorSpeedProfile,
+      replay.exportRenderSource,
+      replay.introCard,
+      replay.outroCard,
+      replay.watermark,
+    ],
+  );
 
-  useEffect(() => {
-    return () => {
-      if (syncTimerRef.current !== null) {
-        window.clearTimeout(syncTimerRef.current);
+  const handleStyleHydrated = useCallback(
+    (style: ReplayStyleConfig) => {
+      setReplaySetting('chromeTheme', style.chromeTheme);
+      setReplaySetting('background', style.background);
+      setReplaySetting('cursorTheme', style.cursorTheme);
+      setReplaySetting('cursorInitialPosition', style.cursorInitialPosition);
+      setReplaySetting('cursorClickAnimation', style.cursorClickAnimation);
+      setReplaySetting('cursorScale', style.cursorScale);
+      setReplaySetting('browserScale', style.browserScale);
+    },
+    [setReplaySetting],
+  );
+
+  const handleExtraHydrated = useCallback(
+    (extra: Record<string, unknown>) => {
+      if (hasAppliedServerExtrasRef.current) {
+        return;
       }
-    };
-  }, []);
+      if (isValidSpeedProfile(extra?.cursorSpeedProfile)) {
+        setReplaySetting('cursorSpeedProfile', extra.cursorSpeedProfile);
+      }
+      if (isValidPathStyle(extra?.cursorPathStyle)) {
+        setReplaySetting('cursorPathStyle', extra.cursorPathStyle);
+      }
+      if (isValidRenderSource(extra?.renderSource)) {
+        setReplaySetting('exportRenderSource', extra.renderSource);
+      }
+
+      const watermark = coerceWatermarkSettings(asObject(extra?.watermark), replay.watermark);
+      if (watermark) {
+        setReplaySetting('watermark', watermark);
+      }
+      const introCard = coerceIntroCardSettings(asObject(extra?.introCard), replay.introCard);
+      if (introCard) {
+        setReplaySetting('introCard', introCard);
+      }
+      const outroCard = coerceOutroCardSettings(asObject(extra?.outroCard), replay.outroCard);
+      if (outroCard) {
+        setReplaySetting('outroCard', outroCard);
+      }
+
+      hasAppliedServerExtrasRef.current = true;
+    },
+    [replay.introCard, replay.outroCard, replay.watermark, setReplaySetting],
+  );
+
+  useReplaySettingsSync({
+    styleOverrides,
+    extraConfig,
+    onStyleHydrated: handleStyleHydrated,
+    onExtraHydrated: handleExtraHydrated,
+  });
   const previewBoundsRef = useRef<HTMLDivElement | null>(null);
   const [previewBounds, setPreviewBounds] = useState<{ width: number; height: number } | null>(null);
 
@@ -554,7 +525,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
                         autoPlay={isPreviewPlaying}
                         loop={replay.loop}
                         chromeTheme={replay.chromeTheme}
-                        backgroundTheme={replay.backgroundTheme}
+                        background={replay.background}
                         cursorTheme={replay.cursorTheme}
                         cursorInitialPosition={replay.cursorInitialPosition}
                         cursorScale={replay.cursorScale}

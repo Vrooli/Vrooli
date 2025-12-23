@@ -35,8 +35,7 @@ import { resolveUrl } from "@utils/executionTypeMappers";
 import { toast } from "react-hot-toast";
 import { getConfig } from "@/config";
 import { useComposerApiBase } from "./useComposerApiBase";
-import { applyReplayStyleToSpec } from "@/domains/replay-style/adapters/spec";
-import { normalizeReplayStyle } from "@/domains/replay-style/model";
+import { applyReplayStyleToSpec, normalizeReplayStyle } from "@/domains/replay-style";
 
 type UseExecutionExportParams = {
   execution: Execution;
@@ -75,6 +74,7 @@ export const useExecutionExport = ({
 }: UseExecutionExportParams) => {
   const {
     replayChromeTheme,
+    replayBackground,
     replayBackgroundTheme,
     replayCursorTheme,
     replayCursorInitialPosition,
@@ -381,7 +381,7 @@ export const useExecutionExport = ({
     () =>
       normalizeReplayStyle({
         chromeTheme: replayChromeTheme,
-        backgroundTheme: replayBackgroundTheme,
+        background: replayBackground,
         cursorTheme: replayCursorTheme,
         cursorInitialPosition: replayCursorInitialPosition,
         cursorClickAnimation: replayCursorClickAnimation,
@@ -389,7 +389,7 @@ export const useExecutionExport = ({
         browserScale: replayBrowserScale,
       }),
     [
-      replayBackgroundTheme,
+      replayBackground,
       replayBrowserScale,
       replayChromeTheme,
       replayCursorClickAnimation,
@@ -742,7 +742,7 @@ export const useExecutionExport = ({
           format: exportFormat as "mp4" | "gif" | "json" | "html",
           settings: {
             chromeTheme: replayChromeTheme,
-            backgroundTheme: replayBackgroundTheme,
+            background: replayBackground,
             cursorTheme: replayCursorTheme,
             cursorScale: replayCursorScale,
             browserScale: replayBrowserScale,
@@ -854,7 +854,7 @@ export const useExecutionExport = ({
         format: "json",
         settings: {
           chromeTheme: replayChromeTheme,
-          backgroundTheme: replayBackgroundTheme,
+          background: replayBackground,
           cursorTheme: replayCursorTheme,
           cursorScale: replayCursorScale,
         },
@@ -886,6 +886,7 @@ export const useExecutionExport = ({
     exportFileStem,
     finalFileName,
     movieSpec,
+    replayBackground,
     replayBackgroundTheme,
     replayChromeTheme,
     replayCursorClickAnimation,

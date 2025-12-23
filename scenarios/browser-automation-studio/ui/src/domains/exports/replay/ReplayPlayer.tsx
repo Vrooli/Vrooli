@@ -31,10 +31,6 @@ import type {
 
 // Constants
 import {
-  MIN_CURSOR_SCALE,
-  MAX_CURSOR_SCALE,
-  MIN_BROWSER_SCALE,
-  MAX_BROWSER_SCALE,
   DEFAULT_SPEED_PROFILE,
   DEFAULT_PATH_STYLE,
   FALLBACK_DIMENSIONS,
@@ -46,10 +42,14 @@ import { toAbsolutePoint, toRectStyle, toPointStyle, pickZoomAnchor } from './ut
 import { parseRgbaComponents, rgbaWithAlpha } from './utils/formatting';
 
 // Theme builders
-import { buildBackgroundDecor, buildCursorDecor } from '@/domains/replay-style/catalog';
-import { ReplayStyleFrame } from '@/domains/replay-style/renderer/ReplayStyleFrame';
-import { ReplayCanvas } from '@/domains/replay-style/renderer/ReplayCanvas';
-import { ReplayCursorOverlay } from '@/domains/replay-style/renderer/ReplayCursorOverlay';
+import {
+  normalizeReplayStyle,
+  resolveReplayStyleTokens,
+  ReplayStyleFrame,
+  ReplayCanvas,
+  ReplayCursorOverlay,
+  useResolvedReplayBackground,
+} from '@/domains/replay-style';
 
 // Hooks
 import { usePlayback } from './hooks/usePlayback';
@@ -66,7 +66,7 @@ export type {
   ReplayRetryHistoryEntry,
   ReplayFrame,
   ReplayChromeTheme,
-  ReplayBackgroundTheme,
+  ReplayBackgroundSource,
   ReplayCursorTheme,
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
@@ -83,7 +83,7 @@ export function ReplayPlayer({
   onFrameProgressChange,
   executionStatus,
   chromeTheme = 'aurora',
-  backgroundTheme = 'aurora',
+  background,
   cursorTheme = 'white',
   cursorInitialPosition = 'center',
   cursorScale = 1,
@@ -139,6 +139,40 @@ export function ReplayPlayer({
     isExternallyControlled,
   });
 
+  // Derived values
+  const resolvedStyle = useMemo(
+    () =>
+      normalizeReplayStyle({
+        chromeTheme,
+        background,
+        cursorTheme,
+        cursorInitialPosition,
+        cursorScale,
+        cursorClickAnimation,
+        browserScale,
+      }),
+    [
+      chromeTheme,
+      background,
+      cursorTheme,
+      cursorInitialPosition,
+      cursorScale,
+      cursorClickAnimation,
+      browserScale,
+    ],
+  );
+  const resolvedBackground = useResolvedReplayBackground(resolvedStyle.background);
+  const resolvedStyleWithAssets = useMemo(
+    () => ({ ...resolvedStyle, background: resolvedBackground }),
+    [resolvedBackground, resolvedStyle],
+  );
+
+  const effectiveCursorTheme = resolvedStyle.cursorTheme;
+  const isCursorEnabled = effectiveCursorTheme !== 'disabled';
+  const isExportPresentation = presentationMode === 'export';
+  const showInterfaceChrome = !isExportPresentation;
+  const canEditCursor = allowPointerEditing && !isExportPresentation && isCursorEnabled;
+
   // Cursor editor state
   const {
     cursorOverrides,
@@ -148,17 +182,10 @@ export function ReplayPlayer({
   } = useCursorEditor({
     currentFrame: normalizedFrames[currentIndex] ?? null,
     screenshotRef,
-    canEditCursor: allowPointerEditing && presentationMode !== 'export' && cursorTheme !== 'disabled',
+    canEditCursor,
     basePathStyle,
     baseSpeedProfile,
   });
-
-  // Derived values
-  const effectiveCursorTheme = cursorTheme ?? 'white';
-  const isCursorEnabled = effectiveCursorTheme !== 'disabled';
-  const isExportPresentation = presentationMode === 'export';
-  const showInterfaceChrome = !isExportPresentation;
-  const canEditCursor = allowPointerEditing && !isExportPresentation && isCursorEnabled;
 
   // Cursor animation
   const { cursorPlans, cursorPosition } = useCursorAnimation({
@@ -168,7 +195,7 @@ export function ReplayPlayer({
     isPlaying,
     isCursorEnabled,
     cursorOverrides,
-    cursorInitialPosition,
+    cursorInitialPosition: resolvedStyle.cursorInitialPosition,
     basePathStyle,
     baseSpeedProfile,
   });
@@ -178,35 +205,25 @@ export function ReplayPlayer({
 
   // Click effects
   const { activeClickEffect, isClickEffectActive } = useClickEffect({
-    cursorClickAnimation,
+    cursorClickAnimation: resolvedStyle.cursorClickAnimation,
     currentFrame,
     frameProgress,
     isCursorEnabled,
   });
 
-  // Theme decors
-  const backgroundDecor = useMemo(
-    () => buildBackgroundDecor(backgroundTheme ?? 'aurora'),
-    [backgroundTheme],
-  );
-
-  const cursorDecor = useMemo(() => buildCursorDecor(effectiveCursorTheme), [effectiveCursorTheme]);
-
   const headerTitle = currentFrame
     ? currentFrame.finalUrl || currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`
     : 'Replay';
-  const chromeVariant = chromeTheme ?? 'aurora';
+
+  const { backgroundDecor, chromeDecor, cursorDecor } = useMemo(
+    () => resolveReplayStyleTokens(resolvedStyleWithAssets, { title: headerTitle }),
+    [resolvedStyleWithAssets, headerTitle],
+  );
 
   // Cursor scale
-  const pointerScale =
-    typeof cursorScale === 'number' && !Number.isNaN(cursorScale)
-      ? Math.min(MAX_CURSOR_SCALE, Math.max(MIN_CURSOR_SCALE, cursorScale))
-      : 1;
+  const pointerScale = resolvedStyle.cursorScale;
   const cursorTrailStrokeWidth = cursorDecor.trailWidth * pointerScale;
-  const frameScale =
-    typeof browserScale === 'number' && !Number.isNaN(browserScale)
-      ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, browserScale))
-      : 1;
+  const frameScale = resolvedStyle.browserScale;
 
   // Callbacks for frame changes
   useEffect(() => {
@@ -432,9 +449,8 @@ export function ReplayPlayer({
   return (
     <div className="flex flex-col gap-4">
       <ReplayStyleFrame
-        backgroundTheme={backgroundTheme ?? 'aurora'}
-        chromeTheme={chromeVariant}
-        title={headerTitle}
+        backgroundDecor={backgroundDecor}
+        chromeDecor={chromeDecor}
         frameScale={frameScale}
         showInterfaceChrome={showInterfaceChrome}
         watermarkNode={watermark ? <WatermarkOverlay settings={watermark} /> : null}

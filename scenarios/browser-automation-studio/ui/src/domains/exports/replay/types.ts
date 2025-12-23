@@ -13,10 +13,12 @@ import type { WatermarkSettings, IntroCardSettings, OutroCardSettings } from '@s
 import type {
   ReplayChromeTheme,
   ReplayBackgroundTheme,
+  ReplayBackgroundSource,
+  ReplayBackgroundImageFit,
   ReplayCursorTheme,
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
-} from '@/domains/replay-style/model';
+} from '@/domains/replay-style';
 
 // Re-export settings types for convenience
 export type { WatermarkSettings, IntroCardSettings, OutroCardSettings };
@@ -156,6 +158,7 @@ export interface ReplayFrame {
 export type {
   ReplayChromeTheme,
   ReplayBackgroundTheme,
+  ReplayBackgroundSource,
   ReplayCursorTheme,
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
@@ -171,6 +174,7 @@ export type BackgroundDecor = {
   contentClass: string;
   baseLayer?: ReactNode;
   overlay?: ReactNode;
+  image?: { url?: string; assetId?: string; fit: ReplayBackgroundImageFit };
 };
 
 export type CursorDecor = {
@@ -218,7 +222,7 @@ export interface ReplayPlayerProps {
   onFrameProgressChange?: (frameIndex: number, progress: number) => void;
   executionStatus?: 'pending' | 'running' | 'completed' | 'failed';
   chromeTheme?: ReplayChromeTheme;
-  backgroundTheme?: ReplayBackgroundTheme;
+  background?: ReplayBackgroundSource;
   cursorTheme?: ReplayCursorTheme;
   cursorInitialPosition?: ReplayCursorInitialPosition;
   cursorScale?: number;

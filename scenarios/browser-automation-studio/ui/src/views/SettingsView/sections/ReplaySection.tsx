@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   Sparkles,
   HelpCircle,
@@ -11,8 +11,11 @@ import {
   Monitor,
   Smartphone,
   Tv,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react';
 import { useSettingsStore, BUILT_IN_PRESETS } from '@stores/settingsStore';
+import { useAssetStore } from '@stores/assetStore';
 import {
   REPLAY_CHROME_OPTIONS,
   REPLAY_BACKGROUND_OPTIONS,
@@ -21,19 +24,23 @@ import {
   CURSOR_GROUP_ORDER,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
   REPLAY_CURSOR_POSITIONS,
-} from '@/domains/replay-style/catalog';
-import type { CursorSpeedProfile, CursorPathStyle } from '@/domains/exports/replay/ReplayPlayer';
-import Tooltip from '@shared/ui/Tooltip';
-import { RangeSlider } from '@shared/ui';
-import { WatermarkSettings } from '@/domains/exports/replay/WatermarkSettings';
-import { IntroCardSettings } from '@/domains/exports/replay/IntroCardSettings';
-import { OutroCardSettings } from '@/domains/exports/replay/OutroCardSettings';
-import {
+  getReplayBackgroundThemeId,
+  DEFAULT_REPLAY_GRADIENT_SPEC,
   MAX_BROWSER_SCALE,
   MIN_BROWSER_SCALE,
   MAX_CURSOR_SCALE,
   MIN_CURSOR_SCALE,
-} from '@/domains/exports/replay/constants';
+  type ReplayBackgroundImageFit,
+  type ReplayBackgroundSource,
+  type ReplayGradientSpec,
+} from '@/domains/replay-style';
+import type { CursorSpeedProfile, CursorPathStyle } from '@/domains/exports/replay/ReplayPlayer';
+import Tooltip from '@shared/ui/Tooltip';
+import { RangeSlider } from '@shared/ui';
+import { WatermarkSettings } from '@/domains/exports/replay/WatermarkSettings';
+import { AssetPicker } from '@/domains/exports/replay/AssetPicker';
+import { IntroCardSettings } from '@/domains/exports/replay/IntroCardSettings';
+import { OutroCardSettings } from '@/domains/exports/replay/OutroCardSettings';
 import { SettingSection, OptionGrid, ToggleSwitch } from './shared';
 
 const SPEED_PROFILE_OPTIONS: Array<{ id: CursorSpeedProfile; label: string; description: string }> = [
@@ -106,6 +113,32 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
     deletePreset,
     getAllPresets,
   } = useSettingsStore();
+  const { assets, isInitialized, initialize } = useAssetStore();
+
+  const [imageDraft, setImageDraft] = useState<{
+    assetId: string;
+    fit: ReplayBackgroundImageFit;
+  }>({
+    assetId: '',
+    fit: 'cover',
+  });
+  const [showBackgroundAssetPicker, setShowBackgroundAssetPicker] = useState(false);
+
+  useEffect(() => {
+    if (!isInitialized) {
+      void initialize();
+    }
+  }, [initialize, isInitialized]);
+
+  useEffect(() => {
+    if (replay.background.type !== 'image') {
+      return;
+    }
+    setImageDraft({
+      assetId: replay.background.assetId ?? '',
+      fit: replay.background.fit ?? 'cover',
+    });
+  }, [replay.background]);
 
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const [presetToDelete, setPresetToDelete] = useState<string | null>(null);
@@ -134,6 +167,41 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
       options: REPLAY_BACKGROUND_OPTIONS.filter((bg) => bg.kind === group.id),
     }));
   }, []);
+
+  const backgroundMode: ReplayBackgroundSource['type'] = replay.background.type;
+  const gradientSpec =
+    replay.background.type === 'gradient' ? replay.background.value : DEFAULT_REPLAY_GRADIENT_SPEC;
+  const gradientStopA = gradientSpec.stops[0] ?? DEFAULT_REPLAY_GRADIENT_SPEC.stops[0];
+  const gradientStopB = gradientSpec.stops[gradientSpec.stops.length - 1] ?? DEFAULT_REPLAY_GRADIENT_SPEC.stops[1];
+
+  const applyGradientSpec = useCallback(
+    (next: ReplayGradientSpec) => {
+      setReplaySetting('background', { type: 'gradient', value: next });
+    },
+    [setReplaySetting],
+  );
+
+  const applyImageDraft = useCallback(
+    (draft: { assetId: string; fit: ReplayBackgroundImageFit }) => {
+      setReplaySetting('background', {
+        type: 'image',
+        assetId: draft.assetId.trim() || undefined,
+        fit: draft.fit,
+      });
+    },
+    [setReplaySetting],
+  );
+  const selectedBackgroundAsset = useMemo(() => {
+    const background = replay.background;
+    if (background.type !== 'image') {
+      return null;
+    }
+    const assetId = background.assetId;
+    if (!assetId) {
+      return null;
+    }
+    return assets.find((asset) => asset.id === assetId) ?? null;
+  }, [assets, replay.background]);
 
   // Group cursors
   const groupedCursors = useMemo(() => {
@@ -384,17 +452,199 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
 
       <SettingSection title="Background" tooltip="The backdrop behind the browser window.">
         <div className="space-y-4">
-          {groupedBackgrounds.map((group) => (
-            <div key={group.id}>
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{group.label}</div>
-              <OptionGrid
-                options={group.options}
-                value={replay.backgroundTheme}
-                onChange={(v) => setReplaySetting('backgroundTheme', v)}
-                columns={4}
-              />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                setReplaySetting('background', {
+                  type: 'theme',
+                  id: getReplayBackgroundThemeId(replay.background),
+                })
+              }
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                backgroundMode === 'theme'
+                  ? 'bg-flow-accent text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              Theme
+            </button>
+            <button
+              type="button"
+              onClick={() => applyGradientSpec(gradientSpec)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                backgroundMode === 'gradient'
+                  ? 'bg-flow-accent text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              Gradient
+            </button>
+            <button
+              type="button"
+              onClick={() => applyImageDraft(imageDraft)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                backgroundMode === 'image'
+                  ? 'bg-flow-accent text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              Image
+            </button>
+          </div>
+
+          {backgroundMode === 'theme' && (
+            <div className="space-y-4">
+              {groupedBackgrounds.map((group) => (
+                <div key={group.id}>
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{group.label}</div>
+                  <OptionGrid
+                    options={group.options}
+                    value={getReplayBackgroundThemeId(replay.background)}
+                    onChange={(v) => setReplaySetting('background', { type: 'theme', id: v })}
+                    columns={4}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+
+          {backgroundMode === 'gradient' && (
+            <div className="space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+              <div className="flex items-center justify-between text-xs text-gray-400">
+                <span>Gradient angle</span>
+                <span>{Math.round(gradientSpec.angle ?? 135)}°</span>
+              </div>
+              <RangeSlider
+                min={0}
+                max={360}
+                step={5}
+                value={gradientSpec.angle ?? 135}
+                onChange={(value) =>
+                  applyGradientSpec({
+                    ...gradientSpec,
+                    angle: value,
+                  })
+                }
+                ariaLabel="Gradient angle"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-xs text-gray-400 flex flex-col gap-1">
+                  Start color
+                  <input
+                    type="color"
+                    value={gradientStopA.color}
+                    onChange={(event) =>
+                      applyGradientSpec({
+                        ...gradientSpec,
+                        stops: [
+                          { color: event.target.value, position: 0 },
+                          { color: gradientStopB.color, position: 100 },
+                        ],
+                      })
+                    }
+                    className="h-10 w-full rounded-lg border border-gray-700 bg-gray-800 p-1"
+                  />
+                </label>
+                <label className="text-xs text-gray-400 flex flex-col gap-1">
+                  End color
+                  <input
+                    type="color"
+                    value={gradientStopB.color}
+                    onChange={(event) =>
+                      applyGradientSpec({
+                        ...gradientSpec,
+                        stops: [
+                          { color: gradientStopA.color, position: 0 },
+                          { color: event.target.value, position: 100 },
+                        ],
+                      })
+                    }
+                    className="h-10 w-full rounded-lg border border-gray-700 bg-gray-800 p-1"
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-gray-500">Gradients use two anchor colors. More controls can be added later.</p>
+            </div>
+          )}
+
+          {backgroundMode === 'image' && (
+            <div className="space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+              <div className="space-y-2">
+                <label className="text-xs text-gray-400">Background image asset</label>
+                {selectedBackgroundAsset ? (
+                  <div className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/80 p-3">
+                    <div className="h-12 w-12 overflow-hidden rounded-lg bg-gray-900">
+                      {selectedBackgroundAsset.thumbnail ? (
+                        <img
+                          src={selectedBackgroundAsset.thumbnail}
+                          alt={selectedBackgroundAsset.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <ImageIcon size={20} className="text-gray-600" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-sm text-white">{selectedBackgroundAsset.name}</span>
+                      <span className="text-xs text-gray-500">
+                        {selectedBackgroundAsset.width}x{selectedBackgroundAsset.height}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowBackgroundAssetPicker(true)}
+                        className="rounded-lg px-3 py-1.5 text-xs text-flow-accent transition-colors hover:bg-blue-900/30"
+                      >
+                        Change
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = { ...imageDraft, assetId: '' };
+                          setImageDraft(next);
+                          applyImageDraft(next);
+                        }}
+                        className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-900/20 hover:text-red-400"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowBackgroundAssetPicker(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-700 p-4 text-gray-400 transition-colors hover:border-gray-600 hover:text-white"
+                  >
+                    <ImageIcon size={18} />
+                    <span className="text-sm">Select background asset</span>
+                  </button>
+                )}
+              </div>
+              <label className="text-xs text-gray-400 flex flex-col gap-1">
+                Image fit
+                <select
+                  value={imageDraft.fit}
+                  onChange={(event) => {
+                    const next = { ...imageDraft, fit: event.target.value as ReplayBackgroundImageFit };
+                    setImageDraft(next);
+                    applyImageDraft(next);
+                  }}
+                  className="w-full px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded-lg text-surface focus:outline-none focus:ring-2 focus:ring-flow-accent/50"
+                >
+                  <option value="cover">Cover</option>
+                  <option value="contain">Contain</option>
+                </select>
+              </label>
+              <p className="text-xs text-gray-500">
+                Choose a background asset from your brand library.
+              </p>
+            </div>
+          )}
         </div>
       </SettingSection>
 
@@ -519,6 +769,19 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
       <SettingSection title="Watermark" tooltip="Add a logo overlay to your replays.">
         <WatermarkSettings />
       </SettingSection>
+
+      <AssetPicker
+        isOpen={showBackgroundAssetPicker}
+        onClose={() => setShowBackgroundAssetPicker(false)}
+        onSelect={(assetId) => {
+          const next = { ...imageDraft, assetId: assetId ?? '' };
+          setImageDraft(next);
+          applyImageDraft(next);
+        }}
+        selectedId={imageDraft.assetId || null}
+        filterType="background"
+        title="Select Background Image"
+      />
 
       <SettingSection title="Intro Card" tooltip="Show a title slide before the replay starts." defaultOpen={false}>
         <IntroCardSettings />

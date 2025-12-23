@@ -1,18 +1,22 @@
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, Image as ImageIcon, X } from "lucide-react";
 import clsx from "clsx";
+import { useEffect, useMemo, useState } from "react";
+import { useAssetStore } from "@stores/assetStore";
 import {
   BACKGROUND_GROUP_ORDER,
   CURSOR_GROUP_ORDER,
-  REPLAY_CHROME_OPTIONS,
-  REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
-  REPLAY_CURSOR_POSITIONS,
-} from "@/domains/replay-style/catalog";
-import {
   MAX_BROWSER_SCALE,
   MIN_BROWSER_SCALE,
   MAX_CURSOR_SCALE,
   MIN_CURSOR_SCALE,
-} from "@/domains/exports/replay/constants";
+  REPLAY_CHROME_OPTIONS,
+  REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
+  REPLAY_CURSOR_POSITIONS,
+  DEFAULT_REPLAY_GRADIENT_SPEC,
+  type ReplayBackgroundImageFit,
+  type ReplayGradientSpec,
+} from "@/domains/replay-style";
+import { AssetPicker } from "@/domains/exports/replay/AssetPicker";
 import { RangeSlider } from "@shared/ui";
 import type { ReplayCustomizationController } from "./useReplayCustomization";
 
@@ -27,7 +31,6 @@ interface ReplayCustomizationPanelProps {
 export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPanelProps) {
   const {
     selectedChromeOption,
-    selectedBackgroundOption,
     selectedCursorOption,
     selectedCursorPositionOption,
     selectedCursorClickAnimationOption,
@@ -35,12 +38,14 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
     cursorOptionsByGroup,
     replayChromeTheme,
     replayBackgroundTheme,
+    replayBackground,
     replayCursorTheme,
     replayCursorInitialPosition,
     replayCursorClickAnimation,
     replayCursorScale,
     replayBrowserScale,
     setReplayChromeTheme,
+    setReplayBackground,
     setIsCustomizationCollapsed,
     isCustomizationCollapsed,
     isBackgroundMenuOpen,
@@ -61,7 +66,58 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
     handleCursorClickAnimationSelect,
     handleCursorScaleChange,
     handleBrowserScaleChange,
+    backgroundLabel,
+    backgroundSubtitle,
+    backgroundPreviewStyle,
+    backgroundPreviewNode,
   } = controller;
+
+  const [imageDraft, setImageDraft] = useState<{
+    assetId: string;
+    fit: ReplayBackgroundImageFit;
+  }>({
+    assetId: "",
+    fit: "cover",
+  });
+  const [showBackgroundAssetPicker, setShowBackgroundAssetPicker] = useState(false);
+  const { assets } = useAssetStore();
+
+  useEffect(() => {
+    if (replayBackground.type !== "image") {
+      return;
+    }
+    setImageDraft({
+      assetId: replayBackground.assetId ?? "",
+      fit: replayBackground.fit ?? "cover",
+    });
+  }, [replayBackground]);
+
+  const gradientSpec =
+    replayBackground.type === "gradient" ? replayBackground.value : DEFAULT_REPLAY_GRADIENT_SPEC;
+  const gradientStopA = gradientSpec.stops[0] ?? DEFAULT_REPLAY_GRADIENT_SPEC.stops[0];
+  const gradientStopB =
+    gradientSpec.stops[gradientSpec.stops.length - 1] ?? DEFAULT_REPLAY_GRADIENT_SPEC.stops[1];
+
+  const applyGradientSpec = (next: ReplayGradientSpec) => {
+    setReplayBackground({ type: "gradient", value: next });
+  };
+
+  const applyImageDraft = (draft: { assetId: string; fit: ReplayBackgroundImageFit }) => {
+    setReplayBackground({
+      type: "image",
+      assetId: draft.assetId.trim() || undefined,
+      fit: draft.fit,
+    });
+  };
+
+  const backgroundMode = replayBackground.type;
+  const selectedBackgroundAsset = useMemo(
+    () =>
+      replayBackground.type === "image" && replayBackground.assetId
+        ? assets.find((asset) => asset.id === replayBackground.assetId)
+        : null,
+    [assets, replayBackground],
+  );
 
   return (
     <div className="rounded-2xl border border-white/5 bg-slate-950/40 px-4 py-3 shadow-inner">
@@ -72,7 +128,7 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
           </span>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
             <span>Chrome • {selectedChromeOption.label}</span>
-            <span>Background • {selectedBackgroundOption.label}</span>
+            <span>Background • {backgroundLabel}</span>
             <span>Cursor • {selectedCursorOption.label}</span>
             <span>Click • {selectedCursorClickAnimationOption.label}</span>
           </div>
@@ -146,15 +202,58 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
           </div>
 
           <div className="border-t border-white/5 pt-3 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
-                Background
-              </span>
-              <span className="text-[11px] text-slate-500">
-                Set the stage behind the browser
-              </span>
-            </div>
-            <div ref={backgroundSelectorRef} className="relative">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+              Background
+            </span>
+            <span className="text-[11px] text-slate-500">
+              Set the stage behind the browser
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                setReplayBackground({
+                  type: "theme",
+                  id: replayBackgroundTheme,
+                })
+              }
+              className={clsx(
+                "rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors",
+                backgroundMode === "theme"
+                  ? "bg-flow-accent text-white"
+                  : "bg-slate-900/60 text-slate-300 hover:bg-slate-900/80",
+              )}
+            >
+              Theme
+            </button>
+            <button
+              type="button"
+              onClick={() => applyGradientSpec(gradientSpec)}
+              className={clsx(
+                "rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors",
+                backgroundMode === "gradient"
+                  ? "bg-flow-accent text-white"
+                  : "bg-slate-900/60 text-slate-300 hover:bg-slate-900/80",
+              )}
+            >
+              Gradient
+            </button>
+            <button
+              type="button"
+              onClick={() => applyImageDraft(imageDraft)}
+              className={clsx(
+                "rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors",
+                backgroundMode === "image"
+                  ? "bg-flow-accent text-white"
+                  : "bg-slate-900/60 text-slate-300 hover:bg-slate-900/80",
+              )}
+            >
+              Image
+            </button>
+          </div>
+          <div ref={backgroundSelectorRef} className="relative">
               <button
                 type="button"
                 className={clsx(
@@ -176,16 +275,16 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
                   <span
                     aria-hidden
                     className="relative h-10 w-16 overflow-hidden rounded-lg border border-white/10 shadow-inner"
-                    style={selectedBackgroundOption.previewStyle}
+                    style={backgroundPreviewStyle}
                   >
-                    {selectedBackgroundOption.previewNode}
+                    {backgroundPreviewNode}
                   </span>
                   <span className="flex flex-col text-xs leading-tight text-slate-300">
                     <span className="text-sm font-medium text-white">
-                      {selectedBackgroundOption.label}
+                      {backgroundLabel}
                     </span>
                     <span className="text-[11px] text-slate-400">
-                      {selectedBackgroundOption.subtitle}
+                      {backgroundSubtitle}
                     </span>
                   </span>
                 </span>
@@ -256,6 +355,143 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
               )}
             </div>
           </div>
+
+          {backgroundMode === "gradient" && (
+            <div className="rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3">
+              <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                <span>Gradient angle</span>
+                <span>{Math.round(gradientSpec.angle ?? 135)}°</span>
+              </div>
+              <RangeSlider
+                min={0}
+                max={360}
+                step={5}
+                value={gradientSpec.angle ?? 135}
+                onChange={(value) =>
+                  applyGradientSpec({
+                    ...gradientSpec,
+                    angle: value,
+                  })
+                }
+                ariaLabel="Gradient angle"
+                className="mt-2"
+              />
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <label className="text-[11px] text-slate-400 flex flex-col gap-1">
+                  Start color
+                  <input
+                    type="color"
+                    value={gradientStopA.color}
+                    onChange={(event) =>
+                      applyGradientSpec({
+                        ...gradientSpec,
+                        stops: [
+                          { color: event.target.value, position: 0 },
+                          { color: gradientStopB.color, position: 100 },
+                        ],
+                      })
+                    }
+                    className="h-9 w-full rounded-lg border border-white/10 bg-slate-900/70 p-1"
+                  />
+                </label>
+                <label className="text-[11px] text-slate-400 flex flex-col gap-1">
+                  End color
+                  <input
+                    type="color"
+                    value={gradientStopB.color}
+                    onChange={(event) =>
+                      applyGradientSpec({
+                        ...gradientSpec,
+                        stops: [
+                          { color: gradientStopA.color, position: 0 },
+                          { color: event.target.value, position: 100 },
+                        ],
+                      })
+                    }
+                    className="h-9 w-full rounded-lg border border-white/10 bg-slate-900/70 p-1"
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+
+          {backgroundMode === "image" && (
+            <div className="rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3 space-y-2">
+              <div className="space-y-2">
+                <label className="text-[11px] text-slate-400">Background image asset</label>
+                {selectedBackgroundAsset ? (
+                  <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-slate-900/70 p-3">
+                    <div className="h-11 w-11 overflow-hidden rounded-lg bg-slate-950">
+                      {selectedBackgroundAsset.thumbnail ? (
+                        <img
+                          src={selectedBackgroundAsset.thumbnail}
+                          alt={selectedBackgroundAsset.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <ImageIcon size={18} className="text-slate-500" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-xs text-white">{selectedBackgroundAsset.name}</span>
+                      <span className="text-[11px] text-slate-500">
+                        {selectedBackgroundAsset.width}x{selectedBackgroundAsset.height}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowBackgroundAssetPicker(true)}
+                        className="rounded-lg px-2.5 py-1 text-[11px] text-flow-accent transition-colors hover:bg-blue-900/30"
+                      >
+                        Change
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = { ...imageDraft, assetId: "" };
+                          setImageDraft(next);
+                          applyImageDraft(next);
+                        }}
+                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-900/20 hover:text-red-300"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowBackgroundAssetPicker(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-white/10 bg-slate-900/70 px-3 py-3 text-[11px] text-slate-300 transition-colors hover:border-flow-accent/50 hover:text-white"
+                  >
+                    <ImageIcon size={16} />
+                    Select background asset
+                  </button>
+                )}
+              </div>
+              <label className="text-[11px] text-slate-400 flex flex-col gap-1">
+                Image fit
+                <select
+                  value={imageDraft.fit}
+                  onChange={(event) => {
+                    const next = { ...imageDraft, fit: event.target.value as ReplayBackgroundImageFit };
+                    setImageDraft(next);
+                    applyImageDraft(next);
+                  }}
+                  className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-2.5 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-flow-accent/50"
+                >
+                  <option value="cover">Cover</option>
+                  <option value="contain">Contain</option>
+                </select>
+              </label>
+              <p className="text-[11px] text-slate-500">
+                Choose a background asset from your brand library.
+              </p>
+            </div>
+          )}
 
           <div className="border-t border-white/5 pt-3 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -516,8 +752,8 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
                 </span>
                 <input
                   type="range"
-                min={MIN_CURSOR_SCALE}
-                max={MAX_CURSOR_SCALE}
+                  min={MIN_CURSOR_SCALE}
+                  max={MAX_CURSOR_SCALE}
                   step={0.05}
                   value={replayCursorScale}
                   onChange={(event) => handleCursorScaleChange(Number(event.target.value))}
@@ -535,6 +771,19 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
           </div>
         </div>
       )}
+
+      <AssetPicker
+        isOpen={showBackgroundAssetPicker}
+        onClose={() => setShowBackgroundAssetPicker(false)}
+        onSelect={(assetId) => {
+          const next = { ...imageDraft, assetId: assetId ?? "" };
+          setImageDraft(next);
+          applyImageDraft(next);
+        }}
+        selectedId={imageDraft.assetId || null}
+        filterType="background"
+        title="Select Background Image"
+      />
     </div>
   );
 }

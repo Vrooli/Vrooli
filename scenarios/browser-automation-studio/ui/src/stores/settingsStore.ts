@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import type {
   ReplayChromeTheme,
-  ReplayBackgroundTheme,
+  ReplayBackgroundSource,
   ReplayCursorTheme,
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
-} from '@/domains/replay-style/model';
+} from '@/domains/replay-style';
 import type { CursorSpeedProfile, CursorPathStyle } from '@/domains/exports/replay/ReplayPlayer';
 import {
   REPLAY_CHROME_OPTIONS,
@@ -13,13 +13,13 @@ import {
   REPLAY_CURSOR_OPTIONS,
   REPLAY_CURSOR_POSITIONS,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
-} from '@/domains/replay-style/catalog';
-import {
-  normalizeReplayStyle,
   REPLAY_STYLE_DEFAULTS,
-} from '@/domains/replay-style/model';
-import { readReplayStyleFromStorage, writeReplayStyleToStorage } from '@/domains/replay-style/adapters/storage';
-import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE, MAX_CURSOR_SCALE, MIN_CURSOR_SCALE } from '@/domains/exports/replay/constants';
+  readReplayStyleFromStorage,
+  MAX_BROWSER_SCALE,
+  MIN_BROWSER_SCALE,
+  MAX_CURSOR_SCALE,
+  MIN_CURSOR_SCALE,
+} from '@/domains/replay-style';
 import type { ExportRenderSource } from '@/domains/executions/viewer/exportConfig';
 
 const STORAGE_PREFIX = 'browserAutomation.settings.';
@@ -148,7 +148,7 @@ export interface ReplaySettings {
   presentationHeight: number;
   useCustomDimensions: boolean;
   chromeTheme: ReplayChromeTheme;
-  backgroundTheme: ReplayBackgroundTheme;
+  background: ReplayBackgroundSource;
   cursorTheme: ReplayCursorTheme;
   cursorInitialPosition: ReplayCursorInitialPosition;
   cursorScale: number;
@@ -167,7 +167,7 @@ export interface ReplaySettings {
 
 const REPLAY_STYLE_SETTING_KEYS = [
   'chromeTheme',
-  'backgroundTheme',
+  'background',
   'cursorTheme',
   'cursorInitialPosition',
   'cursorScale',
@@ -232,7 +232,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       presentationHeight: 720,
       useCustomDimensions: false,
       chromeTheme: 'aurora',
-      backgroundTheme: 'aurora',
+      background: { type: 'theme', id: 'aurora' },
       cursorTheme: 'white',
       cursorInitialPosition: 'center',
       cursorScale: 1,
@@ -258,7 +258,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       presentationHeight: 720,
       useCustomDimensions: false,
       chromeTheme: 'midnight',
-      backgroundTheme: 'nebula',
+      background: { type: 'theme', id: 'nebula' },
       cursorTheme: 'aura',
       cursorInitialPosition: 'center',
       cursorScale: 1.2,
@@ -284,7 +284,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       presentationHeight: 720,
       useCustomDimensions: false,
       chromeTheme: 'minimal',
-      backgroundTheme: 'charcoal',
+      background: { type: 'theme', id: 'charcoal' },
       cursorTheme: 'arrowLight',
       cursorInitialPosition: 'top-left',
       cursorScale: 0.9,
@@ -310,7 +310,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       presentationHeight: 720,
       useCustomDimensions: false,
       chromeTheme: 'chromium',
-      backgroundTheme: 'grid',
+      background: { type: 'theme', id: 'grid' },
       cursorTheme: 'arrowNeon',
       cursorInitialPosition: 'center',
       cursorScale: 1.4,
@@ -336,7 +336,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       presentationHeight: 720,
       useCustomDimensions: false,
       chromeTheme: 'aurora',
-      backgroundTheme: 'ocean',
+      background: { type: 'theme', id: 'ocean' },
       cursorTheme: 'white',
       cursorInitialPosition: 'bottom-right',
       cursorScale: 1.1,
@@ -396,12 +396,6 @@ const clearReplayStyleSettingsStorage = (): void => {
   });
 };
 
-const updateReplayStyleStorage = (key: ReplayStyleSettingKey, value: ReplaySettings[ReplayStyleSettingKey]): void => {
-  const current = readReplayStyleFromStorage();
-  const next = normalizeReplayStyle({ ...current, [key]: value }, current);
-  writeReplayStyleToStorage(next);
-};
-
 const loadReplaySettings = (): ReplaySettings => {
   const storedWidth = safeGetItem(`${STORAGE_PREFIX}replay.presentationWidth`);
   const storedHeight = safeGetItem(`${STORAGE_PREFIX}replay.presentationHeight`);
@@ -424,7 +418,7 @@ const loadReplaySettings = (): ReplaySettings => {
     presentationHeight: normalizedHeight,
     useCustomDimensions: storedUseCustom === 'true',
     chromeTheme: resolvedStyle.chromeTheme,
-    backgroundTheme: resolvedStyle.backgroundTheme,
+    background: resolvedStyle.background,
     cursorTheme: resolvedStyle.cursorTheme,
     cursorInitialPosition: resolvedStyle.cursorInitialPosition,
     cursorScale: resolvedStyle.cursorScale,
@@ -444,7 +438,6 @@ const loadReplaySettings = (): ReplaySettings => {
 
 const saveReplaySetting = <K extends keyof ReplaySettings>(key: K, value: ReplaySettings[K]): void => {
   if (isReplayStyleSettingKey(key)) {
-    updateReplayStyleStorage(key, value as ReplaySettings[ReplayStyleSettingKey]);
     safeRemoveItem(`${STORAGE_PREFIX}replay.${key}`);
     return;
   }
@@ -461,7 +454,7 @@ const getDefaultReplaySettings = (): ReplaySettings => ({
   presentationHeight: 720,
   useCustomDimensions: false,
   chromeTheme: DEFAULT_STYLE.chromeTheme,
-  backgroundTheme: DEFAULT_STYLE.backgroundTheme,
+  background: DEFAULT_STYLE.background,
   cursorTheme: DEFAULT_STYLE.cursorTheme,
   cursorInitialPosition: DEFAULT_STYLE.cursorInitialPosition,
   cursorScale: DEFAULT_STYLE.cursorScale,
@@ -637,7 +630,7 @@ const generateRandomSettings = (): ReplaySettings => {
     presentationHeight: 720,
     useCustomDimensions: false,
     chromeTheme: randomChoice(REPLAY_CHROME_OPTIONS).id,
-    backgroundTheme: randomChoice(REPLAY_BACKGROUND_OPTIONS).id,
+    background: { type: 'theme', id: randomChoice(REPLAY_BACKGROUND_OPTIONS).id },
     cursorTheme: randomChoice(REPLAY_CURSOR_OPTIONS).id,
     cursorInitialPosition: randomChoice(REPLAY_CURSOR_POSITIONS).id,
     cursorScale: Math.round((MIN_CURSOR_SCALE + Math.random() * (MAX_CURSOR_SCALE - MIN_CURSOR_SCALE)) * 10) / 10,
@@ -699,7 +692,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       }
     });
     clearReplayStyleSettingsStorage();
-    writeReplayStyleToStorage(REPLAY_STYLE_DEFAULTS);
     set({ replay: defaults, activePresetId: 'default' });
   },
 

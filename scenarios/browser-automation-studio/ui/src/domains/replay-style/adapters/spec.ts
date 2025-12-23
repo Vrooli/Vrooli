@@ -1,6 +1,6 @@
 import type { ReplayMovieSpec } from '@/types/export';
 import type { ReplayStyleConfig, ReplayStyleOverrides } from '../model';
-import { clampReplayBrowserScale, normalizeReplayStyle, REPLAY_STYLE_DEFAULTS } from '../model';
+import { clampReplayBrowserScale, getReplayBackgroundThemeId, normalizeReplayStyle, REPLAY_STYLE_DEFAULTS } from '../model';
 
 export const resolveReplayStyleFromSpec = (
   spec: ReplayMovieSpec | null | undefined,
@@ -14,6 +14,7 @@ export const resolveReplayStyleFromSpec = (
   return normalizeReplayStyle({
     chromeTheme: decor.chrome_theme,
     backgroundTheme: decor.background_theme,
+    background: decor.background,
     cursorTheme: decor.cursor_theme,
     cursorInitialPosition:
       decor.cursor_initial_position ?? motion.initial_position ?? cursor.initial_position,
@@ -66,7 +67,8 @@ export const applyReplayStyleToSpec = (
     decor: {
       ...decor,
       chrome_theme: style.chromeTheme,
-      background_theme: style.backgroundTheme,
+      background_theme: getReplayBackgroundThemeId(style.background),
+      background: style.background,
       cursor_theme: style.cursorTheme,
       cursor_initial_position: style.cursorInitialPosition,
       cursor_click_animation: style.cursorClickAnimation,

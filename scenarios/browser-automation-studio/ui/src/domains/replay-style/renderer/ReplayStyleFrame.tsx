@@ -1,12 +1,10 @@
-import { useMemo, type ReactNode, type CSSProperties, type Ref } from 'react';
+import type { ReactNode, CSSProperties, Ref } from 'react';
 import clsx from 'clsx';
-import type { ReplayBackgroundTheme, ReplayChromeTheme } from '../model';
-import { buildBackgroundDecor, buildChromeDecor } from '../catalog';
+import type { BackgroundDecor, ChromeDecor } from '../catalog';
 
 interface ReplayStyleFrameProps {
-  backgroundTheme: ReplayBackgroundTheme;
-  chromeTheme: ReplayChromeTheme;
-  title: string;
+  backgroundDecor: BackgroundDecor;
+  chromeDecor: ChromeDecor;
   frameScale?: number;
   frameStyle?: CSSProperties;
   showInterfaceChrome?: boolean;
@@ -21,9 +19,8 @@ interface ReplayStyleFrameProps {
 }
 
 export function ReplayStyleFrame({
-  backgroundTheme,
-  chromeTheme,
-  title,
+  backgroundDecor,
+  chromeDecor,
   frameScale = 1,
   frameStyle,
   showInterfaceChrome = false,
@@ -36,15 +33,6 @@ export function ReplayStyleFrame({
   browserFrameRef,
   children,
 }: ReplayStyleFrameProps) {
-  const backgroundDecor = useMemo(
-    () => buildBackgroundDecor(backgroundTheme),
-    [backgroundTheme],
-  );
-  const chromeDecor = useMemo(
-    () => buildChromeDecor(chromeTheme, title),
-    [chromeTheme, title],
-  );
-
   return (
     <div
       className={clsx(

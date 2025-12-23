@@ -5,7 +5,7 @@
  */
 
 import clsx from 'clsx';
-import type { BackgroundDecor } from '@/domains/replay-style/catalog';
+import type { BackgroundDecor } from '@/domains/replay-style';
 
 export interface ReplayEmptyStateProps {
   backgroundDecor: BackgroundDecor;

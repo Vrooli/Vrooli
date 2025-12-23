@@ -19,14 +19,18 @@ import (
 
 type generator struct {
 	overrides map[reflect.Type]string
+	fieldOverrides map[string]string
+	typeImports map[string]string
 	names     map[reflect.Type]string
 	visited   map[reflect.Type]bool
 	order     []reflect.Type
 }
 
-func newGenerator(overrides map[reflect.Type]string) *generator {
+func newGenerator(overrides map[reflect.Type]string, fieldOverrides map[string]string, typeImports map[string]string) *generator {
 	return &generator{
 		overrides: overrides,
+		fieldOverrides: fieldOverrides,
+		typeImports: typeImports,
 		names:     make(map[reflect.Type]string),
 		visited:   make(map[reflect.Type]bool),
 		order:     make([]reflect.Type, 0, len(overrides)),
@@ -200,13 +204,17 @@ func (g *generator) render() ([]byte, error) {
 		}
 	}
 
+	usedImports := make(map[string]map[string]bool)
+	var interfaces bytes.Buffer
+
 	for _, group := range groups {
-		buf.WriteString(fmt.Sprintf("export interface %s {\n", group.name))
+		interfaces.WriteString(fmt.Sprintf("export interface %s {\n", group.name))
 
 		fieldOrder := make([]string, 0, 32)
 		fieldMap := make(map[string]*fieldInfo)
 
 		for _, t := range group.types {
+			groupName := g.names[indirectType(t)]
 			for i := 0; i < t.NumField(); i++ {
 				field := t.Field(i)
 				if field.PkgPath != "" {
@@ -225,6 +233,18 @@ func (g *generator) render() ([]byte, error) {
 				}
 				optional := strings.Contains(opts, "omitempty") || field.Type.Kind() == reflect.Pointer
 				ts := g.tsType(field.Type)
+				if groupName != "" {
+					overrideKey := fmt.Sprintf("%s.%s", groupName, jsonName)
+					if overrideType, ok := g.fieldOverrides[overrideKey]; ok {
+						ts = overrideType
+						if module, ok := g.typeImports[overrideType]; ok {
+							if usedImports[module] == nil {
+								usedImports[module] = make(map[string]bool)
+							}
+							usedImports[module][overrideType] = true
+						}
+					}
+				}
 
 				if existing, ok := fieldMap[jsonName]; ok {
 					existing.occurrences++
@@ -247,7 +267,7 @@ func (g *generator) render() ([]byte, error) {
 
 		totalTypes := len(group.types)
 		if len(fieldOrder) == 0 {
-			buf.WriteString("  [key: string]: unknown;\n")
+			interfaces.WriteString("  [key: string]: unknown;\n")
 		} else {
 			for _, name := range fieldOrder {
 				info := fieldMap[name]
@@ -255,14 +275,31 @@ func (g *generator) render() ([]byte, error) {
 					info.optional = true
 				}
 				if info.optional {
-					buf.WriteString(fmt.Sprintf("  %s?: %s;\n", info.name, info.tsType))
+					interfaces.WriteString(fmt.Sprintf("  %s?: %s;\n", info.name, info.tsType))
 				} else {
-					buf.WriteString(fmt.Sprintf("  %s: %s;\n", info.name, info.tsType))
+					interfaces.WriteString(fmt.Sprintf("  %s: %s;\n", info.name, info.tsType))
 				}
 			}
 		}
-		buf.WriteString("}\n\n")
+		interfaces.WriteString("}\n\n")
 	}
+
+	if len(usedImports) > 0 {
+		importLines := make([]string, 0, len(usedImports))
+		for module, types := range usedImports {
+			typeNames := make([]string, 0, len(types))
+			for name := range types {
+				typeNames = append(typeNames, name)
+			}
+			sort.Strings(typeNames)
+			importLines = append(importLines, fmt.Sprintf("import type { %s } from '%s';", strings.Join(typeNames, ", "), module))
+		}
+		sort.Strings(importLines)
+		buf.WriteString(strings.Join(importLines, "\n"))
+		buf.WriteString("\n\n")
+	}
+
+	buf.Write(interfaces.Bytes())
 
 	return buf.Bytes(), nil
 }
@@ -342,7 +379,14 @@ func main() {
 		reflect.TypeOf(export.ExportCursorMotion{}):      "ReplayMovieCursorMotion",
 	}
 
-	gen := newGenerator(overrides)
+	fieldOverrides := map[string]string{
+		"ReplayMovieDecor.background": "ReplayBackgroundSource",
+	}
+	typeImports := map[string]string{
+		"ReplayBackgroundSource": "@/domains/replay-style",
+	}
+
+	gen := newGenerator(overrides, fieldOverrides, typeImports)
 	gen.registerRoot(reflect.TypeOf(export.ReplayMovieSpec{}), "ReplayMovieSpec")
 
 	content, err := gen.render()

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ReplayMovieSpec } from '@/types/export';
 import { applyReplayStyleToSpec, resolveReplayStyleFromSpec } from '../adapters/spec';
+import { getReplayBackgroundThemeId } from '../model';
 
 describe('replay style spec adapter', () => {
   it('hydrates replay style from movie spec', () => {
@@ -28,7 +29,7 @@ describe('replay style spec adapter', () => {
     const style = resolveReplayStyleFromSpec(spec);
 
     expect(style.chromeTheme).toBe('chromium');
-    expect(style.backgroundTheme).toBe('ocean');
+    expect(getReplayBackgroundThemeId(style.background)).toBe('ocean');
     expect(style.cursorTheme).toBe('white');
     expect(style.cursorInitialPosition).toBe('top-left');
     expect(style.cursorClickAnimation).toBe('pulse');
@@ -47,7 +48,7 @@ describe('replay style spec adapter', () => {
 
     const updated = applyReplayStyleToSpec(spec, {
       chromeTheme: 'midnight',
-      backgroundTheme: 'nebula',
+      background: { type: 'theme', id: 'nebula' },
       cursorTheme: 'aura',
       cursorInitialPosition: 'bottom-right',
       cursorClickAnimation: 'ripple',
@@ -57,6 +58,7 @@ describe('replay style spec adapter', () => {
 
     expect(updated.decor?.chrome_theme).toBe('midnight');
     expect(updated.decor?.background_theme).toBe('nebula');
+    expect(updated.decor?.background).toMatchObject({ type: 'theme', id: 'nebula' });
     expect(updated.decor?.cursor_theme).toBe('aura');
     expect(updated.cursor?.scale).toBe(1.2);
     expect(updated.presentation?.browser_frame?.width).toBe(500);

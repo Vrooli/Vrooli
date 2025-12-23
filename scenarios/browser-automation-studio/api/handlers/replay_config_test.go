@@ -276,8 +276,11 @@ func TestReplayConfigOverridePrecedence(t *testing.T) {
 		},
 	}
 	config := map[string]any{
-		"chromeTheme":     "midnight",
-		"backgroundTheme": "nebula",
+		"chromeTheme": "midnight",
+		"background": map[string]any{
+			"type": "theme",
+			"id":   "nebula",
+		},
 	}
 	applyExportOverrides(spec, replayConfigToOverrides(config))
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { logger } from '@/utils/logger';
-import type { ReplayStyleConfig, ReplayStyleOverrides } from './model';
+import type { ReplayBackgroundSource, ReplayBackgroundTheme, ReplayStyleConfig, ReplayStyleOverrides } from './model';
 import { normalizeReplayStyle, resolveReplayStyle } from './model';
 import { readReplayStyleFromStorage, writeReplayStyleToStorage } from './adapters/storage';
 import { fetchReplayStylePayload, persistReplayStyleConfig } from './adapters/api';
@@ -15,7 +15,8 @@ export interface ReplayStyleController {
   style: ReplayStyleConfig;
   setStyle: (updater: ReplayStyleOverrides | ((prev: ReplayStyleConfig) => ReplayStyleOverrides)) => void;
   setChromeTheme: (value: ReplayStyleConfig['chromeTheme']) => void;
-  setBackgroundTheme: (value: ReplayStyleConfig['backgroundTheme']) => void;
+  setBackground: (value: ReplayBackgroundSource) => void;
+  setBackgroundTheme: (value: ReplayBackgroundTheme) => void;
   setCursorTheme: (value: ReplayStyleConfig['cursorTheme']) => void;
   setCursorInitialPosition: (value: ReplayStyleConfig['cursorInitialPosition']) => void;
   setCursorClickAnimation: (value: ReplayStyleConfig['cursorClickAnimation']) => void;
@@ -25,12 +26,8 @@ export interface ReplayStyleController {
   isServerReady: boolean;
 }
 
-const serializePayload = (style: ReplayStyleConfig, extraConfig?: Record<string, unknown>) => {
-  if (!extraConfig) {
-    return JSON.stringify(style);
-  }
-  return JSON.stringify({ style, extraConfig });
-};
+const serializePayload = (style: ReplayStyleConfig, extraConfig?: Record<string, unknown>) =>
+  JSON.stringify({ version: style.version, style, extra: extraConfig ?? {} });
 
 export function useReplayStyle({ executionId, overrides, extraConfig }: UseReplayStyleParams = {}): ReplayStyleController {
   const initialStyle = useMemo(() => {
@@ -43,6 +40,11 @@ export function useReplayStyle({ executionId, overrides, extraConfig }: UseRepla
   const [isServerReady, setIsServerReady] = useState(false);
   const lastSyncedConfigRef = useRef<string | null>(null);
   const syncTimerRef = useRef<number | null>(null);
+  const overridesRef = useRef(overrides);
+
+  useEffect(() => {
+    overridesRef.current = overrides;
+  }, [overrides]);
 
   useEffect(() => {
     setStyleState((prev) => resolveReplayStyle({ stored: prev, overrides }));
@@ -56,9 +58,9 @@ export function useReplayStyle({ executionId, overrides, extraConfig }: UseRepla
         if (isCancelled || !payload) {
           return;
         }
-        lastSyncedConfigRef.current = serializePayload(payload.style, payload.extraConfig);
-        setServerExtraConfig(payload.extraConfig);
-        setStyleState((prev) => resolveReplayStyle({ stored: { ...prev, ...payload.style }, overrides }));
+        lastSyncedConfigRef.current = serializePayload(payload.style, payload.extra);
+        setServerExtraConfig(payload.extra);
+        setStyleState((prev) => resolveReplayStyle({ stored: { ...prev, ...payload.style }, overrides: overridesRef.current }));
       } catch (err) {
         logger.warn('Failed to load replay style from API', { component: 'ReplayStyle', executionId }, err);
       } finally {
@@ -70,7 +72,7 @@ export function useReplayStyle({ executionId, overrides, extraConfig }: UseRepla
     return () => {
       isCancelled = true;
     };
-  }, [executionId, extraConfig, overrides]);
+  }, [executionId]);
 
   useEffect(() => {
     writeReplayStyleToStorage(style);
@@ -122,9 +124,13 @@ export function useReplayStyle({ executionId, overrides, extraConfig }: UseRepla
     (value: ReplayStyleConfig['chromeTheme']) => setStyle({ chromeTheme: value }),
     [setStyle],
   );
-  const setBackgroundTheme = useCallback(
-    (value: ReplayStyleConfig['backgroundTheme']) => setStyle({ backgroundTheme: value }),
+  const setBackground = useCallback(
+    (value: ReplayBackgroundSource) => setStyle({ background: value }),
     [setStyle],
+  );
+  const setBackgroundTheme = useCallback(
+    (value: ReplayBackgroundTheme) => setBackground({ type: 'theme', id: value }),
+    [setBackground],
   );
   const setCursorTheme = useCallback(
     (value: ReplayStyleConfig['cursorTheme']) => setStyle({ cursorTheme: value }),
@@ -151,6 +157,7 @@ export function useReplayStyle({ executionId, overrides, extraConfig }: UseRepla
     style,
     setStyle,
     setChromeTheme,
+    setBackground,
     setBackgroundTheme,
     setCursorTheme,
     setCursorInitialPosition,
