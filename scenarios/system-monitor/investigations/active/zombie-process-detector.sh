@@ -7,8 +7,8 @@
 # OUTPUTS: json
 # AUTHOR: claude-agent
 # CREATED: 2025-09-11
-# LAST_MODIFIED: 2025-09-11
-# VERSION: 1.0
+# LAST_MODIFIED: 2025-12-22
+# VERSION: 1.1
 
 set -euo pipefail
 
@@ -41,14 +41,14 @@ echo "🧟 Starting Zombie Process Detection..."
 
 # Count and identify zombie processes
 echo "💀 Searching for zombie processes..."
-ZOMBIE_COUNT=$(ps aux | grep -c "<defunct>" || echo "0")
-ZOMBIE_LIST=$(ps aux | grep "<defunct>" | awk '{printf "{\"pid\":%s,\"ppid\":\"%s\",\"user\":\"%s\",\"command\":\"%s\"},", $2, "unknown", $1, $11}' | sed 's/,$//')
+ZOMBIE_COUNT=$(ps -eo stat= | awk '$1 ~ /Z/ {count++} END {print count+0}')
+ZOMBIE_LIST=$(ps -eo pid=,ppid=,user=,stat=,comm= | awk '$4 ~ /Z/ {printf "{\"pid\":%s,\"ppid\":%s,\"user\":\"%s\",\"command\":\"%s\"},", $1, $2, $3, $5}' | sed 's/,$//')
 
 # Get detailed zombie info with parent PIDs
 ZOMBIE_DETAILS=""
 if [[ ${ZOMBIE_COUNT} -gt 0 ]]; then
   echo "🔍 Analyzing zombie parent processes..."
-  for pid in $(ps aux | grep "<defunct>" | awk '{print $2}'); do
+  for pid in $(ps -eo pid=,stat= | awk '$2 ~ /Z/ {print $1}'); do
     if [[ -e /proc/${pid}/stat ]]; then
       PARENT_PID=$(awk '{print $4}' /proc/${pid}/stat 2>/dev/null || echo "unknown")
       PARENT_CMD=$(ps -p ${PARENT_PID} -o comm= 2>/dev/null || echo "unknown")
@@ -79,9 +79,9 @@ echo "🔍 Analyzing patterns..."
 PATTERN_DATA="{"
 
 # Check for common zombie patterns
-PYTHON_ZOMBIES=$(ps aux | grep "<defunct>" | grep -c "python" || echo "0")
-SHELL_ZOMBIES=$(ps aux | grep "<defunct>" | grep -c "sh\\|bash" || echo "0")
-NODE_ZOMBIES=$(ps aux | grep "<defunct>" | grep -c "node" || echo "0")
+PYTHON_ZOMBIES=$(ps -eo stat=,comm= | awk '$1 ~ /Z/ && tolower($2) ~ /python/ {count++} END {print count+0}')
+SHELL_ZOMBIES=$(ps -eo stat=,comm= | awk '$1 ~ /Z/ && tolower($2) ~ /(sh|bash)/ {count++} END {print count+0}')
+NODE_ZOMBIES=$(ps -eo stat=,comm= | awk '$1 ~ /Z/ && tolower($2) ~ /node/ {count++} END {print count+0}')
 
 PATTERN_DATA="${PATTERN_DATA}\"python_zombies\":${PYTHON_ZOMBIES},"
 PATTERN_DATA="${PATTERN_DATA}\"shell_zombies\":${SHELL_ZOMBIES},"
@@ -108,7 +108,7 @@ if [[ ${PYTHON_ZOMBIES} -gt 5 ]]; then
 fi
 
 # Check for init as parent (orphaned zombies)
-INIT_ZOMBIES=$(ps aux | grep "<defunct>" | awk '$3 == 1' | wc -l || echo "0")
+INIT_ZOMBIES=$(ps -eo ppid=,stat= | awk '$2 ~ /Z/ && $1 == 1 {count++} END {print count+0}')
 if [[ ${INIT_ZOMBIES} -gt 0 ]]; then
   RECOMMENDATIONS="${RECOMMENDATIONS}\"${INIT_ZOMBIES} zombies orphaned to init - original parent crashed\","
 fi

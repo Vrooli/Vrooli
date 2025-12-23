@@ -224,8 +224,11 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 	// Build command arguments for codex exec --json
 	args := r.buildJSONArgs(req)
 
-	// Create command using direct codex CLI
-	cmd := exec.CommandContext(ctx, r.codexCLIPath, args...)
+	// Create command using direct codex CLI.
+	// Prefix with env to surface the tag in the process command line for reconciler detection.
+	tag := req.GetTag()
+	envArgs := append([]string{fmt.Sprintf("CODEX_AGENT_TAG=%s", tag), r.codexCLIPath}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
 	cmd.Dir = req.WorkingDir
 
 	// Set environment
@@ -374,8 +377,8 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error) {
 	startTime := time.Now()
 
-	// Build command arguments - use "run" subcommand with stdin
-	args := []string{"run", "-"}
+	// Build command arguments - use "run" subcommand with stdin and tag for process tracking
+	args := []string{"run", "--tag", req.GetTag(), "-"}
 
 	// Create command using resource-codex
 	cmd := exec.CommandContext(ctx, r.binaryPath, args...)

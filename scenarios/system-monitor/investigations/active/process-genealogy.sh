@@ -7,8 +7,8 @@
 # OUTPUTS: json
 # AUTHOR: claude-agent
 # CREATED: 2025-09-11
-# LAST_MODIFIED: 2025-09-11
-# VERSION: 1.0
+# LAST_MODIFIED: 2025-12-22
+# VERSION: 1.2
 
 set -euo pipefail
 
@@ -37,15 +37,19 @@ echo "🧬 Starting Process Genealogy Analysis..."
 # Find processes with many children
 echo "👨‍👩‍👧‍👦 Finding prolific parent processes..."
 PARENT_COUNTS=$(timeout ${TIMEOUT_SECONDS} ps -eo ppid | sort | uniq -c | sort -rn | head -20 | awk 'NR>1 && $1>5 {printf "{\"ppid\":%s,\"child_count\":%d},", $2, $1}' | sed 's/,$//')
-
+PARENT_COUNTS_JSON=""
 if [[ -n "${PARENT_COUNTS}" ]]; then
-  jq ".top_spawners = [${PARENT_COUNTS}]" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
+  PARENT_COUNTS_JSON="[${PARENT_COUNTS}]"
+fi
+
+if [[ -n "${PARENT_COUNTS_JSON}" ]]; then
+  jq ".top_spawners = ${PARENT_COUNTS_JSON}" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
 fi
 
 # Analyze process families for specific patterns
 echo "🔍 Analyzing process families..."
 FAMILIES=""
-for ppid in $(echo "${PARENT_COUNTS}" | jq -r '.[].ppid' 2>/dev/null || echo ""); do
+for ppid in $(echo "${PARENT_COUNTS_JSON}" | jq -r '.[].ppid' 2>/dev/null || echo ""); do
   if [[ -n "${ppid}" && "${ppid}" =~ ^[0-9]+$ && "${ppid}" != "0" ]]; then
     # Get parent process info
     PARENT_INFO=$(timeout 5 ps -p "${ppid}" -o pid,comm,args --no-headers 2>/dev/null | head -1 || echo "")
@@ -79,7 +83,14 @@ IDENTICAL_CHILDREN=$(timeout 15 ps -eo ppid,comm | awk '{print $1 ":" $2}' | sor
 SYSTEM_TOOL_ABUSE=$(ps aux | awk '$11 ~ /^(lsof|find|grep|awk)$/ {print $11}' | sort | uniq -c | sort -rn | awk '$1 > 10 {printf "{\"pattern\":\"tool_abuse\",\"command\":\"%s\",\"count\":%d},", $2, $1}' | sed 's/,$//')
 
 # Check for containers spawning excessive workers
-CONTAINER_WORKERS=$(timeout 10 ps aux | grep -E "(rake|worker|celery)" | wc -l || echo "0")
+CONTAINER_WORKERS=$(timeout 10 ps -eo comm=,args= | awk '
+  {
+    line=tolower($0)
+    if (line ~ /(rake|celery)/) {count++}
+    else if (line ~ /worker/ && line !~ /(kworker|kthread_worker|rcu_exp)/) {count++}
+  }
+  END {print count+0}
+' || echo "0")
 if [[ ${CONTAINER_WORKERS} -gt 50 ]]; then
   SUSPICIOUS="${SUSPICIOUS}{\"pattern\":\"excessive_workers\",\"count\":${CONTAINER_WORKERS}},"
 fi
@@ -101,7 +112,7 @@ echo "💡 Generating recommendations..."
 RECOMMENDATIONS=""
 
 # Check for systemd/init as top spawner (normal)
-TOP_SPAWNER_PID=$(echo "${PARENT_COUNTS}" | jq -r '.[0].ppid' 2>/dev/null || echo "")
+TOP_SPAWNER_PID=$(echo "${PARENT_COUNTS_JSON}" | jq -r '.[0].ppid' 2>/dev/null || echo "")
 if [[ -n "${TOP_SPAWNER_PID}" && "${TOP_SPAWNER_PID}" != "1" ]]; then
   TOP_SPAWNER_CMD=$(ps -p "${TOP_SPAWNER_PID}" -o comm --no-headers 2>/dev/null || echo "unknown")
   RECOMMENDATIONS="${RECOMMENDATIONS}\"Investigate process ${TOP_SPAWNER_PID} (${TOP_SPAWNER_CMD}) - unusual top spawner\","

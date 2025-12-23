@@ -7,8 +7,8 @@
 # OUTPUTS: json
 # AUTHOR: claude-agent
 # CREATED: 2025-09-11
-# LAST_MODIFIED: 2025-09-11
-# VERSION: 1.0
+# LAST_MODIFIED: 2025-12-22
+# VERSION: 1.2
 trap 'status=$?; if [[ $status -eq 141 ]]; then exit 0; fi' EXIT
 
 set -euo pipefail
@@ -44,11 +44,13 @@ echo "💾 Starting Disk I/O Analysis..."
 
 # Disk Usage Analysis
 echo "📊 Analyzing disk usage..."
-DISK_USAGE=$(df -h | awk 'NR>1 && $5 ~ /%/ {
+set +o pipefail
+DISK_USAGE=$(df -h 2>/dev/null | awk 'NR>1 && $5 ~ /%/ {
   gsub("%", "", $5);
   printf "{\"filesystem\":\"%s\",\"size\":\"%s\",\"used\":\"%s\",\"available\":\"%s\",\"use_percent\":%d,\"mount\":\"%s\"},",
          $1, $2, $3, $4, $5, $6
 }' | sed 's/,$//')
+set -o pipefail
 
 if [[ -n "${DISK_USAGE}" ]]; then
   jq ".disk_usage = [${DISK_USAGE}]" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
@@ -56,13 +58,15 @@ fi
 
 # Find Large Files
 echo "🔍 Finding large files..."
-LARGE_FILES=$(timeout ${TIMEOUT_SECONDS} find /home /tmp /var/log -type f -size +100M 2>/dev/null | head -20 | while read -r file; do
+set +o pipefail
+LARGE_FILES=$( (timeout ${TIMEOUT_SECONDS} find /home /tmp /var/log -type f -size +100M 2>/dev/null || true) | head -20 | while read -r file; do
   if [[ -f "${file}" ]]; then
     SIZE=$(du -h "${file}" 2>/dev/null | cut -f1)
     FILE_ESC=$(echo "${file}" | sed 's/"/\\"/g')
     printf "{\"path\":\"%s\",\"size\":\"%s\"}," "${FILE_ESC}" "${SIZE}"
   fi
 done | sed 's/,$//')
+set -o pipefail
 
 if [[ -n "${LARGE_FILES}" ]]; then
   jq ".large_files = [${LARGE_FILES}]" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
@@ -70,7 +74,8 @@ fi
 
 # Find Recently Modified Large Files (potentially growing)
 echo "📈 Finding growing files..."
-GROWING_FILES=$(timeout ${TIMEOUT_SECONDS} find /var/log /tmp -type f -mmin -60 -size +10M 2>/dev/null | head -10 | while read -r file; do
+set +o pipefail
+GROWING_FILES=$( (timeout ${TIMEOUT_SECONDS} find /var/log /tmp -type f -mmin -60 -size +10M 2>/dev/null || true) | head -10 | while read -r file; do
   if [[ -f "${file}" ]]; then
     SIZE=$(du -h "${file}" 2>/dev/null | cut -f1)
     MTIME=$(stat -c %y "${file}" 2>/dev/null | cut -d. -f1)
@@ -78,6 +83,7 @@ GROWING_FILES=$(timeout ${TIMEOUT_SECONDS} find /var/log /tmp -type f -mmin -60 
     printf "{\"path\":\"%s\",\"size\":\"%s\",\"modified\":\"%s\"}," "${FILE_ESC}" "${SIZE}" "${MTIME}"
   fi
 done | sed 's/,$//')
+set -o pipefail
 
 if [[ -n "${GROWING_FILES}" ]]; then
   jq ".growing_files = [${GROWING_FILES}]" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
@@ -85,24 +91,32 @@ fi
 
 # I/O Statistics
 echo "⚡ Gathering I/O statistics..."
-IOSTAT_DATA=$(timeout 5 iostat -x 1 2 2>/dev/null | tail -n +4 | awk '
-  NR>1 && $1 != "" {
-    if ($1 != "Device" && $1 != "avg-cpu:") {
-      total_io += $4 + $5;
-      total_await += $10;
-      device_count++;
-      if ($14 > max_util) {
-        max_util = $14;
-        max_util_device = $1;
+IOSTAT_DATA="{}"
+IOSTAT_NOTE=""
+if command -v iostat >/dev/null 2>&1; then
+  set +o pipefail
+  IOSTAT_DATA=$(timeout 5 iostat -x 1 2 2>/dev/null | tail -n +4 | awk '
+    NR>1 && $1 != "" {
+      if ($1 != "Device" && $1 != "avg-cpu:") {
+        total_io += $4 + $5;
+        total_await += $10;
+        device_count++;
+        if ($14 > max_util) {
+          max_util = $14;
+          max_util_device = $1;
+        }
       }
     }
-  }
-  END {
-    avg_await = device_count > 0 ? total_await / device_count : 0;
-    printf "{\"total_io_per_sec\":%.2f,\"avg_await_ms\":%.2f,\"max_util_percent\":%.2f,\"busiest_device\":\"%s\"}",
-           total_io, avg_await, max_util, max_util_device
-  }
-')
+    END {
+      avg_await = device_count > 0 ? total_await / device_count : 0;
+      printf "{\"total_io_per_sec\":%.2f,\"avg_await_ms\":%.2f,\"max_util_percent\":%.2f,\"busiest_device\":\"%s\"}",
+             total_io, avg_await, max_util, max_util_device
+    }
+  ')
+  set -o pipefail
+else
+  IOSTAT_NOTE="iostat command unavailable - I/O stats skipped"
+fi
 
 if [[ -n "${IOSTAT_DATA}" && "${IOSTAT_DATA}" != "{}" ]]; then
   jq ".io_stats = ${IOSTAT_DATA}" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
@@ -164,13 +178,17 @@ fi
 
 # I/O performance recommendations
 MAX_UTIL=$(echo "${IOSTAT_DATA}" | jq '.max_util_percent' 2>/dev/null || echo "0")
-if (( $(echo "${MAX_UTIL} > 80" | bc -l) )); then
+if awk "BEGIN {exit !(${MAX_UTIL:-0} > 80)}"; then
   RECOMMENDATIONS="${RECOMMENDATIONS}\"High disk utilization detected - investigate I/O bottlenecks\","
 fi
 
 # Swap recommendations
 if [[ -n "${SWAP_USAGE}" && ${SWAP_USAGE} -gt 20 ]]; then
   RECOMMENDATIONS="${RECOMMENDATIONS}\"Swap usage at ${SWAP_USAGE}% - increase memory or optimize applications\","
+fi
+
+if [[ -n "${IOSTAT_NOTE}" ]]; then
+  RECOMMENDATIONS="${RECOMMENDATIONS}\"${IOSTAT_NOTE}\","
 fi
 
 RECOMMENDATIONS=$(echo "${RECOMMENDATIONS}" | sed 's/,$//')

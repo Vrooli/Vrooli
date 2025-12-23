@@ -126,8 +126,11 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 	// Correct syntax: resource-opencode run run <message> --format json
 	args := r.buildArgs(req)
 
-	// Create command using resource-opencode
-	cmd := exec.CommandContext(ctx, r.binaryPath, args...)
+	// Create command using resource-opencode.
+	// Prefix with env to surface the tag in the process command line for reconciler detection.
+	tag := req.GetTag()
+	envArgs := append([]string{fmt.Sprintf("OPENCODE_AGENT_TAG=%s", tag), r.binaryPath}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
 	if req.WorkingDir != "" {
 		cmd.Dir = req.WorkingDir
 	}

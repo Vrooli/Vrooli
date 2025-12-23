@@ -320,20 +320,61 @@ func (t *Terminator) findProcessPID(tag string) int {
 	cmd := exec.Command("pgrep", "-f", tag)
 	output, err := cmd.Output()
 	if err != nil {
-		return 0
+		return t.findProcessPIDByEnvTag(tag)
 	}
 
 	// Get first PID if multiple
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(lines) == 0 || lines[0] == "" {
-		return 0
+		return t.findProcessPIDByEnvTag(tag)
 	}
 
 	pid, err := strconv.Atoi(lines[0])
 	if err != nil {
-		return 0
+		return t.findProcessPIDByEnvTag(tag)
 	}
 	return pid
+}
+
+func (t *Terminator) findProcessPIDByEnvTag(tag string) int {
+	if pid := findProcessPIDByRunnerEnvTag("codex", tag); pid != 0 {
+		return pid
+	}
+	if pid := findProcessPIDByRunnerEnvTag("opencode", tag); pid != 0 {
+		return pid
+	}
+	return 0
+}
+
+func findProcessPIDByRunnerEnvTag(runnerName, tag string) int {
+	cmd := exec.Command("pgrep", "-af", runnerName)
+	output, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) < 2 {
+			continue
+		}
+
+		pid, err := strconv.Atoi(parts[0])
+		if err != nil {
+			continue
+		}
+
+		if extractTagFromEnv(pid) == tag {
+			return pid
+		}
+	}
+
+	return 0
 }
 
 // trySIGTERM sends SIGTERM to a process.

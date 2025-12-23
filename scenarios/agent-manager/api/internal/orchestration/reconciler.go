@@ -358,9 +358,47 @@ func (r *Reconciler) scanForProcess(tag string) bool {
 	output, err := cmd.Output()
 	if err != nil {
 		// pgrep returns exit code 1 if no processes found
+		return r.scanForProcessByEnvTag(tag)
+	}
+	if strings.TrimSpace(string(output)) != "" {
+		return true
+	}
+	return r.scanForProcessByEnvTag(tag)
+}
+
+func (r *Reconciler) scanForProcessByEnvTag(tag string) bool {
+	return r.scanRunnerProcessesByEnvTag("codex", tag) || r.scanRunnerProcessesByEnvTag("opencode", tag)
+}
+
+func (r *Reconciler) scanRunnerProcessesByEnvTag(runnerName, tag string) bool {
+	cmd := exec.Command("pgrep", "-af", runnerName)
+	output, err := cmd.Output()
+	if err != nil {
 		return false
 	}
-	return strings.TrimSpace(string(output)) != ""
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) < 2 {
+			continue
+		}
+
+		pid, err := strconv.Atoi(parts[0])
+		if err != nil {
+			continue
+		}
+
+		if extractTagFromEnv(pid) == tag {
+			return true
+		}
+	}
+
+	return false
 }
 
 // OrphanProcess represents a process that's running but not tracked in the database.
@@ -458,6 +496,15 @@ func (r *Reconciler) scanRunnerProcesses(runnerName string, knownTags map[string
 func extractTagFromCommand(command string) string {
 	parts := strings.Fields(command)
 	for i, part := range parts {
+		if strings.HasPrefix(part, "CODEX_AGENT_TAG=") {
+			return strings.TrimPrefix(part, "CODEX_AGENT_TAG=")
+		}
+		if strings.HasPrefix(part, "OPENCODE_AGENT_TAG=") {
+			return strings.TrimPrefix(part, "OPENCODE_AGENT_TAG=")
+		}
+		if strings.HasPrefix(part, "AGENT_TAG=") {
+			return strings.TrimPrefix(part, "AGENT_TAG=")
+		}
 		if part == "--tag" && i+1 < len(parts) {
 			return parts[i+1]
 		}
@@ -468,6 +515,27 @@ func extractTagFromCommand(command string) string {
 	return ""
 }
 
+func extractTagFromEnv(pid int) string {
+	envPath := fmt.Sprintf("/proc/%d/environ", pid)
+	data, err := os.ReadFile(envPath)
+	if err != nil || len(data) == 0 {
+		return ""
+	}
+
+	for _, entry := range strings.Split(string(data), "\x00") {
+		if strings.HasPrefix(entry, "CODEX_AGENT_TAG=") {
+			return strings.TrimPrefix(entry, "CODEX_AGENT_TAG=")
+		}
+		if strings.HasPrefix(entry, "OPENCODE_AGENT_TAG=") {
+			return strings.TrimPrefix(entry, "OPENCODE_AGENT_TAG=")
+		}
+		if strings.HasPrefix(entry, "AGENT_TAG=") {
+			return strings.TrimPrefix(entry, "AGENT_TAG=")
+		}
+	}
+
+	return ""
+}
 // looksLikeAgentManagerTag checks if a tag looks like it was created by agent-manager.
 func looksLikeAgentManagerTag(tag string) bool {
 	// Check if it's a UUID
