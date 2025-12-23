@@ -14,17 +14,10 @@ import {
 } from 'lucide-react';
 import { useSettingsStore, BUILT_IN_PRESETS } from '@stores/settingsStore';
 import {
-  REPLAY_CHROME_OPTIONS,
   ReplayBackgroundSettings,
+  ReplayChromeSettings,
+  ReplayCursorSettings,
   ReplayPresentationModeSettings,
-  REPLAY_CURSOR_OPTIONS,
-  CURSOR_GROUP_ORDER,
-  REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
-  REPLAY_CURSOR_POSITIONS,
-  MAX_BROWSER_SCALE,
-  MIN_BROWSER_SCALE,
-  MAX_CURSOR_SCALE,
-  MIN_CURSOR_SCALE,
 } from '@/domains/replay-style';
 import type { CursorSpeedProfile, CursorPathStyle } from '@/domains/exports/replay/ReplayPlayer';
 import Tooltip from '@shared/ui/Tooltip';
@@ -123,14 +116,6 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
     deletePreset(presetId);
     setPresetToDelete(null);
   }, [deletePreset]);
-
-  // Group cursors
-  const groupedCursors = useMemo(() => {
-    return CURSOR_GROUP_ORDER.map((group) => ({
-      ...group,
-      options: REPLAY_CURSOR_OPTIONS.filter((c) => c.group === group.id),
-    }));
-  }, []);
 
   const activeDimensionPreset = useMemo(() => {
     return DIMENSION_PRESETS.find(
@@ -282,27 +267,13 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
       </SettingSection>
 
       <SettingSection title="Browser Chrome" tooltip="Choose how the browser window frame looks.">
-        <OptionGrid
-          options={REPLAY_CHROME_OPTIONS}
-          value={replay.chromeTheme}
-          onChange={(v) => setReplaySetting('chromeTheme', v)}
-          columns={4}
+        <ReplayChromeSettings
+          chromeTheme={replay.chromeTheme}
+          browserScale={replay.browserScale}
+          onChromeThemeChange={(v) => setReplaySetting('chromeTheme', v)}
+          onBrowserScaleChange={(next) => setReplaySetting('browserScale', next)}
+          variant="settings"
         />
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm text-gray-300">Browser size</label>
-            <span className="text-sm text-gray-400">{Math.round(replay.browserScale * 100)}%</span>
-          </div>
-          <RangeSlider
-            min={MIN_BROWSER_SCALE}
-            max={MAX_BROWSER_SCALE}
-            step={0.05}
-            value={replay.browserScale}
-            onChange={(next) => setReplaySetting('browserScale', next)}
-            ariaLabel="Browser size"
-          />
-          <p className="mt-2 text-xs text-gray-500">Scale how much of the replay canvas the browser frame occupies.</p>
-        </div>
       </SettingSection>
 
       <SettingSection title="Replay Dimensions" tooltip="Set the default canvas size for styled replays.">
@@ -389,52 +360,17 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
         </div>
       </SettingSection>
 
-      <SettingSection title="Cursor Style" tooltip="The virtual cursor shown during replay.">
-        <div className="space-y-4">
-          {groupedCursors.map((group) => (
-            <div key={group.id}>
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{group.label}</div>
-              <OptionGrid
-                options={group.options}
-                value={replay.cursorTheme}
-                onChange={(v) => setReplaySetting('cursorTheme', v)}
-                columns={3}
-              />
-            </div>
-          ))}
-        </div>
-      </SettingSection>
-
-      <SettingSection title="Cursor Size" tooltip="Scale the cursor size.">
-        <div className="flex items-center gap-4">
-          <RangeSlider
-            min={MIN_CURSOR_SCALE}
-            max={MAX_CURSOR_SCALE}
-            step={0.1}
-            value={replay.cursorScale}
-            onChange={(next) => setReplaySetting('cursorScale', next)}
-            ariaLabel="Cursor size"
-            className="flex-1"
-          />
-          <span className="text-sm text-gray-400 w-12 text-right">{(replay.cursorScale * 100).toFixed(0)}%</span>
-        </div>
-      </SettingSection>
-
-      <SettingSection title="Click Animation" tooltip="Adds visual emphasis when the cursor clicks.">
-        <OptionGrid
-          options={REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS}
-          value={replay.cursorClickAnimation}
-          onChange={(v) => setReplaySetting('cursorClickAnimation', v)}
-          columns={3}
-        />
-      </SettingSection>
-
-      <SettingSection title="Initial Cursor Position" tooltip="Where the cursor appears at the start." defaultOpen={false}>
-        <OptionGrid
-          options={REPLAY_CURSOR_POSITIONS}
-          value={replay.cursorInitialPosition}
-          onChange={(v) => setReplaySetting('cursorInitialPosition', v)}
-          columns={3}
+      <SettingSection title="Cursor" tooltip="Style the virtual cursor shown during replay.">
+        <ReplayCursorSettings
+          cursorTheme={replay.cursorTheme}
+          cursorInitialPosition={replay.cursorInitialPosition}
+          cursorClickAnimation={replay.cursorClickAnimation}
+          cursorScale={replay.cursorScale}
+          onCursorThemeChange={(v) => setReplaySetting('cursorTheme', v)}
+          onCursorInitialPositionChange={(v) => setReplaySetting('cursorInitialPosition', v)}
+          onCursorClickAnimationChange={(v) => setReplaySetting('cursorClickAnimation', v)}
+          onCursorScaleChange={(next) => setReplaySetting('cursorScale', next)}
+          variant="settings"
         />
       </SettingSection>
 
