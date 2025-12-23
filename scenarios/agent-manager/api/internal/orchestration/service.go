@@ -661,11 +661,31 @@ func (o *Orchestrator) ListTasks(ctx context.Context, opts ListOptions) ([]*doma
 }
 
 func (o *Orchestrator) UpdateTask(ctx context.Context, task *domain.Task) (*domain.Task, error) {
-	task.UpdatedAt = time.Now()
-	if err := o.tasks.Update(ctx, task); err != nil {
+	if task == nil {
+		return nil, domain.NewValidationError("task", "cannot be nil")
+	}
+
+	existing, err := o.tasks.Get(ctx, task.ID)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, domain.NewNotFoundError("Task", task.ID)
+	}
+
+	// Preserve immutable/system-managed fields.
+	updated := *existing
+	updated.Title = task.Title
+	updated.Description = task.Description
+	updated.ScopePath = task.ScopePath
+	updated.ProjectRoot = task.ProjectRoot
+	updated.ContextAttachments = task.ContextAttachments
+	updated.UpdatedAt = time.Now()
+
+	if err := o.tasks.Update(ctx, &updated); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
-	return task, nil
+	return &updated, nil
 }
 
 func (o *Orchestrator) CancelTask(ctx context.Context, id uuid.UUID) error {

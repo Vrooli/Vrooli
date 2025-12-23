@@ -73,7 +73,7 @@ message AgentProfile {
 
   // Ordered list of fallback runners to try if the primary is unavailable.
   // Empty disables automatic fallback.
-  repeated RunnerType fallback_runner_types = 22 [(buf.validate.field).enum = {defined_only: true}];
+  repeated RunnerType fallback_runner_types = 22;
 
   // Tools the agent is allowed to use.
   // Empty means use runner defaults.

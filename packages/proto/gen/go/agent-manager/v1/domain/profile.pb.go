@@ -761,7 +761,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xca\b\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xc0\b\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -777,8 +777,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\fmodel_preset\x18\x13 \x01(\x0e2\x1d.agent_manager.v1.ModelPresetR\vmodelPreset\x12'\n" +
 	"\tmax_turns\x18\x06 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x00R\bmaxTurns\x123\n" +
-	"\atimeout\x18\a \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12Z\n" +
-	"\x15fallback_runner_types\x18\x16 \x03(\x0e2\x1c.agent_manager.v1.RunnerTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x13fallbackRunnerTypes\x12#\n" +
+	"\atimeout\x18\a \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12P\n" +
+	"\x15fallback_runner_types\x18\x16 \x03(\x0e2\x1c.agent_manager.v1.RunnerTypeR\x13fallbackRunnerTypes\x12#\n" +
 	"\rallowed_tools\x18\b \x03(\tR\fallowedTools\x12!\n" +
 	"\fdenied_tools\x18\t \x03(\tR\vdeniedTools\x124\n" +
 	"\x16skip_permission_prompt\x18\n" +
