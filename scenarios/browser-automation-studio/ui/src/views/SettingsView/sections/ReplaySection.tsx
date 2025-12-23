@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
+import clsx from 'clsx';
 import {
   Sparkles,
   HelpCircle,
@@ -26,6 +27,9 @@ import {
   REPLAY_CURSOR_POSITIONS,
   getReplayBackgroundThemeId,
   DEFAULT_REPLAY_GRADIENT_SPEC,
+  buildGradientCss,
+  normalizeGradientStops,
+  parseGradientCss,
   MAX_BROWSER_SCALE,
   MIN_BROWSER_SCALE,
   MAX_CURSOR_SCALE,
@@ -123,6 +127,9 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
     fit: 'cover',
   });
   const [showBackgroundAssetPicker, setShowBackgroundAssetPicker] = useState(false);
+  const [gradientMode, setGradientMode] = useState<'simple' | 'advanced'>('simple');
+  const [gradientCssDraft, setGradientCssDraft] = useState('');
+  const [gradientCssError, setGradientCssError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isInitialized) {
@@ -171,12 +178,27 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
   const backgroundMode: ReplayBackgroundSource['type'] = replay.background.type;
   const gradientSpec =
     replay.background.type === 'gradient' ? replay.background.value : DEFAULT_REPLAY_GRADIENT_SPEC;
-  const gradientStopA = gradientSpec.stops[0] ?? DEFAULT_REPLAY_GRADIENT_SPEC.stops[0];
-  const gradientStopB = gradientSpec.stops[gradientSpec.stops.length - 1] ?? DEFAULT_REPLAY_GRADIENT_SPEC.stops[1];
+  const gradientStops = useMemo(
+    () => normalizeGradientStops(gradientSpec.stops),
+    [gradientSpec.stops],
+  );
+  const gradientType = gradientSpec.type ?? 'linear';
+  const gradientCenter = gradientSpec.center ?? { x: 50, y: 50 };
+  const gradientAngle =
+    gradientSpec.type === 'linear' && typeof gradientSpec.angle === 'number'
+      ? gradientSpec.angle
+      : DEFAULT_REPLAY_GRADIENT_SPEC.angle ?? 135;
 
   const applyGradientSpec = useCallback(
     (next: ReplayGradientSpec) => {
-      setReplaySetting('background', { type: 'gradient', value: next });
+      setReplaySetting('background', {
+        type: 'gradient',
+        value: {
+          ...next,
+          type: next.type ?? 'linear',
+          stops: normalizeGradientStops(next.stops),
+        },
+      });
     },
     [setReplaySetting],
   );
@@ -202,6 +224,87 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
     }
     return assets.find((asset) => asset.id === assetId) ?? null;
   }, [assets, replay.background]);
+
+  useEffect(() => {
+    if (backgroundMode !== 'gradient' || gradientMode !== 'advanced') {
+      return;
+    }
+    setGradientCssDraft(
+      buildGradientCss({
+        type: gradientType,
+        angle: gradientType === 'linear' ? gradientAngle : undefined,
+        center: gradientType === 'radial' ? gradientCenter : undefined,
+        stops: gradientStops,
+      }),
+    );
+    setGradientCssError(null);
+  }, [backgroundMode, gradientAngle, gradientCenter, gradientMode, gradientStops, gradientType]);
+
+  const baseGradientSpec: ReplayGradientSpec = {
+    type: gradientType,
+    angle: gradientType === 'linear' ? gradientAngle : undefined,
+    center: gradientType === 'radial' ? gradientCenter : undefined,
+    stops: gradientStops,
+  };
+
+  const handleGradientTypeChange = (value: 'linear' | 'radial') => {
+    applyGradientSpec({
+      ...baseGradientSpec,
+      type: value,
+      angle: value === 'linear' ? gradientAngle : undefined,
+      center: value === 'radial' ? gradientCenter : undefined,
+    });
+  };
+
+  const handleGradientStopChange = (
+    index: number,
+    update: Partial<{ color: string; position: number }>,
+  ) => {
+    const nextStops = gradientStops.map((stop, stopIndex) =>
+      stopIndex === index
+        ? {
+            ...stop,
+            ...update,
+          }
+        : stop,
+    );
+    applyGradientSpec({ ...baseGradientSpec, stops: nextStops });
+  };
+
+  const handleAddGradientStop = () => {
+    if (gradientStops.length >= 4) {
+      return;
+    }
+    const last = gradientStops[gradientStops.length - 1];
+    const prev = gradientStops[gradientStops.length - 2];
+    const position = prev && last
+      ? Math.round(((prev.position ?? 0) + (last.position ?? 100)) / 2)
+      : 50;
+    const nextStops = [...gradientStops];
+    nextStops.splice(Math.max(1, nextStops.length - 1), 0, {
+      color: last?.color ?? '#ffffff',
+      position,
+    });
+    applyGradientSpec({ ...baseGradientSpec, stops: nextStops });
+  };
+
+  const handleRemoveGradientStop = (index: number) => {
+    if (gradientStops.length <= 2) {
+      return;
+    }
+    const nextStops = gradientStops.filter((_, stopIndex) => stopIndex !== index);
+    applyGradientSpec({ ...baseGradientSpec, stops: nextStops });
+  };
+
+  const handleApplyGradientCss = () => {
+    const parsed = parseGradientCss(gradientCssDraft);
+    if (!parsed) {
+      setGradientCssError('Enter a valid linear or radial CSS gradient.');
+      return;
+    }
+    setGradientCssError(null);
+    applyGradientSpec(parsed);
+  };
 
   // Group cursors
   const groupedCursors = useMemo(() => {
@@ -471,7 +574,7 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
             </button>
             <button
               type="button"
-              onClick={() => applyGradientSpec(gradientSpec)}
+              onClick={() => applyGradientSpec(baseGradientSpec)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                 backgroundMode === 'gradient'
                   ? 'bg-flow-accent text-white'
@@ -511,60 +614,214 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
 
           {backgroundMode === 'gradient' && (
             <div className="space-y-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-              <div className="flex items-center justify-between text-xs text-gray-400">
-                <span>Gradient angle</span>
-                <span>{Math.round(gradientSpec.angle ?? 135)}°</span>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs uppercase tracking-[0.24em] text-gray-400">
+                  Gradient editor
+                </span>
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setGradientMode('simple')}
+                    className={clsx(
+                      'rounded-full px-3 py-1.5 font-medium transition-colors',
+                      gradientMode === 'simple'
+                        ? 'bg-flow-accent text-white'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700',
+                    )}
+                  >
+                    Simple
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGradientMode('advanced')}
+                    className={clsx(
+                      'rounded-full px-3 py-1.5 font-medium transition-colors',
+                      gradientMode === 'advanced'
+                        ? 'bg-flow-accent text-white'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700',
+                    )}
+                  >
+                    Advanced
+                  </button>
+                </div>
               </div>
-              <RangeSlider
-                min={0}
-                max={360}
-                step={5}
-                value={gradientSpec.angle ?? 135}
-                onChange={(value) =>
-                  applyGradientSpec({
-                    ...gradientSpec,
-                    angle: value,
-                  })
-                }
-                ariaLabel="Gradient angle"
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <label className="text-xs text-gray-400 flex flex-col gap-1">
-                  Start color
-                  <input
-                    type="color"
-                    value={gradientStopA.color}
-                    onChange={(event) =>
-                      applyGradientSpec({
-                        ...gradientSpec,
-                        stops: [
-                          { color: event.target.value, position: 0 },
-                          { color: gradientStopB.color, position: 100 },
-                        ],
-                      })
-                    }
-                    className="h-10 w-full rounded-lg border border-gray-700 bg-gray-800 p-1"
+
+              {gradientMode === 'simple' ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleGradientTypeChange('linear')}
+                      className={clsx(
+                        'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                        gradientType === 'linear'
+                          ? 'bg-flow-accent text-white'
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700',
+                      )}
+                    >
+                      Linear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleGradientTypeChange('radial')}
+                      className={clsx(
+                        'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                        gradientType === 'radial'
+                          ? 'bg-flow-accent text-white'
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700',
+                      )}
+                    >
+                      Radial
+                    </button>
+                  </div>
+
+                  {gradientType === 'linear' ? (
+                    <div>
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <span>Gradient angle</span>
+                        <span>{Math.round(gradientAngle)}°</span>
+                      </div>
+                      <RangeSlider
+                        min={0}
+                        max={360}
+                        step={5}
+                        value={gradientAngle}
+                        onChange={(value) =>
+                          applyGradientSpec({
+                            ...baseGradientSpec,
+                            type: 'linear',
+                            angle: value,
+                            center: undefined,
+                          })
+                        }
+                        ariaLabel="Gradient angle"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <span>Gradient center</span>
+                        <span>
+                          {Math.round(gradientCenter.x)}% / {Math.round(gradientCenter.y)}%
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="text-xs text-gray-400 flex flex-col gap-1">
+                          X position
+                          <RangeSlider
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={gradientCenter.x}
+                            onChange={(value) =>
+                              applyGradientSpec({
+                                ...baseGradientSpec,
+                                type: 'radial',
+                                center: { ...gradientCenter, x: value },
+                              })
+                            }
+                            ariaLabel="Radial center X"
+                          />
+                        </label>
+                        <label className="text-xs text-gray-400 flex flex-col gap-1">
+                          Y position
+                          <RangeSlider
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={gradientCenter.y}
+                            onChange={(value) =>
+                              applyGradientSpec({
+                                ...baseGradientSpec,
+                                type: 'radial',
+                                center: { ...gradientCenter, y: value },
+                              })
+                            }
+                            ariaLabel="Radial center Y"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-gray-400">
+                      <span>Stops</span>
+                      <span>{gradientStops.length} / 4</span>
+                    </div>
+                    <div className="space-y-2">
+                      {gradientStops.map((stop, index) => (
+                        <div key={`gradient-stop-${index}`} className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={stop.color}
+                            onChange={(event) =>
+                              handleGradientStopChange(index, { color: event.target.value })
+                            }
+                            className="h-9 w-10 rounded-lg border border-gray-700 bg-gray-800 p-1"
+                          />
+                          <RangeSlider
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={stop.position ?? 0}
+                            onChange={(value) =>
+                              handleGradientStopChange(index, { position: value })
+                            }
+                            ariaLabel={`Gradient stop ${index + 1} position`}
+                            className="flex-1"
+                          />
+                          <span className="w-10 text-right text-xs text-gray-400">
+                            {Math.round(stop.position ?? 0)}%
+                          </span>
+                          {gradientStops.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveGradientStop(index)}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-700 text-gray-400 hover:text-white"
+                              aria-label="Remove gradient stop"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddGradientStop}
+                      disabled={gradientStops.length >= 4}
+                      className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-xs text-gray-300 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Add stop
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-xs text-gray-400">CSS gradient</label>
+                  <textarea
+                    value={gradientCssDraft}
+                    onChange={(event) => setGradientCssDraft(event.target.value)}
+                    rows={3}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-flow-accent/50"
+                    placeholder="linear-gradient(135deg, #38bdf8 0%, #818cf8 100%)"
                   />
-                </label>
-                <label className="text-xs text-gray-400 flex flex-col gap-1">
-                  End color
-                  <input
-                    type="color"
-                    value={gradientStopB.color}
-                    onChange={(event) =>
-                      applyGradientSpec({
-                        ...gradientSpec,
-                        stops: [
-                          { color: gradientStopA.color, position: 0 },
-                          { color: event.target.value, position: 100 },
-                        ],
-                      })
-                    }
-                    className="h-10 w-full rounded-lg border border-gray-700 bg-gray-800 p-1"
-                  />
-                </label>
-              </div>
-              <p className="text-xs text-gray-500">Gradients use two anchor colors. More controls can be added later.</p>
+                  {gradientCssError && (
+                    <p className="text-xs text-rose-300">{gradientCssError}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleApplyGradientCss}
+                    className="w-full rounded-lg bg-flow-accent px-3 py-2 text-xs font-medium text-white shadow-[0_12px_35px_rgba(59,130,246,0.35)]"
+                  >
+                    Apply CSS
+                  </button>
+                  <p className="text-xs text-gray-500">
+                    Supports linear-gradient and radial-gradient syntax.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

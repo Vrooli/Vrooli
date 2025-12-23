@@ -52,8 +52,9 @@ export interface ReplayGradientStop {
 }
 
 export interface ReplayGradientSpec {
-  type?: 'linear';
+  type: 'linear' | 'radial';
   angle?: number;
+  center?: { x: number; y: number };
   stops: ReplayGradientStop[];
 }
 
@@ -172,6 +173,7 @@ const normalizeGradientSpec = (value: unknown): ReplayGradientSpec | null => {
     return null;
   }
   const spec = value as Record<string, unknown>;
+  const type = readString(spec, ['type', 'kind']);
   const rawStops = spec.stops;
   const stops = Array.isArray(rawStops)
     ? rawStops.map(normalizeGradientStop).filter(Boolean)
@@ -180,9 +182,19 @@ const normalizeGradientSpec = (value: unknown): ReplayGradientSpec | null => {
     return null;
   }
   const angle = readNumber(spec, ['angle', 'rotation']);
+  const centerObject = readObject(spec, ['center', 'origin']);
+  const centerX = centerObject ? readNumber(centerObject, ['x', 'left']) : readNumber(spec, ['centerX', 'center_x']);
+  const centerY = centerObject ? readNumber(centerObject, ['y', 'top']) : readNumber(spec, ['centerY', 'center_y']);
+  const normalizedType = type === 'radial' ? 'radial' : 'linear';
+  const clampPercent = (value: number): number => Math.min(100, Math.max(0, value));
+  const center =
+    normalizedType === 'radial' && typeof centerX === 'number' && typeof centerY === 'number'
+      ? { x: clampPercent(centerX), y: clampPercent(centerY) }
+      : undefined;
   return {
-    type: 'linear',
-    angle: typeof angle === 'number' ? angle : undefined,
+    type: normalizedType,
+    angle: normalizedType === 'linear' && typeof angle === 'number' ? angle : undefined,
+    center,
     stops: stops as ReplayGradientStop[],
   };
 };
