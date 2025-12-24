@@ -32,6 +32,11 @@ func (d *OverlayfsDriver) Type() DriverType {
 	return DriverTypeOverlayfs
 }
 
+// BaseDir returns the configured base directory for sandboxes.
+func (d *OverlayfsDriver) BaseDir() string {
+	return d.config.BaseDir
+}
+
 // Version returns the driver version.
 func (d *OverlayfsDriver) Version() string {
 	return "1.0"

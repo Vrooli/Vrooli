@@ -91,6 +91,11 @@ func (m *Manager) Config() Config {
 	return m.config
 }
 
+// BaseDir returns the configured base directory for sandboxes.
+func (m *Manager) BaseDir() string {
+	return m.config.BaseDir
+}
+
 // --- Driver Interface Implementation ---
 // All Driver methods are proxied to the current driver.
 

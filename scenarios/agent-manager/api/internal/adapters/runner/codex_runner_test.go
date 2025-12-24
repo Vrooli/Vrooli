@@ -40,6 +40,10 @@ var codexSamples = map[string]string{
 	"turn.completed": `{"type":"turn.completed","usage":{"input_tokens":12810,"cached_input_tokens":12416,"output_tokens":83}}`,
 
 	"error": `{"type":"error","error":{"code":"RATE_LIMIT","message":"Rate limit exceeded, please try again later"}}`,
+
+	"data_prefix_tool_call": `data: {"type":"item.started","item":{"id":"item_3","type":"tool_call","name":"bash","input":{"command":"ls -la"}}}`,
+	"command_execution_started": `{"type":"item.started","item":{"id":"item_4","type":"command_execution","command":"/bin/bash -lc \"echo test\"","aggregated_output":"","exit_code":null,"status":"in_progress"}}`,
+	"command_execution_completed": `{"type":"item.completed","item":{"id":"item_4","type":"command_execution","command":"/bin/bash -lc \"echo test\"","aggregated_output":"test\n","exit_code":0,"status":"completed"}}`,
 }
 
 // =============================================================================
@@ -278,6 +282,62 @@ func TestCodexRunner_ParseStreamEvent_TurnCompleted(t *testing.T) {
 	// Check model is set
 	if costData.Model != "o4-mini" {
 		t.Errorf("Model = %s, want o4-mini", costData.Model)
+	}
+}
+
+func TestCodexRunner_ParseStreamEvent_DataPrefixToolCall(t *testing.T) {
+	runner := &CodexRunner{}
+	runID := uuid.New()
+
+	event := runner.parseCodexStreamEvent(runID, codexSamples["data_prefix_tool_call"])
+
+	if event == nil {
+		t.Fatal("expected non-nil event")
+	}
+	if event.EventType != domain.EventTypeToolCall {
+		t.Errorf("EventType = %s, want %s", event.EventType, domain.EventTypeToolCall)
+	}
+}
+
+func TestCodexRunner_ParseStreamEvent_CommandExecutionStarted(t *testing.T) {
+	runner := &CodexRunner{}
+	runID := uuid.New()
+
+	event := runner.parseCodexStreamEvent(runID, codexSamples["command_execution_started"])
+
+	if event == nil {
+		t.Fatal("expected non-nil event")
+	}
+	if event.EventType != domain.EventTypeToolCall {
+		t.Errorf("EventType = %s, want %s", event.EventType, domain.EventTypeToolCall)
+	}
+	toolData, ok := event.Data.(*domain.ToolCallEventData)
+	if !ok {
+		t.Fatalf("expected ToolCallEventData, got %T", event.Data)
+	}
+	if toolData.ToolName != "bash" {
+		t.Errorf("ToolName = %s, want bash", toolData.ToolName)
+	}
+}
+
+func TestCodexRunner_ParseStreamEvent_CommandExecutionCompleted(t *testing.T) {
+	runner := &CodexRunner{}
+	runID := uuid.New()
+
+	event := runner.parseCodexStreamEvent(runID, codexSamples["command_execution_completed"])
+
+	if event == nil {
+		t.Fatal("expected non-nil event")
+	}
+	if event.EventType != domain.EventTypeToolResult {
+		t.Errorf("EventType = %s, want %s", event.EventType, domain.EventTypeToolResult)
+	}
+	toolData, ok := event.Data.(*domain.ToolResultEventData)
+	if !ok {
+		t.Fatalf("expected ToolResultEventData, got %T", event.Data)
+	}
+	if toolData.ToolName != "bash" {
+		t.Errorf("ToolName = %s, want bash", toolData.ToolName)
 	}
 }
 

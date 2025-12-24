@@ -295,7 +295,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		result.Summary = &domain.RunSummary{
 			Description:  lastAssistantMessage,
 			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   metrics.TokensInput + metrics.TokensOutput,
+			TokensUsed:   TotalTokens(metrics),
 			CostEstimate: metrics.CostEstimateUSD,
 		}
 	}
@@ -921,6 +921,8 @@ func (r *ClaudeCodeRunner) updateMetrics(event *domain.RunEvent, metrics *Execut
 		// Update detailed token counts and cost
 		metrics.TokensInput = data.InputTokens
 		metrics.TokensOutput = data.OutputTokens
+		metrics.CacheReadTokens = data.CacheReadTokens
+		metrics.CacheCreationTokens = data.CacheCreationTokens
 		metrics.CostEstimateUSD = data.TotalCostUSD
 	case *domain.RateLimitEventData:
 		// Rate limit detected - this will cause execution to fail

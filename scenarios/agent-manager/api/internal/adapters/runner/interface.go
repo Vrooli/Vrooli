@@ -145,11 +145,18 @@ type ExecuteResult struct {
 
 // ExecutionMetrics contains statistics about the execution.
 type ExecutionMetrics struct {
-	TurnsUsed       int
-	TokensInput     int
-	TokensOutput    int
-	ToolCallCount   int
-	CostEstimateUSD float64
+	TurnsUsed           int
+	TokensInput         int
+	TokensOutput        int
+	CacheReadTokens     int
+	CacheCreationTokens int
+	ToolCallCount       int
+	CostEstimateUSD     float64
+}
+
+// TotalTokens returns total tokens used, including cache tokens.
+func TotalTokens(metrics ExecutionMetrics) int {
+	return metrics.TokensInput + metrics.TokensOutput + metrics.CacheReadTokens + metrics.CacheCreationTokens
 }
 
 // -----------------------------------------------------------------------------

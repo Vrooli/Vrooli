@@ -238,11 +238,13 @@ func TestExecuteResult_FailureCase(t *testing.T) {
 
 func TestExecutionMetrics_Fields(t *testing.T) {
 	metrics := runner.ExecutionMetrics{
-		TurnsUsed:       15,
-		TokensInput:     10000,
-		TokensOutput:    2000,
-		ToolCallCount:   25,
-		CostEstimateUSD: 0.15,
+		TurnsUsed:           15,
+		TokensInput:         10000,
+		TokensOutput:        2000,
+		CacheReadTokens:     300,
+		CacheCreationTokens: 150,
+		ToolCallCount:       25,
+		CostEstimateUSD:     0.15,
 	}
 
 	if metrics.TurnsUsed != 15 {
@@ -253,6 +255,12 @@ func TestExecutionMetrics_Fields(t *testing.T) {
 	}
 	if metrics.TokensOutput != 2000 {
 		t.Errorf("TokensOutput = %d, want 2000", metrics.TokensOutput)
+	}
+	if metrics.CacheReadTokens != 300 {
+		t.Errorf("CacheReadTokens = %d, want 300", metrics.CacheReadTokens)
+	}
+	if metrics.CacheCreationTokens != 150 {
+		t.Errorf("CacheCreationTokens = %d, want 150", metrics.CacheCreationTokens)
 	}
 	if metrics.ToolCallCount != 25 {
 		t.Errorf("ToolCallCount = %d, want 25", metrics.ToolCallCount)
@@ -273,6 +281,12 @@ func TestExecutionMetrics_ZeroValues(t *testing.T) {
 	}
 	if metrics.TokensOutput != 0 {
 		t.Errorf("TokensOutput = %d, want 0", metrics.TokensOutput)
+	}
+	if metrics.CacheReadTokens != 0 {
+		t.Errorf("CacheReadTokens = %d, want 0", metrics.CacheReadTokens)
+	}
+	if metrics.CacheCreationTokens != 0 {
+		t.Errorf("CacheCreationTokens = %d, want 0", metrics.CacheCreationTokens)
 	}
 }
 

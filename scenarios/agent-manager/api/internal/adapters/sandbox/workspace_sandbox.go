@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -529,7 +530,7 @@ func (r *wsDiffResponse) toDiffResult(sandboxID uuid.UUID) *DiffResult {
 	return &DiffResult{
 		SandboxID:   sandboxID,
 		Files:       files,
-		UnifiedDiff: r.UnifiedDiff,
+		UnifiedDiff: filterUnifiedDiff(r.UnifiedDiff),
 		Generated:   time.Now(),
 		Stats: DiffStats{
 			FilesChanged:  r.Stats.FilesChanged,
@@ -542,6 +543,57 @@ func (r *wsDiffResponse) toDiffResult(sandboxID uuid.UUID) *DiffResult {
 			TotalBytes:    r.Stats.TotalBytes,
 		},
 	}
+}
+
+func filterUnifiedDiff(diff string) string {
+	trimmed := strings.TrimSpace(diff)
+	if trimmed == "" {
+		return diff
+	}
+
+	sections := strings.Split(diff, "diff --git ")
+	if len(sections) <= 1 {
+		return diff
+	}
+
+	var output strings.Builder
+	prefix := sections[0]
+	if prefix != "" {
+		output.WriteString(prefix)
+	}
+
+	for _, section := range sections[1:] {
+		lines := strings.Split(section, "\n")
+		if isDirectoryDiff(lines) {
+			continue
+		}
+		if output.Len() > 0 && !strings.HasSuffix(output.String(), "\n") {
+			output.WriteString("\n")
+		}
+		output.WriteString("diff --git ")
+		output.WriteString(section)
+	}
+
+	return output.String()
+}
+
+func isDirectoryDiff(lines []string) bool {
+	hasHunk := false
+	for _, line := range lines {
+		if strings.HasPrefix(line, "@@") {
+			hasHunk = true
+			break
+		}
+	}
+	if hasHunk {
+		return false
+	}
+	for _, line := range lines {
+		if strings.HasPrefix(line, "new file mode 040") || strings.HasPrefix(line, "deleted file mode 040") {
+			return true
+		}
+	}
+	return false
 }
 
 type wsApproveResponse struct {

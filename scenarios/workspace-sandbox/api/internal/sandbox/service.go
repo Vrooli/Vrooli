@@ -2,6 +2,7 @@ package sandbox
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -634,24 +635,27 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}
 
-	// ASSUMPTION: UpperDir is set when sandbox was created
-	// GUARD: Fail with clear message if this invariant is violated
-	if sandbox.UpperDir == "" {
-		return nil, &types.ValidationError{
-			Field:   "upperDir",
-			Message: "sandbox upper directory not initialized (internal error)",
-			Hint:    "This indicates the sandbox was not properly created. Delete and recreate it.",
-		}
+	if err := s.ensureDiffPaths(ctx, sandbox); err != nil {
+		return nil, err
 	}
 
-	// ASSUMPTION: LowerDir is set (required for diff generation)
-	// GUARD: Check this as well for completeness
-	if sandbox.LowerDir == "" {
-		return nil, &types.ValidationError{
-			Field:   "lowerDir",
-			Message: "sandbox lower directory not initialized (internal error)",
-			Hint:    "This indicates the sandbox was not properly created. Delete and recreate it.",
+	if err := s.ensureDiffDirectories(sandbox); err != nil {
+		if errors.Is(err, errMissingUpperDir) {
+			if sandbox.Status == types.StatusError {
+				return &types.DiffResult{
+					SandboxID:   sandbox.ID,
+					Files:       []*types.FileChange{},
+					UnifiedDiff: "",
+					Generated:   time.Now(),
+				}, nil
+			}
+			return nil, &types.ValidationError{
+				Field:   "upperDir",
+				Message: "sandbox upper directory missing on disk",
+				Hint:    "Sandbox data may have been cleaned up. Delete and recreate the sandbox.",
+			}
 		}
+		return nil, err
 	}
 
 	// Get changed files from driver
@@ -659,6 +663,7 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 	if err != nil {
 		return nil, types.NewDriverError("getChangedFiles", err)
 	}
+	changes = filterDiffChanges(changes)
 
 	// Calculate and update sandbox size metrics from the changes
 	var totalSizeBytes int64
@@ -690,6 +695,178 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 	// Generate unified diff
 	gen := diff.NewGenerator()
 	return gen.GenerateDiff(ctx, sandbox, changes)
+}
+
+var errMissingUpperDir = errors.New("sandbox upper directory missing")
+
+func (s *Service) ensureDiffDirectories(sandbox *types.Sandbox) error {
+	if sandbox.UpperDir == "" {
+		return errMissingUpperDir
+	}
+	if _, err := os.Stat(sandbox.UpperDir); err != nil {
+		if os.IsNotExist(err) {
+			return errMissingUpperDir
+		}
+		return &types.ValidationError{
+			Field:   "upperDir",
+			Message: "unable to access sandbox upper directory",
+			Hint:    fmt.Sprintf("Check permissions for %s", sandbox.UpperDir),
+		}
+	}
+	if sandbox.LowerDir == "" {
+		return &types.ValidationError{
+			Field:   "lowerDir",
+			Message: "sandbox lower directory not initialized (internal error)",
+			Hint:    "This indicates the sandbox was not properly created. Delete and recreate it.",
+		}
+	}
+	if _, err := os.Stat(sandbox.LowerDir); err != nil {
+		if os.IsNotExist(err) {
+			return &types.ValidationError{
+				Field:   "lowerDir",
+				Message: "sandbox lower directory missing on disk",
+				Hint:    "Project root may have moved or been deleted.",
+			}
+		}
+		return &types.ValidationError{
+			Field:   "lowerDir",
+			Message: "unable to access sandbox lower directory",
+			Hint:    fmt.Sprintf("Check permissions for %s", sandbox.LowerDir),
+		}
+	}
+	return nil
+}
+
+func (s *Service) ensureDiffPaths(ctx context.Context, sandbox *types.Sandbox) error {
+	updated := s.inferMountPaths(sandbox)
+	if updated {
+		// Best effort to persist recovered paths for future operations.
+		_ = s.repo.Update(ctx, sandbox)
+	}
+
+	if sandbox.UpperDir == "" {
+		return &types.ValidationError{
+			Field:   "upperDir",
+			Message: "sandbox upper directory not initialized (internal error)",
+			Hint:    "This indicates the sandbox was not properly created. Delete and recreate it.",
+		}
+	}
+
+	if sandbox.LowerDir == "" {
+		return &types.ValidationError{
+			Field:   "lowerDir",
+			Message: "sandbox lower directory not initialized (internal error)",
+			Hint:    "This indicates the sandbox was not properly created. Delete and recreate it.",
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) inferMountPaths(sandbox *types.Sandbox) bool {
+	updated := false
+	if sandbox == nil {
+		return false
+	}
+
+	if baseDir := s.driverBaseDir(); baseDir != "" {
+		updated = applyPathsFromBaseDir(sandbox, baseDir) || updated
+	}
+	updated = applyPathsFromExistingDirs(sandbox) || updated
+	return updated
+}
+
+func (s *Service) driverBaseDir() string {
+	type baseDirProvider interface {
+		BaseDir() string
+	}
+	if provider, ok := s.driver.(baseDirProvider); ok {
+		return provider.BaseDir()
+	}
+	return ""
+}
+
+func applyPathsFromBaseDir(sandbox *types.Sandbox, baseDir string) bool {
+	if baseDir == "" || sandbox.ID == uuid.Nil {
+		return false
+	}
+	root := filepath.Join(baseDir, sandbox.ID.String())
+	return applyDerivedPaths(sandbox, root)
+}
+
+func applyPathsFromExistingDirs(sandbox *types.Sandbox) bool {
+	root := ""
+	switch {
+	case sandbox.MergedDir != "":
+		root = filepath.Dir(sandbox.MergedDir)
+	case sandbox.WorkDir != "":
+		root = filepath.Dir(sandbox.WorkDir)
+	case strings.HasSuffix(sandbox.LowerDir, string(filepath.Separator)+"original"):
+		root = filepath.Dir(sandbox.LowerDir)
+	}
+	if root == "" {
+		return false
+	}
+	return applyDerivedPaths(sandbox, root)
+}
+
+func applyDerivedPaths(sandbox *types.Sandbox, root string) bool {
+	updated := false
+	switch sandbox.Driver {
+	case string(driver.DriverTypeCopy):
+		if sandbox.LowerDir == "" {
+			sandbox.LowerDir = filepath.Join(root, "original")
+			updated = true
+		}
+		if sandbox.UpperDir == "" {
+			sandbox.UpperDir = filepath.Join(root, "workspace")
+			updated = true
+		}
+		if sandbox.WorkDir == "" {
+			sandbox.WorkDir = filepath.Join(root, "meta")
+			updated = true
+		}
+		if sandbox.MergedDir == "" {
+			sandbox.MergedDir = filepath.Join(root, "workspace")
+			updated = true
+		}
+	default:
+		if sandbox.UpperDir == "" {
+			sandbox.UpperDir = filepath.Join(root, "upper")
+			updated = true
+		}
+		if sandbox.WorkDir == "" {
+			sandbox.WorkDir = filepath.Join(root, "work")
+			updated = true
+		}
+		if sandbox.MergedDir == "" {
+			sandbox.MergedDir = filepath.Join(root, "merged")
+			updated = true
+		}
+		if sandbox.LowerDir == "" && sandbox.ScopePath != "" {
+			sandbox.LowerDir = sandbox.ScopePath
+			updated = true
+		}
+	}
+	return updated
+}
+
+func filterDiffChanges(changes []*types.FileChange) []*types.FileChange {
+	if len(changes) == 0 {
+		return changes
+	}
+	filtered := make([]*types.FileChange, 0, len(changes))
+	for _, change := range changes {
+		if change == nil {
+			continue
+		}
+		cleanPath := filepath.Clean(change.FilePath)
+		if cleanPath == ".git" || strings.HasPrefix(cleanPath, ".git"+string(filepath.Separator)) {
+			continue
+		}
+		filtered = append(filtered, change)
+	}
+	return filtered
 }
 
 func getApprovablePrefixesRelToScope(sandbox *types.Sandbox, req *types.ApprovalRequest) ([]string, error) {

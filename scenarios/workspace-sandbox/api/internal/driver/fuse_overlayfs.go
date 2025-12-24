@@ -46,6 +46,11 @@ func (d *FuseOverlayfsDriver) Type() DriverType {
 	return DriverTypeFuseOverlayfs
 }
 
+// BaseDir returns the configured base directory for sandboxes.
+func (d *FuseOverlayfsDriver) BaseDir() string {
+	return d.config.BaseDir
+}
+
 // Version returns the driver version.
 func (d *FuseOverlayfsDriver) Version() string {
 	// Try to get fuse-overlayfs version

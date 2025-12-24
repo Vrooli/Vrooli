@@ -223,6 +223,7 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 
 	// Parse streaming JSON output
 	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -269,6 +270,14 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 				_ = req.EventSink.Emit(event)
 			}
 		}
+	}
+
+	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID,
+			"warn",
+			fmt.Sprintf("OpenCode output scan error: %v", scanErr),
+		))
 	}
 
 	// If step finished but process is still running, terminate it gracefully
@@ -321,10 +330,16 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 	} else {
 		result.Success = true
 		result.ExitCode = 0
+		if lastAssistantMessage == "" {
+			lastAssistantMessage = "OpenCode completed without assistant message."
+			if req.EventSink != nil {
+				_ = req.EventSink.Emit(domain.NewMessageEvent(req.RunID, "assistant", lastAssistantMessage))
+			}
+		}
 		result.Summary = &domain.RunSummary{
 			Description:  lastAssistantMessage,
 			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   metrics.TokensInput + metrics.TokensOutput,
+			TokensUsed:   TotalTokens(metrics),
 			CostEstimate: metrics.CostEstimateUSD,
 		}
 	}
@@ -568,11 +583,31 @@ func (r *OpenCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*dom
 		return nil, nil
 	}
 
+	if line[0] == '[' {
+		var streamEvents []OpenCodeStreamEvent
+		if err := json.Unmarshal([]byte(line), &streamEvents); err != nil {
+			return nil, domain.NewInternalError("invalid opencode JSON", err)
+		}
+		events := []*domain.RunEvent{}
+		for _, streamEvent := range streamEvents {
+			parsed, err := r.parseOpenCodeStreamEvent(runID, streamEvent)
+			if err != nil {
+				return nil, err
+			}
+			events = append(events, parsed...)
+		}
+		return events, nil
+	}
+
 	var streamEvent OpenCodeStreamEvent
 	if err := json.Unmarshal([]byte(line), &streamEvent); err != nil {
 		return nil, domain.NewInternalError("invalid opencode JSON", err)
 	}
 
+	return r.parseOpenCodeStreamEvent(runID, streamEvent)
+}
+
+func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent OpenCodeStreamEvent) ([]*domain.RunEvent, error) {
 	// Handle error events
 	if streamEvent.Error != nil {
 		code := streamEvent.Error.Code
@@ -840,13 +875,17 @@ func (r *OpenCodeRunner) parseStepFinishEvent(runID uuid.UUID, part *OpenCodePar
 // extractAssistantMessage tries to extract the final assistant message from step_finish.
 // OpenCode stores the complete assistant response in the Snapshot field.
 func (r *OpenCodeRunner) extractAssistantMessage(runID uuid.UUID, part *OpenCodePart) *domain.RunEvent {
-	// Check Snapshot field - contains the full assistant response
-	if part.Snapshot != "" {
-		return domain.NewMessageEvent(runID, "assistant", part.Snapshot)
-	}
-	// Fallback to Text field
+	// Prefer text or output if available.
 	if part.Text != "" {
 		return domain.NewMessageEvent(runID, "assistant", part.Text)
+	}
+	if part.Output != "" {
+		return domain.NewMessageEvent(runID, "assistant", part.Output)
+	}
+
+	// Snapshot sometimes contains a hash instead of content.
+	if part.Snapshot != "" && !isLikelyHash(part.Snapshot) {
+		return domain.NewMessageEvent(runID, "assistant", part.Snapshot)
 	}
 	return nil
 }
@@ -914,6 +953,24 @@ func (r *OpenCodeRunner) updateMetrics(event *domain.RunEvent, metrics *Executio
 	case *domain.CostEventData:
 		metrics.TokensInput = data.InputTokens
 		metrics.TokensOutput = data.OutputTokens
+		metrics.CacheReadTokens = data.CacheReadTokens
+		metrics.CacheCreationTokens = data.CacheCreationTokens
 		metrics.CostEstimateUSD = data.TotalCostUSD
 	}
+}
+
+func isLikelyHash(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return false
+	}
+	if len(trimmed) != 40 && len(trimmed) != 64 {
+		return false
+	}
+	for _, r := range trimmed {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
 }

@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -827,6 +828,11 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		runMode = domain.RunModeInPlace
 	}
 
+	if err := o.preflightScopePath(task, runMode, req.ExistingSandboxID); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+
 	existingSandboxWorkDir := ""
 	if req.ExistingSandboxID != nil {
 		if runMode != domain.RunModeSandboxed {
@@ -921,6 +927,48 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	go o.executeRun(context.Background(), run, task, profile, prompt, existingSandboxWorkDir)
 
 	return run, nil
+}
+
+func (o *Orchestrator) preflightScopePath(task *domain.Task, runMode domain.RunMode, existingSandboxID *uuid.UUID) error {
+	if runMode != domain.RunModeSandboxed || existingSandboxID != nil {
+		return nil
+	}
+
+	scopePath := strings.TrimSpace(task.ScopePath)
+	if scopePath == "" {
+		return domain.NewValidationError("scopePath", "field is required")
+	}
+
+	projectRoot := strings.TrimSpace(task.ProjectRoot)
+	if projectRoot == "" {
+		projectRoot = strings.TrimSpace(o.config.DefaultProjectRoot)
+	}
+	if projectRoot == "" && !filepath.IsAbs(scopePath) {
+		return domain.NewValidationErrorWithHint("projectRoot", "field is required for sandboxed run",
+			"set projectRoot on the task or configure defaultProjectRoot")
+	}
+
+	absScopePath := scopePath
+	if !filepath.IsAbs(absScopePath) && projectRoot != "" {
+		absScopePath = filepath.Join(projectRoot, absScopePath)
+	}
+	absScopePath = filepath.Clean(absScopePath)
+
+	info, err := os.Stat(absScopePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return domain.NewValidationErrorWithHint("scopePath", "scope path does not exist",
+				fmt.Sprintf("create the directory: %s", absScopePath))
+		}
+		return domain.NewValidationErrorWithHint("scopePath", "unable to stat scope path",
+			fmt.Sprintf("check permissions for %s", absScopePath))
+	}
+	if !info.IsDir() {
+		return domain.NewValidationErrorWithHint("scopePath", "scope path is not a directory",
+			fmt.Sprintf("scope path resolves to %s", absScopePath))
+	}
+
+	return nil
 }
 
 // markIdempotencyFailed marks an idempotency key as failed (allows retry).

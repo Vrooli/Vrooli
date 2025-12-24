@@ -65,6 +65,11 @@ func (d *CopyDriver) Type() DriverType {
 	return DriverTypeCopy
 }
 
+// BaseDir returns the configured base directory for sandboxes.
+func (d *CopyDriver) BaseDir() string {
+	return d.config.BaseDir
+}
+
 // Version returns the driver version.
 func (d *CopyDriver) Version() string {
 	return "1.0"

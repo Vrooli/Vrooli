@@ -32,6 +32,9 @@ var opencodeSamples = map[string]string{
 	// text event with assistant message
 	"text": `{"type":"text","timestamp":1766204180782,"sessionID":"ses_4c60708edffePbrrcxPKCtw2F7","part":{"id":"prt_b39f9090b0011AtJjxm1PHf6DA","sessionID":"ses_4c60708edffePbrrcxPKCtw2F7","messageID":"msg_b39f901df001NyR5rtDPoz6axQ","type":"text","text":"File created successfully.","time":{"start":1766204180781,"end":1766204180781}}}`,
 
+	// array with a single text event
+	"array_text": `[{"type":"text","timestamp":1766204180782,"sessionID":"ses_test_array","part":{"id":"prt_array","sessionID":"ses_test_array","messageID":"msg_array","type":"text","text":"Array message"}}]`,
+
 	// Error event
 	"error": `{"type":"error","timestamp":1766204200000,"sessionID":"ses_test","error":{"code":"rate_limit","message":"Rate limit exceeded"}}`,
 
@@ -159,6 +162,22 @@ func TestOpenCodeRunner_ParseStreamEvent_Text(t *testing.T) {
 	}
 	if msgData.Content != "File created successfully." {
 		t.Errorf("expected content 'File created successfully.', got '%s'", msgData.Content)
+	}
+}
+
+func TestOpenCodeRunner_ParseStreamEvent_ArrayText(t *testing.T) {
+	runner := &OpenCodeRunner{}
+	runID := uuid.New()
+
+	event, err := runner.parseStreamEvent(runID, opencodeSamples["array_text"])
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if event == nil {
+		t.Fatal("expected event, got nil")
+	}
+	if event.EventType != domain.EventTypeMessage {
+		t.Errorf("expected EventTypeMessage, got %v", event.EventType)
 	}
 }
 

@@ -50,6 +50,8 @@ type CodexItem struct {
 	Input    json.RawMessage   `json:"input,omitempty"`  // tool input
 	Output   string            `json:"output,omitempty"` // tool output
 	ExitCode *int              `json:"exit_code,omitempty"`
+	Command  string            `json:"command,omitempty"`
+	AggregatedOutput string    `json:"aggregated_output,omitempty"` // for command_execution items
 	Changes  []CodexFileChange `json:"changes,omitempty"` // for file_change items
 	Status   string            `json:"status,omitempty"`  // for file_change items (e.g., "completed")
 }
@@ -324,6 +326,7 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 
 	// Parse streaming JSON output
 	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -348,6 +351,14 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 				_ = req.EventSink.Emit(event)
 			}
 		}
+	}
+
+	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID,
+			"warn",
+			fmt.Sprintf("Codex output scan error: %v", scanErr),
+		))
 	}
 
 	// Wait for command to complete
@@ -381,7 +392,7 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 		result.Summary = &domain.RunSummary{
 			Description:  lastAssistantMessage,
 			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   metrics.TokensInput + metrics.TokensOutput,
+			TokensUsed:   TotalTokens(metrics),
 			CostEstimate: metrics.CostEstimateUSD,
 		}
 	}
@@ -692,6 +703,9 @@ func (r *CodexRunner) parseCodexStreamEvent(runID uuid.UUID, line string) *domai
 func (r *CodexRunner) parseCodexStreamEvents(runID uuid.UUID, line string) []*domain.RunEvent {
 	// Skip empty lines
 	line = strings.TrimSpace(line)
+	if strings.HasPrefix(line, "data:") {
+		line = strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+	}
 	if line == "" || line[0] != '{' {
 		return nil
 	}
@@ -721,68 +735,16 @@ func (r *CodexRunner) parseCodexStreamEvents(runID uuid.UUID, line string) []*do
 		}
 	}
 
+	if strings.HasPrefix(streamEvent.Type, "item.") && streamEvent.Item != nil {
+		return r.parseCodexItemEvents(runID, streamEvent.Item)
+	}
+
 	switch streamEvent.Type {
 	case "thread.started":
 		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Thread started: "+streamEvent.ThreadID)}
 
 	case "turn.started":
 		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Turn started")}
-
-	case "item.completed":
-		if streamEvent.Item != nil {
-			switch streamEvent.Item.Type {
-			case "agent_message":
-				if streamEvent.Item.Text != "" {
-					return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", streamEvent.Item.Text)}
-				}
-			case "reasoning":
-				// Codex outputs reasoning/thinking as a separate item type
-				if streamEvent.Item.Text != "" {
-					return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Reasoning: "+streamEvent.Item.Text)}
-				}
-			case "file_change":
-				// Codex uses file_change instead of tool_call for file operations
-				// Map this to a tool_call event for consistency
-				if len(streamEvent.Item.Changes) > 0 {
-					// Build input map with file change details
-					input := map[string]interface{}{
-						"status": streamEvent.Item.Status,
-					}
-					// Collect all file paths and their change kinds
-					files := make([]map[string]string, 0, len(streamEvent.Item.Changes))
-					for _, change := range streamEvent.Item.Changes {
-						files = append(files, map[string]string{
-							"path": change.Path,
-							"kind": change.Kind,
-						})
-					}
-					input["files"] = files
-					return []*domain.RunEvent{domain.NewToolCallEvent(runID, "file_change", input)}
-				}
-			case "tool_call":
-				var input map[string]interface{}
-				if streamEvent.Item.Input != nil {
-					_ = json.Unmarshal(streamEvent.Item.Input, &input)
-				}
-				return []*domain.RunEvent{domain.NewToolCallEvent(runID, streamEvent.Item.Name, input)}
-			case "tool_result":
-				var input map[string]interface{}
-				if streamEvent.Item.Input != nil {
-					_ = json.Unmarshal(streamEvent.Item.Input, &input)
-				}
-				if len(input) > 0 {
-					events = append(events, domain.NewToolCallEvent(runID, streamEvent.Item.Name, input))
-				}
-				events = append(events, domain.NewToolResultEvent(
-					runID,
-					streamEvent.Item.Name,
-					"", // Codex doesn't provide tool call IDs
-					streamEvent.Item.Output,
-					nil,
-				))
-				return events
-			}
-		}
 
 	case "turn.completed":
 		if streamEvent.Usage != nil {
@@ -811,6 +773,92 @@ func (r *CodexRunner) parseCodexStreamEvents(runID uuid.UUID, line string) []*do
 				streamEvent.Error.Message,
 				false,
 			)}
+		}
+	}
+
+	return nil
+}
+
+func (r *CodexRunner) parseCodexItemEvents(runID uuid.UUID, item *CodexItem) []*domain.RunEvent {
+	if item == nil {
+		return nil
+	}
+
+	switch item.Type {
+	case "agent_message":
+		if item.Text != "" {
+			return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", item.Text)}
+		}
+	case "reasoning":
+		// Codex outputs reasoning/thinking as a separate item type
+		if item.Text != "" {
+			return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Reasoning: "+item.Text)}
+		}
+	case "file_change":
+		// Codex uses file_change instead of tool_call for file operations
+		// Map this to a tool_call event for consistency
+		if len(item.Changes) > 0 {
+			// Build input map with file change details
+			input := map[string]interface{}{
+				"status": item.Status,
+			}
+			// Collect all file paths and their change kinds
+			files := make([]map[string]string, 0, len(item.Changes))
+			for _, change := range item.Changes {
+				files = append(files, map[string]string{
+					"path": change.Path,
+					"kind": change.Kind,
+				})
+			}
+			input["files"] = files
+			return []*domain.RunEvent{domain.NewToolCallEvent(runID, "file_change", input)}
+		}
+	case "tool_call":
+		var input map[string]interface{}
+		if item.Input != nil {
+			_ = json.Unmarshal(item.Input, &input)
+		}
+		return []*domain.RunEvent{domain.NewToolCallEvent(runID, item.Name, input)}
+	case "tool_result":
+		var input map[string]interface{}
+		if item.Input != nil {
+			_ = json.Unmarshal(item.Input, &input)
+		}
+		events := []*domain.RunEvent{}
+		if len(input) > 0 {
+			events = append(events, domain.NewToolCallEvent(runID, item.Name, input))
+		}
+		events = append(events, domain.NewToolResultEvent(
+			runID,
+			item.Name,
+			"", // Codex doesn't provide tool call IDs
+			item.Output,
+			nil,
+		))
+		return events
+	case "command_execution":
+		// Codex emits shell commands as command_execution items; map to bash tool events.
+		toolName := "bash"
+		if item.Status == "completed" {
+			var errMsg error
+			if item.ExitCode != nil && *item.ExitCode != 0 {
+				errMsg = fmt.Errorf("command exited with code %d", *item.ExitCode)
+			}
+			return []*domain.RunEvent{domain.NewToolResultEvent(
+				runID,
+				toolName,
+				"",
+				item.AggregatedOutput,
+				errMsg,
+			)}
+		}
+		if item.Command != "" {
+			input := map[string]interface{}{
+				"command":     item.Command,
+				"status":      item.Status,
+				"runner_tool": "command_execution",
+			}
+			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, input)}
 		}
 	}
 
@@ -855,6 +903,8 @@ func (r *CodexRunner) updateCodexMetrics(event *domain.RunEvent, metrics *Execut
 		// Track token breakdown and cost from CostEventData
 		metrics.TokensInput += data.InputTokens
 		metrics.TokensOutput += data.OutputTokens
+		metrics.CacheReadTokens += data.CacheReadTokens
+		metrics.CacheCreationTokens += data.CacheCreationTokens
 		metrics.CostEstimateUSD += data.TotalCostUSD
 	case *domain.MetricEventData:
 		// Legacy fallback for any MetricEventData that might still come through

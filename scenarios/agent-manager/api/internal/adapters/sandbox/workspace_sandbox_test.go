@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -154,7 +155,7 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 					"linesRemoved": 5,
 				},
 			},
-			"unifiedDiff": "--- a/src/main.go\n+++ b/src/main.go\n@@ -1,5 +1,10 @@\n+// Added line\n",
+			"unifiedDiff": "diff --git a/tmp b/tmp\nnew file mode 040755\n--- /dev/null\n+++ b/tmp\n\ndiff --git a/src/main.go b/src/main.go\n--- a/src/main.go\n+++ b/src/main.go\n@@ -1,5 +1,10 @@\n+// Added line\n",
 			"stats": map[string]interface{}{
 				"filesChanged":  1,
 				"filesAdded":    0,
@@ -184,6 +185,9 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 	}
 	if result.Stats.LinesAdded != 10 {
 		t.Errorf("expected 10 lines added, got %d", result.Stats.LinesAdded)
+	}
+	if strings.Contains(result.UnifiedDiff, "diff --git a/tmp b/tmp") {
+		t.Errorf("expected directory-only diff entry to be filtered out")
 	}
 }
 
