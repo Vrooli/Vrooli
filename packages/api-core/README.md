@@ -58,6 +58,40 @@ func callOtherScenario() {
 }
 ```
 
+### Testing with Static URLs
+
+For unit tests using `httptest.Server`, use `NewStaticResolver` to bypass CLI discovery:
+
+```go
+func TestMyClient(t *testing.T) {
+    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(http.StatusOK)
+    }))
+    defer server.Close()
+
+    resolver := discovery.NewStaticResolver(server.URL)
+    client := NewClient(resolver, server.Client())
+
+    // Test your client...
+}
+```
+
+This replaces the need for complex mocking of the `CommandRunner`:
+
+```go
+// Before: ~15 lines of URL parsing and CommandRunner mocking
+resolver := discovery.NewResolver(discovery.ResolverConfig{
+    Host:   host,
+    Scheme: parsed.Scheme,
+    CommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+        return []byte(port), nil
+    },
+})
+
+// After: 1 line
+resolver := discovery.NewStaticResolver(server.URL)
+```
+
 ## What Preflight Does
 
 The `preflight` package combines two critical startup checks:
@@ -236,4 +270,10 @@ func main() {
 
 ## Currently Using api-core
 
+**Preflight:**
 - `scenario-completeness-scoring` - Reference implementation
+
+**Discovery:**
+- `browser-automation-studio` - Discovers `test-genie`
+- `git-control-tower` - Discovers `workspace-sandbox`
+- `system-monitor` - Discovers `agent-manager`

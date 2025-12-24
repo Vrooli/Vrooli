@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"app-monitor-api/logger"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 // =============================================================================
@@ -450,7 +452,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	}
 
 	if result != nil && result.IssueID != "" {
-		if uiPort, err := resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "UI_PORT"); err == nil && uiPort > 0 {
+		if uiPort, err := discovery.ResolveScenarioPort(ctx, issueTrackerScenarioID, "UI_PORT"); err == nil && uiPort > 0 {
 			u := url.URL{
 				Path: fmt.Sprintf("/apps/%s/proxy/", url.PathEscape(issueTrackerScenarioID)),
 			}

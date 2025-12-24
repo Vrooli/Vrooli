@@ -279,6 +279,11 @@ message Execution {
   optional string correlation_id = 31;
   // Idempotency key for request deduplication.
   optional string request_id = 32;
+
+  // Resume chain fields for execution continuity.
+  // ID of the original execution this was resumed from (null if not a resume).
+  // @format uuid
+  optional string resumed_from = 40 [(buf.validate.field).string.uuid = true];
 }
 
 // =============================================================================

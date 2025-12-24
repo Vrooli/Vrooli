@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"app-monitor-api/logger"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 // =============================================================================
@@ -124,7 +126,7 @@ func (s *AppService) fetchScenarioIssues(ctx context.Context, appID, scenarioNam
 
 	trackerURL := ""
 	var baseURL *url.URL
-	if uiPort, err := resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "UI_PORT"); err == nil && uiPort > 0 {
+	if uiPort, err := discovery.ResolveScenarioPort(ctx, issueTrackerScenarioID, "UI_PORT"); err == nil && uiPort > 0 {
 		base := &url.URL{Path: fmt.Sprintf("/apps/%s/proxy/", url.PathEscape(issueTrackerScenarioID))}
 		params := base.Query()
 		params.Set("app_id", scenarioName)
@@ -242,7 +244,7 @@ func (s *AppService) buildAppIssuesSummary(entry *issueCacheEntry, fromCache, st
 // =============================================================================
 
 func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error) {
-	if port, err := resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "API_PORT"); err == nil && port > 0 {
+	if port, err := discovery.ResolveScenarioPort(ctx, issueTrackerScenarioID, "API_PORT"); err == nil && port > 0 {
 		return port, nil
 	} else if err != nil {
 		logger.Warn("failed to resolve app-issue-tracker port via CLI", err)
@@ -272,7 +274,7 @@ func (s *AppService) locateIssueTrackerAPIPort(ctx context.Context) (int, error)
 }
 
 func (s *AppService) locateScenarioAuditorAPIPort(ctx context.Context) (int, error) {
-	if port, err := resolveScenarioPortViaCLI(ctx, "scenario-auditor", "API_PORT"); err == nil && port > 0 {
+	if port, err := discovery.ResolveScenarioPort(ctx, "scenario-auditor", "API_PORT"); err == nil && port > 0 {
 		return port, nil
 	} else if err != nil {
 		logger.Warn("failed to resolve scenario-auditor port via CLI", err)
@@ -301,78 +303,3 @@ func (s *AppService) locateScenarioAuditorAPIPort(ctx context.Context) (int, err
 	return 0, fmt.Errorf("scenario-auditor is not running or API port not found (checked %d scenarios)", len(apps))
 }
 
-func resolveScenarioPortViaCLI(ctx context.Context, scenarioName, portLabel string) (int, error) {
-	port, err := executeScenarioPortCommand(ctx, scenarioName, portLabel)
-	if err == nil {
-		return port, nil
-	}
-
-	fallbackPorts, fallbackErr := executeScenarioPortList(ctx, scenarioName)
-	if fallbackErr == nil {
-		candidate := strings.ToUpper(strings.TrimSpace(portLabel))
-		if value, ok := fallbackPorts[candidate]; ok && value > 0 {
-			return value, nil
-		}
-	}
-
-	if fallbackErr != nil {
-		return 0, fmt.Errorf("%v; fallback error: %w", err, fallbackErr)
-	}
-
-	return 0, err
-}
-
-func executeScenarioPortCommand(ctx context.Context, scenarioName, portLabel string) (int, error) {
-	if isEmptyOrWhitespace(scenarioName) || isEmptyOrWhitespace(portLabel) {
-		return 0, errors.New("scenario and port labels are required")
-	}
-
-	output, err := executeVrooliCommand(ctx, 10*time.Second, "scenario", "port", scenarioName, portLabel)
-	if err != nil {
-		return 0, fmt.Errorf("failed to resolve %s port for %s: %w", portLabel, scenarioName, err)
-	}
-
-	return parsePortFromAny(strings.TrimSpace(string(output)))
-}
-
-func executeScenarioPortList(ctx context.Context, scenarioName string) (map[string]int, error) {
-	if isEmptyOrWhitespace(scenarioName) {
-		return nil, errors.New("scenario name is required")
-	}
-
-	output, err := executeVrooliCommand(ctx, 10*time.Second, "scenario", "port", scenarioName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list ports for %s: %w", scenarioName, err)
-	}
-
-	ports := make(map[string]int)
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, rawLine := range lines {
-		line := strings.TrimSpace(rawLine)
-		if line == "" {
-			continue
-		}
-
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		key := strings.ToUpper(strings.TrimSpace(parts[0]))
-		value := strings.TrimSpace(parts[1])
-		port, err := parsePortFromAny(value)
-		if err != nil {
-			continue
-		}
-
-		if port > 0 {
-			ports[key] = port
-		}
-	}
-
-	if len(ports) == 0 {
-		return nil, errors.New("no port mappings returned")
-	}
-
-	return ports, nil
-}

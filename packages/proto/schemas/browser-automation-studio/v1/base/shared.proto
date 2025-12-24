@@ -180,6 +180,10 @@ enum TriggerType {
   // Execution triggered by external webhook (e.g., GitHub, Stripe, etc.).
   // Associated TriggerMetadata.webhook_id identifies the webhook config.
   TRIGGER_TYPE_WEBHOOK = 4;
+
+  // Execution resumed from a previous failed/stopped execution.
+  // New execution is linked to original via resumed_from field.
+  TRIGGER_TYPE_RESUME = 5;
 }
 
 // StepStatus captures the lifecycle of an individual workflow step.

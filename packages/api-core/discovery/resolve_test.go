@@ -165,3 +165,120 @@ func TestResolveScenarioURLDefaultConvenience(t *testing.T) {
 		t.Fatalf("unexpected url: %q", url)
 	}
 }
+
+// ============================================================================
+// Static Resolver Tests
+// ============================================================================
+
+func TestNewStaticResolver(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewStaticResolver("http://127.0.0.1:12345")
+	url, err := resolver.ResolveScenarioURLDefault(context.Background(), "any-scenario")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if url != "http://127.0.0.1:12345" {
+		t.Fatalf("expected static URL, got %q", url)
+	}
+}
+
+func TestStaticResolverBypassesCLI(t *testing.T) {
+	t.Parallel()
+
+	cliCalled := false
+	resolver := NewResolver(ResolverConfig{
+		StaticBaseURL: "http://localhost:9999",
+		CommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			cliCalled = true
+			return []byte("8080"), nil
+		},
+	})
+
+	url, err := resolver.ResolveScenarioURL(context.Background(), "my-scenario", "API_PORT")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if url != "http://localhost:9999" {
+		t.Fatalf("expected static URL, got %q", url)
+	}
+	if cliCalled {
+		t.Fatal("CLI should not be called in static mode")
+	}
+}
+
+func TestStaticResolverExtractsPort(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewStaticResolver("http://127.0.0.1:12345")
+	port, err := resolver.ResolveScenarioPort(context.Background(), "any-scenario", "API_PORT")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if port != 12345 {
+		t.Fatalf("expected port 12345, got %d", port)
+	}
+}
+
+func TestStaticResolverDefaultPorts(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		url          string
+		expectedPort int
+	}{
+		{"http://localhost", 80},
+		{"https://localhost", 443},
+	}
+
+	for _, tc := range tests {
+		resolver := NewStaticResolver(tc.url)
+		port, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT")
+		if err != nil {
+			t.Fatalf("unexpected error for %q: %v", tc.url, err)
+		}
+		if port != tc.expectedPort {
+			t.Fatalf("expected port %d for %q, got %d", tc.expectedPort, tc.url, port)
+		}
+	}
+}
+
+func TestStaticResolverTrimsTrailingSlash(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewStaticResolver("http://localhost:8080/")
+	url, err := resolver.ResolveScenarioURLDefault(context.Background(), "my-scenario")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if url != "http://localhost:8080" {
+		t.Fatalf("expected trailing slash trimmed, got %q", url)
+	}
+}
+
+func TestStaticResolverIgnoresScenarioSlug(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewStaticResolver("http://test-server:5555")
+
+	// Empty slug should work in static mode
+	url, err := resolver.ResolveScenarioURL(context.Background(), "", "API_PORT")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if url != "http://test-server:5555" {
+		t.Fatalf("expected static URL, got %q", url)
+	}
+}
+
+func TestStaticResolverUnknownSchemeNoPort(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewStaticResolver("ftp://localhost")
+	_, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT")
+
+	var discoveryErr *Error
+	if !errors.As(err, &discoveryErr) || discoveryErr.Kind != ErrInvalidPort {
+		t.Fatalf("expected ErrInvalidPort for unknown scheme without port, got %v", err)
+	}
+}

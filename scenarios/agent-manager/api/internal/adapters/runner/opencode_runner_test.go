@@ -5,7 +5,10 @@
 package runner
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"agent-manager/internal/domain"
 
@@ -377,5 +380,49 @@ func TestOpenCodeRunner_UpdateMetrics(t *testing.T) {
 	}
 	if metrics.TokensOutput != 401 {
 		t.Errorf("expected TokensOutput 401, got %d", metrics.TokensOutput)
+	}
+}
+
+func TestExtractErrorMessage(t *testing.T) {
+	logs := `ERROR 2025-12-24T06:18:31 error={"error":{"message":"This request requires more credits"}} stream error`
+	msg := extractErrorMessage(logs)
+	if msg != "This request requires more credits" {
+		t.Fatalf("expected message extraction, got %q", msg)
+	}
+}
+
+func TestResolveOpenCodeLogError(t *testing.T) {
+	tmpDir := t.TempDir()
+	logDir := filepath.Join(tmpDir, "opencode", "log")
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	oldLog := filepath.Join(logDir, "2025-12-24T000000.log")
+	newLog := filepath.Join(logDir, "2025-12-24T010000.log")
+
+	if err := os.WriteFile(oldLog, []byte("no errors here"), 0o644); err != nil {
+		t.Fatalf("write old log: %v", err)
+	}
+	if err := os.WriteFile(newLog, []byte(`ERROR 2025-12-24T06:18:31 error={"error":{"message":"Insufficient credits"}} stream error`), 0o644); err != nil {
+		t.Fatalf("write new log: %v", err)
+	}
+
+	oldTime := time.Now().Add(-2 * time.Hour)
+	newTime := time.Now().Add(-1 * time.Hour)
+	if err := os.Chtimes(oldLog, oldTime, oldTime); err != nil {
+		t.Fatalf("chtime old log: %v", err)
+	}
+	if err := os.Chtimes(newLog, newTime, newTime); err != nil {
+		t.Fatalf("chtime new log: %v", err)
+	}
+
+	t.Setenv("OPENCODE_XDG_DATA_HOME", tmpDir)
+	t.Setenv("OPENCODE_DATA_DIR", "")
+	t.Setenv("VROOLI_ROOT", "")
+
+	msg := resolveOpenCodeLogError()
+	if msg != "Insufficient credits" {
+		t.Fatalf("expected newest log error, got %q", msg)
 	}
 }

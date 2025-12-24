@@ -10,8 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -325,6 +328,11 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			if errorMessage == "" {
 				errorMessage = exitErr.Error()
 			}
+			if fallback := resolveOpenCodeLogError(); errorMessage == "" || strings.Contains(errorMessage, "exit status") {
+				if fallback != "" {
+					errorMessage = fallback
+				}
+			}
 			result.ErrorMessage = errorMessage
 			if result.ExitCode != 0 && errorMessage != "" {
 				result.ErrorMessage = fmt.Sprintf("exit code %d: %s", result.ExitCode, errorMessage)
@@ -334,6 +342,11 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			result.ExitCode = -1
 			if errorMessage == "" {
 				errorMessage = err.Error()
+			}
+			if fallback := resolveOpenCodeLogError(); errorMessage == "" || strings.Contains(errorMessage, "exit status") {
+				if fallback != "" {
+					errorMessage = fallback
+				}
 			}
 			result.ErrorMessage = errorMessage
 		}
@@ -379,6 +392,111 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 
 	return result, nil
 }
+
+func resolveOpenCodeLogError() string {
+	logDir := openCodeLogDir()
+	if logDir == "" {
+		return ""
+	}
+	latest, err := newestFile(logDir, "*.log")
+	if err != nil || latest == "" {
+		return ""
+	}
+	tail, err := tailFile(latest, 64*1024)
+	if err != nil || tail == "" {
+		return ""
+	}
+	if msg := extractErrorMessage(tail); msg != "" {
+		return msg
+	}
+	return ""
+}
+
+func openCodeLogDir() string {
+	if base := strings.TrimSpace(os.Getenv("OPENCODE_XDG_DATA_HOME")); base != "" {
+		return filepath.Join(base, "opencode", "log")
+	}
+	if base := strings.TrimSpace(os.Getenv("OPENCODE_DATA_DIR")); base != "" {
+		return filepath.Join(base, "xdg-data", "opencode", "log")
+	}
+	root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
+	if root == "" {
+		home, _ := os.UserHomeDir()
+		if home == "" {
+			return ""
+		}
+		root = filepath.Join(home, "Vrooli")
+	}
+	return filepath.Join(root, "data", "opencode", "xdg-data", "opencode", "log")
+}
+
+func newestFile(dir, pattern string) (string, error) {
+	matches, err := filepath.Glob(filepath.Join(dir, pattern))
+	if err != nil || len(matches) == 0 {
+		return "", err
+	}
+	sort.Slice(matches, func(i, j int) bool {
+		infoI, errI := os.Stat(matches[i])
+		infoJ, errJ := os.Stat(matches[j])
+		if errI != nil || errJ != nil {
+			return matches[i] > matches[j]
+		}
+		return infoI.ModTime().After(infoJ.ModTime())
+	})
+	return matches[0], nil
+}
+
+func tailFile(path string, maxBytes int64) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	stat, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+	size := stat.Size()
+	if size <= 0 {
+		return "", nil
+	}
+	offset := size - maxBytes
+	if offset < 0 {
+		offset = 0
+	}
+	buf := make([]byte, size-offset)
+	if _, err := file.ReadAt(buf, offset); err != nil && !errors.Is(err, io.EOF) {
+		return "", err
+	}
+	return string(buf), nil
+}
+
+func extractErrorMessage(logs string) string {
+	const messageKey = `"message":"`
+	idx := strings.LastIndex(logs, messageKey)
+	if idx == -1 {
+		return ""
+	}
+	start := idx + len(messageKey)
+	end := start
+	for end < len(logs) {
+		if logs[end] == '"' && logs[end-1] != '\\' {
+			break
+		}
+		end++
+	}
+	if end <= start || end >= len(logs) {
+		return ""
+	}
+	raw := `"` + logs[start:end] + `"`
+	var decoded string
+	if err := json.Unmarshal([]byte(raw), &decoded); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(decoded)
+}
+
 
 // Stop attempts to gracefully stop a running OpenCode instance.
 func (r *OpenCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {

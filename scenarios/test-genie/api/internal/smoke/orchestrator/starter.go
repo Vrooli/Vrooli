@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
-	"strconv"
-	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 // DefaultScenarioStarter implements ScenarioStarter using the vrooli CLI.
@@ -79,20 +79,9 @@ func (s *DefaultScenarioStarter) Stop(ctx context.Context, scenarioName string) 
 	return nil
 }
 
-// getUIPort retrieves the UI port for a scenario using `vrooli scenario port`.
+// getUIPort retrieves the UI port for a scenario using discovery.
 func (s *DefaultScenarioStarter) getUIPort(ctx context.Context, scenarioName string) (int, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName, "UI_PORT")
-	output, err := cmd.Output()
-	if err != nil {
-		return 0, err
-	}
-
-	portStr := strings.TrimSpace(string(output))
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return 0, fmt.Errorf("invalid port number: %s", portStr)
-	}
-	return port, nil
+	return discovery.ResolveScenarioPort(ctx, scenarioName, "UI_PORT")
 }
 
 // isPortListening checks if a port is accepting connections using native Go TCP dial.

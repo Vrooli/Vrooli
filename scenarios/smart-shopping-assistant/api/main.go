@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,6 +15,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/preflight"
 )
 
 type Server struct {
@@ -189,15 +190,18 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Extract token (remove "Bearer " prefix)
 		token := strings.Replace(authHeader, "Bearer ", "", 1)
 
-		// Get scenario-authenticator port from environment
-		authPort := os.Getenv("SCENARIO_AUTHENTICATOR_API_PORT")
-		if authPort == "" {
-			// Try default port range for scenarios
-			authPort = "15797"
+		// Resolve scenario-authenticator URL via discovery
+		authBaseURL, err := discovery.ResolveScenarioURLDefault(r.Context(), "scenario-authenticator")
+		if err != nil {
+			log.Printf("Error resolving scenario-authenticator: %v", err)
+			// Allow request to proceed as anonymous
+			ctx := context.WithValue(r.Context(), "user_id", "anonymous")
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
 		}
 
 		// Validate token with scenario-authenticator
-		authURL := fmt.Sprintf("http://localhost:%s/api/v1/auth/validate", authPort)
+		authURL := authBaseURL + "/api/v1/auth/validate"
 		req, err := http.NewRequest("GET", authURL, nil)
 		if err != nil {
 			log.Printf("Error creating auth request: %v", err)

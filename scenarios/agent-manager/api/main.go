@@ -27,6 +27,7 @@ import (
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
 )
 
@@ -218,6 +219,11 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 
 	// Create workspace-sandbox provider
 	sandboxURL := os.Getenv("WORKSPACE_SANDBOX_URL")
+	if sandboxURL == "" {
+		if resolved, err := discovery.ResolveScenarioURLDefault(context.Background(), "workspace-sandbox"); err == nil {
+			sandboxURL = resolved
+		}
+	}
 	if sandboxURL == "" {
 		// Try to get from port allocation
 		port := os.Getenv("WORKSPACE_SANDBOX_API_PORT")

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
 	"database/sql"
@@ -22,6 +21,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/preflight"
 )
 
 // Configuration
@@ -879,17 +880,22 @@ func authMiddleware(next http.Handler) http.Handler {
 
 // Validate token with scenario-authenticator service
 func validateToken(token string) (*User, error) {
-	// Get auth service URL from environment
+	// Get auth service URL from environment or discovery
 	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 	if authServiceURL == "" {
-		// Return default user in single-user mode
-		return &User{
-			ID:          "default-user",
-			AuthUserID:  "default-user",
-			Email:       "user@localhost",
-			DisplayName: "Default User",
-			Timezone:    "UTC",
-		}, nil
+		// Try discovery
+		discoveredURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-authenticator")
+		if err != nil {
+			// Return default user in single-user mode
+			return &User{
+				ID:          "default-user",
+				AuthUserID:  "default-user",
+				Email:       "user@localhost",
+				DisplayName: "Default User",
+				Timezone:    "UTC",
+			}, nil
+		}
+		authServiceURL = discoveredURL
 	}
 
 	// Create validation request

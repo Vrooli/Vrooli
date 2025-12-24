@@ -89,11 +89,20 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 
 	var reader io.Reader
 	if body != nil {
-		payload, err := json.Marshal(body)
-		if err != nil {
-			return nil, fmt.Errorf("encode payload: %w", err)
+		switch payload := body.(type) {
+		case json.RawMessage:
+			reader = bytes.NewReader(payload)
+		case []byte:
+			reader = bytes.NewReader(payload)
+		case string:
+			reader = strings.NewReader(payload)
+		default:
+			encoded, err := json.Marshal(body)
+			if err != nil {
+				return nil, fmt.Errorf("encode payload: %w", err)
+			}
+			reader = bytes.NewReader(encoded)
 		}
-		reader = bytes.NewReader(payload)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
