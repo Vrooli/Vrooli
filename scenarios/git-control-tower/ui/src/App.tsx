@@ -1085,6 +1085,10 @@ export default function App() {
             collapsed={commitCollapsed}
             onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
             fillHeight={isMain || !commitCollapsed}
+            onPush={handlePush}
+            isPushing={pushMutation.isPending}
+            canPush={syncStatusQuery.data?.can_push ?? false}
+            aheadCount={syncStatusQuery.data?.ahead ?? 0}
           />
         );
       case "diff":
@@ -1262,6 +1266,10 @@ export default function App() {
             defaultAuthorEmail={statusQuery.data?.author?.email}
             collapsed={false}
             fillHeight={true}
+            onPush={handlePush}
+            isPushing={pushMutation.isPending}
+            canPush={syncStatusQuery.data?.can_push ?? false}
+            aheadCount={syncStatusQuery.data?.ahead ?? 0}
           />
         );
       case "history":

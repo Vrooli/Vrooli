@@ -5,7 +5,8 @@ import {
   CheckCircle,
   AlertCircle,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Upload
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
@@ -29,6 +30,11 @@ interface CommitPanelProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   fillHeight?: boolean;
+  // Push functionality
+  onPush?: () => void;
+  isPushing?: boolean;
+  canPush?: boolean;
+  aheadCount?: number;
 }
 
 export function CommitPanel({
@@ -46,7 +52,11 @@ export function CommitPanel({
   defaultAuthorEmail,
   collapsed = false,
   onToggleCollapse,
-  fillHeight = false
+  fillHeight = false,
+  onPush,
+  isPushing = false,
+  canPush = false,
+  aheadCount = 0
 }: CommitPanelProps) {
   const [useConventional, setUseConventional] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -217,14 +227,44 @@ export function CommitPanel({
             </div>
           )}
 
-          {/* Success feedback */}
+          {/* Success feedback with push option */}
           {lastCommitHash && !commitError && (
             <div
-              className="flex items-center gap-2 px-3 py-2 bg-emerald-950/30 border border-emerald-800/50 rounded-md text-xs text-emerald-400"
+              className="px-3 py-2 bg-emerald-950/30 border border-emerald-800/50 rounded-md"
               data-testid="commit-success"
             >
-              <CheckCircle className="h-3.5 w-3.5" />
-              Committed as <code className="font-mono break-all">{lastCommitHash}</code>
+              <div className="flex items-center gap-2 text-xs text-emerald-400">
+                <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                <span>Committed as <code className="font-mono break-all">{lastCommitHash}</code></span>
+              </div>
+              {onPush && (canPush || aheadCount > 0) && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onPush}
+                    disabled={isPushing || !canPush}
+                    className="h-8 text-xs"
+                    data-testid="push-after-commit-button"
+                  >
+                    {isPushing ? (
+                      <span className="flex items-center">
+                        <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                        Pushing...
+                      </span>
+                    ) : (
+                      <span className="flex items-center">
+                        <Upload className="h-3 w-3 mr-1.5" />
+                        Push{aheadCount > 0 ? ` (${aheadCount} commit${aheadCount !== 1 ? "s" : ""})` : ""}
+                      </span>
+                    )}
+                  </Button>
+                  {!canPush && aheadCount > 0 && (
+                    <span className="text-xs text-amber-400">Pull required first</span>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
