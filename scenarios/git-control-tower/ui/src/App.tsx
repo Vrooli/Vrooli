@@ -1238,6 +1238,11 @@ export default function App() {
             isLoading={diffQuery.isLoading}
             error={diffQuery.error}
             repoDir={statusQuery.data?.repo_dir}
+            onStage={handleStageFile}
+            onUnstage={handleUnstageFile}
+            onDiscard={handleDiscardFile}
+            isStaging={isStaging}
+            isDiscarding={isDiscarding}
           />
         );
       case "commit":

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
@@ -15,6 +15,12 @@ interface DiffViewerProps {
   isLoading: boolean;
   error?: Error | null;
   repoDir?: string;
+  // Mobile action callbacks
+  onStage?: (path: string) => void;
+  onUnstage?: (path: string) => void;
+  onDiscard?: (path: string, untracked: boolean) => void;
+  isStaging?: boolean;
+  isDiscarding?: boolean;
 }
 
 // Hook to detect horizontal scroll state
@@ -127,13 +133,19 @@ export function DiffViewer({
   isUntracked,
   isLoading,
   error,
-  repoDir
+  repoDir,
+  onStage,
+  onUnstage,
+  onDiscard,
+  isStaging = false,
+  isDiscarding = false
 }: DiffViewerProps) {
   const isMobile = useIsMobile();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { canScrollLeft, canScrollRight } = useScrollHints(scrollContainerRef);
   const [showBinary, setShowBinary] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const isBinaryDiff = Boolean(
     diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch"))
   );
@@ -375,7 +387,87 @@ export function DiffViewer({
               {diff.raw}
             </pre>
           )}
+
+          {/* Mobile spacer to account for fixed action bar */}
+          {isMobile && selectedFile && !isLoading && <div className="h-16" aria-hidden="true" />}
         </ScrollArea>
+
+        {/* Mobile Action Bar */}
+        {isMobile && selectedFile && !isLoading && (
+          <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
+            {confirmingDiscard ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-amber-400 flex-1">
+                  {isUntracked ? "Delete this file?" : "Discard changes?"}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 px-4 touch-target"
+                  onClick={() => setConfirmingDiscard(false)}
+                  disabled={isDiscarding}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 px-4 touch-target bg-red-600 border-red-600 hover:bg-red-700 text-white"
+                  onClick={() => {
+                    onDiscard?.(selectedFile, isUntracked);
+                    setConfirmingDiscard(false);
+                  }}
+                  disabled={isDiscarding}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  {isDiscarding ? "..." : isUntracked ? "Delete" : "Discard"}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {/* Stage/Unstage button */}
+                {isStaged ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-10 touch-target"
+                    onClick={() => onUnstage?.(selectedFile)}
+                    disabled={isStaging}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {isStaging ? "Unstaging..." : "Unstage"}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="flex-1 h-10 touch-target bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => onStage?.(selectedFile)}
+                    disabled={isStaging}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {isStaging ? "Staging..." : "Stage"}
+                  </Button>
+                )}
+
+                {/* Discard button - only for unstaged/untracked files */}
+                {!isStaged && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 px-4 touch-target text-red-400 border-red-400/50 hover:bg-red-950/50"
+                    onClick={() => setConfirmingDiscard(true)}
+                    disabled={isDiscarding}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {isUntracked ? "Delete" : "Discard"}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
