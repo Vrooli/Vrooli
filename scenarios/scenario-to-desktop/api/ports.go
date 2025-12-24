@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
-	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 )
 
 type scenarioPortResponse struct {
@@ -19,7 +18,7 @@ type scenarioPortResponse struct {
 	URL      string `json:"url"`
 }
 
-// getScenarioPortHandler resolves a scenario port using the vrooli CLI.
+// getScenarioPortHandler resolves a scenario port using discovery.
 // Ports are dynamic per lifecycle; avoid hardcoding or caching across runs.
 func (s *Server) getScenarioPortHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -31,17 +30,9 @@ func (s *Server) getScenarioPortHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	cmd := exec.Command("vrooli", "scenario", "port", scenario, portName)
-	output, err := cmd.Output()
+	port, err := discovery.ResolveScenarioPort(r.Context(), scenario, portName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to resolve port via vrooli: %v", err), http.StatusBadGateway)
-		return
-	}
-
-	portStr := strings.TrimSpace(string(output))
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("invalid port returned: %s", portStr), http.StatusBadGateway)
+		http.Error(w, fmt.Sprintf("failed to resolve port: %v", err), http.StatusBadGateway)
 		return
 	}
 

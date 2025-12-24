@@ -21,6 +21,9 @@ type MockRepository struct {
 	schedules  map[uuid.UUID]*database.ScheduleIndex
 	exports    map[uuid.UUID]*database.ExportIndex
 	settings   map[string]string
+
+	// Error injection for testing error paths
+	ListProjectsError error
 }
 
 // NewMockRepository creates a new in-memory mock repository.
@@ -121,6 +124,10 @@ func (r *MockRepository) DeleteProject(_ context.Context, id uuid.UUID) error {
 func (r *MockRepository) ListProjects(_ context.Context, limit, offset int) ([]*database.ProjectIndex, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+
+	if r.ListProjectsError != nil {
+		return nil, r.ListProjectsError
+	}
 
 	// Collect all projects
 	projects := make([]*database.ProjectIndex, 0, len(r.projects))

@@ -84,7 +84,10 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	exec := autoexecutor.NewSimpleExecutor(nil)
 	eventSink := autoevents.NewMemorySink(autocontracts.DefaultEventBufferLimits)
 
-	instructions := buildPlaywrightCaptureInstructions(c.exportPageURL, spec, captureInterval)
+	instructions, err := buildPlaywrightCaptureInstructions(c.exportPageURL, spec, captureInterval)
+	if err != nil {
+		return nil, fmt.Errorf("build capture instructions: %w", err)
+	}
 	plan := autocontracts.ExecutionPlan{
 		SchemaVersion:  autocontracts.ExecutionPlanSchemaVersion,
 		PayloadVersion: autocontracts.PayloadVersion,
@@ -132,7 +135,7 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	return &captureResponse{Frames: frames}, nil
 }
 
-func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieSpec, captureInterval int) []autocontracts.CompiledInstruction {
+func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieSpec, captureInterval int) ([]autocontracts.CompiledInstruction, error) {
 	totalMs := spec.Summary.TotalDurationMs
 	if totalMs <= 0 && spec.Playback.DurationMs > 0 {
 		totalMs = spec.Playback.DurationMs
@@ -158,55 +161,76 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 	specJSON, _ := json.Marshal(spec)
 	script := fmt.Sprintf("window.__BAS_RENDER_SPEC=%s;window.dispatchEvent(new CustomEvent('bas:render',{detail:%d}));", string(specJSON), captureInterval)
 
+	// Helper to build action with error handling
+	buildAction := func(stepType string, params map[string]any) (*basactions.ActionDefinition, error) {
+		action, err := autocompiler.BuildActionDefinition(stepType, params)
+		if err != nil {
+			return nil, fmt.Errorf("build action %q: %w", stepType, err)
+		}
+		return action, nil
+	}
+
+	// Build initial navigation and script injection
+	navigateAction, err := buildAction("navigate", map[string]any{
+		"url":       exportPageURL,
+		"timeoutMs": 45000,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	evaluateAction, err := buildAction("evaluate", map[string]any{
+		"script": script,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	instr := []autocontracts.CompiledInstruction{
 		{
 			Index:  0,
 			NodeID: "navigate",
-			Action: mustBuildAction("navigate", map[string]any{
-				"url":       exportPageURL,
-				"timeoutMs": 45000,
-			}),
+			Action: navigateAction,
 		},
 		{
 			Index:  1,
 			NodeID: "inject",
-			Action: mustBuildAction("evaluate", map[string]any{
-				"script": script,
-			}),
+			Action: evaluateAction,
 		},
 	}
 
+	// Build wait/screenshot pairs for each frame
 	idx := 2
 	for i := 0; i < frameCount; i++ {
+		waitAction, err := buildAction("wait", map[string]any{
+			"ms": captureInterval,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		screenshotAction, err := buildAction("screenshot", map[string]any{
+			"fullPage": true,
+		})
+		if err != nil {
+			return nil, err
+		}
+
 		instr = append(instr, autocontracts.CompiledInstruction{
 			Index:  idx,
 			NodeID: fmt.Sprintf("wait-%d", i),
-			Action: mustBuildAction("wait", map[string]any{
-				"ms": captureInterval,
-			}),
+			Action: waitAction,
 		})
 		idx++
 		instr = append(instr, autocontracts.CompiledInstruction{
 			Index:  idx,
 			NodeID: fmt.Sprintf("screenshot-%d", i),
-			Action: mustBuildAction("screenshot", map[string]any{
-				"fullPage": true,
-			}),
+			Action: screenshotAction,
 		})
 		idx++
 	}
 
-	return instr
-}
-
-// mustBuildAction creates a typed ActionDefinition from step type and params.
-// Panics if the action type is invalid (should never happen with hardcoded types).
-func mustBuildAction(stepType string, params map[string]any) *basactions.ActionDefinition {
-	action, err := autocompiler.BuildActionDefinition(stepType, params)
-	if err != nil {
-		panic(fmt.Sprintf("mustBuildAction: invalid action type %q: %v", stepType, err))
-	}
-	return action
+	return instr, nil
 }
 
 // inMemoryCaptureRecorder captures outcomes without touching the database.

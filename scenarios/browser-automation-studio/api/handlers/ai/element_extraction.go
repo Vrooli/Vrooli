@@ -9,7 +9,6 @@ import (
 
 	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
-	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // elementExtractionExpression is the client-side JavaScript that extracts
@@ -211,41 +210,9 @@ func (h *ElementAnalysisHandler) extractPageElements(ctx context.Context, url st
 		return nil, PageContext{}, "", errors.New("automation runner not configured")
 	}
 
-	instructions := []autocontracts.CompiledInstruction{
-		{
-			Index:  0,
-			NodeID: "analysis.navigate",
-			Action: mustBuildAction("navigate", map[string]any{
-				"url":       url,
-				"waitUntil": defaultPreviewWaitUntil,
-				"timeoutMs": defaultPreviewTimeoutMilliseconds,
-			}),
-		},
-		{
-			Index:  1,
-			NodeID: "analysis.wait",
-			Action: mustBuildAction("wait", map[string]any{
-				"waitType":   "time",
-				"durationMs": defaultPreviewWaitMilliseconds,
-			}),
-		},
-		{
-			Index:  2,
-			NodeID: "analysis.evaluate",
-			Action: mustBuildAction("evaluate", map[string]any{
-				"expression": elementExtractionExpression,
-				"timeoutMs":  defaultPreviewTimeoutMilliseconds,
-			}),
-		},
-		{
-			Index:  3,
-			NodeID: "analysis.screenshot",
-			Action: mustBuildAction("screenshot", map[string]any{
-				"fullPage":  true,
-				"waitForMs": defaultPreviewWaitMilliseconds,
-				"timeoutMs": defaultPreviewTimeoutMilliseconds,
-			}),
-		},
+	instructions, err := h.buildElementExtractionInstructions(url)
+	if err != nil {
+		return nil, PageContext{}, "", fmt.Errorf("build extraction instructions: %w", err)
 	}
 
 	outcomes, _, err := h.runner.Run(ctx, previewDefaultViewportWidth, previewDefaultViewportHeight, instructions)
@@ -301,12 +268,64 @@ func (h *ElementAnalysisHandler) extractPageElements(ctx context.Context, url st
 	return resultElements, resultContext, base64Screenshot, nil
 }
 
-// mustBuildAction creates a typed ActionDefinition from step type and params.
-// Panics if the action type is invalid (should never happen with hardcoded types).
-func mustBuildAction(stepType string, params map[string]any) *basactions.ActionDefinition {
-	action, err := autocompiler.BuildActionDefinition(stepType, params)
-	if err != nil {
-		panic(fmt.Sprintf("mustBuildAction: invalid action type %q: %v", stepType, err))
+// buildElementExtractionInstructions creates the compiled instructions for element extraction.
+// Returns an error if any action type fails to build (indicates a programming error).
+func (h *ElementAnalysisHandler) buildElementExtractionInstructions(url string) ([]autocontracts.CompiledInstruction, error) {
+	// Define the steps with their parameters
+	steps := []struct {
+		nodeID   string
+		stepType string
+		params   map[string]any
+	}{
+		{
+			nodeID:   "analysis.navigate",
+			stepType: "navigate",
+			params: map[string]any{
+				"url":       url,
+				"waitUntil": defaultPreviewWaitUntil,
+				"timeoutMs": defaultPreviewTimeoutMilliseconds,
+			},
+		},
+		{
+			nodeID:   "analysis.wait",
+			stepType: "wait",
+			params: map[string]any{
+				"waitType":   "time",
+				"durationMs": defaultPreviewWaitMilliseconds,
+			},
+		},
+		{
+			nodeID:   "analysis.evaluate",
+			stepType: "evaluate",
+			params: map[string]any{
+				"expression": elementExtractionExpression,
+				"timeoutMs":  defaultPreviewTimeoutMilliseconds,
+			},
+		},
+		{
+			nodeID:   "analysis.screenshot",
+			stepType: "screenshot",
+			params: map[string]any{
+				"fullPage":  true,
+				"waitForMs": defaultPreviewWaitMilliseconds,
+				"timeoutMs": defaultPreviewTimeoutMilliseconds,
+			},
+		},
 	}
-	return action
+
+	instructions := make([]autocontracts.CompiledInstruction, 0, len(steps))
+	for i, step := range steps {
+		action, err := autocompiler.BuildActionDefinition(step.stepType, step.params)
+		if err != nil {
+			// This indicates a programming error - hardcoded types should always be valid
+			return nil, fmt.Errorf("build action %q (node %s): %w", step.stepType, step.nodeID, err)
+		}
+		instructions = append(instructions, autocontracts.CompiledInstruction{
+			Index:  i,
+			NodeID: step.nodeID,
+			Action: action,
+		})
+	}
+
+	return instructions, nil
 }

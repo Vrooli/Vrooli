@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
@@ -202,32 +203,9 @@ func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, er
 		return "", errors.New("automation runner not configured")
 	}
 
-	instructions := []autocontracts.CompiledInstruction{
-		{
-			Index:  0,
-			NodeID: "dom.navigate",
-			Action: mustBuildAction("navigate", map[string]any{
-				"url":       url,
-				"waitUntil": defaultPreviewWaitUntil,
-				"timeoutMs": defaultPreviewTimeoutMilliseconds,
-			}),
-		},
-		{
-			Index:  1,
-			NodeID: "dom.wait",
-			Action: mustBuildAction("wait", map[string]any{
-				"waitType":   "time",
-				"durationMs": defaultDomExtractionWaitMs,
-			}),
-		},
-		{
-			Index:  2,
-			NodeID: domExtractionNodeID,
-			Action: mustBuildAction("evaluate", map[string]any{
-				"expression": domExtractionExpression,
-				"timeoutMs":  defaultPreviewTimeoutMilliseconds,
-			}),
-		},
+	instructions, err := h.buildDOMExtractionInstructions(url)
+	if err != nil {
+		return "", fmt.Errorf("build dom extraction instructions: %w", err)
 	}
 
 	outcomes, _, err := h.runner.Run(ctx, previewDefaultViewportWidth, previewDefaultViewportHeight, instructions)
@@ -290,6 +268,57 @@ func (h *DOMHandler) GetDOMTree(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(domData))
+}
+
+// buildDOMExtractionInstructions creates the compiled instructions for DOM extraction.
+// Returns an error if any action type fails to build (indicates a programming error).
+func (h *DOMHandler) buildDOMExtractionInstructions(url string) ([]autocontracts.CompiledInstruction, error) {
+	steps := []struct {
+		nodeID   string
+		stepType string
+		params   map[string]any
+	}{
+		{
+			nodeID:   "dom.navigate",
+			stepType: "navigate",
+			params: map[string]any{
+				"url":       url,
+				"waitUntil": defaultPreviewWaitUntil,
+				"timeoutMs": defaultPreviewTimeoutMilliseconds,
+			},
+		},
+		{
+			nodeID:   "dom.wait",
+			stepType: "wait",
+			params: map[string]any{
+				"waitType":   "time",
+				"durationMs": defaultDomExtractionWaitMs,
+			},
+		},
+		{
+			nodeID:   domExtractionNodeID,
+			stepType: "evaluate",
+			params: map[string]any{
+				"expression": domExtractionExpression,
+				"timeoutMs":  defaultPreviewTimeoutMilliseconds,
+			},
+		},
+	}
+
+	instructions := make([]autocontracts.CompiledInstruction, 0, len(steps))
+	for i, step := range steps {
+		action, err := autocompiler.BuildActionDefinition(step.stepType, step.params)
+		if err != nil {
+			return nil, fmt.Errorf("build action %q (node %s): %w", step.stepType, step.nodeID, err)
+		}
+		instructions = append(instructions, autocontracts.CompiledInstruction{
+			Index:  i,
+			NodeID: step.nodeID,
+			Action: action,
+		})
+	}
+
+	return instructions, nil
 }
 
 func failureMessage(f *autocontracts.StepFailure) string {

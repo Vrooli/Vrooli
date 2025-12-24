@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -19,6 +19,8 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/preflight"
 )
 
 // Configuration - REQUIRED, no defaults
@@ -402,10 +404,10 @@ func handleEncryptionStatus(w http.ResponseWriter, r *http.Request) {
 func handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	enableCORS(w)
 
-	// Check if scenario-authenticator is available - REQUIRED, no defaults
-	authPort := os.Getenv("SCENARIO_AUTHENTICATOR_API_PORT")
-	if authPort == "" {
-		log.Printf("Warning: SCENARIO_AUTHENTICATOR_API_PORT not set")
+	// Check if scenario-authenticator is available via discovery
+	authURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-authenticator")
+	if err != nil {
+		log.Printf("Warning: scenario-authenticator not available: %v", err)
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "unavailable",
@@ -413,7 +415,8 @@ func handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/health", authPort))
+
+	resp, err := http.Get(authURL + "/health")
 
 	status := "unavailable"
 	if err == nil && resp.StatusCode == 200 {

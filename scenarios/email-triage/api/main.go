@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -15,9 +14,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	_ "github.com/lib/pq"
-	
+	"github.com/rs/cors"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/preflight"
+
 	"email-triage/handlers"
 	"email-triage/models"
 	"email-triage/services"
@@ -427,15 +428,22 @@ func loadConfig() Config {
 	
 	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 	if authServiceURL == "" {
-		// Authentication service URL is required for production - fail if not set and not in DEV_MODE
-		if os.Getenv("DEV_MODE") != "true" {
-			log.Fatal("❌ Authentication service configuration is required (or set DEV_MODE=true for testing)")
+		// Try discovery for scenario-authenticator
+		discoveredURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-authenticator")
+		if err != nil {
+			// Discovery failed - check DEV_MODE
+			if os.Getenv("DEV_MODE") != "true" {
+				log.Fatal("❌ Authentication service not found via discovery (or set DEV_MODE=true for testing)")
+			}
+			// In DEV_MODE, use localhost default
+			authServiceURL = "http://localhost:8080"
+			log.Println("⚠️  Authentication service not configured, using DEV_MODE default")
+		} else {
+			authServiceURL = discoveredURL
+			log.Println("✅ Authentication service discovered via discovery")
 		}
-		// In DEV_MODE, use localhost default
-		authServiceURL = "http://localhost:8080"
-		log.Println("⚠️  Authentication service not configured, using DEV_MODE default")
 	} else {
-		log.Println("✅ Authentication service configured")
+		log.Println("✅ Authentication service configured via environment")
 	}
 	
 	mailServerURL := os.Getenv("MAIL_SERVER_URL")

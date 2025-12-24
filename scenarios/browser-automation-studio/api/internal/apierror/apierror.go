@@ -226,6 +226,15 @@ var (
 		Code:    "WORKFLOW_EXECUTION_FAILED",
 		Message: "Failed to execute workflow",
 	}
+
+	// ErrInternalInvariantViolation indicates a programming error where an internal
+	// assumption was violated (e.g., hardcoded values that should always be valid).
+	// Distinct from ErrInternalServer to aid debugging and agent error categorization.
+	ErrInternalInvariantViolation = &APIError{
+		Status:  http.StatusInternalServerError,
+		Code:    "INTERNAL_INVARIANT_VIOLATION",
+		Message: "An internal invariant was violated",
+	}
 )
 
 // Common errors - Other status codes

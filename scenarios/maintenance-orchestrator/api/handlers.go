@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 )
 
 func handleGetScenarios(orchestrator *Orchestrator) http.HandlerFunc {
@@ -900,7 +901,7 @@ func handleGetScenarioPresetAssignments(orchestrator *Orchestrator) http.Handler
 	}
 }
 
-// Get scenario port using vrooli CLI
+// Get scenario port using discovery
 func handleGetScenarioPort() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -912,20 +913,9 @@ func handleGetScenarioPort() http.HandlerFunc {
 			portType = "UI_PORT"
 		}
 
-		// Run vrooli scenario port command with timeout
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName, portType)
-		var out bytes.Buffer
-		var stderr bytes.Buffer
-		cmd.Stdout = &out
-		cmd.Stderr = &stderr
-
-		err := cmd.Run()
+		port, err := discovery.ResolveScenarioPort(r.Context(), scenarioName, portType)
 		if err != nil {
-			// Scenario might not be running or might not have the requested port
-			log.Printf("Error getting port for %s/%s: %v, stderr: %s", scenarioName, portType, err, stderr.String())
+			log.Printf("Error getting port for %s/%s: %v", scenarioName, portType, err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -935,12 +925,9 @@ func handleGetScenarioPort() http.HandlerFunc {
 			return
 		}
 
-		// Parse the port number
-		portStr := strings.TrimSpace(out.String())
-
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"port": portStr,
+			"port": port,
 			"type": portType,
 		})
 	}

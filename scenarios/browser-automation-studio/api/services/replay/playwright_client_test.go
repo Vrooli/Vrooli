@@ -16,7 +16,10 @@ func TestBuildPlaywrightCaptureInstructions_FrameCount(t *testing.T) {
 		},
 		Frames: []export.ExportFrame{{DurationMs: 500}},
 	}
-	instr := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 500)
+	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 500)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	// navigate + evaluate + (ceil(5000/500)+1)=11 waits + 11 screenshots
 	if len(instr) != 2+(11*2) {
 		t.Fatalf("unexpected instruction count: %d", len(instr))
@@ -33,7 +36,10 @@ func TestBuildPlaywrightCaptureInstructions_ClampCount(t *testing.T) {
 		},
 		Frames: []export.ExportFrame{{DurationMs: 10}},
 	}
-	instr := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 10)
+	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	// clamp at 120 frames => 240 instructions + 2 initial
 	if len(instr) != 242 {
 		t.Fatalf("expected 242 instructions, got %d", len(instr))

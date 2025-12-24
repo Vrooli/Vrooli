@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"net/url"
 	"os/exec"
-	"strconv"
 	"strings"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 type PortInfo struct {
@@ -34,32 +35,12 @@ type ScenarioCLI interface {
 	GetStatus(ctx context.Context, scenarioName string) (string, error)
 }
 
-// DefaultScenarioCLI implements ScenarioCLI using the actual Vrooli CLI.
+// DefaultScenarioCLI implements ScenarioCLI using api-core discovery.
 type DefaultScenarioCLI struct{}
 
-// LookupPort shells out to 'vrooli scenario port' to get the port number.
+// LookupPort uses api-core discovery to get the port number.
 func (c *DefaultScenarioCLI) LookupPort(ctx context.Context, scenarioName, portName string) (int, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName, portName)
-	output, err := cmd.Output()
-	if err != nil {
-		return 0, err
-	}
-
-	trimmed := strings.TrimSpace(string(output))
-	if trimmed == "" {
-		return 0, fmt.Errorf("empty port response")
-	}
-
-	port, err := strconv.Atoi(trimmed)
-	if err != nil {
-		return 0, fmt.Errorf("invalid port value %q: %w", trimmed, err)
-	}
-
-	if port <= 0 {
-		return 0, fmt.Errorf("port must be positive, got %d", port)
-	}
-
-	return port, nil
+	return discovery.ResolveScenarioPort(ctx, scenarioName, portName)
 }
 
 // ListScenarios shells out to 'vrooli scenario list --json' to get all scenarios.

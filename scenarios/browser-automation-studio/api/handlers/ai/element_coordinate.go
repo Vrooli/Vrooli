@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 )
 
@@ -17,26 +18,9 @@ func (h *ElementAnalysisHandler) getElementAtCoordinate(ctx context.Context, url
 		return nil, fmt.Errorf("automation runner not configured")
 	}
 
-	instructions := []autocontracts.CompiledInstruction{
-		{
-			Index:  0,
-			NodeID: "probe.navigate",
-			Action: mustBuildAction("navigate", map[string]any{
-				"url":       url,
-				"waitUntil": "networkidle",
-				"timeoutMs": 45000,
-			}),
-		},
-		{
-			Index:  1,
-			NodeID: "probe.element",
-			Action: mustBuildAction("probeElements", map[string]any{
-				"probeX":       x,
-				"probeY":       y,
-				"probeRadius":  8,
-				"probeSamples": 36,
-			}),
-		},
+	instructions, err := h.buildElementProbeInstructions(url, x, y)
+	if err != nil {
+		return nil, fmt.Errorf("build element probe instructions: %w", err)
 	}
 
 	outcomes, _, err := h.runner.Run(ctx, 0, 0, instructions)
@@ -82,4 +66,49 @@ func (h *ElementAnalysisHandler) getElementAtCoordinate(ctx context.Context, url
 	}
 
 	return &selection, nil
+}
+
+// buildElementProbeInstructions creates the compiled instructions for probing elements at coordinates.
+// Returns an error if any action type fails to build (indicates a programming error).
+func (h *ElementAnalysisHandler) buildElementProbeInstructions(url string, x, y int) ([]autocontracts.CompiledInstruction, error) {
+	steps := []struct {
+		nodeID   string
+		stepType string
+		params   map[string]any
+	}{
+		{
+			nodeID:   "probe.navigate",
+			stepType: "navigate",
+			params: map[string]any{
+				"url":       url,
+				"waitUntil": "networkidle",
+				"timeoutMs": 45000,
+			},
+		},
+		{
+			nodeID:   "probe.element",
+			stepType: "probeElements",
+			params: map[string]any{
+				"probeX":       x,
+				"probeY":       y,
+				"probeRadius":  8,
+				"probeSamples": 36,
+			},
+		},
+	}
+
+	instructions := make([]autocontracts.CompiledInstruction, 0, len(steps))
+	for i, step := range steps {
+		action, err := autocompiler.BuildActionDefinition(step.stepType, step.params)
+		if err != nil {
+			return nil, fmt.Errorf("build action %q (node %s): %w", step.stepType, step.nodeID, err)
+		}
+		instructions = append(instructions, autocontracts.CompiledInstruction{
+			Index:  i,
+			NodeID: step.nodeID,
+			Action: action,
+		})
+	}
+
+	return instructions, nil
 }

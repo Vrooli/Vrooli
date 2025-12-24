@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
@@ -119,25 +120,11 @@ func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http
 	ctx, cancel := context.WithTimeout(r.Context(), constants.AIRequestTimeout)
 	defer cancel()
 
-	instructions := []autocontracts.CompiledInstruction{
-		{
-			Index:  0,
-			NodeID: "preview.navigate",
-			Action: mustBuildAction("navigate", map[string]any{
-				"url":       req.URL,
-				"waitUntil": defaultPreviewWaitUntil,
-				"timeoutMs": defaultPreviewTimeoutMilliseconds,
-			}),
-		},
-		{
-			Index:  1,
-			NodeID: "preview.screenshot",
-			Action: mustBuildAction("screenshot", map[string]any{
-				"fullPage":  true,
-				"waitForMs": defaultPreviewWaitMilliseconds,
-				"timeoutMs": defaultPreviewTimeoutMilliseconds,
-			}),
-		},
+	instructions, err := h.buildPreviewScreenshotInstructions(req.URL)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to build preview instructions")
+		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "build_instructions", "error": err.Error()}))
+		return
 	}
 
 	start := time.Now()
@@ -209,4 +196,48 @@ func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http
 	}).Info("Captured preview screenshot")
 
 	RespondSuccess(w, http.StatusOK, response)
+}
+
+// buildPreviewScreenshotInstructions creates the compiled instructions for taking a preview screenshot.
+// Returns an error if any action type fails to build (indicates a programming error).
+func (h *ScreenshotHandler) buildPreviewScreenshotInstructions(url string) ([]autocontracts.CompiledInstruction, error) {
+	steps := []struct {
+		nodeID   string
+		stepType string
+		params   map[string]any
+	}{
+		{
+			nodeID:   "preview.navigate",
+			stepType: "navigate",
+			params: map[string]any{
+				"url":       url,
+				"waitUntil": defaultPreviewWaitUntil,
+				"timeoutMs": defaultPreviewTimeoutMilliseconds,
+			},
+		},
+		{
+			nodeID:   "preview.screenshot",
+			stepType: "screenshot",
+			params: map[string]any{
+				"fullPage":  true,
+				"waitForMs": defaultPreviewWaitMilliseconds,
+				"timeoutMs": defaultPreviewTimeoutMilliseconds,
+			},
+		},
+	}
+
+	instructions := make([]autocontracts.CompiledInstruction, 0, len(steps))
+	for i, step := range steps {
+		action, err := autocompiler.BuildActionDefinition(step.stepType, step.params)
+		if err != nil {
+			return nil, fmt.Errorf("build action %q (node %s): %w", step.stepType, step.nodeID, err)
+		}
+		instructions = append(instructions, autocontracts.CompiledInstruction{
+			Index:  i,
+			NodeID: step.nodeID,
+			Action: action,
+		})
+	}
+
+	return instructions, nil
 }
