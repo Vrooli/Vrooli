@@ -1,5 +1,6 @@
 import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "./ui/button";
+import { useIsMobile } from "../hooks";
 import type { GroupingRule } from "./FileList";
 
 interface GroupingSettingsModalProps {
@@ -30,8 +31,166 @@ export function GroupingSettingsModal({
   onChangeRules,
   onClose
 }: GroupingSettingsModalProps) {
+  const isMobile = useIsMobile();
+
   if (!isOpen) return null;
 
+  // Mobile: full-screen modal
+  if (isMobile) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex flex-col bg-slate-950 animate-in slide-in-from-bottom duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Grouping settings"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4 pt-safe">
+          <div>
+            <h2 className="text-base font-semibold text-slate-100">Grouping Settings</h2>
+            {repoDir && (
+              <p className="text-xs text-slate-500 mt-1 truncate max-w-[200px]">
+                {repoDir}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+          {/* Enable toggle */}
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-4">
+            <div>
+              <div className="text-sm font-semibold text-slate-200">Enable Grouping</div>
+              <div className="text-xs text-slate-500 mt-1">
+                Group changes by path prefixes.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onToggleGrouping}
+              className={`h-10 px-5 rounded-full border text-sm touch-target ${
+                groupingEnabled
+                  ? "border-emerald-400/40 text-emerald-200 bg-emerald-900/20"
+                  : "border-slate-700 text-slate-300 hover:bg-slate-800/50 active:bg-slate-700/50"
+              }`}
+            >
+              {groupingEnabled ? "On" : "Off"}
+            </button>
+          </div>
+
+          {/* Rules section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-200">Grouping Rules</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  First match wins.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onChangeRules([...rules, createRule()])}
+                className="h-10 px-4 touch-target"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add
+              </Button>
+            </div>
+
+            {rules.length === 0 ? (
+              <div className="rounded-xl border border-slate-800/70 bg-slate-900/40 px-4 py-6 text-sm text-slate-500 text-center">
+                No grouping rules yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {rules.map((rule, index) => (
+                  <div
+                    key={rule.id}
+                    className="rounded-xl border border-slate-800/60 bg-slate-950/50 p-4 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Rule #{index + 1}</span>
+                      <button
+                        type="button"
+                        className="h-10 w-10 inline-flex items-center justify-center rounded-full border border-slate-800 text-slate-400 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
+                        onClick={() => onChangeRules(rules.filter((item) => item.id !== rule.id))}
+                        aria-label="Remove rule"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={rule.label}
+                      onChange={(event) => {
+                        const nextRules = rules.map((item) =>
+                          item.id === rule.id ? { ...item, label: event.target.value } : item
+                        );
+                        onChangeRules(nextRules);
+                      }}
+                      placeholder="Label"
+                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 touch-target"
+                    />
+                    <input
+                      type="text"
+                      value={rule.prefix}
+                      onChange={(event) => {
+                        const nextRules = rules.map((item) =>
+                          item.id === rule.id ? { ...item, prefix: event.target.value } : item
+                        );
+                        onChangeRules(nextRules);
+                      }}
+                      placeholder="Path prefix (e.g., scenarios/)"
+                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 touch-target"
+                    />
+                    <select
+                      value={rule.mode ?? "prefix"}
+                      onChange={(event) => {
+                        const nextRules = rules.map((item) =>
+                          item.id === rule.id
+                            ? { ...item, mode: event.target.value === "segment" ? "segment" : "prefix" }
+                            : item
+                        );
+                        onChangeRules(nextRules);
+                      }}
+                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40 touch-target"
+                    >
+                      <option value="prefix">Prefix</option>
+                      <option value="segment">Prefix + segment</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-slate-800 px-4 py-4 pb-safe">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onClose}
+            className="w-full h-12 text-sm touch-target"
+          >
+            Done
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop: centered modal
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4"

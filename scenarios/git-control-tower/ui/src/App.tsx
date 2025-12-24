@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusHeader } from "./components/StatusHeader";
+import { MobileHeader } from "./components/MobileHeader";
+import { MobileNav } from "./components/MobileNav";
 import { FileList } from "./components/FileList";
 import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
@@ -11,6 +13,7 @@ import {
   type LayoutPreset,
   type LayoutSection
 } from "./components/LayoutSettingsModal";
+import { useIsMobile } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import {
   useHealth,
@@ -34,6 +37,7 @@ const layoutOrder: LayoutSection[] = ["changes", "history", "diff", "commit"];
 
 export default function App() {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const mainRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
 
@@ -87,6 +91,8 @@ export default function App() {
     return Number.isFinite(stored) && stored > 0 ? stored : 320;
   });
   const [isLayoutSettingsOpen, setIsLayoutSettingsOpen] = useState(false);
+  // Mobile-specific state: which panel is currently active on mobile
+  const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>("changes");
 
   useEffect(() => {
     if (!groupingEnabled || groupingRules.length === 0) {
@@ -1157,6 +1163,225 @@ export default function App() {
     </div>
   );
 
+  // Helper to render panel content for mobile (simplified, fill height)
+  const renderMobilePanel = (panel: LayoutSection) => {
+    switch (panel) {
+      case "changes":
+        return (
+          <FileList
+            files={statusQuery.data?.files}
+            selectedFiles={selectedFiles}
+            selectedKeySet={selectedKeySet}
+            selectionKey={selectionKey}
+            syncStatus={
+              syncStatusQuery.data
+                ? {
+                    ahead: syncStatusQuery.data.ahead,
+                    behind: syncStatusQuery.data.behind,
+                    canPush: syncStatusQuery.data.can_push,
+                    canPull: syncStatusQuery.data.can_pull,
+                    warning: syncStatusQuery.data.safety_warnings?.join("; ")
+                  }
+                : undefined
+            }
+            approvedChanges={
+              approvedChangesQuery.data
+                ? {
+                    available: approvedChangesQuery.data.available,
+                    committableFiles: approvedChangesQuery.data.committableFiles,
+                    warning: approvedChangesQuery.data.warning
+                  }
+                : undefined
+            }
+            approvedPaths={approvedPendingSet}
+            onStageApproved={handleStageApproved}
+            isStagingApproved={isStaging}
+            onPush={handlePush}
+            onPull={handlePull}
+            isPushing={pushMutation.isPending}
+            isPulling={pullMutation.isPending}
+            onSelectFile={(path, staged, event) => {
+              handleSelectFile(path, staged, event);
+              // On mobile, switch to diff view after selecting a file
+              setMobileActivePanel("diff");
+            }}
+            onStageFile={handleStageFile}
+            onUnstageFile={handleUnstageFile}
+            onDiscardFile={handleDiscardFile}
+            onIgnoreFile={handleIgnoreFile}
+            onStageAll={handleStageAll}
+            onUnstageAll={handleUnstageAll}
+            isStaging={isStaging}
+            isDiscarding={isDiscarding}
+            isIgnoring={isIgnoring}
+            confirmingDiscard={confirmingDiscard}
+            onConfirmDiscard={handleConfirmDiscard}
+            confirmingIgnore={confirmingIgnore}
+            onConfirmIgnore={handleConfirmIgnore}
+            collapsed={false}
+            fillHeight={true}
+            groupingEnabled={groupingEnabled}
+            groupingRules={groupingRules}
+            onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
+            onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+            onStagePaths={handleStagePaths}
+            onDiscardPaths={handleDiscardPaths}
+          />
+        );
+      case "diff":
+        return (
+          <DiffViewer
+            diff={diffQuery.data}
+            selectedFile={selectedFile}
+            isStaged={selectedIsStaged}
+            isUntracked={selectedIsUntracked}
+            isLoading={diffQuery.isLoading}
+            error={diffQuery.error}
+            repoDir={statusQuery.data?.repo_dir}
+          />
+        );
+      case "commit":
+        return (
+          <CommitPanel
+            stagedCount={statusQuery.data?.summary.staged ?? 0}
+            commitMessage={commitMessage}
+            onCommitMessageChange={setCommitMessage}
+            canUseApprovedMessage={canUseApprovedMessage}
+            onUseApprovedMessage={handleUseApprovedMessage}
+            isUsingApprovedMessage={approvedPreviewMutation.isPending}
+            onCommit={handleCommit}
+            isCommitting={commitMutation.isPending}
+            lastCommitHash={lastCommitHash}
+            commitError={commitError}
+            defaultAuthorName={statusQuery.data?.author?.name}
+            defaultAuthorEmail={statusQuery.data?.author?.email}
+            collapsed={false}
+            fillHeight={true}
+          />
+        );
+      case "history":
+        return (
+          <GitHistory
+            lines={historyQuery.data?.lines}
+            entries={historyQuery.data?.entries}
+            isLoading={historyQuery.isLoading}
+            error={historyQuery.error}
+            collapsed={false}
+            fillHeight={true}
+            onLoadMore={handleLoadMoreHistory}
+            isFetching={historyQuery.isFetching}
+            hasMore={
+              (historyQuery.data?.lines?.length ?? 0) >= historyLimit &&
+              historyLimit < historyMaxLimit
+            }
+            searchQuery={historySearch}
+            onSearchQueryChange={setHistorySearch}
+            scopeFilter={historyScopeFilter}
+            onScopeFilterChange={setHistoryScopeFilter}
+            groupingEnabled={groupingEnabled}
+            groupingRules={groupingRules}
+            workingSetPaths={workingSetPaths}
+            workingSetOnly={historyWorkingSetOnly}
+            onWorkingSetOnlyChange={setHistoryWorkingSetOnly}
+            filtersOpen={isHistoryFiltersOpen}
+            onOpenFilters={() => setIsHistoryFiltersOpen(true)}
+            onCloseFilters={() => setIsHistoryFiltersOpen(false)}
+          />
+        );
+    }
+  };
+
+  // Mobile Layout
+  if (isMobile) {
+    const stagedCount = statusQuery.data?.summary.staged ?? 0;
+    const unstagedCount =
+      (statusQuery.data?.summary.unstaged ?? 0) +
+      (statusQuery.data?.summary.untracked ?? 0) +
+      (statusQuery.data?.summary.conflicts ?? 0);
+
+    return (
+      <div
+        className="h-screen flex flex-col bg-slate-950 text-slate-50"
+        data-testid="git-control-tower"
+      >
+        {/* Mobile Header */}
+        <MobileHeader
+          status={statusQuery.data}
+          health={healthQuery.data}
+          syncStatus={syncStatusQuery.data}
+          isLoading={statusQuery.isLoading || healthQuery.isLoading}
+          onRefresh={handleRefresh}
+          onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
+          onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+        />
+
+        {/* Main Content - Single Panel at a time */}
+        <div className="flex-1 overflow-hidden pb-16">
+          {renderMobilePanel(mobileActivePanel)}
+        </div>
+
+        {/* Mobile Navigation */}
+        <MobileNav
+          activePanel={mobileActivePanel}
+          onPanelChange={setMobileActivePanel}
+          stagedCount={stagedCount}
+          unstagedCount={unstagedCount}
+        />
+
+        {/* Error Toast for Mutations - positioned above bottom nav */}
+        {(stageMutation.error ||
+          unstageMutation.error ||
+          discardMutation.error ||
+          ignoreMutation.error ||
+          pushMutation.error ||
+          pullMutation.error) && (
+          <div
+            className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm"
+            data-testid="error-toast"
+          >
+            <p className="font-medium">Operation failed</p>
+            <p className="text-xs mt-1 text-red-300">
+              {(
+                stageMutation.error ||
+                unstageMutation.error ||
+                discardMutation.error ||
+                ignoreMutation.error ||
+                pushMutation.error ||
+                pullMutation.error
+              )?.message}
+            </p>
+          </div>
+        )}
+
+        {/* Modals */}
+        <GroupingSettingsModal
+          isOpen={isGroupingSettingsOpen}
+          repoDir={repoDir}
+          groupingEnabled={groupingEnabled}
+          onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
+          rules={groupingRules}
+          onChangeRules={setGroupingRules}
+          onClose={() => setIsGroupingSettingsOpen(false)}
+        />
+        <LayoutSettingsModal
+          isOpen={isLayoutSettingsOpen}
+          repoDir={repoDir}
+          preset={layoutPreset}
+          primaryPanel={primaryPanel}
+          onChangePreset={setLayoutPreset}
+          onChangePrimary={setPrimaryPanel}
+          onReset={() => {
+            setLayoutPreset("classic");
+            setPrimaryPanel("diff");
+            setStackHeight(320);
+          }}
+          onClose={() => setIsLayoutSettingsOpen(false)}
+        />
+      </div>
+    );
+  }
+
+  // Desktop Layout (original)
   return (
     <div
       className="h-screen flex flex-col bg-slate-950 text-slate-50"

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo, createContext, useContext } from "react";
 import {
   File,
   FilePlus,
@@ -13,12 +13,18 @@ import {
   ChevronRight,
   Loader2,
   ShieldCheck,
-  Settings
+  Settings,
+  MoreVertical
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
+import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
+import { useIsMobile } from "../hooks";
 import type { RepoFilesStatus } from "../lib/api";
+
+// Context to pass mobile state down without prop drilling
+const MobileContext = createContext(false);
 
 type FileCategory = "staged" | "unstaged" | "untracked" | "conflicts";
 
@@ -96,6 +102,7 @@ interface FileSectionProps {
   isIgnoring?: boolean;
   confirmingIgnore?: string | null;
   onConfirmIgnore?: (path: string | null) => void;
+  onOpenMobileActions?: (file: string) => void;
 }
 
 const statusStyleMap = {
@@ -182,6 +189,7 @@ interface FileRowProps {
   onConfirmIgnore?: (path: string | null) => void;
   confirmingDiscard?: string | null;
   confirmingIgnore?: string | null;
+  onOpenMobileActions?: (file: string) => void;
 }
 
 const FileRow = memo(function FileRow({
@@ -209,30 +217,36 @@ const FileRow = memo(function FileRow({
   onIgnore,
   onConfirmIgnore,
   confirmingDiscard,
-  confirmingIgnore
+  confirmingIgnore,
+  onOpenMobileActions
 }: FileRowProps) {
+  const isMobile = useContext(MobileContext);
   const isConfirmingIgnore = confirmingIgnore === file;
   const isConfirmingDiscard = confirmingDiscard === file;
   const showActionButtons = !(isConfirmingIgnore || isConfirmingDiscard);
   return (
     <li
-      className={`group w-full flex items-center gap-2 px-2 py-1 rounded text-sm cursor-pointer transition-colors min-w-0 overflow-hidden select-none ${
+      className={`group w-full flex items-center gap-2 rounded cursor-pointer transition-colors min-w-0 overflow-hidden select-none ${
+        isMobile ? "px-3 py-3" : "px-2 py-1"
+      } ${
         isSelected
           ? "bg-slate-700/50 text-slate-100"
-          : "hover:bg-slate-800/50 text-slate-300"
+          : "hover:bg-slate-800/50 active:bg-slate-700/50 text-slate-300"
       }`}
       data-testid={itemTestId}
       data-file-path={file}
       onClick={(event) => onSelectFile(file, isStaged, event)}
     >
       <span
-        className={`h-5 w-5 flex items-center justify-center rounded border text-[10px] font-bold ${badge.style}`}
+        className={`flex items-center justify-center rounded border font-bold ${badge.style} ${
+          isMobile ? "h-7 w-7 text-xs" : "h-5 w-5 text-[10px]"
+        }`}
         aria-label={`Status ${badge.label}`}
         title={`Status ${badge.label}`}
       >
         {badge.label}
       </span>
-      <File className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
+      <File className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}`} />
       <div className="flex-1 min-w-0 overflow-hidden">
         <span className="font-mono text-xs truncate block w-full" title={file}>
           {displayPath}
@@ -308,60 +322,103 @@ const FileRow = memo(function FileRow({
       )}
 
       {showActionButtons && (
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
-          <button
-            className="p-1 rounded hover:bg-slate-700 transition-all"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAction(file);
-            }}
-            disabled={isLoading || isIgnoring}
-            title={actionLabel}
-            data-testid={actionTestId}
-          >
-            {isLoading ? (
-              <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
-            ) : (
-              actionIcon
-            )}
-          </button>
-          {onConfirmIgnore && onIgnore && (
-            <button
-              className="p-1 rounded hover:bg-amber-900/40 transition-all"
-              onClick={(e) => {
-                e.stopPropagation();
-                onConfirmIgnore(file);
-              }}
-              disabled={isIgnoring}
-              title="Ignore file"
-              data-testid={ignoreTestId}
-            >
-              {isIgnoring ? (
-                <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
-              ) : (
-                <EyeOff className="h-3 w-3 text-amber-300" />
+        <>
+          {/* Desktop: hover-to-reveal actions */}
+          {!isMobile && (
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+              <button
+                className="p-1 rounded hover:bg-slate-700 transition-all"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAction(file);
+                }}
+                disabled={isLoading || isIgnoring}
+                title={actionLabel}
+                data-testid={actionTestId}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                ) : (
+                  actionIcon
+                )}
+              </button>
+              {onConfirmIgnore && onIgnore && (
+                <button
+                  className="p-1 rounded hover:bg-amber-900/40 transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirmIgnore(file);
+                  }}
+                  disabled={isIgnoring}
+                  title="Ignore file"
+                  data-testid={ignoreTestId}
+                >
+                  {isIgnoring ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                  ) : (
+                    <EyeOff className="h-3 w-3 text-amber-300" />
+                  )}
+                </button>
               )}
-            </button>
-          )}
-          {canDiscard && onConfirmDiscard && (
-            <button
-              className="p-1 rounded hover:bg-red-900/50 transition-all"
-              onClick={(e) => {
-                e.stopPropagation();
-                onConfirmDiscard(file);
-              }}
-              disabled={isDiscarding || isIgnoring}
-              title="Discard changes"
-              data-testid={discardTestId}
-            >
-              {isDiscarding ? (
-                <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
-              ) : (
-                <Trash2 className="h-3 w-3 text-red-400" />
+              {canDiscard && onConfirmDiscard && (
+                <button
+                  className="p-1 rounded hover:bg-red-900/50 transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onConfirmDiscard(file);
+                  }}
+                  disabled={isDiscarding || isIgnoring}
+                  title="Discard changes"
+                  data-testid={discardTestId}
+                >
+                  {isDiscarding ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                  ) : (
+                    <Trash2 className="h-3 w-3 text-red-400" />
+                  )}
+                </button>
               )}
-            </button>
+            </div>
           )}
-        </div>
+
+          {/* Mobile: show primary action always, menu for secondary actions */}
+          {isMobile && (
+            <div className="flex items-center gap-1">
+              {/* Primary action (stage/unstage) - always visible */}
+              <button
+                className="p-2 rounded-lg hover:bg-slate-700 active:bg-slate-600 transition-all touch-target"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAction(file);
+                }}
+                disabled={isLoading || isIgnoring}
+                title={actionLabel}
+                data-testid={actionTestId}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                ) : (
+                  <span className="[&>svg]:h-5 [&>svg]:w-5">{actionIcon}</span>
+                )}
+              </button>
+
+              {/* More actions button - opens bottom sheet */}
+              {(onConfirmIgnore || canDiscard) && onOpenMobileActions && (
+                <button
+                  className="p-2 rounded-lg hover:bg-slate-700 active:bg-slate-600 transition-all touch-target"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenMobileActions(file);
+                  }}
+                  title="More actions"
+                  data-testid={`${itemTestId}-more-actions`}
+                >
+                  <MoreVertical className="h-5 w-5 text-slate-400" />
+                </button>
+              )}
+            </div>
+          )}
+        </>
       )}
     </li>
   );
@@ -392,7 +449,8 @@ function FileSection({
   onIgnore,
   isIgnoring,
   confirmingIgnore,
-  onConfirmIgnore
+  onConfirmIgnore,
+  onOpenMobileActions
 }: FileSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
@@ -467,6 +525,7 @@ function FileSection({
               onConfirmIgnore={onConfirmIgnore}
               confirmingDiscard={confirmingDiscard}
               confirmingIgnore={confirmingIgnore}
+              onOpenMobileActions={onOpenMobileActions}
             />
           ))}
         </ul>
@@ -513,6 +572,7 @@ export function FileList({
   onStagePaths,
   onDiscardPaths
 }: FileListProps) {
+  const isMobile = useIsMobile();
   const hasStaged = (files?.staged?.length ?? 0) > 0;
   const hasUnstaged = (files?.unstaged?.length ?? 0) > 0 || (files?.untracked?.length ?? 0) > 0;
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
@@ -520,6 +580,17 @@ export function FileList({
   const [maxPathChars, setMaxPathChars] = useState(72);
   const [confirmingGroup, setConfirmingGroup] = useState<string | null>(null);
   const binarySet = useMemo(() => new Set(files?.binary ?? []), [files?.binary]);
+
+  // Mobile file actions state
+  const [mobileActionFile, setMobileActionFile] = useState<string | null>(null);
+  const mobileActionFileInfo = useMemo(() => {
+    if (!mobileActionFile) return null;
+    const isStaged = files?.staged?.includes(mobileActionFile) ?? false;
+    const isUnstaged = files?.unstaged?.includes(mobileActionFile) ?? false;
+    const isUntracked = files?.untracked?.includes(mobileActionFile) ?? false;
+    const isConflict = files?.conflicts?.includes(mobileActionFile) ?? false;
+    return { path: mobileActionFile, isStaged, isUnstaged, isUntracked, isConflict };
+  }, [mobileActionFile, files]);
   const normalizedRules = useMemo(
     () =>
       groupingRules
@@ -668,6 +739,7 @@ export function FileList({
     (files?.untracked?.length ?? 0);
 
   return (
+    <MobileContext.Provider value={isMobile}>
     <Card
       className={`flex flex-col min-w-0 ${fillHeight ? "h-full" : "h-auto"}`}
       data-testid="file-list-panel"
@@ -924,6 +996,7 @@ export function FileList({
                         isIgnoring={isIgnoring}
                         confirmingIgnore={confirmingIgnore}
                         onConfirmIgnore={onConfirmIgnore}
+                        onOpenMobileActions={setMobileActionFile}
                       />
                       <FileSection
                         key={`${group.id}-staged`}
@@ -947,6 +1020,7 @@ export function FileList({
                         isIgnoring={isIgnoring}
                         confirmingIgnore={confirmingIgnore}
                         onConfirmIgnore={onConfirmIgnore}
+                        onOpenMobileActions={setMobileActionFile}
                       />
                       <FileSection
                         key={`${group.id}-unstaged`}
@@ -974,6 +1048,7 @@ export function FileList({
                         isIgnoring={isIgnoring}
                         confirmingIgnore={confirmingIgnore}
                         onConfirmIgnore={onConfirmIgnore}
+                        onOpenMobileActions={setMobileActionFile}
                       />
                       <FileSection
                         key={`${group.id}-untracked`}
@@ -1002,6 +1077,7 @@ export function FileList({
                         isIgnoring={isIgnoring}
                         confirmingIgnore={confirmingIgnore}
                         onConfirmIgnore={onConfirmIgnore}
+                        onOpenMobileActions={setMobileActionFile}
                       />
                     </div>
                   </div>
@@ -1031,6 +1107,7 @@ export function FileList({
                   isIgnoring={isIgnoring}
                   confirmingIgnore={confirmingIgnore}
                   onConfirmIgnore={onConfirmIgnore}
+                  onOpenMobileActions={setMobileActionFile}
                 />
 
                 {/* Staged Changes */}
@@ -1055,6 +1132,7 @@ export function FileList({
                   isIgnoring={isIgnoring}
                   confirmingIgnore={confirmingIgnore}
                   onConfirmIgnore={onConfirmIgnore}
+                  onOpenMobileActions={setMobileActionFile}
                 />
 
                 {/* Unstaged Changes */}
@@ -1083,6 +1161,7 @@ export function FileList({
                   isIgnoring={isIgnoring}
                   confirmingIgnore={confirmingIgnore}
                   onConfirmIgnore={onConfirmIgnore}
+                  onOpenMobileActions={setMobileActionFile}
                 />
 
                 {/* Untracked Files */}
@@ -1112,6 +1191,7 @@ export function FileList({
                   isIgnoring={isIgnoring}
                   confirmingIgnore={confirmingIgnore}
                   onConfirmIgnore={onConfirmIgnore}
+                  onOpenMobileActions={setMobileActionFile}
                 />
               </>
             )}
@@ -1130,5 +1210,66 @@ export function FileList({
         </CardContent>
       )}
     </Card>
+
+    {/* Mobile file action bottom sheet */}
+    {isMobile && mobileActionFileInfo && (
+      <BottomSheet
+        isOpen={Boolean(mobileActionFile)}
+        onClose={() => setMobileActionFile(null)}
+        title={mobileActionFileInfo.path.split("/").pop() || mobileActionFileInfo.path}
+      >
+        <div className="space-y-1">
+          {/* Stage/Unstage action */}
+          {mobileActionFileInfo.isStaged && (
+            <BottomSheetAction
+              icon={<Minus className="h-5 w-5 text-slate-300" />}
+              label="Unstage"
+              description="Remove from staged changes"
+              onClick={() => {
+                onUnstageFile(mobileActionFileInfo.path);
+                setMobileActionFile(null);
+              }}
+            />
+          )}
+          {(mobileActionFileInfo.isUnstaged || mobileActionFileInfo.isUntracked || mobileActionFileInfo.isConflict) && (
+            <BottomSheetAction
+              icon={<Plus className="h-5 w-5 text-emerald-300" />}
+              label="Stage"
+              description="Add to staged changes"
+              onClick={() => {
+                onStageFile(mobileActionFileInfo.path);
+                setMobileActionFile(null);
+              }}
+            />
+          )}
+
+          {/* Ignore action */}
+          <BottomSheetAction
+            icon={<EyeOff className="h-5 w-5 text-amber-300" />}
+            label="Ignore"
+            description="Add to .gitignore"
+            onClick={() => {
+              onIgnoreFile(mobileActionFileInfo.path);
+              setMobileActionFile(null);
+            }}
+          />
+
+          {/* Discard action - only for unstaged/untracked */}
+          {(mobileActionFileInfo.isUnstaged || mobileActionFileInfo.isUntracked) && (
+            <BottomSheetAction
+              icon={<Trash2 className="h-5 w-5 text-red-400" />}
+              label="Discard Changes"
+              description={mobileActionFileInfo.isUntracked ? "Delete this file" : "Revert to last commit"}
+              variant="danger"
+              onClick={() => {
+                onDiscardFile(mobileActionFileInfo.path, mobileActionFileInfo.isUntracked);
+                setMobileActionFile(null);
+              }}
+            />
+          )}
+        </div>
+      </BottomSheet>
+    )}
+    </MobileContext.Provider>
   );
 }

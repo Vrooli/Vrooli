@@ -1,5 +1,6 @@
 import { LayoutGrid, X } from "lucide-react";
 import { Button } from "./ui/button";
+import { useIsMobile } from "../hooks";
 
 export type LayoutPreset = "classic" | "split" | "bottom";
 export type LayoutSection = "changes" | "history" | "commit" | "diff";
@@ -38,8 +39,112 @@ export function LayoutSettingsModal({
   onReset,
   onClose
 }: LayoutSettingsModalProps) {
+  const isMobile = useIsMobile();
+
   if (!isOpen) return null;
 
+  // Mobile: full-screen modal
+  if (isMobile) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex flex-col bg-slate-950 animate-in slide-in-from-bottom duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Layout settings"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4 pt-safe">
+          <div className="flex items-center gap-3">
+            <LayoutGrid className="h-5 w-5 text-slate-400" />
+            <h2 className="text-base font-semibold text-slate-100">Layout Settings</h2>
+          </div>
+          <button
+            type="button"
+            className="h-11 w-11 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+          {repoDir && (
+            <p className="text-xs text-slate-500 -mt-2">Repo: {repoDir}</p>
+          )}
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-slate-200">Layout Preset</h3>
+            <div className="grid grid-cols-1 gap-3">
+              {(Object.keys(presetLabels) as LayoutPreset[]).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onChangePreset(key)}
+                  className={`rounded-xl border px-4 py-4 text-sm text-left transition touch-target ${
+                    preset === key
+                      ? "border-blue-400/60 bg-blue-500/10 text-blue-100"
+                      : "border-slate-800 bg-slate-900/40 text-slate-300 hover:bg-slate-800/60 active:bg-slate-700/60"
+                  }`}
+                >
+                  {presetLabels[key]}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500">
+              Presets move the stack of non-primary panels.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-slate-200">Primary Panel</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {(Object.keys(panelLabels) as LayoutSection[]).map((panel) => (
+                <button
+                  key={panel}
+                  type="button"
+                  onClick={() => onChangePrimary(panel)}
+                  className={`rounded-xl border px-4 py-4 text-sm text-left transition touch-target ${
+                    primaryPanel === panel
+                      ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
+                      : "border-slate-800 bg-slate-900/40 text-slate-300 hover:bg-slate-800/60 active:bg-slate-700/60"
+                  }`}
+                >
+                  {panelLabels[panel]}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500">
+              The primary panel takes the large area. Others remain stacked.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center gap-3 border-t border-slate-800 px-4 py-4 pb-safe">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onReset}
+            className="flex-1 h-12 text-sm touch-target"
+          >
+            Reset
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onClose}
+            className="flex-1 h-12 text-sm touch-target"
+          >
+            Done
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop: centered modal
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4"

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check } from "lucide-react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
+import { useIsMobile } from "../hooks";
 import type { DiffResponse, DiffHunk } from "../lib/api";
 
 interface DiffViewerProps {
@@ -14,6 +15,35 @@ interface DiffViewerProps {
   isLoading: boolean;
   error?: Error | null;
   repoDir?: string;
+}
+
+// Hook to detect horizontal scroll state
+function useScrollHints(ref: React.RefObject<HTMLElement | null>) {
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 1);
+  }, [ref]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    checkScroll();
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
+
+    return () => {
+      el.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+    };
+  }, [checkScroll, ref]);
+
+  return { canScrollLeft, canScrollRight };
 }
 
 function DiffLine({ line, lineNumber }: { line: string; lineNumber?: number }) {
@@ -99,6 +129,9 @@ export function DiffViewer({
   error,
   repoDir
 }: DiffViewerProps) {
+  const isMobile = useIsMobile();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const { canScrollLeft, canScrollRight } = useScrollHints(scrollContainerRef);
   const [showBinary, setShowBinary] = useState(false);
   const [copied, setCopied] = useState(false);
   const isBinaryDiff = Boolean(
@@ -106,6 +139,14 @@ export function DiffViewer({
   );
   const absolutePath =
     selectedFile && repoDir ? `${repoDir.replace(/\/$/, "")}/${selectedFile}` : selectedFile;
+
+  // Scroll helpers for mobile
+  const scrollLeft = useCallback(() => {
+    scrollContainerRef.current?.scrollBy({ left: -150, behavior: "smooth" });
+  }, []);
+  const scrollRight = useCallback(() => {
+    scrollContainerRef.current?.scrollBy({ left: 150, behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
     setShowBinary(false);
@@ -155,55 +196,91 @@ export function DiffViewer({
 
   return (
     <Card className="h-full flex flex-col" data-testid="diff-viewer-panel">
-      <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
-        <div className="flex items-center gap-3">
-          <CardTitle className="flex items-center gap-2">
-            <FileDiff className="h-4 w-4 text-slate-500" />
+      <CardHeader className={`flex-row items-center justify-between space-y-0 ${isMobile ? "py-4 px-4" : "py-3"}`}>
+        <div className={`flex items-center min-w-0 ${isMobile ? "gap-2 flex-1" : "gap-3"}`}>
+          <CardTitle className={`flex items-center gap-2 min-w-0 ${isMobile ? "flex-1" : ""}`}>
+            <FileDiff className={`flex-shrink-0 text-slate-500 ${isMobile ? "h-5 w-5" : "h-4 w-4"}`} />
             {selectedFile ? (
-              <span className="font-mono text-xs">{selectedFile}</span>
+              <span className={`font-mono truncate ${isMobile ? "text-sm" : "text-xs"}`}>{selectedFile}</span>
             ) : (
-              "Diff Viewer"
+              <span className={isMobile ? "text-sm" : "text-xs"}>Diff Viewer</span>
             )}
           </CardTitle>
           {selectedFile && (
             <button
               type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10"
+              className={`inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 ${
+                isMobile ? "h-10 w-10 touch-target" : "h-7 w-7"
+              }`}
               onClick={handleCopyPath}
               title={copied ? "Copied" : "Copy absolute path"}
               aria-label="Copy absolute path"
               data-testid="copy-absolute-path"
             >
               {copied ? (
-                <Check className="h-3.5 w-3.5 text-emerald-300" />
+                <Check className={`text-emerald-300 ${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}`} />
               ) : (
-                <Copy className="h-3.5 w-3.5" />
+                <Copy className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
               )}
             </button>
           )}
-          {selectedFile && (
+          {selectedFile && !isMobile && (
             <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
               {isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}
             </Badge>
           )}
         </div>
 
-        {diff?.stats && diff.has_diff && (
-          <div className="flex items-center gap-3" data-testid="diff-stats">
-            <span className="flex items-center gap-1 text-xs text-emerald-500">
-              <Plus className="h-3 w-3" />
-              {diff.stats.additions}
-            </span>
-            <span className="flex items-center gap-1 text-xs text-red-500">
-              <Minus className="h-3 w-3" />
-              {diff.stats.deletions}
-            </span>
-          </div>
-        )}
+        <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
+          {/* Mobile: show badge in header right */}
+          {selectedFile && isMobile && (
+            <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
+              {isUntracked ? "new" : isStaged ? "staged" : "mod"}
+            </Badge>
+          )}
+          {diff?.stats && diff.has_diff && (
+            <div className="flex items-center gap-2" data-testid="diff-stats">
+              <span className={`flex items-center gap-1 text-emerald-500 ${isMobile ? "text-sm" : "text-xs"}`}>
+                <Plus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
+                {diff.stats.additions}
+              </span>
+              <span className={`flex items-center gap-1 text-red-500 ${isMobile ? "text-sm" : "text-xs"}`}>
+                <Minus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
+                {diff.stats.deletions}
+              </span>
+            </div>
+          )}
+        </div>
       </CardHeader>
 
-      <CardContent className="flex-1 p-0 overflow-hidden">
-        <ScrollArea className="h-full">
+      <CardContent className="flex-1 p-0 overflow-hidden relative">
+        {/* Mobile horizontal scroll hints */}
+        {isMobile && (canScrollLeft || canScrollRight) && (
+          <>
+            {canScrollLeft && (
+              <button
+                type="button"
+                onClick={scrollLeft}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-12 w-8 flex items-center justify-center bg-gradient-to-r from-slate-950 to-transparent touch-target"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft className="h-5 w-5 text-slate-400" />
+              </button>
+            )}
+            {canScrollRight && (
+              <button
+                type="button"
+                onClick={scrollRight}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-12 w-8 flex items-center justify-center bg-gradient-to-l from-slate-950 to-transparent touch-target"
+                aria-label="Scroll right"
+              >
+                <ChevronRight className="h-5 w-5 text-slate-400" />
+              </button>
+            )}
+          </>
+        )}
+
+        <ScrollArea className="h-full" ref={scrollContainerRef}>
           {/* Loading State */}
           {isLoading && (
             <div className="flex items-center justify-center py-12" data-testid="diff-loading">
@@ -214,17 +291,17 @@ export function DiffViewer({
           {/* Error State */}
           {error && !isLoading && (
             <div className="flex flex-col items-center justify-center py-12 text-center px-4" data-testid="diff-error">
-              <p className="text-sm text-red-400">{error.message}</p>
+              <p className={`text-red-400 ${isMobile ? "text-base" : "text-sm"}`}>{error.message}</p>
             </div>
           )}
 
           {/* Empty State - No file selected */}
           {!selectedFile && !isLoading && !error && (
-            <div className="flex flex-col items-center justify-center py-12 text-center" data-testid="diff-empty">
-              <FileDiff className="h-10 w-10 text-slate-700 mb-4" />
-              <p className="text-sm text-slate-500">Select a file to view changes</p>
-              <p className="text-xs text-slate-600 mt-1">
-                Click on a file from the list on the left
+            <div className="flex flex-col items-center justify-center py-12 text-center px-4" data-testid="diff-empty">
+              <FileDiff className={`text-slate-700 mb-4 ${isMobile ? "h-12 w-12" : "h-10 w-10"}`} />
+              <p className={`text-slate-500 ${isMobile ? "text-base" : "text-sm"}`}>Select a file to view changes</p>
+              <p className={`text-slate-600 mt-1 ${isMobile ? "text-sm" : "text-xs"}`}>
+                {isMobile ? "Tap a file from the Changes tab" : "Click on a file from the list on the left"}
               </p>
             </div>
           )}
