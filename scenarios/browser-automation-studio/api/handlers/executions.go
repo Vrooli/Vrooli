@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
+	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/replay"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -329,6 +330,27 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	preview.Package = spec
+
+	// Enforce watermark requirements based on user's subscription tier.
+	// This ensures free/solo tier users always have the Vrooli watermark enabled.
+	if h.entitlementService != nil {
+		ent := entitlement.FromContext(r.Context())
+		requiresWatermark := false
+		if ent != nil {
+			requiresWatermark = h.entitlementService.TierRequiresWatermark(ent.Tier)
+		} else {
+			// No entitlement in context - check via service (uses default tier)
+			userIdentity := entitlement.UserIdentityFromContext(r.Context())
+			requiresWatermark = h.entitlementService.RequiresWatermark(previewCtx, userIdentity)
+		}
+		if result := exportservices.EnforceWatermarkRequirements(spec, requiresWatermark); result.WasEnforced {
+			h.log.WithFields(logrus.Fields{
+				"execution_id":     executionID,
+				"original_enabled": result.OriginalEnabled,
+				"original_asset":   result.OriginalAssetID,
+			}).Debug("Watermark requirements enforced for export")
+		}
+	}
 
 	if format == "json" {
 		applyReplayConfigToSpec(spec, replayConfig)

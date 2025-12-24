@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAssetStore } from '@/stores/assetStore';
+import { isBuiltInAssetId, getBuiltInAsset } from '@/lib/builtInAssets';
 import type { ReplayBackgroundSource } from './model';
 
 export const useResolvedReplayBackground = (background: ReplayBackgroundSource): ReplayBackgroundSource => {
@@ -33,6 +34,18 @@ export const useResolvedReplayBackground = (background: ReplayBackgroundSource):
       };
     }
 
+    // Check if it's a built-in asset first
+    if (isBuiltInAssetId(imageAssetId)) {
+      const builtInAsset = getBuiltInAsset(imageAssetId);
+      if (builtInAsset && !isCancelled) {
+        setResolvedUrl(builtInAsset.url);
+      }
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    // For user assets, resolve via asset store
     void (async () => {
       const url = await getAssetUrl(imageAssetId);
       if (!isCancelled) {

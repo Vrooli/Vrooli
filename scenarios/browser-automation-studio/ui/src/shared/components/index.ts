@@ -13,3 +13,9 @@ export * from '../ui';
 export { default as SubscriptionBadge } from './SubscriptionBadge';
 export { default as FeatureGateModal } from './FeatureGateModal';
 export type { GatedFeature } from './FeatureGateModal';
+export {
+  LockedSettingBadge,
+  LockedIndicator,
+  LockedOverlay,
+} from './LockedSettingBadge';
+export type { LockedSettingBadgeProps } from './LockedSettingBadge';

@@ -139,6 +139,7 @@ func main() {
 	// Initialize handlers with UX metrics integration
 	// The UX metrics collector wraps the event sink to passively capture interaction data
 	deps := handlers.InitDefaultDepsWithUXMetrics(repo, hub, log, uxRepo)
+	deps.EntitlementService = entitlementSvc // Enable tier-based feature gating in export handlers
 	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins, deps)
 
 	// Initialize UX metrics service for API endpoints

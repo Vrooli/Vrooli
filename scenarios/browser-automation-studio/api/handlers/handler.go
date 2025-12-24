@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/performance"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	"github.com/vrooli/browser-automation-studio/services/replay"
@@ -65,6 +66,9 @@ type Handler struct {
 	domHandler             *aihandlers.DOMHandler
 	elementAnalysisHandler *aihandlers.ElementAnalysisHandler
 	aiAnalysisHandler      *aihandlers.AIAnalysisHandler
+
+	// Entitlement service for tier-based feature gating
+	entitlementService *entitlement.Service
 }
 
 // recordingUploadLimitBytes returns the configured maximum upload size for recording archives.
@@ -103,14 +107,15 @@ type HandlerDeps struct {
 	CatalogService   workflow.CatalogService   // Workflow/project CRUD, versioning, sync
 	ExecutionService workflow.ExecutionService // Execution lifecycle, timeline, export
 
-	WorkflowValidator *workflowvalidator.Validator
-	Storage           storage.StorageInterface
-	RecordingService  archiveingestion.IngestionServiceInterface
-	RecordModeService *livecapture.Service // Live recording session management
-	RecordingsRoot    string
-	ReplayRenderer    replayRenderer
-	SessionProfiles   *archiveingestion.SessionProfileStore
-	UXMetricsRepo     uxmetrics.Repository // Optional: enables UX metrics collection
+	WorkflowValidator    *workflowvalidator.Validator
+	Storage              storage.StorageInterface
+	RecordingService     archiveingestion.IngestionServiceInterface
+	RecordModeService    *livecapture.Service // Live recording session management
+	RecordingsRoot       string
+	ReplayRenderer       replayRenderer
+	SessionProfiles      *archiveingestion.SessionProfileStore
+	UXMetricsRepo        uxmetrics.Repository    // Optional: enables UX metrics collection
+	EntitlementService   *entitlement.Service    // Optional: enables tier-based feature gating
 }
 
 // InitDefaultDeps initializes the standard production dependencies.
@@ -222,23 +227,24 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	)
 
 	handler := &Handler{
-		catalogService:    deps.CatalogService,
-		executionService:  deps.ExecutionService,
-		workflowValidator: deps.WorkflowValidator,
-		repo:              repo,
-		wsHub:             wsHub,
-		storage:           deps.Storage,
-		recordingService:  deps.RecordingService,
-		recordModeService: deps.RecordModeService,
-		recordingsRoot:    deps.RecordingsRoot,
-		replayRenderer:    deps.ReplayRenderer,
-		sessionProfiles:   deps.SessionProfiles,
-		log:               log,
-		wsAllowAll:        allowAllOrigins,
-		wsAllowedOrigins:  allowedCopy,
-		upgrader:          websocket.Upgrader{},
-		perfRegistry:      perfRegistry,
+		catalogService:     deps.CatalogService,
+		executionService:   deps.ExecutionService,
+		workflowValidator:  deps.WorkflowValidator,
+		repo:               repo,
+		wsHub:              wsHub,
+		storage:            deps.Storage,
+		recordingService:   deps.RecordingService,
+		recordModeService:  deps.RecordModeService,
+		recordingsRoot:     deps.RecordingsRoot,
+		replayRenderer:     deps.ReplayRenderer,
+		sessionProfiles:    deps.SessionProfiles,
+		log:                log,
+		wsAllowAll:         allowAllOrigins,
+		wsAllowedOrigins:   allowedCopy,
+		upgrader:           websocket.Upgrader{},
+		perfRegistry:       perfRegistry,
 		seedCleanupManager: seedCleanupManager,
+		entitlementService: deps.EntitlementService,
 	}
 	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 

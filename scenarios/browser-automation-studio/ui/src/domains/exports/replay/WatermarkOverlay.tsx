@@ -1,11 +1,14 @@
 /**
  * WatermarkOverlay - Renders watermark on replay player
+ *
+ * Supports both user-uploaded assets and built-in assets (like Vrooli Ascension)
  */
 
 import { useEffect, useMemo, useState } from 'react';
 import type { WatermarkSettings, WatermarkPosition } from '@stores/settingsStore';
 import { useAssetStore } from '@stores/assetStore';
 import { useOverlayRegistry } from '@/domains/replay-positioning';
+import { isBuiltInAssetId, getBuiltInAsset } from '@lib/builtInAssets';
 
 interface WatermarkOverlayProps {
   settings: WatermarkSettings;
@@ -29,7 +32,18 @@ export function WatermarkOverlay({ settings }: WatermarkOverlayProps) {
         return;
       }
 
-      // First try to use thumbnail for quick display
+      // Check if it's a built-in asset first
+      if (isBuiltInAssetId(settings.assetId)) {
+        const builtInAsset = getBuiltInAsset(settings.assetId);
+        if (builtInAsset && mounted) {
+          setImageUrl(builtInAsset.url);
+          // Set natural size from built-in asset metadata
+          setNaturalSize({ width: builtInAsset.width, height: builtInAsset.height });
+        }
+        return;
+      }
+
+      // For user assets, first try to use thumbnail for quick display
       const asset = getAssetById(settings.assetId);
       if (asset?.thumbnail && mounted) {
         setImageUrl(asset.thumbnail);
