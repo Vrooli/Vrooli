@@ -1,16 +1,17 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 )
 
 // VisitedTrackerHandlers provides proxy endpoints to the visited-tracker scenario
@@ -25,31 +26,20 @@ func NewVisitedTrackerHandlers(projectRoot string) *VisitedTrackerHandlers {
 	}
 }
 
-// getVisitedTrackerPort resolves the visited-tracker API port dynamically
-func (h *VisitedTrackerHandlers) getVisitedTrackerPort() (string, error) {
-	cmd := exec.Command("vrooli", "scenario", "port", "visited-tracker", "API_PORT")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve visited-tracker port: %w (output: %s)", err, string(output))
-	}
-
-	port := strings.TrimSpace(string(output))
-	if port == "" {
-		return "", fmt.Errorf("visited-tracker port returned empty")
-	}
-
-	return port, nil
+// getVisitedTrackerURL resolves the visited-tracker API URL via discovery
+func (h *VisitedTrackerHandlers) getVisitedTrackerURL(ctx context.Context) (string, error) {
+	return discovery.ResolveScenarioURLDefault(ctx, "visited-tracker")
 }
 
 // proxyToVisitedTracker forwards requests to visited-tracker with proper error handling
 func (h *VisitedTrackerHandlers) proxyToVisitedTracker(w http.ResponseWriter, r *http.Request, path string) {
-	port, err := h.getVisitedTrackerPort()
+	baseURL, err := h.getVisitedTrackerURL(r.Context())
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to resolve visited-tracker port: %v", err), http.StatusServiceUnavailable)
+		http.Error(w, fmt.Sprintf("Failed to resolve visited-tracker URL: %v", err), http.StatusServiceUnavailable)
 		return
 	}
 
-	targetURL := fmt.Sprintf("http://localhost:%s%s", port, path)
+	targetURL := baseURL + path
 
 	// Add query parameters if present
 	if r.URL.RawQuery != "" {
@@ -126,22 +116,15 @@ func (h *VisitedTrackerHandlers) ResetCampaignHandler(w http.ResponseWriter, r *
 
 // GetVisitedTrackerUIPortHandler returns the UI port for visited-tracker
 func (h *VisitedTrackerHandlers) GetVisitedTrackerUIPortHandler(w http.ResponseWriter, r *http.Request) {
-	cmd := exec.Command("vrooli", "scenario", "port", "visited-tracker", "UI_PORT")
-	output, err := cmd.CombinedOutput()
+	port, err := discovery.ResolveScenarioPort(r.Context(), "visited-tracker", "UI_PORT")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to resolve visited-tracker UI port: %v", err), http.StatusServiceUnavailable)
 		return
 	}
 
-	port := strings.TrimSpace(string(output))
-	if port == "" {
-		http.Error(w, "visited-tracker UI port returned empty", http.StatusServiceUnavailable)
-		return
-	}
-
-	response := map[string]string{
+	response := map[string]any{
 		"port": port,
-		"url":  fmt.Sprintf("http://localhost:%s", port),
+		"url":  fmt.Sprintf("http://localhost:%d", port),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -156,14 +139,14 @@ func (h *VisitedTrackerHandlers) GetCampaignsForTargetHandler(w http.ResponseWri
 		return
 	}
 
-	port, err := h.getVisitedTrackerPort()
+	baseURL, err := h.getVisitedTrackerURL(r.Context())
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to resolve visited-tracker port: %v", err), http.StatusServiceUnavailable)
+		http.Error(w, fmt.Sprintf("Failed to resolve visited-tracker URL: %v", err), http.StatusServiceUnavailable)
 		return
 	}
 
 	// Query campaigns from visited-tracker
-	targetURL := fmt.Sprintf("http://localhost:%s/api/v1/campaigns", port)
+	targetURL := baseURL + "/api/v1/campaigns"
 	resp, err := http.Get(targetURL)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to fetch campaigns from visited-tracker: %v", err), http.StatusBadGateway)

@@ -233,13 +233,14 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			continue
 		}
 
-		// Check for step_finish event before parsing
-		// OpenCode doesn't exit after step_finish in JSON mode, so we need to detect it
+		// Check for step_finish event before parsing.
+		// OpenCode can emit step_finish for intermediate steps; only stop on terminal reasons.
 		if strings.Contains(line, `"type":"step_finish"`) {
-			stepFinished = true
-			// Handle step_finish specially - it may contain both message and cost data
-			r.handleStepFinish(req.RunID, line, &metrics, &lastAssistantMessage, req.EventSink)
-			break
+			stepFinished = r.handleStepFinish(req.RunID, line, &metrics, &lastAssistantMessage, req.EventSink)
+			if stepFinished {
+				break
+			}
+			continue
 		}
 
 		// Parse the streaming event(s)
@@ -496,7 +497,6 @@ func extractErrorMessage(logs string) string {
 	}
 	return strings.TrimSpace(decoded)
 }
-
 
 // Stop attempts to gracefully stop a running OpenCode instance.
 func (r *OpenCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
@@ -1028,15 +1028,15 @@ func (r *OpenCodeRunner) extractAssistantMessage(runID uuid.UUID, part *OpenCode
 
 // handleStepFinish processes a step_finish event, emitting both message and cost events.
 // OpenCode's step_finish contains the final assistant message (in Snapshot) and token/cost data.
-func (r *OpenCodeRunner) handleStepFinish(runID uuid.UUID, line string, metrics *ExecutionMetrics, lastAssistant *string, sink EventSink) {
+func (r *OpenCodeRunner) handleStepFinish(runID uuid.UUID, line string, metrics *ExecutionMetrics, lastAssistant *string, sink EventSink) bool {
 	// Parse the step_finish event
 	var streamEvent OpenCodeStreamEvent
 	if err := json.Unmarshal([]byte(line), &streamEvent); err != nil {
-		return
+		return false
 	}
 
 	if streamEvent.Part == nil {
-		return
+		return false
 	}
 
 	part := streamEvent.Part
@@ -1056,6 +1056,21 @@ func (r *OpenCodeRunner) handleStepFinish(runID uuid.UUID, line string, metrics 
 		if sink != nil {
 			_ = sink.Emit(costEvent)
 		}
+	}
+
+	return isTerminalStepFinish(part)
+}
+
+func isTerminalStepFinish(part *OpenCodePart) bool {
+	if part == nil {
+		return false
+	}
+	reason := strings.ToLower(strings.TrimSpace(part.Reason))
+	switch reason {
+	case "stop", "length", "error", "cancelled", "canceled":
+		return true
+	default:
+		return false
 	}
 }
 

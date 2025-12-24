@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"flag"
@@ -19,6 +19,8 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/preflight"
 )
 
 // Configuration
@@ -149,8 +151,8 @@ func main() {
 		DBUser:             getEnv("POSTGRES_USER", "postgres"),
 		DBPass:             getEnv("POSTGRES_PASSWORD", "postgres"),
 		DBName:             getEnv("POSTGRES_DB", "vrooli"),
-		SessionAuthURL:     getEnv("SESSION_AUTH_URL", "http://localhost:8001"),
-		NotificationHubURL: getEnv("NOTIFICATION_HUB_URL", "http://localhost:8002"),
+		SessionAuthURL:     resolveSessionAuthURL(),
+		NotificationHubURL: resolveNotificationHubURL(),
 	}
 
 	// Initialize database connection
@@ -813,6 +815,40 @@ func (app *App) sendCommentNotifications(comment *Comment, config *ScenarioConfi
 }
 
 // Utility functions
+
+// resolveSessionAuthURL returns the session auth service URL.
+// Checks env var first, then uses discovery as fallback.
+func resolveSessionAuthURL() string {
+	if url := strings.TrimSpace(os.Getenv("SESSION_AUTH_URL")); url != "" {
+		return strings.TrimRight(url, "/")
+	}
+	// Try discovery for session-authenticator or scenario-authenticator
+	url, err := discovery.ResolveScenarioURLDefault(context.Background(), "session-authenticator")
+	if err == nil {
+		return url
+	}
+	url, err = discovery.ResolveScenarioURLDefault(context.Background(), "scenario-authenticator")
+	if err == nil {
+		return url
+	}
+	log.Printf("Warning: Could not resolve session auth URL via discovery: %v", err)
+	return "http://localhost:8001" // Fallback for development
+}
+
+// resolveNotificationHubURL returns the notification hub service URL.
+// Checks env var first, then uses discovery as fallback.
+func resolveNotificationHubURL() string {
+	if url := strings.TrimSpace(os.Getenv("NOTIFICATION_HUB_URL")); url != "" {
+		return strings.TrimRight(url, "/")
+	}
+	url, err := discovery.ResolveScenarioURLDefault(context.Background(), "notification-hub")
+	if err == nil {
+		return url
+	}
+	log.Printf("Warning: Could not resolve notification hub URL via discovery: %v", err)
+	return "http://localhost:8002" // Fallback for development
+}
+
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value

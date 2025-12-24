@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
 	"database/sql"
@@ -26,6 +25,8 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/preflight"
 )
 
 // Configuration
@@ -116,10 +117,7 @@ func main() {
 	if uiPort == "" {
 		log.Fatal("❌ UI_PORT environment variable is required")
 	}
-	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
-	if authServiceURL == "" {
-		log.Fatal("❌ AUTH_SERVICE_URL environment variable is required")
-	}
+	authServiceURL := resolveAuthServiceURL()
 	authUIServiceURL := os.Getenv("AUTH_UI_URL")
 	storagePath := os.Getenv("STORAGE_PATH")
 	if storagePath == "" {
@@ -2369,6 +2367,23 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+// resolveAuthServiceURL returns the auth service URL.
+// Checks env var first, then uses discovery as fallback.
+func resolveAuthServiceURL() string {
+	if url := strings.TrimSpace(os.Getenv("AUTH_SERVICE_URL")); url != "" {
+		return strings.TrimRight(url, "/")
+	}
+	// Try discovery for scenario-authenticator
+	url, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-authenticator")
+	if err == nil {
+		log.Printf("🔍 Discovered auth service at: %s", url)
+		return url
+	}
+	log.Printf("⚠️  Could not resolve auth service URL via discovery: %v", err)
+	log.Printf("   Service will use test mode for authentication")
+	return "" // Empty URL triggers test mode fallback
 }
 
 // runMigrations executes database schema migrations

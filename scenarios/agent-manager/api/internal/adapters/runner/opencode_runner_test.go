@@ -383,6 +383,31 @@ func TestOpenCodeRunner_UpdateMetrics(t *testing.T) {
 	}
 }
 
+func TestIsTerminalStepFinish(t *testing.T) {
+	cases := []struct {
+		name   string
+		reason string
+		want   bool
+	}{
+		{name: "tool-calls", reason: "tool-calls", want: false},
+		{name: "stop", reason: "stop", want: true},
+		{name: "length", reason: "length", want: true},
+		{name: "error", reason: "error", want: true},
+		{name: "cancelled", reason: "cancelled", want: true},
+		{name: "canceled", reason: "canceled", want: true},
+		{name: "empty", reason: "", want: false},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			part := &OpenCodePart{Reason: tt.reason}
+			if got := isTerminalStepFinish(part); got != tt.want {
+				t.Fatalf("isTerminalStepFinish(%q) = %v, want %v", tt.reason, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestExtractErrorMessage(t *testing.T) {
 	logs := `ERROR 2025-12-24T06:18:31 error={"error":{"message":"This request requires more credits"}} stream error`
 	msg := extractErrorMessage(logs)
