@@ -8,6 +8,7 @@ type DiffRequest struct {
 	Staged    bool   `json:"staged"`
 	Untracked bool   `json:"untracked"`
 	Base      string `json:"base,omitempty"`
+	Commit    string `json:"commit,omitempty"` // View diff for a specific commit (history mode)
 }
 
 // DiffResponse contains the diff output and metadata

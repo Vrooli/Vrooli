@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   GitBranch,
+  GitCommit,
   Menu,
   RefreshCw,
   CheckCircle,
@@ -10,11 +11,14 @@ import {
   ArrowDown,
   Settings,
   LayoutGrid,
+  History,
   X
 } from "lucide-react";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
+import type { ViewingCommit } from "../App";
 
 interface MobileHeaderProps {
   status?: RepoStatus;
@@ -24,6 +28,9 @@ interface MobileHeaderProps {
   onRefresh: () => void;
   onOpenLayoutSettings: () => void;
   onOpenGroupingSettings?: () => void;
+  // History mode props
+  viewingCommit?: ViewingCommit | null;
+  onExitHistoryMode?: () => void;
 }
 
 export function MobileHeader({
@@ -33,7 +40,9 @@ export function MobileHeader({
   isLoading,
   onRefresh,
   onOpenLayoutSettings,
-  onOpenGroupingSettings
+  onOpenGroupingSettings,
+  viewingCommit,
+  onExitHistoryMode
 }: MobileHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -44,12 +53,44 @@ export function MobileHeader({
   const unstagedCount = status?.summary.unstaged ?? 0;
   const untrackedCount = status?.summary.untracked ?? 0;
   const conflictCount = status?.summary.conflicts ?? 0;
+  const isHistoryMode = Boolean(viewingCommit);
 
   const isClean =
     stagedCount === 0 &&
     unstagedCount === 0 &&
     untrackedCount === 0 &&
     conflictCount === 0;
+
+  // History mode header - different layout
+  if (isHistoryMode && viewingCommit) {
+    return (
+      <header
+        className="flex items-center justify-between px-3 py-2 border-b border-amber-800/50 bg-amber-950/30 backdrop-blur-sm pt-safe"
+        data-testid="mobile-header"
+      >
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <History className="h-4 w-4 text-amber-400 flex-shrink-0" />
+          <Badge variant="warning" className="flex-shrink-0 text-xs">
+            History
+          </Badge>
+          <GitCommit className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+          <span className="font-mono text-xs text-amber-200">
+            {viewingCommit.hash.substring(0, 7)}
+          </span>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onExitHistoryMode}
+          className="gap-1 border-amber-600/50 text-amber-200 hover:bg-amber-900/30 text-xs px-2"
+        >
+          <X className="h-3.5 w-3.5" />
+          Exit
+        </Button>
+      </header>
+    );
+  }
 
   return (
     <>

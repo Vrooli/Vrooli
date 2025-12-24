@@ -158,7 +158,7 @@ export function GroupingSettingsModal({
                       onChange={(event) => {
                         const nextRules = rules.map((item) =>
                           item.id === rule.id
-                            ? { ...item, mode: event.target.value === "segment" ? "segment" : "prefix" }
+                            ? { ...item, mode: (event.target.value === "segment" ? "segment" : "prefix") as "prefix" | "segment" }
                             : item
                         );
                         onChangeRules(nextRules);
@@ -300,7 +300,7 @@ export function GroupingSettingsModal({
                           item.id === rule.id
                             ? {
                                 ...item,
-                                mode: event.target.value === "segment" ? "segment" : "prefix"
+                                mode: (event.target.value === "segment" ? "segment" : "prefix") as "prefix" | "segment"
                               }
                             : item
                         );

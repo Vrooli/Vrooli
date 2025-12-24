@@ -31,8 +31,8 @@ export const queryKeys = {
   repoHistory: (limit?: number, includeFiles?: boolean) =>
     ["repo", "history", limit, includeFiles] as const,
   syncStatus: ["repo", "sync-status"] as const,
-  diff: (path?: string, staged?: boolean, untracked?: boolean) =>
-    ["repo", "diff", path, staged, untracked] as const,
+  diff: (path?: string, staged?: boolean, untracked?: boolean, commit?: string) =>
+    ["repo", "diff", path, staged, untracked, commit] as const,
   approvedChanges: ["repo", "approved-changes"] as const
 };
 
@@ -60,10 +60,10 @@ export function useRepoHistory(limit = 30, includeFiles = false) {
   });
 }
 
-export function useDiff(path?: string, staged = false, untracked = false) {
+export function useDiff(path?: string, staged = false, untracked = false, commit?: string) {
   return useQuery({
-    queryKey: queryKeys.diff(path, staged, untracked),
-    queryFn: () => fetchDiff(path, staged, untracked),
+    queryKey: queryKeys.diff(path, staged, untracked, commit),
+    queryFn: () => fetchDiff(path, staged, untracked, commit),
     enabled: true
   });
 }

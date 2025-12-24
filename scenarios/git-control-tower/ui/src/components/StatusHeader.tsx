@@ -7,10 +7,14 @@ import {
   AlertCircle,
   Circle,
   RefreshCw,
-  LayoutGrid
+  LayoutGrid,
+  History,
+  X
 } from "lucide-react";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import type { RepoStatus, HealthResponse, SyncStatusResponse } from "../lib/api";
+import type { ViewingCommit } from "../App";
 
 interface StatusHeaderProps {
   status?: RepoStatus;
@@ -19,6 +23,9 @@ interface StatusHeaderProps {
   isLoading: boolean;
   onRefresh: () => void;
   onOpenLayoutSettings: () => void;
+  // History mode props
+  viewingCommit?: ViewingCommit | null;
+  onExitHistoryMode?: () => void;
 }
 
 export function StatusHeader({
@@ -27,11 +34,68 @@ export function StatusHeader({
   syncStatus,
   isLoading,
   onRefresh,
-  onOpenLayoutSettings
+  onOpenLayoutSettings,
+  viewingCommit,
+  onExitHistoryMode
 }: StatusHeaderProps) {
   const isHealthy = health?.readiness ?? false;
   const ahead = status?.branch.ahead ?? syncStatus?.ahead ?? 0;
   const behind = status?.branch.behind ?? syncStatus?.behind ?? 0;
+  const isHistoryMode = Boolean(viewingCommit);
+
+  // History mode header - different layout showing commit info
+  if (isHistoryMode && viewingCommit) {
+    return (
+      <header
+        className="flex items-center justify-between px-4 py-3 border-b border-amber-800/50 bg-amber-950/30 backdrop-blur-sm"
+        data-testid="status-header"
+      >
+        <div className="flex items-center gap-4 min-w-0 flex-1">
+          {/* History mode indicator */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <History className="h-4 w-4 text-amber-400" />
+            <Badge variant="warning" className="text-xs">
+              Viewing History
+            </Badge>
+          </div>
+
+          {/* Commit info */}
+          <div className="flex items-center gap-3 min-w-0" data-testid="history-commit-info">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <GitCommit className="h-4 w-4 text-amber-400" />
+              <span className="font-mono text-sm text-amber-200">
+                {viewingCommit.hash.substring(0, 7)}
+              </span>
+            </div>
+            <span className="text-sm text-slate-300 truncate" title={viewingCommit.subject}>
+              {viewingCommit.subject}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Commit metadata */}
+          {viewingCommit.author && (
+            <span className="text-xs text-slate-500 hidden sm:block">
+              by {viewingCommit.author}
+            </span>
+          )}
+
+          {/* Exit history mode button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExitHistoryMode}
+            className="gap-1.5 border-amber-600/50 text-amber-200 hover:bg-amber-900/30"
+            data-testid="exit-history-mode"
+          >
+            <X className="h-3.5 w-3.5" />
+            Back to Working Directory
+          </Button>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header

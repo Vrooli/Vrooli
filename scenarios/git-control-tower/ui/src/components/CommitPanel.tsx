@@ -6,7 +6,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
-  Upload
+  Upload,
+  History
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
@@ -35,6 +36,8 @@ interface CommitPanelProps {
   isPushing?: boolean;
   canPush?: boolean;
   aheadCount?: number;
+  // History mode - disables the panel
+  isHistoryMode?: boolean;
 }
 
 export function CommitPanel({
@@ -56,7 +59,8 @@ export function CommitPanel({
   onPush,
   isPushing = false,
   canPush = false,
-  aheadCount = 0
+  aheadCount = 0,
+  isHistoryMode = false
 }: CommitPanelProps) {
   const [useConventional, setUseConventional] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -114,6 +118,15 @@ export function CommitPanel({
 
       {!collapsed && (
         <CardContent className="flex-1 min-h-0 min-w-0 pt-2 pb-3 overflow-y-auto overflow-x-hidden">
+        {isHistoryMode ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <History className="h-8 w-8 text-amber-400/60 mb-3" />
+            <p className="text-sm text-amber-200/80">Viewing Historical Commit</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Exit history mode to make new commits
+            </p>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <textarea
@@ -286,6 +299,7 @@ export function CommitPanel({
             </p>
           )}
         </form>
+        )}
         </CardContent>
       )}
     </Card>

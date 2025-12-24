@@ -85,6 +85,11 @@ type GitRunner interface {
 
 	// RemoveFromIndex removes paths from the git index without deleting working files.
 	RemoveFromIndex(ctx context.Context, repoDir string, paths []string) error
+
+	// ShowCommitDiff returns the diff for a specific commit.
+	// If path is provided, returns only that file's diff from the commit.
+	// Uses git show <commit> or git show <commit> -- <path>.
+	ShowCommitDiff(ctx context.Context, repoDir string, commit string, path string) ([]byte, error)
 }
 
 // CommitOptions configures author overrides for commit operations.
@@ -484,4 +489,27 @@ func (r *ExecGitRunner) RemoveFromIndex(ctx context.Context, repoDir string, pat
 		return fmt.Errorf("git rm --cached failed: %w", err)
 	}
 	return nil
+}
+
+func (r *ExecGitRunner) ShowCommitDiff(ctx context.Context, repoDir string, commit string, path string) ([]byte, error) {
+	if strings.TrimSpace(commit) == "" {
+		return nil, fmt.Errorf("commit hash is required")
+	}
+
+	args := []string{"-C", repoDir, "show", "--no-color", "--format=", commit}
+	if path != "" {
+		args = append(args, "--", path)
+	}
+
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+	if err == nil {
+		return out, nil
+	}
+
+	exitErr := &exec.ExitError{}
+	if errors.As(err, &exitErr) {
+		return nil, fmt.Errorf("git show failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+	}
+	return nil, fmt.Errorf("git show failed: %w", err)
 }

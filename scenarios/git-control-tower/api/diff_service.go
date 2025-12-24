@@ -27,6 +27,24 @@ func GetDiff(ctx context.Context, deps DiffDeps, req DiffRequest) (*DiffResponse
 		return nil, fmt.Errorf("repo dir is required")
 	}
 
+	// Handle commit-specific diff (history mode)
+	if req.Commit != "" {
+		out, err := deps.Git.ShowCommitDiff(ctx, repoDir, req.Commit, req.Path)
+		if err != nil {
+			return nil, err
+		}
+
+		parsed := ParseDiffOutput(string(out))
+		parsed.RepoDir = repoDir
+		parsed.Path = req.Path
+		parsed.Staged = false
+		parsed.Untracked = false
+		parsed.Base = req.Commit
+		parsed.Timestamp = time.Now().UTC()
+
+		return parsed, nil
+	}
+
 	if req.Untracked {
 		cleanPath := cleanFilePath(req.Path)
 		if cleanPath == "" || strings.HasPrefix(cleanPath, "..") {

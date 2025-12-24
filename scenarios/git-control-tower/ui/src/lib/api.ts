@@ -285,12 +285,14 @@ export async function fetchRepoHistory(
 export async function fetchDiff(
   path?: string,
   staged = false,
-  untracked = false
+  untracked = false,
+  commit?: string
 ): Promise<DiffResponse> {
   const params = new URLSearchParams();
   if (path) params.set("path", path);
   if (staged) params.set("staged", "true");
   if (untracked) params.set("untracked", "true");
+  if (commit) params.set("commit", commit);
 
   const url = buildApiUrl(`/repo/diff?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {

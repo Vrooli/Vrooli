@@ -234,6 +234,7 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		Staged:    query.Get("staged") == "true",
 		Untracked: query.Get("untracked") == "true",
 		Base:      query.Get("base"),
+		Commit:    query.Get("commit"),
 	})
 	if err != nil {
 		resp.InternalError(err.Error())

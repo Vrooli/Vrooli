@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, EyeOff } from "lucide-react";
 import { useCallback, useMemo, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -31,6 +31,9 @@ interface GitHistoryProps {
   filtersOpen?: boolean;
   onOpenFilters?: () => void;
   onCloseFilters?: () => void;
+  // History mode props
+  selectedCommitHash?: string | null;
+  onSelectCommit?: (entry: RepoHistoryEntry | null) => void;
 }
 
 type HistoryEntry = {
@@ -133,7 +136,9 @@ export function GitHistory({
   onWorkingSetOnlyChange,
   filtersOpen = false,
   onOpenFilters,
-  onCloseFilters
+  onCloseFilters,
+  selectedCommitHash,
+  onSelectCommit
 }: GitHistoryProps) {
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const handleSearchChange = onSearchQueryChange ?? (() => {});
@@ -141,6 +146,31 @@ export function GitHistory({
   const handleWorkingSetChange = onWorkingSetOnlyChange ?? (() => {});
   const handleOpenFilters = onOpenFilters ?? (() => {});
   const handleCloseFilters = onCloseFilters ?? (() => {});
+
+  // Handle clicking on a commit entry to enter history mode
+  const handleCommitClick = useCallback(
+    (entry: HistoryEntry) => {
+      if (!onSelectCommit || !entry.hash) return;
+
+      // Find the corresponding RepoHistoryEntry with full details
+      const details = entries.find(
+        (e) => e.hash === entry.hash || entry.hash?.startsWith(e.hash) || e.hash.startsWith(entry.hash ?? "")
+      );
+
+      if (!details) {
+        // Can't view commit without entry details
+        return;
+      }
+
+      // Toggle: if already selected, deselect
+      if (selectedCommitHash === entry.hash || selectedCommitHash === details.hash) {
+        onSelectCommit(null);
+      } else {
+        onSelectCommit(details);
+      }
+    },
+    [entries, onSelectCommit, selectedCommitHash]
+  );
   const hasLines = lines.length > 0;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isLoadingMoreRef = useRef(false);
@@ -187,7 +217,7 @@ export function GitHistory({
       groupingRules
         .map((rule) => ({
           ...rule,
-          mode: rule.mode === "segment" ? "segment" : "prefix",
+          mode: (rule.mode === "segment" ? "segment" : "prefix") as "prefix" | "segment",
           normalizedPrefix: normalizePrefix(rule.prefix),
           label: rule.label.trim() || rule.prefix.trim()
         }))
@@ -410,6 +440,11 @@ export function GitHistory({
                 <div className="relative space-y-1 font-mono text-xs text-slate-200">
                   {visibleEntries.map((entry, index) => {
                     const isUnpushed = entry.hash && !entry.isPushed;
+                    const isSelected = entry.hash && (
+                      selectedCommitHash === entry.hash ||
+                      (selectedCommitHash && entry.hash.startsWith(selectedCommitHash)) ||
+                      (selectedCommitHash && selectedCommitHash.startsWith(entry.hash))
+                    );
                     const nodeTone = isUnpushed ? "bg-amber-400" : "bg-emerald-400";
                     const lineTone = isUnpushed ? "bg-amber-500/30" : "bg-emerald-500/30";
                     const chipTone = isUnpushed
@@ -419,11 +454,29 @@ export function GitHistory({
                       entry.headBranch && entry.isHead && entry.remoteBranches.length === 0
                     );
                     const showRemoteBadge = entry.isFirstRemote && entry.remoteBranches.length > 0;
+                    const canSelect = Boolean(onSelectCommit && entry.hash && entries.length > 0);
 
                     return (
                       <div
                         key={`${entry.raw}-${index}`}
-                        className="group relative rounded-lg border border-slate-800/70 bg-slate-950/30 px-2 py-2 text-slate-200 hover:bg-slate-900/60 transition-colors"
+                        className={`group relative rounded-lg border px-2 py-2 text-slate-200 transition-colors ${
+                          isSelected
+                            ? "border-amber-500/60 bg-amber-950/40 ring-1 ring-amber-500/30"
+                            : "border-slate-800/70 bg-slate-950/30 hover:bg-slate-900/60"
+                        } ${canSelect ? "cursor-pointer" : ""}`}
+                        onClick={canSelect ? () => handleCommitClick(entry) : undefined}
+                        role={canSelect ? "button" : undefined}
+                        tabIndex={canSelect ? 0 : undefined}
+                        onKeyDown={
+                          canSelect
+                            ? (e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  handleCommitClick(entry);
+                                }
+                              }
+                            : undefined
+                        }
                       >
                         <div className="flex items-start gap-3">
                           <div className="relative w-5 flex-shrink-0">
@@ -440,6 +493,12 @@ export function GitHistory({
                               {entry.hash && (
                                 <span className="rounded border border-slate-800/80 bg-slate-950/70 px-1.5 py-0.5 text-[10px] text-slate-300">
                                   {entry.hash}
+                                </span>
+                              )}
+                              {isSelected && (
+                                <span className="rounded border border-amber-500/40 bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-200 flex items-center gap-1">
+                                  <Eye className="h-2.5 w-2.5" />
+                                  viewing
                                 </span>
                               )}
                               {showHeadBadge && entry.headBranch && (

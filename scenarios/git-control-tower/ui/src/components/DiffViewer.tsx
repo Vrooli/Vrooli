@@ -21,6 +21,9 @@ interface DiffViewerProps {
   onDiscard?: (path: string, untracked: boolean) => void;
   isStaging?: boolean;
   isDiscarding?: boolean;
+  // History mode props
+  isHistoryMode?: boolean;
+  commitHash?: string;
 }
 
 // Hook to detect horizontal scroll state
@@ -138,7 +141,9 @@ export function DiffViewer({
   onUnstage,
   onDiscard,
   isStaging = false,
-  isDiscarding = false
+  isDiscarding = false,
+  isHistoryMode = false,
+  commitHash
 }: DiffViewerProps) {
   const isMobile = useIsMobile();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -237,18 +242,30 @@ export function DiffViewer({
             </button>
           )}
           {selectedFile && !isMobile && (
-            <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
-              {isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}
-            </Badge>
+            isHistoryMode ? (
+              <Badge variant="warning">
+                {commitHash ? commitHash.substring(0, 7) : "history"}
+              </Badge>
+            ) : (
+              <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
+                {isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}
+              </Badge>
+            )
           )}
         </div>
 
         <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
           {/* Mobile: show badge in header right */}
           {selectedFile && isMobile && (
-            <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
-              {isUntracked ? "new" : isStaged ? "staged" : "mod"}
-            </Badge>
+            isHistoryMode ? (
+              <Badge variant="warning">
+                {commitHash ? commitHash.substring(0, 7) : "hist"}
+              </Badge>
+            ) : (
+              <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
+                {isUntracked ? "new" : isStaged ? "staged" : "mod"}
+              </Badge>
+            )
           )}
           {diff?.stats && diff.has_diff && (
             <div className="flex items-center gap-2" data-testid="diff-stats">
@@ -389,11 +406,11 @@ export function DiffViewer({
           )}
 
           {/* Mobile spacer to account for fixed action bar */}
-          {isMobile && selectedFile && !isLoading && <div className="h-16" aria-hidden="true" />}
+          {isMobile && selectedFile && !isLoading && !isHistoryMode && <div className="h-16" aria-hidden="true" />}
         </ScrollArea>
 
-        {/* Mobile Action Bar */}
-        {isMobile && selectedFile && !isLoading && (
+        {/* Mobile Action Bar - hidden in history mode */}
+        {isMobile && selectedFile && !isLoading && !isHistoryMode && (
           <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
             {confirmingDiscard ? (
               <div className="flex items-center gap-2">

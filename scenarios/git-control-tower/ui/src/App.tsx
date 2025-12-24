@@ -4,6 +4,7 @@ import { StatusHeader } from "./components/StatusHeader";
 import { MobileHeader } from "./components/MobileHeader";
 import { MobileNav } from "./components/MobileNav";
 import { FileList } from "./components/FileList";
+import { HistoryFileList } from "./components/HistoryFileList";
 import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
 import { GitHistory } from "./components/GitHistory";
@@ -15,6 +16,16 @@ import {
 } from "./components/LayoutSettingsModal";
 import { useIsMobile } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
+import type { RepoHistoryEntry } from "./lib/api";
+
+/** State for viewing a historical commit (read-only mode) */
+export interface ViewingCommit {
+  hash: string;
+  subject: string;
+  files: string[];
+  author?: string;
+  date?: string;
+}
 import {
   useHealth,
   useRepoStatus,
@@ -115,6 +126,8 @@ export default function App() {
   const [lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
   const [commitMessage, setCommitMessage] = useState("");
+  // History mode: when viewing a previous commit
+  const [viewingCommit, setViewingCommit] = useState<ViewingCommit | null>(null);
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
   const stackPanels = useMemo(
@@ -159,7 +172,12 @@ export default function App() {
   const historyQuery = useRepoHistory(historyLimit, historyNeedsDetails);
   const syncStatusQuery = useSyncStatus();
   const approvedChangesQuery = useApprovedChanges();
-  const diffQuery = useDiff(selectedFile, selectedIsStaged, selectedIsUntracked);
+  const diffQuery = useDiff(
+    selectedFile,
+    viewingCommit ? false : selectedIsStaged,
+    viewingCommit ? false : selectedIsUntracked,
+    viewingCommit?.hash
+  );
 
   // Mutations
   const stageMutation = useStageFiles();
@@ -616,6 +634,54 @@ export default function App() {
     setHistoryLimit((prev) => Math.min(historyMaxLimit, prev + 50));
   }, []);
 
+  // Handle clicking a commit in the history panel to enter history mode
+  const handleSelectCommit = useCallback(
+    (entry: RepoHistoryEntry | null) => {
+      if (!entry) {
+        // Exit history mode
+        setViewingCommit(null);
+        setSelectedFile(undefined);
+        setSelectedFiles([]);
+        return;
+      }
+
+      // Enter history mode
+      setViewingCommit({
+        hash: entry.hash,
+        subject: entry.subject,
+        files: entry.files,
+        author: entry.author,
+        date: entry.date
+      });
+
+      // Clear current file selection - user will select from commit files
+      setSelectedFile(undefined);
+      setSelectedFiles([]);
+      setSelectedIsStaged(false);
+      setSelectedIsUntracked(false);
+    },
+    []
+  );
+
+  // Handle selecting a file when in history mode
+  const handleSelectHistoryFile = useCallback(
+    (path: string) => {
+      setSelectedFile(path);
+      setSelectedIsStaged(false);
+      setSelectedIsUntracked(false);
+    },
+    []
+  );
+
+  // Exit history mode and return to working directory
+  const handleExitHistoryMode = useCallback(() => {
+    setViewingCommit(null);
+    setSelectedFile(undefined);
+    setSelectedFiles([]);
+    setSelectedIsStaged(false);
+    setSelectedIsUntracked(false);
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     localStorage.setItem("gct.sidebarWidth", String(sidebarWidth));
@@ -976,8 +1042,23 @@ export default function App() {
 
   const renderPanel = (panel: LayoutSection, slot: "top" | "middle" | "bottom" | "main") => {
     const isMain = slot === "main";
+    const isHistoryMode = Boolean(viewingCommit);
+
     switch (panel) {
       case "changes":
+        // In history mode, show HistoryFileList instead of FileList
+        if (isHistoryMode && viewingCommit) {
+          return (
+            <HistoryFileList
+              viewingCommit={viewingCommit}
+              selectedFile={selectedFile}
+              onSelectFile={handleSelectHistoryFile}
+              collapsed={changesCollapsed}
+              onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
+              fillHeight={isMain || !changesCollapsed}
+            />
+          );
+        }
         return (
           <FileList
             files={statusQuery.data?.files}
@@ -1065,6 +1146,8 @@ export default function App() {
             filtersOpen={isHistoryFiltersOpen}
             onOpenFilters={() => setIsHistoryFiltersOpen(true)}
             onCloseFilters={() => setIsHistoryFiltersOpen(false)}
+            selectedCommitHash={viewingCommit?.hash}
+            onSelectCommit={handleSelectCommit}
           />
         );
       case "commit":
@@ -1089,6 +1172,7 @@ export default function App() {
             isPushing={pushMutation.isPending}
             canPush={syncStatusQuery.data?.can_push ?? false}
             aheadCount={syncStatusQuery.data?.ahead ?? 0}
+            isHistoryMode={isHistoryMode}
           />
         );
       case "diff":
@@ -1103,6 +1187,8 @@ export default function App() {
               isLoading={diffQuery.isLoading}
               error={diffQuery.error}
               repoDir={statusQuery.data?.repo_dir}
+              isHistoryMode={isHistoryMode}
+              commitHash={viewingCommit?.hash}
             />
           </div>
         );
@@ -1169,8 +1255,26 @@ export default function App() {
 
   // Helper to render panel content for mobile (simplified, fill height)
   const renderMobilePanel = (panel: LayoutSection) => {
+    const isHistoryMode = Boolean(viewingCommit);
+
     switch (panel) {
       case "changes":
+        // In history mode, show HistoryFileList instead of FileList
+        if (isHistoryMode && viewingCommit) {
+          return (
+            <HistoryFileList
+              viewingCommit={viewingCommit}
+              selectedFile={selectedFile}
+              onSelectFile={(path) => {
+                handleSelectHistoryFile(path);
+                // On mobile, switch to diff view after selecting a file
+                setMobileActivePanel("diff");
+              }}
+              collapsed={false}
+              fillHeight={true}
+            />
+          );
+        }
         return (
           <FileList
             files={statusQuery.data?.files}
@@ -1247,6 +1351,8 @@ export default function App() {
             onDiscard={handleDiscardFile}
             isStaging={isStaging}
             isDiscarding={isDiscarding}
+            isHistoryMode={isHistoryMode}
+            commitHash={viewingCommit?.hash}
           />
         );
       case "commit":
@@ -1270,6 +1376,7 @@ export default function App() {
             isPushing={pushMutation.isPending}
             canPush={syncStatusQuery.data?.can_push ?? false}
             aheadCount={syncStatusQuery.data?.ahead ?? 0}
+            isHistoryMode={isHistoryMode}
           />
         );
       case "history":
@@ -1299,6 +1406,14 @@ export default function App() {
             filtersOpen={isHistoryFiltersOpen}
             onOpenFilters={() => setIsHistoryFiltersOpen(true)}
             onCloseFilters={() => setIsHistoryFiltersOpen(false)}
+            selectedCommitHash={viewingCommit?.hash}
+            onSelectCommit={(entry) => {
+              handleSelectCommit(entry);
+              // On mobile, switch to changes view after selecting a commit to see files
+              if (entry) {
+                setMobileActivePanel("changes");
+              }
+            }}
           />
         );
     }
@@ -1326,6 +1441,8 @@ export default function App() {
           onRefresh={handleRefresh}
           onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
           onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+          viewingCommit={viewingCommit}
+          onExitHistoryMode={handleExitHistoryMode}
         />
 
         {/* Main Content - Single Panel at a time */}
@@ -1408,6 +1525,8 @@ export default function App() {
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
         onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
+        viewingCommit={viewingCommit}
+        onExitHistoryMode={handleExitHistoryMode}
       />
 
       {/* Main Content - Layout */}
