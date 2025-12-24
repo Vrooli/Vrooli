@@ -5,11 +5,13 @@ import type {
   ReplayCursorTheme,
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
+  ReplayDeviceFrameTheme,
   ReplayPresentationSettings,
 } from '@/domains/replay-style';
 import type { CursorSpeedProfile, CursorPathStyle } from '@/domains/exports/replay/ReplayPlayer';
 import {
   REPLAY_CHROME_OPTIONS,
+  REPLAY_DEVICE_FRAME_OPTIONS,
   REPLAY_BACKGROUND_OPTIONS,
   REPLAY_CURSOR_OPTIONS,
   REPLAY_CURSOR_POSITIONS,
@@ -150,6 +152,7 @@ export interface ReplaySettings {
   useCustomDimensions: boolean;
   presentation: ReplayPresentationSettings;
   chromeTheme: ReplayChromeTheme;
+  deviceFrameTheme: ReplayDeviceFrameTheme;
   background: ReplayBackgroundSource;
   cursorTheme: ReplayCursorTheme;
   cursorInitialPosition: ReplayCursorInitialPosition;
@@ -170,6 +173,7 @@ export interface ReplaySettings {
 const REPLAY_STYLE_SETTING_KEYS = [
   'presentation',
   'chromeTheme',
+  'deviceFrameTheme',
   'background',
   'cursorTheme',
   'cursorInitialPosition',
@@ -236,6 +240,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       useCustomDimensions: false,
       presentation: { ...DEFAULT_STYLE.presentation },
       chromeTheme: 'aurora',
+      deviceFrameTheme: DEFAULT_STYLE.deviceFrameTheme,
       background: { type: 'theme', id: 'aurora' },
       cursorTheme: 'white',
       cursorInitialPosition: 'center',
@@ -263,6 +268,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       useCustomDimensions: false,
       presentation: { ...DEFAULT_STYLE.presentation },
       chromeTheme: 'midnight',
+      deviceFrameTheme: DEFAULT_STYLE.deviceFrameTheme,
       background: { type: 'theme', id: 'nebula' },
       cursorTheme: 'aura',
       cursorInitialPosition: 'center',
@@ -290,6 +296,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       useCustomDimensions: false,
       presentation: { ...DEFAULT_STYLE.presentation },
       chromeTheme: 'minimal',
+      deviceFrameTheme: DEFAULT_STYLE.deviceFrameTheme,
       background: { type: 'theme', id: 'charcoal' },
       cursorTheme: 'arrowLight',
       cursorInitialPosition: 'top-left',
@@ -317,6 +324,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       useCustomDimensions: false,
       presentation: { ...DEFAULT_STYLE.presentation },
       chromeTheme: 'chromium',
+      deviceFrameTheme: DEFAULT_STYLE.deviceFrameTheme,
       background: { type: 'theme', id: 'grid' },
       cursorTheme: 'arrowNeon',
       cursorInitialPosition: 'center',
@@ -344,6 +352,7 @@ export const BUILT_IN_PRESETS: ReplayPreset[] = [
       useCustomDimensions: false,
       presentation: { ...DEFAULT_STYLE.presentation },
       chromeTheme: 'aurora',
+      deviceFrameTheme: DEFAULT_STYLE.deviceFrameTheme,
       background: { type: 'theme', id: 'ocean' },
       cursorTheme: 'white',
       cursorInitialPosition: 'bottom-right',
@@ -427,6 +436,7 @@ const loadReplaySettings = (): ReplaySettings => {
     useCustomDimensions: storedUseCustom === 'true',
     presentation: resolvedStyle.presentation,
     chromeTheme: resolvedStyle.chromeTheme,
+    deviceFrameTheme: resolvedStyle.deviceFrameTheme,
     background: resolvedStyle.background,
     cursorTheme: resolvedStyle.cursorTheme,
     cursorInitialPosition: resolvedStyle.cursorInitialPosition,
@@ -464,6 +474,7 @@ const getDefaultReplaySettings = (): ReplaySettings => ({
   useCustomDimensions: false,
   presentation: { ...DEFAULT_STYLE.presentation },
   chromeTheme: DEFAULT_STYLE.chromeTheme,
+  deviceFrameTheme: DEFAULT_STYLE.deviceFrameTheme,
   background: DEFAULT_STYLE.background,
   cursorTheme: DEFAULT_STYLE.cursorTheme,
   cursorInitialPosition: DEFAULT_STYLE.cursorInitialPosition,
@@ -641,6 +652,7 @@ const generateRandomSettings = (): ReplaySettings => {
     useCustomDimensions: false,
     presentation: { ...DEFAULT_STYLE.presentation },
     chromeTheme: randomChoice(REPLAY_CHROME_OPTIONS).id,
+    deviceFrameTheme: randomChoice(REPLAY_DEVICE_FRAME_OPTIONS).id,
     background: { type: 'theme', id: randomChoice(REPLAY_BACKGROUND_OPTIONS).id },
     cursorTheme: randomChoice(REPLAY_CURSOR_OPTIONS).id,
     cursorInitialPosition: randomChoice(REPLAY_CURSOR_POSITIONS).id,

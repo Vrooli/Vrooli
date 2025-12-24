@@ -16,6 +16,7 @@ export interface ReplayStyleController {
   setStyle: (updater: ReplayStyleOverrides | ((prev: ReplayStyleConfig) => ReplayStyleOverrides)) => void;
   setPresentation: (value: ReplayStyleConfig['presentation']) => void;
   setChromeTheme: (value: ReplayStyleConfig['chromeTheme']) => void;
+  setDeviceFrameTheme: (value: ReplayStyleConfig['deviceFrameTheme']) => void;
   setBackground: (value: ReplayBackgroundSource) => void;
   setBackgroundTheme: (value: ReplayBackgroundTheme) => void;
   setCursorTheme: (value: ReplayStyleConfig['cursorTheme']) => void;
@@ -125,6 +126,10 @@ export function useReplayStyle({ executionId, overrides, extraConfig }: UseRepla
     (value: ReplayStyleConfig['chromeTheme']) => setStyle({ chromeTheme: value }),
     [setStyle],
   );
+  const setDeviceFrameTheme = useCallback(
+    (value: ReplayStyleConfig['deviceFrameTheme']) => setStyle({ deviceFrameTheme: value }),
+    [setStyle],
+  );
   const setPresentation = useCallback(
     (value: ReplayStyleConfig['presentation']) => setStyle({ presentation: value }),
     [setStyle],
@@ -163,6 +168,7 @@ export function useReplayStyle({ executionId, overrides, extraConfig }: UseRepla
     setStyle,
     setPresentation,
     setChromeTheme,
+    setDeviceFrameTheme,
     setBackground,
     setBackgroundTheme,
     setCursorTheme,

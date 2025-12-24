@@ -7,6 +7,7 @@ import type {
   ReplayCursorClickAnimation,
   ReplayCursorInitialPosition,
   ReplayCursorTheme,
+  ReplayDeviceFrameTheme,
   ReplayPresentationSettings,
 } from '@/domains/replay-style';
 import {
@@ -25,6 +26,7 @@ export interface ReplayCustomizationController {
   replayCursorClickAnimation: ReplayCursorClickAnimation;
   replayCursorScale: number;
   replayBrowserScale: number;
+  replayDeviceFrameTheme: ReplayDeviceFrameTheme;
   replayRenderSource: ExportRenderSource;
   setReplayChromeTheme: (value: ReplayChromeTheme) => void;
   setReplayPresentation: (value: ReplayPresentationSettings) => void;
@@ -34,6 +36,7 @@ export interface ReplayCustomizationController {
   setReplayCursorClickAnimation: (value: ReplayCursorClickAnimation) => void;
   setReplayCursorScale: (value: number) => void;
   setReplayBrowserScale: (value: number) => void;
+  setReplayDeviceFrameTheme: (value: ReplayDeviceFrameTheme) => void;
   setReplayRenderSource: (value: ExportRenderSource) => void;
   isCustomizationCollapsed: boolean;
   setIsCustomizationCollapsed: (value: boolean) => void;
@@ -82,6 +85,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     setCursorClickAnimation,
     setCursorScale,
     setBrowserScale,
+    setDeviceFrameTheme,
     serverExtraConfig,
     isServerReady,
   } = useReplayStyle({ executionId, extraConfig });
@@ -113,6 +117,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     replayCursorClickAnimation: style.cursorClickAnimation,
     replayCursorScale: style.cursorScale,
     replayBrowserScale: style.browserScale,
+    replayDeviceFrameTheme: style.deviceFrameTheme,
     replayRenderSource,
     setReplayChromeTheme: setChromeTheme,
     setReplayPresentation: setPresentation,
@@ -122,6 +127,7 @@ export function useReplayCustomization(params: { executionId: string }): ReplayC
     setReplayCursorClickAnimation: setCursorClickAnimation,
     setReplayCursorScale: setCursorScale,
     setReplayBrowserScale: setBrowserScale,
+    setReplayDeviceFrameTheme: setDeviceFrameTheme,
     setReplayRenderSource,
     isCustomizationCollapsed,
     setIsCustomizationCollapsed,

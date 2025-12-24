@@ -4,10 +4,12 @@ import {
   ReplayBackgroundSettings,
   ReplayChromeSettings,
   ReplayCursorSettings,
+  ReplayDeviceFrameSettings,
   ReplayPresentationModeSettings,
   getReplayChromeOption,
   getReplayCursorClickAnimationOption,
   getReplayCursorOption,
+  getReplayDeviceFrameOption,
 } from "@/domains/replay-style";
 import type { ReplayCustomizationController } from "./useReplayCustomization";
 
@@ -29,6 +31,7 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
     replayCursorClickAnimation,
     replayCursorScale,
     replayBrowserScale,
+    replayDeviceFrameTheme,
     setReplayChromeTheme,
     setReplayPresentation,
     setReplayBackground,
@@ -36,12 +39,14 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
     setReplayCursorInitialPosition,
     setReplayCursorClickAnimation,
     setReplayCursorScale,
+    setReplayDeviceFrameTheme,
     setIsCustomizationCollapsed,
     isCustomizationCollapsed,
     setReplayBrowserScale,
   } = controller;
 
   const chromeOption = getReplayChromeOption(replayChromeTheme);
+  const deviceFrameOption = getReplayDeviceFrameOption(replayDeviceFrameTheme);
   const cursorOption = getReplayCursorOption(replayCursorTheme);
   const clickAnimationOption = getReplayCursorClickAnimationOption(replayCursorClickAnimation);
 
@@ -64,6 +69,10 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
           ? "Custom gradient"
           : "Theme";
   const chromeSummary = replayPresentation.showBrowserFrame ? chromeOption.label : "Off";
+  const deviceFrameSummary =
+    replayPresentation.showDesktop && replayPresentation.showDeviceFrame
+      ? deviceFrameOption.label
+      : "Off";
 
   return (
     <div className="rounded-2xl border border-white/5 bg-slate-950/40 px-4 py-3 shadow-inner">
@@ -76,6 +85,7 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
             <span>Mode • {modeSummary}</span>
             <span>Chrome • {chromeSummary}</span>
             <span>Background • {backgroundSummary}</span>
+            <span>Device • {deviceFrameSummary}</span>
             <span>Cursor • {cursorOption.label}</span>
             <span>Click • {clickAnimationOption.label}</span>
           </div>
@@ -164,12 +174,11 @@ export function ReplayCustomizationPanel({ controller }: ReplayCustomizationPane
                   Subtle bezel around the stage
                 </span>
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                <div className="flex items-center justify-between gap-3 text-[11px] text-slate-400">
-                  <span>Studio frame</span>
-                  <div className="h-8 w-14 rounded-lg bg-slate-950/60 ring-1 ring-white/12 ring-offset-2 ring-offset-slate-950/80 shadow-[0_12px_35px_rgba(15,23,42,0.45)]" />
-                </div>
-              </div>
+              <ReplayDeviceFrameSettings
+                deviceFrameTheme={replayDeviceFrameTheme}
+                onDeviceFrameThemeChange={setReplayDeviceFrameTheme}
+                variant="compact"
+              />
             </div>
           )}
           <div className="border-t border-white/5 pt-3 space-y-4">

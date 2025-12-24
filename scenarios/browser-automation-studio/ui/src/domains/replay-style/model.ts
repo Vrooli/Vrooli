@@ -37,12 +37,21 @@ export const REPLAY_CURSOR_INITIAL_POSITIONS = [
   'random',
 ] as const;
 export const REPLAY_CURSOR_CLICK_ANIMATIONS = ['none', 'pulse', 'ripple'] as const;
+export const REPLAY_DEVICE_FRAME_THEME_IDS = [
+  'minimal',
+  'slim',
+  'notch',
+  'punch',
+  'topbar',
+  'monitor',
+] as const;
 
 export type ReplayChromeTheme = (typeof REPLAY_CHROME_THEME_IDS)[number];
 export type ReplayBackgroundTheme = (typeof REPLAY_BACKGROUND_THEME_IDS)[number];
 export type ReplayCursorTheme = (typeof REPLAY_CURSOR_THEME_IDS)[number];
 export type ReplayCursorInitialPosition = (typeof REPLAY_CURSOR_INITIAL_POSITIONS)[number];
 export type ReplayCursorClickAnimation = (typeof REPLAY_CURSOR_CLICK_ANIMATIONS)[number];
+export type ReplayDeviceFrameTheme = (typeof REPLAY_DEVICE_FRAME_THEME_IDS)[number];
 
 export type ReplayBackgroundImageFit = 'cover' | 'contain';
 
@@ -77,6 +86,7 @@ export interface ReplayStyleConfig {
   version: typeof REPLAY_STYLE_VERSION;
   presentation: ReplayPresentationSettings;
   chromeTheme: ReplayChromeTheme;
+  deviceFrameTheme: ReplayDeviceFrameTheme;
   background: ReplayBackgroundSource;
   cursorTheme: ReplayCursorTheme;
   cursorInitialPosition: ReplayCursorInitialPosition;
@@ -98,6 +108,7 @@ export const REPLAY_STYLE_DEFAULTS: ReplayStyleConfig = {
     showDeviceFrame: false,
   },
   chromeTheme: 'aurora',
+  deviceFrameTheme: 'minimal',
   background: { type: 'theme', id: 'aurora' },
   cursorTheme: 'white',
   cursorInitialPosition: 'center',
@@ -128,6 +139,9 @@ export const isReplayCursorInitialPosition = (value: unknown): value is ReplayCu
 
 export const isReplayCursorClickAnimation = (value: unknown): value is ReplayCursorClickAnimation =>
   REPLAY_CURSOR_CLICK_ANIMATIONS.includes(value as ReplayCursorClickAnimation);
+
+export const isReplayDeviceFrameTheme = (value: unknown): value is ReplayDeviceFrameTheme =>
+  REPLAY_DEVICE_FRAME_THEME_IDS.includes(value as ReplayDeviceFrameTheme);
 
 const isReplayBackgroundImageFit = (value: unknown): value is ReplayBackgroundImageFit =>
   value === 'cover' || value === 'contain';
@@ -304,6 +318,7 @@ export const normalizeReplayStyle = (
   const presentationObject = readObject(source, ['presentation']);
   const presentation = normalizePresentationSettings(presentationObject, fallback.presentation);
   const chrome = readString(source, ['chromeTheme']);
+  const deviceFrame = readString(source, ['deviceFrameTheme']);
   const backgroundSource = readObject(source, ['background']);
   const cursor = readString(source, ['cursorTheme']);
   const cursorInitial = readString(source, ['cursorInitialPosition']);
@@ -315,6 +330,9 @@ export const normalizeReplayStyle = (
     version: REPLAY_STYLE_VERSION,
     presentation,
     chromeTheme: isReplayChromeTheme(chrome) ? chrome : fallback.chromeTheme,
+    deviceFrameTheme: isReplayDeviceFrameTheme(deviceFrame)
+      ? deviceFrame
+      : fallback.deviceFrameTheme,
     background: normalizeBackgroundSource(backgroundSource, fallback.background),
     cursorTheme: isReplayCursorTheme(cursor) ? cursor : fallback.cursorTheme,
     cursorInitialPosition: isReplayCursorInitialPosition(cursorInitial)

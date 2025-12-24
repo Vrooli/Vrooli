@@ -17,6 +17,7 @@ import {
   ReplayBackgroundSettings,
   ReplayChromeSettings,
   ReplayCursorSettings,
+  ReplayDeviceFrameSettings,
   ReplayPresentationModeSettings,
 } from '@/domains/replay-style';
 import type { CursorSpeedProfile, CursorPathStyle } from '@/domains/exports/replay/ReplayPlayer';
@@ -366,15 +367,11 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
 
       {replay.presentation.showDesktop && replay.presentation.showDeviceFrame && (
         <SettingSection title="Device Frame" tooltip="A hardware-style frame around the desktop stage.">
-          <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <div className="text-sm font-medium text-surface">Studio frame</div>
-                <div className="text-xs text-gray-500">Adds a subtle bezel around the background.</div>
-              </div>
-              <div className="h-14 w-24 rounded-2xl bg-slate-950/60 ring-1 ring-white/12 ring-offset-4 ring-offset-slate-950/80 shadow-[0_18px_45px_rgba(15,23,42,0.45)]" />
-            </div>
-          </div>
+          <ReplayDeviceFrameSettings
+            deviceFrameTheme={replay.deviceFrameTheme}
+            onDeviceFrameThemeChange={(value) => setReplaySetting('deviceFrameTheme', value)}
+            variant="settings"
+          />
         </SettingSection>
       )}
 

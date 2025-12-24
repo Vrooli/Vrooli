@@ -8,6 +8,7 @@ import type {
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
   ReplayGradientSpec,
+  ReplayDeviceFrameTheme,
 } from './model';
 import { REPLAY_ARROW_CURSOR_PATH } from './constants';
 import { buildGradientCss } from './gradient';
@@ -49,6 +50,11 @@ export type ChromeDecor = {
   headerHeight: number;
 };
 
+export type DeviceFrameDecor = {
+  containerClass: string;
+  overlay?: ReactNode;
+};
+
 export interface ChromeThemeOption {
   id: ReplayChromeTheme;
   label: string;
@@ -87,6 +93,14 @@ export interface CursorPositionOption {
   id: ReplayCursorInitialPosition;
   label: string;
   subtitle: string;
+}
+
+export interface DeviceFrameOption {
+  id: ReplayDeviceFrameTheme;
+  label: string;
+  subtitle: string;
+  previewClass: string;
+  previewNode?: ReactNode;
 }
 
 export const REPLAY_CHROME_OPTIONS: ChromeThemeOption[] = [
@@ -239,6 +253,57 @@ export const REPLAY_BACKGROUND_OPTIONS: BackgroundOption[] = [
       </span>
     ),
     kind: 'pattern',
+  },
+];
+
+export const REPLAY_DEVICE_FRAME_OPTIONS: DeviceFrameOption[] = [
+  {
+    id: 'minimal',
+    label: 'Minimal Bezel',
+    subtitle: 'Balanced modern frame',
+    previewClass: 'ring-1 ring-white/20 ring-offset-4 ring-offset-slate-900/70',
+  },
+  {
+    id: 'slim',
+    label: 'Slim Bezel',
+    subtitle: 'Thin edge, tight radius',
+    previewClass: 'ring-1 ring-white/10 ring-offset-2 ring-offset-slate-900/60',
+  },
+  {
+    id: 'notch',
+    label: 'Notch Top',
+    subtitle: 'Mobile-style cutout',
+    previewClass: 'ring-1 ring-white/15 ring-offset-4 ring-offset-slate-900/65',
+    previewNode: (
+      <span className="absolute left-1/2 top-1.5 h-2 w-8 -translate-x-1/2 rounded-b-lg bg-slate-900/80 ring-1 ring-white/10" />
+    ),
+  },
+  {
+    id: 'punch',
+    label: 'Punch-Hole',
+    subtitle: 'Camera dot detail',
+    previewClass: 'ring-1 ring-white/15 ring-offset-4 ring-offset-slate-900/65',
+    previewNode: (
+      <span className="absolute left-1/2 top-1.5 h-2 w-2 -translate-x-1/2 rounded-full bg-slate-900/90 ring-1 ring-white/20" />
+    ),
+  },
+  {
+    id: 'topbar',
+    label: 'Tall Top Bar',
+    subtitle: 'Laptop webcam bar',
+    previewClass: 'ring-1 ring-white/18 ring-offset-4 ring-offset-slate-900/70',
+    previewNode: (
+      <span className="absolute left-1/2 top-1.5 h-2 w-10 -translate-x-1/2 rounded-full bg-slate-900/80 ring-1 ring-white/10" />
+    ),
+  },
+  {
+    id: 'monitor',
+    label: 'Monitor',
+    subtitle: 'Hardware-style frame',
+    previewClass: 'ring-2 ring-white/18 ring-offset-6 ring-offset-slate-900/75 rounded-xl',
+    previewNode: (
+      <span className="absolute bottom-1.5 left-1/2 h-1.5 w-10 -translate-x-1/2 rounded-full bg-slate-900/70" />
+    ),
   },
 ];
 
@@ -512,6 +577,9 @@ export const getReplayBackgroundOption = (id: ReplayBackgroundTheme): Background
 
 export const getReplayChromeOption = (id: ReplayChromeTheme): ChromeThemeOption =>
   REPLAY_CHROME_OPTIONS.find((option) => option.id === id) ?? REPLAY_CHROME_OPTIONS[0];
+
+export const getReplayDeviceFrameOption = (id: ReplayDeviceFrameTheme): DeviceFrameOption =>
+  REPLAY_DEVICE_FRAME_OPTIONS.find((option) => option.id === id) ?? REPLAY_DEVICE_FRAME_OPTIONS[0];
 
 export const getReplayCursorOption = (id: ReplayCursorTheme): CursorOption =>
   REPLAY_CURSOR_OPTIONS.find((option) => option.id === id) ?? REPLAY_CURSOR_OPTIONS[0];
@@ -1002,6 +1070,63 @@ export const resolveBackgroundDecor = (
   return buildBackgroundDecor(fallbackTheme);
 };
 
+export const buildDeviceFrameDecor = (theme: ReplayDeviceFrameTheme): DeviceFrameDecor => {
+  switch (theme) {
+    case 'slim':
+      return {
+        containerClass:
+          'ring-1 ring-white/10 ring-offset-4 ring-offset-slate-950/55 shadow-[0_22px_60px_rgba(15,23,42,0.35)]',
+      };
+    case 'notch':
+      return {
+        containerClass:
+          'ring-1 ring-white/12 ring-offset-6 ring-offset-slate-950/65 shadow-[0_26px_70px_rgba(15,23,42,0.4)]',
+        overlay: (
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-1/2 top-3 h-3 w-16 -translate-x-1/2 rounded-b-2xl bg-slate-900/80 ring-1 ring-white/10 shadow-[inset_0_0_6px_rgba(255,255,255,0.12)]" />
+            <div className="absolute left-1/2 top-[14px] h-1.5 w-8 -translate-x-1/2 rounded-full bg-slate-800/70" />
+          </div>
+        ),
+      };
+    case 'punch':
+      return {
+        containerClass:
+          'ring-1 ring-white/12 ring-offset-6 ring-offset-slate-950/65 shadow-[0_26px_70px_rgba(15,23,42,0.4)]',
+        overlay: (
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-1/2 top-3 h-3 w-3 -translate-x-1/2 rounded-full bg-slate-900/90 ring-1 ring-white/20 shadow-[inset_0_0_4px_rgba(255,255,255,0.2)]" />
+          </div>
+        ),
+      };
+    case 'topbar':
+      return {
+        containerClass:
+          'ring-1 ring-white/14 ring-offset-6 ring-offset-slate-950/68 shadow-[0_26px_70px_rgba(15,23,42,0.4)]',
+        overlay: (
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-1/2 top-3 h-3 w-24 -translate-x-1/2 rounded-full bg-slate-900/80 ring-1 ring-white/10" />
+          </div>
+        ),
+      };
+    case 'monitor':
+      return {
+        containerClass:
+          'rounded-2xl ring-2 ring-white/16 ring-offset-8 ring-offset-slate-950/70 shadow-[0_30px_90px_rgba(15,23,42,0.5)]',
+        overlay: (
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute bottom-3 left-1/2 h-1.5 w-20 -translate-x-1/2 rounded-full bg-slate-900/70" />
+          </div>
+        ),
+      };
+    case 'minimal':
+    default:
+      return {
+        containerClass:
+          'ring-1 ring-white/12 ring-offset-8 ring-offset-slate-950/65 shadow-[0_28px_80px_rgba(15,23,42,0.45)]',
+      };
+  }
+};
+
 export function buildChromeDecor(theme: ReplayChromeTheme, title: string): ChromeDecor {
   switch (theme) {
     case 'chromium':
@@ -1100,11 +1225,13 @@ export function buildChromeDecor(theme: ReplayChromeTheme, title: string): Chrom
 
 export const REPLAY_STYLE_REGISTRY = {
   chromeThemes: REPLAY_CHROME_OPTIONS,
+  deviceFrameThemes: REPLAY_DEVICE_FRAME_OPTIONS,
   backgroundThemes: REPLAY_BACKGROUND_OPTIONS,
   cursorThemes: REPLAY_CURSOR_OPTIONS,
   cursorPositions: REPLAY_CURSOR_POSITIONS,
   cursorClickAnimations: REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
   buildChromeDecor,
+  buildDeviceFrameDecor,
   buildBackgroundDecor,
   buildCursorDecor,
   resolveBackgroundDecor,

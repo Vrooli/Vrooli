@@ -14,6 +14,7 @@ export { ReplayStyleFrame } from './renderer/ReplayStyleFrame';
 export { ReplayBackgroundSettings } from './components/ReplayBackgroundSettings';
 export { ReplayChromeSettings } from './components/ReplayChromeSettings';
 export { ReplayCursorSettings } from './components/ReplayCursorSettings';
+export { ReplayDeviceFrameSettings } from './components/ReplayDeviceFrameSettings';
 export { ReplayPresentationModeSettings } from './components/ReplayPresentationModeSettings';
 export type {
   BackgroundDecor,
@@ -21,6 +22,8 @@ export type {
   ClickAnimationOption,
   ChromeDecor,
   ChromeThemeOption,
+  DeviceFrameDecor,
+  DeviceFrameOption,
   CursorDecor,
   CursorOption,
   CursorPositionOption,
@@ -30,13 +33,16 @@ export {
   CURSOR_GROUP_ORDER,
   REPLAY_BACKGROUND_OPTIONS,
   REPLAY_CHROME_OPTIONS,
+  REPLAY_DEVICE_FRAME_OPTIONS,
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS,
   REPLAY_CURSOR_OPTIONS,
   REPLAY_CURSOR_POSITIONS,
   REPLAY_STYLE_REGISTRY,
   buildBackgroundDecor,
   buildChromeDecor,
+  buildDeviceFrameDecor,
   buildCursorDecor,
+  getReplayDeviceFrameOption,
   getReplayBackgroundOption,
   getReplayChromeOption,
   getReplayCursorClickAnimationOption,

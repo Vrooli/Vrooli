@@ -177,6 +177,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
     () => ({
       presentation: replay.presentation,
       chromeTheme: replay.chromeTheme,
+      deviceFrameTheme: replay.deviceFrameTheme,
       background: replay.background,
       cursorTheme: replay.cursorTheme,
       cursorInitialPosition: replay.cursorInitialPosition,
@@ -188,6 +189,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
       replay.background,
       replay.browserScale,
       replay.chromeTheme,
+      replay.deviceFrameTheme,
       replay.cursorClickAnimation,
       replay.cursorInitialPosition,
       replay.cursorScale,
@@ -219,6 +221,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
     (style: ReplayStyleConfig) => {
       setReplaySetting('presentation', style.presentation);
       setReplaySetting('chromeTheme', style.chromeTheme);
+      setReplaySetting('deviceFrameTheme', style.deviceFrameTheme);
       setReplaySetting('background', style.background);
       setReplaySetting('cursorTheme', style.cursorTheme);
       setReplaySetting('cursorInitialPosition', style.cursorInitialPosition);
