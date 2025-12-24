@@ -48,6 +48,8 @@ import {
   useSelectDriver,
   useExecutionConfig,
   useUpdateExecutionConfig,
+  useSandboxes,
+  useDeleteSandbox,
   useProfiles,
   useSaveProfile,
   useDeleteProfile,
@@ -1352,6 +1354,209 @@ function ProfilesTab() {
   );
 }
 
+// --- Danger Tab ---
+
+type DangerActionId = "all" | "stopped" | "error" | "approved" | "rejected";
+
+const DANGER_ACTIONS: {
+  id: DangerActionId;
+  label: string;
+  description: string;
+  statuses?: DangerActionId[];
+  confirmLabel: string;
+}[] = [
+  {
+    id: "all",
+    label: "Delete all sandboxes",
+    description: "Removes every sandbox, including active ones.",
+    confirmLabel: "Delete all",
+  },
+  {
+    id: "stopped",
+    label: "Delete stopped sandboxes",
+    description: "Removes sandboxes that are stopped but not deleted.",
+    statuses: ["stopped"],
+    confirmLabel: "Delete stopped",
+  },
+  {
+    id: "error",
+    label: "Delete errored sandboxes",
+    description: "Removes sandboxes marked as error.",
+    statuses: ["error"],
+    confirmLabel: "Delete errored",
+  },
+  {
+    id: "approved",
+    label: "Delete approved sandboxes",
+    description: "Removes sandboxes that have already been approved.",
+    statuses: ["approved"],
+    confirmLabel: "Delete approved",
+  },
+  {
+    id: "rejected",
+    label: "Delete rejected sandboxes",
+    description: "Removes sandboxes that have already been rejected.",
+    statuses: ["rejected"],
+    confirmLabel: "Delete rejected",
+  },
+];
+
+function DangerTab() {
+  const sandboxesQuery = useSandboxes();
+  const deleteMutation = useDeleteSandbox();
+  const [confirming, setConfirming] = useState<DangerActionId | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [lastResult, setLastResult] = useState<{ action: DangerActionId; deleted: number; failed: number } | null>(
+    null
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const sandboxes = sandboxesQuery.data?.sandboxes ?? [];
+  const activeSandboxes = sandboxes.filter((sandbox) => sandbox.status !== "deleted");
+
+  const getTargets = (action: DangerActionId) => {
+    if (action === "all") {
+      return activeSandboxes;
+    }
+    const targetStatuses = DANGER_ACTIONS.find((candidate) => candidate.id === action)?.statuses ?? [];
+    return activeSandboxes.filter((sandbox) => targetStatuses.includes(sandbox.status as DangerActionId));
+  };
+
+  const handleBulkDelete = async (action: DangerActionId) => {
+    const targets = getTargets(action);
+    if (targets.length === 0) {
+      setLastResult({ action, deleted: 0, failed: 0 });
+      setConfirming(null);
+      return;
+    }
+    setErrorMessage(null);
+    setIsDeleting(true);
+    setProgress({ current: 0, total: targets.length });
+    let deleted = 0;
+    let failed = 0;
+    for (const sandbox of targets) {
+      try {
+        await deleteMutation.mutateAsync(sandbox.id);
+        deleted += 1;
+      } catch {
+        failed += 1;
+      }
+      setProgress((prev) => ({ ...prev, current: prev.current + 1 }));
+    }
+    setLastResult({ action, deleted, failed });
+    setIsDeleting(false);
+    setConfirming(null);
+    if (failed > 0) {
+      setErrorMessage("Some sandboxes failed to delete. Check logs or retry.");
+    }
+  };
+
+  if (sandboxesQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8 text-slate-500">
+        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+        Loading sandboxes...
+      </div>
+    );
+  }
+
+  if (sandboxesQuery.error) {
+    return (
+      <div className="rounded-lg border border-red-800 bg-red-950/50 p-4 text-red-300 text-sm">
+        <AlertTriangle className="h-4 w-4 inline mr-2" />
+        Failed to load sandboxes
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-red-900/60 bg-red-950/40 p-3">
+        <div className="flex items-start gap-2 text-xs text-red-200">
+          <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+          <p>
+            Danger zone actions are destructive and cannot be undone. These operations delete sandboxes and their
+            overlays.
+          </p>
+        </div>
+      </div>
+
+      {errorMessage && (
+        <div className="rounded-lg border border-red-800 bg-red-950/50 p-3 text-xs text-red-300">
+          {errorMessage}
+        </div>
+      )}
+
+      {isDeleting && (
+        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-300 flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Deleting sandboxes... {progress.current} / {progress.total}
+        </div>
+      )}
+
+      {lastResult && !isDeleting && (
+        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-300">
+          Last action: {lastResult.action} deleted {lastResult.deleted}
+          {lastResult.failed > 0 ? `, failed ${lastResult.failed}` : ""}.
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {DANGER_ACTIONS.map((action) => {
+          const targets = getTargets(action.id);
+          const isConfirming = confirming === action.id;
+          return (
+            <div
+              key={action.id}
+              className="rounded-lg border border-slate-800 bg-slate-900/40 p-4 flex items-start justify-between gap-4"
+            >
+              <div>
+                <div className="text-sm font-medium text-slate-200">{action.label}</div>
+                <div className="text-xs text-slate-400 mt-1">{action.description}</div>
+                <div className="text-xs text-slate-500 mt-2">{targets.length} sandboxes matched</div>
+              </div>
+              <div className="flex items-center gap-2">
+                {isConfirming ? (
+                  <>
+                    <span className="text-xs text-red-300">Confirm?</span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleBulkDelete(action.id)}
+                      disabled={isDeleting || targets.length === 0}
+                    >
+                      {action.confirmLabel}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setConfirming(null)}
+                      disabled={isDeleting}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setConfirming(action.id)}
+                    disabled={isDeleting || targets.length === 0}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    Delete
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // --- Main Settings Dialog ---
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
@@ -1384,6 +1589,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <Shield className="h-4 w-4 mr-1.5" />
               Isolation Profiles
             </TabsTrigger>
+            <TabsTrigger value="danger">
+              <AlertTriangle className="h-4 w-4 mr-1.5" />
+              Danger
+            </TabsTrigger>
           </TabsList>
 
           <div className="flex-1 overflow-y-auto pr-2 mt-2">
@@ -1397,6 +1606,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
             <TabsContent value="profiles">
               <ProfilesTab />
+            </TabsContent>
+
+            <TabsContent value="danger">
+              <DangerTab />
             </TabsContent>
           </div>
         </Tabs>
