@@ -2,15 +2,19 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/minio/minio-go/v7"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/export"
+	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -385,25 +389,31 @@ type MockExecutionService struct {
 	executions map[uuid.UUID]*database.ExecutionIndex
 
 	// Error injection
-	ExecuteWorkflowError            error
-	ExecuteWorkflowAPIError         error
-	ExecuteAdhocWorkflowAPIError    error
-	StopExecutionError              error
-	ResumeExecutionError            error
-	ListExecutionsError             error
-	GetExecutionError               error
-	UpdateExecutionError            error
-	GetExecutionScreenshotsError    error
-	GetExecutionTimelineError       error
-	GetExecutionTimelineProtoError  error
-	DescribeExecutionExportError    error
-	ExportToFolderError             error
-	HydrateExecutionProtoError      error
+	ExecuteWorkflowError             error
+	ExecuteWorkflowAPIError          error
+	ExecuteAdhocWorkflowAPIError     error
+	StopExecutionError               error
+	ResumeExecutionError             error
+	ListExecutionsError              error
+	GetExecutionError                error
+	UpdateExecutionError             error
+	GetExecutionScreenshotsError     error
+	GetExecutionTimelineError        error
+	GetExecutionTimelineProtoError   error
+	DescribeExecutionExportError     error
+	ExportToFolderError              error
+	HydrateExecutionProtoError       error
+	GetExecutionTraceArtifactsError  error
+	GetExecutionHarArtifactsError    error
+	GetExecutionVideoArtifactsError  error
 
 	// Response overrides
-	ExecutionScreenshots    []*basexecution.ExecutionScreenshot
-	ExecutionTimeline       *workflow.ExecutionTimeline
-	ExecutionTimelineProto  *bastimeline.ExecutionTimeline
+	ExecutionScreenshots      []*basexecution.ExecutionScreenshot
+	ExecutionTimeline         *workflow.ExecutionTimeline
+	ExecutionTimelineProto    *bastimeline.ExecutionTimeline
+	ExecutionTraceArtifacts   []workflow.ExecutionFileArtifact
+	ExecutionHarArtifacts     []workflow.ExecutionFileArtifact
+	ExecutionVideoArtifacts   []workflow.ExecutionVideoArtifact
 
 	// Call tracking
 	StopExecutionCalled   bool
@@ -566,14 +576,32 @@ func (m *MockExecutionService) GetExecutionScreenshots(ctx context.Context, exec
 }
 
 func (m *MockExecutionService) GetExecutionVideoArtifacts(ctx context.Context, executionID uuid.UUID) ([]workflow.ExecutionVideoArtifact, error) {
+	if m.GetExecutionVideoArtifactsError != nil {
+		return nil, m.GetExecutionVideoArtifactsError
+	}
+	if m.ExecutionVideoArtifacts != nil {
+		return m.ExecutionVideoArtifacts, nil
+	}
 	return []workflow.ExecutionVideoArtifact{}, nil
 }
 
 func (m *MockExecutionService) GetExecutionTraceArtifacts(ctx context.Context, executionID uuid.UUID) ([]workflow.ExecutionFileArtifact, error) {
+	if m.GetExecutionTraceArtifactsError != nil {
+		return nil, m.GetExecutionTraceArtifactsError
+	}
+	if m.ExecutionTraceArtifacts != nil {
+		return m.ExecutionTraceArtifacts, nil
+	}
 	return []workflow.ExecutionFileArtifact{}, nil
 }
 
 func (m *MockExecutionService) GetExecutionHarArtifacts(ctx context.Context, executionID uuid.UUID) ([]workflow.ExecutionFileArtifact, error) {
+	if m.GetExecutionHarArtifactsError != nil {
+		return nil, m.GetExecutionHarArtifactsError
+	}
+	if m.ExecutionHarArtifacts != nil {
+		return m.ExecutionHarArtifacts, nil
+	}
 	return []workflow.ExecutionFileArtifact{}, nil
 }
 
@@ -862,6 +890,353 @@ func (m *MockStorage) HealthCheck(ctx context.Context) error {
 
 func (m *MockStorage) GetBucketName() string {
 	return m.BucketName
+}
+
+// ============================================================================
+// Mock RecordModeService
+// ============================================================================
+
+// MockRecordModeService is a test mock for RecordModeService interface.
+// It implements the RecordModeService interface defined in handler.go.
+type MockRecordModeService struct {
+	mu sync.RWMutex
+
+	// Session tracking
+	Sessions map[string]*livecapture.SessionResult
+
+	// Error injection
+	CreateSessionError        error
+	CloseSessionError         error
+	GetStorageStateError      error
+	StartRecordingError       error
+	StopRecordingError        error
+	GetRecordingStatusError   error
+	GetRecordedActionsError   error
+	GenerateWorkflowError     error
+	NavigateError             error
+	UpdateViewportError       error
+	ValidateSelectorError     error
+	ReplayPreviewError        error
+	UpdateStreamSettingsError error
+	CaptureScreenshotError    error
+	GetFrameError             error
+	ForwardInputError         error
+
+	// Response overrides
+	RecordingStatus   *driver.RecordingStatusResponse
+	RecordedActions   *driver.GetActionsResponse
+	GeneratedWorkflow *livecapture.GenerateWorkflowResult
+	NavigateResponse  *driver.NavigateResponse
+	FrameResponse     *driver.GetFrameResponse
+	ScreenshotResponse *driver.CaptureScreenshotResponse
+	StorageState      json.RawMessage
+
+	// Call tracking
+	CreateSessionCalled        bool
+	CloseSessionCalled         bool
+	StartRecordingCalled       bool
+	StopRecordingCalled        bool
+	GetRecordedActionsCalled   bool
+	GenerateWorkflowCalled     bool
+	ForwardInputCalled         bool
+	LastSessionID              string
+	LastForwardInputBody       []byte
+}
+
+func NewMockRecordModeService() *MockRecordModeService {
+	return &MockRecordModeService{
+		Sessions: make(map[string]*livecapture.SessionResult),
+	}
+}
+
+func (m *MockRecordModeService) CreateSession(ctx context.Context, cfg *livecapture.SessionConfig) (*livecapture.SessionResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.CreateSessionCalled = true
+
+	if m.CreateSessionError != nil {
+		return nil, m.CreateSessionError
+	}
+
+	result := &livecapture.SessionResult{
+		SessionID: "test-session-" + uuid.NewString()[:8],
+		CreatedAt: time.Now().UTC(),
+	}
+	m.Sessions[result.SessionID] = result
+	m.LastSessionID = result.SessionID
+
+	return result, nil
+}
+
+func (m *MockRecordModeService) CloseSession(ctx context.Context, sessionID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.CloseSessionCalled = true
+	m.LastSessionID = sessionID
+
+	if m.CloseSessionError != nil {
+		return m.CloseSessionError
+	}
+
+	delete(m.Sessions, sessionID)
+	return nil
+}
+
+func (m *MockRecordModeService) GetStorageState(ctx context.Context, sessionID string) (json.RawMessage, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetStorageStateError != nil {
+		return nil, m.GetStorageStateError
+	}
+
+	if m.StorageState != nil {
+		return m.StorageState, nil
+	}
+	return json.RawMessage(`{"cookies":[],"origins":[]}`), nil
+}
+
+func (m *MockRecordModeService) StartRecording(ctx context.Context, sessionID string, cfg *livecapture.RecordingConfig) (*driver.StartRecordingResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.StartRecordingCalled = true
+	m.LastSessionID = sessionID
+
+	if m.StartRecordingError != nil {
+		return nil, m.StartRecordingError
+	}
+
+	return &driver.StartRecordingResponse{
+		SessionID:   sessionID,
+		IsRecording: true,
+		StartedAt:   time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
+func (m *MockRecordModeService) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.StopRecordingCalled = true
+	m.LastSessionID = sessionID
+
+	if m.StopRecordingError != nil {
+		return nil, m.StopRecordingError
+	}
+
+	return &driver.StopRecordingResponse{
+		SessionID:   sessionID,
+		IsRecording: false,
+		ActionCount: 5,
+		StoppedAt:   time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
+func (m *MockRecordModeService) GetRecordingStatus(ctx context.Context, sessionID string) (*driver.RecordingStatusResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetRecordingStatusError != nil {
+		return nil, m.GetRecordingStatusError
+	}
+
+	if m.RecordingStatus != nil {
+		return m.RecordingStatus, nil
+	}
+
+	return &driver.RecordingStatusResponse{
+		SessionID:   sessionID,
+		IsRecording: false,
+		ActionCount: 0,
+		FrameCount:  0,
+	}, nil
+}
+
+func (m *MockRecordModeService) GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*driver.GetActionsResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.GetRecordedActionsCalled = true
+	m.LastSessionID = sessionID
+
+	if m.GetRecordedActionsError != nil {
+		return nil, m.GetRecordedActionsError
+	}
+
+	if m.RecordedActions != nil {
+		return m.RecordedActions, nil
+	}
+
+	return &driver.GetActionsResponse{
+		SessionID:   sessionID,
+		IsRecording: false,
+		Actions:     []driver.RecordedAction{},
+	}, nil
+}
+
+func (m *MockRecordModeService) GenerateWorkflow(ctx context.Context, sessionID string, cfg *livecapture.GenerateWorkflowConfig) (*livecapture.GenerateWorkflowResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.GenerateWorkflowCalled = true
+	m.LastSessionID = sessionID
+
+	if m.GenerateWorkflowError != nil {
+		return nil, m.GenerateWorkflowError
+	}
+
+	if m.GeneratedWorkflow != nil {
+		return m.GeneratedWorkflow, nil
+	}
+
+	return &livecapture.GenerateWorkflowResult{
+		FlowDefinition: map[string]interface{}{
+			"nodes": []map[string]interface{}{},
+			"edges": []map[string]interface{}{},
+		},
+		NodeCount:   0,
+		ActionCount: 0,
+	}, nil
+}
+
+func (m *MockRecordModeService) Navigate(ctx context.Context, sessionID string, req *driver.NavigateRequest) (*driver.NavigateResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.NavigateError != nil {
+		return nil, m.NavigateError
+	}
+
+	if m.NavigateResponse != nil {
+		return m.NavigateResponse, nil
+	}
+
+	return &driver.NavigateResponse{
+		URL:        req.URL,
+		Title:      "Test Page",
+		StatusCode: 200,
+	}, nil
+}
+
+func (m *MockRecordModeService) UpdateViewport(ctx context.Context, sessionID string, width, height int) (*driver.UpdateViewportResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.UpdateViewportError != nil {
+		return nil, m.UpdateViewportError
+	}
+
+	return &driver.UpdateViewportResponse{
+		SessionID: sessionID,
+		Width:     width,
+		Height:    height,
+	}, nil
+}
+
+func (m *MockRecordModeService) ValidateSelector(ctx context.Context, sessionID, selector string) (*driver.ValidateSelectorResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.ValidateSelectorError != nil {
+		return nil, m.ValidateSelectorError
+	}
+
+	return &driver.ValidateSelectorResponse{
+		Valid:      true,
+		MatchCount: 1,
+		Selector:   selector,
+	}, nil
+}
+
+func (m *MockRecordModeService) ReplayPreview(ctx context.Context, sessionID string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.ReplayPreviewError != nil {
+		return nil, m.ReplayPreviewError
+	}
+
+	return &driver.ReplayPreviewResponse{
+		Success:         true,
+		PassedActions:   len(req.Actions),
+		FailedActions:   0,
+		Results:         []driver.ActionResult{},
+		TotalDurationMs: 100,
+	}, nil
+}
+
+func (m *MockRecordModeService) UpdateStreamSettings(ctx context.Context, sessionID string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.UpdateStreamSettingsError != nil {
+		return nil, m.UpdateStreamSettingsError
+	}
+
+	quality := 55
+	if req.Quality != nil {
+		quality = *req.Quality
+	}
+	fps := 6
+	if req.FPS != nil {
+		fps = *req.FPS
+	}
+
+	return &driver.UpdateStreamSettingsResponse{
+		SessionID:   sessionID,
+		Quality:     quality,
+		FPS:         fps,
+		CurrentFPS:  fps,
+		Scale:       req.Scale,
+		IsStreaming: true,
+		Updated:     true,
+	}, nil
+}
+
+func (m *MockRecordModeService) CaptureScreenshot(ctx context.Context, sessionID string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.CaptureScreenshotError != nil {
+		return nil, m.CaptureScreenshotError
+	}
+
+	if m.ScreenshotResponse != nil {
+		return m.ScreenshotResponse, nil
+	}
+
+	return &driver.CaptureScreenshotResponse{
+		Data: "base64-screenshot-data",
+	}, nil
+}
+
+func (m *MockRecordModeService) GetFrame(ctx context.Context, sessionID, queryParams string) (*driver.GetFrameResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetFrameError != nil {
+		return nil, m.GetFrameError
+	}
+
+	if m.FrameResponse != nil {
+		return m.FrameResponse, nil
+	}
+
+	return &driver.GetFrameResponse{
+		Data:        "base64-frame-data",
+		MediaType:   "image/jpeg",
+		Width:       1920,
+		Height:      1080,
+		CapturedAt:  time.Now().UTC().Format(time.RFC3339),
+		ContentHash: "abc123",
+	}, nil
+}
+
+func (m *MockRecordModeService) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.ForwardInputCalled = true
+	m.LastSessionID = sessionID
+	m.LastForwardInputBody = body
+
+	return m.ForwardInputError
 }
 
 // ============================================================================

@@ -126,12 +126,18 @@ func TestReplayConfigBrowserScale(t *testing.T) {
 
 	applyReplayConfigToSpec(spec, config)
 
+	// browser_scale 0.4 is clamped to minBrowserScale (0.6)
+	// Width: 1000 * 0.6 = 600
+	// Viewport height: 800 * 0.6 = 480
+	// Frame height: 480 + 40 (default chrome header) = 520
+	// X centered: (1000 - 600) / 2 = 200
+	// Y centered: (800 - 520) / 2 = 140
 	frame := spec.Presentation.BrowserFrame
-	if frame.Width != 600 || frame.Height != 480 {
-		t.Fatalf("expected browser frame 600x480, got %dx%d", frame.Width, frame.Height)
+	if frame.Width != 600 || frame.Height != 520 {
+		t.Fatalf("expected browser frame 600x520, got %dx%d", frame.Width, frame.Height)
 	}
-	if frame.X != 200 || frame.Y != 160 {
-		t.Fatalf("expected centered browser frame at 200,160 got %d,%d", frame.X, frame.Y)
+	if frame.X != 200 || frame.Y != 140 {
+		t.Fatalf("expected centered browser frame at 200,140 got %d,%d", frame.X, frame.Y)
 	}
 	if frame.Radius != 24 {
 		t.Fatalf("expected default browser frame radius 24, got %d", frame.Radius)

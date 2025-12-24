@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
@@ -37,6 +39,27 @@ type replayRenderer interface {
 	Render(ctx context.Context, spec *export.ReplayMovieSpec, format replay.RenderFormat, filename string) (*replay.RenderedMedia, error)
 }
 
+// RecordModeService defines the interface for live recording session management.
+// This interface allows for testing with mock implementations.
+type RecordModeService interface {
+	CreateSession(ctx context.Context, cfg *livecapture.SessionConfig) (*livecapture.SessionResult, error)
+	CloseSession(ctx context.Context, sessionID string) error
+	GetStorageState(ctx context.Context, sessionID string) (json.RawMessage, error)
+	StartRecording(ctx context.Context, sessionID string, cfg *livecapture.RecordingConfig) (*autodriver.StartRecordingResponse, error)
+	StopRecording(ctx context.Context, sessionID string) (*autodriver.StopRecordingResponse, error)
+	GetRecordingStatus(ctx context.Context, sessionID string) (*autodriver.RecordingStatusResponse, error)
+	GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*autodriver.GetActionsResponse, error)
+	GenerateWorkflow(ctx context.Context, sessionID string, cfg *livecapture.GenerateWorkflowConfig) (*livecapture.GenerateWorkflowResult, error)
+	Navigate(ctx context.Context, sessionID string, req *autodriver.NavigateRequest) (*autodriver.NavigateResponse, error)
+	UpdateViewport(ctx context.Context, sessionID string, width, height int) (*autodriver.UpdateViewportResponse, error)
+	ValidateSelector(ctx context.Context, sessionID, selector string) (*autodriver.ValidateSelectorResponse, error)
+	ReplayPreview(ctx context.Context, sessionID string, req *autodriver.ReplayPreviewRequest) (*autodriver.ReplayPreviewResponse, error)
+	UpdateStreamSettings(ctx context.Context, sessionID string, req *autodriver.UpdateStreamSettingsRequest) (*autodriver.UpdateStreamSettingsResponse, error)
+	CaptureScreenshot(ctx context.Context, sessionID string, req *autodriver.CaptureScreenshotRequest) (*autodriver.CaptureScreenshotResponse, error)
+	GetFrame(ctx context.Context, sessionID, queryParams string) (*autodriver.GetFrameResponse, error)
+	ForwardInput(ctx context.Context, sessionID string, body []byte) error
+}
+
 // Handler contains all HTTP handlers
 type Handler struct {
 	// Service interfaces - clearly separated responsibilities
@@ -48,7 +71,7 @@ type Handler struct {
 	wsHub             wsHub.HubInterface
 	storage           storage.StorageInterface
 	recordingService  archiveingestion.IngestionServiceInterface
-	recordModeService *livecapture.Service // Live recording session management
+	recordModeService RecordModeService // Live recording session management (interface for testability)
 	recordingsRoot    string
 	replayRenderer    replayRenderer
 	sessionProfiles   *archiveingestion.SessionProfileStore
@@ -110,7 +133,7 @@ type HandlerDeps struct {
 	WorkflowValidator    *workflowvalidator.Validator
 	Storage              storage.StorageInterface
 	RecordingService     archiveingestion.IngestionServiceInterface
-	RecordModeService    *livecapture.Service // Live recording session management
+	RecordModeService    RecordModeService // Live recording session management (interface for testability)
 	RecordingsRoot       string
 	ReplayRenderer       replayRenderer
 	SessionProfiles      *archiveingestion.SessionProfileStore
