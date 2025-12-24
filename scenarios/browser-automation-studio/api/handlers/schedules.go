@@ -102,6 +102,22 @@ func (h *Handler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate field lengths
+	if err := validateName(req.Name); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "name", "error": err.Error()}))
+		return
+	}
+	if err := validateCronExpressionLength(req.CronExpression); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "cron_expression", "error": err.Error()}))
+		return
+	}
+	if req.Timezone != "" {
+		if err := validateTimezoneLength(req.Timezone); err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "timezone", "error": err.Error()}))
+			return
+		}
+	}
+
 	// Validate cron expression
 	if err := validateCronExpression(req.CronExpression); err != nil {
 		h.respondError(w, ErrInvalidCronExpression.WithDetails(map[string]string{
@@ -319,6 +335,26 @@ func (h *Handler) UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		h.log.WithError(err).WithField("schedule_id", scheduleID).Error("Failed to get schedule for update")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_schedule"}))
 		return
+	}
+
+	// Validate field lengths if provided
+	if req.Name != nil && strings.TrimSpace(*req.Name) != "" {
+		if err := validateName(*req.Name); err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "name", "error": err.Error()}))
+			return
+		}
+	}
+	if req.CronExpression != nil {
+		if err := validateCronExpressionLength(*req.CronExpression); err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "cron_expression", "error": err.Error()}))
+			return
+		}
+	}
+	if req.Timezone != nil {
+		if err := validateTimezoneLength(*req.Timezone); err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "timezone", "error": err.Error()}))
+			return
+		}
 	}
 
 	// Apply updates

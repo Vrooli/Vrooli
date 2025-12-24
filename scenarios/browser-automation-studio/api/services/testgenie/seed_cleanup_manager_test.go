@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -75,7 +73,7 @@ func TestSeedCleanupManager_CleansUpCompletedExecution(t *testing.T) {
 	}))
 	defer server.Close()
 
-	resolver := resolverForTestServer(t, server.URL)
+	resolver := discovery.NewStaticResolver(server.URL)
 	client := NewClient(resolver, server.Client())
 
 	manager := &SeedCleanupManager{
@@ -107,24 +105,4 @@ func TestSeedCleanupManager_CleansUpCompletedExecution(t *testing.T) {
 	if len(manager.jobs) != 0 {
 		t.Fatalf("expected cleanup job to be removed")
 	}
-}
-
-func resolverForTestServer(t *testing.T, rawURL string) *discovery.Resolver {
-	t.Helper()
-	parsed, err := url.Parse(rawURL)
-	if err != nil {
-		t.Fatalf("parse test server URL: %v", err)
-	}
-	host, port, err := net.SplitHostPort(parsed.Host)
-	if err != nil {
-		t.Fatalf("split host port: %v", err)
-	}
-
-	return discovery.NewResolver(discovery.ResolverConfig{
-		Host:   host,
-		Scheme: parsed.Scheme,
-		CommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			return []byte(port), nil
-		},
-	})
 }

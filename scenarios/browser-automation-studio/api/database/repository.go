@@ -92,7 +92,7 @@ var _ Repository = (*repository)(nil)
 const (
 	projectSelectColumns   = "id, name, folder_path, created_at, updated_at"
 	workflowSelectColumns  = "id, project_id, name, folder_path, file_path, version, created_at, updated_at"
-	executionSelectColumns = "id, workflow_id, status, started_at, completed_at, COALESCE(error_message, '') as error_message, COALESCE(result_path, '') as result_path, created_at, updated_at"
+	executionSelectColumns = "id, workflow_id, status, started_at, completed_at, COALESCE(error_message, '') as error_message, COALESCE(result_path, '') as result_path, resumed_from_id, created_at, updated_at"
 	scheduleSelectColumns  = "id, workflow_id, name, cron_expression, timezone, is_active, parameters_json, next_run_at, last_run_at, created_at, updated_at"
 )
 
@@ -350,8 +350,8 @@ func (r *repository) CreateExecution(ctx context.Context, execution *ExecutionIn
 		execution.ID = uuid.New()
 	}
 
-	query := `INSERT INTO executions (id, workflow_id, status, started_at, error_message, result_path)
-	          VALUES (:id, :workflow_id, :status, :started_at, :error_message, :result_path)`
+	query := `INSERT INTO executions (id, workflow_id, status, started_at, error_message, result_path, resumed_from_id)
+	          VALUES (:id, :workflow_id, :status, :started_at, :error_message, :result_path, :resumed_from_id)`
 	_, err := r.db.NamedExecContext(ctx, query, execution)
 	if err != nil {
 		r.log.WithError(err).Error("Failed to create execution")

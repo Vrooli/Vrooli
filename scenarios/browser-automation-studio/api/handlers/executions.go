@@ -671,7 +671,11 @@ func (h *Handler) StopExecution(w http.ResponseWriter, r *http.Request) {
 
 // resumeExecutionRequest represents the request body for resuming an execution.
 type resumeExecutionRequest struct {
+	// Parameters are optional overrides merged with original execution params.
 	Parameters map[string]any `json:"parameters,omitempty"`
+	// ResumeURL is an optional URL to navigate the browser to before resuming.
+	// Useful when the browser state needs to be re-established after session loss.
+	ResumeURL string `json:"resume_url,omitempty"`
 }
 
 // ResumeExecution handles POST /api/v1/executions/{id}/resume
@@ -693,7 +697,16 @@ func (h *Handler) ResumeExecution(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
-	newExecution, err := h.executionService.ResumeExecution(ctx, id, body.Parameters)
+	// Merge resume_url into parameters for the service layer
+	params := body.Parameters
+	if body.ResumeURL != "" {
+		if params == nil {
+			params = make(map[string]any)
+		}
+		params["resume_url"] = body.ResumeURL
+	}
+
+	newExecution, err := h.executionService.ResumeExecution(ctx, id, params)
 	if err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to resume execution")
 		// Check if it's a "cannot be resumed" error vs a server error

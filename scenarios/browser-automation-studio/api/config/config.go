@@ -471,6 +471,11 @@ type HTTPConfig struct {
 	// Env: BAS_HTTP_MAX_PAGE_LIMIT (default: 500)
 	MaxPageLimit int
 
+	// MaxOffset is the maximum allowed offset for pagination.
+	// Prevents expensive queries that skip too many rows.
+	// Env: BAS_HTTP_MAX_OFFSET (default: 100000)
+	MaxOffset int
+
 	// CORSMaxAge is the max-age for Access-Control-Max-Age header (seconds).
 	// Higher = fewer preflight requests; Lower = more up-to-date CORS policy.
 	// Env: BAS_HTTP_CORS_MAX_AGE (default: 300)
@@ -674,6 +679,7 @@ func loadFromEnv() *Config {
 			MaxBodyBytes:     parseInt64("BAS_HTTP_MAX_BODY_BYTES", 1048576),
 			DefaultPageLimit: parseInt("BAS_HTTP_DEFAULT_PAGE_LIMIT", 100),
 			MaxPageLimit:     parseInt("BAS_HTTP_MAX_PAGE_LIMIT", 500),
+			MaxOffset:        parseInt("BAS_HTTP_MAX_OFFSET", 100000),
 			CORSMaxAge:       parseInt("BAS_HTTP_CORS_MAX_AGE", 300),
 		},
 		Entitlement: EntitlementConfig{
@@ -818,6 +824,9 @@ func (c *Config) Validate() error {
 	}
 	if c.HTTP.MaxPageLimit < c.HTTP.DefaultPageLimit {
 		return fmt.Errorf("MaxPageLimit (%d) cannot be less than DefaultPageLimit (%d)", c.HTTP.MaxPageLimit, c.HTTP.DefaultPageLimit)
+	}
+	if c.HTTP.MaxOffset < 1 {
+		return fmt.Errorf("MaxOffset must be at least 1, got %d", c.HTTP.MaxOffset)
 	}
 	if c.HTTP.CORSMaxAge < 0 {
 		return fmt.Errorf("CORSMaxAge must be non-negative, got %d", c.HTTP.CORSMaxAge)

@@ -822,8 +822,7 @@ func resolveTestGenieAPIV1() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	resolver := discovery.NewResolver(discovery.ResolverConfig{})
-	base, err := resolver.ResolveScenarioURLDefault(ctx, "test-genie")
+	base, err := discovery.ResolveScenarioURLDefault(ctx, "test-genie")
 	if err != nil {
 		return "", fmt.Errorf("resolve test-genie API: %w", err)
 	}
@@ -887,8 +886,7 @@ func resolveScenarioBase(ctx context.Context, scenarioName string) (string, erro
 	if strings.TrimSpace(scenarioName) == "" {
 		return "", fmt.Errorf("scenario name is required to resolve API base")
 	}
-	resolver := discovery.NewResolver(discovery.ResolverConfig{})
-	base, err := resolver.ResolveScenarioURLDefault(ctx, scenarioName)
+	base, err := discovery.ResolveScenarioURLDefault(ctx, scenarioName)
 	if err != nil {
 		return "", fmt.Errorf("resolve %s API: %w", scenarioName, err)
 	}

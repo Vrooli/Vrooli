@@ -20,6 +20,12 @@ func getMaxPageLimit() int {
 	return config.Load().HTTP.MaxPageLimit
 }
 
+// getMaxOffset returns the configured maximum offset for pagination.
+// Configurable via BAS_HTTP_MAX_OFFSET (default: 100000)
+func getMaxOffset() int {
+	return config.Load().HTTP.MaxOffset
+}
+
 func parsePaginationParams(r *http.Request, defaultLimit, maxLimit int) (limit, offset int) {
 	if defaultLimit <= 0 {
 		defaultLimit = getDefaultPageLimit()
@@ -45,6 +51,12 @@ func parsePaginationParams(r *http.Request, defaultLimit, maxLimit int) (limit, 
 		if parsed, err := strconv.Atoi(rawOffset); err == nil && parsed >= 0 {
 			offset = parsed
 		}
+	}
+
+	// Cap offset to prevent expensive queries
+	maxOffset := getMaxOffset()
+	if offset > maxOffset {
+		offset = maxOffset
 	}
 
 	return limit, offset

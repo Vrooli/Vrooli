@@ -36,6 +36,10 @@ func ExecutionToProto(execution *database.ExecutionIndex) (*basexecution.Executi
 		errMsg := execution.ErrorMessage
 		pb.Error = &errMsg
 	}
+	if execution.ResumedFromID != nil {
+		resumedFrom := execution.ResumedFromID.String()
+		pb.ResumedFrom = &resumedFrom
+	}
 
 	return pb, nil
 }

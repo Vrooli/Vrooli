@@ -67,15 +67,16 @@ type WorkflowIndex struct {
 // ExecutionIndex is the database index for an execution.
 // Use basexecution.Execution for full execution details.
 type ExecutionIndex struct {
-	ID           uuid.UUID  `json:"id" db:"id"`
-	WorkflowID   uuid.UUID  `json:"workflow_id" db:"workflow_id"`
-	Status       string     `json:"status" db:"status"`
-	StartedAt    time.Time  `json:"started_at" db:"started_at"`
-	CompletedAt  *time.Time `json:"completed_at,omitempty" db:"completed_at"`
-	ErrorMessage string     `json:"error_message,omitempty" db:"error_message"`
-	ResultPath   string     `json:"result_path,omitempty" db:"result_path"`
-	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
+	ID            uuid.UUID  `json:"id" db:"id"`
+	WorkflowID    uuid.UUID  `json:"workflow_id" db:"workflow_id"`
+	Status        string     `json:"status" db:"status"`
+	StartedAt     time.Time  `json:"started_at" db:"started_at"`
+	CompletedAt   *time.Time `json:"completed_at,omitempty" db:"completed_at"`
+	ErrorMessage  string     `json:"error_message,omitempty" db:"error_message"`
+	ResultPath    string     `json:"result_path,omitempty" db:"result_path"`
+	ResumedFromID *uuid.UUID `json:"resumed_from_id,omitempty" db:"resumed_from_id"` // Links to parent execution if this is a resume
+	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // Execution status constants

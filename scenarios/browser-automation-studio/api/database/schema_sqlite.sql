@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS executions (
     completed_at TIMESTAMP,
     error_message TEXT,  -- Brief error summary for display
     result_path TEXT,  -- Path to detailed results JSON on disk
+    resumed_from_id TEXT REFERENCES executions(id),  -- Links to parent execution if this is a resume
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

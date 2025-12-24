@@ -954,8 +954,8 @@ func TestPlaywrightEngine_Capabilities_AllFieldsPopulated(t *testing.T) {
 	if !caps.SupportsVideo {
 		t.Error("expected SupportsVideo to be true")
 	}
-	if !caps.SupportsIframes {
-		t.Error("expected SupportsIframes to be true")
+	if caps.SupportsIframes {
+		t.Error("expected SupportsIframes to be false (WebSocket streaming used instead)")
 	}
 	if !caps.SupportsTracing {
 		t.Error("expected SupportsTracing to be true")

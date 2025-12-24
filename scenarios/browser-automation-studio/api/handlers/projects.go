@@ -85,6 +85,16 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate field lengths
+	if err := validateName(req.Name); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "name", "error": err.Error()}))
+		return
+	}
+	if err := validateFolderPath(req.FolderPath); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": err.Error()}))
+		return
+	}
+
 	// Validate and prepare folder path
 	absPath, err := validateAndPrepareFolderPath(req.FolderPath, h.log)
 	if err != nil {
@@ -357,6 +367,12 @@ func (h *Handler) ImportProject(w http.ResponseWriter, r *http.Request) {
 		name = filepath.Base(absPath)
 	}
 
+	// Validate computed name length
+	if err := validateName(name); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "name", "error": err.Error()}))
+		return
+	}
+
 	description := strings.TrimSpace(req.Description)
 	if description == "" && meta != nil {
 		description = strings.TrimSpace(meta.Description)
@@ -520,6 +536,20 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate field lengths if provided
+	if req.Name != "" {
+		if err := validateName(req.Name); err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "name", "error": err.Error()}))
+			return
+		}
+	}
+	if req.FolderPath != "" {
+		if err := validateFolderPath(req.FolderPath); err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": err.Error()}))
+			return
+		}
+	}
+
 	// Update fields if provided
 	if req.Name != "" {
 		project.Name = req.Name
@@ -614,6 +644,12 @@ func (h *Handler) BulkDeleteProjectWorkflows(w http.ResponseWriter, r *http.Requ
 
 	if len(req.WorkflowIDs) == 0 {
 		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "workflow_ids"}))
+		return
+	}
+
+	// Validate bulk operation size
+	if err := validateBulkOperationSize("workflow_ids", len(req.WorkflowIDs)); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "workflow_ids", "error": err.Error()}))
 		return
 	}
 

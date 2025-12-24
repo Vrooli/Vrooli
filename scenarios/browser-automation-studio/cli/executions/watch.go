@@ -386,8 +386,7 @@ func refreshScenarioAPIBase(ctx *appctx.Context) error {
 	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resolver := discovery.NewResolver(discovery.ResolverConfig{})
-	base, err := resolver.ResolveScenarioURLDefault(ctxWithTimeout, scenarioName)
+	base, err := discovery.ResolveScenarioURLDefault(ctxWithTimeout, scenarioName)
 	if err != nil {
 		return err
 	}
