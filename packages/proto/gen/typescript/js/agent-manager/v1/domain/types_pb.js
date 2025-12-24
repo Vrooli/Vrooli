@@ -2,13 +2,42 @@
 // @generated from file agent-manager/v1/domain/types.proto (package agent_manager.v1, syntax proto3)
 /* eslint-disable */
 
-import { enumDesc, fileDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
+import { file_google_protobuf_duration } from "@bufbuild/protobuf/wkt";
 
 /**
  * Describes the file agent-manager/v1/domain/types.proto.
  */
 export const file_agent_manager_v1_domain_types = /*@__PURE__*/
-  fileDesc("CiNhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi90eXBlcy5wcm90bxIQYWdlbnRfbWFuYWdlci52MSp3CgpSdW5uZXJUeXBlEhsKF1JVTk5FUl9UWVBFX1VOU1BFQ0lGSUVEEAASGwoXUlVOTkVSX1RZUEVfQ0xBVURFX0NPREUQARIVChFSVU5ORVJfVFlQRV9DT0RFWBACEhgKFFJVTk5FUl9UWVBFX09QRU5DT0RFEAMqcgoLTW9kZWxQcmVzZXQSHAoYTU9ERUxfUFJFU0VUX1VOU1BFQ0lGSUVEEAASFQoRTU9ERUxfUFJFU0VUX0ZBU1QQARIWChJNT0RFTF9QUkVTRVRfQ0hFQVAQAhIWChJNT0RFTF9QUkVTRVRfU01BUlQQAyrCAQoUU2FuZGJveFJldGVudGlvbk1vZGUSJgoiU0FOREJPWF9SRVRFTlRJT05fTU9ERV9VTlNQRUNJRklFRBAAEiYKIlNBTkRCT1hfUkVURU5USU9OX01PREVfS0VFUF9BQ1RJVkUQARIrCidTQU5EQk9YX1JFVEVOVElPTl9NT0RFX1NUT1BfT05fVEVSTUlOQUwQAhItCilTQU5EQk9YX1JFVEVOVElPTl9NT0RFX0RFTEVURV9PTl9URVJNSU5BTBADKt8BCgpUYXNrU3RhdHVzEhsKF1RBU0tfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFgoSVEFTS19TVEFUVVNfUVVFVUVEEAESFwoTVEFTS19TVEFUVVNfUlVOTklORxACEhwKGFRBU0tfU1RBVFVTX05FRURTX1JFVklFVxADEhgKFFRBU0tfU1RBVFVTX0FQUFJPVkVEEAQSGAoUVEFTS19TVEFUVVNfUkVKRUNURUQQBRIWChJUQVNLX1NUQVRVU19GQUlMRUQQBhIZChVUQVNLX1NUQVRVU19DQU5DRUxMRUQQByrXAQoJUnVuU3RhdHVzEhoKFlJVTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIWChJSVU5fU1RBVFVTX1BFTkRJTkcQARIXChNSVU5fU1RBVFVTX1NUQVJUSU5HEAISFgoSUlVOX1NUQVRVU19SVU5OSU5HEAMSGwoXUlVOX1NUQVRVU19ORUVEU19SRVZJRVcQBBIXChNSVU5fU1RBVFVTX0NPTVBMRVRFEAUSFQoRUlVOX1NUQVRVU19GQUlMRUQQBhIYChRSVU5fU1RBVFVTX0NBTkNFTExFRBAHKr0CCghSdW5QaGFzZRIZChVSVU5fUEhBU0VfVU5TUEVDSUZJRUQQABIUChBSVU5fUEhBU0VfUVVFVUVEEAESGgoWUlVOX1BIQVNFX0lOSVRJQUxJWklORxACEh4KGlJVTl9QSEFTRV9TQU5EQk9YX0NSRUFUSU5HEAMSHgoaUlVOX1BIQVNFX1JVTk5FUl9BQ1FVSVJJTkcQBBIXChNSVU5fUEhBU0VfRVhFQ1VUSU5HEAUSIAocUlVOX1BIQVNFX0NPTExFQ1RJTkdfUkVTVUxUUxAGEh0KGVJVTl9QSEFTRV9BV0FJVElOR19SRVZJRVcQBxIWChJSVU5fUEhBU0VfQVBQTFlJTkcQCBIZChVSVU5fUEhBU0VfQ0xFQU5JTkdfVVAQCRIXChNSVU5fUEhBU0VfQ09NUExFVEVEEAoqUgoHUnVuTW9kZRIYChRSVU5fTU9ERV9VTlNQRUNJRklFRBAAEhYKElJVTl9NT0RFX1NBTkRCT1hFRBABEhUKEVJVTl9NT0RFX0lOX1BMQUNFEAIqxQEKDUFwcHJvdmFsU3RhdGUSHgoaQVBQUk9WQUxfU1RBVEVfVU5TUEVDSUZJRUQQABIXChNBUFBST1ZBTF9TVEFURV9OT05FEAESGgoWQVBQUk9WQUxfU1RBVEVfUEVORElORxACEiUKIUFQUFJPVkFMX1NUQVRFX1BBUlRJQUxMWV9BUFBST1ZFRBADEhsKF0FQUFJPVkFMX1NUQVRFX0FQUFJPVkVEEAQSGwoXQVBQUk9WQUxfU1RBVEVfUkVKRUNURUQQBSqNAgoMUnVuRXZlbnRUeXBlEh4KGlJVTl9FVkVOVF9UWVBFX1VOU1BFQ0lGSUVEEAASFgoSUlVOX0VWRU5UX1RZUEVfTE9HEAESGgoWUlVOX0VWRU5UX1RZUEVfTUVTU0FHRRACEhwKGFJVTl9FVkVOVF9UWVBFX1RPT0xfQ0FMTBADEh4KGlJVTl9FVkVOVF9UWVBFX1RPT0xfUkVTVUxUEAQSGQoVUlVOX0VWRU5UX1RZUEVfU1RBVFVTEAUSGQoVUlVOX0VWRU5UX1RZUEVfTUVUUklDEAYSGwoXUlVOX0VWRU5UX1RZUEVfQVJUSUZBQ1QQBxIYChRSVU5fRVZFTlRfVFlQRV9FUlJPUhAIKuABCg5SZWNvdmVyeUFjdGlvbhIfChtSRUNPVkVSWV9BQ1RJT05fVU5TUEVDSUZJRUQQABIYChRSRUNPVkVSWV9BQ1RJT05fTk9ORRABEhkKFVJFQ09WRVJZX0FDVElPTl9SRVRSWRACEiEKHVJFQ09WRVJZX0FDVElPTl9SRVRSWV9CQUNLT0ZGEAMSHQoZUkVDT1ZFUllfQUNUSU9OX0ZJWF9JTlBVVBAEEhgKFFJFQ09WRVJZX0FDVElPTl9XQUlUEAUSHAoYUkVDT1ZFUllfQUNUSU9OX0VTQ0FMQVRFEAYqlwEKEUlkZW1wb3RlbmN5U3RhdHVzEiIKHklERU1QT1RFTkNZX1NUQVRVU19VTlNQRUNJRklFRBAAEh4KGklERU1QT1RFTkNZX1NUQVRVU19QRU5ESU5HEAESHwobSURFTVBPVEVOQ1lfU1RBVFVTX0NPTVBMRVRFEAISHQoZSURFTVBPVEVOQ1lfU1RBVFVTX0ZBSUxFRBADKugBCgpSdW5PdXRjb21lEhsKF1JVTl9PVVRDT01FX1VOU1BFQ0lGSUVEEAASFwoTUlVOX09VVENPTUVfU1VDQ0VTUxABEhoKFlJVTl9PVVRDT01FX0VYSVRfRVJST1IQAhIZChVSVU5fT1VUQ09NRV9FWENFUFRJT04QAxIZChVSVU5fT1VUQ09NRV9DQU5DRUxMRUQQBBIXChNSVU5fT1VUQ09NRV9USU1FT1VUEAUSHAoYUlVOX09VVENPTUVfU0FOREJPWF9GQUlMEAYSGwoXUlVOX09VVENPTUVfUlVOTkVSX0ZBSUwQByqhAQoOU3RhbGVSdW5BY3Rpb24SIAocU1RBTEVfUlVOX0FDVElPTl9VTlNQRUNJRklFRBAAEhkKFVNUQUxFX1JVTl9BQ1RJT05fTk9ORRABEhsKF1NUQUxFX1JVTl9BQ1RJT05fUkVTVU1FEAISGQoVU1RBTEVfUlVOX0FDVElPTl9GQUlMEAMSGgoWU1RBTEVfUlVOX0FDVElPTl9BTEVSVBAEQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWdlbnQtbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM");
+  fileDesc("CiNhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi90eXBlcy5wcm90bxIQYWdlbnRfbWFuYWdlci52MSI9ChNTYW5kYm94RmlsZUNyaXRlcmlhEhIKCnBhdGhfZ2xvYnMYASADKAkSEgoKZXh0ZW5zaW9ucxgCIAMoCSL9AQoXU2FuZGJveEFjY2VwdGFuY2VDb25maWcSNQoEbW9kZRgBIAEoDjInLmFnZW50X21hbmFnZXIudjEuU2FuZGJveEFjY2VwdGFuY2VNb2RlEjQKBWFsbG93GAIgASgLMiUuYWdlbnRfbWFuYWdlci52MS5TYW5kYm94RmlsZUNyaXRlcmlhEjMKBGRlbnkYAyABKAsyJS5hZ2VudF9tYW5hZ2VyLnYxLlNhbmRib3hGaWxlQ3JpdGVyaWESFQoNaWdub3JlX2JpbmFyeRgEIAEoCBIUCgxhdXRvX2FwcHJvdmUYBSABKAgSEwoLYXV0b19yZWplY3QYBiABKAgi5wEKFlNhbmRib3hMaWZlY3ljbGVDb25maWcSOAoHc3RvcF9vbhgBIAMoDjInLmFnZW50X21hbmFnZXIudjEuU2FuZGJveExpZmVjeWNsZUV2ZW50EjoKCWRlbGV0ZV9vbhgCIAMoDjInLmFnZW50X21hbmFnZXIudjEuU2FuZGJveExpZmVjeWNsZUV2ZW50EiYKA3R0bBgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbhIvCgxpZGxlX3RpbWVvdXQYBCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24iiwEKDVNhbmRib3hDb25maWcSOwoJbGlmZWN5Y2xlGAEgASgLMiguYWdlbnRfbWFuYWdlci52MS5TYW5kYm94TGlmZWN5Y2xlQ29uZmlnEj0KCmFjY2VwdGFuY2UYAiABKAsyKS5hZ2VudF9tYW5hZ2VyLnYxLlNhbmRib3hBY2NlcHRhbmNlQ29uZmlnKncKClJ1bm5lclR5cGUSGwoXUlVOTkVSX1RZUEVfVU5TUEVDSUZJRUQQABIbChdSVU5ORVJfVFlQRV9DTEFVREVfQ09ERRABEhUKEVJVTk5FUl9UWVBFX0NPREVYEAISGAoUUlVOTkVSX1RZUEVfT1BFTkNPREUQAypyCgtNb2RlbFByZXNldBIcChhNT0RFTF9QUkVTRVRfVU5TUEVDSUZJRUQQABIVChFNT0RFTF9QUkVTRVRfRkFTVBABEhYKEk1PREVMX1BSRVNFVF9DSEVBUBACEhYKEk1PREVMX1BSRVNFVF9TTUFSVBADKrACChVTYW5kYm94TGlmZWN5Y2xlRXZlbnQSJwojU0FOREJPWF9MSUZFQ1lDTEVfRVZFTlRfVU5TUEVDSUZJRUQQABIpCiVTQU5EQk9YX0xJRkVDWUNMRV9FVkVOVF9SVU5fQ09NUExFVEVEEAESJgoiU0FOREJPWF9MSUZFQ1lDTEVfRVZFTlRfUlVOX0ZBSUxFRBACEikKJVNBTkRCT1hfTElGRUNZQ0xFX0VWRU5UX1JVTl9DQU5DRUxMRUQQAxIkCiBTQU5EQk9YX0xJRkVDWUNMRV9FVkVOVF9BUFBST1ZFRBAEEiQKIFNBTkRCT1hfTElGRUNZQ0xFX0VWRU5UX1JFSkVDVEVEEAUSJAogU0FOREJPWF9MSUZFQ1lDTEVfRVZFTlRfVEVSTUlOQUwQBipnChVTYW5kYm94QWNjZXB0YW5jZU1vZGUSJwojU0FOREJPWF9BQ0NFUFRBTkNFX01PREVfVU5TUEVDSUZJRUQQABIlCiFTQU5EQk9YX0FDQ0VQVEFOQ0VfTU9ERV9BTExPV0xJU1QQASrfAQoKVGFza1N0YXR1cxIbChdUQVNLX1NUQVRVU19VTlNQRUNJRklFRBAAEhYKElRBU0tfU1RBVFVTX1FVRVVFRBABEhcKE1RBU0tfU1RBVFVTX1JVTk5JTkcQAhIcChhUQVNLX1NUQVRVU19ORUVEU19SRVZJRVcQAxIYChRUQVNLX1NUQVRVU19BUFBST1ZFRBAEEhgKFFRBU0tfU1RBVFVTX1JFSkVDVEVEEAUSFgoSVEFTS19TVEFUVVNfRkFJTEVEEAYSGQoVVEFTS19TVEFUVVNfQ0FOQ0VMTEVEEAcq1wEKCVJ1blN0YXR1cxIaChZSVU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASFgoSUlVOX1NUQVRVU19QRU5ESU5HEAESFwoTUlVOX1NUQVRVU19TVEFSVElORxACEhYKElJVTl9TVEFUVVNfUlVOTklORxADEhsKF1JVTl9TVEFUVVNfTkVFRFNfUkVWSUVXEAQSFwoTUlVOX1NUQVRVU19DT01QTEVURRAFEhUKEVJVTl9TVEFUVVNfRkFJTEVEEAYSGAoUUlVOX1NUQVRVU19DQU5DRUxMRUQQByq9AgoIUnVuUGhhc2USGQoVUlVOX1BIQVNFX1VOU1BFQ0lGSUVEEAASFAoQUlVOX1BIQVNFX1FVRVVFRBABEhoKFlJVTl9QSEFTRV9JTklUSUFMSVpJTkcQAhIeChpSVU5fUEhBU0VfU0FOREJPWF9DUkVBVElORxADEh4KGlJVTl9QSEFTRV9SVU5ORVJfQUNRVUlSSU5HEAQSFwoTUlVOX1BIQVNFX0VYRUNVVElORxAFEiAKHFJVTl9QSEFTRV9DT0xMRUNUSU5HX1JFU1VMVFMQBhIdChlSVU5fUEhBU0VfQVdBSVRJTkdfUkVWSUVXEAcSFgoSUlVOX1BIQVNFX0FQUExZSU5HEAgSGQoVUlVOX1BIQVNFX0NMRUFOSU5HX1VQEAkSFwoTUlVOX1BIQVNFX0NPTVBMRVRFRBAKKlIKB1J1bk1vZGUSGAoUUlVOX01PREVfVU5TUEVDSUZJRUQQABIWChJSVU5fTU9ERV9TQU5EQk9YRUQQARIVChFSVU5fTU9ERV9JTl9QTEFDRRACKsUBCg1BcHByb3ZhbFN0YXRlEh4KGkFQUFJPVkFMX1NUQVRFX1VOU1BFQ0lGSUVEEAASFwoTQVBQUk9WQUxfU1RBVEVfTk9ORRABEhoKFkFQUFJPVkFMX1NUQVRFX1BFTkRJTkcQAhIlCiFBUFBST1ZBTF9TVEFURV9QQVJUSUFMTFlfQVBQUk9WRUQQAxIbChdBUFBST1ZBTF9TVEFURV9BUFBST1ZFRBAEEhsKF0FQUFJPVkFMX1NUQVRFX1JFSkVDVEVEEAUqjQIKDFJ1bkV2ZW50VHlwZRIeChpSVU5fRVZFTlRfVFlQRV9VTlNQRUNJRklFRBAAEhYKElJVTl9FVkVOVF9UWVBFX0xPRxABEhoKFlJVTl9FVkVOVF9UWVBFX01FU1NBR0UQAhIcChhSVU5fRVZFTlRfVFlQRV9UT09MX0NBTEwQAxIeChpSVU5fRVZFTlRfVFlQRV9UT09MX1JFU1VMVBAEEhkKFVJVTl9FVkVOVF9UWVBFX1NUQVRVUxAFEhkKFVJVTl9FVkVOVF9UWVBFX01FVFJJQxAGEhsKF1JVTl9FVkVOVF9UWVBFX0FSVElGQUNUEAcSGAoUUlVOX0VWRU5UX1RZUEVfRVJST1IQCCrgAQoOUmVjb3ZlcnlBY3Rpb24SHwobUkVDT1ZFUllfQUNUSU9OX1VOU1BFQ0lGSUVEEAASGAoUUkVDT1ZFUllfQUNUSU9OX05PTkUQARIZChVSRUNPVkVSWV9BQ1RJT05fUkVUUlkQAhIhCh1SRUNPVkVSWV9BQ1RJT05fUkVUUllfQkFDS09GRhADEh0KGVJFQ09WRVJZX0FDVElPTl9GSVhfSU5QVVQQBBIYChRSRUNPVkVSWV9BQ1RJT05fV0FJVBAFEhwKGFJFQ09WRVJZX0FDVElPTl9FU0NBTEFURRAGKpcBChFJZGVtcG90ZW5jeVN0YXR1cxIiCh5JREVNUE9URU5DWV9TVEFUVVNfVU5TUEVDSUZJRUQQABIeChpJREVNUE9URU5DWV9TVEFUVVNfUEVORElORxABEh8KG0lERU1QT1RFTkNZX1NUQVRVU19DT01QTEVURRACEh0KGUlERU1QT1RFTkNZX1NUQVRVU19GQUlMRUQQAyroAQoKUnVuT3V0Y29tZRIbChdSVU5fT1VUQ09NRV9VTlNQRUNJRklFRBAAEhcKE1JVTl9PVVRDT01FX1NVQ0NFU1MQARIaChZSVU5fT1VUQ09NRV9FWElUX0VSUk9SEAISGQoVUlVOX09VVENPTUVfRVhDRVBUSU9OEAMSGQoVUlVOX09VVENPTUVfQ0FOQ0VMTEVEEAQSFwoTUlVOX09VVENPTUVfVElNRU9VVBAFEhwKGFJVTl9PVVRDT01FX1NBTkRCT1hfRkFJTBAGEhsKF1JVTl9PVVRDT01FX1JVTk5FUl9GQUlMEAcqoQEKDlN0YWxlUnVuQWN0aW9uEiAKHFNUQUxFX1JVTl9BQ1RJT05fVU5TUEVDSUZJRUQQABIZChVTVEFMRV9SVU5fQUNUSU9OX05PTkUQARIbChdTVEFMRV9SVU5fQUNUSU9OX1JFU1VNRRACEhkKFVNUQUxFX1JVTl9BQ1RJT05fRkFJTBADEhoKFlNUQUxFX1JVTl9BQ1RJT05fQUxFUlQQBEJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FnZW50LW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_google_protobuf_duration]);
+
+/**
+ * Describes the message agent_manager.v1.SandboxFileCriteria.
+ * Use `create(SandboxFileCriteriaSchema)` to create a new message.
+ */
+export const SandboxFileCriteriaSchema = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_types, 0);
+
+/**
+ * Describes the message agent_manager.v1.SandboxAcceptanceConfig.
+ * Use `create(SandboxAcceptanceConfigSchema)` to create a new message.
+ */
+export const SandboxAcceptanceConfigSchema = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_types, 1);
+
+/**
+ * Describes the message agent_manager.v1.SandboxLifecycleConfig.
+ * Use `create(SandboxLifecycleConfigSchema)` to create a new message.
+ */
+export const SandboxLifecycleConfigSchema = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_types, 2);
+
+/**
+ * Describes the message agent_manager.v1.SandboxConfig.
+ * Use `create(SandboxConfigSchema)` to create a new message.
+ */
+export const SandboxConfigSchema = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_types, 3);
 
 /**
  * Describes the enum agent_manager.v1.RunnerType.
@@ -47,26 +76,42 @@ export const ModelPreset = /*@__PURE__*/
   tsEnum(ModelPresetSchema);
 
 /**
- * Describes the enum agent_manager.v1.SandboxRetentionMode.
+ * Describes the enum agent_manager.v1.SandboxLifecycleEvent.
  */
-export const SandboxRetentionModeSchema = /*@__PURE__*/
+export const SandboxLifecycleEventSchema = /*@__PURE__*/
   enumDesc(file_agent_manager_v1_domain_types, 2);
 
 /**
- * SandboxRetentionMode controls what happens to a sandbox after a run ends.
+ * SandboxLifecycleEvent describes lifecycle triggers for sandbox cleanup.
  *
- * @usage AgentProfile.sandbox_retention_mode, RunConfig.sandbox_retention_mode
+ * @usage SandboxLifecycleConfig.stop_on, SandboxLifecycleConfig.delete_on
  *
- * @generated from enum agent_manager.v1.SandboxRetentionMode
+ * @generated from enum agent_manager.v1.SandboxLifecycleEvent
  */
-export const SandboxRetentionMode = /*@__PURE__*/
-  tsEnum(SandboxRetentionModeSchema);
+export const SandboxLifecycleEvent = /*@__PURE__*/
+  tsEnum(SandboxLifecycleEventSchema);
+
+/**
+ * Describes the enum agent_manager.v1.SandboxAcceptanceMode.
+ */
+export const SandboxAcceptanceModeSchema = /*@__PURE__*/
+  enumDesc(file_agent_manager_v1_domain_types, 3);
+
+/**
+ * SandboxAcceptanceMode controls how files are accepted for approval.
+ *
+ * @usage SandboxAcceptanceConfig.mode
+ *
+ * @generated from enum agent_manager.v1.SandboxAcceptanceMode
+ */
+export const SandboxAcceptanceMode = /*@__PURE__*/
+  tsEnum(SandboxAcceptanceModeSchema);
 
 /**
  * Describes the enum agent_manager.v1.TaskStatus.
  */
 export const TaskStatusSchema = /*@__PURE__*/
-  enumDesc(file_agent_manager_v1_domain_types, 3);
+  enumDesc(file_agent_manager_v1_domain_types, 4);
 
 /**
  * TaskStatus represents the lifecycle state of a task.
@@ -90,7 +135,7 @@ export const TaskStatus = /*@__PURE__*/
  * Describes the enum agent_manager.v1.RunStatus.
  */
 export const RunStatusSchema = /*@__PURE__*/
-  enumDesc(file_agent_manager_v1_domain_types, 4);
+  enumDesc(file_agent_manager_v1_domain_types, 5);
 
 /**
  * RunStatus represents the lifecycle state of a run.
@@ -114,7 +159,7 @@ export const RunStatus = /*@__PURE__*/
  * Describes the enum agent_manager.v1.RunPhase.
  */
 export const RunPhaseSchema = /*@__PURE__*/
-  enumDesc(file_agent_manager_v1_domain_types, 5);
+  enumDesc(file_agent_manager_v1_domain_types, 6);
 
 /**
  * RunPhase represents the detailed execution phase within a run.
@@ -133,7 +178,7 @@ export const RunPhase = /*@__PURE__*/
  * Describes the enum agent_manager.v1.RunMode.
  */
 export const RunModeSchema = /*@__PURE__*/
-  enumDesc(file_agent_manager_v1_domain_types, 6);
+  enumDesc(file_agent_manager_v1_domain_types, 7);
 
 /**
  * RunMode indicates whether the run uses sandbox isolation.
@@ -152,7 +197,7 @@ export const RunMode = /*@__PURE__*/
  * Describes the enum agent_manager.v1.ApprovalState.
  */
 export const ApprovalStateSchema = /*@__PURE__*/
-  enumDesc(file_agent_manager_v1_domain_types, 7);
+  enumDesc(file_agent_manager_v1_domain_types, 8);
 
 /**
  * ApprovalState represents the approval workflow state for a run.
@@ -171,7 +216,7 @@ export const ApprovalState = /*@__PURE__*/
  * Describes the enum agent_manager.v1.RunEventType.
  */
 export const RunEventTypeSchema = /*@__PURE__*/
-  enumDesc(file_agent_manager_v1_domain_types, 8);
+  enumDesc(file_agent_manager_v1_domain_types, 9);
 
 /**
  * RunEventType categorizes events in the run's event stream.
@@ -190,7 +235,7 @@ export const RunEventType = /*@__PURE__*/
  * Describes the enum agent_manager.v1.RecoveryAction.
  */
 export const RecoveryActionSchema = /*@__PURE__*/
-  enumDesc(file_agent_manager_v1_domain_types, 9);
+  enumDesc(file_agent_manager_v1_domain_types, 10);
 
 /**
  * RecoveryAction indicates the recommended action after an error.
@@ -208,7 +253,7 @@ export const RecoveryAction = /*@__PURE__*/
  * Describes the enum agent_manager.v1.IdempotencyStatus.
  */
 export const IdempotencyStatusSchema = /*@__PURE__*/
-  enumDesc(file_agent_manager_v1_domain_types, 10);
+  enumDesc(file_agent_manager_v1_domain_types, 11);
 
 /**
  * IdempotencyStatus indicates the state of an idempotent operation.
@@ -226,7 +271,7 @@ export const IdempotencyStatus = /*@__PURE__*/
  * Describes the enum agent_manager.v1.RunOutcome.
  */
 export const RunOutcomeSchema = /*@__PURE__*/
-  enumDesc(file_agent_manager_v1_domain_types, 11);
+  enumDesc(file_agent_manager_v1_domain_types, 12);
 
 /**
  * RunOutcome classifies how a run completed.
@@ -244,7 +289,7 @@ export const RunOutcome = /*@__PURE__*/
  * Describes the enum agent_manager.v1.StaleRunAction.
  */
 export const StaleRunActionSchema = /*@__PURE__*/
-  enumDesc(file_agent_manager_v1_domain_types, 12);
+  enumDesc(file_agent_manager_v1_domain_types, 13);
 
 /**
  * StaleRunAction indicates what action to take for a stale run.

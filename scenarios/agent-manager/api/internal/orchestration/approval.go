@@ -47,7 +47,6 @@ func (o *Orchestrator) ApproveRun(ctx context.Context, req ApproveRequest) (*App
 	if err := o.markRunApproved(ctx, run, req.Actor); err != nil {
 		log.Printf("Warning: failed to mark run %s as approved: %v", run.ID, err)
 	}
-	o.applySandboxRetentionAfterApproval(ctx, run)
 
 	return mapApproveResult(result), nil
 }
@@ -119,7 +118,6 @@ func (o *Orchestrator) PartialApprove(ctx context.Context, req PartialApproveReq
 		if err := o.markRunApproved(ctx, run, req.Actor); err != nil {
 			log.Printf("Warning: failed to mark run %s as approved: %v", run.ID, err)
 		}
-		o.applySandboxRetentionAfterApproval(ctx, run)
 	} else {
 		if err := o.markRunPartiallyApproved(ctx, run); err != nil {
 			log.Printf("Warning: failed to mark run %s as partially approved: %v", run.ID, err)
@@ -186,20 +184,5 @@ func mapApproveResult(r *sandbox.ApproveResult) *ApproveResult {
 		CommitHash: r.CommitHash,
 		AppliedAt:  r.AppliedAt,
 		ErrorMsg:   r.ErrorMsg,
-	}
-}
-
-func (o *Orchestrator) applySandboxRetentionAfterApproval(ctx context.Context, run *domain.Run) {
-	if run == nil || run.SandboxID == nil || o.sandbox == nil {
-		return
-	}
-	if run.ResolvedConfig == nil {
-		return
-	}
-	if run.ResolvedConfig.SandboxRetentionMode != domain.SandboxRetentionModeDeleteOnTerminal {
-		return
-	}
-	if err := o.sandbox.Delete(ctx, *run.SandboxID); err != nil {
-		log.Printf("Warning: failed to delete sandbox %s after approval: %v", *run.SandboxID, err)
 	}
 }

@@ -634,8 +634,7 @@ func (a *App) cmdDiff(args []string) error {
 func (a *App) cmdApprove(args []string) error {
 	var sandboxID, message string
 	var force, createCommit bool
-	var approveAll bool
-	var includePrefixes []string
+	var overrideAcceptance bool
 
 	for i, arg := range args {
 		switch {
@@ -649,10 +648,8 @@ func (a *App) cmdApprove(args []string) error {
 			force = true
 		case arg == "--commit" || arg == "-c":
 			createCommit = true
-		case arg == "--approve-all":
-			approveAll = true
-		case strings.HasPrefix(arg, "--include-prefix="):
-			includePrefixes = append(includePrefixes, strings.TrimPrefix(arg, "--include-prefix="))
+		case arg == "--override-acceptance":
+			overrideAcceptance = true
 		case !strings.HasPrefix(arg, "-") && (i == 0 || !strings.HasPrefix(args[i-1], "-m")):
 			if sandboxID == "" {
 				sandboxID = arg
@@ -661,13 +658,12 @@ func (a *App) cmdApprove(args []string) error {
 	}
 
 	if sandboxID == "" {
-		return fmt.Errorf("usage: workspace-sandbox approve <sandbox-id> [-m MESSAGE] [--commit] [--force] [--approve-all] [--include-prefix=PATH]\n\n" +
+		return fmt.Errorf("usage: workspace-sandbox approve <sandbox-id> [-m MESSAGE] [--commit] [--force] [--override-acceptance]\n\n" +
 			"Options:\n" +
-			"  -m, --message=MSG    Commit message (required if --commit is used)\n" +
-			"  -c, --commit         Create a git commit (default: apply to working tree only)\n" +
-			"  -f, --force          Force approval even if conflicts detected\n" +
-			"  --approve-all        Bypass reservedPath filtering and approve all changes\n" +
-			"  --include-prefix=PATH Expand default approvable paths beyond reservedPath (repeatable)")
+			"  -m, --message=MSG       Commit message (required if --commit is used)\n" +
+			"  -c, --commit            Create a git commit (default: apply to working tree only)\n" +
+			"  -f, --force             Force approval even if conflicts detected\n" +
+			"  --override-acceptance   Apply changes outside acceptance rules")
 	}
 
 	resolvedID, err := a.resolveSandboxID(sandboxID)
@@ -687,11 +683,8 @@ func (a *App) cmdApprove(args []string) error {
 	if createCommit {
 		reqBody["createCommit"] = true
 	}
-	if approveAll {
-		reqBody["approveAll"] = true
-	}
-	if len(includePrefixes) > 0 {
-		reqBody["includePrefixes"] = includePrefixes
+	if overrideAcceptance {
+		reqBody["overrideAcceptance"] = true
 	}
 
 	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+resolvedID+"/approve"), nil, reqBody)

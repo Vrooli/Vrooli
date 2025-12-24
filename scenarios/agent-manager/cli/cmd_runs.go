@@ -4,11 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/durationpb"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -249,6 +247,8 @@ func (a *App) runCreate(args []string) error {
 	forceInPlace := fs.Bool("force-in-place", false, "Force in-place execution")
 	idempotencyKey := fs.String("idempotency-key", "", "Idempotency key for safe retries")
 	existingSandboxID := fs.String("existing-sandbox-id", "", "Reuse an existing sandbox ID (sandboxed runs only)")
+	sandboxConfig := fs.String("sandbox-config", "", "Sandbox config JSON (proto JSON)")
+	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
 	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Sandbox retention TTL (e.g., 2h, 30m)")
 
@@ -288,20 +288,18 @@ func (a *App) runCreate(args []string) error {
 		mode := domainpb.RunMode_RUN_MODE_IN_PLACE
 		req.RunMode = &mode
 	}
-	if *sandboxRetentionMode != "" || *sandboxRetentionTTL != "" {
-		inline := &domainpb.RunConfigOverrides{}
-		if *sandboxRetentionMode != "" {
-			mode := parseSandboxRetentionMode(*sandboxRetentionMode)
-			inline.SandboxRetentionMode = &mode
+	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
+		return err
+	} else {
+		cfg, err = applySandboxRetention(cfg, *sandboxRetentionMode, *sandboxRetentionTTL)
+		if err != nil {
+			return err
 		}
-		if *sandboxRetentionTTL != "" {
-			parsed, err := time.ParseDuration(*sandboxRetentionTTL)
-			if err != nil {
-				return fmt.Errorf("invalid sandbox retention TTL: %w", err)
+		if cfg != nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{
+				SandboxConfig: cfg,
 			}
-			inline.SandboxRetentionTtl = durationpb.New(parsed)
 		}
-		req.InlineConfig = inline
 	}
 
 	body, run, err := a.services.Runs.Create(req)

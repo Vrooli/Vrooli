@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -220,6 +221,12 @@ func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.
 		return nil, err
 	}
 
+	behavior := normalizeBehavior(req.Behavior)
+	if err := validateBehavior(behavior); err != nil {
+		return nil, err
+	}
+	req.Behavior = behavior
+
 	// Create and mount the sandbox
 	return s.createAndMountSandbox(ctx, req, projectRoot, normalizedScopePath, normalizedReservedPaths)
 }
@@ -245,7 +252,7 @@ func (s *Service) checkIdempotency(ctx context.Context, req *types.CreateRequest
 }
 
 // validateCreateRequest validates the create request and returns the resolved project root,
-// normalized scope path (mount scope), and normalized reserved paths (mutual exclusion + default approval).
+// normalized scope path (mount scope), and normalized reserved paths (mutual exclusion).
 // Returns an error if validation fails.
 func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRequest) (string, string, []string, error) {
 	// Resolve project root from request or config
@@ -271,7 +278,7 @@ func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRe
 		)
 	}
 
-	// Determine reserved paths (defaults to scope path for backwards compatibility)
+	// Determine reserved paths (defaults to scope path for mutual exclusion)
 	rawReservedPaths := req.ReservedPaths
 	if len(rawReservedPaths) == 0 {
 		if strings.TrimSpace(req.ReservedPath) != "" {
@@ -310,7 +317,7 @@ func (s *Service) validateCreateRequest(ctx context.Context, req *types.CreateRe
 		}
 
 		cleanReserved := filepath.Clean(normalized)
-		// Ensure reservedPath is within the mount scope. Otherwise approvals could never apply.
+		// Ensure reservedPath is within the mount scope to avoid unusable locks.
 		if cleanReserved != cleanScope && !strings.HasPrefix(cleanReserved, cleanScope+string(filepath.Separator)) {
 			return "", "", nil, types.NewValidationErrorWithHint(
 				fieldName,
@@ -388,6 +395,7 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 		DriverVersion:  s.driver.Version(),
 		Tags:           req.Tags,
 		Metadata:       req.Metadata,
+		Behavior:       req.Behavior,
 		IdempotencyKey: req.IdempotencyKey,
 	}
 
@@ -664,6 +672,7 @@ func (s *Service) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffResult,
 		return nil, types.NewDriverError("getChangedFiles", err)
 	}
 	changes = filterDiffChanges(changes)
+	applyAcceptanceInfo(sandbox, changes)
 
 	// Calculate and update sandbox size metrics from the changes
 	var totalSizeBytes int64
@@ -869,136 +878,286 @@ func filterDiffChanges(changes []*types.FileChange) []*types.FileChange {
 	return filtered
 }
 
-func getApprovablePrefixesRelToScope(sandbox *types.Sandbox, req *types.ApprovalRequest) ([]string, error) {
-	if req != nil && req.ApproveAll {
-		return []string{""}, nil
+func normalizeBehavior(b types.SandboxBehavior) types.SandboxBehavior {
+	if b.Acceptance.Mode == "" {
+		b.Acceptance.Mode = "allowlist"
 	}
-
-	// Default allowlist: reserved paths if present; fallback to reservedPath; then scope for legacy rows.
-	defaultReservedAbs := make([]string, 0, 1)
-	for _, p := range sandbox.ReservedPaths {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			defaultReservedAbs = append(defaultReservedAbs, p)
-		}
-	}
-	if len(defaultReservedAbs) == 0 {
-		if strings.TrimSpace(sandbox.ReservedPath) != "" {
-			defaultReservedAbs = append(defaultReservedAbs, strings.TrimSpace(sandbox.ReservedPath))
-		} else if strings.TrimSpace(sandbox.ScopePath) != "" {
-			defaultReservedAbs = append(defaultReservedAbs, strings.TrimSpace(sandbox.ScopePath))
-		}
-	}
-
-	includePrefixes := []string(nil)
-	if req != nil {
-		includePrefixes = req.IncludePrefixes
-	}
-
-	absPrefixes := make([]string, 0, len(defaultReservedAbs)+len(includePrefixes))
-	absPrefixes = append(absPrefixes, defaultReservedAbs...)
-
-	for _, p := range includePrefixes {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-
-		abs := p
-		if !filepath.IsAbs(abs) {
-			abs = filepath.Join(sandbox.ProjectRoot, abs)
-		}
-		abs = filepath.Clean(abs)
-
-		// Ensure prefix is within project root.
-		cleanProject := filepath.Clean(sandbox.ProjectRoot)
-		if abs != cleanProject && !strings.HasPrefix(abs, cleanProject+string(filepath.Separator)) {
-			return nil, types.NewValidationErrorWithHint(
-				"includePrefixes",
-				"includePrefixes must be within projectRoot",
-				"Provide absolute paths within projectRoot, or paths relative to projectRoot",
-			)
-		}
-
-		absPrefixes = append(absPrefixes, abs)
-	}
-
-	relPrefixes := make([]string, 0, len(absPrefixes))
-	seen := make(map[string]bool)
-	for _, abs := range absPrefixes {
-		rel, err := filepath.Rel(sandbox.ScopePath, abs)
-		if err != nil {
-			return nil, types.NewValidationErrorWithHint(
-				"includePrefixes",
-				"failed to resolve includePrefixes relative to scopePath",
-				"Ensure scopePath and includePrefixes are valid directories within projectRoot",
-			)
-		}
-		rel = filepath.Clean(rel)
-		if rel == "." {
-			rel = ""
-		}
-		// Ensure prefix is within the sandbox mount scope.
-		if strings.HasPrefix(rel, "..") {
-			return nil, types.NewValidationErrorWithHint(
-				"includePrefixes",
-				"includePrefixes must be within scopePath",
-				"Set scopePath to the project root for full-repo sandboxes, or provide prefixes inside the scopePath",
-			)
-		}
-		if !seen[rel] {
-			seen[rel] = true
-			relPrefixes = append(relPrefixes, rel)
-		}
-	}
-
-	// If any reserved prefix equals scopePath, relPrefixes will contain "" and we allow all.
-	if len(relPrefixes) == 0 {
-		return []string{""}, nil
-	}
-
-	return relPrefixes, nil
+	b.Acceptance.Allow = normalizeCriteria(b.Acceptance.Allow)
+	b.Acceptance.Deny = normalizeCriteria(b.Acceptance.Deny)
+	return b
 }
 
-func filterChangesByRelPrefixes(changes []*types.FileChange, relPrefixes []string) []*types.FileChange {
+func normalizeCriteria(c types.FileCriteria) types.FileCriteria {
+	paths := make([]string, 0, len(c.PathGlobs))
+	seenPaths := make(map[string]bool)
+	for _, p := range c.PathGlobs {
+		p = strings.TrimSpace(p)
+		if p == "" || seenPaths[p] {
+			continue
+		}
+		seenPaths[p] = true
+		paths = append(paths, p)
+	}
+
+	exts := make([]string, 0, len(c.Extensions))
+	seenExts := make(map[string]bool)
+	for _, ext := range c.Extensions {
+		ext = strings.TrimSpace(ext)
+		if ext == "" {
+			continue
+		}
+		if !strings.HasPrefix(ext, ".") {
+			ext = "." + ext
+		}
+		ext = strings.ToLower(ext)
+		if seenExts[ext] {
+			continue
+		}
+		seenExts[ext] = true
+		exts = append(exts, ext)
+	}
+
+	c.PathGlobs = paths
+	c.Extensions = exts
+	return c
+}
+
+func validateBehavior(b types.SandboxBehavior) error {
+	if b.Acceptance.Mode != "" && b.Acceptance.Mode != "allowlist" {
+		return types.NewValidationError("acceptance.mode", "unsupported acceptance mode")
+	}
+	if b.Lifecycle.TTL < 0 {
+		return types.NewValidationError("lifecycle.ttl", "ttl cannot be negative")
+	}
+	if b.Lifecycle.IdleTimeout < 0 {
+		return types.NewValidationError("lifecycle.idleTimeout", "idleTimeout cannot be negative")
+	}
+	for _, p := range append(b.Acceptance.Allow.PathGlobs, b.Acceptance.Deny.PathGlobs...) {
+		if filepath.IsAbs(p) || strings.HasPrefix(p, "/") {
+			return types.NewValidationErrorWithHint(
+				"acceptance.pathGlobs",
+				"path globs must be project-root relative",
+				"Remove the leading '/' and use project-root relative patterns",
+			)
+		}
+	}
+	return nil
+}
+
+func applyAcceptanceInfo(sandbox *types.Sandbox, changes []*types.FileChange) {
 	if len(changes) == 0 {
-		return changes
+		return
 	}
-	if len(relPrefixes) == 0 {
-		return nil
-	}
-
-	// Fast path: allow all.
-	if len(relPrefixes) == 1 && relPrefixes[0] == "" {
-		return changes
-	}
-
-	var filtered []*types.FileChange
-	for _, c := range changes {
-		if c == nil {
+	for _, change := range changes {
+		if change == nil {
 			continue
 		}
-		if pathWithinAnyRelPrefix(c.FilePath, relPrefixes) {
-			filtered = append(filtered, c)
-		}
+		change.Acceptance = evaluateAcceptance(sandbox, change)
 	}
-	return filtered
 }
 
-func pathWithinAnyRelPrefix(relPath string, relPrefixes []string) bool {
-	cleanPath := filepath.Clean(relPath)
-	if cleanPath == "." {
-		cleanPath = ""
-	}
-	for _, prefix := range relPrefixes {
-		cleanPrefix := filepath.Clean(prefix)
-		if cleanPrefix == "." {
-			cleanPrefix = ""
+func evaluateAcceptance(sandbox *types.Sandbox, change *types.FileChange) *types.AcceptanceInfo {
+	behavior := normalizeBehavior(sandbox.Behavior)
+	acceptance := behavior.Acceptance
+
+	relPath := projectRelativePath(sandbox, change.FilePath)
+	ext := strings.ToLower(filepath.Ext(relPath))
+
+	if acceptance.IgnoreBinary && isBinaryChange(sandbox, change) {
+		return &types.AcceptanceInfo{
+			Status: types.AcceptanceStatusBinaryIgnored,
+			Reason: "binary file ignored",
 		}
-		if cleanPrefix == "" {
+	}
+
+	if matchesCriteria(relPath, ext, acceptance.Deny) {
+		return &types.AcceptanceInfo{
+			Status: types.AcceptanceStatusDenied,
+			Reason: "matched deny rules",
+		}
+	}
+
+	if acceptance.Mode == "" || acceptance.Mode == "allowlist" {
+		if isCriteriaEmpty(acceptance.Allow) || matchesCriteria(relPath, ext, acceptance.Allow) {
+			return &types.AcceptanceInfo{
+				Status: types.AcceptanceStatusAccepted,
+				Reason: "matched allow rules",
+			}
+		}
+		return &types.AcceptanceInfo{
+			Status: types.AcceptanceStatusIgnored,
+			Reason: "not matched by allow rules",
+		}
+	}
+
+	return &types.AcceptanceInfo{
+		Status: types.AcceptanceStatusAccepted,
+		Reason: "acceptance mode default",
+	}
+}
+
+func isCriteriaEmpty(c types.FileCriteria) bool {
+	return len(c.PathGlobs) == 0 && len(c.Extensions) == 0
+}
+
+func matchesCriteria(relPath, ext string, criteria types.FileCriteria) bool {
+	pathOK := true
+	if len(criteria.PathGlobs) > 0 {
+		pathOK = matchAnyGlob(criteria.PathGlobs, relPath)
+	}
+	extOK := true
+	if len(criteria.Extensions) > 0 {
+		extOK = containsString(criteria.Extensions, ext)
+	}
+	return pathOK && extOK
+}
+
+func matchAnyGlob(globs []string, relPath string) bool {
+	for _, pattern := range globs {
+		if matchGlob(pattern, relPath) {
 			return true
 		}
-		if cleanPath == cleanPrefix || strings.HasPrefix(cleanPath, cleanPrefix+string(filepath.Separator)) {
+	}
+	return false
+}
+
+func matchGlob(pattern, relPath string) bool {
+	pattern = normalizeGlobPath(pattern)
+	relPath = normalizeGlobPath(relPath)
+	if pattern == "" {
+		return relPath == ""
+	}
+	patParts := strings.Split(pattern, "/")
+	pathParts := strings.Split(relPath, "/")
+	return matchGlobParts(patParts, pathParts)
+}
+
+func normalizeGlobPath(value string) string {
+	value = filepath.ToSlash(strings.TrimSpace(value))
+	value = strings.TrimPrefix(value, "/")
+	value = path.Clean(value)
+	if value == "." {
+		return ""
+	}
+	return value
+}
+
+func matchGlobParts(patternParts, pathParts []string) bool {
+	if len(patternParts) == 0 {
+		return len(pathParts) == 0
+	}
+	if patternParts[0] == "**" {
+		for i := 0; i <= len(pathParts); i++ {
+			if matchGlobParts(patternParts[1:], pathParts[i:]) {
+				return true
+			}
+		}
+		return false
+	}
+	if len(pathParts) == 0 {
+		return false
+	}
+	if ok, _ := path.Match(patternParts[0], pathParts[0]); !ok {
+		return false
+	}
+	return matchGlobParts(patternParts[1:], pathParts[1:])
+}
+
+func containsString(list []string, value string) bool {
+	for _, item := range list {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}
+
+func projectRelativePath(sandbox *types.Sandbox, relScopePath string) string {
+	if relScopePath == "" {
+		return relScopePath
+	}
+	abs := filepath.Join(sandbox.ScopePath, relScopePath)
+	rel, err := filepath.Rel(sandbox.ProjectRoot, abs)
+	if err != nil {
+		return filepath.ToSlash(relScopePath)
+	}
+	return filepath.ToSlash(rel)
+}
+
+func isBinaryChange(sandbox *types.Sandbox, change *types.FileChange) bool {
+	path := ""
+	switch change.ChangeType {
+	case types.ChangeTypeDeleted:
+		if sandbox.LowerDir != "" {
+			path = filepath.Join(sandbox.LowerDir, change.FilePath)
+		}
+	default:
+		if sandbox.UpperDir != "" {
+			path = filepath.Join(sandbox.UpperDir, change.FilePath)
+		}
+	}
+	if path == "" {
+		return false
+	}
+	ok, err := diff.IsBinaryFile(path)
+	if err != nil {
+		return false
+	}
+	return ok
+}
+
+func filterChangesByAcceptance(sandbox *types.Sandbox, changes []*types.FileChange, override bool) ([]*types.FileChange, []*types.FileChange) {
+	if override {
+		return changes, nil
+	}
+	accepted := make([]*types.FileChange, 0, len(changes))
+	rejected := make([]*types.FileChange, 0)
+	for _, change := range changes {
+		if change == nil {
+			continue
+		}
+		info := evaluateAcceptance(sandbox, change)
+		change.Acceptance = info
+		if info != nil && info.Status == types.AcceptanceStatusAccepted {
+			accepted = append(accepted, change)
+		} else {
+			rejected = append(rejected, change)
+		}
+	}
+	return accepted, rejected
+}
+
+func (s *Service) applyLifecycleOnTerminal(ctx context.Context, sandbox *types.Sandbox, status types.Status) {
+	if sandbox == nil {
+		return
+	}
+	behavior := normalizeBehavior(sandbox.Behavior)
+	if !shouldDeleteOnStatus(behavior.Lifecycle, status) {
+		return
+	}
+	if err := s.Delete(ctx, sandbox.ID); err != nil {
+		s.logAuditEvent(ctx, sandbox, "sandbox.warning", "system", "system", map[string]interface{}{
+			"message": "failed to delete sandbox on terminal status: " + err.Error(),
+		})
+	}
+}
+
+func shouldDeleteOnStatus(cfg types.LifecycleConfig, status types.Status) bool {
+	switch status {
+	case types.StatusApproved:
+		return hasLifecycleEvent(cfg.DeleteOn, types.LifecycleEventApproved) ||
+			hasLifecycleEvent(cfg.DeleteOn, types.LifecycleEventTerminal)
+	case types.StatusRejected:
+		return hasLifecycleEvent(cfg.DeleteOn, types.LifecycleEventRejected) ||
+			hasLifecycleEvent(cfg.DeleteOn, types.LifecycleEventTerminal)
+	default:
+		return false
+	}
+}
+
+func hasLifecycleEvent(events []types.LifecycleEvent, event types.LifecycleEvent) bool {
+	for _, e := range events {
+		if e == event {
 			return true
 		}
 	}
@@ -1093,7 +1252,7 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 	changes := allChanges
 
 	// If hunks mode is requested, narrow changes to only files referenced by hunks.
-	// This ensures reservedPath filtering and validation behave consistently across modes.
+	// This ensures acceptance filtering and validation behave consistently across modes.
 	if req.Mode == "hunks" && len(req.HunkRanges) > 0 {
 		fileIDs := make([]uuid.UUID, 0, len(req.HunkRanges))
 		seen := make(map[uuid.UUID]bool)
@@ -1111,27 +1270,15 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		changes = diff.FilterChanges(allChanges, req.FileIDs)
 	}
 
-	// Apply reservedPath default approval filter unless explicitly bypassed.
-	// This is "soft safety": agents can change anything in the sandbox, but default approval is scoped.
-	approvablePrefixes, err := getApprovablePrefixesRelToScope(sandbox, req)
-	if err != nil {
-		return nil, err
+	accepted, rejected := filterChangesByAcceptance(sandbox, changes, req.OverrideAcceptance)
+	if !req.OverrideAcceptance && req.Mode != "all" && len(rejected) > 0 {
+		return nil, types.NewValidationErrorWithHint(
+			"acceptance",
+			"selected changes include files rejected by acceptance rules",
+			"Use overrideAcceptance=true to apply files outside acceptance rules",
+		)
 	}
-	// Empty prefix ("") means "all files".
-	allowAll := len(approvablePrefixes) == 1 && approvablePrefixes[0] == ""
-	if !allowAll {
-		before := changes
-		changes = filterChangesByRelPrefixes(changes, approvablePrefixes)
-
-		// For explicit selection modes, require an explicit override to approve outside reserved scope.
-		if req.Mode != "all" && len(changes) != len(before) {
-			return nil, types.NewValidationErrorWithHint(
-				"reservedPath",
-				"selected changes include files outside the reserved directory",
-				"Use approveAll=true to bypass reservedPath filtering, or provide includePrefixes to expand the allowlist",
-			)
-		}
-	}
+	changes = accepted
 
 	if len(changes) == 0 {
 		return &types.ApprovalResult{
@@ -1291,6 +1438,8 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 			"commitHash":   applyResult.CommitHash,
 			"mode":         req.Mode,
 		})
+
+		s.applyLifecycleOnTerminal(ctx, sandbox, types.StatusApproved)
 	}
 
 	return &types.ApprovalResult{
@@ -1335,6 +1484,8 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, actor string) (*type
 
 	// Log audit event [OT-P1-004]
 	s.logAuditEvent(ctx, sandbox, "rejected", actor, "", nil)
+
+	s.applyLifecycleOnTerminal(ctx, sandbox, types.StatusRejected)
 
 	return sandbox, nil
 }

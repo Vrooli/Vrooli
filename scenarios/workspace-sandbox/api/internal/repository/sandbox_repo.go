@@ -141,6 +141,10 @@ func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error 
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
+	behaviorJSON, err := json.Marshal(s.Behavior)
+	if err != nil {
+		return fmt.Errorf("failed to marshal behavior: %w", err)
+	}
 
 	// Set initial version for new sandboxes
 	s.Version = 1
@@ -148,13 +152,13 @@ func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error 
 	query := `
 		INSERT INTO sandboxes (
 			id, scope_path, reserved_path, reserved_paths, project_root, owner, owner_type, status,
-			driver, driver_version, tags, metadata, idempotency_key, version, base_commit_hash
-		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, NULLIF($13, ''), $14, NULLIF($15, ''))
+			driver, driver_version, tags, metadata, behavior, idempotency_key, version, base_commit_hash
+		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, $13, NULLIF($14, ''), $15, NULLIF($16, ''))
 		RETURNING created_at, last_used_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
 		s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
-		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, s.IdempotencyKey, s.Version, s.BaseCommitHash,
+		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, behaviorJSON, s.IdempotencyKey, s.Version, s.BaseCommitHash,
 	).Scan(&s.CreatedAt, &s.LastUsedAt, &s.UpdatedAt)
 }
 
@@ -164,13 +168,14 @@ func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandb
 		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata,
+			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
 			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
 		FROM sandboxes
 		WHERE id = $1`
 
 	s := &types.Sandbox{}
 	var metadataJSON []byte
+	var behaviorJSON []byte
 	var tags pq.StringArray
 	var activePIDs pq.Int64Array
 	var reservedPaths pq.StringArray
@@ -179,7 +184,7 @@ func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandb
 		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
+		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
 		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
 	)
 	if err == sql.ErrNoRows {
@@ -197,6 +202,9 @@ func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandb
 	if len(metadataJSON) > 0 {
 		json.Unmarshal(metadataJSON, &s.Metadata)
 	}
+	if len(behaviorJSON) > 0 {
+		json.Unmarshal(behaviorJSON, &s.Behavior)
+	}
 	hydrateReservedFields(s, reservedPaths)
 
 	return s, nil
@@ -210,6 +218,10 @@ func (r *SandboxRepository) Update(ctx context.Context, s *types.Sandbox) error 
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
+	behaviorJSON, err := json.Marshal(s.Behavior)
+	if err != nil {
+		return fmt.Errorf("failed to marshal behavior: %w", err)
+	}
 
 	activePIDs := make(pq.Int64Array, len(s.ActivePIDs))
 	for i, pid := range s.ActivePIDs {
@@ -222,7 +234,7 @@ func (r *SandboxRepository) Update(ctx context.Context, s *types.Sandbox) error 
 			stopped_at = $4, approved_at = $5, deleted_at = $6,
 			lower_dir = $7, upper_dir = $8, work_dir = $9, merged_dir = $10,
 			size_bytes = $11, file_count = $12, active_pids = $13, session_count = $14,
-			tags = $15, metadata = $16,
+			tags = $15, metadata = $16, behavior = $17,
 			version = version + 1, updated_at = NOW()
 		WHERE id = $1
 		RETURNING version, updated_at`
@@ -232,7 +244,7 @@ func (r *SandboxRepository) Update(ctx context.Context, s *types.Sandbox) error 
 		s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 		s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 		s.SizeBytes, s.FileCount, activePIDs, s.SessionCount,
-		pq.Array(s.Tags), metadataJSON,
+		pq.Array(s.Tags), metadataJSON, behaviorJSON,
 	).Scan(&s.Version, &s.UpdatedAt)
 	return err
 }
@@ -356,7 +368,7 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata,
+			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
 			COALESCE(idempotency_key, ''), updated_at, version
 		FROM sandboxes
 		` + whereClause + `
@@ -375,6 +387,7 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 	for rows.Next() {
 		s := &types.Sandbox{}
 		var metadataJSON []byte
+		var behaviorJSON []byte
 		var tags pq.StringArray
 		var activePIDs pq.Int64Array
 		var reservedPaths pq.StringArray
@@ -383,7 +396,7 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 			&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 			&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 			&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
+			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
 			&s.IdempotencyKey, &s.UpdatedAt, &s.Version,
 		)
 		if err != nil {
@@ -397,6 +410,9 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 		}
 		if len(metadataJSON) > 0 {
 			json.Unmarshal(metadataJSON, &s.Metadata)
+		}
+		if len(behaviorJSON) > 0 {
+			json.Unmarshal(behaviorJSON, &s.Behavior)
 		}
 		hydrateReservedFields(s, reservedPaths)
 
@@ -615,13 +631,14 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata,
+			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
 			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
 		FROM sandboxes
 		WHERE idempotency_key = $1`
 
 	s := &types.Sandbox{}
 	var metadataJSON []byte
+	var behaviorJSON []byte
 	var tags pq.StringArray
 	var activePIDs pq.Int64Array
 	var reservedPaths pq.StringArray
@@ -630,7 +647,7 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
+		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
 		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
 	)
 	if err == sql.ErrNoRows {
@@ -647,6 +664,9 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 	}
 	if len(metadataJSON) > 0 {
 		json.Unmarshal(metadataJSON, &s.Metadata)
+	}
+	if len(behaviorJSON) > 0 {
+		json.Unmarshal(behaviorJSON, &s.Behavior)
 	}
 	hydrateReservedFields(s, reservedPaths)
 
@@ -667,6 +687,10 @@ func (r *SandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *types
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
+	behaviorJSON, err := json.Marshal(s.Behavior)
+	if err != nil {
+		return fmt.Errorf("failed to marshal behavior: %w", err)
+	}
 
 	activePIDs := make(pq.Int64Array, len(s.ActivePIDs))
 	for i, pid := range s.ActivePIDs {
@@ -679,9 +703,9 @@ func (r *SandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *types
 			stopped_at = $4, approved_at = $5, deleted_at = $6,
 			lower_dir = $7, upper_dir = $8, work_dir = $9, merged_dir = $10,
 			size_bytes = $11, file_count = $12, active_pids = $13, session_count = $14,
-			tags = $15, metadata = $16,
+			tags = $15, metadata = $16, behavior = $17,
 			version = version + 1, updated_at = NOW()
-		WHERE id = $1 AND version = $17
+		WHERE id = $1 AND version = $18
 		RETURNING version, updated_at`
 
 	err = r.db.QueryRowContext(ctx, query,
@@ -689,7 +713,7 @@ func (r *SandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *types
 		s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 		s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 		s.SizeBytes, s.FileCount, activePIDs, s.SessionCount,
-		pq.Array(s.Tags), metadataJSON, expectedVersion,
+		pq.Array(s.Tags), metadataJSON, behaviorJSON, expectedVersion,
 	).Scan(&s.Version, &s.UpdatedAt)
 
 	if err == sql.ErrNoRows {
@@ -741,19 +765,23 @@ func (r *TxSandboxRepository) Create(ctx context.Context, s *types.Sandbox) erro
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
+	behaviorJSON, err := json.Marshal(s.Behavior)
+	if err != nil {
+		return fmt.Errorf("failed to marshal behavior: %w", err)
+	}
 
 	s.Version = 1
 
 	query := `
 		INSERT INTO sandboxes (
 			id, scope_path, reserved_path, reserved_paths, project_root, owner, owner_type, status,
-			driver, driver_version, tags, metadata, idempotency_key, version
-		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, NULLIF($13, ''), $14)
+			driver, driver_version, tags, metadata, behavior, idempotency_key, version
+		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, $13, NULLIF($14, ''), $15)
 		RETURNING created_at, last_used_at, updated_at`
 
 	return r.tx.QueryRowContext(ctx, query,
 		s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
-		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, s.IdempotencyKey, s.Version,
+		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, behaviorJSON, s.IdempotencyKey, s.Version,
 	).Scan(&s.CreatedAt, &s.LastUsedAt, &s.UpdatedAt)
 }
 
@@ -763,13 +791,14 @@ func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.San
 		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata,
+			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
 			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
 		FROM sandboxes
 		WHERE id = $1`
 
 	s := &types.Sandbox{}
 	var metadataJSON []byte
+	var behaviorJSON []byte
 	var tags pq.StringArray
 	var activePIDs pq.Int64Array
 	var reservedPaths pq.StringArray
@@ -778,7 +807,7 @@ func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.San
 		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
+		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
 		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
 	)
 	if err == sql.ErrNoRows {
@@ -796,6 +825,9 @@ func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.San
 	if len(metadataJSON) > 0 {
 		json.Unmarshal(metadataJSON, &s.Metadata)
 	}
+	if len(behaviorJSON) > 0 {
+		json.Unmarshal(behaviorJSON, &s.Behavior)
+	}
 	hydrateReservedFields(s, reservedPaths)
 
 	return s, nil
@@ -806,6 +838,10 @@ func (r *TxSandboxRepository) Update(ctx context.Context, s *types.Sandbox) erro
 	metadataJSON, err := json.Marshal(s.Metadata)
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	behaviorJSON, err := json.Marshal(s.Behavior)
+	if err != nil {
+		return fmt.Errorf("failed to marshal behavior: %w", err)
 	}
 
 	activePIDs := make(pq.Int64Array, len(s.ActivePIDs))
@@ -819,7 +855,7 @@ func (r *TxSandboxRepository) Update(ctx context.Context, s *types.Sandbox) erro
 			stopped_at = $4, approved_at = $5, deleted_at = $6,
 			lower_dir = $7, upper_dir = $8, work_dir = $9, merged_dir = $10,
 			size_bytes = $11, file_count = $12, active_pids = $13, session_count = $14,
-			tags = $15, metadata = $16,
+			tags = $15, metadata = $16, behavior = $17,
 			version = version + 1, updated_at = NOW()
 		WHERE id = $1
 		RETURNING version, updated_at`
@@ -829,7 +865,7 @@ func (r *TxSandboxRepository) Update(ctx context.Context, s *types.Sandbox) erro
 		s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 		s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 		s.SizeBytes, s.FileCount, activePIDs, s.SessionCount,
-		pq.Array(s.Tags), metadataJSON,
+		pq.Array(s.Tags), metadataJSON, behaviorJSON,
 	).Scan(&s.Version, &s.UpdatedAt)
 }
 
@@ -979,7 +1015,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata,
+			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
 			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
 		FROM sandboxes
 		WHERE idempotency_key = $1
@@ -987,6 +1023,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 
 	s := &types.Sandbox{}
 	var metadataJSON []byte
+	var behaviorJSON []byte
 	var tags pq.StringArray
 	var activePIDs pq.Int64Array
 	var reservedPaths pq.StringArray
@@ -995,7 +1032,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
+		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
 		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
 	)
 	if err == sql.ErrNoRows {
@@ -1013,6 +1050,9 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 	if len(metadataJSON) > 0 {
 		json.Unmarshal(metadataJSON, &s.Metadata)
 	}
+	if len(behaviorJSON) > 0 {
+		json.Unmarshal(behaviorJSON, &s.Behavior)
+	}
 	hydrateReservedFields(s, reservedPaths)
 
 	return s, nil
@@ -1023,6 +1063,10 @@ func (r *TxSandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *typ
 	metadataJSON, err := json.Marshal(s.Metadata)
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	behaviorJSON, err := json.Marshal(s.Behavior)
+	if err != nil {
+		return fmt.Errorf("failed to marshal behavior: %w", err)
 	}
 
 	activePIDs := make(pq.Int64Array, len(s.ActivePIDs))
@@ -1036,9 +1080,9 @@ func (r *TxSandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *typ
 			stopped_at = $4, approved_at = $5, deleted_at = $6,
 			lower_dir = $7, upper_dir = $8, work_dir = $9, merged_dir = $10,
 			size_bytes = $11, file_count = $12, active_pids = $13, session_count = $14,
-			tags = $15, metadata = $16,
+			tags = $15, metadata = $16, behavior = $17,
 			version = version + 1, updated_at = NOW()
-		WHERE id = $1 AND version = $17
+		WHERE id = $1 AND version = $18
 		RETURNING version, updated_at`
 
 	err = r.tx.QueryRowContext(ctx, query,
@@ -1046,7 +1090,7 @@ func (r *TxSandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *typ
 		s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 		s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 		s.SizeBytes, s.FileCount, activePIDs, s.SessionCount,
-		pq.Array(s.Tags), metadataJSON, expectedVersion,
+		pq.Array(s.Tags), metadataJSON, behaviorJSON, expectedVersion,
 	).Scan(&s.Version, &s.UpdatedAt)
 
 	if err == sql.ErrNoRows {
@@ -1158,7 +1202,7 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 		SELECT id, scope_path, COALESCE(reserved_path, scope_path), reserved_paths, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata,
+			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
 			COALESCE(idempotency_key, ''), updated_at, version
 		FROM sandboxes
 		` + whereClause + `
@@ -1177,6 +1221,7 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 	for rows.Next() {
 		s := &types.Sandbox{}
 		var metadataJSON []byte
+		var behaviorJSON []byte
 		var tags pq.StringArray
 		var activePIDs pq.Int64Array
 		var reservedPaths pq.StringArray
@@ -1185,7 +1230,7 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 			&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 			&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 			&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON,
+			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
 			&s.IdempotencyKey, &s.UpdatedAt, &s.Version,
 		)
 		if err != nil {
@@ -1199,6 +1244,9 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 		}
 		if len(metadataJSON) > 0 {
 			json.Unmarshal(metadataJSON, &s.Metadata)
+		}
+		if len(behaviorJSON) > 0 {
+			json.Unmarshal(behaviorJSON, &s.Behavior)
 		}
 		hydrateReservedFields(s, reservedPaths)
 

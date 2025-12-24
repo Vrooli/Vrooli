@@ -171,6 +171,40 @@ func (n NullableRunConfig) Value() (driver.Value, error) {
 	return json.Marshal(n.V)
 }
 
+// NullableSandboxConfig wraps *domain.SandboxConfig for JSONB scanning.
+type NullableSandboxConfig struct {
+	V *domain.SandboxConfig
+}
+
+// Scan implements sql.Scanner for NullableSandboxConfig.
+func (n *NullableSandboxConfig) Scan(src interface{}) error {
+	if src == nil {
+		n.V = nil
+		return nil
+	}
+
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return scanTypeError("NullableSandboxConfig", src)
+	}
+
+	n.V = &domain.SandboxConfig{}
+	return wrapScanError("NullableSandboxConfig", json.Unmarshal(data, n.V))
+}
+
+// Value implements driver.Valuer for NullableSandboxConfig.
+func (n NullableSandboxConfig) Value() (driver.Value, error) {
+	if n.V == nil {
+		return nil, nil
+	}
+	return json.Marshal(n.V)
+}
+
 // PolicyRulesJSON wraps domain.PolicyRules for JSONB scanning.
 type PolicyRulesJSON struct {
 	V domain.PolicyRules

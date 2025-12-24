@@ -353,6 +353,31 @@ func isBinaryDefault(content []byte) bool {
 	return bytes.Contains(content[:checkLen], []byte{0})
 }
 
+// IsBinaryContent exposes default binary detection for callers outside this package.
+func IsBinaryContent(content []byte) bool {
+	return isBinaryDefault(content)
+}
+
+// IsBinaryFile checks if a file appears to be binary.
+func IsBinaryFile(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	threshold := DefaultGeneratorConfig().BinaryDetectionThreshold
+	if threshold <= 0 {
+		threshold = 8000
+	}
+	buf := make([]byte, threshold)
+	n, err := f.Read(buf)
+	if err != nil && err != io.EOF {
+		return false, err
+	}
+	return isBinaryDefault(buf[:n]), nil
+}
+
 // Patcher applies diffs to the canonical repo.
 type Patcher struct {
 	runner CommandRunner

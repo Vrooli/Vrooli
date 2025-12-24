@@ -174,11 +174,8 @@ func (a *App) profileGet(args []string) error {
 	}
 	fmt.Printf("Requires Sandbox:  %v\n", profile.RequiresSandbox)
 	fmt.Printf("Requires Approval: %v\n", profile.RequiresApproval)
-	if mode := formatEnumValue(profile.SandboxRetentionMode, "SANDBOX_RETENTION_MODE_", "_"); mode != "" && mode != "unspecified" {
-		fmt.Printf("Sandbox Retention Mode: %s\n", mode)
-	}
-	if ttl := formatDuration(profile.SandboxRetentionTtl); ttl != "" {
-		fmt.Printf("Sandbox Retention TTL:  %s\n", ttl)
+	if profile.SandboxConfig != nil {
+		fmt.Printf("Sandbox Config:   %s\n", marshalProtoJSON(profile.SandboxConfig))
 	}
 	if len(profile.AllowedTools) > 0 {
 		fmt.Printf("Allowed Tools:  %s\n", strings.Join(profile.AllowedTools, ", "))
@@ -212,6 +209,8 @@ func (a *App) profileCreate(args []string) error {
 	timeout := fs.String("timeout", "", "Execution timeout (e.g., 30m)")
 	requiresSandbox := fs.Bool("sandbox", true, "Require sandbox execution")
 	requiresApproval := fs.Bool("approval", true, "Require approval before applying changes")
+	sandboxConfig := fs.String("sandbox-config", "", "Sandbox config JSON (proto JSON)")
+	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
 	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Sandbox retention TTL (e.g., 2h, 30m)")
 	skipPermissions := fs.Bool("skip-permissions", false, "Skip permission prompts")
@@ -249,15 +248,16 @@ func (a *App) profileCreate(args []string) error {
 		}
 		req.Timeout = durationpb.New(parsed)
 	}
-	if *sandboxRetentionMode != "" {
-		req.SandboxRetentionMode = parseSandboxRetentionMode(*sandboxRetentionMode)
-	}
-	if *sandboxRetentionTTL != "" {
-		parsed, err := time.ParseDuration(*sandboxRetentionTTL)
+	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
+		return err
+	} else {
+		cfg, err = applySandboxRetention(cfg, *sandboxRetentionMode, *sandboxRetentionTTL)
 		if err != nil {
-			return fmt.Errorf("invalid sandbox retention TTL: %w", err)
+			return err
 		}
-		req.SandboxRetentionTtl = durationpb.New(parsed)
+		if cfg != nil {
+			req.SandboxConfig = cfg
+		}
 	}
 
 	if *allowedTools != "" {
@@ -297,6 +297,8 @@ func (a *App) profileUpdate(args []string) error {
 	timeout := fs.String("timeout", "", "Execution timeout")
 	requiresSandbox := fs.Bool("sandbox", true, "Require sandbox execution")
 	requiresApproval := fs.Bool("approval", true, "Require approval")
+	sandboxConfig := fs.String("sandbox-config", "", "Sandbox config JSON (proto JSON)")
+	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
 	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Sandbox retention TTL (e.g., 2h, 30m)")
 
@@ -353,15 +355,16 @@ func (a *App) profileUpdate(args []string) error {
 		}
 		req.Timeout = durationpb.New(parsed)
 	}
-	if *sandboxRetentionMode != "" {
-		req.SandboxRetentionMode = parseSandboxRetentionMode(*sandboxRetentionMode)
-	}
-	if *sandboxRetentionTTL != "" {
-		parsed, err := time.ParseDuration(*sandboxRetentionTTL)
+	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
+		return err
+	} else {
+		cfg, err = applySandboxRetention(cfg, *sandboxRetentionMode, *sandboxRetentionTTL)
 		if err != nil {
-			return fmt.Errorf("invalid sandbox retention TTL: %w", err)
+			return err
 		}
-		req.SandboxRetentionTtl = durationpb.New(parsed)
+		if cfg != nil {
+			req.SandboxConfig = cfg
+		}
 	}
 	req.RequiresSandbox = *requiresSandbox
 	req.RequiresApproval = *requiresApproval

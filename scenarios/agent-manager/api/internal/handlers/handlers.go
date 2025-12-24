@@ -1324,13 +1324,8 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			requiresApproval := inline.GetRequiresApproval()
 			req.RequiresApproval = &requiresApproval
 		}
-		if inline.SandboxRetentionMode != nil && *inline.SandboxRetentionMode != domainpb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_UNSPECIFIED {
-			mode := protoconv.SandboxRetentionModeFromProto(*inline.SandboxRetentionMode)
-			req.SandboxRetentionMode = &mode
-		}
-		if inline.SandboxRetentionTtl != nil {
-			ttl := inline.SandboxRetentionTtl.AsDuration()
-			req.SandboxRetentionTTL = &ttl
+		if inline.SandboxConfig != nil {
+			req.SandboxConfig = protoconv.SandboxConfigFromProto(inline.SandboxConfig)
 		}
 		if len(inline.AllowedPaths) > 0 || inline.ClearAllowedPaths {
 			req.AllowedPaths = inline.AllowedPaths

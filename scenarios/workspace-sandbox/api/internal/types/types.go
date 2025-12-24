@@ -74,6 +74,58 @@ const (
 	ChangeTypeDeleted  ChangeType = "deleted"
 )
 
+// AcceptanceStatus describes how a file change maps to acceptance rules.
+type AcceptanceStatus string
+
+const (
+	AcceptanceStatusAccepted      AcceptanceStatus = "accepted"
+	AcceptanceStatusIgnored       AcceptanceStatus = "ignored"
+	AcceptanceStatusDenied        AcceptanceStatus = "denied"
+	AcceptanceStatusBinaryIgnored AcceptanceStatus = "binary_ignored"
+)
+
+// FileCriteria defines allow/deny matchers for file acceptance.
+type FileCriteria struct {
+	PathGlobs  []string `json:"pathGlobs,omitempty"`
+	Extensions []string `json:"extensions,omitempty"`
+}
+
+// AcceptanceConfig controls which files are eligible for approval.
+type AcceptanceConfig struct {
+	Mode         string       `json:"mode,omitempty"` // "allowlist"
+	Allow        FileCriteria `json:"allow,omitempty"`
+	Deny         FileCriteria `json:"deny,omitempty"`
+	IgnoreBinary bool         `json:"ignoreBinary,omitempty"`
+	AutoApprove  bool         `json:"autoApprove,omitempty"`
+	AutoReject   bool         `json:"autoReject,omitempty"`
+}
+
+// LifecycleEvent represents lifecycle triggers for sandbox cleanup.
+type LifecycleEvent string
+
+const (
+	LifecycleEventRunCompleted LifecycleEvent = "run_completed"
+	LifecycleEventRunFailed    LifecycleEvent = "run_failed"
+	LifecycleEventRunCancelled LifecycleEvent = "run_cancelled"
+	LifecycleEventApproved     LifecycleEvent = "approved"
+	LifecycleEventRejected     LifecycleEvent = "rejected"
+	LifecycleEventTerminal     LifecycleEvent = "terminal"
+)
+
+// LifecycleConfig controls sandbox stop/delete behavior.
+type LifecycleConfig struct {
+	StopOn      []LifecycleEvent `json:"stopOn,omitempty"`
+	DeleteOn    []LifecycleEvent `json:"deleteOn,omitempty"`
+	TTL         time.Duration    `json:"ttl,omitempty"`
+	IdleTimeout time.Duration    `json:"idleTimeout,omitempty"`
+}
+
+// SandboxBehavior configures lifecycle and acceptance policies.
+type SandboxBehavior struct {
+	Lifecycle  LifecycleConfig  `json:"lifecycle,omitempty"`
+	Acceptance AcceptanceConfig `json:"acceptance,omitempty"`
+}
+
 // ApprovalStatus represents the approval state of a change.
 type ApprovalStatus string
 
@@ -122,6 +174,9 @@ type Sandbox struct {
 	Tags     []string               `json:"tags,omitempty" db:"tags"`
 	Metadata map[string]interface{} `json:"metadata,omitempty" db:"metadata"`
 
+	// Behavior captures lifecycle and acceptance configuration.
+	Behavior SandboxBehavior `json:"behavior,omitempty" db:"behavior"`
+
 	// IdempotencyKey is a client-provided key for request deduplication.
 	// If set, subsequent create requests with the same key return this sandbox.
 	IdempotencyKey string `json:"idempotencyKey,omitempty" db:"idempotency_key"`
@@ -161,6 +216,16 @@ type FileChange struct {
 	ApprovalStatus ApprovalStatus `json:"approvalStatus" db:"approval_status"`
 	ApprovedAt     *time.Time     `json:"approvedAt,omitempty" db:"approved_at"`
 	ApprovedBy     string         `json:"approvedBy,omitempty" db:"approved_by"`
+
+	// Acceptance describes how this change maps to acceptance rules.
+	Acceptance *AcceptanceInfo `json:"acceptance,omitempty" db:"-"`
+}
+
+// AcceptanceInfo captures acceptance evaluation for a file change.
+type AcceptanceInfo struct {
+	Status AcceptanceStatus `json:"status"`
+	Reason string           `json:"reason,omitempty"`
+	Rule   string           `json:"rule,omitempty"`
 }
 
 // AuditEvent represents a logged sandbox operation.
@@ -194,6 +259,7 @@ type CreateRequest struct {
 	OwnerType     OwnerType              `json:"ownerType,omitempty"`
 	Tags          []string               `json:"tags,omitempty"`
 	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	Behavior      SandboxBehavior        `json:"behavior,omitempty"`
 
 	// IdempotencyKey is an optional client-provided key for request deduplication.
 	// If provided and a sandbox was already created with this key, that sandbox
@@ -242,12 +308,8 @@ type ApprovalRequest struct {
 	Actor      string      `json:"actor,omitempty"`
 	CommitMsg  string      `json:"commitMessage,omitempty"`
 
-	// ApproveAll bypasses reservedPath default filtering and applies all changes.
-	ApproveAll bool `json:"approveAll,omitempty"`
-
-	// IncludePrefixes expands the default approvable paths beyond reservedPath.
-	// Each prefix may be absolute (within projectRoot) or relative to projectRoot.
-	IncludePrefixes []string `json:"includePrefixes,omitempty"`
+	// OverrideAcceptance bypasses acceptance filtering and applies all changes.
+	OverrideAcceptance bool `json:"overrideAcceptance,omitempty"`
 
 	// Force bypasses conflict detection and applies changes even if the
 	// canonical repo has changed since sandbox creation. Use with caution.

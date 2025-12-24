@@ -61,6 +61,7 @@ CREATE TABLE sandboxes (
     -- Metadata
     tags TEXT[] DEFAULT '{}',
     metadata JSONB DEFAULT '{}',
+    behavior JSONB NOT NULL DEFAULT '{}'::jsonb,
 
     -- Idempotency support
     idempotency_key TEXT UNIQUE,        -- Optional client-provided key for idempotent creates

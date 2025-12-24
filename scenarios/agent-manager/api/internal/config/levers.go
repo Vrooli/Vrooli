@@ -107,16 +107,6 @@ type SafetyLevers struct {
 	// These provide hard guardrails regardless of policy.
 	// Default: [".git/**", ".env*", "**/secrets/**", "**/*.key"]
 	DenyPathPatterns []string `json:"denyPathPatterns"`
-
-	// SandboxRetentionMode controls what happens to sandboxes after runs finish.
-	// Valid: "keep_active", "stop_on_terminal", "delete_on_terminal".
-	// Default: "keep_active".
-	SandboxRetentionMode string `json:"sandboxRetentionMode"`
-
-	// SandboxRetentionTTL controls how long to keep sandboxes before cleanup.
-	// 0 disables TTL cleanup.
-	// Range: 0 to 30d. Default: 0.
-	SandboxRetentionTTL time.Duration `json:"sandboxRetentionTtl"`
 }
 
 // =============================================================================
@@ -292,8 +282,6 @@ func DefaultLevers() Levers {
 			AllowInPlaceOverride:    true,
 			MaxFilesPerRun:          500,
 			MaxBytesPerRun:          50 * 1024 * 1024, // 50MB
-			SandboxRetentionMode:    "keep_active",
-			SandboxRetentionTTL:     0,
 			DenyPathPatterns: []string{
 				".git/**",
 				".env*",
@@ -395,15 +383,6 @@ func (s *SafetyLevers) Validate() error {
 	}
 	if s.MaxBytesPerRun < 1024 || s.MaxBytesPerRun > 1024*1024*1024 {
 		return domain.NewConfigInvalidError("maxBytesPerRun", fmt.Sprintf("must be between 1KB and 1GB, got %d", s.MaxBytesPerRun), nil)
-	}
-	if s.SandboxRetentionTTL < 0 || s.SandboxRetentionTTL > 30*24*time.Hour {
-		return domain.NewConfigInvalidError("sandboxRetentionTtl", fmt.Sprintf("must be between 0 and 30d, got %v", s.SandboxRetentionTTL), nil)
-	}
-	switch s.SandboxRetentionMode {
-	case "", "keep_active", "stop_on_terminal", "delete_on_terminal":
-		// ok
-	default:
-		return domain.NewConfigInvalidError("sandboxRetentionMode", fmt.Sprintf("must be one of keep_active, stop_on_terminal, delete_on_terminal, got %q", s.SandboxRetentionMode), nil)
 	}
 	return nil
 }

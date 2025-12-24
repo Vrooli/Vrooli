@@ -204,20 +204,30 @@ func (p *AgentProfile) Validate() error {
 			"same path cannot be both allowed and denied")
 	}
 
-	// Sandbox retention mode must be valid when set
-	if !p.SandboxRetentionMode.IsValid() {
-		return NewValidationError("sandboxRetentionMode", "invalid sandbox retention mode")
-	}
-
-	// Sandbox retention TTL must be non-negative
-	if p.SandboxRetentionTTL < 0 {
-		return NewValidationError("sandboxRetentionTtl", "cannot be negative")
+	if err := validateSandboxConfig(p.SandboxConfig); err != nil {
+		return err
 	}
 
 	if err := validateRunnerFallbackTypes("fallbackRunnerTypes", p.FallbackRunnerTypes); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func validateSandboxConfig(cfg *SandboxConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	if cfg.Acceptance.Mode != "" && cfg.Acceptance.Mode != "allowlist" {
+		return NewValidationError("sandboxConfig.acceptance.mode", "invalid acceptance mode")
+	}
+	if cfg.Lifecycle.TTL < 0 {
+		return NewValidationError("sandboxConfig.lifecycle.ttl", "cannot be negative")
+	}
+	if cfg.Lifecycle.IdleTimeout < 0 {
+		return NewValidationError("sandboxConfig.lifecycle.idleTimeout", "cannot be negative")
+	}
 	return nil
 }
 

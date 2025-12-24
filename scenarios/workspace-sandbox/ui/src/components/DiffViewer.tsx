@@ -253,6 +253,23 @@ function FileDiffSection({
     deleted: "removed" as const,
   };
 
+  const acceptanceBadge = (() => {
+    const status = fileChange?.acceptance?.status;
+    if (!status) return null;
+    switch (status) {
+      case "accepted":
+        return { label: "accepted", variant: "success" as const };
+      case "ignored":
+        return { label: "ignored", variant: "warning" as const };
+      case "denied":
+        return { label: "denied", variant: "error" as const };
+      case "binary_ignored":
+        return { label: "binary", variant: "warning" as const };
+      default:
+        return null;
+    }
+  })();
+
   // Count selected hunks for this file
   const selectedCount = selectedHunkIndices?.size ?? 0;
   const totalHunks = file.hunks.length;
@@ -288,6 +305,11 @@ function FileDiffSection({
         <Badge variant={changeBadge[file.changeType]} className="text-[10px]">
           {file.changeType}
         </Badge>
+        {acceptanceBadge && (
+          <Badge variant={acceptanceBadge.variant} className="text-[10px]">
+            {acceptanceBadge.label}
+          </Badge>
+        )}
 
         {/* File-level approval status */}
         {fileChange?.approvalStatus === "approved" && (

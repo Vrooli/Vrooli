@@ -313,6 +313,7 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 	}
 
 	if err != nil {
+		errorMessage := strings.TrimSpace(errorOutput.String())
 		// Check if it was cancelled
 		if ctx.Err() == context.Canceled {
 			result.Success = false
@@ -321,11 +322,28 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		} else if exitErr, ok := err.(*exec.ExitError); ok {
 			result.Success = false
 			result.ExitCode = exitErr.ExitCode()
-			result.ErrorMessage = errorOutput.String()
+			if errorMessage == "" {
+				errorMessage = exitErr.Error()
+			}
+			result.ErrorMessage = errorMessage
+			if result.ExitCode != 0 && errorMessage != "" {
+				result.ErrorMessage = fmt.Sprintf("exit code %d: %s", result.ExitCode, errorMessage)
+			}
 		} else {
 			result.Success = false
 			result.ExitCode = -1
-			result.ErrorMessage = err.Error()
+			if errorMessage == "" {
+				errorMessage = err.Error()
+			}
+			result.ErrorMessage = errorMessage
+		}
+		if req.EventSink != nil && strings.TrimSpace(result.ErrorMessage) != "" {
+			_ = req.EventSink.Emit(domain.NewErrorEvent(
+				req.RunID,
+				"execution_error",
+				result.ErrorMessage,
+				false,
+			))
 		}
 	} else {
 		result.Success = true

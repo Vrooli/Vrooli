@@ -53,6 +53,7 @@ type runRow struct {
 	LogPath          string             `db:"log_path"`
 	ChangedFiles     int                `db:"changed_files"`
 	TotalSizeBytes   int64              `db:"total_size_bytes"`
+	SandboxConfig    NullableSandboxConfig `db:"sandbox_config"`
 	CreatedAt        SQLiteTime         `db:"created_at"`
 	UpdatedAt        SQLiteTime         `db:"updated_at"`
 }
@@ -83,6 +84,7 @@ func (row *runRow) toDomain() *domain.Run {
 		LogPath:          row.LogPath,
 		ChangedFiles:     row.ChangedFiles,
 		TotalSizeBytes:   row.TotalSizeBytes,
+		SandboxConfig:    row.SandboxConfig.V,
 		CreatedAt:        row.CreatedAt.Time(),
 		UpdatedAt:        row.UpdatedAt.Time(),
 	}
@@ -119,6 +121,7 @@ func runFromDomain(r *domain.Run) *runRow {
 		LogPath:          r.LogPath,
 		ChangedFiles:     r.ChangedFiles,
 		TotalSizeBytes:   r.TotalSizeBytes,
+		SandboxConfig:    NullableSandboxConfig{V: r.SandboxConfig},
 		CreatedAt:        SQLiteTime(r.CreatedAt),
 		UpdatedAt:        SQLiteTime(r.UpdatedAt),
 	}
@@ -131,7 +134,7 @@ func runFromDomain(r *domain.Run) *runRow {
 const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, status,
 	started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
-	resolved_config, diff_path, log_path, changed_files, total_size_bytes, created_at, updated_at`
+	resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, created_at, updated_at`
 
 func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	if run.ID == uuid.Nil {
@@ -145,11 +148,11 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, sandbox_id, run_mode, status,
 		started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 		idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
-		resolved_config, diff_path, log_path, changed_files, total_size_bytes, created_at, updated_at)
+		resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, created_at, updated_at)
 		VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode, :status,
 		:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 		:idempotency_key, :summary, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
-		:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :created_at, :updated_at)`
+		:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
@@ -233,7 +236,8 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		summary = :summary, error_msg = :error_msg, exit_code = :exit_code,
 		approval_state = :approval_state, approved_by = :approved_by, approved_at = :approved_at,
 		resolved_config = :resolved_config, diff_path = :diff_path, log_path = :log_path,
-		changed_files = :changed_files, total_size_bytes = :total_size_bytes, updated_at = :updated_at
+		changed_files = :changed_files, total_size_bytes = :total_size_bytes, sandbox_config = :sandbox_config,
+		updated_at = :updated_at
 		WHERE id = :id`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)

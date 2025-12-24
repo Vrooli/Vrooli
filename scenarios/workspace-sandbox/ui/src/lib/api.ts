@@ -57,6 +57,11 @@ export interface FileChange {
   approvalStatus: ApprovalStatus;
   approvedAt?: string;
   approvedBy?: string;
+  acceptance?: {
+    status: "accepted" | "ignored" | "denied" | "binary_ignored";
+    reason?: string;
+    rule?: string;
+  };
 }
 
 export interface DiffResult {
@@ -177,8 +182,7 @@ export interface ApprovalRequest {
   }>;
   actor?: string;
   commitMessage?: string;
-  approveAll?: boolean;
-  includePrefixes?: string[];
+  overrideAcceptance?: boolean;
 }
 
 export interface ListFilter {
@@ -326,8 +330,7 @@ export async function approveSandbox(
       hunkRanges: options?.hunkRanges,
       actor: options?.actor,
       commitMessage: options?.commitMessage,
-      approveAll: options?.approveAll,
-      includePrefixes: options?.includePrefixes,
+      overrideAcceptance: options?.overrideAcceptance,
     }),
   });
 }

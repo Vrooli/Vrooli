@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package agent_manager.v1;
 
+import "google/protobuf/duration.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
 
 // =============================================================================
@@ -70,23 +72,58 @@ enum ModelPreset {
 }
 
 // =============================================================================
-// SANDBOX RETENTION
+// SANDBOX CONFIG
 // =============================================================================
 
-// SandboxRetentionMode controls what happens to a sandbox after a run ends.
+// SandboxLifecycleEvent describes lifecycle triggers for sandbox cleanup.
 //
-// @usage AgentProfile.sandbox_retention_mode, RunConfig.sandbox_retention_mode
-enum SandboxRetentionMode {
-  SANDBOX_RETENTION_MODE_UNSPECIFIED = 0;
+// @usage SandboxLifecycleConfig.stop_on, SandboxLifecycleConfig.delete_on
+enum SandboxLifecycleEvent {
+  SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED = 0;
+  SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED = 1;
+  SANDBOX_LIFECYCLE_EVENT_RUN_FAILED = 2;
+  SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED = 3;
+  SANDBOX_LIFECYCLE_EVENT_APPROVED = 4;
+  SANDBOX_LIFECYCLE_EVENT_REJECTED = 5;
+  SANDBOX_LIFECYCLE_EVENT_TERMINAL = 6;
+}
 
-  // Keep the sandbox active and reserved until manual cleanup.
-  SANDBOX_RETENTION_MODE_KEEP_ACTIVE = 1;
+// SandboxAcceptanceMode controls how files are accepted for approval.
+//
+// @usage SandboxAcceptanceConfig.mode
+enum SandboxAcceptanceMode {
+  SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED = 0;
+  SANDBOX_ACCEPTANCE_MODE_ALLOWLIST = 1;
+}
 
-  // Stop the sandbox on terminal run states, releasing reserved paths.
-  SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL = 2;
+// SandboxFileCriteria defines allow/deny matchers for acceptance.
+message SandboxFileCriteria {
+  repeated string path_globs = 1;
+  repeated string extensions = 2;
+}
 
-  // Delete the sandbox on terminal run states.
-  SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL = 3;
+// SandboxAcceptanceConfig controls which files are eligible for approval.
+message SandboxAcceptanceConfig {
+  SandboxAcceptanceMode mode = 1;
+  SandboxFileCriteria allow = 2;
+  SandboxFileCriteria deny = 3;
+  bool ignore_binary = 4;
+  bool auto_approve = 5;
+  bool auto_reject = 6;
+}
+
+// SandboxLifecycleConfig controls sandbox stop/delete behavior.
+message SandboxLifecycleConfig {
+  repeated SandboxLifecycleEvent stop_on = 1;
+  repeated SandboxLifecycleEvent delete_on = 2;
+  google.protobuf.Duration ttl = 3;
+  google.protobuf.Duration idle_timeout = 4;
+}
+
+// SandboxConfig groups lifecycle and acceptance settings.
+message SandboxConfig {
+  SandboxLifecycleConfig lifecycle = 1;
+  SandboxAcceptanceConfig acceptance = 2;
 }
 
 // =============================================================================

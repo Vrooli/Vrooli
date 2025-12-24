@@ -80,6 +80,9 @@ type CreateRequest struct {
 
 	// Metadata contains additional sandbox metadata.
 	Metadata map[string]string
+
+	// Behavior controls lifecycle and acceptance configuration.
+	Behavior *domain.SandboxConfig
 }
 
 // Sandbox represents an active or stopped sandbox.

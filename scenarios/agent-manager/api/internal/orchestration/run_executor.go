@@ -120,8 +120,7 @@ type RunExecutor struct {
 	isResuming bool
 
 	// Sandbox finalization state
-	sandboxFinalized        bool
-	sandboxCleanupScheduled bool
+	sandboxFinalized bool
 }
 
 // NewRunExecutor creates a new executor for the given run.
@@ -511,6 +510,7 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 		Owner:          e.run.ID.String(),
 		OwnerType:      "run",
 		IdempotencyKey: idempotencyKey,
+		Behavior:       e.run.SandboxConfig,
 	})
 	if err != nil {
 		return err
@@ -817,22 +817,25 @@ func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 		requiresApproval = e.run.ResolvedConfig.RequiresApproval
 	}
 
-	if requiresApproval {
-		e.run.Status = domain.RunStatusNeedsReview
-		e.run.ApprovalState = domain.ApprovalStatePending
-	} else {
-		// Skip approval workflow - mark as complete directly
-		e.run.Status = domain.RunStatusComplete
-		e.run.ApprovalState = domain.ApprovalStateNone
-
-	}
-
 	if e.result != nil {
 		e.run.Summary = e.result.Summary
 		e.run.ExitCode = &e.result.ExitCode
 	}
 
-	e.applySandboxRetention(ctx, "run completed")
+	autoApplied := false
+	if requiresApproval {
+		autoApplied = e.tryAutoApproval(ctx)
+		if !autoApplied {
+			e.run.Status = domain.RunStatusNeedsReview
+			e.run.ApprovalState = domain.ApprovalStatePending
+		}
+	} else {
+		// Skip approval workflow - mark as complete directly
+		e.run.Status = domain.RunStatusComplete
+		e.run.ApprovalState = domain.ApprovalStateNone
+	}
+
+	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCompleted, "run completed")
 }
 
 func (e *RunExecutor) handleFailure(ctx context.Context) {
@@ -845,12 +848,12 @@ func (e *RunExecutor) handleFailure(ctx context.Context) {
 		e.run.ExitCode = &e.result.ExitCode
 	}
 
-	e.applySandboxRetention(ctx, "run failed")
+	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "run failed")
 }
 
 func (e *RunExecutor) handleCancellation(ctx context.Context) {
 	e.run.Status = domain.RunStatusCancelled
-	e.applySandboxRetention(ctx, "run cancelled")
+	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCancelled, "run cancelled")
 }
 
 // =============================================================================
@@ -948,14 +951,14 @@ func (e *RunExecutor) cleanupOnFailure(ctx context.Context) {
 	// (Future: implement lock cleanup when lock manager is wired up)
 
 	// Emit final status event
-	if e.effectiveSandboxRetentionMode() == domain.SandboxRetentionModeKeepActive {
+	if e.shouldPreserveSandbox(domain.SandboxLifecycleRunFailed) {
 		e.emitSystemEvent(ctx, "info", "run failed - sandbox preserved for inspection")
 	}
 
-	e.applySandboxRetention(ctx, "failure cleanup")
+	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "failure cleanup")
 }
 
-func (e *RunExecutor) applySandboxRetention(ctx context.Context, reason string) {
+func (e *RunExecutor) applySandboxLifecycle(ctx context.Context, event domain.SandboxLifecycleEvent, reason string) {
 	if e.sandboxFinalized {
 		return
 	}
@@ -963,66 +966,117 @@ func (e *RunExecutor) applySandboxRetention(ctx context.Context, reason string) 
 		return
 	}
 
-	mode := e.effectiveSandboxRetentionMode()
+	cfg := e.effectiveSandboxConfig()
+	if cfg == nil {
+		return
+	}
 
-	switch mode {
-	case domain.SandboxRetentionModeStopOnTerminal:
-		if err := e.sandbox.Stop(ctx, *e.sandboxID); err != nil {
-			e.emitSystemEvent(ctx, "warn", "failed to stop sandbox: "+err.Error())
-		} else {
-			e.emitSystemEvent(ctx, "info", "sandbox stopped ("+reason+")")
-			e.sandboxFinalized = true
-		}
-	case domain.SandboxRetentionModeDeleteOnTerminal:
+	events := []domain.SandboxLifecycleEvent{event}
+	if event == domain.SandboxLifecycleRunCompleted || event == domain.SandboxLifecycleRunFailed || event == domain.SandboxLifecycleRunCancelled {
+		events = append(events, domain.SandboxLifecycleTerminal)
+	}
+
+	if hasLifecycleEvent(cfg.Lifecycle.DeleteOn, events) {
 		if err := e.sandbox.Delete(ctx, *e.sandboxID); err != nil {
 			e.emitSystemEvent(ctx, "warn", "failed to delete sandbox: "+err.Error())
 		} else {
 			e.emitSystemEvent(ctx, "info", "sandbox deleted ("+reason+")")
 			e.sandboxFinalized = true
 		}
-	case domain.SandboxRetentionModeKeepActive:
-		// keep active
-	default:
-		// Unrecognized mode; keep active to be safe.
-	}
-
-	if mode != domain.SandboxRetentionModeDeleteOnTerminal {
-		if ttl := e.effectiveSandboxRetentionTTL(); ttl > 0 {
-			e.scheduleSandboxCleanup(*e.sandboxID, ttl)
-		}
-	}
-}
-
-func (e *RunExecutor) effectiveSandboxRetentionMode() domain.SandboxRetentionMode {
-	if e.run.ResolvedConfig != nil && e.run.ResolvedConfig.SandboxRetentionMode != "" {
-		return e.run.ResolvedConfig.SandboxRetentionMode
-	}
-	return domain.SandboxRetentionModeKeepActive
-}
-
-func (e *RunExecutor) effectiveSandboxRetentionTTL() time.Duration {
-	if e.run.ResolvedConfig != nil {
-		return e.run.ResolvedConfig.SandboxRetentionTTL
-	}
-	return 0
-}
-
-func (e *RunExecutor) scheduleSandboxCleanup(sandboxID uuid.UUID, ttl time.Duration) {
-	if e.sandboxCleanupScheduled || e.sandbox == nil {
 		return
 	}
-	e.sandboxCleanupScheduled = true
-	go func() {
-		timer := time.NewTimer(ttl)
-		defer timer.Stop()
-		<-timer.C
-		ctx := context.Background()
-		if err := e.sandbox.Delete(ctx, sandboxID); err != nil {
-			e.emitSystemEvent(ctx, "warn", "failed to delete sandbox after TTL: "+err.Error())
-			return
+
+	if hasLifecycleEvent(cfg.Lifecycle.StopOn, events) {
+		if err := e.sandbox.Stop(ctx, *e.sandboxID); err != nil {
+			e.emitSystemEvent(ctx, "warn", "failed to stop sandbox: "+err.Error())
+		} else {
+			e.emitSystemEvent(ctx, "info", "sandbox stopped ("+reason+")")
 		}
-		e.emitSystemEvent(ctx, "info", "sandbox deleted after retention TTL")
-	}()
+	}
+}
+
+func (e *RunExecutor) effectiveSandboxConfig() *domain.SandboxConfig {
+	if e.run != nil && e.run.SandboxConfig != nil {
+		return e.run.SandboxConfig
+	}
+	return nil
+}
+
+func hasLifecycleEvent(events []domain.SandboxLifecycleEvent, candidates []domain.SandboxLifecycleEvent) bool {
+	for _, candidate := range candidates {
+		for _, event := range events {
+			if event == candidate {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (e *RunExecutor) shouldPreserveSandbox(event domain.SandboxLifecycleEvent) bool {
+	cfg := e.effectiveSandboxConfig()
+	if cfg == nil {
+		return true
+	}
+	events := []domain.SandboxLifecycleEvent{event, domain.SandboxLifecycleTerminal}
+	if hasLifecycleEvent(cfg.Lifecycle.StopOn, events) || hasLifecycleEvent(cfg.Lifecycle.DeleteOn, events) {
+		return false
+	}
+	return true
+}
+
+func (e *RunExecutor) tryAutoApproval(ctx context.Context) bool {
+	cfg := e.effectiveSandboxConfig()
+	if cfg == nil {
+		return false
+	}
+	if cfg.Acceptance.AutoReject {
+		return e.autoReject(ctx)
+	}
+	if cfg.Acceptance.AutoApprove {
+		return e.autoApprove(ctx)
+	}
+	return false
+}
+
+func (e *RunExecutor) autoApprove(ctx context.Context) bool {
+	if e.sandbox == nil || e.sandboxID == nil {
+		e.emitSystemEvent(ctx, "warn", "auto-approve skipped: no sandbox available")
+		return false
+	}
+	actor := "auto-approve"
+	_, err := e.sandbox.Approve(ctx, sandbox.ApproveRequest{
+		SandboxID: *e.sandboxID,
+		Actor:     actor,
+	})
+	if err != nil {
+		e.emitSystemEvent(ctx, "warn", "auto-approve failed: "+err.Error())
+		return false
+	}
+	now := time.Now()
+	e.run.ApprovalState = domain.ApprovalStateApproved
+	e.run.ApprovedBy = actor
+	e.run.ApprovedAt = &now
+	e.run.Status = domain.RunStatusComplete
+	return true
+}
+
+func (e *RunExecutor) autoReject(ctx context.Context) bool {
+	if e.sandbox == nil || e.sandboxID == nil {
+		e.emitSystemEvent(ctx, "warn", "auto-reject skipped: no sandbox available")
+		return false
+	}
+	actor := "auto-reject"
+	if err := e.sandbox.Reject(ctx, *e.sandboxID, actor); err != nil {
+		e.emitSystemEvent(ctx, "warn", "auto-reject failed: "+err.Error())
+		return false
+	}
+	now := time.Now()
+	e.run.ApprovalState = domain.ApprovalStateRejected
+	e.run.ApprovedBy = actor
+	e.run.ApprovedAt = &now
+	e.run.Status = domain.RunStatusComplete
+	return true
 }
 
 // =============================================================================

@@ -77,10 +77,8 @@ type AgentProfile struct {
 	// Whether runs using this profile require human approval before applying changes.
 	// Default: true for safety.
 	RequiresApproval bool `protobuf:"varint,12,opt,name=requires_approval,json=requiresApproval,proto3" json:"requires_approval,omitempty"`
-	// Sandbox retention behavior after run completion.
-	SandboxRetentionMode SandboxRetentionMode `protobuf:"varint,20,opt,name=sandbox_retention_mode,json=sandboxRetentionMode,proto3,enum=agent_manager.v1.SandboxRetentionMode" json:"sandbox_retention_mode,omitempty"`
-	// Optional retention time before deleting the sandbox.
-	SandboxRetentionTtl *durationpb.Duration `protobuf:"bytes,21,opt,name=sandbox_retention_ttl,json=sandboxRetentionTtl,proto3" json:"sandbox_retention_ttl,omitempty"`
+	// Sandbox lifecycle + acceptance configuration.
+	SandboxConfig *SandboxConfig `protobuf:"bytes,20,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
 	// Empty means no path restrictions.
 	AllowedPaths []string `protobuf:"bytes,13,rep,name=allowed_paths,json=allowedPaths,proto3" json:"allowed_paths,omitempty"`
@@ -231,16 +229,9 @@ func (x *AgentProfile) GetRequiresApproval() bool {
 	return false
 }
 
-func (x *AgentProfile) GetSandboxRetentionMode() SandboxRetentionMode {
+func (x *AgentProfile) GetSandboxConfig() *SandboxConfig {
 	if x != nil {
-		return x.SandboxRetentionMode
-	}
-	return SandboxRetentionMode_SANDBOX_RETENTION_MODE_UNSPECIFIED
-}
-
-func (x *AgentProfile) GetSandboxRetentionTtl() *durationpb.Duration {
-	if x != nil {
-		return x.SandboxRetentionTtl
+		return x.SandboxConfig
 	}
 	return nil
 }
@@ -316,10 +307,8 @@ type RunConfig struct {
 	RequiresSandbox bool `protobuf:"varint,8,opt,name=requires_sandbox,json=requiresSandbox,proto3" json:"requires_sandbox,omitempty"`
 	// Require human approval.
 	RequiresApproval bool `protobuf:"varint,9,opt,name=requires_approval,json=requiresApproval,proto3" json:"requires_approval,omitempty"`
-	// Sandbox retention behavior after run completion.
-	SandboxRetentionMode SandboxRetentionMode `protobuf:"varint,13,opt,name=sandbox_retention_mode,json=sandboxRetentionMode,proto3,enum=agent_manager.v1.SandboxRetentionMode" json:"sandbox_retention_mode,omitempty"`
-	// Optional retention time before deleting the sandbox.
-	SandboxRetentionTtl *durationpb.Duration `protobuf:"bytes,14,opt,name=sandbox_retention_ttl,json=sandboxRetentionTtl,proto3" json:"sandbox_retention_ttl,omitempty"`
+	// Sandbox lifecycle + acceptance configuration.
+	SandboxConfig *SandboxConfig `protobuf:"bytes,13,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
 	AllowedPaths []string `protobuf:"bytes,10,rep,name=allowed_paths,json=allowedPaths,proto3" json:"allowed_paths,omitempty"`
 	// Paths explicitly denied.
@@ -435,16 +424,9 @@ func (x *RunConfig) GetRequiresApproval() bool {
 	return false
 }
 
-func (x *RunConfig) GetSandboxRetentionMode() SandboxRetentionMode {
+func (x *RunConfig) GetSandboxConfig() *SandboxConfig {
 	if x != nil {
-		return x.SandboxRetentionMode
-	}
-	return SandboxRetentionMode_SANDBOX_RETENTION_MODE_UNSPECIFIED
-}
-
-func (x *RunConfig) GetSandboxRetentionTtl() *durationpb.Duration {
-	if x != nil {
-		return x.SandboxRetentionTtl
+		return x.SandboxConfig
 	}
 	return nil
 }
@@ -494,10 +476,8 @@ type RunConfigOverrides struct {
 	RequiresSandbox *bool `protobuf:"varint,8,opt,name=requires_sandbox,json=requiresSandbox,proto3,oneof" json:"requires_sandbox,omitempty"`
 	// Require human approval.
 	RequiresApproval *bool `protobuf:"varint,9,opt,name=requires_approval,json=requiresApproval,proto3,oneof" json:"requires_approval,omitempty"`
-	// Sandbox retention behavior after run completion.
-	SandboxRetentionMode *SandboxRetentionMode `protobuf:"varint,17,opt,name=sandbox_retention_mode,json=sandboxRetentionMode,proto3,enum=agent_manager.v1.SandboxRetentionMode,oneof" json:"sandbox_retention_mode,omitempty"`
-	// Optional retention time before deleting the sandbox.
-	SandboxRetentionTtl *durationpb.Duration `protobuf:"bytes,18,opt,name=sandbox_retention_ttl,json=sandboxRetentionTtl,proto3,oneof" json:"sandbox_retention_ttl,omitempty"`
+	// Sandbox lifecycle + acceptance configuration.
+	SandboxConfig *SandboxConfig `protobuf:"bytes,17,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
 	AllowedPaths []string `protobuf:"bytes,10,rep,name=allowed_paths,json=allowedPaths,proto3" json:"allowed_paths,omitempty"`
 	// Paths explicitly denied.
@@ -623,16 +603,9 @@ func (x *RunConfigOverrides) GetRequiresApproval() bool {
 	return false
 }
 
-func (x *RunConfigOverrides) GetSandboxRetentionMode() SandboxRetentionMode {
-	if x != nil && x.SandboxRetentionMode != nil {
-		return *x.SandboxRetentionMode
-	}
-	return SandboxRetentionMode_SANDBOX_RETENTION_MODE_UNSPECIFIED
-}
-
-func (x *RunConfigOverrides) GetSandboxRetentionTtl() *durationpb.Duration {
+func (x *RunConfigOverrides) GetSandboxConfig() *SandboxConfig {
 	if x != nil {
-		return x.SandboxRetentionTtl
+		return x.SandboxConfig
 	}
 	return nil
 }
@@ -761,7 +734,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xc0\b\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xdb\a\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -784,9 +757,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x16skip_permission_prompt\x18\n" +
 	" \x01(\bR\x14skipPermissionPrompt\x12)\n" +
 	"\x10requires_sandbox\x18\v \x01(\bR\x0frequiresSandbox\x12+\n" +
-	"\x11requires_approval\x18\f \x01(\bR\x10requiresApproval\x12\\\n" +
-	"\x16sandbox_retention_mode\x18\x14 \x01(\x0e2&.agent_manager.v1.SandboxRetentionModeR\x14sandboxRetentionMode\x12M\n" +
-	"\x15sandbox_retention_ttl\x18\x15 \x01(\v2\x19.google.protobuf.DurationR\x13sandboxRetentionTtl\x12#\n" +
+	"\x11requires_approval\x18\f \x01(\bR\x10requiresApproval\x12F\n" +
+	"\x0esandbox_config\x18\x14 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\r \x03(\tR\fallowedPaths\x12!\n" +
 	"\fdenied_paths\x18\x0e \x03(\tR\vdeniedPaths\x12\x1d\n" +
 	"\n" +
@@ -794,7 +766,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x91\x06\n" +
+	"updated_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xac\x05\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
@@ -807,13 +779,11 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x124\n" +
 	"\x16skip_permission_prompt\x18\a \x01(\bR\x14skipPermissionPrompt\x12)\n" +
 	"\x10requires_sandbox\x18\b \x01(\bR\x0frequiresSandbox\x12+\n" +
-	"\x11requires_approval\x18\t \x01(\bR\x10requiresApproval\x12\\\n" +
-	"\x16sandbox_retention_mode\x18\r \x01(\x0e2&.agent_manager.v1.SandboxRetentionModeR\x14sandboxRetentionMode\x12M\n" +
-	"\x15sandbox_retention_ttl\x18\x0e \x01(\v2\x19.google.protobuf.DurationR\x13sandboxRetentionTtl\x12#\n" +
+	"\x11requires_approval\x18\t \x01(\bR\x10requiresApproval\x12F\n" +
+	"\x0esandbox_config\x18\r \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
-	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\x93\n" +
-	"\n" +
+	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\"\xef\b\n" +
 	"\x12RunConfigOverrides\x12N\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
@@ -827,9 +797,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\fdenied_tools\x18\x06 \x03(\tR\vdeniedTools\x129\n" +
 	"\x16skip_permission_prompt\x18\a \x01(\bH\x05R\x14skipPermissionPrompt\x88\x01\x01\x12.\n" +
 	"\x10requires_sandbox\x18\b \x01(\bH\x06R\x0frequiresSandbox\x88\x01\x01\x120\n" +
-	"\x11requires_approval\x18\t \x01(\bH\aR\x10requiresApproval\x88\x01\x01\x12a\n" +
-	"\x16sandbox_retention_mode\x18\x11 \x01(\x0e2&.agent_manager.v1.SandboxRetentionModeH\bR\x14sandboxRetentionMode\x88\x01\x01\x12R\n" +
-	"\x15sandbox_retention_ttl\x18\x12 \x01(\v2\x19.google.protobuf.DurationH\tR\x13sandboxRetentionTtl\x88\x01\x01\x12#\n" +
+	"\x11requires_approval\x18\t \x01(\bH\aR\x10requiresApproval\x88\x01\x01\x12F\n" +
+	"\x0esandbox_config\x18\x11 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
 	"\fdenied_paths\x18\v \x03(\tR\vdeniedPaths\x12.\n" +
@@ -847,9 +816,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\b_timeoutB\x19\n" +
 	"\x17_skip_permission_promptB\x13\n" +
 	"\x11_requires_sandboxB\x14\n" +
-	"\x12_requires_approvalB\x19\n" +
-	"\x17_sandbox_retention_modeB\x18\n" +
-	"\x16_sandbox_retention_ttl\"\xa7\x01\n" +
+	"\x12_requires_approval\"\xa7\x01\n" +
 	"\x0fHeartbeatConfig\x125\n" +
 	"\binterval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\binterval\x123\n" +
 	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12(\n" +
@@ -876,7 +843,7 @@ var file_agent_manager_v1_domain_profile_proto_goTypes = []any{
 	(RunnerType)(0),               // 4: agent_manager.v1.RunnerType
 	(ModelPreset)(0),              // 5: agent_manager.v1.ModelPreset
 	(*durationpb.Duration)(nil),   // 6: google.protobuf.Duration
-	(SandboxRetentionMode)(0),     // 7: agent_manager.v1.SandboxRetentionMode
+	(*SandboxConfig)(nil),         // 7: agent_manager.v1.SandboxConfig
 	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
 }
 var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
@@ -884,29 +851,26 @@ var file_agent_manager_v1_domain_profile_proto_depIdxs = []int32{
 	5,  // 1: agent_manager.v1.AgentProfile.model_preset:type_name -> agent_manager.v1.ModelPreset
 	6,  // 2: agent_manager.v1.AgentProfile.timeout:type_name -> google.protobuf.Duration
 	4,  // 3: agent_manager.v1.AgentProfile.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
-	7,  // 4: agent_manager.v1.AgentProfile.sandbox_retention_mode:type_name -> agent_manager.v1.SandboxRetentionMode
-	6,  // 5: agent_manager.v1.AgentProfile.sandbox_retention_ttl:type_name -> google.protobuf.Duration
-	8,  // 6: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
-	8,  // 7: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
-	4,  // 8: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
-	5,  // 9: agent_manager.v1.RunConfig.model_preset:type_name -> agent_manager.v1.ModelPreset
-	6,  // 10: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
-	4,  // 11: agent_manager.v1.RunConfig.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
-	7,  // 12: agent_manager.v1.RunConfig.sandbox_retention_mode:type_name -> agent_manager.v1.SandboxRetentionMode
-	6,  // 13: agent_manager.v1.RunConfig.sandbox_retention_ttl:type_name -> google.protobuf.Duration
-	4,  // 14: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
-	5,  // 15: agent_manager.v1.RunConfigOverrides.model_preset:type_name -> agent_manager.v1.ModelPreset
-	6,  // 16: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
-	4,  // 17: agent_manager.v1.RunConfigOverrides.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
-	7,  // 18: agent_manager.v1.RunConfigOverrides.sandbox_retention_mode:type_name -> agent_manager.v1.SandboxRetentionMode
-	6,  // 19: agent_manager.v1.RunConfigOverrides.sandbox_retention_ttl:type_name -> google.protobuf.Duration
-	6,  // 20: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
-	6,  // 21: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	7,  // 4: agent_manager.v1.AgentProfile.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	8,  // 5: agent_manager.v1.AgentProfile.created_at:type_name -> google.protobuf.Timestamp
+	8,  // 6: agent_manager.v1.AgentProfile.updated_at:type_name -> google.protobuf.Timestamp
+	4,  // 7: agent_manager.v1.RunConfig.runner_type:type_name -> agent_manager.v1.RunnerType
+	5,  // 8: agent_manager.v1.RunConfig.model_preset:type_name -> agent_manager.v1.ModelPreset
+	6,  // 9: agent_manager.v1.RunConfig.timeout:type_name -> google.protobuf.Duration
+	4,  // 10: agent_manager.v1.RunConfig.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
+	7,  // 11: agent_manager.v1.RunConfig.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	4,  // 12: agent_manager.v1.RunConfigOverrides.runner_type:type_name -> agent_manager.v1.RunnerType
+	5,  // 13: agent_manager.v1.RunConfigOverrides.model_preset:type_name -> agent_manager.v1.ModelPreset
+	6,  // 14: agent_manager.v1.RunConfigOverrides.timeout:type_name -> google.protobuf.Duration
+	4,  // 15: agent_manager.v1.RunConfigOverrides.fallback_runner_types:type_name -> agent_manager.v1.RunnerType
+	7,  // 16: agent_manager.v1.RunConfigOverrides.sandbox_config:type_name -> agent_manager.v1.SandboxConfig
+	6,  // 17: agent_manager.v1.HeartbeatConfig.interval:type_name -> google.protobuf.Duration
+	6,  // 18: agent_manager.v1.HeartbeatConfig.timeout:type_name -> google.protobuf.Duration
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_profile_proto_init() }

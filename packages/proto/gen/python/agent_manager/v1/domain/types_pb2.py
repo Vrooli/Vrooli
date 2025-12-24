@@ -22,9 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import duration_pb2 as google_dot_protobuf_dot_duration__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#agent-manager/v1/domain/types.proto\x12\x10\x61gent_manager.v1*w\n\nRunnerType\x12\x1b\n\x17RUNNER_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n\x17RUNNER_TYPE_CLAUDE_CODE\x10\x01\x12\x15\n\x11RUNNER_TYPE_CODEX\x10\x02\x12\x18\n\x14RUNNER_TYPE_OPENCODE\x10\x03*r\n\x0bModelPreset\x12\x1c\n\x18MODEL_PRESET_UNSPECIFIED\x10\x00\x12\x15\n\x11MODEL_PRESET_FAST\x10\x01\x12\x16\n\x12MODEL_PRESET_CHEAP\x10\x02\x12\x16\n\x12MODEL_PRESET_SMART\x10\x03*\xc2\x01\n\x14SandboxRetentionMode\x12&\n\"SANDBOX_RETENTION_MODE_UNSPECIFIED\x10\x00\x12&\n\"SANDBOX_RETENTION_MODE_KEEP_ACTIVE\x10\x01\x12+\n\'SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL\x10\x02\x12-\n)SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL\x10\x03*\xdf\x01\n\nTaskStatus\x12\x1b\n\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n\x12TASK_STATUS_QUEUED\x10\x01\x12\x17\n\x13TASK_STATUS_RUNNING\x10\x02\x12\x1c\n\x18TASK_STATUS_NEEDS_REVIEW\x10\x03\x12\x18\n\x14TASK_STATUS_APPROVED\x10\x04\x12\x18\n\x14TASK_STATUS_REJECTED\x10\x05\x12\x16\n\x12TASK_STATUS_FAILED\x10\x06\x12\x19\n\x15TASK_STATUS_CANCELLED\x10\x07*\xd7\x01\n\tRunStatus\x12\x1a\n\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x16\n\x12RUN_STATUS_PENDING\x10\x01\x12\x17\n\x13RUN_STATUS_STARTING\x10\x02\x12\x16\n\x12RUN_STATUS_RUNNING\x10\x03\x12\x1b\n\x17RUN_STATUS_NEEDS_REVIEW\x10\x04\x12\x17\n\x13RUN_STATUS_COMPLETE\x10\x05\x12\x15\n\x11RUN_STATUS_FAILED\x10\x06\x12\x18\n\x14RUN_STATUS_CANCELLED\x10\x07*\xbd\x02\n\x08RunPhase\x12\x19\n\x15RUN_PHASE_UNSPECIFIED\x10\x00\x12\x14\n\x10RUN_PHASE_QUEUED\x10\x01\x12\x1a\n\x16RUN_PHASE_INITIALIZING\x10\x02\x12\x1e\n\x1aRUN_PHASE_SANDBOX_CREATING\x10\x03\x12\x1e\n\x1aRUN_PHASE_RUNNER_ACQUIRING\x10\x04\x12\x17\n\x13RUN_PHASE_EXECUTING\x10\x05\x12 \n\x1cRUN_PHASE_COLLECTING_RESULTS\x10\x06\x12\x1d\n\x19RUN_PHASE_AWAITING_REVIEW\x10\x07\x12\x16\n\x12RUN_PHASE_APPLYING\x10\x08\x12\x19\n\x15RUN_PHASE_CLEANING_UP\x10\t\x12\x17\n\x13RUN_PHASE_COMPLETED\x10\n*R\n\x07RunMode\x12\x18\n\x14RUN_MODE_UNSPECIFIED\x10\x00\x12\x16\n\x12RUN_MODE_SANDBOXED\x10\x01\x12\x15\n\x11RUN_MODE_IN_PLACE\x10\x02*\xc5\x01\n\rApprovalState\x12\x1e\n\x1a\x41PPROVAL_STATE_UNSPECIFIED\x10\x00\x12\x17\n\x13\x41PPROVAL_STATE_NONE\x10\x01\x12\x1a\n\x16\x41PPROVAL_STATE_PENDING\x10\x02\x12%\n!APPROVAL_STATE_PARTIALLY_APPROVED\x10\x03\x12\x1b\n\x17\x41PPROVAL_STATE_APPROVED\x10\x04\x12\x1b\n\x17\x41PPROVAL_STATE_REJECTED\x10\x05*\x8d\x02\n\x0cRunEventType\x12\x1e\n\x1aRUN_EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x16\n\x12RUN_EVENT_TYPE_LOG\x10\x01\x12\x1a\n\x16RUN_EVENT_TYPE_MESSAGE\x10\x02\x12\x1c\n\x18RUN_EVENT_TYPE_TOOL_CALL\x10\x03\x12\x1e\n\x1aRUN_EVENT_TYPE_TOOL_RESULT\x10\x04\x12\x19\n\x15RUN_EVENT_TYPE_STATUS\x10\x05\x12\x19\n\x15RUN_EVENT_TYPE_METRIC\x10\x06\x12\x1b\n\x17RUN_EVENT_TYPE_ARTIFACT\x10\x07\x12\x18\n\x14RUN_EVENT_TYPE_ERROR\x10\x08*\xe0\x01\n\x0eRecoveryAction\x12\x1f\n\x1bRECOVERY_ACTION_UNSPECIFIED\x10\x00\x12\x18\n\x14RECOVERY_ACTION_NONE\x10\x01\x12\x19\n\x15RECOVERY_ACTION_RETRY\x10\x02\x12!\n\x1dRECOVERY_ACTION_RETRY_BACKOFF\x10\x03\x12\x1d\n\x19RECOVERY_ACTION_FIX_INPUT\x10\x04\x12\x18\n\x14RECOVERY_ACTION_WAIT\x10\x05\x12\x1c\n\x18RECOVERY_ACTION_ESCALATE\x10\x06*\x97\x01\n\x11IdempotencyStatus\x12\"\n\x1eIDEMPOTENCY_STATUS_UNSPECIFIED\x10\x00\x12\x1e\n\x1aIDEMPOTENCY_STATUS_PENDING\x10\x01\x12\x1f\n\x1bIDEMPOTENCY_STATUS_COMPLETE\x10\x02\x12\x1d\n\x19IDEMPOTENCY_STATUS_FAILED\x10\x03*\xe8\x01\n\nRunOutcome\x12\x1b\n\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12\x17\n\x13RUN_OUTCOME_SUCCESS\x10\x01\x12\x1a\n\x16RUN_OUTCOME_EXIT_ERROR\x10\x02\x12\x19\n\x15RUN_OUTCOME_EXCEPTION\x10\x03\x12\x19\n\x15RUN_OUTCOME_CANCELLED\x10\x04\x12\x17\n\x13RUN_OUTCOME_TIMEOUT\x10\x05\x12\x1c\n\x18RUN_OUTCOME_SANDBOX_FAIL\x10\x06\x12\x1b\n\x17RUN_OUTCOME_RUNNER_FAIL\x10\x07*\xa1\x01\n\x0eStaleRunAction\x12 \n\x1cSTALE_RUN_ACTION_UNSPECIFIED\x10\x00\x12\x19\n\x15STALE_RUN_ACTION_NONE\x10\x01\x12\x1b\n\x17STALE_RUN_ACTION_RESUME\x10\x02\x12\x19\n\x15STALE_RUN_ACTION_FAIL\x10\x03\x12\x1a\n\x16STALE_RUN_ACTION_ALERT\x10\x04\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#agent-manager/v1/domain/types.proto\x12\x10\x61gent_manager.v1\x1a\x1egoogle/protobuf/duration.proto\"T\n\x13SandboxFileCriteria\x12\x1d\n\npath_globs\x18\x01 \x03(\tR\tpathGlobs\x12\x1e\n\nextensions\x18\x02 \x03(\tR\nextensions\"\xb7\x02\n\x17SandboxAcceptanceConfig\x12;\n\x04mode\x18\x01 \x01(\x0e\x32\'.agent_manager.v1.SandboxAcceptanceModeR\x04mode\x12;\n\x05\x61llow\x18\x02 \x01(\x0b\x32%.agent_manager.v1.SandboxFileCriteriaR\x05\x61llow\x12\x39\n\x04\x64\x65ny\x18\x03 \x01(\x0b\x32%.agent_manager.v1.SandboxFileCriteriaR\x04\x64\x65ny\x12#\n\rignore_binary\x18\x04 \x01(\x08R\x0cignoreBinary\x12!\n\x0c\x61uto_approve\x18\x05 \x01(\x08R\x0b\x61utoApprove\x12\x1f\n\x0b\x61uto_reject\x18\x06 \x01(\x08R\nautoReject\"\x8b\x02\n\x16SandboxLifecycleConfig\x12@\n\x07stop_on\x18\x01 \x03(\x0e\x32\'.agent_manager.v1.SandboxLifecycleEventR\x06stopOn\x12\x44\n\tdelete_on\x18\x02 \x03(\x0e\x32\'.agent_manager.v1.SandboxLifecycleEventR\x08\x64\x65leteOn\x12+\n\x03ttl\x18\x03 \x01(\x0b\x32\x19.google.protobuf.DurationR\x03ttl\x12<\n\x0cidle_timeout\x18\x04 \x01(\x0b\x32\x19.google.protobuf.DurationR\x0bidleTimeout\"\xa2\x01\n\rSandboxConfig\x12\x46\n\tlifecycle\x18\x01 \x01(\x0b\x32(.agent_manager.v1.SandboxLifecycleConfigR\tlifecycle\x12I\n\nacceptance\x18\x02 \x01(\x0b\x32).agent_manager.v1.SandboxAcceptanceConfigR\nacceptance*w\n\nRunnerType\x12\x1b\n\x17RUNNER_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n\x17RUNNER_TYPE_CLAUDE_CODE\x10\x01\x12\x15\n\x11RUNNER_TYPE_CODEX\x10\x02\x12\x18\n\x14RUNNER_TYPE_OPENCODE\x10\x03*r\n\x0bModelPreset\x12\x1c\n\x18MODEL_PRESET_UNSPECIFIED\x10\x00\x12\x15\n\x11MODEL_PRESET_FAST\x10\x01\x12\x16\n\x12MODEL_PRESET_CHEAP\x10\x02\x12\x16\n\x12MODEL_PRESET_SMART\x10\x03*\xb0\x02\n\x15SandboxLifecycleEvent\x12\'\n#SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED\x10\x00\x12)\n%SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED\x10\x01\x12&\n\"SANDBOX_LIFECYCLE_EVENT_RUN_FAILED\x10\x02\x12)\n%SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED\x10\x03\x12$\n SANDBOX_LIFECYCLE_EVENT_APPROVED\x10\x04\x12$\n SANDBOX_LIFECYCLE_EVENT_REJECTED\x10\x05\x12$\n SANDBOX_LIFECYCLE_EVENT_TERMINAL\x10\x06*g\n\x15SandboxAcceptanceMode\x12\'\n#SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED\x10\x00\x12%\n!SANDBOX_ACCEPTANCE_MODE_ALLOWLIST\x10\x01*\xdf\x01\n\nTaskStatus\x12\x1b\n\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x16\n\x12TASK_STATUS_QUEUED\x10\x01\x12\x17\n\x13TASK_STATUS_RUNNING\x10\x02\x12\x1c\n\x18TASK_STATUS_NEEDS_REVIEW\x10\x03\x12\x18\n\x14TASK_STATUS_APPROVED\x10\x04\x12\x18\n\x14TASK_STATUS_REJECTED\x10\x05\x12\x16\n\x12TASK_STATUS_FAILED\x10\x06\x12\x19\n\x15TASK_STATUS_CANCELLED\x10\x07*\xd7\x01\n\tRunStatus\x12\x1a\n\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x16\n\x12RUN_STATUS_PENDING\x10\x01\x12\x17\n\x13RUN_STATUS_STARTING\x10\x02\x12\x16\n\x12RUN_STATUS_RUNNING\x10\x03\x12\x1b\n\x17RUN_STATUS_NEEDS_REVIEW\x10\x04\x12\x17\n\x13RUN_STATUS_COMPLETE\x10\x05\x12\x15\n\x11RUN_STATUS_FAILED\x10\x06\x12\x18\n\x14RUN_STATUS_CANCELLED\x10\x07*\xbd\x02\n\x08RunPhase\x12\x19\n\x15RUN_PHASE_UNSPECIFIED\x10\x00\x12\x14\n\x10RUN_PHASE_QUEUED\x10\x01\x12\x1a\n\x16RUN_PHASE_INITIALIZING\x10\x02\x12\x1e\n\x1aRUN_PHASE_SANDBOX_CREATING\x10\x03\x12\x1e\n\x1aRUN_PHASE_RUNNER_ACQUIRING\x10\x04\x12\x17\n\x13RUN_PHASE_EXECUTING\x10\x05\x12 \n\x1cRUN_PHASE_COLLECTING_RESULTS\x10\x06\x12\x1d\n\x19RUN_PHASE_AWAITING_REVIEW\x10\x07\x12\x16\n\x12RUN_PHASE_APPLYING\x10\x08\x12\x19\n\x15RUN_PHASE_CLEANING_UP\x10\t\x12\x17\n\x13RUN_PHASE_COMPLETED\x10\n*R\n\x07RunMode\x12\x18\n\x14RUN_MODE_UNSPECIFIED\x10\x00\x12\x16\n\x12RUN_MODE_SANDBOXED\x10\x01\x12\x15\n\x11RUN_MODE_IN_PLACE\x10\x02*\xc5\x01\n\rApprovalState\x12\x1e\n\x1a\x41PPROVAL_STATE_UNSPECIFIED\x10\x00\x12\x17\n\x13\x41PPROVAL_STATE_NONE\x10\x01\x12\x1a\n\x16\x41PPROVAL_STATE_PENDING\x10\x02\x12%\n!APPROVAL_STATE_PARTIALLY_APPROVED\x10\x03\x12\x1b\n\x17\x41PPROVAL_STATE_APPROVED\x10\x04\x12\x1b\n\x17\x41PPROVAL_STATE_REJECTED\x10\x05*\x8d\x02\n\x0cRunEventType\x12\x1e\n\x1aRUN_EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x16\n\x12RUN_EVENT_TYPE_LOG\x10\x01\x12\x1a\n\x16RUN_EVENT_TYPE_MESSAGE\x10\x02\x12\x1c\n\x18RUN_EVENT_TYPE_TOOL_CALL\x10\x03\x12\x1e\n\x1aRUN_EVENT_TYPE_TOOL_RESULT\x10\x04\x12\x19\n\x15RUN_EVENT_TYPE_STATUS\x10\x05\x12\x19\n\x15RUN_EVENT_TYPE_METRIC\x10\x06\x12\x1b\n\x17RUN_EVENT_TYPE_ARTIFACT\x10\x07\x12\x18\n\x14RUN_EVENT_TYPE_ERROR\x10\x08*\xe0\x01\n\x0eRecoveryAction\x12\x1f\n\x1bRECOVERY_ACTION_UNSPECIFIED\x10\x00\x12\x18\n\x14RECOVERY_ACTION_NONE\x10\x01\x12\x19\n\x15RECOVERY_ACTION_RETRY\x10\x02\x12!\n\x1dRECOVERY_ACTION_RETRY_BACKOFF\x10\x03\x12\x1d\n\x19RECOVERY_ACTION_FIX_INPUT\x10\x04\x12\x18\n\x14RECOVERY_ACTION_WAIT\x10\x05\x12\x1c\n\x18RECOVERY_ACTION_ESCALATE\x10\x06*\x97\x01\n\x11IdempotencyStatus\x12\"\n\x1eIDEMPOTENCY_STATUS_UNSPECIFIED\x10\x00\x12\x1e\n\x1aIDEMPOTENCY_STATUS_PENDING\x10\x01\x12\x1f\n\x1bIDEMPOTENCY_STATUS_COMPLETE\x10\x02\x12\x1d\n\x19IDEMPOTENCY_STATUS_FAILED\x10\x03*\xe8\x01\n\nRunOutcome\x12\x1b\n\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12\x17\n\x13RUN_OUTCOME_SUCCESS\x10\x01\x12\x1a\n\x16RUN_OUTCOME_EXIT_ERROR\x10\x02\x12\x19\n\x15RUN_OUTCOME_EXCEPTION\x10\x03\x12\x19\n\x15RUN_OUTCOME_CANCELLED\x10\x04\x12\x17\n\x13RUN_OUTCOME_TIMEOUT\x10\x05\x12\x1c\n\x18RUN_OUTCOME_SANDBOX_FAIL\x10\x06\x12\x1b\n\x17RUN_OUTCOME_RUNNER_FAIL\x10\x07*\xa1\x01\n\x0eStaleRunAction\x12 \n\x1cSTALE_RUN_ACTION_UNSPECIFIED\x10\x00\x12\x19\n\x15STALE_RUN_ACTION_NONE\x10\x01\x12\x1b\n\x17STALE_RUN_ACTION_RESUME\x10\x02\x12\x19\n\x15STALE_RUN_ACTION_FAIL\x10\x03\x12\x1a\n\x16STALE_RUN_ACTION_ALERT\x10\x04\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,30 +33,40 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'agent_manager.v1.domain.typ
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain'
-  _globals['_RUNNERTYPE']._serialized_start=57
-  _globals['_RUNNERTYPE']._serialized_end=176
-  _globals['_MODELPRESET']._serialized_start=178
-  _globals['_MODELPRESET']._serialized_end=292
-  _globals['_SANDBOXRETENTIONMODE']._serialized_start=295
-  _globals['_SANDBOXRETENTIONMODE']._serialized_end=489
-  _globals['_TASKSTATUS']._serialized_start=492
-  _globals['_TASKSTATUS']._serialized_end=715
-  _globals['_RUNSTATUS']._serialized_start=718
-  _globals['_RUNSTATUS']._serialized_end=933
-  _globals['_RUNPHASE']._serialized_start=936
-  _globals['_RUNPHASE']._serialized_end=1253
-  _globals['_RUNMODE']._serialized_start=1255
-  _globals['_RUNMODE']._serialized_end=1337
-  _globals['_APPROVALSTATE']._serialized_start=1340
-  _globals['_APPROVALSTATE']._serialized_end=1537
-  _globals['_RUNEVENTTYPE']._serialized_start=1540
-  _globals['_RUNEVENTTYPE']._serialized_end=1809
-  _globals['_RECOVERYACTION']._serialized_start=1812
-  _globals['_RECOVERYACTION']._serialized_end=2036
-  _globals['_IDEMPOTENCYSTATUS']._serialized_start=2039
-  _globals['_IDEMPOTENCYSTATUS']._serialized_end=2190
-  _globals['_RUNOUTCOME']._serialized_start=2193
-  _globals['_RUNOUTCOME']._serialized_end=2425
-  _globals['_STALERUNACTION']._serialized_start=2428
-  _globals['_STALERUNACTION']._serialized_end=2589
+  _globals['_RUNNERTYPE']._serialized_start=924
+  _globals['_RUNNERTYPE']._serialized_end=1043
+  _globals['_MODELPRESET']._serialized_start=1045
+  _globals['_MODELPRESET']._serialized_end=1159
+  _globals['_SANDBOXLIFECYCLEEVENT']._serialized_start=1162
+  _globals['_SANDBOXLIFECYCLEEVENT']._serialized_end=1466
+  _globals['_SANDBOXACCEPTANCEMODE']._serialized_start=1468
+  _globals['_SANDBOXACCEPTANCEMODE']._serialized_end=1571
+  _globals['_TASKSTATUS']._serialized_start=1574
+  _globals['_TASKSTATUS']._serialized_end=1797
+  _globals['_RUNSTATUS']._serialized_start=1800
+  _globals['_RUNSTATUS']._serialized_end=2015
+  _globals['_RUNPHASE']._serialized_start=2018
+  _globals['_RUNPHASE']._serialized_end=2335
+  _globals['_RUNMODE']._serialized_start=2337
+  _globals['_RUNMODE']._serialized_end=2419
+  _globals['_APPROVALSTATE']._serialized_start=2422
+  _globals['_APPROVALSTATE']._serialized_end=2619
+  _globals['_RUNEVENTTYPE']._serialized_start=2622
+  _globals['_RUNEVENTTYPE']._serialized_end=2891
+  _globals['_RECOVERYACTION']._serialized_start=2894
+  _globals['_RECOVERYACTION']._serialized_end=3118
+  _globals['_IDEMPOTENCYSTATUS']._serialized_start=3121
+  _globals['_IDEMPOTENCYSTATUS']._serialized_end=3272
+  _globals['_RUNOUTCOME']._serialized_start=3275
+  _globals['_RUNOUTCOME']._serialized_end=3507
+  _globals['_STALERUNACTION']._serialized_start=3510
+  _globals['_STALERUNACTION']._serialized_end=3671
+  _globals['_SANDBOXFILECRITERIA']._serialized_start=89
+  _globals['_SANDBOXFILECRITERIA']._serialized_end=173
+  _globals['_SANDBOXACCEPTANCECONFIG']._serialized_start=176
+  _globals['_SANDBOXACCEPTANCECONFIG']._serialized_end=487
+  _globals['_SANDBOXLIFECYCLECONFIG']._serialized_start=490
+  _globals['_SANDBOXLIFECYCLECONFIG']._serialized_end=757
+  _globals['_SANDBOXCONFIG']._serialized_start=760
+  _globals['_SANDBOXCONFIG']._serialized_end=922
 # @@protoc_insertion_point(module_scope)

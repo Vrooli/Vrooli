@@ -246,10 +246,6 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchConfig.DefaultTimeout = levers.Execution.DefaultTimeout
 		orchConfig.MaxConcurrentRuns = levers.Concurrency.MaxConcurrentRuns
 		orchConfig.RequireSandboxByDefault = levers.Safety.RequireSandboxByDefault
-		if mode := domain.SandboxRetentionMode(levers.Safety.SandboxRetentionMode); mode.IsValid() && mode != domain.SandboxRetentionModeUnspecified {
-			orchConfig.SandboxRetentionMode = mode
-		}
-		orchConfig.SandboxRetentionTTL = levers.Safety.SandboxRetentionTTL
 		if len(levers.Runners.FallbackRunnerTypes) > 0 {
 			seen := make(map[domain.RunnerType]struct{}, len(levers.Runners.FallbackRunnerTypes))
 			for _, runnerType := range levers.Runners.FallbackRunnerTypes {

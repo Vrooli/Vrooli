@@ -30,8 +30,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     -- Default policies
     requires_sandbox BOOLEAN DEFAULT TRUE,
     requires_approval BOOLEAN DEFAULT TRUE,
-    sandbox_retention_mode VARCHAR(50),
-    sandbox_retention_ttl_ms BIGINT DEFAULT 0,
+    sandbox_config JSONB DEFAULT '{}'::jsonb,
 
     -- Path restrictions (stored as JSON arrays)
     allowed_paths JSONB DEFAULT '[]'::jsonb,
@@ -116,6 +115,7 @@ CREATE TABLE IF NOT EXISTS runs (
     log_path VARCHAR(1024),
     changed_files INTEGER DEFAULT 0,
     total_size_bytes BIGINT DEFAULT 0,
+    sandbox_config JSONB DEFAULT '{}'::jsonb,
 
     -- Metadata
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

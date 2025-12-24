@@ -42,6 +42,7 @@ type Server struct {
 	logger           *logging.Logger
 	processTracker   *process.Tracker   // OT-P0-008: Process/Session Tracking
 	gcService        *gc.Service        // OT-P1-003: GC/Prune Operations
+	lifecycleRecon   *sandbox.LifecycleReconciler
 	metricsCollector *metrics.Collector // OT-P1-008: Metrics/Observability
 }
 
@@ -131,6 +132,7 @@ func NewServer() (*Server, error) {
 		sandbox.WithAttributionPolicy(attributionPolicy),
 		sandbox.WithValidationPolicy(validationPolicy),
 	)
+	lifecycleRecon := sandbox.NewLifecycleReconciler(svc, cfg.Lifecycle.GCInterval)
 
 	// Initialize process tracker (OT-P0-008)
 	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{
@@ -194,6 +196,7 @@ func NewServer() (*Server, error) {
 		logger:           logger,
 		processTracker:   processTracker,
 		gcService:        gcService,
+		lifecycleRecon:   lifecycleRecon,
 		metricsCollector: metricsCollector,
 	}
 
@@ -237,12 +240,20 @@ func (s *Server) Start() error {
 		}
 	}()
 
+	if s.lifecycleRecon != nil {
+		s.lifecycleRecon.Start()
+	}
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.Server.ShutdownTimeout)
 	defer cancel()
+
+	if s.lifecycleRecon != nil {
+		s.lifecycleRecon.Stop()
+	}
 
 	if err := httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("server shutdown failed: %w", err)
@@ -463,6 +474,14 @@ func ensureSchema(db *sql.DB) error {
 	// Index for reserved_path overlap queries and UI filtering.
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_sandboxes_reserved_path ON sandboxes(reserved_path)`); err != nil {
 		return fmt.Errorf("failed to create idx_sandboxes_reserved_path: %w", err)
+	}
+
+	// --- sandbox behavior (lifecycle + acceptance) ---
+	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS behavior JSONB NOT NULL DEFAULT '{}'::jsonb`); err != nil {
+		return fmt.Errorf("failed to add behavior column: %w", err)
+	}
+	if _, err := db.Exec(`UPDATE sandboxes SET behavior = '{}'::jsonb WHERE behavior IS NULL`); err != nil {
+		return fmt.Errorf("failed to backfill behavior column: %w", err)
 	}
 
 	// Update overlap check function to use reserved_paths when present.

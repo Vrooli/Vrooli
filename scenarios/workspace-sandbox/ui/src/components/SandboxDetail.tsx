@@ -33,7 +33,7 @@ interface SandboxDetailProps {
   onStop: () => void;
   onStart: () => void;
   onApprove: () => void;
-  onApproveAll?: () => void;
+  onOverrideAcceptance?: () => void;
   onReject: () => void;
   onDelete: () => void;
   onDiscardFile?: (fileId: string) => void;
@@ -137,7 +137,7 @@ export function SandboxDetail({
   onStop,
   onStart,
   onApprove,
-  onApproveAll,
+  onOverrideAcceptance,
   onReject,
   onDelete,
   onDiscardFile,
@@ -358,7 +358,7 @@ export function SandboxDetail({
                   {/* Approve reserved changes (default) */}
                   {showApproveConfirm ? (
                     <div className="flex items-center gap-1">
-                      <span className="text-xs text-slate-400 mr-1">Approve reserved changes?</span>
+                      <span className="text-xs text-slate-400 mr-1">Approve accepted changes?</span>
                       <Button
                         variant="success"
                         size="sm"
@@ -396,20 +396,20 @@ export function SandboxDetail({
                       data-testid={SELECTORS.approveButton}
                     >
                       <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                      Approve Reserved
+                      Approve Accepted
                     </Button>
                   )}
 
-                  {/* Approve all changes (override) */}
-                  {onApproveAll &&
+                  {/* Override acceptance rules */}
+                  {onOverrideAcceptance &&
                     (showApproveAllConfirm ? (
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-400 mr-1">Approve all changes?</span>
+                        <span className="text-xs text-slate-400 mr-1">Override acceptance rules?</span>
                         <Button
                           variant="success"
                           size="sm"
                           onClick={() => {
-                            onApproveAll();
+                            onOverrideAcceptance();
                             setShowApproveAllConfirm(false);
                           }}
                           disabled={isApproving}
@@ -439,7 +439,7 @@ export function SandboxDetail({
                         disabled={isApproving}
                       >
                         <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                        Approve All
+                        Override Acceptance
                       </Button>
                     ))}
 

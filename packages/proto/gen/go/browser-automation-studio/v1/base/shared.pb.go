@@ -122,6 +122,9 @@ const (
 	// Execution triggered by external webhook (e.g., GitHub, Stripe, etc.).
 	// Associated TriggerMetadata.webhook_id identifies the webhook config.
 	TriggerType_TRIGGER_TYPE_WEBHOOK TriggerType = 4
+	// Execution resumed from a previous failed/stopped execution.
+	// New execution is linked to original via resumed_from field.
+	TriggerType_TRIGGER_TYPE_RESUME TriggerType = 5
 )
 
 // Enum value maps for TriggerType.
@@ -132,6 +135,7 @@ var (
 		2: "TRIGGER_TYPE_SCHEDULED",
 		3: "TRIGGER_TYPE_API",
 		4: "TRIGGER_TYPE_WEBHOOK",
+		5: "TRIGGER_TYPE_RESUME",
 	}
 	TriggerType_value = map[string]int32{
 		"TRIGGER_TYPE_UNSPECIFIED": 0,
@@ -139,6 +143,7 @@ var (
 		"TRIGGER_TYPE_SCHEDULED":   2,
 		"TRIGGER_TYPE_API":         3,
 		"TRIGGER_TYPE_WEBHOOK":     4,
+		"TRIGGER_TYPE_RESUME":      5,
 	}
 )
 
@@ -1619,13 +1624,14 @@ const file_browser_automation_studio_v1_base_shared_proto_rawDesc = "" +
 	"\x18EXECUTION_STATUS_RUNNING\x10\x02\x12\x1e\n" +
 	"\x1aEXECUTION_STATUS_COMPLETED\x10\x03\x12\x1b\n" +
 	"\x17EXECUTION_STATUS_FAILED\x10\x04\x12\x1e\n" +
-	"\x1aEXECUTION_STATUS_CANCELLED\x10\x05*\x90\x01\n" +
+	"\x1aEXECUTION_STATUS_CANCELLED\x10\x05*\xa9\x01\n" +
 	"\vTriggerType\x12\x1c\n" +
 	"\x18TRIGGER_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13TRIGGER_TYPE_MANUAL\x10\x01\x12\x1a\n" +
 	"\x16TRIGGER_TYPE_SCHEDULED\x10\x02\x12\x14\n" +
 	"\x10TRIGGER_TYPE_API\x10\x03\x12\x18\n" +
-	"\x14TRIGGER_TYPE_WEBHOOK\x10\x04*\xdc\x01\n" +
+	"\x14TRIGGER_TYPE_WEBHOOK\x10\x04\x12\x17\n" +
+	"\x13TRIGGER_TYPE_RESUME\x10\x05*\xdc\x01\n" +
 	"\n" +
 	"StepStatus\x12\x1b\n" +
 	"\x17STEP_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +

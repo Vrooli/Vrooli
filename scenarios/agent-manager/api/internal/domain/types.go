@@ -46,9 +46,8 @@ type AgentProfile struct {
 	RequiresSandbox  bool `json:"requiresSandbox" db:"requires_sandbox"`
 	RequiresApproval bool `json:"requiresApproval" db:"requires_approval"`
 
-	// Sandbox retention settings
-	SandboxRetentionMode SandboxRetentionMode `json:"sandboxRetentionMode,omitempty" db:"sandbox_retention_mode"`
-	SandboxRetentionTTL  time.Duration        `json:"sandboxRetentionTtl,omitempty" db:"sandbox_retention_ttl_ms"`
+	// Sandbox behavior settings
+	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
 
 	// Path restrictions
 	AllowedPaths []string `json:"allowedPaths,omitempty" db:"allowed_paths"`
@@ -108,27 +107,46 @@ func (p ModelPreset) IsValid() bool {
 	}
 }
 
-// SandboxRetentionMode controls what happens to a sandbox after a run ends.
-type SandboxRetentionMode string
+// SandboxLifecycleEvent describes lifecycle triggers for sandbox cleanup.
+type SandboxLifecycleEvent string
 
 const (
-	SandboxRetentionModeUnspecified     SandboxRetentionMode = ""
-	SandboxRetentionModeKeepActive      SandboxRetentionMode = "keep_active"
-	SandboxRetentionModeStopOnTerminal  SandboxRetentionMode = "stop_on_terminal"
-	SandboxRetentionModeDeleteOnTerminal SandboxRetentionMode = "delete_on_terminal"
+	SandboxLifecycleRunCompleted SandboxLifecycleEvent = "run_completed"
+	SandboxLifecycleRunFailed    SandboxLifecycleEvent = "run_failed"
+	SandboxLifecycleRunCancelled SandboxLifecycleEvent = "run_cancelled"
+	SandboxLifecycleApproved     SandboxLifecycleEvent = "approved"
+	SandboxLifecycleRejected     SandboxLifecycleEvent = "rejected"
+	SandboxLifecycleTerminal     SandboxLifecycleEvent = "terminal"
 )
 
-// IsValid reports whether the retention mode is supported.
-func (m SandboxRetentionMode) IsValid() bool {
-	switch m {
-	case SandboxRetentionModeUnspecified,
-		SandboxRetentionModeKeepActive,
-		SandboxRetentionModeStopOnTerminal,
-		SandboxRetentionModeDeleteOnTerminal:
-		return true
-	default:
-		return false
-	}
+// SandboxLifecycleConfig controls sandbox stop/delete behavior.
+type SandboxLifecycleConfig struct {
+	StopOn      []SandboxLifecycleEvent `json:"stopOn,omitempty"`
+	DeleteOn    []SandboxLifecycleEvent `json:"deleteOn,omitempty"`
+	TTL         time.Duration           `json:"ttl,omitempty"`
+	IdleTimeout time.Duration           `json:"idleTimeout,omitempty"`
+}
+
+// SandboxFileCriteria defines allow/deny matchers for acceptance.
+type SandboxFileCriteria struct {
+	PathGlobs  []string `json:"pathGlobs,omitempty"`
+	Extensions []string `json:"extensions,omitempty"`
+}
+
+// SandboxAcceptanceConfig controls which files are eligible for approval.
+type SandboxAcceptanceConfig struct {
+	Mode         string              `json:"mode,omitempty"` // "allowlist"
+	Allow        SandboxFileCriteria `json:"allow,omitempty"`
+	Deny         SandboxFileCriteria `json:"deny,omitempty"`
+	IgnoreBinary bool                `json:"ignoreBinary,omitempty"`
+	AutoApprove  bool                `json:"autoApprove,omitempty"`
+	AutoReject   bool                `json:"autoReject,omitempty"`
+}
+
+// SandboxConfig holds lifecycle + acceptance settings for a sandbox.
+type SandboxConfig struct {
+	Lifecycle  SandboxLifecycleConfig  `json:"lifecycle,omitempty"`
+	Acceptance SandboxAcceptanceConfig `json:"acceptance,omitempty"`
 }
 
 // -----------------------------------------------------------------------------
@@ -199,6 +217,7 @@ type Run struct {
 	// Sandbox integration
 	SandboxID *uuid.UUID `json:"sandboxId,omitempty" db:"sandbox_id"`
 	RunMode   RunMode    `json:"runMode" db:"run_mode"`
+	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
 
 	// Execution state
 	Status    RunStatus  `json:"status" db:"status"`
@@ -344,9 +363,8 @@ type RunConfig struct {
 	RequiresSandbox  bool `json:"requiresSandbox"`
 	RequiresApproval bool `json:"requiresApproval"`
 
-	// Sandbox retention
-	SandboxRetentionMode SandboxRetentionMode `json:"sandboxRetentionMode,omitempty"`
-	SandboxRetentionTTL  time.Duration        `json:"sandboxRetentionTtl,omitempty"`
+	// Sandbox behavior settings
+	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty"`
 
 	// Path restrictions
 	AllowedPaths []string `json:"allowedPaths,omitempty"`
@@ -371,8 +389,7 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	c.SkipPermissionPrompt = profile.SkipPermissionPrompt
 	c.RequiresSandbox = profile.RequiresSandbox
 	c.RequiresApproval = profile.RequiresApproval
-	c.SandboxRetentionMode = profile.SandboxRetentionMode
-	c.SandboxRetentionTTL = profile.SandboxRetentionTTL
+	c.SandboxConfig = profile.SandboxConfig
 	c.AllowedPaths = profile.AllowedPaths
 	c.DeniedPaths = profile.DeniedPaths
 }
@@ -385,8 +402,6 @@ func DefaultRunConfig() *RunConfig {
 		Timeout:              30 * time.Minute,
 		RequiresSandbox:      true,
 		RequiresApproval:     true,
-		SandboxRetentionMode: SandboxRetentionModeUnspecified,
-		SandboxRetentionTTL:  0,
 	}
 }
 

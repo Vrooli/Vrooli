@@ -171,10 +171,11 @@ type CreateRunRequest struct {
 	SkipPermissionPrompt *bool                        `json:"skipPermissionPrompt,omitempty"`
 	RequiresSandbox      *bool                        `json:"requiresSandbox,omitempty"`
 	RequiresApproval     *bool                        `json:"requiresApproval,omitempty"`
-	SandboxRetentionMode *domain.SandboxRetentionMode `json:"sandboxRetentionMode,omitempty"`
-	SandboxRetentionTTL  *time.Duration               `json:"sandboxRetentionTtl,omitempty"`
 	AllowedPaths         []string                     `json:"allowedPaths,omitempty"`
 	DeniedPaths          []string                     `json:"deniedPaths,omitempty"`
+
+	// Sandbox behavior overrides (optional)
+	SandboxConfig *domain.SandboxConfig `json:"sandboxConfig,omitempty"`
 
 	// ExistingSandboxID reuses a pre-existing sandbox for the run.
 	// Only supported in sandboxed mode.
@@ -353,8 +354,7 @@ type OrchestratorConfig struct {
 	MaxConcurrentRuns       int
 	DefaultProjectRoot      string
 	RequireSandboxByDefault bool
-	SandboxRetentionMode    domain.SandboxRetentionMode
-	SandboxRetentionTTL     time.Duration
+	DefaultSandboxConfig    *domain.SandboxConfig
 	RunnerFallbackTypes     []domain.RunnerType
 }
 
@@ -364,8 +364,6 @@ func DefaultConfig() OrchestratorConfig {
 		DefaultTimeout:          30 * time.Minute,
 		MaxConcurrentRuns:       10,
 		RequireSandboxByDefault: true,
-		SandboxRetentionMode:    domain.SandboxRetentionModeKeepActive,
-		SandboxRetentionTTL:     0,
 	}
 }
 
@@ -794,6 +792,12 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		return nil, err
 	}
 
+	sandboxConfig, err := o.resolveSandboxConfig(req, profile)
+	if err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
+
 	// Evaluate policies
 	var policyDecision *policy.Decision
 	if o.policy != nil {
@@ -902,8 +906,12 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		IdempotencyKey:  req.IdempotencyKey,
 		ApprovalState:   domain.ApprovalStateNone,
 		ResolvedConfig:  resolvedConfig,
+		SandboxConfig:   sandboxConfig,
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
+	}
+	if run.ResolvedConfig != nil {
+		run.ResolvedConfig.SandboxConfig = sandboxConfig
 	}
 	if req.ExistingSandboxID != nil {
 		run.SandboxID = req.ExistingSandboxID
@@ -1058,28 +1066,11 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.RequiresApproval != nil {
 		cfg.RequiresApproval = *req.RequiresApproval
 	}
-	if req.SandboxRetentionMode != nil {
-		cfg.SandboxRetentionMode = *req.SandboxRetentionMode
-	}
-	if req.SandboxRetentionTTL != nil {
-		cfg.SandboxRetentionTTL = *req.SandboxRetentionTTL
-	}
 	if req.AllowedPaths != nil {
 		cfg.AllowedPaths = req.AllowedPaths
 	}
 	if req.DeniedPaths != nil {
 		cfg.DeniedPaths = req.DeniedPaths
-	}
-
-	if cfg.SandboxRetentionMode == domain.SandboxRetentionModeUnspecified {
-		if o.config.SandboxRetentionMode != "" {
-			cfg.SandboxRetentionMode = o.config.SandboxRetentionMode
-		} else {
-			cfg.SandboxRetentionMode = domain.SandboxRetentionModeKeepActive
-		}
-	}
-	if cfg.SandboxRetentionTTL <= 0 && o.config.SandboxRetentionTTL > 0 {
-		cfg.SandboxRetentionTTL = o.config.SandboxRetentionTTL
 	}
 	if len(cfg.FallbackRunnerTypes) == 0 && o.modelRegistry != nil {
 		registry := o.modelRegistry.Get()
@@ -1119,14 +1110,113 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 		}
 		cfg.Model = resolved
 	}
-	if !cfg.SandboxRetentionMode.IsValid() {
-		return nil, nil, domain.NewValidationError("sandboxRetentionMode", "invalid sandbox retention mode")
+	return cfg, profile, nil
+}
+
+func (o *Orchestrator) resolveSandboxConfig(req CreateRunRequest, profile *domain.AgentProfile) (*domain.SandboxConfig, error) {
+	cfg := cloneSandboxConfig(o.config.DefaultSandboxConfig)
+	if profile != nil && profile.SandboxConfig != nil {
+		cfg = cloneSandboxConfig(profile.SandboxConfig)
 	}
-	if cfg.SandboxRetentionTTL < 0 {
-		return nil, nil, domain.NewValidationError("sandboxRetentionTtl", "cannot be negative")
+	if req.SandboxConfig != nil {
+		cfg = cloneSandboxConfig(req.SandboxConfig)
+	}
+	cfg = normalizeSandboxConfig(cfg)
+	if err := validateSandboxConfig(cfg); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func cloneSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
+	if cfg == nil {
+		return nil
+	}
+	clone := *cfg
+	clone.Lifecycle.StopOn = append([]domain.SandboxLifecycleEvent(nil), cfg.Lifecycle.StopOn...)
+	clone.Lifecycle.DeleteOn = append([]domain.SandboxLifecycleEvent(nil), cfg.Lifecycle.DeleteOn...)
+	clone.Acceptance.Allow = cloneSandboxCriteria(cfg.Acceptance.Allow)
+	clone.Acceptance.Deny = cloneSandboxCriteria(cfg.Acceptance.Deny)
+	return &clone
+}
+
+func cloneSandboxCriteria(criteria domain.SandboxFileCriteria) domain.SandboxFileCriteria {
+	return domain.SandboxFileCriteria{
+		PathGlobs:  append([]string(nil), criteria.PathGlobs...),
+		Extensions: append([]string(nil), criteria.Extensions...),
+	}
+}
+
+func normalizeSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
+	if cfg == nil {
+		return nil
+	}
+	if cfg.Acceptance.Mode == "" {
+		cfg.Acceptance.Mode = "allowlist"
+	}
+	cfg.Acceptance.Allow = normalizeSandboxCriteria(cfg.Acceptance.Allow)
+	cfg.Acceptance.Deny = normalizeSandboxCriteria(cfg.Acceptance.Deny)
+	return cfg
+}
+
+func normalizeSandboxCriteria(criteria domain.SandboxFileCriteria) domain.SandboxFileCriteria {
+	paths := make([]string, 0, len(criteria.PathGlobs))
+	seenPaths := make(map[string]bool)
+	for _, p := range criteria.PathGlobs {
+		p = strings.TrimSpace(p)
+		if p == "" || seenPaths[p] {
+			continue
+		}
+		seenPaths[p] = true
+		paths = append(paths, p)
 	}
 
-	return cfg, profile, nil
+	exts := make([]string, 0, len(criteria.Extensions))
+	seenExts := make(map[string]bool)
+	for _, ext := range criteria.Extensions {
+		ext = strings.TrimSpace(ext)
+		if ext == "" {
+			continue
+		}
+		if !strings.HasPrefix(ext, ".") {
+			ext = "." + ext
+		}
+		ext = strings.ToLower(ext)
+		if seenExts[ext] {
+			continue
+		}
+		seenExts[ext] = true
+		exts = append(exts, ext)
+	}
+
+	criteria.PathGlobs = paths
+	criteria.Extensions = exts
+	return criteria
+}
+
+func validateSandboxConfig(cfg *domain.SandboxConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	if cfg.Acceptance.Mode != "" && cfg.Acceptance.Mode != "allowlist" {
+		return domain.NewValidationError("sandboxConfig.acceptance.mode", "unsupported acceptance mode")
+	}
+	if cfg.Lifecycle.TTL < 0 {
+		return domain.NewValidationError("sandboxConfig.lifecycle.ttl", "ttl cannot be negative")
+	}
+	if cfg.Lifecycle.IdleTimeout < 0 {
+		return domain.NewValidationError("sandboxConfig.lifecycle.idleTimeout", "idleTimeout cannot be negative")
+	}
+	for _, p := range append(cfg.Acceptance.Allow.PathGlobs, cfg.Acceptance.Deny.PathGlobs...) {
+		if filepath.IsAbs(p) || strings.HasPrefix(p, "/") {
+			return domain.NewValidationErrorWithHint(
+				"sandboxConfig.acceptance.pathGlobs",
+				"path globs must be project-root relative",
+				"Remove the leading '/' and use project-root relative patterns",
+			)
+		}
+	}
+	return nil
 }
 
 func (o *Orchestrator) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error) {

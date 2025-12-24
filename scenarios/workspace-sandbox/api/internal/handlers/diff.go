@@ -36,7 +36,7 @@ func (h *Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 
 	var req types.ApprovalRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		// Allow empty body for approve-all
+		// Allow empty body for default approval
 		req = types.ApprovalRequest{Mode: "all"}
 	}
 	req.SandboxID = id

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -224,19 +225,6 @@ func parseRunMode(value string) domainpb.RunMode {
 	}
 }
 
-func parseSandboxRetentionMode(value string) domainpb.SandboxRetentionMode {
-	switch strings.ToLower(value) {
-	case "keep_active", "keep-active":
-		return domainpb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_KEEP_ACTIVE
-	case "stop_on_terminal", "stop-on-terminal":
-		return domainpb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL
-	case "delete_on_terminal", "delete-on-terminal":
-		return domainpb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL
-	default:
-		return domainpb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_UNSPECIFIED
-	}
-}
-
 func protoString(value string) *string {
 	if value == "" {
 		return nil
@@ -258,4 +246,77 @@ func marshalProtoJSON(msg proto.Message) string {
 		return ""
 	}
 	return string(data)
+}
+
+func parseSandboxConfig(value, filePath string) (*domainpb.SandboxConfig, error) {
+	value = strings.TrimSpace(value)
+	filePath = strings.TrimSpace(filePath)
+	if value == "" && filePath == "" {
+		return nil, nil
+	}
+	var data []byte
+	if filePath != "" {
+		loaded, err := os.ReadFile(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("read sandbox config file: %w", err)
+		}
+		data = loaded
+	} else {
+		data = []byte(value)
+	}
+	var cfg domainpb.SandboxConfig
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("invalid sandbox config JSON: %w", err)
+	}
+	return &cfg, nil
+}
+
+func applySandboxRetention(cfg *domainpb.SandboxConfig, mode, ttl string) (*domainpb.SandboxConfig, error) {
+	mode = strings.TrimSpace(mode)
+	ttl = strings.TrimSpace(ttl)
+	if mode == "" && ttl == "" {
+		return cfg, nil
+	}
+	if cfg == nil {
+		cfg = &domainpb.SandboxConfig{}
+	}
+	if cfg.Lifecycle == nil {
+		cfg.Lifecycle = &domainpb.SandboxLifecycleConfig{}
+	}
+
+	if mode != "" {
+		switch strings.ToLower(mode) {
+		case "keep_active":
+			cfg.Lifecycle.StopOn = nil
+			cfg.Lifecycle.DeleteOn = nil
+		case "stop_on_terminal":
+			cfg.Lifecycle.StopOn = []domainpb.SandboxLifecycleEvent{
+				domainpb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TERMINAL,
+			}
+			cfg.Lifecycle.DeleteOn = nil
+		case "delete_on_terminal":
+			cfg.Lifecycle.StopOn = []domainpb.SandboxLifecycleEvent{
+				domainpb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TERMINAL,
+			}
+			cfg.Lifecycle.DeleteOn = []domainpb.SandboxLifecycleEvent{
+				domainpb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TERMINAL,
+			}
+		default:
+			return nil, fmt.Errorf("invalid sandbox retention mode: %s", mode)
+		}
+	}
+
+	if ttl != "" {
+		parsed, err := time.ParseDuration(ttl)
+		if err != nil {
+			if fallback, fallbackErr := time.ParseDuration(ttl + "s"); fallbackErr == nil {
+				parsed = fallback
+			} else {
+				return nil, fmt.Errorf("invalid sandbox retention ttl: %w", err)
+			}
+		}
+		cfg.Lifecycle.Ttl = durationpb.New(parsed)
+	}
+
+	return cfg, nil
 }

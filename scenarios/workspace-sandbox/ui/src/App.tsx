@@ -116,10 +116,10 @@ export default function App() {
     );
   }, [selectedSandbox, approveMutation, queryClient]);
 
-  const handleApproveAll = useCallback(() => {
+  const handleOverrideAcceptance = useCallback(() => {
     if (!selectedSandbox) return;
     approveMutation.mutate(
-      { id: selectedSandbox.id, options: { approveAll: true } },
+      { id: selectedSandbox.id, options: { overrideAcceptance: true } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({
@@ -276,7 +276,7 @@ export default function App() {
             onStop={handleStop}
             onStart={handleStart}
             onApprove={handleApprove}
-            onApproveAll={handleApproveAll}
+            onOverrideAcceptance={handleOverrideAcceptance}
             onReject={handleReject}
             onDelete={handleDelete}
             onDiscardFile={handleDiscardFile}

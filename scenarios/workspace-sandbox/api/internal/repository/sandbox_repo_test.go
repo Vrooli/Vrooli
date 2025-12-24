@@ -45,6 +45,11 @@ func testSandbox() *types.Sandbox {
 		DriverVersion: "1.0.0",
 		Tags:          []string{"test", "unit"},
 		Metadata:      map[string]interface{}{"key": "value"},
+		Behavior: types.SandboxBehavior{
+			Acceptance: types.AcceptanceConfig{
+				Mode: "allowlist",
+			},
+		},
 		CreatedAt:     now,
 		LastUsedAt:    now,
 		UpdatedAt:     now,
@@ -58,7 +63,7 @@ func sandboxColumns() []string {
 		"id", "scope_path", "reserved_path", "reserved_paths", "project_root", "owner", "owner_type", "status", "error_message",
 		"created_at", "last_used_at", "stopped_at", "approved_at", "deleted_at",
 		"driver", "driver_version", "lower_dir", "upper_dir", "work_dir", "merged_dir",
-		"size_bytes", "file_count", "active_pids", "session_count", "tags", "metadata",
+		"size_bytes", "file_count", "active_pids", "session_count", "tags", "metadata", "behavior",
 		"idempotency_key", "updated_at", "version", "base_commit_hash",
 	}
 }
@@ -66,6 +71,7 @@ func sandboxColumns() []string {
 // sandboxRow returns a sqlmock row for a sandbox.
 func sandboxRow(s *types.Sandbox) []driver.Value {
 	metadataJSON, _ := json.Marshal(s.Metadata)
+	behaviorJSON, _ := json.Marshal(s.Behavior)
 	return []driver.Value{
 		s.ID, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
 		s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
@@ -73,7 +79,7 @@ func sandboxRow(s *types.Sandbox) []driver.Value {
 		s.SizeBytes, s.FileCount,
 		pq.Int64Array{},
 		s.SessionCount,
-		pq.StringArray(s.Tags), metadataJSON,
+		pq.StringArray(s.Tags), metadataJSON, behaviorJSON,
 		s.IdempotencyKey, s.UpdatedAt, s.Version, s.BaseCommitHash,
 	}
 }
@@ -120,7 +126,7 @@ func TestSandboxRepository_Create(t *testing.T) {
 				mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO sandboxes")).
 					WithArgs(
 						s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
-						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(),
+						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(), sqlmock.AnyArg(),
 						s.IdempotencyKey, int64(1), s.BaseCommitHash,
 					).
 					WillReturnRows(sqlmock.NewRows([]string{"created_at", "last_used_at", "updated_at"}).
@@ -136,7 +142,7 @@ func TestSandboxRepository_Create(t *testing.T) {
 				mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO sandboxes")).
 					WithArgs(
 						s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
-						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(),
+						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(), sqlmock.AnyArg(),
 						s.IdempotencyKey, int64(1), s.BaseCommitHash,
 					).
 					WillReturnRows(sqlmock.NewRows([]string{"created_at", "last_used_at", "updated_at"}).
@@ -278,6 +284,7 @@ func TestSandboxRepository_Get_ParsesMetadataAndTags(t *testing.T) {
 	s.ActivePIDs = []int{123, 456}
 
 	metadataJSON, _ := json.Marshal(s.Metadata)
+	behaviorJSON, _ := json.Marshal(s.Behavior)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
 		WithArgs(id).
 		WillReturnRows(sqlmock.NewRows(sandboxColumns()).
@@ -286,7 +293,7 @@ func TestSandboxRepository_Get_ParsesMetadataAndTags(t *testing.T) {
 				s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 				s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 				s.SizeBytes, s.FileCount, pq.Int64Array{123, 456}, s.SessionCount,
-				pq.StringArray(s.Tags), metadataJSON,
+				pq.StringArray(s.Tags), metadataJSON, behaviorJSON,
 				s.IdempotencyKey, s.UpdatedAt, s.Version, s.BaseCommitHash,
 			))
 
@@ -323,7 +330,7 @@ func TestSandboxRepository_Update(t *testing.T) {
 						s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 						s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 						s.SizeBytes, s.FileCount, pq.Int64Array{}, s.SessionCount,
-						pq.Array(s.Tags), sqlmock.AnyArg(),
+						pq.Array(s.Tags), sqlmock.AnyArg(), sqlmock.AnyArg(),
 					).
 					WillReturnRows(sqlmock.NewRows([]string{"version", "updated_at"}).
 						AddRow(int64(2), time.Now()))
@@ -1551,7 +1558,7 @@ func TestSandboxRepository_Get_WithEmptyMetadata(t *testing.T) {
 				s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
 				s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
 				s.SizeBytes, s.FileCount, pq.Int64Array{}, s.SessionCount,
-				pq.StringArray{}, []byte{}, // Empty tags and metadata
+				pq.StringArray{}, []byte{}, []byte{}, // Empty tags, metadata, behavior
 				s.IdempotencyKey, s.UpdatedAt, s.Version, s.BaseCommitHash,
 			))
 

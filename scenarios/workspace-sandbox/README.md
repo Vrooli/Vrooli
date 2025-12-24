@@ -124,14 +124,14 @@ Access at `http://localhost:<UI_PORT>` after starting the scenario.
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Key insight:** The overlay mount is only visible inside the user namespace when using the kernel overlayfs + userns driver. When using the FUSE Overlayfs driver, the merged directory is directly accessible on the host. In both cases, approvals default to the reserved path allowlist.
+**Key insight:** The overlay mount is only visible inside the user namespace when using the kernel overlayfs + userns driver. When using the FUSE Overlayfs driver, the merged directory is directly accessible on the host. In both cases, approvals follow explicit acceptance rules rather than reserved paths.
 
 ## Scope vs Reserved Paths
 
 The sandbox has two distinct path concepts:
 
 - **Scope (mount scope):** The copy-on-write view that the agent sees. By default this is the full project root, so agents can modify any file in the repo without touching the canonical checkout.
-- **Reserved paths (allowlist + conflict lock):** One or more prefixes used to prevent overlapping sandboxes and to define the default approval filter. Changes outside reserved paths are ignored unless you explicitly include them or approve all.
+- **Reserved paths (conflict lock only):** One or more prefixes used to prevent overlapping sandboxes. Approval behavior is controlled by acceptance rules, not reserved paths.
 
 ### Process Isolation
 

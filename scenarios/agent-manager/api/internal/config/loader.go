@@ -80,12 +80,6 @@ func applyEnvOverrides(l *Levers) {
 	if v := envStringList("AGENT_MANAGER_SAFETY_DENY_PATH_PATTERNS"); len(v) > 0 {
 		l.Safety.DenyPathPatterns = v
 	}
-	if v := getEnv("AGENT_MANAGER_SAFETY_SANDBOX_RETENTION_MODE"); v != "" {
-		l.Safety.SandboxRetentionMode = v
-	}
-	if v := getEnvDuration("AGENT_MANAGER_SAFETY_SANDBOX_RETENTION_TTL"); v >= 0 {
-		l.Safety.SandboxRetentionTTL = v
-	}
 
 	// Concurrency levers
 	if v := getEnvInt("AGENT_MANAGER_CONCURRENCY_MAX_CONCURRENT_RUNS"); v > 0 {

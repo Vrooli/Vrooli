@@ -1,6 +1,12 @@
+import datetime
+
+from google.protobuf import duration_pb2 as _duration_pb2
+from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
-from typing import ClassVar as _ClassVar
+from google.protobuf import message as _message
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -18,12 +24,20 @@ class ModelPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MODEL_PRESET_CHEAP: _ClassVar[ModelPreset]
     MODEL_PRESET_SMART: _ClassVar[ModelPreset]
 
-class SandboxRetentionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class SandboxLifecycleEvent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    SANDBOX_RETENTION_MODE_UNSPECIFIED: _ClassVar[SandboxRetentionMode]
-    SANDBOX_RETENTION_MODE_KEEP_ACTIVE: _ClassVar[SandboxRetentionMode]
-    SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL: _ClassVar[SandboxRetentionMode]
-    SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL: _ClassVar[SandboxRetentionMode]
+    SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_RUN_FAILED: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_APPROVED: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_REJECTED: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_TERMINAL: _ClassVar[SandboxLifecycleEvent]
+
+class SandboxAcceptanceMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED: _ClassVar[SandboxAcceptanceMode]
+    SANDBOX_ACCEPTANCE_MODE_ALLOWLIST: _ClassVar[SandboxAcceptanceMode]
 
 class TaskStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -131,10 +145,15 @@ MODEL_PRESET_UNSPECIFIED: ModelPreset
 MODEL_PRESET_FAST: ModelPreset
 MODEL_PRESET_CHEAP: ModelPreset
 MODEL_PRESET_SMART: ModelPreset
-SANDBOX_RETENTION_MODE_UNSPECIFIED: SandboxRetentionMode
-SANDBOX_RETENTION_MODE_KEEP_ACTIVE: SandboxRetentionMode
-SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL: SandboxRetentionMode
-SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL: SandboxRetentionMode
+SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_RUN_FAILED: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_APPROVED: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_REJECTED: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_TERMINAL: SandboxLifecycleEvent
+SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED: SandboxAcceptanceMode
+SANDBOX_ACCEPTANCE_MODE_ALLOWLIST: SandboxAcceptanceMode
 TASK_STATUS_UNSPECIFIED: TaskStatus
 TASK_STATUS_QUEUED: TaskStatus
 TASK_STATUS_RUNNING: TaskStatus
@@ -204,3 +223,47 @@ STALE_RUN_ACTION_NONE: StaleRunAction
 STALE_RUN_ACTION_RESUME: StaleRunAction
 STALE_RUN_ACTION_FAIL: StaleRunAction
 STALE_RUN_ACTION_ALERT: StaleRunAction
+
+class SandboxFileCriteria(_message.Message):
+    __slots__ = ()
+    PATH_GLOBS_FIELD_NUMBER: _ClassVar[int]
+    EXTENSIONS_FIELD_NUMBER: _ClassVar[int]
+    path_globs: _containers.RepeatedScalarFieldContainer[str]
+    extensions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, path_globs: _Optional[_Iterable[str]] = ..., extensions: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class SandboxAcceptanceConfig(_message.Message):
+    __slots__ = ()
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_FIELD_NUMBER: _ClassVar[int]
+    DENY_FIELD_NUMBER: _ClassVar[int]
+    IGNORE_BINARY_FIELD_NUMBER: _ClassVar[int]
+    AUTO_APPROVE_FIELD_NUMBER: _ClassVar[int]
+    AUTO_REJECT_FIELD_NUMBER: _ClassVar[int]
+    mode: SandboxAcceptanceMode
+    allow: SandboxFileCriteria
+    deny: SandboxFileCriteria
+    ignore_binary: bool
+    auto_approve: bool
+    auto_reject: bool
+    def __init__(self, mode: _Optional[_Union[SandboxAcceptanceMode, str]] = ..., allow: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., deny: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., ignore_binary: _Optional[bool] = ..., auto_approve: _Optional[bool] = ..., auto_reject: _Optional[bool] = ...) -> None: ...
+
+class SandboxLifecycleConfig(_message.Message):
+    __slots__ = ()
+    STOP_ON_FIELD_NUMBER: _ClassVar[int]
+    DELETE_ON_FIELD_NUMBER: _ClassVar[int]
+    TTL_FIELD_NUMBER: _ClassVar[int]
+    IDLE_TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    stop_on: _containers.RepeatedScalarFieldContainer[SandboxLifecycleEvent]
+    delete_on: _containers.RepeatedScalarFieldContainer[SandboxLifecycleEvent]
+    ttl: _duration_pb2.Duration
+    idle_timeout: _duration_pb2.Duration
+    def __init__(self, stop_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., delete_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., idle_timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ...) -> None: ...
+
+class SandboxConfig(_message.Message):
+    __slots__ = ()
+    LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTANCE_FIELD_NUMBER: _ClassVar[int]
+    lifecycle: SandboxLifecycleConfig
+    acceptance: SandboxAcceptanceConfig
+    def __init__(self, lifecycle: _Optional[_Union[SandboxLifecycleConfig, _Mapping]] = ..., acceptance: _Optional[_Union[SandboxAcceptanceConfig, _Mapping]] = ...) -> None: ...

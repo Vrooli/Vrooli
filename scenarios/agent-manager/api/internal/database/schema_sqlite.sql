@@ -20,8 +20,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     skip_permission_prompt INTEGER DEFAULT 0,
     requires_sandbox INTEGER DEFAULT 1,
     requires_approval INTEGER DEFAULT 1,
-    sandbox_retention_mode TEXT,
-    sandbox_retention_ttl_ms INTEGER DEFAULT 0,
+    sandbox_config TEXT DEFAULT '{}',
     allowed_paths TEXT DEFAULT '[]',
     denied_paths TEXT DEFAULT '[]',
     created_by TEXT,
@@ -80,6 +79,7 @@ CREATE TABLE IF NOT EXISTS runs (
     log_path TEXT,
     changed_files INTEGER DEFAULT 0,
     total_size_bytes INTEGER DEFAULT 0,
+    sandbox_config TEXT DEFAULT '{}',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );

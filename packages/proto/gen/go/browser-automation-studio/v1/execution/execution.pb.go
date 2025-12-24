@@ -617,7 +617,11 @@ type Execution struct {
 	// Correlation ID for linking related operations across services.
 	CorrelationId *string `protobuf:"bytes,31,opt,name=correlation_id,json=correlationId,proto3,oneof" json:"correlation_id,omitempty"`
 	// Idempotency key for request deduplication.
-	RequestId     *string `protobuf:"bytes,32,opt,name=request_id,json=requestId,proto3,oneof" json:"request_id,omitempty"`
+	RequestId *string `protobuf:"bytes,32,opt,name=request_id,json=requestId,proto3,oneof" json:"request_id,omitempty"`
+	// Resume chain fields for execution continuity.
+	// ID of the original execution this was resumed from (null if not a resume).
+	// @format uuid
+	ResumedFrom   *string `protobuf:"bytes,40,opt,name=resumed_from,json=resumedFrom,proto3,oneof" json:"resumed_from,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -781,6 +785,13 @@ func (x *Execution) GetCorrelationId() string {
 func (x *Execution) GetRequestId() string {
 	if x != nil && x.RequestId != nil {
 		return *x.RequestId
+	}
+	return ""
+}
+
+func (x *Execution) GetResumedFrom() string {
+	if x != nil && x.ResumedFrom != nil {
+		return *x.ResumedFrom
 	}
 	return ""
 }
@@ -1551,7 +1562,7 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\x14_external_request_idB\f\n" +
 	"\n" +
 	"_source_ipB\r\n" +
-	"\v_user_agent\"\xff\b\n" +
+	"\v_user_agent\"\xc2\t\n" +
 	"\tExecution\x12\x18\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -1579,13 +1590,15 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\btrace_id\x18\x1e \x01(\tH\x03R\atraceId\x88\x01\x01\x12*\n" +
 	"\x0ecorrelation_id\x18\x1f \x01(\tH\x04R\rcorrelationId\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"request_id\x18  \x01(\tH\x05R\trequestId\x88\x01\x01B\x0f\n" +
+	"request_id\x18  \x01(\tH\x05R\trequestId\x88\x01\x01\x120\n" +
+	"\fresumed_from\x18( \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x06R\vresumedFrom\x88\x01\x01B\x0f\n" +
 	"\r_completed_atB\b\n" +
 	"\x06_errorB\x0f\n" +
 	"\r_current_stepB\v\n" +
 	"\t_trace_idB\x11\n" +
 	"\x0f_correlation_idB\r\n" +
-	"\v_request_idJ\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\f\x10\rJ\x04\b\x11\x10\x12J\x04\b\x12\x10\x13\"\xce\x02\n" +
+	"\v_request_idB\x0f\n" +
+	"\r_resumed_fromJ\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\f\x10\rJ\x04\b\x11\x10\x12J\x04\b\x12\x10\x13\"\xce\x02\n" +
 	"\x13ExecuteAdhocRequest\x12[\n" +
 	"\x0fflow_definition\x18\x01 \x01(\v22.browser_automation_studio.v1.WorkflowDefinitionV2R\x0eflowDefinition\x12.\n" +
 	"\x13wait_for_completion\x18\x03 \x01(\bR\x11waitForCompletion\x12K\n" +

@@ -321,10 +321,6 @@ func (db *DB) initSchema() error {
 		db.log.WithError(err).Error("Failed to backfill fallback runner types column")
 		return err
 	}
-	if err := db.ensureSandboxRetentionColumns(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to backfill sandbox retention columns")
-		return err
-	}
 
 	db.log.Info("Database schema initialized successfully")
 	return nil
@@ -443,63 +439,6 @@ func (db *DB) ensureFallbackRunnerTypesColumn(ctx context.Context) error {
 		if !exists {
 			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN fallback_runner_types TEXT DEFAULT '[]'`); err != nil {
 				return schemaMigrationError("fallback_runner_types_add", err)
-			}
-		}
-	default:
-		return domain.NewConfigInvalidError("AM_DB_BACKEND", fmt.Sprintf("unsupported dialect: %s", db.dialect), nil)
-	}
-	return nil
-}
-
-func (db *DB) ensureSandboxRetentionColumns(ctx context.Context) error {
-	switch db.dialect {
-	case DialectPostgres:
-		var exists bool
-		if err := db.QueryRowContext(ctx, `
-			SELECT EXISTS (
-				SELECT 1
-				FROM information_schema.columns
-				WHERE table_name = 'agent_profiles'
-				AND column_name = 'sandbox_retention_mode'
-			)`).Scan(&exists); err != nil {
-			return schemaMigrationError("sandbox_retention_mode_check", err)
-		}
-		if !exists {
-			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN sandbox_retention_mode VARCHAR(50)`); err != nil {
-				return schemaMigrationError("sandbox_retention_mode_add", err)
-			}
-		}
-		if err := db.QueryRowContext(ctx, `
-			SELECT EXISTS (
-				SELECT 1
-				FROM information_schema.columns
-				WHERE table_name = 'agent_profiles'
-				AND column_name = 'sandbox_retention_ttl_ms'
-			)`).Scan(&exists); err != nil {
-			return schemaMigrationError("sandbox_retention_ttl_ms_check", err)
-		}
-		if !exists {
-			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN sandbox_retention_ttl_ms BIGINT DEFAULT 0`); err != nil {
-				return schemaMigrationError("sandbox_retention_ttl_ms_add", err)
-			}
-		}
-	case DialectSQLite:
-		exists, err := sqliteColumnExists(ctx, db, "agent_profiles", "sandbox_retention_mode")
-		if err != nil {
-			return schemaMigrationError("sandbox_retention_mode_check", err)
-		}
-		if !exists {
-			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN sandbox_retention_mode TEXT`); err != nil {
-				return schemaMigrationError("sandbox_retention_mode_add", err)
-			}
-		}
-		exists, err = sqliteColumnExists(ctx, db, "agent_profiles", "sandbox_retention_ttl_ms")
-		if err != nil {
-			return schemaMigrationError("sandbox_retention_ttl_ms_check", err)
-		}
-		if !exists {
-			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN sandbox_retention_ttl_ms INTEGER DEFAULT 0`); err != nil {
-				return schemaMigrationError("sandbox_retention_ttl_ms_add", err)
 			}
 		}
 	default:

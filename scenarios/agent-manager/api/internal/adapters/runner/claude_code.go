@@ -236,8 +236,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 			continue
 		}
 
-		// Parse the streaming event
-		event, err := r.parseStreamEvent(req.RunID, line)
+		events, err := r.parseStreamEvents(req.RunID, line)
 		if err != nil {
 			// Log parsing error but continue
 			if req.EventSink != nil {
@@ -250,17 +249,22 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 			continue
 		}
 
-		// Skip silently if parseStreamEvent returned nil, nil (non-JSON lines)
-		if event == nil {
+		// Skip silently if parseStreamEvents returned no events (non-JSON lines)
+		if len(events) == 0 {
 			continue
 		}
 
-		// Update metrics based on event
-		r.updateMetrics(event, &metrics, &lastAssistantMessage)
+		for _, event := range events {
+			if event == nil {
+				continue
+			}
+			// Update metrics based on event
+			r.updateMetrics(event, &metrics, &lastAssistantMessage)
 
-		// Emit to sink
-		if req.EventSink != nil {
-			_ = req.EventSink.Emit(event)
+			// Emit to sink
+			if req.EventSink != nil {
+				_ = req.EventSink.Emit(event)
+			}
 		}
 	}
 
@@ -583,6 +587,21 @@ type RateLimitInfo struct {
 // parseStreamEvent parses a single line from Claude's stream-json output.
 // Returns nil, nil for lines that should be silently skipped (non-JSON startup output).
 func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*domain.RunEvent, error) {
+	events, err := r.parseStreamEvents(runID, line)
+	if err != nil || len(events) == 0 {
+		return nil, err
+	}
+	for _, event := range events {
+		if event != nil {
+			return event, nil
+		}
+	}
+	return nil, nil
+}
+
+// parseStreamEvents parses a single line from Claude's stream-json output.
+// Returns multiple events to preserve tool calls/results emitted in one message.
+func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*domain.RunEvent, error) {
 	// Skip empty lines
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -617,70 +636,87 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 
 	switch streamEvent.Type {
 	case "message":
+		var events []*domain.RunEvent
 		if streamEvent.Message != nil {
 			// Extract text content (handles both string and array formats)
 			textContent := streamEvent.Message.ExtractTextContent()
 			if textContent != "" {
-				return domain.NewMessageEvent(
+				events = append(events, domain.NewMessageEvent(
 					runID,
 					streamEvent.Message.Role,
 					textContent,
-				), nil
+				))
 			}
-		}
-
-	case "assistant":
-		// Assistant turn event - may contain content or just be a turn marker
-		if streamEvent.Message != nil {
-			textContent := streamEvent.Message.ExtractTextContent()
-			if textContent != "" {
-				return domain.NewMessageEvent(
-					runID,
-					"assistant",
-					textContent,
-				), nil
-			}
-			// Also check for tool uses in the message content
 			toolUses := streamEvent.Message.ExtractToolUses()
-			if len(toolUses) > 0 {
-				// Emit the first tool call event (most common case).
-				tool := toolUses[0]
+			for _, tool := range toolUses {
 				var input map[string]interface{}
 				if tool.Input != nil {
 					_ = json.Unmarshal(tool.Input, &input)
 				}
-				return domain.NewToolCallEvent(runID, tool.Name, input), nil
+				events = append(events, domain.NewToolCallEvent(runID, tool.Name, input))
+			}
+		}
+		return events, nil
+
+	case "assistant":
+		// Assistant turn event - may contain content or just be a turn marker
+		if streamEvent.Message != nil {
+			var events []*domain.RunEvent
+			textContent := streamEvent.Message.ExtractTextContent()
+			if textContent != "" {
+				events = append(events, domain.NewMessageEvent(
+					runID,
+					"assistant",
+					textContent,
+				))
+			}
+			// Also check for tool uses in the message content
+			toolUses := streamEvent.Message.ExtractToolUses()
+			if len(toolUses) > 0 {
+				for _, tool := range toolUses {
+					var input map[string]interface{}
+					if tool.Input != nil {
+						_ = json.Unmarshal(tool.Input, &input)
+					}
+					events = append(events, domain.NewToolCallEvent(runID, tool.Name, input))
+				}
+			}
+			if len(events) > 0 {
+				return events, nil
 			}
 		}
 		// Turn marker without content - log for debugging
-		return domain.NewLogEvent(runID, "debug", "Assistant turn started"), nil
+		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Assistant turn started")}, nil
 
 	case "user":
 		// User turn event - may contain tool results or the user's prompt
 		if streamEvent.Message != nil {
+			var events []*domain.RunEvent
 			// Check for tool results first (responses to tool_use from assistant)
 			toolResults := streamEvent.Message.ExtractToolResults()
 			if len(toolResults) > 0 {
-				// Return the first tool result (most common case)
-				// TODO: Consider emitting multiple events for multiple results
-				result := toolResults[0]
-				// Use toolUseID to correlate with the originating tool_call event
-				return domain.NewToolResultEvent(
-					runID,
-					"",               // tool name not available from result
-					result.ToolUseID, // Tool call ID for correlation
-					result.Content,
-					nil, // No error for successful tool results
-				), nil
+				for _, result := range toolResults {
+					// Use toolUseID to correlate with the originating tool_call event
+					events = append(events, domain.NewToolResultEvent(
+						runID,
+						"",               // tool name not available from result
+						result.ToolUseID, // Tool call ID for correlation
+						result.Content,
+						nil, // No error for successful tool results
+					))
+				}
 			}
 
 			textContent := streamEvent.Message.ExtractTextContent()
 			if textContent != "" {
-				return domain.NewMessageEvent(runID, "user", textContent), nil
+				events = append(events, domain.NewMessageEvent(runID, "user", textContent))
+			}
+			if len(events) > 0 {
+				return events, nil
 			}
 		}
 		// Turn marker without content
-		return domain.NewLogEvent(runID, "debug", "User turn marker"), nil
+		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "User turn marker")}, nil
 
 	case "tool_use":
 		if streamEvent.ToolUse != nil {
@@ -688,11 +724,11 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 			if streamEvent.ToolUse.Input != nil {
 				_ = json.Unmarshal(streamEvent.ToolUse.Input, &input)
 			}
-			return domain.NewToolCallEvent(
+			return []*domain.RunEvent{domain.NewToolCallEvent(
 				runID,
 				streamEvent.ToolUse.Name,
 				input,
-			), nil
+			)}, nil
 		}
 
 	case "tool_result":
@@ -701,68 +737,72 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 		if streamEvent.Result != nil {
 			_ = json.Unmarshal(streamEvent.Result, &resultStr)
 		}
-		return domain.NewToolResultEvent(
+		return []*domain.RunEvent{domain.NewToolResultEvent(
 			runID,
 			"", // tool name not always available in result
 			"", // tool call ID not available in this event type
 			resultStr,
 			nil,
-		), nil
+		)}, nil
 
 	case "error":
 		if streamEvent.Error != nil {
-			return domain.NewErrorEvent(
+			return []*domain.RunEvent{domain.NewErrorEvent(
 				runID,
 				streamEvent.Error.Code,
 				streamEvent.Error.Message,
 				false,
-			), nil
+			)}, nil
 		}
 
 	case "usage":
 		if streamEvent.Usage != nil {
 			// Emit as metric event
-			return domain.NewMetricEvent(
+			return []*domain.RunEvent{domain.NewMetricEvent(
 				runID,
 				"tokens",
 				float64(streamEvent.Usage.InputTokens+streamEvent.Usage.OutputTokens),
 				"tokens",
-			), nil
+			)}, nil
 		}
 
 	case "result":
 		// Final result event - contains cost, usage, and potential rate limits
-		return r.parseResultEvent(runID, &streamEvent)
+		event, err := r.parseResultEvent(runID, &streamEvent)
+		if err != nil || event == nil {
+			return nil, err
+		}
+		return []*domain.RunEvent{event}, nil
 
 	case "system":
 		// System context/prompt - log for debugging but don't emit as user-visible event
-		return domain.NewLogEvent(
+		return []*domain.RunEvent{domain.NewLogEvent(
 			runID,
 			"debug",
 			"System context received",
-		), nil
+		)}, nil
 
 	case "content_block_start":
 		// Start of a content block (text or tool use)
 		if streamEvent.ContentBlock != nil {
 			if streamEvent.ContentBlock.Type == "tool_use" {
 				// Emit a proper tool_call event for tool_use content blocks
-				return domain.NewToolCallEvent(
+				return []*domain.RunEvent{domain.NewToolCallEvent(
 					runID,
 					streamEvent.ContentBlock.Name,
 					nil, // Input comes in subsequent delta events
-				), nil
+				)}, nil
 			}
 		}
 
 	case "content_block_delta":
 		// Incremental content update (for streaming)
 		if streamEvent.Delta != nil && streamEvent.Delta.Text != "" {
-			return domain.NewLogEvent(
+			return []*domain.RunEvent{domain.NewLogEvent(
 				runID,
 				"trace",
 				streamEvent.Delta.Text,
-			), nil
+			)}, nil
 		}
 		return nil, nil // Skip empty deltas silently
 
@@ -785,11 +825,11 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 
 	// Unknown event type - log it for debugging but don't spam
 	if streamEvent.Type != "" {
-		return domain.NewLogEvent(
+		return []*domain.RunEvent{domain.NewLogEvent(
 			runID,
 			"debug",
 			fmt.Sprintf("Unhandled event type: %s", streamEvent.Type),
-		), nil
+		)}, nil
 	}
 	return nil, nil
 }

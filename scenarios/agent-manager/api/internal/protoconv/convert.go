@@ -109,34 +109,179 @@ func ModelPresetFromProto(preset pb.ModelPreset) domain.ModelPreset {
 }
 
 // =============================================================================
-// SANDBOX RETENTION MODE
+// SANDBOX CONFIG
 // =============================================================================
 
-// SandboxRetentionModeToProto converts domain SandboxRetentionMode to proto.
-func SandboxRetentionModeToProto(mode domain.SandboxRetentionMode) pb.SandboxRetentionMode {
-	switch mode {
-	case domain.SandboxRetentionModeKeepActive:
-		return pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_KEEP_ACTIVE
-	case domain.SandboxRetentionModeStopOnTerminal:
-		return pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL
-	case domain.SandboxRetentionModeDeleteOnTerminal:
-		return pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL
+// SandboxLifecycleEventToProto converts domain SandboxLifecycleEvent to proto.
+func SandboxLifecycleEventToProto(event domain.SandboxLifecycleEvent) pb.SandboxLifecycleEvent {
+	switch event {
+	case domain.SandboxLifecycleRunCompleted:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED
+	case domain.SandboxLifecycleRunFailed:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FAILED
+	case domain.SandboxLifecycleRunCancelled:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED
+	case domain.SandboxLifecycleApproved:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_APPROVED
+	case domain.SandboxLifecycleRejected:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_REJECTED
+	case domain.SandboxLifecycleTerminal:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TERMINAL
 	default:
-		return pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_UNSPECIFIED
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED
 	}
 }
 
-// SandboxRetentionModeFromProto converts proto SandboxRetentionMode to domain.
-func SandboxRetentionModeFromProto(mode pb.SandboxRetentionMode) domain.SandboxRetentionMode {
-	switch mode {
-	case pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_KEEP_ACTIVE:
-		return domain.SandboxRetentionModeKeepActive
-	case pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_STOP_ON_TERMINAL:
-		return domain.SandboxRetentionModeStopOnTerminal
-	case pb.SandboxRetentionMode_SANDBOX_RETENTION_MODE_DELETE_ON_TERMINAL:
-		return domain.SandboxRetentionModeDeleteOnTerminal
+// SandboxLifecycleEventFromProto converts proto SandboxLifecycleEvent to domain.
+func SandboxLifecycleEventFromProto(event pb.SandboxLifecycleEvent) domain.SandboxLifecycleEvent {
+	switch event {
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED:
+		return domain.SandboxLifecycleRunCompleted
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FAILED:
+		return domain.SandboxLifecycleRunFailed
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED:
+		return domain.SandboxLifecycleRunCancelled
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_APPROVED:
+		return domain.SandboxLifecycleApproved
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_REJECTED:
+		return domain.SandboxLifecycleRejected
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TERMINAL:
+		return domain.SandboxLifecycleTerminal
 	default:
-		return domain.SandboxRetentionModeUnspecified
+		return ""
+	}
+}
+
+// SandboxAcceptanceModeToProto converts domain acceptance mode to proto.
+func SandboxAcceptanceModeToProto(mode string) pb.SandboxAcceptanceMode {
+	switch mode {
+	case "allowlist":
+		return pb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_ALLOWLIST
+	default:
+		return pb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED
+	}
+}
+
+// SandboxAcceptanceModeFromProto converts proto acceptance mode to domain.
+func SandboxAcceptanceModeFromProto(mode pb.SandboxAcceptanceMode) string {
+	switch mode {
+	case pb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_ALLOWLIST:
+		return "allowlist"
+	default:
+		return ""
+	}
+}
+
+// SandboxFileCriteriaToProto converts domain SandboxFileCriteria to proto.
+func SandboxFileCriteriaToProto(criteria domain.SandboxFileCriteria) *pb.SandboxFileCriteria {
+	return &pb.SandboxFileCriteria{
+		PathGlobs:  criteria.PathGlobs,
+		Extensions: criteria.Extensions,
+	}
+}
+
+// SandboxFileCriteriaFromProto converts proto SandboxFileCriteria to domain.
+func SandboxFileCriteriaFromProto(criteria *pb.SandboxFileCriteria) domain.SandboxFileCriteria {
+	if criteria == nil {
+		return domain.SandboxFileCriteria{}
+	}
+	return domain.SandboxFileCriteria{
+		PathGlobs:  criteria.PathGlobs,
+		Extensions: criteria.Extensions,
+	}
+}
+
+// SandboxAcceptanceConfigToProto converts domain SandboxAcceptanceConfig to proto.
+func SandboxAcceptanceConfigToProto(cfg domain.SandboxAcceptanceConfig) *pb.SandboxAcceptanceConfig {
+	return &pb.SandboxAcceptanceConfig{
+		Mode:         SandboxAcceptanceModeToProto(cfg.Mode),
+		Allow:        SandboxFileCriteriaToProto(cfg.Allow),
+		Deny:         SandboxFileCriteriaToProto(cfg.Deny),
+		IgnoreBinary: cfg.IgnoreBinary,
+		AutoApprove:  cfg.AutoApprove,
+		AutoReject:   cfg.AutoReject,
+	}
+}
+
+// SandboxAcceptanceConfigFromProto converts proto SandboxAcceptanceConfig to domain.
+func SandboxAcceptanceConfigFromProto(cfg *pb.SandboxAcceptanceConfig) domain.SandboxAcceptanceConfig {
+	if cfg == nil {
+		return domain.SandboxAcceptanceConfig{}
+	}
+	return domain.SandboxAcceptanceConfig{
+		Mode:         SandboxAcceptanceModeFromProto(cfg.Mode),
+		Allow:        SandboxFileCriteriaFromProto(cfg.Allow),
+		Deny:         SandboxFileCriteriaFromProto(cfg.Deny),
+		IgnoreBinary: cfg.IgnoreBinary,
+		AutoApprove:  cfg.AutoApprove,
+		AutoReject:   cfg.AutoReject,
+	}
+}
+
+// SandboxLifecycleConfigToProto converts domain SandboxLifecycleConfig to proto.
+func SandboxLifecycleConfigToProto(cfg domain.SandboxLifecycleConfig) *pb.SandboxLifecycleConfig {
+	stopOn := make([]pb.SandboxLifecycleEvent, 0, len(cfg.StopOn))
+	for _, event := range cfg.StopOn {
+		stopOn = append(stopOn, SandboxLifecycleEventToProto(event))
+	}
+	deleteOn := make([]pb.SandboxLifecycleEvent, 0, len(cfg.DeleteOn))
+	for _, event := range cfg.DeleteOn {
+		deleteOn = append(deleteOn, SandboxLifecycleEventToProto(event))
+	}
+	return &pb.SandboxLifecycleConfig{
+		StopOn:      stopOn,
+		DeleteOn:    deleteOn,
+		Ttl:         DurationToProto(cfg.TTL),
+		IdleTimeout: DurationToProto(cfg.IdleTimeout),
+	}
+}
+
+// SandboxLifecycleConfigFromProto converts proto SandboxLifecycleConfig to domain.
+func SandboxLifecycleConfigFromProto(cfg *pb.SandboxLifecycleConfig) domain.SandboxLifecycleConfig {
+	if cfg == nil {
+		return domain.SandboxLifecycleConfig{}
+	}
+	stopOn := make([]domain.SandboxLifecycleEvent, 0, len(cfg.StopOn))
+	for _, event := range cfg.StopOn {
+		if event == pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED {
+			continue
+		}
+		stopOn = append(stopOn, SandboxLifecycleEventFromProto(event))
+	}
+	deleteOn := make([]domain.SandboxLifecycleEvent, 0, len(cfg.DeleteOn))
+	for _, event := range cfg.DeleteOn {
+		if event == pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED {
+			continue
+		}
+		deleteOn = append(deleteOn, SandboxLifecycleEventFromProto(event))
+	}
+	return domain.SandboxLifecycleConfig{
+		StopOn:      stopOn,
+		DeleteOn:    deleteOn,
+		TTL:         DurationFromProto(cfg.Ttl),
+		IdleTimeout: DurationFromProto(cfg.IdleTimeout),
+	}
+}
+
+// SandboxConfigToProto converts domain SandboxConfig to proto.
+func SandboxConfigToProto(cfg *domain.SandboxConfig) *pb.SandboxConfig {
+	if cfg == nil {
+		return nil
+	}
+	return &pb.SandboxConfig{
+		Lifecycle:  SandboxLifecycleConfigToProto(cfg.Lifecycle),
+		Acceptance: SandboxAcceptanceConfigToProto(cfg.Acceptance),
+	}
+}
+
+// SandboxConfigFromProto converts proto SandboxConfig to domain.
+func SandboxConfigFromProto(cfg *pb.SandboxConfig) *domain.SandboxConfig {
+	if cfg == nil {
+		return nil
+	}
+	return &domain.SandboxConfig{
+		Lifecycle:  SandboxLifecycleConfigFromProto(cfg.Lifecycle),
+		Acceptance: SandboxAcceptanceConfigFromProto(cfg.Acceptance),
 	}
 }
 
