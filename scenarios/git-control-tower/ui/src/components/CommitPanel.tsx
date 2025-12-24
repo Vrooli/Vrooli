@@ -113,7 +113,7 @@ export function CommitPanel({
       </CardHeader>
 
       {!collapsed && (
-        <CardContent className="flex-1 min-h-0 min-w-0 pt-0 pb-3 overflow-y-auto overflow-x-hidden">
+        <CardContent className="flex-1 min-h-0 min-w-0 pt-2 pb-3 overflow-y-auto overflow-x-hidden">
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <textarea
