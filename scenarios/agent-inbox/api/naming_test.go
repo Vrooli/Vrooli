@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"agent-inbox/domain"
 )
 
 // TestAutoNameRequiresMessages verifies auto-name requires messages in chat
@@ -65,7 +67,7 @@ func TestAutoNameGeneratesName(t *testing.T) {
 		t.Skipf("Ollama not available, got status %d", rr.Code)
 	}
 
-	var updatedChat Chat
+	var updatedChat domain.Chat
 	if err := json.NewDecoder(rr.Body).Decode(&updatedChat); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -110,7 +112,7 @@ func TestAddToolMessage(t *testing.T) {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
 	}
 
-	var msg Message
+	var msg domain.Message
 	if err := json.NewDecoder(rr.Body).Decode(&msg); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}

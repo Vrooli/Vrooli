@@ -1,45 +1,52 @@
+/**
+ * useChats - Main orchestration hook for chat management.
+ *
+ * This hook combines:
+ * - Chat list fetching and filtering by view
+ * - Single chat selection and operations
+ * - Completion orchestration (delegates to useCompletion)
+ * - Label operations (delegates to useLabels)
+ *
+ * ARCHITECTURE NOTE:
+ * This hook serves as the main entry point for chat functionality.
+ * Complex sub-features are extracted to focused hooks:
+ * - useCompletion: AI streaming and tool calls
+ * - useLabels: Label CRUD and chat-label associations
+ *
+ * SEAM: For testing, mock the individual hooks or the API functions.
+ */
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchChats,
   fetchChat,
   fetchModels,
-  fetchLabels,
   createChat,
   deleteChat,
   deleteAllChats,
   updateChat,
   addMessage,
-  completeChat,
   toggleRead,
   toggleArchive,
   toggleStar,
-  createLabel,
-  deleteLabel,
-  assignLabel,
-  removeLabel,
   autoNameChat,
-  StreamingEvent,
 } from "../lib/api";
+import { useCompletion, type ActiveToolCall } from "./useCompletion";
+import { useLabels } from "./useLabels";
 
 export type View = "inbox" | "starred" | "archived";
 
-export interface ActiveToolCall {
-  id: string;
-  name: string;
-  arguments: string;
-  status: "running" | "completed" | "failed";
-  result?: string;
-  error?: string;
-}
+// Re-export for convenience
+export type { ActiveToolCall };
 
 export function useChats() {
   const queryClient = useQueryClient();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<View>("inbox");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [streamingContent, setStreamingContent] = useState("");
-  const [activeToolCalls, setActiveToolCalls] = useState<ActiveToolCall[]>([]);
+
+  // Delegate to focused hooks
+  const completion = useCompletion();
+  const labelOps = useLabels();
 
   // Fetch chats based on current view
   const {
@@ -73,13 +80,7 @@ export function useChats() {
     queryFn: fetchModels,
   });
 
-  // Fetch labels
-  const { data: labels = [] } = useQuery({
-    queryKey: ["labels"],
-    queryFn: fetchLabels,
-  });
-
-  // Mutations
+  // Chat mutations
   const createChatMutation = useMutation({
     mutationFn: createChat,
     onSuccess: (newChat) => {
@@ -139,38 +140,6 @@ export function useChats() {
     },
   });
 
-  // Label mutations
-  const createLabelMutation = useMutation({
-    mutationFn: createLabel,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["labels"] });
-    },
-  });
-
-  const deleteLabelMutation = useMutation({
-    mutationFn: deleteLabel,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["labels"] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-    },
-  });
-
-  const assignLabelMutation = useMutation({
-    mutationFn: ({ chatId, labelId }: { chatId: string; labelId: string }) => assignLabel(chatId, labelId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-    },
-  });
-
-  const removeLabelMutation = useMutation({
-    mutationFn: ({ chatId, labelId }: { chatId: string; labelId: string }) => removeLabel(chatId, labelId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-    },
-  });
-
   const autoNameChatMutation = useMutation({
     mutationFn: (chatId: string) => autoNameChat(chatId),
     onSuccess: () => {
@@ -179,89 +148,22 @@ export function useChats() {
     },
   });
 
-  const handleStreamingEvent = useCallback((event: StreamingEvent) => {
-    switch (event.type) {
-      case "content":
-        if (event.content) {
-          setStreamingContent((prev) => prev + event.content);
-        }
-        break;
+  // Send message and run completion
+  const sendMessageAndComplete = useCallback(
+    async (chatId: string, content: string, needsAutoName: boolean) => {
+      // Add user message
+      await addMessage(chatId, { role: "user", content: content.trim() });
+      queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
 
-      case "tool_call_start":
-        if (event.tool_id && event.tool_name) {
-          setActiveToolCalls((prev) => [
-            ...prev,
-            {
-              id: event.tool_id!,
-              name: event.tool_name!,
-              arguments: event.arguments || "{}",
-              status: "running",
-            },
-          ]);
-        }
-        break;
-
-      case "tool_call_result":
-        if (event.tool_id) {
-          setActiveToolCalls((prev) =>
-            prev.map((tc) =>
-              tc.id === event.tool_id
-                ? {
-                    ...tc,
-                    status: event.status === "completed" ? "completed" : "failed",
-                    result: event.result,
-                    error: event.error,
-                  }
-                : tc
-            )
-          );
-        }
-        break;
-
-      case "tool_calls_complete":
-        // Tool calls are done, the follow-up response will come
-        break;
-
-      case "error":
-        console.error("Streaming error:", event.error);
-        break;
-    }
-  }, []);
-
-  // Create a new chat and immediately send a message
-  const createChatWithMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim() || isGenerating) return;
-
+      // Run AI completion
       try {
-        // Create the chat first using the API function directly
-        const newChat = await createChat({});
-        const chatId = newChat.id;
-
-        // Select the new chat
-        setSelectedChatId(chatId);
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
-
-        // Add user message
-        await addMessage(chatId, { role: "user", content: content.trim() });
+        await completion.runCompletion(chatId);
         queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
         queryClient.invalidateQueries({ queryKey: ["chats"] });
 
-        // Start AI completion with streaming
-        setIsGenerating(true);
-        setStreamingContent("");
-        setActiveToolCalls([]);
-
-        try {
-          await completeChat(chatId, {
-            stream: true,
-            onEvent: handleStreamingEvent,
-          });
-
-          queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-          queryClient.invalidateQueries({ queryKey: ["chats"] });
-
-          // Auto-name the chat after first AI response
+        // Auto-name if needed
+        if (needsAutoName) {
           try {
             await autoNameChat(chatId);
             queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
@@ -269,73 +171,51 @@ export function useChats() {
           } catch (e) {
             console.error("Auto-naming failed:", e);
           }
-        } catch (error) {
-          console.error("Chat completion failed:", error);
-        } finally {
-          setIsGenerating(false);
-          setStreamingContent("");
-          setActiveToolCalls([]);
         }
+      } catch (error) {
+        console.error("Chat completion failed:", error);
+      }
+    },
+    [queryClient, completion]
+  );
+
+  // Create a new chat and immediately send a message
+  const createChatWithMessage = useCallback(
+    async (content: string) => {
+      if (!content.trim() || completion.isGenerating) return;
+
+      try {
+        const newChat = await createChat({});
+        const chatId = newChat.id;
+
+        setSelectedChatId(chatId);
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
+
+        await sendMessageAndComplete(chatId, content, true);
       } catch (error) {
         console.error("Failed to create chat with message:", error);
       }
     },
-    [isGenerating, queryClient, handleStreamingEvent]
+    [completion.isGenerating, queryClient, sendMessageAndComplete]
   );
 
+  // Send message to existing chat
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!selectedChatId || !content.trim() || isGenerating) return;
+      if (!selectedChatId || !content.trim() || completion.isGenerating) return;
 
-      // Check if this chat needs auto-naming (still has default name)
       const currentChat = chats.find((c) => c.id === selectedChatId);
       const needsAutoName = currentChat?.name === "New Chat";
 
-      // Add user message
-      await addMessage(selectedChatId, { role: "user", content: content.trim() });
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-
-      // Start AI completion with streaming
-      setIsGenerating(true);
-      setStreamingContent("");
-      setActiveToolCalls([]);
-
-      try {
-        await completeChat(selectedChatId, {
-          stream: true,
-          onEvent: handleStreamingEvent,
-        });
-
-        queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
-
-        // Auto-name the chat after first AI response if it has default name
-        if (needsAutoName) {
-          try {
-            await autoNameChat(selectedChatId);
-            queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-            queryClient.invalidateQueries({ queryKey: ["chats"] });
-          } catch (e) {
-            console.error("Auto-naming failed:", e);
-            // Non-fatal, user can rename manually
-          }
-        }
-      } catch (error) {
-        console.error("Chat completion failed:", error);
-      } finally {
-        setIsGenerating(false);
-        setStreamingContent("");
-        setActiveToolCalls([]);
-      }
+      await sendMessageAndComplete(selectedChatId, content, needsAutoName);
     },
-    [selectedChatId, isGenerating, queryClient, handleStreamingEvent, chats]
+    [selectedChatId, completion.isGenerating, chats, sendMessageAndComplete]
   );
 
+  // Select chat and mark as read
   const selectChat = useCallback(
     (chatId: string) => {
       setSelectedChatId(chatId);
-      // Mark as read when selecting
       const chat = chats.find((c) => c.id === chatId);
       if (chat && !chat.is_read) {
         toggleReadMutation.mutate({ chatId, value: true });
@@ -348,15 +228,15 @@ export function useChats() {
     // State
     selectedChatId,
     currentView,
-    isGenerating,
-    streamingContent,
-    activeToolCalls,
+    isGenerating: completion.isGenerating,
+    streamingContent: completion.streamingContent,
+    activeToolCalls: completion.activeToolCalls,
 
     // Data
     chats,
     chatData,
     models,
-    labels,
+    labels: labelOps.labels,
 
     // Loading states
     loadingChats,
@@ -372,7 +252,7 @@ export function useChats() {
     sendMessage,
     createChatWithMessage,
 
-    // Mutations
+    // Chat mutations
     createChat: createChatMutation.mutate,
     deleteChat: deleteChatMutation.mutate,
     deleteAllChats: deleteAllChatsMutation.mutateAsync,
@@ -380,11 +260,13 @@ export function useChats() {
     toggleRead: toggleReadMutation.mutate,
     toggleArchive: toggleArchiveMutation.mutate,
     toggleStar: toggleStarMutation.mutate,
-    createLabel: createLabelMutation.mutate,
-    deleteLabel: deleteLabelMutation.mutate,
-    assignLabel: assignLabelMutation.mutate,
-    removeLabel: removeLabelMutation.mutate,
     autoNameChat: autoNameChatMutation.mutate,
+
+    // Label operations (delegated)
+    createLabel: labelOps.createLabel,
+    deleteLabel: labelOps.deleteLabel,
+    assignLabel: labelOps.assignLabel,
+    removeLabel: labelOps.removeLabel,
 
     // Mutation states
     isCreatingChat: createChatMutation.isPending,

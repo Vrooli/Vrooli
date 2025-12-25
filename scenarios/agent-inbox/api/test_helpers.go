@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -9,16 +10,24 @@ import (
 	"os"
 	"testing"
 
+	"agent-inbox/domain"
+	"agent-inbox/handlers"
+	"agent-inbox/integrations"
+	"agent-inbox/middleware"
+	"agent-inbox/persistence"
+
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
 
-// TestServer wraps Server for testing
+// TestServer provides a test harness for the API.
 type TestServer struct {
-	*Server
+	repo     *persistence.Repository
+	router   *mux.Router
+	handlers *handlers.Handlers
 }
 
-// setupTestServer creates a test server with a real test database
+// setupTestServer creates a test server with a real test database.
 func setupTestServer(t *testing.T) *TestServer {
 	// Skip if DATABASE_URL is not set (unit tests without DB)
 	dbURL := os.Getenv("DATABASE_URL")
@@ -35,33 +44,38 @@ func setupTestServer(t *testing.T) *TestServer {
 		t.Fatalf("Failed to ping database: %v", err)
 	}
 
-	srv := &Server{
-		config: &Config{Port: "0"},
-		db:     db,
-		router: mux.NewRouter(),
-	}
+	repo := persistence.NewRepository(db)
 
-	if err := srv.initSchema(); err != nil {
+	if err := repo.InitSchema(context.Background()); err != nil {
 		t.Fatalf("Failed to initialize schema: %v", err)
 	}
 
-	srv.setupRoutes()
+	h := handlers.New(repo, integrations.NewOllamaClient())
+	router := mux.NewRouter()
+	router.Use(middleware.Logging)
+	router.Use(middleware.CORS)
+	h.RegisterRoutes(router)
 
-	return &TestServer{srv}
+	return &TestServer{
+		repo:     repo,
+		router:   router,
+		handlers: h,
+	}
 }
 
 func (ts *TestServer) cleanup(t *testing.T) {
 	// Clean up test data
-	_, _ = ts.db.Exec("DELETE FROM messages")
-	_, _ = ts.db.Exec("DELETE FROM chat_labels")
-	_, _ = ts.db.Exec("DELETE FROM chats")
-	_, _ = ts.db.Exec("DELETE FROM labels")
-	ts.db.Close()
+	db := ts.repo.DB()
+	_, _ = db.Exec("DELETE FROM messages")
+	_, _ = db.Exec("DELETE FROM chat_labels")
+	_, _ = db.Exec("DELETE FROM chats")
+	_, _ = db.Exec("DELETE FROM labels")
+	db.Close()
 }
 
 // Helper functions for creating test data
 
-func createTestChat(t *testing.T, ts *TestServer) Chat {
+func createTestChat(t *testing.T, ts *TestServer) domain.Chat {
 	body := bytes.NewBuffer([]byte(`{"name": "Test Chat"}`))
 	req := httptest.NewRequest("POST", "/api/v1/chats", body)
 	req.Header.Set("Content-Type", "application/json")
@@ -72,7 +86,7 @@ func createTestChat(t *testing.T, ts *TestServer) Chat {
 		t.Fatalf("Failed to create test chat: %s", w.Body.String())
 	}
 
-	var chat Chat
+	var chat domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &chat); err != nil {
 		t.Fatalf("Failed to parse chat: %v", err)
 	}
@@ -80,7 +94,7 @@ func createTestChat(t *testing.T, ts *TestServer) Chat {
 	return chat
 }
 
-func createTestChatWithModel(t *testing.T, ts *TestServer, name, model string) Chat {
+func createTestChatWithModel(t *testing.T, ts *TestServer, name, model string) domain.Chat {
 	body := bytes.NewBuffer([]byte(`{"name": "` + name + `", "model": "` + model + `"}`))
 	req := httptest.NewRequest("POST", "/api/v1/chats", body)
 	req.Header.Set("Content-Type", "application/json")
@@ -91,7 +105,7 @@ func createTestChatWithModel(t *testing.T, ts *TestServer, name, model string) C
 		t.Fatalf("Failed to create test chat: %s", w.Body.String())
 	}
 
-	var chat Chat
+	var chat domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &chat); err != nil {
 		t.Fatalf("Failed to parse chat: %v", err)
 	}
@@ -99,7 +113,7 @@ func createTestChatWithModel(t *testing.T, ts *TestServer, name, model string) C
 	return chat
 }
 
-func addTestMessage(t *testing.T, ts *TestServer, chatID, role, content string) Message {
+func addTestMessage(t *testing.T, ts *TestServer, chatID, role, content string) domain.Message {
 	body := bytes.NewBuffer([]byte(`{"role": "` + role + `", "content": "` + content + `"}`))
 	req := httptest.NewRequest("POST", "/api/v1/chats/"+chatID+"/messages", body)
 	req.Header.Set("Content-Type", "application/json")
@@ -110,7 +124,7 @@ func addTestMessage(t *testing.T, ts *TestServer, chatID, role, content string) 
 		t.Fatalf("Failed to add test message: %s", w.Body.String())
 	}
 
-	var msg Message
+	var msg domain.Message
 	if err := json.Unmarshal(w.Body.Bytes(), &msg); err != nil {
 		t.Fatalf("Failed to parse message: %v", err)
 	}
@@ -118,7 +132,7 @@ func addTestMessage(t *testing.T, ts *TestServer, chatID, role, content string) 
 	return msg
 }
 
-func createTestLabel(t *testing.T, ts *TestServer, name, color string) Label {
+func createTestLabel(t *testing.T, ts *TestServer, name, color string) domain.Label {
 	body := bytes.NewBuffer([]byte(`{"name": "` + name + `", "color": "` + color + `"}`))
 	req := httptest.NewRequest("POST", "/api/v1/labels", body)
 	req.Header.Set("Content-Type", "application/json")
@@ -129,7 +143,7 @@ func createTestLabel(t *testing.T, ts *TestServer, name, color string) Label {
 		t.Fatalf("Failed to create test label: %s", w.Body.String())
 	}
 
-	var label Label
+	var label domain.Label
 	if err := json.Unmarshal(w.Body.Bytes(), &label); err != nil {
 		t.Fatalf("Failed to parse label: %v", err)
 	}

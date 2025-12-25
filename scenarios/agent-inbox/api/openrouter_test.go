@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"agent-inbox/integrations"
 )
 
 // [REQ:BUBBLE-005] Test list available models
@@ -21,7 +23,7 @@ func TestListModels(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var models []ModelInfo
+	var models []integrations.ModelInfo
 	if err := json.Unmarshal(w.Body.Bytes(), &models); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -40,7 +42,7 @@ func TestListModelsFields(t *testing.T) {
 	w := httptest.NewRecorder()
 	ts.router.ServeHTTP(w, req)
 
-	var models []ModelInfo
+	var models []integrations.ModelInfo
 	if err := json.Unmarshal(w.Body.Bytes(), &models); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -64,7 +66,7 @@ func TestListModelsIncludesClaude(t *testing.T) {
 	w := httptest.NewRecorder()
 	ts.router.ServeHTTP(w, req)
 
-	var models []ModelInfo
+	var models []integrations.ModelInfo
 	if err := json.Unmarshal(w.Body.Bytes(), &models); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}

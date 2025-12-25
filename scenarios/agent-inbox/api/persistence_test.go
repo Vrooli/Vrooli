@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"agent-inbox/domain"
 )
 
 // [REQ:PERSIST-001] [REQ:PERSIST-002] Test storing chat and messages
@@ -26,7 +28,7 @@ func TestAddMessage(t *testing.T) {
 		t.Errorf("Expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var msg Message
+	var msg domain.Message
 	if err := json.Unmarshal(w.Body.Bytes(), &msg); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -151,7 +153,7 @@ func TestAddMessageWithTokenCount(t *testing.T) {
 		t.Errorf("Expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var msg Message
+	var msg domain.Message
 	if err := json.Unmarshal(w.Body.Bytes(), &msg); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -182,8 +184,8 @@ func TestGetChatWithMessages(t *testing.T) {
 	}
 
 	var result struct {
-		Chat     Chat      `json:"chat"`
-		Messages []Message `json:"messages"`
+		Chat     domain.Chat      `json:"chat"`
+		Messages []domain.Message `json:"messages"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
@@ -212,8 +214,8 @@ func TestGetChatMessagesOrdered(t *testing.T) {
 	ts.router.ServeHTTP(w, req)
 
 	var result struct {
-		Chat     Chat      `json:"chat"`
-		Messages []Message `json:"messages"`
+		Chat     domain.Chat      `json:"chat"`
+		Messages []domain.Message `json:"messages"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
@@ -280,7 +282,7 @@ func TestDeleteChatCascadesToMessages(t *testing.T) {
 
 	// Verify messages are deleted (by checking DB directly)
 	var count int
-	err := ts.db.QueryRow("SELECT COUNT(*) FROM messages WHERE chat_id = $1", chat.ID).Scan(&count)
+	err := ts.repo.DB().QueryRow("SELECT COUNT(*) FROM messages WHERE chat_id = $1", chat.ID).Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to query messages: %v", err)
 	}
@@ -338,7 +340,7 @@ func TestChatPreviewUpdatedOnMessage(t *testing.T) {
 	ts.router.ServeHTTP(w, req)
 
 	var result struct {
-		Chat Chat `json:"chat"`
+		Chat domain.Chat `json:"chat"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
@@ -366,7 +368,7 @@ func TestChatPreviewTruncated(t *testing.T) {
 	ts.router.ServeHTTP(w, req)
 
 	var result struct {
-		Chat Chat `json:"chat"`
+		Chat domain.Chat `json:"chat"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)

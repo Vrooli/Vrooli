@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"agent-inbox/domain"
 )
 
 // [REQ:LABEL-001] [REQ:LABEL-002] Test create and list labels
@@ -24,7 +26,7 @@ func TestLabels(t *testing.T) {
 		t.Errorf("Expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var label Label
+	var label domain.Label
 	if err := json.Unmarshal(w.Body.Bytes(), &label); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -38,7 +40,7 @@ func TestLabels(t *testing.T) {
 	w = httptest.NewRecorder()
 	ts.router.ServeHTTP(w, req)
 
-	var labels []Label
+	var labels []domain.Label
 	if err := json.Unmarshal(w.Body.Bytes(), &labels); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -63,7 +65,7 @@ func TestCreateLabelDefaultColor(t *testing.T) {
 		t.Errorf("Expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var label Label
+	var label domain.Label
 	if err := json.Unmarshal(w.Body.Bytes(), &label); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -132,7 +134,7 @@ func TestAssignLabel(t *testing.T) {
 	ts.router.ServeHTTP(w, req)
 
 	var result struct {
-		Chat Chat `json:"chat"`
+		Chat domain.Chat `json:"chat"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
@@ -175,7 +177,7 @@ func TestAssignMultipleLabels(t *testing.T) {
 	ts.router.ServeHTTP(w, req)
 
 	var result struct {
-		Chat Chat `json:"chat"`
+		Chat domain.Chat `json:"chat"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
@@ -246,7 +248,7 @@ func TestRemoveLabel(t *testing.T) {
 	ts.router.ServeHTTP(w, req)
 
 	var result struct {
-		Chat Chat `json:"chat"`
+		Chat domain.Chat `json:"chat"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
@@ -277,7 +279,7 @@ func TestUpdateLabel(t *testing.T) {
 		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var updated Label
+	var updated domain.Label
 	if err := json.Unmarshal(w.Body.Bytes(), &updated); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -308,7 +310,7 @@ func TestUpdateLabelNameOnly(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var updated Label
+	var updated domain.Label
 	if err := json.Unmarshal(w.Body.Bytes(), &updated); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -359,7 +361,7 @@ func TestDeleteLabel(t *testing.T) {
 	w = httptest.NewRecorder()
 	ts.router.ServeHTTP(w, req)
 
-	var labels []Label
+	var labels []domain.Label
 	if err := json.Unmarshal(w.Body.Bytes(), &labels); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -395,7 +397,7 @@ func TestDeleteLabelRemovesFromChats(t *testing.T) {
 	ts.router.ServeHTTP(w, req)
 
 	var result struct {
-		Chat Chat `json:"chat"`
+		Chat domain.Chat `json:"chat"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
@@ -435,7 +437,7 @@ func TestListLabelsOrdered(t *testing.T) {
 	w := httptest.NewRecorder()
 	ts.router.ServeHTTP(w, req)
 
-	var labels []Label
+	var labels []domain.Label
 	if err := json.Unmarshal(w.Body.Bytes(), &labels); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}

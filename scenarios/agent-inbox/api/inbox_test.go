@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"agent-inbox/domain"
 )
 
 // [REQ:INBOX-LIST-001] Test display chat list
@@ -25,7 +27,7 @@ func TestListChats(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var chats []Chat
+	var chats []domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &chats); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -55,7 +57,7 @@ func TestListChatsWithPreview(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var chats []Chat
+	var chats []domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &chats); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -165,7 +167,7 @@ func TestToggleArchive(t *testing.T) {
 	w = httptest.NewRecorder()
 	ts.router.ServeHTTP(w, req)
 
-	var archivedChats []Chat
+	var archivedChats []domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &archivedChats); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -200,7 +202,7 @@ func TestArchivedChatsExcludedFromMainList(t *testing.T) {
 	w = httptest.NewRecorder()
 	ts.router.ServeHTTP(w, req)
 
-	var chats []Chat
+	var chats []domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &chats); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -234,7 +236,7 @@ func TestToggleStar(t *testing.T) {
 	w = httptest.NewRecorder()
 	ts.router.ServeHTTP(w, req)
 
-	var starredChats []Chat
+	var starredChats []domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &starredChats); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -271,7 +273,7 @@ func TestStarredChatsAppearFirst(t *testing.T) {
 	w = httptest.NewRecorder()
 	ts.router.ServeHTTP(w, req)
 
-	var chats []Chat
+	var chats []domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &chats); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}

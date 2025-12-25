@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"agent-inbox/domain"
 )
 
 // [REQ:BUBBLE-001] Test create new chat
@@ -23,7 +25,7 @@ func TestCreateChat(t *testing.T) {
 		t.Errorf("Expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var chat Chat
+	var chat domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &chat); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -52,7 +54,7 @@ func TestCreateChatWithDefaults(t *testing.T) {
 		t.Errorf("Expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var chat Chat
+	var chat domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &chat); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -85,7 +87,7 @@ func TestCreateChatWithTerminalView(t *testing.T) {
 		t.Errorf("Expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var chat Chat
+	var chat domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &chat); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -129,7 +131,7 @@ func TestUpdateChat(t *testing.T) {
 		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var updated Chat
+	var updated domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &updated); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -161,7 +163,7 @@ func TestUpdateChatModel(t *testing.T) {
 		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var updated Chat
+	var updated domain.Chat
 	if err := json.Unmarshal(w.Body.Bytes(), &updated); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
@@ -237,8 +239,8 @@ func TestGetChat(t *testing.T) {
 	}
 
 	var result struct {
-		Chat     Chat      `json:"chat"`
-		Messages []Message `json:"messages"`
+		Chat     domain.Chat      `json:"chat"`
+		Messages []domain.Message `json:"messages"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
