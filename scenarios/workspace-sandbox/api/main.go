@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -55,19 +54,13 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// Build database URL
-	dbURL, err := resolveDatabaseURL(cfg.Database)
-	if err != nil {
-		return nil, err
-	}
-
-	db, err := sql.Open("postgres", dbURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	// Run automatic migrations
@@ -337,46 +330,6 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-// resolveDatabaseURL builds database URL from config.
-func resolveDatabaseURL(cfg config.DatabaseConfig) (string, error) {
-	if cfg.URL != "" {
-		// Append search_path if schema is set and not already in URL
-		if cfg.Schema != "" && !strings.Contains(cfg.URL, "search_path") {
-			sep := "?"
-			if strings.Contains(cfg.URL, "?") {
-				sep = "&"
-			}
-			return cfg.URL + sep + "search_path=" + url.QueryEscape(cfg.Schema) + ",public", nil
-		}
-		return cfg.URL, nil
-	}
-
-	if cfg.Host == "" || cfg.Port == "" || cfg.User == "" || cfg.Password == "" || cfg.Name == "" {
-		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
-	}
-
-	pgURL := &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(cfg.User, cfg.Password),
-		Host:   fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
-		Path:   cfg.Name,
-	}
-	values := pgURL.Query()
-	sslMode := cfg.SSLMode
-	if sslMode == "" {
-		sslMode = "disable"
-	}
-	values.Set("sslmode", sslMode)
-
-	// Set search_path to use the schema
-	if cfg.Schema != "" {
-		values.Set("search_path", cfg.Schema+",public")
-	}
-	pgURL.RawQuery = values.Encode()
-
-	return pgURL.String(), nil
 }
 
 // ensureSchema runs automatic migrations to ensure required tables exist.

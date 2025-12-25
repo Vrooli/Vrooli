@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -14,6 +14,8 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
 )
 
 const (
@@ -353,62 +355,22 @@ func main() {
 		os.Exit(1)
 	}
 	
-	// Use port registry for resource ports
-	postgresPort := getResourcePort("postgres")
-	
-	// Database configuration
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL == "" {
-		// Build from individual components or defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		if dbHost == "" {
-			dbHost = "localhost"
-		}
-		
-		dbPort := os.Getenv("POSTGRES_PORT")
-		if dbPort == "" {
-			dbPort = postgresPort
-		}
-		
-		dbUser := os.Getenv("POSTGRES_USER")
-		if dbUser == "" {
-			dbUser = "postgres"
-		}
-		
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-if dbPassword == "" {
-	logger.Error("POSTGRES_PASSWORD environment variable is required", nil)
-	os.Exit(1)
-}
-		
-		dbName := os.Getenv("POSTGRES_DB")
-		if dbName == "" {
-			dbName = "postgres"
-		}
-		
-		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-	
-	// Connect to database
-	db, err := sql.Open("postgres", dbURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		logger.Error("Failed to open database connection", err)
+		logger.Error("Failed to connect to database", err)
 		os.Exit(1)
 	}
 	defer db.Close()
-	
+
 	// Configure connection pool
 	db.SetMaxOpenConns(maxDBConnections)
 	db.SetMaxIdleConns(maxIdleConnections)
 	db.SetConnMaxLifetime(connMaxLifetime)
-	
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		logger.Error("Failed to connect to database", err)
-		os.Exit(1)
-	}
-	
+
 	logger.Info("✅ Database connected successfully")
 	
 	// Initialize orchestrator service

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/discovery"
 
 	rulespkg "scenario-auditor/rules"
 )
@@ -86,15 +87,12 @@ func (p *prdControlTowerProvider) Run(ctx context.Context, scenarioName string, 
 		requested[id] = struct{}{}
 	}
 
-	port, err := resolveScenarioPortViaCLI(ctx, "prd-control-tower", "API_PORT")
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "prd-control-tower")
 	if err != nil {
 		return nil, err
 	}
-	if port <= 0 {
-		return nil, fmt.Errorf("prd-control-tower API port not found")
-	}
 
-	endpoint := fmt.Sprintf("http://localhost:%d/api/v1/quality/scenario/%s/standards?use_cache=false", port, url.PathEscape(cleaned))
+	endpoint := fmt.Sprintf("%s/api/v1/quality/scenario/%s/standards?use_cache=false", baseURL, url.PathEscape(cleaned))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err

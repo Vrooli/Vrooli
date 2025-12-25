@@ -5,12 +5,10 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/gorilla/handlers"
 )

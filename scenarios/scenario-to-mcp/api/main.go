@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"bufio"
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -20,6 +20,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
@@ -27,7 +30,6 @@ import (
 type Config struct {
 	APIPort       int
 	RegistryPort  int
-	DatabaseURL   string
 	ScenariosPath string
 }
 
@@ -138,16 +140,14 @@ func NewServer(config *Config) *Server {
 }
 
 func (s *Server) Initialize() error {
-	// Connect to database
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
 	var err error
-	s.db, err = sql.Open("postgres", s.config.DatabaseURL)
+	s.db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	// Test connection
-	if err := s.db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database: %w", err)
+		return fmt.Errorf("database connection failed: %w", err)
 	}
 
 	// Set up routes
@@ -770,13 +770,7 @@ func main() {
 	config := &Config{
 		APIPort:       getEnvInt("API_PORT", 3290),
 		RegistryPort:  getEnvInt("REGISTRY_PORT", 3292),
-		DatabaseURL:   getEnvString("DATABASE_URL", ""),
 		ScenariosPath: getEnvString("SCENARIOS_PATH", defaultScenariosPath),
-	}
-
-	// Validate required configuration
-	if config.DatabaseURL == "" {
-		log.Fatal("DATABASE_URL environment variable is required")
 	}
 
 	server := NewServer(config)

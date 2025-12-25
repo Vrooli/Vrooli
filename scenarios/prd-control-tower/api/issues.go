@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 const (
@@ -684,9 +686,9 @@ func dedupeStrings(values []string) []string {
 }
 
 func locateIssueTrackerAPIPort(ctx context.Context) (int, error) {
-	return resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "API_PORT")
+	return discovery.ResolveScenarioPort(ctx, issueTrackerScenarioID, "API_PORT")
 }
 
 func locateIssueTrackerUIPort(ctx context.Context) (int, error) {
-	return resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "UI_PORT")
+	return discovery.ResolveScenarioPort(ctx, issueTrackerScenarioID, "UI_PORT")
 }

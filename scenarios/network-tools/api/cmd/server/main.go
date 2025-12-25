@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // Config holds application configuration
@@ -218,17 +219,15 @@ func NewServer() (*Server, error) {
 		DatabaseURL: dbURL,
 	}
 
-	// Connect to database
-	db, err := sql.Open("postgres", config.DatabaseURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Test connection
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
-	
 	// Initialize database schema
 	if err := InitializeDatabase(db); err != nil {
 		log.Printf("Warning: Failed to initialize database schema: %v", err)

@@ -15,13 +15,13 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/lib/pq"
+	"github.com/vrooli/api-core/discovery"
 )
 
 // -----------------------------------------------------------------------------
@@ -367,7 +367,7 @@ func (c *HTTPAnalyzerClient) reportPath(scenario string) string {
 
 // fetchFromService makes an HTTP request to the analyzer service.
 func (c *HTTPAnalyzerClient) fetchFromService(ctx context.Context, scenario string) (*analyzerDeploymentReport, error) {
-	port, err := c.discoverAnalyzerPort(ctx)
+	baseURL, err := c.discoverAnalyzerURL(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +375,7 @@ func (c *HTTPAnalyzerClient) fetchFromService(ctx context.Context, scenario stri
 	requestCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	url := fmt.Sprintf("http://localhost:%s/api/v1/scenarios/%s/deployment", port, scenario)
+	url := fmt.Sprintf("%s/api/v1/scenarios/%s/deployment", baseURL, scenario)
 	req, err := http.NewRequestWithContext(requestCtx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -404,18 +404,7 @@ func (c *HTTPAnalyzerClient) fetchFromService(ctx context.Context, scenario stri
 	return &report, nil
 }
 
-// discoverAnalyzerPort finds the port where scenario-dependency-analyzer is running.
-func (c *HTTPAnalyzerClient) discoverAnalyzerPort(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", "scenario-dependency-analyzer", "API_PORT")
-	cmd.Env = os.Environ()
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to discover analyzer port: %w", err)
-	}
-
-	port := strings.TrimSpace(string(output))
-	if port == "" {
-		return "", fmt.Errorf("analyzer API port not available")
-	}
-	return port, nil
+// discoverAnalyzerURL finds the URL where scenario-dependency-analyzer is running.
+func (c *HTTPAnalyzerClient) discoverAnalyzerURL(ctx context.Context) (string, error) {
+	return discovery.ResolveScenarioURLDefault(ctx, "scenario-dependency-analyzer")
 }

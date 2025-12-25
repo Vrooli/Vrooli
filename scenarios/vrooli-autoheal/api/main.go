@@ -3,9 +3,7 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,6 +16,8 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
 
 	"vrooli-autoheal/internal/bootstrap"
 	"vrooli-autoheal/internal/checks"
@@ -67,13 +67,20 @@ func run() error {
 	}
 	log.Printf("user config loaded from %s", configMgr.GetConfigPath())
 
-	// Connect to database with retry logic for boot scenarios
-	// Database may not be ready immediately after system boot
-	db, err := connectWithRetry(cfg.DatabaseURL, 120*time.Second)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return fmt.Errorf("failed to connect to database after retries: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer db.Close()
+
+	// Configure connection pool
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	// Initialize components
 	store := persistence.NewStore(db)
@@ -220,53 +227,3 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// connectWithRetry attempts to connect to the database with exponential backoff.
-// This is critical for boot scenarios where postgres may not be ready immediately.
-func connectWithRetry(databaseURL string, maxWait time.Duration) (*sql.DB, error) {
-	db, err := sql.Open("postgres", databaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
-
-	// Configure connection pool
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	startTime := time.Now()
-	backoff := 1 * time.Second
-	maxBackoff := 10 * time.Second
-	attempt := 0
-
-	for {
-		attempt++
-		err := db.Ping()
-		if err == nil {
-			if attempt > 1 {
-				log.Printf("database connected after %d attempts (%.1fs)", attempt, time.Since(startTime).Seconds())
-			}
-			return db, nil
-		}
-
-		elapsed := time.Since(startTime)
-		if elapsed >= maxWait {
-			db.Close()
-			return nil, fmt.Errorf("database not available after %v: %w", maxWait, err)
-		}
-
-		remaining := maxWait - elapsed
-		sleepDuration := backoff
-		if sleepDuration > remaining {
-			sleepDuration = remaining
-		}
-
-		log.Printf("database not ready (attempt %d), retrying in %v... (error: %v)", attempt, sleepDuration, err)
-		time.Sleep(sleepDuration)
-
-		// Exponential backoff with cap
-		backoff = backoff * 2
-		if backoff > maxBackoff {
-			backoff = maxBackoff
-		}
-	}
-}

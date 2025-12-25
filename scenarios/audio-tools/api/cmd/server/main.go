@@ -20,6 +20,7 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 type Server struct {
@@ -123,91 +124,24 @@ func NewServer() (*Server, error) {
 	os.MkdirAll(config.WorkDir, 0755)
 	os.MkdirAll(config.DataDir, 0755)
 
-	// Connect to database (optional - will work without it)
-	var db *sql.DB
-	dbURL := config.DatabaseURL
-
-	// Use resource postgres port if available - check multiple env vars
-	pgPort := ""
-	if port := os.Getenv("RESOURCE_PORTS_POSTGRES"); port != "" {
-		pgPort = port
-	} else if port := os.Getenv("POSTGRES_PORT"); port != "" {
-		pgPort = port
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	// Continue without database if not available.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
+	if err != nil {
+		log.Printf("Warning: Could not connect to database: %v", err)
+		db = nil
 	} else {
-		// Try to get from POSTGRES_URL if available
-		if pgURL := os.Getenv("POSTGRES_URL"); pgURL != "" {
-			// Extract port from URL (format: postgres://user:pass@host:port/db)
-			if strings.Contains(pgURL, ":5433/") {
-				pgPort = "5433"
-			}
-		}
-	}
+		// Set connection pool settings
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(5)
+		db.SetConnMaxLifetime(5 * time.Minute)
 
-	if pgPort != "" {
-		// Use vrooli user and database from environment if available
-		pgUser := os.Getenv("POSTGRES_USER")
-		if pgUser == "" {
-			pgUser = "vrooli"
-		}
-		pgPassword := os.Getenv("POSTGRES_PASSWORD")
-		if pgPassword == "" {
-			pgPassword = "postgres"
-		}
-		pgDatabase := "audio_tools" // Use audio_tools database
-
-		config.DatabaseURL = fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable",
-			pgUser, pgPassword, pgPort, pgDatabase)
-		dbURL = config.DatabaseURL
-	}
-
-	if dbURL != "" {
-		var err error
-		db, err = sql.Open("postgres", dbURL)
-		if err != nil {
-			log.Printf("Warning: Could not connect to database: %v", err)
-			// Continue without database
-		} else {
-			// Set connection pool settings
-			db.SetMaxOpenConns(25)
-			db.SetMaxIdleConns(5)
-			db.SetConnMaxLifetime(5 * time.Minute)
-
-			// Try to ping with exponential backoff and jitter
-			maxRetries := 5
-			baseDelay := 200 * time.Millisecond
-			maxDelay := 5 * time.Second
-
-			var pingErr error
-			for attempt := 0; attempt < maxRetries; attempt++ {
-				pingErr = db.Ping()
-				if pingErr == nil {
-					log.Printf("Successfully connected to database at %s (attempt %d)", dbURL, attempt+1)
-					// Initialize database schema if needed
-					if err := initializeDatabase(db); err != nil {
-						log.Printf("Warning: Could not initialize database schema: %v", err)
-					}
-					break
-				}
-
-				if attempt == maxRetries-1 {
-					db = nil
-					log.Printf("Database connection disabled after %d retries: %v", maxRetries, pingErr)
-					break
-				}
-
-				// Calculate exponential backoff with random jitter
-				delay := time.Duration(math.Min(
-					float64(baseDelay)*math.Pow(2, float64(attempt)),
-					float64(maxDelay),
-				))
-				jitterRange := float64(delay) * 0.25
-				jitter := time.Duration(jitterRange * rand.Float64())
-				actualDelay := delay + jitter
-
-				log.Printf("Warning: Database ping failed (attempt %d/%d), retrying in %v: %v",
-					attempt+1, maxRetries, actualDelay, pingErr)
-				time.Sleep(actualDelay)
-			}
+		// Initialize database schema if needed
+		if err := initializeDatabase(db); err != nil {
+			log.Printf("Warning: Could not initialize database schema: %v", err)
 		}
 	}
 

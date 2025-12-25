@@ -1,13 +1,14 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
-	"math"
 	"math/rand"
 	"net/http"
 	"os"
@@ -57,102 +58,17 @@ var (
 )
 
 func initDB() {
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			logger.Warn("database configuration incomplete, using in-memory fallback",
-				"missing_vars", "POSTGRES_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB",
-				"recommendation", "provide complete database credentials for persistence")
-			return
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
 	var err error
-	db, err = sql.Open("postgres", postgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		logger.Error("failed to open database connection, using in-memory fallback",
+		logger.Warn("database connection failed, using in-memory fallback",
 			"error", err)
-		return
-	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	logger.Info("attempting database connection with exponential backoff",
-		"max_retries", maxRetries,
-		"base_delay", baseDelay,
-		"max_delay", maxDelay)
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			logger.Info("database connected successfully",
-				"attempt", attempt+1,
-				"max_retries", maxRetries)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		logger.Warn("database connection attempt failed",
-			"attempt", attempt+1,
-			"max_retries", maxRetries,
-			"error", pingErr,
-			"next_delay", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			logger.Info("database connection retry progress",
-				"attempts_made", attempt+1,
-				"max_retries", maxRetries,
-				"total_wait_time", time.Duration(attempt*2)*baseDelay,
-				"current_delay", delay,
-				"jitter", jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		logger.Error("database connection failed after all retries, using in-memory fallback",
-			"attempts", maxRetries,
-			"error", pingErr)
 		db = nil
 		return
 	}
-
-	logger.Info("database connection pool established successfully",
-		"max_open_conns", 25,
-		"max_idle_conns", 5,
-		"conn_max_lifetime", 5*time.Minute)
+	logger.Info("database connection pool established successfully")
 }
 
 func main() {

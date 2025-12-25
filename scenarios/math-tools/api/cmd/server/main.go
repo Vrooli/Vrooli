@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -17,6 +16,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/stat"
 )
@@ -141,18 +142,15 @@ func NewServer() (*Server, error) {
 		APIToken:    getEnv("API_TOKEN", "math-tools-api-token"),
 	}
 
-	// Connect to database - but don't fail if not available
-	db, err := sql.Open("postgres", config.DatabaseURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	// Continue without database if not available.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		// Continue without database - just log the error
-		logger.Warn("Database connection failed", "error", err.Error())
+		logger.Warn("Database not available", "error", err.Error())
 		db = nil
-	} else {
-		// Test connection
-		if err := db.Ping(); err != nil {
-			logger.Warn("Database not available", "error", err.Error())
-			db = nil
-		}
 	}
 
 	server := &Server{

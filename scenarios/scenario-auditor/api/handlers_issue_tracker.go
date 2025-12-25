@@ -10,13 +10,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/discovery"
 	rulespkg "scenario-auditor/rules"
 )
 
@@ -1188,46 +1188,11 @@ func submitIssueToTracker(ctx context.Context, port int, payload map[string]any)
 }
 
 func resolveIssueTrackerPort(ctx context.Context) (int, error) {
-	return resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "API_PORT")
+	return discovery.ResolveScenarioPort(ctx, "app-issue-tracker", "API_PORT")
 }
 
 func resolveIssueTrackerUIPort(ctx context.Context) (int, error) {
-	return resolveScenarioPortViaCLI(ctx, "app-issue-tracker", "UI_PORT")
-}
-
-func resolveScenarioPortViaCLI(ctx context.Context, scenarioName, portLabel string) (int, error) {
-	if strings.TrimSpace(scenarioName) == "" || strings.TrimSpace(portLabel) == "" {
-		return 0, errors.New("scenario and port labels are required")
-	}
-
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "port", scenarioName, portLabel)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return 0, fmt.Errorf("vrooli scenario port %s %s failed: %s", scenarioName, portLabel, strings.TrimSpace(string(output)))
-	}
-
-	return parsePortValue(strings.TrimSpace(string(output)))
-}
-
-func parsePortValue(value string) (int, error) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return 0, errors.New("empty port value")
-	}
-
-	port, err := strconv.Atoi(trimmed)
-	if err != nil {
-		return 0, fmt.Errorf("invalid port value %q", value)
-	}
-
-	if port <= 0 || port > 65535 {
-		return 0, fmt.Errorf("port value out of range: %d", port)
-	}
-
-	return port, nil
+	return discovery.ResolveScenarioPort(ctx, "app-issue-tracker", "UI_PORT")
 }
 
 // buildCreateRuleIssuePayload builds the payload for creating a rule creation issue

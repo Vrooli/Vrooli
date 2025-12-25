@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math"
-	"math/rand"
 	"os"
 	"strconv"
 	"time"
@@ -15,6 +13,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/go-redis/redis/v8"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // Config holds all application configuration
@@ -117,67 +116,25 @@ func LoadConfig() (*Config, error) {
 	return cfg, nil
 }
 
-// InitializeDatabase creates and configures a database connection
+// InitializeDatabase creates and configures a database connection with automatic retry and backoff.
 func (c *Config) InitializeDatabase() (*sql.DB, error) {
 	if c.Database.URL == "" {
 		return nil, nil // Database is optional
 	}
 
-	db, err := sql.Open("postgres", c.Database.URL)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:          "postgres",
+		DSN:             c.Database.URL,
+		MaxOpenConns:    c.Database.MaxOpenConns,
+		MaxIdleConns:    c.Database.MaxIdleConns,
+		ConnMaxLifetime: c.Database.ConnMaxLifetime,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
-	// Configure connection pool
-	db.SetMaxOpenConns(c.Database.MaxOpenConns)
-	db.SetMaxIdleConns(c.Database.MaxIdleConns)
-	db.SetConnMaxLifetime(c.Database.ConnMaxLifetime)
-
-	// Test connection with retries
-	if err := c.testDatabaseConnection(db); err != nil {
-		db.Close()
-		return nil, err
-	}
-
+	logger.Info("✅ Database connected successfully")
 	return db, nil
-}
-
-// testDatabaseConnection tests the database connection with exponential backoff
-func (c *Config) testDatabaseConnection(db *sql.DB) error {
-	var lastErr error
-	baseDelay := c.Database.RetryBackoffBase
-	if baseDelay <= 0 {
-		baseDelay = 500 * time.Millisecond
-	}
-	maxBackoff := c.Database.RetryBackoffMax
-	if maxBackoff <= 0 {
-		maxBackoff = 30 * time.Second
-	}
-	rand.Seed(time.Now().UnixNano())
-
-	for attempt := 0; attempt < c.Database.MaxRetries; attempt++ {
-		ctx, cancel := context.WithTimeout(context.Background(), c.Database.ConnectionTimeout)
-		err := db.PingContext(ctx)
-		cancel()
-
-		if err == nil {
-			logger.Info(fmt.Sprintf("✅ Database connected successfully on attempt %d", attempt+1))
-			return nil
-		}
-
-		lastErr = err
-		logger.Warn(fmt.Sprintf("Database connection attempt %d/%d failed", attempt+1, c.Database.MaxRetries), err)
-
-		if attempt < c.Database.MaxRetries-1 {
-			exponentialDelay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxBackoff)))
-			jitter := time.Duration(rand.Float64() * float64(exponentialDelay) * 0.25)
-			wait := exponentialDelay + jitter
-			logger.Info(fmt.Sprintf("⏳ Waiting %v before next attempt", wait))
-			time.Sleep(wait)
-		}
-	}
-
-	return fmt.Errorf("database connection failed after %d attempts: %w", c.Database.MaxRetries, lastErr)
 }
 
 // InitializeRedis creates and configures a Redis client

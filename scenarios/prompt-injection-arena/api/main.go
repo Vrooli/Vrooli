@@ -1,11 +1,12 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -109,63 +110,14 @@ func initDB() {
 	}
 	appConfig = config
 
-	// Construct connection string using validated configuration
-	psqlInfo := appConfig.GetDatabaseConnectionString()
-
-	db, err = sql.Open("postgres", psqlInfo)
+	// Connect to database with exponential backoff
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		logger.Fatal("Failed to connect to database", map[string]interface{}{"error": err.Error()})
+		logger.Fatal("Database connection failed", map[string]interface{}{"error": err.Error()})
 	}
-
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	logger.Info("Attempting database connection with exponential backoff")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			logger.Info("Database connected successfully", map[string]interface{}{
-				"attempt": attempt + 1,
-			})
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
-		actualDelay := delay + jitter
-
-		logger.Warn("Connection attempt failed", map[string]interface{}{
-			"attempt":     attempt + 1,
-			"max_retries": maxRetries,
-			"error":       pingErr.Error(),
-			"retry_delay": actualDelay.String(),
-		})
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		logger.Fatal("Database connection failed after max attempts", map[string]interface{}{
-			"max_retries": maxRetries,
-			"error":       pingErr.Error(),
-		})
-	}
+	logger.Info("Database connected successfully")
 }
 
 // Health check endpoint

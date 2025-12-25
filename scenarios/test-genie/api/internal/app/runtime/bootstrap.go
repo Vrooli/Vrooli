@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -10,6 +11,8 @@ import (
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/queue"
 	"test-genie/internal/scenarios"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // Bootstrapped holds the concrete dependencies needed by the HTTP server.
@@ -35,12 +38,12 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config is required")
 	}
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+		DSN:    cfg.DatabaseURL,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 	if err := ensureDatabaseSchema(db); err != nil {
 		return nil, fmt.Errorf("failed to apply database schema: %w", err)

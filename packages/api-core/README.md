@@ -1,6 +1,11 @@
 # api-core
 
-Shared Go utilities for Vrooli scenario APIs. Provides automatic startup checks including staleness detection, auto-rebuild, and lifecycle management verification.
+Shared Go utilities for Vrooli scenario APIs. Provides:
+
+- **Preflight checks** - Staleness detection, auto-rebuild, lifecycle management
+- **Database connections** - Auto-configured from environment with retry and backoff
+- **Scenario discovery** - Runtime port resolution for inter-scenario communication
+- **Retry utilities** - Exponential backoff with jitter for reliable connections
 
 ## Quick Start
 
@@ -30,6 +35,212 @@ if preflight.Run(preflight.Config{
     // Safe to initialize server, DB connections, etc.
     server := NewServer()
 server.Start()
+}
+```
+
+## Database Connections
+
+The `database` package provides database connections with automatic configuration from environment variables and retry with exponential backoff.
+
+### Basic Usage
+
+```go
+import (
+    "context"
+    "log"
+
+    "github.com/vrooli/api-core/database"
+)
+
+func main() {
+    // Preflight checks first...
+
+    // Connect to database - reads POSTGRES_* from environment automatically
+    db, err := database.Connect(context.Background(), database.Config{
+        Driver: "postgres",
+    })
+    if err != nil {
+        log.Fatalf("Database connection failed: %v", err)
+    }
+    defer db.Close()
+
+    // Use db...
+}
+```
+
+### How It Works
+
+For known drivers (`postgres`, `sqlite3`), connection parameters are automatically read from environment variables set by the Vrooli lifecycle system:
+
+| Variable | Description |
+|----------|-------------|
+| `POSTGRES_HOST` | Database host (required) |
+| `POSTGRES_PORT` | Database port (required) |
+| `POSTGRES_USER` | Username (required) |
+| `POSTGRES_PASSWORD` | Password (optional for local dev) |
+| `POSTGRES_DB` | Database name (required) |
+| `POSTGRES_SSLMODE` | SSL mode (default: `disable`) |
+| `POSTGRES_URL` | Complete URL (used if set, overrides components) |
+| `POSTGRES_POOL_SIZE` | Connection pool size (default: 25) |
+
+### Retry Behavior
+
+Connections are retried automatically with exponential backoff and jitter:
+
+- **10 attempts** by default
+- **500ms** base delay, growing exponentially
+- **30s** maximum delay
+- **25% jitter** to prevent thundering herd
+
+```go
+// Custom retry configuration
+db, err := database.Connect(ctx, database.Config{
+    Driver: "postgres",
+    Retry: &retry.Config{
+        MaxAttempts: 5,
+        BaseDelay:   time.Second,
+        MaxDelay:    time.Minute,
+    },
+})
+```
+
+### Custom Pool Settings
+
+```go
+db, err := database.Connect(ctx, database.Config{
+    Driver:          "postgres",
+    MaxOpenConns:    50,
+    MaxIdleConns:    10,
+    ConnMaxLifetime: 10 * time.Minute,
+})
+```
+
+### Explicit DSN (Bypass Environment)
+
+```go
+db, err := database.Connect(ctx, database.Config{
+    Driver: "postgres",
+    DSN:    "postgres://user:pass@host:5432/db?sslmode=require",
+})
+```
+
+### SQLite Support
+
+```go
+// Reads SQLITE_PATH or SQLITE_DB from environment
+db, err := database.Connect(ctx, database.Config{
+    Driver: "sqlite3",
+})
+
+// Or explicit path
+db, err := database.Connect(ctx, database.Config{
+    Driver: "sqlite3",
+    DSN:    "/data/app.db",
+})
+```
+
+### Testing
+
+```go
+func TestDatabaseLogic(t *testing.T) {
+    cfg := database.Config{
+        Driver: "postgres",
+        EnvGetter: func(key string) string {
+            // Return test values
+            env := map[string]string{
+                "POSTGRES_HOST": "testhost",
+                "POSTGRES_PORT": "5432",
+                // ...
+            }
+            return env[key]
+        },
+        Opener: func(driver, dsn string) (*sql.DB, error) {
+            // Return mock DB
+            return sqlmock.New()
+        },
+        Retry: &retry.Config{
+            MaxAttempts: 1,
+            Sleeper:     func(d time.Duration) {}, // No-op for fast tests
+        },
+    }
+
+    db, err := database.Connect(context.Background(), cfg)
+    // ...
+}
+```
+
+## Retry Utilities
+
+The `retry` package provides generic retry logic with exponential backoff and jitter. Used internally by `database.Connect()` but available for any retry needs.
+
+### Basic Usage
+
+```go
+import (
+    "context"
+    "github.com/vrooli/api-core/retry"
+)
+
+err := retry.Do(ctx, retry.DefaultConfig(), func(attempt int) error {
+    return someOperation()
+})
+```
+
+### Custom Configuration
+
+```go
+cfg := retry.Config{
+    MaxAttempts:    5,           // Stop after 5 attempts
+    BaseDelay:      time.Second, // Start with 1s delay
+    MaxDelay:       time.Minute, // Cap at 1 minute
+    JitterFraction: 0.25,        // Add up to 25% random jitter
+    OnRetry: func(attempt int, err error, delay time.Duration) {
+        log.Printf("Attempt %d failed: %v (retrying in %v)", attempt, err, delay)
+    },
+}
+
+err := retry.Do(ctx, cfg, func(attempt int) error {
+    return connectToService()
+})
+```
+
+### Delay Calculation
+
+```
+delay = min(baseDelay * 2^attempt, maxDelay) + random(0, delay * jitterFraction)
+```
+
+Example with defaults (500ms base, 30s max, 25% jitter):
+- Attempt 0: 500ms + 0-125ms jitter
+- Attempt 1: 1s + 0-250ms jitter
+- Attempt 2: 2s + 0-500ms jitter
+- Attempt 3: 4s + 0-1s jitter
+- ...
+- Attempt 6+: 30s + 0-7.5s jitter (capped)
+
+### Testing
+
+```go
+func TestRetryLogic(t *testing.T) {
+    var delays []time.Duration
+
+    cfg := retry.Config{
+        MaxAttempts:    3,
+        BaseDelay:      100 * time.Millisecond,
+        JitterFraction: 0, // Disable jitter for predictable tests
+        Sleeper:        func(d time.Duration) { delays = append(delays, d) },
+    }
+
+    attempts := 0
+    retry.Do(ctx, cfg, func(attempt int) error {
+        attempts++
+        if attempts < 3 {
+            return errors.New("not ready")
+        }
+        return nil
+    })
+
+    // Verify: 2 sleeps (100ms, 200ms), succeeded on 3rd attempt
 }
 ```
 
@@ -205,9 +416,18 @@ preflight.Run(preflight.Config{
 
 ```
 packages/api-core/
-├── preflight/              # High-level API (recommended)
+├── database/               # Database connections with retry
+│   ├── connect.go
+│   └── connect_test.go
+├── discovery/              # Scenario port resolution
+│   ├── resolve.go
+│   └── resolve_test.go
+├── preflight/              # Startup checks (recommended entry point)
 │   ├── preflight.go
 │   └── preflight_test.go
+├── retry/                  # Exponential backoff with jitter
+│   ├── backoff.go
+│   └── backoff_test.go
 ├── staleness/              # Low-level staleness detection
 │   ├── checker.go
 │   ├── checker_test.go
@@ -273,7 +493,14 @@ func main() {
 **Preflight:**
 - `scenario-completeness-scoring` - Reference implementation
 
+**Database:**
+- New package - scenarios can migrate from manual backoff implementations
+
 **Discovery:**
 - `browser-automation-studio` - Discovers `test-genie`
 - `git-control-tower` - Discovers `workspace-sandbox`
 - `system-monitor` - Discovers `agent-manager`
+
+**Retry:**
+- Used internally by `database.Connect()`
+- Available for HTTP clients, external APIs, etc.

@@ -1,14 +1,11 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,8 +14,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
 )
 
 const (
@@ -290,81 +288,6 @@ func buildHealthResponse(ctx context.Context) gin.H {
 	}
 }
 
-func initDB() error {
-	_ = godotenv.Load()
-
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		dbHost := os.Getenv("POSTGRES_HOST")
-		if dbHost == "" {
-			dbHost = os.Getenv("DB_HOST")
-		}
-		if dbHost == "" {
-			dbHost = "localhost"
-		}
-
-		dbPort := os.Getenv("POSTGRES_PORT")
-		if dbPort == "" {
-			dbPort = os.Getenv("DB_PORT")
-		}
-
-		dbUser := os.Getenv("POSTGRES_USER")
-		if dbUser == "" {
-			dbUser = os.Getenv("DB_USER")
-		}
-
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		if dbPassword == "" {
-			dbPassword = os.Getenv("DB_PASSWORD")
-		}
-
-		dbName := os.Getenv("POSTGRES_DB")
-		if dbName == "" {
-			dbName = os.Getenv("DB_NAME")
-		}
-
-		if dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			return fmt.Errorf("database configuration missing. Provide DATABASE_URL or all of: POSTGRES_HOST/DB_HOST, POSTGRES_PORT/DB_PORT, POSTGRES_USER/DB_USER, POSTGRES_PASSWORD/DB_PASSWORD, POSTGRES_DB/DB_NAME")
-		}
-
-		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
-	var err error
-	db, err = sql.Open("postgres", databaseURL)
-	if err != nil {
-		return err
-	}
-
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	maxRetries := 10
-	baseDelay := 500 * time.Millisecond
-	maxDelay := 30 * time.Second
-	randSource := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			return nil
-		}
-
-		delay := time.Duration(math.Min(float64(baseDelay)*math.Pow(2, float64(attempt)), float64(maxDelay)))
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(randSource.Float64() * jitterRange)
-		waitTime := delay + jitter
-
-		log.Printf("Database connection attempt %d/%d failed: %v. Retrying in %v", attempt+1, maxRetries, pingErr, waitTime)
-		time.Sleep(waitTime)
-	}
-
-	return fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, pingErr)
-}
-
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -373,11 +296,21 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Initialize database
-	if err := initDB(); err != nil {
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	var err error
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
+	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer db.Close()
+
+	// Configure connection pool
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	// Initialize service layer
 	treeService = NewTreeService(db)

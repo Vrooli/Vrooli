@@ -1,14 +1,12 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -18,6 +16,8 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
 )
 
 // Config holds minimal runtime configuration
@@ -35,23 +35,17 @@ type Server struct {
 
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
-	dbURL, err := resolveDatabaseURL()
-	if err != nil {
-		return nil, err
-	}
-
 	cfg := &Config{
-		Port:        requireEnv("API_PORT"),
-		DatabaseURL: dbURL,
+		Port: requireEnv("API_PORT"),
 	}
 
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	srv := &Server{

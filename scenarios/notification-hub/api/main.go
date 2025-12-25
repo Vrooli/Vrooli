@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"crypto/rand"
@@ -9,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -166,82 +166,13 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("REDIS_URL environment variable is required")
 	}
 
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			return nil, fmt.Errorf("missing database configuration. Provide POSTGRES_URL or all required database connection parameters")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
-	// Initialize database
-	db, err := sql.Open("postgres", postgresURL)
+	// Initialize database with exponential backoff
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open database connection: %v", err)
+		return nil, fmt.Errorf("database connection failed: %v", err)
 	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	logger.Info("Attempting database connection with exponential backoff")
-	logger.Info("Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			logger.Info("Database connected successfully", "attempt", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
-		actualDelay := delay + jitter
-
-		logger.Warn("Connection attempt failed", "attempt", attempt+1, "max_retries", maxRetries, "error", pingErr)
-		logger.Info("Waiting before next attempt", "delay", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			logger.Info("Retry progress",
-				"attempts_made", attempt+1,
-				"max_retries", maxRetries,
-				"total_wait_time", time.Duration(attempt*2)*baseDelay,
-				"current_delay", delay,
-				"jitter", jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-
 	logger.Info("Database connection pool established successfully")
 
 	// Initialize Redis

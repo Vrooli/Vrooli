@@ -123,8 +123,7 @@ func setupTestServerNoData(t *testing.T) *Server {
 
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: dbURL,
+			Port: "8080",
 		},
 		db:              db,
 		store:           NewTidinessStore(db),
@@ -240,7 +239,7 @@ func setupDBTest(t *testing.T) (*Server, *sql.DB) {
 		t.Skip("Could not ping database, skipping integration test")
 	}
 	srv := &Server{
-		config: &Config{DatabaseURL: dbURL},
+		config: &Config{},
 		db:     db,
 		store:  NewTidinessStore(db),
 	}

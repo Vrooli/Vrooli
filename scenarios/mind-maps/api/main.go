@@ -1,18 +1,17 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
-    "context"
-    "database/sql"
-    "encoding/json"
-    "fmt"
-    "log"
-    "math"
-    "math/rand"
-    "net/http"
-    "os"
-    "strings"
-    "time"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 
     "github.com/gorilla/mux"
     "github.com/lib/pq"
@@ -56,82 +55,20 @@ var mindMapProcessor *MindMapProcessor
 
 // Initialize database connection and schema
 func initDB() error {
-    // PostgreSQL URL must come from environment - no defaults
-    postgresURL := os.Getenv("POSTGRES_URL")
-    if postgresURL == "" {
-        // Try building from individual components if URL not provided
-        host := os.Getenv("POSTGRES_HOST")
-        port := os.Getenv("POSTGRES_PORT")
-        user := os.Getenv("POSTGRES_USER")
-        password := os.Getenv("POSTGRES_PASSWORD")
-        dbname := os.Getenv("POSTGRES_DB")
-        
-        if host == "" || port == "" || user == "" || password == "" || dbname == "" {
-            return fmt.Errorf("database configuration required: provide POSTGRES_URL or all of POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-        }
-        
-        postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-            user, password, host, port, dbname)
-    }
-    
-    log.Printf("🔄 Connecting to database (credentials hidden)")
-    
-    var err error
-    db, err = sql.Open("postgres", postgresURL)
-    if err != nil {
-        return fmt.Errorf("failed to open database connection: %v", err)
-    }
-    
-    // Configure connection pool for resilience
-    db.SetMaxOpenConns(25)
-    db.SetMaxIdleConns(5)
-    db.SetConnMaxLifetime(5 * time.Minute)
-    
-    // Implement exponential backoff for database connection
-    maxRetries := 10
-    baseDelay := 1 * time.Second
-    maxDelay := 30 * time.Second
-    
-    log.Println("🔄 Attempting database connection with exponential backoff...")
-    
-    var pingErr error
-    for attempt := 0; attempt < maxRetries; attempt++ {
-        pingErr = db.Ping()
-        if pingErr == nil {
-            log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
-            break
-        }
-        
-        // Calculate exponential backoff delay with cap
-        delay := time.Duration(math.Min(
-            float64(baseDelay) * math.Pow(2, float64(attempt)),
-            float64(maxDelay),
-        ))
-        
-        // Add random jitter to prevent thundering herd (0-25% additional delay)
-        jitterRange := float64(delay) * 0.25
-        jitter := time.Duration(jitterRange * rand.Float64())
-        actualDelay := delay + jitter
-        
-        log.Printf("⚠️  Database connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-        log.Printf("⏳ Waiting %v before retry (base: %v, jitter: %v)", actualDelay, delay, jitter)
-        
-        // Show progress stats every few attempts
-        if attempt > 0 && attempt % 3 == 0 {
-            log.Printf("📊 Connection retry statistics:")
-            log.Printf("   - Attempts: %d of %d", attempt + 1, maxRetries)
-            log.Printf("   - Time elapsed: ~%v", time.Duration(attempt * 2) * baseDelay)
-            log.Printf("   - Max wait time: %v", maxDelay)
-        }
-        
-        time.Sleep(actualDelay)
-    }
-    
-    if pingErr != nil {
-        return fmt.Errorf("database connection failed after %d attempts: %v", maxRetries, pingErr)
-    }
-    
-    log.Println("🎉 Database connection pool established successfully!")
+	var err error
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
+	if err != nil {
+		return fmt.Errorf("database connection failed: %v", err)
+	}
+
+	// Configure connection pool for resilience
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	log.Println("🎉 Database connection pool established successfully!")
     
     // Check if proper schema exists
     var exists bool

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 )
 
 type EcosystemTaskStatusResponse struct {
@@ -85,20 +86,11 @@ type ecosystemTaskCreatePayload struct {
 var ecosystemHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
 func resolveEcosystemManagerBaseURL(ctx context.Context) (string, error) {
-	value := strings.TrimSpace(os.Getenv("ECOSYSTEM_MANAGER_URL"))
-	if value != "" {
+	// Allow env var override for testing/manual configuration
+	if value := strings.TrimSpace(os.Getenv("ECOSYSTEM_MANAGER_URL")); value != "" {
 		return strings.TrimRight(value, "/"), nil
 	}
-
-	port, err := resolveScenarioPortViaCLI(ctx, "ecosystem-manager", "API_PORT")
-	if err != nil {
-		return "", fmt.Errorf("ecosystem-manager is not running (start the scenario or set ECOSYSTEM_MANAGER_URL)")
-	}
-	if port <= 0 {
-		return "", fmt.Errorf("ecosystem-manager port could not be resolved")
-	}
-
-	return fmt.Sprintf("http://127.0.0.1:%d", port), nil
+	return discovery.ResolveScenarioURLDefault(ctx, "ecosystem-manager")
 }
 
 func handleGetEcosystemTask(w http.ResponseWriter, r *http.Request) {

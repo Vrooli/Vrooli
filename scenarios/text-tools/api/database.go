@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 const (
@@ -73,61 +73,34 @@ func NewDatabaseConnection(config *DatabaseConfig) (*DatabaseConnection, error) 
 
 // connect establishes database connection with exponential backoff
 func (conn *DatabaseConnection) connect() error {
-	backoff := initialBackoff
-
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		log.Printf("Attempting database connection (attempt %d/%d)...", attempt, maxRetries)
-
-		db, err := sql.Open("postgres", conn.config.URL)
-		if err != nil {
-			log.Printf("Failed to open database: %v", err)
-			if attempt < maxRetries {
-				log.Printf("Retrying in %v...", backoff)
-				time.Sleep(backoff)
-				backoff = calculateBackoff(backoff)
-				continue
-			}
-			return fmt.Errorf("failed to open database after %d attempts: %w", maxRetries, err)
-		}
-
-		// Configure connection pool
-		db.SetMaxOpenConns(conn.config.MaxOpenConns)
-		db.SetMaxIdleConns(conn.config.MaxIdleConns)
-		db.SetConnMaxLifetime(conn.config.ConnMaxLifetime)
-		db.SetConnMaxIdleTime(conn.config.ConnMaxIdleTime)
-
-		// Test the connection
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		if err := db.PingContext(ctx); err != nil {
-			log.Printf("Failed to ping database: %v", err)
-			db.Close()
-			if attempt < maxRetries {
-				log.Printf("Retrying in %v...", backoff)
-				time.Sleep(backoff)
-				backoff = calculateBackoff(backoff)
-				continue
-			}
-			return fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, err)
-		}
-
-		// Set schema search path
-		if _, err := db.Exec("SET search_path TO text_tools, public"); err != nil {
-			log.Printf("Warning: Could not set search path: %v", err)
-		}
-
-		// Store connection
-		conn.mu.Lock()
-		conn.db = db
-		conn.connected = true
-		conn.mu.Unlock()
-
-		log.Println("Successfully connected to database")
-		return nil
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	return fmt.Errorf("database connection failed after %d attempts", maxRetries)
+	// Configure connection pool
+	db.SetMaxOpenConns(conn.config.MaxOpenConns)
+	db.SetMaxIdleConns(conn.config.MaxIdleConns)
+	db.SetConnMaxLifetime(conn.config.ConnMaxLifetime)
+	db.SetConnMaxIdleTime(conn.config.ConnMaxIdleTime)
+
+	// Set schema search path
+	if _, err := db.Exec("SET search_path TO text_tools, public"); err != nil {
+		log.Printf("Warning: Could not set search path: %v", err)
+	}
+
+	// Store connection
+	conn.mu.Lock()
+	conn.db = db
+	conn.connected = true
+	conn.mu.Unlock()
+
+	log.Println("Successfully connected to database")
+	return nil
 }
 
 // monitorHealth continuously monitors database health and reconnects if needed

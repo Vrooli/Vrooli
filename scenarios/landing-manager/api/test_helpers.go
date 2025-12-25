@@ -14,11 +14,30 @@ import (
 // setupTestDB creates a test database connection
 // This is the canonical setup function used across all test files
 func setupTestDB(t *testing.T) *sql.DB {
-	// Use the same database as main tests
-	dbURL, err := resolveDatabaseURL()
-	if err != nil {
+	// Build database URL from lifecycle environment variables
+	dbURL := os.Getenv("POSTGRES_URL")
+	if dbURL == "" {
+		// Try to build from individual env vars
+		host := os.Getenv("POSTGRES_HOST")
+		port := os.Getenv("POSTGRES_PORT")
+		user := os.Getenv("POSTGRES_USER")
+		password := os.Getenv("POSTGRES_PASSWORD")
+		dbname := os.Getenv("POSTGRES_DB")
+		sslmode := os.Getenv("POSTGRES_SSLMODE")
+		if sslmode == "" {
+			sslmode = "disable"
+		}
+
+		if host != "" && user != "" && dbname != "" {
+			if port == "" {
+				port = "5432"
+			}
+			dbURL = "postgresql://" + user + ":" + password + "@" + host + ":" + port + "/" + dbname + "?sslmode=" + sslmode
+		}
+	}
+
+	if dbURL == "" {
 		// Fallback to default test database URL if env vars not set
-		// This allows tests to run in CI/CD or local environments without full lifecycle setup
 		dbURL = os.Getenv("TEST_DATABASE_URL")
 		if dbURL == "" {
 			dbURL = "postgresql://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/landing-manager?sslmode=disable"
@@ -49,8 +68,7 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 
 	// Create a test config
 	config := &Config{
-		Port:        "0", // Use random port for testing
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+		Port: "0", // Use random port for testing
 	}
 
 	// Initialize all services

@@ -28,6 +28,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // Server wires the HTTP router and database connection.
@@ -57,23 +58,17 @@ type Server struct {
 
 // New initializes configuration, database, and routes.
 func New() (*Server, error) {
-	dbURL, err := ResolveDatabaseURL()
-	if err != nil {
-		return nil, err
-	}
-
 	cfg := &Config{
-		Port:        RequireEnv("API_PORT"),
-		DatabaseURL: dbURL,
+		Port: RequireEnv("API_PORT"),
 	}
 
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	// Create repositories

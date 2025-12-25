@@ -1,18 +1,19 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -25,8 +26,7 @@ import (
 
 // Config holds minimal runtime configuration
 type Config struct {
-	Port        string
-	DatabaseURL string
+	Port string
 }
 
 // Server wires the HTTP router and dependencies
@@ -39,23 +39,17 @@ type Server struct {
 
 // NewServer initializes configuration, database, services, and routes
 func NewServer() (*Server, error) {
-	dbURL, err := resolveDatabaseURL()
-	if err != nil {
-		return nil, err
-	}
-
 	cfg := &Config{
-		Port:        requireEnv("API_PORT"),
-		DatabaseURL: dbURL,
+		Port: requireEnv("API_PORT"),
 	}
 
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
 	// Initialize services
@@ -184,45 +178,6 @@ func requireEnv(key string) string {
 		log.Fatalf("environment variable %s is required. Run the scenario via 'vrooli scenario run <name>' so lifecycle exports it.", key)
 	}
 	return value
-}
-
-func resolveDatabaseURL() (string, error) {
-	if raw := strings.TrimSpace(os.Getenv("DATABASE_URL")); raw != "" {
-		return raw, nil
-	}
-
-	return buildPostgresURL(
-		strings.TrimSpace(os.Getenv("POSTGRES_HOST")),
-		strings.TrimSpace(os.Getenv("POSTGRES_PORT")),
-		strings.TrimSpace(os.Getenv("POSTGRES_USER")),
-		strings.TrimSpace(os.Getenv("POSTGRES_PASSWORD")),
-		strings.TrimSpace(os.Getenv("POSTGRES_DB")),
-	)
-}
-
-func buildPostgresURL(host, port, user, password, dbName string) (string, error) {
-	if host == "" || port == "" || user == "" || password == "" || dbName == "" {
-		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
-	}
-
-	pgURL := &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(user, password),
-		Host:   fmt.Sprintf("%s:%s", host, port),
-		Path:   dbName,
-	}
-	values := pgURL.Query()
-	values.Set("sslmode", "disable")
-	pgURL.RawQuery = values.Encode()
-
-	return pgURL.String(), nil
-}
-
-// seedDefaultData is a no-op placeholder for database seeding
-// kept for test compatibility
-func seedDefaultData(db *sql.DB) error {
-	// No default data to seed - this is intentionally a no-op
-	return nil
 }
 
 func main() {

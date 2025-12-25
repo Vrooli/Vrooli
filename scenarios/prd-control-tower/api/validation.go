@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 )
 
 // ValidationRequest represents a validation request
@@ -317,15 +318,12 @@ func runScenarioAuditorHTTP(ctx context.Context, scenarioName string) (any, erro
 		return nil, errors.New("scenario name is required for diagnostics")
 	}
 
-	port, err := resolveScenarioPortViaCLI(ctx, "scenario-auditor", "API_PORT")
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-auditor")
 	if err != nil {
 		return nil, fmt.Errorf("scenario-auditor API unavailable: %w", err)
 	}
-	if port <= 0 {
-		return nil, errors.New("scenario-auditor API port not found")
-	}
 
-	startResp, err := startScenarioAuditorStandardsScan(ctx, port, trimmed)
+	startResp, err := startScenarioAuditorStandardsScan(ctx, baseURL, trimmed)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +336,7 @@ func runScenarioAuditorHTTP(ctx context.Context, scenarioName string) (any, erro
 		return nil, errors.New("scenario-auditor did not return a job id")
 	}
 
-	status, err := waitForScenarioAuditorScan(ctx, port, jobID)
+	status, err := waitForScenarioAuditorScan(ctx, baseURL, jobID)
 	if err != nil {
 		return nil, err
 	}
@@ -350,8 +348,8 @@ func runScenarioAuditorHTTP(ctx context.Context, scenarioName string) (any, erro
 	return payload, nil
 }
 
-func startScenarioAuditorStandardsScan(ctx context.Context, port int, scenarioName string) (scenarioAuditorStartResponse, error) {
-	endpoint := scenarioAuditorURL(port, fmt.Sprintf("/api/v1/standards/check/%s", url.PathEscape(scenarioName)))
+func startScenarioAuditorStandardsScan(ctx context.Context, baseURL, scenarioName string) (scenarioAuditorStartResponse, error) {
+	endpoint := fmt.Sprintf("%s/api/v1/standards/check/%s", baseURL, url.PathEscape(scenarioName))
 	body, err := json.Marshal(map[string]any{
 		"type": "quick",
 	})
@@ -388,12 +386,12 @@ func startScenarioAuditorStandardsScan(ctx context.Context, port int, scenarioNa
 	return startResp, nil
 }
 
-func waitForScenarioAuditorScan(ctx context.Context, port int, jobID string) (standardsScanStatus, error) {
+func waitForScenarioAuditorScan(ctx context.Context, baseURL, jobID string) (standardsScanStatus, error) {
 	ticker := time.NewTicker(scenarioAuditorPollInterval)
 	defer ticker.Stop()
 
 	for {
-		status, err := fetchScenarioAuditorStatus(ctx, port, jobID)
+		status, err := fetchScenarioAuditorStatus(ctx, baseURL, jobID)
 		if err != nil {
 			return standardsScanStatus{}, err
 		}
@@ -414,8 +412,8 @@ func waitForScenarioAuditorScan(ctx context.Context, port int, jobID string) (st
 	}
 }
 
-func fetchScenarioAuditorStatus(ctx context.Context, port int, jobID string) (standardsScanStatus, error) {
-	endpoint := scenarioAuditorURL(port, fmt.Sprintf("/api/v1/standards/check/jobs/%s", url.PathEscape(jobID)))
+func fetchScenarioAuditorStatus(ctx context.Context, baseURL, jobID string) (standardsScanStatus, error) {
+	endpoint := fmt.Sprintf("%s/api/v1/standards/check/jobs/%s", baseURL, url.PathEscape(jobID))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return standardsScanStatus{}, err
@@ -505,12 +503,6 @@ func handleValidatePRD(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, response)
 }
 
-func scenarioAuditorURL(port int, path string) string {
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
-	}
-	return fmt.Sprintf("http://localhost:%d%s", port, path)
-}
 
 func normalizeStatus(value string) string {
 	trimmed := strings.TrimSpace(value)

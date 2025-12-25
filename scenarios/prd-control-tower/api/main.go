@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -14,6 +14,8 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
 )
 
 var db *sql.DB
@@ -67,9 +69,15 @@ func main() {
 		slog.Warn("RESOURCE_OPENROUTER_URL not set - AI assistance features will be unavailable")
 	}
 
-	// Initialize database
-	if err := initDB(); err != nil {
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	var err error
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
+	if err != nil {
 		slog.Warn("Database initialization failed", "error", err)
+		db = nil
 	}
 
 	router := mux.NewRouter()
@@ -153,44 +161,6 @@ func main() {
 		slog.Error("Failed to start server", "error", err)
 		os.Exit(1)
 	}
-}
-
-func initDB() error {
-	dbHost := os.Getenv("POSTGRES_HOST")
-	if dbHost == "" {
-		dbHost = "localhost"
-	}
-	dbPort := os.Getenv("POSTGRES_PORT")
-	if dbPort == "" {
-		return fmt.Errorf("POSTGRES_PORT environment variable must be set")
-	}
-	dbName := os.Getenv("POSTGRES_DB")
-	if dbName == "" {
-		dbName = "vrooli"
-	}
-	dbUser := os.Getenv("POSTGRES_USER")
-	if dbUser == "" {
-		dbUser = "vrooli"
-	}
-	dbPass := os.Getenv("POSTGRES_PASSWORD")
-	if dbPass == "" {
-		return fmt.Errorf("POSTGRES_PASSWORD environment variable must be set")
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPass, dbName)
-
-	var err error
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
-	}
-
-	if err = db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database: %w", err)
-	}
-
-	return nil
 }
 
 func corsMiddleware(next http.Handler) http.Handler {

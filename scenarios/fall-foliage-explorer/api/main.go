@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -11,6 +11,9 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
 
 	_ "github.com/lib/pq"
 )
@@ -81,26 +84,15 @@ type TripPlan struct {
 }
 
 func initDB() error {
-	dbHost := getEnv("POSTGRES_HOST", "localhost")
-	dbPort := getEnv("POSTGRES_PORT", "5433")
-	dbUser := getEnv("POSTGRES_USER", "vrooli")
-	dbPass := getEnv("POSTGRES_PASSWORD", "vrooli")
-	dbName := getEnv("POSTGRES_DB", "vrooli")
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPass, dbName)
-
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
+		return fmt.Errorf("database connection failed: %w", err)
 	}
-
-	// Test connection
-	if err = db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database: %w", err)
-	}
-
 	log.Println("Database connection established")
 	return nil
 }

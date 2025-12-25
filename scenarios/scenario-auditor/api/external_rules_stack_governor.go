@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/discovery"
 
 	rulespkg "scenario-auditor/rules"
 )
@@ -102,16 +103,13 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 		return nil, nil
 	}
 
-	port, err := resolveScenarioPortViaCLI(ctx, "scenario-stack-governor", "API_PORT")
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-stack-governor")
 	if err != nil {
 		return nil, err
 	}
-	if port <= 0 {
-		return nil, fmt.Errorf("scenario-stack-governor API port not found")
-	}
 
 	payload, _ := json.Marshal(stackGovernorRunRequest{ScenarioName: cleaned})
-	endpoint := fmt.Sprintf("http://localhost:%d/api/v1/run", port)
+	endpoint := fmt.Sprintf("%s/api/v1/run", baseURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return nil, err

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -11,6 +10,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -125,47 +127,24 @@ type SuccessResponse struct {
 
 func init() {
 	godotenv.Load()
-	
+
 	port = os.Getenv("PORT_TOKEN_ECONOMY_API")
 	if port == "" {
 		port = "11080"
 	}
-	
-	// Initialize PostgreSQL
-	dbHost := os.Getenv("POSTGRES_HOST")
-	if dbHost == "" {
-		dbHost = "localhost"
-	}
-	dbPort := os.Getenv("POSTGRES_PORT")
-	if dbPort == "" {
-		dbPort = "5432"
-	}
-	dbUser := os.Getenv("POSTGRES_USER")
-	if dbUser == "" {
-		dbUser = "postgres"
-	}
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	if dbPassword == "" {
-		dbPassword = "postgres"
-	}
-	dbName := os.Getenv("POSTGRES_DB")
-	if dbName == "" {
-		dbName = "token_economy"
-	}
-	
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-	
+
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err = database.Connect(ctx, database.Config{
+		Driver:       "postgres",
+		MaxOpenConns: 25,
+		MaxIdleConns: 5,
+	})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatalf("Database connection failed: %v", err)
 	}
-	
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Initialize Redis
 	redisHost := os.Getenv("REDIS_HOST")
 	if redisHost == "" {
@@ -175,23 +154,18 @@ func init() {
 	if redisPort == "" {
 		redisPort = "6379"
 	}
-	
+
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})
-	
-	// Test connections
-	if err := db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
-	}
-	
+
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		log.Printf("Warning: Redis not available: %v", err)
 		rdb = nil
 	}
-	
+
 	log.Println("Token Economy API initialized successfully")
 }
 

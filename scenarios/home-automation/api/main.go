@@ -1,14 +1,13 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -71,41 +70,13 @@ func main() {
 	startTime = time.Now()
 	app := &App{}
 
-	// Database connection - REQUIRED, no defaults
-	dbHost := os.Getenv("POSTGRES_HOST")
-	if dbHost == "" {
-		log.Fatal("❌ POSTGRES_HOST environment variable is required")
-	}
-	dbPort := os.Getenv("POSTGRES_PORT")
-	if dbPort == "" {
-		log.Fatal("❌ POSTGRES_PORT environment variable is required")
-	}
-	dbUser := os.Getenv("POSTGRES_USER")
-	if dbUser == "" {
-		log.Fatal("❌ POSTGRES_USER environment variable is required")
-	}
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	if dbPassword == "" {
-		log.Fatal("❌ Database password environment variable is required")
-	}
-	dbName := os.Getenv("POSTGRES_DB")
-	if dbName == "" {
-		// Default to home_automation for this scenario
-		dbName = "home_automation"
-		log.Println("ℹ️ POSTGRES_DB not set, using default: home_automation")
-	}
-
-	// Build connection string - NEVER log the password
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-
-	// Log connection details WITHOUT password
-	log.Printf("ℹ️  Connecting to database: host=%s port=%s user=%s dbname=%s", dbHost, dbPort, dbUser, dbName)
-
+	// Connect to database using api-core with automatic retry
 	var err error
-	app.DB, err = sql.Open("postgres", connStr)
+	app.DB, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Database connection failed:", err)
 	}
 	defer app.DB.Close()
 
@@ -113,46 +84,6 @@ func main() {
 	app.DB.SetMaxOpenConns(25)
 	app.DB.SetMaxIdleConns(5)
 	app.DB.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection with RANDOM jitter
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	// Seed random number generator for jitter (prevents thundering herd)
-	rand.Seed(time.Now().UnixNano())
-
-	log.Println("🔄 Attempting database connection with exponential backoff and random jitter...")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = app.DB.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add RANDOM jitter to prevent thundering herd across multiple instances
-		// Use rand.Float64() for true randomness - NOT deterministic calculations
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(rand.Float64() * jitterRange)
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt (base: %v + random jitter: %v)", actualDelay, delay, jitter)
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
 
 	log.Println("🎉 Database connection pool established successfully!")
 

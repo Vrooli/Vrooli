@@ -1,7 +1,9 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"embed"
 	"encoding/json"
@@ -9,8 +11,6 @@ import (
 	"io"
 	"io/fs"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -857,11 +857,6 @@ func main() {
 		}
 	}
 
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL == "" {
-		log.Fatalf("❌ POSTGRES_URL environment variable is required")
-	}
-
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" {
 		n8nURL = "http://localhost:5678"
@@ -877,10 +872,12 @@ func main() {
 		dataDir = "./data"
 	}
 
-	// Connect to database
-	db, err := sql.Open("postgres", dbURL)
+	// Connect to database using api-core with automatic retry
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatal("Database connection failed:", err)
 	}
 	defer db.Close()
 
@@ -888,42 +885,6 @@ func main() {
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
 
 	// Initialize service
 	service := NewBookTalkService(db, n8nURL, qdrantURL, dataDir)
@@ -954,7 +915,6 @@ func main() {
 
 	// Start server
 	log.Printf("Starting No Spoilers Book Talk API on port %s", port)
-	log.Printf("  Database: %s", dbURL)
 	log.Printf("  n8n: %s", n8nURL)
 	log.Printf("  Qdrant: %s", qdrantURL)
 	log.Printf("  Data directory: %s", dataDir)

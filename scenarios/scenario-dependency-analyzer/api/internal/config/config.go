@@ -1,16 +1,16 @@
 package config
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"os"
 	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // Config captures runtime configuration resolved from the environment.
@@ -59,54 +59,19 @@ func Load() Config {
 	}
 }
 
-// InitDatabase opens a PostgreSQL connection with retry/backoff configured.
+// InitDatabase opens a PostgreSQL connection with automatic retry and backoff.
 func InitDatabase(dbURL string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database connection: %w", err)
-	}
-
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
 	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Println("📊 Database URL configured")
 
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(rand.Float64() * jitterRange)
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:          "postgres",
+		DSN:             dbURL,
+		MaxOpenConns:    25,
+		MaxIdleConns:    5,
+		ConnMaxLifetime: 5 * time.Minute,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
 	log.Println("🎉 Database connection pool established successfully!")

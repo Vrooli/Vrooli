@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 
 	"knowledge-observatory/internal/adapters/embedder"
 	"knowledge-observatory/internal/adapters/jobstore"
@@ -63,14 +64,8 @@ type Server struct {
 
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
-	dbURL, err := resolveDatabaseURL()
-	if err != nil {
-		return nil, err
-	}
-
 	cfg := &Config{
 		Port:                   requireEnv("API_PORT"),
-		DatabaseURL:            dbURL,
 		QdrantURL:              strings.TrimSpace(os.Getenv("QDRANT_URL")),
 		QdrantAPIKey:           strings.TrimSpace(os.Getenv("QDRANT_API_KEY")),
 		OllamaURL:              strings.TrimSpace(os.Getenv("OLLAMA_URL")),
@@ -79,13 +74,13 @@ func NewServer() (*Server, error) {
 		ResourceCommandTimeout: 5 * time.Second,
 	}
 
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	srv := &Server{

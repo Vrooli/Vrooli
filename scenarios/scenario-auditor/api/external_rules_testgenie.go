@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/discovery"
 
 	rulespkg "scenario-auditor/rules"
 )
@@ -98,15 +99,12 @@ func (p *testGenieProvider) Run(ctx context.Context, scenarioName string, ruleID
 		requested[id] = struct{}{}
 	}
 
-	port, err := resolveScenarioPortViaCLI(ctx, "test-genie", "API_PORT")
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "test-genie")
 	if err != nil {
 		return nil, err
 	}
-	if port <= 0 {
-		return nil, fmt.Errorf("test-genie API port not found")
-	}
 
-	endpoint := fmt.Sprintf("http://localhost:%d/api/v1/quality/scenario/%s/structure", port, url.PathEscape(cleaned))
+	endpoint := fmt.Sprintf("%s/api/v1/quality/scenario/%s/structure", baseURL, url.PathEscape(cleaned))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err

@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // Config holds application configuration
@@ -48,22 +49,16 @@ func NewServer() (*Server, error) {
 		APIToken:    getEnv("API_TOKEN", "crypto-tools-api-key-2024"),
 	}
 
-	// Connect to database
-	var db *sql.DB
-	var err error
-	
-	// Try to connect to database, but allow running without it for testing
-	if config.DatabaseURL != "" && config.DatabaseURL != "mock" {
-		db, err = sql.Open("postgres", config.DatabaseURL)
-		if err != nil {
-			log.Printf("Warning: Database connection failed: %v", err)
-			log.Println("Running in mock mode without database")
-			db = nil
-		} else if err := db.Ping(); err != nil {
-			log.Printf("Warning: Database ping failed: %v", err)
-			log.Println("Running in mock mode without database")
-			db = nil
-		}
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	// Continue without database if not available.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
+	if err != nil {
+		log.Printf("Warning: Database connection failed: %v", err)
+		log.Println("Running in mock mode without database")
+		db = nil
 	}
 
 	server := &Server{

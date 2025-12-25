@@ -1,15 +1,16 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
-	"math/rand"
 	"time"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // Database represents the database connection and operations
@@ -38,60 +39,20 @@ func (d *Database) Exec(query string, args ...interface{}) (sql.Result, error) {
 	return d.db.Exec(query, args...)
 }
 
-// NewDatabase creates a new database connection with exponential backoff
+// NewDatabase creates a new database connection with automatic retry and backoff.
+// Reads POSTGRES_* environment variables set by the lifecycle system.
 func NewDatabase(cfg *Config, logger *Logger) (*Database, error) {
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %v", err)
-	}
-
-	// Configure connection pool
-	db.SetMaxOpenConns(maxDBConnections)
-	db.SetMaxIdleConns(maxIdleConnections)
-	db.SetConnMaxLifetime(connMaxLifetime)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
 	logger.Println("🔄 Attempting database connection with exponential backoff...")
 
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			logger.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		logger.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		logger.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			logger.Printf("📈 Retry progress:")
-			logger.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			logger.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			logger.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("database connection failed after %d attempts: %v", maxRetries, pingErr)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:          "postgres",
+		DSN:             cfg.DatabaseURL, // Use explicit DSN if provided
+		MaxOpenConns:    maxDBConnections,
+		MaxIdleConns:    maxIdleConnections,
+		ConnMaxLifetime: connMaxLifetime,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("database connection failed: %v", err)
 	}
 
 	logger.Println("🎉 Database connection pool established successfully!")
@@ -143,7 +104,6 @@ func (d *Database) GetChatbot(chatbotID string) (*Chatbot, error) {
 		&chatbot.KnowledgeBase, &modelConfigJSON, &widgetConfigJSON, &escalationConfigJSON,
 		&chatbot.IsActive, &chatbot.CreatedAt, &chatbot.UpdatedAt,
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +141,6 @@ func (d *Database) ListChatbots(activeOnly bool) ([]Chatbot, error) {
 		err := rows.Scan(&chatbot.ID, &chatbot.Name, &chatbot.Description, &chatbot.Personality,
 			&chatbot.KnowledgeBase, &modelConfigJSON, &widgetConfigJSON, &escalationConfigJSON,
 			&chatbot.IsActive, &chatbot.CreatedAt, &chatbot.UpdatedAt)
-
 		if err != nil {
 			d.logger.Printf("Failed to scan chatbot: %v", err)
 			continue
@@ -295,7 +254,6 @@ func (d *Database) GetAnalyticsData(chatbotID string, startDate time.Time) (*Ana
 		&analytics.LeadsCaptured,
 		&avgLength,
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -389,7 +347,6 @@ func (d *Database) GetConversionFunnel(chatbotID string, startDate time.Time) *C
 		&funnel.QualifiedLeads,
 		&funnel.CapturedLeads,
 	)
-
 	if err != nil {
 		d.logger.Printf("Failed to get conversion funnel: %v", err)
 		return nil
@@ -685,7 +642,6 @@ func (d *Database) GetPendingEscalations(chatbotID string) ([]Escalation, error)
 			&escalation.Reason, &escalation.ConfidenceScore, &escalation.EscalationType,
 			&escalation.Status, &escalation.EscalatedAt, &resolvedAt, &resolutionNotes,
 			&webhookJSON, &escalation.EmailSent)
-
 		if err != nil {
 			d.logger.Printf("Failed to scan escalation: %v", err)
 			continue
