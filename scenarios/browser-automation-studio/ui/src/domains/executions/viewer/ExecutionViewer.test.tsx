@@ -94,6 +94,14 @@ vi.mock('../store', () => ({
   useExecutionStore: vi.fn((selector) => {
     return selector ? selector(mockExecutionStoreState) : mockExecutionStoreState;
   }),
+  ARTIFACT_PROFILE_DESCRIPTIONS: {
+    full: { label: 'Full', description: 'Collect all artifacts (screenshots, DOM, console, network, etc.)' },
+    standard: { label: 'Standard', description: 'Screenshots, console logs, extracted data, and assertions' },
+    minimal: { label: 'Minimal', description: 'Screenshots and assertions only (fastest)' },
+    debug: { label: 'Debug', description: 'All artifacts with larger size limits for troubleshooting' },
+    none: { label: 'None', description: 'No artifacts collected (execution status only)' },
+    custom: { label: 'Custom', description: 'Customize individual artifact settings' },
+  },
 }));
 
 // Import component after mocks are set up

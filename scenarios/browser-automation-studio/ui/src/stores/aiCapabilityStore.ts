@@ -6,9 +6,12 @@ import { logger } from '../utils/logger';
 
 export interface AICapability {
   available: boolean;
-  reason: 'has_credits' | 'has_api_key' | 'disabled' | 'no_credits' | 'checking' | 'error';
+  reason: 'has_credits' | 'has_api_key' | 'disabled' | 'no_credits' | 'no_tier_access' | 'checking' | 'error';
   creditsRemaining?: number;
+  creditsLimit?: number;
+  creditsUsed?: number;
   apiKeyConfigured?: boolean;
+  resetDate?: string;
   lastChecked?: Date;
 }
 
@@ -77,18 +80,14 @@ export const useAICapabilityStore = create<AICapabilityStore>((set, get) => ({
     set({ isChecking: true });
 
     try {
-      // First check local API key settings
+      // First check local OpenRouter API key
       let hasLocalApiKey = false;
       try {
         const { useSettingsStore } = await import('./settingsStore');
         const settings = useSettingsStore.getState();
-        hasLocalApiKey = Boolean(
-          settings.apiKeys.openaiApiKey ||
-            settings.apiKeys.anthropicApiKey ||
-            settings.apiKeys.customApiEndpoint,
-        );
+        hasLocalApiKey = Boolean(settings.apiKeys.openrouterApiKey);
       } catch {
-        // settings store unavailable; fall through to server-side checks
+        // settings store unavailable; fall through to entitlement checks
       }
 
       if (hasLocalApiKey) {
@@ -104,7 +103,107 @@ export const useAICapabilityStore = create<AICapabilityStore>((set, get) => ({
         return;
       }
 
-      // Check server-side health/AI capability endpoint if declared
+      // Check entitlement-based AI credits
+      try {
+        const { useEntitlementStore } = await import('./entitlementStore');
+        const entitlementState = useEntitlementStore.getState();
+
+        // Fetch fresh status if needed
+        if (!entitlementState.status) {
+          await entitlementState.fetchStatus();
+        }
+
+        const status = useEntitlementStore.getState().status;
+
+        if (status) {
+          // If entitlements are disabled, AI is available
+          if (!status.entitlements_enabled) {
+            set({
+              capability: {
+                available: true,
+                reason: 'disabled',
+                lastChecked: new Date(),
+              },
+              isChecking: false,
+            });
+            return;
+          }
+
+          // Check if tier has AI access (limit != 0)
+          const aiCreditsLimit = status.ai_credits_limit ?? 0;
+          const aiCreditsRemaining = status.ai_credits_remaining ?? 0;
+          const aiCreditsUsed = status.ai_credits_used ?? 0;
+
+          if (aiCreditsLimit === 0) {
+            // No AI access for this tier
+            set({
+              capability: {
+                available: false,
+                reason: 'no_tier_access',
+                creditsLimit: 0,
+                creditsRemaining: 0,
+                creditsUsed: 0,
+                lastChecked: new Date(),
+              },
+              isChecking: false,
+            });
+            return;
+          }
+
+          // Unlimited credits
+          if (aiCreditsLimit < 0) {
+            set({
+              capability: {
+                available: true,
+                reason: 'has_credits',
+                creditsLimit: -1,
+                creditsRemaining: -1,
+                creditsUsed: aiCreditsUsed,
+                resetDate: status.ai_reset_date,
+                lastChecked: new Date(),
+              },
+              isChecking: false,
+            });
+            return;
+          }
+
+          // Check if user has remaining credits
+          if (aiCreditsRemaining > 0) {
+            set({
+              capability: {
+                available: true,
+                reason: 'has_credits',
+                creditsLimit: aiCreditsLimit,
+                creditsRemaining: aiCreditsRemaining,
+                creditsUsed: aiCreditsUsed,
+                resetDate: status.ai_reset_date,
+                lastChecked: new Date(),
+              },
+              isChecking: false,
+            });
+            return;
+          }
+
+          // No credits remaining
+          set({
+            capability: {
+              available: false,
+              reason: 'no_credits',
+              creditsLimit: aiCreditsLimit,
+              creditsRemaining: 0,
+              creditsUsed: aiCreditsUsed,
+              resetDate: status.ai_reset_date,
+              lastChecked: new Date(),
+            },
+            isChecking: false,
+          });
+          return;
+        }
+      } catch {
+        // Entitlement store unavailable; fall through to server-side checks
+      }
+
+      // Check server-side health/AI capability endpoint as fallback
       try {
         const statusPath = getPreferredAiStatusPath();
         if (statusPath) {

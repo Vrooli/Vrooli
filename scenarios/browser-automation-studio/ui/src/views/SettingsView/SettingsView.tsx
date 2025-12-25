@@ -10,7 +10,7 @@ import {
   Bookmark,
   Monitor,
   Wrench,
-  Key,
+  Sparkles,
   Database,
   Clock,
   Image as ImageIcon,
@@ -29,7 +29,7 @@ import {
   DisplaySection,
   ReplaySection,
   WorkflowSection,
-  ApiKeysSection,
+  AISettingsSection,
   DataSection,
   createDemoFrames,
 } from './sections';
@@ -44,7 +44,7 @@ const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; icon: React.ReactNo
   { id: 'replay', label: 'Replay', icon: <Film size={18} />, description: 'Customize replay appearance' },
   { id: 'branding', label: 'Branding', icon: <ImageIcon size={18} />, description: 'Logos and backgrounds' },
   { id: 'workflow', label: 'Workflow Defaults', icon: <Wrench size={18} />, description: 'Default workflow settings' },
-  { id: 'apikeys', label: 'API Keys', icon: <Key size={18} />, description: 'Manage API integrations' },
+  { id: 'apikeys', label: 'AI', icon: <Sparkles size={18} />, description: 'Manage AI settings & credits' },
   { id: 'sessions', label: 'Sessions', icon: <Clock size={18} />, description: 'Persist Playwright sessions' },
   { id: 'schedules', label: 'Schedules', icon: <CalendarClock size={18} />, description: 'Automate workflow runs' },
   { id: 'data', label: 'Data', icon: <Database size={18} />, description: 'Manage and clear data' },
@@ -472,7 +472,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
           )}
           {activeTab === 'branding' && <BrandingTab />}
           {activeTab === 'workflow' && <WorkflowSection />}
-          {activeTab === 'apikeys' && <ApiKeysSection />}
+          {activeTab === 'apikeys' && <AISettingsSection />}
           {activeTab === 'sessions' && <SessionProfilesTab />}
           {activeTab === 'schedules' && <SchedulesTab />}
           {activeTab === 'data' && <DataSection />}

@@ -375,6 +375,27 @@ func (s *Service) MinTierWithoutWatermark() Tier {
 	return ""
 }
 
+// GetAICreditsLimit returns the AI credits limit for a tier.
+// Returns -1 for unlimited, 0 for no access.
+func (s *Service) GetAICreditsLimit(tier Tier) int {
+	if limit, ok := s.cfg.AICreditsLimits[string(tier)]; ok {
+		return limit
+	}
+	// Default to 0 (no access) if tier not found
+	return 0
+}
+
+// MinTierForAICredits returns the lowest tier that grants AI credits access.
+func (s *Service) MinTierForAICredits() Tier {
+	for _, tier := range []Tier{TierFree, TierSolo, TierPro, TierStudio, TierBusiness} {
+		limit := s.GetAICreditsLimit(tier)
+		if limit != 0 { // Either has credits or unlimited
+			return tier
+		}
+	}
+	return ""
+}
+
 func minTierFromList(tiers []string) Tier {
 	var selected Tier
 	for _, entry := range tiers {

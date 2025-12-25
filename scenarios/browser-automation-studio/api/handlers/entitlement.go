@@ -12,9 +12,10 @@ import (
 
 // EntitlementHandler provides HTTP handlers for entitlement operations.
 type EntitlementHandler struct {
-	service      *entitlement.Service
-	usageTracker *entitlement.UsageTracker
-	settingsRepo UserSettingsRepository
+	service          *entitlement.Service
+	usageTracker     *entitlement.UsageTracker
+	aiCreditsTracker *entitlement.AICreditsTracker
+	settingsRepo     UserSettingsRepository
 }
 
 // UserSettingsRepository defines the interface for user settings storage.
@@ -27,31 +28,40 @@ type UserSettingsRepository interface {
 func NewEntitlementHandler(
 	service *entitlement.Service,
 	usageTracker *entitlement.UsageTracker,
+	aiCreditsTracker *entitlement.AICreditsTracker,
 	settingsRepo UserSettingsRepository,
 ) *EntitlementHandler {
 	return &EntitlementHandler{
-		service:      service,
-		usageTracker: usageTracker,
-		settingsRepo: settingsRepo,
+		service:          service,
+		usageTracker:     usageTracker,
+		aiCreditsTracker: aiCreditsTracker,
+		settingsRepo:     settingsRepo,
 	}
 }
 
 // EntitlementStatusResponse represents the entitlement status response.
 type EntitlementStatusResponse struct {
-	UserIdentity        string   `json:"user_identity"`
-	Status              string   `json:"status"`
-	Tier                string   `json:"tier"`
-	IsActive            bool     `json:"is_active"`
-	Features            []string `json:"features,omitempty"`
+	UserIdentity        string                 `json:"user_identity"`
+	Status              string                 `json:"status"`
+	Tier                string                 `json:"tier"`
+	IsActive            bool                   `json:"is_active"`
+	Features            []string               `json:"features,omitempty"`
 	FeatureAccess       []FeatureAccessSummary `json:"feature_access,omitempty"`
-	MonthlyLimit        int      `json:"monthly_limit"` // -1 for unlimited
-	MonthlyUsed         int      `json:"monthly_used"`
-	MonthlyRemaining    int      `json:"monthly_remaining"` // -1 for unlimited
-	RequiresWatermark   bool     `json:"requires_watermark"`
-	CanUseAI            bool     `json:"can_use_ai"`
-	CanUseRecording     bool     `json:"can_use_recording"`
-	EntitlementsEnabled bool     `json:"entitlements_enabled"`
-	OverrideTier        string   `json:"override_tier,omitempty"`
+	MonthlyLimit        int                    `json:"monthly_limit"`     // -1 for unlimited
+	MonthlyUsed         int                    `json:"monthly_used"`
+	MonthlyRemaining    int                    `json:"monthly_remaining"` // -1 for unlimited
+	RequiresWatermark   bool                   `json:"requires_watermark"`
+	CanUseAI            bool                   `json:"can_use_ai"`
+	CanUseRecording     bool                   `json:"can_use_recording"`
+	EntitlementsEnabled bool                   `json:"entitlements_enabled"`
+	OverrideTier        string                 `json:"override_tier,omitempty"`
+
+	// AI Credits
+	AICreditsUsed      int    `json:"ai_credits_used"`
+	AICreditsLimit     int    `json:"ai_credits_limit"`     // -1 for unlimited
+	AICreditsRemaining int    `json:"ai_credits_remaining"` // -1 for unlimited
+	AIRequestsCount    int    `json:"ai_requests_count"`
+	AIResetDate        string `json:"ai_reset_date"` // ISO date
 }
 
 // FeatureAccessSummary describes a subscription feature and access state.
@@ -138,6 +148,25 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 		}
 	}
 
+	// Get AI credits usage
+	aiCreditsLimit := h.service.GetAICreditsLimit(ent.Tier)
+	aiCreditsUsed := 0
+	aiRequestsCount := 0
+	aiResetDate := ""
+	if h.aiCreditsTracker != nil {
+		if aiUsage, err := h.aiCreditsTracker.GetAICreditsUsage(ctx, userIdentity, aiCreditsLimit); err == nil {
+			aiCreditsUsed = aiUsage.CreditsUsed
+			aiRequestsCount = aiUsage.RequestsCount
+			aiResetDate = aiUsage.ResetDate.Format("2006-01-02")
+		}
+	}
+	aiCreditsRemaining := aiCreditsLimit - aiCreditsUsed
+	if aiCreditsLimit < 0 {
+		aiCreditsRemaining = -1 // Unlimited
+	} else if aiCreditsRemaining < 0 {
+		aiCreditsRemaining = 0
+	}
+
 	response := EntitlementStatusResponse{
 		UserIdentity:        userIdentity,
 		Status:              string(ent.Status),
@@ -152,6 +181,11 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 		CanUseAI:            h.resolveCanUseAI(ctx, userIdentity, ent, overrideActive),
 		CanUseRecording:     h.resolveCanUseRecording(ctx, userIdentity, ent, overrideActive),
 		EntitlementsEnabled: h.service.IsEnabled() || overrideActive,
+		AICreditsUsed:       aiCreditsUsed,
+		AICreditsLimit:      aiCreditsLimit,
+		AICreditsRemaining:  aiCreditsRemaining,
+		AIRequestsCount:     aiRequestsCount,
+		AIResetDate:         aiResetDate,
 	}
 	if overrideActive {
 		response.OverrideTier = string(overrideTier)

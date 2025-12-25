@@ -391,6 +391,48 @@ INSERT INTO workflow_templates (name, category, description, flow_definition, ic
      'database', ARRAY['scraping', 'data', 'extraction'])
 ON CONFLICT (name) DO NOTHING;
 
+-- AI Credits Usage Tracking
+-- Tracks AI credit usage per user per billing month for tier limit enforcement
+CREATE TABLE IF NOT EXISTS ai_credits_usage (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    billing_month VARCHAR(7) NOT NULL,  -- Format: YYYY-MM
+    credits_used INTEGER NOT NULL DEFAULT 0,
+    requests_count INTEGER NOT NULL DEFAULT 0,
+    last_request_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_ai_user_month UNIQUE (user_identity, billing_month)
+);
+
+-- Create indexes for AI credits usage lookups
+CREATE INDEX IF NOT EXISTS idx_ai_credits_user ON ai_credits_usage(user_identity);
+CREATE INDEX IF NOT EXISTS idx_ai_credits_month ON ai_credits_usage(billing_month);
+
+-- AI Request Log (for detailed tracking and debugging)
+CREATE TABLE IF NOT EXISTS ai_request_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    request_type VARCHAR(50) NOT NULL,  -- 'workflow_generate', 'element_analyze', etc.
+    model VARCHAR(100),
+    prompt_tokens INTEGER,
+    completion_tokens INTEGER,
+    credits_charged INTEGER NOT NULL DEFAULT 1,
+    success BOOLEAN NOT NULL DEFAULT true,
+    error_message TEXT,
+    duration_ms INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for AI request log
+CREATE INDEX IF NOT EXISTS idx_ai_log_user ON ai_request_log(user_identity);
+CREATE INDEX IF NOT EXISTS idx_ai_log_created ON ai_request_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_log_type ON ai_request_log(request_type);
+
+-- Trigger to update updated_at for ai_credits_usage
+CREATE TRIGGER update_ai_credits_usage_updated_at BEFORE UPDATE ON ai_credits_usage
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Grant permissions (adjust as needed for your setup)
 -- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO your_app_user;
 -- GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO your_app_user;

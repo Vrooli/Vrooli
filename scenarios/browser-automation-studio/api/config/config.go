@@ -521,6 +521,12 @@ type EntitlementConfig struct {
 	// -1 means unlimited. These can be overridden via BAS_ENTITLEMENT_TIER_LIMITS_JSON.
 	TierLimits map[string]int
 
+	// AICreditsLimits defines the AI credits limit per tier per calendar month.
+	// Parsed from JSON: {"free": 0, "solo": 50, "pro": 500, "studio": 2000, "business": -1}
+	// -1 means unlimited. 0 means no access.
+	// Env: BAS_ENTITLEMENT_AI_CREDITS_LIMITS_JSON
+	AICreditsLimits map[string]int
+
 	// WatermarkTiers lists tiers that should have watermarks applied to exports.
 	// Env: BAS_ENTITLEMENT_WATERMARK_TIERS (default: "free,solo")
 	WatermarkTiers []string
@@ -690,6 +696,7 @@ func loadFromEnv() *Config {
 			OfflineGracePeriod: parseDurationMs("BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS", 86400000),
 			DefaultTier:        parseString("BAS_ENTITLEMENT_DEFAULT_TIER", "free"),
 			TierLimits:         parseTierLimits("BAS_ENTITLEMENT_TIER_LIMITS_JSON"),
+			AICreditsLimits:    parseAICreditsLimits("BAS_ENTITLEMENT_AI_CREDITS_LIMITS_JSON"),
 			WatermarkTiers:     parseStringList("BAS_ENTITLEMENT_WATERMARK_TIERS", "free,solo"),
 			AITiers:            parseStringList("BAS_ENTITLEMENT_AI_TIERS", "pro,studio,business"),
 			RecordingTiers:     parseStringList("BAS_ENTITLEMENT_RECORDING_TIERS", "solo,pro,studio,business"),
@@ -978,6 +985,53 @@ func parseTierLimits(envVar string) map[string]int {
 	result := make(map[string]int)
 	// Simple JSON parsing without importing encoding/json to keep config lightweight
 	// Format: {"key": value, "key2": value2}
+	value = strings.Trim(value, "{}")
+	if value == "" {
+		return defaults
+	}
+
+	pairs := strings.Split(value, ",")
+	for _, pair := range pairs {
+		parts := strings.SplitN(pair, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.Trim(strings.TrimSpace(parts[0]), "\"'")
+		valStr := strings.TrimSpace(parts[1])
+		if val, err := strconv.Atoi(valStr); err == nil {
+			result[key] = val
+		}
+	}
+
+	// Merge with defaults (defaults take precedence for missing keys)
+	for k, v := range defaults {
+		if _, exists := result[k]; !exists {
+			result[k] = v
+		}
+	}
+
+	return result
+}
+
+// parseAICreditsLimits parses AI credits limits from JSON or returns defaults.
+// JSON format: {"free": 0, "solo": 50, "pro": 500, "studio": 2000, "business": -1}
+// -1 means unlimited. 0 means no access.
+func parseAICreditsLimits(envVar string) map[string]int {
+	defaults := map[string]int{
+		"free":     0,    // No AI access
+		"solo":     50,   // Basic usage
+		"pro":      500,  // Power users
+		"studio":   2000, // Teams
+		"business": -1,   // Unlimited
+	}
+
+	value := strings.TrimSpace(os.Getenv(envVar))
+	if value == "" {
+		return defaults
+	}
+
+	// Try to parse as JSON
+	result := make(map[string]int)
 	value = strings.Trim(value, "{}")
 	if value == "" {
 		return defaults

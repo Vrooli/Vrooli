@@ -1,6 +1,7 @@
 import type { Node, Edge } from 'reactflow';
 import type { ExecutionViewportSettings } from '../types';
 import type { ActionDefinition } from '../../../utils/actionBuilder';
+import { buildActionDefinition } from '../../../utils/actionBuilder';
 import { isPlainObject } from './viewport';
 
 // ============================================================================
@@ -206,12 +207,16 @@ export const sanitizeNodesForPersistence = (nodes: Node[] | undefined | null): u
       };
     }
 
-    // V2 Native: Preserve action field as-is (it's the source of truth)
-    // The action is already present from normalization or component updates
-    // No rebuild needed - this eliminates the type/data -> action conversion on every save
+    // V2 Compatibility: Ensure action field exists for all nodes
+    // If an action already exists, preserve it as the source of truth
+    // If no action exists, generate one from type/data for V2 compatibility
     const existingAction = (nodeRecord as Node & { action?: ActionDefinition }).action;
     if (existingAction && typeof existingAction === 'object') {
       cleaned.action = JSON.parse(JSON.stringify(existingAction));
+    } else if (nodeRecord.type) {
+      // Generate V2 action from V1 type/data for backwards compatibility
+      const nodeData = (cleaned.data as Record<string, unknown>) || {};
+      cleaned.action = buildActionDefinition(nodeRecord.type, nodeData);
     }
 
     return JSON.parse(JSON.stringify(cleaned));

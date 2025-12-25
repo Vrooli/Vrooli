@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { Execution } from '../store';
+import type { Execution, ArtifactProfile } from '../store';
 
 export type MockExecutionStoreState = {
   currentExecution: Execution | null;
@@ -7,6 +7,7 @@ export type MockExecutionStoreState = {
   executions: Execution[];
   socket: WebSocket | null;
   websocketStatus: 'idle' | 'connecting' | 'connected' | 'error';
+  artifactProfile: ArtifactProfile;
   connectWebSocket: ReturnType<typeof vi.fn>;
   closeViewer: ReturnType<typeof vi.fn>;
   openViewer: ReturnType<typeof vi.fn>;
@@ -21,6 +22,7 @@ export type MockExecutionStoreState = {
   updateProgress: ReturnType<typeof vi.fn>;
   recordHeartbeat: ReturnType<typeof vi.fn>;
   clearCurrentExecution: ReturnType<typeof vi.fn>;
+  setArtifactProfile: ReturnType<typeof vi.fn>;
 };
 
 export const createMockExecutionStoreState = (): MockExecutionStoreState => ({
@@ -29,6 +31,7 @@ export const createMockExecutionStoreState = (): MockExecutionStoreState => ({
   executions: [],
   socket: null,
   websocketStatus: 'idle',
+  artifactProfile: 'standard',
   connectWebSocket: vi.fn(),
   closeViewer: vi.fn(),
   openViewer: vi.fn(),
@@ -43,6 +46,7 @@ export const createMockExecutionStoreState = (): MockExecutionStoreState => ({
   updateProgress: vi.fn(),
   recordHeartbeat: vi.fn(),
   clearCurrentExecution: vi.fn(),
+  setArtifactProfile: vi.fn(),
 });
 
 export const resetMockExecutionStoreState = (state: MockExecutionStoreState) => {
@@ -51,6 +55,7 @@ export const resetMockExecutionStoreState = (state: MockExecutionStoreState) => 
   state.executions = [];
   state.socket = null;
   state.websocketStatus = 'idle';
+  state.artifactProfile = 'standard';
   state.connectWebSocket = vi.fn();
   state.closeViewer = vi.fn();
   state.openViewer = vi.fn();
@@ -65,4 +70,5 @@ export const resetMockExecutionStoreState = (state: MockExecutionStoreState) => 
   state.updateProgress = vi.fn();
   state.recordHeartbeat = vi.fn();
   state.clearCurrentExecution = vi.fn();
+  state.setArtifactProfile = vi.fn();
 };

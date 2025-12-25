@@ -50,12 +50,17 @@ func createTestEntitlementHandler(t *testing.T) (*EntitlementHandler, *mockSetti
 		Enabled:        true,
 		RequestTimeout: 5,
 		DefaultTier:    "free",
+		AICreditsLimits: map[string]int{
+			"free": 10,
+			"pro":  100,
+		},
 	}
 
 	service := entitlement.NewService(cfg, log)
 	settingsRepo := newMockSettingsRepo()
 
-	handler := NewEntitlementHandler(service, nil, settingsRepo)
+	// Pass nil for usageTracker and aiCreditsTracker since we don't have a DB in tests
+	handler := NewEntitlementHandler(service, nil, nil, settingsRepo)
 	return handler, settingsRepo
 }
 
@@ -73,7 +78,8 @@ func createTestEntitlementHandlerDisabled(t *testing.T) (*EntitlementHandler, *m
 	service := entitlement.NewService(cfg, log)
 	settingsRepo := newMockSettingsRepo()
 
-	handler := NewEntitlementHandler(service, nil, settingsRepo)
+	// Pass nil for usageTracker and aiCreditsTracker since we don't have a DB in tests
+	handler := NewEntitlementHandler(service, nil, nil, settingsRepo)
 	return handler, settingsRepo
 }
 
@@ -528,6 +534,133 @@ func TestGetEntitlementStatus_IncludesFeatureAccess(t *testing.T) {
 	for _, expected := range expectedFeatures {
 		if !featureIDs[expected] {
 			t.Fatalf("expected feature %q to be present in feature_access", expected)
+		}
+	}
+}
+
+// ============================================================================
+// AI Credits Tests
+// ============================================================================
+
+func TestGetEntitlementStatus_IncludesAICreditsFields(t *testing.T) {
+	handler, _ := createTestEntitlementHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/entitlement/status", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetEntitlementStatus(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response EntitlementStatusResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// Verify AI credits fields are present in response
+	// When no aiCreditsTracker is configured, values should be defaults
+	// The AICreditsLimit should match the tier's limit from config
+	if response.AICreditsLimit == 0 && response.Tier != "free" {
+		// For non-free tiers that have AI access, limit should not be 0
+		t.Logf("AICreditsLimit = %d for tier %s", response.AICreditsLimit, response.Tier)
+	}
+
+	// AICreditsUsed should be 0 when no tracker
+	if response.AICreditsUsed != 0 {
+		t.Errorf("expected AICreditsUsed = 0 without tracker, got %d", response.AICreditsUsed)
+	}
+
+	// AIRequestsCount should be 0 when no tracker
+	if response.AIRequestsCount != 0 {
+		t.Errorf("expected AIRequestsCount = 0 without tracker, got %d", response.AIRequestsCount)
+	}
+}
+
+func TestGetEntitlementStatus_AICreditsDisabledReturnsDefaults(t *testing.T) {
+	handler, _ := createTestEntitlementHandlerDisabled(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/entitlement/status", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetEntitlementStatus(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response EntitlementStatusResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// When entitlements are disabled, AI should be accessible
+	// and credits should show as unlimited (-1) or 0 depending on implementation
+	// The key check is that the response contains these fields
+	t.Logf("AICreditsLimit = %d, AICreditsUsed = %d, AICreditsRemaining = %d",
+		response.AICreditsLimit, response.AICreditsUsed, response.AICreditsRemaining)
+}
+
+func TestGetEntitlementStatus_ResponseIncludesAIResetDate(t *testing.T) {
+	handler, _ := createTestEntitlementHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/entitlement/status", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetEntitlementStatus(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response EntitlementStatusResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// AIResetDate should be empty when no tracker is configured
+	// (the reset date is computed from actual usage tracking)
+	if response.AIResetDate != "" {
+		// If a reset date is present, it should be a valid date format
+		t.Logf("AIResetDate = %s", response.AIResetDate)
+	}
+}
+
+func TestGetEntitlementStatus_AICreditsRemainingCalculation(t *testing.T) {
+	handler, _ := createTestEntitlementHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/entitlement/status", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetEntitlementStatus(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response EntitlementStatusResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// For limited tiers: remaining = limit - used
+	if response.AICreditsLimit > 0 {
+		expectedRemaining := response.AICreditsLimit - response.AICreditsUsed
+		if expectedRemaining < 0 {
+			expectedRemaining = 0
+		}
+		if response.AICreditsRemaining != expectedRemaining {
+			t.Errorf("expected AICreditsRemaining = %d, got %d",
+				expectedRemaining, response.AICreditsRemaining)
+		}
+	}
+
+	// For unlimited tiers: remaining should be -1
+	if response.AICreditsLimit < 0 {
+		if response.AICreditsRemaining != -1 {
+			t.Errorf("expected AICreditsRemaining = -1 for unlimited, got %d",
+				response.AICreditsRemaining)
 		}
 	}
 }

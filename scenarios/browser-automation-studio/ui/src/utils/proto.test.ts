@@ -3,9 +3,10 @@ import { ExecutionSchema } from '@vrooli/proto-types/browser-automation-studio/v
 import { parseProtoStrict } from './proto';
 
 describe('parseProtoStrict', () => {
-  it('parses valid protojson payloads with proto field names', () => {
+  it('parses valid protojson payloads with json field names', () => {
+    // Note: Execution proto has json_name="id" for execution_id field
     const parsed = parseProtoStrict(ExecutionSchema, {
-      execution_id: 'exec-1',
+      id: 'exec-1',
       workflow_id: 'wf-1',
     });
     expect(parsed.executionId).toBe('exec-1');
@@ -15,7 +16,7 @@ describe('parseProtoStrict', () => {
   it('throws when unknown fields are present', () => {
     expect(() =>
       parseProtoStrict(ExecutionSchema, {
-        execution_id: 'exec-1',
+        id: 'exec-1',
         workflow_id: 'wf-1',
         extra_field: 'nope',
       }),

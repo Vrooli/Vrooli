@@ -199,10 +199,16 @@ export interface WorkflowDefaultSettings {
 }
 
 export interface ApiKeySettings {
-  browserlessApiKey: string;
-  openaiApiKey: string;
-  anthropicApiKey: string;
-  customApiEndpoint: string;
+  openrouterApiKey: string;
+}
+
+// Legacy interface for migration from old settings format
+interface LegacyApiKeySettings {
+  browserlessApiKey?: string;
+  openaiApiKey?: string;
+  anthropicApiKey?: string;
+  customApiEndpoint?: string;
+  openrouterApiKey?: string;
 }
 
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -504,10 +510,7 @@ const getDefaultWorkflowSettings = (): WorkflowDefaultSettings => ({
 });
 
 const getDefaultApiKeySettings = (): ApiKeySettings => ({
-  browserlessApiKey: '',
-  openaiApiKey: '',
-  anthropicApiKey: '',
-  customApiEndpoint: '',
+  openrouterApiKey: '',
 });
 
 const getDefaultDisplaySettings = (): DisplaySettings => ({
@@ -539,7 +542,18 @@ const loadApiKeySettings = (): ApiKeySettings => {
   try {
     const stored = safeGetItem(API_KEYS_KEY);
     if (!stored) return getDefaultApiKeySettings();
-    const parsed = JSON.parse(stored);
+    const parsed = JSON.parse(stored) as LegacyApiKeySettings;
+
+    // Migrate from old format: if old keys exist, extract openrouterApiKey only
+    if ('browserlessApiKey' in parsed || 'openaiApiKey' in parsed || 'anthropicApiKey' in parsed || 'customApiEndpoint' in parsed) {
+      const migrated: ApiKeySettings = {
+        openrouterApiKey: parsed.openrouterApiKey || '',
+      };
+      // Save the migrated format
+      saveApiKeySettings(migrated);
+      return migrated;
+    }
+
     return { ...getDefaultApiKeySettings(), ...parsed };
   } catch {
     return getDefaultApiKeySettings();

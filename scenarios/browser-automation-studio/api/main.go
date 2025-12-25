@@ -119,7 +119,8 @@ func main() {
 	// Initialize entitlement services
 	entitlementSvc := entitlement.NewService(cfg.Entitlement, log)
 	usageTracker := entitlement.NewUsageTracker(db.RawDB(), log)
-	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, usageTracker, repo)
+	aiCreditsTracker := entitlement.NewAICreditsTracker(db.RawDB(), log)
+	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, usageTracker, aiCreditsTracker, repo)
 	entitlementMiddleware := middleware.NewEntitlementMiddleware(entitlementSvc, log, cfg.Entitlement, repo)
 
 	if cfg.Entitlement.Enabled {
@@ -139,10 +140,14 @@ func main() {
 	// Resolve allowed origins before constructing handlers
 	corsCfg := middleware.GetCachedCorsConfig()
 
-	// Initialize handlers with UX metrics integration
+	// Initialize handlers with UX metrics integration and entitlement services
 	// The UX metrics collector wraps the event sink to passively capture interaction data
-	deps := handlers.InitDefaultDepsWithUXMetrics(repo, hub, log, uxRepo)
-	deps.EntitlementService = entitlementSvc // Enable tier-based feature gating in export handlers
+	// The entitlement services enable tier-based feature gating and AI credits tracking
+	deps := handlers.InitDefaultDepsWithOptions(repo, hub, log, handlers.DepsOptions{
+		UXMetricsRepo:      uxRepo,
+		EntitlementService: entitlementSvc,
+		AICreditsTracker:   aiCreditsTracker,
+	})
 	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins, deps)
 
 	// Initialize UX metrics service for API endpoints

@@ -27,6 +27,13 @@ export interface EntitlementStatusResponse {
   can_use_recording: boolean;
   entitlements_enabled: boolean;
   override_tier?: SubscriptionTier;
+
+  // AI Credits
+  ai_credits_used: number;
+  ai_credits_limit: number; // -1 for unlimited
+  ai_credits_remaining: number; // -1 for unlimited
+  ai_requests_count: number;
+  ai_reset_date: string; // ISO date
 }
 
 export interface FeatureAccessSummary {
@@ -346,6 +353,52 @@ export const useRequiresWatermark = (): boolean => {
 export const useCurrentTier = (): SubscriptionTier => {
   const status = useEntitlementStore((state) => state.status);
   return status?.tier ?? 'free';
+};
+
+// AI Credits hooks
+export interface AICreditsInfo {
+  used: number;
+  limit: number;
+  remaining: number;
+  requestsCount: number;
+  resetDate: string;
+  isUnlimited: boolean;
+  hasAccess: boolean;
+  percentUsed: number;
+}
+
+export const useAICredits = (): AICreditsInfo => {
+  const status = useEntitlementStore((state) => state.status);
+
+  if (!status?.entitlements_enabled) {
+    return {
+      used: 0,
+      limit: -1,
+      remaining: -1,
+      requestsCount: 0,
+      resetDate: '',
+      isUnlimited: true,
+      hasAccess: true,
+      percentUsed: 0,
+    };
+  }
+
+  const used = status.ai_credits_used ?? 0;
+  const limit = status.ai_credits_limit ?? 0;
+  const remaining = status.ai_credits_remaining ?? 0;
+  const isUnlimited = limit < 0;
+  const hasAccess = limit !== 0; // 0 means no access, -1 means unlimited, positive means limited
+
+  return {
+    used,
+    limit,
+    remaining,
+    requestsCount: status.ai_requests_count ?? 0,
+    resetDate: status.ai_reset_date ?? '',
+    isUnlimited,
+    hasAccess,
+    percentUsed: isUnlimited || limit <= 0 ? 0 : Math.min(100, Math.round((used / limit) * 100)),
+  };
 };
 
 export default useEntitlementStore;

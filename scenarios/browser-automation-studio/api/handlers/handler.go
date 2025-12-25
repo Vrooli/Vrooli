@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
+	"github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/performance"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
@@ -137,8 +138,9 @@ type HandlerDeps struct {
 	RecordingsRoot       string
 	ReplayRenderer       replayRenderer
 	SessionProfiles      *archiveingestion.SessionProfileStore
-	UXMetricsRepo        uxmetrics.Repository    // Optional: enables UX metrics collection
-	EntitlementService   *entitlement.Service    // Optional: enables tier-based feature gating
+	UXMetricsRepo        uxmetrics.Repository          // Optional: enables UX metrics collection
+	EntitlementService   *entitlement.Service          // Optional: enables tier-based feature gating
+	AICreditsTracker     *entitlement.AICreditsTracker // Optional: enables AI credits tracking
 }
 
 // InitDefaultDeps initializes the standard production dependencies.
@@ -148,10 +150,23 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 	return InitDefaultDepsWithUXMetrics(repo, wsHub, log, nil)
 }
 
+// DepsOptions holds optional dependencies for handler initialization.
+type DepsOptions struct {
+	UXMetricsRepo      uxmetrics.Repository
+	EntitlementService *entitlement.Service
+	AICreditsTracker   *entitlement.AICreditsTracker
+}
+
 // InitDefaultDepsWithUXMetrics initializes dependencies with optional UX metrics collection.
 // When uxRepo is provided, the UX metrics collector wraps the event sink to passively
 // capture interaction data during workflow executions.
 func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, uxRepo uxmetrics.Repository) HandlerDeps {
+	return InitDefaultDepsWithOptions(repo, wsHub, log, DepsOptions{UXMetricsRepo: uxRepo})
+}
+
+// InitDefaultDepsWithOptions initializes dependencies with all optional components.
+// This enables proper integration of entitlement services for AI credits tracking.
+func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, opts DepsOptions) HandlerDeps {
 	// Initialize recordings infrastructure
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
 	// Store screenshots alongside other execution artifacts under recordingsRoot.
@@ -170,14 +185,28 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 
 	// Configure event sink factory - optionally wrap with UX metrics collector
 	var eventSinkFactory func() autoevents.Sink
-	if uxRepo != nil {
+	if opts.UXMetricsRepo != nil {
 		// Create UX metrics collector that wraps the WebSocket sink
 		// The collector passively captures interaction data while delegating events to the hub
+		uxRepo := opts.UXMetricsRepo // Capture for closure
 		eventSinkFactory = func() autoevents.Sink {
 			baseSink := autoevents.NewWSHubSink(wsHub, log, eventBufferLimits())
 			return uxcollector.NewCollector(baseSink, uxRepo)
 		}
 		log.Debug("UX metrics collector enabled in event pipeline")
+	}
+
+	// Create AI client - wrap with credits tracking if entitlement services are available
+	var aiClient ai.AIClient = ai.NewOpenRouterClient(log)
+	if opts.EntitlementService != nil && opts.AICreditsTracker != nil {
+		aiClient = ai.NewCreditsClient(ai.CreditsClientOptions{
+			Inner:            aiClient,
+			EntitlementSvc:   opts.EntitlementService,
+			AICreditsTracker: opts.AICreditsTracker,
+			Logger:           log,
+			UserIdentityFn:   entitlement.UserIdentityFromContext,
+		})
+		log.Debug("AI credits tracking enabled")
 	}
 
 	// Create workflow service with dependencies
@@ -187,6 +216,7 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 		ArtifactRecorder:  autoRecorder,
 		EventSinkFactory:  eventSinkFactory,
 		ExecutionDataRoot: recordingsRoot,
+		AIClient:          aiClient,
 	})
 
 	// Ensure the demo project exists so file-first operations have a stable project root.
@@ -209,16 +239,18 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 
 	return HandlerDeps{
 		// WorkflowService implements both CatalogService and ExecutionService interfaces
-		CatalogService:    workflowSvc,
-		ExecutionService:  workflowSvc,
-		WorkflowValidator: validatorInstance,
-		Storage:           storageClient,
-		RecordingService:  recordingService,
-		RecordModeService: recordModeSvc,
-		RecordingsRoot:    recordingsRoot,
-		ReplayRenderer:    replay.NewReplayRenderer(log, recordingsRoot),
-		SessionProfiles:   sessionProfiles,
-		UXMetricsRepo:     uxRepo,
+		CatalogService:     workflowSvc,
+		ExecutionService:   workflowSvc,
+		WorkflowValidator:  validatorInstance,
+		Storage:            storageClient,
+		RecordingService:   recordingService,
+		RecordModeService:  recordModeSvc,
+		RecordingsRoot:     recordingsRoot,
+		ReplayRenderer:     replay.NewReplayRenderer(log, recordingsRoot),
+		SessionProfiles:    sessionProfiles,
+		UXMetricsRepo:      opts.UXMetricsRepo,
+		EntitlementService: opts.EntitlementService,
+		AICreditsTracker:   opts.AICreditsTracker,
 	}
 }
 
