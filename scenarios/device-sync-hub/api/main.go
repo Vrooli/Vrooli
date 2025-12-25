@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,6 +23,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
 )
@@ -2223,119 +2222,13 @@ func (s *Server) startCleanupRoutine() {
 // Helper functions
 
 func connectDB() (*sql.DB, error) {
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			return nil, fmt.Errorf("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
-	db, err := sql.Open("postgres", postgresURL)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open database connection: %v", err)
+		return nil, fmt.Errorf("database connection failed: %v", err)
 	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection with enhanced monitoring
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting PostgreSQL connection with exponential backoff...")
-	log.Printf("📊 Connection strategy: max %d attempts, delays from %v to %v", maxRetries, baseDelay, maxDelay)
-
-	var pingErr error
-	startTime := time.Now()
-
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		attemptStart := time.Now()
-		pingErr = db.Ping()
-		attemptDuration := time.Since(attemptStart)
-
-		if pingErr == nil {
-			totalDuration := time.Since(startTime)
-			log.Printf("✅ Database connected successfully!")
-			log.Printf("   📊 Connection established on attempt %d/%d", attempt+1, maxRetries)
-			log.Printf("   ⏱️  Total connection time: %v", totalDuration)
-			log.Printf("   🔗 Connection pool: %d max open, %d max idle", 25, 5)
-			break
-		}
-
-		// Calculate exponential backoff delay with capped growth
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		// Use true randomness (not deterministic) to prevent all instances reconnecting simultaneously
-		jitterRange := float64(delay) * 0.25 // 25% jitter range
-		randomJitter := rand.Float64() * jitterRange
-		actualDelay := delay + time.Duration(randomJitter)
-
-		// Determine error category for better diagnostics
-		errorCategory := "unknown"
-		if strings.Contains(pingErr.Error(), "connection refused") {
-			errorCategory = "connection_refused"
-		} else if strings.Contains(pingErr.Error(), "password") {
-			errorCategory = "authentication"
-		} else if strings.Contains(pingErr.Error(), "timeout") {
-			errorCategory = "timeout"
-		} else if strings.Contains(pingErr.Error(), "no such host") {
-			errorCategory = "dns_resolution"
-		}
-
-		log.Printf("⚠️  Connection attempt %d/%d failed", attempt+1, maxRetries)
-		log.Printf("   🔍 Error category: %s", errorCategory)
-		log.Printf("   📝 Error details: %v", pingErr)
-		log.Printf("   ⏱️  Attempt duration: %v", attemptDuration)
-		log.Printf("   ⏳ Waiting %v before retry (base: %v, jitter: %v)", actualDelay, delay, time.Duration(randomJitter))
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Connection retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total elapsed time: %v", time.Since(startTime))
-			log.Printf("   - Success rate: 0%% (will retry)")
-
-			// Suggest troubleshooting based on error category
-			switch errorCategory {
-			case "connection_refused":
-				log.Printf("   💡 Hint: Check if PostgreSQL is running and listening on the correct port")
-			case "authentication":
-				log.Printf("   💡 Hint: Verify database credentials in environment variables")
-			case "timeout":
-				log.Printf("   💡 Hint: Check network connectivity and firewall rules")
-			case "dns_resolution":
-				log.Printf("   💡 Hint: Verify database hostname is correct")
-			}
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		totalDuration := time.Since(startTime)
-		return nil, fmt.Errorf("❌ Database connection failed after %d attempts over %v: %v", maxRetries, totalDuration, pingErr)
-	}
-
 	log.Println("🎉 Database connection pool established successfully!")
-	log.Println("✨ Ready to handle sync operations")
 	return db, nil
 }
 

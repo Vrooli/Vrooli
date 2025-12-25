@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -78,87 +78,15 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Initialize database connection with exponential backoff
-	// ALL database configuration MUST come from environment - no defaults for security
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-
-	// Validate required environment variables
-	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-		log.Fatal("❌ Missing required database configuration. Please set: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-
-	// Open database connection (doesn't actually connect yet)
+	// Initialize database connection
 	var err error
-	db, err = sql.Open("postgres", connStr)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to open database connection:", err)
+		log.Fatal("Database connection failed:", err)
 	}
 	defer db.Close()
-
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting to connect to database with exponential backoff...")
-	log.Printf("📊 Connection details: host=%s port=%s db=%s user=%s", dbHost, dbPort, dbName, dbUser)
-
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		// Try to ping the database
-		err = db.Ping()
-		if err == nil {
-			log.Printf("✅ Successfully connected to database on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate delay with exponential backoff
-		// Formula: min(baseDelay * 2^attempt, maxDelay)
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd (random 0-25% additional delay)
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Attempt %d/%d failed: %v", attempt+1, maxRetries, err)
-		log.Printf("⏳ Waiting %v before retry (base: %v, jitter: %v)", actualDelay, delay, jitter)
-
-		// Show connection status details every 3 attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Connection retry statistics:")
-			log.Printf("   - Total time elapsed: %v", time.Duration(attempt)*baseDelay)
-			log.Printf("   - Next delay will be: %v", actualDelay)
-			log.Printf("   - Max delay cap: %v", maxDelay)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	// Final check - if still not connected, exit
-	if err != nil {
-		log.Printf("❌ Failed to connect to database after %d attempts", maxRetries)
-		log.Printf("💡 Troubleshooting tips:")
-		log.Printf("   1. Check if PostgreSQL is running: docker ps | grep postgres")
-		log.Printf("   2. Verify port %s is accessible: nc -zv localhost %s", dbPort, dbPort)
-		log.Printf("   3. Check credentials are correct")
-		log.Printf("   4. Ensure database '%s' exists", dbName)
-		log.Fatal("Exiting due to database connection failure: ", err)
-	}
 
 	log.Println("🎉 Database connection established and verified!")
 

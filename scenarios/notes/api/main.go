@@ -1,12 +1,13 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -173,95 +174,19 @@ func main() {
 
 	// Initialize structured logger
 	logger = NewLogger("main")
-	// Database configuration - support both POSTGRES_URL and individual components
-	// SmartNotes uses its own database named 'notes'
-	dbURL := os.Getenv("NOTES_DB_URL")
-	if dbURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		// Always use 'notes' database for SmartNotes scenario
-		dbName := "notes"
 
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" {
-			logger.Fatal("Database configuration missing. Provide NOTES_DB_URL or all required POSTGRES_* environment variables",
-				"required_vars", []string{"POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_USER", "POSTGRES_PASSWORD"})
-		}
-
-		// Build connection string without logging sensitive info
-		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-		logger.Info("Database connection string configured", "database", dbName, "host", dbHost, "port", dbPort)
-	}
-
+	// Connect to database with exponential backoff
+	// Note: SmartNotes uses the 'notes' database - ensure POSTGRES_DB=notes in environment
 	var err error
-	db, err = sql.Open("postgres", dbURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		logger.Fatal("Failed to open database connection", "error", err.Error())
+		logger.Fatal("Database connection failed", "error", err.Error())
 	}
 	defer db.Close()
 
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	logger.Info("Attempting database connection with exponential backoff", "max_retries", maxRetries, "base_delay", baseDelay.String())
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			logger.Info("Database connected successfully", "attempt", attempt+1, "max_retries", maxRetries)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add progressive jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
-		actualDelay := delay + jitter
-
-		logger.Warn("Database connection attempt failed",
-			"attempt", attempt+1,
-			"max_retries", maxRetries,
-			"error", pingErr.Error(),
-			"retry_delay", actualDelay.String())
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			logger.Info("Retry progress update",
-				"attempts_made", attempt+1,
-				"max_retries", maxRetries,
-				"current_delay", delay.String(),
-				"jitter", jitter.String())
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		logger.Fatal("Database connection failed after all retries",
-			"max_retries", maxRetries,
-			"error", pingErr.Error())
-	}
-
-	logger.Info("Database connection pool established successfully",
-		"max_open_conns", 25,
-		"max_idle_conns", 5,
-		"conn_max_lifetime", "5m")
+	logger.Info("Database connection pool established successfully")
 
 	// Setup routes
 	router := mux.NewRouter()

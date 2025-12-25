@@ -496,7 +496,24 @@ func (r *ExecGitRunner) ShowCommitDiff(ctx context.Context, repoDir string, comm
 		return nil, fmt.Errorf("commit hash is required")
 	}
 
-	args := []string{"-C", repoDir, "show", "--no-color", "--format=", commit}
+	// Use git diff with explicit parent reference instead of git show.
+	// git show produces "combined diffs" for merge commits which often show
+	// empty diffs for files that came cleanly from one parent.
+	// git diff <commit>^..<commit> explicitly shows changes from first parent.
+
+	// First, check if this commit has a parent
+	parentCheck := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "rev-parse", "--verify", "--quiet", commit+"^")
+	hasParent := parentCheck.Run() == nil
+
+	var args []string
+	if hasParent {
+		// Normal commit with parent - use git diff
+		args = []string{"-C", repoDir, "diff", "--no-color", commit + "^", commit}
+	} else {
+		// Root commit (no parent) - use git show
+		args = []string{"-C", repoDir, "show", "--no-color", "--format=", commit}
+	}
+
 	if path != "" {
 		args = append(args, "--", path)
 	}
@@ -509,7 +526,7 @@ func (r *ExecGitRunner) ShowCommitDiff(ctx context.Context, repoDir string, comm
 
 	exitErr := &exec.ExitError{}
 	if errors.As(err, &exitErr) {
-		return nil, fmt.Errorf("git show failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+		return nil, fmt.Errorf("git diff/show failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
 	}
-	return nil, fmt.Errorf("git show failed: %w", err)
+	return nil, fmt.Errorf("git diff/show failed: %w", err)
 }

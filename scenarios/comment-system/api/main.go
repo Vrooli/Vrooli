@@ -19,18 +19,14 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
 )
 
 // Configuration
 type Config struct {
-	Port   int
-	DBHost string
-	DBPort int
-	DBUser string
-	DBPass string
-	DBName string
+	Port int
 
 	// External service endpoints
 	SessionAuthURL     string
@@ -135,7 +131,7 @@ func main() {
 	}
 
 	// Command line flags
-	var initDB = flag.Bool("init-db", false, "Initialize database schema")
+	initDB := flag.Bool("init-db", false, "Initialize database schema")
 	flag.Parse()
 
 	// Load environment
@@ -146,21 +142,21 @@ func main() {
 	// Configuration
 	config := &Config{
 		Port:               getEnvInt("API_PORT", 8080),
-		DBHost:             getEnv("POSTGRES_HOST", "localhost"),
-		DBPort:             getEnvInt("POSTGRES_PORT", 5432),
-		DBUser:             getEnv("POSTGRES_USER", "postgres"),
-		DBPass:             getEnv("POSTGRES_PASSWORD", "postgres"),
-		DBName:             getEnv("POSTGRES_DB", "vrooli"),
 		SessionAuthURL:     resolveSessionAuthURL(),
 		NotificationHubURL: resolveNotificationHubURL(),
 	}
 
-	// Initialize database connection
-	db, err := NewDatabase(config)
+	// Initialize database connection with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	conn, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
+	defer conn.Close()
+
+	db := &Database{conn: conn}
 
 	// Handle database initialization
 	if *initDB {
@@ -250,28 +246,6 @@ func (app *App) setupRouter() *gin.Engine {
 	router.GET("/docs", app.serveDocs)
 
 	return router
-}
-
-// Database operations
-func NewDatabase(config *Config) (*Database, error) {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		config.DBHost, config.DBPort, config.DBUser, config.DBPass, config.DBName)
-
-	conn, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := conn.Ping(); err != nil {
-		return nil, err
-	}
-
-	// Configure connection pool
-	conn.SetMaxOpenConns(25)
-	conn.SetMaxIdleConns(5)
-	conn.SetConnMaxLifetime(10 * time.Minute)
-
-	return &Database{conn: conn}, nil
 }
 
 func (db *Database) Close() error {
@@ -422,7 +396,6 @@ func (db *Database) GetScenarioConfig(scenarioName string) (*ScenarioConfig, err
 		&config.AllowRichMedia, &config.ModerationLevel, &themeJSON, &notifJSON,
 		&config.CreatedAt, &config.UpdatedAt,
 	)
-
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Create default configuration

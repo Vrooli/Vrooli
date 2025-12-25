@@ -796,6 +796,9 @@ export default function App() {
   }, [groupingRules, groupingEnabled]);
 
   useEffect(() => {
+    // Skip working directory cleanup when in history mode
+    if (viewingCommit) return;
+
     if (!orderedKeySet.size) {
       setSelectedFiles([]);
       setSelectedFile(undefined);
@@ -806,9 +809,12 @@ export default function App() {
     }
 
     setSelectedFiles((prev) => prev.filter((entry) => orderedKeySet.has(selectionKey(entry))));
-  }, [orderedKeySet, selectionKey]);
+  }, [orderedKeySet, selectionKey, viewingCommit]);
 
   useEffect(() => {
+    // Skip working directory cleanup when in history mode
+    if (viewingCommit) return;
+
     if (!selectedFile) return;
     const activeKey = selectionKey({ path: selectedFile, staged: selectedIsStaged });
     if (orderedKeySet.has(activeKey)) return;
@@ -829,7 +835,8 @@ export default function App() {
     selectedFiles,
     selectedIsStaged,
     selectionKey,
-    untrackedSet
+    untrackedSet,
+    viewingCommit
   ]);
 
   useEffect(() => {
