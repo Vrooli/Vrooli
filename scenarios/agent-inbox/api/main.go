@@ -139,7 +139,8 @@ func (s *Server) initSchema() error {
 		return fmt.Errorf("failed to set search_path: %w", err)
 	}
 
-	schema := `
+	// Create base tables (idempotent)
+	baseSchema := `
 	CREATE TABLE IF NOT EXISTS chats (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		name TEXT NOT NULL DEFAULT 'New Chat',
@@ -149,8 +150,6 @@ func (s *Server) initSchema() error {
 		is_read BOOLEAN NOT NULL DEFAULT false,
 		is_archived BOOLEAN NOT NULL DEFAULT false,
 		is_starred BOOLEAN NOT NULL DEFAULT false,
-		system_prompt TEXT DEFAULT '',
-		tools_enabled BOOLEAN NOT NULL DEFAULT true,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	);
@@ -158,20 +157,15 @@ func (s *Server) initSchema() error {
 	CREATE TABLE IF NOT EXISTS messages (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-		role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
+		role TEXT NOT NULL,
 		content TEXT NOT NULL,
 		model TEXT,
 		token_count INTEGER DEFAULT 0,
-		tool_call_id TEXT,
-		tool_calls JSONB,
-		response_id TEXT,
-		finish_reason TEXT,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
 	CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
-	CREATE INDEX IF NOT EXISTS idx_messages_tool_call_id ON messages(tool_call_id) WHERE tool_call_id IS NOT NULL;
 
 	CREATE TABLE IF NOT EXISTS labels (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -188,30 +182,53 @@ func (s *Server) initSchema() error {
 
 	CREATE INDEX IF NOT EXISTS idx_chat_labels_chat_id ON chat_labels(chat_id);
 	CREATE INDEX IF NOT EXISTS idx_chat_labels_label_id ON chat_labels(label_id);
-
-	-- Tool call tracking for external scenario invocations
-	CREATE TABLE IF NOT EXISTS tool_calls (
-		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-		message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-		chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-		tool_name TEXT NOT NULL,
-		arguments JSONB NOT NULL DEFAULT '{}',
-		result JSONB,
-		status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
-		scenario_name TEXT,
-		external_run_id TEXT,
-		started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-		completed_at TIMESTAMPTZ,
-		error_message TEXT,
-		UNIQUE(id)
-	);
-
-	CREATE INDEX IF NOT EXISTS idx_tool_calls_message_id ON tool_calls(message_id);
-	CREATE INDEX IF NOT EXISTS idx_tool_calls_chat_id ON tool_calls(chat_id);
-	CREATE INDEX IF NOT EXISTS idx_tool_calls_status ON tool_calls(status) WHERE status IN ('pending', 'running');
 	`
-	_, err := s.db.Exec(schema)
-	return err
+	if _, err := s.db.Exec(baseSchema); err != nil {
+		return fmt.Errorf("failed to create base schema: %w", err)
+	}
+
+	// Run migrations for tool calling support (each is idempotent)
+	migrations := []struct {
+		name string
+		sql  string
+	}{
+		{"add chats.system_prompt", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS system_prompt TEXT DEFAULT ''`},
+		{"add chats.tools_enabled", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS tools_enabled BOOLEAN DEFAULT true`},
+		{"add messages.tool_call_id", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS tool_call_id TEXT`},
+		{"add messages.tool_calls", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS tool_calls JSONB`},
+		{"add messages.response_id", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS response_id TEXT`},
+		{"add messages.finish_reason", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS finish_reason TEXT`},
+		{"create idx_messages_tool_call_id", `CREATE INDEX IF NOT EXISTS idx_messages_tool_call_id ON messages(tool_call_id) WHERE tool_call_id IS NOT NULL`},
+		{"create tool_calls table", `
+			CREATE TABLE IF NOT EXISTS tool_calls (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+				chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+				tool_name TEXT NOT NULL,
+				arguments JSONB NOT NULL DEFAULT '{}',
+				result JSONB,
+				status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+				scenario_name TEXT,
+				external_run_id TEXT,
+				started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				completed_at TIMESTAMPTZ,
+				error_message TEXT
+			)`},
+		{"create idx_tool_calls_message_id", `CREATE INDEX IF NOT EXISTS idx_tool_calls_message_id ON tool_calls(message_id)`},
+		{"create idx_tool_calls_chat_id", `CREATE INDEX IF NOT EXISTS idx_tool_calls_chat_id ON tool_calls(chat_id)`},
+		{"create idx_tool_calls_status", `CREATE INDEX IF NOT EXISTS idx_tool_calls_status ON tool_calls(status) WHERE status IN ('pending', 'running')`},
+	}
+
+	for _, m := range migrations {
+		if _, err := s.db.Exec(m.sql); err != nil {
+			// Ignore "already exists" errors
+			if !strings.Contains(err.Error(), "already exists") && !strings.Contains(err.Error(), "duplicate") {
+				return fmt.Errorf("migration %q failed: %w", m.name, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (s *Server) setupRoutes() {
@@ -232,6 +249,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/chats/{id}/read", s.handleToggleRead).Methods("POST", "OPTIONS")
 	s.router.HandleFunc("/api/v1/chats/{id}/archive", s.handleToggleArchive).Methods("POST", "OPTIONS")
 	s.router.HandleFunc("/api/v1/chats/{id}/star", s.handleToggleStar).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/chats/{id}/auto-name", s.handleAutoName).Methods("POST", "OPTIONS")
 
 	// Label endpoints
 	s.router.HandleFunc("/api/v1/labels", s.handleListLabels).Methods("GET", "OPTIONS")
@@ -431,9 +449,9 @@ func (s *Server) handleGetChat(w http.ResponseWriter, r *http.Request) {
 
 	chat.LabelIDs = parsePostgresArray(string(labelIDs))
 
-	// Get messages
+	// Get messages with all fields including tool call information
 	rows, err := s.db.QueryContext(r.Context(), `
-		SELECT id, chat_id, role, content, model, token_count, created_at
+		SELECT id, chat_id, role, content, model, token_count, tool_call_id, tool_calls, response_id, finish_reason, created_at
 		FROM messages WHERE chat_id = $1 ORDER BY created_at ASC
 	`, chatID)
 	if err != nil {
@@ -445,12 +463,25 @@ func (s *Server) handleGetChat(w http.ResponseWriter, r *http.Request) {
 	messages := []Message{}
 	for rows.Next() {
 		var m Message
-		var model sql.NullString
-		if err := rows.Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &m.CreatedAt); err != nil {
+		var model, toolCallID, responseID, finishReason sql.NullString
+		var toolCallsJSON []byte
+		if err := rows.Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &toolCallID, &toolCallsJSON, &responseID, &finishReason, &m.CreatedAt); err != nil {
 			continue
 		}
 		if model.Valid {
 			m.Model = model.String
+		}
+		if toolCallID.Valid {
+			m.ToolCallID = toolCallID.String
+		}
+		if len(toolCallsJSON) > 0 {
+			json.Unmarshal(toolCallsJSON, &m.ToolCalls)
+		}
+		if responseID.Valid {
+			m.ResponseID = responseID.String
+		}
+		if finishReason.Valid {
+			m.FinishReason = finishReason.String
 		}
 		messages = append(messages, m)
 	}
@@ -578,6 +609,7 @@ func (s *Server) handleAddMessage(w http.ResponseWriter, r *http.Request) {
 		Content    string `json:"content"`
 		Model      string `json:"model"`
 		TokenCount int    `json:"token_count"`
+		ToolCallID string `json:"tool_call_id,omitempty"` // For tool response messages
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -590,8 +622,16 @@ func (s *Server) handleAddMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Role != "user" && req.Role != "assistant" && req.Role != "system" {
-		s.jsonError(w, "role must be 'user', 'assistant', or 'system'", http.StatusBadRequest)
+	// Validate role - allow tool role for tool response messages
+	validRoles := map[string]bool{"user": true, "assistant": true, "system": true, "tool": true}
+	if !validRoles[req.Role] {
+		s.jsonError(w, "role must be 'user', 'assistant', 'system', or 'tool'", http.StatusBadRequest)
+		return
+	}
+
+	// Tool messages must have a tool_call_id
+	if req.Role == "tool" && req.ToolCallID == "" {
+		s.jsonError(w, "tool_call_id is required for tool messages", http.StatusBadRequest)
 		return
 	}
 
@@ -604,17 +644,18 @@ func (s *Server) handleAddMessage(w http.ResponseWriter, r *http.Request) {
 
 	var msg Message
 	err := s.db.QueryRowContext(r.Context(), `
-		INSERT INTO messages (chat_id, role, content, model, token_count)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, chat_id, role, content, model, token_count, created_at
-	`, chatID, req.Role, req.Content, sql.NullString{String: req.Model, Valid: req.Model != ""}, req.TokenCount).Scan(
-		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &msg.CreatedAt,
+		INSERT INTO messages (chat_id, role, content, model, token_count, tool_call_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, chat_id, role, content, model, token_count, tool_call_id, created_at
+	`, chatID, req.Role, req.Content, sql.NullString{String: req.Model, Valid: req.Model != ""}, req.TokenCount, sql.NullString{String: req.ToolCallID, Valid: req.ToolCallID != ""}).Scan(
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &msg.CreatedAt,
 	)
 	if err != nil {
 		s.jsonError(w, "Failed to add message", http.StatusInternalServerError)
 		return
 	}
 	msg.Model = req.Model
+	msg.ToolCallID = req.ToolCallID
 
 	// Update chat preview and mark as unread if assistant message
 	preview := req.Content

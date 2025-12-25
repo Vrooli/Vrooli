@@ -7,6 +7,7 @@ import {
   fetchLabels,
   createChat,
   deleteChat,
+  deleteAllChats,
   updateChat,
   addMessage,
   completeChat,
@@ -17,6 +18,7 @@ import {
   deleteLabel,
   assignLabel,
   removeLabel,
+  autoNameChat,
   StreamingEvent,
 } from "../lib/api";
 
@@ -94,6 +96,15 @@ export function useChats() {
     },
   });
 
+  const deleteAllChatsMutation = useMutation({
+    mutationFn: deleteAllChats,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      queryClient.invalidateQueries({ queryKey: ["chat"] });
+      setSelectedChatId(null);
+    },
+  });
+
   const updateChatMutation = useMutation({
     mutationFn: ({ chatId, data }: { chatId: string; data: { name?: string; model?: string } }) =>
       updateChat(chatId, data),
@@ -160,6 +171,14 @@ export function useChats() {
     },
   });
 
+  const autoNameChatMutation = useMutation({
+    mutationFn: (chatId: string) => autoNameChat(chatId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+    },
+  });
+
   const handleStreamingEvent = useCallback((event: StreamingEvent) => {
     switch (event.type) {
       case "content":
@@ -209,9 +228,68 @@ export function useChats() {
     }
   }, []);
 
+  // Create a new chat and immediately send a message
+  const createChatWithMessage = useCallback(
+    async (content: string) => {
+      if (!content.trim() || isGenerating) return;
+
+      try {
+        // Create the chat first using the API function directly
+        const newChat = await createChat({});
+        const chatId = newChat.id;
+
+        // Select the new chat
+        setSelectedChatId(chatId);
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
+
+        // Add user message
+        await addMessage(chatId, { role: "user", content: content.trim() });
+        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
+
+        // Start AI completion with streaming
+        setIsGenerating(true);
+        setStreamingContent("");
+        setActiveToolCalls([]);
+
+        try {
+          await completeChat(chatId, {
+            stream: true,
+            onEvent: handleStreamingEvent,
+          });
+
+          queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+          queryClient.invalidateQueries({ queryKey: ["chats"] });
+
+          // Auto-name the chat after first AI response
+          try {
+            await autoNameChat(chatId);
+            queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+            queryClient.invalidateQueries({ queryKey: ["chats"] });
+          } catch (e) {
+            console.error("Auto-naming failed:", e);
+          }
+        } catch (error) {
+          console.error("Chat completion failed:", error);
+        } finally {
+          setIsGenerating(false);
+          setStreamingContent("");
+          setActiveToolCalls([]);
+        }
+      } catch (error) {
+        console.error("Failed to create chat with message:", error);
+      }
+    },
+    [isGenerating, queryClient, handleStreamingEvent]
+  );
+
   const sendMessage = useCallback(
     async (content: string) => {
       if (!selectedChatId || !content.trim() || isGenerating) return;
+
+      // Check if this chat needs auto-naming (still has default name)
+      const currentChat = chats.find((c) => c.id === selectedChatId);
+      const needsAutoName = currentChat?.name === "New Chat";
 
       // Add user message
       await addMessage(selectedChatId, { role: "user", content: content.trim() });
@@ -231,6 +309,18 @@ export function useChats() {
 
         queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
         queryClient.invalidateQueries({ queryKey: ["chats"] });
+
+        // Auto-name the chat after first AI response if it has default name
+        if (needsAutoName) {
+          try {
+            await autoNameChat(selectedChatId);
+            queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+            queryClient.invalidateQueries({ queryKey: ["chats"] });
+          } catch (e) {
+            console.error("Auto-naming failed:", e);
+            // Non-fatal, user can rename manually
+          }
+        }
       } catch (error) {
         console.error("Chat completion failed:", error);
       } finally {
@@ -239,7 +329,7 @@ export function useChats() {
         setActiveToolCalls([]);
       }
     },
-    [selectedChatId, isGenerating, queryClient, handleStreamingEvent]
+    [selectedChatId, isGenerating, queryClient, handleStreamingEvent, chats]
   );
 
   const selectChat = useCallback(
@@ -280,10 +370,12 @@ export function useChats() {
     setCurrentView,
     selectChat,
     sendMessage,
+    createChatWithMessage,
 
     // Mutations
     createChat: createChatMutation.mutate,
     deleteChat: deleteChatMutation.mutate,
+    deleteAllChats: deleteAllChatsMutation.mutateAsync,
     updateChat: updateChatMutation.mutate,
     toggleRead: toggleReadMutation.mutate,
     toggleArchive: toggleArchiveMutation.mutate,
@@ -292,10 +384,13 @@ export function useChats() {
     deleteLabel: deleteLabelMutation.mutate,
     assignLabel: assignLabelMutation.mutate,
     removeLabel: removeLabelMutation.mutate,
+    autoNameChat: autoNameChatMutation.mutate,
 
     // Mutation states
     isCreatingChat: createChatMutation.isPending,
     isDeletingChat: deleteChatMutation.isPending,
+    isDeletingAllChats: deleteAllChatsMutation.isPending,
     isUpdatingChat: updateChatMutation.isPending,
+    isAutoNaming: autoNameChatMutation.isPending,
   };
 }

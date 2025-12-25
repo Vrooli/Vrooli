@@ -86,3 +86,120 @@ kbd {
   background: rgb(99 102 241 / 0.3);
   color: white;
 }
+
+/* Safe area handling for notched devices */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Touch target minimum size for mobile accessibility */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Light theme support */
+.light-theme {
+  color-scheme: light;
+}
+
+.light-theme body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.light-theme .bg-slate-950 {
+  background-color: #ffffff;
+}
+
+.light-theme .bg-slate-950\/50 {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+.light-theme .text-slate-50 {
+  color: #0f172a;
+}
+
+.light-theme .text-white {
+  color: #0f172a;
+}
+
+.light-theme .text-slate-300 {
+  color: #475569;
+}
+
+.light-theme .text-slate-400 {
+  color: #64748b;
+}
+
+.light-theme .text-slate-500 {
+  color: #94a3b8;
+}
+
+.light-theme .text-slate-600 {
+  color: #cbd5e1;
+}
+
+.light-theme .border-white\/10 {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .border-white\/5 {
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+.light-theme .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.light-theme .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.light-theme .bg-white\/20 {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .hover\:bg-white\/5:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.light-theme .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.light-theme .hover\:text-white:hover {
+  color: #0f172a;
+}
+
+.light-theme .bg-slate-800 {
+  background-color: #e2e8f0;
+}
+
+.light-theme .bg-slate-900 {
+  background-color: #f1f5f9;
+}
+
+.light-theme .border-slate-700 {
+  border-color: #cbd5e1;
+}
+
+.light-theme ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.light-theme ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.light-theme * {
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}

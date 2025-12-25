@@ -1,4 +1,4 @@
-import { Plus, Mail, Star, Archive, Tag, Settings, Loader2, MessageSquare } from "lucide-react";
+import { Plus, Mail, Star, Archive, Tag, Settings, Loader2, MessageSquare, Keyboard } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import type { View } from "../../hooks/useChats";
@@ -9,6 +9,8 @@ interface SidebarProps {
   onViewChange: (view: View) => void;
   onNewChat: () => void;
   onManageLabels: () => void;
+  onOpenSettings: () => void;
+  onShowKeyboardShortcuts: () => void;
   isCreatingChat: boolean;
   labels: Label[];
   chatCounts?: {
@@ -29,6 +31,8 @@ export function Sidebar({
   onViewChange,
   onNewChat,
   onManageLabels,
+  onOpenSettings,
+  onShowKeyboardShortcuts,
   isCreatingChat,
   labels,
   chatCounts,
@@ -154,7 +158,27 @@ export function Sidebar({
 
       {/* Footer */}
       <div className="p-3 border-t border-white/10">
-        <p className="text-xs text-slate-600 text-center">
+        <div className="flex items-center justify-center gap-1">
+          <Tooltip content="Keyboard shortcuts (?)">
+            <button
+              onClick={onShowKeyboardShortcuts}
+              className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
+              data-testid="sidebar-shortcuts-button"
+            >
+              <Keyboard className="h-4 w-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Settings">
+            <button
+              onClick={onOpenSettings}
+              className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
+              data-testid="sidebar-settings-button"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          </Tooltip>
+        </div>
+        <p className="text-xs text-slate-600 text-center mt-2">
           Powered by AI models
         </p>
       </div>

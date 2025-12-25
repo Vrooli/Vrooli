@@ -1,71 +1,127 @@
-import { MessageSquare, Plus, Sparkles, Zap, Shield } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { MessageSquare, Sparkles, Zap, Shield, Send, Loader2 } from "lucide-react";
 import { Button } from "../ui/button";
+import { Tooltip } from "../ui/tooltip";
 
 interface EmptyStateProps {
-  onNewChat: () => void;
+  onStartChat: (message: string) => void;
   isCreating: boolean;
 }
 
-export function EmptyState({ onNewChat, isCreating }: EmptyStateProps) {
+export function EmptyState({ onStartChat, isCreating }: EmptyStateProps) {
+  const [message, setMessage] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    }
+  }, [message]);
+
+  const handleSubmit = useCallback(() => {
+    const trimmedMessage = message.trim();
+    if (trimmedMessage && !isCreating) {
+      onStartChat(trimmedMessage);
+      setMessage("");
+    }
+  }, [message, isCreating, onStartChat]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    },
+    [handleSubmit]
+  );
+
   return (
-    <div className="flex-1 flex items-center justify-center bg-slate-950 p-8" data-testid="empty-state">
-      <div className="text-center max-w-lg">
-        {/* Icon */}
-        <div className="relative inline-flex mb-6">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
-            <MessageSquare className="h-10 w-10 text-indigo-400" />
+    <div className="flex-1 flex items-center justify-center bg-slate-950 p-4 sm:p-8" data-testid="empty-state">
+      <div className="w-full max-w-2xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="relative inline-flex mb-4">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
+              <MessageSquare className="h-8 w-8 sm:h-10 sm:w-10 text-indigo-400" />
+            </div>
+            <div className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-500 flex items-center justify-center">
+              <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-white" />
+            </div>
           </div>
-          <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center">
-            <Sparkles className="h-3 w-3 text-white" />
-          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">What can I help you with?</h2>
+          <p className="text-sm sm:text-base text-slate-400 max-w-md mx-auto">
+            Ask me anything about coding, writing, research, or any other topic.
+          </p>
         </div>
 
-        {/* Title & Description */}
-        <h2 className="text-2xl font-bold text-white mb-3">Welcome to Agent Inbox</h2>
-        <p className="text-slate-400 mb-8 max-w-md mx-auto">
-          Your central hub for AI-powered conversations. Start a new chat to get help with coding,
-          writing, research, or anything else you need.
-        </p>
+        {/* Chat Input - Primary CTA */}
+        <div className="mb-8">
+          <div className="flex items-end gap-2 p-3 bg-white/5 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-transparent transition-all">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type your message to start a conversation..."
+              disabled={isCreating}
+              rows={1}
+              autoFocus
+              className="flex-1 bg-transparent text-sm sm:text-base text-white placeholder:text-slate-500 resize-none focus:outline-none disabled:opacity-50 min-h-[40px]"
+              data-testid="empty-state-input"
+            />
+            <Tooltip content={isCreating ? "Creating chat..." : "Start conversation (Enter)"}>
+              <Button
+                onClick={handleSubmit}
+                disabled={!message.trim() || isCreating}
+                size="icon"
+                className="h-10 w-10 shrink-0"
+                data-testid="empty-state-send-button"
+              >
+                {isCreating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </Tooltip>
+          </div>
+          <p className="text-xs text-slate-600 mt-2 text-center">
+            Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Enter</kbd> to
+            send, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Shift+Enter</kbd>{" "}
+            for new line
+          </p>
+        </div>
 
-        {/* CTA Button */}
-        <Button
-          onClick={onNewChat}
-          disabled={isCreating}
-          size="lg"
-          className="gap-2 px-8"
-          data-testid="empty-state-new-chat"
-        >
-          <Plus className="h-5 w-5" />
-          Start New Chat
-        </Button>
-
-        {/* Features */}
-        <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
+        {/* Features - Compact on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-left">
           <FeatureCard
-            icon={<Sparkles className="h-5 w-5 text-indigo-400" />}
+            icon={<Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-400" />}
             title="Smart Responses"
-            description="Get intelligent answers powered by advanced AI models"
+            description="Powered by advanced AI models"
           />
           <FeatureCard
-            icon={<Zap className="h-5 w-5 text-yellow-400" />}
+            icon={<Zap className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400" />}
             title="Real-time Streaming"
-            description="See responses as they're generated for faster interactions"
+            description="See responses as they're generated"
           />
           <FeatureCard
-            icon={<Shield className="h-5 w-5 text-green-400" />}
+            icon={<Shield className="h-4 w-4 sm:h-5 sm:w-5 text-green-400" />}
             title="Organized Inbox"
-            description="Star, archive, and label conversations for easy access"
+            description="Star, archive, and label chats"
           />
         </div>
 
-        {/* Quick tips */}
-        <div className="mt-10 p-4 bg-white/5 rounded-xl border border-white/10">
+        {/* Quick tips - Hidden on mobile for cleaner experience */}
+        <div className="hidden sm:block mt-8 p-4 bg-white/5 rounded-xl border border-white/10">
           <h4 className="text-sm font-medium text-white mb-2">Quick Tips</h4>
           <ul className="text-xs text-slate-500 space-y-1 text-left">
-            <li>• Press <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">Enter</kbd> to send messages quickly</li>
-            <li>• Use <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">Shift+Enter</kbd> for multi-line messages</li>
-            <li>• Star important conversations to find them easily later</li>
-            <li>• Archive completed chats to keep your inbox clean</li>
+            <li>Press <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">Ctrl+N</kbd> to create a new chat anytime</li>
+            <li>Press <kbd className="px-1 py-0.5 rounded bg-white/10 text-slate-400">?</kbd> to view all keyboard shortcuts</li>
+            <li>Star important conversations to find them easily later</li>
           </ul>
         </div>
       </div>

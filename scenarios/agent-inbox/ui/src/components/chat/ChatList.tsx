@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, forwardRef } from "react";
 import { Search, MessageSquare, Terminal, Star, Loader2, Inbox, Archive, X } from "lucide-react";
 import type { Chat, Label } from "../../lib/api";
 import type { View } from "../../hooks/useChats";
@@ -14,15 +14,18 @@ interface ChatListProps {
   onNewChat: () => void;
 }
 
-export function ChatList({
-  chats,
-  labels,
-  selectedChatId,
-  currentView,
-  isLoading,
-  onSelectChat,
-  onNewChat,
-}: ChatListProps) {
+export const ChatList = forwardRef<HTMLInputElement, ChatListProps>(function ChatList(
+  {
+    chats,
+    labels,
+    selectedChatId,
+    currentView,
+    isLoading,
+    onSelectChat,
+    onNewChat,
+  },
+  ref
+) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredChats = useMemo(() => {
@@ -75,7 +78,7 @@ export function ChatList({
   const { title, icon: ViewIcon, emptyMessage } = viewLabels[currentView];
 
   return (
-    <div className="w-80 border-r border-white/10 flex flex-col bg-slate-950/50 shrink-0" data-testid="chat-list-panel">
+    <div className="w-full lg:w-80 border-r border-white/10 flex flex-col bg-slate-950/50 shrink-0" data-testid="chat-list-panel">
       {/* Header */}
       <div className="p-4 border-b border-white/10">
         <div className="flex items-center gap-2 mb-3">
@@ -88,10 +91,11 @@ export function ChatList({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <input
+            ref={ref}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search chats..."
+            placeholder="Search chats... (Ctrl+K)"
             className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-8 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             data-testid="chat-search-input"
           />
@@ -156,7 +160,7 @@ export function ChatList({
       </div>
     </div>
   );
-}
+});
 
 interface ChatListItemProps {
   chat: Chat;

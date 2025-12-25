@@ -160,6 +160,20 @@ export async function deleteChat(id: string): Promise<void> {
   }
 }
 
+export async function deleteAllChats(): Promise<{ deleted: number }> {
+  const url = buildApiUrl("/chats", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to delete all chats: ${res.status}`);
+  }
+
+  return res.json();
+}
+
 export async function addMessage(chatId: string, data: { role: string; content: string; model?: string }): Promise<Message> {
   const url = buildApiUrl(`/chats/${chatId}/messages`, { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -284,6 +298,21 @@ export async function removeLabel(chatId: string, labelId: string): Promise<void
   if (!res.ok) {
     throw new Error(`Failed to remove label: ${res.status}`);
   }
+}
+
+// Auto-naming
+export async function autoNameChat(chatId: string): Promise<Chat> {
+  const url = buildApiUrl(`/chats/${chatId}/auto-name`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to auto-name chat: ${res.status}`);
+  }
+
+  return res.json();
 }
 
 // Models
