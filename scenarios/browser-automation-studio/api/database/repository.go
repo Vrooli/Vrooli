@@ -383,6 +383,24 @@ func (r *repository) UpdateExecution(ctx context.Context, execution *ExecutionIn
 }
 
 func (r *repository) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
+	// First, fetch the current status to validate the transition
+	current, err := r.GetExecution(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Validate the status transition
+	if err := ValidateStatusTransition(current.Status, status); err != nil {
+		if r.log != nil {
+			r.log.WithFields(logrus.Fields{
+				"execution_id":   id,
+				"current_status": current.Status,
+				"new_status":     status,
+			}).Warn("Invalid execution status transition attempted")
+		}
+		return err
+	}
+
 	query := r.db.Rebind("UPDATE executions SET status = ?, error_message = ?, completed_at = ?, updated_at = ? WHERE id = ?")
 	errValue := ""
 	if errorMessage != nil {

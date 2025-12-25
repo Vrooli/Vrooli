@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/resilience"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"google.golang.org/protobuf/encoding/protojson"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -51,6 +53,7 @@ type Client struct {
 	baseURL    string
 	httpClient HTTPDoer
 	log        *logrus.Logger
+	breaker    *resilience.Breaker
 }
 
 // ClientOption configures a Client.
@@ -77,42 +80,81 @@ func WithLogger(log *logrus.Logger) ClientOption {
 	}
 }
 
+// WithCircuitBreaker sets a custom circuit breaker.
+func WithCircuitBreaker(breaker *resilience.Breaker) ClientOption {
+	return func(c *Client) {
+		c.breaker = breaker
+	}
+}
+
+// WithoutCircuitBreaker disables the circuit breaker.
+func WithoutCircuitBreaker() ClientOption {
+	return func(c *Client) {
+		c.breaker = nil
+	}
+}
+
 // NewClient creates a unified playwright driver client.
-// By default, it uses the execution timeout (5 minutes) for operations.
+// By default, it uses the execution timeout (5 minutes) for operations
+// and includes a circuit breaker for resilience.
 // Use WithTimeout(DefaultRecordingTimeout) for recording-oriented usage.
+// Use WithoutCircuitBreaker() to disable the circuit breaker.
 func NewClient(opts ...ClientOption) (*Client, error) {
 	driverURL := resolveDriverURL(true)
 	if strings.TrimSpace(driverURL) == "" {
 		return nil, fmt.Errorf("PLAYWRIGHT_DRIVER_URL is required")
 	}
 
+	log := logrus.StandardLogger()
+	cfg := resilience.ConfigFromEnv("PLAYWRIGHT", "playwright-driver")
+	cfg.Logger = log
+
 	c := &Client{
 		baseURL:    strings.TrimRight(driverURL, "/"),
 		httpClient: &http.Client{Timeout: DefaultExecutionTimeout},
-		log:        logrus.StandardLogger(),
+		log:        log,
+		breaker:    resilience.NewBreaker(cfg),
 	}
 
 	for _, opt := range opts {
 		opt(c)
+	}
+
+	// Update breaker logger if client logger was changed
+	if c.breaker != nil && c.log != log {
+		cfg.Logger = c.log
+		c.breaker = resilience.NewBreaker(cfg)
 	}
 
 	return c, nil
 }
 
 // NewClientWithURL creates a client with a specific driver URL (for testing).
+// By default includes a circuit breaker; use WithoutCircuitBreaker() to disable.
 func NewClientWithURL(driverURL string, opts ...ClientOption) (*Client, error) {
 	if strings.TrimSpace(driverURL) == "" {
 		return nil, fmt.Errorf("driver URL is required")
 	}
 
+	log := logrus.StandardLogger()
+	cfg := resilience.ConfigFromEnv("PLAYWRIGHT", "playwright-driver")
+	cfg.Logger = log
+
 	c := &Client{
 		baseURL:    strings.TrimRight(driverURL, "/"),
 		httpClient: &http.Client{Timeout: DefaultExecutionTimeout},
-		log:        logrus.StandardLogger(),
+		log:        log,
+		breaker:    resilience.NewBreaker(cfg),
 	}
 
 	for _, opt := range opts {
 		opt(c)
+	}
+
+	// Update breaker logger if client logger was changed
+	if c.breaker != nil && c.log != log {
+		cfg.Logger = c.log
+		c.breaker = resilience.NewBreaker(cfg)
 	}
 
 	return c, nil
@@ -127,6 +169,23 @@ func NewRecordingClient(opts ...ClientOption) (*Client, error) {
 // GetDriverURL returns the configured driver URL (for logging/debugging).
 func (c *Client) GetDriverURL() string {
 	return c.baseURL
+}
+
+// CircuitBreakerState returns the current state of the circuit breaker.
+// Returns "disabled" if no circuit breaker is configured.
+func (c *Client) CircuitBreakerState() string {
+	if c.breaker == nil {
+		return "disabled"
+	}
+	return string(c.breaker.State())
+}
+
+// IsCircuitOpen returns true if the circuit breaker is open (failing fast).
+func (c *Client) IsCircuitOpen() bool {
+	if c.breaker == nil {
+		return false
+	}
+	return c.breaker.IsOpen()
 }
 
 // resolveDriverURL resolves the driver URL from environment or default.
@@ -776,6 +835,31 @@ func (c *Client) postRaw(ctx context.Context, path string, body []byte, response
 }
 
 func (c *Client) doRequest(req *http.Request, response interface{}, operation string) error {
+	// If circuit breaker is configured, wrap the request
+	if c.breaker != nil {
+		_, err := c.breaker.Execute(func() (any, error) {
+			return nil, c.doRequestInternal(req, response, operation)
+		})
+		if err != nil {
+			// Check if this is a circuit breaker open error
+			if errors.Is(err, resilience.ErrCircuitOpen) {
+				return &Error{
+					Op:      operation,
+					URL:     c.baseURL,
+					Message: "circuit breaker open - playwright driver appears unavailable",
+					Cause:   err,
+					Hint:    "the driver has failed multiple times recently; it will be retried automatically after a cooldown period",
+				}
+			}
+			return err
+		}
+		return nil
+	}
+
+	return c.doRequestInternal(req, response, operation)
+}
+
+func (c *Client) doRequestInternal(req *http.Request, response interface{}, operation string) error {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return &Error{

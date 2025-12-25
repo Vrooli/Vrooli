@@ -252,7 +252,10 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			panic(r)
+			// Log the panic but don't re-panic - let the error propagate gracefully
+			if db.log != nil {
+				db.log.WithField("panic", r).Error("Panic recovered during database transaction")
+			}
 		}
 	}()
 

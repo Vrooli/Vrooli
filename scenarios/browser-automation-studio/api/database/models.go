@@ -87,6 +87,50 @@ const (
 	ExecutionStatusFailed    = "failed"
 )
 
+// validStatusTransitions defines the allowed status transitions for executions.
+// The map key is the current status, and the value is a set of valid next statuses.
+var validStatusTransitions = map[string]map[string]bool{
+	ExecutionStatusPending: {
+		ExecutionStatusRunning: true,
+		ExecutionStatusFailed:  true, // Can fail during setup/compilation
+	},
+	ExecutionStatusRunning: {
+		ExecutionStatusCompleted: true,
+		ExecutionStatusFailed:    true,
+	},
+	// Terminal states - no transitions allowed
+	ExecutionStatusCompleted: {},
+	ExecutionStatusFailed:    {},
+}
+
+// ErrInvalidStatusTransition is returned when an invalid status transition is attempted.
+var ErrInvalidStatusTransition = errors.New("invalid execution status transition")
+
+// ValidateStatusTransition checks if a status transition is valid.
+// Returns nil if the transition is allowed, or ErrInvalidStatusTransition if not.
+func ValidateStatusTransition(currentStatus, newStatus string) error {
+	// Same status is always allowed (idempotent updates)
+	if currentStatus == newStatus {
+		return nil
+	}
+
+	allowedTransitions, exists := validStatusTransitions[currentStatus]
+	if !exists {
+		return fmt.Errorf("%w: unknown current status %q", ErrInvalidStatusTransition, currentStatus)
+	}
+
+	if !allowedTransitions[newStatus] {
+		return fmt.Errorf("%w: cannot transition from %q to %q", ErrInvalidStatusTransition, currentStatus, newStatus)
+	}
+
+	return nil
+}
+
+// IsTerminalStatus returns true if the status is a terminal state (no further transitions allowed).
+func IsTerminalStatus(status string) bool {
+	return status == ExecutionStatusCompleted || status == ExecutionStatusFailed
+}
+
 // ScheduleIndex is the database index for a workflow schedule.
 type ScheduleIndex struct {
 	ID             uuid.UUID  `json:"id" db:"id"`

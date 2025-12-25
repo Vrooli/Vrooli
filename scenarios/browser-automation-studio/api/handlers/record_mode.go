@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
@@ -29,16 +30,12 @@ import (
 
 // Request/response types are defined in record_mode_types.go
 
-const (
-	recordModeTimeout    = 30 * time.Second
-	playwrightDriverEnv  = "PLAYWRIGHT_DRIVER_URL"
-	defaultPlaywrightURL = "http://127.0.0.1:39400"
-)
+const recordModeTimeout = 30 * time.Second
 
 func getPlaywrightDriverURL() string {
-	url := os.Getenv(playwrightDriverEnv)
+	url := os.Getenv(driver.PlaywrightDriverEnv)
 	if url == "" {
-		return defaultPlaywrightURL
+		return driver.DefaultDriverURL
 	}
 	return url
 }

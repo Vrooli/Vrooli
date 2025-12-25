@@ -110,25 +110,17 @@ func (h *Handler) resolveArtifactGap(ctx context.Context, executionID uuid.UUID,
 			"execution_id": executionID.String(),
 			"artifact":     artifact,
 			"reason":       "execution_lookup_failed",
-			"error":        err.Error(),
+			"suggestion":   "The execution record could not be found. It may have been deleted or the ID is incorrect.",
 		}, true
 	}
 
 	resultPath := strings.TrimSpace(execution.ResultPath)
 	if resultPath == "" {
-		expectedResultPath := ""
-		expectedTimelinePath := ""
-		if strings.TrimSpace(h.recordingsRoot) != "" {
-			expectedResultPath = filepath.Join(h.recordingsRoot, executionID.String(), "result.json")
-			expectedTimelinePath = filepath.Join(h.recordingsRoot, executionID.String(), "timeline.proto.json")
-		}
 		return map[string]string{
-			"execution_id":           executionID.String(),
-			"artifact":               artifact,
-			"reason":                 "result_path_missing",
-			"recordings_root":        strings.TrimSpace(h.recordingsRoot),
-			"expected_result_path":   expectedResultPath,
-			"expected_timeline_path": expectedTimelinePath,
+			"execution_id": executionID.String(),
+			"artifact":     artifact,
+			"reason":       "artifacts_not_saved",
+			"suggestion":   "This execution did not save artifacts. This can happen if the execution was stopped early or encountered an error during setup.",
 		}, true
 	}
 
@@ -137,16 +129,15 @@ func (h *Handler) resolveArtifactGap(ctx context.Context, executionID uuid.UUID,
 			return map[string]string{
 				"execution_id": executionID.String(),
 				"artifact":     artifact,
-				"reason":       "result_file_missing",
-				"result_path":  resultPath,
+				"reason":       "artifacts_deleted",
+				"suggestion":   "The execution artifacts have been deleted from storage. Re-run the workflow to generate new artifacts.",
 			}, true
 		}
 		return map[string]string{
 			"execution_id": executionID.String(),
 			"artifact":     artifact,
-			"reason":       "result_file_unreadable",
-			"result_path":  resultPath,
-			"error":        err.Error(),
+			"reason":       "artifacts_inaccessible",
+			"suggestion":   "The execution artifacts exist but cannot be read. This may indicate a storage permission issue.",
 		}, true
 	}
 
@@ -155,20 +146,17 @@ func (h *Handler) resolveArtifactGap(ctx context.Context, executionID uuid.UUID,
 		if _, err := os.Stat(timelinePath); err != nil {
 			if os.IsNotExist(err) {
 				return map[string]string{
-					"execution_id":  executionID.String(),
-					"artifact":      artifact,
-					"reason":        "timeline_file_missing",
-					"result_path":   resultPath,
-					"timeline_path": timelinePath,
+					"execution_id": executionID.String(),
+					"artifact":     artifact,
+					"reason":       "timeline_not_generated",
+					"suggestion":   "The timeline was not generated for this execution. This can happen with older executions or if the workflow completed too quickly.",
 				}, true
 			}
 			return map[string]string{
-				"execution_id":  executionID.String(),
-				"artifact":      artifact,
-				"reason":        "timeline_file_unreadable",
-				"result_path":   resultPath,
-				"timeline_path": timelinePath,
-				"error":         err.Error(),
+				"execution_id": executionID.String(),
+				"artifact":     artifact,
+				"reason":       "timeline_inaccessible",
+				"suggestion":   "The timeline file exists but cannot be read. This may indicate a storage permission issue.",
 			}, true
 		}
 	}

@@ -3,17 +3,20 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/vrooli/api-core/preflight"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
@@ -356,12 +359,7 @@ func main() {
 		log.WithError(err).Warn("⚠️  Scheduler failed to start - scheduled workflows will not run")
 	} else {
 		log.WithField("scheduled_count", schedulerSvc.RegisteredCount()).Info("✅ Scheduler service started")
-		// Ensure scheduler stops gracefully on shutdown
-		defer func() {
-			if err := schedulerSvc.Stop(); err != nil {
-				log.WithError(err).Error("Failed to stop scheduler cleanly")
-			}
-		}()
+		// Scheduler is stopped during graceful shutdown signal handling
 	}
 
 	// Register debug performance endpoints (when enabled in config)
@@ -399,8 +397,57 @@ func main() {
 	}).Info("🚀 Vrooli Ascension API starting")
 	log.WithField("endpoint", fmt.Sprintf("http://%s:%s/api/v1", apiHost, port)).Info("📊 API endpoint ready")
 
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	// Create HTTP server with proper shutdown support
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      r,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: globalRequestTimeout + 30*time.Second, // Allow extra time beyond request timeout
+		IdleTimeout:  120 * time.Second,
+	}
+
+	// Channel to listen for shutdown signals
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+
+	// Start server in a goroutine
+	serverErr := make(chan error, 1)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErr <- err
+		}
+	}()
+
+	// Wait for shutdown signal or server error
+	select {
+	case err := <-serverErr:
 		log.WithError(err).Fatal("❌ Server failed to start")
+	case sig := <-shutdown:
+		log.WithField("signal", sig.String()).Info("⚠️  Shutdown signal received, gracefully stopping...")
+
+		// Create a context with timeout for graceful shutdown
+		// This allows in-flight requests up to 30 seconds to complete
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Stop the scheduler first to prevent new executions
+		if schedulerSvc != nil {
+			log.Info("Stopping scheduler...")
+			if err := schedulerSvc.Stop(); err != nil {
+				log.WithError(err).Error("Failed to stop scheduler cleanly")
+			}
+		}
+
+		// Stop accepting new connections and wait for in-flight requests
+		log.Info("Stopping HTTP server...")
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.WithError(err).Error("HTTP server shutdown error")
+		}
+
+		// Note: WebSocket hub goroutine will terminate when process exits.
+		// Clients are disconnected when the HTTP server shuts down.
+
+		log.Info("✅ Server stopped gracefully")
 	}
 }
 
@@ -427,9 +474,9 @@ func performStartupHealthCheck(log *logrus.Logger) error {
 	var errors []string
 
 	// Check 1: Playwright driver health
-	playwrightURL := os.Getenv("PLAYWRIGHT_DRIVER_URL")
+	playwrightURL := os.Getenv(driver.PlaywrightDriverEnv)
 	if playwrightURL == "" {
-		playwrightURL = "http://127.0.0.1:39400"
+		playwrightURL = driver.DefaultDriverURL
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playwrightURL+"/health", nil)

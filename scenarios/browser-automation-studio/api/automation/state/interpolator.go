@@ -78,6 +78,10 @@ func (i *Interpolator) InterpolatePlanStep(step contracts.PlanStep) contracts.Pl
 
 // InterpolateString performs string interpolation, always returning a string.
 // Supports both ${...} and {{...}} template syntax with namespace and fallback support.
+//
+// SECURITY: This function uses a single-pass approach to prevent injection attacks.
+// Resolved values are never re-scanned, so a variable containing "${...}" in its
+// value will not be interpreted as a new variable reference.
 func (i *Interpolator) InterpolateString(s string) string {
 	if i.state == nil {
 		return s
@@ -87,12 +91,15 @@ func (i *Interpolator) InterpolateString(s string) string {
 		return s
 	}
 
-	out := s
-	maxIterations := 100 // Prevent infinite loops
-	for iter := 0; iter < maxIterations; iter++ {
+	// Single-pass interpolation: build result progressively without re-scanning resolved values
+	var result strings.Builder
+	result.Grow(len(s)) // Pre-allocate for efficiency
+	remaining := s
+
+	for len(remaining) > 0 {
 		// Look for both ${...} and {{...}} patterns
-		dollarStart := strings.Index(out, "${")
-		braceStart := strings.Index(out, "{{")
+		dollarStart := strings.Index(remaining, "${")
+		braceStart := strings.Index(remaining, "{{")
 
 		var start int
 		var prefix string
@@ -108,25 +115,36 @@ func (i *Interpolator) InterpolateString(s string) string {
 			prefix = "{{"
 			suffix = "}}"
 		} else {
+			// No more interpolation tokens - append remaining and exit
+			result.WriteString(remaining)
 			break
 		}
+
+		// Append literal content before the token
+		result.WriteString(remaining[:start])
 
 		// Find matching closing bracket, handling nested brackets
-		end := findMatchingClose(out[start+len(prefix):], suffix)
+		afterPrefix := remaining[start+len(prefix):]
+		end := findMatchingClose(afterPrefix, suffix)
 		if end == -1 {
+			// Unclosed bracket - append rest of string as literal and exit
+			result.WriteString(remaining[start:])
 			break
 		}
-		end = start + len(prefix) + end
-		token := out[start+len(prefix) : end]
 
+		token := afterPrefix[:end]
+
+		// Resolve the token and append the result (without re-scanning)
 		if resolved, ok := i.resolveTokenWithFallback(token); ok {
-			out = out[:start] + stringify(resolved) + out[end+len(suffix):]
-		} else {
-			// Drop unresolved token to avoid infinite loops
-			out = out[:start] + out[end+len(suffix):]
+			result.WriteString(stringify(resolved))
 		}
+		// If unresolved, we simply don't append anything (token is dropped)
+
+		// Move past the closing bracket - resolved value is NOT re-scanned
+		remaining = afterPrefix[end+len(suffix):]
 	}
-	return out
+
+	return result.String()
 }
 
 // InterpolateValue performs variable substitution recursively on any value.
