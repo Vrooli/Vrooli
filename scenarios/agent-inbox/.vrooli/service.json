@@ -204,6 +204,14 @@
         "required": true,
         "description": "Multi-model chat completions API"
       }
+    },
+    "scenarios": {
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Provides coding agent execution (Claude Code, Codex, OpenCode) for task dispatch"
+      }
     }
   }
 }

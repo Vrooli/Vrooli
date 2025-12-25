@@ -3,6 +3,7 @@ import { ChatHeader } from "./ChatHeader";
 import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
 import type { ChatWithMessages, Model, Label } from "../../lib/api";
+import type { ActiveToolCall } from "../../hooks/useChats";
 
 interface ChatViewProps {
   chatData: ChatWithMessages | null;
@@ -11,6 +12,7 @@ interface ChatViewProps {
   isLoading: boolean;
   isGenerating: boolean;
   streamingContent: string;
+  activeToolCalls?: ActiveToolCall[];
   onSendMessage: (content: string) => void;
   onUpdateChat: (data: { name?: string; model?: string }) => void;
   onToggleRead: () => void;
@@ -28,6 +30,7 @@ export function ChatView({
   isLoading,
   isGenerating,
   streamingContent,
+  activeToolCalls = [],
   onSendMessage,
   onUpdateChat,
   onToggleRead,
@@ -72,6 +75,7 @@ export function ChatView({
         isGenerating={isGenerating}
         streamingContent={streamingContent}
         viewMode={chatData.chat.view_mode}
+        activeToolCalls={activeToolCalls}
       />
 
       <MessageInput onSend={onSendMessage} isGenerating={isGenerating} />

@@ -17,14 +17,42 @@ export interface Chat {
   updated_at: string;
 }
 
+export interface ToolCall {
+  id: string;
+  type: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
 export interface Message {
   id: string;
   chat_id: string;
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant" | "system" | "tool";
   content: string;
   model?: string;
   token_count?: number;
+  tool_call_id?: string;
+  tool_calls?: ToolCall[];
+  response_id?: string;
+  finish_reason?: string;
   created_at: string;
+}
+
+export interface ToolCallRecord {
+  id: string;
+  message_id: string;
+  chat_id: string;
+  tool_name: string;
+  arguments: string;
+  result?: string;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  scenario_name?: string;
+  external_run_id?: string;
+  started_at: string;
+  completed_at?: string;
+  error_message?: string;
 }
 
 export interface Label {
@@ -279,10 +307,66 @@ export async function fetchModels(): Promise<Model[]> {
   return res.json();
 }
 
+// Tools
+export interface ToolDefinition {
+  type: string;
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
+
+export async function fetchTools(): Promise<ToolDefinition[]> {
+  const url = buildApiUrl("/tools", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch tools: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchChatToolCalls(chatId: string): Promise<ToolCallRecord[]> {
+  const url = buildApiUrl(`/chats/${chatId}/tool-calls`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch tool calls: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// Streaming event types
+export interface StreamingEvent {
+  type: "content" | "tool_call_start" | "tool_call_result" | "tool_calls_complete" | "error";
+  content?: string;
+  tool_name?: string;
+  tool_id?: string;
+  arguments?: string;
+  result?: string;
+  status?: string;
+  error?: string;
+  continuing?: boolean;
+  done?: boolean;
+}
+
 // Chat completion with streaming
 export async function completeChat(
   chatId: string,
-  options?: { stream?: boolean; onChunk?: (content: string) => void }
+  options?: {
+    stream?: boolean;
+    onChunk?: (content: string) => void;
+    onEvent?: (event: StreamingEvent) => void;
+  }
 ): Promise<Message | void> {
   const stream = options?.stream ?? true;
   const url = buildApiUrl(`/chats/${chatId}/complete?stream=${stream}`, { baseUrl: API_BASE });
@@ -297,7 +381,7 @@ export async function completeChat(
     throw new Error(`Chat completion failed: ${errorText}`);
   }
 
-  if (stream && options?.onChunk) {
+  if (stream) {
     const reader = res.body?.getReader();
     const decoder = new TextDecoder();
 
@@ -318,9 +402,16 @@ export async function completeChat(
           if (data === "[DONE]") continue;
 
           try {
-            const parsed = JSON.parse(data);
-            if (parsed.content) {
+            const parsed = JSON.parse(data) as StreamingEvent;
+
+            // Legacy callback for content chunks
+            if (parsed.content && options?.onChunk) {
               options.onChunk(parsed.content);
+            }
+
+            // New event-based callback
+            if (options?.onEvent) {
+              options.onEvent(parsed);
             }
           } catch {
             // Ignore parse errors for partial data

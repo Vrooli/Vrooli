@@ -13,20 +13,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
-// OpenRouter API types
+// OpenRouter API types for Chat Completions with tool calling
 
 type OpenRouterMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string     `json:"role"`
+	Content    string     `json:"content,omitempty"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
 }
 
 type OpenRouterRequest struct {
 	Model    string              `json:"model"`
 	Messages []OpenRouterMessage `json:"messages"`
 	Stream   bool                `json:"stream"`
+	Tools    []ToolDefinition    `json:"tools,omitempty"`
 }
 
 type OpenRouterChoice struct {
@@ -75,14 +79,20 @@ func (s *Server) handleListModels(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, availableModels, http.StatusOK)
 }
 
+// handleListTools returns available tools
+func (s *Server) handleListTools(w http.ResponseWriter, r *http.Request) {
+	s.jsonResponse(w, s.AvailableTools(), http.StatusOK)
+}
+
 // handleChatComplete sends conversation to OpenRouter and streams the response
 func (s *Server) handleChatComplete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	chatID := vars["id"]
 
-	// Validate chat ID
+	// Validate chat ID and get chat details
 	var chatModel string
-	err := s.db.QueryRowContext(r.Context(), "SELECT model FROM chats WHERE id = $1", chatID).Scan(&chatModel)
+	var toolsEnabled bool
+	err := s.db.QueryRowContext(r.Context(), "SELECT model, tools_enabled FROM chats WHERE id = $1", chatID).Scan(&chatModel, &toolsEnabled)
 	if err == sql.ErrNoRows {
 		s.jsonError(w, "Chat not found", http.StatusNotFound)
 		return
@@ -99,9 +109,9 @@ func (s *Server) handleChatComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get all messages for this chat
+	// Get all messages for this chat with tool information
 	rows, err := s.db.QueryContext(r.Context(), `
-		SELECT role, content FROM messages WHERE chat_id = $1 ORDER BY created_at ASC
+		SELECT role, content, tool_call_id, tool_calls FROM messages WHERE chat_id = $1 ORDER BY created_at ASC
 	`, chatID)
 	if err != nil {
 		s.jsonError(w, "Failed to get messages", http.StatusInternalServerError)
@@ -112,8 +122,16 @@ func (s *Server) handleChatComplete(w http.ResponseWriter, r *http.Request) {
 	var messages []OpenRouterMessage
 	for rows.Next() {
 		var msg OpenRouterMessage
-		if err := rows.Scan(&msg.Role, &msg.Content); err != nil {
+		var toolCallID sql.NullString
+		var toolCallsJSON []byte
+		if err := rows.Scan(&msg.Role, &msg.Content, &toolCallID, &toolCallsJSON); err != nil {
 			continue
+		}
+		if toolCallID.Valid {
+			msg.ToolCallID = toolCallID.String
+		}
+		if len(toolCallsJSON) > 0 {
+			json.Unmarshal(toolCallsJSON, &msg.ToolCalls)
 		}
 		messages = append(messages, msg)
 	}
@@ -126,11 +144,15 @@ func (s *Server) handleChatComplete(w http.ResponseWriter, r *http.Request) {
 	// Check if streaming is requested
 	streaming := r.URL.Query().Get("stream") == "true"
 
-	// Build OpenRouter request
+	// Build OpenRouter request with tools if enabled
 	orReq := OpenRouterRequest{
 		Model:    chatModel,
 		Messages: messages,
 		Stream:   streaming,
+	}
+
+	if toolsEnabled {
+		orReq.Tools = s.AvailableTools()
 	}
 
 	reqBody, err := json.Marshal(orReq)
@@ -188,6 +210,9 @@ func (s *Server) handleStreamingResponse(w http.ResponseWriter, r *http.Request,
 	scanner := bufio.NewScanner(body)
 	var fullContent strings.Builder
 	var tokenCount int
+	var finishReason string
+	var toolCalls []ToolCall
+	var responseID string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -205,26 +230,118 @@ func (s *Server) handleStreamingResponse(w http.ResponseWriter, r *http.Request,
 			continue
 		}
 
-		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
-			content := chunk.Choices[0].Delta.Content
-			fullContent.WriteString(content)
-			tokenCount++
+		if responseID == "" && chunk.ID != "" {
+			responseID = chunk.ID
+		}
 
-			// Send SSE event
-			eventData, _ := json.Marshal(map[string]string{"content": content})
+		if len(chunk.Choices) > 0 {
+			choice := chunk.Choices[0]
+
+			// Handle content delta
+			if choice.Delta.Content != "" {
+				content := choice.Delta.Content
+				fullContent.WriteString(content)
+				tokenCount++
+
+				// Send SSE event
+				eventData, _ := json.Marshal(map[string]interface{}{"content": content, "type": "content"})
+				fmt.Fprintf(w, "data: %s\n\n", eventData)
+				flusher.Flush()
+			}
+
+			// Handle tool calls delta
+			if len(choice.Delta.ToolCalls) > 0 {
+				for _, tc := range choice.Delta.ToolCalls {
+					// Find or create tool call by ID
+					found := false
+					for i := range toolCalls {
+						if toolCalls[i].ID == tc.ID {
+							// Append to existing tool call
+							toolCalls[i].Function.Arguments += tc.Function.Arguments
+							found = true
+							break
+						}
+					}
+					if !found && tc.ID != "" {
+						toolCalls = append(toolCalls, tc)
+					}
+				}
+			}
+
+			// Check finish reason
+			if choice.FinishReason != "" {
+				finishReason = choice.FinishReason
+			}
+		}
+	}
+
+	// Handle tool calls if finish reason is "tool_calls"
+	if finishReason == "tool_calls" && len(toolCalls) > 0 {
+		// Save the assistant message with tool calls
+		msg, err := s.saveAssistantMessageWithToolCalls(r.Context(), chatID, model, fullContent.String(), toolCalls, responseID, finishReason, tokenCount)
+		if err != nil {
+			eventData, _ := json.Marshal(map[string]interface{}{"error": err.Error(), "type": "error"})
 			fmt.Fprintf(w, "data: %s\n\n", eventData)
 			flusher.Flush()
+			return
+		}
+
+		// Execute tool calls
+		executor := NewToolExecutor(s)
+		for _, tc := range toolCalls {
+			// Send tool call start event
+			eventData, _ := json.Marshal(map[string]interface{}{
+				"type":      "tool_call_start",
+				"tool_name": tc.Function.Name,
+				"tool_id":   tc.ID,
+				"arguments": tc.Function.Arguments,
+			})
+			fmt.Fprintf(w, "data: %s\n\n", eventData)
+			flusher.Flush()
+
+			// Execute the tool
+			record, err := executor.ExecuteTool(r.Context(), chatID, tc.ID, tc.Function.Name, tc.Function.Arguments)
+
+			// Save tool call record
+			if msg != nil {
+				s.SaveToolCallRecord(r.Context(), msg.ID, record)
+			}
+
+			// Send tool result event
+			resultEvent := map[string]interface{}{
+				"type":      "tool_call_result",
+				"tool_name": tc.Function.Name,
+				"tool_id":   tc.ID,
+				"status":    record.Status,
+			}
+			if err != nil {
+				resultEvent["error"] = err.Error()
+			} else {
+				resultEvent["result"] = record.Result
+			}
+			eventData, _ = json.Marshal(resultEvent)
+			fmt.Fprintf(w, "data: %s\n\n", eventData)
+			flusher.Flush()
+
+			// Save the tool response message
+			s.saveToolResponseMessage(r.Context(), chatID, tc.ID, record.Result)
+		}
+
+		// After tool calls, we need to get a follow-up response
+		// Send event indicating continuation
+		eventData, _ := json.Marshal(map[string]interface{}{"type": "tool_calls_complete", "continuing": true})
+		fmt.Fprintf(w, "data: %s\n\n", eventData)
+		flusher.Flush()
+	} else {
+		// Save the complete response as a message (no tool calls)
+		if fullContent.Len() > 0 {
+			s.saveAssistantMessage(r.Context(), chatID, model, fullContent.String(), tokenCount)
 		}
 	}
 
 	// Send completion event
 	fmt.Fprintf(w, "data: {\"done\": true}\n\n")
 	flusher.Flush()
-
-	// Save the complete response as a message
-	if fullContent.Len() > 0 {
-		s.saveAssistantMessage(r.Context(), chatID, model, fullContent.String(), tokenCount)
-	}
 }
 
 func (s *Server) handleNonStreamingResponse(w http.ResponseWriter, r *http.Request, body io.Reader, chatID, model string) {
@@ -245,10 +362,58 @@ func (s *Server) handleNonStreamingResponse(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	content := orResp.Choices[0].Message.Content
+	choice := orResp.Choices[0]
+	content := choice.Message.Content
 	tokenCount := orResp.Usage.CompletionTokens
+	finishReason := choice.FinishReason
+	toolCalls := choice.Message.ToolCalls
 
-	// Save the response as a message
+	// Handle tool calls
+	if finishReason == "tool_calls" && len(toolCalls) > 0 {
+		// Save assistant message with tool calls
+		msg, err := s.saveAssistantMessageWithToolCalls(r.Context(), chatID, model, content, toolCalls, orResp.ID, finishReason, tokenCount)
+		if err != nil {
+			s.jsonError(w, "Failed to save message", http.StatusInternalServerError)
+			return
+		}
+
+		// Execute tool calls
+		executor := NewToolExecutor(s)
+		toolResults := make([]map[string]interface{}, 0, len(toolCalls))
+
+		for _, tc := range toolCalls {
+			record, err := executor.ExecuteTool(r.Context(), chatID, tc.ID, tc.Function.Name, tc.Function.Arguments)
+
+			// Save tool call record
+			if msg != nil {
+				s.SaveToolCallRecord(r.Context(), msg.ID, record)
+			}
+
+			// Save tool response message
+			s.saveToolResponseMessage(r.Context(), chatID, tc.ID, record.Result)
+
+			result := map[string]interface{}{
+				"tool_id":   tc.ID,
+				"tool_name": tc.Function.Name,
+				"status":    record.Status,
+			}
+			if err != nil {
+				result["error"] = err.Error()
+			} else {
+				result["result"] = record.Result
+			}
+			toolResults = append(toolResults, result)
+		}
+
+		s.jsonResponse(w, map[string]interface{}{
+			"message":      msg,
+			"tool_results": toolResults,
+			"needs_followup": true,
+		}, http.StatusOK)
+		return
+	}
+
+	// Save the response as a message (no tool calls)
 	msg, err := s.saveAssistantMessage(r.Context(), chatID, model, content, tokenCount)
 	if err != nil {
 		s.jsonError(w, "Failed to save message", http.StatusInternalServerError)
@@ -261,16 +426,17 @@ func (s *Server) handleNonStreamingResponse(w http.ResponseWriter, r *http.Reque
 func (s *Server) saveAssistantMessage(ctx context.Context, chatID, model, content string, tokenCount int) (*Message, error) {
 	var msg Message
 	err := s.db.QueryRowContext(ctx, `
-		INSERT INTO messages (chat_id, role, content, model, token_count)
-		VALUES ($1, 'assistant', $2, $3, $4)
-		RETURNING id, chat_id, role, content, model, token_count, created_at
+		INSERT INTO messages (chat_id, role, content, model, token_count, finish_reason)
+		VALUES ($1, 'assistant', $2, $3, $4, 'stop')
+		RETURNING id, chat_id, role, content, model, token_count, finish_reason, created_at
 	`, chatID, content, sql.NullString{String: model, Valid: model != ""}, tokenCount).Scan(
-		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &msg.CreatedAt,
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &msg.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 	msg.Model = model
+	msg.FinishReason = "stop"
 
 	// Update chat preview
 	preview := content
@@ -279,5 +445,58 @@ func (s *Server) saveAssistantMessage(ctx context.Context, chatID, model, conten
 	}
 	s.db.ExecContext(ctx, "UPDATE chats SET preview = $1, is_read = false, updated_at = NOW() WHERE id = $2", preview, chatID)
 
+	return &msg, nil
+}
+
+func (s *Server) saveAssistantMessageWithToolCalls(ctx context.Context, chatID, model, content string, toolCalls []ToolCall, responseID, finishReason string, tokenCount int) (*Message, error) {
+	toolCallsJSON, err := json.Marshal(toolCalls)
+	if err != nil {
+		return nil, err
+	}
+
+	var msg Message
+	err = s.db.QueryRowContext(ctx, `
+		INSERT INTO messages (chat_id, role, content, model, token_count, tool_calls, response_id, finish_reason)
+		VALUES ($1, 'assistant', $2, $3, $4, $5, $6, $7)
+		RETURNING id, chat_id, role, content, model, token_count, finish_reason, created_at
+	`, chatID, content, sql.NullString{String: model, Valid: model != ""}, tokenCount, toolCallsJSON,
+		sql.NullString{String: responseID, Valid: responseID != ""},
+		sql.NullString{String: finishReason, Valid: finishReason != ""}).Scan(
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &msg.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	msg.Model = model
+	msg.ToolCalls = toolCalls
+	msg.ResponseID = responseID
+	msg.FinishReason = finishReason
+
+	// Update chat preview to indicate tool use
+	preview := "🔧 Using tools..."
+	if content != "" {
+		preview = content
+		if len(preview) > 100 {
+			preview = preview[:100] + "..."
+		}
+	}
+	s.db.ExecContext(ctx, "UPDATE chats SET preview = $1, is_read = false, updated_at = NOW() WHERE id = $2", preview, chatID)
+
+	return &msg, nil
+}
+
+func (s *Server) saveToolResponseMessage(ctx context.Context, chatID, toolCallID, result string) (*Message, error) {
+	msgID := uuid.New().String()
+	var msg Message
+	err := s.db.QueryRowContext(ctx, `
+		INSERT INTO messages (id, chat_id, role, content, tool_call_id)
+		VALUES ($1, $2, 'tool', $3, $4)
+		RETURNING id, chat_id, role, content, tool_call_id, created_at
+	`, msgID, chatID, result, toolCallID).Scan(
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &msg.ToolCallID, &msg.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
 	return &msg, nil
 }

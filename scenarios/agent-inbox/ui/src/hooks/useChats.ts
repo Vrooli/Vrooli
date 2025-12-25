@@ -17,9 +17,19 @@ import {
   deleteLabel,
   assignLabel,
   removeLabel,
+  StreamingEvent,
 } from "../lib/api";
 
 export type View = "inbox" | "starred" | "archived";
+
+export interface ActiveToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+  status: "running" | "completed" | "failed";
+  result?: string;
+  error?: string;
+}
 
 export function useChats() {
   const queryClient = useQueryClient();
@@ -27,6 +37,7 @@ export function useChats() {
   const [currentView, setCurrentView] = useState<View>("inbox");
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [activeToolCalls, setActiveToolCalls] = useState<ActiveToolCall[]>([]);
 
   // Fetch chats based on current view
   const {
@@ -149,6 +160,55 @@ export function useChats() {
     },
   });
 
+  const handleStreamingEvent = useCallback((event: StreamingEvent) => {
+    switch (event.type) {
+      case "content":
+        if (event.content) {
+          setStreamingContent((prev) => prev + event.content);
+        }
+        break;
+
+      case "tool_call_start":
+        if (event.tool_id && event.tool_name) {
+          setActiveToolCalls((prev) => [
+            ...prev,
+            {
+              id: event.tool_id!,
+              name: event.tool_name!,
+              arguments: event.arguments || "{}",
+              status: "running",
+            },
+          ]);
+        }
+        break;
+
+      case "tool_call_result":
+        if (event.tool_id) {
+          setActiveToolCalls((prev) =>
+            prev.map((tc) =>
+              tc.id === event.tool_id
+                ? {
+                    ...tc,
+                    status: event.status === "completed" ? "completed" : "failed",
+                    result: event.result,
+                    error: event.error,
+                  }
+                : tc
+            )
+          );
+        }
+        break;
+
+      case "tool_calls_complete":
+        // Tool calls are done, the follow-up response will come
+        break;
+
+      case "error":
+        console.error("Streaming error:", event.error);
+        break;
+    }
+  }, []);
+
   const sendMessage = useCallback(
     async (content: string) => {
       if (!selectedChatId || !content.trim() || isGenerating) return;
@@ -161,13 +221,12 @@ export function useChats() {
       // Start AI completion with streaming
       setIsGenerating(true);
       setStreamingContent("");
+      setActiveToolCalls([]);
 
       try {
         await completeChat(selectedChatId, {
           stream: true,
-          onChunk: (chunk) => {
-            setStreamingContent((prev) => prev + chunk);
-          },
+          onEvent: handleStreamingEvent,
         });
 
         queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
@@ -177,9 +236,10 @@ export function useChats() {
       } finally {
         setIsGenerating(false);
         setStreamingContent("");
+        setActiveToolCalls([]);
       }
     },
-    [selectedChatId, isGenerating, queryClient]
+    [selectedChatId, isGenerating, queryClient, handleStreamingEvent]
   );
 
   const selectChat = useCallback(
@@ -200,6 +260,7 @@ export function useChats() {
     currentView,
     isGenerating,
     streamingContent,
+    activeToolCalls,
 
     // Data
     chats,

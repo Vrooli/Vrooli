@@ -19,6 +19,7 @@ export default function App() {
     currentView,
     isGenerating,
     streamingContent,
+    activeToolCalls,
 
     // Data
     chats,
@@ -187,6 +188,7 @@ export default function App() {
             isLoading={loadingChat}
             isGenerating={isGenerating}
             streamingContent={streamingContent}
+            activeToolCalls={activeToolCalls}
             onSendMessage={sendMessage}
             onUpdateChat={(data) => updateChat({ chatId: selectedChatId, data })}
             onToggleRead={() => toggleRead({ chatId: selectedChatId })}

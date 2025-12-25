@@ -36,28 +36,60 @@ type Server struct {
 
 // Chat represents a conversation in the inbox
 type Chat struct {
-	ID         string    `json:"id"`
-	Name       string    `json:"name"`
-	Preview    string    `json:"preview"`
-	Model      string    `json:"model"`
-	ViewMode   string    `json:"view_mode"` // "bubble" or "terminal"
-	IsRead     bool      `json:"is_read"`
-	IsArchived bool      `json:"is_archived"`
-	IsStarred  bool      `json:"is_starred"`
-	LabelIDs   []string  `json:"label_ids"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Preview      string    `json:"preview"`
+	Model        string    `json:"model"`
+	ViewMode     string    `json:"view_mode"` // "bubble" or "terminal"
+	IsRead       bool      `json:"is_read"`
+	IsArchived   bool      `json:"is_archived"`
+	IsStarred    bool      `json:"is_starred"`
+	LabelIDs     []string  `json:"label_ids"`
+	SystemPrompt string    `json:"system_prompt"`
+	ToolsEnabled bool      `json:"tools_enabled"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 // Message represents a single message in a chat
 type Message struct {
-	ID         string    `json:"id"`
-	ChatID     string    `json:"chat_id"`
-	Role       string    `json:"role"` // "user", "assistant", "system"
-	Content    string    `json:"content"`
-	Model      string    `json:"model,omitempty"`
-	TokenCount int       `json:"token_count,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID           string     `json:"id"`
+	ChatID       string     `json:"chat_id"`
+	Role         string     `json:"role"` // "user", "assistant", "system", "tool"
+	Content      string     `json:"content"`
+	Model        string     `json:"model,omitempty"`
+	TokenCount   int        `json:"token_count,omitempty"`
+	ToolCallID   string     `json:"tool_call_id,omitempty"`   // For tool response messages
+	ToolCalls    []ToolCall `json:"tool_calls,omitempty"`     // Tool calls requested by assistant
+	ResponseID   string     `json:"response_id,omitempty"`    // OpenRouter response ID for tracking
+	FinishReason string     `json:"finish_reason,omitempty"`  // "stop", "tool_calls", etc.
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
+// ToolCall represents a tool invocation requested by the assistant
+type ToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"` // "function"
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"` // JSON string of arguments
+	} `json:"function"`
+}
+
+// ToolCallRecord stores tool call execution details in the database
+type ToolCallRecord struct {
+	ID            string    `json:"id"`
+	MessageID     string    `json:"message_id"`
+	ChatID        string    `json:"chat_id"`
+	ToolName      string    `json:"tool_name"`
+	Arguments     string    `json:"arguments"`       // JSON string
+	Result        string    `json:"result"`          // JSON string or text output
+	Status        string    `json:"status"`          // "pending", "running", "completed", "failed"
+	ScenarioName  string    `json:"scenario_name"`   // e.g., "agent-manager", "app-issue-tracker"
+	ExternalRunID string    `json:"external_run_id"` // ID in the external scenario
+	StartedAt     time.Time `json:"started_at"`
+	CompletedAt   time.Time `json:"completed_at,omitempty"`
+	ErrorMessage  string    `json:"error_message,omitempty"`
 }
 
 // Label represents a colored label for organizing chats
@@ -112,11 +144,13 @@ func (s *Server) initSchema() error {
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		name TEXT NOT NULL DEFAULT 'New Chat',
 		preview TEXT NOT NULL DEFAULT '',
-		model TEXT NOT NULL DEFAULT 'claude-3-5-sonnet-20241022',
+		model TEXT NOT NULL DEFAULT 'anthropic/claude-3.5-sonnet',
 		view_mode TEXT NOT NULL DEFAULT 'bubble' CHECK (view_mode IN ('bubble', 'terminal')),
 		is_read BOOLEAN NOT NULL DEFAULT false,
 		is_archived BOOLEAN NOT NULL DEFAULT false,
 		is_starred BOOLEAN NOT NULL DEFAULT false,
+		system_prompt TEXT DEFAULT '',
+		tools_enabled BOOLEAN NOT NULL DEFAULT true,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	);
@@ -124,15 +158,20 @@ func (s *Server) initSchema() error {
 	CREATE TABLE IF NOT EXISTS messages (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-		role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+		role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
 		content TEXT NOT NULL,
 		model TEXT,
 		token_count INTEGER DEFAULT 0,
+		tool_call_id TEXT,
+		tool_calls JSONB,
+		response_id TEXT,
+		finish_reason TEXT,
 		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
 	CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+	CREATE INDEX IF NOT EXISTS idx_messages_tool_call_id ON messages(tool_call_id) WHERE tool_call_id IS NOT NULL;
 
 	CREATE TABLE IF NOT EXISTS labels (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -149,6 +188,27 @@ func (s *Server) initSchema() error {
 
 	CREATE INDEX IF NOT EXISTS idx_chat_labels_chat_id ON chat_labels(chat_id);
 	CREATE INDEX IF NOT EXISTS idx_chat_labels_label_id ON chat_labels(label_id);
+
+	-- Tool call tracking for external scenario invocations
+	CREATE TABLE IF NOT EXISTS tool_calls (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+		chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+		tool_name TEXT NOT NULL,
+		arguments JSONB NOT NULL DEFAULT '{}',
+		result JSONB,
+		status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+		scenario_name TEXT,
+		external_run_id TEXT,
+		started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		completed_at TIMESTAMPTZ,
+		error_message TEXT,
+		UNIQUE(id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_tool_calls_message_id ON tool_calls(message_id);
+	CREATE INDEX IF NOT EXISTS idx_tool_calls_chat_id ON tool_calls(chat_id);
+	CREATE INDEX IF NOT EXISTS idx_tool_calls_status ON tool_calls(status) WHERE status IN ('pending', 'running');
 	`
 	_, err := s.db.Exec(schema)
 	return err
@@ -183,7 +243,9 @@ func (s *Server) setupRoutes() {
 
 	// OpenRouter / AI endpoints
 	s.router.HandleFunc("/api/v1/models", s.handleListModels).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/tools", s.handleListTools).Methods("GET", "OPTIONS")
 	s.router.HandleFunc("/api/v1/chats/{id}/complete", s.handleChatComplete).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/chats/{id}/tool-calls", s.handleListChatToolCalls).Methods("GET", "OPTIONS")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -836,6 +898,56 @@ func (s *Server) handleRemoveLabel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Tool call handlers
+
+func (s *Server) handleListChatToolCalls(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	chatID := vars["id"]
+
+	if _, err := uuid.Parse(chatID); err != nil {
+		s.jsonError(w, "Invalid chat ID", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := s.db.QueryContext(r.Context(), `
+		SELECT id, message_id, chat_id, tool_name, arguments, result, status, scenario_name, external_run_id, started_at, completed_at, error_message
+		FROM tool_calls WHERE chat_id = $1 ORDER BY started_at DESC
+	`, chatID)
+	if err != nil {
+		s.jsonError(w, "Failed to list tool calls", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var records []ToolCallRecord
+	for rows.Next() {
+		var r ToolCallRecord
+		var completedAt sql.NullTime
+		var result, scenarioName, externalRunID, errorMessage sql.NullString
+		if err := rows.Scan(&r.ID, &r.MessageID, &r.ChatID, &r.ToolName, &r.Arguments, &result, &r.Status, &scenarioName, &externalRunID, &r.StartedAt, &completedAt, &errorMessage); err != nil {
+			continue
+		}
+		if result.Valid {
+			r.Result = result.String
+		}
+		if scenarioName.Valid {
+			r.ScenarioName = scenarioName.String
+		}
+		if externalRunID.Valid {
+			r.ExternalRunID = externalRunID.String
+		}
+		if completedAt.Valid {
+			r.CompletedAt = completedAt.Time
+		}
+		if errorMessage.Valid {
+			r.ErrorMessage = errorMessage.String
+		}
+		records = append(records, r)
+	}
+
+	s.jsonResponse(w, records, http.StatusOK)
 }
 
 // Helper functions

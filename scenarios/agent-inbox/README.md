@@ -1,13 +1,26 @@
 # Agent Inbox
 
-AI chat inbox for managing conversations with multiple AI models and coding agents.
+AI chat inbox serving as the conversational hub for Vrooli's agent ecosystem.
 
 ## Overview
 
-Agent Inbox is a unified chat management interface designed like an email client. Organize multiple AI conversations with labels, track read/unread status, and choose between two interaction modes:
+Agent Inbox is a unified chat management interface that acts as a "dispatcher + timeline" for AI conversations. It handles normal chat via OpenRouter while dispatching specialized tasks to other Vrooli scenarios as tools. Think of it like an intelligent foreman that can:
 
-- **Bubble Chat View**: ChatGPT-style message bubbles powered by OpenRouter (Claude, GPT-4, etc.)
-- **Terminal View**: Console interface for coding agents like Claude Code and Codex
+- **Chat**: Normal conversation, planning, brainstorming via OpenRouter (Claude, GPT-4, etc.)
+- **Dispatch**: Spawn coding agents, track issues, run investigations via scenario tools
+- **Organize**: Email-like inbox with labels, read/unread status, archive
+
+## Key Architecture
+
+Agent Inbox follows an **"inbox as dispatcher"** pattern:
+
+- **Inbox calls OpenRouter** for assistant messages (normal chat, reasoning, planning)
+- **Inbox uses tools** to delegate work to specialized scenarios:
+  - `agent-manager`: Spawn Claude Code/Codex/OpenCode for coding tasks
+  - Future: `app-issue-tracker`, investigation scenarios, etc.
+- **Tool results** stream back and display in the chat timeline
+
+This separation keeps chat cheap/fast while coding agents handle expensive/stateful work.
 
 ## Features
 
@@ -15,21 +28,23 @@ Agent Inbox is a unified chat management interface designed like an email client
 - Email-like list view with chat previews
 - Labels with custom colors for organization
 - Read/unread status tracking
-- Archive and delete chats
-- Full-text search across all conversations
+- Archive, star, and delete chats
+- Tool call history tracking per chat
 
 ### Chat Interface
-- Streaming AI responses via WebSocket
+- Streaming AI responses via SSE
+- Tool calling with live progress display
 - Switch models mid-conversation
 - Auto-generate chat names using local Ollama
-- Manual rename with double-click
 - Keyboard shortcuts (j/k navigation, Cmd+N new chat)
 
-### Terminal Mode
-- PTY-based terminal sessions
-- Real-time output streaming
-- Support for Claude Code, Codex, and other CLI agents
-- Sandboxed execution with resource limits
+### Tool Calling
+- **spawn_coding_agent**: Run Claude Code, Codex, or OpenCode on a task
+- **check_agent_status**: Monitor running agent progress
+- **stop_agent**: Cancel a running agent
+- **list_active_agents**: See all active agent runs
+- **get_agent_diff**: View code changes from an agent run
+- **approve_agent_changes**: Apply agent changes to main workspace
 
 ## Quick Start
 
@@ -77,10 +92,13 @@ agent-inbox models          # List available models
 | PATCH | /api/v1/chats/:id | Update chat (rename, labels) |
 | DELETE | /api/v1/chats/:id | Delete chat |
 | POST | /api/v1/chats/:id/messages | Send message |
+| POST | /api/v1/chats/:id/complete | Get AI completion (supports streaming) |
+| GET | /api/v1/chats/:id/tool-calls | List tool calls for a chat |
 | POST | /api/v1/chats/:id/auto-name | Auto-generate name |
 | GET | /api/v1/labels | List labels |
 | POST | /api/v1/labels | Create label |
 | GET | /api/v1/models | List OpenRouter models |
+| GET | /api/v1/tools | List available tools |
 
 ## Environment Variables
 
@@ -120,13 +138,27 @@ make dev
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   React UI      │    │    Go API        │    │   PostgreSQL    │
-│   (Inbox)       │◄──►│   REST/WebSocket │◄──►│   (Storage)     │
+│   (Inbox)       │◄──►│   REST/SSE       │◄──►│   (Storage)     │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
                                │
               ┌────────────────┼────────────────┐
               ▼                ▼                ▼
-     ┌────────────────┐ ┌────────────┐ ┌──────────────┐
-     │   OpenRouter   │ │   Ollama   │ │  PTY/Terminal│
-     │   (Chat AI)    │ │  (Naming)  │ │   (Agents)   │
-     └────────────────┘ └────────────┘ └──────────────┘
+     ┌────────────────┐ ┌────────────┐ ┌──────────────────┐
+     │   OpenRouter   │ │   Ollama   │ │  agent-manager   │
+     │   (Chat + Tools)│ │  (Naming)  │ │  (Coding Agents) │
+     └────────────────┘ └────────────┘ └──────────────────┘
+                                               │
+                              ┌────────────────┼────────────────┐
+                              ▼                ▼                ▼
+                     ┌────────────────┐ ┌──────────┐ ┌──────────────┐
+                     │  Claude Code   │ │  Codex   │ │   OpenCode   │
+                     └────────────────┘ └──────────┘ └──────────────┘
 ```
+
+### Flow
+
+1. **User sends message** → Stored in PostgreSQL, forwarded to OpenRouter
+2. **OpenRouter responds** → Either text content or tool calls (or both)
+3. **If tool_calls** → API executes each tool against target scenario (e.g., agent-manager)
+4. **Tool results** → Stored as "tool" role messages, streamed to UI
+5. **Follow-up** → OpenRouter gets tool results for next response turn
