@@ -5,17 +5,19 @@
 > **Status**: Canonical Specification
 > **Scenario**: agent-inbox
 
-## Overview
+## 🎯 Overview
 
-Agent Inbox is a unified chat management interface for AI conversations, designed like an email client. Users can manage multiple concurrent AI conversations with different models, organize them with labels, track read/unread status, and seamlessly switch between chat views. The system supports two distinct interaction modes: a traditional ChatGPT-style bubble interface for conversational AI (powered by OpenRouter), and a terminal interface for coding agents like Claude Code and Codex.
+**Purpose**: Agent Inbox provides a unified chat management interface for AI conversations, designed like an email client. Users can manage multiple concurrent AI conversations with different models, organize them with labels, track read/unread status, and seamlessly switch between chat views.
+
+The system supports two distinct interaction modes: a traditional ChatGPT-style bubble interface for conversational AI (powered by OpenRouter), and a terminal interface for coding agents like Claude Code and Codex.
 
 **Primary users**: Developers, power users, and AI enthusiasts who interact with multiple AI models daily
 **Deployment surfaces**: API, CLI, Web UI
 **Intelligence amplification**: Creates reusable patterns for multi-model chat management, terminal-based agent interaction, and conversation organization that other scenarios can leverage.
 
-## Operational Targets
+## 🎯 Operational Targets
 
-### P0 – Must ship for viability
+### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Inbox list view | Display all chats in an email-like list showing name, preview, labels, and read/unread status
 - [ ] OT-P0-002 | Chat creation | Create new chat sessions with selected model and view mode
 - [ ] OT-P0-003 | Bubble chat view | ChatGPT-style message bubbles with streaming responses from OpenRouter models
@@ -27,7 +29,7 @@ Agent Inbox is a unified chat management interface for AI conversations, designe
 - [ ] OT-P0-009 | Chat persistence | Store all conversations in PostgreSQL with full message history
 - [ ] OT-P0-010 | Terminal view | Terminal/console view mode for coding agent interactions (Claude Code, Codex)
 
-### P1 – Should have post-launch
+### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Search functionality | Full-text search across all chat messages
 - [ ] OT-P1-002 | Keyboard shortcuts | Email-style keyboard navigation (j/k, enter, escape, etc.)
 - [ ] OT-P1-003 | Archive functionality | Archive old chats without deleting them
@@ -37,7 +39,7 @@ Agent Inbox is a unified chat management interface for AI conversations, designe
 - [ ] OT-P1-007 | Model usage stats | Track token usage and costs per model
 - [ ] OT-P1-008 | Starred chats | Pin important chats to the top of the inbox
 
-### P2 – Future / expansion
+### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Multi-agent conversations | Chat sessions with multiple AI models collaborating
 - [ ] OT-P2-002 | Prompt templates | Save and reuse system prompts and conversation starters
 - [ ] OT-P2-003 | Chat sharing | Generate shareable links for specific conversations
@@ -46,8 +48,9 @@ Agent Inbox is a unified chat management interface for AI conversations, designe
 - [ ] OT-P2-006 | Plugin system | Allow custom tools and integrations within chat context
 - [ ] OT-P2-007 | Conversation analytics | Insights on conversation patterns, frequent topics, model performance
 
-## Tech Direction Snapshot
+## 🧱 Tech Direction Snapshot
 
+**Preferred stacks**:
 - **UI Stack**: React with Vite, TailwindCSS for styling, modern component architecture
 - **API Stack**: Go API server with WebSocket support for streaming responses
 - **Data Storage**: PostgreSQL for chats, messages, labels; conversation history with full-text search indexes

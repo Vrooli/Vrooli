@@ -12,6 +12,7 @@
     "03-naming/auto-naming.json",
     "04-terminal/core.json",
     "05-enhancements/search.json",
-    "05-enhancements/keyboard.json"
+    "05-enhancements/keyboard.json",
+    "05-enhancements/usage-stats.json"
   ]
 }

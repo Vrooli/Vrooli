@@ -266,23 +266,86 @@ const createSelectorRegistry = <
 };
 
 const literalSelectors: LiteralSelectorTree = {
-  inbox: {
+  // Main layout
+  app: {
     container: 'inbox-container',
-    newChatButton: 'new-chat-button',
-    chatList: 'chat-list',
-    messageList: 'message-list',
-    messageInput: 'message-input',
-    sendMessageButton: 'send-message-button',
-    unreadIndicator: 'unread-indicator',
-    toggleReadButton: 'toggle-read-button',
-    toggleStarButton: 'toggle-star-button',
-    toggleArchiveButton: 'toggle-archive-button',
-    deleteChatButton: 'delete-chat-button',
+    mobileMenuButton: 'mobile-menu-button',
+    mobileSidebarOverlay: 'mobile-sidebar-overlay',
+    closeSidebarButton: 'close-sidebar-button',
   },
+  // Sidebar
+  sidebar: {
+    container: 'sidebar',
+    newChatButton: 'new-chat-button',
+    nav: 'sidebar-nav',
+    manageLabelsButton: 'manage-labels-button',
+    addLabelsButton: 'add-labels-button',
+  },
+  // Navigation
   nav: {
     inbox: 'nav-inbox',
     starred: 'nav-starred',
     archived: 'nav-archived',
+  },
+  // Chat list panel
+  chatListPanel: {
+    container: 'chat-list-panel',
+    searchInput: 'chat-search-input',
+    list: 'chat-list',
+  },
+  // Chat view
+  chatView: {
+    container: 'chat-view',
+    loading: 'chat-view-loading',
+    header: 'chat-header',
+    messageList: 'message-list',
+    emptyMessages: 'empty-messages',
+    streamingMessage: 'streaming-message',
+  },
+  // Chat header actions
+  chatHeader: {
+    renameChatButton: 'rename-chat-button',
+    modelSelectorButton: 'model-selector-button',
+    addLabelButton: 'add-label-button',
+    toggleReadButton: 'toggle-read-button',
+    toggleStarButton: 'toggle-star-button',
+    toggleArchiveButton: 'toggle-archive-button',
+    moreActionsButton: 'chat-more-actions',
+    confirmDeleteButton: 'confirm-delete-button',
+  },
+  // Message input
+  messageInput: {
+    container: 'message-input-container',
+    input: 'message-input',
+    sendButton: 'send-message-button',
+  },
+  // Empty state
+  emptyState: {
+    container: 'empty-state',
+    newChatButton: 'empty-state-new-chat',
+  },
+  // Dialogs
+  dialog: {
+    overlay: 'dialog-overlay',
+    content: 'dialog-content',
+    closeButton: 'dialog-close-button',
+  },
+  // Rename dialog
+  renameDialog: {
+    input: 'rename-chat-input',
+  },
+  // Label manager
+  labelManager: {
+    newLabelInput: 'new-label-input',
+    createButton: 'create-label-button',
+  },
+  // Dropdown
+  dropdown: {
+    menu: 'dropdown-menu',
+  },
+  // Indicators
+  indicators: {
+    unread: 'unread-indicator',
   },
 };
 
@@ -297,6 +360,42 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       description: 'Message by message ID',
       testIdPattern: 'message-${messageId}',
       params: { messageId: { type: 'string' } },
+    }),
+  },
+  label: {
+    filterButton: defineDynamicSelector({
+      description: 'Label filter button in sidebar',
+      testIdPattern: 'label-filter-${labelId}',
+      params: { labelId: { type: 'string' } },
+    }),
+    item: defineDynamicSelector({
+      description: 'Label item in label manager',
+      testIdPattern: 'label-item-${labelId}',
+      params: { labelId: { type: 'string' } },
+    }),
+    deleteButton: defineDynamicSelector({
+      description: 'Delete label button',
+      testIdPattern: 'delete-label-${labelId}',
+      params: { labelId: { type: 'string' } },
+    }),
+    confirmDeleteButton: defineDynamicSelector({
+      description: 'Confirm delete label button',
+      testIdPattern: 'confirm-delete-label-${labelId}',
+      params: { labelId: { type: 'string' } },
+    }),
+  },
+  model: {
+    option: defineDynamicSelector({
+      description: 'Model option in dropdown',
+      testIdPattern: 'model-option-${modelId}',
+      params: { modelId: { type: 'string' } },
+    }),
+  },
+  color: {
+    button: defineDynamicSelector({
+      description: 'Color picker button',
+      testIdPattern: 'color-${color}',
+      params: { color: { type: 'string' } },
     }),
   },
 };

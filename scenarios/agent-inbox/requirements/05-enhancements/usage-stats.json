@@ -1,0 +1,33 @@
+{
+  "module": "usage-stats",
+  "description": "Track model usage, token consumption, and costs",
+  "requirements": [
+    {
+      "id": "USAGE-001",
+      "title": "Token usage tracking",
+      "description": "Track input/output token counts for each message",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "USAGE-002",
+      "title": "Cost calculation",
+      "description": "Calculate estimated costs based on model pricing",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "USAGE-003",
+      "title": "Usage statistics view",
+      "description": "Display aggregated usage statistics per model and time period",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}

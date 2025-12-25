@@ -14,7 +14,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/main_test.go"
+          "ref": "api/labels_test.go"
         }
       ]
     },
@@ -30,7 +30,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/main_test.go"
+          "ref": "api/labels_test.go"
         }
       ]
     },
@@ -46,7 +46,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/main_test.go"
+          "ref": "api/labels_test.go"
         }
       ]
     },
@@ -65,8 +65,15 @@
       "description": "Rename or change color of existing labels",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/labels_test.go"
+        }
+      ]
     },
     {
       "id": "LABEL-006",
@@ -74,8 +81,15 @@
       "description": "Remove labels (optionally from all associated chats)",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/labels_test.go"
+        }
+      ]
     }
   ]
 }

@@ -1,19 +1,20 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
@@ -23,8 +24,7 @@ import (
 
 // Config holds minimal runtime configuration
 type Config struct {
-	Port        string
-	DatabaseURL string
+	Port string
 }
 
 // Server wires the HTTP router and database connection
@@ -36,28 +36,28 @@ type Server struct {
 
 // Chat represents a conversation in the inbox
 type Chat struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Preview     string    `json:"preview"`
-	Model       string    `json:"model"`
-	ViewMode    string    `json:"view_mode"` // "bubble" or "terminal"
-	IsRead      bool      `json:"is_read"`
-	IsArchived  bool      `json:"is_archived"`
-	IsStarred   bool      `json:"is_starred"`
-	LabelIDs    []string  `json:"label_ids"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	Preview    string    `json:"preview"`
+	Model      string    `json:"model"`
+	ViewMode   string    `json:"view_mode"` // "bubble" or "terminal"
+	IsRead     bool      `json:"is_read"`
+	IsArchived bool      `json:"is_archived"`
+	IsStarred  bool      `json:"is_starred"`
+	LabelIDs   []string  `json:"label_ids"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // Message represents a single message in a chat
 type Message struct {
-	ID        string    `json:"id"`
-	ChatID    string    `json:"chat_id"`
-	Role      string    `json:"role"` // "user", "assistant", "system"
-	Content   string    `json:"content"`
-	Model     string    `json:"model,omitempty"`
-	TokenCount int      `json:"token_count,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+	ID         string    `json:"id"`
+	ChatID     string    `json:"chat_id"`
+	Role       string    `json:"role"` // "user", "assistant", "system"
+	Content    string    `json:"content"`
+	Model      string    `json:"model,omitempty"`
+	TokenCount int       `json:"token_count,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // Label represents a colored label for organizing chats
@@ -70,23 +70,17 @@ type Label struct {
 
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
-	dbURL, err := resolveDatabaseURL()
-	if err != nil {
-		return nil, err
-	}
-
 	cfg := &Config{
-		Port:        requireEnv("API_PORT"),
-		DatabaseURL: dbURL,
+		Port: requireEnv("API_PORT"),
 	}
 
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	// Connect to database with automatic retry and backoff.
+	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
 	srv := &Server{
@@ -104,6 +98,15 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) initSchema() error {
+	// Create and use scenario-specific schema to avoid conflicts with other scenarios
+	schemaName := "agent_inbox"
+	if _, err := s.db.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schemaName)); err != nil {
+		return fmt.Errorf("failed to create schema: %w", err)
+	}
+	if _, err := s.db.Exec(fmt.Sprintf("SET search_path TO %s, public", schemaName)); err != nil {
+		return fmt.Errorf("failed to set search_path: %w", err)
+	}
+
 	schema := `
 	CREATE TABLE IF NOT EXISTS chats (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -177,6 +180,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/labels/{id}", s.handleDeleteLabel).Methods("DELETE", "OPTIONS")
 	s.router.HandleFunc("/api/v1/chats/{chatId}/labels/{labelId}", s.handleAssignLabel).Methods("PUT", "OPTIONS")
 	s.router.HandleFunc("/api/v1/chats/{chatId}/labels/{labelId}", s.handleRemoveLabel).Methods("DELETE", "OPTIONS")
+
+	// OpenRouter / AI endpoints
+	s.router.HandleFunc("/api/v1/models", s.handleListModels).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/chats/{id}/complete", s.handleChatComplete).Methods("POST", "OPTIONS")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -667,7 +674,6 @@ func (s *Server) handleCreateLabel(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2)
 		RETURNING id, name, color, created_at
 	`, req.Name, req.Color).Scan(&label.ID, &label.Name, &label.Color, &label.CreatedAt)
-
 	if err != nil {
 		if strings.Contains(err.Error(), "unique") {
 			s.jsonError(w, "Label with this name already exists", http.StatusConflict)
@@ -795,7 +801,6 @@ func (s *Server) handleAssignLabel(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2)
 		ON CONFLICT DO NOTHING
 	`, chatID, labelID)
-
 	if err != nil {
 		s.jsonError(w, "Failed to assign label", http.StatusInternalServerError)
 		return
@@ -914,34 +919,6 @@ func requireEnv(key string) string {
 		log.Fatalf("environment variable %s is required. Run the scenario via 'vrooli scenario run <name>' so lifecycle exports it.", key)
 	}
 	return value
-}
-
-func resolveDatabaseURL() (string, error) {
-	if raw := strings.TrimSpace(os.Getenv("DATABASE_URL")); raw != "" {
-		return raw, nil
-	}
-
-	host := strings.TrimSpace(os.Getenv("POSTGRES_HOST"))
-	port := strings.TrimSpace(os.Getenv("POSTGRES_PORT"))
-	user := strings.TrimSpace(os.Getenv("POSTGRES_USER"))
-	password := strings.TrimSpace(os.Getenv("POSTGRES_PASSWORD"))
-	name := strings.TrimSpace(os.Getenv("POSTGRES_DB"))
-
-	if host == "" || port == "" || user == "" || password == "" || name == "" {
-		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
-	}
-
-	pgURL := &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(user, password),
-		Host:   fmt.Sprintf("%s:%s", host, port),
-		Path:   name,
-	}
-	values := pgURL.Query()
-	values.Set("sslmode", "disable")
-	pgURL.RawQuery = values.Encode()
-
-	return pgURL.String(), nil
 }
 
 func main() {

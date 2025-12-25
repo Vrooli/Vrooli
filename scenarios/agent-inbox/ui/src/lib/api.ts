@@ -257,3 +257,78 @@ export async function removeLabel(chatId: string, labelId: string): Promise<void
     throw new Error(`Failed to remove label: ${res.status}`);
   }
 }
+
+// Models
+export interface Model {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export async function fetchModels(): Promise<Model[]> {
+  const url = buildApiUrl("/models", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch models: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// Chat completion with streaming
+export async function completeChat(
+  chatId: string,
+  options?: { stream?: boolean; onChunk?: (content: string) => void }
+): Promise<Message | void> {
+  const stream = options?.stream ?? true;
+  const url = buildApiUrl(`/chats/${chatId}/complete?stream=${stream}`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Chat completion failed: ${errorText}`);
+  }
+
+  if (stream && options?.onChunk) {
+    const reader = res.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) {
+      throw new Error("Streaming not supported");
+    }
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const text = decoder.decode(value, { stream: true });
+      const lines = text.split("\n");
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = line.slice(6);
+          if (data === "[DONE]") continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.content) {
+              options.onChunk(parsed.content);
+            }
+          } catch {
+            // Ignore parse errors for partial data
+          }
+        }
+      }
+    }
+  } else {
+    return res.json();
+  }
+}

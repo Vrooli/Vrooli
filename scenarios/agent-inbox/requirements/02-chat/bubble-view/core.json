@@ -14,7 +14,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/main_test.go"
+          "ref": "api/chat_test.go"
         },
         {
           "type": "test",
@@ -61,11 +61,24 @@
     {
       "id": "BUBBLE-003",
       "title": "Streaming responses",
-      "description": "Stream AI responses in real-time via WebSocket",
+      "description": "Stream AI responses in real-time via SSE",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/openrouter_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/lib/api.ts"
+        }
+      ]
     },
     {
       "id": "BUBBLE-004",
@@ -73,8 +86,15 @@
       "description": "Send chat completions to OpenRouter API with selected model",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/openrouter_test.go"
+        }
+      ]
     },
     {
       "id": "BUBBLE-005",
@@ -82,8 +102,21 @@
       "description": "Dropdown to select from available OpenRouter models",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/openrouter_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
+        }
+      ]
     },
     {
       "id": "BUBBLE-006",
@@ -91,8 +124,21 @@
       "description": "Change the model for subsequent messages without starting new chat",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/chat_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
+        }
+      ]
     },
     {
       "id": "BUBBLE-007",
