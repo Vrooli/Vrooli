@@ -90,6 +90,10 @@ type GitRunner interface {
 	// If path is provided, returns only that file's diff from the commit.
 	// Uses git show <commit> or git show <commit> -- <path>.
 	ShowCommitDiff(ctx context.Context, repoDir string, commit string, path string) ([]byte, error)
+
+	// ShowFileAtCommit returns the content of a file at a specific commit.
+	// Uses git show <commit>:<path>.
+	ShowFileAtCommit(ctx context.Context, repoDir string, commit string, path string) ([]byte, error)
 }
 
 // CommitOptions configures author overrides for commit operations.
@@ -529,4 +533,28 @@ func (r *ExecGitRunner) ShowCommitDiff(ctx context.Context, repoDir string, comm
 		return nil, fmt.Errorf("git diff/show failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
 	}
 	return nil, fmt.Errorf("git diff/show failed: %w", err)
+}
+
+func (r *ExecGitRunner) ShowFileAtCommit(ctx context.Context, repoDir string, commit string, path string) ([]byte, error) {
+	if strings.TrimSpace(commit) == "" {
+		return nil, fmt.Errorf("commit hash is required")
+	}
+	if strings.TrimSpace(path) == "" {
+		return nil, fmt.Errorf("file path is required")
+	}
+
+	// Use git show <commit>:<path> to get file content at that commit
+	args := []string{"-C", repoDir, "show", fmt.Sprintf("%s:%s", commit, path)}
+
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+	if err == nil {
+		return out, nil
+	}
+
+	exitErr := &exec.ExitError{}
+	if errors.As(err, &exitErr) {
+		return nil, fmt.Errorf("git show file failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+	}
+	return nil, fmt.Errorf("git show file failed: %w", err)
 }

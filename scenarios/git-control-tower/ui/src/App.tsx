@@ -16,7 +16,7 @@ import {
 } from "./components/LayoutSettingsModal";
 import { useIsMobile } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
-import type { RepoHistoryEntry } from "./lib/api";
+import type { RepoHistoryEntry, ViewMode } from "./lib/api";
 
 /** State for viewing a historical commit (read-only mode) */
 export interface ViewingCommit {
@@ -128,6 +128,8 @@ export default function App() {
   const [commitMessage, setCommitMessage] = useState("");
   // History mode: when viewing a previous commit
   const [viewingCommit, setViewingCommit] = useState<ViewingCommit | null>(null);
+  // View mode for diff viewer
+  const [viewMode, setViewMode] = useState<ViewMode>("diff");
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
   const stackPanels = useMemo(
@@ -176,7 +178,8 @@ export default function App() {
     selectedFile,
     viewingCommit ? false : selectedIsStaged,
     viewingCommit ? false : selectedIsUntracked,
-    viewingCommit?.hash
+    viewingCommit?.hash,
+    viewMode
   );
 
   // Mutations
@@ -1194,6 +1197,8 @@ export default function App() {
               isLoading={diffQuery.isLoading}
               error={diffQuery.error}
               repoDir={statusQuery.data?.repo_dir}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
               isHistoryMode={isHistoryMode}
               commitHash={viewingCommit?.hash}
             />
@@ -1353,6 +1358,8 @@ export default function App() {
             isLoading={diffQuery.isLoading}
             error={diffQuery.error}
             repoDir={statusQuery.data?.repo_dir}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
             onStage={handleStageFile}
             onUnstage={handleUnstageFile}
             onDiscard={handleDiscardFile}

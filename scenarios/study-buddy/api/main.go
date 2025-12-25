@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
@@ -10,7 +11,6 @@ import (
 	"io"
 	"log"
 	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"runtime"
@@ -95,81 +95,14 @@ func initDB() {
 	godotenv.Load("../.env")
 	godotenv.Load(".env")
 
-	// All database configuration must come from environment variables - NO DEFAULTS
-	dbHost := os.Getenv("POSTGRES_HOST")
-	if dbHost == "" {
-		log.Fatal("❌ POSTGRES_HOST environment variable is required")
-	}
-
-	dbPort := os.Getenv("POSTGRES_PORT")
-	if dbPort == "" {
-		log.Fatal("❌ POSTGRES_PORT environment variable is required")
-	}
-
-	dbUser := os.Getenv("POSTGRES_USER")
-	if dbUser == "" {
-		log.Fatal("❌ POSTGRES_USER environment variable is required")
-	}
-
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	if dbPassword == "" {
-		log.Fatal("❌ POSTGRES_PASSWORD environment variable is required")
-	}
-
-	dbName := os.Getenv("POSTGRES_DB")
-	if dbName == "" {
-		log.Fatal("❌ POSTGRES_DB environment variable is required")
-	}
-
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-
 	var err error
-	db, err = sql.Open("postgres", psqlInfo)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatalf("❌ Failed to open database connection: %v", err)
+		log.Fatalf("❌ Database connection failed: %v", err)
 	}
-
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(rand.Float64() * jitterRange)
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
+	log.Println("🎉 Database connection pool established successfully!")
 }
 
 func main() {

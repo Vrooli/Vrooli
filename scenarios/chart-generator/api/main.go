@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -76,64 +76,22 @@ func main() {
 
 	// Initialize database connection (optional for chart generation)
 	var db *sql.DB
-	var err error
 
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-
-	if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
-		connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			dbHost, dbPort, dbUser, dbPassword, dbName)
-
-		db, err = sql.Open("postgres", connStr)
-		if err == nil {
+	// Check if database is configured
+	if os.Getenv("POSTGRES_HOST") != "" || os.Getenv("POSTGRES_URL") != "" {
+		var err error
+		db, err = database.Connect(context.Background(), database.Config{
+			Driver: "postgres",
+		})
+		if err != nil {
+			log.Printf("⚠️  Database connection failed: %v (continuing without database)", err)
+			db = nil
+		} else {
 			// Configure connection pool
 			db.SetMaxOpenConns(25)
 			db.SetMaxIdleConns(5)
 			db.SetConnMaxLifetime(5 * time.Minute)
-
-			// Implement exponential backoff for database connection
-			maxRetries := 10
-			baseDelay := 1 * time.Second
-			maxDelay := 30 * time.Second
-
-			log.Println("🔄 Attempting database connection with exponential backoff...")
-
-			var pingErr error
-			for attempt := 0; attempt < maxRetries; attempt++ {
-				pingErr = db.Ping()
-				if pingErr == nil {
-					log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-					break
-				}
-
-				// Calculate exponential backoff delay
-				delay := time.Duration(math.Min(
-					float64(baseDelay)*math.Pow(2, float64(attempt)),
-					float64(maxDelay),
-				))
-
-				// Add random jitter to prevent thundering herd
-				jitterRange := float64(delay) * 0.25
-				jitter := time.Duration(rand.Float64() * jitterRange)
-				actualDelay := delay + jitter
-
-				log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-				log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-				time.Sleep(actualDelay)
-			}
-
-			if pingErr != nil {
-				log.Printf("⚠️  Database connection failed after %d attempts: %v (continuing without database)", maxRetries, pingErr)
-				db = nil
-			}
-		} else {
-			log.Printf("⚠️  Database connection failed: %v (continuing without database)", err)
-			db = nil
+			log.Println("🎉 Database connection pool established successfully!")
 		}
 	} else {
 		log.Println("📝 Database not configured (continuing without database)")

@@ -226,6 +226,19 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 
 	// Parse query parameters
 	query := r.URL.Query()
+
+	// Parse and validate view mode
+	modeStr := query.Get("mode")
+	var mode ViewMode
+	switch modeStr {
+	case "full_diff":
+		mode = ViewModeFullDiff
+	case "source":
+		mode = ViewModeSource
+	default:
+		mode = ViewModeDiff
+	}
+
 	diff, err := GetDiff(ctx, DiffDeps{
 		Git:     s.git,
 		RepoDir: repoDir,
@@ -235,6 +248,7 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		Untracked: query.Get("untracked") == "true",
 		Base:      query.Get("base"),
 		Commit:    query.Get("commit"),
+		Mode:      mode,
 	})
 	if err != nil {
 		resp.InternalError(err.Error())

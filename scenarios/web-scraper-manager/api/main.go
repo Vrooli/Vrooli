@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -130,83 +130,18 @@ func main() {
 
 	config = loadConfig()
 
-	// Initialize database connection
+	// Initialize database connection with exponential backoff
 	var err error
-	db, err = sql.Open("postgres", config.PostgresURL)
+	db, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		logError("Database connection failed", map[string]interface{}{"error": err.Error()})
+		os.Exit(1)
 	}
 	defer db.Close()
 
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	logInfo("Attempting database connection with exponential backoff", map[string]interface{}{
-		"max_retries": maxRetries,
-		"base_delay":  baseDelay.String(),
-		"max_delay":   maxDelay.String(),
-	})
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			logInfo("Database connected successfully", map[string]interface{}{
-				"attempt": attempt + 1,
-			})
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitter := time.Duration(rand.Float64() * float64(delay) * 0.25)
-		actualDelay := delay + jitter
-
-		logWarn("Database connection attempt failed", map[string]interface{}{
-			"attempt":       attempt + 1,
-			"max_retries":   maxRetries,
-			"error":         pingErr.Error(),
-			"next_delay_ms": actualDelay.Milliseconds(),
-		})
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			logInfo("Database connection retry progress", map[string]interface{}{
-				"attempts_made":   attempt + 1,
-				"max_retries":     maxRetries,
-				"total_wait_time": (time.Duration(attempt*2) * baseDelay).String(),
-				"current_delay":   actualDelay.String(),
-			})
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		logError("Database connection failed after all retries", map[string]interface{}{
-			"max_retries": maxRetries,
-			"error":       pingErr.Error(),
-		})
-		os.Exit(1)
-	}
-
-	logInfo("Database connection pool established successfully", map[string]interface{}{
-		"max_open_conns": 25,
-		"max_idle_conns": 5,
-		"conn_max_life":  "5m",
-	})
+	logInfo("Database connection pool established successfully", nil)
 
 	// Setup routes
 	router := mux.NewRouter()

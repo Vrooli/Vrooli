@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
@@ -9,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -445,79 +445,9 @@ func main() {
 }
 
 func initDB() (*sql.DB, error) {
-	// ALL database configuration MUST come from environment - no defaults
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-
-	// Validate required environment variables
-	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-		return nil, fmt.Errorf("❌ Missing required database configuration. Please set: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database connection: %w", err)
-	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(maxDBConnections)
-	db.SetMaxIdleConns(maxIdleConnections)
-	db.SetConnMaxLifetime(connMaxLifetime)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📊 Connecting to: %s:%s/%s as user %s", dbHost, dbPort, dbName, dbUser)
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add RANDOM jitter to prevent thundering herd
-		// Using UnixNano for pseudo-randomness (avoids need for rand.Seed)
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(time.Now().UnixNano() % int64(jitterRange))
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
-	}
-
-	log.Println("🎉 Database connection pool established successfully!")
-	return db, nil
+	return database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

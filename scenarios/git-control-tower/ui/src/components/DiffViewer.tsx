@@ -1,11 +1,13 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
+import { ViewModeSelector } from "./ViewModeSelector";
 import { useIsMobile } from "../hooks";
-import type { DiffResponse, DiffHunk } from "../lib/api";
+import type { DiffResponse, DiffHunk, ViewMode, AnnotatedLine, LineChange } from "../lib/api";
+import { highlightCode, getLanguageFromPath, type HighlightToken, type HighlightedLine } from "../lib/highlighter";
 
 interface DiffViewerProps {
   diff?: DiffResponse;
@@ -15,6 +17,9 @@ interface DiffViewerProps {
   isLoading: boolean;
   error?: Error | null;
   repoDir?: string;
+  // View mode control
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
   // Mobile action callbacks
   onStage?: (path: string) => void;
   onUnstage?: (path: string) => void;
@@ -55,6 +60,89 @@ function useScrollHints(ref: React.RefObject<HTMLElement | null>) {
   return { canScrollLeft, canScrollRight };
 }
 
+// Hook for syntax highlighting
+function useHighlighting(content: string | undefined, filePath: string | undefined) {
+  const [highlighted, setHighlighted] = useState<HighlightedLine[] | null>(null);
+  const [isHighlighting, setIsHighlighting] = useState(false);
+
+  useEffect(() => {
+    if (!content || !filePath) {
+      setHighlighted(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsHighlighting(true);
+
+    const language = getLanguageFromPath(filePath);
+    highlightCode(content, language)
+      .then((result) => {
+        if (!cancelled) {
+          setHighlighted(result);
+          setIsHighlighting(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHighlighted(null);
+          setIsHighlighting(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [content, filePath]);
+
+  return { highlighted, isHighlighting };
+}
+
+// Render highlighted tokens
+function HighlightedTokens({ tokens }: { tokens: HighlightToken[] }) {
+  return (
+    <>
+      {tokens.map((token, i) => (
+        <span
+          key={i}
+          style={{ color: token.color }}
+          className={token.fontStyle === "italic" ? "italic" : token.fontStyle === "bold" ? "font-bold" : ""}
+        >
+          {token.content}
+        </span>
+      ))}
+    </>
+  );
+}
+
+// Get background color for line change
+function getLineBackground(change?: LineChange): string {
+  switch (change) {
+    case "added":
+      return "bg-emerald-950/30";
+    case "deleted":
+      return "bg-red-950/30";
+    case "modified":
+      return "bg-amber-950/30";
+    default:
+      return "";
+  }
+}
+
+// Get line number color for change type
+function getLineNumberColor(change?: LineChange): string {
+  switch (change) {
+    case "added":
+      return "text-emerald-700";
+    case "deleted":
+      return "text-red-700";
+    case "modified":
+      return "text-amber-700";
+    default:
+      return "text-slate-600";
+  }
+}
+
+// Diff line for classic diff mode (no syntax highlighting on diff lines)
 function DiffLine({ line, lineNumber }: { line: string; lineNumber?: number }) {
   const isAddition = line.startsWith("+") && !line.startsWith("+++");
   const isDeletion = line.startsWith("-") && !line.startsWith("---");
@@ -95,6 +183,46 @@ function DiffLine({ line, lineNumber }: { line: string; lineNumber?: number }) {
   );
 }
 
+// Syntax-highlighted line for full_diff and source modes
+function HighlightedCodeLine({
+  lineNumber,
+  tokens,
+  change,
+  oldNumber
+}: {
+  lineNumber: number;
+  tokens?: HighlightToken[];
+  change?: LineChange;
+  oldNumber?: number;
+}) {
+  const bgColor = getLineBackground(change);
+  const lineNumColor = getLineNumberColor(change);
+  const isDeleted = change === "deleted";
+
+  return (
+    <div className={`flex font-mono text-xs ${bgColor}`} data-testid="code-line">
+      {/* Line number gutter */}
+      <span
+        className={`w-12 flex-shrink-0 px-2 py-0.5 text-right select-none border-r border-slate-800 ${lineNumColor}`}
+      >
+        {isDeleted ? (oldNumber || "") : lineNumber}
+      </span>
+      {/* Change indicator */}
+      <span
+        className={`w-5 flex-shrink-0 px-1 py-0.5 text-center select-none ${lineNumColor}`}
+      >
+        {change === "added" && "+"}
+        {change === "deleted" && "-"}
+      </span>
+      {/* Code content */}
+      <pre className="flex-1 px-2 py-0.5 whitespace-pre overflow-x-auto text-slate-300">
+        {tokens ? <HighlightedTokens tokens={tokens} /> : " "}
+      </pre>
+    </div>
+  );
+}
+
+// Hunk display for diff mode
 function HunkDisplay({ hunk, index }: { hunk: DiffHunk; index: number }) {
   let currentLine = hunk.new_start;
 
@@ -129,6 +257,76 @@ function HunkDisplay({ hunk, index }: { hunk: DiffHunk; index: number }) {
   );
 }
 
+// Full file view with annotations
+function FullFileView({
+  annotatedLines,
+  highlightedLines,
+  showChangeMarkers
+}: {
+  annotatedLines: AnnotatedLine[];
+  highlightedLines: HighlightedLine[] | null;
+  showChangeMarkers: boolean;
+}) {
+  // Create a map from line number to highlighted tokens
+  const highlightMap = useMemo(() => {
+    if (!highlightedLines) return new Map<number, HighlightToken[]>();
+    const map = new Map<number, HighlightToken[]>();
+    highlightedLines.forEach((line) => {
+      map.set(line.lineNumber, line.tokens);
+    });
+    return map;
+  }, [highlightedLines]);
+
+  return (
+    <div className="divide-y divide-slate-800/30" data-testid="full-file-content">
+      {annotatedLines.map((line, index) => {
+        // For deleted lines, we need special handling since they don't exist in current file
+        const tokens = line.number > 0 ? highlightMap.get(line.number) : undefined;
+        const fallbackTokens: HighlightToken[] = [{ content: line.content }];
+
+        return (
+          <HighlightedCodeLine
+            key={index}
+            lineNumber={line.number}
+            tokens={tokens || fallbackTokens}
+            change={showChangeMarkers ? line.change : undefined}
+            oldNumber={line.old_number}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// Simple source view (no change markers)
+function SourceView({
+  content,
+  highlightedLines
+}: {
+  content: string;
+  highlightedLines: HighlightedLine[] | null;
+}) {
+  const lines = useMemo(() => content.split("\n"), [content]);
+
+  return (
+    <div className="divide-y divide-slate-800/30" data-testid="source-content">
+      {lines.map((line, index) => {
+        const lineNum = index + 1;
+        const highlighted = highlightedLines?.find((h) => h.lineNumber === lineNum);
+        const tokens = highlighted?.tokens || [{ content: line }];
+
+        return (
+          <HighlightedCodeLine
+            key={index}
+            lineNumber={lineNum}
+            tokens={tokens}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export function DiffViewer({
   diff,
   selectedFile,
@@ -137,6 +335,8 @@ export function DiffViewer({
   isLoading,
   error,
   repoDir,
+  viewMode,
+  onViewModeChange,
   onStage,
   onUnstage,
   onDiscard,
@@ -151,11 +351,26 @@ export function DiffViewer({
   const [showBinary, setShowBinary] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+
   const isBinaryDiff = Boolean(
     diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch"))
   );
   const absolutePath =
     selectedFile && repoDir ? `${repoDir.replace(/\/$/, "")}/${selectedFile}` : selectedFile;
+
+  // Get content for syntax highlighting
+  const contentForHighlighting = useMemo(() => {
+    if (!diff) return undefined;
+    if (viewMode === "source" || viewMode === "full_diff") {
+      return diff.full_content;
+    }
+    return undefined;
+  }, [diff, viewMode]);
+
+  const { highlighted: highlightedLines, isHighlighting } = useHighlighting(
+    contentForHighlighting,
+    selectedFile
+  );
 
   // Scroll helpers for mobile
   const scrollLeft = useCallback(() => {
@@ -206,10 +421,11 @@ export function DiffViewer({
 
   const showBinaryNotice =
     selectedFile && !isLoading && !error && diff?.has_diff && isBinaryDiff && !showBinary;
-  const showFullContent = Boolean(
-    selectedFile && !isLoading && !error && isUntracked && diff?.full_content !== undefined
-  );
-  const fullLines = showFullContent ? diff?.full_content?.split("\n") ?? [] : [];
+
+  // Determine what content to show
+  const hasAnnotatedLines = diff?.annotated_lines && diff.annotated_lines.length > 0;
+  const hasFullContent = diff?.full_content !== undefined;
+  const hasHunks = diff?.hunks && diff.hunks.length > 0;
 
   return (
     <Card className="h-full flex flex-col" data-testid="diff-viewer-panel">
@@ -255,6 +471,16 @@ export function DiffViewer({
         </div>
 
         <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
+          {/* View mode selector - only show when file is selected */}
+          {selectedFile && !isLoading && !error && (
+            <ViewModeSelector
+              mode={viewMode}
+              onChange={onViewModeChange}
+              compact={isMobile}
+              disabled={isLoading}
+            />
+          )}
+
           {/* Mobile: show badge in header right */}
           {selectedFile && isMobile && (
             isHistoryMode ? (
@@ -267,7 +493,7 @@ export function DiffViewer({
               </Badge>
             )
           )}
-          {diff?.stats && diff.has_diff && (
+          {diff?.stats && diff.has_diff && viewMode !== "source" && (
             <div className="flex items-center gap-2" data-testid="diff-stats">
               <span className={`flex items-center gap-1 text-emerald-500 ${isMobile ? "text-sm" : "text-xs"}`}>
                 <Plus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
@@ -311,7 +537,7 @@ export function DiffViewer({
 
         <ScrollArea className="h-full" ref={scrollContainerRef}>
           {/* Loading State */}
-          {isLoading && (
+          {(isLoading || isHighlighting) && (
             <div className="flex items-center justify-center py-12" data-testid="diff-loading">
               <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
             </div>
@@ -336,7 +562,7 @@ export function DiffViewer({
           )}
 
           {/* No diff content */}
-          {selectedFile && !isLoading && !error && diff && !diff.has_diff && !showFullContent && (
+          {selectedFile && !isLoading && !isHighlighting && !error && diff && !diff.has_diff && !hasFullContent && (
             <div className="flex flex-col items-center justify-center py-12 text-center" data-testid="diff-no-changes">
               <FileDiff className="h-10 w-10 text-slate-700 mb-4" />
               <p className="text-sm text-slate-500">No changes detected</p>
@@ -346,29 +572,38 @@ export function DiffViewer({
             </div>
           )}
 
-          {/* Full file content for untracked files */}
-          {showFullContent && (
-            <div className="divide-y divide-slate-800/30" data-testid="diff-untracked-content">
-              {fullLines.map((line, index) => (
-                <div key={index} className="flex font-mono text-xs text-slate-300">
-                  <span className="w-12 flex-shrink-0 px-2 py-0.5 text-right select-none border-r border-slate-800 text-slate-600">
-                    {index + 1}
-                  </span>
-                  <pre className="flex-1 px-3 py-0.5 whitespace-pre overflow-x-auto">
-                    {line || " "}
-                  </pre>
-                </div>
+          {/* Source mode - just the file content */}
+          {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "source" && hasFullContent && (
+            <SourceView
+              content={diff!.full_content!}
+              highlightedLines={highlightedLines}
+            />
+          )}
+
+          {/* Full + Diff mode - full file with change annotations */}
+          {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "full_diff" && hasAnnotatedLines && (
+            <FullFileView
+              annotatedLines={diff!.annotated_lines!}
+              highlightedLines={highlightedLines}
+              showChangeMarkers={true}
+            />
+          )}
+
+          {/* Diff mode - traditional hunk view */}
+          {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "diff" && hasHunks && (
+            <div data-testid="diff-content">
+              {diff!.hunks!.map((hunk, index) => (
+                <HunkDisplay key={index} hunk={hunk} index={index} />
               ))}
             </div>
           )}
 
-          {/* Diff content */}
-          {selectedFile && !isLoading && !error && diff?.has_diff && diff.hunks && !showFullContent && (
-            <div data-testid="diff-content">
-              {diff.hunks.map((hunk, index) => (
-                <HunkDisplay key={index} hunk={hunk} index={index} />
-              ))}
-            </div>
+          {/* Fallback for untracked files in diff mode (show full content) */}
+          {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "diff" && !hasHunks && hasFullContent && isUntracked && (
+            <SourceView
+              content={diff!.full_content!}
+              highlightedLines={highlightedLines}
+            />
           )}
 
           {/* Binary diff notice */}
@@ -394,7 +629,8 @@ export function DiffViewer({
             !isLoading &&
             !error &&
             diff?.has_diff &&
-            !diff.hunks &&
+            !hasHunks &&
+            !hasFullContent &&
             diff.raw &&
             (!isBinaryDiff || showBinary) && (
             <pre

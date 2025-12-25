@@ -490,6 +490,39 @@ func (f *FakeGitRunner) RemoveFromIndex(ctx context.Context, repoDir string, pat
 	return nil
 }
 
+// ShowCommitDiff simulates showing a diff for a specific commit.
+func (f *FakeGitRunner) ShowCommitDiff(ctx context.Context, repoDir string, commit string, path string) ([]byte, error) {
+	f.recordCall("ShowCommitDiff", repoDir, commit, path)
+
+	if f.DiffError != nil {
+		return nil, f.DiffError
+	}
+
+	// Return a simulated commit diff
+	if path != "" {
+		return []byte(f.generateDiff(path, "+committed change")), nil
+	}
+
+	// If no path, return all staged files as a simulated commit
+	var diffs []string
+	for p := range f.Staged {
+		diffs = append(diffs, f.generateDiff(p, "+committed change"))
+	}
+	return []byte(strings.Join(diffs, "\n")), nil
+}
+
+// ShowFileAtCommit simulates getting file content at a specific commit.
+func (f *FakeGitRunner) ShowFileAtCommit(ctx context.Context, repoDir string, commit string, path string) ([]byte, error) {
+	f.recordCall("ShowFileAtCommit", repoDir, commit, path)
+
+	if f.DiffError != nil {
+		return nil, f.DiffError
+	}
+
+	// Return simulated file content
+	return []byte("line 1\nline 2\nline 3\nmodified line\nline 5\n"), nil
+}
+
 // --- Test helpers ---
 
 // AddStagedFile adds a file to the staged state.

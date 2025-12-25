@@ -1,14 +1,13 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"os"
 	"strconv"
 	"time"
@@ -206,81 +205,9 @@ func main() {
 }
 
 func initDB() (*sql.DB, error) {
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-		
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			return nil, fmt.Errorf("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-		
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
-	db, err := sql.Open("postgres", postgresURL)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to open database connection: %v", err)
-	}
-	
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-	
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-	
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
-	
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
-			break
-		}
-		
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-		
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(rand.Float64() * jitterRange)
-		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-		
-		time.Sleep(actualDelay)
-	}
-	
-	if pingErr != nil {
-		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
-	
-	log.Println("🎉 Database connection pool established successfully!")
-	return db, nil
+	return database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 }
 
 func initRedis() *redis.Client {

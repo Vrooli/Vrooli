@@ -1,14 +1,13 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"flag"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -211,53 +210,15 @@ func loadConfiguration() *Configuration {
 func initializeApplication(config *Configuration) (*Application, error) {
 	app := &Application{Config: config}
 
-	// Initialize database
+	// Initialize database with exponential backoff
 	var err error
-	app.DB, err = sql.Open("postgres", config.DatabaseURL)
+	app.DB, err = database.Connect(context.Background(), database.Config{
+		Driver: "postgres",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
-
-	// Configure connection pool
-	app.DB.SetMaxOpenConns(25)
-	app.DB.SetMaxIdleConns(5)
-	app.DB.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = app.DB.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
-			break
-		}
-		
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-		
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(rand.Float64() * jitterRange)
-		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
-	}
+	log.Println("🎉 Database connection pool established successfully!")
 
 	// Initialize Redis
 	opt, err := redis.ParseURL(config.RedisURL)

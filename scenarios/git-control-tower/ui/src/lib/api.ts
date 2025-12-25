@@ -88,6 +88,20 @@ export interface DiffStats {
   files: number;
 }
 
+/** View mode for the diff viewer */
+export type ViewMode = "diff" | "full_diff" | "source";
+
+/** Type of change on a line */
+export type LineChange = "" | "added" | "deleted" | "modified";
+
+/** A single line with change annotation */
+export interface AnnotatedLine {
+  number: number;
+  content: string;
+  change?: LineChange;
+  old_number?: number;
+}
+
 export interface DiffResponse {
   repo_dir: string;
   path?: string;
@@ -99,6 +113,8 @@ export interface DiffResponse {
   stats: DiffStats;
   raw?: string;
   full_content?: string;
+  annotated_lines?: AnnotatedLine[];
+  mode?: ViewMode;
   timestamp: string;
 }
 
@@ -286,13 +302,15 @@ export async function fetchDiff(
   path?: string,
   staged = false,
   untracked = false,
-  commit?: string
+  commit?: string,
+  mode: ViewMode = "diff"
 ): Promise<DiffResponse> {
   const params = new URLSearchParams();
   if (path) params.set("path", path);
   if (staged) params.set("staged", "true");
   if (untracked) params.set("untracked", "true");
   if (commit) params.set("commit", commit);
+  if (mode && mode !== "diff") params.set("mode", mode);
 
   const url = buildApiUrl(`/repo/diff?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
