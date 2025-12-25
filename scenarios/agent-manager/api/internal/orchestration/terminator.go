@@ -136,17 +136,8 @@ func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*Terminate
 			}
 		}
 
-		// Method 2: CLI stop command
-		if t.tryCliStop(ctx, run, tag) {
-			if t.verifyTerminated(tag) {
-				result.Success = true
-				result.FinalMethod = "cli"
-				break
-			}
-		}
-
-		// Method 3: Find PID and signal directly
-		pid := t.findProcessPID(tag)
+		// Method 2: Find PID and signal directly
+		pid := t.findProcessPIDForRun(run, tag)
 		if pid == 0 {
 			// Process not found - might have already terminated
 			result.Success = true
@@ -155,7 +146,7 @@ func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*Terminate
 			break
 		}
 
-		// Method 3a: SIGTERM (graceful)
+		// Method 2a: SIGTERM (graceful)
 		if t.trySIGTERM(pid) {
 			time.Sleep(t.config.GracePeriod)
 			if t.verifyTerminated(tag) {
@@ -165,7 +156,7 @@ func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*Terminate
 			}
 		}
 
-		// Method 3b: SIGKILL (force)
+		// Method 2b: SIGKILL (force)
 		if t.trySIGKILL(pid) {
 			time.Sleep(500 * time.Millisecond)
 			if t.verifyTerminated(tag) {
@@ -175,7 +166,7 @@ func (t *Terminator) Terminate(ctx context.Context, runID uuid.UUID) (*Terminate
 			}
 		}
 
-		// Method 3c: Process group kill (nuclear)
+		// Method 2c: Process group kill (nuclear)
 		if t.config.KillProcessGroup {
 			pgid := t.getProcessGroupID(pid)
 			if pgid > 0 && t.tryKillProcessGroup(pgid) {
@@ -227,7 +218,7 @@ func (t *Terminator) TerminateByTag(ctx context.Context, tag string) (*Terminate
 	for attempt := 1; attempt <= t.config.MaxRetries; attempt++ {
 		result.Attempts = attempt
 
-		pid := t.findProcessPID(tag)
+		pid := t.findProcessPIDByTag(tag)
 		if pid == 0 {
 			result.Success = true
 			result.ProcessWasGone = true
@@ -289,61 +280,91 @@ func (t *Terminator) TerminateByTag(ctx context.Context, tag string) (*Terminate
 }
 
 // tryCliStop attempts to stop via the resource CLI.
-func (t *Terminator) tryCliStop(ctx context.Context, run *domain.Run, tag string) bool {
-	if run.ResolvedConfig == nil {
-		return false
+// findProcessPID finds the PID of a process by its tag.
+func (t *Terminator) findProcessPIDForRun(run *domain.Run, tag string) int {
+	if run == nil || run.ResolvedConfig == nil {
+		return t.findProcessPIDByTag(tag)
 	}
 
-	var cliCmd string
 	switch run.ResolvedConfig.RunnerType {
 	case domain.RunnerTypeClaudeCode:
-		cliCmd = "resource-claude-code"
+		return findProcessPIDByResourceTag("resource-claude-code", tag)
 	case domain.RunnerTypeCodex:
-		cliCmd = "resource-codex"
+		if pid := findProcessPIDByRunnerEnvTag("codex", tag); pid != 0 {
+			return pid
+		}
+		return findProcessPIDByResourceTag("resource-codex", tag)
 	case domain.RunnerTypeOpenCode:
-		cliCmd = "resource-opencode"
+		if pid := findProcessPIDByRunnerEnvTag("opencode", tag); pid != 0 {
+			return pid
+		}
+		return findProcessPIDByResourceTag("resource-opencode", tag)
 	default:
-		return false
+		return t.findProcessPIDByTag(tag)
 	}
-
-	// Try: resource-X agents stop <tag>
-	cmd := exec.CommandContext(ctx, cliCmd, "agents", "stop", tag)
-	if err := cmd.Run(); err == nil {
-		return true
-	}
-
-	return false
 }
 
-// findProcessPID finds the PID of a process by its tag.
-func (t *Terminator) findProcessPID(tag string) int {
-	cmd := exec.Command("pgrep", "-f", tag)
-	output, err := cmd.Output()
-	if err != nil {
-		return t.findProcessPIDByEnvTag(tag)
-	}
-
-	// Get first PID if multiple
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(lines) == 0 || lines[0] == "" {
-		return t.findProcessPIDByEnvTag(tag)
-	}
-
-	pid, err := strconv.Atoi(lines[0])
-	if err != nil {
-		return t.findProcessPIDByEnvTag(tag)
-	}
-	return pid
-}
-
-func (t *Terminator) findProcessPIDByEnvTag(tag string) int {
+func (t *Terminator) findProcessPIDByTag(tag string) int {
 	if pid := findProcessPIDByRunnerEnvTag("codex", tag); pid != 0 {
 		return pid
 	}
 	if pid := findProcessPIDByRunnerEnvTag("opencode", tag); pid != 0 {
 		return pid
 	}
+	if pid := findProcessPIDByResourceTag("resource-claude-code", tag); pid != 0 {
+		return pid
+	}
+	if pid := findProcessPIDByResourceTag("resource-codex", tag); pid != 0 {
+		return pid
+	}
+	if pid := findProcessPIDByResourceTag("resource-opencode", tag); pid != 0 {
+		return pid
+	}
 	return 0
+}
+
+func findProcessPIDByResourceTag(resourceCmd, tag string) int {
+	cmd := exec.Command("pgrep", "-af", resourceCmd)
+	output, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) < 2 {
+			continue
+		}
+
+		pid, err := strconv.Atoi(parts[0])
+		if err != nil {
+			continue
+		}
+
+		if commandHasTag(parts[1], tag) {
+			return pid
+		}
+	}
+
+	return 0
+}
+
+func commandHasTag(commandLine, tag string) bool {
+	fields := strings.Fields(commandLine)
+	for i, field := range fields {
+		if field == "--tag" && i+1 < len(fields) && fields[i+1] == tag {
+			return true
+		}
+		if strings.HasPrefix(field, "--tag=") && strings.TrimPrefix(field, "--tag=") == tag {
+			return true
+		}
+	}
+	return false
 }
 
 func findProcessPIDByRunnerEnvTag(runnerName, tag string) int {

@@ -133,6 +133,8 @@ agent-manager run approve <id>
 agent-manager run reject <id>
 ```
 
+Note: Claude Code often uses one turn for tool use and another for tool results. If you need a final assistant message (for example, a "DONE" response), set `max_turns >= 3` on the profile.
+
 ## Dependencies
 
 **Required**:

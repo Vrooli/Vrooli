@@ -161,16 +161,24 @@ func (a *App) runGet(args []string) error {
 	fs := flag.NewFlagSet("run get", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	remaining := fs.Args()
-	if len(remaining) == 0 {
-		return fmt.Errorf("usage: agent-manager run get <id>")
+	if id == "" {
+		remaining := fs.Args()
+		if len(remaining) == 0 {
+			return fmt.Errorf("usage: agent-manager run get <id>")
+		}
+		id = remaining[0]
 	}
 
-	id := remaining[0]
 	body, run, err := a.services.Runs.Get(id)
 	if err != nil {
 		return err
@@ -628,6 +636,11 @@ func (a *App) runDiff(args []string) error {
 	// Just print the diff output directly
 	if diff != nil && diff.Content != "" {
 		fmt.Println(diff.Content)
+	} else if diff != nil && len(diff.Files) > 0 {
+		fmt.Println("No unified diff content available. Changed files:")
+		for _, file := range diff.Files {
+			fmt.Printf("- %s (%s, +%d -%d)\n", file.Path, file.ChangeType, file.Additions, file.Deletions)
+		}
 	} else {
 		fmt.Println(string(body))
 	}

@@ -160,19 +160,19 @@ type CreateRunRequest struct {
 	Tag string `json:"tag,omitempty"`
 
 	// Inline config (optional - used if no profile, or overrides profile)
-	RunnerType           *domain.RunnerType           `json:"runnerType,omitempty"`
-	Model                *string                      `json:"model,omitempty"`
-	ModelPreset          *domain.ModelPreset          `json:"modelPreset,omitempty"`
-	MaxTurns             *int                         `json:"maxTurns,omitempty"`
-	Timeout              *time.Duration               `json:"timeout,omitempty"`
-	FallbackRunnerTypes  []domain.RunnerType          `json:"fallbackRunnerTypes,omitempty"`
-	AllowedTools         []string                     `json:"allowedTools,omitempty"`
-	DeniedTools          []string                     `json:"deniedTools,omitempty"`
-	SkipPermissionPrompt *bool                        `json:"skipPermissionPrompt,omitempty"`
-	RequiresSandbox      *bool                        `json:"requiresSandbox,omitempty"`
-	RequiresApproval     *bool                        `json:"requiresApproval,omitempty"`
-	AllowedPaths         []string                     `json:"allowedPaths,omitempty"`
-	DeniedPaths          []string                     `json:"deniedPaths,omitempty"`
+	RunnerType           *domain.RunnerType  `json:"runnerType,omitempty"`
+	Model                *string             `json:"model,omitempty"`
+	ModelPreset          *domain.ModelPreset `json:"modelPreset,omitempty"`
+	MaxTurns             *int                `json:"maxTurns,omitempty"`
+	Timeout              *time.Duration      `json:"timeout,omitempty"`
+	FallbackRunnerTypes  []domain.RunnerType `json:"fallbackRunnerTypes,omitempty"`
+	AllowedTools         []string            `json:"allowedTools,omitempty"`
+	DeniedTools          []string            `json:"deniedTools,omitempty"`
+	SkipPermissionPrompt *bool               `json:"skipPermissionPrompt,omitempty"`
+	RequiresSandbox      *bool               `json:"requiresSandbox,omitempty"`
+	RequiresApproval     *bool               `json:"requiresApproval,omitempty"`
+	AllowedPaths         []string            `json:"allowedPaths,omitempty"`
+	DeniedPaths          []string            `json:"deniedPaths,omitempty"`
 
 	// Sandbox behavior overrides (optional)
 	SandboxConfig *domain.SandboxConfig `json:"sandboxConfig,omitempty"`
@@ -965,11 +965,20 @@ func (o *Orchestrator) preflightScopePath(task *domain.Task, runMode domain.RunM
 	info, err := os.Stat(absScopePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return domain.NewValidationErrorWithHint("scopePath", "scope path does not exist",
-				fmt.Sprintf("create the directory: %s", absScopePath))
+			if mkErr := os.MkdirAll(absScopePath, 0o755); mkErr != nil {
+				return domain.NewValidationErrorWithHint("scopePath", "scope path does not exist",
+					fmt.Sprintf("create the directory: %s", absScopePath))
+			}
+			info, err = os.Stat(absScopePath)
+			if err != nil {
+				return domain.NewValidationErrorWithHint("scopePath", "unable to stat scope path",
+					fmt.Sprintf("check permissions for %s", absScopePath))
+			}
 		}
-		return domain.NewValidationErrorWithHint("scopePath", "unable to stat scope path",
-			fmt.Sprintf("check permissions for %s", absScopePath))
+		if err != nil {
+			return domain.NewValidationErrorWithHint("scopePath", "unable to stat scope path",
+				fmt.Sprintf("check permissions for %s", absScopePath))
+		}
 	}
 	if !info.IsDir() {
 		return domain.NewValidationErrorWithHint("scopePath", "scope path is not a directory",
@@ -1437,7 +1446,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 	if o.checkpoints != nil {
 		checkpoint, err = o.checkpoints.Get(ctx, id)
 		if err != nil {
-		return nil, err
+			return nil, err
 		}
 	}
 

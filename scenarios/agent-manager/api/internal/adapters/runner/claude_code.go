@@ -37,6 +37,7 @@ type ClaudeCodeRunner struct {
 	installHint string
 	mu          sync.Mutex
 	runs        map[uuid.UUID]*exec.Cmd
+	streamState map[uuid.UUID]*claudeStreamState
 }
 
 // NewClaudeCodeRunner creates a new Claude Code runner.
@@ -49,15 +50,17 @@ func NewClaudeCodeRunner() (*ClaudeCodeRunner, error) {
 			message:     "resource-claude-code not found in PATH",
 			installHint: "Run: vrooli resource install claude-code",
 			runs:        make(map[uuid.UUID]*exec.Cmd),
+			streamState: make(map[uuid.UUID]*claudeStreamState),
 		}, nil
 	}
 
 	// Verify the resource is healthy by checking status
 	runner := &ClaudeCodeRunner{
-		binaryPath: binaryPath,
-		available:  true,
-		message:    "resource-claude-code available",
-		runs:       make(map[uuid.UUID]*exec.Cmd),
+		binaryPath:  binaryPath,
+		available:   true,
+		message:     "resource-claude-code available",
+		runs:        make(map[uuid.UUID]*exec.Cmd),
+		streamState: make(map[uuid.UUID]*claudeStreamState),
 	}
 
 	// Quick health check via status command
@@ -135,6 +138,8 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	}
 
 	startTime := time.Now()
+	r.initStreamState(req.RunID)
+	defer r.clearStreamState(req.RunID)
 
 	// Build command arguments
 	args := r.buildArgs(req)
@@ -446,6 +451,15 @@ type ClaudeStreamEvent struct {
 	Delta        *ClaudeDelta        `json:"delta,omitempty"`
 }
 
+type claudeStreamState struct {
+	textBuffer     strings.Builder
+	toolUseActive  bool
+	toolUseID      string
+	toolUseName    string
+	toolUsePayload strings.Builder
+	lastAssistant  string
+}
+
 // ClaudeMessage represents a message in the Claude stream.
 // Content can be either a string or an array of content blocks.
 type ClaudeMessage struct {
@@ -599,6 +613,66 @@ func (r *ClaudeCodeRunner) parseStreamEvent(runID uuid.UUID, line string) (*doma
 	return nil, nil
 }
 
+func (r *ClaudeCodeRunner) initStreamState(runID uuid.UUID) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.streamState[runID] = &claudeStreamState{}
+}
+
+func (r *ClaudeCodeRunner) clearStreamState(runID uuid.UUID) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.streamState, runID)
+}
+
+func (r *ClaudeCodeRunner) streamStateFor(runID uuid.UUID) *claudeStreamState {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.streamState == nil {
+		r.streamState = make(map[uuid.UUID]*claudeStreamState)
+	}
+	state, ok := r.streamState[runID]
+	if !ok {
+		state = &claudeStreamState{}
+		r.streamState[runID] = state
+	}
+	return state
+}
+
+func (r *ClaudeCodeRunner) resetToolUseState(state *claudeStreamState) {
+	state.toolUseActive = false
+	state.toolUseID = ""
+	state.toolUseName = ""
+	state.toolUsePayload.Reset()
+}
+
+func (r *ClaudeCodeRunner) flushStreamMessage(runID uuid.UUID, state *claudeStreamState) []*domain.RunEvent {
+	if state == nil {
+		return nil
+	}
+	if state.textBuffer.Len() == 0 {
+		return nil
+	}
+	message := state.textBuffer.String()
+	state.textBuffer.Reset()
+	state.lastAssistant = message
+	return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", message)}
+}
+
+func (r *ClaudeCodeRunner) toolCallFromState(runID uuid.UUID, state *claudeStreamState) *domain.RunEvent {
+	if state == nil || !state.toolUseActive {
+		return nil
+	}
+	raw := strings.TrimSpace(state.toolUsePayload.String())
+	var input map[string]interface{}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), &input); err != nil {
+			input = map[string]interface{}{"raw": raw}
+		}
+	}
+	return domain.NewToolCallEvent(runID, state.toolUseName, input)
+}
+
 // parseStreamEvents parses a single line from Claude's stream-json output.
 // Returns multiple events to preserve tool calls/results emitted in one message.
 func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*domain.RunEvent, error) {
@@ -634,6 +708,8 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 		return nil, nil
 	}
 
+	state := r.streamStateFor(runID)
+
 	switch streamEvent.Type {
 	case "message":
 		var events []*domain.RunEvent
@@ -641,11 +717,15 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 			// Extract text content (handles both string and array formats)
 			textContent := streamEvent.Message.ExtractTextContent()
 			if textContent != "" {
+				if streamEvent.Message.Role == "assistant" {
+					state.lastAssistant = textContent
+				}
 				events = append(events, domain.NewMessageEvent(
 					runID,
 					streamEvent.Message.Role,
 					textContent,
 				))
+				state.textBuffer.Reset()
 			}
 			toolUses := streamEvent.Message.ExtractToolUses()
 			for _, tool := range toolUses {
@@ -664,11 +744,13 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 			var events []*domain.RunEvent
 			textContent := streamEvent.Message.ExtractTextContent()
 			if textContent != "" {
+				state.lastAssistant = textContent
 				events = append(events, domain.NewMessageEvent(
 					runID,
 					"assistant",
 					textContent,
 				))
+				state.textBuffer.Reset()
 			}
 			// Also check for tool uses in the message content
 			toolUses := streamEvent.Message.ExtractToolUses()
@@ -767,12 +849,22 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 		}
 
 	case "result":
+		var events []*domain.RunEvent
+		var resultStr string
+		if streamEvent.Result != nil {
+			_ = json.Unmarshal(streamEvent.Result, &resultStr)
+		}
+		if !streamEvent.IsError && resultStr != "" && state.lastAssistant == "" {
+			state.lastAssistant = resultStr
+			events = append(events, domain.NewMessageEvent(runID, "assistant", resultStr))
+		}
 		// Final result event - contains cost, usage, and potential rate limits
 		event, err := r.parseResultEvent(runID, &streamEvent)
 		if err != nil || event == nil {
 			return nil, err
 		}
-		return []*domain.RunEvent{event}, nil
+		events = append(events, event)
+		return events, nil
 
 	case "system":
 		// System context/prompt - log for debugging but don't emit as user-visible event
@@ -786,32 +878,67 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 		// Start of a content block (text or tool use)
 		if streamEvent.ContentBlock != nil {
 			if streamEvent.ContentBlock.Type == "tool_use" {
-				// Emit a proper tool_call event for tool_use content blocks
-				return []*domain.RunEvent{domain.NewToolCallEvent(
-					runID,
-					streamEvent.ContentBlock.Name,
-					nil, // Input comes in subsequent delta events
-				)}, nil
+				state.toolUseActive = true
+				state.toolUseID = streamEvent.ContentBlock.ID
+				state.toolUseName = streamEvent.ContentBlock.Name
+				state.toolUsePayload.Reset()
+				return nil, nil
 			}
 		}
 
 	case "content_block_delta":
 		// Incremental content update (for streaming)
-		if streamEvent.Delta != nil && streamEvent.Delta.Text != "" {
-			return []*domain.RunEvent{domain.NewLogEvent(
-				runID,
-				"trace",
-				streamEvent.Delta.Text,
-			)}, nil
+		if streamEvent.Delta != nil {
+			switch streamEvent.Delta.Type {
+			case "text_delta":
+				if streamEvent.Delta.Text != "" {
+					state.textBuffer.WriteString(streamEvent.Delta.Text)
+				}
+				return nil, nil
+			case "input_json_delta":
+				if state.toolUseActive && streamEvent.Delta.PartialJSON != "" {
+					state.toolUsePayload.WriteString(streamEvent.Delta.PartialJSON)
+				}
+				return nil, nil
+			}
 		}
-		return nil, nil // Skip empty deltas silently
-
-	case "content_block_stop":
-		// End of a content block - silently skip
 		return nil, nil
 
-	case "message_start", "message_delta", "message_stop":
+	case "content_block_stop":
+		if state.toolUseActive {
+			toolEvent := r.toolCallFromState(runID, state)
+			r.resetToolUseState(state)
+			if toolEvent != nil {
+				return []*domain.RunEvent{toolEvent}, nil
+			}
+		}
+		return nil, nil
+
+	case "message_start":
 		// Message lifecycle events - silently skip (content comes via other events)
+		return nil, nil
+	case "message_delta":
+		if streamEvent.Delta != nil && streamEvent.Delta.Text != "" {
+			state.textBuffer.WriteString(streamEvent.Delta.Text)
+			return nil, nil
+		}
+		return []*domain.RunEvent{domain.NewLogEvent(
+			runID,
+			"debug",
+			"message_delta received without text payload",
+		)}, nil
+	case "message_stop":
+		events := r.flushStreamMessage(runID, state)
+		if state.toolUseActive {
+			toolEvent := r.toolCallFromState(runID, state)
+			r.resetToolUseState(state)
+			if toolEvent != nil {
+				events = append(events, toolEvent)
+			}
+		}
+		if len(events) > 0 {
+			return events, nil
+		}
 		return nil, nil
 
 	case "init", "start", "ping", "heartbeat":

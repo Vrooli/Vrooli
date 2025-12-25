@@ -99,7 +99,7 @@ func TestIntegration_ClaudeCode_FileWrite(t *testing.T) {
 
 	// Verify events
 	assertHasToolCallEvent(t, collector.events, "Write")
-	assertHasMessageEvent(t, collector.events, "assistant")
+	assertHasMessageEventRequired(t, collector.events, "assistant")
 	assertHasMetricEvent(t, collector.events)
 }
 
@@ -246,7 +246,7 @@ func TestIntegration_ClaudeCode_SandboxDiff(t *testing.T) {
 	}
 
 	assertHasToolCallEvent(t, collector.events, "Write")
-	assertHasMessageEvent(t, collector.events, "assistant")
+	assertHasMessageEventRequired(t, collector.events, "assistant")
 	assertHasMetricEvent(t, collector.events)
 }
 
@@ -378,6 +378,20 @@ func assertHasMessageEvent(t *testing.T, events []*domain.RunEvent, expectedRole
 	}
 	// Message events are nice to have but not strictly required
 	t.Logf("WARN: no message event found for role '%s' (some runners may not emit these)", expectedRole)
+}
+
+func assertHasMessageEventRequired(t *testing.T, events []*domain.RunEvent, expectedRole string) {
+	t.Helper()
+	for _, evt := range events {
+		if evt.EventType == domain.EventTypeMessage {
+			if msgData, ok := evt.Data.(*domain.MessageEventData); ok {
+				if msgData.Role == expectedRole && msgData.Content != "" {
+					return
+				}
+			}
+		}
+	}
+	t.Fatalf("expected message event for role '%s' with non-empty content", expectedRole)
 }
 
 func assertHasMetricEvent(t *testing.T, events []*domain.RunEvent) {

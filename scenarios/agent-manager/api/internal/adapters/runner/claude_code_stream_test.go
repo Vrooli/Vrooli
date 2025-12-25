@@ -58,7 +58,6 @@ func TestClaudeCodeRunner_ParseStreamEvent_SystemInit(t *testing.T) {
 	runID := uuid.New()
 
 	event, err := runner.parseStreamEvent(runID, claudeCodeSamples["system_init"])
-
 	if err != nil {
 		t.Fatalf("parseStreamEvent returned error: %v", err)
 	}
@@ -86,7 +85,6 @@ func TestClaudeCodeRunner_ParseStreamEvent_AssistantText(t *testing.T) {
 	runID := uuid.New()
 
 	event, err := runner.parseStreamEvent(runID, claudeCodeSamples["assistant_text"])
-
 	if err != nil {
 		t.Fatalf("parseStreamEvent returned error: %v", err)
 	}
@@ -114,7 +112,6 @@ func TestClaudeCodeRunner_ParseStreamEvent_AssistantToolUse(t *testing.T) {
 	runID := uuid.New()
 
 	event, err := runner.parseStreamEvent(runID, claudeCodeSamples["assistant_tool_use"])
-
 	if err != nil {
 		t.Fatalf("parseStreamEvent returned error: %v", err)
 	}
@@ -146,7 +143,6 @@ func TestClaudeCodeRunner_ParseStreamEvent_AssistantTextAndTool(t *testing.T) {
 
 	// When there's both text and tool_use, text should be emitted as message
 	event, err := runner.parseStreamEvent(runID, claudeCodeSamples["assistant_text_and_tool"])
-
 	if err != nil {
 		t.Fatalf("parseStreamEvent returned error: %v", err)
 	}
@@ -173,7 +169,6 @@ func TestClaudeCodeRunner_ParseStreamEvent_UserToolResult(t *testing.T) {
 	runID := uuid.New()
 
 	event, err := runner.parseStreamEvent(runID, claudeCodeSamples["user_tool_result"])
-
 	if err != nil {
 		t.Fatalf("parseStreamEvent returned error: %v", err)
 	}
@@ -199,21 +194,41 @@ func TestClaudeCodeRunner_ParseStreamEvent_ResultSuccess(t *testing.T) {
 	runner := &ClaudeCodeRunner{}
 	runID := uuid.New()
 
-	event, err := runner.parseStreamEvent(runID, claudeCodeSamples["result_success"])
-
+	events, err := runner.parseStreamEvents(runID, claudeCodeSamples["result_success"])
 	if err != nil {
-		t.Fatalf("parseStreamEvent returned error: %v", err)
+		t.Fatalf("parseStreamEvents returned error: %v", err)
 	}
-	if event == nil {
-		t.Fatal("expected event, got nil")
-	}
-	if event.EventType != domain.EventTypeMetric {
-		t.Errorf("expected EventType=%s, got %s", domain.EventTypeMetric, event.EventType)
+	if len(events) == 0 {
+		t.Fatal("expected events, got none")
 	}
 
-	costData, ok := event.Data.(*domain.CostEventData)
+	var messageEvent *domain.RunEvent
+	var metricEvent *domain.RunEvent
+	for _, event := range events {
+		switch event.EventType {
+		case domain.EventTypeMessage:
+			messageEvent = event
+		case domain.EventTypeMetric:
+			metricEvent = event
+		}
+	}
+	if messageEvent == nil {
+		t.Fatal("expected message event, got nil")
+	}
+	msgData, ok := messageEvent.Data.(*domain.MessageEventData)
 	if !ok {
-		t.Fatalf("expected CostEventData, got %T", event.Data)
+		t.Fatalf("expected MessageEventData, got %T", messageEvent.Data)
+	}
+	if msgData.Content != "Hello! I'm ready to help." {
+		t.Errorf("expected content 'Hello! I'm ready to help.', got %s", msgData.Content)
+	}
+	if metricEvent == nil {
+		t.Fatal("expected metric event, got nil")
+	}
+
+	costData, ok := metricEvent.Data.(*domain.CostEventData)
+	if !ok {
+		t.Fatalf("expected CostEventData, got %T", metricEvent.Data)
 	}
 	if costData.TotalCostUSD != 0.08424875 {
 		t.Errorf("expected totalCostUsd=0.08424875, got %f", costData.TotalCostUSD)
@@ -231,7 +246,6 @@ func TestClaudeCodeRunner_ParseStreamEvent_ResultError_RateLimit(t *testing.T) {
 	runID := uuid.New()
 
 	event, err := runner.parseStreamEvent(runID, claudeCodeSamples["result_error"])
-
 	if err != nil {
 		t.Fatalf("parseStreamEvent returned error: %v", err)
 	}
@@ -261,7 +275,6 @@ func TestClaudeCodeRunner_ParseStreamEvent_Error(t *testing.T) {
 	runID := uuid.New()
 
 	event, err := runner.parseStreamEvent(runID, claudeCodeSamples["error"])
-
 	if err != nil {
 		t.Fatalf("parseStreamEvent returned error: %v", err)
 	}
@@ -289,7 +302,6 @@ func TestClaudeCodeRunner_ParseStreamEvent_Usage(t *testing.T) {
 	runID := uuid.New()
 
 	event, err := runner.parseStreamEvent(runID, claudeCodeSamples["usage"])
-
 	if err != nil {
 		t.Fatalf("parseStreamEvent returned error: %v", err)
 	}
@@ -321,13 +333,13 @@ func TestClaudeCodeRunner_ParseStreamEvent_NonJsonLines(t *testing.T) {
 	runID := uuid.New()
 
 	nonJsonLines := []string{
-		"",                                              // empty line
-		"   ",                                           // whitespace only
-		"[INFO]    Started health monitor for claude-code", // log prefix
-		"[HEADER]  🤖 Running Claude Code",              // header prefix
+		"",    // empty line
+		"   ", // whitespace only
+		"[INFO]    Started health monitor for claude-code",       // log prefix
+		"[HEADER]  🤖 Running Claude Code",                        // header prefix
 		"[WARNING] ⚠️  WARNING: Permission checks are disabled!", // warning prefix
-		"Initializing...",                               // plain text
-		"Some random output",                            // random output
+		"Initializing...",    // plain text
+		"Some random output", // random output
 	}
 
 	for _, line := range nonJsonLines {
@@ -377,7 +389,6 @@ func TestClaudeCodeRunner_ParseStreamEvent_SilentlySkipped(t *testing.T) {
 
 	skippedEvents := []string{
 		`{"type":"message_start"}`,
-		`{"type":"message_delta"}`,
 		`{"type":"message_stop"}`,
 		`{"type":"content_block_stop"}`,
 		`{"type":"init"}`,
@@ -400,6 +411,61 @@ func TestClaudeCodeRunner_ParseStreamEvent_SilentlySkipped(t *testing.T) {
 	}
 }
 
+func TestClaudeCodeRunner_ParseStreamEvent_MessageDelta_LogsWithoutText(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+
+	line := `{"type":"message_delta","delta":{"type":"stop_reason","text":""}}`
+	event, err := runner.parseStreamEvent(runID, line)
+	if err != nil {
+		t.Fatalf("parseStreamEvent returned error: %v", err)
+	}
+	if event == nil {
+		t.Fatal("expected log event for message_delta without text, got nil")
+	}
+	if event.EventType != domain.EventTypeLog {
+		t.Fatalf("expected EventType=%s, got %s", domain.EventTypeLog, event.EventType)
+	}
+}
+
+func TestClaudeCodeRunner_ParseStreamEvent_MessageDelta_TextBuffer(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+
+	lines := []string{
+		`{"type":"message_delta","delta":{"type":"text_delta","text":"Hello "}}`,
+		`{"type":"message_delta","delta":{"type":"text_delta","text":"world"}}`,
+		`{"type":"message_stop"}`,
+	}
+
+	for i, line := range lines {
+		event, err := runner.parseStreamEvent(runID, line)
+		if err != nil {
+			t.Fatalf("parseStreamEvent returned error: %v", err)
+		}
+		if i < len(lines)-1 {
+			if event != nil {
+				t.Fatalf("expected nil event before message_stop, got %+v", event)
+			}
+			continue
+		}
+
+		if event == nil {
+			t.Fatal("expected message event on message_stop, got nil")
+		}
+		if event.EventType != domain.EventTypeMessage {
+			t.Fatalf("expected EventType=%s, got %s", domain.EventTypeMessage, event.EventType)
+		}
+		msgData, ok := event.Data.(*domain.MessageEventData)
+		if !ok {
+			t.Fatalf("expected MessageEventData, got %T", event.Data)
+		}
+		if msgData.Content != "Hello world" {
+			t.Errorf("expected content='Hello world', got %s", msgData.Content)
+		}
+	}
+}
+
 // =============================================================================
 // CONTENT BLOCK STREAMING TESTS
 // =============================================================================
@@ -411,23 +477,11 @@ func TestClaudeCodeRunner_ParseStreamEvent_ContentBlockStart_ToolUse(t *testing.
 	line := `{"type":"content_block_start","content_block":{"type":"tool_use","id":"toolu_123","name":"Read"}}`
 
 	event, err := runner.parseStreamEvent(runID, line)
-
 	if err != nil {
 		t.Fatalf("parseStreamEvent returned error: %v", err)
 	}
-	if event == nil {
-		t.Fatal("expected event, got nil")
-	}
-	if event.EventType != domain.EventTypeToolCall {
-		t.Errorf("expected EventType=%s, got %s", domain.EventTypeToolCall, event.EventType)
-	}
-
-	toolData, ok := event.Data.(*domain.ToolCallEventData)
-	if !ok {
-		t.Fatalf("expected ToolCallEventData, got %T", event.Data)
-	}
-	if toolData.ToolName != "Read" {
-		t.Errorf("expected toolName=Read, got %s", toolData.ToolName)
+	if event != nil {
+		t.Errorf("expected nil event for tool_use start, got %+v", event)
 	}
 }
 
@@ -438,26 +492,11 @@ func TestClaudeCodeRunner_ParseStreamEvent_ContentBlockDelta_Text(t *testing.T) 
 	line := `{"type":"content_block_delta","delta":{"type":"text_delta","text":"Hello world"}}`
 
 	event, err := runner.parseStreamEvent(runID, line)
-
 	if err != nil {
 		t.Fatalf("parseStreamEvent returned error: %v", err)
 	}
-	if event == nil {
-		t.Fatal("expected event, got nil")
-	}
-	if event.EventType != domain.EventTypeLog {
-		t.Errorf("expected EventType=%s, got %s", domain.EventTypeLog, event.EventType)
-	}
-
-	logData, ok := event.Data.(*domain.LogEventData)
-	if !ok {
-		t.Fatalf("expected LogEventData, got %T", event.Data)
-	}
-	if logData.Level != "trace" {
-		t.Errorf("expected level=trace, got %s", logData.Level)
-	}
-	if logData.Message != "Hello world" {
-		t.Errorf("expected message='Hello world', got %s", logData.Message)
+	if event != nil {
+		t.Fatalf("expected nil event for text delta, got %+v", event)
 	}
 }
 
@@ -468,13 +507,94 @@ func TestClaudeCodeRunner_ParseStreamEvent_ContentBlockDelta_Empty(t *testing.T)
 	line := `{"type":"content_block_delta","delta":{"type":"text_delta","text":""}}`
 
 	event, err := runner.parseStreamEvent(runID, line)
-
 	if err != nil {
 		t.Fatalf("parseStreamEvent returned error: %v", err)
 	}
 	// Empty delta should be silently skipped
 	if event != nil {
 		t.Errorf("expected nil event for empty delta, got %+v", event)
+	}
+}
+
+func TestClaudeCodeRunner_ParseStreamEvent_MessageStop_FlushesText(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+
+	lines := []string{
+		`{"type":"content_block_delta","delta":{"type":"text_delta","text":"Hello "}}`,
+		`{"type":"content_block_delta","delta":{"type":"text_delta","text":"world"}}`,
+		`{"type":"message_stop"}`,
+	}
+
+	for i, line := range lines {
+		event, err := runner.parseStreamEvent(runID, line)
+		if err != nil {
+			t.Fatalf("parseStreamEvent returned error: %v", err)
+		}
+		if i < len(lines)-1 {
+			if event != nil {
+				t.Fatalf("expected nil event before message_stop, got %+v", event)
+			}
+			continue
+		}
+
+		if event == nil {
+			t.Fatal("expected message event on message_stop, got nil")
+		}
+		if event.EventType != domain.EventTypeMessage {
+			t.Fatalf("expected EventType=%s, got %s", domain.EventTypeMessage, event.EventType)
+		}
+		msgData, ok := event.Data.(*domain.MessageEventData)
+		if !ok {
+			t.Fatalf("expected MessageEventData, got %T", event.Data)
+		}
+		if msgData.Role != "assistant" {
+			t.Errorf("expected role=assistant, got %s", msgData.Role)
+		}
+		if msgData.Content != "Hello world" {
+			t.Errorf("expected content='Hello world', got %s", msgData.Content)
+		}
+	}
+}
+
+func TestClaudeCodeRunner_ParseStreamEvent_ContentBlockStop_EmitsToolCall(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+
+	lines := []string{
+		`{"type":"content_block_start","content_block":{"type":"tool_use","id":"toolu_123","name":"Read"}}`,
+		`{"type":"content_block_delta","delta":{"type":"input_json_delta","partial_json":"{\"file_path\":\"README.md\"}"}}`,
+		`{"type":"content_block_stop"}`,
+	}
+
+	for i, line := range lines {
+		event, err := runner.parseStreamEvent(runID, line)
+		if err != nil {
+			t.Fatalf("parseStreamEvent returned error: %v", err)
+		}
+		if i < len(lines)-1 {
+			if event != nil {
+				t.Fatalf("expected nil event before content_block_stop, got %+v", event)
+			}
+			continue
+		}
+
+		if event == nil {
+			t.Fatal("expected tool call event on content_block_stop, got nil")
+		}
+		if event.EventType != domain.EventTypeToolCall {
+			t.Fatalf("expected EventType=%s, got %s", domain.EventTypeToolCall, event.EventType)
+		}
+		toolData, ok := event.Data.(*domain.ToolCallEventData)
+		if !ok {
+			t.Fatalf("expected ToolCallEventData, got %T", event.Data)
+		}
+		if toolData.ToolName != "Read" {
+			t.Errorf("expected toolName=Read, got %s", toolData.ToolName)
+		}
+		if toolData.Input == nil || toolData.Input["file_path"] != "README.md" {
+			t.Errorf("expected input file_path README.md, got %#v", toolData.Input)
+		}
 	}
 }
 
