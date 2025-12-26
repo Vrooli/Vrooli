@@ -9,11 +9,11 @@
 
 **Purpose**: Agent Inbox provides a unified chat management interface for AI conversations, designed like an email client. Users can manage multiple concurrent AI conversations with different models, organize them with labels, track read/unread status, and seamlessly switch between chat views.
 
-The system supports two distinct interaction modes: a traditional ChatGPT-style bubble interface for conversational AI (powered by OpenRouter), and a terminal interface for coding agents like Claude Code and Codex.
+The system provides a ChatGPT-style bubble interface for conversational AI (powered by OpenRouter), with tool calling support for dispatching tasks to coding agents via agent-manager integration.
 
 **Primary users**: Developers, power users, and AI enthusiasts who interact with multiple AI models daily
 **Deployment surfaces**: API, CLI, Web UI
-**Intelligence amplification**: Creates reusable patterns for multi-model chat management, terminal-based agent interaction, and conversation organization that other scenarios can leverage.
+**Intelligence amplification**: Creates reusable patterns for multi-model chat management, agent-dispatching via tool calls, and conversation organization that other scenarios can leverage.
 
 ## 🎯 Operational Targets
 
@@ -27,7 +27,7 @@ The system supports two distinct interaction modes: a traditional ChatGPT-style 
 - [ ] OT-P0-007 | Read/unread tracking | Mark conversations as read/unread with visual indicators
 - [ ] OT-P0-008 | Label management | Create, edit, delete, and assign colored labels to organize chats
 - [ ] OT-P0-009 | Chat persistence | Store all conversations in PostgreSQL with full message history
-- [ ] OT-P0-010 | Terminal view | Terminal/console view mode for coding agent interactions (Claude Code, Codex)
+- [x] OT-P0-010 | Tool calling | Support for AI-driven tool calls that dispatch tasks to agent-manager
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Search functionality | Full-text search across all chat messages
@@ -57,7 +57,7 @@ The system supports two distinct interaction modes: a traditional ChatGPT-style 
 - **AI Integration**:
   - OpenRouter API for chat completions (primary chat models)
   - Ollama (local) for auto-naming chats (fast, privacy-preserving)
-- **Terminal Integration**: PTY-based terminal sessions for coding agent views, WebSocket for real-time terminal I/O
+- **Agent Integration**: Tool calling via agent-manager for coding tasks, WebSocket for real-time streaming
 - **Non-goals**: Building our own AI models, mobile-first design (desktop-first), real-time collaboration between users
 
 ## Dependencies & Launch Plan
@@ -71,7 +71,7 @@ The system supports two distinct interaction modes: a traditional ChatGPT-style 
 
 **Launch risks**:
 - OpenRouter API rate limits or outages (mitigation: graceful degradation with clear error messages)
-- Terminal session security (mitigation: sandboxed PTY sessions with resource limits)
+- Agent execution security (mitigation: agent-manager handles sandboxing and resource limits)
 - Large conversation histories impacting performance (mitigation: pagination and virtual scrolling)
 
 **Launch sequence**: Local development -> Single-user deployment -> Multi-user with auth

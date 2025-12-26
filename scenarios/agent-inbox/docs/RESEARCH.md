@@ -8,7 +8,7 @@ Searched existing scenarios for chat/inbox functionality:
 - **prompt-manager**: Manages prompt templates, not conversations
 - **vrooli-assistant**: General assistant, not multi-chat inbox management
 
-**Conclusion**: agent-inbox is unique - no existing scenario provides a personal AI chat inbox with multi-model support and terminal view.
+**Conclusion**: agent-inbox is unique - no existing scenario provides a personal AI chat inbox with multi-model support and agent-manager tool integration.
 
 ## Related Scenarios
 
@@ -25,11 +25,6 @@ Searched existing scenarios for chat/inbox functionality:
 - Supports streaming via Server-Sent Events
 - Model list endpoint: GET /api/v1/models
 - Chat completions: POST /api/v1/chat/completions
-
-### Terminal UI Inspiration
-- xterm.js for browser-based terminal rendering
-- node-pty for PTY session management
-- Consider ttyd or gotty patterns for Go-based terminal server
 
 ### Email Client UX Patterns
 - Gmail: Labels, archive, keyboard shortcuts (j/k/e/r)

@@ -96,8 +96,27 @@
       "description": "Export chat history to markdown, JSON, or plain text",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "unit_test",
+          "file": "api/chat_test.go",
+          "description": "Tests export endpoint for markdown, JSON, txt formats and validation",
+          "status": "implemented"
+        },
+        {
+          "type": "code_review",
+          "file": "api/handlers/chat.go",
+          "description": "ExportChat handler with format support and file download",
+          "status": "implemented"
+        },
+        {
+          "type": "code_review",
+          "file": "ui/src/components/chat/ChatHeader.tsx",
+          "description": "Export dialog UI with format selection",
+          "status": "implemented"
+        }
+      ]
     }
   ]
 }

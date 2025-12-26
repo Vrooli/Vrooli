@@ -17,6 +17,7 @@ import (
 	"agent-inbox/integrations"
 	"agent-inbox/middleware"
 	"agent-inbox/persistence"
+	"agent-inbox/services"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -45,6 +46,15 @@ func main() {
 	repo := persistence.NewRepository(db)
 	if err := repo.InitSchema(context.Background()); err != nil {
 		log.Fatalf("failed to initialize schema: %v", err)
+	}
+
+	// Startup reconciliation: recover orphaned tool calls from prior crash/restart
+	// TEMPORAL FLOW: This ensures progress continuity across server restarts
+	reconcileSvc := services.NewReconciliationService(repo)
+	if reconciled, err := reconcileSvc.ReconcileOrphanedToolCalls(context.Background()); err != nil {
+		log.Printf("warning: reconciliation failed: %v", err)
+	} else if reconciled > 0 {
+		log.Printf("reconciliation: reconciled %d orphaned tool calls", reconciled)
 	}
 
 	// Create handlers with all dependencies

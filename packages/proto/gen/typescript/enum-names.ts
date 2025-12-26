@@ -75,6 +75,7 @@ export const TriggerTypeName: Record<TriggerType, string> = {
   [TriggerType.SCHEDULED]: 'scheduled',
   [TriggerType.API]: 'api',
   [TriggerType.WEBHOOK]: 'webhook',
+  [TriggerType.RESUME]: 'resume',
 };
 
 /**

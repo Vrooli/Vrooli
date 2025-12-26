@@ -2,11 +2,6 @@
 
 ## Open Issues
 
-### Terminal Session Security
-- PTY sessions need proper sandboxing before production use
-- Consider using containers or resource limits (cgroups)
-- Evaluate attack surface of allowing arbitrary command execution
-
 ### OpenRouter Rate Limits
 - Need graceful handling when rate limits are hit
 - Consider request queuing or user notification

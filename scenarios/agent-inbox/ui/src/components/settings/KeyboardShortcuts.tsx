@@ -20,6 +20,10 @@ const shortcutCategories: ShortcutCategory[] = [
     title: "Navigation",
     icon: <Navigation className="h-4 w-4" />,
     shortcuts: [
+      { keys: ["J"], description: "Next chat in list" },
+      { keys: ["K"], description: "Previous chat in list" },
+      { keys: ["Enter"], description: "Open focused chat" },
+      { keys: ["/"], description: "Focus search" },
       { keys: [modKey, "K"], description: "Focus search" },
       { keys: [modKey, "1"], description: "Go to Inbox" },
       { keys: [modKey, "2"], description: "Go to Starred" },
@@ -32,7 +36,6 @@ const shortcutCategories: ShortcutCategory[] = [
     icon: <MessageSquare className="h-4 w-4" />,
     shortcuts: [
       { keys: [modKey, "N"], description: "New chat" },
-      { keys: ["Enter"], description: "Send message" },
       { keys: ["Shift", "Enter"], description: "New line in message" },
       { keys: [modKey, "S"], description: "Toggle star on current chat" },
       { keys: [modKey, "E"], description: "Archive current chat" },

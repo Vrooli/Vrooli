@@ -49,7 +49,7 @@ func ValidateMessageInput(role, content, toolCallID string) ValidationResult {
 // ValidateChatCreate validates inputs for creating a chat.
 func ValidateChatCreate(name, model, viewMode string) ValidationResult {
 	if viewMode != "" && !IsValidViewMode(viewMode) {
-		return Invalid("view_mode must be 'bubble' or 'terminal'")
+		return Invalid("view_mode must be 'bubble'")
 	}
 	return OK()
 }

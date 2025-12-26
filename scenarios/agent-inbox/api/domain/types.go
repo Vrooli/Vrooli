@@ -14,7 +14,7 @@ type Chat struct {
 	Name         string    `json:"name"`
 	Preview      string    `json:"preview"`
 	Model        string    `json:"model"`
-	ViewMode     string    `json:"view_mode"` // "bubble" or "terminal"
+	ViewMode     string    `json:"view_mode"` // "bubble" (default)
 	IsRead       bool      `json:"is_read"`
 	IsArchived   bool      `json:"is_archived"`
 	IsStarred    bool      `json:"is_starred"`
@@ -89,8 +89,7 @@ type ChatWithMessages struct {
 
 // ViewMode constants for chat display
 const (
-	ViewModeBubble   = "bubble"
-	ViewModeTerminal = "terminal"
+	ViewModeBubble = "bubble"
 )
 
 // Message role constants
@@ -116,14 +115,60 @@ const (
 	PreviewMaxLength = 100
 )
 
+// UsageRecord tracks token usage and cost for a single API call.
+// This enables usage analytics, cost tracking, and billing.
+type UsageRecord struct {
+	ID               string    `json:"id"`
+	ChatID           string    `json:"chat_id"`
+	MessageID        string    `json:"message_id,omitempty"`
+	Model            string    `json:"model"`
+	PromptTokens     int       `json:"prompt_tokens"`
+	CompletionTokens int       `json:"completion_tokens"`
+	TotalTokens      int       `json:"total_tokens"`
+	PromptCost       float64   `json:"prompt_cost"`       // Cost in USD cents
+	CompletionCost   float64   `json:"completion_cost"`   // Cost in USD cents
+	TotalCost        float64   `json:"total_cost"`        // Cost in USD cents
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+// UsageStats provides aggregated usage statistics.
+type UsageStats struct {
+	TotalPromptTokens     int                     `json:"total_prompt_tokens"`
+	TotalCompletionTokens int                     `json:"total_completion_tokens"`
+	TotalTokens           int                     `json:"total_tokens"`
+	TotalCost             float64                 `json:"total_cost"` // In USD cents
+	ByModel               map[string]*ModelUsage  `json:"by_model"`
+	ByDay                 map[string]*DailyUsage  `json:"by_day,omitempty"`
+}
+
+// ModelUsage provides usage breakdown for a single model.
+type ModelUsage struct {
+	Model            string  `json:"model"`
+	PromptTokens     int     `json:"prompt_tokens"`
+	CompletionTokens int     `json:"completion_tokens"`
+	TotalTokens      int     `json:"total_tokens"`
+	TotalCost        float64 `json:"total_cost"`
+	RequestCount     int     `json:"request_count"`
+}
+
+// DailyUsage provides usage breakdown for a single day.
+type DailyUsage struct {
+	Date             string  `json:"date"` // YYYY-MM-DD
+	PromptTokens     int     `json:"prompt_tokens"`
+	CompletionTokens int     `json:"completion_tokens"`
+	TotalTokens      int     `json:"total_tokens"`
+	TotalCost        float64 `json:"total_cost"`
+	RequestCount     int     `json:"request_count"`
+}
+
 // ValidViewModes returns the list of valid view modes
 func ValidViewModes() []string {
-	return []string{ViewModeBubble, ViewModeTerminal}
+	return []string{ViewModeBubble}
 }
 
 // IsValidViewMode checks if a view mode string is valid
 func IsValidViewMode(mode string) bool {
-	return mode == ViewModeBubble || mode == ViewModeTerminal
+	return mode == ViewModeBubble
 }
 
 // ValidRoles returns the list of valid message roles

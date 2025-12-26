@@ -1,9 +1,28 @@
 import { useState, useCallback, useEffect } from "react";
-import { Moon, Sun, Trash2, AlertTriangle, Keyboard } from "lucide-react";
+import { Moon, Sun, Trash2, AlertTriangle, Keyboard, BarChart3, Bot } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Button } from "../ui/button";
+import { ModelSelector } from "./ModelSelector";
+import type { Model } from "../../lib/api";
 
 export type Theme = "dark" | "light";
+
+// Default model used when none is set
+export const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
+
+// Get/set default model from localStorage
+export function getDefaultModel(): string {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("defaultModel") || DEFAULT_MODEL;
+  }
+  return DEFAULT_MODEL;
+}
+
+export function setDefaultModel(modelId: string): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("defaultModel", modelId);
+  }
+}
 
 interface SettingsProps {
   open: boolean;
@@ -11,6 +30,8 @@ interface SettingsProps {
   onDeleteAllChats: () => Promise<unknown>;
   isDeletingAll: boolean;
   onShowKeyboardShortcuts: () => void;
+  onShowUsageStats: () => void;
+  models: Model[];
 }
 
 export function Settings({
@@ -19,6 +40,8 @@ export function Settings({
   onDeleteAllChats,
   isDeletingAll,
   onShowKeyboardShortcuts,
+  onShowUsageStats,
+  models,
 }: SettingsProps) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") {
@@ -26,6 +49,7 @@ export function Settings({
     }
     return "dark";
   });
+  const [defaultModel, setDefaultModelState] = useState<string>(getDefaultModel);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
@@ -42,6 +66,11 @@ export function Settings({
 
   const handleThemeChange = useCallback((newTheme: Theme) => {
     setTheme(newTheme);
+  }, []);
+
+  const handleDefaultModelChange = useCallback((modelId: string) => {
+    setDefaultModelState(modelId);
+    setDefaultModel(modelId);
   }, []);
 
   const handleDeleteAll = useCallback(async () => {
@@ -91,6 +120,19 @@ export function Settings({
           </div>
         </section>
 
+        {/* Default Model Section */}
+        <section>
+          <h3 className="text-sm font-medium text-slate-300 mb-3">Default Model</h3>
+          <p className="text-xs text-slate-500 mb-3">
+            New chats will use this model by default
+          </p>
+          <ModelSelector
+            models={models}
+            selectedModel={defaultModel}
+            onSelectModel={handleDefaultModelChange}
+          />
+        </section>
+
         {/* Keyboard Shortcuts Section */}
         <section>
           <h3 className="text-sm font-medium text-slate-300 mb-3">Keyboard</h3>
@@ -105,6 +147,23 @@ export function Settings({
           >
             <Keyboard className="h-4 w-4" />
             View Keyboard Shortcuts
+          </Button>
+        </section>
+
+        {/* Usage Statistics Section */}
+        <section>
+          <h3 className="text-sm font-medium text-slate-300 mb-3">Usage</h3>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              onShowUsageStats();
+              onClose();
+            }}
+            className="w-full justify-start gap-2"
+            data-testid="usage-stats-button"
+          >
+            <BarChart3 className="h-4 w-4" />
+            View Usage Statistics
           </Button>
         </section>
 

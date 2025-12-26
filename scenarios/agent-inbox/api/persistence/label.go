@@ -21,7 +21,7 @@ func (r *Repository) ListLabels(ctx context.Context) ([]domain.Label, error) {
 	}
 	defer rows.Close()
 
-	var labels []domain.Label
+	labels := make([]domain.Label, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
 		var l domain.Label
 		if err := rows.Scan(&l.ID, &l.Name, &l.Color, &l.CreatedAt); err != nil {

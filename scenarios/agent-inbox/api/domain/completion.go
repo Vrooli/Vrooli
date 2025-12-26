@@ -11,6 +11,14 @@ type CompletionResult struct {
 	FinishReason string     `json:"finish_reason"`
 	ToolCalls    []ToolCall `json:"tool_calls,omitempty"`
 	ResponseID   string     `json:"response_id,omitempty"`
+	Usage        *Usage     `json:"usage,omitempty"`
+}
+
+// Usage contains token usage information from a completion.
+type Usage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	TotalTokens      int `json:"total_tokens"`
 }
 
 // RequiresToolExecution returns true if the model requested tool calls.
@@ -47,6 +55,7 @@ type StreamingAccumulator struct {
 	ToolCalls      []ToolCall
 	FinishReason   string
 	ResponseID     string
+	Usage          *Usage
 }
 
 // NewStreamingAccumulator creates a new accumulator for streaming responses.
@@ -92,6 +101,17 @@ func (a *StreamingAccumulator) SetFinishReason(reason string) {
 	}
 }
 
+// SetUsage sets usage data when received (typically in final chunk).
+func (a *StreamingAccumulator) SetUsage(promptTokens, completionTokens, totalTokens int) {
+	if promptTokens > 0 || completionTokens > 0 || totalTokens > 0 {
+		a.Usage = &Usage{
+			PromptTokens:     promptTokens,
+			CompletionTokens: completionTokens,
+			TotalTokens:      totalTokens,
+		}
+	}
+}
+
 // ToResult converts the accumulated data into a CompletionResult.
 func (a *StreamingAccumulator) ToResult() *CompletionResult {
 	return &CompletionResult{
@@ -100,6 +120,7 @@ func (a *StreamingAccumulator) ToResult() *CompletionResult {
 		FinishReason: a.FinishReason,
 		ToolCalls:    a.ToolCalls,
 		ResponseID:   a.ResponseID,
+		Usage:        a.Usage,
 	}
 }
 

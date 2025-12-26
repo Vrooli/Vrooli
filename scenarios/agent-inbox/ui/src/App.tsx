@@ -9,15 +9,19 @@ import { EmptyState } from "./components/chat/EmptyState";
 import { LabelManager } from "./components/labels/LabelManager";
 import { Settings } from "./components/settings/Settings";
 import { KeyboardShortcuts } from "./components/settings/KeyboardShortcuts";
+import { UsageStats } from "./components/settings/UsageStats";
 import { Button } from "./components/ui/button";
 
 export default function App() {
   const [showLabelManager, setShowLabelManager] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const [showUsageStats, setShowUsageStats] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatListOpen, setChatListOpen] = useState(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // Focused chat index for j/k navigation (separate from selected chat)
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
   const {
     // State
@@ -76,9 +80,14 @@ export default function App() {
     archived: chats.filter((c) => c.is_archived).length,
   };
 
+  // Track which message to scroll to (from search results)
+  const [scrollToMessageId, setScrollToMessageId] = useState<string | null>(null);
+
   const handleSelectChat = useCallback(
-    (chatId: string) => {
+    (chatId: string, messageId?: string) => {
       selectChat(chatId);
+      // Set message to scroll to if navigating from search
+      setScrollToMessageId(messageId || null);
       // Close chat list on mobile when selecting
       if (window.innerWidth < 1024) {
         setChatListOpen(false);
@@ -107,15 +116,79 @@ export default function App() {
     setShowKeyboardShortcuts(true);
   }, []);
 
+  const handleShowUsageStats = useCallback(() => {
+    setShowUsageStats(true);
+  }, []);
+
   const handleDeselectChat = useCallback(() => {
     selectChat("");
   }, [selectChat]);
 
   // Keyboard shortcuts
-  const anyModalOpen = showLabelManager || showSettings || showKeyboardShortcuts;
+  const anyModalOpen = showLabelManager || showSettings || showKeyboardShortcuts || showUsageStats;
+
+  // Get visible chats for navigation (filtered by current view)
+  const visibleChats = useMemo(() => {
+    return chats.filter((c) => {
+      if (currentView === "inbox") return !c.is_archived;
+      if (currentView === "starred") return c.is_starred;
+      if (currentView === "archived") return c.is_archived;
+      return true;
+    });
+  }, [chats, currentView]);
+
+  // Reset focused index when view changes or chat list changes
+  useEffect(() => {
+    setFocusedIndex(-1);
+  }, [currentView]);
+
+  // Navigation handlers for j/k
+  const handleNavigateDown = useCallback(() => {
+    if (visibleChats.length === 0) return;
+    setFocusedIndex((prev) => {
+      if (prev < 0) return 0;
+      return Math.min(prev + 1, visibleChats.length - 1);
+    });
+  }, [visibleChats.length]);
+
+  const handleNavigateUp = useCallback(() => {
+    if (visibleChats.length === 0) return;
+    setFocusedIndex((prev) => {
+      if (prev < 0) return visibleChats.length - 1;
+      return Math.max(prev - 1, 0);
+    });
+  }, [visibleChats.length]);
+
+  // Open focused chat with Enter
+  const handleOpenFocused = useCallback(() => {
+    if (focusedIndex >= 0 && focusedIndex < visibleChats.length) {
+      const chat = visibleChats[focusedIndex];
+      handleSelectChat(chat.id);
+    }
+  }, [focusedIndex, visibleChats, handleSelectChat]);
 
   const shortcuts: KeyboardShortcut[] = useMemo(
     () => [
+      // J/K navigation (KEY-001)
+      {
+        key: "j",
+        description: "Next chat",
+        action: handleNavigateDown,
+        category: "navigation",
+      },
+      {
+        key: "k",
+        description: "Previous chat",
+        action: handleNavigateUp,
+        category: "navigation",
+      },
+      // Enter to open (KEY-002)
+      {
+        key: "Enter",
+        description: "Open focused chat",
+        action: handleOpenFocused,
+        category: "navigation",
+      },
       {
         key: "n",
         ctrlKey: true,
@@ -126,6 +199,13 @@ export default function App() {
       {
         key: "k",
         ctrlKey: true,
+        description: "Focus search",
+        action: () => searchInputRef.current?.focus(),
+        category: "navigation",
+      },
+      // "/" also focuses search (KEY-005)
+      {
+        key: "/",
         description: "Focus search",
         action: () => searchInputRef.current?.focus(),
         category: "navigation",
@@ -171,6 +251,7 @@ export default function App() {
           if (showLabelManager) setShowLabelManager(false);
           else if (showSettings) setShowSettings(false);
           else if (showKeyboardShortcuts) setShowKeyboardShortcuts(false);
+          else if (showUsageStats) setShowUsageStats(false);
           else if (selectedChatId) handleDeselectChat();
         },
         category: "navigation",
@@ -195,6 +276,9 @@ export default function App() {
       },
     ],
     [
+      handleNavigateDown,
+      handleNavigateUp,
+      handleOpenFocused,
       createChat,
       setCurrentView,
       handleOpenSettings,
@@ -202,6 +286,7 @@ export default function App() {
       showLabelManager,
       showSettings,
       showKeyboardShortcuts,
+      showUsageStats,
       selectedChatId,
       handleDeselectChat,
       toggleStar,
@@ -313,10 +398,12 @@ export default function App() {
           chats={chats}
           labels={labels}
           selectedChatId={selectedChatId}
+          focusedIndex={focusedIndex}
           currentView={currentView}
           isLoading={loadingChats}
           onSelectChat={handleSelectChat}
           onNewChat={handleNewChat}
+          onRenameChat={(chatId, newName) => updateChat({ chatId, data: { name: newName } })}
         />
       </div>
 
@@ -335,6 +422,8 @@ export default function App() {
             isGenerating={isGenerating}
             streamingContent={streamingContent}
             activeToolCalls={activeToolCalls}
+            scrollToMessageId={scrollToMessageId}
+            onScrollComplete={() => setScrollToMessageId(null)}
             onSendMessage={sendMessage}
             onUpdateChat={(data) => updateChat({ chatId: selectedChatId, data })}
             onToggleRead={() => toggleRead({ chatId: selectedChatId })}
@@ -365,12 +454,20 @@ export default function App() {
         onDeleteAllChats={deleteAllChats}
         isDeletingAll={isDeletingAllChats}
         onShowKeyboardShortcuts={handleShowKeyboardShortcuts}
+        onShowUsageStats={handleShowUsageStats}
+        models={models}
       />
 
       {/* Keyboard Shortcuts Dialog */}
       <KeyboardShortcuts
         open={showKeyboardShortcuts}
         onClose={() => setShowKeyboardShortcuts(false)}
+      />
+
+      {/* Usage Statistics Dialog */}
+      <UsageStats
+        isOpen={showUsageStats}
+        onClose={() => setShowUsageStats(false)}
       />
     </div>
   );

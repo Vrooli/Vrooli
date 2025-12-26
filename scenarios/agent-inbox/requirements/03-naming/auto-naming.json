@@ -8,8 +8,27 @@
       "description": "Use local Ollama model to generate descriptive chat name from conversation content",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/naming_test.go::TestAutoNameGeneratesName"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/naming_test.go::TestAutoNameRequiresMessages"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/naming_test.go::TestAutoNameValidatesChat"
+        }
+      ]
     },
     {
       "id": "NAME-002",
@@ -17,8 +36,27 @@
       "description": "Automatically suggest a name after first few messages or on user request",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/naming_test.go::TestAutoNameEndpoint"
+        },
+        {
+          "type": "implementation",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/handlers/ai.go::AutoName"
+        },
+        {
+          "type": "implementation",
+          "phase": "ui",
+          "status": "implemented",
+          "ref": "ui/src/lib/api.ts::autoNameChat"
+        }
+      ]
     },
     {
       "id": "NAME-003",
@@ -26,8 +64,21 @@
       "description": "Allow users to rename chats at any time via inline edit or dialog",
       "prd_ref": "OT-P0-006",
       "criticality": "P0",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "implementation",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/handlers/chat.go::UpdateChat"
+        },
+        {
+          "type": "implementation",
+          "phase": "ui",
+          "status": "implemented",
+          "ref": "ui/src/components/chat/ChatHeader.tsx::handleRename"
+        }
+      ]
     },
     {
       "id": "NAME-004",
@@ -35,8 +86,15 @@
       "description": "Double-click on chat name in list to enable inline editing",
       "prd_ref": "OT-P0-006",
       "criticality": "P0",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "implementation",
+          "phase": "ui",
+          "status": "implemented",
+          "ref": "ui/src/components/chat/ChatList.tsx::ChatListItem"
+        }
+      ]
     }
   ]
 }

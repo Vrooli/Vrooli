@@ -12,3 +12,77 @@ Track development progress here. Each agent session should add an entry.
 | 2025-12-25 | Claude Opus 4.5 | Tool calling & agent-manager integration | Major architectural update to support the "inbox as dispatcher" pattern. Agent-inbox now acts as a conversational hub that dispatches coding tasks to agent-manager via tool calls. Key changes: (1) Extended database schema with tool_calls table and message fields for tool_call_id, tool_calls JSONB, response_id, finish_reason; (2) Added tools.go with 6 agent-manager tools (spawn_coding_agent, check_agent_status, stop_agent, list_active_agents, get_agent_diff, approve_agent_changes); (3) Updated openrouter.go to handle OpenRouter Responses API with streaming tool call events; (4) Added handleListTools and handleListChatToolCalls API endpoints; (5) Updated UI MessageList to display tool calls with running/completed/failed states; (6) Added activeToolCalls state to useChats hook with streaming event handling; (7) Added agent-manager as scenario dependency in service.json. API compiles and TypeScript passes. Next: Add tests for tool call flow, integrate with running agent-manager. |
 | 2025-12-25 | Claude Opus 4.5 | P0-005 Auto-naming & Responses API storage | Implemented auto-naming with Ollama (P0-005): (1) Added ollama.go with handleAutoName endpoint that uses local Ollama (llama3.1:8b) to generate concise chat names from conversation content; (2) Added /api/v1/chats/{id}/auto-name POST endpoint; (3) Added autoNameChat API function and useChats mutation; (4) Auto-naming triggers after first AI response when chat has default "New Chat" name. Updated conversation storage for Responses API pattern: (1) handleGetChat now returns all message fields including tool_call_id, tool_calls, response_id, finish_reason; (2) handleAddMessage now accepts tool role with tool_call_id validation. Added naming_test.go with 6 new tests for auto-naming and tool messages. Installed openrouter resource. Security: 0 vulnerabilities. Standards: 1 medium (Go workspace mode). |
 | 2025-12-25 | Claude Opus 4.5 | Control Surface & Graceful Degradation | Applied ecosystem-manager design guides (control-surface-tunable-levers-design.md, failure-topography-and-graceful-degradation.md). **Control Surface:** Added `config/config.go` with centralized, validated configuration for all tunable levers - server timeouts, AI defaults, naming parameters, integration timeouts, and resilience settings. All levers have sane defaults, clear documentation of tradeoffs, and bounded validation. **Graceful Degradation:** Added `resilience/` package with (1) retry.go - exponential backoff retry with permanent error support; (2) circuit_breaker.go - full circuit breaker implementation (closed/open/half-open states) with thread-safety and metrics; (3) fallback.go - typed fallback helpers for graceful degradation. Updated integrations to use config: OllamaClient, OpenRouterClient, AgentManagerClient now inject timeouts from config. Health endpoint upgraded to report dependency status (healthy/degraded/unhealthy) and capability availability. Added 24 new tests for config validation and resilience patterns. All tests pass. |
+| 2025-12-25 | Claude Opus 4.5 | Temporal Flow Audit & Interruption Resilience | Applied ecosystem-manager temporal-flow-audit.md and progress-continuity-interruption-resilience.md guides. **Critical fixes:** (1) **Race condition in useCompletion** - Added request ID tracking to prevent stale state updates; each completion gets unique ID, state updates guarded by ID match; (2) **AbortController for streaming** - Added cancellation support to `completeChat()` API; abort on unmount or new request; properly releases stream reader; (3) **Error propagation fix** - `ExecuteToolCalls` no longer silently swallows errors; returns aggregated error while still providing partial results; (4) **Cleanup on unmount** - useCompletion now cancels in-flight requests when component unmounts via useEffect cleanup; (5) **Completion tracking** - Added `completion_id` to all SSE events for client-side correlation, preventing stale event handling. **Key temporal flows documented:** SSE streaming, tool execution, auto-naming, retry/circuit breaker flows. **Remaining considerations:** Tool calls not resumable on restart (long-running agents can be orphaned), no server-side streaming checkpoints. All changes compile and pass type checking. |
+| 2025-12-25 | Claude Opus 4.5 | Startup Reconciliation for Orphaned Tool Calls | Applied second pass of temporal-flow-audit.md and progress-continuity-interruption-resilience.md. **Implemented:** (1) **Startup reconciliation service** - `services/reconciliation.go` that runs at server startup to find and reconcile orphaned tool calls; (2) **ListOrphanedToolCalls query** - persistence method to find tool calls in 'pending'/'running' status; (3) **UpdateToolCallStatus method** - allows marking tool calls as cancelled/completed/failed with error messages; (4) **Agent-manager integration** - reconciliation checks agent-manager for still-running agents and updates status accordingly; (5) **Main.go integration** - reconciliation runs after schema init, before server starts. **Remaining architectural considerations documented below.** |
+| 2025-12-25 | Claude Opus 4.5 | P0 Naming & Labels Complete | **Marked 5 requirements complete with proper validation refs.** Implemented NAME-004 (double-click to rename) with inline editing in ChatList: (1) Double-click on chat name enters edit mode with input field; (2) Enter/blur saves, Escape cancels; (3) Proper focus management and value sync; (4) Added 18 UI tests for ChatList including inline rename functionality. **Fixed test infrastructure:** Added jsdom dependency, passWithNoTests in vitest config, lighthouse.json version field. Completion: 44%→55.6%. Critical gap: 25→20. P0 naming complete (4/4). P0 labels complete (6/6). |
+| 2025-12-25 | Claude Opus 4.5 | Removed Terminal View Mode | **Scope reduction per user request.** Terminal view mode (TERM-001 through TERM-006) removed from requirements and codebase. **Changes:** (1) Deleted `requirements/04-terminal/core.json` and updated index; (2) Removed `ViewModeTerminal` constant and validation from `domain/types.go`; (3) Simplified `MessageList.tsx` to only use bubble mode; (4) Removed terminal icon condition from `ChatList.tsx`; (5) Updated PRD to replace terminal references with tool-calling/agent-manager integration; (6) Updated PROBLEMS.md, RESEARCH.md, requirements README.md. **Impact:** Requirements: 45→39 total. Completion: 55.6%→64.1%. Critical gap: 20→14. All tests pass. |
+| 2025-12-25 | Claude Opus 4.5 | Full-text Search (SEARCH-001-003) Complete | **Implemented PostgreSQL full-text search across chats and messages.** (1) **API:** Added `messages.search_vector` and `chats.search_vector` tsvector columns with GIN indexes; triggers auto-populate on insert/update; `GET /api/v1/search?q=query&limit=20` endpoint with ranked results and highlighted snippets using `ts_headline`; (2) **UI:** New `useSearch` hook with 300ms debounce and react-query caching; ChatList now shows server-side search results with match type indicator and highlighted snippets; (3) **Navigation:** Clicking search result passes `messageId` to `onSelectChat`; MessageList scrolls to and highlights target message with yellow ring animation that fades after 2 seconds. (4) **Tests:** Updated ChatList tests with QueryClientProvider wrapper and mocked searchChats API. **Impact:** Requirements: 28/39 complete. Completion: 64.1%→71.8%. Critical gap: 14→11. All tests pass. |
+| 2025-12-25 | Claude Opus 4.5 | Keyboard Navigation Complete (KEY-001-005) | **Implemented all 5 keyboard shortcuts for power users.** (1) **J/K navigation (KEY-001):** Added focusedIndex state in App.tsx; j moves focus down, k moves up; visual focus ring on ChatList items; scroll-into-view on focus change; (2) **Enter to open (KEY-002):** Opens the currently focused chat; (3) **Escape to close (KEY-003):** Already implemented, closes dialogs or deselects chat; (4) **Ctrl/Cmd+N new chat (KEY-004):** Already implemented; (5) **/ or Ctrl+K for search (KEY-005):** Added "/" as additional shortcut to focus search. **UI updates:** Updated KeyboardShortcuts help dialog with new shortcuts; ChatListItem now supports forwardRef and isFocused prop. **Tests:** Added useKeyboardShortcuts.test.ts with 17 tests covering key matching, modifiers, input exclusion, Escape special case; added 4 focus tests to ChatList.test.tsx. All 40 UI tests pass. **Impact:** Requirements: 30/36 complete. Completion: 71.8%→83.3%. Critical gap: 11→6. |
+| 2025-12-25 | Claude Opus 4.5 | Export Chat Complete (PERSIST-005) | **Implemented chat export to markdown, JSON, and plain text.** (1) **API:** Added `GET /api/v1/chats/{id}/export?format=markdown|json|txt` endpoint in handlers/chat.go; formatMarkdown() and formatPlainText() helpers for content formatting; sanitizeFilename() for safe download filenames; proper Content-Type and Content-Disposition headers for file download. (2) **UI:** Added Export option to ChatHeader's "More actions" dropdown; Export dialog with three format buttons (Markdown, JSON, Plain Text) with descriptions; exportChat() API function with browser download trigger. (3) **Tests:** Added 5 API tests in chat_test.go for all formats, invalid format validation, and default format behavior. All 40 UI tests pass. **Impact:** Requirements: 31/36 complete. Completion: 83.3%→86.1%. Critical gap: 6→5. |
+| 2025-12-26 | Claude Opus 4.5 | Usage Tracking Complete (USAGE-001-003) | **Implemented full usage tracking with token counts and cost estimation.** (1) **API:** Added `usage_records` table with prompt/completion token counts and costs; `UsageRecord`, `UsageStats`, `ModelUsage`, `DailyUsage` domain types; `GET /api/v1/usage`, `GET /api/v1/usage/records`, `GET /api/v1/chats/{id}/usage` endpoints with date filtering and pagination; `SaveUsageRecord`, `GetUsageStats`, `GetChatUsageStats`, `GetUsageRecords` persistence methods. (2) **Cost Calculation:** Added `integrations/pricing.go` with model pricing data for Claude, GPT-4, Gemini, Llama, Mistral; `CalculateUsageCost` function with per-model pricing (cents per million tokens); costs calculated and stored on each completion. (3) **UI:** Added `UsageStats.tsx` component with summary cards (total tokens, total cost), model breakdown, and recent daily activity; accessible from Settings via "View Usage Statistics" button. (4) **Tests:** Added `pricing_test.go` with tests for pricing lookup, cost calculation accuracy, and usage record creation. **Impact:** Requirements: 34/36 complete. Completion: 86.1%→94.4%. Critical gap: 5→2. |
+
+---
+
+## Temporal Flow & Interruption Resilience Analysis
+
+### Temporal Flows Identified
+
+1. **SSE Streaming Completion Flow**
+   - Client sends POST `/chats/{id}/complete?stream=true`
+   - Server streams SSE events (content, tool_call_start, tool_call_result, tool_calls_complete, done)
+   - Client accumulates streaming content via `useCompletion` hook
+   - Uses `completion_id` for event correlation to prevent stale updates
+
+2. **Tool Execution Flow**
+   - When AI returns `finish_reason: tool_calls`, server executes tools sequentially
+   - Each tool call persisted to `tool_calls` table with status tracking
+   - Tool response messages saved to `messages` table
+   - Tool results streamed back to client via SSE events
+
+3. **Agent-Manager Tool Calls**
+   - `spawn_coding_agent` spawns long-running agents (up to 30 minutes)
+   - Returns immediately with `run_id`, stores in `external_run_id` field
+   - User must poll `check_agent_status` to monitor progress
+   - Startup reconciliation queries agent-manager to recover state after restart
+
+4. **Auto-naming Flow**
+   - Triggers after first AI response when chat has "New Chat" name
+   - Calls Ollama asynchronously, falls back to default name on failure
+
+5. **Chat List Polling**
+   - Client polls `/chats` every 10 seconds via React Query `refetchInterval`
+
+### Mitigations Implemented
+
+| Issue | Mitigation | Location |
+|-------|------------|----------|
+| Race conditions in streaming | Request ID tracking + guards | `useCompletion.ts` |
+| Stale SSE events | `completion_id` in all events | `handlers/sse.go` |
+| Connection drop during streaming | AbortController + cleanup | `lib/api.ts`, `useCompletion.ts` |
+| Orphaned tool calls on restart | Startup reconciliation | `services/reconciliation.go` |
+| Tool execution errors swallowed | Aggregated error reporting | `services/completion.go` |
+
+### Remaining Architectural Considerations
+
+**1. No Server-Side Streaming Checkpoints**
+- If connection drops mid-stream, accumulated content is lost
+- Client must retry from beginning
+- **Future option**: Store streaming checkpoints in DB, allow client resume with last checkpoint ID
+- **Tradeoff**: Adds complexity and DB writes for a relatively rare failure mode
+
+**2. Long-Running Agent Monitoring**
+- `spawn_coding_agent` returns immediately; user must manually poll status
+- **Future option**: Background poller that monitors active tool calls with `external_run_id`
+- **Future option**: WebSocket/SSE subscription for agent status updates
+- **Current pattern**: User-driven polling is acceptable for MVP
+
+**3. No Retry for Failed Tool Calls**
+- Tool calls that fail are marked failed with error message
+- User must create new message to retry
+- **Future option**: Add "retry tool call" endpoint
+- **Current pattern**: Fail-fast is appropriate for debugging/development
+
+**4. Partial Tool Call Results**
+- If server crashes mid-tool-execution, some tools may have succeeded
+- Reconciliation marks orphaned as cancelled, but successful intermediate results are preserved
+- **Current pattern**: Acceptable - user can see what completed before failure

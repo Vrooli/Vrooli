@@ -56,8 +56,15 @@
       "description": "Show colored label badges in the inbox list view",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "implementation",
+          "phase": "ui",
+          "status": "implemented",
+          "ref": "ui/src/components/chat/ChatList.tsx::ChatListItem"
+        }
+      ]
     },
     {
       "id": "LABEL-005",

@@ -44,9 +44,11 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	// Chats
 	r.HandleFunc("/api/v1/chats", h.ListChats).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats", h.CreateChat).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/search", h.SearchChats).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}", h.GetChat).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}", h.UpdateChat).Methods("PATCH", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}", h.DeleteChat).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/export", h.ExportChat).Methods("GET", "OPTIONS")
 
 	// Messages and chat state
 	r.HandleFunc("/api/v1/chats/{id}/messages", h.AddMessage).Methods("POST", "OPTIONS")
@@ -68,6 +70,11 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/chats/{id}/complete", h.ChatComplete).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/tool-calls", h.ListChatToolCalls).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/auto-name", h.AutoName).Methods("POST", "OPTIONS")
+
+	// Usage tracking
+	r.HandleFunc("/api/v1/usage", h.GetUsageStats).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/usage/records", h.GetUsageRecords).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/usage", h.GetChatUsageStats).Methods("GET", "OPTIONS")
 }
 
 // Response helpers

@@ -8,8 +8,24 @@
       "description": "Track input/output token counts for each message",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "code",
+          "ref": "api/domain/types.go:UsageRecord",
+          "notes": "UsageRecord struct with prompt_tokens, completion_tokens, total_tokens fields"
+        },
+        {
+          "type": "code",
+          "ref": "api/persistence/usage.go:SaveUsageRecord",
+          "notes": "Persists usage records to database"
+        },
+        {
+          "type": "code",
+          "ref": "api/services/completion.go:SaveCompletionResult",
+          "notes": "Captures and saves usage data after each completion"
+        }
+      ]
     },
     {
       "id": "USAGE-002",
@@ -17,8 +33,24 @@
       "description": "Calculate estimated costs based on model pricing",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "code",
+          "ref": "api/integrations/pricing.go:CalculateUsageCost",
+          "notes": "Calculates prompt and completion costs based on model pricing"
+        },
+        {
+          "type": "code",
+          "ref": "api/integrations/pricing.go:modelPricing",
+          "notes": "Pricing data for supported models (Claude, GPT-4, Gemini, etc.)"
+        },
+        {
+          "type": "test",
+          "ref": "api/integrations/pricing_test.go",
+          "notes": "Unit tests for pricing calculation accuracy"
+        }
+      ]
     },
     {
       "id": "USAGE-003",
@@ -26,8 +58,29 @@
       "description": "Display aggregated usage statistics per model and time period",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "code",
+          "ref": "api/handlers/usage.go:GetUsageStats",
+          "notes": "API endpoint for aggregated usage statistics"
+        },
+        {
+          "type": "code",
+          "ref": "api/persistence/usage.go:GetUsageStats",
+          "notes": "Query for usage totals, by-model, and by-day breakdowns"
+        },
+        {
+          "type": "code",
+          "ref": "ui/src/components/settings/UsageStats.tsx",
+          "notes": "React component displaying usage dashboard with totals, model breakdown, and recent activity"
+        },
+        {
+          "type": "code",
+          "ref": "ui/src/lib/api.ts:fetchUsageStats",
+          "notes": "Client API function for fetching usage statistics"
+        }
+      ]
     }
   ]
 }

@@ -6,4 +6,5 @@ startScenarioServer({
   distDir: './dist',
   serviceName: 'agent-inbox',
   corsOrigins: '*',
+  verbose: process.env.DEBUG === 'true',
 })

@@ -10,6 +10,10 @@ import {
   Bot,
   Tag,
   MoreVertical,
+  Download,
+  FileText,
+  FileJson,
+  File,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
@@ -17,7 +21,8 @@ import { Dropdown, DropdownItem, DropdownSeparator } from "../ui/dropdown";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
-import type { Chat, Model, Label } from "../../lib/api";
+import { exportChat } from "../../lib/api";
+import type { Chat, Model, Label, ExportFormat } from "../../lib/api";
 
 interface ChatHeaderProps {
   chat: Chat;
@@ -46,12 +51,28 @@ export function ChatHeader({
 }: ChatHeaderProps) {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("markdown");
+  const [isExporting, setIsExporting] = useState(false);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [newName, setNewName] = useState(chat.name);
 
   const currentModel = models.find((m) => m.id === chat.model);
-  const assignedLabels = labels.filter((l) => chat.label_ids.includes(l.id));
-  const availableLabels = labels.filter((l) => !chat.label_ids.includes(l.id));
+
+  const handleExport = async (format: ExportFormat) => {
+    try {
+      setIsExporting(true);
+      await exportChat(chat.id, format);
+      setShowExportDialog(false);
+    } catch (error) {
+      console.error("Export failed:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  const chatLabelIds = chat.label_ids || [];
+  const assignedLabels = labels.filter((l) => chatLabelIds.includes(l.id));
+  const availableLabels = labels.filter((l) => !chatLabelIds.includes(l.id));
 
   const handleRename = () => {
     if (newName.trim() && newName !== chat.name) {
@@ -216,6 +237,11 @@ export function ChatHeader({
                 Rename chat
               </DropdownItem>
               <DropdownSeparator />
+              <DropdownItem onClick={() => setShowExportDialog(true)} data-testid="export-chat-button">
+                <Download className="h-4 w-4" />
+                Export chat
+              </DropdownItem>
+              <DropdownSeparator />
               <DropdownItem destructive onClick={() => setShowDeleteDialog(true)}>
                 <Trash2 className="h-4 w-4" />
                 Delete chat
@@ -265,6 +291,59 @@ export function ChatHeader({
           </Button>
           <Button variant="destructive" onClick={handleDelete} data-testid="confirm-delete-button">
             Delete
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={showExportDialog} onClose={() => setShowExportDialog(false)}>
+        <DialogHeader onClose={() => setShowExportDialog(false)}>Export Chat</DialogHeader>
+        <DialogBody>
+          <p className="text-slate-400 text-sm mb-4">
+            Choose a format to export "{chat.name}"
+          </p>
+          <div className="space-y-2">
+            <button
+              onClick={() => handleExport("markdown")}
+              disabled={isExporting}
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left"
+              data-testid="export-markdown-button"
+            >
+              <FileText className="h-5 w-5 text-indigo-400" />
+              <div>
+                <div className="font-medium text-white">Markdown (.md)</div>
+                <div className="text-xs text-slate-500">Best for documentation and readability</div>
+              </div>
+            </button>
+            <button
+              onClick={() => handleExport("json")}
+              disabled={isExporting}
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left"
+              data-testid="export-json-button"
+            >
+              <FileJson className="h-5 w-5 text-emerald-400" />
+              <div>
+                <div className="font-medium text-white">JSON (.json)</div>
+                <div className="text-xs text-slate-500">Complete data with all metadata</div>
+              </div>
+            </button>
+            <button
+              onClick={() => handleExport("txt")}
+              disabled={isExporting}
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left"
+              data-testid="export-txt-button"
+            >
+              <File className="h-5 w-5 text-slate-400" />
+              <div>
+                <div className="font-medium text-white">Plain Text (.txt)</div>
+                <div className="text-xs text-slate-500">Simple format for any text editor</div>
+              </div>
+            </button>
+          </div>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setShowExportDialog(false)}>
+            Cancel
           </Button>
         </DialogFooter>
       </Dialog>

@@ -37,7 +37,7 @@ func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]d
 	}
 	defer rows.Close()
 
-	var chats []domain.Chat
+	chats := make([]domain.Chat, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
 		var c domain.Chat
 		var labelIDs []byte
@@ -208,7 +208,7 @@ func (r *Repository) GetMessages(ctx context.Context, chatID string) ([]domain.M
 	}
 	defer rows.Close()
 
-	var messages []domain.Message
+	messages := make([]domain.Message, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
 		var m domain.Message
 		var model, toolCallID, responseID, finishReason sql.NullString
@@ -247,7 +247,7 @@ func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string
 	}
 	defer rows.Close()
 
-	var messages []map[string]interface{}
+	messages := make([]map[string]interface{}, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
 		var role, content string
 		var toolCallID sql.NullString
@@ -353,4 +353,115 @@ func (r *Repository) SaveToolResponseMessage(ctx context.Context, chatID, toolCa
 		return nil, err
 	}
 	return &msg, nil
+}
+
+// Search Operations
+
+// SearchResult represents a single search match.
+type SearchResult struct {
+	Chat      domain.Chat `json:"chat"`
+	MessageID string      `json:"message_id,omitempty"`
+	Snippet   string      `json:"snippet,omitempty"`
+	Rank      float64     `json:"rank"`
+	MatchType string      `json:"match_type"` // "chat_name" or "message_content"
+}
+
+// SearchChats performs full-text search across chat names and message content.
+// Returns results ranked by relevance, with snippet highlighting for message matches.
+func (r *Repository) SearchChats(ctx context.Context, query string, limit int) ([]SearchResult, error) {
+	if query == "" {
+		return []SearchResult{}, nil
+	}
+
+	// Convert user query to tsquery format (prefix matching for partial words)
+	// This handles multi-word queries by adding :* to each word for prefix matching
+	words := strings.Fields(query)
+	var tsQueryParts []string
+	for _, word := range words {
+		// Escape special characters and add prefix matching
+		escaped := strings.ReplaceAll(word, "'", "''")
+		tsQueryParts = append(tsQueryParts, escaped+":*")
+	}
+	tsQuery := strings.Join(tsQueryParts, " & ")
+
+	if limit <= 0 {
+		limit = 20
+	}
+
+	// Search chat names and message content with ranking
+	// Chat name matches rank higher than message matches
+	searchSQL := `
+		WITH chat_matches AS (
+			SELECT
+				c.id as chat_id,
+				'' as message_id,
+				ts_headline('english', c.name, to_tsquery('english', $1), 'StartSel=<mark>, StopSel=</mark>, MaxWords=50') as snippet,
+				ts_rank(c.search_vector, to_tsquery('english', $1)) * 2 as rank,
+				'chat_name' as match_type
+			FROM chats c
+			WHERE c.search_vector @@ to_tsquery('english', $1)
+		),
+		message_matches AS (
+			SELECT
+				m.chat_id,
+				m.id as message_id,
+				ts_headline('english', m.content, to_tsquery('english', $1), 'StartSel=<mark>, StopSel=</mark>, MaxWords=35, MinWords=15') as snippet,
+				ts_rank(m.search_vector, to_tsquery('english', $1)) as rank,
+				'message_content' as match_type
+			FROM messages m
+			WHERE m.search_vector @@ to_tsquery('english', $1)
+				AND m.role IN ('user', 'assistant')
+		),
+		all_matches AS (
+			SELECT * FROM chat_matches
+			UNION ALL
+			SELECT * FROM message_matches
+		),
+		ranked AS (
+			SELECT DISTINCT ON (chat_id, match_type) *
+			FROM all_matches
+			ORDER BY chat_id, match_type, rank DESC
+		)
+		SELECT
+			r.chat_id, r.message_id, r.snippet, r.rank, r.match_type,
+			c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.created_at, c.updated_at,
+			COALESCE(array_agg(cl.label_id) FILTER (WHERE cl.label_id IS NOT NULL), '{}') as label_ids
+		FROM ranked r
+		JOIN chats c ON c.id = r.chat_id
+		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
+		GROUP BY r.chat_id, r.message_id, r.snippet, r.rank, r.match_type,
+			c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.created_at, c.updated_at
+		ORDER BY r.rank DESC
+		LIMIT $2
+	`
+
+	rows, err := r.db.QueryContext(ctx, searchSQL, tsQuery, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search chats: %w", err)
+	}
+	defer rows.Close()
+
+	results := make([]SearchResult, 0) // Always return [] instead of null in JSON
+	for rows.Next() {
+		var r SearchResult
+		var messageID sql.NullString
+		var labelIDs []byte
+
+		if err := rows.Scan(
+			&r.Chat.ID, &messageID, &r.Snippet, &r.Rank, &r.MatchType,
+			&r.Chat.ID, &r.Chat.Name, &r.Chat.Preview, &r.Chat.Model, &r.Chat.ViewMode,
+			&r.Chat.IsRead, &r.Chat.IsArchived, &r.Chat.IsStarred, &r.Chat.CreatedAt, &r.Chat.UpdatedAt,
+			&labelIDs,
+		); err != nil {
+			continue
+		}
+
+		if messageID.Valid {
+			r.MessageID = messageID.String
+		}
+		r.Chat.LabelIDs = parsePostgresArray(string(labelIDs))
+		results = append(results, r)
+	}
+
+	return results, nil
 }

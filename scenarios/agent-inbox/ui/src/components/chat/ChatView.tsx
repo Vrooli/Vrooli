@@ -13,6 +13,8 @@ interface ChatViewProps {
   isGenerating: boolean;
   streamingContent: string;
   activeToolCalls?: ActiveToolCall[];
+  scrollToMessageId?: string | null;
+  onScrollComplete?: () => void;
   onSendMessage: (content: string) => void;
   onUpdateChat: (data: { name?: string; model?: string }) => void;
   onToggleRead: () => void;
@@ -31,6 +33,8 @@ export function ChatView({
   isGenerating,
   streamingContent,
   activeToolCalls = [],
+  scrollToMessageId,
+  onScrollComplete,
   onSendMessage,
   onUpdateChat,
   onToggleRead,
@@ -71,11 +75,12 @@ export function ChatView({
       />
 
       <MessageList
-        messages={chatData.messages}
+        messages={chatData.messages || []}
         isGenerating={isGenerating}
         streamingContent={streamingContent}
-        viewMode={chatData.chat.view_mode}
         activeToolCalls={activeToolCalls}
+        scrollToMessageId={scrollToMessageId}
+        onScrollComplete={onScrollComplete}
       />
 
       <MessageInput onSend={onSendMessage} isGenerating={isGenerating} />

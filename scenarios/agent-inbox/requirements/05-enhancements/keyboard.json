@@ -8,8 +8,21 @@
       "description": "Use j/k keys to navigate up/down in chat list",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "unit_test",
+          "file": "ui/src/hooks/useKeyboardShortcuts.test.ts",
+          "description": "Tests j/k key handling and shortcut matching",
+          "status": "implemented"
+        },
+        {
+          "type": "unit_test",
+          "file": "ui/src/components/chat/ChatList.test.tsx",
+          "description": "Tests focus ring display on focused chat items",
+          "status": "implemented"
+        }
+      ]
     },
     {
       "id": "KEY-002",
@@ -17,8 +30,21 @@
       "description": "Press Enter to open selected chat",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "unit_test",
+          "file": "ui/src/hooks/useKeyboardShortcuts.test.ts",
+          "description": "Tests Enter key shortcut handling",
+          "status": "implemented"
+        },
+        {
+          "type": "code_review",
+          "file": "ui/src/App.tsx",
+          "description": "Enter shortcut opens focused chat via handleOpenFocused",
+          "status": "implemented"
+        }
+      ]
     },
     {
       "id": "KEY-003",
@@ -26,8 +52,21 @@
       "description": "Press Escape to close chat and return to inbox",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "unit_test",
+          "file": "ui/src/hooks/useKeyboardShortcuts.test.ts",
+          "description": "Tests Escape key works even when typing in input",
+          "status": "implemented"
+        },
+        {
+          "type": "code_review",
+          "file": "ui/src/App.tsx",
+          "description": "Escape closes dialogs or deselects chat",
+          "status": "implemented"
+        }
+      ]
     },
     {
       "id": "KEY-004",
@@ -35,8 +74,21 @@
       "description": "Cmd/Ctrl+N to create new chat",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "unit_test",
+          "file": "ui/src/hooks/useKeyboardShortcuts.test.ts",
+          "description": "Tests Ctrl/Meta key modifier handling",
+          "status": "implemented"
+        },
+        {
+          "type": "code_review",
+          "file": "ui/src/App.tsx",
+          "description": "Ctrl+N shortcut triggers createChat",
+          "status": "implemented"
+        }
+      ]
     },
     {
       "id": "KEY-005",
@@ -44,8 +96,21 @@
       "description": "Cmd/Ctrl+K or / to focus search",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "unit_test",
+          "file": "ui/src/hooks/useKeyboardShortcuts.test.ts",
+          "description": "Tests / key shortcut for search",
+          "status": "implemented"
+        },
+        {
+          "type": "code_review",
+          "file": "ui/src/App.tsx",
+          "description": "Both Ctrl+K and / focus search input",
+          "status": "implemented"
+        }
+      ]
     }
   ]
 }

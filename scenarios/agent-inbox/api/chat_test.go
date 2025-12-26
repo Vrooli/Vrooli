@@ -264,3 +264,154 @@ func TestGetNonexistentChat(t *testing.T) {
 		t.Errorf("Expected status 404, got %d", w.Code)
 	}
 }
+
+// [REQ:PERSIST-005] Test export chat as markdown
+func TestExportChatMarkdown(t *testing.T) {
+	ts := setupTestServer(t)
+	defer ts.cleanup(t)
+
+	// Create chat
+	chat := createTestChatWithModel(t, ts, "Export Test Chat", "claude-3-5-sonnet-20241022")
+
+	// Add a message
+	body := bytes.NewBuffer([]byte(`{"role": "user", "content": "Hello, world!"}`))
+	req := httptest.NewRequest("POST", "/api/v1/chats/"+chat.ID+"/messages", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	ts.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("Failed to add message: %d", w.Code)
+	}
+
+	// Export as markdown
+	req = httptest.NewRequest("GET", "/api/v1/chats/"+chat.ID+"/export?format=markdown", nil)
+	w = httptest.NewRecorder()
+	ts.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "text/markdown; charset=utf-8" {
+		t.Errorf("Expected Content-Type 'text/markdown; charset=utf-8', got %s", contentType)
+	}
+
+	contentDisp := w.Header().Get("Content-Disposition")
+	if contentDisp == "" {
+		t.Error("Expected Content-Disposition header")
+	}
+
+	body_content := w.Body.String()
+	if !bytes.Contains(w.Body.Bytes(), []byte("# Export Test Chat")) {
+		t.Errorf("Expected markdown to contain chat name header, got: %s", body_content)
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte("Hello, world!")) {
+		t.Errorf("Expected markdown to contain message content, got: %s", body_content)
+	}
+}
+
+// [REQ:PERSIST-005] Test export chat as JSON
+func TestExportChatJSON(t *testing.T) {
+	ts := setupTestServer(t)
+	defer ts.cleanup(t)
+
+	// Create chat
+	chat := createTestChatWithModel(t, ts, "JSON Export Test", "claude-3-5-sonnet-20241022")
+
+	// Export as JSON
+	req := httptest.NewRequest("GET", "/api/v1/chats/"+chat.ID+"/export?format=json", nil)
+	w := httptest.NewRecorder()
+	ts.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "application/json; charset=utf-8" {
+		t.Errorf("Expected Content-Type 'application/json; charset=utf-8', got %s", contentType)
+	}
+
+	// Verify it's valid JSON
+	var result map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Errorf("Expected valid JSON, got error: %v", err)
+	}
+
+	if _, ok := result["chat"]; !ok {
+		t.Error("Expected JSON to contain 'chat' field")
+	}
+	if _, ok := result["messages"]; !ok {
+		t.Error("Expected JSON to contain 'messages' field")
+	}
+}
+
+// [REQ:PERSIST-005] Test export chat as plain text
+func TestExportChatTxt(t *testing.T) {
+	ts := setupTestServer(t)
+	defer ts.cleanup(t)
+
+	// Create chat
+	chat := createTestChatWithModel(t, ts, "TXT Export Test", "claude-3-5-sonnet-20241022")
+
+	// Export as plain text
+	req := httptest.NewRequest("GET", "/api/v1/chats/"+chat.ID+"/export?format=txt", nil)
+	w := httptest.NewRecorder()
+	ts.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "text/plain; charset=utf-8" {
+		t.Errorf("Expected Content-Type 'text/plain; charset=utf-8', got %s", contentType)
+	}
+
+	if !bytes.Contains(w.Body.Bytes(), []byte("TXT Export Test")) {
+		t.Errorf("Expected plain text to contain chat name, got: %s", w.Body.String())
+	}
+}
+
+// [REQ:PERSIST-005] Test export with invalid format returns error
+func TestExportChatInvalidFormat(t *testing.T) {
+	ts := setupTestServer(t)
+	defer ts.cleanup(t)
+
+	// Create chat
+	chat := createTestChat(t, ts)
+
+	// Try invalid format
+	req := httptest.NewRequest("GET", "/api/v1/chats/"+chat.ID+"/export?format=invalid", nil)
+	w := httptest.NewRecorder()
+	ts.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+// [REQ:PERSIST-005] Test export defaults to markdown
+func TestExportChatDefaultFormat(t *testing.T) {
+	ts := setupTestServer(t)
+	defer ts.cleanup(t)
+
+	// Create chat
+	chat := createTestChat(t, ts)
+
+	// Export without format param
+	req := httptest.NewRequest("GET", "/api/v1/chats/"+chat.ID+"/export", nil)
+	w := httptest.NewRecorder()
+	ts.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "text/markdown; charset=utf-8" {
+		t.Errorf("Expected default format to be markdown, got Content-Type %s", contentType)
+	}
+}

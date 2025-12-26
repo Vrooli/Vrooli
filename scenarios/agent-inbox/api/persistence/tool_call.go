@@ -37,7 +37,7 @@ func (r *Repository) ListToolCallsForChat(ctx context.Context, chatID string) ([
 	}
 	defer rows.Close()
 
-	var records []domain.ToolCallRecord
+	records := make([]domain.ToolCallRecord, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
 		var record domain.ToolCallRecord
 		var completedAt sql.NullTime
@@ -64,4 +64,61 @@ func (r *Repository) ListToolCallsForChat(ctx context.Context, chatID string) ([
 	}
 
 	return records, nil
+}
+
+// ListOrphanedToolCalls finds tool calls in pending/running status that may have been
+// orphaned by a server restart or crash. Used during startup reconciliation.
+//
+// TEMPORAL FLOW: This enables recovery from interruptions by identifying work
+// that was in-progress when the server stopped.
+func (r *Repository) ListOrphanedToolCalls(ctx context.Context) ([]domain.ToolCallRecord, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, message_id, chat_id, tool_name, arguments, result, status, scenario_name, external_run_id, started_at, completed_at, error_message
+		FROM tool_calls
+		WHERE status IN ('pending', 'running')
+		ORDER BY started_at ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list orphaned tool calls: %w", err)
+	}
+	defer rows.Close()
+
+	records := make([]domain.ToolCallRecord, 0) // Always return [] instead of null in JSON
+	for rows.Next() {
+		var record domain.ToolCallRecord
+		var completedAt sql.NullTime
+		var result, scenarioName, externalRunID, errorMessage sql.NullString
+		if err := rows.Scan(&record.ID, &record.MessageID, &record.ChatID, &record.ToolName, &record.Arguments, &result, &record.Status, &scenarioName, &externalRunID, &record.StartedAt, &completedAt, &errorMessage); err != nil {
+			continue
+		}
+		if result.Valid {
+			record.Result = result.String
+		}
+		if scenarioName.Valid {
+			record.ScenarioName = scenarioName.String
+		}
+		if externalRunID.Valid {
+			record.ExternalRunID = externalRunID.String
+		}
+		if completedAt.Valid {
+			record.CompletedAt = completedAt.Time
+		}
+		if errorMessage.Valid {
+			record.ErrorMessage = errorMessage.String
+		}
+		records = append(records, record)
+	}
+
+	return records, nil
+}
+
+// UpdateToolCallStatus updates a tool call's status and optionally sets an error message.
+// Used during reconciliation to mark orphaned tool calls as cancelled.
+func (r *Repository) UpdateToolCallStatus(ctx context.Context, id, status, errorMessage string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE tool_calls
+		SET status = $1, error_message = $2, completed_at = NOW()
+		WHERE id = $3
+	`, status, errorMessage, id)
+	return err
 }

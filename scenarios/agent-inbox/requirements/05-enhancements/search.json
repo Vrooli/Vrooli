@@ -8,8 +8,12 @@
       "description": "Search across all chat messages with PostgreSQL full-text search",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        "PostgreSQL tsvector indexes on chats.search_vector and messages.search_vector",
+        "Triggers auto-update search vectors on insert/update",
+        "GET /api/v1/search?q=query endpoint returns ranked results"
+      ]
     },
     {
       "id": "SEARCH-002",
@@ -17,8 +21,12 @@
       "description": "Search bar in inbox header with results highlighting",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        "Search input in ChatList header with placeholder 'Search messages... (Ctrl+K)'",
+        "Debounced search (300ms) via useSearch hook",
+        "Results show highlighted snippets with <mark> tags"
+      ]
     },
     {
       "id": "SEARCH-003",
@@ -26,8 +34,12 @@
       "description": "Click search result to open chat at matching message",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        "onSelectChat receives optional messageId parameter",
+        "MessageList scrolls to target message with highlight animation",
+        "Highlight fades after 2 seconds"
+      ]
     }
   ]
 }

@@ -5,6 +5,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
@@ -47,22 +48,57 @@ func NewCompletionService(repo *persistence.Repository) *CompletionService {
 // This handles the decision of whether to save as a regular message or
 // as a message with tool calls.
 func (s *CompletionService) SaveCompletionResult(ctx context.Context, chatID, model string, result *domain.CompletionResult) (*domain.Message, error) {
+	var msg *domain.Message
+	var err error
+
 	if result.RequiresToolExecution() {
-		return s.repo.SaveAssistantMessageWithToolCalls(
+		msg, err = s.repo.SaveAssistantMessageWithToolCalls(
 			ctx, chatID, model, result.Content, result.ToolCalls,
 			result.ResponseID, result.FinishReason, result.TokenCount,
 		)
+	} else {
+		msg, err = s.repo.SaveAssistantMessage(ctx, chatID, model, result.Content, result.TokenCount)
 	}
-	return s.repo.SaveAssistantMessage(ctx, chatID, model, result.Content, result.TokenCount)
+
+	if err != nil {
+		return msg, err
+	}
+
+	// Save usage record if usage data is available
+	if result.Usage != nil && msg != nil {
+		usageRecord := integrations.CreateUsageRecord(chatID, msg.ID, model, result.Usage)
+		if usageRecord != nil {
+			if saveErr := s.repo.SaveUsageRecord(ctx, usageRecord); saveErr != nil {
+				// Log but don't fail the request - usage tracking is non-critical
+				log.Printf("warning: failed to save usage record: %v", saveErr)
+			}
+		}
+	}
+
+	return msg, nil
 }
 
 // ExecuteToolCalls runs all tool calls from a completion result.
 // Returns results for each tool call in order.
+//
+// TEMPORAL FLOW NOTE: This function executes tool calls sequentially and
+// collects all errors. The returned error aggregates all failures but individual
+// tool results are still returned for partial success handling.
+//
+// Error Handling:
+//   - Individual tool errors are captured in each ToolExecutionResult
+//   - The returned error is non-nil if ANY tool call failed
+//   - Callers can inspect individual results for partial success scenarios
 func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messageID string, toolCalls []domain.ToolCall) ([]domain.ToolExecutionResult, error) {
 	results := make([]domain.ToolExecutionResult, 0, len(toolCalls))
+	var executionErrors []error
 
 	for _, tc := range toolCalls {
 		record, err := s.executor.ExecuteTool(ctx, chatID, tc.ID, tc.Function.Name, tc.Function.Arguments)
+		// Track errors for aggregated reporting
+		if err != nil {
+			executionErrors = append(executionErrors, fmt.Errorf("tool %s failed: %w", tc.Function.Name, err))
+		}
 
 		// Save the execution record
 		if messageID != "" {
@@ -74,6 +110,11 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 
 		// Build result using centralized factory
 		results = append(results, NewToolExecutionResult(tc.ID, tc.Function.Name, record, err))
+	}
+
+	// Return aggregated error if any tool failed
+	if len(executionErrors) > 0 {
+		return results, fmt.Errorf("%d of %d tool calls failed: %v", len(executionErrors), len(toolCalls), executionErrors[0])
 	}
 
 	return results, nil

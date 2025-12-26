@@ -33,6 +33,7 @@ import {
 } from "../lib/api";
 import { useCompletion, type ActiveToolCall } from "./useCompletion";
 import { useLabels } from "./useLabels";
+import { getDefaultModel } from "../components/settings/Settings";
 
 export type View = "inbox" | "starred" | "archived";
 
@@ -82,7 +83,13 @@ export function useChats() {
 
   // Chat mutations
   const createChatMutation = useMutation({
-    mutationFn: createChat,
+    mutationFn: (params: Parameters<typeof createChat>[0] = {}) => {
+      // Use default model if not specified
+      if (!params.model) {
+        params.model = getDefaultModel();
+      }
+      return createChat(params);
+    },
     onSuccess: (newChat) => {
       queryClient.invalidateQueries({ queryKey: ["chats"] });
       setSelectedChatId(newChat.id);
@@ -185,7 +192,8 @@ export function useChats() {
       if (!content.trim() || completion.isGenerating) return;
 
       try {
-        const newChat = await createChat({});
+        const defaultModel = getDefaultModel();
+        const newChat = await createChat({ model: defaultModel });
         const chatId = newChat.id;
 
         setSelectedChatId(chatId);

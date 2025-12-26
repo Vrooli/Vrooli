@@ -12,20 +12,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"agent-inbox/domain"
 )
 
 // StreamWriter wraps http.ResponseWriter for SSE event emission.
 // It provides typed methods for sending different event types to clients.
+//
+// TEMPORAL FLOW DESIGN:
+// - completionID enables client-side correlation of events from the same completion
+// - requestID enables log correlation for debugging
+// - All events include these IDs for traceability across async operations
 type StreamWriter struct {
-	w         http.ResponseWriter
-	flusher   http.Flusher
-	requestID string
+	w            http.ResponseWriter
+	flusher      http.Flusher
+	requestID    string
+	completionID string
 }
 
 // SetupSSEResponse configures the response for Server-Sent Events.
 // Returns nil if streaming is not supported by the response writer.
+//
+// A unique completionID is generated for each SSE stream to enable
+// client-side correlation of events from the same completion request.
 func SetupSSEResponse(w http.ResponseWriter, r *http.Request) *StreamWriter {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -38,17 +48,31 @@ func SetupSSEResponse(w http.ResponseWriter, r *http.Request) *StreamWriter {
 	}
 
 	return &StreamWriter{
-		w:         w,
-		flusher:   flusher,
-		requestID: GetRequestID(r),
+		w:            w,
+		flusher:      flusher,
+		requestID:    GetRequestID(r),
+		completionID: generateCompletionID(),
 	}
+}
+
+// generateCompletionID creates a unique ID for tracking a completion stream.
+// Uses timestamp + random suffix for uniqueness without external dependencies.
+func generateCompletionID() string {
+	return fmt.Sprintf("cmp_%d", time.Now().UnixNano())
 }
 
 // StreamingEvent is the base structure for all streaming events.
 // All events include a type field for client-side routing.
+//
+// TEMPORAL FLOW: CompletionID is included in all events to enable
+// client-side guards against stale events from cancelled requests.
 type StreamingEvent struct {
 	// Type identifies the event kind for client-side handling.
 	Type string `json:"type"`
+
+	// CompletionID uniquely identifies this completion stream.
+	// Clients should verify this matches their current request.
+	CompletionID string `json:"completion_id,omitempty"`
 
 	// RequestID enables log correlation (included in error events).
 	RequestID string `json:"request_id,omitempty"`
@@ -86,26 +110,32 @@ func (sw *StreamWriter) WriteEvent(data interface{}) {
 
 // WriteContentChunk sends a content chunk event.
 func (sw *StreamWriter) WriteContentChunk(content string) {
-	sw.WriteEvent(map[string]interface{}{"content": content, "type": "content"})
+	sw.WriteEvent(map[string]interface{}{
+		"content":       content,
+		"type":          "content",
+		"completion_id": sw.completionID,
+	})
 }
 
 // WriteToolCallStart sends a tool call start event.
 func (sw *StreamWriter) WriteToolCallStart(tc domain.ToolCall) {
 	sw.WriteEvent(map[string]interface{}{
-		"type":      "tool_call_start",
-		"tool_name": tc.Function.Name,
-		"tool_id":   tc.ID,
-		"arguments": tc.Function.Arguments,
+		"type":          "tool_call_start",
+		"tool_name":     tc.Function.Name,
+		"tool_id":       tc.ID,
+		"arguments":     tc.Function.Arguments,
+		"completion_id": sw.completionID,
 	})
 }
 
 // WriteToolCallResult sends a tool call result event.
 func (sw *StreamWriter) WriteToolCallResult(result domain.ToolExecutionResult) {
 	event := map[string]interface{}{
-		"type":      "tool_call_result",
-		"tool_name": result.ToolName,
-		"tool_id":   result.ToolCallID,
-		"status":    result.Status,
+		"type":          "tool_call_result",
+		"tool_name":     result.ToolName,
+		"tool_id":       result.ToolCallID,
+		"status":        result.Status,
+		"completion_id": sw.completionID,
 	}
 	if result.Error != "" {
 		event["error"] = result.Error
@@ -117,7 +147,11 @@ func (sw *StreamWriter) WriteToolCallResult(result domain.ToolExecutionResult) {
 
 // WriteToolCallsComplete signals that all tool calls finished.
 func (sw *StreamWriter) WriteToolCallsComplete() {
-	sw.WriteEvent(map[string]interface{}{"type": "tool_calls_complete", "continuing": true})
+	sw.WriteEvent(map[string]interface{}{
+		"type":          "tool_calls_complete",
+		"continuing":    true,
+		"completion_id": sw.completionID,
+	})
 }
 
 // WriteError sends a structured error event.
@@ -132,8 +166,9 @@ func (sw *StreamWriter) WriteError(err error) {
 	// Wrap unknown errors as internal errors
 	sw.WriteEvent(StreamingErrorEvent{
 		StreamingEvent: StreamingEvent{
-			Type:      "error",
-			RequestID: sw.requestID,
+			Type:         "error",
+			CompletionID: sw.completionID,
+			RequestID:    sw.requestID,
 		},
 		Code:     string(domain.ErrCodeInternalError),
 		Category: string(domain.CategoryInternal),
@@ -147,8 +182,9 @@ func (sw *StreamWriter) WriteError(err error) {
 func (sw *StreamWriter) WriteAppError(appErr *domain.AppError, fatal bool) {
 	sw.WriteEvent(StreamingErrorEvent{
 		StreamingEvent: StreamingEvent{
-			Type:      "error",
-			RequestID: sw.requestID,
+			Type:         "error",
+			CompletionID: sw.completionID,
+			RequestID:    sw.requestID,
 		},
 		Code:     string(appErr.Code),
 		Category: string(appErr.Category),
@@ -166,8 +202,9 @@ func (sw *StreamWriter) WriteFatalError(err error) {
 	} else {
 		sw.WriteEvent(StreamingErrorEvent{
 			StreamingEvent: StreamingEvent{
-				Type:      "error",
-				RequestID: sw.requestID,
+				Type:         "error",
+				CompletionID: sw.completionID,
+				RequestID:    sw.requestID,
 			},
 			Code:     string(domain.ErrCodeInternalError),
 			Category: string(domain.CategoryInternal),
@@ -182,24 +219,28 @@ func (sw *StreamWriter) WriteFatalError(err error) {
 // Warnings indicate issues that don't stop the stream.
 func (sw *StreamWriter) WriteWarning(code domain.ErrorCode, message string) {
 	sw.WriteEvent(map[string]interface{}{
-		"type":       "warning",
-		"code":       string(code),
-		"message":    message,
-		"request_id": sw.requestID,
+		"type":          "warning",
+		"code":          string(code),
+		"message":       message,
+		"completion_id": sw.completionID,
+		"request_id":    sw.requestID,
 	})
 }
 
 // WriteProgress sends a progress event for long-running operations.
 func (sw *StreamWriter) WriteProgress(phase string, message string) {
 	sw.WriteEvent(map[string]interface{}{
-		"type":    "progress",
-		"phase":   phase,
-		"message": message,
+		"type":          "progress",
+		"phase":         phase,
+		"message":       message,
+		"completion_id": sw.completionID,
 	})
 }
 
 // WriteDone sends the stream completion marker.
 func (sw *StreamWriter) WriteDone() {
-	fmt.Fprintf(sw.w, "data: {\"done\": true}\n\n")
-	sw.flusher.Flush()
+	sw.WriteEvent(map[string]interface{}{
+		"done":          true,
+		"completion_id": sw.completionID,
+	})
 }

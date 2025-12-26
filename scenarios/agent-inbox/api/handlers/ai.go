@@ -214,6 +214,11 @@ func parseStreamingChunks(body interface{ Read([]byte) (int, error) }, sw *Strea
 
 		acc.SetResponseID(chunk.ID)
 
+		// Capture usage data if present (typically in final chunk)
+		if chunk.Usage.PromptTokens > 0 || chunk.Usage.CompletionTokens > 0 {
+			acc.SetUsage(chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens, chunk.Usage.TotalTokens)
+		}
+
 		if len(chunk.Choices) > 0 {
 			processStreamingChoice(chunk.Choices[0], acc, sw)
 		}
@@ -256,6 +261,10 @@ func (h *Handlers) handleCompletionResult(r *http.Request, sw *StreamWriter, svc
 }
 
 // handleToolCallsStreaming executes tool calls during a streaming response.
+//
+// TEMPORAL FLOW NOTE: Tool calls are executed sequentially to maintain
+// deterministic ordering. Errors are reported via SSE events but do not
+// stop subsequent tool execution - this allows partial success scenarios.
 func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) {
 	ctx := r.Context()
 
@@ -274,14 +283,24 @@ func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, s
 		messageID = msg.ID
 	}
 
+	var toolErrors []error
 	for _, tc := range result.ToolCalls {
 		sw.WriteToolCallStart(tc)
 
-		results, _ := svc.ExecuteToolCalls(ctx, chatID, messageID, []domain.ToolCall{tc})
+		results, err := svc.ExecuteToolCalls(ctx, chatID, messageID, []domain.ToolCall{tc})
+		if err != nil {
+			toolErrors = append(toolErrors, err)
+			log.Printf("tool call %s failed: %v", tc.Function.Name, err)
+		}
 
 		if len(results) > 0 {
 			sw.WriteToolCallResult(results[0])
 		}
+	}
+
+	// Report aggregated warning if any tools failed
+	if len(toolErrors) > 0 {
+		sw.WriteWarning(domain.ErrCodeToolExecutionFailed, fmt.Sprintf("%d tool(s) encountered errors", len(toolErrors)))
 	}
 
 	// Signal that tools were executed and continuation is needed
@@ -314,16 +333,29 @@ func (h *Handlers) handleNonStreamingResponse(w http.ResponseWriter, r *http.Req
 // convertToCompletionResult converts an OpenRouter response to domain type.
 func convertToCompletionResult(resp *integrations.OpenRouterResponse) *domain.CompletionResult {
 	choice := resp.Choices[0]
-	return &domain.CompletionResult{
+	result := &domain.CompletionResult{
 		Content:      choice.Message.Content,
 		TokenCount:   resp.Usage.CompletionTokens,
 		FinishReason: choice.FinishReason,
 		ToolCalls:    choice.Message.ToolCalls,
 		ResponseID:   resp.ID,
 	}
+	// Capture full usage data if available
+	if resp.Usage.PromptTokens > 0 || resp.Usage.CompletionTokens > 0 {
+		result.Usage = &domain.Usage{
+			PromptTokens:     resp.Usage.PromptTokens,
+			CompletionTokens: resp.Usage.CompletionTokens,
+			TotalTokens:      resp.Usage.TotalTokens,
+		}
+	}
+	return result
 }
 
 // handleToolCallsNonStreaming handles tool execution for non-streaming responses.
+//
+// TEMPORAL FLOW NOTE: Tool calls are executed sequentially. Errors are logged
+// and individual tool results reflect their status. The overall response is
+// still returned to allow partial success handling.
 func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Request, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) {
 	msg, err := svc.SaveCompletionResult(r.Context(), chatID, model, result)
 	if err != nil {
@@ -337,7 +369,10 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 	}
 
 	// Execute all tool calls
-	toolResults, _ := svc.ExecuteToolCalls(r.Context(), chatID, messageID, result.ToolCalls)
+	toolResults, toolErr := svc.ExecuteToolCalls(r.Context(), chatID, messageID, result.ToolCalls)
+	if toolErr != nil {
+		log.Printf("tool execution error for chat %s: %v", chatID, toolErr)
+	}
 
 	// Convert to response format
 	var resultsMap []map[string]interface{}
@@ -355,11 +390,18 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 		resultsMap = append(resultsMap, m)
 	}
 
-	h.JSONResponse(w, map[string]interface{}{
+	response := map[string]interface{}{
 		"message":        msg,
 		"tool_results":   resultsMap,
 		"needs_followup": true,
-	}, http.StatusOK)
+	}
+
+	// Include error summary in response if any tools failed
+	if toolErr != nil {
+		response["tool_errors"] = toolErr.Error()
+	}
+
+	h.JSONResponse(w, response, http.StatusOK)
 }
 
 // handleRegularMessageNonStreaming handles a regular (non-tool) completion.

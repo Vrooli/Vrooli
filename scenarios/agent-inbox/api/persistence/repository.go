@@ -38,12 +38,23 @@ func (r *Repository) DB() *sql.DB {
 func (r *Repository) InitSchema(ctx context.Context) error {
 	schemaName := "agent_inbox"
 
-	// Create and use scenario-specific schema
+	// Create scenario-specific schema
 	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schemaName)); err != nil {
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
+
+	// Set search_path at database level so all connections use it
+	// This is more robust than per-connection SET because connection pools may use different connections
+	var dbname string
+	if err := r.db.QueryRowContext(ctx, "SELECT current_database()").Scan(&dbname); err == nil {
+		if _, err := r.db.ExecContext(ctx, fmt.Sprintf("ALTER DATABASE %s SET search_path TO %s, public", dbname, schemaName)); err != nil {
+			// Ignore error - may not have ALTER DATABASE permission, will use session-level instead
+		}
+	}
+
+	// Set for current session to ensure this connection works
 	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %s, public", schemaName)); err != nil {
-		return fmt.Errorf("failed to set search_path: %w", err)
+		return fmt.Errorf("failed to set session search_path: %w", err)
 	}
 
 	// Create base tables
@@ -107,6 +118,46 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		{"add messages.response_id", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS response_id TEXT`},
 		{"add messages.finish_reason", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS finish_reason TEXT`},
 		{"create idx_messages_tool_call_id", `CREATE INDEX IF NOT EXISTS idx_messages_tool_call_id ON messages(tool_call_id) WHERE tool_call_id IS NOT NULL`},
+		{"add messages.search_vector", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS search_vector tsvector`},
+		{"create idx_messages_search", `CREATE INDEX IF NOT EXISTS idx_messages_search ON messages USING gin(search_vector)`},
+		{"add chats.search_vector", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS search_vector tsvector`},
+		{"create idx_chats_search", `CREATE INDEX IF NOT EXISTS idx_chats_search ON chats USING gin(search_vector)`},
+		{"create search update trigger function", `
+			CREATE OR REPLACE FUNCTION update_message_search_vector() RETURNS trigger AS $$
+			BEGIN
+				NEW.search_vector := to_tsvector('english', COALESCE(NEW.content, ''));
+				RETURN NEW;
+			END
+			$$ LANGUAGE plpgsql`},
+		{"create message search trigger", `
+			DO $$
+			BEGIN
+				IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'messages_search_update') THEN
+					CREATE TRIGGER messages_search_update
+					BEFORE INSERT OR UPDATE ON messages
+					FOR EACH ROW EXECUTE FUNCTION update_message_search_vector();
+				END IF;
+			END
+			$$`},
+		{"create chat search update trigger function", `
+			CREATE OR REPLACE FUNCTION update_chat_search_vector() RETURNS trigger AS $$
+			BEGIN
+				NEW.search_vector := to_tsvector('english', COALESCE(NEW.name, ''));
+				RETURN NEW;
+			END
+			$$ LANGUAGE plpgsql`},
+		{"create chat search trigger", `
+			DO $$
+			BEGIN
+				IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'chats_search_update') THEN
+					CREATE TRIGGER chats_search_update
+					BEFORE INSERT OR UPDATE ON chats
+					FOR EACH ROW EXECUTE FUNCTION update_chat_search_vector();
+				END IF;
+			END
+			$$`},
+		{"backfill message search vectors", `UPDATE messages SET search_vector = to_tsvector('english', COALESCE(content, '')) WHERE search_vector IS NULL`},
+		{"backfill chat search vectors", `UPDATE chats SET search_vector = to_tsvector('english', COALESCE(name, '')) WHERE search_vector IS NULL`},
 		{"create tool_calls table", `
 			CREATE TABLE IF NOT EXISTS tool_calls (
 				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -125,6 +176,23 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		{"create idx_tool_calls_message_id", `CREATE INDEX IF NOT EXISTS idx_tool_calls_message_id ON tool_calls(message_id)`},
 		{"create idx_tool_calls_chat_id", `CREATE INDEX IF NOT EXISTS idx_tool_calls_chat_id ON tool_calls(chat_id)`},
 		{"create idx_tool_calls_status", `CREATE INDEX IF NOT EXISTS idx_tool_calls_status ON tool_calls(status) WHERE status IN ('pending', 'running')`},
+		{"create usage_records table", `
+			CREATE TABLE IF NOT EXISTS usage_records (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+				message_id UUID REFERENCES messages(id) ON DELETE SET NULL,
+				model TEXT NOT NULL,
+				prompt_tokens INTEGER NOT NULL DEFAULT 0,
+				completion_tokens INTEGER NOT NULL DEFAULT 0,
+				total_tokens INTEGER NOT NULL DEFAULT 0,
+				prompt_cost DOUBLE PRECISION NOT NULL DEFAULT 0,
+				completion_cost DOUBLE PRECISION NOT NULL DEFAULT 0,
+				total_cost DOUBLE PRECISION NOT NULL DEFAULT 0,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			)`},
+		{"create idx_usage_records_chat_id", `CREATE INDEX IF NOT EXISTS idx_usage_records_chat_id ON usage_records(chat_id)`},
+		{"create idx_usage_records_created_at", `CREATE INDEX IF NOT EXISTS idx_usage_records_created_at ON usage_records(created_at)`},
+		{"create idx_usage_records_model", `CREATE INDEX IF NOT EXISTS idx_usage_records_model ON usage_records(model)`},
 	}
 
 	for _, m := range migrations {
