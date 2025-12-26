@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
 	"database/sql"
@@ -18,6 +16,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -520,15 +521,6 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Port configuration - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		log.Fatal("❌ API_PORT or PORT environment variable is required")
-	}
-
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
 	_ = getResourcePort("postgres") // postgres port retrieved but connection uses URL from env
@@ -558,29 +550,21 @@ func main() {
 
 	// Connect to database
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver:       database.DriverPostgres,
+		MaxOpenConns: maxDBConnections,
+		MaxIdleConns: maxIdleConnections,
 	})
 	if err != nil {
-		logger := NewLogger()
-		logger.Error("Database connection failed", err)
-		os.Exit(1)
+		log.Fatalf("Database connection failed: %v", err)
 	}
-	defer db.Close()
 
-	// Configure connection pool
-	db.SetMaxOpenConns(maxDBConnections)
-	db.SetMaxIdleConns(maxIdleConnections)
-	db.SetConnMaxLifetime(connMaxLifetime)
-
-	log.Println("🎉 Database connection pool established successfully!")
+	log.Println("Database connection pool established successfully!")
 
 	// Initialize brand manager service
 	brandManager := NewBrandManagerService(db, n8nURL, comfyUIURL, minioEndpoint, vaultAddr)
 
 	// Setup routes
 	r := mux.NewRouter()
-
-	// API endpoints
 	r.HandleFunc("/health", Health).Methods("GET")
 	r.HandleFunc("/api/brands", brandManager.ListBrands).Methods("GET")
 	r.HandleFunc("/api/brands", brandManager.CreateBrand).Methods("POST")
@@ -590,18 +574,11 @@ func main() {
 	r.HandleFunc("/api/integrations", brandManager.CreateIntegration).Methods("POST")
 	r.HandleFunc("/api/services", brandManager.GetServiceURLs).Methods("GET")
 
-	// Start server
-	log.Printf("Starting Brand Manager API on port %s", port)
-	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  ComfyUI URL: %s", comfyUIURL)
-	log.Printf("  MinIO Endpoint: %s", minioEndpoint)
-	log.Printf("  Vault URL: %s", vaultAddr)
-
-	logger := NewLogger()
-	logger.Info(fmt.Sprintf("Server starting on port %s", port))
-
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		logger.Error("Server failed", err)
-		os.Exit(1)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

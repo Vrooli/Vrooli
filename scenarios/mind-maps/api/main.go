@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -869,7 +870,6 @@ func main() {
     if err := initDB(); err != nil {
         log.Fatalf("Failed to initialize database: %v", err)
     }
-    defer db.Close()
     
     // Initialize mind map processor
     ollamaURL := os.Getenv("OLLAMA_URL")
@@ -912,18 +912,12 @@ func main() {
     
     // Apply CORS middleware
     handler := enableCORS(r)
-    
-    // API port is required from environment - no defaults
-    port := os.Getenv("API_PORT")
-    if port == "" {
-        port = os.Getenv("PORT")
-    }
-    if port == "" {
-        log.Fatal("❌ Missing required API_PORT or PORT environment variable")
-    }
-    
-    log.Printf("🚀 Mind Maps API starting on port %s", port)
-    if err := http.ListenAndServe(":"+port, handler); err != nil {
-        log.Fatal(err)
+
+    log.Println("🚀 Mind Maps API starting...")
+    if err := server.Run(server.Config{
+        Handler: handler,
+        Cleanup: func(ctx context.Context) error { return db.Close() },
+    }); err != nil {
+        log.Fatalf("Server error: %v", err)
     }
 }

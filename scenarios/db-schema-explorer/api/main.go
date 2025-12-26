@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -683,17 +684,10 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Port configuration - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
-	server, err := NewServer()
+	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
-	defer server.db.Close()
 
 	// Setup CORS
 	c := cors.New(cors.Options{
@@ -703,10 +697,13 @@ func main() {
 		AllowCredentials: true,
 	})
 
-	handler := c.Handler(server.router)
+	handler := c.Handler(srv.router)
 
-	log.Printf("Database Schema Explorer API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	log.Println("Database Schema Explorer API starting...")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return srv.db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

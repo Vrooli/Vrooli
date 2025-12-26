@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 func main() {
@@ -65,7 +67,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
 
 	// Start connection monitor in background
 	go MonitorConnection(db, dbConfig)
@@ -144,9 +145,12 @@ func main() {
 		v1.GET("/health/detailed", api.GetDetailedHealth)
 	}
 
-	// Start server
+	// Start server with graceful shutdown
 	log.Printf("🚀 Graph Studio API starting on port %s", port)
-	if err := router.Run(":" + port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	if err := server.Run(server.Config{
+		Handler: router,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

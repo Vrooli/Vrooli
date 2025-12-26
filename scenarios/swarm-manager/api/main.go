@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"bufio"
 	"context"
 	"database/sql"
@@ -23,6 +21,9 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"gopkg.in/yaml.v3"
 )
 
@@ -129,7 +130,6 @@ func main() {
 
 	// Initialize database connection
 	initDB()
-	defer db.Close()
 
 	// Start agent system
 	startAgentSystem()
@@ -149,15 +149,15 @@ func main() {
 	// Routes
 	setupRoutes(app)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+	// Start server with graceful shutdown
+	log.Println("Swarm Manager API starting")
+	if err := server.Run(server.Config{
+		StartServer:    func(addr string) error { return app.Listen(addr) },
+		ShutdownServer: func(ctx context.Context) error { return app.ShutdownWithContext(ctx) },
+		Cleanup:        func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	// Start server
-	log.Printf("Swarm Manager API starting on port %s", port)
-	log.Fatal(app.Listen(":" + port))
 }
 
 func initDB() {

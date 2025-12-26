@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,9 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +17,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Global variables
@@ -767,13 +766,9 @@ func main() {
 	if err := initDB(); err != nil {
 		logger.Fatal("Failed to initialize database:", err)
 	}
-	defer db.Close()
 
 	// Initialize Redis (optional)
 	initRedis()
-	if redisClient != nil {
-		defer redisClient.Close()
-	}
 
 	// Initialize quiz processor
 	ollamaURL := os.Getenv("OLLAMA_URL")
@@ -817,41 +812,19 @@ func main() {
 		v1.POST("/quiz/:id/answer/:questionId", submitSingleAnswer)
 	}
 
-	// Start server - API_PORT must be provided by lifecycle system
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		logger.Fatal("❌ API_PORT environment variable is required (set by Vrooli lifecycle)")
-		return
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: router,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				db.Close()
+			}
+			if redisClient != nil {
+				redisClient.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		logger.Fatalf("Server error: %v", err)
 	}
-
-	srv := &http.Server{
-		Addr:         ":" + port,
-		Handler:      router,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	// Graceful shutdown
-	go func() {
-		logger.Infof("Starting Quiz Generator API on port %s", port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatalf("Failed to start server: %v", err)
-		}
-	}()
-
-	// Wait for interrupt signal
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	logger.Info("Shutting down server...")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		logger.Fatalf("Server forced to shutdown: %v", err)
-	}
-
-	logger.Info("Server exited")
 }

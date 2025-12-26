@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"bytes"
 	"context"
 	"database/sql"
@@ -568,13 +569,10 @@ func main() {
 
 	log.Println("🚀 Starting Image Generation Pipeline API...")
 
-	config := loadConfig()
-
 	// Initialize database
 	if err := initDB(); err != nil {
 		log.Fatalf("❌ Database initialization failed: %v", err)
 	}
-	defer db.Close()
 
 	// Setup routes
 	r := mux.NewRouter()
@@ -595,11 +593,11 @@ func main() {
 	)(r)
 
 	// Start server
-	log.Printf("✅ Server starting on port %s", config.Port)
-	log.Printf("🔗 Health check: http://localhost:%s/health", config.Port)
-	log.Printf("🔗 API endpoints: http://localhost:%s/api/", config.Port)
-
-	if err := http.ListenAndServe(":"+config.Port, corsHandler); err != nil {
-		log.Fatalf("❌ Server failed to start: %v", err)
+	log.Println("✅ Image Generation Pipeline API starting...")
+	if err := server.Run(server.Config{
+		Handler: corsHandler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

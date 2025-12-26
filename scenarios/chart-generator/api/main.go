@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -16,6 +14,9 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // ChartGenerationRequest represents a request to generate a chart
@@ -101,11 +102,6 @@ func main() {
 	chartProcessor = NewChartProcessor(db)
 	log.Println("🎨 Chart processor initialized")
 
-	// Get port from environment - no defaults allowed
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required but not set. The lifecycle system must provide this value.")
-	}
 
 	// Create router
 	r := mux.NewRouter()
@@ -168,13 +164,19 @@ func main() {
 
 	handler := c.Handler(r)
 
-	// Start server
-	log.Printf("🎨 Chart Generator API starting on port %s", port)
-	log.Printf("📊 Health check: http://localhost:%s/health", port)
-	log.Printf("🚀 API endpoints: http://localhost:%s/api/v1/", port)
+	// Start server with graceful shutdown
+	cleanup := func(ctx context.Context) error {
+		if db != nil {
+			return db.Close()
+		}
+		return nil
+	}
 
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: cleanup,
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

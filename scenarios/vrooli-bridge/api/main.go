@@ -1,22 +1,23 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
 
@@ -89,24 +90,27 @@ func main() {
 	if err := app.initDB(); err != nil {
 		log.Fatal("Failed to initialize database:", err)
 	}
-	defer app.db.Close()
-	
+
 	// Load project type definitions
 	if err := app.loadProjectTypes(); err != nil {
 		log.Fatal("Failed to load project types:", err)
 	}
-	
+
 	// Setup routes
 	router := app.setupRoutes()
-	
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+
+	log.Printf("Starting Vrooli Bridge API")
+	if err := server.Run(server.Config{
+		Handler: router,
+		Cleanup: func(ctx context.Context) error {
+			if app.db != nil {
+				return app.db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-	
-	log.Printf("Starting Vrooli Bridge API on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, router))
 }
 
 func (app *App) initDB() error {

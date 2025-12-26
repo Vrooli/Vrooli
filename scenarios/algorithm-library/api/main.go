@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -12,6 +10,10 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -86,7 +88,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
-	defer db.Close()
 
 	log.Println("🎉 Database connection established and verified!")
 
@@ -154,14 +155,18 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Get port from environment - required, no default
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ Missing required API_PORT environment variable")
+	log.Printf("Algorithm Library API starting")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	log.Printf("Algorithm Library API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
 // healthHandler returns the health status of the API and its dependencies.

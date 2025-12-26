@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,6 +9,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +65,13 @@ func main() {
 		}()
 	}
 
-	log.Printf("Starting kids-mode-dashboard API server on :%s", apiPort)
-	log.Fatal(http.ListenAndServe(":"+apiPort, mux))
+	log.Printf("Starting kids-mode-dashboard API server")
+	if err := server.Run(server.Config{
+		Handler: mux,
+		Cleanup: func(ctx context.Context) error {
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }

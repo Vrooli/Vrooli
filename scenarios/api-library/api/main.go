@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"bytes"
 	"context"
 	"crypto/md5"
@@ -1306,15 +1307,17 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
-	log.Printf("API Library service starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Failed to start server:", err)
+	log.Println("API Library service starting...")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

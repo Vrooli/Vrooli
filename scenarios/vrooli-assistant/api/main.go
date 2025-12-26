@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"embed"
@@ -14,6 +12,10 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -71,7 +73,6 @@ func main() {
 
 	// Initialize database connection
 	initDB()
-	defer db.Close()
 
 	// Create tables if they don't exist
 	createTables()
@@ -95,14 +96,18 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Port configuration - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	log.Printf("Vrooli Assistant API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
 func newRouter(staticHandler http.Handler) *mux.Router {

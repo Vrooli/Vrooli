@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -17,6 +15,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -164,7 +165,6 @@ func (s *AppPersonalizerService) RegisterApp(w http.ResponseWriter, r *http.Requ
 		INSERT INTO app_registry (id, app_name, app_path, app_type, framework, version)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
 		appID, req.AppName, req.AppPath, req.AppType, req.Framework, req.Version)
-
 	if err != nil {
 		HTTPError(w, "Failed to register app", http.StatusInternalServerError, err)
 		return
@@ -254,7 +254,6 @@ func (s *AppPersonalizerService) AnalyzeApp(w http.ResponseWriter, r *http.Reque
 		SET personalization_points = $1, last_analyzed = CURRENT_TIMESTAMP
 		WHERE id = $2`,
 		string(pointsJSON), req.AppID)
-
 	if err != nil {
 		s.logger.Error("Failed to update analysis results", err)
 	}
@@ -426,7 +425,6 @@ func (s *AppPersonalizerService) PersonalizeApp(w http.ResponseWriter, r *http.R
 		personalizationID, req.AppID, req.PersonaID, req.BrandID,
 		fmt.Sprintf("%s-%s", appName, req.PersonalizationType),
 		req.DeploymentMode, modBytes, appPath, "pending")
-
 	if err != nil {
 		HTTPError(w, "Failed to create personalization record", http.StatusInternalServerError, err)
 		return
@@ -462,7 +460,7 @@ func (s *AppPersonalizerService) schedulePersonalizationJob(personalizationID uu
 
 		completedAt := time.Now()
 		personalizedDir := filepath.Join(filepath.Dir(appPath), "personalized", personalizationID.String())
-		if err := os.MkdirAll(personalizedDir, 0755); err != nil {
+		if err := os.MkdirAll(personalizedDir, 0o755); err != nil {
 			s.logger.Warn("Failed to create personalization output directory", err)
 		}
 
@@ -538,7 +536,7 @@ func (s *AppPersonalizerService) createAppBackup(appPath, backupType string) (st
 	backupPath := filepath.Join("/tmp/app-backups", backupName)
 
 	// Ensure backup directory exists
-	os.MkdirAll(filepath.Dir(backupPath), 0755)
+	os.MkdirAll(filepath.Dir(backupPath), 0o755)
 
 	// Create tar.gz backup
 	cmd := exec.Command("tar", "-czf", backupPath, "-C", filepath.Dir(appPath), filepath.Base(appPath))
@@ -637,42 +635,28 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Load configuration - REQUIRED environment variables, no defaults
 	logger := NewLogger()
-
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		logger.Error("❌ API_PORT environment variable is required", nil)
-		os.Exit(1)
-	}
 
 	// Optional service URLs (not required for core operation)
 	minioURL := os.Getenv("MINIO_ENDPOINT")
 
 	// Connect to database
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver:       database.DriverPostgres,
+		MaxOpenConns: maxDBConnections,
+		MaxIdleConns: maxIdleConnections,
 	})
 	if err != nil {
-		logger.Error("Database connection failed", err)
-		os.Exit(1)
+		log.Fatalf("Database connection failed: %v", err)
 	}
-	defer db.Close()
 
-	// Configure connection pool
-	db.SetMaxOpenConns(maxDBConnections)
-	db.SetMaxIdleConns(maxIdleConnections)
-	db.SetConnMaxLifetime(connMaxLifetime)
-
-	logger.Info("🎉 Database connection pool established successfully!")
+	logger.Info("Database connection pool established successfully!")
 
 	// Initialize service
 	service := NewAppPersonalizerService(db, minioURL)
 
 	// Setup routes
 	r := mux.NewRouter()
-
-	// API endpoints
 	r.HandleFunc("/health", Health).Methods("GET")
 	r.HandleFunc("/api/apps", service.ListApps).Methods("GET")
 	r.HandleFunc("/api/apps/register", service.RegisterApp).Methods("POST")
@@ -681,16 +665,13 @@ func main() {
 	r.HandleFunc("/api/backup", service.BackupApp).Methods("POST")
 	r.HandleFunc("/api/validate", service.ValidateApp).Methods("POST")
 
-	// Start server
-	log.Printf("Starting App Personalizer API on port %s", port)
-	log.Printf("  MinIO URL: %s", minioURL)
-
-	logger.Info(fmt.Sprintf("Server starting on port %s", port))
-
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		logger.Error("Server failed", err)
-		os.Exit(1)
+	// Start server with graceful shutdown (port from API_PORT env var)
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error {
+			return db.Close()
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
-
-// Removed getEnv function - no defaults allowed

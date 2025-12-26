@@ -1,20 +1,20 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
-	"github.com/lib/pq"
 	"github.com/gorilla/mux"
+	"github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Contact struct {
@@ -470,7 +470,6 @@ func main() {
 	}
 
 	initDB()
-	defer db.Close()
 
 	// Initialize RelationshipProcessor
 	relationshipProcessor = NewRelationshipProcessor(db)
@@ -513,12 +512,11 @@ func main() {
 
 	handler := c.Handler(r)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	log.Printf("Personal Relationship Manager API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"bytes"
 	"context"
 	"database/sql"
@@ -66,12 +67,6 @@ func main() {
 	}) {
 		return // Process was re-exec'd after rebuild
 	}
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
 	// Connect to database using api-core with automatic retry
 	var err error
 	db, err = database.Connect(context.Background(), database.Config{
@@ -80,7 +75,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
-	defer db.Close()
 
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
@@ -144,9 +138,12 @@ func main() {
 		AllowedHeaders: []string{"*"},
 	}).Handler(router)
 
-	log.Printf("News Aggregator API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal(err)
+	log.Println("News Aggregator API starting...")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

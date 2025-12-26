@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 
 	"landing-manager/handlers"
@@ -66,11 +67,6 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	db.Exec("DELETE FROM admin_sessions WHERE admin_user_id IN (SELECT id FROM admin_users WHERE email LIKE '%@test.com')")
 	db.Exec("DELETE FROM admin_users WHERE email LIKE '%@test.com'")
 
-	// Create a test config
-	config := &Config{
-		Port: "0", // Use random port for testing
-	}
-
 	// Initialize all services
 	registry := services.NewTemplateRegistry()
 	generator := services.NewScenarioGenerator(registry)
@@ -82,8 +78,8 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	handler := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 	server := &Server{
-		config:  config,
 		db:      db,
+		router:  mux.NewRouter(),
 		handler: handler,
 	}
 

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
 	"database/sql"
@@ -13,16 +11,17 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
 )
 
 // StructuredLogger provides JSON-structured logging for better observability
@@ -705,12 +704,6 @@ func main() {
 	// Initialize structured logger
 	logger := NewStructuredLogger()
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		logger.Fatal("API_PORT environment variable is required", nil)
-	}
-
 	// Database configuration - support both POSTGRES_URL and individual components
 	postgresURL := os.Getenv("POSTGRES_URL")
 	if postgresURL == "" {
@@ -810,14 +803,13 @@ func main() {
 
 	// Connect to database
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver: database.DriverPostgres,
 	})
 	if err != nil {
 		logger.Fatal("Database connection failed", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
-	defer db.Close()
 
 	server := &APIServer{
 		db:             db,
@@ -899,7 +891,6 @@ func main() {
 	api.HandleFunc("/depth-configs", server.getDepthConfigs).Methods("GET")
 
 	logger.Info("Research Assistant API starting", map[string]interface{}{
-		"port":        port,
 		"database":    postgresURL,
 		"searxng_url": searxngURL,
 		"qdrant_url":  qdrantURL,
@@ -907,52 +898,15 @@ func main() {
 		"ollama_url":  ollamaURL,
 	})
 
-	handler := corsHandler(router)
-
-	// Create HTTP server with graceful shutdown support
-	srv := &http.Server{
-		Addr:         ":" + port,
-		Handler:      handler,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 120 * time.Second, // Allow time for long-running requests
-		IdleTimeout:  120 * time.Second,
-	}
-
-	// Run server in goroutine
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Server error", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
-	}()
-
-	// Wait for interrupt signal for graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	logger.Info("Shutting down server gracefully", nil)
-
-	// Create shutdown context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Attempt graceful shutdown
-	if err := srv.Shutdown(ctx); err != nil {
-		logger.Warn("Server forced to shutdown", map[string]interface{}{
+	// Start server with graceful shutdown (port from API_PORT env var)
+	if err := apiserver.Run(apiserver.Config{
+		Handler: corsHandler(router),
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		logger.Fatal("Server error", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
-
-	// Close database connection
-	if err := db.Close(); err != nil {
-		logger.Warn("Error closing database", map[string]interface{}{
-			"error": err.Error(),
-		})
-	}
-
-	logger.Info("Server stopped", nil)
 }
 
 // getEnv removed to prevent hardcoded defaults

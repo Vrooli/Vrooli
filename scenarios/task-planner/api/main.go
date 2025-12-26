@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -17,23 +15,26 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
 	// API version
-	apiVersion = "2.0.0"
+	apiVersion  = "2.0.0"
 	serviceName = "task-planner"
-	
+
 	// Defaults
 	defaultPort = "8090"
-	
+
 	// Timeouts
 	httpTimeout = 120 * time.Second
-	
+
 	// Database limits
-	maxDBConnections = 25
+	maxDBConnections   = 25
 	maxIdleConnections = 5
-	connMaxLifetime = 5 * time.Minute
+	connMaxLifetime    = 5 * time.Minute
 )
 
 // Logger provides structured logging
@@ -64,16 +65,16 @@ func (l *Logger) Info(msg string) {
 func HTTPError(w http.ResponseWriter, message string, statusCode int, err error) {
 	logger := NewLogger()
 	logger.Error(fmt.Sprintf("HTTP %d: %s", statusCode, message), err)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	errorResp := map[string]interface{}{
 		"error":     message,
 		"status":    statusCode,
 		"timestamp": time.Now().UTC(),
 	}
-	
+
 	json.NewEncoder(w).Encode(errorResp)
 }
 
@@ -93,7 +94,7 @@ func NewTaskPlannerService(db *sql.DB, qdrantURL string) *TaskPlannerService {
 		httpClient: &http.Client{
 			Timeout: httpTimeout,
 		},
-		logger:    NewLogger(),
+		logger: NewLogger(),
 	}
 }
 
@@ -113,14 +114,14 @@ type Task struct {
 
 // App represents an application from the database
 type App struct {
-	ID           uuid.UUID `json:"id"`
-	Name         string    `json:"name"`
-	DisplayName  string    `json:"display_name"`
-	Type         string    `json:"type"`
-	TotalTasks   int       `json:"total_tasks"`
-	CompletedTasks int     `json:"completed_tasks"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID             uuid.UUID `json:"id"`
+	Name           string    `json:"name"`
+	DisplayName    string    `json:"display_name"`
+	Type           string    `json:"type"`
+	TotalTasks     int       `json:"total_tasks"`
+	CompletedTasks int       `json:"completed_tasks"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // ParseTextRequest represents a text parsing request
@@ -147,7 +148,7 @@ type TaskRequest struct {
 func Health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
+		"status":  "healthy",
 		"service": serviceName,
 		"version": apiVersion,
 	})
@@ -169,7 +170,7 @@ func (s *TaskPlannerService) GetApps(w http.ResponseWriter, r *http.Request) {
 	var apps []App
 	for rows.Next() {
 		var app App
-		err := rows.Scan(&app.ID, &app.Name, &app.DisplayName, &app.Type, 
+		err := rows.Scan(&app.ID, &app.Name, &app.DisplayName, &app.Type,
 			&app.TotalTasks, &app.CompletedTasks, &app.CreatedAt, &app.UpdatedAt)
 		if err != nil {
 			s.logger.Error("Failed to scan app row", err)
@@ -246,9 +247,9 @@ func (s *TaskPlannerService) GetTasks(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var task Task
 		var tagsStr sql.NullString
-		
-		err := rows.Scan(&task.ID, &task.Title, &task.Description, &task.Status, 
-			&task.Priority, &tagsStr, &task.AppID, &task.AppName, 
+
+		err := rows.Scan(&task.ID, &task.Title, &task.Description, &task.Status,
+			&task.Priority, &tagsStr, &task.AppID, &task.AppName,
 			&task.CreatedAt, &task.UpdatedAt)
 		if err != nil {
 			s.logger.Error("Failed to scan task row", err)
@@ -270,10 +271,6 @@ func (s *TaskPlannerService) GetTasks(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
-
-
-
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
 	cmd := exec.Command("bash", "-c", fmt.Sprintf(
@@ -285,10 +282,10 @@ func getResourcePort(resourceName string) string {
 		log.Printf("Warning: Failed to get port for %s, using default: %v", resourceName, err)
 		// Fallback to defaults
 		defaults := map[string]string{
-			"n8n": "5678",
+			"n8n":      "5678",
 			"windmill": "5681",
 			"postgres": "5433",
-			"qdrant": "6333",
+			"qdrant":   "6333",
 		}
 		if port, ok := defaults[resourceName]; ok {
 			return port
@@ -306,56 +303,25 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-	
 	// Get Qdrant URL - REQUIRED
 	qdrantURL := os.Getenv("QDRANT_BASE_URL")
 	if qdrantURL == "" {
-		log.Fatal("❌ QDRANT_BASE_URL environment variable is required")
+		log.Fatal("QDRANT_BASE_URL environment variable is required")
 	}
-	
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-		
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-		
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-	
-	// Connect to database with exponential backoff
+
+	// Connect to database
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver: database.DriverPostgres,
 	})
 	if err != nil {
-		logger := NewLogger()
-		logger.Error("Database connection failed", err)
-		os.Exit(1)
+		log.Fatalf("Database connection failed: %v", err)
 	}
-	defer db.Close()
 
-	log.Println("🎉 Database connection pool established successfully!")
-	
 	// Initialize service
 	service := NewTaskPlannerService(db, qdrantURL)
-	
+
 	// Setup routes
 	r := mux.NewRouter()
-	
-	// API endpoints
 	r.HandleFunc("/health", Health).Methods("GET")
 	r.HandleFunc("/api/apps", service.GetApps).Methods("GET")
 	r.HandleFunc("/api/tasks", service.GetTasks).Methods("GET")
@@ -363,18 +329,13 @@ func main() {
 	r.HandleFunc("/api/tasks/{taskId}/research", service.ResearchTask).Methods("POST")
 	r.HandleFunc("/api/tasks/status", service.UpdateTaskStatus).Methods("PUT")
 	r.HandleFunc("/api/tasks/status-history", service.GetTaskStatusHistory).Methods("GET")
-	
-	// Start server
-	log.Printf("Starting Task Planner API on port %s", port)
-	log.Printf("  Qdrant URL: %s", qdrantURL)
-	log.Printf("  Database: Connected")
-	
-	logger := NewLogger()
-	logger.Info(fmt.Sprintf("Server starting on port %s", port))
-	
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		logger.Error("Server failed", err)
-		os.Exit(1)
+
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

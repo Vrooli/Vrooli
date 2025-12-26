@@ -7,16 +7,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
-
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 var db *sql.DB
@@ -739,14 +738,16 @@ func main() {
 		})
 	})
 
-	// Get port from environment
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	log.Printf("Date Night Planner API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, router); err != nil {
-		log.Fatal(err)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: router,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

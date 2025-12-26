@@ -8,9 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -18,10 +16,10 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"vrooli-autoheal/internal/bootstrap"
 	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/config"
 	apiHandlers "vrooli-autoheal/internal/handlers"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
@@ -42,12 +40,6 @@ func main() {
 }
 
 func run() error {
-	// Load configuration
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
 	// Initialize user configuration manager
 	// Config path: ~/.vrooli-autoheal/config.json or VROOLI_AUTOHEAL_CONFIG env var
 	configPath := os.Getenv("VROOLI_AUTOHEAL_CONFIG")
@@ -70,17 +62,13 @@ func run() error {
 	// Connect to database with automatic retry and backoff.
 	// Reads POSTGRES_* environment variables set by the lifecycle system.
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver:       database.DriverPostgres,
+		MaxOpenConns: 10,
+		MaxIdleConns: 5,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
-	defer db.Close()
-
-	// Configure connection pool
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
 
 	// Initialize components
 	store := persistence.NewStore(db)
@@ -108,9 +96,13 @@ func run() error {
 	configHandlers := apiHandlers.NewConfigHandlers(configMgr, registry)
 	router := setupRouter(h, configHandlers)
 
-	log.Printf("starting server | service=vrooli-autoheal-api port=%s platform=%s", cfg.Port, plat.Platform)
+	log.Printf("starting server | service=vrooli-autoheal-api platform=%s", plat.Platform)
 
-	return startServer(cfg.Port, router)
+	// Start server with graceful shutdown
+	return server.Run(server.Config{
+		Handler: handlers.RecoveryHandler()(router),
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	})
 }
 
 // setupRouter configures HTTP routes
@@ -185,37 +177,6 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.R
 	router.HandleFunc("/api/v1/config/monitoring/resources/{name}", ch.RemoveResource).Methods("DELETE")
 
 	return router
-}
-
-// startServer runs the HTTP server with graceful shutdown
-func startServer(port string, router *mux.Router) error {
-	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%s", port),
-		Handler:      handlers.RecoveryHandler()(router),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server startup failed: %v", err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := httpServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
-	}
-
-	log.Println("server stopped")
-	return nil
 }
 
 // loggingMiddleware prints simple request logs

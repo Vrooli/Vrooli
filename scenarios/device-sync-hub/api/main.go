@@ -26,6 +26,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Configuration
@@ -113,9 +114,6 @@ func main() {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
 	uiPort := os.Getenv("UI_PORT")
-	if uiPort == "" {
-		log.Fatal("❌ UI_PORT environment variable is required")
-	}
 	authServiceURL := resolveAuthServiceURL()
 	authUIServiceURL := os.Getenv("AUTH_UI_URL")
 	storagePath := os.Getenv("STORAGE_PATH")
@@ -160,7 +158,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
-	defer db.Close()
 
 	// Run database migrations
 	if err := runMigrations(db); err != nil {
@@ -172,7 +169,7 @@ func main() {
 	redisClient := connectRedis()
 
 	// Create server
-	server := &Server{
+	srv := &Server{
 		config:      config,
 		db:          db,
 		redis:       redisClient,
@@ -203,20 +200,25 @@ func main() {
 	}
 
 	// Start broadcast handler
-	go server.handleBroadcast()
+	go srv.handleBroadcast()
 
 	// Start cleanup routine
-	go server.startCleanupRoutine()
+	go srv.startCleanupRoutine()
 
 	// Setup routes
-	server.setupRoutes()
+	srv.setupRoutes()
 
 	// Start server
-	log.Printf("🔄 Device Sync Hub starting on port %s", config.Port)
-	log.Printf("🌐 UI available at http://localhost:%s", config.UIPort)
+	log.Println("🔄 Device Sync Hub starting...")
+	if uiPort != "" {
+		log.Printf("🌐 UI available at http://localhost:%s", uiPort)
+	}
 
-	if err := http.ListenAndServe(":"+config.Port, server.router); err != nil {
-		log.Fatal("Server failed:", err)
+	if err := server.Run(server.Config{
+		Handler: srv.router,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

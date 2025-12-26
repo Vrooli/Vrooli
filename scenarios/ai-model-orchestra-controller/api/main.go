@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -94,8 +96,6 @@ func main() {
 		logger.Fatalf("❌ Environment validation failed: %v", err)
 	}
 	
-	port := os.Getenv("API_PORT")
-	
 	// Initialize application state
 	app := &AppState{
 		Logger: logger,
@@ -162,13 +162,21 @@ func main() {
 	
 	// Apply middleware
 	r.Use(corsMiddleware)
-	
-	logger.Printf("🎛️  API server starting on port %s", port)
+
+	logger.Printf("🎛️  AI Model Orchestra Controller starting...")
 	logger.Printf("📊 Dashboard endpoint: /dashboard")
 	logger.Printf("🔗 Health check endpoints: /health and /api/v1/health")
 	logger.Printf("🚀 Service: %s v%s", serviceName, apiVersion)
-	
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error {
+			if app.DB != nil {
+				return app.DB.Close()
+			}
+			return nil
+		},
+	}); err != nil {
 		logger.Fatalf("❌ Server failed to start: %v", err)
 	}
 }

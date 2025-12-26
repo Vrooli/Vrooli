@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -423,16 +424,12 @@ func main() {
 	// Apply CORS
 	handler := corsMiddleware(router)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
-	log.Printf("Core Debugger API starting on port %s", port)
+	log.Println("Core Debugger API starting...")
 	log.Printf("Data directory: %s", dataDir)
 
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal(err)
+	if err := server.Run(server.Config{
+		Handler: handler,
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

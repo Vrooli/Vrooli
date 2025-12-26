@@ -3,13 +3,13 @@ package main
 import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -449,17 +449,10 @@ func main() {
 		log.Printf("Continuing with mock data...")
 	} else {
 		log.Println("🎉 Database connection pool established successfully!")
-		defer db.Close()
 
 		// Initialize ROI analysis engine
 		roiEngine = NewROIAnalysisEngine(db)
 		log.Println("ROI Analysis Engine initialized")
-	}
-
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
 	}
 
 	// Original endpoints (backward compatibility)
@@ -472,7 +465,7 @@ func main() {
 	http.HandleFunc("/comprehensive-analysis", corsMiddleware(comprehensiveAnalysisHandler))
 	http.HandleFunc("/analysis/results", corsMiddleware(analysisResultsHandler))
 
-	log.Printf("ROI Fit Analysis API starting on port %s", port)
+	log.Println("ROI Fit Analysis API starting...")
 	log.Println("Endpoints available:")
 	log.Println("  POST /analyze (legacy)")
 	log.Println("  POST /comprehensive-analysis (full analysis)")
@@ -481,8 +474,16 @@ func main() {
 	log.Println("  GET  /analysis/results")
 	log.Println("  GET  /health")
 
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
+	if err := server.Run(server.Config{
+		Handler: nil, // Uses DefaultServeMux
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

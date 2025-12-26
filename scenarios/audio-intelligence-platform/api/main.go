@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
 	"database/sql"
@@ -21,6 +19,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -542,15 +543,6 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Port configuration - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		log.Fatal("❌ API_PORT or PORT environment variable is required")
-	}
-
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
 	whisperPort := getResourcePort("whisper")
@@ -586,29 +578,21 @@ func main() {
 
 	// Connect to database
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver:       database.DriverPostgres,
+		MaxOpenConns: maxDBConnections,
+		MaxIdleConns: maxIdleConnections,
 	})
 	if err != nil {
-		logger := NewLogger()
-		logger.Error("Database connection failed", err)
-		os.Exit(1)
+		log.Fatalf("Database connection failed: %v", err)
 	}
-	defer db.Close()
 
-	// Configure connection pool
-	db.SetMaxOpenConns(maxDBConnections)
-	db.SetMaxIdleConns(maxIdleConnections)
-	db.SetConnMaxLifetime(connMaxLifetime)
-
-	log.Println("🎉 Database connection pool established successfully!")
+	log.Println("Database connection pool established successfully!")
 
 	// Initialize audio service
 	audioService := NewAudioService(db, n8nURL, whisperURL, ollamaURL, minioEndpoint, qdrantURL)
 
 	// Setup routes
 	r := mux.NewRouter()
-
-	// API endpoints
 	r.HandleFunc("/health", Health).Methods("GET")
 	r.HandleFunc("/api/transcriptions", audioService.ListTranscriptions).Methods("GET")
 	r.HandleFunc("/api/transcriptions/{id}", audioService.GetTranscription).Methods("GET")
@@ -617,19 +601,11 @@ func main() {
 	r.HandleFunc("/api/upload", audioService.UploadAudio).Methods("POST")
 	r.HandleFunc("/api/search", audioService.SearchTranscriptions).Methods("POST")
 
-	// Start server
-	log.Printf("Starting Audio Intelligence Platform API on port %s", port)
-	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  Whisper URL: %s", whisperURL)
-	log.Printf("  Ollama URL: %s", ollamaURL)
-	log.Printf("  MinIO Endpoint: %s", minioEndpoint)
-	log.Printf("  Qdrant URL: %s", qdrantURL)
-
-	logger := NewLogger()
-	logger.Info(fmt.Sprintf("Server starting on port %s", port))
-
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		logger.Error("Server failed", err)
-		os.Exit(1)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

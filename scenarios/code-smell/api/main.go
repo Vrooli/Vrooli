@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -421,7 +422,7 @@ func getStatistics(period string) map[string]interface{} {
 }
 
 // Start starts the server
-func (s *Server) Start() {
+func (s *Server) Start() error {
 	// Setup CORS
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"http://localhost:*"},
@@ -430,11 +431,11 @@ func (s *Server) Start() {
 	})
 
 	handler := c.Handler(s.router)
-	
-	log.Printf("Code Smell API server starting on port %s", s.port)
-	if err := http.ListenAndServe(":"+s.port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
-	}
+
+	log.Println("Code Smell API server starting...")
+	return server.Run(server.Config{
+		Handler: handler,
+	})
 }
 
 func main() {
@@ -445,6 +446,8 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	server := NewServer()
-	server.Start()
+	srv := NewServer()
+	if err := srv.Start(); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }

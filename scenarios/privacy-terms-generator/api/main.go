@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,6 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Simple structured logger
@@ -381,7 +383,9 @@ func main() {
 	http.HandleFunc("/api/v1/legal/clauses/search", corsMiddleware(searchClausesHandler))
 
 	logger.Info("Privacy & Terms Generator API starting", "port", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
+	if err := server.Run(server.Config{
+		Handler: http.DefaultServeMux,
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

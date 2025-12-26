@@ -16,6 +16,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -348,13 +349,6 @@ func main() {
 
 	logger := NewLogger()
 	
-	// Load configuration - REQUIRED environment variables
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		logger.Error("❌ API_PORT environment variable is required", nil)
-		os.Exit(1)
-	}
-	
 	// Connect to database with automatic retry and backoff.
 	// Reads POSTGRES_* environment variables set by the lifecycle system.
 	db, err := database.Connect(context.Background(), database.Config{
@@ -364,7 +358,6 @@ func main() {
 		logger.Error("Failed to connect to database", err)
 		os.Exit(1)
 	}
-	defer db.Close()
 
 	// Configure connection pool
 	db.SetMaxOpenConns(maxDBConnections)
@@ -396,11 +389,11 @@ func main() {
 	// System status endpoint
 	r.HandleFunc("/api/v1/status", orchestrator.GetStatus).Methods("GET")
 	
-	// Start server
-	logger.Info(fmt.Sprintf("🚀 Vrooli Orchestrator API starting on port %s", port))
-	logger.Info(fmt.Sprintf("   Database: Connected"))
-	
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
 		logger.Error("Server failed", err)
 		os.Exit(1)
 	}

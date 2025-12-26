@@ -1,19 +1,18 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
+
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 func main() {
@@ -47,36 +46,19 @@ func main() {
 	mux := http.NewServeMux()
 	registerRoutes(mux, manager, metrics, ws)
 
-	srv := &http.Server{
-		Addr:         cfg.addr,
+	logger.Info(
+		"web console api starting",
+		"defaultCommand", cfg.defaultCommand,
+		"defaultArgs", cfg.defaultArgs,
+	)
+
+	if err := server.Run(server.Config{
 		Handler:      loggingMiddleware(logger, mux),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	defer stop()
-
-	go func() {
-		logger.Info(
-			"web console api starting",
-			"addr", cfg.addr,
-			"defaultCommand", cfg.defaultCommand,
-			"defaultArgs", cfg.defaultArgs,
-		)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("api server error", "error", err)
-		}
-	}()
-
-	<-ctx.Done()
-	logger.Info("shutdown initiated")
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		logger.Error("graceful shutdown failed", "error", err)
+	}); err != nil {
+		logger.Error("server error", "error", err)
+		os.Exit(1)
 	}
 }
 

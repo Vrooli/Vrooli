@@ -14,9 +14,11 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/redis/go-redis/v9"
+	"github.com/vrooli/api-core/database"
 )
 
-// Initialize database connection with exponential backoff
+// initDatabase creates a database connection with automatic retry and backoff.
+// Uses ORCHESTRATOR_HOST and RESOURCE_PORTS_POSTGRES for connection (non-standard pattern).
 func initDatabase(logger *log.Logger) (*sql.DB, error) {
 	host := os.Getenv("ORCHESTRATOR_HOST")
 	if host == "" {
@@ -43,57 +45,23 @@ func initDatabase(logger *log.Logger) (*sql.DB, error) {
 		dbname = "orchestrator"
 	}
 
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+	// Build DSN from non-standard environment variables
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
-	var db *sql.DB
-	var err error
-	maxRetries := 10
-	backoffBase := time.Second
-	maxBackoff := 30 * time.Second
-	rand.Seed(time.Now().UnixNano())
-
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		db, err = sql.Open("postgres", psqlInfo)
-		if err != nil {
-			return nil, fmt.Errorf("error opening database: %v", err)
-		}
-
-		// Test connection
-		if err = db.Ping(); err == nil {
-			logger.Printf("✅ Connected to PostgreSQL on attempt %d", attempt)
-
-			// Set connection pool settings
-			db.SetMaxOpenConns(25)
-			db.SetMaxIdleConns(5)
-			db.SetConnMaxLifetime(5 * time.Minute)
-
-			return db, nil
-		}
-
-		db.Close()
-
-		if attempt == maxRetries {
-			return nil, fmt.Errorf("failed to connect to database after %d attempts: %v", maxRetries, err)
-		}
-
-		// Exponential backoff with random jitter
-		backoff := time.Duration(math.Pow(2, float64(attempt-1))) * backoffBase
-		if backoff > maxBackoff {
-			backoff = maxBackoff
-		}
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(backoff) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := backoff + jitter
-
-		logger.Printf("⚠️  Database connection failed (attempt %d/%d), retrying in %v: %v",
-			attempt, maxRetries, actualDelay, err)
-		time.Sleep(actualDelay)
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:          "postgres",
+		DSN:             dsn,
+		MaxOpenConns:    25,
+		MaxIdleConns:    5,
+		ConnMaxLifetime: 5 * time.Minute,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	return nil, err
+	logger.Printf("✅ Connected to PostgreSQL")
+	return db, nil
 }
 
 // Initialize Redis connection with exponential backoff

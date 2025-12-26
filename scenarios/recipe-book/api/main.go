@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -108,13 +109,7 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "3250"
-	}
-
 	initDB()
-	defer db.Close()
 
 	router := mux.NewRouter()
 
@@ -151,8 +146,18 @@ func main() {
 		router.PathPrefix("/").Handler(http.FileServer(http.Dir(staticDir)))
 	}
 
-	log.Printf("🍳 Recipe Book API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, router))
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: router,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 func initDB() {

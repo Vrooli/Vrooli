@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
 	"database/sql"
@@ -18,6 +16,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -440,13 +441,6 @@ func main() {
 
 	logger := NewLogger()
 
-	// Load configuration - REQUIRED environment variables, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		logger.Error("❌ API_PORT environment variable is required", nil)
-		os.Exit(1)
-	}
-
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
 	_ = getResourcePort("postgres") // postgresPort unused, will use POSTGRES_URL instead
@@ -478,7 +472,6 @@ func main() {
 		logger.Error("Database connection failed", err)
 		os.Exit(1)
 	}
-	defer db.Close()
 
 	// Configure connection pool
 	db.SetMaxOpenConns(maxDBConnections)
@@ -504,17 +497,11 @@ func main() {
 	r.HandleFunc("/campaigns/{campaignId}/search", service.SearchDocuments).Methods("POST")
 	r.HandleFunc("/generate", service.GenerateContent).Methods("POST")
 
-	// Start server
-	log.Printf("Starting Campaign Content Studio API on port %s", port)
-	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  Postgres URL: %s", postgresURL)
-	log.Printf("  Qdrant URL: %s", qdrantURL)
-	log.Printf("  MinIO URL: %s", minioURL)
-
-	// Use existing logger instance from earlier in main()
-	logger.Info(fmt.Sprintf("Server starting on port %s", port))
-
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
 		logger.Error("Server failed", err)
 		os.Exit(1)
 	}

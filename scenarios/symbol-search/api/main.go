@@ -1,18 +1,19 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
@@ -93,7 +94,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("❌ Database connection failed: %v", err)
 	}
-	defer db.Close()
 
 	log.Println("🎉 Database connection pool established successfully!")
 
@@ -137,14 +137,15 @@ func main() {
 		apiGroup.POST("/bulk/range", api.getBulkRange)
 	}
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+	log.Printf("Starting Symbol Search API server")
+	if err := server.Run(server.Config{
+		Handler: router,
+		Cleanup: func(ctx context.Context) error {
+			return db.Close()
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	log.Printf("Starting Symbol Search API server on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, router))
 }
 
 func (api *API) healthCheck(c *gin.Context) {

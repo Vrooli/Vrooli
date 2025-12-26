@@ -20,11 +20,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
-
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Config struct {
@@ -773,9 +773,9 @@ func main() {
 		ScenariosPath: getEnvString("SCENARIOS_PATH", defaultScenariosPath),
 	}
 
-	server := NewServer(config)
+	srv := NewServer(config)
 
-	if err := server.Initialize(); err != nil {
+	if err := srv.Initialize(); err != nil {
 		log.Fatalf("Failed to initialize server: %v", err)
 	}
 
@@ -789,7 +789,17 @@ func main() {
 			port, time.Now().Format(time.RFC3339))
 	}
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), server.router); err != nil {
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: srv.router,
+		Port:    strconv.Itoa(port),
+		Cleanup: func(ctx context.Context) error {
+			if srv.db != nil {
+				return srv.db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }

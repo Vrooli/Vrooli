@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -12,6 +10,10 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -139,7 +141,6 @@ func main() {
 		logError("Database connection failed", map[string]interface{}{"error": err.Error()})
 		os.Exit(1)
 	}
-	defer db.Close()
 
 	logInfo("Database connection pool established successfully", nil)
 
@@ -188,10 +189,19 @@ func main() {
 	startAgentScheduler()
 
 	logInfo("Web Scraper Manager API starting", map[string]interface{}{
-		"port":     config.Port,
 		"scenario": "web-scraper-manager",
 	})
-	log.Fatal(http.ListenAndServe(":"+config.Port, router))
+	if err := server.Run(server.Config{
+		Handler: router,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 func loadConfig() Config {

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -13,6 +11,10 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -86,21 +88,10 @@ func main() {
 
 	// Initialize database connection
 	initDB()
-	defer func() {
-		if db != nil {
-			db.Close()
-		}
-	}()
 
 	// Initialize in-memory data as fallback
 	wheels = getDefaultWheels()
 	history = []SpinResult{}
-
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
 
 	router := mux.NewRouter()
 
@@ -126,10 +117,19 @@ func main() {
 	handler := c.Handler(router)
 
 	logger.Info("picker wheel API starting",
-		"port", port,
 		"service", "picker-wheel-api",
 		"version", "1.0.0")
-	log.Fatal(http.ListenAndServe(":"+port, handler))
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 // getEnv removed to prevent hardcoded defaults

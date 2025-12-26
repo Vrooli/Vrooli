@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -21,6 +19,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -421,26 +422,17 @@ func main() {
 		})
 	})
 
-	// Get port from environment - REQUIRED, no defaults
-	fmt.Fprintf(os.Stderr, "[STARTUP] Getting API_PORT from environment...\n")
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		fmt.Fprintf(os.Stderr, "[STARTUP] API_PORT is empty! Environment variables:\n")
-		for _, env := range os.Environ() {
-			if strings.Contains(env, "PORT") || strings.Contains(env, "VROOLI") {
-				fmt.Fprintf(os.Stderr, "  %s\n", env)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
 			}
-		}
-		logger.Error("❌ API_PORT environment variable is required", nil)
-		os.Exit(1)
-	}
-	fmt.Fprintf(os.Stderr, "[STARTUP] API_PORT=%s\n", port)
-	logger.Info(fmt.Sprintf("API endpoints available at: http://localhost:%s/api/v1/", port))
-
-	fmt.Fprintf(os.Stderr, "[STARTUP] Starting HTTP server on port %s...\n", port)
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		fmt.Fprintf(os.Stderr, "[STARTUP] HTTP server FAILED to start: %v\n", err)
-		log.Fatalf("Server failed to start: %v", err)
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

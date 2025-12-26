@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
 	"database/sql"
@@ -15,6 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
@@ -164,15 +166,6 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Port configuration - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		log.Fatal("❌ API_PORT or PORT environment variable is required")
-	}
-
 	// Optional resource URLs - will be empty if not available
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
@@ -191,7 +184,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
-	defer db.Close()
 
 	// Set search path to use public schema (tables are in public, not prompt_mgr)
 	_, err = db.Exec("SET search_path TO public")
@@ -199,7 +191,7 @@ func main() {
 		log.Fatal("Failed to set search_path:", err)
 	}
 
-	server := &APIServer{
+	apiServer := &APIServer{
 		db:        db,
 		qdrantURL: qdrantURL,
 		ollamaURL: ollamaURL,
@@ -215,57 +207,57 @@ func main() {
 	)
 
 	// Health check (outside versioning for simplicity)
-	router.HandleFunc("/health", server.healthCheck).Methods("GET")
+	router.HandleFunc("/health", apiServer.healthCheck).Methods("GET")
 
 	// API v1 routes
 	v1 := router.PathPrefix("/api/v1").Subrouter()
 
 	// Campaign endpoints
-	v1.HandleFunc("/campaigns", server.getCampaigns).Methods("GET")
-	v1.HandleFunc("/campaigns", server.createCampaign).Methods("POST")
-	v1.HandleFunc("/campaigns/{id}", server.getCampaign).Methods("GET")
-	v1.HandleFunc("/campaigns/{id}", server.updateCampaign).Methods("PUT")
-	v1.HandleFunc("/campaigns/{id}", server.deleteCampaign).Methods("DELETE")
-	v1.HandleFunc("/campaigns/{id}/prompts", server.getCampaignPrompts).Methods("GET")
+	v1.HandleFunc("/campaigns", apiServer.getCampaigns).Methods("GET")
+	v1.HandleFunc("/campaigns", apiServer.createCampaign).Methods("POST")
+	v1.HandleFunc("/campaigns/{id}", apiServer.getCampaign).Methods("GET")
+	v1.HandleFunc("/campaigns/{id}", apiServer.updateCampaign).Methods("PUT")
+	v1.HandleFunc("/campaigns/{id}", apiServer.deleteCampaign).Methods("DELETE")
+	v1.HandleFunc("/campaigns/{id}/prompts", apiServer.getCampaignPrompts).Methods("GET")
 
 	// Prompt endpoints
-	v1.HandleFunc("/prompts", server.getPrompts).Methods("GET")
-	v1.HandleFunc("/prompts", server.createPrompt).Methods("POST")
-	v1.HandleFunc("/prompts/{id}", server.getPrompt).Methods("GET")
-	v1.HandleFunc("/prompts/{id}", server.updatePrompt).Methods("PUT")
-	v1.HandleFunc("/prompts/{id}", server.deletePrompt).Methods("DELETE")
-	v1.HandleFunc("/prompts/{id}/use", server.recordPromptUsage).Methods("POST")
+	v1.HandleFunc("/prompts", apiServer.getPrompts).Methods("GET")
+	v1.HandleFunc("/prompts", apiServer.createPrompt).Methods("POST")
+	v1.HandleFunc("/prompts/{id}", apiServer.getPrompt).Methods("GET")
+	v1.HandleFunc("/prompts/{id}", apiServer.updatePrompt).Methods("PUT")
+	v1.HandleFunc("/prompts/{id}", apiServer.deletePrompt).Methods("DELETE")
+	v1.HandleFunc("/prompts/{id}/use", apiServer.recordPromptUsage).Methods("POST")
 
 	// Search endpoints
-	v1.HandleFunc("/search/prompts", server.searchPrompts).Methods("GET")
-	v1.HandleFunc("/prompts/semantic", server.semanticSearch).Methods("POST")
+	v1.HandleFunc("/search/prompts", apiServer.searchPrompts).Methods("GET")
+	v1.HandleFunc("/prompts/semantic", apiServer.semanticSearch).Methods("POST")
 
 	// Quick access
-	v1.HandleFunc("/prompts/quick/{key}", server.getPromptByQuickKey).Methods("GET")
-	v1.HandleFunc("/prompts/recent", server.getRecentPrompts).Methods("GET")
-	v1.HandleFunc("/prompts/favorites", server.getFavoritePrompts).Methods("GET")
+	v1.HandleFunc("/prompts/quick/{key}", apiServer.getPromptByQuickKey).Methods("GET")
+	v1.HandleFunc("/prompts/recent", apiServer.getRecentPrompts).Methods("GET")
+	v1.HandleFunc("/prompts/favorites", apiServer.getFavoritePrompts).Methods("GET")
 
 	// Testing
-	v1.HandleFunc("/prompts/{id}/test", server.testPrompt).Methods("POST")
-	v1.HandleFunc("/prompts/{id}/test-history", server.getTestHistory).Methods("GET")
+	v1.HandleFunc("/prompts/{id}/test", apiServer.testPrompt).Methods("POST")
+	v1.HandleFunc("/prompts/{id}/test-history", apiServer.getTestHistory).Methods("GET")
 
 	// Tags
-	v1.HandleFunc("/tags", server.getTags).Methods("GET")
-	v1.HandleFunc("/tags", server.createTag).Methods("POST")
+	v1.HandleFunc("/tags", apiServer.getTags).Methods("GET")
+	v1.HandleFunc("/tags", apiServer.createTag).Methods("POST")
 
 	// Templates
-	v1.HandleFunc("/templates", server.getTemplates).Methods("GET")
-	v1.HandleFunc("/templates/{id}", server.getTemplate).Methods("GET")
+	v1.HandleFunc("/templates", apiServer.getTemplates).Methods("GET")
+	v1.HandleFunc("/templates/{id}", apiServer.getTemplate).Methods("GET")
 
 	// Export/Import endpoints
-	v1.HandleFunc("/export", server.exportData).Methods("GET")
-	v1.HandleFunc("/import", server.importData).Methods("POST")
+	v1.HandleFunc("/export", apiServer.exportData).Methods("GET")
+	v1.HandleFunc("/import", apiServer.importData).Methods("POST")
 
 	// Prompt Version History
-	v1.HandleFunc("/prompts/{id}/versions", server.getPromptVersions).Methods("GET")
-	v1.HandleFunc("/prompts/{id}/revert/{version}", server.revertPromptVersion).Methods("POST")
+	v1.HandleFunc("/prompts/{id}/versions", apiServer.getPromptVersions).Methods("GET")
+	v1.HandleFunc("/prompts/{id}/revert/{version}", apiServer.revertPromptVersion).Methods("POST")
 
-	log.Printf("🚀 Prompt Manager API starting on port %s", port)
+	log.Printf("🚀 Prompt Manager API starting")
 	log.Printf("🗄️  Database: Connected")
 	if qdrantURL != "" {
 		log.Printf("🔍 Qdrant: %s", qdrantURL)
@@ -279,7 +271,17 @@ func main() {
 	}
 
 	handler := corsHandler(router)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 // Health check endpoint

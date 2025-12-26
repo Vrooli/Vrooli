@@ -16,10 +16,12 @@ import (
 	"strconv"
 	"time"
 
-	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+
+	_ "github.com/lib/pq"
 )
 
 // Configuration - REQUIRED, no defaults
@@ -151,11 +153,11 @@ func main() {
 
 	// Initialize database
 	initDB()
-	defer db.Close()
 
 	// Load content if requested
 	if mode == "load-content" {
 		log.Println("Content already loaded via seed.sql")
+		db.Close()
 		return
 	}
 
@@ -163,9 +165,18 @@ func main() {
 	setupRoutes()
 
 	// Start server
-	log.Printf("🤰 Pregnancy Tracker API starting on port %s", apiPort)
+	log.Printf("🤰 Pregnancy Tracker API starting")
 	log.Printf("   Privacy Mode: %s | Multi-Tenant: %s", privacyMode, multiTenant)
-	log.Fatal(http.ListenAndServe(":"+apiPort, nil))
+	if err := server.Run(server.Config{
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 func initDB() {

@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -116,12 +117,14 @@ func main() {
 	if port == "" {
 		logger.Fatal("PORT environment variable not set")
 	}
-	
-	addr := ":" + port
-	logger.Printf("Starting %s API server on %s", serviceName, addr)
+
+	logger.Printf("Starting %s API server on port %s", serviceName, port)
 	logger.Printf("API Version: %s", apiVersion)
-	
-	if err := http.ListenAndServe(addr, router); err != nil {
-		logger.Fatal(err)
+
+	if err := server.Run(server.Config{
+		Handler: router,
+		Port:    port,
+	}); err != nil {
+		logger.Fatalf("Server error: %v", err)
 	}
 }

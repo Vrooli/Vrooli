@@ -8,20 +8,18 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Server struct {
 	router *mux.Router
-	port   string
 	db     *Database
 }
 
@@ -253,11 +251,6 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func NewServer() *Server {
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "3300"
-	}
-
 	// Initialize database
 	db, err := NewDatabase()
 	if err != nil {
@@ -266,7 +259,6 @@ func NewServer() *Server {
 
 	s := &Server{
 		router: mux.NewRouter(),
-		port:   port,
 		db:     db,
 	}
 
@@ -572,46 +564,27 @@ func (s *Server) handleDeleteAlert(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "deleted", "id": id})
 }
 
-func (s *Server) Start() {
-	handler := cors.New(cors.Options{
+// Router returns the HTTP handler for use with server.Run
+func (s *Server) Router() http.Handler {
+	return cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	}).Handler(s.router)
+}
 
-	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%s", s.port),
-		Handler:      handler,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	// Start server in goroutine
-	go func() {
-		log.Printf("Smart Shopping Assistant API starting on port %s", s.port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+// Cleanup releases resources when the server shuts down
+func (s *Server) Cleanup() error {
+	if s.db != nil {
+		if s.db.postgres != nil {
+			s.db.postgres.Close()
 		}
-	}()
-
-	// Wait for interrupt signal
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	log.Println("Shutting down server...")
-
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		if s.db.redis != nil {
+			s.db.redis.Close()
+		}
 	}
-
-	log.Println("Server shutdown complete")
+	return nil
 }
 
 func main() {
@@ -622,7 +595,13 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	server := NewServer()
-	server.Start()
+	srv := NewServer()
+	if err := server.Run(server.Config{
+		Handler: srv.Router(),
+		Cleanup: func(ctx context.Context) error {
+			return srv.Cleanup()
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
-// Test change

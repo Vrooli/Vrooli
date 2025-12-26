@@ -5,48 +5,30 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"strings"
-	"syscall"
-	"time"
-
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"landing-manager/handlers"
 	"landing-manager/services"
-	"landing-manager/util"
 )
-
-// Config holds minimal runtime configuration
-type Config struct {
-	Port string
-}
 
 // Server wires the HTTP router and dependencies
 type Server struct {
-	config  *Config
 	db      *sql.DB
 	router  *mux.Router
 	handler *handlers.Handler
 }
 
-// NewServer initializes configuration, database, services, and routes
+// NewServer initializes database, services, and routes
 func NewServer() (*Server, error) {
-	cfg := &Config{
-		Port: requireEnv("API_PORT"),
-	}
-
-	// Connect to database with automatic retry and backoff.
-	// Reads POSTGRES_* environment variables set by the lifecycle system.
+	// Connect to database with automatic retry and backoff
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver: database.DriverPostgres,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("database connection failed: %w", err)
@@ -63,7 +45,6 @@ func NewServer() (*Server, error) {
 	h := handlers.NewHandler(db, registry, generator, personaService, previewService, analyticsService)
 
 	srv := &Server{
-		config:  cfg,
 		db:      db,
 		router:  mux.NewRouter(),
 		handler: h,
@@ -135,51 +116,6 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/lifecycle/{scenario_id}", s.handler.HandleScenarioDelete).Methods("DELETE")
 }
 
-// Start launches the HTTP server with graceful shutdown
-func (s *Server) Start() error {
-	util.LogStructured("starting server", map[string]interface{}{
-		"service": "landing-manager-api",
-		"port":    s.config.Port,
-	})
-
-	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%s", s.config.Port),
-		Handler:      gorillahandlers.RecoveryHandler()(s.router),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			util.LogStructuredError("server startup failed", map[string]interface{}{"error": err.Error()})
-			log.Fatal(err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := httpServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
-	}
-
-	util.LogStructured("server stopped", nil)
-	return nil
-}
-
-func requireEnv(key string) string {
-	value := strings.TrimSpace(os.Getenv(key))
-	if value == "" {
-		log.Fatalf("environment variable %s is required. Run the scenario via 'vrooli scenario run <name>' so lifecycle exports it.", key)
-	}
-	return value
-}
-
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -188,12 +124,16 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	server, err := NewServer()
+	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)
 	}
 
-	if err := server.Start(); err != nil {
-		log.Fatalf("server stopped with error: %v", err)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: gorillahandlers.RecoveryHandler()(srv.router),
+		Cleanup: func(ctx context.Context) error { return srv.db.Close() },
+	}); err != nil {
+		log.Fatalf("server error: %v", err)
 	}
 }

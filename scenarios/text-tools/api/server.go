@@ -1,11 +1,8 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -16,7 +13,6 @@ type Server struct {
 	db              *DatabaseConnection
 	resourceManager *ResourceManager
 	router          *mux.Router
-	server          *http.Server
 }
 
 // NewServer creates a new server instance
@@ -44,20 +40,8 @@ func (s *Server) Initialize() error {
 	s.resourceManager.Start()
 	log.Println("Resource manager initialized")
 
-	// Setup router
+	// Setup router with middleware
 	s.router = s.setupRouter()
-
-	// Apply middleware
-	handler := applyMiddleware(s.router)
-
-	// Configure HTTP server
-	s.server = &http.Server{
-		Addr:         fmt.Sprintf(":%s", s.config.Port),
-		Handler:      handler,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
 
 	return nil
 }
@@ -95,19 +79,14 @@ func (s *Server) setupRouter() *mux.Router {
 	return router
 }
 
-// Start begins serving HTTP requests
-func (s *Server) Start() error {
-	log.Printf("Text Tools API listening on port %s", s.config.Port)
-	log.Printf("Health endpoint: http://localhost:%s/health", s.config.Port)
-	log.Printf("API v1 endpoint: http://localhost:%s/api/v1/text", s.config.Port)
-	log.Printf("API v2 endpoint: http://localhost:%s/api/v2/text", s.config.Port)
-
-	return s.server.ListenAndServe()
+// Router returns the HTTP handler for use with server.Run
+func (s *Server) Router() http.Handler {
+	return applyMiddleware(s.router)
 }
 
-// Shutdown gracefully stops the server
-func (s *Server) Shutdown(ctx context.Context) error {
-	log.Println("Shutting down Text Tools API...")
+// Cleanup releases resources when the server shuts down
+func (s *Server) Cleanup() error {
+	log.Println("Cleaning up Text Tools API resources...")
 
 	// Stop resource manager
 	if s.resourceManager != nil {
@@ -118,9 +97,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if s.db != nil {
 		if err := s.db.Close(); err != nil {
 			log.Printf("Error closing database: %v", err)
+			return err
 		}
 	}
 
-	// Shutdown HTTP server
-	return s.server.Shutdown(ctx)
+	return nil
 }

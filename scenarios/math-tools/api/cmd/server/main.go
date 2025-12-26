@@ -8,9 +8,7 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"os/signal"
 	"sort"
-	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +16,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/stat"
 )
@@ -1508,40 +1507,6 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-// Run starts the server
-func (s *Server) Run() error {
-	srv := &http.Server{
-		Addr:         ":" + s.config.Port,
-		Handler:      s.router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	// Handle graceful shutdown
-	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-		<-sigChan
-
-		logger.Info("Shutting down server...")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := srv.Shutdown(ctx); err != nil {
-			logger.Error("Server shutdown error", "error", err.Error())
-		}
-
-		s.db.Close()
-	}()
-
-	logger.Info("Math Tools API starting", "port", s.config.Port)
-	logger.Info("API documentation available", "url", fmt.Sprintf("http://localhost:%s/docs", s.config.Port))
-
-	return srv.ListenAndServe()
-}
-
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -1552,13 +1517,17 @@ func main() {
 
 	logger.Info("Starting Math Tools API...")
 
-	server, err := NewServer()
+	srv, err := NewServer()
 	if err != nil {
 		logger.Error("Failed to initialize server", "error", err.Error())
 		os.Exit(1)
 	}
 
-	if err := server.Run(); err != nil && err != http.ErrServerClosed {
+	// Start server with graceful shutdown (port from API_PORT env var)
+	if err := server.Run(server.Config{
+		Handler: srv.router,
+		Cleanup: func(ctx context.Context) error { return srv.db.Close() },
+	}); err != nil {
 		logger.Error("Server error", "error", err.Error())
 		os.Exit(1)
 	}

@@ -7,10 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	gorillahandlers "github.com/gorilla/handlers"
@@ -18,6 +16,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
@@ -215,45 +214,26 @@ func (s *Server) setupRoutes() {
 	s.handlers.RegisterRoutes(s.router, s.metricsCollector)
 }
 
-// Start launches the HTTP server with graceful shutdown.
-func (s *Server) Start() error {
-	log.Printf("starting server | service=workspace-sandbox-api port=%s", s.config.Server.Port)
+// Router returns the HTTP handler for use with server.Run
+func (s *Server) Router() http.Handler {
+	return gorillahandlers.RecoveryHandler()(s.router)
+}
 
-	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%s", s.config.Server.Port),
-		Handler:      gorillahandlers.RecoveryHandler()(s.router),
-		ReadTimeout:  s.config.Server.ReadTimeout,
-		WriteTimeout: s.config.Server.WriteTimeout,
-		IdleTimeout:  s.config.Server.IdleTimeout,
-	}
-
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("server startup failed | error=%s", err.Error())
-			log.Fatal(err)
-		}
-	}()
-
+// StartServices starts background services (call before server.Run)
+func (s *Server) StartServices() {
 	if s.lifecycleRecon != nil {
 		s.lifecycleRecon.Start()
 	}
+}
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	ctx, cancel := context.WithTimeout(context.Background(), s.config.Server.ShutdownTimeout)
-	defer cancel()
-
+// Cleanup releases resources when the server shuts down
+func (s *Server) Cleanup() error {
 	if s.lifecycleRecon != nil {
 		s.lifecycleRecon.Stop()
 	}
-
-	if err := httpServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
+	if s.db != nil {
+		return s.db.Close()
 	}
-
-	log.Println("server stopped")
 	return nil
 }
 
@@ -335,14 +315,24 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 // ensureSchema runs automatic migrations to ensure required tables exist.
 // This is idempotent and safe to run on every startup.
 func ensureSchema(db *sql.DB) error {
+	// Create and use scenario-specific PostgreSQL schema to avoid conflicts
+	schemaName := "workspace_sandbox"
+	if _, err := db.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schemaName)); err != nil {
+		return fmt.Errorf("failed to create schema: %w", err)
+	}
+	if _, err := db.Exec(fmt.Sprintf("SET search_path TO %s, public", schemaName)); err != nil {
+		return fmt.Errorf("failed to set search_path: %w", err)
+	}
+	log.Printf("using PostgreSQL schema: %s", schemaName)
+
 	// Ensure core schema exists (sandboxes table).
 	var sandboxesExists bool
 	err := db.QueryRow(`
 		SELECT EXISTS (
 			SELECT FROM information_schema.tables
-			WHERE table_name = 'sandboxes'
+			WHERE table_name = 'sandboxes' AND table_schema = $1
 		)
-	`).Scan(&sandboxesExists)
+	`, schemaName).Scan(&sandboxesExists)
 	if err != nil {
 		return fmt.Errorf("failed to check sandboxes table: %w", err)
 	}
@@ -364,9 +354,9 @@ func ensureSchema(db *sql.DB) error {
 	err = db.QueryRow(`
 		SELECT EXISTS (
 			SELECT FROM information_schema.tables
-			WHERE table_name = 'applied_changes'
+			WHERE table_name = 'applied_changes' AND table_schema = $1
 		)
-	`).Scan(&exists)
+	`, schemaName).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("failed to check applied_changes table: %w", err)
 	}
@@ -553,12 +543,20 @@ func main() {
 			nsStatus.KernelVersion, nsStatus.Reason)
 	}
 
-	server, err := NewServer()
+	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)
 	}
 
-	if err := server.Start(); err != nil {
-		log.Fatalf("server stopped with error: %v", err)
+	// Start background services before HTTP server
+	srv.StartServices()
+
+	if err := server.Run(server.Config{
+		Handler: srv.Router(),
+		Cleanup: func(ctx context.Context) error {
+			return srv.Cleanup()
+		},
+	}); err != nil {
+		log.Fatalf("server error: %v", err)
 	}
 }

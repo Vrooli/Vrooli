@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -13,6 +13,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -96,10 +99,6 @@ func main() {
 	}) {
 		return // Process was re-exec'd after rebuild
 	}
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "15500"
-	}
 
 	r := mux.NewRouter()
 
@@ -117,8 +116,15 @@ func main() {
 	// Enable CORS
 	r.Use(corsMiddleware)
 
-	log.Printf("Job Pipeline API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, r))
+	log.Printf("Job Pipeline API starting")
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error {
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 func corsMiddleware(next http.Handler) http.Handler {

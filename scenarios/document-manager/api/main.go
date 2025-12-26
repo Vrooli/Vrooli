@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"bytes"
 	"context"
 	"database/sql"
@@ -1165,7 +1166,6 @@ func main() {
 	if err := initDB(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer db.Close()
 
 	// Initialize Redis for real-time updates
 	if err := initRedis(config.RedisURL); err != nil {
@@ -1195,16 +1195,18 @@ func main() {
 
 	// Static file serving for any additional assets
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
-	
-	port := config.Port
-	log.Printf("Document Manager API starting on port %s", port)
-	log.Printf("Database: %s", config.PostgresURL)
-	log.Printf("Qdrant: %s", config.QdrantURL)
-	log.Printf("Ollama: %s", config.OllamaURL)
-	log.Printf("Windmill: %s", config.WindmillURL)
-	log.Printf("n8n: %s", config.N8NURL)
-	
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+
+	log.Println("Document Manager API starting...")
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error {
+			closeRedis()
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

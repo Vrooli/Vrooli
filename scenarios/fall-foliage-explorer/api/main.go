@@ -12,10 +12,10 @@ import (
 	"strconv"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
-
-	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/server"
 )
 
 var db *sql.DB
@@ -958,20 +958,27 @@ func main() {
 		log.Println("Running in mock data mode")
 	}
 
-	port := getEnv("API_PORT", getEnv("PORT", "8080"))
-
 	// Register routes
-	http.HandleFunc("/health", enableCORS(healthHandler))
-	http.HandleFunc("/api/regions", enableCORS(regionsHandler))
-	http.HandleFunc("/api/foliage", enableCORS(foliageHandler))
-	http.HandleFunc("/api/predict", enableCORS(predictHandler))
-	http.HandleFunc("/api/weather", enableCORS(weatherHandler))
-	http.HandleFunc("/api/reports", enableCORS(reportsHandler))
-	http.HandleFunc("/api/trips", enableCORS(tripsHandler))
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", enableCORS(healthHandler))
+	mux.HandleFunc("/api/regions", enableCORS(regionsHandler))
+	mux.HandleFunc("/api/foliage", enableCORS(foliageHandler))
+	mux.HandleFunc("/api/predict", enableCORS(predictHandler))
+	mux.HandleFunc("/api/weather", enableCORS(weatherHandler))
+	mux.HandleFunc("/api/reports", enableCORS(reportsHandler))
+	mux.HandleFunc("/api/trips", enableCORS(tripsHandler))
 
-	log.Printf("Fall Foliage Explorer API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: mux,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

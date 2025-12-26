@@ -1,14 +1,12 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"log"
-	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
+
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 func main() {
@@ -26,11 +24,6 @@ func main() {
 		Port: os.Getenv("API_PORT"),
 	}
 
-	// Validate required configuration
-	if config.Port == "" {
-		log.Fatal("API_PORT environment variable is required")
-	}
-
 	// Load optional resource configurations
 	config.MinIOURL = os.Getenv("MINIO_URL")
 	config.RedisURL = os.Getenv("REDIS_URL")
@@ -38,38 +31,18 @@ func main() {
 	config.DatabaseURL = os.Getenv("DATABASE_URL")
 
 	// Create and initialize server
-	server := NewServer(config)
-	if err := server.Initialize(); err != nil {
+	srv := NewServer(config)
+	if err := srv.Initialize(); err != nil {
 		log.Fatalf("Failed to initialize server: %v", err)
 	}
 
-	// Start server in goroutine
-	serverErr := make(chan error, 1)
-	go func() {
-		if err := server.Start(); err != nil && err != http.ErrServerClosed {
-			serverErr <- err
-		}
-	}()
-
-	// Setup signal handling for graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	// Wait for shutdown signal or server error
-	select {
-	case err := <-serverErr:
-		log.Fatalf("Server failed to start: %v", err)
-	case sig := <-sigChan:
-		log.Printf("Received signal %v, shutting down gracefully...", sig)
+	// Start server with graceful shutdown (port from API_PORT env var)
+	if err := server.Run(server.Config{
+		Handler: srv.Router(),
+		Cleanup: func(ctx context.Context) error {
+			return srv.Cleanup()
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	// Graceful shutdown with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server shutdown error: %v", err)
-	}
-
-	log.Println("Text Tools API stopped")
 }

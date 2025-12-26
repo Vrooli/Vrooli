@@ -18,16 +18,15 @@ import (
 	"mime"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/preflight"
 )
 
@@ -1789,40 +1788,6 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-// Run starts the server
-func (s *Server) Run() error {
-	srv := &http.Server{
-		Addr:         ":" + s.config.Port,
-		Handler:      s.router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	// Handle graceful shutdown
-	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-		<-sigChan
-
-		log.Println("Shutting down server...")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Printf("Server shutdown error: %v", err)
-		}
-
-		s.db.Close()
-	}()
-
-	log.Printf("Server starting on port %s", s.config.Port)
-	log.Printf("API documentation available at http://localhost:%s/docs", s.config.Port)
-
-	return srv.ListenAndServe()
-}
-
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -1833,13 +1798,15 @@ func main() {
 
 	log.Println("Starting File Tools API...")
 
-	server, err := NewServer()
+	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("Failed to initialize server: %v", err)
 	}
 
-	if err := server.Run(); err != nil && err != http.ErrServerClosed {
+	if err := server.Run(server.Config{
+		Handler: srv.router,
+		Cleanup: func(ctx context.Context) error { return srv.db.Close() },
+	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-// Test change

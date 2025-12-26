@@ -7,9 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"agent-manager/internal/adapters/event"
@@ -19,8 +17,8 @@ import (
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/handlers"
-	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/metrics"
+	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
 
@@ -29,6 +27,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Config holds runtime configuration
@@ -57,7 +56,6 @@ func NewServer() (*Server, error) {
 	})
 
 	cfg := &Config{
-		Port:        requireEnv("API_PORT"),
 		UseInMemory: strings.ToLower(os.Getenv("USE_IN_MEMORY")) == "true",
 	}
 
@@ -325,39 +323,13 @@ func (s *Server) setupRoutes() {
 	log.Printf("Prometheus metrics available at /metrics")
 }
 
-// Start launches the HTTP server with graceful shutdown
-func (s *Server) Start() error {
-	s.log("starting server", map[string]interface{}{
-		"service": "agent-manager-api",
-		"port":    s.config.Port,
-	})
+// Router returns the HTTP handler for use with server.Run
+func (s *Server) Router() http.Handler {
+	return gorillaHandlers.RecoveryHandler()(s.router)
+}
 
-	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%s", s.config.Port),
-		Handler:      gorillaHandlers.RecoveryHandler()(s.router),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			s.log("server startup failed", map[string]interface{}{"error": err.Error()})
-			log.Fatal(err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := httpServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
-	}
-
+// Cleanup releases resources when the server shuts down
+func (s *Server) Cleanup() error {
 	// Stop the reconciler
 	if s.reconciler != nil {
 		if err := s.reconciler.Stop(); err != nil {
@@ -453,14 +425,6 @@ func (s *Server) log(msg string, fields map[string]interface{}) {
 	log.Printf("%s | %s", msg, string(data))
 }
 
-func requireEnv(key string) string {
-	value := strings.TrimSpace(os.Getenv(key))
-	if value == "" {
-		log.Fatalf("environment variable %s is required. Run the scenario via 'vrooli scenario run <name>' so lifecycle exports it.", key)
-	}
-	return value
-}
-
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -469,12 +433,17 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	server, err := NewServer()
+	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)
 	}
 
-	if err := server.Start(); err != nil {
-		log.Fatalf("server stopped with error: %v", err)
+	if err := server.Run(server.Config{
+		Handler: srv.Router(),
+		Cleanup: func(ctx context.Context) error {
+			return srv.Cleanup()
+		},
+	}); err != nil {
+		log.Fatalf("server error: %v", err)
 	}
 }

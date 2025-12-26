@@ -16,6 +16,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 var db *sql.DB
@@ -53,13 +54,6 @@ func main() {
 		ScenarioName: "prd-control-tower",
 	}) {
 		return // Process was re-exec'd after rebuild
-	}
-
-	// Validate required environment variables
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		slog.Error("API_PORT environment variable must be set")
-		os.Exit(1)
 	}
 
 	// Validate RESOURCE_OPENROUTER_URL if AI features are expected
@@ -156,9 +150,17 @@ func main() {
 	apiV1.HandleFunc("/issues/status", handleGetScenarioIssuesStatus).Methods("GET")
 	apiV1.HandleFunc("/issues/report", handleSubmitIssueReport).Methods("POST")
 
-	slog.Info("PRD Control Tower API starting", "port", port, "service", "prd-control-tower")
-	if err := http.ListenAndServe(":"+port, router); err != nil {
-		slog.Error("Failed to start server", "error", err)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: router,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		slog.Error("Server error", "error", err)
 		os.Exit(1)
 	}
 }

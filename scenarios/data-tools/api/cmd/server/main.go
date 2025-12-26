@@ -8,8 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +15,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Config holds application configuration
@@ -247,7 +246,6 @@ func (s *Server) handleCreateResource(w http.ResponseWriter, r *http.Request) {
 		configJSON,
 		time.Now(),
 	)
-
 	if err != nil {
 		s.sendError(w, http.StatusInternalServerError, "failed to create resource")
 		return
@@ -340,7 +338,6 @@ func (s *Server) handleUpdateResource(w http.ResponseWriter, r *http.Request) {
 		configJSON,
 		time.Now(),
 	)
-
 	if err != nil {
 		s.sendError(w, http.StatusInternalServerError, "failed to update resource")
 		return
@@ -364,7 +361,6 @@ func (s *Server) handleDeleteResource(w http.ResponseWriter, r *http.Request) {
 
 	query := `DELETE FROM resources WHERE id = $1`
 	result, err := s.db.Exec(query, id)
-
 	if err != nil {
 		s.sendError(w, http.StatusInternalServerError, "failed to delete resource")
 		return
@@ -542,40 +538,6 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-// Run starts the server
-func (s *Server) Run() error {
-	srv := &http.Server{
-		Addr:         ":" + s.config.Port,
-		Handler:      s.router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	// Handle graceful shutdown
-	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-		<-sigChan
-
-		log.Println("Shutting down server...")
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Printf("Server shutdown error: %v", err)
-		}
-
-		s.db.Close()
-	}()
-
-	log.Printf("Server starting on port %s", s.config.Port)
-	log.Printf("API documentation available at http://localhost:%s/docs", s.config.Port)
-
-	return srv.ListenAndServe()
-}
-
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -586,12 +548,16 @@ func main() {
 
 	log.Println("Starting Data Tools API...")
 
-	server, err := NewServer()
+	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("Failed to initialize server: %v", err)
 	}
 
-	if err := server.Run(); err != nil && err != http.ErrServerClosed {
+	// Start server with graceful shutdown (port from API_PORT env var)
+	if err := server.Run(server.Config{
+		Handler: srv.router,
+		Cleanup: func(ctx context.Context) error { return srv.db.Close() },
+	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }

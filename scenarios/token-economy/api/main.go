@@ -11,15 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
-
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 var (
@@ -217,9 +217,29 @@ func main() {
 	
 	handler := c.Handler(router)
 	
-	log.Printf("Token Economy API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Port:    port,
+		Cleanup: func(ctx context.Context) error {
+			var errs []error
+			if db != nil {
+				if err := db.Close(); err != nil {
+					errs = append(errs, err)
+				}
+			}
+			if rdb != nil {
+				if err := rdb.Close(); err != nil {
+					errs = append(errs, err)
+				}
+			}
+			if len(errs) > 0 {
+				return errs[0]
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

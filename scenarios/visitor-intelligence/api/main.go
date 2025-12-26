@@ -15,14 +15,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
-
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Configuration
@@ -552,8 +552,6 @@ func main() {
 	if err := initDatabase(config); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer db.Close()
-	defer rdb.Close()
 
 	// Setup routes
 	router := mux.NewRouter()
@@ -578,10 +576,29 @@ func main() {
 
 	handler := c.Handler(router)
 
-	log.Printf("Visitor Intelligence API starting on port %s", config.Port)
-	log.Printf("Health check: http://localhost:%s/health", config.Port)
-	log.Printf("Tracking endpoint: http://localhost:%s/api/v1/visitor/track", config.Port)
-	log.Printf("Tracking script: http://localhost:%s/tracker.js", config.Port)
+	log.Printf("Visitor Intelligence API starting")
 
-	log.Fatal(http.ListenAndServe(":"+config.Port, handler))
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			var errs []error
+			if db != nil {
+				if err := db.Close(); err != nil {
+					errs = append(errs, err)
+				}
+			}
+			if rdb != nil {
+				if err := rdb.Close(); err != nil {
+					errs = append(errs, err)
+				}
+			}
+			if len(errs) > 0 {
+				return errs[0]
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }

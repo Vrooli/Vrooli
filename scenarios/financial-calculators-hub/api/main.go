@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -12,6 +11,9 @@ import (
 	"time"
 
 	"financial-calculators-hub/lib"
+
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type HealthResponse struct {
@@ -48,8 +50,10 @@ func main() {
 	setupRoutes()
 
 	log.Printf("Financial Calculators API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
+	if err := server.Run(server.Config{
+		Handler: http.DefaultServeMux,
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

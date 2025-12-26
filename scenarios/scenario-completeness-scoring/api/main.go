@@ -15,10 +15,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"strings"
-	"syscall"
 	"time"
 
 	"scenario-completeness-scoring/pkg/analysis"
@@ -32,6 +29,7 @@ import (
 	gorillahndlrs "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // ServerConfig holds runtime configuration for the server
@@ -57,7 +55,6 @@ type Server struct {
 // [REQ:SCS-ANALYSIS-003] Initialize bulk refresher
 func NewServer() (*Server, error) {
 	cfg := &ServerConfig{
-		Port:       requireEnv("API_PORT"),
 		VrooliRoot: getEnvWithDefault("VROOLI_ROOT", os.Getenv("HOME")+"/Vrooli"),
 	}
 
@@ -161,44 +158,19 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/analysis/components", h.HandleListAnalysisComponents).Methods("GET", "OPTIONS")
 }
 
-// Start launches the HTTP server with graceful shutdown
-func (s *Server) Start() error {
-	log.Printf("starting server | service=scenario-completeness-scoring-api port=%s vrooli_root=%s",
-		s.config.Port, s.config.VrooliRoot)
+// Router returns the HTTP handler for use with server.Run
+func (s *Server) Router() http.Handler {
+	return gorillahndlrs.RecoveryHandler()(s.router)
+}
 
-	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%s", s.config.Port),
-		Handler:      gorillahndlrs.RecoveryHandler()(s.router),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("server startup failed: %v", err)
-			log.Fatal(err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := httpServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
-	}
-
+// Cleanup releases resources when the server shuts down
+func (s *Server) Cleanup() error {
 	// Close history database
 	if s.historyDB != nil {
 		if err := s.historyDB.Close(); err != nil {
 			log.Printf("failed to close history database: %v", err)
 		}
 	}
-
 	log.Println("server stopped")
 	return nil
 }
@@ -228,22 +200,12 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// requireEnv retrieves a required environment variable or exits
-func requireEnv(key string) string {
-	value := strings.TrimSpace(os.Getenv(key))
-	if value == "" {
-		log.Fatalf("environment variable %s is required. Run the scenario via 'vrooli scenario run <name>' so lifecycle exports it.", key)
-	}
-	return value
-}
-
 // getEnvWithDefault retrieves an environment variable with a fallback default
 func getEnvWithDefault(key, defaultValue string) string {
-	value := strings.TrimSpace(os.Getenv(key))
-	if value == "" {
-		return defaultValue
+	if value := os.Getenv(key); value != "" {
+		return value
 	}
-	return value
+	return defaultValue
 }
 
 func main() {
@@ -254,12 +216,19 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	server, err := NewServer()
+	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)
 	}
 
-	if err := server.Start(); err != nil {
-		log.Fatalf("server stopped with error: %v", err)
+	log.Printf("starting server | service=scenario-completeness-scoring-api vrooli_root=%s", srv.config.VrooliRoot)
+
+	if err := server.Run(server.Config{
+		Handler: srv.Router(),
+		Cleanup: func(ctx context.Context) error {
+			return srv.Cleanup()
+		},
+	}); err != nil {
+		log.Fatalf("server error: %v", err)
 	}
 }

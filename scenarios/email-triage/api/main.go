@@ -7,8 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -17,6 +15,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"email-triage/handlers"
 	"email-triage/models"
@@ -46,14 +45,13 @@ func main() {
 	// Initialize database connection with automatic retry and backoff.
 	// Reads POSTGRES_* environment variables set by the lifecycle system.
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver: database.DriverPostgres,
 	})
 	if err != nil {
-		log.Fatalf("❌ Database connection failed: %v", err)
+		log.Fatalf("Database connection failed: %v", err)
 	}
-	defer db.Close()
 
-	log.Println("🎉 Database connection established successfully!")
+	log.Println("Database connection established successfully!")
 
 	// Initialize services
 	authService := services.NewAuthService(config.AuthServiceURL)
@@ -63,7 +61,7 @@ func main() {
 	realtimeProcessor := services.NewRealtimeProcessor(db, emailService, ruleService, searchService)
 
 	// Create server instance
-	server := &Server{
+	srv := &Server{
 		db:                db,
 		authService:       authService,
 		emailService:      emailService,
@@ -73,7 +71,7 @@ func main() {
 	}
 
 	// Setup HTTP router
-	router := server.setupRoutes()
+	router := srv.setupRoutes()
 
 	// Configure CORS - allow UI port dynamically
 	uiPort := os.Getenv("UI_PORT")
@@ -97,54 +95,22 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
-	// Create HTTP server
-	srv := &http.Server{
-		Addr:         ":" + port,
-		Handler:      handler,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
 	// Start real-time processor
-	if err := server.realtimeProcessor.Start(); err != nil {
+	if err := srv.realtimeProcessor.Start(); err != nil {
 		log.Printf("Warning: Real-time processor failed to start: %v", err)
 		// Continue running without real-time processing
 	}
 
-	// Start server in goroutine
-	go func() {
-		log.Printf("Email Triage API server starting on port %s", port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("Server failed to start:", err)
-		}
-	}()
-
-	// Wait for interrupt signal to gracefully shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	log.Println("Shutting down server...")
-
-	// Stop real-time processor
-	server.realtimeProcessor.Stop()
-
-	// Gracefully shutdown with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown:", err)
+	// Start server with graceful shutdown (port from API_PORT env var)
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			srv.realtimeProcessor.Stop()
+			return db.Close()
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	log.Println("Server exited")
 }
 
 func (s *Server) setupRoutes() *mux.Router {

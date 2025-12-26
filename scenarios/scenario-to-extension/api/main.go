@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"archive/zip"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -17,6 +17,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -307,12 +310,19 @@ func main() {
 	go buildCleanupWorker()
 
 	// Start server
-	log.Printf("scenario-to-extension API starting on port %d", config.Port)
+	log.Printf("scenario-to-extension API starting")
 	log.Printf("Templates path: %s", config.TemplatesPath)
 	log.Printf("Output path: %s", config.OutputPath)
 	log.Printf("Build management: max %d builds, cleanup every %ds, retention %ds", maxBuilds, buildCleanupInterval, completedBuildRetention)
 
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", config.Port), handler))
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 func loadConfig() *Config {

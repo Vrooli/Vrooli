@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -13,6 +11,10 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
@@ -570,30 +572,6 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
-	// Database configuration - support both POSTGRES_URL and individual components
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-	}
-
 	// Ollama URL - REQUIRED, no defaults
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
@@ -607,14 +585,13 @@ func main() {
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
-	defer db.Close()
 
-	server := &APIServer{
+	apiServer := &APIServer{
 		db:        db,
 		ollamaURL: ollamaURL,
 	}
 
-	if err := server.ensureStarterContent(context.Background()); err != nil {
+	if err := apiServer.ensureStarterContent(context.Background()); err != nil {
 		log.Printf("⚠️  Unable to ensure starter content: %v", err)
 	}
 
@@ -628,47 +605,56 @@ func main() {
 	)
 
 	// Health check
-	router.HandleFunc("/health", server.healthCheck).Methods("GET")
+	router.HandleFunc("/health", apiServer.healthCheck).Methods("GET")
 
 	// API routes
 	api := router.PathPrefix("/api").Subrouter()
 
 	// Games endpoints
-	api.HandleFunc("/games", server.getGames).Methods("GET")
-	api.HandleFunc("/games", server.createGame).Methods("POST")
-	api.HandleFunc("/games/{id}", server.getGame).Methods("GET")
-	api.HandleFunc("/games/{id}", server.updateGame).Methods("PUT")
-	api.HandleFunc("/games/{id}", server.deleteGame).Methods("DELETE")
-	api.HandleFunc("/games/{id}/play", server.recordPlay).Methods("POST")
-	api.HandleFunc("/games/{id}/remix", server.createRemix).Methods("POST")
+	api.HandleFunc("/games", apiServer.getGames).Methods("GET")
+	api.HandleFunc("/games", apiServer.createGame).Methods("POST")
+	api.HandleFunc("/games/{id}", apiServer.getGame).Methods("GET")
+	api.HandleFunc("/games/{id}", apiServer.updateGame).Methods("PUT")
+	api.HandleFunc("/games/{id}", apiServer.deleteGame).Methods("DELETE")
+	api.HandleFunc("/games/{id}/play", apiServer.recordPlay).Methods("POST")
+	api.HandleFunc("/games/{id}/remix", apiServer.createRemix).Methods("POST")
 
 	// Game generation
-	api.HandleFunc("/generate", server.generateGame).Methods("POST")
-	api.HandleFunc("/generate/status/{id}", server.getGenerationStatus).Methods("GET")
+	api.HandleFunc("/generate", apiServer.generateGame).Methods("POST")
+	api.HandleFunc("/generate/status/{id}", apiServer.getGenerationStatus).Methods("GET")
 
 	// High scores
-	api.HandleFunc("/games/{id}/scores", server.getHighScores).Methods("GET")
-	api.HandleFunc("/games/{id}/scores", server.submitScore).Methods("POST")
+	api.HandleFunc("/games/{id}/scores", apiServer.getHighScores).Methods("GET")
+	api.HandleFunc("/games/{id}/scores", apiServer.submitScore).Methods("POST")
 
 	// Search and discovery
-	api.HandleFunc("/search/games", server.searchGames).Methods("GET")
-	api.HandleFunc("/featured", server.getFeaturedGames).Methods("GET")
-	api.HandleFunc("/trending", server.getTrendingGames).Methods("GET")
+	api.HandleFunc("/search/games", apiServer.searchGames).Methods("GET")
+	api.HandleFunc("/featured", apiServer.getFeaturedGames).Methods("GET")
+	api.HandleFunc("/trending", apiServer.getTrendingGames).Methods("GET")
 
 	// Template and prompt management
-	api.HandleFunc("/templates", server.getPromptTemplates).Methods("GET")
-	api.HandleFunc("/templates/{id}", server.getPromptTemplate).Methods("GET")
+	api.HandleFunc("/templates", apiServer.getPromptTemplates).Methods("GET")
+	api.HandleFunc("/templates/{id}", apiServer.getPromptTemplate).Methods("GET")
 
 	// Users (basic endpoints)
-	api.HandleFunc("/users", server.createUser).Methods("POST")
-	api.HandleFunc("/users/{id}", server.getUser).Methods("GET")
+	api.HandleFunc("/users", apiServer.createUser).Methods("POST")
+	api.HandleFunc("/users/{id}", apiServer.getUser).Methods("GET")
 
-	log.Printf("🚀 Retro Game Launcher API starting on port %s", port)
-	log.Printf("🎮 Database: %s", postgresURL)
+	log.Printf("🚀 Retro Game Launcher API starting")
 	log.Printf("🧠 Ollama: %s", ollamaURL)
 
 	handler := corsHandler(router)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
 // getEnv removed to prevent hardcoded defaults

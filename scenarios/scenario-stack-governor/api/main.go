@@ -1,19 +1,15 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
-	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Config holds runtime configuration.
@@ -71,41 +67,9 @@ func (s *Server) setupRoutes() {
 	s.router.Handle("/api/v1/run", cors(http.HandlerFunc(s.handleRunRules))).Methods("POST", "OPTIONS")
 }
 
-// Start launches the HTTP server with graceful shutdown
-func (s *Server) Start() error {
-	s.log("starting server", map[string]interface{}{
-		"service": "scenario-stack-governor-api",
-		"port":    s.config.Port,
-	})
-
-	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%s", s.config.Port),
-		Handler:      handlers.RecoveryHandler()(s.router),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			s.log("server startup failed", map[string]interface{}{"error": err.Error()})
-			log.Fatal(err)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := httpServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
-	}
-
-	s.log("server stopped", nil)
-	return nil
+// Router returns the HTTP handler for use with server.Run
+func (s *Server) Router() http.Handler {
+	return handlers.RecoveryHandler()(s.router)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -156,12 +120,14 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	server, err := NewServer()
+	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)
 	}
 
-	if err := server.Start(); err != nil {
+	if err := server.Run(server.Config{
+		Handler: srv.Router(),
+	}); err != nil {
 		log.Fatalf("server stopped with error: %v", err)
 	}
 }

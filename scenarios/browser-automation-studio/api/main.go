@@ -3,19 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -104,7 +102,6 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to connect to database")
 	}
-	defer db.Close()
 
 	// Initialize repository
 	repo := database.NewRepository(db, log)
@@ -183,11 +180,6 @@ func main() {
 	}
 	recoverCancel()
 
-	// Get port configuration - required from lifecycle system
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
 
 	// Setup router
 	r := chi.NewRouter()
@@ -387,87 +379,34 @@ func main() {
 		corsPolicy = strings.Join(corsCfg.AllowedOrigins, ",")
 	}
 
-	// Check if port is available before attempting to bind
-	if err := checkPortAvailable(port); err != nil {
-		log.WithFields(logrus.Fields{
-			"port":  port,
-			"error": err.Error(),
-		}).Fatal("❌ Port unavailable - another process may be using it")
-	}
-
 	log.WithFields(logrus.Fields{
-		"api_port":    port,
 		"api_host":    apiHost,
 		"cors_policy": corsPolicy,
 	}).Info("🚀 Vrooli Ascension API starting")
-	log.WithField("endpoint", fmt.Sprintf("http://%s:%s/api/v1", apiHost, port)).Info("📊 API endpoint ready")
 
-	// Create HTTP server with proper shutdown support
-	srv := &http.Server{
-		Addr:         ":" + port,
+	// Start server with graceful shutdown
+	// WriteTimeout is extended to allow long-running automation requests
+	if err := server.Run(server.Config{
 		Handler:      r,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: globalRequestTimeout + 30*time.Second, // Allow extra time beyond request timeout
-		IdleTimeout:  120 * time.Second,
-	}
-
-	// Channel to listen for shutdown signals
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
-
-	// Start server in a goroutine
-	serverErr := make(chan error, 1)
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			serverErr <- err
-		}
-	}()
-
-	// Wait for shutdown signal or server error
-	select {
-	case err := <-serverErr:
-		log.WithError(err).Fatal("❌ Server failed to start")
-	case sig := <-shutdown:
-		log.WithField("signal", sig.String()).Info("⚠️  Shutdown signal received, gracefully stopping...")
-
-		// Create a context with timeout for graceful shutdown
-		// This allows in-flight requests up to 30 seconds to complete
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		// Stop the scheduler first to prevent new executions
-		if schedulerSvc != nil {
-			log.Info("Stopping scheduler...")
-			if err := schedulerSvc.Stop(); err != nil {
-				log.WithError(err).Error("Failed to stop scheduler cleanly")
+		WriteTimeout: globalRequestTimeout + 30*time.Second,
+		Cleanup: func(ctx context.Context) error {
+			// Stop the scheduler first to prevent new executions
+			if schedulerSvc != nil {
+				log.Info("Stopping scheduler...")
+				if err := schedulerSvc.Stop(); err != nil {
+					log.WithError(err).Error("Failed to stop scheduler cleanly")
+				}
 			}
-		}
-
-		// Stop accepting new connections and wait for in-flight requests
-		log.Info("Stopping HTTP server...")
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			log.WithError(err).Error("HTTP server shutdown error")
-		}
-
-		// Note: WebSocket hub goroutine will terminate when process exits.
-		// Clients are disconnected when the HTTP server shuts down.
-
-		log.Info("✅ Server stopped gracefully")
+			// Close database connection
+			if db != nil {
+				db.Close()
+			}
+			log.Info("✅ Server stopped gracefully")
+			return nil
+		},
+	}); err != nil {
+		log.WithError(err).Fatal("Server error")
 	}
-}
-
-// checkPortAvailable verifies a port is not already in use before binding.
-// Returns nil if port is available, error if port is in use or check fails.
-func checkPortAvailable(port string) error {
-	addr := "127.0.0.1:" + port
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		// Port is in use or some other error
-		return fmt.Errorf("port %s is unavailable: %w (hint: check if another instance is running with 'lsof -i :%s' or 'ss -tlnp | grep %s')", port, err, port, port)
-	}
-	// Successfully bound, port is available - close immediately so actual server can bind
-	listener.Close()
-	return nil
 }
 
 // performStartupHealthCheck validates critical dependencies are available before accepting requests.

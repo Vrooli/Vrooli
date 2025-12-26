@@ -1,12 +1,9 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +11,9 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // App represents the application context
@@ -32,25 +32,14 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = os.Getenv("PORT") // Fallback to PORT
-		if port == "" {
-			log.Fatal("❌ API_PORT or PORT environment variable is required")
-		}
-	}
-
 	// Initialize database
 	db, err := initDB()
 	if err != nil {
-		log.Fatal("Failed to initialize database:", err)
+		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer db.Close()
 
 	// Initialize Redis
 	redisClient := initRedis()
-	defer redisClient.Close()
 
 	// Ollama URL - REQUIRED, no defaults
 	ollamaURL := os.Getenv("OLLAMA_URL")
@@ -101,12 +90,15 @@ func main() {
 	// Dashboard
 	mux.HandleFunc("/api/dashboard", corsMiddleware(app.dashboardHandler))
 
-	fmt.Printf("Product Manager API server starting on port %s\n", port)
-	fmt.Printf("Ollama URL: %s\n", app.OllamaURL)
-	fmt.Printf("Database connected\n")
-
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
-		log.Fatal(err)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: mux,
+		Cleanup: func(ctx context.Context) error {
+			redisClient.Close()
+			return db.Close()
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

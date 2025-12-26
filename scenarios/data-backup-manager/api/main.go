@@ -2,11 +2,12 @@ package main
 
 import (
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -340,14 +341,6 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Get port from environment with fallback for development
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		// Use a default port in the reserved range for data-backup-manager
-		port = "20010"
-		log.Printf("⚠️  API_PORT not set, using default port %s", port)
-	}
-
 	// Initialize backup manager
 	var err error
 	backupManager, err = NewBackupManager()
@@ -417,12 +410,17 @@ func main() {
 
 	handler := c.Handler(r)
 
-	log.Printf("Data Backup Manager API starting on port %s", port)
-	log.Printf("Health check: http://localhost:%s/health", port)
-	log.Printf("API documentation: http://localhost:%s/api/v1", port)
-
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
+	log.Println("Data Backup Manager API starting...")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if backupManager != nil && backupManager.db != nil {
+				return backupManager.db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

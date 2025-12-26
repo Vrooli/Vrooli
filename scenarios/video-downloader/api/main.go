@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -12,8 +10,12 @@ import (
 	"os"
 	"strconv"
 
-	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 )
 
@@ -565,10 +567,9 @@ func main() {
 	}
 
 	initDB()
-	defer db.Close()
 
 	router := mux.NewRouter()
-	
+
 	// API routes
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 	router.HandleFunc("/api/download", createDownloadHandler).Methods("POST")
@@ -577,7 +578,7 @@ func main() {
 	router.HandleFunc("/api/history", getHistoryHandler).Methods("GET")
 	router.HandleFunc("/api/download/{id}", deleteDownloadHandler).Methods("DELETE")
 	router.HandleFunc("/api/analyze", analyzeURLHandler).Methods("POST")
-	
+
 	// Enhanced transcript API routes
 	router.HandleFunc("/api/transcript/{download_id}", getTranscriptHandler).Methods("GET")
 	router.HandleFunc("/api/transcript/{download_id}/search", searchTranscriptHandler).Methods("POST")
@@ -592,16 +593,16 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
-	log.Printf("Video Downloader API starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
-
-// getEnv function removed - no hardcoded defaults for configuration

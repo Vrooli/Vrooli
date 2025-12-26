@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Configuration
@@ -3945,13 +3946,13 @@ func main() {
 	recoveryMiddleware := RecoveryMiddleware(errorHandler)
 	middlewareChain := recoveryMiddleware(rateLimiter.Middleware(handlers.LoggingHandler(os.Stdout, corsHandler.Handler(router))))
 
-	// Start server
-	address := ":" + config.Port
-	log.Printf("Calendar API server starting on port %s", config.Port)
-	log.Printf("Health check: http://localhost:%s/health", config.Port)
-
-	if err := http.ListenAndServe(address, middlewareChain); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Port:    config.Port,
+		Handler: middlewareChain,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

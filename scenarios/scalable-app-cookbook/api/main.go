@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -12,6 +10,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -122,7 +124,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
-	defer db.Close()
 
 	if _, err := db.Exec(`SET search_path TO scalable_app_cookbook, public`); err != nil {
 		log.Printf("Search path configuration warning: %v", err)
@@ -167,14 +168,18 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Get port from environment or use default
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		port = "3300"
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	log.Printf("Scalable App Cookbook API starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

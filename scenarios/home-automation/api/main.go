@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -14,6 +12,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -78,8 +80,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
-	defer app.DB.Close()
-
 	// Configure connection pool
 	app.DB.SetMaxOpenConns(25)
 	app.DB.SetMaxIdleConns(5)
@@ -178,13 +178,18 @@ func main() {
 
 	handler := c.Handler(router)
 
-	// Start server - Port must be explicitly configured
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
+	log.Printf("Home Automation API server starting")
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			if app.DB != nil {
+				return app.DB.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-	log.Printf("Home Automation API server starting on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
 func (app *App) HealthCheck(w http.ResponseWriter, r *http.Request) {

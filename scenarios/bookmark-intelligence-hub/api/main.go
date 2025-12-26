@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -10,14 +8,15 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Configuration
@@ -31,10 +30,9 @@ type Config struct {
 
 // Server represents the API server
 type Server struct {
-	config     *Config
-	db         *sql.DB
-	router     *mux.Router
-	httpServer *http.Server
+	config *Config
+	db     *sql.DB
+	router *mux.Router
 }
 
 // Response structures
@@ -83,29 +81,18 @@ func main() {
 	}
 
 	// Create server
-	server, err := NewServer(config)
+	srv, err := NewServer(config)
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
-	defer server.Close()
 
-	// Setup graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Handle shutdown signals
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigChan
-		log.Println("Received shutdown signal, shutting down gracefully...")
-		cancel()
-	}()
-
-	// Start server
+	// Start server with graceful shutdown
 	log.Printf("🔖 Bookmark Intelligence Hub API starting on port %d", config.Port)
-	if err := server.Start(ctx); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	if err := server.Run(server.Config{
+		Handler: srv.router,
+		Cleanup: func(ctx context.Context) error { return srv.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 
@@ -185,34 +172,6 @@ func (s *Server) setupRoutes() {
 	s.router.Use(c.Handler)
 	s.router.Use(s.loggingMiddleware)
 	s.router.Use(s.authMiddleware)
-}
-
-// Start starts the HTTP server
-func (s *Server) Start(ctx context.Context) error {
-	s.httpServer = &http.Server{
-		Addr:    fmt.Sprintf(":%d", s.config.Port),
-		Handler: s.router,
-	}
-
-	// Start server in a goroutine
-	serverError := make(chan error, 1)
-	go func() {
-		serverError <- s.httpServer.ListenAndServe()
-	}()
-
-	// Wait for context cancellation or server error
-	select {
-	case <-ctx.Done():
-		// Graceful shutdown
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		return s.httpServer.Shutdown(shutdownCtx)
-	case err := <-serverError:
-		if err != http.ErrServerClosed {
-			return err
-		}
-		return nil
-	}
 }
 
 // Close cleans up server resources

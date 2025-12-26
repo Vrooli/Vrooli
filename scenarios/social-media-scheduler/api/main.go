@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"flag"
@@ -20,6 +18,9 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Configuration holds all app configuration
@@ -83,16 +84,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
-	defer app.cleanup()
 
-	// Set up graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Handle shutdown signals
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-
+	// Set up graceful shutdown context for job processor
+	jobCtx, jobCancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
 	// Start job processor if needed
@@ -101,53 +95,38 @@ func main() {
 		go func() {
 			defer wg.Done()
 			log.Println("🔄 Starting job processor...")
-			app.JobProcessor.Start(ctx)
+			app.JobProcessor.Start(jobCtx)
 		}()
 	}
 
 	// Start HTTP server if needed
 	if config.Mode == "server" || config.Mode == "both" {
-		server := &http.Server{
-			Addr:    ":" + config.APIPort,
+		if err := server.Run(server.Config{
 			Handler: app.Router,
+			Cleanup: func(ctx context.Context) error {
+				// Cancel job processor context
+				jobCancel()
+				// Wait for job processor to finish
+				wg.Wait()
+				// Cleanup app resources
+				app.cleanup()
+				log.Println("✅ Shutdown complete")
+				return nil
+			},
+		}); err != nil {
+			log.Fatalf("Server error: %v", err)
 		}
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			log.Printf("🚀 Starting API server on port %s", config.APIPort)
-			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				log.Printf("Server error: %v", err)
-			}
-		}()
-
-		// Handle shutdown
-		go func() {
-			<-signalChan
-			log.Println("📴 Shutting down gracefully...")
-			
-			cancel() // Cancel context for job processor
-			
-			// Shutdown HTTP server
-			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer shutdownCancel()
-			
-			if err := server.Shutdown(shutdownCtx); err != nil {
-				log.Printf("Server shutdown error: %v", err)
-			}
-		}()
 	} else {
-		// Worker-only mode, just wait for signal
-		go func() {
-			<-signalChan
-			log.Println("📴 Shutting down job processor...")
-			cancel()
-		}()
+		// Worker-only mode - wait for signal manually
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+		<-signalChan
+		log.Println("📴 Shutting down job processor...")
+		jobCancel()
+		wg.Wait()
+		app.cleanup()
+		log.Println("✅ Shutdown complete")
 	}
-
-	// Wait for all goroutines to finish
-	wg.Wait()
-	log.Println("✅ Shutdown complete")
 }
 
 func loadConfiguration() *Configuration {

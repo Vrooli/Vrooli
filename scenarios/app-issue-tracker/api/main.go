@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/vrooli/api-core/preflight"
-	"fmt"
-	"net/http"
+	"github.com/vrooli/api-core/server"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,10 +101,6 @@ func main() {
 	}
 
 	config := loadConfig()
-	if strings.TrimSpace(config.Port) == "" {
-		logging.LogError("API_PORT (or PORT) must be configured before starting the server")
-		os.Exit(1)
-	}
 
 	srv, handler, err := serverpkg.NewServer(config)
 	if err != nil {
@@ -113,16 +109,21 @@ func main() {
 	}
 
 	srv.Start()
-	defer srv.Stop()
 
-	logging.LogInfo("Starting App Issue Tracker API", "port", config.Port)
-	logging.LogInfo("API health endpoint configured", "url", fmt.Sprintf("http://localhost:%s/health", config.Port))
-	logging.LogInfo("API base URL", "url", fmt.Sprintf("http://localhost:%s/api/v1", config.Port))
+	logging.LogInfo("Starting App Issue Tracker API...")
+	logging.LogInfo("API health endpoint configured", "url", "/health")
+	logging.LogInfo("API base URL", "url", "/api/v1")
 	logging.LogInfo("Scenario configuration", "issues_dir", config.IssuesDir, "scenario_root", config.ScenarioRoot)
 	logging.LogInfo("Processor loop state", "active", false)
 
-	if err := http.ListenAndServe(":"+config.Port, handler); err != nil {
-		logging.LogErrorErr("Server failed to start", err, "port", config.Port)
+	if err := server.Run(server.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			srv.Stop()
+			return nil
+		},
+	}); err != nil {
+		logging.LogErrorErr("Server failed to start", err)
 		os.Exit(1)
 	}
 }

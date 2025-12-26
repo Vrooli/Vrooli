@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
 	"database/sql"
@@ -18,6 +16,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -959,14 +960,7 @@ func main() {
 	}
 
 	logger := NewLogger()
-	
-	// Load configuration - REQUIRED environment variables, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		logger.Error("❌ API_PORT environment variable is required", nil)
-		os.Exit(1)
-	}
-	
+
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
 	windmillPort := getResourcePort("windmill")
@@ -991,20 +985,15 @@ func main() {
 	
 	// Connect to database
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver:       database.DriverPostgres,
+		MaxOpenConns: maxDBConnections,
+		MaxIdleConns: maxIdleConnections,
 	})
 	if err != nil {
-		logger.Error("Database connection failed", err)
-		os.Exit(1)
+		log.Fatalf("Database connection failed: %v", err)
 	}
-	defer db.Close()
 
-	// Configure connection pool
-	db.SetMaxOpenConns(maxDBConnections)
-	db.SetMaxIdleConns(maxIdleConnections)
-	db.SetConnMaxLifetime(connMaxLifetime)
-
-	logger.Info("🎉 Database connection pool established successfully!")
+	logger.Info("Database connection pool established successfully!")
 	
 	// Initialize metareasoning engine
 	metareasoningEngine := NewMetareasoningEngine(db)
@@ -1067,18 +1056,12 @@ func main() {
 		handleReasoningResult(w, r, db)
 	}).Methods("GET")
 	
-	// Start server
-	log.Printf("Starting Metareasoning Coordinator API on port %s", port)
-	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  Windmill URL: %s", windmillURL)
-	log.Printf("  Qdrant URL: %s", qdrantURL)
-
-	serverLogger := NewLogger()
-	serverLogger.Info(fmt.Sprintf("Server starting on port %s", port))
-	
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		serverLogger.Error("Server failed", err)
-		os.Exit(1)
+	// Start server with graceful shutdown
+	if err := server.Run(server.Config{
+		Handler: r,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
 

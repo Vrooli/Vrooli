@@ -1,22 +1,18 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
-	"context"
-	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"sync"
-	"syscall"
-	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"scenario-to-desktop-api/signing"
 )
@@ -149,52 +145,13 @@ func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 }
 
-// Start starts the server
-func (s *Server) Start() error {
-	s.logger.Info("starting server",
+// Router returns the HTTP handler for use with server.Run
+func (s *Server) Router() http.Handler {
+	s.logger.Info("initializing server",
 		"service", "scenario-to-desktop-api",
 		"port", s.port,
 		"endpoints", []string{"/api/v1/health", "/api/v1/status", "/api/v1/desktop/generate"})
-
-	// Setup graceful shutdown
-	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", s.port),
-		Handler:      handlers.RecoveryHandler()(s.router),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	// Start server in goroutine
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			s.logger.Error("server startup failed", "error", err)
-			log.Fatal(err)
-		}
-	}()
-
-	s.logger.Info("server started successfully",
-		"url", fmt.Sprintf("http://localhost:%d", s.port),
-		"health_endpoint", fmt.Sprintf("http://localhost:%d/api/v1/health", s.port),
-		"status_endpoint", fmt.Sprintf("http://localhost:%d/api/v1/status", s.port))
-
-	// Wait for interrupt signal
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	s.logger.Info("shutdown signal received", "timeout", "10s")
-
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
-	}
-
-	s.logger.Info("server stopped successfully")
-	return nil
+	return handlers.RecoveryHandler()(s.router)
 }
 
 // Main function
@@ -237,9 +194,14 @@ func main() {
 			"default_port", port)
 	}
 
-	// Create and start server
-	server := NewServer(port)
-	if err := server.Start(); err != nil {
+	// Create server
+	srv := NewServer(port)
+
+	// Start with graceful shutdown via api-core
+	if err := server.Run(server.Config{
+		Handler: srv.Router(),
+		Port:    strconv.Itoa(port),
+	}); err != nil {
 		globalLogger.Error("server failed", "error", err)
 		log.Fatal(err)
 	}

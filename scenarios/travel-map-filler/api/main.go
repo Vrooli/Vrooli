@@ -1,18 +1,19 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	_ "github.com/lib/pq"
 )
@@ -551,17 +552,10 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-
 	// Initialize database connection
 	if err := initDB(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer db.Close()
 
 	// API routes
 	http.HandleFunc("/health", healthHandler)
@@ -572,6 +566,15 @@ func main() {
 	http.HandleFunc("/api/add-travel", addTravelHandler)
 	http.HandleFunc("/api/travels/search", searchTravelsHandler)
 
-	fmt.Printf("🗺️ Travel Map API running on port %s\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	fmt.Println("🗺️ Travel Map API starting")
+	if err := server.Run(server.Config{
+		Cleanup: func(ctx context.Context) error {
+			if db != nil {
+				return db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }

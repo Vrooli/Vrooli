@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"fmt"
@@ -10,6 +8,10 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -131,34 +133,27 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Get port from environment - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable must be set")
-	}
-
-	server, err := NewApiServer()
+	apiServer, err := NewApiServer()
 	if err != nil {
 		log.Fatalf("Failed to initialize server: %v", err)
 	}
-	defer server.db.Close()
 
 	r := mux.NewRouter()
 
 	// API routes - all under /api prefix for consistency
 	api := r.PathPrefix("/api").Subrouter()
-	api.HandleFunc("/ideas/generate", server.generateIdeasHandler).Methods("POST")
-	api.HandleFunc("/ideas", server.ideasHandler).Methods("GET", "POST")
-	api.HandleFunc("/ideas/refine", server.refineIdeaHandler).Methods("POST")
-	api.HandleFunc("/campaigns", server.campaignsHandler).Methods("GET", "POST")
-	api.HandleFunc("/campaigns/{id}", server.campaignByIDHandler).Methods("GET", "DELETE")
-	api.HandleFunc("/search", server.searchHandler).Methods("POST")
-	api.HandleFunc("/documents/process", server.processDocumentHandler).Methods("POST")
-	api.HandleFunc("/workflows", server.workflowsHandler).Methods("GET")
+	api.HandleFunc("/ideas/generate", apiServer.generateIdeasHandler).Methods("POST")
+	api.HandleFunc("/ideas", apiServer.ideasHandler).Methods("GET", "POST")
+	api.HandleFunc("/ideas/refine", apiServer.refineIdeaHandler).Methods("POST")
+	api.HandleFunc("/campaigns", apiServer.campaignsHandler).Methods("GET", "POST")
+	api.HandleFunc("/campaigns/{id}", apiServer.campaignByIDHandler).Methods("GET", "DELETE")
+	api.HandleFunc("/search", apiServer.searchHandler).Methods("POST")
+	api.HandleFunc("/documents/process", apiServer.processDocumentHandler).Methods("POST")
+	api.HandleFunc("/workflows", apiServer.workflowsHandler).Methods("GET")
 
 	// Health and status endpoints at root for standard compliance
-	r.HandleFunc("/health", server.healthHandler).Methods("GET")
-	r.HandleFunc("/status", server.statusHandler).Methods("GET")
+	r.HandleFunc("/health", apiServer.healthHandler).Methods("GET")
+	r.HandleFunc("/status", apiServer.statusHandler).Methods("GET")
 
 	// Enable CORS
 	corsHandler := handlers.CORS(
@@ -167,13 +162,23 @@ func main() {
 		handlers.AllowedHeaders([]string{"*"}),
 	)(r)
 
-	log.Printf("Idea Generator API server starting on port %s", port)
+	log.Printf("Idea Generator API server starting")
 	log.Printf("Services:")
 	log.Printf("  Database: Connected")
-	log.Printf("  Qdrant: %s", server.qdrantURL)
-	log.Printf("  MinIO: %s", server.minioURL)
-	log.Printf("  Ollama: %s", server.ollamaURL)
-	log.Printf("  Unstructured: %s", server.unstructuredURL)
+	log.Printf("  Qdrant: %s", apiServer.qdrantURL)
+	log.Printf("  MinIO: %s", apiServer.minioURL)
+	log.Printf("  Ollama: %s", apiServer.ollamaURL)
+	log.Printf("  Unstructured: %s", apiServer.unstructuredURL)
 
-	log.Fatal(http.ListenAndServe(":"+port, corsHandler))
+	if err := server.Run(server.Config{
+		Handler: corsHandler,
+		Cleanup: func(ctx context.Context) error {
+			if apiServer.db != nil {
+				return apiServer.db.Close()
+			}
+			return nil
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
