@@ -86,10 +86,11 @@ type Handler struct {
 	seedCleanupManager *testgenie.SeedCleanupManager
 
 	// AI subhandlers
-	screenshotHandler      *aihandlers.ScreenshotHandler
-	domHandler             *aihandlers.DOMHandler
-	elementAnalysisHandler *aihandlers.ElementAnalysisHandler
-	aiAnalysisHandler      *aihandlers.AIAnalysisHandler
+	screenshotHandler        *aihandlers.ScreenshotHandler
+	domHandler               *aihandlers.DOMHandler
+	elementAnalysisHandler   *aihandlers.ElementAnalysisHandler
+	aiAnalysisHandler        *aihandlers.AIAnalysisHandler
+	visionNavigationHandler  *aihandlers.VisionNavigationHandler
 
 	// Entitlement service for tier-based feature gating
 	entitlementService *entitlement.Service
@@ -309,6 +310,15 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	handler.elementAnalysisHandler = aihandlers.NewElementAnalysisHandler(log)
 	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler)
 
+	// Initialize vision navigation handler with optional entitlement/credits
+	visionNavOpts := []aihandlers.VisionNavigationHandlerOption{
+		aihandlers.WithVisionNavigationHub(wsHub),
+	}
+	if deps.EntitlementService != nil {
+		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationEntitlement(deps.EntitlementService, deps.AICreditsTracker))
+	}
+	handler.visionNavigationHandler = aihandlers.NewVisionNavigationHandler(log, visionNavOpts...)
+
 	return handler
 }
 
@@ -375,4 +385,26 @@ func (h *Handler) GetElementAtCoordinate(w http.ResponseWriter, r *http.Request)
 // AIAnalyzeElements delegates to the AI analysis handler
 func (h *Handler) AIAnalyzeElements(w http.ResponseWriter, r *http.Request) {
 	h.aiAnalysisHandler.AIAnalyzeElements(w, r)
+}
+
+// Vision Navigation delegation methods
+
+// AINavigate delegates to the vision navigation handler
+func (h *Handler) AINavigate(w http.ResponseWriter, r *http.Request) {
+	h.visionNavigationHandler.HandleAINavigate(w, r)
+}
+
+// AINavigateCallback delegates to the vision navigation handler
+func (h *Handler) AINavigateCallback(w http.ResponseWriter, r *http.Request) {
+	h.visionNavigationHandler.HandleAINavigateCallback(w, r)
+}
+
+// AINavigateStatus delegates to the vision navigation handler
+func (h *Handler) AINavigateStatus(w http.ResponseWriter, r *http.Request) {
+	h.visionNavigationHandler.HandleAINavigateStatus(w, r)
+}
+
+// AINavigateAbort delegates to the vision navigation handler
+func (h *Handler) AINavigateAbort(w http.ResponseWriter, r *http.Request) {
+	h.visionNavigationHandler.HandleAINavigateAbort(w, r)
 }

@@ -39,6 +39,8 @@ interface RecordActionsPanelProps {
   onActionClick: (index: number, shiftKey: boolean, ctrlKey: boolean) => void;
   onSelectAll: () => void;
   onSelectNone: () => void;
+  /** Callback to switch to AI navigation mode */
+  onAINavigation?: () => void;
 }
 
 export function RecordActionsPanel({
@@ -71,6 +73,7 @@ export function RecordActionsPanel({
   onActionClick,
   onSelectAll,
   onSelectNone,
+  onAINavigation,
 }: RecordActionsPanelProps) {
   // Use unified timeline items if provided, otherwise fall back to actions count
   const itemCount = itemCountOverride ?? timelineItems?.length ?? actions.length;
@@ -291,36 +294,54 @@ export function RecordActionsPanel({
         )}
       </div>
 
-      {/* Footer: Create Workflow button when actions exist (recording mode only) */}
-      {mode === 'recording' && itemCount > 0 && (
-        <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-          <button
-            onClick={onCreateWorkflow}
-            disabled={isReplaying || isLoading || (isSelectionMode && selectionCount === 0)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isSelectionMode && selectionCount > 0 ? (
-              <>
-                Create Workflow ({selectionCount} steps)
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </>
-            ) : isSelectionMode ? (
-              'Select steps to create workflow'
-            ) : (
-              <>
-                Create Workflow
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </>
-            )}
-          </button>
-          {!isSelectionMode && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
-              Use <span className="font-medium">Select</span> to choose specific steps
-            </p>
+      {/* Footer: Action buttons (recording mode only) */}
+      {mode === 'recording' && (
+        <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 space-y-2">
+          {/* AI Navigation button */}
+          {onAINavigation && (
+            <button
+              onClick={onAINavigation}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-500 rounded-lg hover:bg-purple-600 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              AI Navigation
+            </button>
+          )}
+
+          {/* Create Workflow button when actions exist */}
+          {itemCount > 0 && (
+            <>
+              <button
+                onClick={onCreateWorkflow}
+                disabled={isReplaying || isLoading || (isSelectionMode && selectionCount === 0)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isSelectionMode && selectionCount > 0 ? (
+                  <>
+                    Create Workflow ({selectionCount} steps)
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </>
+                ) : isSelectionMode ? (
+                  'Select steps to create workflow'
+                ) : (
+                  <>
+                    Create Workflow
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </>
+                )}
+              </button>
+              {!isSelectionMode && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                  Use <span className="font-medium">Select</span> to choose specific steps
+                </p>
+              )}
+            </>
           )}
         </div>
       )}

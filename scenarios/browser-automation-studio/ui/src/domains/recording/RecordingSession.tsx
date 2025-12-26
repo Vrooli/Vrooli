@@ -39,6 +39,7 @@ import { recordedActionToTimelineItem } from './types/timeline-unified';
 import { getConfig } from '@/config';
 import type { StreamSettingsValues } from './capture/StreamSettings';
 import type { TimelineMode } from './types/timeline-unified';
+import { AINavigationView } from './ai-navigation';
 
 interface RecordModePageProps {
   /** Browser session ID */
@@ -56,7 +57,7 @@ interface RecordModePageProps {
 }
 
 /** Right panel view state */
-type RightPanelView = 'preview' | 'create-workflow';
+type RightPanelView = 'preview' | 'create-workflow' | 'ai-navigation';
 
 export function RecordModePage({
   sessionId: initialSessionId,
@@ -403,6 +404,11 @@ export function RecordModePage({
     setRightPanelView('preview');
   }, []);
 
+  // Navigate to AI navigation mode
+  const handleAINavigation = useCallback(() => {
+    setRightPanelView('ai-navigation');
+  }, []);
+
   // Test selected actions
   const handleTestSelectedActions = useCallback(
     async (actionIndices: number[]): Promise<ReplayPreviewResponse> => {
@@ -563,11 +569,12 @@ export function RecordModePage({
             onActionClick={handleActionClick}
             onSelectAll={selectAll}
             onSelectNone={selectNone}
+            onAINavigation={handleAINavigation}
           />
         )}
 
         <div className="flex-1 h-full">
-          {rightPanelView === 'preview' ? (
+          {rightPanelView === 'preview' && (
             <RecordPreviewPanel
               previewUrl={previewUrl}
               sessionId={sessionId}
@@ -576,7 +583,8 @@ export function RecordModePage({
               onStreamSettingsChange={setStreamSettings}
               actions={actions}
             />
-          ) : (
+          )}
+          {rightPanelView === 'create-workflow' && (
             <WorkflowCreationForm
               actions={actions}
               selectedIndices={selectedIndicesArray}
@@ -589,6 +597,15 @@ export function RecordModePage({
               onGenerate={handleGenerateFromSelection}
               lowConfidenceCount={lowConfidenceCount}
               mediumConfidenceCount={mediumConfidenceCount}
+            />
+          )}
+          {rightPanelView === 'ai-navigation' && (
+            <AINavigationView
+              sessionId={sessionId}
+              previewUrl={previewUrl}
+              onPreviewUrlChange={setPreviewUrl}
+              actions={actions}
+              streamSettings={streamSettings ?? undefined}
             />
           )}
         </div>

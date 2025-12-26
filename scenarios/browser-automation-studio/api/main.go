@@ -289,6 +289,14 @@ func main() {
 		// AI-powered element analysis route using Ollama text models with DOM
 		r.Post("/ai-analyze-elements", handler.AIAnalyzeElements)
 
+		// AI Vision Navigation routes
+		r.Post("/ai-navigate", handler.AINavigate)
+		r.Get("/ai-navigate/{navigationId}/status", handler.AINavigateStatus)
+		r.Post("/ai-navigate/{navigationId}/abort", handler.AINavigateAbort)
+
+		// Internal callback route for playwright-driver step events
+		r.Post("/internal/ai-navigate/callback", handler.AINavigateCallback)
+
 		// Recording ingestion and asset serving
 		r.Post("/recordings/import", handler.ImportRecording)
 		r.Get("/recordings/assets/{executionID}/*", handler.ServeRecordingAsset)

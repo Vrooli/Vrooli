@@ -342,6 +342,20 @@ function setupRoutes(
     await routes.handleStreamSettings(req, res, params.id, sessionManager, config);
   });
 
+  // AI Navigation
+  router.post('/session/:id/ai-navigate', async (req, res, params) => {
+    await routes.handleSessionAINavigate(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/ai-navigate/abort', async (req, res, params) => {
+    await routes.handleSessionAINavigateAbort(req, res, params.id, sessionManager, config);
+  });
+  router.get('/session/:id/ai-navigate/status', async (req, res, params) => {
+    await routes.handleSessionAINavigateStatus(req, res, params.id, sessionManager, config);
+  });
+  router.get('/ai/models', async (req, res) => {
+    await routes.handleListAIModels(req, res);
+  });
+
   return router;
 }
 

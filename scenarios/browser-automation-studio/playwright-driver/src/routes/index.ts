@@ -38,3 +38,4 @@ export * from './session-reset';
 export * from './session-close';
 export * from './session-storage';
 export * from './record-mode/index';
+export * from './session-ai-navigate';
