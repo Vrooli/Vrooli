@@ -342,12 +342,28 @@ export async function autoNameChat(chatId: string): Promise<Chat> {
 }
 
 // Models
+export interface ModelPricing {
+  prompt: number;
+  completion: number;
+  request?: number;
+  image?: number;
+}
+
+export interface ModelArchitecture {
+  modality?: string;
+  input?: string[];
+  output?: string[];
+}
+
 export interface Model {
   id: string;
   name: string;
   description?: string;
   provider?: string;
   context_length?: number;
+  max_completion_tokens?: number;
+  pricing?: ModelPricing;
+  architecture?: ModelArchitecture;
 }
 
 export async function fetchModels(): Promise<Model[]> {

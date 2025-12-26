@@ -140,26 +140,13 @@ func (s *Server) WidgetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(embedCode))
 }
 
-// Start starts the HTTP server
-func (s *Server) Start() error {
-	addr := ":" + s.config.APIPort
-	s.logger.Printf("🚀 Server starting on port %s", s.config.APIPort)
-	s.logger.Printf("📊 Health check: http://localhost:%s/health", s.config.APIPort)
-	s.logger.Printf("🤖 Ollama URL: %s", s.config.OllamaURL)
-
-	server := &http.Server{
-		Addr:         addr,
-		Handler:      s.router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	return server.ListenAndServe()
+// Router returns the HTTP handler for use with server.Run
+func (s *Server) Router() http.Handler {
+	return s.router
 }
 
-// Shutdown gracefully shuts down the server
-func (s *Server) Shutdown() error {
+// Cleanup releases resources when the server shuts down
+func (s *Server) Cleanup() error {
 	s.logger.Println("Shutting down server...")
 	if s.db != nil {
 		return s.db.Close()

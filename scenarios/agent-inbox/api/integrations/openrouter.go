@@ -78,19 +78,30 @@ type ToolDefinition struct {
 
 // ModelInfo contains information about an available model.
 type ModelInfo struct {
-	ID            string  `json:"id"`
-	Name          string  `json:"name"`
-	DisplayName   string  `json:"display_name,omitempty"`
-	Provider      string  `json:"provider,omitempty"`
-	Description   string  `json:"description,omitempty"`
-	ContextLength int     `json:"context_length,omitempty"`
-	Pricing       *Pricing `json:"pricing,omitempty"`
+	ID                  string        `json:"id"`
+	Name                string        `json:"name"`
+	DisplayName         string        `json:"display_name,omitempty"`
+	Provider            string        `json:"provider,omitempty"`
+	Description         string        `json:"description,omitempty"`
+	ContextLength       int           `json:"context_length,omitempty"`
+	MaxCompletionTokens int           `json:"max_completion_tokens,omitempty"`
+	Pricing             *Pricing      `json:"pricing,omitempty"`
+	Architecture        *Architecture `json:"architecture,omitempty"`
 }
 
-// Pricing contains model pricing information.
+// Pricing contains model pricing information (cost per token in USD).
 type Pricing struct {
 	Prompt     float64 `json:"prompt"`
 	Completion float64 `json:"completion"`
+	Request    float64 `json:"request,omitempty"`
+	Image      float64 `json:"image,omitempty"`
+}
+
+// Architecture describes the model's input/output modalities.
+type Architecture struct {
+	Modality string   `json:"modality,omitempty"`
+	Input    []string `json:"input,omitempty"`
+	Output   []string `json:"output,omitempty"`
 }
 
 // ModelsResponse is the response from resource-openrouter content models --json.
