@@ -79,8 +79,8 @@ require github.com/foo/bar v1.0.0
 			expected: nil,
 		},
 		{
-			name: "empty file",
-			content: ``,
+			name:     "empty file",
+			content:  ``,
 			expected: nil,
 		},
 		{
@@ -125,7 +125,7 @@ replace  (
 			// Create temp file
 			tmpDir := t.TempDir()
 			goModPath := filepath.Join(tmpDir, "go.mod")
-			if err := os.WriteFile(goModPath, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(goModPath, []byte(tt.content), 0o644); err != nil {
 				t.Fatalf("failed to write go.mod: %v", err)
 			}
 

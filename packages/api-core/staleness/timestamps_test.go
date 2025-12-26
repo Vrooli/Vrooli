@@ -15,7 +15,7 @@ func TestCheckNewerFiles(t *testing.T) {
 
 	// Create an old file (before refTime)
 	oldFile := filepath.Join(tmpDir, "old.go")
-	if err := os.WriteFile(oldFile, []byte("package old"), 0644); err != nil {
+	if err := os.WriteFile(oldFile, []byte("package old"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// Set old modification time
@@ -26,7 +26,7 @@ func TestCheckNewerFiles(t *testing.T) {
 
 	// Create a new file (after refTime)
 	newFile := filepath.Join(tmpDir, "new.go")
-	if err := os.WriteFile(newFile, []byte("package new"), 0644); err != nil {
+	if err := os.WriteFile(newFile, []byte("package new"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// File will have current time which is after refTime
@@ -59,11 +59,11 @@ func TestCheckNewerFiles_SkipDirs(t *testing.T) {
 
 	// Create a new file in a skipped directory
 	vendorDir := filepath.Join(tmpDir, "vendor")
-	if err := os.MkdirAll(vendorDir, 0755); err != nil {
+	if err := os.MkdirAll(vendorDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	vendorFile := filepath.Join(vendorDir, "new.go")
-	if err := os.WriteFile(vendorFile, []byte("package vendor"), 0644); err != nil {
+	if err := os.WriteFile(vendorFile, []byte("package vendor"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -75,11 +75,11 @@ func TestCheckNewerFiles_SkipDirs(t *testing.T) {
 
 	// Create a new file in a non-skipped directory
 	srcDir := filepath.Join(tmpDir, "src")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	srcFile := filepath.Join(srcDir, "main.go")
-	if err := os.WriteFile(srcFile, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(srcFile, []byte("package main"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -99,7 +99,7 @@ func TestIsFileNewer(t *testing.T) {
 
 	// Create a new file
 	newFile := filepath.Join(tmpDir, "new.txt")
-	if err := os.WriteFile(newFile, []byte("new"), 0644); err != nil {
+	if err := os.WriteFile(newFile, []byte("new"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -124,7 +124,7 @@ func TestGetModTime(t *testing.T) {
 
 	// Create a file
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

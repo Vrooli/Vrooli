@@ -5,13 +5,21 @@
 //   - Staleness detection and auto-rebuild
 //   - Lifecycle management verification
 //
-// Usage:
+// Usage (auto-detects scenario name from directory structure):
 //
 //	func main() {
-//	    if preflight.Run(preflight.Config{ScenarioName: "my-scenario"}) {
+//	    if preflight.Run(preflight.Config{}) {
 //	        return // Process was re-exec'd after rebuild
 //	    }
 //	    // Safe to initialize server, DB connections, etc.
+//	}
+//
+// With explicit scenario name:
+//
+//	func main() {
+//	    if preflight.Run(preflight.Config{ScenarioName: "my-scenario"}) {
+//	        return
+//	    }
 //	}
 package preflight
 
@@ -19,6 +27,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/vrooli/api-core/scenario"
 	"github.com/vrooli/api-core/staleness"
 )
 
@@ -28,6 +37,7 @@ const LifecycleManagedEnvVar = "VROOLI_LIFECYCLE_MANAGED"
 // Config configures the preflight checks.
 type Config struct {
 	// ScenarioName is used in error messages to guide users.
+	// If empty, it's auto-detected from the directory structure or SCENARIO_NAME env.
 	// Example: "my-scenario" produces "vrooli scenario start my-scenario"
 	ScenarioName string
 
@@ -106,7 +116,7 @@ func Run(cfg Config) bool {
 		if os.Getenv(LifecycleManagedEnvVar) != "true" {
 			scenarioName := cfg.ScenarioName
 			if scenarioName == "" {
-				scenarioName = "<scenario-name>"
+				scenarioName = scenario.Name()
 			}
 
 			msg := fmt.Sprintf(`This binary must be run through the Vrooli lifecycle system.

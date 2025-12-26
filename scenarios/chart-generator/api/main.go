@@ -15,6 +15,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -47,15 +48,6 @@ type ErrorResponse struct {
 	Code    string `json:"code,omitempty"`
 }
 
-// HealthResponse represents a health check response
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Version   string    `json:"version"`
-	Service   string    `json:"service"`
-	Readiness bool      `json:"readiness"`
-}
-
 // StyleResponse represents available chart styles
 type StyleResponse struct {
 	ID          string `json:"id"`
@@ -69,9 +61,8 @@ var chartProcessor *ChartProcessor
 
 func main() {
 	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "chart-generator",
-	}) {
+	// Scenario name is auto-detected from directory structure
+	if preflight.Run(preflight.Config{}) {
 		return // Process was re-exec'd after rebuild
 	}
 
@@ -102,11 +93,11 @@ func main() {
 	chartProcessor = NewChartProcessor(db)
 	log.Println("🎨 Chart processor initialized")
 
-
 	// Create router
 	r := mux.NewRouter()
 
-	// Health check endpoints
+	// Health check endpoints - use api-core/health for standardized response
+	healthHandler := createHealthHandler(db)
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/v1/health/generation", healthGenerationHandler).Methods("GET")
@@ -180,18 +171,14 @@ func main() {
 	}
 }
 
-// healthHandler handles basic health checks
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Version:   "1.0.0",
-		Service:   "chart-generator-api",
-		Readiness: true, // Service is ready once it starts accepting requests
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+// createHealthHandler creates the health endpoint handler using api-core/health.
+// Service name is auto-detected. Database is optional for this scenario
+// (nil db = degraded, not unhealthy).
+func createHealthHandler(db *sql.DB) http.HandlerFunc {
+	return health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Optional).
+		Handler()
 }
 
 // healthGenerationHandler tests actual chart generation capability
@@ -783,10 +770,10 @@ func getColorPalettesHandler(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		"recommended": map[string][]string{
-			"bar":     []string{"ocean", "corporate"},
-			"line":    []string{"sunset", "vibrant"},
-			"pie":     []string{"vibrant", "forest"},
-			"scatter": []string{"ocean", "vibrant"},
+			"bar":     {"ocean", "corporate"},
+			"line":    {"sunset", "vibrant"},
+			"pie":     {"vibrant", "forest"},
+			"scatter": {"ocean", "vibrant"},
 		},
 	}
 

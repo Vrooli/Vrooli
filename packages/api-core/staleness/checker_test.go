@@ -41,7 +41,7 @@ func TestChecker_NoGoMod(t *testing.T) {
 
 	// Create a fake binary without go.mod
 	binaryPath := filepath.Join(tmpDir, "api")
-	if err := os.WriteFile(binaryPath, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -66,13 +66,13 @@ func TestChecker_NotStale(t *testing.T) {
 
 	// Create go.mod
 	goModPath := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0644); err != nil {
+	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create source file
 	srcPath := filepath.Join(tmpDir, "main.go")
-	if err := os.WriteFile(srcPath, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("package main"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -80,7 +80,7 @@ func TestChecker_NotStale(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	binaryPath := filepath.Join(tmpDir, "api")
-	if err := os.WriteFile(binaryPath, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -99,13 +99,13 @@ func TestChecker_StaleSource(t *testing.T) {
 
 	// Create go.mod
 	goModPath := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0644); err != nil {
+	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create binary first
 	binaryPath := filepath.Join(tmpDir, "api")
-	if err := os.WriteFile(binaryPath, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -113,7 +113,7 @@ func TestChecker_StaleSource(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	srcPath := filepath.Join(tmpDir, "main.go")
-	if err := os.WriteFile(srcPath, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("package main"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -142,7 +142,7 @@ func TestChecker_StaleGoMod(t *testing.T) {
 
 	// Create binary first
 	binaryPath := filepath.Join(tmpDir, "api")
-	if err := os.WriteFile(binaryPath, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -150,7 +150,7 @@ func TestChecker_StaleGoMod(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	goModPath := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0644); err != nil {
+	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -174,13 +174,13 @@ func TestChecker_StaleGoSum(t *testing.T) {
 
 	// Create go.mod first (required for staleness check to proceed)
 	goModPath := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0644); err != nil {
+	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create binary
 	binaryPath := filepath.Join(tmpDir, "api")
-	if err := os.WriteFile(binaryPath, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -188,7 +188,7 @@ func TestChecker_StaleGoSum(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	goSumPath := filepath.Join(tmpDir, "go.sum")
-	if err := os.WriteFile(goSumPath, []byte("github.com/example/pkg v1.0.0 h1:abc123=\n"), 0644); err != nil {
+	if err := os.WriteFile(goSumPath, []byte("github.com/example/pkg v1.0.0 h1:abc123=\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -212,20 +212,20 @@ func TestChecker_LoopDetection(t *testing.T) {
 
 	// Create go.mod
 	goModPath := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0644); err != nil {
+	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create binary first
 	binaryPath := filepath.Join(tmpDir, "api")
-	if err := os.WriteFile(binaryPath, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Wait then create source (stale)
 	time.Sleep(10 * time.Millisecond)
 	srcPath := filepath.Join(tmpDir, "main.go")
-	if err := os.WriteFile(srcPath, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("package main"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -254,20 +254,20 @@ func TestChecker_NoGoInPath(t *testing.T) {
 
 	// Create go.mod
 	goModPath := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0644); err != nil {
+	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create binary first
 	binaryPath := filepath.Join(tmpDir, "api")
-	if err := os.WriteFile(binaryPath, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Wait then create source (stale)
 	time.Sleep(10 * time.Millisecond)
 	srcPath := filepath.Join(tmpDir, "main.go")
-	if err := os.WriteFile(srcPath, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("package main"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -293,20 +293,20 @@ func TestChecker_RebuildSuccess(t *testing.T) {
 
 	// Create go.mod
 	goModPath := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0644); err != nil {
+	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create binary first
 	binaryPath := filepath.Join(tmpDir, "api")
-	if err := os.WriteFile(binaryPath, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Wait then create source (stale)
 	time.Sleep(10 * time.Millisecond)
 	srcPath := filepath.Join(tmpDir, "main.go")
-	if err := os.WriteFile(srcPath, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("package main"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -360,20 +360,20 @@ func TestChecker_RebuildFailure(t *testing.T) {
 
 	// Create go.mod
 	goModPath := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0644); err != nil {
+	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create binary first
 	binaryPath := filepath.Join(tmpDir, "api")
-	if err := os.WriteFile(binaryPath, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Wait then create source (stale)
 	time.Sleep(10 * time.Millisecond)
 	srcPath := filepath.Join(tmpDir, "main.go")
-	if err := os.WriteFile(srcPath, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("package main"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -402,35 +402,35 @@ func TestChecker_ReplaceDirectives(t *testing.T) {
 	apiDir := filepath.Join(tmpDir, "api")
 	pkgDir := filepath.Join(tmpDir, "pkg")
 
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(pkgDir, 0755); err != nil {
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create go.mod with replace directive
 	goModPath := filepath.Join(apiDir, "go.mod")
-	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n\nreplace example.com/pkg => ../pkg\n"), 0644); err != nil {
+	if err := os.WriteFile(goModPath, []byte("module test\ngo 1.21\n\nreplace example.com/pkg => ../pkg\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create pkg go.mod
 	pkgGoMod := filepath.Join(pkgDir, "go.mod")
-	if err := os.WriteFile(pkgGoMod, []byte("module example.com/pkg\ngo 1.21\n"), 0644); err != nil {
+	if err := os.WriteFile(pkgGoMod, []byte("module example.com/pkg\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create binary first
 	binaryPath := filepath.Join(apiDir, "api")
-	if err := os.WriteFile(binaryPath, []byte("binary"), 0755); err != nil {
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Wait then create file in pkg (stale dependency)
 	time.Sleep(10 * time.Millisecond)
 	pkgFile := filepath.Join(pkgDir, "pkg.go")
-	if err := os.WriteFile(pkgFile, []byte("package pkg"), 0644); err != nil {
+	if err := os.WriteFile(pkgFile, []byte("package pkg"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
