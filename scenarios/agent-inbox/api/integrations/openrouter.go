@@ -11,6 +11,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 	"time"
 
 	"agent-inbox/config"
@@ -76,13 +78,28 @@ type ToolDefinition struct {
 
 // ModelInfo contains information about an available model.
 type ModelInfo struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Pricing     struct {
-		Prompt     string `json:"prompt"`
-		Completion string `json:"completion"`
-	} `json:"pricing,omitempty"`
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	DisplayName   string  `json:"display_name,omitempty"`
+	Provider      string  `json:"provider,omitempty"`
+	Description   string  `json:"description,omitempty"`
+	ContextLength int     `json:"context_length,omitempty"`
+	Pricing       *Pricing `json:"pricing,omitempty"`
+}
+
+// Pricing contains model pricing information.
+type Pricing struct {
+	Prompt     float64 `json:"prompt"`
+	Completion float64 `json:"completion"`
+}
+
+// ModelsResponse is the response from resource-openrouter content models --json.
+type ModelsResponse struct {
+	Source       string      `json:"source"`
+	FetchedAt    string      `json:"fetched_at"`
+	DefaultModel string      `json:"default_model"`
+	Count        int         `json:"count"`
+	Models       []ModelInfo `json:"models"`
 }
 
 // NewOpenRouterClient creates a new OpenRouter client.
@@ -175,15 +192,63 @@ func ConvertMessages(messages []map[string]interface{}) []OpenRouterMessage {
 	return result
 }
 
-// AvailableModels returns the curated list of available models.
-func AvailableModels() []ModelInfo {
-	return []ModelInfo{
-		{ID: "anthropic/claude-3.5-sonnet", Name: "Claude 3.5 Sonnet", Description: "Anthropic's most intelligent model"},
-		{ID: "anthropic/claude-3-haiku", Name: "Claude 3 Haiku", Description: "Fast and cost-effective"},
-		{ID: "openai/gpt-4o", Name: "GPT-4o", Description: "OpenAI's flagship model"},
-		{ID: "openai/gpt-4o-mini", Name: "GPT-4o Mini", Description: "Fast and affordable GPT-4"},
-		{ID: "google/gemini-pro-1.5", Name: "Gemini Pro 1.5", Description: "Google's latest model"},
-		{ID: "meta-llama/llama-3.1-70b-instruct", Name: "Llama 3.1 70B", Description: "Meta's open-source model"},
-		{ID: "mistralai/mistral-large", Name: "Mistral Large", Description: "Mistral's flagship model"},
+// FetchModels fetches available models from the resource-openrouter CLI.
+func FetchModels(ctx context.Context) ([]ModelInfo, error) {
+	// Check if resource-openrouter is available
+	path, err := exec.LookPath("resource-openrouter")
+	if err != nil {
+		return nil, fmt.Errorf("resource-openrouter CLI not found: %w", err)
 	}
+
+	// Set timeout for the command
+	cmdCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(cmdCtx, path, "content", "models", "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch models from resource-openrouter: %w", err)
+	}
+
+	// Parse JSON response
+	var resp ModelsResponse
+	if err := json.Unmarshal(trimToJSON(output), &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse models response: %w", err)
+	}
+
+	if len(resp.Models) == 0 {
+		return nil, fmt.Errorf("no models returned from resource-openrouter")
+	}
+
+	return resp.Models, nil
 }
+
+// trimToJSON removes leading non-JSON lines (warnings/logs) to allow parsing.
+func trimToJSON(raw []byte) []byte {
+	data := strings.TrimSpace(string(raw))
+	if data == "" {
+		return raw
+	}
+
+	// Find the first '{' or '[' which should start the JSON payload.
+	idxObj := strings.IndexRune(data, '{')
+	idxArr := strings.IndexRune(data, '[')
+
+	start := -1
+	if idxObj >= 0 && idxArr >= 0 {
+		start = idxObj
+		if idxArr < idxObj {
+			start = idxArr
+		}
+	} else if idxObj >= 0 {
+		start = idxObj
+	} else if idxArr >= 0 {
+		start = idxArr
+	}
+
+	if start > 0 {
+		return []byte(data[start:])
+	}
+	return []byte(data)
+}
+

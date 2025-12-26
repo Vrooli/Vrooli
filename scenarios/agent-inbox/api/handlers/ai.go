@@ -14,9 +14,16 @@ import (
 	"agent-inbox/services"
 )
 
-// ListModels returns available AI models.
+// ListModels returns available AI models from OpenRouter.
+// Fetches dynamically from resource-openrouter CLI, with fallback to curated list.
 func (h *Handlers) ListModels(w http.ResponseWriter, r *http.Request) {
-	h.JSONResponse(w, integrations.AvailableModels(), http.StatusOK)
+	models, err := integrations.FetchModels(r.Context())
+	if err != nil {
+		// This shouldn't happen since FetchModels falls back gracefully
+		h.JSONError(w, "Failed to fetch models", http.StatusInternalServerError)
+		return
+	}
+	h.JSONResponse(w, models, http.StatusOK)
 }
 
 // ListTools returns available tools for AI.
