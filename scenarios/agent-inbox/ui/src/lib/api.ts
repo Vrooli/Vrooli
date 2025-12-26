@@ -346,6 +346,8 @@ export interface Model {
   id: string;
   name: string;
   description?: string;
+  provider?: string;
+  context_length?: number;
 }
 
 export async function fetchModels(): Promise<Model[]> {

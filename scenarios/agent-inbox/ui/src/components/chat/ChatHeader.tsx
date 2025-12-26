@@ -6,8 +6,6 @@ import {
   Archive,
   Trash2,
   Edit3,
-  ChevronDown,
-  Bot,
   Tag,
   MoreVertical,
   Download,
@@ -21,6 +19,7 @@ import { Dropdown, DropdownItem, DropdownSeparator } from "../ui/dropdown";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
+import { ModelSelector } from "../settings/ModelSelector";
 import { exportChat } from "../../lib/api";
 import type { Chat, Model, Label, ExportFormat } from "../../lib/api";
 
@@ -54,10 +53,7 @@ export function ChatHeader({
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("markdown");
   const [isExporting, setIsExporting] = useState(false);
-  const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [newName, setNewName] = useState(chat.name);
-
-  const currentModel = models.find((m) => m.id === chat.model);
 
   const handleExport = async (format: ExportFormat) => {
     try {
@@ -110,37 +106,12 @@ export function ChatHeader({
 
             {/* Model Selector & Mode */}
             <div className="flex items-center gap-3 mt-1.5">
-              <Dropdown
-                trigger={
-                  <button
-                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
-                    data-testid="model-selector-button"
-                  >
-                    <Bot className="h-3.5 w-3.5" />
-                    <span>{currentModel?.name || chat.model}</span>
-                    <ChevronDown className="h-3 w-3" />
-                  </button>
-                }
-                className="w-72"
-              >
-                <div className="p-2">
-                  <p className="text-xs text-slate-500 px-2 mb-1">Select a model</p>
-                  {models.map((model) => (
-                    <DropdownItem
-                      key={model.id}
-                      onClick={() => onUpdateChat({ model: model.id })}
-                      className={chat.model === model.id ? "bg-white/10" : ""}
-                    >
-                      <div>
-                        <div className="font-medium">{model.name}</div>
-                        {model.description && (
-                          <div className="text-xs text-slate-500 mt-0.5">{model.description}</div>
-                        )}
-                      </div>
-                    </DropdownItem>
-                  ))}
-                </div>
-              </Dropdown>
+              <ModelSelector
+                models={models}
+                selectedModel={chat.model}
+                onSelectModel={(modelId) => onUpdateChat({ model: modelId })}
+                compact
+              />
 
               <span className="text-xs text-slate-600">•</span>
               <span className="text-xs text-slate-500">{chat.view_mode} mode</span>

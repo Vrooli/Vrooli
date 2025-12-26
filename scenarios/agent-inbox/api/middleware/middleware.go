@@ -52,6 +52,14 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 	return rw.ResponseWriter.Write(b)
 }
 
+// Flush forwards the Flush call to the underlying ResponseWriter if it supports it.
+// This is required for SSE streaming to work correctly.
+func (rw *responseWriter) Flush() {
+	if flusher, ok := rw.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
 // RequestID generates or propagates request IDs for tracing.
 // If the client provides X-Request-ID, it is reused; otherwise, a new UUID is generated.
 func RequestID(next http.Handler) http.Handler {
