@@ -146,8 +146,33 @@
       "description": "Create a new chat branching from a specific message",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "implementation",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/chat.go:ForkChat"
+        },
+        {
+          "type": "implementation",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/persistence/chat.go:ForkChat"
+        },
+        {
+          "type": "implementation",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/components/chat/MessageList.tsx"
+        },
+        {
+          "type": "implementation",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/lib/api.ts:forkChat"
+        }
+      ]
     }
   ]
 }

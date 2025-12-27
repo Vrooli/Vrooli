@@ -1,4 +1,4 @@
-import { useState, useMemo, forwardRef, useRef, useEffect } from "react";
+import { useState, useMemo, forwardRef, useRef, useEffect, useCallback } from "react";
 import {
   Plus,
   Mail,
@@ -13,13 +13,19 @@ import {
   X,
   Check,
   FileText,
+  CheckSquare,
+  Square,
+  Trash2,
+  MailOpen,
+  MailCheck,
+  ArchiveRestore,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { Badge } from "../ui/badge";
 import { useSearch } from "../../hooks/useSearch";
 import type { View } from "../../hooks/useChats";
-import type { Chat, Label, SearchResult } from "../../lib/api";
+import type { Chat, Label, SearchResult, BulkOperation } from "../../lib/api";
 
 interface SidebarProps {
   currentView: View;
@@ -42,6 +48,9 @@ interface SidebarProps {
   isLoadingChats: boolean;
   onSelectChat: (chatId: string, messageId?: string) => void;
   onRenameChat?: (chatId: string, newName: string) => void;
+  // Bulk selection props
+  onBulkOperate?: (chatIds: string[], operation: BulkOperation, labelId?: string) => void;
+  isBulkOperating?: boolean;
 }
 
 const navItems: { id: View; label: string; icon: typeof Mail }[] = [
@@ -67,11 +76,64 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
     isLoadingChats,
     onSelectChat,
     onRenameChat,
+    onBulkOperate,
+    isBulkOperating = false,
   },
   ref
 ) {
   // Refs for each chat item to enable scroll-into-view on focus
   const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  // Bulk selection state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set());
+
+  // Exit selection mode when view changes
+  useEffect(() => {
+    setSelectionMode(false);
+    setSelectedChatIds(new Set());
+  }, [currentView]);
+
+  // Toggle selection for a chat
+  const toggleChatSelection = useCallback((chatId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedChatIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(chatId)) {
+        next.delete(chatId);
+      } else {
+        next.add(chatId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Select all visible chats
+  const selectAll = useCallback(() => {
+    const displayChatIds = chats.map((c) => c.id);
+    setSelectedChatIds(new Set(displayChatIds));
+  }, [chats]);
+
+  // Deselect all
+  const deselectAll = useCallback(() => {
+    setSelectedChatIds(new Set());
+  }, []);
+
+  // Exit selection mode
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedChatIds(new Set());
+  }, []);
+
+  // Execute bulk operation
+  const handleBulkOperation = useCallback(
+    (operation: BulkOperation) => {
+      if (!onBulkOperate || selectedChatIds.size === 0) return;
+      onBulkOperate(Array.from(selectedChatIds), operation);
+      exitSelectionMode();
+    },
+    [onBulkOperate, selectedChatIds, exitSelectionMode]
+  );
 
   // Scroll focused item into view when focusedIndex changes
   useEffect(() => {
@@ -148,10 +210,32 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
         <div className="flex items-center gap-2 mb-3">
           <MessageSquare className="h-5 w-5 text-indigo-400" />
           <h1 className="text-base font-semibold text-white">Agent Inbox</h1>
+          <div className="flex-1" />
+          {onBulkOperate && displayChats.length > 0 && !search.isActive && (
+            <Tooltip content={selectionMode ? "Cancel selection" : "Select multiple"}>
+              <button
+                onClick={() => {
+                  if (selectionMode) {
+                    exitSelectionMode();
+                  } else {
+                    setSelectionMode(true);
+                  }
+                }}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  selectionMode
+                    ? "bg-indigo-500/20 text-indigo-400"
+                    : "text-slate-500 hover:text-white hover:bg-white/10"
+                }`}
+                data-testid="toggle-selection-mode"
+              >
+                <CheckSquare className="h-4 w-4" />
+              </button>
+            </Tooltip>
+          )}
         </div>
         <Button
           onClick={onNewChat}
-          disabled={isCreatingChat}
+          disabled={isCreatingChat || selectionMode}
           className="w-full justify-center gap-2"
           data-testid="new-chat-button"
         >
@@ -163,6 +247,104 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
           New Chat
         </Button>
       </div>
+
+      {/* Bulk Actions Bar - shown when items are selected */}
+      {selectionMode && selectedChatIds.size > 0 && (
+        <div className="px-3 py-2 border-b border-white/10 bg-indigo-500/10 shrink-0" data-testid="bulk-actions-bar">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-medium text-white">
+              {selectedChatIds.size} selected
+            </span>
+            <div className="flex-1" />
+            <button
+              onClick={selectAll}
+              className="text-xs text-indigo-400 hover:text-indigo-300"
+            >
+              Select all
+            </button>
+            <button
+              onClick={deselectAll}
+              className="text-xs text-slate-400 hover:text-white"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="flex gap-1 flex-wrap">
+            <Tooltip content="Delete selected">
+              <button
+                onClick={() => handleBulkOperation("delete")}
+                disabled={isBulkOperating}
+                className="p-2 rounded-lg text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50 transition-colors"
+                data-testid="bulk-delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </Tooltip>
+            {currentView !== "archived" ? (
+              <Tooltip content="Archive selected">
+                <button
+                  onClick={() => handleBulkOperation("archive")}
+                  disabled={isBulkOperating}
+                  className="p-2 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white disabled:opacity-50 transition-colors"
+                  data-testid="bulk-archive"
+                >
+                  <Archive className="h-4 w-4" />
+                </button>
+              </Tooltip>
+            ) : (
+              <Tooltip content="Unarchive selected">
+                <button
+                  onClick={() => handleBulkOperation("unarchive")}
+                  disabled={isBulkOperating}
+                  className="p-2 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white disabled:opacity-50 transition-colors"
+                  data-testid="bulk-unarchive"
+                >
+                  <ArchiveRestore className="h-4 w-4" />
+                </button>
+              </Tooltip>
+            )}
+            <Tooltip content="Mark as read">
+              <button
+                onClick={() => handleBulkOperation("mark_read")}
+                disabled={isBulkOperating}
+                className="p-2 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white disabled:opacity-50 transition-colors"
+                data-testid="bulk-mark-read"
+              >
+                <MailOpen className="h-4 w-4" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Mark as unread">
+              <button
+                onClick={() => handleBulkOperation("mark_unread")}
+                disabled={isBulkOperating}
+                className="p-2 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white disabled:opacity-50 transition-colors"
+                data-testid="bulk-mark-unread"
+              >
+                <MailCheck className="h-4 w-4" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Star selected">
+              <button
+                onClick={() => {
+                  // Toggle star - not directly supported by bulk API, but we can use archive as a workaround
+                  // For now, just show a toast or skip
+                }}
+                disabled={true}
+                className="p-2 rounded-lg text-slate-400 hover:bg-white/10 hover:text-yellow-400 disabled:opacity-50 transition-colors"
+                data-testid="bulk-star"
+              >
+                <Star className="h-4 w-4" />
+              </button>
+            </Tooltip>
+          </div>
+          {isBulkOperating && (
+            <div className="flex items-center gap-2 mt-2 text-xs text-slate-400">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Processing...
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <div className="px-3 py-2 border-b border-white/10 shrink-0" data-testid="sidebar-nav">
@@ -276,6 +458,9 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
                 onRename={onRenameChat ? (newName) => onRenameChat(chat.id, newName) : undefined}
                 formatTime={formatTime}
                 searchResult={searchResult}
+                selectionMode={selectionMode}
+                isChecked={selectedChatIds.has(chat.id)}
+                onToggleSelect={(e) => toggleChatSelection(chat.id, e)}
               />
             );
           })
@@ -356,10 +541,14 @@ interface ChatListItemProps {
   onRename?: (newName: string) => void;
   formatTime: (date: string) => string;
   searchResult?: SearchResult;
+  // Bulk selection props
+  selectionMode?: boolean;
+  isChecked?: boolean;
+  onToggleSelect?: (e: React.MouseEvent) => void;
 }
 
 const ChatListItem = forwardRef<HTMLDivElement, ChatListItemProps>(function ChatListItem(
-  { chat, labels, isSelected, isFocused, onClick, onRename, formatTime, searchResult },
+  { chat, labels, isSelected, isFocused, onClick, onRename, formatTime, searchResult, selectionMode, isChecked, onToggleSelect },
   ref
 ) {
   const [isEditing, setIsEditing] = useState(false);
@@ -408,20 +597,32 @@ const ChatListItem = forwardRef<HTMLDivElement, ChatListItemProps>(function Chat
     }
   };
 
+  const handleClick = selectionMode && onToggleSelect
+    ? onToggleSelect
+    : isEditing
+    ? undefined
+    : onClick;
+
   return (
     <div
       ref={ref}
       role="button"
       tabIndex={0}
-      onClick={isEditing ? undefined : onClick}
+      onClick={handleClick}
       onKeyDown={(e) => {
         if (!isEditing && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
-          onClick();
+          if (selectionMode && onToggleSelect) {
+            onToggleSelect(e as unknown as React.MouseEvent);
+          } else {
+            onClick();
+          }
         }
       }}
       className={`w-full px-3 py-2.5 border-b border-white/5 text-left transition-colors cursor-pointer ${
-        isSelected
+        isChecked
+          ? "bg-indigo-500/20"
+          : isSelected
           ? "bg-indigo-500/20 border-l-2 border-l-indigo-500"
           : !chat.is_read
           ? "bg-indigo-500/5 hover:bg-indigo-500/10"
@@ -431,10 +632,26 @@ const ChatListItem = forwardRef<HTMLDivElement, ChatListItemProps>(function Chat
       data-focused={isFocused}
     >
       <div className="flex items-start gap-2.5">
-        {/* Chat Icon */}
-        <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${isSelected ? "bg-indigo-500/30" : "bg-white/10"}`}>
-          <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
-        </div>
+        {/* Checkbox in selection mode */}
+        {selectionMode ? (
+          <div
+            className={`mt-0.5 p-1.5 rounded-lg shrink-0 transition-colors ${
+              isChecked ? "bg-indigo-500 text-white" : "bg-white/10 text-slate-400 hover:bg-white/20"
+            }`}
+            data-testid={`chat-checkbox-${chat.id}`}
+          >
+            {isChecked ? (
+              <CheckSquare className="h-3.5 w-3.5" />
+            ) : (
+              <Square className="h-3.5 w-3.5" />
+            )}
+          </div>
+        ) : (
+          /* Chat Icon */
+          <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${isSelected ? "bg-indigo-500/30" : "bg-white/10"}`}>
+            <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
+          </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 min-w-0">

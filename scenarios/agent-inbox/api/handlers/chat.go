@@ -420,3 +420,138 @@ func sanitizeFilename(name string) string {
 	}
 	return result
 }
+
+// BulkOperation performs a bulk operation on multiple chats.
+// Operations: delete, archive, unarchive, mark_read, mark_unread, add_label, remove_label
+func (h *Handlers) BulkOperation(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ChatIDs   []string `json:"chat_ids"`
+		Operation string   `json:"operation"`
+		LabelID   string   `json:"label_id,omitempty"` // For add_label/remove_label operations
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.WriteAppError(w, r, domain.ErrInvalidJSON())
+		return
+	}
+
+	// Validate
+	if len(req.ChatIDs) == 0 {
+		h.WriteAppError(w, r, domain.ErrInvalidInput("chat_ids is required"))
+		return
+	}
+	if len(req.ChatIDs) > 100 {
+		h.WriteAppError(w, r, domain.ErrInvalidInput("maximum 100 chats per bulk operation"))
+		return
+	}
+
+	validOps := map[string]bool{
+		"delete":       true,
+		"archive":      true,
+		"unarchive":    true,
+		"mark_read":    true,
+		"mark_unread":  true,
+		"add_label":    true,
+		"remove_label": true,
+	}
+	if !validOps[req.Operation] {
+		h.WriteAppError(w, r, domain.ErrInvalidInput("invalid operation: "+req.Operation))
+		return
+	}
+
+	// Label operations require label_id
+	if (req.Operation == "add_label" || req.Operation == "remove_label") && req.LabelID == "" {
+		h.WriteAppError(w, r, domain.ErrInvalidInput("label_id is required for "+req.Operation))
+		return
+	}
+
+	ctx := r.Context()
+	successCount := 0
+	failCount := 0
+
+	for _, chatID := range req.ChatIDs {
+		var err error
+		switch req.Operation {
+		case "delete":
+			_, err = h.Repo.DeleteChat(ctx, chatID)
+		case "archive":
+			val := true
+			_, err = h.Repo.ToggleChatBool(ctx, chatID, "is_archived", &val)
+		case "unarchive":
+			val := false
+			_, err = h.Repo.ToggleChatBool(ctx, chatID, "is_archived", &val)
+		case "mark_read":
+			val := true
+			_, err = h.Repo.ToggleChatBool(ctx, chatID, "is_read", &val)
+		case "mark_unread":
+			val := false
+			_, err = h.Repo.ToggleChatBool(ctx, chatID, "is_read", &val)
+		case "add_label":
+			err = h.Repo.AssignLabel(ctx, chatID, req.LabelID)
+		case "remove_label":
+			_, err = h.Repo.RemoveLabel(ctx, chatID, req.LabelID)
+		}
+
+		if err != nil {
+			failCount++
+			log.Printf("[WARN] [%s] BulkOperation %s failed for chat %s: %v",
+				middleware.GetRequestID(ctx), req.Operation, chatID, err)
+		} else {
+			successCount++
+		}
+	}
+
+	h.JSONResponse(w, map[string]interface{}{
+		"success_count": successCount,
+		"fail_count":    failCount,
+		"total":         len(req.ChatIDs),
+	}, http.StatusOK)
+}
+
+// ForkChat creates a new chat from an existing one, copying messages up to a specified point.
+// POST /api/v1/chats/{id}/fork
+// Body: { "message_id": "uuid" } - Fork from this message (includes it and all ancestors)
+func (h *Handlers) ForkChat(w http.ResponseWriter, r *http.Request) {
+	chatID := h.ParseUUID(w, r, "id")
+	if chatID == "" {
+		return
+	}
+
+	var req struct {
+		MessageID string `json:"message_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.WriteAppError(w, r, domain.ErrInvalidJSON())
+		return
+	}
+
+	if req.MessageID == "" {
+		h.WriteAppError(w, r, domain.ErrInvalidInput("message_id is required"))
+		return
+	}
+
+	ctx := r.Context()
+
+	// Get the source chat
+	sourceChat, err := h.Repo.GetChat(ctx, chatID)
+	if err != nil {
+		log.Printf("[ERROR] [%s] ForkChat GetChat failed: %v", middleware.GetRequestID(ctx), err)
+		h.WriteAppError(w, r, domain.ErrDatabaseError("get chat", err))
+		return
+	}
+	if sourceChat == nil {
+		h.WriteAppError(w, r, domain.ErrChatNotFound(chatID))
+		return
+	}
+
+	// Fork the chat
+	newChat, err := h.Repo.ForkChat(ctx, chatID, req.MessageID, sourceChat.Name+" (fork)", sourceChat.Model)
+	if err != nil {
+		log.Printf("[ERROR] [%s] ForkChat failed: %v", middleware.GetRequestID(ctx), err)
+		h.WriteAppError(w, r, domain.ErrDatabaseError("fork chat", err))
+		return
+	}
+
+	h.JSONResponse(w, newChat, http.StatusCreated)
+}

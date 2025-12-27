@@ -177,6 +177,54 @@ export async function deleteAllChats(): Promise<{ deleted: number }> {
   return res.json();
 }
 
+// Bulk Operations
+export type BulkOperation = "delete" | "archive" | "unarchive" | "mark_read" | "mark_unread" | "add_label" | "remove_label";
+
+export interface BulkOperationResult {
+  success_count: number;
+  fail_count: number;
+  total: number;
+}
+
+export async function bulkOperateChats(
+  chatIds: string[],
+  operation: BulkOperation,
+  labelId?: string
+): Promise<BulkOperationResult> {
+  const url = buildApiUrl("/chats/bulk", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_ids: chatIds,
+      operation,
+      label_id: labelId
+    })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Bulk operation failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// Fork conversation
+export async function forkChat(chatId: string, messageId: string): Promise<Chat> {
+  const url = buildApiUrl(`/chats/${chatId}/fork`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message_id: messageId })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fork chat: ${res.status}`);
+  }
+
+  return res.json();
+}
+
 export async function addMessage(chatId: string, data: { role: string; content: string; model?: string }): Promise<Message> {
   const url = buildApiUrl(`/chats/${chatId}/messages`, { baseUrl: API_BASE });
   const res = await fetch(url, {

@@ -30,7 +30,9 @@ interface ChatViewProps {
   // Branching operations
   onRegenerateMessage?: (messageId: string) => void;
   onSelectBranch?: (messageId: string) => void;
+  onForkConversation?: (messageId: string) => void;
   isRegenerating?: boolean;
+  isForking?: boolean;
 }
 
 export function ChatView({
@@ -54,7 +56,9 @@ export function ChatView({
   viewMode,
   onRegenerateMessage,
   onSelectBranch,
+  onForkConversation,
   isRegenerating = false,
+  isForking = false,
 }: ChatViewProps) {
   if (isLoading) {
     return (
@@ -120,7 +124,9 @@ export function ChatView({
         viewMode={viewMode}
         onRegenerateMessage={onRegenerateMessage}
         onSelectBranch={onSelectBranch}
+        onForkConversation={onForkConversation}
         isRegenerating={isRegenerating}
+        isForking={isForking}
       />
 
       <MessageInput onSend={onSendMessage} isGenerating={isGenerating} />

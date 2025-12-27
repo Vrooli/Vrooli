@@ -32,7 +32,10 @@ import {
   autoNameChat,
   regenerateMessage as apiRegenerateMessage,
   selectBranch as apiSelectBranch,
+  bulkOperateChats as apiBulkOperateChats,
+  forkChat as apiForkChat,
   type StreamingEvent,
+  type BulkOperation,
 } from "../lib/api";
 import { useCompletion, type ActiveToolCall } from "./useCompletion";
 import { useLabels } from "./useLabels";
@@ -320,6 +323,43 @@ export function useChats(options: UseChatsOptions = {}) {
     [chats, toggleReadMutation, onChatChange]
   );
 
+  // Bulk operations mutation
+  const bulkOperateMutation = useMutation({
+    mutationFn: ({
+      chatIds,
+      operation,
+      labelId,
+    }: {
+      chatIds: string[];
+      operation: BulkOperation;
+      labelId?: string;
+    }) => apiBulkOperateChats(chatIds, operation, labelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      queryClient.invalidateQueries({ queryKey: ["chat"] });
+    },
+  });
+
+  // Fork chat mutation
+  const forkChatMutation = useMutation({
+    mutationFn: ({ chatId, messageId }: { chatId: string; messageId: string }) =>
+      apiForkChat(chatId, messageId),
+    onSuccess: (newChat) => {
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      setSelectedChatId(newChat.id);
+      onChatChange?.(newChat.id);
+    },
+  });
+
+  // Fork conversation from a specific message
+  const forkConversation = useCallback(
+    (messageId: string) => {
+      if (!selectedChatId) return;
+      forkChatMutation.mutate({ chatId: selectedChatId, messageId });
+    },
+    [selectedChatId, forkChatMutation]
+  );
+
   return {
     // State
     selectedChatId,
@@ -364,6 +404,12 @@ export function useChats(options: UseChatsOptions = {}) {
     regenerateMessage,
     selectBranch,
 
+    // Bulk operations
+    bulkOperate: bulkOperateMutation.mutate,
+
+    // Fork conversation
+    forkConversation,
+
     // Label operations (delegated)
     createLabel: labelOps.createLabel,
     deleteLabel: labelOps.deleteLabel,
@@ -377,5 +423,7 @@ export function useChats(options: UseChatsOptions = {}) {
     isUpdatingChat: updateChatMutation.isPending,
     isAutoNaming: autoNameChatMutation.isPending,
     isSelectingBranch: selectBranchMutation.isPending,
+    isBulkOperating: bulkOperateMutation.isPending,
+    isForking: forkChatMutation.isPending,
   };
 }

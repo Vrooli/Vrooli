@@ -26,8 +26,12 @@ interface MessageListProps {
   onRegenerateMessage?: (messageId: string) => void;
   /** Called when user selects a different branch/version */
   onSelectBranch?: (messageId: string) => void;
+  /** Called when user wants to fork the conversation from a specific message */
+  onForkConversation?: (messageId: string) => void;
   /** Whether regeneration is in progress */
   isRegenerating?: boolean;
+  /** Whether forking is in progress */
+  isForking?: boolean;
 }
 
 export function MessageList({
@@ -41,7 +45,9 @@ export function MessageList({
   viewMode = "bubble",
   onRegenerateMessage,
   onSelectBranch,
+  onForkConversation,
   isRegenerating = false,
+  isForking = false,
 }: MessageListProps) {
   // Use allMessages for sibling computation, fallback to visible messages
   const messagesForSiblings = allMessages ?? messages;
@@ -104,7 +110,9 @@ export function MessageList({
           allMessages={messagesForSiblings}
           onRegenerate={onRegenerateMessage}
           onSelectBranch={onSelectBranch}
+          onFork={onForkConversation}
           isRegenerating={isRegenerating}
+          isForking={isForking}
           ref={(el) => {
             if (el) messageRefs.current.set(message.id, el);
             else messageRefs.current.delete(message.id);
@@ -251,12 +259,16 @@ interface MessageBubbleProps {
   onRegenerate?: (messageId: string) => void;
   /** Called when user selects a different branch */
   onSelectBranch?: (messageId: string) => void;
+  /** Called when user wants to fork the conversation from this message */
+  onFork?: (messageId: string) => void;
   /** Whether regeneration is in progress */
   isRegenerating?: boolean;
+  /** Whether forking is in progress */
+  isForking?: boolean;
 }
 
 const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function MessageBubble(
-  { message, viewMode, allMessages, onRegenerate, onSelectBranch, isRegenerating = false },
+  { message, viewMode, allMessages, onRegenerate, onSelectBranch, onFork, isRegenerating = false, isForking = false },
   ref
 ) {
   const { addToast } = useToast();
@@ -348,7 +360,15 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
 
   const handleEdit = useCallback(() => handleComingSoon("Edit message"), [handleComingSoon]);
   const handleDelete = useCallback(() => handleComingSoon("Delete message"), [handleComingSoon]);
-  const handleFork = useCallback(() => handleComingSoon("Fork conversation"), [handleComingSoon]);
+
+  // Fork conversation handler - calls the actual fork function
+  const handleFork = useCallback(() => {
+    if (onFork) {
+      onFork(message.id);
+    } else {
+      handleComingSoon("Fork conversation");
+    }
+  }, [onFork, message.id, handleComingSoon]);
 
   // Version picker navigation handlers
   const handlePreviousVersion = useCallback(() => {
@@ -393,7 +413,12 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
           <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={handleCopy} />
           <ActionButton icon={<Pencil className={iconSize} />} tooltip="Edit" onClick={handleEdit} />
           <ActionButton icon={<Trash2 className={iconSize} />} tooltip="Delete" onClick={handleDelete} />
-          <ActionButton icon={<GitBranch className={iconSize} />} tooltip="Fork from here" onClick={handleFork} />
+          <ActionButton
+            icon={isForking ? <Loader2 className={`${iconSize} animate-spin`} /> : <GitBranch className={iconSize} />}
+            tooltip={isForking ? "Forking..." : "Fork from here"}
+            onClick={handleFork}
+            className={isForking ? "cursor-not-allowed" : ""}
+          />
         </div>
       );
     }
@@ -427,7 +452,12 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
               onClick={handleRegenerate}
               className={isRegenerating ? "cursor-not-allowed" : ""}
             />
-            <ActionButton icon={<GitBranch className={iconSize} />} tooltip="Fork from here" onClick={handleFork} />
+            <ActionButton
+              icon={isForking ? <Loader2 className={`${iconSize} animate-spin`} /> : <GitBranch className={iconSize} />}
+              tooltip={isForking ? "Forking..." : "Fork from here"}
+              onClick={handleFork}
+              className={isForking ? "cursor-not-allowed" : ""}
+            />
           </div>
         </div>
       );

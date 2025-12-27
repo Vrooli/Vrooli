@@ -78,9 +78,17 @@ function AppContent() {
     regenerateMessage,
     selectBranch,
 
+    // Bulk operations
+    bulkOperate,
+
+    // Fork conversation
+    forkConversation,
+
     // Mutation states
     isCreatingChat,
     isDeletingAllChats,
+    isBulkOperating,
+    isForking,
   } = useChats({
     initialChatId,
     onChatChange: handleChatChange,
@@ -430,6 +438,8 @@ function AppContent() {
           isLoadingChats={loadingChats}
           onSelectChat={handleSelectChat}
           onRenameChat={(chatId, newName) => updateChat({ chatId, data: { name: newName } })}
+          onBulkOperate={(chatIds, operation, labelId) => bulkOperate({ chatIds, operation, labelId })}
+          isBulkOperating={isBulkOperating}
         />
       </div>
 
@@ -461,7 +471,9 @@ function AppContent() {
             viewMode={viewMode}
             onRegenerateMessage={(messageId) => regenerateMessage(selectedChatId, messageId)}
             onSelectBranch={selectBranch}
+            onForkConversation={forkConversation}
             isRegenerating={isRegenerating}
+            isForking={isForking}
           />
         ) : (
           <EmptyState onStartChat={createChatWithMessage} isCreating={isCreatingChat} />

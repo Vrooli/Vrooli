@@ -126,8 +126,27 @@
       "description": "Select multiple chats for bulk operations",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
-      "status": "pending",
-      "validation": []
+      "status": "complete",
+      "validation": [
+        {
+          "type": "implementation",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/chat.go:BulkOperation"
+        },
+        {
+          "type": "implementation",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/components/layout/Sidebar.tsx"
+        },
+        {
+          "type": "implementation",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/lib/api.ts:bulkOperateChats"
+        }
+      ]
     },
     {
       "id": "INBOX-LIST-006",
