@@ -198,6 +198,26 @@ export interface ActionExecutionResult {
   newUrl?: string;
   /** Duration in milliseconds */
   durationMs: number;
+  /**
+   * Context for intelligent loop detection.
+   * Contains metadata about action effectiveness (e.g., scroll position changes).
+   */
+  context?: ActionExecutionContext;
+}
+
+/**
+ * Context captured during action execution for loop detection.
+ * Different action types populate different fields.
+ */
+export interface ActionExecutionContext {
+  /**
+   * Scroll context - populated for scroll actions.
+   * Contains position before/after to detect if scroll had effect.
+   */
+  scroll?: {
+    positionBefore: { x: number; y: number };
+    positionAfter: { x: number; y: number };
+  };
 }
 
 /**

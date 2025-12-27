@@ -30,9 +30,18 @@ import type {
   LoggerInterface,
   ConversationMessageInterface,
 } from './types';
-import type { BrowserAction, DoneAction } from '../action/types';
+import type { BrowserAction, DoneAction, ScrollAction } from '../action/types';
 import type { TokenUsage, ElementLabel } from '../vision-client/types';
 import { extractInteractiveElements, formatElementLabelsForPrompt } from '../screenshot/annotate';
+import {
+  createLoopDetector,
+  createActionContext,
+  createScrollContext,
+  createHistoryEntry,
+  type LoopDetectionConfig,
+  type ActionHistoryEntry,
+  type ActionContext,
+} from './loop-detection';
 
 /**
  * Configuration for VisionAgent behavior.
@@ -50,21 +59,25 @@ export interface VisionAgentConfig {
   maxHistoryMessages?: number;
   /** Maximum element labels to include in context (for token efficiency) */
   maxElementLabels?: number;
-  /** Maximum times the same action can be repeated before detecting a loop (default: 2) */
-  maxRepeatedActions?: number;
+  /**
+   * Loop detection configuration.
+   * Controls how the agent detects when it's stuck in a loop.
+   * @see LoopDetectionConfig for available options
+   */
+  loopDetection?: Partial<LoopDetectionConfig>;
 }
 
 /**
  * Default configuration values.
  */
-const DEFAULTS: Required<VisionAgentConfig> = {
+const DEFAULTS: Omit<Required<VisionAgentConfig>, 'loopDetection'> = {
   defaultMaxSteps: 20,
   stepDelayMs: 0,
   screenshotQuality: 80,
   fullPageScreenshot: false,
   maxHistoryMessages: 20, // Keep last 20 messages to prevent context overflow
   maxElementLabels: 50, // Limit element labels to prevent token explosion
-  maxRepeatedActions: 2, // Stop if same action is repeated more than 2 times
+  // Loop detection uses DEFAULT_LOOP_CONFIG from loop-detection.ts
 };
 
 /**
@@ -80,7 +93,16 @@ export function createVisionAgent(
   deps: VisionAgentDeps,
   config: VisionAgentConfig = {}
 ): VisionAgent {
-  const cfg = { ...DEFAULTS, ...config };
+  // Merge config with defaults, ensuring all required fields are present
+  const cfg = {
+    defaultMaxSteps: config.defaultMaxSteps ?? DEFAULTS.defaultMaxSteps,
+    stepDelayMs: config.stepDelayMs ?? DEFAULTS.stepDelayMs,
+    screenshotQuality: config.screenshotQuality ?? DEFAULTS.screenshotQuality,
+    fullPageScreenshot: config.fullPageScreenshot ?? DEFAULTS.fullPageScreenshot,
+    maxHistoryMessages: config.maxHistoryMessages ?? DEFAULTS.maxHistoryMessages,
+    maxElementLabels: config.maxElementLabels ?? DEFAULTS.maxElementLabels,
+  };
+  const loopDetector = createLoopDetector(config.loopDetection);
   let abortController: AbortController | null = null;
   let isNavigating = false;
 
@@ -114,7 +136,7 @@ export function createVisionAgent(
         : abortController.signal;
 
       const conversationHistory: ConversationMessageInterface[] = [];
-      const actionHistory: string[] = []; // Track serialized actions for loop detection
+      const actionHistory: ActionHistoryEntry[] = []; // Track actions with context for intelligent loop detection
       const maxSteps = navConfig.maxSteps ?? cfg.defaultMaxSteps;
 
       deps.logger.info('Vision navigation started', {
@@ -230,42 +252,7 @@ export function createVisionAgent(
             confidence: analysisResult.confidence,
           });
 
-          // LOOP DETECTION: Track action and check for repeated actions
-          const serializedAction = serializeAction(analysisResult.action);
-          actionHistory.push(serializedAction);
-
-          const loopCheck = detectActionLoop(actionHistory, cfg.maxRepeatedActions);
-          if (loopCheck.isLoop) {
-            deps.logger.warn('Loop detected - same action repeated too many times', {
-              navigationId: navConfig.navigationId,
-              stepNumber,
-              repeatedAction: loopCheck.repeatedAction,
-              maxRepeated: cfg.maxRepeatedActions,
-            });
-
-            // Emit a step indicating the loop
-            const loopStep: NavigationStep = {
-              navigationId: navConfig.navigationId,
-              stepNumber,
-              action: analysisResult.action,
-              reasoning: `Loop detected: Action "${loopCheck.repeatedAction}" was repeated more than ${cfg.maxRepeatedActions} times. Stopping to prevent infinite loop.`,
-              screenshot,
-              currentUrl,
-              tokensUsed: analysisResult.tokensUsed,
-              durationMs: Date.now() - stepStartTime,
-              goalAchieved: false,
-              error: 'Loop detected - same action repeated',
-              elementLabels,
-            };
-
-            await safeEmit(deps, loopStep, navConfig.callbackUrl, navConfig.onStep);
-
-            status = 'loop_detected';
-            error = `Loop detected: Action "${loopCheck.repeatedAction}" repeated more than ${cfg.maxRepeatedActions} times`;
-            break;
-          }
-
-          // Check if goal achieved (done action)
+          // Check if goal achieved (done action) - no execution needed
           if (analysisResult.goalAchieved || analysisResult.action.type === 'done') {
             const doneAction = analysisResult.action as DoneAction;
             summary = doneAction.type === 'done' ? doneAction.result : analysisResult.reasoning;
@@ -301,6 +288,50 @@ export function createVisionAgent(
             analysisResult.action,
             elementLabels
           );
+
+          // LOOP DETECTION: Build context and check for loops
+          // We do this AFTER execution so we have context (e.g., scroll position change)
+          const urlAfterAction = navConfig.page.url();
+          const actionContext = buildActionContext(
+            analysisResult.action,
+            currentUrl,
+            urlAfterAction,
+            executionResult.context
+          );
+          const historyEntry = createHistoryEntry(analysisResult.action, actionContext, stepNumber);
+          actionHistory.push(historyEntry);
+
+          const loopCheck = loopDetector.detect(actionHistory);
+          if (loopCheck.isLoop) {
+            deps.logger.warn('Loop detected', {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              reason: loopCheck.reason,
+              repeatedAction: loopCheck.repeatedAction,
+              strategy: loopCheck.detectionStrategy,
+            });
+
+            // Emit a step indicating the loop
+            const loopStep: NavigationStep = {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              action: analysisResult.action,
+              reasoning: `Loop detected: ${loopCheck.reason}`,
+              screenshot,
+              currentUrl,
+              tokensUsed: analysisResult.tokensUsed,
+              durationMs: Date.now() - stepStartTime,
+              goalAchieved: false,
+              error: loopCheck.reason,
+              elementLabels,
+            };
+
+            await safeEmit(deps, loopStep, navConfig.callbackUrl, navConfig.onStep);
+
+            status = 'loop_detected';
+            error = loopCheck.reason;
+            break;
+          }
 
           if (!executionResult.success) {
             deps.logger.warn('Action execution failed', {
@@ -397,7 +428,7 @@ export function createVisionAgent(
 async function observePhase(
   page: Page,
   deps: VisionAgentDeps,
-  cfg: Required<VisionAgentConfig>
+  cfg: { screenshotQuality: number; fullPageScreenshot: boolean }
 ): Promise<{ screenshot: Buffer; elementLabels: ElementLabel[] }> {
   // Capture screenshot
   const screenshot = await deps.screenshotCapture.capture(page, {
@@ -639,66 +670,29 @@ export function createNoopLogger(): LoggerInterface {
 }
 
 /**
- * Serialize an action for comparison purposes.
- * Used to detect if the same action is being repeated.
+ * Build action context for loop detection.
+ * Combines the base context with execution results (e.g., scroll position changes).
  */
-function serializeAction(action: BrowserAction): string {
-  switch (action.type) {
-    case 'click':
-      if ('elementId' in action && action.elementId !== undefined) {
-        return `click:element:${action.elementId}`;
-      }
-      return `click:coords:${action.x},${action.y}`;
-    case 'type':
-      if ('elementId' in action && action.elementId !== undefined) {
-        return `type:element:${action.elementId}:${action.text}`;
-      }
-      return `type:focused:${action.text}`;
-    case 'scroll':
-      return `scroll:${action.direction}`;
-    case 'navigate':
-      return `navigate:${action.url}`;
-    case 'hover':
-      return `hover:${action.elementId}`;
-    case 'select':
-      return `select:${action.elementId}:${action.value}`;
-    case 'wait':
-      return `wait:${action.ms}`;
-    case 'keypress':
-      return `keypress:${action.key}`;
-    case 'done':
-      return `done:${action.success}:${action.result}`;
-    default:
-      return `unknown:${JSON.stringify(action)}`;
-  }
-}
+function buildActionContext(
+  action: BrowserAction,
+  urlBefore: string,
+  urlAfter: string,
+  executionContext?: { scroll?: { positionBefore: { x: number; y: number }; positionAfter: { x: number; y: number } } }
+): ActionContext {
+  // Start with base context
+  const context = createActionContext(action, urlBefore, urlAfter);
 
-/**
- * Detect if we're stuck in a loop.
- * Returns true if the last N actions are identical.
- */
-function detectActionLoop(
-  actionHistory: string[],
-  maxRepeated: number
-): { isLoop: boolean; repeatedAction?: string } {
-  if (actionHistory.length < maxRepeated) {
-    return { isLoop: false };
+  // Add scroll context if available from execution
+  if (action.type === 'scroll' && executionContext?.scroll) {
+    const scrollAction = action as ScrollAction;
+    const loopConfig = createLoopDetector().getConfig();
+    context.scroll = createScrollContext(
+      scrollAction.direction,
+      executionContext.scroll.positionBefore,
+      executionContext.scroll.positionAfter,
+      loopConfig.scroll.minScrollDelta
+    );
   }
 
-  const lastAction = actionHistory[actionHistory.length - 1];
-  let repeatCount = 0;
-
-  // Count how many times the last action appears at the end
-  for (let i = actionHistory.length - 1; i >= 0; i--) {
-    if (actionHistory[i] === lastAction) {
-      repeatCount++;
-    } else {
-      break; // Stop counting when we hit a different action
-    }
-  }
-
-  return {
-    isLoop: repeatCount > maxRepeated,
-    repeatedAction: repeatCount > maxRepeated ? lastAction : undefined,
-  };
+  return context;
 }

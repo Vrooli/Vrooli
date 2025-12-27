@@ -16,3 +16,23 @@ export {
   createNoopLogger,
   type VisionAgentConfig,
 } from './agent';
+
+// Loop detection (for configuration and testing)
+export {
+  createLoopDetector,
+  serializeAction,
+  createActionContext,
+  createScrollContext,
+  createHistoryEntry,
+  DEFAULT_LOOP_CONFIG,
+  type LoopDetectionConfig,
+  type ScrollLoopConfig,
+  type ClickLoopConfig,
+  type DefaultLoopConfig,
+  type ActionContext,
+  type ScrollContext,
+  type ClickContext,
+  type ActionHistoryEntry,
+  type LoopDetectionResult,
+  type LoopDetector,
+} from './loop-detection';

@@ -7,6 +7,12 @@
 import {
   createVisionAgent,
   createNoopLogger,
+  createLoopDetector,
+  createActionContext,
+  createScrollContext,
+  createHistoryEntry,
+  serializeAction,
+  DEFAULT_LOOP_CONFIG,
   type VisionAgentDeps,
   type NavigationConfig,
   type NavigationStep,
@@ -19,8 +25,11 @@ import {
   type VisionAnalysisResponseInterface,
   type VisionModelSpecInterface,
   type ActionExecutionResult,
+  type ActionExecutionContext,
+  type LoopDetectionConfig,
+  type ActionHistoryEntry,
 } from '../../../../src/ai/vision-agent';
-import type { BrowserAction } from '../../../../src/ai/action/types';
+import type { BrowserAction, ScrollAction } from '../../../../src/ai/action/types';
 import type { ElementLabel, TokenUsage } from '../../../../src/ai/vision-client/types';
 import type { Page } from 'playwright';
 
@@ -157,10 +166,13 @@ function createMockAnnotator(): ElementAnnotatorInterface {
 function createMockActionExecutor(): ActionExecutorInterface & {
   getCalls: () => BrowserAction[];
   setFailMode: (shouldFail: boolean, message?: string) => void;
+  setScrollBehavior: (effective: boolean) => void;
 } {
   const calls: BrowserAction[] = [];
   let shouldFail = false;
   let failMessage = 'Action execution failed';
+  let scrollIsEffective = true; // Default: scrolls are effective (page moves)
+  let currentScrollY = 0;
 
   return {
     async execute(
@@ -178,10 +190,27 @@ function createMockActionExecutor(): ActionExecutorInterface & {
         };
       }
 
+      // Generate scroll context for scroll actions
+      let context: ActionExecutionContext | undefined;
+      if (action.type === 'scroll') {
+        const positionBefore = { x: 0, y: currentScrollY };
+        if (scrollIsEffective) {
+          // Simulate effective scroll (position changes)
+          if (action.direction === 'down') currentScrollY += 500;
+          if (action.direction === 'up') currentScrollY = Math.max(0, currentScrollY - 500);
+        }
+        // If not effective, position stays the same
+        const positionAfter = { x: 0, y: currentScrollY };
+        context = {
+          scroll: { positionBefore, positionAfter },
+        };
+      }
+
       return {
         success: true,
         newUrl: 'https://example.com/after-action',
         durationMs: 10,
+        context,
       };
     },
 
@@ -192,6 +221,10 @@ function createMockActionExecutor(): ActionExecutorInterface & {
     setFailMode(fail: boolean, message?: string) {
       shouldFail = fail;
       if (message) failMessage = message;
+    },
+
+    setScrollBehavior(effective: boolean) {
+      scrollIsEffective = effective;
     },
   };
 }
@@ -308,9 +341,9 @@ describe('VisionAgent', () => {
       expect(result.error).toContain('Maximum steps');
     });
 
-    it('detects action loops and stops early', async () => {
+    it('detects click loops on same element and stops early', async () => {
       const mockClient = createMockVisionClient();
-      // Return the same action repeatedly to trigger loop detection
+      // Return the same click action repeatedly to trigger loop detection
       mockClient.setDefaultResponse({
         action: { type: 'click', elementId: 5 },
         reasoning: 'Clicking the same button',
@@ -323,11 +356,74 @@ describe('VisionAgent', () => {
 
       const result = await agent.navigate(config);
 
-      // Should detect loop after 3 identical actions (more than maxRepeatedActions=2)
+      // Should detect loop after 4 identical clicks (more than maxSameElementRepeats=3)
       expect(result.status).toBe('loop_detected');
-      expect(result.totalSteps).toBe(3); // Stops on the 3rd identical action
-      expect(result.error).toContain('Loop detected');
-      expect(result.error).toContain('click:element:5');
+      expect(result.totalSteps).toBe(4); // Stops on the 4th identical click
+      expect(result.error).toContain('Clicked same element');
+    });
+
+    it('allows effective scrolls without triggering loop detection', async () => {
+      const mockClient = createMockVisionClient();
+      const mockExecutor = createMockActionExecutor();
+
+      // Scrolls are effective (default behavior - page actually moves)
+      mockExecutor.setScrollBehavior(true);
+
+      // Return scroll down 5 times, then done
+      for (let i = 0; i < 5; i++) {
+        mockClient.queueResponse({
+          action: { type: 'scroll', direction: 'down' } as ScrollAction,
+          reasoning: 'Scrolling to find content',
+          goalAchieved: false,
+        });
+      }
+      mockClient.queueResponse({
+        action: { type: 'done', success: true, result: 'Found it' },
+        reasoning: 'Goal achieved',
+        goalAchieved: true,
+      });
+
+      const deps = createMockDeps({
+        visionClient: mockClient,
+        actionExecutor: mockExecutor,
+      });
+      const agent = createVisionAgent(deps);
+      const config = createNavConfig({ maxSteps: 10 });
+
+      const result = await agent.navigate(config);
+
+      // Should NOT detect loop because scrolls are effective
+      expect(result.status).toBe('completed');
+      expect(result.totalSteps).toBe(6);
+    });
+
+    it('detects scroll loops when scroll has no effect (stuck at boundary)', async () => {
+      const mockClient = createMockVisionClient();
+      const mockExecutor = createMockActionExecutor();
+
+      // Scrolls are NOT effective (simulating being at bottom of page)
+      mockExecutor.setScrollBehavior(false);
+
+      // Return scroll down repeatedly
+      mockClient.setDefaultResponse({
+        action: { type: 'scroll', direction: 'down' } as ScrollAction,
+        reasoning: 'Trying to scroll more',
+        goalAchieved: false,
+      });
+
+      const deps = createMockDeps({
+        visionClient: mockClient,
+        actionExecutor: mockExecutor,
+      });
+      const agent = createVisionAgent(deps);
+      const config = createNavConfig({ maxSteps: 10 });
+
+      const result = await agent.navigate(config);
+
+      // Should detect loop after 3 ineffective scrolls (more than maxIneffectiveRepeats=2)
+      expect(result.status).toBe('loop_detected');
+      expect(result.totalSteps).toBe(3);
+      expect(result.error).toContain('no effect');
     });
 
     it('handles abort signal', async () => {
@@ -705,5 +801,273 @@ describe('formatElementLabelsForPrompt', () => {
     expect(result).toContain('[2]');
     expect(result).toContain('Submit');
     expect(result).toContain('Cancel');
+  });
+});
+
+// =============================================================================
+// LOOP DETECTION MODULE TESTS
+// =============================================================================
+
+describe('LoopDetector', () => {
+  /**
+   * Helper to create a history entry from an action and scroll context.
+   */
+  function makeHistoryEntry(
+    action: BrowserAction,
+    stepNumber: number,
+    options?: {
+      urlBefore?: string;
+      urlAfter?: string;
+      scrollWasEffective?: boolean;
+    }
+  ): ActionHistoryEntry {
+    const urlBefore = options?.urlBefore ?? 'https://example.com';
+    const urlAfter = options?.urlAfter ?? urlBefore;
+    const context = createActionContext(action, urlBefore, urlAfter);
+
+    // Add scroll context if applicable
+    if (action.type === 'scroll') {
+      const scrollAction = action as ScrollAction;
+      const delta = options?.scrollWasEffective !== false ? 500 : 0;
+      context.scroll = createScrollContext(
+        scrollAction.direction,
+        { x: 0, y: 100 },
+        { x: 0, y: 100 + delta },
+        10
+      );
+    }
+
+    return createHistoryEntry(action, context, stepNumber);
+  }
+
+  describe('scroll loop detection', () => {
+    it('does NOT flag effective scrolls as loops', () => {
+      const detector = createLoopDetector();
+      const history: ActionHistoryEntry[] = [];
+
+      // Add 10 effective scroll actions
+      for (let i = 1; i <= 10; i++) {
+        history.push(makeHistoryEntry(
+          { type: 'scroll', direction: 'down' },
+          i,
+          { scrollWasEffective: true }
+        ));
+      }
+
+      const result = detector.detect(history);
+      expect(result.isLoop).toBe(false);
+      expect(result.reason).toContain('within limits');
+    });
+
+    it('flags ineffective scrolls as loops', () => {
+      const detector = createLoopDetector();
+      const history: ActionHistoryEntry[] = [];
+
+      // Add 3 ineffective scroll actions (more than maxIneffectiveRepeats=2)
+      for (let i = 1; i <= 3; i++) {
+        history.push(makeHistoryEntry(
+          { type: 'scroll', direction: 'down' },
+          i,
+          { scrollWasEffective: false }
+        ));
+      }
+
+      const result = detector.detect(history);
+      expect(result.isLoop).toBe(true);
+      expect(result.detectionStrategy).toBe('scroll_ineffective');
+      expect(result.reason).toContain('no effect');
+    });
+
+    it('respects custom maxIneffectiveRepeats config', () => {
+      const detector = createLoopDetector({
+        scroll: { maxIneffectiveRepeats: 5, maxEffectiveRepeats: -1, minScrollDelta: 10 },
+      });
+      const history: ActionHistoryEntry[] = [];
+
+      // Add 5 ineffective scrolls (at the new limit)
+      for (let i = 1; i <= 5; i++) {
+        history.push(makeHistoryEntry(
+          { type: 'scroll', direction: 'down' },
+          i,
+          { scrollWasEffective: false }
+        ));
+      }
+
+      let result = detector.detect(history);
+      expect(result.isLoop).toBe(false);
+
+      // Add one more to exceed limit
+      history.push(makeHistoryEntry(
+        { type: 'scroll', direction: 'down' },
+        6,
+        { scrollWasEffective: false }
+      ));
+
+      result = detector.detect(history);
+      expect(result.isLoop).toBe(true);
+    });
+
+    it('resets ineffective count when an effective scroll occurs', () => {
+      const detector = createLoopDetector();
+      const history: ActionHistoryEntry[] = [];
+
+      // 2 ineffective, then 1 effective, then 2 more ineffective
+      history.push(makeHistoryEntry({ type: 'scroll', direction: 'down' }, 1, { scrollWasEffective: false }));
+      history.push(makeHistoryEntry({ type: 'scroll', direction: 'down' }, 2, { scrollWasEffective: false }));
+      history.push(makeHistoryEntry({ type: 'scroll', direction: 'down' }, 3, { scrollWasEffective: true }));
+      history.push(makeHistoryEntry({ type: 'scroll', direction: 'down' }, 4, { scrollWasEffective: false }));
+      history.push(makeHistoryEntry({ type: 'scroll', direction: 'down' }, 5, { scrollWasEffective: false }));
+
+      const result = detector.detect(history);
+      // Only 2 consecutive ineffective at the end, should not trigger
+      expect(result.isLoop).toBe(false);
+    });
+  });
+
+  describe('click loop detection', () => {
+    it('flags repeated clicks on same element as loop', () => {
+      const detector = createLoopDetector();
+      const history: ActionHistoryEntry[] = [];
+
+      // Add 4 clicks on same element (more than maxSameElementRepeats=3)
+      for (let i = 1; i <= 4; i++) {
+        history.push(makeHistoryEntry(
+          { type: 'click', elementId: 5 },
+          i
+        ));
+      }
+
+      const result = detector.detect(history);
+      expect(result.isLoop).toBe(true);
+      expect(result.detectionStrategy).toBe('click_same_element');
+    });
+
+    it('does NOT flag clicks on same element if URL changes (pagination)', () => {
+      const detector = createLoopDetector();
+      const history: ActionHistoryEntry[] = [];
+
+      // Add clicks on same element but URL changes each time
+      for (let i = 1; i <= 5; i++) {
+        history.push(makeHistoryEntry(
+          { type: 'click', elementId: 5 },
+          i,
+          { urlBefore: `https://example.com/page${i}`, urlAfter: `https://example.com/page${i + 1}` }
+        ));
+      }
+
+      const result = detector.detect(history);
+      expect(result.isLoop).toBe(false);
+      expect(result.reason).toContain('pagination pattern');
+    });
+
+    it('resets count when clicking different elements', () => {
+      const detector = createLoopDetector();
+      const history: ActionHistoryEntry[] = [];
+
+      // Click element 5, then element 3, then element 5 twice
+      history.push(makeHistoryEntry({ type: 'click', elementId: 5 }, 1));
+      history.push(makeHistoryEntry({ type: 'click', elementId: 3 }, 2));
+      history.push(makeHistoryEntry({ type: 'click', elementId: 5 }, 3));
+      history.push(makeHistoryEntry({ type: 'click', elementId: 5 }, 4));
+
+      const result = detector.detect(history);
+      // Only 2 consecutive clicks on element 5 at the end
+      expect(result.isLoop).toBe(false);
+    });
+  });
+
+  describe('default loop detection', () => {
+    it('flags repeated type actions as loop', () => {
+      const detector = createLoopDetector();
+      const history: ActionHistoryEntry[] = [];
+
+      // Add 4 identical type actions (more than default maxRepeats=3)
+      for (let i = 1; i <= 4; i++) {
+        history.push(makeHistoryEntry(
+          { type: 'type', text: 'hello', elementId: 1 },
+          i
+        ));
+      }
+
+      const result = detector.detect(history);
+      expect(result.isLoop).toBe(true);
+      expect(result.detectionStrategy).toBe('default_repeat');
+    });
+
+    it('does NOT flag done actions as loops', () => {
+      const detector = createLoopDetector();
+      const history: ActionHistoryEntry[] = [];
+
+      // Add 10 done actions (should never be a loop)
+      for (let i = 1; i <= 10; i++) {
+        history.push(makeHistoryEntry(
+          { type: 'done', success: true, result: 'done' },
+          i
+        ));
+      }
+
+      const result = detector.detect(history);
+      expect(result.isLoop).toBe(false);
+    });
+  });
+
+  describe('configuration', () => {
+    it('allows updating config at runtime', () => {
+      const detector = createLoopDetector();
+
+      // Get default config
+      const defaultConfig = detector.getConfig();
+      expect(defaultConfig.scroll.maxIneffectiveRepeats).toBe(2);
+
+      // Update config
+      detector.updateConfig({
+        scroll: { maxIneffectiveRepeats: 10, maxEffectiveRepeats: -1, minScrollDelta: 10 },
+      });
+
+      const updatedConfig = detector.getConfig();
+      expect(updatedConfig.scroll.maxIneffectiveRepeats).toBe(10);
+    });
+
+    it('includes debug info when configured', () => {
+      const detector = createLoopDetector({ includeDebugInfo: true });
+      const history: ActionHistoryEntry[] = [];
+
+      for (let i = 1; i <= 4; i++) {
+        history.push(makeHistoryEntry({ type: 'click', elementId: 5 }, i));
+      }
+
+      const result = detector.detect(history);
+      expect(result.isLoop).toBe(true);
+      expect(result.debug).toBeDefined();
+      expect(result.debug?.historyLength).toBe(4);
+      expect(result.debug?.lastActions).toHaveLength(4);
+    });
+  });
+});
+
+describe('serializeAction', () => {
+  it('serializes click with element ID', () => {
+    const result = serializeAction({ type: 'click', elementId: 5 });
+    expect(result).toBe('click:element:5');
+  });
+
+  it('serializes click with coordinates', () => {
+    const result = serializeAction({ type: 'click', coordinates: { x: 100, y: 200 } });
+    expect(result).toBe('click:coords:100,200');
+  });
+
+  it('serializes scroll', () => {
+    const result = serializeAction({ type: 'scroll', direction: 'down' });
+    expect(result).toBe('scroll:down');
+  });
+
+  it('serializes type with element', () => {
+    const result = serializeAction({ type: 'type', text: 'hello', elementId: 3 });
+    expect(result).toBe('type:element:3:hello');
+  });
+
+  it('serializes type without element', () => {
+    const result = serializeAction({ type: 'type', text: 'world' });
+    expect(result).toBe('type:focused:world');
   });
 });

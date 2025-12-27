@@ -23,6 +23,7 @@ import type { ElementLabel } from '../vision-client/types';
 import type {
   ActionExecutorInterface,
   ActionExecutionResult,
+  ActionExecutionContext,
 } from '../vision-agent/types';
 
 /**
@@ -65,6 +66,7 @@ export function createActionExecutor(
       elementLabels?: ElementLabel[]
     ): Promise<ActionExecutionResult> {
       const startTime = Date.now();
+      let context: ActionExecutionContext | undefined;
 
       try {
         switch (action.type) {
@@ -77,7 +79,8 @@ export function createActionExecutor(
             break;
 
           case 'scroll':
-            await executeScroll(page, action);
+            // Capture scroll position before and after for loop detection
+            context = await executeScrollWithContext(page, action);
             break;
 
           case 'navigate':
@@ -112,6 +115,7 @@ export function createActionExecutor(
           success: true,
           newUrl: page.url(),
           durationMs: Date.now() - startTime,
+          context,
         };
       } catch (error) {
         return {
@@ -119,6 +123,7 @@ export function createActionExecutor(
           error: error instanceof Error ? error.message : String(error),
           newUrl: page.url(),
           durationMs: Date.now() - startTime,
+          context,
         };
       }
     },
@@ -224,6 +229,54 @@ async function executeType(
 
     await page.keyboard.type(action.text, { delay: typeDelay });
   }
+}
+
+/**
+ * Get current scroll position of the page.
+ * Note: This runs in browser context via Playwright's evaluate.
+ */
+async function getScrollPosition(page: Page): Promise<{ x: number; y: number }> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return page.evaluate((): { x: number; y: number } => {
+    // Browser globals are available in evaluate context
+    // Using any to avoid DOM typing conflicts with Node.js environment
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = document as any;
+    return {
+      x: w.scrollX ?? w.pageXOffset ?? d.documentElement?.scrollLeft ?? 0,
+      y: w.scrollY ?? w.pageYOffset ?? d.documentElement?.scrollTop ?? 0,
+    };
+  });
+}
+
+/**
+ * Execute a scroll action and capture context for loop detection.
+ * Returns context with scroll position before/after to detect if scroll had effect.
+ */
+async function executeScrollWithContext(
+  page: Page,
+  action: ScrollAction
+): Promise<ActionExecutionContext> {
+  // Capture position before scroll
+  const positionBefore = await getScrollPosition(page);
+
+  // Execute the scroll
+  await executeScroll(page, action);
+
+  // Small delay to let scroll settle
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  // Capture position after scroll
+  const positionAfter = await getScrollPosition(page);
+
+  return {
+    scroll: {
+      positionBefore,
+      positionAfter,
+    },
+  };
 }
 
 /**

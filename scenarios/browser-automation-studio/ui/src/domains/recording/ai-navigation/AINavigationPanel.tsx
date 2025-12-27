@@ -175,6 +175,9 @@ export function AINavigationPanel({
   const canStart = !disabled && !isNavigating && prompt.trim().length > 0;
   const showResults = status !== 'idle' && steps.length > 0;
 
+  // Show highlight animation when there's a pre-filled prompt ready to start (from template)
+  const showStartHighlight = Boolean(initialPrompt) && status === 'idle' && canStart;
+
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
@@ -490,14 +493,14 @@ export function AINavigationPanel({
               canStart
                 ? 'text-white bg-purple-600 hover:bg-purple-700'
                 : 'text-gray-400 bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
-            }`}
+            } ${showStartHighlight ? 'ring-2 ring-purple-400 animate-pulse' : ''}`}
           >
             <span className="flex items-center justify-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Start AI Navigation
+              {showStartHighlight ? 'Click to Start AI Navigation' : 'Start AI Navigation'}
             </span>
           </button>
         )}
