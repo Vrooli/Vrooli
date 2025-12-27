@@ -19,27 +19,38 @@
  * by mocking the api module.
  */
 import { useState, useCallback, useRef, useEffect } from "react";
-import { completeChat, StreamingEvent } from "../lib/api";
+import { completeChat, approveToolCall, rejectToolCall, StreamingEvent } from "../lib/api";
 
 export interface ActiveToolCall {
   id: string;
   name: string;
   arguments: string;
-  status: "running" | "completed" | "failed";
+  status: "running" | "completed" | "failed" | "pending_approval";
   result?: string;
   error?: string;
+}
+
+export interface PendingApproval {
+  id: string;
+  toolName: string;
+  arguments: string;
+  startedAt: string;
 }
 
 export interface CompletionState {
   isGenerating: boolean;
   streamingContent: string;
   activeToolCalls: ActiveToolCall[];
+  pendingApprovals: PendingApproval[];
+  awaitingApprovals: boolean;
 }
 
 export interface CompletionActions {
   runCompletion: (chatId: string) => Promise<void>;
   resetCompletion: () => void;
   cancelCompletion: () => void;
+  approveTool: (chatId: string, toolCallId: string) => Promise<void>;
+  rejectTool: (chatId: string, toolCallId: string, reason?: string) => Promise<void>;
 }
 
 // Generate unique request IDs to correlate state updates
@@ -52,6 +63,9 @@ export function useCompletion(): CompletionState & CompletionActions {
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [activeToolCalls, setActiveToolCalls] = useState<ActiveToolCall[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
+  const [awaitingApprovals, setAwaitingApprovals] = useState(false);
+  const [isProcessingApproval, setIsProcessingApproval] = useState(false);
 
   // Track current request to prevent stale updates from race conditions
   const currentRequestIdRef = useRef<number>(0);
@@ -117,6 +131,37 @@ export function useCompletion(): CompletionState & CompletionActions {
           // Tool calls are done, follow-up response may come
           break;
 
+        case "tool_pending_approval":
+          // A tool requires approval before execution
+          if (event.tool_call_id && event.tool_name) {
+            setPendingApprovals((prev) => [
+              ...prev,
+              {
+                id: event.tool_call_id!,
+                toolName: event.tool_name!,
+                arguments: event.arguments || "{}",
+                startedAt: new Date().toISOString(),
+              },
+            ]);
+            // Also add to active tool calls with pending status
+            setActiveToolCalls((prev) => [
+              ...prev,
+              {
+                id: event.tool_call_id!,
+                name: event.tool_name!,
+                arguments: event.arguments || "{}",
+                status: "pending_approval",
+              },
+            ]);
+          }
+          break;
+
+        case "awaiting_approvals":
+          // Signal that we're waiting for user to approve pending tool calls
+          setAwaitingApprovals(true);
+          setIsGenerating(false);
+          break;
+
         case "error":
           console.error("Streaming error:", event.error);
           break;
@@ -134,6 +179,8 @@ export function useCompletion(): CompletionState & CompletionActions {
     setIsGenerating(false);
     setStreamingContent("");
     setActiveToolCalls([]);
+    setPendingApprovals([]);
+    setAwaitingApprovals(false);
   }, []);
 
   const runCompletion = useCallback(
@@ -153,6 +200,8 @@ export function useCompletion(): CompletionState & CompletionActions {
       setIsGenerating(true);
       setStreamingContent("");
       setActiveToolCalls([]);
+      setPendingApprovals([]);
+      setAwaitingApprovals(false);
 
       try {
         await completeChat(chatId, {
@@ -166,6 +215,7 @@ export function useCompletion(): CompletionState & CompletionActions {
           setIsGenerating(false);
           setStreamingContent("");
           setActiveToolCalls([]);
+          // Note: Don't reset pendingApprovals here as we might be awaiting approvals
         }
       } catch (error) {
         // Only handle errors for the active request
@@ -173,6 +223,8 @@ export function useCompletion(): CompletionState & CompletionActions {
           setIsGenerating(false);
           setStreamingContent("");
           setActiveToolCalls([]);
+          setPendingApprovals([]);
+          setAwaitingApprovals(false);
 
           // Don't throw on abort - it's intentional cancellation
           if (error instanceof Error && error.name === "AbortError") {
@@ -187,6 +239,76 @@ export function useCompletion(): CompletionState & CompletionActions {
     [createEventHandler]
   );
 
+  // Approve a pending tool call and optionally trigger auto-continue
+  const approveTool = useCallback(
+    async (chatId: string, toolCallId: string) => {
+      setIsProcessingApproval(true);
+      try {
+        const result = await approveToolCall(toolCallId, chatId);
+
+        // Remove from pending approvals
+        setPendingApprovals((prev) => prev.filter((p) => p.id !== toolCallId));
+
+        // Update active tool call status
+        setActiveToolCalls((prev) =>
+          prev.map((tc) =>
+            tc.id === toolCallId
+              ? { ...tc, status: "completed" as const, result: result.tool_result?.result }
+              : tc
+          )
+        );
+
+        // If auto-continued, a new completion was triggered
+        // The UI should refetch messages to get the new response
+        if (result.auto_continued) {
+          // Reset state for the new completion that was triggered
+          setAwaitingApprovals(false);
+        } else if (result.pending_approvals?.length === 0) {
+          // No more pending approvals
+          setAwaitingApprovals(false);
+        }
+
+        return result;
+      } finally {
+        setIsProcessingApproval(false);
+      }
+    },
+    []
+  );
+
+  // Reject a pending tool call
+  const rejectTool = useCallback(
+    async (chatId: string, toolCallId: string, reason?: string) => {
+      setIsProcessingApproval(true);
+      try {
+        await rejectToolCall(toolCallId, chatId, reason);
+
+        // Remove from pending approvals
+        setPendingApprovals((prev) => prev.filter((p) => p.id !== toolCallId));
+
+        // Update active tool call status
+        setActiveToolCalls((prev) =>
+          prev.map((tc) =>
+            tc.id === toolCallId
+              ? { ...tc, status: "failed" as const, error: reason || "Rejected by user" }
+              : tc
+          )
+        );
+
+        // If no more pending approvals, clear the awaiting state
+        setPendingApprovals((current) => {
+          if (current.length === 0) {
+            setAwaitingApprovals(false);
+          }
+          return current;
+        });
+      } finally {
+        setIsProcessingApproval(false);
+      }
+    },
+    []
+  );
+
   const resetCompletion = useCallback(() => {
     cancelCompletion();
   }, [cancelCompletion]);
@@ -196,10 +318,14 @@ export function useCompletion(): CompletionState & CompletionActions {
     isGenerating,
     streamingContent,
     activeToolCalls,
+    pendingApprovals,
+    awaitingApprovals,
 
     // Actions
     runCompletion,
     resetCompletion,
     cancelCompletion,
+    approveTool,
+    rejectTool,
   };
 }

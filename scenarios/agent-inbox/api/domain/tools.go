@@ -170,16 +170,30 @@ type ToolCategory struct {
 // Tool Configuration Types (agent-inbox specific)
 // -----------------------------------------------------------------------------
 
+// ApprovalOverride represents the three-state approval setting.
+// Users can override the tool's default approval requirement.
+type ApprovalOverride string
+
+const (
+	// ApprovalDefault uses the tool's metadata.requires_approval setting.
+	ApprovalDefault ApprovalOverride = ""
+	// ApprovalRequire always requires approval before execution.
+	ApprovalRequire ApprovalOverride = "require"
+	// ApprovalSkip never requires approval (auto-execute).
+	ApprovalSkip ApprovalOverride = "skip"
+)
+
 // ToolConfiguration represents user preferences for a tool.
 // This can be global (ChatID empty) or per-chat.
 type ToolConfiguration struct {
-	ID         string    `json:"id"`
-	ChatID     string    `json:"chat_id,omitempty"` // Empty for global configuration
-	Scenario   string    `json:"scenario"`          // e.g., "agent-manager"
-	ToolName   string    `json:"tool_name"`
-	Enabled    bool      `json:"enabled"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID               string           `json:"id"`
+	ChatID           string           `json:"chat_id,omitempty"` // Empty for global configuration
+	Scenario         string           `json:"scenario"`          // e.g., "agent-manager"
+	ToolName         string           `json:"tool_name"`
+	Enabled          bool             `json:"enabled"`
+	ApprovalOverride ApprovalOverride `json:"approval_override,omitempty"` // Three-state: "", "require", "skip"
+	CreatedAt        time.Time        `json:"created_at"`
+	UpdatedAt        time.Time        `json:"updated_at"`
 }
 
 // ToolConfigurationScope defines the scope of a tool configuration.
@@ -206,6 +220,19 @@ type EffectiveTool struct {
 
 	// Source indicates where the enabled state came from.
 	Source ToolConfigurationScope `json:"source"`
+
+	// RequiresApproval is the effective approval requirement.
+	// This considers: user override > global override > tool metadata default.
+	RequiresApproval bool `json:"requires_approval"`
+
+	// ApprovalSource indicates where the approval setting came from.
+	// Empty string means using tool's default metadata.
+	ApprovalSource ToolConfigurationScope `json:"approval_source,omitempty"`
+
+	// ApprovalOverride is the user's configured approval override.
+	// Empty string means using tool's default, "require" forces approval,
+	// "skip" bypasses approval.
+	ApprovalOverride ApprovalOverride `json:"approval_override,omitempty"`
 }
 
 // ToolSet represents a collection of tools from multiple scenarios.

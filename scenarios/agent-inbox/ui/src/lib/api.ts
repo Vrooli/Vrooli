@@ -50,13 +50,16 @@ export interface ToolCallRecord {
   tool_name: string;
   arguments: string;
   result?: string;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  status: "pending" | "pending_approval" | "approved" | "rejected" | "running" | "completed" | "failed" | "cancelled";
   scenario_name?: string;
   external_run_id?: string;
   started_at: string;
   completed_at?: string;
   error_message?: string;
 }
+
+// Approval override for tool configurations (three-state)
+export type ApprovalOverride = "" | "require" | "skip";
 
 export interface Label {
   id: string;
@@ -596,11 +599,12 @@ export async function fetchChatToolCalls(chatId: string): Promise<ToolCallRecord
 // from the same completion request, helping prevent stale event handling
 // when requests are cancelled or replaced.
 export interface StreamingEvent {
-  type: "content" | "tool_call_start" | "tool_call_result" | "tool_calls_complete" | "error" | "warning" | "progress";
+  type: "content" | "tool_call_start" | "tool_call_result" | "tool_calls_complete" | "tool_pending_approval" | "awaiting_approvals" | "error" | "warning" | "progress";
   completion_id?: string;
   content?: string;
   tool_name?: string;
   tool_id?: string;
+  tool_call_id?: string;
   arguments?: string;
   result?: string;
   status?: string;
@@ -862,6 +866,9 @@ export interface EffectiveTool {
   tool: DiscoveredTool;
   enabled: boolean;
   source: ToolConfigurationScope;
+  requires_approval: boolean;
+  approval_source?: ToolConfigurationScope;
+  approval_override?: ApprovalOverride;
 }
 
 export interface ToolSet {
@@ -1029,4 +1036,162 @@ export async function refreshTools(): Promise<{ success: boolean; scenarios_coun
   }
 
   return res.json();
+}
+
+// -----------------------------------------------------------------------------
+// YOLO Mode & Tool Approval API Functions
+// -----------------------------------------------------------------------------
+
+/**
+ * Get the current YOLO mode setting.
+ */
+export async function getYoloMode(): Promise<boolean> {
+  const url = buildApiUrl("/settings/yolo-mode", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to get YOLO mode: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.enabled;
+}
+
+/**
+ * Set the YOLO mode setting.
+ * @param enabled - Whether to enable YOLO mode
+ */
+export async function setYoloMode(enabled: boolean): Promise<void> {
+  const url = buildApiUrl("/settings/yolo-mode", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to set YOLO mode: ${res.status}`);
+  }
+}
+
+/**
+ * Set the approval override for a tool.
+ * @param scenario - Scenario name
+ * @param toolName - Tool name
+ * @param approvalOverride - Approval override value ("" | "require" | "skip")
+ * @param chatId - Optional chat ID for chat-specific configuration
+ */
+export async function setToolApproval(
+  scenario: string,
+  toolName: string,
+  approvalOverride: ApprovalOverride,
+  chatId?: string
+): Promise<void> {
+  const url = buildApiUrl("/tools/config/approval", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      scenario,
+      tool_name: toolName,
+      approval_override: approvalOverride
+    })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to set tool approval: ${res.status}`);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Pending Approvals API Functions
+// -----------------------------------------------------------------------------
+
+export interface PendingApproval {
+  id: string;
+  tool_name: string;
+  arguments: string;
+  status: string;
+  started_at: string;
+}
+
+export interface ApprovalResult {
+  success: boolean;
+  tool_result: {
+    id: string;
+    tool_name: string;
+    status: string;
+    result?: string;
+  };
+  pending_approvals: PendingApproval[];
+  auto_continued: boolean;
+}
+
+/**
+ * Get pending tool call approvals for a chat.
+ * @param chatId - Chat ID
+ */
+export async function getPendingApprovals(chatId: string): Promise<PendingApproval[]> {
+  const url = buildApiUrl(`/chats/${chatId}/pending-approvals`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to get pending approvals: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.pending_approvals;
+}
+
+/**
+ * Approve a pending tool call.
+ * @param toolCallId - Tool call ID
+ * @param chatId - Chat ID for validation
+ */
+export async function approveToolCall(toolCallId: string, chatId: string): Promise<ApprovalResult> {
+  const url = buildApiUrl(`/tool-calls/${toolCallId}/approve?chat_id=${chatId}`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Failed to approve tool call: ${errorText}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Reject a pending tool call.
+ * @param toolCallId - Tool call ID
+ * @param chatId - Chat ID for validation
+ * @param reason - Optional rejection reason
+ */
+export async function rejectToolCall(toolCallId: string, chatId: string, reason?: string): Promise<void> {
+  const url = buildApiUrl(`/tool-calls/${toolCallId}/reject?chat_id=${chatId}`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason })
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Failed to reject tool call: ${errorText}`);
+  }
 }

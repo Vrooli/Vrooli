@@ -29,10 +29,12 @@ import {
   Zap,
   Clock,
   DollarSign,
+  Shield,
+  ShieldOff,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
-import type { EffectiveTool, ScenarioStatus, ToolCategory } from "../../lib/api";
+import type { EffectiveTool, ScenarioStatus, ToolCategory, ApprovalOverride } from "../../lib/api";
 
 interface ToolConfigurationProps {
   /** Tools grouped by scenario */
@@ -51,8 +53,12 @@ interface ToolConfigurationProps {
   isUpdating?: boolean;
   /** Error message */
   error?: string | null;
+  /** Whether YOLO mode is enabled (hides approval selectors) */
+  yoloMode?: boolean;
   /** Callback when tool is toggled */
   onToggleTool: (scenario: string, toolName: string, enabled: boolean) => void;
+  /** Callback when tool approval is changed */
+  onSetApproval?: (scenario: string, toolName: string, override: ApprovalOverride) => void;
   /** Callback when tool config is reset to default */
   onResetTool?: (scenario: string, toolName: string) => void;
   /** Callback to refresh tool registry */
@@ -97,7 +103,9 @@ export function ToolConfiguration({
   isRefreshing,
   isUpdating,
   error,
+  yoloMode,
   onToggleTool,
+  onSetApproval,
   onResetTool,
   onRefresh,
 }: ToolConfigurationProps) {
@@ -238,9 +246,14 @@ export function ToolConfiguration({
             {isExpanded && (
               <div className="border-t border-white/10">
                 {tools.map((effectiveTool) => {
-                  const { tool, enabled, source } = effectiveTool;
+                  const { tool, enabled, source, requires_approval, approval_override, approval_source } = effectiveTool;
                   const hasOverride = chatId && source === "chat";
+                  const hasApprovalOverride = chatId && approval_source === "chat";
                   const category = tool.category ? categoryById.get(tool.category) : null;
+
+                  // Determine current approval state for display
+                  const currentApprovalOverride = approval_override ?? "";
+                  const defaultRequiresApproval = tool.metadata.requires_approval;
 
                   return (
                     <div
@@ -263,7 +276,7 @@ export function ToolConfiguration({
 
                       {/* Tool info */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-medium text-white">{tool.name}</span>
                           {category && (
                             <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-400">
@@ -281,10 +294,46 @@ export function ToolConfiguration({
                               override
                             </span>
                           )}
+                          {/* Approval indicator (when not in YOLO mode) */}
+                          {!yoloMode && enabled && (
+                            <Tooltip content={requires_approval ? "Requires approval" : "Auto-executes"}>
+                              {requires_approval ? (
+                                <Shield className="h-3 w-3 text-yellow-400" />
+                              ) : (
+                                <ShieldOff className="h-3 w-3 text-green-400" />
+                              )}
+                            </Tooltip>
+                          )}
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">
                           {tool.description}
                         </p>
+
+                        {/* Approval selector (only shown when enabled and not in YOLO mode) */}
+                        {enabled && !yoloMode && onSetApproval && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-xs text-slate-500">Approval:</span>
+                            <select
+                              value={currentApprovalOverride}
+                              onChange={(e) => onSetApproval(scenario, tool.name, e.target.value as ApprovalOverride)}
+                              disabled={isUpdating}
+                              className="text-xs bg-white/5 border border-white/10 rounded px-2 py-1 text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                              data-testid={`tool-approval-${scenario}-${tool.name}`}
+                            >
+                              <option value="">
+                                Default ({defaultRequiresApproval ? "Require" : "Auto"})
+                              </option>
+                              <option value="require">Require Approval</option>
+                              <option value="skip">Auto-execute</option>
+                            </select>
+                            {hasApprovalOverride && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-300">
+                                custom
+                              </span>
+                            )}
+                          </div>
+                        )}
+
                         {tool.metadata.tags && tool.metadata.tags.length > 0 && (
                           <div className="flex gap-1 mt-1.5 flex-wrap">
                             {tool.metadata.tags.slice(0, 3).map((tag) => (

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
@@ -96,24 +97,65 @@ func (s *CompletionService) SaveCompletionResult(ctx context.Context, chatID, mo
 	return msg, nil
 }
 
+// ToolExecutionOutcome represents the result of attempting to execute tool calls.
+// Some tools may execute immediately, others may require approval.
+type ToolExecutionOutcome struct {
+	// Results contains execution results for tools that ran immediately.
+	Results []domain.ToolExecutionResult
+	// PendingApprovals contains tool calls that require user approval.
+	PendingApprovals []*domain.ToolCallRecord
+	// HasPendingApprovals indicates if any tools are waiting for approval.
+	HasPendingApprovals bool
+}
+
 // ExecuteToolCalls runs all tool calls from a completion result.
 // Returns results for each tool call in order.
 // parentMessageID is the assistant message that made the tool calls (for branching support).
 //
-// TEMPORAL FLOW NOTE: This function executes tool calls sequentially and
-// collects all errors. The returned error aggregates all failures but individual
-// tool results are still returned for partial success handling.
+// APPROVAL FLOW: If a tool requires approval (based on YOLO mode, user config, or metadata),
+// it will be saved as pending_approval and not executed. The caller should check
+// HasPendingApprovals to determine if the UI needs to show approval prompts.
 //
 // Error Handling:
 //   - Individual tool errors are captured in each ToolExecutionResult
 //   - The returned error is non-nil if ANY tool call failed
 //   - Callers can inspect individual results for partial success scenarios
-func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messageID string, toolCalls []domain.ToolCall, parentMessageID string) ([]domain.ToolExecutionResult, error) {
-	results := make([]domain.ToolExecutionResult, 0, len(toolCalls))
+func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messageID string, toolCalls []domain.ToolCall, parentMessageID string) (*ToolExecutionOutcome, error) {
+	outcome := &ToolExecutionOutcome{
+		Results:          make([]domain.ToolExecutionResult, 0, len(toolCalls)),
+		PendingApprovals: make([]*domain.ToolCallRecord, 0),
+	}
 	var executionErrors []error
 	var lastToolMsgID string
 
 	for _, tc := range toolCalls {
+		// Check if this tool requires approval
+		requiresApproval, _, err := s.toolRegistry.GetToolApprovalRequired(ctx, chatID, tc.Function.Name)
+		if err != nil {
+			log.Printf("warning: failed to check approval requirement for %s: %v", tc.Function.Name, err)
+			// Default to not requiring approval on error
+			requiresApproval = false
+		}
+
+		if requiresApproval {
+			// Create pending approval record instead of executing
+			record := s.createPendingApprovalRecord(chatID, messageID, tc)
+			if messageID != "" {
+				s.repo.SaveToolCallRecord(ctx, messageID, record)
+			}
+			outcome.PendingApprovals = append(outcome.PendingApprovals, record)
+			outcome.HasPendingApprovals = true
+
+			// Add a result indicating pending approval
+			outcome.Results = append(outcome.Results, domain.ToolExecutionResult{
+				ToolCallID: tc.ID,
+				ToolName:   tc.Function.Name,
+				Status:     domain.StatusPendingApproval,
+			})
+			continue
+		}
+
+		// Execute immediately
 		record, err := s.executor.ExecuteTool(ctx, chatID, tc.ID, tc.Function.Name, tc.Function.Arguments)
 		// Track errors for aggregated reporting
 		if err != nil {
@@ -132,7 +174,7 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 		}
 
 		// Build result using centralized factory
-		results = append(results, NewToolExecutionResult(tc.ID, tc.Function.Name, record, err))
+		outcome.Results = append(outcome.Results, NewToolExecutionResult(tc.ID, tc.Function.Name, record, err))
 	}
 
 	// Update active leaf to the last tool message
@@ -142,10 +184,122 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 
 	// Return aggregated error if any tool failed
 	if len(executionErrors) > 0 {
-		return results, fmt.Errorf("%d of %d tool calls failed: %v", len(executionErrors), len(toolCalls), executionErrors[0])
+		return outcome, fmt.Errorf("%d of %d tool calls failed: %v", len(executionErrors), len(toolCalls), executionErrors[0])
 	}
 
-	return results, nil
+	return outcome, nil
+}
+
+// createPendingApprovalRecord creates a ToolCallRecord for a tool awaiting approval.
+func (s *CompletionService) createPendingApprovalRecord(chatID, messageID string, tc domain.ToolCall) *domain.ToolCallRecord {
+	return &domain.ToolCallRecord{
+		ID:        tc.ID,
+		MessageID: messageID,
+		ChatID:    chatID,
+		ToolName:  tc.Function.Name,
+		Arguments: tc.Function.Arguments,
+		Status:    domain.StatusPendingApproval,
+		StartedAt: time.Now(),
+	}
+}
+
+// ApprovalResult contains the result of approving a tool call.
+type ApprovalResult struct {
+	// ToolResult is the execution result after approval.
+	ToolResult *domain.ToolCallRecord
+	// PendingApprovals remaining after this approval.
+	PendingApprovals []*domain.ToolCallRecord
+	// AutoContinued indicates if all approvals are resolved and continuation was triggered.
+	AutoContinued bool
+}
+
+// ApproveToolCall approves and executes a pending tool call.
+// Returns the execution result and whether auto-continuation should occur.
+func (s *CompletionService) ApproveToolCall(ctx context.Context, chatID, toolCallID string) (*ApprovalResult, error) {
+	// Get the pending tool call
+	record, err := s.repo.GetToolCallByID(ctx, toolCallID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tool call: %w", err)
+	}
+	if record == nil {
+		return nil, fmt.Errorf("tool call not found: %s", toolCallID)
+	}
+	if record.Status != domain.StatusPendingApproval {
+		return nil, fmt.Errorf("tool call is not pending approval: status=%s", record.Status)
+	}
+	if record.ChatID != chatID {
+		return nil, fmt.Errorf("tool call does not belong to chat")
+	}
+
+	// Update status to approved
+	if err := s.repo.UpdateToolCallStatus(ctx, toolCallID, domain.StatusApproved, ""); err != nil {
+		return nil, fmt.Errorf("failed to update status: %w", err)
+	}
+
+	// Execute the tool
+	executedRecord, err := s.executor.ExecuteTool(ctx, chatID, toolCallID, record.ToolName, record.Arguments)
+	if err != nil {
+		log.Printf("warning: tool execution failed after approval: %v", err)
+	}
+
+	// Update the record with execution results
+	s.repo.SaveToolCallRecord(ctx, record.MessageID, executedRecord)
+
+	// Save tool response message
+	toolMsg, _ := s.repo.SaveToolResponseMessage(ctx, chatID, toolCallID, executedRecord.Result, record.MessageID)
+	if toolMsg != nil {
+		s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID)
+	}
+
+	// Check for remaining pending approvals
+	pending, _ := s.repo.GetPendingApprovals(ctx, chatID)
+
+	return &ApprovalResult{
+		ToolResult:       executedRecord,
+		PendingApprovals: pending,
+		AutoContinued:    len(pending) == 0, // Auto-continue when all approvals resolved
+	}, nil
+}
+
+// RejectToolCall rejects a pending tool call.
+func (s *CompletionService) RejectToolCall(ctx context.Context, chatID, toolCallID, reason string) error {
+	// Get the pending tool call
+	record, err := s.repo.GetToolCallByID(ctx, toolCallID)
+	if err != nil {
+		return fmt.Errorf("failed to get tool call: %w", err)
+	}
+	if record == nil {
+		return fmt.Errorf("tool call not found: %s", toolCallID)
+	}
+	if record.Status != domain.StatusPendingApproval {
+		return fmt.Errorf("tool call is not pending approval: status=%s", record.Status)
+	}
+	if record.ChatID != chatID {
+		return fmt.Errorf("tool call does not belong to chat")
+	}
+
+	// Update status to rejected
+	errorMsg := "Rejected by user"
+	if reason != "" {
+		errorMsg = reason
+	}
+	if err := s.repo.UpdateToolCallStatus(ctx, toolCallID, domain.StatusRejected, errorMsg); err != nil {
+		return fmt.Errorf("failed to update status: %w", err)
+	}
+
+	// Save tool response message with rejection info
+	rejectionResult := fmt.Sprintf(`{"rejected": true, "reason": %q}`, reason)
+	toolMsg, _ := s.repo.SaveToolResponseMessage(ctx, chatID, toolCallID, rejectionResult, record.MessageID)
+	if toolMsg != nil {
+		s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID)
+	}
+
+	return nil
+}
+
+// GetPendingApprovals returns all pending tool call approvals for a chat.
+func (s *CompletionService) GetPendingApprovals(ctx context.Context, chatID string) ([]*domain.ToolCallRecord, error) {
+	return s.repo.GetPendingApprovals(ctx, chatID)
 }
 
 // UpdateChatPreview updates the chat's preview text based on completion result.

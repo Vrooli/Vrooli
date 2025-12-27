@@ -154,6 +154,26 @@ func (sw *StreamWriter) WriteToolCallsComplete() {
 	})
 }
 
+// WriteToolCallPendingApproval sends an event indicating a tool requires approval.
+func (sw *StreamWriter) WriteToolCallPendingApproval(record *domain.ToolCallRecord) {
+	sw.WriteEvent(map[string]interface{}{
+		"type":          "tool_pending_approval",
+		"tool_call_id":  record.ID,
+		"tool_name":     record.ToolName,
+		"arguments":     record.Arguments,
+		"completion_id": sw.completionID,
+	})
+}
+
+// WriteAwaitingApprovals signals that tool calls are waiting for user approval.
+func (sw *StreamWriter) WriteAwaitingApprovals() {
+	sw.WriteEvent(map[string]interface{}{
+		"type":          "awaiting_approvals",
+		"continuing":    false,
+		"completion_id": sw.completionID,
+	})
+}
+
 // WriteError sends a structured error event.
 // For backwards compatibility, also includes the error string.
 func (sw *StreamWriter) WriteError(err error) {

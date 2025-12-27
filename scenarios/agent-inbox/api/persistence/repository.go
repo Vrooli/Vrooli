@@ -211,6 +211,27 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		{"create idx_messages_parent_id", `CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_message_id)`},
 		{"add messages.sibling_index", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS sibling_index INTEGER DEFAULT 0`},
 		{"add chats.active_leaf_message_id", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS active_leaf_message_id UUID REFERENCES messages(id) ON DELETE SET NULL`},
+		// Tool approval system
+		{"create user_settings table", `
+			CREATE TABLE IF NOT EXISTS user_settings (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				key VARCHAR(100) NOT NULL UNIQUE,
+				value JSONB NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			)`},
+		{"add tool_configurations.approval_override", `ALTER TABLE tool_configurations ADD COLUMN IF NOT EXISTS approval_override VARCHAR(10)`},
+		{"update tool_calls status check", `
+			DO $$
+			BEGIN
+				ALTER TABLE tool_calls DROP CONSTRAINT IF EXISTS tool_calls_status_check;
+				ALTER TABLE tool_calls ADD CONSTRAINT tool_calls_status_check
+					CHECK (status IN ('pending', 'pending_approval', 'approved', 'rejected', 'running', 'completed', 'failed', 'cancelled'));
+			EXCEPTION
+				WHEN others THEN NULL;
+			END
+			$$`},
+		{"create idx_tool_calls_pending_approval", `CREATE INDEX IF NOT EXISTS idx_tool_calls_pending_approval ON tool_calls(chat_id, status) WHERE status = 'pending_approval'`},
 	}
 
 	for _, m := range migrations {

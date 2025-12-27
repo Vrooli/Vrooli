@@ -2,14 +2,15 @@ import { useEffect, useRef, useState, forwardRef, useCallback, useMemo } from "r
 import {
   Loader2, User, Bot, Wrench, CheckCircle2, XCircle, Play,
   Copy, Volume2, VolumeX, RefreshCw, Pencil, Trash2, GitBranch,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, ShieldAlert
 } from "lucide-react";
 import type { Message, ToolCall } from "../../lib/api";
-import type { ActiveToolCall } from "../../hooks/useChats";
+import type { ActiveToolCall, PendingApproval } from "../../hooks/useCompletion";
 import type { ViewMode } from "../settings/Settings";
 import { Tooltip } from "../ui/tooltip";
 import { useToast } from "../ui/toast";
 import { VersionPicker } from "./VersionPicker";
+import { PendingApprovalCard } from "./PendingApprovalCard";
 import { getSiblingInfo, getPreviousSibling, getNextSibling } from "../../lib/messageTree";
 
 interface MessageListProps {
@@ -19,6 +20,12 @@ interface MessageListProps {
   isGenerating: boolean;
   streamingContent: string;
   activeToolCalls?: ActiveToolCall[];
+  /** Pending tool call approvals */
+  pendingApprovals?: PendingApproval[];
+  /** Whether we're waiting for user to approve pending tool calls */
+  awaitingApprovals?: boolean;
+  /** Whether an approval is being processed */
+  isProcessingApproval?: boolean;
   scrollToMessageId?: string | null;
   onScrollComplete?: () => void;
   viewMode?: ViewMode;
@@ -28,6 +35,10 @@ interface MessageListProps {
   onSelectBranch?: (messageId: string) => void;
   /** Called when user wants to fork the conversation from a specific message */
   onForkConversation?: (messageId: string) => void;
+  /** Called when user approves a pending tool call */
+  onApproveTool?: (toolCallId: string) => void;
+  /** Called when user rejects a pending tool call */
+  onRejectTool?: (toolCallId: string, reason?: string) => void;
   /** Whether regeneration is in progress */
   isRegenerating?: boolean;
   /** Whether forking is in progress */
@@ -40,12 +51,17 @@ export function MessageList({
   isGenerating,
   streamingContent,
   activeToolCalls = [],
+  pendingApprovals = [],
+  awaitingApprovals = false,
+  isProcessingApproval = false,
   scrollToMessageId,
   onScrollComplete,
   viewMode = "bubble",
   onRegenerateMessage,
   onSelectBranch,
   onForkConversation,
+  onApproveTool,
+  onRejectTool,
   isRegenerating = false,
   isForking = false,
 }: MessageListProps) {
@@ -181,6 +197,27 @@ export function MessageList({
             </div>
           </div>
         )
+      )}
+
+      {/* Pending Approvals */}
+      {pendingApprovals.length > 0 && onApproveTool && onRejectTool && (
+        <div className="space-y-2" data-testid="pending-approvals">
+          {awaitingApprovals && (
+            <div className="flex items-center gap-2 py-2">
+              <ShieldAlert className="h-4 w-4 text-yellow-400" />
+              <span className="text-sm text-yellow-400">Awaiting approval to continue</span>
+            </div>
+          )}
+          {pendingApprovals.map((approval) => (
+            <PendingApprovalCard
+              key={approval.id}
+              approval={approval}
+              onApprove={onApproveTool}
+              onReject={onRejectTool}
+              isProcessing={isProcessingApproval}
+            />
+          ))}
+        </div>
       )}
 
       {isGenerating && !activeToolCalls.length && (

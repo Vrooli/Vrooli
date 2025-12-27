@@ -12,6 +12,7 @@ import {
   Database,
   MessageCircle,
   AlignLeft,
+  Zap,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -19,7 +20,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { ModelSelector } from "./ModelSelector";
 import { ToolConfiguration } from "./ToolConfiguration";
 import { useTools } from "../../hooks/useTools";
-import type { Model } from "../../lib/api";
+import { useYoloMode } from "../../hooks/useSettings";
+import type { Model, ApprovalOverride } from "../../lib/api";
 
 export type Theme = "dark" | "light";
 export type ViewMode = "bubble" | "compact";
@@ -97,6 +99,14 @@ export function Settings({
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [showTools, setShowTools] = useState(false);
 
+  // YOLO mode setting
+  const {
+    yoloMode,
+    isLoading: isLoadingYoloMode,
+    isUpdating: isUpdatingYoloMode,
+    setYoloMode,
+  } = useYoloMode(open && activeTab === "ai");
+
   // Tool configuration (global defaults)
   const {
     toolsByScenario,
@@ -108,8 +118,17 @@ export function Settings({
     isUpdating: isUpdatingTools,
     error: toolsError,
     toggleTool,
+    setApproval,
     refreshToolRegistry,
   } = useTools({ enabled: open && activeTab === "ai" });
+
+  const handleYoloModeToggle = useCallback(() => {
+    setYoloMode(!yoloMode);
+  }, [yoloMode, setYoloMode]);
+
+  const handleSetApproval = useCallback((scenario: string, toolName: string, override: ApprovalOverride) => {
+    setApproval(scenario, toolName, override);
+  }, [setApproval]);
 
   // Apply theme class to document
   useEffect(() => {
@@ -278,6 +297,37 @@ export function Settings({
               />
             </section>
 
+            {/* YOLO Mode Section */}
+            <section>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-slate-300">YOLO Mode</h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Execute all tools without asking for approval
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={yoloMode}
+                    onChange={handleYoloModeToggle}
+                    disabled={isLoadingYoloMode || isUpdatingYoloMode}
+                    className="sr-only peer"
+                    data-testid="yolo-mode-toggle"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500" />
+                </label>
+              </div>
+              {yoloMode && (
+                <div className="mt-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                  <p className="text-xs text-yellow-400 flex items-center gap-2">
+                    <Zap className="h-3.5 w-3.5" />
+                    Tools will execute automatically without confirmation
+                  </p>
+                </div>
+              )}
+            </section>
+
             {/* Tools Configuration Section */}
             <section>
               <div className="flex items-center justify-between mb-3">
@@ -315,7 +365,9 @@ export function Settings({
                     isUpdating={isUpdatingTools}
                     error={toolsError?.message}
                     onToggleTool={toggleTool}
+                    onSetApproval={handleSetApproval}
                     onRefresh={refreshToolRegistry}
+                    yoloMode={yoloMode}
                   />
                 </div>
               )}

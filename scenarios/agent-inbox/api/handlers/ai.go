@@ -315,17 +315,29 @@ func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, s
 	}
 
 	var toolErrors []error
+	var hasPendingApprovals bool
+
 	for _, tc := range result.ToolCalls {
 		sw.WriteToolCallStart(tc)
 
-		results, err := svc.ExecuteToolCalls(ctx, chatID, messageID, []domain.ToolCall{tc}, assistantMessageID)
+		outcome, err := svc.ExecuteToolCalls(ctx, chatID, messageID, []domain.ToolCall{tc}, assistantMessageID)
 		if err != nil {
 			toolErrors = append(toolErrors, err)
 			log.Printf("tool call %s failed: %v", tc.Function.Name, err)
 		}
 
-		if len(results) > 0 {
-			sw.WriteToolCallResult(results[0])
+		if outcome != nil {
+			if outcome.HasPendingApprovals {
+				hasPendingApprovals = true
+				// Write pending approval event for each pending tool
+				for _, pending := range outcome.PendingApprovals {
+					sw.WriteToolCallPendingApproval(pending)
+				}
+			}
+
+			if len(outcome.Results) > 0 {
+				sw.WriteToolCallResult(outcome.Results[0])
+			}
 		}
 	}
 
@@ -334,8 +346,12 @@ func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, s
 		sw.WriteWarning(domain.ErrCodeToolExecutionFailed, fmt.Sprintf("%d tool(s) encountered errors", len(toolErrors)))
 	}
 
-	// Signal that tools were executed and continuation is needed
-	sw.WriteToolCallsComplete()
+	// Signal completion status
+	if hasPendingApprovals {
+		sw.WriteAwaitingApprovals()
+	} else {
+		sw.WriteToolCallsComplete()
+	}
 }
 
 // handleNonStreamingResponse processes a non-streaming AI response.
@@ -405,31 +421,47 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 	}
 
 	// Execute all tool calls
-	toolResults, toolErr := svc.ExecuteToolCalls(r.Context(), chatID, messageID, result.ToolCalls, assistantMessageID)
+	outcome, toolErr := svc.ExecuteToolCalls(r.Context(), chatID, messageID, result.ToolCalls, assistantMessageID)
 	if toolErr != nil {
 		log.Printf("tool execution error for chat %s: %v", chatID, toolErr)
 	}
 
 	// Convert to response format
 	var resultsMap []map[string]interface{}
-	for _, tr := range toolResults {
-		m := map[string]interface{}{
-			"tool_id":   tr.ToolCallID,
-			"tool_name": tr.ToolName,
-			"status":    tr.Status,
+	var pendingApprovalsMap []map[string]interface{}
+
+	if outcome != nil {
+		for _, tr := range outcome.Results {
+			m := map[string]interface{}{
+				"tool_id":   tr.ToolCallID,
+				"tool_name": tr.ToolName,
+				"status":    tr.Status,
+			}
+			if tr.Error != "" {
+				m["error"] = tr.Error
+			} else {
+				m["result"] = tr.Result
+			}
+			resultsMap = append(resultsMap, m)
 		}
-		if tr.Error != "" {
-			m["error"] = tr.Error
-		} else {
-			m["result"] = tr.Result
+
+		for _, pending := range outcome.PendingApprovals {
+			pendingApprovalsMap = append(pendingApprovalsMap, map[string]interface{}{
+				"id":         pending.ID,
+				"tool_name":  pending.ToolName,
+				"arguments":  pending.Arguments,
+				"status":     pending.Status,
+				"started_at": pending.StartedAt,
+			})
 		}
-		resultsMap = append(resultsMap, m)
 	}
 
 	response := map[string]interface{}{
-		"message":        msg,
-		"tool_results":   resultsMap,
-		"needs_followup": true,
+		"message":             msg,
+		"tool_results":        resultsMap,
+		"needs_followup":      !outcome.HasPendingApprovals, // Only needs AI followup if no pending approvals
+		"pending_approvals":   pendingApprovalsMap,
+		"awaiting_approvals":  outcome.HasPendingApprovals,
 	}
 
 	// Include error summary in response if any tools failed

@@ -128,17 +128,15 @@ func (r *ToolRegistry) GetEffectiveTools(ctx context.Context, chatID string) ([]
 		return nil, fmt.Errorf("failed to load tool configurations: %w", err)
 	}
 
-	// Build config lookup map
-	configMap := make(map[string]*domain.ToolConfiguration)
+	// Build config lookup maps (global and chat-specific)
+	globalConfigMap := make(map[string]*domain.ToolConfiguration)
+	chatConfigMap := make(map[string]*domain.ToolConfiguration)
 	for _, cfg := range configs {
 		key := cfg.Scenario + "/" + cfg.ToolName
-		// Chat-specific config takes precedence over global
-		if existing, ok := configMap[key]; ok {
-			if cfg.ChatID != "" && existing.ChatID == "" {
-				configMap[key] = cfg
-			}
+		if cfg.ChatID != "" {
+			chatConfigMap[key] = cfg
 		} else {
-			configMap[key] = cfg
+			globalConfigMap[key] = cfg
 		}
 	}
 
@@ -146,16 +144,32 @@ func (r *ToolRegistry) GetEffectiveTools(ctx context.Context, chatID string) ([]
 	result := make([]domain.EffectiveTool, len(toolSet.Tools))
 	for i, tool := range toolSet.Tools {
 		result[i] = tool
-
 		key := tool.Scenario + "/" + tool.Tool.Name
-		if cfg, ok := configMap[key]; ok {
-			result[i].Enabled = cfg.Enabled
-			if cfg.ChatID != "" {
-				result[i].Source = domain.ScopeChat
-			} else {
-				result[i].Source = domain.ScopeGlobal
-			}
+
+		// Determine effective enabled state
+		if chatCfg, ok := chatConfigMap[key]; ok {
+			result[i].Enabled = chatCfg.Enabled
+			result[i].Source = domain.ScopeChat
+		} else if globalCfg, ok := globalConfigMap[key]; ok {
+			result[i].Enabled = globalCfg.Enabled
+			result[i].Source = domain.ScopeGlobal
 		}
+
+		// Determine effective approval requirement
+		// Priority: chat-specific > global > tool metadata default
+		metadataDefault := tool.Tool.Metadata.RequiresApproval
+		result[i].RequiresApproval = metadataDefault
+
+		if chatCfg, ok := chatConfigMap[key]; ok && chatCfg.ApprovalOverride != "" {
+			result[i].RequiresApproval = chatCfg.ApprovalOverride == domain.ApprovalRequire
+			result[i].ApprovalSource = domain.ScopeChat
+			result[i].ApprovalOverride = chatCfg.ApprovalOverride
+		} else if globalCfg, ok := globalConfigMap[key]; ok && globalCfg.ApprovalOverride != "" {
+			result[i].RequiresApproval = globalCfg.ApprovalOverride == domain.ApprovalRequire
+			result[i].ApprovalSource = domain.ScopeGlobal
+			result[i].ApprovalOverride = globalCfg.ApprovalOverride
+		}
+		// If no override, ApprovalSource and ApprovalOverride stay empty (meaning tool default)
 	}
 
 	return result, nil
@@ -264,6 +278,38 @@ func (r *ToolRegistry) GetToolByName(ctx context.Context, toolName string) (*dom
 	return nil, "", fmt.Errorf("tool not found: %s", toolName)
 }
 
+// GetToolApprovalRequired checks if a tool requires approval before execution.
+// This considers YOLO mode, user overrides, and tool metadata defaults.
+// Returns (requiresApproval, source, error).
+func (r *ToolRegistry) GetToolApprovalRequired(ctx context.Context, chatID, toolName string) (bool, domain.ToolConfigurationScope, error) {
+	// First check YOLO mode - if enabled, never require approval
+	yoloMode, err := r.repo.GetYoloMode(ctx)
+	if err != nil {
+		log.Printf("warning: failed to check YOLO mode: %v", err)
+	}
+	if yoloMode {
+		return false, "", nil
+	}
+
+	// Look up the tool to get its metadata default and scenario
+	tool, scenario, err := r.GetToolByName(ctx, toolName)
+	if err != nil {
+		// Tool not found, default to not requiring approval
+		return false, "", nil
+	}
+
+	// Check user overrides via repository
+	metadataDefault := tool.Metadata.RequiresApproval
+	return r.repo.GetEffectiveToolApproval(ctx, chatID, scenario, toolName, metadataDefault)
+}
+
+// SetToolApprovalOverride updates the approval override for a tool.
+// Pass empty chatID for global configuration.
+// Pass empty override to reset to default (use tool metadata).
+func (r *ToolRegistry) SetToolApprovalOverride(ctx context.Context, chatID, scenario, toolName string, override domain.ApprovalOverride) error {
+	return r.repo.SetToolApprovalOverride(ctx, chatID, scenario, toolName, override)
+}
+
 // buildToolSet aggregates manifests from multiple scenarios into a ToolSet.
 func (r *ToolRegistry) buildToolSet(manifests map[string]*domain.ToolManifest) *domain.ToolSet {
 	var scenarios []domain.ScenarioInfo
@@ -275,13 +321,15 @@ func (r *ToolRegistry) buildToolSet(manifests map[string]*domain.ToolManifest) *
 		info := manifest.Scenario
 		scenarios = append(scenarios, info)
 
-		// Add tools with default enabled state
+		// Add tools with default enabled state and approval requirement
 		for _, tool := range manifest.Tools {
 			tools = append(tools, domain.EffectiveTool{
-				Scenario: scenarioName,
-				Tool:     tool,
-				Enabled:  tool.Metadata.EnabledByDefault,
-				Source:   "", // Empty means using tool's default
+				Scenario:         scenarioName,
+				Tool:             tool,
+				Enabled:          tool.Metadata.EnabledByDefault,
+				Source:           "",                              // Empty means using tool's default
+				RequiresApproval: tool.Metadata.RequiresApproval,  // Default from tool metadata
+				ApprovalSource:   "",                              // Empty means using tool's default
 			})
 		}
 

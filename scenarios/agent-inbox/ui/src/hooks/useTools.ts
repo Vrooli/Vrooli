@@ -20,11 +20,13 @@ import {
   fetchToolSet,
   fetchScenarioStatuses,
   setToolEnabled,
+  setToolApproval,
   resetToolConfig,
   refreshTools,
   type ToolSet,
   type ScenarioStatus,
   type EffectiveTool,
+  type ApprovalOverride,
 } from "../lib/api";
 
 // Query keys for cache management
@@ -61,6 +63,7 @@ export interface UseToolsReturn {
 
   // Actions
   toggleTool: (scenario: string, toolName: string, enabled: boolean) => Promise<void>;
+  setApproval: (scenario: string, toolName: string, override: ApprovalOverride) => Promise<void>;
   resetTool: (scenario: string, toolName: string) => Promise<void>;
   refreshToolRegistry: () => Promise<void>;
   refetch: () => void;
@@ -157,6 +160,65 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     },
   });
 
+  // Set tool approval override
+  const approvalMutation = useMutation({
+    mutationFn: async ({
+      scenario,
+      toolName,
+      override,
+    }: {
+      scenario: string;
+      toolName: string;
+      override: ApprovalOverride;
+    }) => {
+      await setToolApproval(scenario, toolName, override, chatId);
+    },
+    onMutate: async ({ scenario, toolName, override }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
+
+      // Snapshot previous value
+      const previousToolSet = queryClient.getQueryData<ToolSet>(toolQueryKeys.toolSet(chatId));
+
+      // Optimistically update
+      if (previousToolSet) {
+        queryClient.setQueryData<ToolSet>(toolQueryKeys.toolSet(chatId), {
+          ...previousToolSet,
+          tools: previousToolSet.tools.map((t) => {
+            if (t.scenario === scenario && t.tool.name === toolName) {
+              // Compute effective requires_approval based on override
+              let requiresApproval = t.tool.metadata.requires_approval;
+              if (override === "require") {
+                requiresApproval = true;
+              } else if (override === "skip") {
+                requiresApproval = false;
+              }
+              return {
+                ...t,
+                requires_approval: requiresApproval,
+                approval_override: override,
+                approval_source: chatId ? "chat" : "global",
+              };
+            }
+            return t;
+          }),
+        });
+      }
+
+      return { previousToolSet };
+    },
+    onError: (_err, _variables, context) => {
+      // Rollback on error
+      if (context?.previousToolSet) {
+        queryClient.setQueryData(toolQueryKeys.toolSet(chatId), context.previousToolSet);
+      }
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
+    },
+  });
+
   // Reset tool to default
   const resetMutation = useMutation({
     mutationFn: async ({ scenario, toolName }: { scenario: string; toolName: string }) => {
@@ -206,7 +268,7 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     isLoading,
     isLoadingScenarios,
     isRefreshing: refreshMutation.isPending,
-    isUpdating: toggleMutation.isPending || resetMutation.isPending,
+    isUpdating: toggleMutation.isPending || approvalMutation.isPending || resetMutation.isPending,
 
     // Error states
     error: error as Error | null,
@@ -215,6 +277,9 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     // Actions
     toggleTool: async (scenario, toolName, enabled) => {
       await toggleMutation.mutateAsync({ scenario, toolName, enabled });
+    },
+    setApproval: async (scenario, toolName, override) => {
+      await approvalMutation.mutateAsync({ scenario, toolName, override });
     },
     resetTool: async (scenario, toolName) => {
       await resetMutation.mutateAsync({ scenario, toolName });

@@ -37,14 +37,14 @@ import {
   type StreamingEvent,
   type BulkOperation,
 } from "../lib/api";
-import { useCompletion, type ActiveToolCall } from "./useCompletion";
+import { useCompletion, type ActiveToolCall, type PendingApproval } from "./useCompletion";
 import { useLabels } from "./useLabels";
 import { getDefaultModel } from "../components/settings/Settings";
 
 export type View = "inbox" | "starred" | "archived";
 
 // Re-export for convenience
-export type { ActiveToolCall };
+export type { ActiveToolCall, PendingApproval };
 
 export interface UseChatsOptions {
   /** Initial chat ID from URL - will be selected once chats are loaded */
@@ -360,6 +360,33 @@ export function useChats(options: UseChatsOptions = {}) {
     [selectedChatId, forkChatMutation]
   );
 
+  // Tool approval actions that wrap completion methods with the current chatId
+  const approveTool = useCallback(
+    async (toolCallId: string) => {
+      if (!selectedChatId) return;
+      const result = await completion.approveTool(selectedChatId, toolCallId);
+      // Refetch chat after approval to get updated messages
+      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      // If auto-continued, the backend triggered a new completion
+      // which will add new messages, so we refetch
+      if (result?.auto_continued) {
+        queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+      }
+    },
+    [selectedChatId, completion, queryClient]
+  );
+
+  const rejectTool = useCallback(
+    async (toolCallId: string, reason?: string) => {
+      if (!selectedChatId) return;
+      await completion.rejectTool(selectedChatId, toolCallId, reason);
+      // Refetch chat after rejection
+      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+    },
+    [selectedChatId, completion, queryClient]
+  );
+
   return {
     // State
     selectedChatId,
@@ -367,6 +394,8 @@ export function useChats(options: UseChatsOptions = {}) {
     isGenerating: completion.isGenerating,
     streamingContent: completion.streamingContent,
     activeToolCalls: completion.activeToolCalls,
+    pendingApprovals: completion.pendingApprovals,
+    awaitingApprovals: completion.awaitingApprovals,
     isRegenerating,
     regeneratingContent,
 
@@ -409,6 +438,10 @@ export function useChats(options: UseChatsOptions = {}) {
 
     // Fork conversation
     forkConversation,
+
+    // Tool approval actions
+    approveTool,
+    rejectTool,
 
     // Label operations (delegated)
     createLabel: labelOps.createLabel,

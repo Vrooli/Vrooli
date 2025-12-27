@@ -86,7 +86,17 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/tools/scenarios", h.GetScenarioStatuses).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/tools/config", h.SetToolEnabled).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/tools/config", h.ResetToolConfig).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/v1/tools/config/approval", h.SetToolApproval).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/tools/refresh", h.RefreshTools).Methods("POST", "OPTIONS")
+
+	// Tool Call Approvals
+	r.HandleFunc("/api/v1/chats/{id}/pending-approvals", h.GetPendingApprovals).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/tool-calls/{id}/approve", h.ApproveToolCall).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/tool-calls/{id}/reject", h.RejectToolCall).Methods("POST", "OPTIONS")
+
+	// Settings
+	r.HandleFunc("/api/v1/settings/yolo-mode", h.GetYoloMode).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/settings/yolo-mode", h.SetYoloMode).Methods("POST", "OPTIONS")
 
 	// Usage tracking
 	r.HandleFunc("/api/v1/usage", h.GetUsageStats).Methods("GET", "OPTIONS")

@@ -107,11 +107,14 @@ const (
 
 // ToolCall status constants
 const (
-	StatusPending   = "pending"
-	StatusRunning   = "running"
-	StatusCompleted = "completed"
-	StatusFailed    = "failed"
-	StatusCancelled = "cancelled"
+	StatusPending         = "pending"
+	StatusPendingApproval = "pending_approval" // Waiting for user to approve
+	StatusApproved        = "approved"         // User approved, transitional before execution
+	StatusRejected        = "rejected"         // User rejected the tool call
+	StatusRunning         = "running"
+	StatusCompleted       = "completed"
+	StatusFailed          = "failed"
+	StatusCancelled       = "cancelled"
 )
 
 // Preview constants
