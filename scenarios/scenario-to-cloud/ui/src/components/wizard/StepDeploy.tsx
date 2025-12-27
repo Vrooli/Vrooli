@@ -1,0 +1,148 @@
+import { Rocket, Play, CheckCircle2, ExternalLink, PartyPopper } from "lucide-react";
+import { Button } from "../ui/button";
+import { Alert } from "../ui/alert";
+import { LoadingState } from "../ui/spinner";
+import { Card, CardContent } from "../ui/card";
+import type { useDeployment } from "../../hooks/useDeployment";
+
+interface StepDeployProps {
+  deployment: ReturnType<typeof useDeployment>;
+}
+
+export function StepDeploy({ deployment }: StepDeployProps) {
+  const {
+    deploymentStatus,
+    deploymentError,
+    deploy,
+    parsedManifest,
+    reset,
+  } = deployment;
+
+  const isDeploying = deploymentStatus === "deploying";
+  const isSuccess = deploymentStatus === "success";
+  const isFailed = deploymentStatus === "failed";
+
+  // Get domain for success message
+  const domain = parsedManifest.ok ? parsedManifest.value.edge?.domain : null;
+
+  return (
+    <div className="space-y-6">
+      {/* Deploy Button */}
+      {!isSuccess && (
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={deploy}
+            disabled={isDeploying || !parsedManifest.ok}
+          >
+            <Rocket className="h-4 w-4 mr-1.5" />
+            {isDeploying ? "Deploying..." : "Deploy to VPS"}
+          </Button>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {isDeploying && (
+        <LoadingState message="Deploying to VPS..." />
+      )}
+
+      {/* Error */}
+      {isFailed && deploymentError && (
+        <Alert variant="error" title="Deployment Failed">
+          {deploymentError}
+        </Alert>
+      )}
+
+      {/* Success */}
+      {isSuccess && (
+        <div className="space-y-6">
+          <Alert variant="success" title="Deployment Successful!">
+            <div className="flex items-center gap-2">
+              <PartyPopper className="h-4 w-4" />
+              Your scenario has been deployed and is now live.
+            </div>
+          </Alert>
+
+          <Card>
+            <CardContent className="py-6 text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+                <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+              </div>
+
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Deployment Complete
+              </h3>
+
+              {domain && (
+                <p className="text-slate-300 mb-4">
+                  Your scenario is now live at:
+                </p>
+              )}
+
+              {domain && (
+                <a
+                  href={`https://${domain}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  https://{domain}
+                </a>
+              )}
+
+              <div className="mt-8 pt-6 border-t border-slate-700">
+                <p className="text-sm text-slate-400 mb-4">
+                  Ready to deploy another scenario?
+                </p>
+                <Button onClick={reset}>
+                  Start New Deployment
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Pre-deploy info */}
+      {deploymentStatus === "idle" && (
+        <Card>
+          <CardContent className="py-4">
+            <h4 className="text-sm font-medium text-slate-300 mb-3">What happens during deployment:</h4>
+            <ol className="space-y-2 text-sm text-slate-400">
+              <li className="flex items-start gap-2">
+                <span className="text-slate-500">1.</span>
+                Bundle is uploaded to the target server via SCP
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-slate-500">2.</span>
+                Vrooli setup runs to configure the environment
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-slate-500">3.</span>
+                Required resources are started (Postgres, Redis, etc.)
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-slate-500">4.</span>
+                Scenario services are started with fixed ports
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-slate-500">5.</span>
+                Caddy configures HTTPS with Let's Encrypt
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-slate-500">6.</span>
+                Health checks verify the deployment is working
+              </li>
+            </ol>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Note about API */}
+      <p className="text-xs text-slate-500">
+        Note: Full deployment functionality will be available when the deploy API is implemented.
+        Current deployment is simulated for UI demonstration.
+      </p>
+    </div>
+  );
+}
