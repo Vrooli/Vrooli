@@ -75,11 +75,10 @@ type ManifestBundle struct {
 	Resources       []string `json:"resources,omitempty"`
 }
 
-type ManifestPorts struct {
-	UI  int `json:"ui,omitempty"`
-	API int `json:"api,omitempty"`
-	WS  int `json:"ws,omitempty"`
-}
+// ManifestPorts maps port names to port numbers.
+// Standard ports (ui, api, ws) are common, but scenarios can define additional ports
+// like playwright_driver, metrics, etc. in their service.json.
+type ManifestPorts map[string]int
 
 type ManifestEdge struct {
 	Domain string        `json:"domain"`
@@ -213,14 +212,19 @@ func ValidateAndNormalizeManifest(in CloudManifest) (CloudManifest, []Validation
 		})
 	}
 
-	if out.Ports.UI == 0 {
-		out.Ports.UI = 3000
+	// Initialize ports map if nil
+	if out.Ports == nil {
+		out.Ports = make(ManifestPorts)
 	}
-	if out.Ports.API == 0 {
-		out.Ports.API = 3001
+	// Set defaults for standard ports if not specified
+	if out.Ports["ui"] == 0 {
+		out.Ports["ui"] = 3000
 	}
-	if out.Ports.WS == 0 {
-		out.Ports.WS = 3002
+	if out.Ports["api"] == 0 {
+		out.Ports["api"] = 3001
+	}
+	if out.Ports["ws"] == 0 {
+		out.Ports["ws"] = 3002
 	}
 	if invalid := findInvalidPorts(out.Ports); len(invalid) > 0 {
 		for _, p := range invalid {
@@ -339,7 +343,14 @@ func looksLikeDomain(domain string) bool {
 func findDuplicatePorts(p ManifestPorts) []string {
 	seen := map[int]string{}
 	var duplicates []string
-	for name, value := range map[string]int{"ui": p.UI, "api": p.API, "ws": p.WS} {
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(p))
+	for k := range p {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, name := range keys {
+		value := p[name]
 		if value <= 0 || value > 65535 {
 			continue
 		}
@@ -359,7 +370,7 @@ type invalidPort struct {
 
 func findInvalidPorts(p ManifestPorts) []invalidPort {
 	var invalid []invalidPort
-	for name, value := range map[string]int{"ui": p.UI, "api": p.API, "ws": p.WS} {
+	for name, value := range p {
 		if value <= 0 || value > 65535 {
 			invalid = append(invalid, invalidPort{Name: name, Value: value})
 		}

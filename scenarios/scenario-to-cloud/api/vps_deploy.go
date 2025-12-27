@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -18,10 +19,27 @@ type VPSDeployResult struct {
 	Timestamp string        `json:"timestamp"`
 }
 
+// buildPortEnvVars builds environment variable assignments for all ports in the manifest
+func buildPortEnvVars(ports ManifestPorts) string {
+	var parts []string
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(ports))
+	for k := range ports {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		// Convert port key to env var name: ui -> UI_PORT, api -> API_PORT, playwright_driver -> PLAYWRIGHT_DRIVER_PORT
+		envVar := strings.ToUpper(key) + "_PORT"
+		parts = append(parts, fmt.Sprintf("%s=%d", envVar, ports[key]))
+	}
+	return strings.Join(parts, " ")
+}
+
 func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 	cfg := sshConfigFromManifest(manifest)
 	workdir := manifest.Target.VPS.Workdir
-	uiPort := manifest.Ports.UI
+	uiPort := manifest.Ports["ui"]
 
 	caddyfile := buildCaddyfile(manifest.Edge.Domain, uiPort)
 	caddyfilePath := "/etc/caddy/Caddyfile"
@@ -68,17 +86,18 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 		})
 	}
 
+	// Build port environment variables from manifest
+	portEnvVars := buildPortEnvVars(manifest.Ports)
+
 	steps = append(steps,
 		VPSPlanStep{
 			ID:          "scenario_start_target",
 			Title:       "Start target scenario with fixed ports",
-			Description: "Starts the target scenario with UI_PORT/API_PORT/WS_PORT overrides.",
+			Description: "Starts the target scenario with port overrides from the manifest.",
 			Command: localSSHCommand(cfg, fmt.Sprintf(
-				"cd %s && UI_PORT=%d API_PORT=%d WS_PORT=%d vrooli scenario start %s",
+				"cd %s && %s vrooli scenario start %s",
 				shellQuoteSingle(workdir),
-				manifest.Ports.UI,
-				manifest.Ports.API,
-				manifest.Ports.WS,
+				portEnvVars,
 				shellQuoteSingle(manifest.Scenario.ID),
 			)),
 		},
@@ -91,7 +110,7 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 		VPSPlanStep{
 			ID:          "verify_https",
 			Title:       "Verify HTTPS health",
-			Description: "Checks https://<domain>/health via Caddy + Let’s Encrypt.",
+			Description: "Checks https://<domain>/health via Caddy + Let's Encrypt.",
 			Command:     localSSHCommand(cfg, fmt.Sprintf("curl -fsS --max-time 10 https://%s/health", manifest.Edge.Domain)),
 		},
 	)
@@ -107,6 +126,7 @@ func RunVPSDeploy(ctx context.Context, manifest CloudManifest, sshRunner SSHRunn
 
 	cfg := sshConfigFromManifest(manifest)
 	workdir := manifest.Target.VPS.Workdir
+	uiPort := manifest.Ports["ui"]
 
 	run := func(cmd string) error {
 		res, err := sshRunner.Run(ctx, cfg, cmd)
@@ -127,7 +147,7 @@ func RunVPSDeploy(ctx context.Context, manifest CloudManifest, sshRunner SSHRunn
 	}
 
 	caddyfilePath := "/etc/caddy/Caddyfile"
-	caddyfile := buildCaddyfile(manifest.Edge.Domain, manifest.Ports.UI)
+	caddyfile := buildCaddyfile(manifest.Edge.Domain, uiPort)
 	if err := run(fmt.Sprintf("printf '%%s' %s > %s", shellQuoteSingle(caddyfile), shellQuoteSingle(caddyfilePath))); err != nil {
 		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
@@ -150,11 +170,13 @@ func RunVPSDeploy(ctx context.Context, manifest CloudManifest, sshRunner SSHRunn
 		}
 	}
 
-	if err := run(fmt.Sprintf("cd %s && UI_PORT=%d API_PORT=%d WS_PORT=%d vrooli scenario start %s", shellQuoteSingle(workdir), manifest.Ports.UI, manifest.Ports.API, manifest.Ports.WS, shellQuoteSingle(manifest.Scenario.ID))); err != nil {
+	// Build port environment variables from manifest
+	portEnvVars := buildPortEnvVars(manifest.Ports)
+	if err := run(fmt.Sprintf("cd %s && %s vrooli scenario start %s", shellQuoteSingle(workdir), portEnvVars, shellQuoteSingle(manifest.Scenario.ID))); err != nil {
 		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
-	if err := run(fmt.Sprintf("curl -fsS --max-time 5 http://127.0.0.1:%d/health", manifest.Ports.UI)); err != nil {
+	if err := run(fmt.Sprintf("curl -fsS --max-time 5 http://127.0.0.1:%d/health", uiPort)); err != nil {
 		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 	if err := run(fmt.Sprintf("curl -fsS --max-time 10 https://%s/health", manifest.Edge.Domain)); err != nil {

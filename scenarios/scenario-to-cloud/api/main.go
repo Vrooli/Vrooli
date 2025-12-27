@@ -51,6 +51,9 @@ func (s *Server) setupRoutes() {
 
 	api := s.router.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/health", health.Handler()).Methods("GET")
+	api.HandleFunc("/scenarios", s.handleListScenarios).Methods("GET")
+	api.HandleFunc("/scenarios/{id}/ports", s.handleScenarioPorts).Methods("GET")
+	api.HandleFunc("/validate/reachability", s.handleReachabilityCheck).Methods("POST")
 	api.HandleFunc("/manifest/validate", s.handleManifestValidate).Methods("POST")
 	api.HandleFunc("/plan", s.handlePlan).Methods("POST")
 	api.HandleFunc("/bundle/build", s.handleBundleBuild).Methods("POST")

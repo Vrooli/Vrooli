@@ -23,11 +23,8 @@ export type DeploymentManifest = {
     include_packages: boolean;
     include_autoheal: boolean;
   };
-  ports: {
-    ui: number;
-    api: number;
-    ws: number;
-  };
+  /** Dynamic port mapping - keys are port names (ui, api, ws, playwright_driver, etc.) */
+  ports: Record<string, number>;
   edge: {
     domain: string;
     caddy: {
@@ -93,21 +90,17 @@ export const DEFAULT_MANIFEST: DeploymentManifest = {
     },
   },
   scenario: {
-    id: "landing-page-business-suite",
+    id: "",
   },
   dependencies: {
-    scenarios: ["landing-page-business-suite"],
+    scenarios: [],
     resources: [],
   },
   bundle: {
     include_packages: true,
     include_autoheal: true,
   },
-  ports: {
-    ui: 3000,
-    api: 3001,
-    ws: 3002,
-  },
+  ports: {},
   edge: {
     domain: "example.com",
     caddy: {
