@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -917,15 +918,6 @@ func (d *DiscoveryService) semanticSearch(query string, limit int) []WorkflowMet
 	return d.semanticSearchWithWorkflow(query, limit)
 }
 
-// Health endpoint
-func Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
-		"service": serviceName,
-		"version": apiVersion,
-	})
-}
 
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
@@ -1019,9 +1011,13 @@ func main() {
 	
 	// Setup routes
 	r := mux.NewRouter()
-	
-	// Health and system endpoints
-	r.HandleFunc("/health", Health).Methods("GET")
+
+	// Health endpoint using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version(apiVersion).
+		Check(health.DB(db), health.Critical).
+		Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/workflows", discovery.ListWorkflows).Methods("GET")
 	r.HandleFunc("/workflows/search", discovery.SearchWorkflows).Methods("POST")
 	r.HandleFunc("/analyze", discovery.AnalyzeWorkflow).Methods("POST")

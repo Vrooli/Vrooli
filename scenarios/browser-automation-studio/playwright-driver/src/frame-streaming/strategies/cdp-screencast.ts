@@ -22,6 +22,7 @@ import type {
   StreamingHandle,
   WebSocketProvider,
   FrameStatsReporter,
+  PageProvider,
 } from './interface';
 
 /** Frame event from CDP */
@@ -40,11 +41,6 @@ interface ScreencastFrameEvent {
   };
   /** Frame number - MUST be used in ACK */
   sessionId: number;
-}
-
-/** Visibility change event from CDP */
-interface ScreencastVisibilityEvent {
-  visible: boolean;
 }
 
 /** ACK timeout - prevents hanging if CDP is slow */
@@ -76,130 +72,147 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
   }
 
   async start(
-    page: Page,
+    pageProvider: PageProvider,
     config: StreamingStrategyConfig,
     wsProvider: WebSocketProvider,
     statsReporter: FrameStatsReporter
   ): Promise<StreamingHandle> {
-    const cdpSession = await page.context().newCDPSession(page);
+    // Get initial page - CDP screencast is bound to a specific page
+    let currentPage = pageProvider();
+    let cdpSession = await currentPage.context().newCDPSession(currentPage);
     let isActive = true;
     let frameCount = 0;
     let ackFailures = 0;
     let currentQuality = config.quality;
+    let pageCheckInterval: ReturnType<typeof setInterval> | null = null;
 
     const { sessionId } = config;
 
-    // Get viewport for screencast config
-    const viewport = page.viewportSize() ?? { width: 1280, height: 720 };
-
-    // Handle incoming frames
-    cdpSession.on('Page.screencastFrame', async (event: ScreencastFrameEvent) => {
-      if (!isActive) return;
-
-      const frameStart = performance.now();
-
+    // Helper to restart screencast on a new page
+    const restartScreencastOnPage = async (newPage: Page) => {
+      // Stop old screencast
       try {
-        // Check WebSocket before processing
-        if (!wsProvider.isReady()) {
-          statsReporter.onFrameSkipped('ws_not_ready');
-          // Still need to ACK the frame
+        await cdpSession.send('Page.stopScreencast');
+        await cdpSession.detach();
+      } catch {
+        // Ignore errors - old session may already be invalid
+      }
+
+      // Start new screencast on new page
+      currentPage = newPage;
+      cdpSession = await newPage.context().newCDPSession(newPage);
+
+      // Re-attach frame handler
+      setupFrameHandler();
+
+      const viewport = newPage.viewportSize() ?? { width: 1280, height: 720 };
+      await cdpSession.send('Page.startScreencast', {
+        format: 'jpeg',
+        quality: currentQuality,
+        maxWidth: viewport.width,
+        maxHeight: viewport.height,
+        everyNthFrame: 1,
+      });
+
+      logger.info(scopedLog(LogContext.RECORDING, 'screencast restarted for new page'), {
+        sessionId,
+        frameCount,
+      });
+    };
+
+    // Check for page changes periodically (every 100ms)
+    pageCheckInterval = setInterval(() => {
+      if (!isActive) return;
+      const newPage = pageProvider();
+      if (newPage !== currentPage && !newPage.isClosed()) {
+        void restartScreencastOnPage(newPage);
+      }
+    }, 100);
+
+    // Setup frame handler (extracted so we can re-attach after page switch)
+    const setupFrameHandler = () => {
+      cdpSession.on('Page.screencastFrame', async (event: ScreencastFrameEvent) => {
+        if (!isActive) return;
+
+        const frameStart = performance.now();
+
+        try {
+          // Check WebSocket before processing
+          if (!wsProvider.isReady()) {
+            statsReporter.onFrameSkipped('ws_not_ready');
+            // Still need to ACK the frame
+            await ackWithTimeout(cdpSession, event.sessionId, ACK_TIMEOUT_MS);
+            return;
+          }
+
+          // Decode base64 to buffer (~1-2ms overhead, but CDP doesn't support binary)
+          const decodeStart = performance.now();
+          const buffer = Buffer.from(event.data, 'base64');
+          const decodeMs = performance.now() - decodeStart;
+
+          // Forward to WebSocket
+          const ws = wsProvider.getWebSocket();
+          if (ws && ws.readyState === 1) {
+            const sendStart = performance.now();
+            ws.send(buffer);
+            const sendMs = performance.now() - sendStart;
+
+            frameCount++;
+
+            // Report stats
+            statsReporter.onFrameSent({
+              captureMs: decodeMs, // For screencast, "capture" is really decode
+              wsSendMs: sendMs,
+              frameBytes: buffer.length,
+            });
+
+            // Record metrics
+            metrics.frameCaptureLatency.observe({ session_id: sessionId }, decodeMs);
+            metrics.frameE2ELatency.observe({ session_id: sessionId }, decodeMs + sendMs);
+
+            // Log periodically
+            if (frameCount % FRAME_LOG_INTERVAL === 0) {
+              logger.debug(scopedLog(LogContext.RECORDING, 'screencast stats'), {
+                sessionId,
+                frameCount,
+                frameBytes: buffer.length,
+                decodeMs: decodeMs.toFixed(2),
+                sendMs: sendMs.toFixed(2),
+                totalMs: (performance.now() - frameStart).toFixed(2),
+              });
+            }
+          }
+
+          // CRITICAL: Acknowledge frame or Chrome stops sending!
           await ackWithTimeout(cdpSession, event.sessionId, ACK_TIMEOUT_MS);
-          return;
-        }
+          ackFailures = 0;
+        } catch (error) {
+          ackFailures++;
+          const message = error instanceof Error ? error.message : String(error);
 
-        // Decode base64 to buffer (~1-2ms overhead, but CDP doesn't support binary)
-        const decodeStart = performance.now();
-        const buffer = Buffer.from(event.data, 'base64');
-        const decodeMs = performance.now() - decodeStart;
-
-        // Forward to WebSocket
-        const ws = wsProvider.getWebSocket();
-        if (ws && ws.readyState === 1) {
-          const sendStart = performance.now();
-          ws.send(buffer);
-          const sendMs = performance.now() - sendStart;
-
-          frameCount++;
-
-          // Report stats
-          statsReporter.onFrameSent({
-            captureMs: decodeMs, // For screencast, "capture" is really decode
-            wsSendMs: sendMs,
-            frameBytes: buffer.length,
+          logger.warn(scopedLog(LogContext.RECORDING, 'screencast frame error'), {
+            sessionId,
+            error: message,
+            frameNumber: event.sessionId,
+            ackFailures,
           });
 
-          // Record metrics
-          metrics.frameCaptureLatency.observe({ session_id: sessionId }, decodeMs);
-          metrics.frameE2ELatency.observe({ session_id: sessionId }, decodeMs + sendMs);
-
-          // Log periodically
-          if (frameCount % FRAME_LOG_INTERVAL === 0) {
-            logger.debug(scopedLog(LogContext.RECORDING, 'screencast stats'), {
+          if (ackFailures >= MAX_ACK_FAILURES) {
+            logger.error(scopedLog(LogContext.RECORDING, 'screencast ACK failures exceeded threshold'), {
               sessionId,
-              frameCount,
-              frameBytes: buffer.length,
-              decodeMs: decodeMs.toFixed(2),
-              sendMs: sendMs.toFixed(2),
-              totalMs: (performance.now() - frameStart).toFixed(2),
+              ackFailures,
+              hint: 'CDP session may be unhealthy, consider restarting screencast',
             });
           }
         }
-
-        // CRITICAL: Acknowledge frame or Chrome stops sending!
-        await ackWithTimeout(cdpSession, event.sessionId, ACK_TIMEOUT_MS);
-        ackFailures = 0;
-      } catch (error) {
-        ackFailures++;
-        const message = error instanceof Error ? error.message : String(error);
-
-        logger.warn(scopedLog(LogContext.RECORDING, 'screencast frame error'), {
-          sessionId,
-          error: message,
-          frameNumber: event.sessionId,
-          ackFailures,
-        });
-
-        if (ackFailures >= MAX_ACK_FAILURES) {
-          logger.error(scopedLog(LogContext.RECORDING, 'screencast ACK failures exceeded threshold'), {
-            sessionId,
-            ackFailures,
-            hint: 'CDP session may be unhealthy, consider restarting screencast',
-          });
-        }
-      }
-    });
-
-    // Handle visibility changes
-    cdpSession.on('Page.screencastVisibilityChanged', (event: ScreencastVisibilityEvent) => {
-      logger.debug(scopedLog(LogContext.RECORDING, 'screencast visibility changed'), {
-        sessionId,
-        visible: event.visible,
       });
-    });
-
-    // Handle CDP session disconnect
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (cdpSession as any).on('disconnected', () => {
-      if (isActive) {
-        logger.warn(scopedLog(LogContext.RECORDING, 'CDP session disconnected during screencast'), {
-          sessionId,
-          frameCount,
-        });
-        isActive = false;
-      }
-    });
-
-    // Handle page close
-    const pageCloseHandler = () => {
-      if (isActive) {
-        logger.debug(scopedLog(LogContext.RECORDING, 'page closed during screencast'), {
-          sessionId,
-          frameCount,
-        });
-        isActive = false;
-      }
     };
-    page.on('close', pageCloseHandler);
+
+    // Initial frame handler setup
+    setupFrameHandler();
+
+    // Get viewport for screencast config
+    const viewport = currentPage.viewportSize() ?? { width: 1280, height: 720 };
 
     // Start screencast
     logger.info(scopedLog(LogContext.RECORDING, 'starting CDP screencast'), {
@@ -240,7 +253,11 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
         if (!isActive) return;
         isActive = false;
 
-        page.off('close', pageCloseHandler);
+        // Clear page change detection interval
+        if (pageCheckInterval) {
+          clearInterval(pageCheckInterval);
+          pageCheckInterval = null;
+        }
 
         try {
           await cdpSession.send('Page.stopScreencast');

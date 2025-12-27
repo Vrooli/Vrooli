@@ -78,9 +78,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Apply request ID middleware to all routes
 	r.Use(requestIDMiddleware)
 
-	// Health endpoints
-	r.HandleFunc("/health", h.Health).Methods("GET")
-	r.HandleFunc("/api/v1/health", h.Health).Methods("GET")
+	// NOTE: Health endpoints (/health and /api/v1/health) are now registered in main.go
+	// using api-core/health for standardized response format.
 
 	// WebSocket endpoint (registered separately, no middleware needed)
 	if h.hub != nil {

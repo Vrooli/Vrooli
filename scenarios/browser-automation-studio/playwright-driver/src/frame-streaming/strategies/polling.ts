@@ -32,6 +32,7 @@ import type {
   StreamingHandle,
   WebSocketProvider,
   FrameStatsReporter,
+  PageProvider,
 } from './interface';
 
 /** FPS logging interval (every N frames) */
@@ -59,7 +60,7 @@ export class PollingStrategy implements FrameStreamingStrategy {
   }
 
   async start(
-    page: Page,
+    pageProvider: PageProvider,
     config: StreamingStrategyConfig,
     wsProvider: WebSocketProvider,
     statsReporter: FrameStatsReporter
@@ -106,6 +107,9 @@ export class PollingStrategy implements FrameStreamingStrategy {
             consecutiveFailures = 0;
             continue;
           }
+
+          // Get current page (may have changed due to tab switch)
+          const page = pageProvider();
 
           // Capture frame with timing
           const captureStart = performance.now();

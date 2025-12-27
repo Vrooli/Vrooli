@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -21,11 +22,13 @@ import (
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/toolregistry"
 
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -45,6 +48,7 @@ type Server struct {
 	orchestrator orchestration.Service
 	wsHub        *handlers.WebSocketHub
 	reconciler   *orchestration.Reconciler
+	toolRegistry *toolregistry.Registry
 }
 
 // NewServer initializes configuration, database, and routes
@@ -79,6 +83,14 @@ func NewServer() (*Server, error) {
 	// Create the orchestrator with appropriate repositories and broadcaster
 	deps := createOrchestrator(db, cfg.UseInMemory, wsHub, logger)
 
+	// Create tool registry for tool discovery protocol
+	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "agent-manager",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Manages coding agents for software engineering tasks. Supports Claude Code, Codex, and OpenCode runners with sandboxed execution and approval workflows.",
+	})
+	toolReg.RegisterProvider(toolregistry.NewAgentToolProvider())
+
 	srv := &Server{
 		config:       cfg,
 		db:           db,
@@ -87,6 +99,7 @@ func NewServer() (*Server, error) {
 		orchestrator: deps.orchestrator,
 		wsHub:        wsHub,
 		reconciler:   deps.reconciler,
+		toolRegistry: toolReg,
 	}
 
 	// Start the reconciler for orphan detection and stale run recovery
@@ -310,17 +323,54 @@ func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	s.router.Use(corsMiddleware)
 
+	// Health endpoint using api-core/health for standardized response format
+	// DB may be nil in in-memory mode - health.DB handles this gracefully
+	var rawDB *sql.DB
+	if s.db != nil && s.db.DB != nil {
+		rawDB = s.db.DB.DB // Access underlying *sql.DB from sqlx.DB (which is embedded in database.DB)
+	}
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(rawDB), health.Optional). // Optional since in-memory mode is valid
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+
 	// Register all API routes via the handlers package
 	// WebSocket hub was created in NewServer and is shared with orchestrator
 	handler := handlers.New(s.orchestrator)
 	handler.SetWebSocketHub(s.wsHub)
 	handler.RegisterRoutes(s.router)
 
+	// Register tool discovery routes
+	toolsHandler := handlers.NewToolsHandler(s.toolRegistry)
+	toolsHandler.RegisterRoutes(&muxRouteAdapter{s.router})
+
 	// Prometheus metrics endpoint
 	s.router.Handle("/metrics", metrics.Handler()).Methods("GET")
 
+	log.Printf("Tool discovery endpoint available at /api/v1/tools")
 	log.Printf("WebSocket endpoint available at /api/v1/ws")
 	log.Printf("Prometheus metrics available at /metrics")
+}
+
+// muxRouteAdapter adapts mux.Router to the routeRegistrar interface.
+// This enables the ToolsHandler to register routes without depending on mux directly.
+type muxRouteAdapter struct {
+	router *mux.Router
+}
+
+func (a *muxRouteAdapter) HandleFunc(path string, f func(http.ResponseWriter, *http.Request)) handlers.RouteMethoder {
+	return &muxRouteMethoder{route: a.router.HandleFunc(path, f)}
+}
+
+type muxRouteMethoder struct {
+	route *mux.Route
+}
+
+func (m *muxRouteMethoder) Methods(methods ...string) handlers.RouteMethoder {
+	m.route.Methods(methods...)
+	return m
 }
 
 // Router returns the HTTP handler for use with server.Run

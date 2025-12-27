@@ -238,7 +238,10 @@ async function startWithStrategy(
   session: StreamingSession,
   config: ReturnType<typeof loadConfig>
 ): Promise<void> {
-  const page = sessionProvider.getSession(sessionId).page;
+  // Create page provider function for multi-tab support
+  // This is called on each frame capture to get the current active page
+  const pageProvider = () => sessionProvider.getSession(sessionId).page;
+  const page = pageProvider();
 
   // Create strategy instances
   const screencastStrategy = createCdpScreencastStrategy();
@@ -298,7 +301,7 @@ async function startWithStrategy(
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     session.strategyHandle = await strategy.start(
-      page,
+      pageProvider,
       {
         sessionId,
         quality: session.quality,
@@ -330,7 +333,7 @@ async function startWithStrategy(
 
       try {
         session.strategyHandle = await pollingStrategy.start(
-          page,
+          pageProvider,
           {
             sessionId,
             quality: session.quality,

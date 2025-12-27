@@ -78,6 +78,12 @@ export interface StreamingHandle {
 }
 
 /**
+ * Provider function to get the current page.
+ * Used for multi-tab support where the active page can change during streaming.
+ */
+export type PageProvider = () => Page;
+
+/**
  * Interface for frame streaming strategies.
  *
  * Strategies handle the mechanics of capturing and sending frames.
@@ -90,14 +96,14 @@ export interface FrameStreamingStrategy {
   /**
    * Start streaming frames from the page.
    *
-   * @param page - Playwright page to capture
+   * @param pageProvider - Function to get the current page (may change for multi-tab)
    * @param config - Streaming configuration
    * @param wsProvider - Provider for WebSocket connection
    * @param statsReporter - Reporter for frame statistics
    * @returns Handle to control and stop streaming
    */
   start(
-    page: Page,
+    pageProvider: PageProvider,
     config: StreamingStrategyConfig,
     wsProvider: WebSocketProvider,
     statsReporter: FrameStatsReporter
