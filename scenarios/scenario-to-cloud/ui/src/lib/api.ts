@@ -155,3 +155,35 @@ export async function checkReachability(host?: string, domain?: string) {
   }
   return res.json() as Promise<ReachabilityResponse>;
 }
+
+export type PreflightCheckStatus = "pass" | "warn" | "fail";
+
+export type PreflightCheck = {
+  id: string;
+  title: string;
+  status: PreflightCheckStatus;
+  details?: string;
+  hint?: string;
+  data?: Record<string, string>;
+};
+
+export type PreflightResponse = {
+  ok: boolean;
+  checks: PreflightCheck[];
+  issues?: ValidationIssue[];
+  timestamp: string;
+};
+
+export async function runPreflight(manifest: unknown) {
+  const url = buildApiUrl("/preflight", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(manifest)
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Preflight check failed: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<PreflightResponse>;
+}

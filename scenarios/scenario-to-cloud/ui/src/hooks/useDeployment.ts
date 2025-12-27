@@ -3,9 +3,11 @@ import {
   validateManifest,
   buildPlan,
   buildBundle,
+  runPreflight as runPreflightApi,
   type ValidationIssue,
   type PlanStep,
   type BundleArtifact,
+  type PreflightCheck,
 } from "../lib/api";
 import {
   type DeploymentManifest,
@@ -74,8 +76,9 @@ export function useDeployment() {
   const [bundleError, setBundleError] = useState<string | null>(null);
   const [isBuildingBundle, setIsBuildingBundle] = useState(false);
 
-  // Preflight state (placeholder)
+  // Preflight state
   const [preflightPassed, setPreflightPassed] = useState<boolean | null>(null);
+  const [preflightChecks, setPreflightChecks] = useState<PreflightCheck[] | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
   const [isRunningPreflight, setIsRunningPreflight] = useState(false);
 
@@ -182,20 +185,24 @@ export function useDeployment() {
 
   const runPreflight = useCallback(async () => {
     setPreflightPassed(null);
+    setPreflightChecks(null);
     setPreflightError(null);
     setIsRunningPreflight(true);
 
     try {
-      // Placeholder - will be implemented when preflight API is ready
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setPreflightPassed(true);
+      if (!parsedManifest.ok) {
+        throw new Error(`Invalid JSON: ${parsedManifest.error}`);
+      }
+      const res = await runPreflightApi(parsedManifest.value);
+      setPreflightChecks(res.checks);
+      setPreflightPassed(res.ok);
     } catch (e) {
       setPreflightError(e instanceof Error ? e.message : String(e));
       setPreflightPassed(false);
     } finally {
       setIsRunningPreflight(false);
     }
-  }, []);
+  }, [parsedManifest]);
 
   const deploy = useCallback(async () => {
     setDeploymentStatus("deploying");
@@ -222,6 +229,7 @@ export function useDeployment() {
     setBundleArtifact(null);
     setBundleError(null);
     setPreflightPassed(null);
+    setPreflightChecks(null);
     setPreflightError(null);
     setDeploymentStatus("idle");
     setDeploymentError(null);
@@ -285,6 +293,7 @@ export function useDeployment() {
 
     // Preflight
     preflightPassed,
+    preflightChecks,
     preflightError,
     isRunningPreflight,
     runPreflight,
