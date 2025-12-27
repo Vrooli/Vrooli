@@ -119,6 +119,7 @@ export function ChatView({
         isGenerating={isGenerating}
         streamingContent={streamingContent}
         activeToolCalls={activeToolCalls}
+        toolCallRecords={chatData.tool_call_records}
         scrollToMessageId={scrollToMessageId}
         onScrollComplete={onScrollComplete}
         viewMode={viewMode}

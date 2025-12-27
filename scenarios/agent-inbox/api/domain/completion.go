@@ -73,18 +73,32 @@ func (a *StreamingAccumulator) AppendContent(content string) {
 
 // AppendToolCallDelta merges a tool call delta into the accumulated tool calls.
 // Tool calls in streaming responses arrive as partial deltas that must be assembled.
+//
+// OpenRouter/OpenAI streaming format:
+// - First delta for a tool call includes: index, id, type, function.name, partial arguments
+// - Subsequent deltas include: index, partial arguments (id/name may be empty)
+// - The Index field correlates deltas across chunks, not the ID
 func (a *StreamingAccumulator) AppendToolCallDelta(delta ToolCall) {
-	// Find existing tool call to extend, or add new one
+	// Use Index for correlation - OpenRouter streams tool calls with index field
+	// where ID is only present in the first delta
 	for i := range a.ToolCalls {
-		if a.ToolCalls[i].ID == delta.ID {
+		if a.ToolCalls[i].Index == delta.Index {
+			// Append arguments fragment to existing tool call
 			a.ToolCalls[i].Function.Arguments += delta.Function.Arguments
+			// Also capture name if it arrives (first delta has it)
+			if delta.Function.Name != "" && a.ToolCalls[i].Function.Name == "" {
+				a.ToolCalls[i].Function.Name = delta.Function.Name
+			}
+			// Capture ID if it arrives (first delta has it)
+			if delta.ID != "" && a.ToolCalls[i].ID == "" {
+				a.ToolCalls[i].ID = delta.ID
+			}
 			return
 		}
 	}
-	// New tool call
-	if delta.ID != "" {
-		a.ToolCalls = append(a.ToolCalls, delta)
-	}
+	// New tool call - add it to the accumulator
+	// The first delta for a tool call always has the index
+	a.ToolCalls = append(a.ToolCalls, delta)
 }
 
 // SetResponseID sets the response ID if not already set.

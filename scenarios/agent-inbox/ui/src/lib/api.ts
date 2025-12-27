@@ -71,6 +71,7 @@ export interface Label {
 export interface ChatWithMessages {
   chat: Chat;
   messages: Message[];
+  tool_call_records?: ToolCallRecord[];
 }
 
 // Health

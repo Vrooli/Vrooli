@@ -4,7 +4,7 @@ import {
   Copy, Volume2, VolumeX, RefreshCw, Pencil, Trash2, GitBranch,
   ChevronDown, ChevronUp, ShieldAlert
 } from "lucide-react";
-import type { Message, ToolCall } from "../../lib/api";
+import type { Message, ToolCall, ToolCallRecord } from "../../lib/api";
 import type { ActiveToolCall, PendingApproval } from "../../hooks/useCompletion";
 import type { ViewMode } from "../settings/Settings";
 import { Tooltip } from "../ui/tooltip";
@@ -20,6 +20,8 @@ interface MessageListProps {
   isGenerating: boolean;
   streamingContent: string;
   activeToolCalls?: ActiveToolCall[];
+  /** Persisted tool call records with status/result info */
+  toolCallRecords?: ToolCallRecord[];
   /** Pending tool call approvals */
   pendingApprovals?: PendingApproval[];
   /** Whether we're waiting for user to approve pending tool calls */
@@ -51,6 +53,7 @@ export function MessageList({
   isGenerating,
   streamingContent,
   activeToolCalls = [],
+  toolCallRecords = [],
   pendingApprovals = [],
   awaitingApprovals = false,
   isProcessingApproval = false,
@@ -69,6 +72,23 @@ export function MessageList({
   const messagesForSiblings = allMessages ?? messages;
   const endRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Create lookup map from tool_call_id to ToolCallRecord for persisted tool calls
+  // IDs from OpenRouter are strings like "call_abc123", stored as-is in both
+  // messages.tool_calls and tool_calls.id. Normalize by removing dashes for
+  // backward compatibility with any legacy UUID-formatted records.
+  const toolCallRecordMap = useMemo(() => {
+    const map = new Map<string, ToolCallRecord>();
+    for (const record of toolCallRecords) {
+      // Store with both original and normalized ID for robust lookup
+      map.set(record.id, record);
+      const normalizedId = record.id.replace(/-/g, "");
+      if (normalizedId !== record.id) {
+        map.set(normalizedId, record);
+      }
+    }
+    return map;
+  }, [toolCallRecords]);
 
   // Scroll to specific message when navigating from search
   useEffect(() => {
@@ -124,6 +144,7 @@ export function MessageList({
           message={message}
           viewMode={viewMode}
           allMessages={messagesForSiblings}
+          toolCallRecordMap={toolCallRecordMap}
           onRegenerate={onRegenerateMessage}
           onSelectBranch={onSelectBranch}
           onFork={onForkConversation}
@@ -292,6 +313,8 @@ interface MessageBubbleProps {
   viewMode: ViewMode;
   /** All messages for computing siblings */
   allMessages: Message[];
+  /** Map of tool_call_id to ToolCallRecord for status lookup */
+  toolCallRecordMap: Map<string, ToolCallRecord>;
   /** Called when user requests regeneration */
   onRegenerate?: (messageId: string) => void;
   /** Called when user selects a different branch */
@@ -305,7 +328,7 @@ interface MessageBubbleProps {
 }
 
 const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function MessageBubble(
-  { message, viewMode, allMessages, onRegenerate, onSelectBranch, onFork, isRegenerating = false, isForking = false },
+  { message, viewMode, allMessages, toolCallRecordMap, onRegenerate, onSelectBranch, onFork, isRegenerating = false, isForking = false },
   ref
 ) {
   const { addToast } = useToast();
@@ -564,12 +587,37 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
               <Wrench className="h-3 w-3" />
               Using tools
             </div>
-            {message.tool_calls!.map((tc: ToolCall) => (
-              <div key={tc.id} className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                <Play className="h-3 w-3 text-amber-500 dark:text-amber-400" />
-                <code className="bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded">{tc.function.name}</code>
-              </div>
-            ))}
+            {message.tool_calls!.map((tc: ToolCall) => {
+              const record = toolCallRecordMap.get(tc.id);
+              const status = record?.status || "pending";
+              const errorMessage = record?.error_message;
+              const isFailed = status === "failed" || status === "rejected" || status === "cancelled";
+              return (
+                <div key={tc.id} className="text-xs text-slate-600 dark:text-slate-400">
+                  <div className="flex items-center gap-2">
+                    {status === "completed" ? (
+                      <CheckCircle2 className="h-3 w-3 text-green-500 dark:text-green-400" />
+                    ) : isFailed ? (
+                      <XCircle className="h-3 w-3 text-red-500 dark:text-red-400" />
+                    ) : status === "running" ? (
+                      <Loader2 className="h-3 w-3 text-amber-500 dark:text-amber-400 animate-spin" />
+                    ) : status === "pending_approval" ? (
+                      <ShieldAlert className="h-3 w-3 text-yellow-500 dark:text-yellow-400" />
+                    ) : (
+                      <Play className="h-3 w-3 text-amber-500 dark:text-amber-400" />
+                    )}
+                    <code className="bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded">{tc.function.name}</code>
+                    {status === "completed" && <span className="text-green-600 dark:text-green-400">completed</span>}
+                    {isFailed && <span className="text-red-600 dark:text-red-400">{status}</span>}
+                  </div>
+                  {isFailed && errorMessage && (
+                    <div className="ml-5 mt-1 text-red-500 dark:text-red-400 bg-red-500/10 rounded px-2 py-1 break-words">
+                      {errorMessage}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -621,12 +669,37 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
                 <Wrench className="h-3 w-3" />
                 Using tools
               </div>
-              {message.tool_calls!.map((tc: ToolCall) => (
-                <div key={tc.id} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                  <Play className="h-3 w-3 text-amber-500 dark:text-amber-400" />
-                  <code className="bg-amber-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs">{tc.function.name}</code>
-                </div>
-              ))}
+              {message.tool_calls!.map((tc: ToolCall) => {
+                const record = toolCallRecordMap.get(tc.id);
+                const status = record?.status || "pending";
+                const errorMessage = record?.error_message;
+                const isFailed = status === "failed" || status === "rejected" || status === "cancelled";
+                return (
+                  <div key={tc.id} className="text-sm text-slate-600 dark:text-slate-300">
+                    <div className="flex items-center gap-2">
+                      {status === "completed" ? (
+                        <CheckCircle2 className="h-3 w-3 text-green-500 dark:text-green-400" />
+                      ) : isFailed ? (
+                        <XCircle className="h-3 w-3 text-red-500 dark:text-red-400" />
+                      ) : status === "running" ? (
+                        <Loader2 className="h-3 w-3 text-amber-500 dark:text-amber-400 animate-spin" />
+                      ) : status === "pending_approval" ? (
+                        <ShieldAlert className="h-3 w-3 text-yellow-500 dark:text-yellow-400" />
+                      ) : (
+                        <Play className="h-3 w-3 text-amber-500 dark:text-amber-400" />
+                      )}
+                      <code className="bg-amber-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs">{tc.function.name}</code>
+                      {status === "completed" && <span className="text-xs text-green-600 dark:text-green-400">completed</span>}
+                      {isFailed && <span className="text-xs text-red-600 dark:text-red-400">{status}</span>}
+                    </div>
+                    {isFailed && errorMessage && (
+                      <div className="ml-5 mt-1 text-xs text-red-500 dark:text-red-400 bg-red-500/10 rounded px-2 py-1 break-words">
+                        {errorMessage}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               <p className="text-xs mt-2 text-slate-400 dark:text-slate-500">{formatTime(message.created_at)}</p>
             </div>
           </div>

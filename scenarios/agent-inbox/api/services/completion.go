@@ -141,7 +141,9 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 			// Create pending approval record instead of executing
 			record := s.createPendingApprovalRecord(chatID, messageID, tc)
 			if messageID != "" {
-				s.repo.SaveToolCallRecord(ctx, messageID, record)
+				if saveErr := s.repo.SaveToolCallRecord(ctx, messageID, record); saveErr != nil {
+					log.Printf("[ERROR] Failed to save pending approval record for %s: %v", tc.Function.Name, saveErr)
+				}
 			}
 			outcome.PendingApprovals = append(outcome.PendingApprovals, record)
 			outcome.HasPendingApprovals = true
@@ -164,7 +166,11 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 
 		// Save the execution record
 		if messageID != "" {
-			s.repo.SaveToolCallRecord(ctx, messageID, record)
+			if saveErr := s.repo.SaveToolCallRecord(ctx, messageID, record); saveErr != nil {
+				log.Printf("[ERROR] Failed to save tool call record for %s: %v", tc.Function.Name, saveErr)
+			}
+		} else {
+			log.Printf("[WARN] No messageID for tool call %s, skipping record save", tc.Function.Name)
 		}
 
 		// Save tool response message (parented to the assistant message)

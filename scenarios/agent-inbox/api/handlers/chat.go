@@ -98,9 +98,18 @@ func (h *Handlers) GetChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch tool call records for status/result info
+	toolCallRecords, err := h.Repo.ListToolCallsForChat(r.Context(), chatID)
+	if err != nil {
+		log.Printf("[WARN] [%s] ListToolCallsForChat failed: %v", middleware.GetRequestID(r.Context()), err)
+		// Non-fatal: continue without tool call records
+		toolCallRecords = []domain.ToolCallRecord{}
+	}
+
 	h.JSONResponse(w, map[string]interface{}{
-		"chat":     chat,
-		"messages": messages,
+		"chat":              chat,
+		"messages":          messages,
+		"tool_call_records": toolCallRecords,
 	}, http.StatusOK)
 }
 

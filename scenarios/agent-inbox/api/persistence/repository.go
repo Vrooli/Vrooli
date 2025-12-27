@@ -232,6 +232,29 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 			END
 			$$`},
 		{"create idx_tool_calls_pending_approval", `CREATE INDEX IF NOT EXISTS idx_tool_calls_pending_approval ON tool_calls(chat_id, status) WHERE status = 'pending_approval'`},
+		// Fix tool_calls.id column type: OpenRouter returns IDs like "call_abc123" which aren't valid UUIDs
+		{"fix tool_calls id column type", `
+			DO $$
+			BEGIN
+				-- Only run if id column is currently UUID type
+				IF EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_schema = current_schema()
+					  AND table_name = 'tool_calls'
+					  AND column_name = 'id'
+					  AND data_type = 'uuid'
+				) THEN
+					-- Drop any existing primary key constraint
+					ALTER TABLE tool_calls DROP CONSTRAINT IF EXISTS tool_calls_pkey;
+					-- Change column type from UUID to TEXT
+					ALTER TABLE tool_calls ALTER COLUMN id TYPE TEXT USING id::TEXT;
+					-- Remove the default (gen_random_uuid doesn't work for TEXT)
+					ALTER TABLE tool_calls ALTER COLUMN id DROP DEFAULT;
+					-- Re-add primary key constraint
+					ALTER TABLE tool_calls ADD PRIMARY KEY (id);
+				END IF;
+			END
+			$$`},
 	}
 
 	for _, m := range migrations {

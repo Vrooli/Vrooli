@@ -48,7 +48,12 @@ type Message struct {
 // ToolCall represents a tool invocation requested by the assistant.
 // When an AI model decides to use a tool, it generates a ToolCall with
 // the function name and arguments.
+//
+// NOTE: In streaming responses, tool calls arrive as deltas with an Index field
+// that identifies which tool call each fragment belongs to. The ID is only present
+// in the first delta; subsequent deltas use Index for correlation.
 type ToolCall struct {
+	Index    int    `json:"index"`          // Position in the tool_calls array (for streaming delta correlation)
 	ID       string `json:"id"`
 	Type     string `json:"type"` // "function"
 	Function struct {
@@ -87,8 +92,9 @@ type Label struct {
 // ChatWithMessages combines a chat with its message history.
 // This is used when fetching a complete conversation.
 type ChatWithMessages struct {
-	Chat     Chat      `json:"chat"`
-	Messages []Message `json:"messages"`
+	Chat            Chat             `json:"chat"`
+	Messages        []Message        `json:"messages"`
+	ToolCallRecords []ToolCallRecord `json:"tool_call_records,omitempty"`
 }
 
 // ViewMode constants for chat display

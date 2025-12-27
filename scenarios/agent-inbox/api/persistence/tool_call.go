@@ -14,6 +14,20 @@ import (
 
 // SaveToolCallRecord saves a tool call execution record.
 func (r *Repository) SaveToolCallRecord(ctx context.Context, messageID string, record *domain.ToolCallRecord) error {
+	// Ensure arguments is valid JSON (empty string is not valid JSONB)
+	arguments := record.Arguments
+	if arguments == "" {
+		arguments = "{}"
+	}
+
+	// Ensure result is valid JSON or null
+	var result interface{}
+	if record.Result == "" {
+		result = nil
+	} else {
+		result = record.Result
+	}
+
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO tool_calls (id, message_id, chat_id, tool_name, arguments, result, status, scenario_name, external_run_id, started_at, completed_at, error_message)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
@@ -22,7 +36,7 @@ func (r *Repository) SaveToolCallRecord(ctx context.Context, messageID string, r
 			status = EXCLUDED.status,
 			completed_at = EXCLUDED.completed_at,
 			error_message = EXCLUDED.error_message
-	`, record.ID, messageID, record.ChatID, record.ToolName, record.Arguments, record.Result, record.Status, record.ScenarioName, record.ExternalRunID, record.StartedAt, record.CompletedAt, record.ErrorMessage)
+	`, record.ID, messageID, record.ChatID, record.ToolName, arguments, result, record.Status, record.ScenarioName, record.ExternalRunID, record.StartedAt, record.CompletedAt, record.ErrorMessage)
 	return err
 }
 
