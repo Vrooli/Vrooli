@@ -1,8 +1,14 @@
-import { useEffect, useRef, forwardRef } from "react";
-import { Loader2, User, Bot, Wrench, CheckCircle2, XCircle, Play } from "lucide-react";
+import { useEffect, useRef, useState, forwardRef, useCallback } from "react";
+import {
+  Loader2, User, Bot, Wrench, CheckCircle2, XCircle, Play,
+  Copy, Volume2, VolumeX, RefreshCw, Pencil, Trash2, GitBranch,
+  ChevronDown, ChevronUp
+} from "lucide-react";
 import type { Message, ToolCall } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
 import type { ViewMode } from "../settings/Settings";
+import { Tooltip } from "../ui/tooltip";
+import { useToast } from "../ui/toast";
 
 interface MessageListProps {
   messages: Message[];
@@ -69,13 +75,6 @@ export function MessageList({
       </div>
     );
   }
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const isCompact = viewMode === "compact";
 
@@ -150,6 +149,33 @@ export function MessageList({
   );
 }
 
+// Action button component for consistent styling
+interface ActionButtonProps {
+  icon: React.ReactNode;
+  tooltip: string;
+  onClick: () => void;
+  isActive?: boolean;
+  className?: string;
+}
+
+function ActionButton({ icon, tooltip, onClick, isActive, className }: ActionButtonProps) {
+  return (
+    <Tooltip content={tooltip} side="top">
+      <button
+        onClick={onClick}
+        className={`p-1.5 rounded-md transition-colors ${
+          isActive
+            ? "bg-indigo-500/20 text-indigo-400"
+            : "hover:bg-white/10 text-slate-400 hover:text-slate-200"
+        } ${className || ""}`}
+        aria-label={tooltip}
+      >
+        {icon}
+      </button>
+    </Tooltip>
+  );
+}
+
 interface MessageBubbleProps {
   message: Message;
   viewMode: ViewMode;
@@ -159,17 +185,130 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
   { message, viewMode },
   ref
 ) {
+  const { addToast } = useToast();
   const isUser = message.role === "user";
+  const isAssistant = message.role === "assistant";
   const isSystem = message.role === "system";
   const isTool = message.role === "tool";
   const hasToolCalls = message.role === "assistant" && message.tool_calls && message.tool_calls.length > 0;
   const isCompact = viewMode === "compact";
+
+  // State for tool result expansion
+  const [isExpanded, setIsExpanded] = useState(false);
+  // State for text-to-speech
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  // Copy message content to clipboard
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      addToast("Copied to clipboard", "success");
+    } catch {
+      addToast("Failed to copy", "error");
+    }
+  }, [message.content, addToast]);
+
+  // Text-to-speech for assistant messages
+  const handleReadAloud = useCallback(() => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    if (!window.speechSynthesis) {
+      addToast("Text-to-speech not supported in this browser", "error");
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(message.content);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      addToast("Speech synthesis failed", "error");
+    };
+
+    window.speechSynthesis.speak(utterance);
+    setIsSpeaking(true);
+  }, [message.content, isSpeaking, addToast]);
+
+  // Cancel speech when component unmounts
+  useEffect(() => {
+    return () => {
+      if (isSpeaking) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [isSpeaking]);
+
+  // Placeholder actions that show "coming soon" toast
+  const handleComingSoon = useCallback((feature: string) => {
+    addToast(`${feature} coming soon`, "info");
+  }, [addToast]);
+
+  const handleRegenerate = useCallback(() => handleComingSoon("Regenerate"), [handleComingSoon]);
+  const handleEdit = useCallback(() => handleComingSoon("Edit message"), [handleComingSoon]);
+  const handleDelete = useCallback(() => handleComingSoon("Delete message"), [handleComingSoon]);
+  const handleFork = useCallback(() => handleComingSoon("Fork conversation"), [handleComingSoon]);
+
+  // Render action buttons for a message
+  const renderActions = (position: "user" | "assistant" | "tool") => {
+    const iconSize = "h-3.5 w-3.5";
+
+    if (position === "user") {
+      return (
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={handleCopy} />
+          <ActionButton icon={<Pencil className={iconSize} />} tooltip="Edit" onClick={handleEdit} />
+          <ActionButton icon={<Trash2 className={iconSize} />} tooltip="Delete" onClick={handleDelete} />
+          <ActionButton icon={<GitBranch className={iconSize} />} tooltip="Fork from here" onClick={handleFork} />
+        </div>
+      );
+    }
+
+    if (position === "assistant") {
+      return (
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={handleCopy} />
+          <ActionButton
+            icon={isSpeaking ? <VolumeX className={iconSize} /> : <Volume2 className={iconSize} />}
+            tooltip={isSpeaking ? "Stop reading" : "Read aloud"}
+            onClick={handleReadAloud}
+            isActive={isSpeaking}
+          />
+          <ActionButton icon={<RefreshCw className={iconSize} />} tooltip="Regenerate" onClick={handleRegenerate} />
+          <ActionButton icon={<GitBranch className={iconSize} />} tooltip="Fork from here" onClick={handleFork} />
+        </div>
+      );
+    }
+
+    // Tool messages
+    return (
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={handleCopy} />
+        <ActionButton
+          icon={isExpanded ? <ChevronUp className={iconSize} /> : <ChevronDown className={iconSize} />}
+          tooltip={isExpanded ? "Collapse" : "Expand"}
+          onClick={() => setIsExpanded(!isExpanded)}
+          isActive={isExpanded}
+        />
+      </div>
+    );
+  };
+
+  // Get tool content - truncated or full based on expansion
+  const getToolContent = () => {
+    if (isExpanded || message.content.length <= 500) {
+      return message.content;
+    }
+    return message.content.slice(0, 500) + "...";
   };
 
   // System messages - same in both modes
@@ -192,16 +331,18 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
     return (
       <div
         ref={ref}
-        className={`transition-all duration-300 border-l-2 ${borderColor} pl-3 py-1`}
+        className={`group transition-all duration-300 border-l-2 ${borderColor} pl-3 py-1`}
         data-testid={`message-${message.id}`}
       >
         <div className="flex items-center gap-2 mb-1">
           <span className={`text-xs font-medium ${roleColor}`}>{roleLabel}</span>
           <span className="text-xs text-slate-500 dark:text-slate-600">{formatTime(message.created_at)}</span>
+          <div className="flex-1" />
+          {renderActions(isUser ? "user" : isTool ? "tool" : "assistant")}
         </div>
         {isTool ? (
           <pre className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap overflow-x-auto">
-            {message.content.length > 500 ? message.content.slice(0, 500) + "..." : message.content}
+            {getToolContent()}
           </pre>
         ) : (
           <div className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{message.content}</div>
@@ -227,15 +368,18 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
   // Bubble mode: Tool response messages
   if (isTool) {
     return (
-      <div ref={ref} className="flex justify-start transition-all duration-300" data-testid={`message-${message.id}`}>
+      <div ref={ref} className="group flex justify-start transition-all duration-300" data-testid={`message-${message.id}`}>
         <div className="flex gap-3 max-w-[85%]">
           <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
             <Wrench className="h-4 w-4 text-amber-500 dark:text-amber-400" />
           </div>
           <div className="bg-amber-50 dark:bg-slate-800/60 border border-amber-200 dark:border-amber-500/20 rounded-2xl rounded-tl-md px-4 py-3 text-slate-600 dark:text-slate-300">
-            <div className="text-xs text-amber-600 dark:text-amber-400 mb-1">Tool Result</div>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="text-xs text-amber-600 dark:text-amber-400">Tool Result</span>
+              {renderActions("tool")}
+            </div>
             <pre className="text-xs whitespace-pre-wrap overflow-x-auto max-h-40 overflow-y-auto">
-              {message.content.length > 500 ? message.content.slice(0, 500) + "..." : message.content}
+              {getToolContent()}
             </pre>
             <p className="text-xs mt-1.5 text-slate-400 dark:text-slate-500">{formatTime(message.created_at)}</p>
           </div>
@@ -247,7 +391,7 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
   // Bubble mode: Assistant message with tool calls
   if (hasToolCalls) {
     return (
-      <div ref={ref} className="flex justify-start transition-all duration-300" data-testid={`message-${message.id}`}>
+      <div ref={ref} className="group flex justify-start transition-all duration-300" data-testid={`message-${message.id}`}>
         <div className="flex gap-3 max-w-[85%]">
           <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
             <Bot className="h-4 w-4 text-indigo-400" />
@@ -255,6 +399,9 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
           <div className="space-y-2">
             {message.content && (
               <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200">
+                <div className="flex items-center justify-end gap-2 mb-1">
+                  {renderActions("assistant")}
+                </div>
                 <p className="whitespace-pre-wrap">{message.content}</p>
               </div>
             )}
@@ -281,7 +428,7 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
   return (
     <div
       ref={ref}
-      className={`flex ${isUser ? "justify-end" : "justify-start"} transition-all duration-300`}
+      className={`group flex ${isUser ? "justify-end" : "justify-start"} transition-all duration-300`}
       data-testid={`message-${message.id}`}
     >
       <div className={`flex gap-3 max-w-[85%] ${isUser ? "flex-row-reverse" : ""}`}>
@@ -306,6 +453,10 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
               : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-md"
           }`}
         >
+          {/* Action buttons row */}
+          <div className={`flex items-center ${isUser ? "justify-start" : "justify-end"} gap-2 mb-1`}>
+            {renderActions(isUser ? "user" : "assistant")}
+          </div>
           <p className="whitespace-pre-wrap">{message.content}</p>
           <p
             className={`text-xs mt-1.5 ${

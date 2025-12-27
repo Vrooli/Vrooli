@@ -12,8 +12,9 @@ import { Settings, getViewMode, setViewMode, type ViewMode } from "./components/
 import { KeyboardShortcuts } from "./components/settings/KeyboardShortcuts";
 import { UsageStats } from "./components/settings/UsageStats";
 import { Button } from "./components/ui/button";
+import { ToastProvider } from "./components/ui/toast";
 
-export default function App() {
+function AppContent() {
   const [showLabelManager, setShowLabelManager] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
@@ -504,5 +505,13 @@ export default function App() {
         onClose={() => setShowUsageStats(false)}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   );
 }
