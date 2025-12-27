@@ -536,6 +536,27 @@ func (c *Client) SetActivePage(ctx context.Context, sessionID, driverPageID stri
 	return c.post(ctx, fmt.Sprintf("/session/%s/record/active-page", url.PathEscape(sessionID)), req, nil)
 }
 
+// CreatePageRequest is the request body for creating a new page.
+type CreatePageRequest struct {
+	URL string `json:"url"`
+}
+
+// CreatePageResponse is the response from creating a new page.
+type CreatePageResponse struct {
+	DriverPageID string `json:"driver_page_id"`
+	URL          string `json:"url"`
+}
+
+// CreatePage creates a new page (tab) in the browser session.
+func (c *Client) CreatePage(ctx context.Context, sessionID string, pageURL string) (*CreatePageResponse, error) {
+	req := CreatePageRequest{URL: pageURL}
+	var resp CreatePageResponse
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/new-page", url.PathEscape(sessionID)), req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // GetStorageState retrieves the browser storage state for session persistence.
 func (c *Client) GetStorageState(ctx context.Context, sessionID string) (json.RawMessage, error) {
 	var resp struct {

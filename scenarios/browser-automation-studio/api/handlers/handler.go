@@ -67,6 +67,7 @@ type RecordModeService interface {
 	GetSession(sessionID string) (*autosession.Session, bool)
 	GetPages(sessionID string) (*livecapture.PageListResult, error)
 	ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error
+	CreatePage(ctx context.Context, sessionID string, url string) (*autodriver.CreatePageResponse, error)
 
 	// Timeline support
 	AddTimelineAction(sessionID string, action *livecapture.RecordedAction, pageID uuid.UUID)

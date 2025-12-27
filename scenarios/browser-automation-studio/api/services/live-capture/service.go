@@ -382,6 +382,16 @@ func (s *Service) ActivatePage(ctx context.Context, sessionID string, pageID uui
 	return pages.SetActivePage(pageID)
 }
 
+// CreatePage creates a new page (tab) in the browser session.
+func (s *Service) CreatePage(ctx context.Context, sessionID string, url string) (*driver.CreatePageResponse, error) {
+	if _, ok := s.sessions.Get(sessionID); !ok {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+
+	// Call driver to create the page
+	return s.sessions.Client().CreatePage(ctx, sessionID, url)
+}
+
 // AddTimelineAction adds a recorded action to the timeline.
 func (s *Service) AddTimelineAction(sessionID string, action *RecordedAction, pageID uuid.UUID) {
 	s.timeline.AddAction(sessionID, action, pageID)

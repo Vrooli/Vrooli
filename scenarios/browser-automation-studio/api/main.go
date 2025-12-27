@@ -329,6 +329,7 @@ func main() {
 
 		// Multi-tab/page support endpoints
 		r.Get("/recordings/live/{sessionId}/pages", handler.GetRecordingPages)
+		r.Post("/recordings/live/{sessionId}/pages", handler.CreateRecordingPage)
 		r.Post("/recordings/live/{sessionId}/pages/{pageId}/activate", handler.ActivateRecordingPage)
 		r.Post("/recordings/live/{sessionId}/pages/{pageId}/close", handler.CloseRecordingPage)
 		r.Post("/recordings/live/{sessionId}/page-event", handler.ReceivePageEvent) // Callback for driver page events

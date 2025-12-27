@@ -11,6 +11,61 @@ import (
 	"github.com/vrooli/browser-automation-studio/domain"
 )
 
+// CreateRecordingPageRequest is the request body for creating a new page.
+type CreateRecordingPageRequest struct {
+	URL string `json:"url"`
+}
+
+// CreateRecordingPage handles POST /api/v1/recordings/live/{sessionId}/pages
+// Creates a new page (tab) in the recording session.
+func (h *Handler) CreateRecordingPage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	var req CreateRecordingPageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	// Default to about:blank if no URL provided
+	pageURL := req.URL
+	if pageURL == "" {
+		pageURL = "about:blank"
+	}
+
+	// Call the service to create a new page
+	result, err := h.recordModeService.CreatePage(ctx, sessionID, pageURL)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to create new page")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	// The driver will send a page_created event via the callback endpoint,
+	// which will trigger WebSocket broadcast. We just return the driver page ID here.
+	h.log.WithFields(map[string]interface{}{
+		"session_id":     sessionID,
+		"driver_page_id": result.DriverPageID,
+		"url":            result.URL,
+	}).Info("New page created by user request")
+
+	h.respondSuccess(w, http.StatusCreated, map[string]string{
+		"driverPageId": result.DriverPageID,
+		"url":          result.URL,
+	})
+}
+
 // GetRecordingPages handles GET /api/v1/recordings/live/{sessionId}/pages
 // Returns all pages in the recording session.
 func (h *Handler) GetRecordingPages(w http.ResponseWriter, r *http.Request) {

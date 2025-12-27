@@ -94,6 +94,8 @@ interface UsePagesReturn {
   switchToPage: (pageId: string) => Promise<void>;
   /** Close a page (user-initiated) */
   closePage: (pageId: string) => Promise<void>;
+  /** Create a new page (user-initiated) */
+  createPage: (url?: string) => Promise<void>;
   /** Refresh pages from the server */
   refreshPages: () => Promise<void>;
   /** Number of open pages */
@@ -355,6 +357,36 @@ export function usePages({
     }
   }, [apiUrl, sessionId, pages]);
 
+  // Create a new page (user-initiated)
+  const createPage = useCallback(async (url?: string) => {
+    if (!sessionId) {
+      console.warn('[usePages] Cannot create page: no session');
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${apiUrl}/recordings/live/${sessionId}/pages`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: url || 'about:blank' }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `Failed to create page: ${response.statusText}`);
+      }
+
+      // The page will be added via WebSocket event, no need to update state here
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create page';
+      setError(message);
+      console.error('[usePages] Error creating page:', err);
+    }
+  }, [apiUrl, sessionId]);
+
   // Derived values
   const pageList = useMemo(() => {
     const list = Array.from(pages.values());
@@ -386,6 +418,7 @@ export function usePages({
     error,
     switchToPage,
     closePage,
+    createPage,
     refreshPages,
     openPageCount,
     hasMultiplePages,

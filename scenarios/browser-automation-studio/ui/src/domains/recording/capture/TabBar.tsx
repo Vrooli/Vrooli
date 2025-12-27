@@ -18,6 +18,8 @@ interface TabBarProps {
   onTabClick: (pageId: string) => void;
   /** Callback when a tab close button is clicked */
   onTabClose?: (pageId: string) => void;
+  /** Callback when the new tab button is clicked */
+  onCreateTab?: () => void;
   /** Whether the tab bar is loading */
   isLoading?: boolean;
   /** Page ID with recent activity (for activity indicator) */
@@ -157,6 +159,7 @@ export function TabBar({
   activePageId,
   onTabClick,
   onTabClose,
+  onCreateTab,
   isLoading = false,
   recentActivityPageId = null,
   show = true,
@@ -195,6 +198,20 @@ export function TabBar({
         ))}
       </div>
 
+      {/* New tab button */}
+      {onCreateTab && (
+        <button
+          onClick={onCreateTab}
+          className="flex-shrink-0 ml-1 mb-0.5 p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          title="Open new tab"
+          aria-label="Open new tab"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      )}
+
       {/* Loading indicator */}
       {isLoading && (
         <div className="ml-2 flex items-center gap-1 px-2 py-1 text-xs text-gray-500 dark:text-gray-400">
@@ -205,11 +222,6 @@ export function TabBar({
           <span>Loading...</span>
         </div>
       )}
-
-      {/* Tab count badge */}
-      <div className="ml-auto flex-shrink-0 px-2 py-1.5 text-[10px] font-medium text-gray-500 dark:text-gray-400">
-        {pages.length} tabs
-      </div>
     </div>
   );
 }

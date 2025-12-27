@@ -503,6 +503,73 @@ export async function handleRecordViewport(
 }
 
 /**
+ * Create a new page (tab) in the recording session.
+ *
+ * POST /session/:id/record/new-page
+ *
+ * Creates a new browser tab and switches to it. The new page will trigger
+ * the page_created event callback to notify the API.
+ */
+export async function handleRecordNewPage(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    const session = sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, config);
+    const request = body as { url?: string };
+
+    // Default to about:blank if no URL provided
+    const url = request.url || 'about:blank';
+
+    // Create a new page in the browser context
+    const newPage = await session.context.newPage();
+
+    // Generate a UUID for the new page
+    const pageId = crypto.randomUUID();
+
+    // Navigate to the URL
+    await newPage.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => {
+      // Ignore navigation errors for about:blank
+    });
+
+    // Register the page in session tracking
+    session.pages.push(newPage);
+    session.pageIdMap.set(pageId, newPage);
+    session.pageToIdMap.set(newPage, pageId);
+
+    // Switch to the new page
+    session.currentPageIndex = session.pages.length - 1;
+    session.page = newPage;
+
+    // Clear frame cache for this session
+    clearFrameCache(sessionId);
+
+    // Get page info
+    const title = await newPage.title().catch(() => '');
+
+    logger.info('recording: new page created by user request', {
+      sessionId,
+      pageId,
+      url,
+      title,
+      totalPages: session.pages.length,
+    });
+
+    sendJson(res, 201, {
+      driver_page_id: pageId,
+      url: newPage.url(),
+      title,
+    });
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/new-page`);
+  }
+}
+
+/**
  * Switch the active page for frame streaming and input forwarding.
  *
  * POST /session/:id/record/active-page

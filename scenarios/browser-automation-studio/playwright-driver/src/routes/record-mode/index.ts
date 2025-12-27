@@ -57,6 +57,7 @@ export {
   handleRecordInput,
   handleRecordFrame,
   handleRecordViewport,
+  handleRecordNewPage,
   handleRecordActivePage,
   clearFrameCache,
   clearAllFrameCaches,

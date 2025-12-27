@@ -1267,6 +1267,13 @@ func (m *MockRecordModeService) ActivatePage(ctx context.Context, sessionID stri
 
 // Timeline support methods
 
+func (m *MockRecordModeService) CreatePage(ctx context.Context, sessionID string, url string) (*driver.CreatePageResponse, error) {
+	return &driver.CreatePageResponse{
+		DriverPageID: "mock-page-id",
+		URL:          url,
+	}, nil
+}
+
 func (m *MockRecordModeService) AddTimelineAction(sessionID string, action *livecapture.RecordedAction, pageID uuid.UUID) {
 	// No-op for mock
 }

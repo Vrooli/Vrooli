@@ -179,6 +179,7 @@ export function RecordModePage({
     pages: pagesMap,
     switchToPage,
     closePage,
+    createPage,
     isLoading: isPagesLoading,
     hasMultiplePages,
   } = usePages({
@@ -669,7 +670,12 @@ export function RecordModePage({
         mode={mode}
         onModeChange={handleModeChange}
         showModeToggle={true}
-        canExecute={actions.length > 0} // Can execute if we have recorded actions
+        canExecute={actions.length > 0}
+        sessionProfiles={sessionProfiles.profiles}
+        sessionProfilesLoading={sessionProfiles.loading}
+        selectedSessionProfileId={selectedProfileId}
+        onSelectSessionProfile={handleSelectSessionProfile}
+        onCreateSessionProfile={handleCreateSessionProfile}
       />
 
       {/* Tab bar for multi-tab sessions */}
@@ -678,6 +684,7 @@ export function RecordModePage({
         activePageId={activePageId}
         onTabClick={switchToPage}
         onTabClose={closePage}
+        onCreateTab={() => createPage()}
         isLoading={isPagesLoading}
         recentActivityPageId={recentActivityPageId}
         show={hasMultiplePages}
@@ -707,11 +714,6 @@ export function RecordModePage({
             timelineWidth={timelineWidth}
             isResizingSidebar={isResizingSidebar}
             onResizeStart={handleSidebarResizeStart}
-            sessionProfiles={sessionProfiles.profiles}
-            sessionProfilesLoading={sessionProfiles.loading}
-            selectedSessionProfileId={selectedProfileId}
-            onSelectSessionProfile={handleSelectSessionProfile}
-            onCreateSessionProfile={handleCreateSessionProfile}
             onClearRequested={() => setShowClearConfirm(true)}
             onCreateWorkflow={handleCreateWorkflow}
             onDeleteAction={handleDeleteMergedAction}
