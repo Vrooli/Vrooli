@@ -114,55 +114,101 @@ export function MessageList({
 
       {/* Active tool calls during generation */}
       {activeToolCalls.length > 0 && (
-        <div className="flex justify-start" data-testid="active-tool-calls">
-          <div className="flex gap-3 max-w-[85%]">
-            <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-              <Wrench className="h-4 w-4 text-amber-400" />
+        isCompact ? (
+          <div className="border-l-2 border-l-amber-500 pl-3 py-1" data-testid="active-tool-calls">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-medium text-amber-400">Tool</span>
             </div>
-            <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200 space-y-2">
+            <div className="space-y-1">
               {activeToolCalls.map((tc) => (
-                <div key={tc.id} className="flex items-center gap-2">
+                <div key={tc.id} className="flex items-center gap-2 text-sm">
                   {tc.status === "running" ? (
                     <>
-                      <Play className="h-4 w-4 text-amber-500 dark:text-amber-400 animate-pulse" />
-                      <span className="text-sm">Running <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded">{tc.name}</code>...</span>
+                      <Play className="h-3 w-3 text-amber-500 dark:text-amber-400 animate-pulse" />
+                      <span className="text-slate-700 dark:text-slate-300">Running <code className="bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded text-xs">{tc.name}</code>...</span>
                     </>
                   ) : tc.status === "completed" ? (
                     <>
-                      <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400" />
-                      <span className="text-sm text-green-600 dark:text-green-400">{tc.name} completed</span>
+                      <CheckCircle2 className="h-3 w-3 text-green-500 dark:text-green-400" />
+                      <span className="text-green-600 dark:text-green-400">{tc.name} completed</span>
                     </>
                   ) : (
                     <>
-                      <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />
-                      <span className="text-sm text-red-600 dark:text-red-400">{tc.name} failed</span>
+                      <XCircle className="h-3 w-3 text-red-500 dark:text-red-400" />
+                      <span className="text-red-600 dark:text-red-400">{tc.name} failed</span>
                     </>
                   )}
                 </div>
               ))}
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex justify-start" data-testid="active-tool-calls">
+            <div className="flex gap-3 max-w-[85%]">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                <Wrench className="h-4 w-4 text-amber-400" />
+              </div>
+              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200 space-y-2">
+                {activeToolCalls.map((tc) => (
+                  <div key={tc.id} className="flex items-center gap-2">
+                    {tc.status === "running" ? (
+                      <>
+                        <Play className="h-4 w-4 text-amber-500 dark:text-amber-400 animate-pulse" />
+                        <span className="text-sm">Running <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded">{tc.name}</code>...</span>
+                      </>
+                    ) : tc.status === "completed" ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400" />
+                        <span className="text-sm text-green-600 dark:text-green-400">{tc.name} completed</span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />
+                        <span className="text-sm text-red-600 dark:text-red-400">{tc.name} failed</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
       )}
 
       {isGenerating && !activeToolCalls.length && (
-        <div className="flex justify-start" data-testid="streaming-message">
-          <div className="flex gap-3 max-w-[85%]">
-            <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
-              <Bot className="h-4 w-4 text-indigo-400" />
-            </div>
-            <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200">
-              {streamingContent ? (
-                <p className="whitespace-pre-wrap">{streamingContent}</p>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-indigo-500 dark:text-indigo-400" />
-                  <span className="text-sm text-slate-500 dark:text-slate-400">Thinking...</span>
-                </div>
+        isCompact ? (
+          <div className="border-l-2 border-l-emerald-500 pl-3 py-1" data-testid="streaming-message">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-medium text-emerald-400">Assistant</span>
+              {!streamingContent && (
+                <Loader2 className="h-3 w-3 animate-spin text-emerald-400" />
               )}
             </div>
+            {streamingContent ? (
+              <div className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{streamingContent}</div>
+            ) : (
+              <span className="text-sm text-slate-500 dark:text-slate-400">Thinking...</span>
+            )}
           </div>
-        </div>
+        ) : (
+          <div className="flex justify-start" data-testid="streaming-message">
+            <div className="flex gap-3 max-w-[85%]">
+              <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
+                <Bot className="h-4 w-4 text-indigo-400" />
+              </div>
+              <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200">
+                {streamingContent ? (
+                  <p className="whitespace-pre-wrap">{streamingContent}</p>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-indigo-500 dark:text-indigo-400" />
+                    <span className="text-sm text-slate-500 dark:text-slate-400">Thinking...</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
       )}
       <div ref={endRef} />
     </div>

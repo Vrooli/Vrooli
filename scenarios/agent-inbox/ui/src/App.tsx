@@ -4,7 +4,6 @@ import { useChats } from "./hooks/useChats";
 import { useChatRoute, usePopStateListener } from "./hooks/useChatRoute";
 import { useKeyboardShortcuts, type KeyboardShortcut } from "./hooks/useKeyboardShortcuts";
 import { Sidebar } from "./components/layout/Sidebar";
-import { ChatList } from "./components/chat/ChatList";
 import { ChatView } from "./components/chat/ChatView";
 import { EmptyState } from "./components/chat/EmptyState";
 import { LabelManager } from "./components/labels/LabelManager";
@@ -390,23 +389,27 @@ function AppContent() {
         />
       )}
 
-      {/* Sidebar - Desktop: always visible, Mobile: slide-in */}
+      {/* Unified Sidebar - Desktop: always visible, Mobile: slide-in */}
       <div
         className={`fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto transform transition-transform duration-200 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+          sidebarOpen || chatListOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        } pt-14 lg:pt-0`}
       >
         <div className="lg:hidden absolute top-3 right-3 z-10">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => {
+              setSidebarOpen(false);
+              setChatListOpen(false);
+            }}
             data-testid="close-sidebar-button"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
         <Sidebar
+          ref={searchInputRef}
           currentView={currentView}
           onViewChange={(view) => {
             setCurrentView(view);
@@ -421,25 +424,11 @@ function AppContent() {
           isCreatingChat={isCreatingChat}
           labels={labels}
           chatCounts={chatCounts}
-        />
-      </div>
-
-      {/* Chat List - Desktop: fixed width, Mobile: full width */}
-      <div
-        className={`${
-          chatListOpen ? "flex" : "hidden lg:flex"
-        } shrink-0 pt-14 lg:pt-0 w-full lg:w-auto`}
-      >
-        <ChatList
-          ref={searchInputRef}
           chats={chats}
-          labels={labels}
           selectedChatId={selectedChatId}
           focusedIndex={focusedIndex}
-          currentView={currentView}
-          isLoading={loadingChats}
+          isLoadingChats={loadingChats}
           onSelectChat={handleSelectChat}
-          onNewChat={handleNewChat}
           onRenameChat={(chatId, newName) => updateChat({ chatId, data: { name: newName } })}
         />
       </div>
