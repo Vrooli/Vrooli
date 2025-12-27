@@ -233,17 +233,18 @@ describe("ToolCountBadge", () => {
       tools: [],
     });
 
-    const { container } = render(<ToolCountBadge chatId="chat-123" />, {
+    render(<ToolCountBadge chatId="chat-123" />, {
       wrapper: createWrapper(),
     });
 
+    // Wait for fetch to complete and component to update
     await waitFor(() => {
       expect(api.fetchToolSet).toHaveBeenCalled();
     });
 
-    // Give it a moment to update
-    await new Promise((r) => setTimeout(r, 50));
-
-    expect(screen.queryByTestId("tool-count-badge")).not.toBeInTheDocument();
+    // Badge should not appear when there are no tools
+    await waitFor(() => {
+      expect(screen.queryByTestId("tool-count-badge")).not.toBeInTheDocument();
+    });
   });
 });

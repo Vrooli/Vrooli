@@ -1,13 +1,26 @@
 import { useState, useCallback, useEffect } from "react";
-import { Moon, Sun, Trash2, AlertTriangle, Keyboard, BarChart3, Wrench } from "lucide-react";
+import {
+  Moon,
+  Sun,
+  Trash2,
+  AlertTriangle,
+  Keyboard,
+  BarChart3,
+  Wrench,
+  Settings2,
+  Cpu,
+  Database,
+} from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Button } from "../ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { ModelSelector } from "./ModelSelector";
 import { ToolConfiguration } from "./ToolConfiguration";
 import { useTools } from "../../hooks/useTools";
 import type { Model } from "../../lib/api";
 
 export type Theme = "dark" | "light";
+export type SettingsTab = "general" | "ai" | "data";
 
 // Default model used when none is set
 export const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
@@ -45,6 +58,7 @@ export function Settings({
   onShowUsageStats,
   models,
 }: SettingsProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") {
       return (localStorage.getItem("theme") as Theme) || "dark";
@@ -68,7 +82,7 @@ export function Settings({
     error: toolsError,
     toggleTool,
     refreshToolRegistry,
-  } = useTools({ enabled: open });
+  } = useTools({ enabled: open && activeTab === "ai" });
 
   // Apply theme class to document
   useEffect(() => {
@@ -80,6 +94,12 @@ export function Settings({
     }
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  // Reset delete confirm when switching tabs
+  useEffect(() => {
+    setShowDeleteConfirm(false);
+    setDeleteConfirmText("");
+  }, [activeTab]);
 
   const handleThemeChange = useCallback((newTheme: Theme) => {
     setTheme(newTheme);
@@ -105,190 +125,225 @@ export function Settings({
   return (
     <Dialog open={open} onClose={onClose} className="max-w-lg">
       <DialogHeader onClose={onClose}>Settings</DialogHeader>
-      <DialogBody className="space-y-6">
-        {/* Appearance Section */}
-        <section>
-          <h3 className="text-sm font-medium text-slate-300 mb-3">Appearance</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleThemeChange("dark")}
-              className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
-                theme === "dark"
-                  ? "bg-indigo-500/20 border-indigo-500 text-white"
-                  : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
-              }`}
-              data-testid="theme-dark-button"
-            >
-              <Moon className="h-4 w-4" />
-              <span className="text-sm">Dark</span>
-            </button>
-            <button
-              onClick={() => handleThemeChange("light")}
-              className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
-                theme === "light"
-                  ? "bg-indigo-500/20 border-indigo-500 text-white"
-                  : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
-              }`}
-              data-testid="theme-light-button"
-            >
-              <Sun className="h-4 w-4" />
-              <span className="text-sm">Light</span>
-            </button>
-          </div>
-        </section>
+      <DialogBody className="space-y-4">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SettingsTab)}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="general">
+              <span className="flex items-center gap-2">
+                <Settings2 className="h-4 w-4" />
+                General
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="ai">
+              <span className="flex items-center gap-2">
+                <Cpu className="h-4 w-4" />
+                AI
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="data">
+              <span className="flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                Data
+              </span>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Default Model Section */}
-        <section>
-          <h3 className="text-sm font-medium text-slate-300 mb-3">Default Model</h3>
-          <p className="text-xs text-slate-500 mb-3">
-            New chats will use this model by default
-          </p>
-          <ModelSelector
-            models={models}
-            selectedModel={defaultModel}
-            onSelectModel={handleDefaultModelChange}
-          />
-        </section>
-
-        {/* Keyboard Shortcuts Section */}
-        <section>
-          <h3 className="text-sm font-medium text-slate-300 mb-3">Keyboard</h3>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              onShowKeyboardShortcuts();
-              onClose();
-            }}
-            className="w-full justify-start gap-2"
-            data-testid="keyboard-shortcuts-button"
-          >
-            <Keyboard className="h-4 w-4" />
-            View Keyboard Shortcuts
-          </Button>
-        </section>
-
-        {/* Usage Statistics Section */}
-        <section>
-          <h3 className="text-sm font-medium text-slate-300 mb-3">Usage</h3>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              onShowUsageStats();
-              onClose();
-            }}
-            className="w-full justify-start gap-2"
-            data-testid="usage-stats-button"
-          >
-            <BarChart3 className="h-4 w-4" />
-            View Usage Statistics
-          </Button>
-        </section>
-
-        {/* Tools Configuration Section */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-slate-300">AI Tools</h3>
-            <span className="text-xs text-slate-500">
-              {enabledTools.length} of {toolSet?.tools.length ?? 0} enabled
-            </span>
-          </div>
-          {!showTools ? (
-            <Button
-              variant="secondary"
-              onClick={() => setShowTools(true)}
-              className="w-full justify-start gap-2"
-              data-testid="configure-tools-button"
-            >
-              <Wrench className="h-4 w-4" />
-              Configure Default Tools
-            </Button>
-          ) : (
-            <div className="space-y-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowTools(false)}
-                className="text-slate-400"
-              >
-                Hide tool configuration
-              </Button>
-              <ToolConfiguration
-                toolsByScenario={toolsByScenario}
-                categories={toolSet?.categories ?? []}
-                scenarioStatuses={scenarios}
-                isLoading={isLoadingTools}
-                isRefreshing={isRefreshingTools}
-                isUpdating={isUpdatingTools}
-                error={toolsError?.message}
-                onToggleTool={toggleTool}
-                onRefresh={refreshToolRegistry}
-              />
-            </div>
-          )}
-        </section>
-
-        {/* Danger Zone */}
-        <section>
-          <h3 className="text-sm font-medium text-red-400 mb-3 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            Danger Zone
-          </h3>
-          <div className="p-4 rounded-lg border border-red-500/20 bg-red-500/5">
-            {!showDeleteConfirm ? (
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium text-white">Delete All Chats</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Permanently delete all chats and messages. This cannot be undone.
-                  </p>
-                </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  data-testid="delete-all-button"
+          {/* General Tab */}
+          <TabsContent value="general" className="space-y-6">
+            {/* Appearance Section */}
+            <section>
+              <h3 className="text-sm font-medium text-slate-300 mb-3">Appearance</h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleThemeChange("dark")}
+                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
+                    theme === "dark"
+                      ? "bg-indigo-500/20 border-indigo-500 text-white"
+                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
+                  }`}
+                  data-testid="theme-dark-button"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Moon className="h-4 w-4" />
+                  <span className="text-sm">Dark</span>
+                </button>
+                <button
+                  onClick={() => handleThemeChange("light")}
+                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
+                    theme === "light"
+                      ? "bg-indigo-500/20 border-indigo-500 text-white"
+                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
+                  }`}
+                  data-testid="theme-light-button"
+                >
+                  <Sun className="h-4 w-4" />
+                  <span className="text-sm">Light</span>
+                </button>
+              </div>
+            </section>
+
+            {/* Keyboard Shortcuts Section */}
+            <section>
+              <h3 className="text-sm font-medium text-slate-300 mb-3">Keyboard</h3>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  onShowKeyboardShortcuts();
+                  onClose();
+                }}
+                className="w-full justify-start gap-2"
+                data-testid="keyboard-shortcuts-button"
+              >
+                <Keyboard className="h-4 w-4" />
+                View Keyboard Shortcuts
+              </Button>
+            </section>
+          </TabsContent>
+
+          {/* AI Tab */}
+          <TabsContent value="ai" className="space-y-6">
+            {/* Default Model Section */}
+            <section>
+              <h3 className="text-sm font-medium text-slate-300 mb-3">Default Model</h3>
+              <p className="text-xs text-slate-500 mb-3">
+                New chats will use this model by default
+              </p>
+              <ModelSelector
+                models={models}
+                selectedModel={defaultModel}
+                onSelectModel={handleDefaultModelChange}
+              />
+            </section>
+
+            {/* Tools Configuration Section */}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-slate-300">AI Tools</h3>
+                <span className="text-xs text-slate-500">
+                  {enabledTools.length} of {toolSet?.tools.length ?? 0} enabled
+                </span>
+              </div>
+              {!showTools ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowTools(true)}
+                  className="w-full justify-start gap-2"
+                  data-testid="configure-tools-button"
+                >
+                  <Wrench className="h-4 w-4" />
+                  Configure Default Tools
                 </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-slate-300">
-                  Type <span className="font-mono text-red-400">delete all</span> to confirm:
-                </p>
-                <input
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder="delete all"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                  autoFocus
-                  data-testid="delete-confirm-input"
-                />
-                <div className="flex gap-2">
+              ) : (
+                <div className="space-y-3">
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
-                    onClick={handleCancelDelete}
-                    className="flex-1"
+                    onClick={() => setShowTools(false)}
+                    className="text-slate-400"
                   >
-                    Cancel
+                    Hide tool configuration
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleDeleteAll}
-                    disabled={deleteConfirmText !== "delete all" || isDeletingAll}
-                    className="flex-1"
-                    data-testid="confirm-delete-all-button"
-                  >
-                    {isDeletingAll ? "Deleting..." : "Delete All"}
-                  </Button>
+                  <ToolConfiguration
+                    toolsByScenario={toolsByScenario}
+                    categories={toolSet?.categories ?? []}
+                    scenarioStatuses={scenarios}
+                    isLoading={isLoadingTools}
+                    isRefreshing={isRefreshingTools}
+                    isUpdating={isUpdatingTools}
+                    error={toolsError?.message}
+                    onToggleTool={toggleTool}
+                    onRefresh={refreshToolRegistry}
+                  />
                 </div>
+              )}
+            </section>
+          </TabsContent>
+
+          {/* Data Tab */}
+          <TabsContent value="data" className="space-y-6">
+            {/* Usage Statistics Section */}
+            <section>
+              <h3 className="text-sm font-medium text-slate-300 mb-3">Usage Statistics</h3>
+              <p className="text-xs text-slate-500 mb-3">
+                View token usage, costs, and activity across your chats
+              </p>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  onShowUsageStats();
+                  onClose();
+                }}
+                className="w-full justify-start gap-2"
+                data-testid="usage-stats-button"
+              >
+                <BarChart3 className="h-4 w-4" />
+                View Usage Statistics
+              </Button>
+            </section>
+
+            {/* Danger Zone */}
+            <section>
+              <h3 className="text-sm font-medium text-red-400 mb-3 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Danger Zone
+              </h3>
+              <div className="p-4 rounded-lg border border-red-500/20 bg-red-500/5">
+                {!showDeleteConfirm ? (
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-white">Delete All Chats</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Permanently delete all chats and messages. This cannot be undone.
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      data-testid="delete-all-button"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-slate-300">
+                      Type <span className="font-mono text-red-400">delete all</span> to confirm:
+                    </p>
+                    <input
+                      type="text"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      placeholder="delete all"
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                      autoFocus
+                      data-testid="delete-confirm-input"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleCancelDelete}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDeleteAll}
+                        disabled={deleteConfirmText !== "delete all" || isDeletingAll}
+                        className="flex-1"
+                        data-testid="confirm-delete-all-button"
+                      >
+                        {isDeletingAll ? "Deleting..." : "Delete All"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </section>
+            </section>
+          </TabsContent>
+        </Tabs>
       </DialogBody>
     </Dialog>
   );
