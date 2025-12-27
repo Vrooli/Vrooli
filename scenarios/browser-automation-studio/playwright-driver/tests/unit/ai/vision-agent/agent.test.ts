@@ -280,9 +280,20 @@ describe('VisionAgent', () => {
 
     it('stops at max steps when goal not achieved', async () => {
       const mockClient = createMockVisionClient();
-      mockClient.setDefaultResponse({
+      // Use different actions to avoid loop detection
+      mockClient.queueResponse({
         action: { type: 'scroll', direction: 'down' },
         reasoning: 'Looking for content',
+        goalAchieved: false,
+      });
+      mockClient.queueResponse({
+        action: { type: 'scroll', direction: 'up' },
+        reasoning: 'Looking for content',
+        goalAchieved: false,
+      });
+      mockClient.queueResponse({
+        action: { type: 'click', elementId: 1 },
+        reasoning: 'Clicking element',
         goalAchieved: false,
       });
 
@@ -295,6 +306,28 @@ describe('VisionAgent', () => {
       expect(result.status).toBe('max_steps_reached');
       expect(result.totalSteps).toBe(3);
       expect(result.error).toContain('Maximum steps');
+    });
+
+    it('detects action loops and stops early', async () => {
+      const mockClient = createMockVisionClient();
+      // Return the same action repeatedly to trigger loop detection
+      mockClient.setDefaultResponse({
+        action: { type: 'click', elementId: 5 },
+        reasoning: 'Clicking the same button',
+        goalAchieved: false,
+      });
+
+      const deps = createMockDeps({ visionClient: mockClient });
+      const agent = createVisionAgent(deps);
+      const config = createNavConfig({ maxSteps: 10 });
+
+      const result = await agent.navigate(config);
+
+      // Should detect loop after 3 identical actions (more than maxRepeatedActions=2)
+      expect(result.status).toBe('loop_detected');
+      expect(result.totalSteps).toBe(3); // Stops on the 3rd identical action
+      expect(result.error).toContain('Loop detected');
+      expect(result.error).toContain('click:element:5');
     });
 
     it('handles abort signal', async () => {
@@ -456,9 +489,30 @@ describe('VisionAgent', () => {
 
     it('prevents concurrent navigation', async () => {
       const mockClient = createMockVisionClient();
-      mockClient.setDefaultResponse({
+      // Use varied actions to avoid loop detection
+      mockClient.queueResponse({
         action: { type: 'wait', ms: 50 },
         reasoning: 'Waiting',
+        goalAchieved: false,
+      });
+      mockClient.queueResponse({
+        action: { type: 'scroll', direction: 'down' },
+        reasoning: 'Scrolling',
+        goalAchieved: false,
+      });
+      mockClient.queueResponse({
+        action: { type: 'click', elementId: 1 },
+        reasoning: 'Clicking',
+        goalAchieved: false,
+      });
+      mockClient.queueResponse({
+        action: { type: 'scroll', direction: 'up' },
+        reasoning: 'Scrolling up',
+        goalAchieved: false,
+      });
+      mockClient.queueResponse({
+        action: { type: 'wait', ms: 100 },
+        reasoning: 'Final wait',
         goalAchieved: false,
       });
 

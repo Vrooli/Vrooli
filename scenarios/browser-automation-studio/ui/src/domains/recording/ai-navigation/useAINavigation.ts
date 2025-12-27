@@ -85,23 +85,29 @@ export function useAINavigation({
       // Only process events for our current navigation
       if (event.navigationId !== navigationIdRef.current) return;
 
+      // Defensive defaults for potentially missing fields
+      const tokensUsed = event.tokensUsed ?? { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      const stepNumber = event.stepNumber ?? 0;
+      const action = event.action ?? { type: 'wait' as const };
+      const timestamp = event.timestamp ? new Date(event.timestamp) : new Date();
+
       const step: AINavigationStep = {
-        id: `step-${event.stepNumber}`,
-        stepNumber: event.stepNumber,
-        action: event.action,
-        reasoning: event.reasoning,
-        currentUrl: event.currentUrl,
-        goalAchieved: event.goalAchieved,
-        tokensUsed: event.tokensUsed,
-        durationMs: event.durationMs,
+        id: `step-${stepNumber}`,
+        stepNumber,
+        action,
+        reasoning: event.reasoning ?? '',
+        currentUrl: event.currentUrl ?? '',
+        goalAchieved: event.goalAchieved ?? false,
+        tokensUsed,
+        durationMs: event.durationMs ?? 0,
         error: event.error,
-        timestamp: new Date(event.timestamp),
+        timestamp,
       };
 
       setState((prev) => ({
         ...prev,
         steps: [...prev.steps, step],
-        totalTokens: prev.totalTokens + event.tokensUsed.totalTokens,
+        totalTokens: prev.totalTokens + tokensUsed.totalTokens,
       }));
 
       onStepRef.current?.(step);
@@ -114,16 +120,20 @@ export function useAINavigation({
       // Only process events for our current navigation
       if (event.navigationId !== navigationIdRef.current) return;
 
+      // Defensive defaults for potentially missing fields
+      const status = event.status ?? 'completed';
+      const totalTokens = event.totalTokens ?? 0;
+
       setState((prev) => ({
         ...prev,
         isNavigating: false,
-        status: event.status,
-        totalTokens: event.totalTokens,
+        status,
+        totalTokens,
         error: event.error ?? null,
       }));
 
       navigationIdRef.current = null;
-      onCompleteRef.current?.(event.status, event.summary);
+      onCompleteRef.current?.(status, event.summary);
     }
   }, [lastMessage]);
 
@@ -186,7 +196,15 @@ export function useAINavigation({
           throw new Error(errorData.message || `Failed to start navigation: ${response.statusText}`);
         }
 
-        const data: AINavigateResponse = await response.json();
+        // API returns snake_case, convert to camelCase
+        const rawData = await response.json();
+        const data: AINavigateResponse = {
+          navigationId: rawData.navigation_id,
+          status: rawData.status,
+          model: rawData.model,
+          maxSteps: rawData.max_steps,
+          estimatedCost: rawData.estimated_cost,
+        };
         navigationIdRef.current = data.navigationId;
 
         setState((prev) => ({
@@ -222,6 +240,7 @@ export function useAINavigation({
         throw new Error(errorData.message || 'Failed to abort navigation');
       }
 
+      // Mark as aborting - the WebSocket complete event will set isNavigating: false
       setState((prev) => ({
         ...prev,
         status: 'aborted',

@@ -90,7 +90,8 @@ export type NavigationStatus =
   | 'completed'
   | 'failed'
   | 'aborted'
-  | 'max_steps_reached';
+  | 'max_steps_reached'
+  | 'loop_detected';
 
 /**
  * Vision Agent interface.

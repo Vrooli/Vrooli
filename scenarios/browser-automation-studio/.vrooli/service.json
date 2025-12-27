@@ -56,6 +56,11 @@
       "env_var": "WS_PORT",
       "description": "WebSocket port for real-time updates",
       "range": "25000-29999"
+    },
+    "playwright_driver": {
+      "env_var": "PLAYWRIGHT_DRIVER_PORT",
+      "description": "Playwright driver HTTP server port",
+      "range": "39400-39499"
     }
   },
   "lifecycle": {
@@ -170,6 +175,9 @@
         {
           "name": "start-playwright-driver",
           "run": "if [ -n \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then exit 0; fi; cd playwright-driver && node dist/server.js",
+          "env": {
+            "PLAYWRIGHT_DRIVER_PORT": "${PLAYWRIGHT_DRIVER_PORT}"
+          },
           "description": "Start Playwright driver (v2.0) if no driver URL is configured",
           "background": true,
           "condition": {
@@ -178,7 +186,7 @@
         },
         {
           "name": "start-api",
-          "run": "if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT:-39400}\"; fi; cd api && ./browser-automation-studio-api",
+          "run": "if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; cd api && ./browser-automation-studio-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {

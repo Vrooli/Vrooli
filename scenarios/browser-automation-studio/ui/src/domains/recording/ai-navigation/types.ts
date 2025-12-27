@@ -131,7 +131,7 @@ export interface AINavigationCompleteEvent {
   type: 'ai_navigation_complete';
   navigationId: string;
   sessionId: string;
-  status: 'completed' | 'failed' | 'aborted' | 'max_steps_reached';
+  status: 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected';
   totalSteps: number;
   totalTokens: number;
   totalDurationMs: number;
@@ -162,7 +162,7 @@ export interface AINavigationState {
   prompt: string;
   model: string;
   steps: AINavigationStep[];
-  status: 'idle' | 'navigating' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached';
+  status: 'idle' | 'navigating' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected';
   totalTokens: number;
   error: string | null;
 }

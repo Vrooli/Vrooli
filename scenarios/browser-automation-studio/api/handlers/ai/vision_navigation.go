@@ -476,17 +476,17 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 	// Broadcast via WebSocket
 	if h.wsHub != nil && session != nil {
 		wsEvent := map[string]interface{}{
-			"type":          "ai_navigation_step",
-			"navigation_id": event.NavigationID,
-			"session_id":    session.SessionID,
-			"step_number":   event.StepNumber,
-			"action":        event.Action,
-			"reasoning":     event.Reasoning,
-			"current_url":   event.CurrentURL,
-			"goal_achieved": event.GoalAchieved,
-			"tokens_used":   event.TokensUsed,
-			"duration_ms":   event.DurationMs,
-			"timestamp":     time.Now().UTC().Format(time.RFC3339),
+			"type":         "ai_navigation_step",
+			"navigationId": event.NavigationID,
+			"sessionId":    session.SessionID,
+			"stepNumber":   event.StepNumber,
+			"action":       event.Action,
+			"reasoning":    event.Reasoning,
+			"currentUrl":   event.CurrentURL,
+			"goalAchieved": event.GoalAchieved,
+			"tokensUsed":   event.TokensUsed,
+			"durationMs":   event.DurationMs,
+			"timestamp":    time.Now().UTC().Format(time.RFC3339),
 		}
 		if event.Error != "" {
 			wsEvent["error"] = event.Error
@@ -527,15 +527,15 @@ func (h *VisionNavigationHandler) handleCompleteCallback(ctx context.Context, w 
 	// Broadcast via WebSocket
 	if h.wsHub != nil && session != nil {
 		wsEvent := map[string]interface{}{
-			"type":             "ai_navigation_complete",
-			"navigation_id":    event.NavigationID,
-			"session_id":       session.SessionID,
-			"status":           event.Status,
-			"total_steps":      event.TotalSteps,
-			"total_tokens":     event.TotalTokens,
-			"total_duration_ms": event.TotalDurationMs,
-			"final_url":        event.FinalURL,
-			"timestamp":        time.Now().UTC().Format(time.RFC3339),
+			"type":            "ai_navigation_complete",
+			"navigationId":    event.NavigationID,
+			"sessionId":       session.SessionID,
+			"status":          event.Status,
+			"totalSteps":      event.TotalSteps,
+			"totalTokens":     event.TotalTokens,
+			"totalDurationMs": event.TotalDurationMs,
+			"finalUrl":        event.FinalURL,
+			"timestamp":       time.Now().UTC().Format(time.RFC3339),
 		}
 		if event.Error != "" {
 			wsEvent["error"] = event.Error

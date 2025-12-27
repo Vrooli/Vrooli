@@ -180,9 +180,12 @@ describe('prompts', () => {
         ],
       });
 
-      expect(prompt).toContain('Previous Actions');
+      expect(prompt).toContain('Actions Already Taken');
       expect(prompt).toContain('click(1)');
       expect(prompt).toContain('type(2, "hello")');
+      // Should include warning about last action
+      expect(prompt).toContain('IMPORTANT');
+      expect(prompt).toContain('DO NOT repeat this action');
     });
 
     it('truncates long text', () => {

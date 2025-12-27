@@ -15,6 +15,9 @@ import (
 var startTime = time.Now()
 
 // Health handles GET /health and GET /api/v1/health
+// NOTE: This handler has been replaced by api-core/health in main.go for standardized responses.
+// This method is kept for reference but is no longer registered in routes.
+// Deprecated: Use api-core/health.New().Check(health.DB(db), health.Critical).Handler() instead.
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 

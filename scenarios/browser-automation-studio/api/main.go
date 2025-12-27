@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
@@ -196,13 +197,18 @@ func main() {
 	r.Use(entitlementMiddleware.InjectEntitlement)
 
 	// Routes
-	r.Get("/health", handler.Health)
+	// Health endpoint using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(db.RawDB()), health.Critical).
+		Handler()
+	r.Get("/health", healthHandler)
 	r.Get("/ws", handler.HandleWebSocket)                                      // WebSocket endpoint for browser clients
 	r.Get("/ws/recording/{sessionId}/frames", handler.HandleDriverFrameStream) // WebSocket for playwright-driver binary frame streaming
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Health endpoint under /api/v1 for consistency
-		r.Get("/health", handler.Health)
+		r.Get("/health", healthHandler)
 		// Project routes
 		r.Post("/projects", handler.CreateProject)
 		r.Post("/projects/inspect-folder", handler.InspectProjectFolder)

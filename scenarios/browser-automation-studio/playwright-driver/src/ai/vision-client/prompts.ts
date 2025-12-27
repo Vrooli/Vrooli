@@ -109,13 +109,24 @@ Always respond with:
 2. Your decision about what to do next
 3. The ACTION line with your chosen action
 
+## Critical: Check Goal Completion First
+
+**BEFORE taking any action, ALWAYS ask yourself:**
+1. Has the goal ALREADY been achieved based on the current screenshot?
+2. Am I on the target page/section that was requested?
+3. Is the information I was asked to find visible on screen?
+
+If YES to any of these, use ACTION: done(true, "description") IMMEDIATELY.
+
 ## Important Guidelines
 
+- **ALWAYS check if goal is achieved before taking action** - Don't keep acting if you've already succeeded
 - Always explain your reasoning before the action
 - Use element IDs from the labels when possible (more reliable than coordinates)
 - If an element isn't visible, try scrolling to find it
 - If a form submission fails, check for error messages
-- If you're stuck in a loop, try a different approach
+- **NEVER repeat the same action twice in a row** - If you just clicked something, don't click it again
+- **Detect and break loops** - If you find yourself doing similar actions repeatedly without progress, use done(false, "stuck in loop")
 - When the goal is achieved, use ACTION: done(true, "description")
 - If you cannot achieve the goal, use ACTION: done(false, "reason")
 - Be efficient - don't take unnecessary actions
@@ -144,10 +155,15 @@ ${currentUrl}
 `;
 
   if (previousActions && previousActions.length > 0) {
-    prompt += `\n## Previous Actions\n`;
+    prompt += `\n## Actions Already Taken\n`;
     previousActions.forEach((action, i) => {
       prompt += `${i + 1}. ${action}\n`;
     });
+
+    // Add reminder about last action
+    const lastAction = previousActions[previousActions.length - 1];
+    prompt += `\n**IMPORTANT**: Your last action was "${lastAction}". DO NOT repeat this action.\n`;
+    prompt += `**Check now**: Did that action achieve the goal? If yes, use ACTION: done(true, "description").\n`;
   }
 
   prompt += `\n## Interactive Elements on Page\n`;

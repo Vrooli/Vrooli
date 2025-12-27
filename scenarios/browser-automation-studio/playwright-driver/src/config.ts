@@ -266,6 +266,24 @@ export type Config = z.infer<typeof ConfigSchema>;
  * - parseInt may return NaN for invalid input
  * - Default value must be returned for any invalid input
  */
+/**
+ * Parse a required integer environment variable.
+ * Throws if not set or invalid - used for ports that must be set by the lifecycle system.
+ */
+function parseRequiredEnvInt(envName: string): number {
+  const envVar = process.env[envName];
+  if (!envVar || envVar.trim() === '') {
+    throw new Error(`Required environment variable ${envName} is not set. This should be set by the vrooli lifecycle system.`);
+  }
+
+  const parsed = parseInt(envVar, 10);
+  if (Number.isNaN(parsed)) {
+    throw new Error(`Environment variable ${envName} has invalid value "${envVar}" - expected an integer.`);
+  }
+
+  return parsed;
+}
+
 function parseEnvInt(envVar: string | undefined, defaultValue: number): number {
   if (!envVar || envVar.trim() === '') {
     return defaultValue;
@@ -334,7 +352,7 @@ function parseEnvFloat(envVar: string | undefined, defaultValue: number): number
 export function loadConfig(): Config {
   const config = {
     server: {
-      port: parseEnvInt(process.env.PLAYWRIGHT_DRIVER_PORT, 39400),
+      port: parseRequiredEnvInt('PLAYWRIGHT_DRIVER_PORT'),
       host: process.env.PLAYWRIGHT_DRIVER_HOST || '127.0.0.1',
       requestTimeout: parseEnvInt(process.env.REQUEST_TIMEOUT_MS, 300000), // 5 minutes
       maxRequestSize: parseEnvInt(process.env.MAX_REQUEST_SIZE, 5242880),

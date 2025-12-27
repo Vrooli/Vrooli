@@ -50,6 +50,8 @@ export interface VisionAgentConfig {
   maxHistoryMessages?: number;
   /** Maximum element labels to include in context (for token efficiency) */
   maxElementLabels?: number;
+  /** Maximum times the same action can be repeated before detecting a loop (default: 2) */
+  maxRepeatedActions?: number;
 }
 
 /**
@@ -62,6 +64,7 @@ const DEFAULTS: Required<VisionAgentConfig> = {
   fullPageScreenshot: false,
   maxHistoryMessages: 20, // Keep last 20 messages to prevent context overflow
   maxElementLabels: 50, // Limit element labels to prevent token explosion
+  maxRepeatedActions: 2, // Stop if same action is repeated more than 2 times
 };
 
 /**
@@ -111,6 +114,7 @@ export function createVisionAgent(
         : abortController.signal;
 
       const conversationHistory: ConversationMessageInterface[] = [];
+      const actionHistory: string[] = []; // Track serialized actions for loop detection
       const maxSteps = navConfig.maxSteps ?? cfg.defaultMaxSteps;
 
       deps.logger.info('Vision navigation started', {
@@ -225,6 +229,41 @@ export function createVisionAgent(
             goalAchieved: analysisResult.goalAchieved,
             confidence: analysisResult.confidence,
           });
+
+          // LOOP DETECTION: Track action and check for repeated actions
+          const serializedAction = serializeAction(analysisResult.action);
+          actionHistory.push(serializedAction);
+
+          const loopCheck = detectActionLoop(actionHistory, cfg.maxRepeatedActions);
+          if (loopCheck.isLoop) {
+            deps.logger.warn('Loop detected - same action repeated too many times', {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              repeatedAction: loopCheck.repeatedAction,
+              maxRepeated: cfg.maxRepeatedActions,
+            });
+
+            // Emit a step indicating the loop
+            const loopStep: NavigationStep = {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              action: analysisResult.action,
+              reasoning: `Loop detected: Action "${loopCheck.repeatedAction}" was repeated more than ${cfg.maxRepeatedActions} times. Stopping to prevent infinite loop.`,
+              screenshot,
+              currentUrl,
+              tokensUsed: analysisResult.tokensUsed,
+              durationMs: Date.now() - stepStartTime,
+              goalAchieved: false,
+              error: 'Loop detected - same action repeated',
+              elementLabels,
+            };
+
+            await safeEmit(deps, loopStep, navConfig.callbackUrl, navConfig.onStep);
+
+            status = 'loop_detected';
+            error = `Loop detected: Action "${loopCheck.repeatedAction}" repeated more than ${cfg.maxRepeatedActions} times`;
+            break;
+          }
 
           // Check if goal achieved (done action)
           if (analysisResult.goalAchieved || analysisResult.action.type === 'done') {
@@ -596,5 +635,70 @@ export function createNoopLogger(): LoggerInterface {
     info() {},
     warn() {},
     error() {},
+  };
+}
+
+/**
+ * Serialize an action for comparison purposes.
+ * Used to detect if the same action is being repeated.
+ */
+function serializeAction(action: BrowserAction): string {
+  switch (action.type) {
+    case 'click':
+      if ('elementId' in action && action.elementId !== undefined) {
+        return `click:element:${action.elementId}`;
+      }
+      return `click:coords:${action.x},${action.y}`;
+    case 'type':
+      if ('elementId' in action && action.elementId !== undefined) {
+        return `type:element:${action.elementId}:${action.text}`;
+      }
+      return `type:focused:${action.text}`;
+    case 'scroll':
+      return `scroll:${action.direction}`;
+    case 'navigate':
+      return `navigate:${action.url}`;
+    case 'hover':
+      return `hover:${action.elementId}`;
+    case 'select':
+      return `select:${action.elementId}:${action.value}`;
+    case 'wait':
+      return `wait:${action.ms}`;
+    case 'keypress':
+      return `keypress:${action.key}`;
+    case 'done':
+      return `done:${action.success}:${action.result}`;
+    default:
+      return `unknown:${JSON.stringify(action)}`;
+  }
+}
+
+/**
+ * Detect if we're stuck in a loop.
+ * Returns true if the last N actions are identical.
+ */
+function detectActionLoop(
+  actionHistory: string[],
+  maxRepeated: number
+): { isLoop: boolean; repeatedAction?: string } {
+  if (actionHistory.length < maxRepeated) {
+    return { isLoop: false };
+  }
+
+  const lastAction = actionHistory[actionHistory.length - 1];
+  let repeatCount = 0;
+
+  // Count how many times the last action appears at the end
+  for (let i = actionHistory.length - 1; i >= 0; i--) {
+    if (actionHistory[i] === lastAction) {
+      repeatCount++;
+    } else {
+      break; // Stop counting when we hit a different action
+    }
+  }
+
+  return {
+    isLoop: repeatCount > maxRepeated,
+    repeatedAction: repeatCount > maxRepeated ? lastAction : undefined,
   };
 }

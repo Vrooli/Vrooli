@@ -122,6 +122,16 @@ export function AINavigationStepCard({ step }: AINavigationStepCardProps) {
     setIsExpanded(!isExpanded);
   };
 
+  // Defensive defaults for potentially incomplete step data
+  const action = step.action ?? { type: 'wait' as const };
+  const tokensUsed = step.tokensUsed ?? { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  const durationMs = step.durationMs ?? 0;
+  const currentUrl = step.currentUrl ?? '';
+  const reasoning = step.reasoning ?? '';
+  const timestamp = step.timestamp instanceof Date && !isNaN(step.timestamp.getTime())
+    ? step.timestamp
+    : new Date();
+
   return (
     <div
       className={`py-2 px-3 border-b border-gray-200 dark:border-gray-700 ${
@@ -145,12 +155,12 @@ export function AINavigationStepCard({ step }: AINavigationStepCardProps) {
 
         {/* Action icon */}
         <span className="flex-shrink-0 text-purple-600 dark:text-purple-400">
-          {getActionIcon(step.action.type)}
+          {getActionIcon(action.type)}
         </span>
 
         {/* Action label */}
         <span className="flex-1 text-sm leading-snug break-words text-gray-900 dark:text-white">
-          {formatAction(step.action)}
+          {formatAction(action)}
         </span>
 
         {/* AI badge */}
@@ -175,7 +185,7 @@ export function AINavigationStepCard({ step }: AINavigationStepCardProps) {
         )}
 
         {/* Duration */}
-        <span className="flex-shrink-0 text-xs text-gray-400 font-mono">{step.durationMs}ms</span>
+        <span className="flex-shrink-0 text-xs text-gray-400 font-mono">{durationMs}ms</span>
 
         {/* Expand indicator */}
         <svg
@@ -195,7 +205,7 @@ export function AINavigationStepCard({ step }: AINavigationStepCardProps) {
           <div className="p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
             <span className="text-gray-500 text-xs uppercase tracking-wide block mb-1">AI Reasoning</span>
             <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">
-              {step.reasoning}
+              {reasoning || 'No reasoning provided'}
             </p>
           </div>
 
@@ -211,7 +221,7 @@ export function AINavigationStepCard({ step }: AINavigationStepCardProps) {
           <div>
             <span className="text-gray-500 text-xs uppercase tracking-wide">Action Details</span>
             <code className="block px-2 py-1 mt-1 text-xs font-mono bg-gray-100 dark:bg-gray-800 rounded overflow-x-auto">
-              {JSON.stringify(step.action, null, 2)}
+              {JSON.stringify(action, null, 2)}
             </code>
           </div>
 
@@ -220,8 +230,8 @@ export function AINavigationStepCard({ step }: AINavigationStepCardProps) {
             <div>
               <span className="text-gray-500 text-xs uppercase tracking-wide">Tokens</span>
               <p className="text-xs text-gray-600 dark:text-gray-400 font-mono">
-                {step.tokensUsed.totalTokens.toLocaleString()} total
-                ({step.tokensUsed.promptTokens.toLocaleString()} in, {step.tokensUsed.completionTokens.toLocaleString()} out)
+                {tokensUsed.totalTokens.toLocaleString()} total
+                ({tokensUsed.promptTokens.toLocaleString()} in, {tokensUsed.completionTokens.toLocaleString()} out)
               </p>
             </div>
           </div>
@@ -229,12 +239,12 @@ export function AINavigationStepCard({ step }: AINavigationStepCardProps) {
           {/* URL */}
           <div>
             <span className="text-gray-500 text-xs uppercase tracking-wide">URL</span>
-            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{step.currentUrl}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{currentUrl || 'Unknown'}</p>
           </div>
 
           {/* Timestamp */}
           <div className="text-xs text-gray-400">
-            {step.timestamp.toLocaleTimeString()}
+            {timestamp.toLocaleTimeString()}
           </div>
         </div>
       )}
