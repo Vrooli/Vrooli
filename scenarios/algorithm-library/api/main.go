@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -102,7 +103,11 @@ func main() {
 	// Set up routes
 	router := mux.NewRouter()
 
-	// Health check
+	// Health check - use api-core/health for standardized response
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Algorithm routes - Specific routes MUST come before parameterized routes
@@ -169,29 +174,6 @@ func main() {
 	}
 }
 
-// healthHandler returns the health status of the API and its dependencies.
-// Returns 200 OK if healthy, 503 Service Unavailable if database is down.
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	// Check database connection
-	err := db.Ping()
-	status := "healthy"
-	if err != nil {
-		status = "unhealthy"
-		log.Printf("Health check failed - database ping error: %v", err)
-	}
-
-	response := map[string]interface{}{
-		"status":   status,
-		"service":  "algorithm-library-api",
-		"database": err == nil,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}
-	json.NewEncoder(w).Encode(response)
-}
 
 // searchAlgorithmsHandler searches for algorithms based on query parameters.
 // Supports filtering by query text, category, complexity, language, and difficulty.

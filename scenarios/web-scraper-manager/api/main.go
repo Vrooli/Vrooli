@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -148,7 +149,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health endpoint
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 
 	// API routes
 	api := router.PathPrefix("/api").Subrouter()
@@ -330,58 +331,6 @@ func trimSpace(s string) string {
 func respondJSON(w http.ResponseWriter, status int, response APIResponse) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(response)
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	// Check database connection
-	dbConnected := true
-	var dbLatency *float64
-	var dbError map[string]interface{}
-
-	start := time.Now()
-	if err := db.Ping(); err != nil {
-		dbConnected = false
-		dbError = map[string]interface{}{
-			"code":      "DATABASE_CONNECTION_FAILED",
-			"message":   err.Error(),
-			"category":  "resource",
-			"retryable": true,
-		}
-	} else {
-		latency := float64(time.Since(start).Milliseconds())
-		dbLatency = &latency
-	}
-
-	status := "healthy"
-	readiness := true
-	if !dbConnected {
-		status = "unhealthy"
-		readiness = false
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "web-scraper-manager-api",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"readiness": readiness,
-		"version":   "1.0.0",
-		"dependencies": map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected":  dbConnected,
-				"latency_ms": dbLatency,
-				"error":      dbError,
-			},
-		},
-	}
-
-	statusCode := http.StatusOK
-	if !readiness {
-		statusCode = http.StatusServiceUnavailable
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(response)
 }
 

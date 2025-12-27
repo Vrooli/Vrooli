@@ -21,6 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/handlers"
@@ -345,8 +346,12 @@ func (a *Application) setupRoutes() http.Handler {
 	// WebSocket endpoint
 	router.HandleFunc("/ws", a.wsManager.HandleWebSocket)
 
-	// Health check endpoint
-	router.HandleFunc("/health", a.healthHandlers.HealthCheckHandler).Methods("GET")
+	// Health check endpoint using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version(apiVersion).
+		Check(health.DB(a.db), health.Critical).
+		Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Task management routes
 	api := router.PathPrefix("/api").Subrouter()

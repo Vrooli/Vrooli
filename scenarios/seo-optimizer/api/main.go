@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
-	"time"
+
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 type SEOAuditRequest struct {
@@ -33,11 +34,7 @@ type KeywordResearchRequest struct {
 	Language       string `json:"language,omitempty"`
 }
 
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Service   string    `json:"service"`
-}
+// NOTE: HealthResponse replaced by api-core/health standardized response
 
 var seoProcessor *SEOProcessor
 
@@ -58,7 +55,11 @@ func main() {
 	seoProcessor = NewSEOProcessor()
 
 	// Enable CORS
-	http.HandleFunc("/health", corsMiddleware(healthHandler))
+	// Health check - use api-core/health for standardized response
+	apiCoreHealthHandler := health.New().
+		Version("1.0.0").
+		Handler()
+	http.HandleFunc("/health", corsMiddleware(apiCoreHealthHandler))
 	http.HandleFunc("/api/seo-audit", corsMiddleware(seoAuditHandler))
 	http.HandleFunc("/api/audit", corsMiddleware(seoAuditHandler))
 	http.HandleFunc("/api/keyword-research", corsMiddleware(keywordResearchHandler))
@@ -93,15 +94,7 @@ func corsMiddleware(handler http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Service:   "seo-optimizer-api",
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
+// NOTE: healthHandler replaced by api-core/health for standardized responses
 
 func seoAuditHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

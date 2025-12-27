@@ -92,7 +92,7 @@ func NewServer(config *Config, opts ...Option) (*Server, http.Handler, error) {
 	logging.LogInfo("Issue storage configured", attrs...)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/health", server.healthHandler).Methods("GET")
+	r.HandleFunc("/health", server.createHealthHandler()).Methods("GET")
 
 	v1 := r.PathPrefix("/api/v1").Subrouter()
 	v1.HandleFunc("/ws", server.handleWebSocket).Methods("GET")

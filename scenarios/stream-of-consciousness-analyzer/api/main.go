@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
-
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Campaign struct {
@@ -548,22 +548,7 @@ func searchNotes(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(notes)
 }
 
-func healthCheck(w http.ResponseWriter, r *http.Request) {
-	if err := db.Ping(); err != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{
-			"status": "unhealthy",
-			"error":  err.Error(),
-		})
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": "stream-of-consciousness-analyzer",
-	})
-}
+// NOTE: healthCheck replaced by api-core/health for standardized responses
 
 func main() {
 	// Preflight checks - must be first, before any initialization
@@ -584,7 +569,12 @@ func main() {
 	router := mux.NewRouter()
 
 	// API routes
-	router.HandleFunc("/health", healthCheck).Methods("GET")
+	// Health check - use api-core/health for standardized response
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 	router.HandleFunc("/api/campaigns", getCampaigns).Methods("GET")
 	router.HandleFunc("/api/campaigns", createCampaign).Methods("POST")
 	router.HandleFunc("/api/stream/capture", captureStream).Methods("POST")

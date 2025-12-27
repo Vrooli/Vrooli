@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/health"
 
 	appconfig "scenario-dependency-analyzer/internal/config"
 )
@@ -41,7 +42,7 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 }
 
 func registerRoutes(router *gin.Engine, handler *handler) {
-	router.GET("/health", handler.health)
+	router.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 	router.GET("/api/v1/health/analysis", handler.analysisHealth)
 
 	api := router.Group("/api/v1")

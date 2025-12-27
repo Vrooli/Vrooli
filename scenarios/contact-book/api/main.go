@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -20,6 +18,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 // =============================================================================
@@ -141,13 +142,6 @@ type SearchRequest struct {
 	Limit   *int                   `json:"limit"`
 }
 
-type HealthResponse struct {
-	Status    string `json:"status"`
-	Timestamp string `json:"timestamp"`
-	Database  string `json:"database"`
-	Version   string `json:"version"`
-}
-
 // =============================================================================
 // DATABASE
 // =============================================================================
@@ -174,25 +168,6 @@ func initDB() {
 	db.SetConnMaxLifetime(5 * time.Minute)
 
 	log.Println("🎉 Database connection pool established successfully!")
-}
-
-// =============================================================================
-// HANDLERS
-// =============================================================================
-
-func healthCheck(c *gin.Context) {
-	// Test database connection
-	dbStatus := "healthy"
-	if err := db.Ping(); err != nil {
-		dbStatus = "unhealthy"
-	}
-
-	c.JSON(http.StatusOK, HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now().Format(time.RFC3339),
-		Database:  dbStatus,
-		Version:   "1.0.0",
-	})
 }
 
 // =============================================================================
@@ -1006,7 +981,8 @@ func main() {
 	}))
 
 	// Health check
-	r.GET("/health", healthCheck)
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+	r.GET("/health", gin.WrapF(healthHandler))
 
 	// API routes
 	api := r.Group("/api/v1")

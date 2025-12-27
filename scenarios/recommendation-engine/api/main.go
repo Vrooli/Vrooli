@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
@@ -527,36 +528,6 @@ func (s *RecommendationService) SimilarHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func (s *RecommendationService) HealthHandler(c *gin.Context) {
-	// Check database connection
-	if err := s.db.Ping(); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status":   "unhealthy",
-			"database": "disconnected",
-			"error":    err.Error(),
-		})
-		return
-	}
-
-	// Check Qdrant connection
-	qdrantStatus := "not_configured"
-	if s.qdrantClient != nil {
-		_, err := s.qdrantClient.HealthCheck(context.Background(), &pb.HealthCheckRequest{})
-		if err != nil {
-			qdrantStatus = "disconnected"
-		} else {
-			qdrantStatus = "connected"
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status":    "healthy",
-		"database":  "connected",
-		"qdrant":    qdrantStatus,
-		"timestamp": time.Now(),
-	})
-}
-
 // Setup database connection
 func setupDatabase() (*sql.DB, error) {
 	// Database configuration - support both POSTGRES_URL and individual components
@@ -666,7 +637,7 @@ func main() {
 		}
 	}
 
-	r.GET("/health", service.HealthHandler)
+	r.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 	r.GET("/docs", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"name":    "Recommendation Engine API",

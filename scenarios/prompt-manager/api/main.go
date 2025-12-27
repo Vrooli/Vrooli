@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -207,7 +208,8 @@ func main() {
 	)
 
 	// Health check (outside versioning for simplicity)
-	router.HandleFunc("/health", apiServer.healthCheck).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(apiServer.db), health.Critical).Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API v1 routes
 	v1 := router.PathPrefix("/api/v1").Subrouter()
@@ -282,80 +284,6 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
-}
-
-// Health check endpoint
-func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Check database connectivity
-	dbHealthy := s.checkDatabase()
-	overallStatus := "healthy"
-	if dbHealthy != "healthy" {
-		overallStatus = "degraded"
-	}
-
-	status := map[string]interface{}{
-		"status":    overallStatus,
-		"service":   "prompt-manager-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": dbHealthy == "healthy", // Ready only if database is healthy
-		"dependencies": map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected": dbHealthy == "healthy",
-				"error":     nil,
-			},
-		},
-		// Legacy field for backward compatibility
-		"services": map[string]interface{}{
-			"database": dbHealthy,
-			"qdrant":   s.checkQdrant(),
-			"ollama":   s.checkOllama(),
-		},
-	}
-
-	json.NewEncoder(w).Encode(status)
-}
-
-func (s *APIServer) checkDatabase() string {
-	if err := s.db.Ping(); err != nil {
-		return "unhealthy"
-	}
-	return "healthy"
-}
-
-func (s *APIServer) checkQdrant() string {
-	if s.qdrantURL == "" {
-		return "not_configured"
-	}
-	resp, err := http.Get(s.qdrantURL + "/health")
-	if err != nil {
-		return "unavailable"
-	}
-	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-
-	if resp.StatusCode != http.StatusOK {
-		return "unavailable"
-	}
-	return "healthy"
-}
-
-func (s *APIServer) checkOllama() string {
-	if s.ollamaURL == "" {
-		return "not_configured"
-	}
-	resp, err := http.Get(s.ollamaURL + "/api/tags")
-	if err != nil {
-		return "unavailable"
-	}
-	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-
-	if resp.StatusCode != http.StatusOK {
-		return "unavailable"
-	}
-	return "healthy"
 }
 
 // Campaign endpoints

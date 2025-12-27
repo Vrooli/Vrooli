@@ -27,29 +27,6 @@ func respondError(w http.ResponseWriter, status int, message string) {
 	respondJSON(w, status, map[string]string{"error": message})
 }
 
-// Health check handler
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-	dbStatus := "not configured"
-	
-	if hasDatabase() {
-		if err := db.Ping(); err != nil {
-			status = "degraded"
-			dbStatus = "disconnected"
-		} else {
-			dbStatus = "connected"
-		}
-	}
-	
-	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"status": status,
-		"version": apiVersion,
-		"service": serviceName,
-		"database": dbStatus,
-		"timestamp": time.Now().Format(time.RFC3339),
-	})
-}
-
 // Timezone conversion handler
 func timezoneConvertHandler(w http.ResponseWriter, r *http.Request) {
 	var req TimezoneConversionRequest

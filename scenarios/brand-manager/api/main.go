@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -140,16 +141,6 @@ func NewBrandManagerService(db *sql.DB, n8nURL, comfyUIURL, minioEndpoint, vault
 		},
 		logger: NewLogger(),
 	}
-}
-
-// Health endpoint
-func Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": serviceName,
-		"version": apiVersion,
-	})
 }
 
 // ListBrands returns all brands with pagination
@@ -565,7 +556,8 @@ func main() {
 
 	// Setup routes
 	r := mux.NewRouter()
-	r.HandleFunc("/health", Health).Methods("GET")
+	healthHandler := health.New().Version(apiVersion).Check(health.DB(db), health.Critical).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/brands", brandManager.ListBrands).Methods("GET")
 	r.HandleFunc("/api/brands", brandManager.CreateBrand).Methods("POST")
 	r.HandleFunc("/api/brands/{id}", brandManager.GetBrandByID).Methods("GET")

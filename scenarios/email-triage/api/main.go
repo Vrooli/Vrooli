@@ -14,6 +14,7 @@ import (
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -116,8 +117,9 @@ func main() {
 func (s *Server) setupRoutes() *mux.Router {
 	router := mux.NewRouter()
 
-	// Health check endpoints
-	router.HandleFunc("/health", s.healthCheck).Methods("GET")
+	// Health check endpoints - using standardized api-core/health
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 	router.HandleFunc("/health/database", s.healthCheckDatabase).Methods("GET")
 	router.HandleFunc("/health/qdrant", s.healthCheckQdrant).Methods("GET")
 
@@ -189,23 +191,6 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), "user_id", userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-func (s *Server) healthCheck(w http.ResponseWriter, r *http.Request) {
-	health := models.HealthStatus{
-		Status:    "healthy",
-		Service:   "email-triage-api",
-		Timestamp: time.Now(),
-		Readiness: true,
-		Services: map[string]string{
-			"database": "connected",
-			"auth":     "available",
-			"qdrant":   "connected",
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
 }
 
 func (s *Server) healthCheckDatabase(w http.ResponseWriter, r *http.Request) {

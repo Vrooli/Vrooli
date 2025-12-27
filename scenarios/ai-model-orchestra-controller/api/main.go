@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
 	"context"
 	"fmt"
 	"log"
@@ -12,6 +10,9 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 const (
@@ -146,8 +147,9 @@ func main() {
 	r := mux.NewRouter()
 	
 	// Health check endpoints (both versioned and legacy)
-	r.HandleFunc("/health", handlers.handleHealthCheck).Methods("GET")
-	r.HandleFunc("/api/v1/health", handlers.handleHealthCheck).Methods("GET")
+	healthHandler := health.New().Version(apiVersion).Check(health.DB(app.DB), health.Optional).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 	
 	// API v1 routes - all endpoints under /api/v1
 	api := r.PathPrefix("/api/v1").Subrouter()

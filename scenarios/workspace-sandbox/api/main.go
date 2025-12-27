@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -209,7 +210,15 @@ func (s *Server) setupRoutes() {
 	s.router.Use(s.structuredLoggingMiddleware)
 	s.router.Use(s.corsMiddleware)
 
-	// Delegate route registration to handlers package
+	// Health endpoint using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Critical).
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+
+	// Delegate remaining route registration to handlers package
 	// This centralizes route knowledge with the handlers and makes the API surface explicit
 	s.handlers.RegisterRoutes(s.router, s.metricsCollector)
 }

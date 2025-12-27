@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 var logger *log.Logger
@@ -79,8 +80,9 @@ func main() {
 	// API v1 routes
 	v1 := r.PathPrefix("/api/v1").Subrouter()
 
-	// Health endpoint (outside versioning for simplicity)
-	r.HandleFunc("/health", healthHandler).Methods("GET")
+	// Health endpoint using api-core/health for standardized response format
+	// No database check since visited-tracker uses file-based storage
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// Campaign management endpoints
 	v1.HandleFunc("/campaigns", listCampaignsHandler).Methods("GET")

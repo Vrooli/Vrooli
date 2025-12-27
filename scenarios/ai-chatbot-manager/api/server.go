@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 )
 
 // Server represents the main application server
@@ -71,7 +72,8 @@ func (s *Server) setupRoutes() {
 	s.router.Use(authMiddleware.Middleware)
 
 	// Health check
-	s.router.HandleFunc("/health", s.HealthHandler).Methods("GET", "OPTIONS")
+	healthHandler := health.New().Version(apiVersion).Check(health.DB(s.db), health.Critical).Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
 
 	// API v1 routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()

@@ -17,6 +17,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -219,35 +220,6 @@ func initRedis() {
 }
 
 // API Handlers
-
-func healthCheck(c *gin.Context) {
-	status := "healthy"
-	dbStatus := "connected"
-	redisStatus := "connected"
-
-	// Check database
-	if err := db.Ping(context.Background()); err != nil {
-		dbStatus = "disconnected"
-		status = "degraded"
-	}
-
-	// Check Redis
-	if redisClient != nil {
-		if err := redisClient.Ping(context.Background()).Err(); err != nil {
-			redisStatus = "disconnected"
-		}
-	} else {
-		redisStatus = "not configured"
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status":   status,
-		"database": dbStatus,
-		"redis":    redisStatus,
-		"version":  "1.0.0",
-		"uptime":   time.Since(startTime).String(),
-	})
-}
 
 func generateQuiz(c *gin.Context) {
 	var req QuizGenerateRequest
@@ -790,10 +762,10 @@ func main() {
 	router.Use(corsMiddleware())
 
 	// Health check (at root for backwards compatibility)
-	router.GET("/health", healthCheck)
-	router.GET("/ready", healthCheck)
+	router.GET("/health", gin.WrapF(health.Handler()))
+	router.GET("/ready", gin.WrapF(health.Handler()))
 	// Health check at /api path for contract compliance
-	router.GET("/api/health", healthCheck)
+	router.GET("/api/health", gin.WrapF(health.Handler()))
 
 	// API routes
 	v1 := router.Group("/api/v1")

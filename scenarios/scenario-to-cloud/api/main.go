@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -46,10 +47,10 @@ func NewServer() (*Server, error) {
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	s.router.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	api := s.router.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/health", s.handleHealth).Methods("GET")
+	api.HandleFunc("/health", health.Handler()).Methods("GET")
 	api.HandleFunc("/manifest/validate", s.handleManifestValidate).Methods("POST")
 	api.HandleFunc("/plan", s.handlePlan).Methods("POST")
 	api.HandleFunc("/bundle/build", s.handleBundleBuild).Methods("POST")
@@ -65,22 +66,6 @@ func (s *Server) setupRoutes() {
 // Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
 	return handlers.RecoveryHandler()(s.router)
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "Scenario To Cloud API",
-		"version":   "0.0.1",
-		"readiness": true,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]interface{}{
-			"database": map[string]bool{"connected": true},
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func (s *Server) handleManifestValidate(w http.ResponseWriter, r *http.Request) {

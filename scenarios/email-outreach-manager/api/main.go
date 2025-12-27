@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 
 	"github.com/gin-gonic/gin"
@@ -82,7 +83,7 @@ func main() {
 	router := gin.Default()
 
 	// Health check endpoint
-	router.GET("/health", healthCheck)
+	router.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")
@@ -119,29 +120,6 @@ func initDB() error {
 	}
 	log.Println("Database connection established")
 	return nil
-}
-
-func healthCheck(c *gin.Context) {
-	health := gin.H{
-		"status": "healthy",
-		"service": "email-outreach-manager",
-		"timestamp": time.Now().Format(time.RFC3339),
-	}
-
-	// Check database connection
-	if db != nil {
-		if err := db.Ping(); err != nil {
-			health["database"] = "unhealthy"
-			health["database_error"] = err.Error()
-			c.JSON(http.StatusServiceUnavailable, health)
-			return
-		}
-		health["database"] = "healthy"
-	} else {
-		health["database"] = "not_configured"
-	}
-
-	c.JSON(http.StatusOK, health)
 }
 
 func listCampaigns(c *gin.Context) {

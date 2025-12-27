@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,6 +9,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Violation represents a code smell violation
@@ -90,13 +91,15 @@ func NewServer() *Server {
 
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
+	// Health check at root level
+	healthHandler := health.Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+
 	// API v1 routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
 
-	// Health checks
-	api.HandleFunc("/health", s.handleHealth).Methods("GET")
-	api.HandleFunc("/health/live", s.handleHealthLive).Methods("GET")
-	api.HandleFunc("/health/ready", s.handleHealthReady).Methods("GET")
+	// Health checks (also expose under /api/v1 for backward compatibility)
+	api.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Code smell endpoints
 	api.HandleFunc("/code-smell/analyze", s.handleAnalyze).Methods("POST")
@@ -108,33 +111,6 @@ func (s *Server) setupRoutes() {
 
 	// Documentation
 	api.HandleFunc("/docs", s.handleDocs).Methods("GET")
-}
-
-// handleHealth returns the health status
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"service":   "code-smell",
-		"version":   "1.0.0",
-	}
-	sendJSON(w, http.StatusOK, response)
-}
-
-// handleHealthLive returns liveness status
-func (s *Server) handleHealthLive(w http.ResponseWriter, r *http.Request) {
-	sendJSON(w, http.StatusOK, map[string]string{"status": "alive"})
-}
-
-// handleHealthReady returns readiness status
-func (s *Server) handleHealthReady(w http.ResponseWriter, r *http.Request) {
-	// Check if rules are loaded and engine is ready
-	ready := checkEngineReady()
-	if ready {
-		sendJSON(w, http.StatusOK, map[string]string{"status": "ready"})
-	} else {
-		sendJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
-	}
 }
 
 // handleAnalyze analyzes files for code smells

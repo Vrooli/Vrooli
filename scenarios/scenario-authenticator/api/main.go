@@ -15,6 +15,7 @@ import (
 	apimiddleware "scenario-authenticator/middleware"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/vrooli/api-core/health"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 )
@@ -80,7 +81,7 @@ func main() {
 	}))
 
 	// Health check
-	router.Get("/health", handlers.HealthHandler)
+	router.Get("/health", health.Handler())
 
 	// Authentication endpoints
 	router.Post("/api/v1/auth/register", handlers.RegisterHandler)

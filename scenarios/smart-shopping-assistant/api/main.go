@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -21,15 +22,6 @@ import (
 type Server struct {
 	router *mux.Router
 	db     *Database
-}
-
-type HealthResponse struct {
-	Status       string                 `json:"status"`
-	Timestamp    time.Time              `json:"timestamp"`
-	Service      string                 `json:"service"`
-	Version      string                 `json:"version"`
-	Readiness    bool                   `json:"readiness"`
-	Dependencies map[string]interface{} `json:"dependencies,omitempty"`
 }
 
 type ShoppingResearchRequest struct {
@@ -267,8 +259,8 @@ func NewServer() *Server {
 }
 
 func (s *Server) setupRoutes() {
-	// Health check
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	// Health check - using api-core/health for standardized responses
+	s.router.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// Shopping research endpoints - protected with auth middleware
 	s.router.HandleFunc("/api/v1/shopping/research", s.authMiddleware(s.handleShoppingResearch)).Methods("POST")
@@ -285,84 +277,6 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/alerts", s.handleGetAlerts).Methods("GET")
 	s.router.HandleFunc("/api/v1/alerts", s.handleCreateAlert).Methods("POST")
 	s.router.HandleFunc("/api/v1/alerts/{id}", s.handleDeleteAlert).Methods("DELETE")
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	// Check database connectivity
-	dbConnected := false
-	var dbLatency *float64
-	var dbError map[string]interface{}
-
-	if s.db.postgres != nil {
-		start := time.Now()
-		err := s.db.postgres.Ping()
-		latency := float64(time.Since(start).Milliseconds())
-		if err == nil {
-			dbConnected = true
-			dbLatency = &latency
-		} else {
-			dbError = map[string]interface{}{
-				"code":      "CONNECTION_REFUSED",
-				"message":   err.Error(),
-				"category":  "resource",
-				"retryable": true,
-			}
-		}
-	}
-
-	// Check Redis connectivity
-	redisConnected := false
-	var redisLatency *float64
-	var redisError map[string]interface{}
-
-	if s.db.redis != nil {
-		start := time.Now()
-		_, err := s.db.redis.Ping(context.Background()).Result()
-		latency := float64(time.Since(start).Milliseconds())
-		if err == nil {
-			redisConnected = true
-			redisLatency = &latency
-		} else {
-			redisError = map[string]interface{}{
-				"code":      "CONNECTION_REFUSED",
-				"message":   err.Error(),
-				"category":  "resource",
-				"retryable": true,
-			}
-		}
-	}
-
-	// Determine overall status
-	status := "healthy"
-	readiness := true
-	if !dbConnected && !redisConnected {
-		status = "degraded"
-	}
-
-	dependencies := map[string]interface{}{
-		"database": map[string]interface{}{
-			"connected":  dbConnected,
-			"latency_ms": dbLatency,
-			"error":      dbError,
-		},
-		"redis": map[string]interface{}{
-			"connected":  redisConnected,
-			"latency_ms": redisLatency,
-			"error":      redisError,
-		},
-	}
-
-	response := HealthResponse{
-		Status:       status,
-		Timestamp:    time.Now(),
-		Service:      "smart-shopping-assistant",
-		Version:      "1.0.0",
-		Readiness:    readiness,
-		Dependencies: dependencies,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func (s *Server) handleShoppingResearch(w http.ResponseWriter, r *http.Request) {

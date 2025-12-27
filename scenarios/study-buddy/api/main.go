@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
 	"database/sql"
@@ -13,7 +11,6 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -22,6 +19,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 var db *sql.DB
@@ -119,52 +119,12 @@ func main() {
 	router := gin.Default()
 	router.Use(cors.Default())
 
-	// Health check
-	router.GET("/health", func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
-		defer cancel()
-
-		dbStart := time.Now()
-		pingErr := db.PingContext(ctx)
-		dbLatency := time.Since(dbStart)
-
-		status := "healthy"
-		readiness := true
-
-		var dbError interface{}
-		if pingErr != nil {
-			status = "unhealthy"
-			readiness = false
-			dbError = gin.H{
-				"code":      "DATABASE_UNAVAILABLE",
-				"message":   pingErr.Error(),
-				"category":  "resource",
-				"retryable": true,
-			}
-		}
-
-		var mem runtime.MemStats
-		runtime.ReadMemStats(&mem)
-
-		c.JSON(http.StatusOK, gin.H{
-			"status":    status,
-			"service":   "study-buddy-api",
-			"timestamp": time.Now().UTC().Format(time.RFC3339Nano),
-			"readiness": readiness,
-			"version":   os.Getenv("APP_VERSION"),
-			"dependencies": gin.H{
-				"database": gin.H{
-					"connected":  pingErr == nil,
-					"latency_ms": float64(dbLatency.Microseconds()) / 1000.0,
-					"error":      dbError,
-				},
-			},
-			"metrics": gin.H{
-				"memory_usage_mb": float64(mem.Alloc) / (1024.0 * 1024.0),
-				"goroutines":      runtime.NumGoroutine(),
-			},
-		})
-	})
+	// Health check - use api-core/health for standardized response
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
+	router.GET("/health", gin.WrapF(healthHandler))
 
 	// Subject endpoints
 	router.POST("/api/subjects", createSubject)

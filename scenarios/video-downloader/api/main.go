@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -140,11 +141,6 @@ func initDB() {
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
 }
 
 func createDownloadHandler(w http.ResponseWriter, r *http.Request) {
@@ -571,7 +567,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// API routes
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.Handler()).Methods("GET")
 	router.HandleFunc("/api/download", createDownloadHandler).Methods("POST")
 	router.HandleFunc("/api/queue", getQueueHandler).Methods("GET")
 	router.HandleFunc("/api/queue/process", processQueueHandler).Methods("POST")

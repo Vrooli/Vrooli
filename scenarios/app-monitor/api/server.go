@@ -16,6 +16,7 @@ import (
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
+	"github.com/vrooli/api-core/health"
 )
 
 // Server holds all server dependencies
@@ -27,7 +28,6 @@ type Server struct {
 
 // Handlers holds all handler instances
 type Handlers struct {
-	health     *handlers.HealthHandler
 	app        *handlers.AppHandler
 	system     *handlers.SystemHandler
 	docker     *handlers.DockerHandler
@@ -68,7 +68,6 @@ func NewServer(cfg *config.Config) (*Server, error) {
 
 	// Create handlers
 	handlers := &Handlers{
-		health:     handlers.NewHealthHandler(db, redis, docker),
 		app:        handlers.NewAppHandler(appService),
 		system:     handlers.NewSystemHandler(metricsService),
 		docker:     handlers.NewDockerHandler(docker),
@@ -77,7 +76,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	}
 
 	// Setup router
-	router := setupRouter(handlers, cfg)
+	router := setupRouter(handlers, cfg, db)
 
 	return &Server{
 		config:   cfg,
@@ -87,7 +86,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 }
 
 // setupRouter configures all routes and middleware
-func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
+func setupRouter(h *Handlers, cfg *config.Config, db interface{ Ping() error }) *gin.Engine {
 	// Set Gin mode based on environment
 	if os.Getenv("ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -116,8 +115,9 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 	}
 
 	// Health endpoints (no auth required)
-	r.GET("/health", h.health.Check)
-	r.GET("/api/health", h.health.APIHealth)
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
+	r.GET("/health", gin.WrapF(healthHandler))
+	r.GET("/api/health", gin.WrapF(healthHandler))
 
 	// API v1 routes
 	v1 := r.Group("/api/v1")

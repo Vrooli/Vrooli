@@ -21,6 +21,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -332,37 +333,6 @@ func trackEvent(event *VisitorEvent) error {
 
 // HTTP Handlers
 
-// Health check endpoint
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	status := HealthStatus{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Services:  make(map[string]string),
-	}
-
-	// Check PostgreSQL
-	if err := db.Ping(); err != nil {
-		status.Services["postgres"] = "unhealthy: " + err.Error()
-		status.Status = "degraded"
-	} else {
-		status.Services["postgres"] = "healthy"
-	}
-
-	// Check Redis
-	if _, err := rdb.Ping(ctx).Result(); err != nil {
-		status.Services["redis"] = "unhealthy: " + err.Error()
-		status.Status = "degraded"
-	} else {
-		status.Services["redis"] = "healthy"
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if status.Status != "healthy" {
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}
-	json.NewEncoder(w).Encode(status)
-}
-
 // Visitor tracking endpoint
 func trackHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -563,6 +533,7 @@ func main() {
 	api.HandleFunc("/analytics/scenario/{scenario}", getAnalyticsHandler).Methods("GET")
 
 	// Utility routes
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 	router.HandleFunc("/tracker.js", trackerScriptHandler).Methods("GET")
 

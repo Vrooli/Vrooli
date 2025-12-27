@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"bytes"
@@ -157,18 +158,6 @@ func initDB() error {
 }
 
 // HTTP handlers
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "image-generation-pipeline",
-		"version":   "1.0.0",
-		"timestamp": time.Now().Unix(),
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
 func campaignsHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -578,6 +567,7 @@ func main() {
 	r := mux.NewRouter()
 
 	// API routes
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/campaigns", campaignsHandler).Methods("GET", "POST")
 	r.HandleFunc("/api/brands", brandsHandler).Methods("GET", "POST")

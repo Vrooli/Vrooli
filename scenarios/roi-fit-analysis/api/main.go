@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"context"
@@ -49,12 +50,6 @@ type OpportunityResponse struct {
 	Payback    int       `json:"payback_months"`
 	RiskLevel  string    `json:"risk_level"`
 	CreatedAt  time.Time `json:"created_at"`
-}
-
-type HealthResponse struct {
-	Status    string `json:"status"`
-	Timestamp string `json:"timestamp"`
-	Service   string `json:"service"`
 }
 
 // Global database connection and ROI engine
@@ -424,17 +419,6 @@ func reportsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(report)
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	health := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now().Format(time.RFC3339),
-		Service:   "roi-fit-analysis",
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
-}
-
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -459,7 +443,7 @@ func main() {
 	http.HandleFunc("/analyze", corsMiddleware(analyzeHandler))
 	http.HandleFunc("/opportunities", corsMiddleware(opportunitiesHandler))
 	http.HandleFunc("/reports", corsMiddleware(reportsHandler))
-	http.HandleFunc("/health", corsMiddleware(healthHandler))
+	http.HandleFunc("/health", corsMiddleware(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 
 	// New comprehensive analysis endpoint
 	http.HandleFunc("/comprehensive-analysis", corsMiddleware(comprehensiveAnalysisHandler))

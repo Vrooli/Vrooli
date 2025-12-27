@@ -452,17 +452,18 @@ func TestHealthHandler(t *testing.T) {
 		Path:   "/health",
 	}
 
-	w := makeHTTPRequest(env.Server.healthHandler, req)
+	w := makeHTTPRequest(env.Server.createHealthHandler(), req)
 	resp := assertJSONResponse(t, w, http.StatusOK, map[string]interface{}{
-		"success": true,
+		"status": "healthy",
 	})
 
 	if resp == nil {
 		return
 	}
 
-	if _, ok := resp["data"]; !ok {
-		t.Error("Expected data field in health response")
+	// api-core/health returns standardized fields
+	if _, ok := resp["service"]; !ok {
+		t.Error("Expected service field in health response")
 	}
 }
 

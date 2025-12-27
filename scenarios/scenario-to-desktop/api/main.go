@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -74,11 +75,12 @@ func NewServer(port int) *Server {
 
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
-	// Health check at root level (required for lifecycle system)
-	s.router.HandleFunc("/health", s.healthHandler).Methods("GET")
-
-	// Health check (also available under API prefix)
-	s.router.HandleFunc("/api/v1/health", s.healthHandler).Methods("GET")
+	// Health check - use api-core/health for standardized response
+	healthHandler := health.New().
+		Version("1.0.0").
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 
 	// System status
 	s.router.HandleFunc("/api/v1/status", s.statusHandler).Methods("GET")

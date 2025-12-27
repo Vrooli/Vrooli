@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -32,21 +33,6 @@ const (
 	DraftStatusDraft     = "draft"
 	DraftStatusPublished = "published"
 )
-
-// HealthResponse represents the health check response
-type HealthResponse struct {
-	Status       string                      `json:"status"`
-	Service      string                      `json:"service"`
-	Timestamp    string                      `json:"timestamp"`
-	Readiness    bool                        `json:"readiness"`
-	Dependencies map[string]DependencyStatus `json:"dependencies"`
-}
-
-type DependencyStatus struct {
-	Connected bool   `json:"connected"`
-	Status    string `json:"status,omitempty"`
-	Error     string `json:"error,omitempty"`
-}
 
 func main() {
 	// Preflight checks - must be first, before any initialization
@@ -81,14 +67,15 @@ func main() {
 	router.Use(jsonMiddleware)
 
 	// Health check (standard endpoint for ecosystem interoperability)
-	router.HandleFunc("/health", handleHealth).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API v1 routes with JSON and database middleware
 	apiV1 := router.PathPrefix("/api/v1").Subrouter()
 	apiV1.Use(requireDBMiddleware)
 
 	// Legacy health check endpoint for backward compatibility
-	apiV1.HandleFunc("/health", handleHealth).Methods("GET")
+	apiV1.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Catalog endpoints
 	apiV1.HandleFunc("/catalog", handleGetCatalog).Methods("GET")
@@ -226,57 +213,6 @@ func splitOrigins(origins string) []string {
 		}
 	}
 	return result
-}
-
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	health := HealthResponse{
-		Status:       "healthy",
-		Service:      "prd-control-tower-api",
-		Timestamp:    time.Now().Format(time.RFC3339),
-		Readiness:    true,
-		Dependencies: map[string]DependencyStatus{},
-	}
-
-	// Check database
-	if db != nil {
-		if err := db.Ping(); err != nil {
-			health.Dependencies["database"] = DependencyStatus{
-				Connected: false,
-				Status:    "error",
-				Error:     err.Error(),
-			}
-			health.Status = "degraded"
-		} else {
-			health.Dependencies["database"] = DependencyStatus{
-				Connected: true,
-				Status:    "healthy",
-			}
-		}
-	} else {
-		health.Dependencies["database"] = DependencyStatus{
-			Connected: false,
-			Status:    "not_initialized",
-		}
-		health.Status = "degraded"
-	}
-
-	// Check draft directory (relative to scenario root, one level up from api/)
-	draftDir := "../data/prd-drafts"
-	if _, err := os.Stat(draftDir); os.IsNotExist(err) {
-		health.Dependencies["draft_storage"] = DependencyStatus{
-			Connected: false,
-			Status:    "missing",
-			Error:     "Draft directory does not exist",
-		}
-		health.Status = "degraded"
-	} else {
-		health.Dependencies["draft_storage"] = DependencyStatus{
-			Connected: true,
-			Status:    "healthy",
-		}
-	}
-
-	respondJSON(w, http.StatusOK, health)
 }
 
 // respondJSON encodes v as JSON and writes it to w with the specified status code, logging any errors

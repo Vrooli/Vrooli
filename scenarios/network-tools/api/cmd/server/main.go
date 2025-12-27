@@ -25,6 +25,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 )
 
 // Config holds application configuration
@@ -310,8 +311,13 @@ func (s *Server) setupRoutes() {
 	s.router.Use(authMiddleware)
 
 	// Health check (no auth required due to authMiddleware logic)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/health", s.handleHealth).Methods("GET", "OPTIONS")
+	// Uses api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Critical).
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/health", healthHandler).Methods("GET", "OPTIONS")
 
 	// API routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -485,63 +491,6 @@ func authMiddleware(next http.Handler) http.Handler {
 }
 
 // Handler functions
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	// Check database connection
-	dbConnected := false
-	var dbLatency *float64
-	var dbError map[string]interface{}
-
-	if s.db != nil {
-		start := time.Now()
-		if err := s.db.Ping(); err == nil {
-			dbConnected = true
-			latency := float64(time.Since(start).Milliseconds())
-			dbLatency = &latency
-		} else {
-			dbError = map[string]interface{}{
-				"code":      "CONNECTION_FAILED",
-				"message":   "Failed to connect to database",
-				"category":  "resource",
-				"retryable": true,
-			}
-		}
-	} else {
-		dbError = map[string]interface{}{
-			"code":      "NOT_CONFIGURED",
-			"message":   "Database connection not configured",
-			"category":  "configuration",
-			"retryable": false,
-		}
-	}
-
-	// Determine overall status and readiness
-	status := "healthy"
-	readiness := true
-
-	if !dbConnected {
-		status = "degraded"
-		readiness = false
-	}
-
-	health := map[string]interface{}{
-		"status":    status,
-		"service":   "network-tools",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"readiness": readiness,
-		"version":   "1.0.0",
-		"dependencies": map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected":  dbConnected,
-				"latency_ms": dbLatency,
-				"error":      dbError,
-			},
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
-}
-
 func (s *Server) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
 	var req HTTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

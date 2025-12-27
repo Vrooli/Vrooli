@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -617,15 +618,7 @@ func (s *AppPersonalizerService) runValidationTest(appPath, test string) map[str
 	return result
 }
 
-// Health endpoint
-func Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": serviceName,
-		"version": apiVersion,
-	})
-}
+// NOTE: The old Health function has been replaced by api-core/health for standardized responses.
 
 func main() {
 	// Preflight checks - must be first, before any initialization
@@ -657,7 +650,12 @@ func main() {
 
 	// Setup routes
 	r := mux.NewRouter()
-	r.HandleFunc("/health", Health).Methods("GET")
+	// Health endpoint using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version(apiVersion).
+		Check(health.DB(db), health.Critical).
+		Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/apps", service.ListApps).Methods("GET")
 	r.HandleFunc("/api/apps/register", service.RegisterApp).Methods("POST")
 	r.HandleFunc("/api/apps/analyze", service.AnalyzeApp).Methods("POST")

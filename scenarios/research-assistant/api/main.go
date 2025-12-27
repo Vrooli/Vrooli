@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 )
@@ -834,7 +835,7 @@ func main() {
 	)
 
 	// Health check
-	router.HandleFunc("/health", server.healthCheck).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(server.db), health.Critical).Handler()).Methods("GET")
 
 	// API routes
 	api := router.PathPrefix("/api").Subrouter()
@@ -910,123 +911,6 @@ func main() {
 }
 
 // getEnv removed to prevent hardcoded defaults
-
-func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Check all services
-	services := map[string]string{
-		"database":    s.checkDatabase(),
-		"searxng":     s.checkSearXNG(),
-		"qdrant":      s.checkQdrant(),
-		"ollama":      s.checkOllama(),
-		"browserless": s.checkBrowserless(),
-	}
-
-	// Determine overall status based on critical dependencies
-	overallStatus := "healthy"
-	criticalServices := []string{"database", "ollama", "qdrant", "searxng"}
-	for _, svc := range criticalServices {
-		if services[svc] != "healthy" {
-			overallStatus = "degraded"
-			break
-		}
-	}
-
-	status := map[string]interface{}{
-		"status":    overallStatus,
-		"service":   "research-assistant-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": true,
-		"services":  services,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
-}
-
-func (s *APIServer) checkDatabase() string {
-	if s.db == nil {
-		return "not_configured"
-	}
-
-	if err := s.db.Ping(); err != nil {
-		return "unhealthy"
-	}
-	return "healthy"
-}
-
-func (s *APIServer) checkSearXNG() string {
-	if s.db == nil || s.httpClient == nil || s.searxngURL == "" {
-		return "not_configured"
-	}
-
-	// Use root endpoint instead of performing an actual search for faster health checks
-	resp, err := s.httpClient.Get(s.searxngURL + "/")
-	if err != nil {
-		return "unavailable"
-	}
-	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-
-	if resp.StatusCode != http.StatusOK {
-		return "unavailable"
-	}
-	return "healthy"
-}
-
-func (s *APIServer) checkQdrant() string {
-	if s.db == nil || s.httpClient == nil || s.qdrantURL == "" {
-		return "not_configured"
-	}
-
-	resp, err := s.httpClient.Get(s.qdrantURL + "/")
-	if err != nil {
-		return "unavailable"
-	}
-	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-
-	if resp.StatusCode != http.StatusOK {
-		return "unavailable"
-	}
-	return "healthy"
-}
-
-func (s *APIServer) checkOllama() string {
-	if s.db == nil || s.httpClient == nil || s.ollamaURL == "" {
-		return "not_configured"
-	}
-
-	resp, err := s.httpClient.Get(s.ollamaURL + "/api/tags")
-	if err != nil {
-		return "unavailable"
-	}
-	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-
-	if resp.StatusCode != http.StatusOK {
-		return "unavailable"
-	}
-	return "healthy"
-}
-
-func (s *APIServer) checkBrowserless() string {
-	if s.db == nil || s.httpClient == nil || s.browserlessURL == "" {
-		return "not_configured"
-	}
-	resp, err := s.httpClient.Get(s.browserlessURL + "/pressure")
-	if err != nil {
-		return "unavailable"
-	}
-	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-
-	if resp.StatusCode != http.StatusOK {
-		return "unavailable"
-	}
-	return "healthy"
-}
 
 func (s *APIServer) getReports(w http.ResponseWriter, r *http.Request) {
 	limit := 50

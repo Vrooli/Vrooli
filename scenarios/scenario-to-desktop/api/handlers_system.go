@@ -11,19 +11,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Health check handler
-func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "scenario-to-desktop-api",
-		"version":   "1.0.0",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"readiness": true, // Required field for API health check schema
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
+// NOTE: healthHandler replaced by api-core/health for standardized responses
 
 // Status handler provides system information
 func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {

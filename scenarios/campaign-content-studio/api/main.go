@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -397,16 +398,6 @@ func (c *CampaignService) triggerWorkflowSync(workflowName string, payload map[s
 	return result, nil
 }
 
-// Health endpoint
-func Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": serviceName,
-		"version": apiVersion,
-	})
-}
-
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
 		cmd := exec.Command("bash", "-c", fmt.Sprintf(
@@ -490,7 +481,8 @@ func main() {
 	r := mux.NewRouter()
 
 	// API endpoints
-	r.HandleFunc("/health", Health).Methods("GET")
+	healthHandler := health.New().Version(apiVersion).Check(health.DB(db), health.Critical).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/campaigns", service.ListCampaigns).Methods("GET")
 	r.HandleFunc("/campaigns", service.CreateCampaign).Methods("POST")
 	r.HandleFunc("/campaigns/{campaignId}/documents", service.ListDocuments).Methods("GET")

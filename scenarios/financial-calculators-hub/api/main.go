@@ -12,16 +12,10 @@ import (
 
 	"financial-calculators-hub/lib"
 
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
-
-type HealthResponse struct {
-	Status    string `json:"status"`
-	Service   string `json:"service"`
-	Timestamp string `json:"timestamp"`
-	Readiness bool   `json:"readiness"`
-}
 
 type ErrorResponse struct {
 	Error string `json:"error"`
@@ -58,7 +52,7 @@ func main() {
 }
 
 func setupRoutes() {
-	http.HandleFunc("/health", handleHealth)
+	http.HandleFunc("/health", health.Handler())
 	http.HandleFunc("/api/v1/calculate/fire", handleFIRE)
 	http.HandleFunc("/api/v1/calculate/compound-interest", handleCompoundInterest)
 	http.HandleFunc("/api/v1/calculate/mortgage", handleMortgage)
@@ -70,16 +64,6 @@ func setupRoutes() {
 	http.HandleFunc("/api/v1/calculate/tax", handleTaxOptimizer)
 	http.HandleFunc("/api/v1/history", handleHistory)
 	http.HandleFunc("/api/v1/batch", handleBatchCalculations)
-}
-
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(HealthResponse{
-		Status:    "healthy",
-		Service:   "financial-calculators-hub",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Readiness: true,
-	})
 }
 
 func handleFIRE(w http.ResponseWriter, r *http.Request) {

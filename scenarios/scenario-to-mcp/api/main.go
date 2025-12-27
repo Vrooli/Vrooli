@@ -23,6 +23,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -158,13 +159,13 @@ func (s *Server) Initialize() error {
 
 func (s *Server) setupRoutes() {
 	// Health check at root level (required for lifecycle system)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	s.router.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// API routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
 
 	// Health check (also available under API prefix)
-	api.HandleFunc("/health", s.handleHealth).Methods("GET")
+	api.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// MCP endpoints
 	api.HandleFunc("/mcp/endpoints", s.handleGetEndpoints).Methods("GET")
@@ -200,18 +201,6 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().UTC(),
-		"service":   "scenario-to-mcp",
-		"readiness": true,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func (s *Server) handleGetEndpoints(w http.ResponseWriter, r *http.Request) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"crypto/aes"
@@ -299,27 +300,6 @@ func logAudit(userID, action, endpoint, ip, userAgent string, details map[string
 	if err != nil {
 		log.Printf("Failed to log audit entry: %v", err)
 	}
-}
-
-// Health check endpoint
-func healthCheck(c *gin.Context) {
-	// Check database connection
-	if err := db.Ping(); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "unhealthy",
-			"database": "disconnected",
-			"error": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status": "healthy",
-		"database": "connected",
-		"encryption": "enabled",
-		"version": "1.0.0",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	})
 }
 
 // Cycle management endpoints
@@ -860,7 +840,7 @@ func main() {
 	})
 
 	// Public routes
-	r.GET("/health", healthCheck)
+	r.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 	
 	// API routes with authentication
 	api := r.Group("/api/v1")

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
@@ -60,7 +61,7 @@ func main() {
 	scanScenarios()
 
 	// Set up routes
-	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/health", health.Handler())
 	http.HandleFunc("/api/v1/kids/scenarios", scenariosHandler)
 	http.HandleFunc("/api/v1/kids/launch", launchHandler)
 	
@@ -72,11 +73,6 @@ func main() {
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
 }
 
 func scenariosHandler(w http.ResponseWriter, r *http.Request) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
@@ -101,7 +102,8 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Feature request endpoints
 	s.router.HandleFunc("/api/v1/scenarios/{scenario_id}/feature-requests", s.handleListFeatureRequests).Methods("GET")
@@ -114,14 +116,6 @@ func (s *Server) setupRoutes() {
 	// Scenario management endpoints
 	s.router.HandleFunc("/api/v1/scenarios", s.handleListScenarios).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios/{id}", s.handleGetScenario).Methods("GET")
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-	}
-	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *Server) handleListFeatureRequests(w http.ResponseWriter, r *http.Request) {

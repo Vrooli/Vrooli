@@ -1,13 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -58,8 +58,9 @@ func (s *Server) setupRoutes() {
 	)
 
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	s.router.Handle("/health", cors(http.HandlerFunc(s.handleHealth))).Methods("GET", "OPTIONS")
-	s.router.Handle("/api/v1/health", cors(http.HandlerFunc(s.handleHealth))).Methods("GET", "OPTIONS")
+	healthHandler := health.Handler()
+	s.router.Handle("/health", cors(http.HandlerFunc(healthHandler))).Methods("GET", "OPTIONS")
+	s.router.Handle("/api/v1/health", cors(http.HandlerFunc(healthHandler))).Methods("GET", "OPTIONS")
 
 	s.router.Handle("/api/v1/rules", cors(http.HandlerFunc(s.handleListRules))).Methods("GET", "OPTIONS")
 	s.router.Handle("/api/v1/config", cors(http.HandlerFunc(s.handleGetConfig))).Methods("GET", "OPTIONS")
@@ -70,21 +71,6 @@ func (s *Server) setupRoutes() {
 // Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
 	return handlers.RecoveryHandler()(s.router)
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "Scenario Stack Governor API",
-		"version":   "1.0.0",
-		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 // loggingMiddleware prints simple request logs

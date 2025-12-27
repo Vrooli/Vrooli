@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 )
 
 // Server represents the Text Tools API server
@@ -50,8 +51,8 @@ func (s *Server) Initialize() error {
 func (s *Server) setupRouter() *mux.Router {
 	router := mux.NewRouter()
 
-	// Health check endpoint
-	router.HandleFunc("/health", s.HealthHandler).Methods("GET")
+	// Health check endpoint - using api-core/health for standardized responses
+	router.HandleFunc("/health", health.Handler()).Methods("GET")
 	
 	// Resource status endpoint
 	router.HandleFunc("/resources", s.ResourcesHandler).Methods("GET")

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
@@ -109,7 +110,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// API routes
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 	router.HandleFunc("/api/leaderboard", getLeaderboard).Methods("GET")
 	router.HandleFunc("/api/submit-score", submitScore).Methods("POST")
 	router.HandleFunc("/api/stats", submitStats).Methods("POST")
@@ -209,57 +210,6 @@ func initDB() {
 	if _, err := db.Exec(query); err != nil {
 		log.Printf("Warning: Failed to initialize minimal database: %v", err)
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Check database connectivity
-	dbConnected := false
-	var dbLatency *float64
-	var dbError interface{}
-
-	if db != nil {
-		start := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		if err := db.PingContext(ctx); err == nil {
-			dbConnected = true
-			latency := float64(time.Since(start).Milliseconds())
-			dbLatency = &latency
-			dbError = nil
-		} else {
-			dbError = map[string]interface{}{
-				"code":      "DB_PING_FAILED",
-				"message":   err.Error(),
-				"category":  "resource",
-				"retryable": true,
-			}
-		}
-	}
-
-	status := "healthy"
-	if !dbConnected {
-		status = "degraded"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "typing-test-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": dbConnected, // Ready when DB is connected
-		"version":   "1.0.0",
-		"dependencies": map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected":  dbConnected,
-				"latency_ms": dbLatency,
-				"error":      dbError,
-			},
-		},
-	}
-
-	json.NewEncoder(w).Encode(response)
 }
 
 func getLeaderboard(w http.ResponseWriter, r *http.Request) {

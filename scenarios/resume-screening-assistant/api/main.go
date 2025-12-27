@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -17,13 +17,6 @@ type Config struct {
 	Port          string
 	PostgresURL   string
 	QdrantURL     string
-}
-
-type HealthResponse struct {
-	Status  string `json:"status"`
-	Service string `json:"service"`
-	Version string `json:"version"`
-	Time    string `json:"time"`
 }
 
 type JobsResponse struct {
@@ -63,18 +56,6 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:  "healthy",
-		Service: "resume-screening-assistant-api",
-		Version: "1.0.0",
-		Time:    time.Now().Format(time.RFC3339),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func jobsHandler(w http.ResponseWriter, r *http.Request) {
@@ -237,7 +218,7 @@ func setupRoutes(config *Config) *mux.Router {
 	r := mux.NewRouter()
 
 	// Health endpoint
-	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// API endpoints
 	r.HandleFunc("/api/jobs", jobsHandler).Methods("GET")

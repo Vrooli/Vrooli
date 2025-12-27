@@ -12,6 +12,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -65,7 +66,8 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Health endpoint
-	mux.HandleFunc("/health", corsMiddleware(app.healthHandler))
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(app.DB), health.Critical).Handler()
+	mux.HandleFunc("/health", corsMiddleware(healthHandler))
 
 	// Feature management
 	mux.HandleFunc("/api/features", corsMiddleware(app.featuresHandler))
@@ -149,43 +151,6 @@ func corsMiddleware(handler http.HandlerFunc) http.HandlerFunc {
 
 		handler(w, r)
 	}
-}
-
-func (app *App) healthHandler(w http.ResponseWriter, r *http.Request) {
-	// Check database connection
-	dbHealthy := true
-	if app.DB != nil {
-		if err := app.DB.Ping(); err != nil {
-			dbHealthy = false
-		}
-	} else {
-		dbHealthy = false
-	}
-
-	// Check Redis connection
-	redisHealthy := true
-	if app.RedisClient != nil {
-		ctx := context.Background()
-		if _, err := app.RedisClient.Ping(ctx).Result(); err != nil {
-			redisHealthy = false
-		}
-	} else {
-		redisHealthy = false
-	}
-
-	status := "healthy"
-	if !dbHealthy || !redisHealthy {
-		status = "degraded"
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    status,
-		"service":   "product-manager-api",
-		"database":  dbHealthy,
-		"redis":     redisHealthy,
-		"timestamp": time.Now().Format(time.RFC3339),
-	})
 }
 
 func (app *App) featuresHandler(w http.ResponseWriter, r *http.Request) {

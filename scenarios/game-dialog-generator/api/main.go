@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
@@ -135,43 +136,6 @@ func initClients() {
 	}
 	
 	log.Printf("🎮 Initialized clients - Ollama: %s, Qdrant: %s", ollamaURL, qdrantURL)
-}
-
-// Health check handler
-func healthHandler(c *gin.Context) {
-	status := gin.H{
-		"status":    "healthy",
-		"service":   "game-dialog-generator",
-		"theme":     "jungle-platformer",
-		"timestamp": time.Now().UTC(),
-		"resources": gin.H{
-			"database": "connected",
-			"ollama":   "available",
-			"qdrant":   "available",
-		},
-	}
-	
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		status["resources"].(gin.H)["database"] = "disconnected"
-		status["status"] = "degraded"
-	}
-	
-	// Test Ollama connection
-	resp, err := restClient.R().Get(ollamaURL + "/api/version")
-	if err != nil || resp.StatusCode() != 200 {
-		status["resources"].(gin.H)["ollama"] = "unavailable"
-		status["status"] = "degraded"
-	}
-	
-	// Test Qdrant connection
-	resp, err = restClient.R().Get(qdrantURL + "/health")
-	if err != nil || resp.StatusCode() != 200 {
-		status["resources"].(gin.H)["qdrant"] = "unavailable"
-		status["status"] = "degraded"
-	}
-	
-	c.JSON(http.StatusOK, status)
 }
 
 // Character management handlers
@@ -741,7 +705,7 @@ func main() {
 	})
 	
 	// Health check endpoint
-	r.GET("/health", healthHandler)
+	r.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 	
 	// Character management routes
 	api := r.Group("/api/v1")

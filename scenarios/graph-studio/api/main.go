@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -112,7 +113,8 @@ func main() {
 	router.Use(cors.New(corsConfig))
 
 	// Health check
-	router.GET("/health", api.HealthCheck)
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+	router.GET("/health", gin.WrapF(healthHandler))
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")

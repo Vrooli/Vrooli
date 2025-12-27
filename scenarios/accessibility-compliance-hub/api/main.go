@@ -1,24 +1,19 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
-	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
-type HealthResponse struct {
-	Status    string            `json:"status"`
-	Timestamp time.Time         `json:"timestamp"`
-	Version   string            `json:"version"`
-	Services  map[string]string `json:"services"`
-}
+// NOTE: HealthResponse type removed - using api-core/health for standardized responses
 
 type Scan struct {
 	ID         string    `json:"id"`
@@ -56,11 +51,12 @@ func main() {
 	// Initialize structured logger
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	port := getEnv("API_PORT", getEnv("PORT", "8080"))
-
 	r := mux.NewRouter()
 
-	// Health check endpoint
+	// Health check endpoint using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Handler()
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API endpoints
@@ -70,69 +66,16 @@ func main() {
 	api.HandleFunc("/reports", reportsHandler).Methods("GET")
 
 	// Start server
-	logger.Info("accessibility compliance hub api starting",
-		"port", port,
-		"health_endpoint", fmt.Sprintf("http://localhost:%s/health", port),
-		"scans_endpoint", fmt.Sprintf("http://localhost:%s/api/scans", port),
-		"violations_endpoint", fmt.Sprintf("http://localhost:%s/api/violations", port),
-		"reports_endpoint", fmt.Sprintf("http://localhost:%s/api/reports", port),
-	)
-
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	logger.Info("accessibility compliance hub api starting")
+	if err := server.Run(server.Config{
+		Handler: r,
+	}); err != nil {
 		logger.Error("server failed to start", "error", err)
 		os.Exit(1)
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	// Create timeout context for health check (5 second timeout)
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	// Channel to signal completion
-	done := make(chan bool, 1)
-
-	var response HealthResponse
-
-	// Perform health check in goroutine with timeout
-	go func() {
-		services := map[string]string{
-			"axe-core": "healthy",
-			"wave":     "healthy",
-			"pa11y":    "healthy",
-			"postgres": "healthy",
-		}
-
-		response = HealthResponse{
-			Status:    "healthy",
-			Timestamp: time.Now(),
-			Version:   "1.0.0",
-			Services:  services,
-		}
-		done <- true
-	}()
-
-	// Wait for completion or timeout
-	select {
-	case <-done:
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
-	case <-ctx.Done():
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{
-			"status": "timeout",
-			"error":  "health check timed out after 5 seconds",
-		})
-	}
-}
+// NOTE: The old healthHandler function has been replaced by api-core/health for standardized responses.
 
 func scansHandler(w http.ResponseWriter, r *http.Request) {
 	// Mock data for demonstration - in production this would come from database

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"bytes"
@@ -116,7 +117,7 @@ func main() {
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 	router.HandleFunc("/articles", getArticlesHandler).Methods("GET")
 	router.HandleFunc("/articles/{id}", getArticleHandler).Methods("GET")
 	router.HandleFunc("/feeds", getFeedsHandler).Methods("GET")
@@ -145,13 +146,6 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": "news-aggregator-bias-analysis",
-	})
 }
 
 func getArticlesHandler(w http.ResponseWriter, r *http.Request) {

@@ -13,6 +13,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -93,10 +94,6 @@ func initDB() {
 	log.Println("🎉 Database connection pool established successfully!")
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
-}
 
 func getContactsHandler(w http.ResponseWriter, r *http.Request) {
 	query := `SELECT id, name, nickname, relationship_type, birthday, email, phone, notes, tags 
@@ -476,7 +473,11 @@ func main() {
 
 	r := mux.NewRouter()
 
-	// Health check
+	// Health check using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Contact routes

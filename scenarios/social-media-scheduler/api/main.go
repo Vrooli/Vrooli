@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -53,14 +54,6 @@ type Response struct {
 	Data    interface{} `json:"data,omitempty"`
 	Error   string      `json:"error,omitempty"`
 	Meta    interface{} `json:"meta,omitempty"`
-}
-
-// HealthResponse represents health check response
-type HealthResponse struct {
-	Status    string            `json:"status"`
-	Version   string            `json:"version"`
-	Timestamp string            `json:"timestamp"`
-	Services  map[string]string `json:"services"`
 }
 
 func main() {
@@ -245,7 +238,7 @@ func (app *Application) setupRouter() {
 	}))
 
 	// Health check endpoints
-	app.Router.GET("/health", app.healthCheck)
+	app.Router.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(app.DB), health.Critical).Handler()))
 	app.Router.GET("/health/queue", app.queueHealthCheck)
 
 	// WebSocket endpoint for real-time updates
@@ -342,49 +335,6 @@ func (app *Application) cleanup() {
 	}
 	if app.WebSocket != nil {
 		app.WebSocket.Close()
-	}
-}
-
-// Health check handlers
-func (app *Application) healthCheck(c *gin.Context) {
-	services := make(map[string]string)
-
-	// Check database
-	if err := app.DB.Ping(); err != nil {
-		services["database"] = "unhealthy: " + err.Error()
-	} else {
-		services["database"] = "healthy"
-	}
-
-	// Check Redis
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := app.Redis.Ping(ctx).Err(); err != nil {
-		services["redis"] = "unhealthy: " + err.Error()
-	} else {
-		services["redis"] = "healthy"
-	}
-
-	// Check if any critical service is down
-	status := "healthy"
-	for _, serviceStatus := range services {
-		if serviceStatus != "healthy" {
-			status = "unhealthy"
-			break
-		}
-	}
-
-	response := HealthResponse{
-		Status:    status,
-		Version:   "1.0.0",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Services:  services,
-	}
-
-	if status == "healthy" {
-		c.JSON(http.StatusOK, response)
-	} else {
-		c.JSON(http.StatusServiceUnavailable, response)
 	}
 }
 

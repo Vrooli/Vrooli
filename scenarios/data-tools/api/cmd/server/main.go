@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -80,8 +81,12 @@ func (s *Server) setupRoutes() {
 	s.router.Use(corsMiddleware)
 	s.router.Use(s.authMiddleware)
 
-	// Health check (no auth)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET", "OPTIONS")
+	// Health check using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Critical).
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
 
 	// API routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -162,24 +167,6 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 }
 
 // Handler functions
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"service":   "Data Tools API",
-		"version":   "1.0.0",
-	}
-
-	// Check database connection
-	if err := s.db.Ping(); err != nil {
-		health["status"] = "unhealthy"
-		health["database"] = "disconnected"
-	} else {
-		health["database"] = "connected"
-	}
-
-	s.sendJSON(w, http.StatusOK, health)
-}
 
 func (s *Server) handleListResources(w http.ResponseWriter, r *http.Request) {
 	// TODO: Implement based on your scenario needs

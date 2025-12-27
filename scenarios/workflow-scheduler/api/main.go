@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -18,6 +16,9 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 // Schedule represents a workflow schedule
@@ -129,8 +130,12 @@ func (a *App) Initialize() {
 
 // setRoutes configures all API routes
 func (a *App) setRoutes() {
-	// Health check
-	a.Router.HandleFunc("/health", a.healthCheck).Methods("GET")
+	// Health check - use api-core/health for standardized response
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(a.DB), health.Critical).
+		Handler()
+	a.Router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// System status endpoints
 	a.Router.HandleFunc("/api/system/db-status", a.dbStatus).Methods("GET")
@@ -199,17 +204,7 @@ func (a *App) Run() {
 
 // Removed getEnv function - no defaults allowed
 
-// Health check endpoint
-func (a *App) healthCheck(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "workflow-scheduler",
-		"version":   "1.0.0",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"readiness": true,
-	}
-	respondJSON(w, http.StatusOK, response)
-}
+// NOTE: healthCheck replaced by api-core/health for standardized responses
 
 // Database status endpoint
 func (a *App) dbStatus(w http.ResponseWriter, r *http.Request) {

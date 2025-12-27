@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
-
-	_ "github.com/lib/pq"
 )
 
 type Travel struct {
@@ -88,20 +88,6 @@ func enableCORS(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	enableCORS(w)
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": "travel-map-filler",
-	})
 }
 
 func travelsHandler(w http.ResponseWriter, r *http.Request) {
@@ -558,7 +544,7 @@ func main() {
 	}
 
 	// API routes
-	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler())
 	http.HandleFunc("/api/travels", travelsHandler)
 	http.HandleFunc("/api/stats", statsHandler)
 	http.HandleFunc("/api/achievements", achievementsHandler)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,20 +15,12 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
 
 var db *sql.DB
-
-// Health response types
-type HealthResponse struct {
-	Status    string          `json:"status"`
-	Service   string          `json:"service"`
-	Timestamp string          `json:"timestamp"`
-	Readiness bool            `json:"readiness"`
-	Checks    map[string]bool `json:"checks,omitempty"`
-}
 
 // Date suggestion types
 type DateSuggestionRequest struct {
@@ -103,53 +96,6 @@ func initDB() error {
 		return fmt.Errorf("database connection failed: %w", err)
 	}
 	return nil
-}
-
-// Handlers
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:    "healthy",
-		Service:   "date-night-planner",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Readiness: true,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-func databaseHealthHandler(w http.ResponseWriter, r *http.Request) {
-	checks := make(map[string]bool)
-	checks["postgres_connected"] = false
-	checks["schema_exists"] = false
-
-	if db != nil {
-		err := db.Ping()
-		checks["postgres_connected"] = err == nil
-
-		if err == nil {
-			var exists bool
-			err = db.QueryRow(`SELECT EXISTS(
-				SELECT 1 FROM information_schema.schemata 
-				WHERE schema_name = 'date_night_planner'
-			)`).Scan(&exists)
-			checks["schema_exists"] = exists && err == nil
-		}
-	}
-
-	status := "healthy"
-	if !checks["postgres_connected"] || !checks["schema_exists"] {
-		status = "degraded"
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}
-
-	response := HealthResponse{
-		Status:    status,
-		Service:   "date-night-planner-database",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Checks:    checks,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func suggestDatesHandler(w http.ResponseWriter, r *http.Request) {
@@ -718,9 +664,9 @@ func main() {
 	// Setup routes
 	router := mux.NewRouter()
 
-	// Health endpoints
-	router.HandleFunc("/health", enableCORS(healthHandler)).Methods("GET", "OPTIONS")
-	router.HandleFunc("/health/database", enableCORS(databaseHealthHandler)).Methods("GET", "OPTIONS")
+	// Health endpoint - using standardized api-core/health
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API endpoints
 	router.HandleFunc("/api/v1/dates/suggest", enableCORS(suggestDatesHandler)).Methods("POST", "OPTIONS")

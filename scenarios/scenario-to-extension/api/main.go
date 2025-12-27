@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -282,11 +283,11 @@ func main() {
 	r := mux.NewRouter()
 
 	// Health check at root level (required for lifecycle system)
-	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// API routes
 	api := r.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/health", healthHandler).Methods("GET")
+	api.HandleFunc("/health", health.Handler()).Methods("GET")
 	api.HandleFunc("/extension/generate", generateExtensionHandler).Methods("POST")
 	api.HandleFunc("/extension/status/{build_id}", getExtensionStatusHandler).Methods("GET")
 	api.HandleFunc("/extension/download/{build_id}", downloadExtensionHandler).Methods("GET")
@@ -370,30 +371,6 @@ func loadConfig() *Config {
 	}
 
 	return config
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "scenario-to-extension-api",
-		"version":   "1.0.0",
-		"scenario":  "scenario-to-extension",
-		"timestamp": time.Now(),
-		"readiness": true,
-		"resources": map[string]interface{}{
-			"browserless": checkBrowserlessHealth(),
-			"templates":   checkTemplatesHealth(),
-		},
-		"stats": map[string]interface{}{
-			"total_builds":     buildManager.Count(),
-			"active_builds":    buildManager.CountByStatus("building"),
-			"completed_builds": buildManager.CountByStatus("ready"),
-			"failed_builds":    buildManager.CountByStatus("failed"),
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	writeJSON(w, health, "health")
 }
 
 func generateExtensionHandler(w http.ResponseWriter, r *http.Request) {

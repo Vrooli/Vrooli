@@ -21,6 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 )
 
 type Server struct {
@@ -181,9 +182,14 @@ func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	s.router.Use(corsMiddleware)
 
-	// Health check
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/health", s.handleHealth).Methods("GET", "OPTIONS")
+	// Health check - use api-core/health for standardized response
+	// DB is optional for this scenario (can run without database)
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Optional).
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/health", healthHandler).Methods("GET", "OPTIONS")
 
 	// API v1 routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -205,42 +211,6 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/docs", s.handleDocs).Methods("GET")
 }
 
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "audio-tools",
-		"timestamp": time.Now().Unix(),
-		"version":   "1.0.0",
-	}
-
-	if s.db != nil {
-		if err := s.db.Ping(); err != nil {
-			health["database"] = "disconnected"
-		} else {
-			health["database"] = "connected"
-		}
-	} else {
-		health["database"] = "not configured"
-	}
-
-	// Check if ffmpeg is available
-	if _, err := os.Stat("/usr/bin/ffmpeg"); err == nil {
-		health["ffmpeg"] = "available"
-	} else {
-		health["ffmpeg"] = "not found"
-	}
-
-	// Check MinIO status
-	if s.storage != nil {
-		health["storage"] = "minio"
-	} else {
-		health["storage"] = "filesystem"
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(health)
-}
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	status := map[string]interface{}{

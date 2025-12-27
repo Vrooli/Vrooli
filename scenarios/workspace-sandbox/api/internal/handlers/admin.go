@@ -34,6 +34,8 @@ func (h *Handlers) APIInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 // Health handles health check requests.
+// Deprecated: This handler has been replaced by api-core/health in main.go for standardized responses.
+// This method is kept for backwards compatibility with tests but is no longer registered in routes.
 func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	status := "healthy"
 	dbStatus := "connected"

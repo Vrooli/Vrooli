@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
@@ -158,27 +159,6 @@ func initDatabase() error {
 
 	log.Println("🎉 Database connection pool established successfully!")
 	return nil
-}
-
-// Health check handler
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().UTC(),
-		"version":   "1.0.0",
-		"database":  "connected",
-	}
-
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		health["status"] = "unhealthy"
-		health["database"] = "disconnected"
-		health["error"] = err.Error()
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
 }
 
 // Analysis handler
@@ -425,7 +405,7 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/programs", listProgramsHandler).Methods("GET")
 
 	// Health check
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 
 	// CORS setup
 	c := cors.New(cors.Options{

@@ -2,27 +2,16 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{
-		"status":    "healthy",
-		"service":   "kids-mode-dashboard",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
 
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	html := `&lt;!DOCTYPE html&gt;
@@ -43,7 +32,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/health", health.Handler())
 	mux.HandleFunc("/", dashboardHandler)
 
 	apiPort := strings.TrimSpace(os.Getenv("API_PORT"))

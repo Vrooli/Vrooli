@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -114,7 +115,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 
 	// Recipe CRUD
 	router.HandleFunc("/api/v1/recipes", listRecipesHandler).Methods("GET")
@@ -171,30 +172,6 @@ func initDB() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 	log.Println("Connected to PostgreSQL database")
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	status := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"service":   "recipe-book",
-	}
-
-	// Check database connection
-	if db != nil {
-		if err := db.Ping(); err != nil {
-			status["status"] = "unhealthy"
-			status["database"] = "disconnected"
-			w.WriteHeader(http.StatusServiceUnavailable)
-		} else {
-			status["database"] = "connected"
-		}
-	} else {
-		status["database"] = "not_configured"
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
 }
 
 func listRecipesHandler(w http.ResponseWriter, r *http.Request) {

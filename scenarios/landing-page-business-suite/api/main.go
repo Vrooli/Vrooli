@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -119,8 +120,9 @@ func NewServer() (*Server, error) {
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 
 	// Landing config + plans
 	s.router.HandleFunc("/api/v1/landing-config", handleLandingConfig(s.landingConfigService)).Methods("GET")
@@ -258,30 +260,6 @@ func (s *Server) Cleanup() error {
 		return s.db.Close()
 	}
 	return nil
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-	dbStatus := "connected"
-
-	if err := s.db.PingContext(r.Context()); err != nil {
-		status = "unhealthy"
-		dbStatus = "disconnected"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "landing-page-business-suite API",
-		"version":   "1.0.0",
-		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{
-			"database": dbStatus,
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func (s *Server) handleAdminResetDemoData(w http.ResponseWriter, r *http.Request) {

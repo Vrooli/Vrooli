@@ -179,10 +179,8 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	router.HandleFunc("/", h.APIInfo).Methods("GET")
 	router.HandleFunc("/api", h.APIInfo).Methods("GET")
 
-	// --- Health Endpoints ---
-	// Exposed at both root and API paths for flexibility
-	router.HandleFunc("/health", h.Health).Methods("GET")
-	router.HandleFunc("/api/v1/health", h.Health).Methods("GET")
+	// NOTE: Health endpoints (/health and /api/v1/health) are now registered in main.go
+	// using api-core/health for standardized response format.
 
 	// API v1 subrouter
 	api := router.PathPrefix("/api/v1").Subrouter()

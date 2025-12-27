@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -305,17 +306,6 @@ func (o *OrchestratorService) GetStatus(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(status)
 }
 
-// Health endpoint
-func Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "healthy",
-		"service":   serviceName,
-		"version":   apiVersion,
-		"timestamp": time.Now().UTC(),
-	})
-}
-
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
 	cmd := exec.Command("bash", "-c", fmt.Sprintf(
@@ -373,7 +363,7 @@ func main() {
 	r := mux.NewRouter()
 	
 	// Health endpoint
-	r.HandleFunc("/health", Health).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 	
 	// Profile management endpoints
 	r.HandleFunc("/api/v1/profiles", orchestrator.ListProfiles).Methods("GET")

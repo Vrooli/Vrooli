@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -9,14 +8,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
-
-type HealthResponse struct {
-	Status    string            `json:"status"`
-	Timestamp time.Time         `json:"timestamp"`
-	Version   string            `json:"version"`
-	Services  map[string]string `json:"services"`
-}
 
 type Document struct {
 	ID       string    `json:"id"`
@@ -54,7 +48,7 @@ func main() {
 	r := mux.NewRouter()
 
 	// Health check endpoint
-	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// API endpoints
 	api := r.PathPrefix("/api").Subrouter()
@@ -80,29 +74,6 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	services := map[string]string{
-		"vault":        getServiceStatus(os.Getenv("VAULT_URL")),
-		"minio":        getServiceStatus(os.Getenv("MINIO_URL")),
-		"unstructured": getServiceStatus(os.Getenv("UNSTRUCTURED_URL")),
-		"postgres":     "healthy", // Assume healthy if we got this far
-	}
-
-	if os.Getenv("QDRANT_URL") != "" {
-		services["qdrant"] = getServiceStatus(os.Getenv("QDRANT_URL"))
-	}
-
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Version:   "1.0.0",
-		Services:  services,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func documentsHandler(w http.ResponseWriter, r *http.Request) {

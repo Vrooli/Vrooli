@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/vrooli/api-core/health"
 )
 
 type Server struct {
@@ -203,11 +204,11 @@ func (s *Server) setupRoutes() {
 	}))
 
 	// Health endpoint at root for lifecycle system
-	s.router.GET("/health", s.handleHealth)
+	s.router.GET("/health", gin.WrapF(health.Handler()))
 
 	api := s.router.Group("/api/v1")
 	{
-		api.GET("/health", s.handleHealth)
+		api.GET("/health", gin.WrapF(health.Handler()))
 
 		// Project endpoints
 		api.GET("/projects", s.handleGetProjects)
@@ -233,49 +234,6 @@ func (s *Server) setupRoutes() {
 		api.GET("/templates", s.handleGetTemplates)
 		api.GET("/templates/:slug", s.handleGetTemplate)
 	}
-}
-
-func (s *Server) handleHealth(c *gin.Context) {
-	// Check database connectivity
-	dbConnected := true
-	var dbLatency float64
-	dbStart := time.Now()
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
-	defer cancel()
-	err := s.db.Ping(ctx)
-	if err != nil {
-		dbConnected = false
-		dbLatency = 0
-	} else {
-		dbLatency = float64(time.Since(dbStart).Milliseconds())
-	}
-
-	response := gin.H{
-		"status":    "healthy",
-		"service":   "funnel-builder-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": dbConnected,
-		"version":   "1.0.0",
-		"dependencies": gin.H{
-			"database": gin.H{
-				"connected":  dbConnected,
-				"latency_ms": dbLatency,
-				"error":      nil,
-			},
-		},
-	}
-
-	if !dbConnected {
-		response["status"] = "degraded"
-		response["dependencies"].(gin.H)["database"].(gin.H)["error"] = gin.H{
-			"code":      "CONNECTION_FAILED",
-			"message":   err.Error(),
-			"category":  "resource",
-			"retryable": true,
-		}
-	}
-
-	c.JSON(http.StatusOK, response)
 }
 
 func (s *Server) handleGetProjects(c *gin.Context) {

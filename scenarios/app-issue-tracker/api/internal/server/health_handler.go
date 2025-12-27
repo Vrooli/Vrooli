@@ -1,24 +1,15 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
-	"time"
+
+	"github.com/vrooli/api-core/health"
 )
 
-// healthHandler returns the API health status
-func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := ApiResponse{
-		Success: true,
-		Message: "App Issue Tracker API is healthy",
-		Data: map[string]interface{}{
-			"timestamp":  time.Now().UTC(),
-			"version":    "2.0.0-file-based",
-			"storage":    "file-based-yaml",
-			"issues_dir": s.config.IssuesDir,
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+// createHealthHandler returns a standardized health check handler using api-core/health.
+// App Issue Tracker uses file-based storage, so no database check is needed.
+func (s *Server) createHealthHandler() http.HandlerFunc {
+	return health.New().
+		Version("2.0.0").
+		Handler()
 }

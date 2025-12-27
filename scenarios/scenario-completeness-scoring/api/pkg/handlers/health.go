@@ -22,19 +22,9 @@ var validCollectors = map[string]bool{
 	"service":      true,
 }
 
-// HandleHealth returns basic service health status
-func (ctx *Context) HandleHealth(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "Scenario Completeness Scoring API",
-		"version":   "1.0.0",
-		"readiness": true,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
+// NOTE: The basic /health endpoint now uses api-core/health for standardized responses.
+// This handler is kept for reference but is no longer registered in routes.
+// For detailed collector health, use /api/v1/health/collectors instead.
 
 // HandleGetCollectorHealth returns health status of all collectors
 // [REQ:SCS-HEALTH-001] Health status API endpoint

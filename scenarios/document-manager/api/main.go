@@ -1,9 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
 	"bytes"
 	"context"
 	"database/sql"
@@ -19,6 +16,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Config struct {
@@ -218,54 +219,6 @@ func initDB() error {
 
 	log.Println("🎉 Database connection pool established successfully!")
 	return nil
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Check database connectivity
-	dbConnected := false
-	var dbLatency *float64
-	var dbError map[string]interface{}
-	if db != nil {
-		start := time.Now()
-		err := db.Ping()
-		latencyMs := float64(time.Since(start).Microseconds()) / 1000.0
-		if err == nil {
-			dbConnected = true
-			dbLatency = &latencyMs
-		} else {
-			dbError = map[string]interface{}{
-				"code":      "CONNECTION_FAILED",
-				"message":   err.Error(),
-				"category":  "network",
-				"retryable": true,
-			}
-		}
-	}
-
-	// Determine overall status
-	status := "healthy"
-	if !dbConnected {
-		status = "degraded"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "document-manager-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": true,
-		"version":   "2.0.0",
-		"dependencies": map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected":  dbConnected,
-				"latency_ms": dbLatency,
-				"error":      dbError,
-			},
-		},
-	}
-
-	json.NewEncoder(w).Encode(response)
 }
 
 func dbStatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -1179,7 +1132,8 @@ func main() {
 	r.Use(corsMiddleware)
 	r.Use(loggingMiddleware)
 	
-	// Health and system endpoints
+	// Health and system endpoints - using standardized api-core/health
+	healthHandler := health.New().Version("2.0.0").Check(health.DB(db), health.Critical).Handler()
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/system/db-status", dbStatusHandler).Methods("GET")
 	r.HandleFunc("/api/system/vector-status", vectorStatusHandler).Methods("GET")

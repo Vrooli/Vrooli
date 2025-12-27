@@ -2,48 +2,28 @@
 package health
 
 import (
-	"context"
-	"encoding/json"
 	"net/http"
-	"time"
+
+	"github.com/vrooli/api-core/health"
 )
 
 // DBPinger defines the interface for checking database connectivity.
 type DBPinger interface {
-	PingContext(ctx context.Context) error
+	Ping() error
 }
 
 // Handler handles health check requests.
 type Handler struct {
-	db DBPinger
+	healthFunc http.HandlerFunc
 }
 
-// NewHandler creates a new health handler.
+// NewHandler creates a new health handler using the standardized api-core/health package.
 func NewHandler(db DBPinger) *Handler {
-	return &Handler{db: db}
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+	return &Handler{healthFunc: healthHandler}
 }
 
-// Health returns basic runtime health status.
+// Health returns basic runtime health status using the standardized api-core/health package.
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-	dbStatus := "connected"
-
-	if err := h.db.PingContext(r.Context()); err != nil {
-		status = "unhealthy"
-		dbStatus = "disconnected"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "Deployment Manager API",
-		"version":   "1.0.0",
-		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{
-			"database": dbStatus,
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	h.healthFunc(w, r)
 }

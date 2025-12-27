@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -16,6 +14,9 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 type Config struct {
@@ -252,14 +253,12 @@ func startMainServer() {
 		ctx.Next()
 	})
 
-	// Health check
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":    "healthy",
-			"service":   "personal-digital-twin-api",
-			"timestamp": time.Now().Format(time.RFC3339),
-		})
-	})
+	// Health check - use api-core/health for standardized response
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
+	r.GET("/health", gin.WrapF(healthHandler))
 
 	// Persona management endpoints
 	r.POST("/api/persona/create", createPersona)
@@ -301,14 +300,12 @@ func startChatServer() {
 		ctx.Next()
 	})
 
-	// Health check
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":    "healthy",
-			"service":   "personal-digital-twin-chat",
-			"timestamp": time.Now().Format(time.RFC3339),
-		})
-	})
+	// Health check - use api-core/health for standardized response
+	chatHealthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
+	r.GET("/health", gin.WrapF(chatHealthHandler))
 
 	// Chat endpoints
 	r.POST("/api/chat", handleChat)

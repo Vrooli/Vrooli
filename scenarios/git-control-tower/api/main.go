@@ -11,10 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/handlers"
+	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -74,8 +75,13 @@ func NewServer() (*Server, error) {
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
+	// Uses api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Critical).
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/status", s.handleRepoStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/diff", s.handleDiff).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/history", s.handleRepoHistory).Methods("GET")
@@ -94,26 +100,12 @@ func (s *Server) setupRoutes() {
 
 // Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
+	return gorillahandlers.RecoveryHandler()(s.router)
 }
 
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	resp := NewResponse(w)
-	repoDir := s.git.ResolveRepoRoot(r.Context())
-
-	checks := NewHealthChecks(HealthCheckDeps{
-		DB:      NewSQLDBChecker(s.db),
-		Git:     s.git,
-		RepoDir: repoDir,
-	})
-	result := checks.Run(r.Context())
-
-	if !result.Readiness {
-		resp.ServiceUnavailable(result)
-		return
-	}
-	resp.OK(result)
-}
+// NOTE: The old handleHealth with custom HealthChecks has been replaced by
+// api-core/health for standardized responses. The DB check is now handled
+// by the health package with Critical priority.
 
 func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)

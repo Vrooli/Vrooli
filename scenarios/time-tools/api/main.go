@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -94,7 +95,7 @@ func main() {
 	api := router.PathPrefix("/api/v1").Subrouter()
 	
 	// Health check
-	api.HandleFunc("/health", healthHandler).Methods("GET")
+	api.HandleFunc("/health", health.Handler()).Methods("GET")
 	
 	// Time operations
 	api.HandleFunc("/time/convert", timezoneConvertHandler).Methods("POST")

@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/video-tools/internal/video"
 )
@@ -167,9 +168,13 @@ func (s *Server) setupRoutes() {
 	s.router.Use(corsMiddleware)
 	s.router.Use(s.authMiddleware)
 
-	// Health check (no auth)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/health", s.handleHealth).Methods("GET", "OPTIONS")
+	// Health check (no auth) - uses api-core/health for standardized response
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Critical).
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/health", healthHandler).Methods("GET", "OPTIONS")
 
 	// API routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -269,32 +274,6 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 }
 
 // Handler functions
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"service":   "video-tools API",
-		"version":   "1.0.0",
-	}
-
-	// Check database connection
-	if err := s.db.Ping(); err != nil {
-		health["status"] = "unhealthy"
-		health["database"] = "disconnected"
-	} else {
-		health["database"] = "connected"
-	}
-
-	// Check ffmpeg availability
-	if _, err := os.Stat("/usr/bin/ffmpeg"); err != nil {
-		health["ffmpeg"] = "not available"
-	} else {
-		health["ffmpeg"] = "available"
-	}
-
-	s.sendJSON(w, http.StatusOK, health)
-}
-
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	// Get video statistics
 	var stats struct {

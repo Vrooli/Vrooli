@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"context"
@@ -118,15 +119,6 @@ func initDB() error {
     
     log.Println("✅ Minimal mind maps schema created successfully")
     return nil
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-    response := Response{
-        Status:  "success",
-        Message: "Mind Maps API is running",
-    }
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(response)
 }
 
 func getMindMapsHandler(w http.ResponseWriter, r *http.Request) {
@@ -886,9 +878,9 @@ func main() {
     log.Printf("Initialized MindMapProcessor with Ollama: %s, Qdrant: %s", ollamaURL, qdrantURL)
     
     r := mux.NewRouter()
-    
+
     // Health check
-    r.HandleFunc("/health", healthHandler).Methods("GET")
+    r.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
     
     // Mind map endpoints
     r.HandleFunc("/api/mindmaps", getMindMapsHandler).Methods("GET")

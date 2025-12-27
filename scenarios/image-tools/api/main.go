@@ -16,9 +16,11 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/health"
 
 	"image-tools/plugins"
 	"image-tools/plugins/jpeg"
@@ -116,7 +118,7 @@ func NewServer() *Server {
 
 func (s *Server) SetupRoutes() {
 	// Health check at root level (required by orchestration)
-	s.app.Get("/health", s.handleHealth)
+	s.app.Get("/health", adaptor.HTTPHandlerFunc(health.Handler()))
 
 	api := s.app.Group("/api/v1")
 
@@ -135,96 +137,6 @@ func (s *Server) SetupRoutes() {
 	image.Post("/preset/:name", s.handleApplyPreset)
 }
 
-func (s *Server) handleHealth(c *fiber.Ctx) error {
-	overallStatus := "healthy"
-	var errors []fiber.Map
-	readiness := true
-
-	// Schema-compliant health response
-	healthResponse := fiber.Map{
-		"status":       overallStatus,
-		"service":      "image-tools-api",
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-		"readiness":    true,
-		"dependencies": fiber.Map{},
-	}
-
-	// Check plugin registry functionality
-	pluginHealth := s.checkPluginRegistry()
-	healthResponse["dependencies"].(fiber.Map)["plugin_registry"] = pluginHealth
-	if pluginHealth["status"] != "healthy" {
-		overallStatus = "degraded"
-		if pluginHealth["status"] == "unhealthy" {
-			readiness = false
-		}
-		if pluginHealth["error"] != nil {
-			errors = append(errors, pluginHealth["error"].(fiber.Map))
-		}
-	}
-
-	// Check storage system functionality
-	storageHealth := s.checkStorageSystem()
-	healthResponse["dependencies"].(fiber.Map)["storage_system"] = storageHealth
-	if storageHealth["status"] != "healthy" {
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded"
-		}
-		if storageHealth["error"] != nil {
-			errors = append(errors, storageHealth["error"].(fiber.Map))
-		}
-	}
-
-	// Check image processing capabilities
-	processingHealth := s.checkImageProcessing()
-	healthResponse["dependencies"].(fiber.Map)["image_processing"] = processingHealth
-	if processingHealth["status"] != "healthy" {
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded"
-		}
-		if processingHealth["error"] != nil {
-			errors = append(errors, processingHealth["error"].(fiber.Map))
-		}
-	}
-
-	// Check file system operations
-	filesystemHealth := s.checkFileSystemOperations()
-	healthResponse["dependencies"].(fiber.Map)["filesystem"] = filesystemHealth
-	if filesystemHealth["status"] != "healthy" {
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded"
-		}
-		if filesystemHealth["error"] != nil {
-			errors = append(errors, filesystemHealth["error"].(fiber.Map))
-		}
-	}
-
-	// Update final status
-	healthResponse["status"] = overallStatus
-	healthResponse["readiness"] = readiness
-
-	// Add errors if any
-	if len(errors) > 0 {
-		healthResponse["errors"] = errors
-	}
-
-	// Add metrics
-	healthResponse["metrics"] = fiber.Map{
-		"total_dependencies":   4,
-		"healthy_dependencies": s.countHealthyDependencies(healthResponse["dependencies"].(fiber.Map)),
-		"uptime_seconds":       time.Now().Unix() - startTime.Unix(),
-		"total_plugins":        len(s.registry.ListPlugins()),
-	}
-
-	// Return appropriate HTTP status
-	statusCode := 200
-	if overallStatus == "unhealthy" {
-		statusCode = 503
-	}
-
-	return c.Status(statusCode).JSON(healthResponse)
-}
-
-// Health check helper methods
 func (s *Server) checkPluginRegistry() fiber.Map {
 	health := fiber.Map{
 		"status": "healthy",

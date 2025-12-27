@@ -14,6 +14,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -114,60 +115,6 @@ func initDB() {
 
 	// Note: Database schema is initialized by the lifecycle populate script
 	// using initialization/postgres/schema.sql - DO NOT duplicate schema here
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Check database connection
-	dbHealthy := true
-	var dbLatency float64
-	dbStart := time.Now()
-	if err := db.Ping(); err != nil {
-		dbHealthy = false
-	} else {
-		dbLatency = float64(time.Since(dbStart).Milliseconds())
-	}
-
-	// Overall status
-	status := "healthy"
-	if !dbHealthy {
-		status = "degraded"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "invoice-generator-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": dbHealthy, // Ready only if database is accessible
-	}
-
-	// Add database dependency status
-	if dbHealthy {
-		response["dependencies"] = map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected":  true,
-				"latency_ms": dbLatency,
-				"error":      nil,
-			},
-		}
-	} else {
-		response["dependencies"] = map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected":  false,
-				"latency_ms": nil,
-				"error": map[string]interface{}{
-					"code":      "CONNECTION_FAILED",
-					"message":   "Database connection check failed",
-					"category":  "resource",
-					"retryable": true,
-				},
-			},
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func createInvoiceHandler(w http.ResponseWriter, r *http.Request) {
@@ -575,6 +522,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Invoice endpoints

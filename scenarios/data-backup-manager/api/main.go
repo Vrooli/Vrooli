@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,6 +11,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type BackupJob struct {
@@ -82,12 +83,6 @@ type ResourceHealth struct {
 	Message     string    `json:"message,omitempty"`
 }
 
-type HealthResponse struct {
-	Status    string            `json:"status"`
-	Timestamp time.Time         `json:"timestamp"`
-	Version   string            `json:"version"`
-	Resources ResourceHealthMap `json:"resources"`
-}
 
 // Compliance tracking
 func handleComplianceReport(w http.ResponseWriter, r *http.Request) {
@@ -365,8 +360,13 @@ func main() {
 
 	r := mux.NewRouter()
 
-	// Health endpoint
-	r.HandleFunc("/health", handleHealth).Methods("GET")
+	// Health endpoint - using standardized api-core/health
+	var dbPinger interface{ Ping() error }
+	if backupManager != nil {
+		dbPinger = backupManager.db
+	}
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(dbPinger), health.Critical).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API v1 routes
 	api := r.PathPrefix("/api/v1").Subrouter()
@@ -422,36 +422,6 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
-}
-
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	resources := ResourceHealthMap{
-		"postgres": ResourceHealth{
-			Status:      "healthy",
-			LastChecked: time.Now(),
-			Message:     "Connection successful",
-		},
-		"minio": ResourceHealth{
-			Status:      "healthy", 
-			LastChecked: time.Now(),
-			Message:     "Storage accessible",
-		},
-		"n8n": ResourceHealth{
-			Status:      "healthy",
-			LastChecked: time.Now(),
-			Message:     "Workflows active",
-		},
-	}
-
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Version:   "1.0.0",
-		Resources: resources,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func handleBackupCreate(w http.ResponseWriter, r *http.Request) {

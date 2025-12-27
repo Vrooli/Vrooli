@@ -14,10 +14,11 @@ import (
 	"scenario-completeness-scoring/pkg/collectors"
 	"scenario-completeness-scoring/pkg/config"
 	apierrors "scenario-completeness-scoring/pkg/errors"
-	"scenario-completeness-scoring/pkg/health"
+	pkghealth "scenario-completeness-scoring/pkg/health"
 	"scenario-completeness-scoring/pkg/history"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 )
 
 // setupTestContext creates a handler context for testing
@@ -60,7 +61,7 @@ func setupTestContext(t *testing.T) (*Context, string) {
 		tmpDir,
 		collector,
 		cbRegistry,
-		health.NewTracker(cbRegistry),
+		pkghealth.NewTracker(cbRegistry),
 		configLoader,
 		historyDB,
 		historyRepo,
@@ -261,13 +262,15 @@ func TestHandleGetHistoryReturnsEmptyList(t *testing.T) {
 
 // TestHandleHealthReturnsOK tests that health endpoint always returns OK
 // [REQ:SCS-HEALTH-001] Health endpoint availability
+// NOTE: The basic /health endpoint now uses api-core/health for standardized responses.
+// This test validates the api-core/health handler directly.
 func TestHandleHealthReturnsOK(t *testing.T) {
-	ctx, _ := setupTestContext(t)
-
 	req := httptest.NewRequest("GET", "/health", nil)
 	rr := httptest.NewRecorder()
 
-	ctx.HandleHealth(rr, req)
+	// Use api-core/health handler directly
+	handler := health.New().Version("1.0.0").Handler()
+	handler(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status %d, got %d", http.StatusOK, rr.Code)

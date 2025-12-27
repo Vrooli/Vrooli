@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -15,15 +14,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
-
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Service   string    `json:"service"`
-	Version   string    `json:"version"`
-	Readiness bool      `json:"readiness"`
-}
 
 type StatusResponse struct {
 	AndroidSDK  string `json:"android_sdk"`
@@ -507,29 +501,6 @@ func executeBuild(buildID string, req BuildRequest) {
 	}
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Validate HTTP method
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Method not allowed",
-		})
-		return
-	}
-
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Service:   "scenario-to-android",
-		Version:   "1.0.0",
-		Readiness: true,
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
 func statusHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -616,9 +587,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/api/health", healthHandler)
-	http.HandleFunc("/api/v1/health", healthHandler)
+	http.HandleFunc("/health", health.Handler())
+	http.HandleFunc("/api/health", health.Handler())
+	http.HandleFunc("/api/v1/health", health.Handler())
 	http.HandleFunc("/api/v1/status", statusHandler)
 	http.HandleFunc("/api/v1/android/build", buildHandler)
 	http.HandleFunc("/api/v1/android/status/", buildStatusHandler)

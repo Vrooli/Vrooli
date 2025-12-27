@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
@@ -118,52 +119,6 @@ func initDB() {
 		logger.Fatal("Database connection failed", map[string]interface{}{"error": err.Error()})
 	}
 	logger.Info("Database connected successfully")
-}
-
-// Health check endpoint
-func healthCheck(c *gin.Context) {
-	// Check database connection
-	dbConnected := true
-	var dbLatency *float64
-	dbStart := time.Now()
-	if err := db.Ping(); err != nil {
-		dbConnected = false
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status":    "unhealthy",
-			"service":   "prompt-injection-arena",
-			"timestamp": time.Now().UTC(),
-			"readiness": false,
-			"dependencies": gin.H{
-				"database": gin.H{
-					"connected": false,
-					"error": gin.H{
-						"code":      "CONNECTION_FAILED",
-						"message":   err.Error(),
-						"category":  "resource",
-						"retryable": true,
-					},
-				},
-			},
-		})
-		return
-	}
-	dbLatencyMs := float64(time.Since(dbStart).Milliseconds())
-	dbLatency = &dbLatencyMs
-
-	c.JSON(http.StatusOK, gin.H{
-		"status":    "healthy",
-		"service":   "prompt-injection-arena",
-		"timestamp": time.Now().UTC(),
-		"readiness": true,
-		"version":   "1.0.0",
-		"dependencies": gin.H{
-			"database": gin.H{
-				"connected":  dbConnected,
-				"latency_ms": dbLatency,
-				"error":      nil,
-			},
-		},
-	})
 }
 
 // Get injection techniques library
@@ -1251,7 +1206,7 @@ func main() {
 	}))
 
 	// Health check
-	r.GET("/health", healthCheck)
+	r.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 
 	// API routes
 	api := r.Group("/api/v1")

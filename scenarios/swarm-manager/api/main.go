@@ -16,12 +16,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"gopkg.in/yaml.v3"
@@ -171,8 +173,12 @@ func initDB() {
 }
 
 func setupRoutes(app *fiber.App) {
-	// Health check
-	app.Get("/health", healthCheck)
+	// Health check using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("2.0.0").
+		Check(health.DB(db), health.Critical).
+		Handler()
+	app.Get("/health", adaptor.HTTPHandlerFunc(healthHandler))
 
 	// Task endpoints
 	app.Get("/api/tasks", getTasks)
@@ -205,71 +211,6 @@ func setupRoutes(app *fiber.App) {
 	app.Post("/api/calculate-priority", calculatePriority)
 }
 
-func healthCheck(c *fiber.Ctx) error {
-	// Perform health checks
-	checks := make(map[string]interface{})
-	overallStatus := "healthy"
-
-	// Check database connection
-	if db != nil {
-		err := db.Ping()
-		if err != nil {
-			checks["database"] = fiber.Map{
-				"status": "unhealthy",
-				"error":  err.Error(),
-			}
-			overallStatus = "unhealthy"
-		} else {
-			// Try a simple query to ensure database is actually responding
-			var result int
-			err := db.QueryRow("SELECT 1").Scan(&result)
-			if err != nil {
-				checks["database"] = fiber.Map{
-					"status": "degraded",
-					"error":  "Cannot execute queries",
-				}
-				overallStatus = "degraded"
-			} else {
-				checks["database"] = fiber.Map{
-					"status":  "healthy",
-					"message": "Connected and responsive",
-				}
-			}
-		}
-	} else {
-		checks["database"] = fiber.Map{
-			"status": "unhealthy",
-			"error":  "Database connection not initialized",
-		}
-		overallStatus = "unhealthy"
-	}
-
-	// Check task directory access
-	if _, err := os.Stat(tasksDir); os.IsNotExist(err) {
-		checks["filesystem"] = fiber.Map{
-			"status": "unhealthy",
-			"error":  "Tasks directory not accessible",
-		}
-		overallStatus = "unhealthy"
-	} else {
-		checks["filesystem"] = fiber.Map{
-			"status":  "healthy",
-			"message": "Tasks directory accessible",
-		}
-	}
-
-	// Calculate uptime
-	uptime := time.Since(startTime).Seconds()
-
-	return c.JSON(fiber.Map{
-		"status":    overallStatus,
-		"service":   "swarm-manager",
-		"timestamp": time.Now().Unix(),
-		"uptime":    uptime,
-		"checks":    checks,
-		"version":   "2.0.0",
-	})
-}
 
 func getTasks(c *fiber.Ctx) error {
 	status := c.Query("status", "all")

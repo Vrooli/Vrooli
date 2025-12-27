@@ -15,6 +15,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -36,13 +37,6 @@ type Server struct {
 }
 
 // Response structures
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Version   string    `json:"version"`
-	Database  string    `json:"database"`
-	Huginn    string    `json:"huginn"`
-}
 
 type ErrorResponse struct {
 	Error     string    `json:"error"`
@@ -126,9 +120,13 @@ func (s *Server) setupRoutes() {
 	// API versioning
 	api := s.router.PathPrefix("/api/v1").Subrouter()
 
-	// Health check
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
-	api.HandleFunc("/health", s.handleHealth).Methods("GET")
+	// Health check - use api-core/health for standardized response
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Critical).
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+	api.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Profile management
 	api.HandleFunc("/profiles", s.handleGetProfiles).Methods("GET")
@@ -182,28 +180,6 @@ func (s *Server) Close() error {
 	return nil
 }
 
-// Health check handler
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	// Check database connection
-	dbStatus := "healthy"
-	if err := s.db.Ping(); err != nil {
-		dbStatus = "unhealthy: " + err.Error()
-	}
-
-	// Check Huginn connection (placeholder)
-	huginnStatus := "unknown"
-
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Version:   "1.0.0",
-		Database:  dbStatus,
-		Huginn:    huginnStatus,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
 
 // Get all profiles
 func (s *Server) handleGetProfiles(w http.ResponseWriter, r *http.Request) {

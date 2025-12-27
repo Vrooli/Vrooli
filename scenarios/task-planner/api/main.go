@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -142,16 +143,6 @@ type TaskRequest struct {
 	ForceRefresh        bool   `json:"force_refresh,omitempty"`
 	OverrideStaging     bool   `json:"override_staging,omitempty"`
 	ImplementationNotes string `json:"implementation_notes,omitempty"`
-}
-
-// Health endpoint
-func Health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": serviceName,
-		"version": apiVersion,
-	})
 }
 
 // GetApps returns all applications
@@ -322,7 +313,7 @@ func main() {
 
 	// Setup routes
 	r := mux.NewRouter()
-	r.HandleFunc("/health", Health).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 	r.HandleFunc("/api/apps", service.GetApps).Methods("GET")
 	r.HandleFunc("/api/tasks", service.GetTasks).Methods("GET")
 	r.HandleFunc("/api/parse-text", service.ParseText).Methods("POST")

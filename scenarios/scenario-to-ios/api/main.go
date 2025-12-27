@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,6 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 type Server struct {
@@ -43,14 +45,7 @@ func (s *Server) respondError(w http.ResponseWriter, statusCode int, errMsg stri
 	})
 }
 
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{
-		"status":    "healthy",
-		"service":   "scenario-to-ios",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	}
-	s.respondJSON(w, response)
-}
+// NOTE: handleHealth replaced by api-core/health for standardized responses
 
 func (s *Server) handleBuild(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -172,11 +167,12 @@ func main() {
 		logger: logger,
 	}
 
-	// Health check at root level (required for lifecycle system)
-	s.router.HandleFunc("/health", s.handleHealth)
-
-	// Health check (also available under API prefix)
-	s.router.HandleFunc("/api/v1/health", s.handleHealth)
+	// Health check - use api-core/health for standardized response
+	healthHandler := health.New().
+		Version("1.0.0").
+		Handler()
+	s.router.HandleFunc("/health", healthHandler)
+	s.router.HandleFunc("/api/v1/health", healthHandler)
 
 	// iOS conversion endpoints
 	s.router.HandleFunc("/api/v1/ios/build", s.handleBuild)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"context"
@@ -102,7 +103,8 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check at root level (required by orchestration)
-	router.HandleFunc("/health", healthCheck).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API routes
 	router.HandleFunc("/api/meals", getMeals).Methods("GET")
@@ -141,15 +143,6 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
-}
-
-func healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": "nutrition-tracker-api",
-		"version": "1.0.0",
-	})
 }
 
 func getMeals(w http.ResponseWriter, r *http.Request) {

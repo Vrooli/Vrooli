@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"gonum.org/v1/gonum/mat"
@@ -170,9 +171,10 @@ func (s *Server) setupRoutes() {
 	s.router.Use(s.authMiddleware)
 
 	// Public routes that should always respond for monitoring tools
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()
 	s.router.HandleFunc("/", s.handleHome).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/health", s.handleHealth).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/health", healthHandler).Methods("GET", "OPTIONS")
 
 	// API routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -239,28 +241,6 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-// Handler functions
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"service":   "Math Tools API",
-		"version":   "1.0.0",
-	}
-
-	// Check database connection
-	if s.db == nil {
-		health["database"] = "not configured"
-	} else if err := s.db.Ping(); err != nil {
-		health["status"] = "degraded"
-		health["database"] = "disconnected"
-	} else {
-		health["database"] = "connected"
-	}
-
-	s.sendJSON(w, http.StatusOK, health)
 }
 
 // handleCalculate performs mathematical calculations

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
@@ -75,7 +76,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// API routes
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.Handler()).Methods("GET")
 	router.HandleFunc("/api/conversation/start", startConversationHandler).Methods("POST")
 	router.HandleFunc("/api/conversation/message", sendMessageHandler).Methods("POST")
 	router.HandleFunc("/api/conversation/end", endConversationHandler).Methods("POST")
@@ -109,16 +110,6 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status": "healthy",
-		"service": "morning-vision-walk",
-		"timestamp": time.Now().Unix(),
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func startConversationHandler(w http.ResponseWriter, r *http.Request) {

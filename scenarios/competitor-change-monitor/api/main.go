@@ -7,16 +7,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
-
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Competitor structure
@@ -94,15 +93,6 @@ func initDB() {
 	db.SetConnMaxLifetime(5 * time.Minute)
 
 	log.Println("🎉 Database connection pool established successfully!")
-}
-
-// Health check handler
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": "competitor-change-monitor",
-	})
 }
 
 // Get all competitors
@@ -419,6 +409,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Competitor routes

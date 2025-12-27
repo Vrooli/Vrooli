@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -15,6 +13,9 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 // File represents a file in the system
@@ -258,14 +259,8 @@ func setupRouter(app *App) *gin.Engine {
 		c.Next()
 	})
 
-	// Health check
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":    "ok",
-			"timestamp": time.Now().Format(time.RFC3339),
-			"service":   "smart-file-photo-manager-api",
-		})
-	})
+	// Health check - using api-core/health for standardized responses
+	router.GET("/health", gin.WrapF(health.Handler()))
 
 	// API routes
 	api := router.Group("/api")

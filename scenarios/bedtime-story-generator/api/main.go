@@ -13,16 +13,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
-
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"github.com/jung-kurt/gofpdf"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Story struct {
@@ -115,6 +115,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Story endpoints
@@ -196,14 +197,6 @@ func runDatabaseMigration() {
 			log.Println("✅ Illustrations column added successfully")
 		}
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "healthy",
-		"service":   "bedtime-story-generator",
-		"timestamp": time.Now(),
-	})
 }
 
 func generateStoryHandler(w http.ResponseWriter, r *http.Request) {

@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 )
 
@@ -236,58 +237,6 @@ func writeTreeResponse(c *gin.Context, tree *TechTree, statusCode int) {
 	c.JSON(statusCode, response)
 }
 
-func getAppVersion() string {
-	version := os.Getenv("APP_VERSION")
-	if version == "" {
-		return "1.0.0"
-	}
-	return version
-}
-
-func buildHealthResponse(ctx context.Context) gin.H {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-
-	start := time.Now()
-	dbErr := db.PingContext(ctx)
-	latency := time.Since(start).Milliseconds()
-
-	databaseHealth := gin.H{
-		"connected":  dbErr == nil,
-		"latency_ms": float64(latency),
-		"error":      nil,
-	}
-
-	status := "healthy"
-	readiness := true
-
-	if dbErr != nil {
-		status = "degraded"
-		readiness = false
-		databaseHealth["error"] = gin.H{
-			"code":      "DATABASE_UNAVAILABLE",
-			"message":   dbErr.Error(),
-			"category":  "resource",
-			"retryable": true,
-		}
-	}
-
-	return gin.H{
-		"status":    status,
-		"service":   "tech-tree-designer-api",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"readiness": readiness,
-		"version":   getAppVersion(),
-		"dependencies": gin.H{
-			"database": databaseHealth,
-		},
-	}
-}
-
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -366,17 +315,13 @@ func main() {
 		c.Next()
 	})
 
-	// Health check endpoints compatible with lifecycle schemas
-	healthHandler := func(c *gin.Context) {
-		c.JSON(http.StatusOK, buildHealthResponse(c.Request.Context()))
-	}
-
-	r.GET("/health", healthHandler)
+	// Health check endpoint
+	r.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 
 	// API routes
 	api := r.Group("/api/v1")
 	{
-		api.GET("/health", healthHandler)
+		api.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 
 		// Tech tree routes
 		api.GET("/tech-tree", getTechTree)

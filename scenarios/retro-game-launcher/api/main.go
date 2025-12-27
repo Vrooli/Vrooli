@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -605,7 +606,7 @@ func main() {
 	)
 
 	// Health check
-	router.HandleFunc("/health", apiServer.healthCheck).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(apiServer.db), health.Critical).Handler()).Methods("GET")
 
 	// API routes
 	api := router.PathPrefix("/api").Subrouter()
@@ -658,42 +659,6 @@ func main() {
 }
 
 // getEnv removed to prevent hardcoded defaults
-
-func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	status := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"services": map[string]interface{}{
-			"database": s.checkDatabase(),
-			"ollama":   s.checkOllama(),
-		},
-	}
-
-	json.NewEncoder(w).Encode(status)
-}
-
-func (s *APIServer) checkDatabase() string {
-	if err := s.db.Ping(); err != nil {
-		return "unhealthy"
-	}
-	return "healthy"
-}
-
-func (s *APIServer) checkOllama() string {
-	resp, err := http.Get(s.ollamaURL + "/api/tags")
-	if err != nil {
-		return "unavailable"
-	}
-	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
-
-	if resp.StatusCode != http.StatusOK {
-		return "unavailable"
-	}
-	return "healthy"
-}
 
 func (s *APIServer) getGames(w http.ResponseWriter, r *http.Request) {
 	query := `

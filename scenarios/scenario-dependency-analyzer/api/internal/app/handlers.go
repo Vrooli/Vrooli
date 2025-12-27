@@ -80,36 +80,6 @@ func (h *handler) dependencyService() services.DependencyService     { return h.
 func (h *handler) deploymentService() services.DeploymentService     { return h.services.Deployment }
 func (h *handler) proposalService() services.ProposalService         { return h.services.Proposal }
 
-func (h *handler) health(c *gin.Context) {
-	dbConnected := false
-	var dbLatencyMs float64
-	if conn := h.dbConn(); conn != nil {
-		start := time.Now()
-		err := conn.Ping()
-		dbLatencyMs = float64(time.Since(start).Milliseconds())
-		dbConnected = err == nil
-	}
-
-	status := "healthy"
-	if !dbConnected {
-		status = "degraded"
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status":    status,
-		"timestamp": time.Now(),
-		"service":   "scenario-dependency-analyzer",
-		"readiness": dbConnected,
-		"dependencies": gin.H{
-			"database": gin.H{
-				"connected":  dbConnected,
-				"latency_ms": dbLatencyMs,
-				"error":      nil,
-			},
-		},
-	})
-}
-
 func (h *handler) analysisHealth(c *gin.Context) {
 	graphSvc := h.graphService()
 	if _, err := graphSvc.GenerateGraph("combined"); err != nil {

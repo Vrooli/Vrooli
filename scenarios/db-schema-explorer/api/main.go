@@ -1,9 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -17,6 +14,10 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Server struct {
@@ -104,12 +105,6 @@ type QueryExecuteResponse struct {
 	Error         string          `json:"error,omitempty"`
 }
 
-type HealthResponse struct {
-	Status    string            `json:"status"`
-	Timestamp time.Time         `json:"timestamp"`
-	Services  map[string]string `json:"services"`
-}
-
 func NewServer() (*Server, error) {
 	// Connect to database using api-core with automatic retry
 	db, err := database.Connect(context.Background(), database.Config{
@@ -136,7 +131,9 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	// Health endpoint - using standardized api-core/health
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/schema/connect", s.handleSchemaConnect).Methods("POST")
 	s.router.HandleFunc("/api/v1/schema/list", s.handleSchemaList).Methods("GET")
 	s.router.HandleFunc("/api/v1/schema/export", s.handleSchemaExport).Methods("POST")
@@ -147,31 +144,6 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/query/optimize", s.handleQueryOptimize).Methods("POST")
 	s.router.HandleFunc("/api/v1/layout/save", s.handleLayoutSave).Methods("POST")
 	s.router.HandleFunc("/api/v1/layout/list", s.handleLayoutList).Methods("GET")
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	services := make(map[string]string)
-
-	// Check database connection
-	if err := s.db.Ping(); err != nil {
-		services["database"] = "unhealthy"
-	} else {
-		services["database"] = "healthy"
-	}
-
-	// Check n8n availability (mock for now)
-	services["n8n"] = "healthy"
-	services["qdrant"] = "healthy"
-	services["ollama"] = "healthy"
-
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Services:  services,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func (s *Server) handleSchemaConnect(w http.ResponseWriter, r *http.Request) {

@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -293,6 +294,11 @@ func main() {
 	r := mux.NewRouter()
 
 	// Root health check (required by Vrooli lifecycle system)
+	// Uses api-core/health for standardized response; detailed checks at /api/v1/health/summary
+	healthHandler := health.New().
+		Version(apiVersion).
+		Check(health.DB(db), health.Critical).
+		Handler()
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API versioning
@@ -442,131 +448,9 @@ func initDB() (*sql.DB, error) {
 	})
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
-	overallStatus := "healthy"
-	var errors []map[string]any
-	readiness := true
-
-	// Schema-compliant health response structure
-	healthResponse := map[string]any{
-		"status":       overallStatus,
-		"service":      "scenario-auditor-api",
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-		"readiness":    true,
-		"version":      apiVersion,
-		"dependencies": map[string]any{},
-	}
-
-	// Check database connectivity
-	dbHealth := checkDatabaseHealth()
-	healthResponse["dependencies"].(map[string]any)["database"] = dbHealth
-	if dbHealth["status"] != "healthy" {
-		overallStatus = "degraded"
-		if dbHealth["status"] == "unhealthy" {
-			readiness = false
-			overallStatus = "unhealthy"
-		}
-		if dbHealth["error"] != nil {
-			errors = append(errors, dbHealth["error"].(map[string]any))
-		}
-	}
-
-	// Check scanner functionality
-	scannerHealth := checkScannerHealth()
-	healthResponse["dependencies"].(map[string]any)["scanner"] = scannerHealth
-	if scannerHealth["status"] != "healthy" {
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded"
-		}
-		if scannerHealth["error"] != nil {
-			errors = append(errors, scannerHealth["error"].(map[string]any))
-		}
-	}
-
-	// Check filesystem access (scenarios directory)
-	fsHealth := checkFilesystemHealth()
-	healthResponse["dependencies"].(map[string]any)["filesystem"] = fsHealth
-	if fsHealth["status"] != "healthy" {
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded"
-		}
-		if fsHealth["error"] != nil {
-			errors = append(errors, fsHealth["error"].(map[string]any))
-		}
-	}
-
-	// Check optional Ollama AI service
-	ollamaHealth := checkOllamaHealth()
-	healthResponse["dependencies"].(map[string]any)["ollama"] = ollamaHealth
-	if ollamaHealth["status"] == "unhealthy" {
-		// Ollama is optional, so only degrade if configured but failing
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded"
-		}
-		if ollamaHealth["error"] != nil {
-			errors = append(errors, ollamaHealth["error"].(map[string]any))
-		}
-	}
-
-	// Check optional Qdrant vector database
-	qdrantHealth := checkQdrantHealth()
-	healthResponse["dependencies"].(map[string]any)["qdrant"] = qdrantHealth
-	if qdrantHealth["status"] == "unhealthy" {
-		// Qdrant is optional, so only degrade if configured but failing
-		if overallStatus != "unhealthy" {
-			overallStatus = "degraded"
-		}
-		if qdrantHealth["error"] != nil {
-			errors = append(errors, qdrantHealth["error"].(map[string]any))
-		}
-	}
-
-	// Update final status
-	healthResponse["status"] = overallStatus
-	healthResponse["readiness"] = readiness
-
-	// Add errors if any
-	if len(errors) > 0 {
-		healthResponse["errors"] = errors
-	}
-
-	// Add metrics
-	healthResponse["metrics"] = map[string]any{
-		"total_dependencies":   5,
-		"healthy_dependencies": countHealthyDependencies(healthResponse["dependencies"].(map[string]any)),
-		"response_time_ms":     time.Since(start).Milliseconds(),
-	}
-
-	// Add scenario-auditor specific stats using Vrooli CLI for scenario count
-	var scenarioCount, vulnerabilityCount, endpointCount int
-	vrooliData, err := getVrooliScenarios()
-	if err != nil {
-		// Fallback to database if CLI fails
-		db.QueryRow("SELECT COUNT(*) FROM scenarios WHERE status IN ('active', 'available')").Scan(&scenarioCount)
-	} else {
-		scenarioCount = vrooliData.Summary.TotalScenarios
-	}
-
-	db.QueryRow("SELECT COUNT(*) FROM vulnerability_scans WHERE status = 'open'").Scan(&vulnerabilityCount)
-	db.QueryRow("SELECT COUNT(*) FROM api_endpoints").Scan(&endpointCount)
-
-	healthResponse["scenario_auditor_stats"] = map[string]any{
-		"total_scenarios":      scenarioCount,
-		"open_vulnerabilities": vulnerabilityCount,
-		"tracked_endpoints":    endpointCount,
-	}
-
-	// Return appropriate HTTP status
-	statusCode := http.StatusOK
-	if overallStatus == "unhealthy" {
-		statusCode = http.StatusServiceUnavailable
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(healthResponse)
-}
+// NOTE: The old healthHandler with detailed dependency checks has been replaced by
+// api-core/health for standardized responses. For detailed health including scanner,
+// filesystem, ollama, and qdrant checks, use the /api/v1/health/summary endpoint.
 
 // Health check helper methods
 func checkDatabaseHealth() map[string]any {

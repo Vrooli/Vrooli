@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -143,7 +144,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 
 	// Pattern routes (static paths must come before dynamic {id} routes)
 	router.HandleFunc("/api/v1/patterns/search", searchPatternsHandler).Methods("GET")
@@ -180,27 +181,6 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	// Check database connection
-	err := db.Ping()
-	status := "healthy"
-	if err != nil {
-		status = "unhealthy"
-	}
-
-	response := map[string]interface{}{
-		"status":   status,
-		"service":  "scalable-app-cookbook-api",
-		"database": err == nil,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}
-	json.NewEncoder(w).Encode(response)
 }
 
 func searchPatternsHandler(w http.ResponseWriter, r *http.Request) {

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -149,7 +150,7 @@ func (app *App) setupRoutes() *mux.Router {
 	api.HandleFunc("/projects/{id}", app.deleteProject).Methods("DELETE")
 	
 	// Health check
-	r.HandleFunc("/health", app.healthCheck).Methods("GET")
+	r.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(app.db), health.Critical).Handler()).Methods("GET")
 	
 	return r
 }
@@ -166,25 +167,6 @@ func (app *App) corsMiddleware(next http.Handler) http.Handler {
 		}
 		
 		next.ServeHTTP(w, r)
-	})
-}
-
-func (app *App) healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	
-	// Check database connection
-	if err := app.db.Ping(); err != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{
-			"status": "unhealthy",
-			"error":  err.Error(),
-		})
-		return
-	}
-	
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
-		"version": "1.0.0",
 	})
 }
 

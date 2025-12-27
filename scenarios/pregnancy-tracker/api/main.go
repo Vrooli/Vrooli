@@ -18,6 +18,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -202,7 +203,7 @@ func initDB() {
 
 func setupRoutes() {
 	// Health endpoints
-	http.HandleFunc("/health", handleHealth)
+	http.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler())
 	http.HandleFunc("/api/v1/status", handleStatus)
 	http.HandleFunc("/api/v1/health/encryption", handleEncryptionStatus)
 	http.HandleFunc("/api/v1/auth/status", handleAuthStatus)
@@ -306,17 +307,6 @@ func verifyEncryption() {
 	fmt.Println("✅ Encryption verified: AES-256-GCM enabled")
 	fmt.Printf("   Privacy Mode: %s\n", privacyMode)
 	fmt.Printf("   Multi-Tenant: %s\n", multiTenant)
-}
-
-// Health handlers
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	enableCORS(w)
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "healthy",
-		"service": "pregnancy-tracker",
-		"privacy": privacyMode,
-	})
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
@@ -192,6 +193,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Notes endpoints
@@ -253,64 +255,6 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Check database connectivity
-	dbConnected := false
-	var dbLatency float64
-	var dbError map[string]interface{}
-
-	if db != nil {
-		start := time.Now()
-		err := db.Ping()
-		dbLatency = float64(time.Since(start).Milliseconds())
-
-		if err == nil {
-			dbConnected = true
-		} else {
-			dbError = map[string]interface{}{
-				"code":      "CONNECTION_FAILED",
-				"message":   "Database ping failed",
-				"category":  "resource",
-				"retryable": true,
-			}
-		}
-	} else {
-		dbError = map[string]interface{}{
-			"code":      "NOT_INITIALIZED",
-			"message":   "Database connection not initialized",
-			"category":  "configuration",
-			"retryable": false,
-		}
-	}
-
-	// Determine overall health status
-	status := "healthy"
-	readiness := true
-	if !dbConnected {
-		status = "degraded"
-		readiness = false
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "smartnotes-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": readiness,
-		"dependencies": map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected":  dbConnected,
-				"latency_ms": dbLatency,
-				"error":      dbError,
-			},
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func getNotesHandler(w http.ResponseWriter, r *http.Request) {

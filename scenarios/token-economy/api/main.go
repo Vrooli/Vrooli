@@ -18,6 +18,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -180,8 +181,8 @@ func main() {
 	router := mux.NewRouter()
 	
 	// Health check
-	router.HandleFunc("/health", healthHandler).Methods("GET")
-	router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
+	router.HandleFunc("/api/v1/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 	
 	// Token endpoints
 	router.HandleFunc("/api/v1/tokens/create", createTokenHandler).Methods("POST")
@@ -241,20 +242,6 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	status := map[string]interface{}{
-		"status": "healthy",
-		"timestamp": time.Now().Unix(),
-		"services": map[string]bool{
-			"database": db.Ping() == nil,
-			"redis": rdb != nil && rdb.Ping(ctx).Err() == nil,
-		},
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
 }
 
 func createTokenHandler(w http.ResponseWriter, r *http.Request) {

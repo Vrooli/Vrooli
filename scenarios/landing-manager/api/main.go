@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -59,8 +60,9 @@ func (s *Server) setupRoutes() {
 	s.router.Use(handlers.RequestSizeLimitMiddleware)
 
 	// Health endpoints
-	s.router.HandleFunc("/health", s.handler.HandleHealth).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", s.handler.HandleHealth).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 
 	// Template management
 	s.router.HandleFunc("/api/v1/templates", s.handler.HandleTemplateList).Methods("GET")

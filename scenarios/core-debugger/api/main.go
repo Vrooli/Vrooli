@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,6 +14,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Types
@@ -115,7 +116,9 @@ func loadComponents() {
 }
 
 // Handlers
-func healthHandler(w http.ResponseWriter, r *http.Request) {
+
+// componentHealthHandler checks all registered components (scenario-specific health)
+func componentHealthHandler(w http.ResponseWriter, r *http.Request) {
 	health := checkAllComponents()
 	
 	// Count active issues
@@ -410,16 +413,18 @@ func main() {
 
 	router := mux.NewRouter()
 
+	// Health check (standardized)
+	healthHandler := health.Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
+
 	// API routes
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/health", healthHandler).Methods("GET")
+	api.HandleFunc("/component-health", componentHealthHandler).Methods("GET")
 	api.HandleFunc("/issues", listIssuesHandler).Methods("GET")
 	api.HandleFunc("/issues", reportIssueHandler).Methods("POST")
 	api.HandleFunc("/issues/{id}/workarounds", getWorkaroundsHandler).Methods("GET")
 	api.HandleFunc("/issues/{id}/analyze", analyzeIssueHandler).Methods("POST")
-
-	// Health check at root
-	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Apply CORS
 	handler := corsMiddleware(router)

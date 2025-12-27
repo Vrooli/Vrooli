@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,6 +9,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -117,71 +117,6 @@ type SearchResult struct {
 	Score        float64 `json:"score,omitempty"`
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	dependencies := make(map[string]interface{})
-	overallStatus := "healthy"
-
-	// Check PostgreSQL with timeout
-	postgresStart := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "resource-postgres", "status", "--json")
-	postgresHealthy := cmd.Run() == nil
-	postgresLatency := time.Since(postgresStart).Milliseconds()
-
-	postgresHealth := map[string]interface{}{
-		"connected": postgresHealthy,
-		"latency_ms": postgresLatency,
-		"error": nil,
-	}
-	if !postgresHealthy {
-		postgresHealth["error"] = map[string]interface{}{
-			"code": "CONNECTION_FAILED",
-			"message": "Failed to connect to PostgreSQL",
-			"category": "resource",
-			"retryable": true,
-		}
-		overallStatus = "degraded"
-	}
-	dependencies["database"] = postgresHealth
-
-	// Check Ollama with timeout (lightweight check)
-	// Note: resource-ollama status is slow (1.4s), so we use a fast ping check instead
-	ollamaCtx, ollamaCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer ollamaCancel()
-	cmd = exec.CommandContext(ollamaCtx, "curl", "-sf", "http://localhost:11434/api/tags")
-	ollamaHealthy := cmd.Run() == nil
-
-	ollamaHealth := map[string]interface{}{
-		"name": "ollama",
-		"connected": ollamaHealthy,
-		"error": nil,
-	}
-	if !ollamaHealthy {
-		ollamaHealth["error"] = map[string]interface{}{
-			"code": "CONNECTION_FAILED",
-			"message": "Failed to connect to Ollama",
-			"category": "resource",
-			"retryable": true,
-		}
-		overallStatus = "degraded"
-	}
-
-	externalServices := []interface{}{ollamaHealth}
-	dependencies["external_services"] = externalServices
-
-	response := HealthResponse{
-		Status:       overallStatus,
-		Service:      "privacy-terms-generator-api",
-		Timestamp:    time.Now().Format(time.RFC3339),
-		Readiness:    true,
-		Version:      "1.0.0",
-		Dependencies: dependencies,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
 
 func generateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -373,8 +308,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Health check at root level (required by orchestration)
-	http.HandleFunc("/health", corsMiddleware(healthHandler))
+	// Health check using api-core/health for standardized response format
+	// No database - this scenario uses external CLI tools
+	http.HandleFunc("/health", corsMiddleware(health.Handler()))
 
 	// API endpoints
 	http.HandleFunc("/api/v1/legal/generate", corsMiddleware(generateHandler))

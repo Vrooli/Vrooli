@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"fmt"
 	"log"
@@ -149,7 +150,7 @@ func main() {
 	r.Use(corsMiddleware)
 
 	// Health endpoint (outside versioning for simplicity)
-	r.HandleFunc("/health", healthHandler(startTime)).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// API v1 routes
 	v1 := r.PathPrefix("/api/v1").Subrouter()

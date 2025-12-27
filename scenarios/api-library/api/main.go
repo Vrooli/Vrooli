@@ -1,9 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
 	"bytes"
 	"context"
 	"crypto/md5"
@@ -31,6 +28,10 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // Data models
@@ -1598,6 +1599,7 @@ func setupRouter() *mux.Router {
 	router := mux.NewRouter()
 
 	// Health check
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API v1 routes with rate limiting
@@ -1688,17 +1690,6 @@ func setupRouter() *mux.Router {
 }
 
 // Handlers
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "api-library",
-		"timestamp": time.Now().Unix(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
 
 func searchAPIsHandler(w http.ResponseWriter, r *http.Request) {
 	var searchReq SearchRequest

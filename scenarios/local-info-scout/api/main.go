@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"encoding/json"
 	"fmt"
@@ -10,13 +11,6 @@ import (
 	"strings"
 	"time"
 )
-
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Service   string    `json:"service"`
-	Timestamp time.Time `json:"timestamp"`
-	Readiness bool      `json:"readiness"`
-}
 
 type SearchRequest struct {
 	Query      string  `json:"query"`
@@ -46,18 +40,6 @@ type Place struct {
 type SearchResponse struct {
 	Places  []Place  `json:"places"`
 	Sources []string `json:"sources"`
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:    "healthy",
-		Service:   "local-info-scout",
-		Timestamp: time.Now(),
-		Readiness: true,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func searchHandler(w http.ResponseWriter, r *http.Request) {
@@ -817,7 +799,7 @@ func main() {
 		mainLogger.Info("Personalized recommendations enabled", nil)
 	}
 
-	http.HandleFunc("/health", enableCORS(healthHandler))
+	http.HandleFunc("/health", enableCORS(health.Handler()))
 	http.HandleFunc("/api/search", enableCORS(searchHandler))
 	http.HandleFunc("/api/categories", enableCORS(categoriesHandler))
 	http.HandleFunc("/api/places/", enableCORS(placeDetailsHandler))

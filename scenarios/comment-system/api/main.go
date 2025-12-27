@@ -21,6 +21,7 @@ import (
 	"github.com/russross/blackfriday/v2"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 )
 
@@ -220,8 +221,13 @@ func (app *App) setupRouter() *gin.Engine {
 		c.Next()
 	})
 
-	// Health endpoints
-	router.GET("/health", app.healthCheck)
+	// Health endpoint using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(app.db.conn), health.Critical).
+		Handler()
+	router.GET("/health", gin.WrapF(healthHandler))
+	// Keep postgres-specific health check for detailed diagnostics
 	router.GET("/health/postgres", app.postgresHealthCheck)
 
 	// API routes
@@ -442,35 +448,6 @@ func (db *Database) CreateDefaultConfig(scenarioName string) (*ScenarioConfig, e
 }
 
 // HTTP Handlers
-func (app *App) healthCheck(c *gin.Context) {
-	// Test database connection
-	dbStatus := "healthy"
-	if err := app.db.conn.Ping(); err != nil {
-		dbStatus = "unhealthy: " + err.Error()
-	}
-
-	// Test external dependencies
-	dependencies := map[string]string{
-		"session_authenticator": app.testSessionAuth(),
-		"notification_hub":      app.testNotificationHub(),
-	}
-
-	response := HealthResponse{
-		Status:       "healthy",
-		Timestamp:    time.Now(),
-		Version:      "1.0.0",
-		Database:     dbStatus,
-		Dependencies: dependencies,
-	}
-
-	if dbStatus != "healthy" {
-		response.Status = "unhealthy"
-		c.JSON(http.StatusServiceUnavailable, response)
-		return
-	}
-
-	c.JSON(http.StatusOK, response)
-}
 
 func (app *App) postgresHealthCheck(c *gin.Context) {
 	if err := app.db.conn.Ping(); err != nil {

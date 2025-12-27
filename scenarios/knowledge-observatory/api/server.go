@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,6 +18,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 
 	"knowledge-observatory/internal/adapters/embedder"
 	"knowledge-observatory/internal/adapters/jobstore"
@@ -163,8 +163,12 @@ func (s *Server) setupServices() {
 
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
-	// Health endpoint (infrastructure health check)
-	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	// Health endpoint using api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Critical).
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Semantic search endpoint [REQ:KO-SS-001]
 	s.router.HandleFunc("/api/v1/knowledge/search", s.handleSearch).Methods("POST")
@@ -231,32 +235,6 @@ func (s *Server) Start() error {
 	return nil
 }
 
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-	dbStatus := "connected"
-
-	if s.db == nil {
-		status = "unhealthy"
-		dbStatus = "disconnected"
-	} else if err := s.db.PingContext(r.Context()); err != nil {
-		status = "unhealthy"
-		dbStatus = "disconnected"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "Knowledge Observatory API",
-		"version":   "1.0.0",
-		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{
-			"database": dbStatus,
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
 
 func (s *Server) respondError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")

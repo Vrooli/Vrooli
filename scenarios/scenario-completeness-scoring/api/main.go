@@ -23,11 +23,12 @@ import (
 	"scenario-completeness-scoring/pkg/collectors"
 	"scenario-completeness-scoring/pkg/config"
 	"scenario-completeness-scoring/pkg/handlers"
-	"scenario-completeness-scoring/pkg/health"
+	pkghealth "scenario-completeness-scoring/pkg/health"
 	"scenario-completeness-scoring/pkg/history"
 
 	gorillahndlrs "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -81,7 +82,7 @@ func NewServer() (*Server, error) {
 		cfg.VrooliRoot,
 		collector,
 		cbRegistry,
-		health.NewTracker(cbRegistry),
+		pkghealth.NewTracker(cbRegistry),
 		configLoader,
 		historyDB,
 		historyRepo,
@@ -111,8 +112,12 @@ func (s *Server) setupRoutes() {
 	// ─────────────────────────────────────────────────────────────────────
 	// Health & Infrastructure (basic service health)
 	// ─────────────────────────────────────────────────────────────────────
-	s.router.HandleFunc("/health", h.HandleHealth).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/health", h.HandleHealth).Methods("GET", "OPTIONS")
+	// Use api-core/health for standardized response format
+	healthHandler := health.New().
+		Version("1.0.0").
+		Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET", "OPTIONS")
 
 	// ─────────────────────────────────────────────────────────────────────
 	// Scores Domain (core business: calculating & retrieving scores)

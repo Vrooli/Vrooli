@@ -7,51 +7,6 @@ import (
 	"time"
 )
 
-// healthHandler handles health check requests
-func (s *ApiServer) healthHandler(w http.ResponseWriter, r *http.Request) {
-	// Check database connectivity
-	dbConnected := true
-	var dbLatency *float64
-	if s.db != nil {
-		start := time.Now()
-		err := s.db.Ping()
-		if err == nil {
-			latency := float64(time.Since(start).Milliseconds())
-			dbLatency = &latency
-		} else {
-			dbConnected = false
-		}
-	}
-
-	dependencies := map[string]interface{}{
-		"database": map[string]interface{}{
-			"connected":  dbConnected,
-			"latency_ms": dbLatency,
-			"error":      nil,
-		},
-	}
-
-	response := HealthResponse{
-		Status:       "healthy",
-		Service:      "idea-generator-api",
-		Timestamp:    time.Now(),
-		Readiness:    dbConnected,
-		Version:      "1.0.0",
-		Dependencies: dependencies,
-	}
-
-	if !dbConnected {
-		response.Status = "degraded"
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		// Can't use http.Error after headers sent, just log
-		// Note: logging package imported as "log"
-		log.Printf("Failed to encode health response: %v", err)
-	}
-}
-
 // statusHandler handles service status requests
 func (s *ApiServer) statusHandler(w http.ResponseWriter, r *http.Request) {
 	status := map[string]interface{}{

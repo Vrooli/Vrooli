@@ -12,14 +12,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
-
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type App struct {
@@ -131,12 +131,13 @@ func main() {
 	// Setup routes
 	router := mux.NewRouter()
 
-	// Root-level health endpoint for ecosystem monitoring
-	router.HandleFunc("/health", app.HealthCheck).Methods("GET")
+	// Health endpoints - using standardized api-core/health
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(app.DB), health.Critical).Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API routes
 	api := router.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/health", app.HealthCheck).Methods("GET")
+	api.HandleFunc("/health", healthHandler).Methods("GET")
 	api.HandleFunc("/lists", app.GetLists).Methods("GET")
 	api.HandleFunc("/lists", app.CreateList).Methods("POST")
 	api.HandleFunc("/lists/{id}", app.GetList).Methods("GET")
@@ -171,45 +172,6 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
-}
-
-// getEnv removed to prevent hardcoded defaults
-
-func (app *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	// Check database connectivity
-	dbConnected := true
-	var dbLatency float64
-	dbStart := time.Now()
-	err := app.DB.Ping()
-	if err == nil {
-		dbLatency = float64(time.Since(dbStart).Milliseconds())
-	} else {
-		dbConnected = false
-	}
-
-	// Build health response per schema
-	status := "healthy"
-	if !dbConnected {
-		status = "degraded"
-	}
-
-	healthResponse := map[string]interface{}{
-		"status":    status,
-		"service":   "elo-swipe-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": dbConnected,
-		"version":   "1.0.0",
-		"dependencies": map[string]interface{}{
-			"database": map[string]interface{}{
-				"connected":  dbConnected,
-				"latency_ms": dbLatency,
-				"error":      nil,
-			},
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(healthResponse)
 }
 
 func (app *App) GetLists(w http.ResponseWriter, r *http.Request) {

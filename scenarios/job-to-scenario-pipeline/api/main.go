@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -103,7 +104,7 @@ func main() {
 	r := mux.NewRouter()
 
 	// Health check
-	r.HandleFunc("/health", healthHandler).Methods("GET")
+	r.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// Job endpoints
 	r.HandleFunc("/api/v1/jobs", listJobsHandler).Methods("GET")
@@ -139,14 +140,6 @@ func corsMiddleware(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, r)
-	})
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "healthy",
-		"service": "job-to-scenario-pipeline",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
 }
 

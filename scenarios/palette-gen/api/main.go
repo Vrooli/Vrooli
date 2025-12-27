@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"bytes"
 	"context"
@@ -138,7 +139,7 @@ func main() {
 	// Initialize Redis if available
 	initRedis()
 
-	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/health", health.Handler())
 	http.HandleFunc("/generate", generateHandler)
 	http.HandleFunc("/suggest", suggestHandler)
 	http.HandleFunc("/export", exportHandler)
@@ -191,48 +192,6 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "palette-gen-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": true,
-	}
-
-	// Check Redis connectivity if enabled
-	if redisClient != nil {
-		startTime := time.Now()
-		_, err := redisClient.Ping(ctx).Result()
-		latency := time.Since(startTime).Milliseconds()
-
-		redisHealth := map[string]interface{}{
-			"connected": err == nil,
-		}
-
-		if err == nil {
-			redisHealth["latency_ms"] = latency
-			redisHealth["error"] = nil
-		} else {
-			redisHealth["latency_ms"] = nil
-			redisHealth["error"] = map[string]interface{}{
-				"code":      "CONNECTION_FAILED",
-				"message":   err.Error(),
-				"category":  "network",
-				"retryable": true,
-			}
-			health["status"] = "degraded"
-		}
-
-		health["dependencies"] = map[string]interface{}{
-			"redis": redisHealth,
-		}
-	}
-
-	json.NewEncoder(w).Encode(health)
 }
 
 func generateHandler(w http.ResponseWriter, r *http.Request) {

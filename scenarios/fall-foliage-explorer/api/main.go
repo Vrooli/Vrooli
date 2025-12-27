@@ -14,6 +14,7 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 )
@@ -95,31 +96,6 @@ func initDB() error {
 	}
 	log.Println("Database connection established")
 	return nil
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Check database connection
-	dbStatus := "healthy"
-	if db != nil {
-		if err := db.Ping(); err != nil {
-			dbStatus = "unhealthy"
-		}
-	} else {
-		dbStatus = "not_connected"
-	}
-
-	response := Response{
-		Status:  "healthy",
-		Message: "Fall Foliage Explorer API is running",
-		Data: map[string]interface{}{
-			"database": dbStatus,
-			"version":  "1.0.0",
-			"uptime":   time.Now().Unix(),
-		},
-	}
-	json.NewEncoder(w).Encode(response)
 }
 
 func regionsHandler(w http.ResponseWriter, r *http.Request) {
@@ -960,7 +936,9 @@ func main() {
 
 	// Register routes
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", enableCORS(healthHandler))
+	// Health endpoint - using standardized api-core/health
+	stdHealthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
+	mux.HandleFunc("/health", enableCORS(stdHealthHandler))
 	mux.HandleFunc("/api/regions", enableCORS(regionsHandler))
 	mux.HandleFunc("/api/foliage", enableCORS(foliageHandler))
 	mux.HandleFunc("/api/predict", enableCORS(predictHandler))

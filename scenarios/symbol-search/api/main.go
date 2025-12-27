@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -125,7 +126,7 @@ func main() {
 	})
 
 	// Health check endpoint
-	router.GET("/health", api.healthCheck)
+	router.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(api.db), health.Critical).Handler()))
 
 	// API routes
 	apiGroup := router.Group("/api")
@@ -146,35 +147,6 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
-}
-
-func (api *API) healthCheck(c *gin.Context) {
-	// Check database connection
-	if err := api.db.Ping(); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "unhealthy",
-			"error":  "database connection failed",
-		})
-		return
-	}
-
-	// Check character table exists and has data
-	var count int
-	err := api.db.QueryRow("SELECT COUNT(*) FROM characters LIMIT 1").Scan(&count)
-	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "unhealthy",
-			"error":  "character table not accessible",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status":            "healthy",
-		"timestamp":         time.Now().UTC(),
-		"database":          "connected",
-		"characters_loaded": count > 0,
-	})
 }
 
 func (api *API) searchCharacters(c *gin.Context) {

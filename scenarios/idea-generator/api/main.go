@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -152,7 +153,8 @@ func main() {
 	api.HandleFunc("/workflows", apiServer.workflowsHandler).Methods("GET")
 
 	// Health and status endpoints at root for standard compliance
-	r.HandleFunc("/health", apiServer.healthHandler).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(apiServer.db), health.Critical).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/status", apiServer.statusHandler).Methods("GET")
 
 	// Enable CORS

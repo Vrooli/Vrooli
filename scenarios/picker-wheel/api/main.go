@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -42,14 +43,6 @@ type SpinResult struct {
 	WheelID   string    `json:"wheel_id"`
 	SessionID string    `json:"session_id"`
 	Timestamp time.Time `json:"timestamp"`
-}
-
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Service   string    `json:"service"`
-	Version   string    `json:"version"`
-	Timestamp time.Time `json:"timestamp"`
-	Readiness bool      `json:"readiness"`
 }
 
 var (
@@ -96,6 +89,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// Health check
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API endpoints
@@ -133,18 +127,6 @@ func main() {
 }
 
 // getEnv removed to prevent hardcoded defaults
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	response := HealthResponse{
-		Status:    "healthy",
-		Service:   "picker-wheel-api",
-		Version:   "1.0.0",
-		Timestamp: time.Now(),
-		Readiness: true,
-	}
-	json.NewEncoder(w).Encode(response)
-}
 
 func getWheelsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

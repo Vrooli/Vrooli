@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"log/slog"
 	"net/http"
@@ -48,7 +49,7 @@ func main() {
 	router.HandleFunc("/api/veganize", veganizeRecipe).Methods("POST")
 	router.HandleFunc("/api/products", getCommonProducts).Methods("GET")
 	router.HandleFunc("/api/nutrition", getNutrition).Methods("GET")
-	router.HandleFunc("/health", healthCheck).Methods("GET")
+	router.HandleFunc("/health", health.Handler()).Methods("GET")
 
 	// Enable CORS
 	c := cors.New(cors.Options{

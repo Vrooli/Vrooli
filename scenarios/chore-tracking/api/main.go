@@ -11,13 +11,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
-
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 type Chore struct {
@@ -394,16 +394,6 @@ func redeemReward(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Health check
-func healthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "healthy",
-		"service":   "chore-tracking-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-	})
-}
-
 // generateScheduleHandler generates a weekly schedule for a user
 func generateScheduleHandler(w http.ResponseWriter, r *http.Request) {
 	var req ScheduleRequest
@@ -491,7 +481,8 @@ func main() {
 	router := mux.NewRouter()
 
 	// API routes
-	router.HandleFunc("/health", healthCheck).Methods("GET")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Chore routes
 	router.HandleFunc("/api/chores", getChores).Methods("GET")

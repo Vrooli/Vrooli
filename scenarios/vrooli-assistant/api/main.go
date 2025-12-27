@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
@@ -114,8 +115,8 @@ func newRouter(staticHandler http.Handler) *mux.Router {
 	router := mux.NewRouter()
 
 	// Health check - both paths for compatibility
-	router.HandleFunc("/health", healthHandler).Methods("GET")
-	router.HandleFunc("/api/health", healthHandler).Methods("GET")
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
+	router.HandleFunc("/api/health", health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 	router.HandleFunc("/api/v1/assistant/status", statusHandler).Methods("GET")
 
 	// Issue capture
@@ -254,11 +255,6 @@ func createTables() {
 			log.Printf("Failed to create table: %v", err)
 		}
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {

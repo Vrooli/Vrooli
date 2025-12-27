@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"encoding/base64"
 	"encoding/json"
@@ -8,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
 )
@@ -62,7 +62,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/health", health.Handler())
 	http.HandleFunc("/generate", generateHandler)
 	http.HandleFunc("/batch", batchHandler)
 	http.HandleFunc("/formats", formatsHandler)
@@ -72,20 +72,6 @@ func main() {
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("[ERROR] service=qr-code-generator action=start_failed error=%v", err)
 	}
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "healthy",
-		"service": "qr-code-generator",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"features": map[string]bool{
-			"generate": true,
-			"batch": true,
-			"formats": true,
-		},
-	})
 }
 
 func generateHandler(w http.ResponseWriter, r *http.Request) {

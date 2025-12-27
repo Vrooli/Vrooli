@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
@@ -114,28 +115,6 @@ func NewBookTalkService(db *sql.DB, n8nURL, qdrantURL, dataDir string) *BookTalk
 		dataDir:    dataDir,
 		logger:     log.New(os.Stdout, "[book-talk-api] ", log.LstdFlags|log.Lshortfile),
 	}
-}
-
-// Health endpoint
-func (s *BookTalkService) Health(w http.ResponseWriter, r *http.Request) {
-	// Test database connection
-	if s.db != nil {
-		if err := s.db.Ping(); err != nil {
-			s.httpError(w, "Database connection failed", http.StatusServiceUnavailable, err)
-			return
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":         "healthy",
-		"service":        serviceName,
-		"version":        apiVersion,
-		"timestamp":      time.Now().UTC(),
-		"data_directory": s.dataDir,
-		"n8n_url":        s.n8nBaseURL,
-		"qdrant_url":     s.qdrantURL,
-	})
 }
 
 // UploadBook handles book file uploads and processing
@@ -893,7 +872,7 @@ func main() {
 	r := mux.NewRouter()
 
 	// Health endpoint
-	r.HandleFunc("/health", service.Health).Methods("GET")
+	r.HandleFunc("/health", health.New().Version(apiVersion).Check(health.DB(db), health.Critical).Handler()).Methods("GET")
 
 	// Book management
 	r.HandleFunc("/api/v1/books", service.GetBooks).Methods("GET")
