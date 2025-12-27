@@ -10,6 +10,8 @@ import {
   Settings2,
   Cpu,
   Database,
+  MessageCircle,
+  AlignLeft,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -20,10 +22,14 @@ import { useTools } from "../../hooks/useTools";
 import type { Model } from "../../lib/api";
 
 export type Theme = "dark" | "light";
+export type ViewMode = "bubble" | "compact";
 export type SettingsTab = "general" | "ai" | "data";
 
 // Default model used when none is set
 export const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
+
+// Default view mode
+export const DEFAULT_VIEW_MODE: ViewMode = "bubble";
 
 // Get/set default model from localStorage
 export function getDefaultModel(): string {
@@ -39,6 +45,23 @@ export function setDefaultModel(modelId: string): void {
   }
 }
 
+// Get/set view mode from localStorage
+export function getViewMode(): ViewMode {
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem("viewMode");
+    if (stored === "bubble" || stored === "compact") {
+      return stored;
+    }
+  }
+  return DEFAULT_VIEW_MODE;
+}
+
+export function setViewMode(mode: ViewMode): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("viewMode", mode);
+  }
+}
+
 interface SettingsProps {
   open: boolean;
   onClose: () => void;
@@ -47,6 +70,8 @@ interface SettingsProps {
   onShowKeyboardShortcuts: () => void;
   onShowUsageStats: () => void;
   models: Model[];
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
 export function Settings({
@@ -57,6 +82,8 @@ export function Settings({
   onShowKeyboardShortcuts,
   onShowUsageStats,
   models,
+  viewMode,
+  onViewModeChange,
 }: SettingsProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [theme, setTheme] = useState<Theme>(() => {
@@ -179,6 +206,43 @@ export function Settings({
                   <span className="text-sm">Light</span>
                 </button>
               </div>
+            </section>
+
+            {/* Chat View Section */}
+            <section>
+              <h3 className="text-sm font-medium text-slate-300 mb-3">Chat View</h3>
+              <p className="text-xs text-slate-500 mb-3">
+                Choose how messages are displayed in conversations
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onViewModeChange("bubble")}
+                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
+                    viewMode === "bubble"
+                      ? "bg-indigo-500/20 border-indigo-500 text-white"
+                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
+                  }`}
+                  data-testid="view-mode-bubble-button"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  <span className="text-sm">Bubble</span>
+                </button>
+                <button
+                  onClick={() => onViewModeChange("compact")}
+                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
+                    viewMode === "compact"
+                      ? "bg-indigo-500/20 border-indigo-500 text-white"
+                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
+                  }`}
+                  data-testid="view-mode-compact-button"
+                >
+                  <AlignLeft className="h-4 w-4" />
+                  <span className="text-sm">Compact</span>
+                </button>
+              </div>
+              <p className="text-xs text-slate-600 mt-2">
+                Compact mode uses full width, ideal for code-heavy conversations
+              </p>
             </section>
 
             {/* Keyboard Shortcuts Section */}

@@ -8,7 +8,7 @@ import { ChatList } from "./components/chat/ChatList";
 import { ChatView } from "./components/chat/ChatView";
 import { EmptyState } from "./components/chat/EmptyState";
 import { LabelManager } from "./components/labels/LabelManager";
-import { Settings } from "./components/settings/Settings";
+import { Settings, getViewMode, setViewMode, type ViewMode } from "./components/settings/Settings";
 import { KeyboardShortcuts } from "./components/settings/KeyboardShortcuts";
 import { UsageStats } from "./components/settings/UsageStats";
 import { Button } from "./components/ui/button";
@@ -20,6 +20,7 @@ export default function App() {
   const [showUsageStats, setShowUsageStats] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatListOpen, setChatListOpen] = useState(true);
+  const [viewMode, setViewModeState] = useState<ViewMode>(getViewMode);
   const searchInputRef = useRef<HTMLInputElement>(null);
   // Focused chat index for j/k navigation (separate from selected chat)
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
@@ -143,6 +144,11 @@ export default function App() {
 
   const handleShowUsageStats = useCallback(() => {
     setShowUsageStats(true);
+  }, []);
+
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewModeState(mode);
+    setViewMode(mode);
   }, []);
 
   const handleDeselectChat = useCallback(() => {
@@ -457,6 +463,7 @@ export default function App() {
             onDeleteChat={() => deleteChat(selectedChatId)}
             onAssignLabel={(labelId) => assignLabel({ chatId: selectedChatId, labelId })}
             onRemoveLabel={(labelId) => removeLabel({ chatId: selectedChatId, labelId })}
+            viewMode={viewMode}
           />
         ) : (
           <EmptyState onStartChat={createChatWithMessage} isCreating={isCreatingChat} />
@@ -481,6 +488,8 @@ export default function App() {
         onShowKeyboardShortcuts={handleShowKeyboardShortcuts}
         onShowUsageStats={handleShowUsageStats}
         models={models}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
       />
 
       {/* Keyboard Shortcuts Dialog */}

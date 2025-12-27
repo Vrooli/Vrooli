@@ -2,6 +2,7 @@ import { useEffect, useRef, forwardRef } from "react";
 import { Loader2, User, Bot, Wrench, CheckCircle2, XCircle, Play } from "lucide-react";
 import type { Message, ToolCall } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
+import type { ViewMode } from "../settings/Settings";
 
 interface MessageListProps {
   messages: Message[];
@@ -10,6 +11,7 @@ interface MessageListProps {
   activeToolCalls?: ActiveToolCall[];
   scrollToMessageId?: string | null;
   onScrollComplete?: () => void;
+  viewMode?: ViewMode;
 }
 
 export function MessageList({
@@ -19,6 +21,7 @@ export function MessageList({
   activeToolCalls = [],
   scrollToMessageId,
   onScrollComplete,
+  viewMode = "bubble",
 }: MessageListProps) {
   const endRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -74,12 +77,15 @@ export function MessageList({
     });
   };
 
+  const isCompact = viewMode === "compact";
+
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="message-list">
+    <div className={`flex-1 overflow-y-auto p-4 ${isCompact ? "space-y-2" : "space-y-4"}`} data-testid="message-list">
       {messages.map((message) => (
         <MessageBubble
           key={message.id}
           message={message}
+          viewMode={viewMode}
           ref={(el) => {
             if (el) messageRefs.current.set(message.id, el);
             else messageRefs.current.delete(message.id);
@@ -144,14 +150,20 @@ export function MessageList({
   );
 }
 
-const MessageBubble = forwardRef<HTMLDivElement, { message: Message }>(function MessageBubble(
-  { message },
+interface MessageBubbleProps {
+  message: Message;
+  viewMode: ViewMode;
+}
+
+const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function MessageBubble(
+  { message, viewMode },
   ref
 ) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
   const isTool = message.role === "tool";
   const hasToolCalls = message.role === "assistant" && message.tool_calls && message.tool_calls.length > 0;
+  const isCompact = viewMode === "compact";
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString([], {
@@ -160,17 +172,59 @@ const MessageBubble = forwardRef<HTMLDivElement, { message: Message }>(function 
     });
   };
 
+  // System messages - same in both modes
   if (isSystem) {
     return (
       <div ref={ref} className="flex justify-center transition-all duration-300" data-testid={`message-${message.id}`}>
-        <div className="bg-slate-200/50 dark:bg-slate-800/50 rounded-lg px-4 py-2 text-sm text-slate-500 dark:text-slate-400 italic max-w-[80%]">
+        <div className={`bg-slate-200/50 dark:bg-slate-800/50 rounded-lg px-4 py-2 text-sm text-slate-500 dark:text-slate-400 italic ${isCompact ? "w-full text-left" : "max-w-[80%]"}`}>
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
       </div>
     );
   }
 
-  // Tool response messages
+  // Compact mode rendering
+  if (isCompact) {
+    const roleLabel = isUser ? "You" : isTool ? "Tool" : "Assistant";
+    const roleColor = isUser ? "text-indigo-400" : isTool ? "text-amber-400" : "text-emerald-400";
+    const borderColor = isUser ? "border-l-indigo-500" : isTool ? "border-l-amber-500" : "border-l-emerald-500";
+
+    return (
+      <div
+        ref={ref}
+        className={`transition-all duration-300 border-l-2 ${borderColor} pl-3 py-1`}
+        data-testid={`message-${message.id}`}
+      >
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`text-xs font-medium ${roleColor}`}>{roleLabel}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-600">{formatTime(message.created_at)}</span>
+        </div>
+        {isTool ? (
+          <pre className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap overflow-x-auto">
+            {message.content.length > 500 ? message.content.slice(0, 500) + "..." : message.content}
+          </pre>
+        ) : (
+          <div className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{message.content}</div>
+        )}
+        {hasToolCalls && (
+          <div className="mt-2 pl-2 border-l border-amber-500/30">
+            <div className="text-xs text-amber-500 dark:text-amber-400 mb-1 flex items-center gap-1">
+              <Wrench className="h-3 w-3" />
+              Using tools
+            </div>
+            {message.tool_calls!.map((tc: ToolCall) => (
+              <div key={tc.id} className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                <Play className="h-3 w-3 text-amber-500 dark:text-amber-400" />
+                <code className="bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded">{tc.function.name}</code>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Bubble mode: Tool response messages
   if (isTool) {
     return (
       <div ref={ref} className="flex justify-start transition-all duration-300" data-testid={`message-${message.id}`}>
@@ -190,7 +244,7 @@ const MessageBubble = forwardRef<HTMLDivElement, { message: Message }>(function 
     );
   }
 
-  // Assistant message with tool calls
+  // Bubble mode: Assistant message with tool calls
   if (hasToolCalls) {
     return (
       <div ref={ref} className="flex justify-start transition-all duration-300" data-testid={`message-${message.id}`}>
@@ -223,6 +277,7 @@ const MessageBubble = forwardRef<HTMLDivElement, { message: Message }>(function 
     );
   }
 
+  // Bubble mode: Regular user/assistant messages
   return (
     <div
       ref={ref}

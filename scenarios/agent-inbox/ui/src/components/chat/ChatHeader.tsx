@@ -117,9 +117,6 @@ export function ChatHeader({
               <span className="text-xs text-slate-600">•</span>
 
               <ChatToolsSelector chatId={chat.id} />
-
-              <span className="text-xs text-slate-600">•</span>
-              <span className="text-xs text-slate-500">{chat.view_mode} mode</span>
             </div>
 
             {/* Labels */}

@@ -4,6 +4,7 @@ import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
 import type { ChatWithMessages, Model, Label } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
+import type { ViewMode } from "../settings/Settings";
 
 interface ChatViewProps {
   chatData: ChatWithMessages | null;
@@ -23,6 +24,7 @@ interface ChatViewProps {
   onDeleteChat: () => void;
   onAssignLabel: (labelId: string) => void;
   onRemoveLabel: (labelId: string) => void;
+  viewMode?: ViewMode;
 }
 
 export function ChatView({
@@ -43,6 +45,7 @@ export function ChatView({
   onDeleteChat,
   onAssignLabel,
   onRemoveLabel,
+  viewMode,
 }: ChatViewProps) {
   if (isLoading) {
     return (
@@ -81,6 +84,7 @@ export function ChatView({
         activeToolCalls={activeToolCalls}
         scrollToMessageId={scrollToMessageId}
         onScrollComplete={onScrollComplete}
+        viewMode={viewMode}
       />
 
       <MessageInput onSend={onSendMessage} isGenerating={isGenerating} />

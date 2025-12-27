@@ -89,7 +89,8 @@ type ChatWithMessages struct {
 
 // ViewMode constants for chat display
 const (
-	ViewModeBubble = "bubble"
+	ViewModeBubble  = "bubble"
+	ViewModeCompact = "compact"
 )
 
 // Message role constants
@@ -163,12 +164,12 @@ type DailyUsage struct {
 
 // ValidViewModes returns the list of valid view modes
 func ValidViewModes() []string {
-	return []string{ViewModeBubble}
+	return []string{ViewModeBubble, ViewModeCompact}
 }
 
 // IsValidViewMode checks if a view mode string is valid
 func IsValidViewMode(mode string) bool {
-	return mode == ViewModeBubble
+	return mode == ViewModeBubble || mode == ViewModeCompact
 }
 
 // ValidRoles returns the list of valid message roles
