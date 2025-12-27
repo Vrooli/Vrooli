@@ -275,25 +275,30 @@ func processStreamingChoice(choice integrations.OpenRouterChoice, acc *domain.St
 func (h *Handlers) handleCompletionResult(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) {
 	ctx := r.Context()
 
+	// Get the active leaf (the user message that triggered this completion)
+	// This becomes the parent of the assistant message for branching support
+	parentMessageID, _ := h.Repo.GetActiveLeaf(ctx, chatID)
+
 	if result.RequiresToolExecution() {
-		h.handleToolCallsStreaming(r, sw, svc, chatID, model, result)
+		h.handleToolCallsStreaming(r, sw, svc, chatID, model, result, parentMessageID)
 	} else if result.HasContent() {
 		// Save regular message
-		svc.SaveCompletionResult(ctx, chatID, model, result)
+		svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
 		svc.UpdateChatPreview(ctx, chatID, result)
 	}
 }
 
 // handleToolCallsStreaming executes tool calls during a streaming response.
+// parentMessageID is the user message that triggered this completion (for branching support).
 //
 // TEMPORAL FLOW NOTE: Tool calls are executed sequentially to maintain
 // deterministic ordering. Errors are reported via SSE events but do not
 // stop subsequent tool execution - this allows partial success scenarios.
-func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) {
+func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult, parentMessageID string) {
 	ctx := r.Context()
 
-	// Save the assistant message with tool calls
-	msg, err := svc.SaveCompletionResult(ctx, chatID, model, result)
+	// Save the assistant message with tool calls (parented to the user message)
+	msg, err := svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
 	if err != nil {
 		sw.WriteError(err)
 		return
@@ -303,15 +308,17 @@ func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, s
 
 	// Execute each tool call
 	messageID := ""
+	assistantMessageID := ""
 	if msg != nil {
 		messageID = msg.ID
+		assistantMessageID = msg.ID // Tool responses are parented to the assistant message
 	}
 
 	var toolErrors []error
 	for _, tc := range result.ToolCalls {
 		sw.WriteToolCallStart(tc)
 
-		results, err := svc.ExecuteToolCalls(ctx, chatID, messageID, []domain.ToolCall{tc})
+		results, err := svc.ExecuteToolCalls(ctx, chatID, messageID, []domain.ToolCall{tc}, assistantMessageID)
 		if err != nil {
 			toolErrors = append(toolErrors, err)
 			log.Printf("tool call %s failed: %v", tc.Function.Name, err)
@@ -381,19 +388,24 @@ func convertToCompletionResult(resp *integrations.OpenRouterResponse) *domain.Co
 // and individual tool results reflect their status. The overall response is
 // still returned to allow partial success handling.
 func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Request, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) {
-	msg, err := svc.SaveCompletionResult(r.Context(), chatID, model, result)
+	// Get the active leaf (the user message that triggered this completion)
+	parentMessageID, _ := h.Repo.GetActiveLeaf(r.Context(), chatID)
+
+	msg, err := svc.SaveCompletionResult(r.Context(), chatID, model, result, parentMessageID)
 	if err != nil {
 		h.JSONError(w, "Failed to save message", http.StatusInternalServerError)
 		return
 	}
 
 	messageID := ""
+	assistantMessageID := ""
 	if msg != nil {
 		messageID = msg.ID
+		assistantMessageID = msg.ID // Tool responses are parented to the assistant message
 	}
 
 	// Execute all tool calls
-	toolResults, toolErr := svc.ExecuteToolCalls(r.Context(), chatID, messageID, result.ToolCalls)
+	toolResults, toolErr := svc.ExecuteToolCalls(r.Context(), chatID, messageID, result.ToolCalls, assistantMessageID)
 	if toolErr != nil {
 		log.Printf("tool execution error for chat %s: %v", chatID, toolErr)
 	}
@@ -430,7 +442,10 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 
 // handleRegularMessageNonStreaming handles a regular (non-tool) completion.
 func (h *Handlers) handleRegularMessageNonStreaming(w http.ResponseWriter, r *http.Request, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) {
-	msg, err := svc.SaveCompletionResult(r.Context(), chatID, model, result)
+	// Get the active leaf (the user message that triggered this completion)
+	parentMessageID, _ := h.Repo.GetActiveLeaf(r.Context(), chatID)
+
+	msg, err := svc.SaveCompletionResult(r.Context(), chatID, model, result, parentMessageID)
 	if err != nil {
 		h.JSONError(w, "Failed to save message", http.StatusInternalServerError)
 		return

@@ -44,6 +44,7 @@ function AppContent() {
     isGenerating,
     streamingContent,
     activeToolCalls,
+    isRegenerating,
 
     // Data
     chats,
@@ -73,6 +74,10 @@ function AppContent() {
     deleteLabel,
     assignLabel,
     removeLabel,
+
+    // Branching operations
+    regenerateMessage,
+    selectBranch,
 
     // Mutation states
     isCreatingChat,
@@ -465,6 +470,9 @@ function AppContent() {
             onAssignLabel={(labelId) => assignLabel({ chatId: selectedChatId, labelId })}
             onRemoveLabel={(labelId) => removeLabel({ chatId: selectedChatId, labelId })}
             viewMode={viewMode}
+            onRegenerateMessage={(messageId) => regenerateMessage(selectedChatId, messageId)}
+            onSelectBranch={selectBranch}
+            isRegenerating={isRegenerating}
           />
         ) : (
           <EmptyState onStartChat={createChatWithMessage} isCreating={isCreatingChat} />

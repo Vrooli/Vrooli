@@ -55,15 +55,16 @@ func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]d
 func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, error) {
 	var chat domain.Chat
 	var labelIDs []byte
+	var activeLeafMessageID sql.NullString
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.created_at, c.updated_at,
+		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.active_leaf_message_id, c.created_at, c.updated_at,
 			COALESCE(array_agg(cl.label_id) FILTER (WHERE cl.label_id IS NOT NULL), '{}') as label_ids
 		FROM chats c
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
 		WHERE c.id = $1
 		GROUP BY c.id
-	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.CreatedAt, &chat.UpdatedAt, &labelIDs)
+	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &activeLeafMessageID, &chat.CreatedAt, &chat.UpdatedAt, &labelIDs)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -73,6 +74,9 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 	}
 
 	chat.LabelIDs = parsePostgresArray(string(labelIDs))
+	if activeLeafMessageID.Valid {
+		chat.ActiveLeafMessageID = activeLeafMessageID.String
+	}
 	return &chat, nil
 }
 
@@ -198,9 +202,10 @@ func (r *Repository) UpdateChatPreview(ctx context.Context, chatID, preview stri
 // Message Operations
 
 // GetMessages retrieves all messages for a chat.
+// Returns all messages including branching metadata (parent_message_id, sibling_index).
 func (r *Repository) GetMessages(ctx context.Context, chatID string) ([]domain.Message, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, chat_id, role, content, model, token_count, tool_call_id, tool_calls, response_id, finish_reason, created_at
+		SELECT id, chat_id, role, content, model, token_count, tool_call_id, tool_calls, response_id, finish_reason, parent_message_id, sibling_index, created_at
 		FROM messages WHERE chat_id = $1 ORDER BY created_at ASC
 	`, chatID)
 	if err != nil {
@@ -211,9 +216,10 @@ func (r *Repository) GetMessages(ctx context.Context, chatID string) ([]domain.M
 	messages := make([]domain.Message, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
 		var m domain.Message
-		var model, toolCallID, responseID, finishReason sql.NullString
+		var model, toolCallID, responseID, finishReason, parentMessageID sql.NullString
+		var siblingIndex sql.NullInt32
 		var toolCallsJSON []byte
-		if err := rows.Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &toolCallID, &toolCallsJSON, &responseID, &finishReason, &m.CreatedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &toolCallID, &toolCallsJSON, &responseID, &finishReason, &parentMessageID, &siblingIndex, &m.CreatedAt); err != nil {
 			continue
 		}
 		if model.Valid {
@@ -231,6 +237,12 @@ func (r *Repository) GetMessages(ctx context.Context, chatID string) ([]domain.M
 		if finishReason.Valid {
 			m.FinishReason = finishReason.String
 		}
+		if parentMessageID.Valid {
+			m.ParentMessageID = parentMessageID.String
+		}
+		if siblingIndex.Valid {
+			m.SiblingIndex = int(siblingIndex.Int32)
+		}
 		messages = append(messages, m)
 	}
 
@@ -238,10 +250,43 @@ func (r *Repository) GetMessages(ctx context.Context, chatID string) ([]domain.M
 }
 
 // GetMessagesForCompletion retrieves messages in the format needed for AI completion.
+// For branching support, this returns only messages on the active branch path.
+// Falls back to all messages (ordered by created_at) if no active_leaf_message_id is set.
 func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string) ([]map[string]interface{}, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT role, content, tool_call_id, tool_calls FROM messages WHERE chat_id = $1 ORDER BY created_at ASC
-	`, chatID)
+	// Get the active leaf for this chat
+	activeLeaf, err := r.GetActiveLeaf(ctx, chatID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active leaf: %w", err)
+	}
+
+	var rows *sql.Rows
+	if activeLeaf != "" {
+		// Use recursive CTE to get only messages on the active path
+		rows, err = r.db.QueryContext(ctx, `
+			WITH RECURSIVE active_path AS (
+				-- Start from the active leaf
+				SELECT id, parent_message_id, role, content, tool_call_id, tool_calls, created_at
+				FROM messages
+				WHERE id = $2 AND chat_id = $1
+
+				UNION ALL
+
+				-- Walk up the tree to parents
+				SELECT m.id, m.parent_message_id, m.role, m.content, m.tool_call_id, m.tool_calls, m.created_at
+				FROM messages m
+				JOIN active_path ap ON m.id = ap.parent_message_id
+				WHERE m.chat_id = $1
+			)
+			SELECT role, content, tool_call_id, tool_calls
+			FROM active_path
+			ORDER BY created_at ASC
+		`, chatID, activeLeaf)
+	} else {
+		// Legacy fallback: get all messages ordered by created_at
+		rows, err = r.db.QueryContext(ctx, `
+			SELECT role, content, tool_call_id, tool_calls FROM messages WHERE chat_id = $1 ORDER BY created_at ASC
+		`, chatID)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get messages: %w", err)
 	}
@@ -273,61 +318,100 @@ func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string
 	return messages, nil
 }
 
-// CreateMessage adds a new message to a chat.
-func (r *Repository) CreateMessage(ctx context.Context, chatID, role, content, model, toolCallID string, tokenCount int) (*domain.Message, error) {
+// CreateMessage adds a new message to a chat with optional parent for branching.
+// If parentMessageID is provided, sibling_index is auto-calculated based on existing siblings.
+func (r *Repository) CreateMessage(ctx context.Context, chatID, role, content, model, toolCallID string, tokenCount int, parentMessageID string) (*domain.Message, error) {
+	// Calculate sibling_index for branching support
+	siblingIndex := 0
+	if parentMessageID != "" {
+		siblingIndex = r.getNextSiblingIndex(ctx, parentMessageID)
+	}
+
 	var msg domain.Message
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO messages (chat_id, role, content, model, token_count, tool_call_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, chat_id, role, content, model, token_count, tool_call_id, created_at
+		INSERT INTO messages (chat_id, role, content, model, token_count, tool_call_id, parent_message_id, sibling_index)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, chat_id, role, content, model, token_count, tool_call_id, parent_message_id, sibling_index, created_at
 	`, chatID, role, content,
 		sql.NullString{String: model, Valid: model != ""},
 		tokenCount,
-		sql.NullString{String: toolCallID, Valid: toolCallID != ""}).Scan(
-		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &msg.CreatedAt,
+		sql.NullString{String: toolCallID, Valid: toolCallID != ""},
+		sql.NullString{String: parentMessageID, Valid: parentMessageID != ""},
+		siblingIndex).Scan(
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &sql.NullString{}, &msg.SiblingIndex, &msg.CreatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
 	msg.Model = model
 	msg.ToolCallID = toolCallID
+	msg.ParentMessageID = parentMessageID
 	return &msg, nil
 }
 
-// SaveAssistantMessage saves an assistant response message.
-func (r *Repository) SaveAssistantMessage(ctx context.Context, chatID, model, content string, tokenCount int) (*domain.Message, error) {
+// getNextSiblingIndex returns the next available sibling index for a parent message.
+func (r *Repository) getNextSiblingIndex(ctx context.Context, parentMessageID string) int {
+	var maxIndex sql.NullInt32
+	err := r.db.QueryRowContext(ctx, `
+		SELECT MAX(sibling_index) FROM messages WHERE parent_message_id = $1
+	`, parentMessageID).Scan(&maxIndex)
+	if err != nil || !maxIndex.Valid {
+		return 0
+	}
+	return int(maxIndex.Int32) + 1
+}
+
+// SaveAssistantMessage saves an assistant response message with optional parent for branching.
+func (r *Repository) SaveAssistantMessage(ctx context.Context, chatID, model, content string, tokenCount int, parentMessageID string) (*domain.Message, error) {
+	// Calculate sibling_index for branching support
+	siblingIndex := 0
+	if parentMessageID != "" {
+		siblingIndex = r.getNextSiblingIndex(ctx, parentMessageID)
+	}
+
 	var msg domain.Message
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO messages (chat_id, role, content, model, token_count, finish_reason)
-		VALUES ($1, 'assistant', $2, $3, $4, 'stop')
-		RETURNING id, chat_id, role, content, model, token_count, finish_reason, created_at
-	`, chatID, content, sql.NullString{String: model, Valid: model != ""}, tokenCount).Scan(
-		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &msg.CreatedAt,
+		INSERT INTO messages (chat_id, role, content, model, token_count, finish_reason, parent_message_id, sibling_index)
+		VALUES ($1, 'assistant', $2, $3, $4, 'stop', $5, $6)
+		RETURNING id, chat_id, role, content, model, token_count, finish_reason, parent_message_id, sibling_index, created_at
+	`, chatID, content, sql.NullString{String: model, Valid: model != ""}, tokenCount,
+		sql.NullString{String: parentMessageID, Valid: parentMessageID != ""},
+		siblingIndex).Scan(
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &sql.NullString{}, &msg.SiblingIndex, &msg.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 	msg.Model = model
 	msg.FinishReason = "stop"
+	msg.ParentMessageID = parentMessageID
 	return &msg, nil
 }
 
-// SaveAssistantMessageWithToolCalls saves an assistant message that includes tool calls.
-func (r *Repository) SaveAssistantMessageWithToolCalls(ctx context.Context, chatID, model, content string, toolCalls []domain.ToolCall, responseID, finishReason string, tokenCount int) (*domain.Message, error) {
+// SaveAssistantMessageWithToolCalls saves an assistant message that includes tool calls with optional parent for branching.
+func (r *Repository) SaveAssistantMessageWithToolCalls(ctx context.Context, chatID, model, content string, toolCalls []domain.ToolCall, responseID, finishReason string, tokenCount int, parentMessageID string) (*domain.Message, error) {
 	toolCallsJSON, err := json.Marshal(toolCalls)
 	if err != nil {
 		return nil, err
 	}
 
+	// Calculate sibling_index for branching support
+	siblingIndex := 0
+	if parentMessageID != "" {
+		siblingIndex = r.getNextSiblingIndex(ctx, parentMessageID)
+	}
+
 	var msg domain.Message
 	err = r.db.QueryRowContext(ctx, `
-		INSERT INTO messages (chat_id, role, content, model, token_count, tool_calls, response_id, finish_reason)
-		VALUES ($1, 'assistant', $2, $3, $4, $5, $6, $7)
-		RETURNING id, chat_id, role, content, model, token_count, finish_reason, created_at
+		INSERT INTO messages (chat_id, role, content, model, token_count, tool_calls, response_id, finish_reason, parent_message_id, sibling_index)
+		VALUES ($1, 'assistant', $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, chat_id, role, content, model, token_count, finish_reason, parent_message_id, sibling_index, created_at
 	`, chatID, content, sql.NullString{String: model, Valid: model != ""}, tokenCount, toolCallsJSON,
 		sql.NullString{String: responseID, Valid: responseID != ""},
-		sql.NullString{String: finishReason, Valid: finishReason != ""}).Scan(
-		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &msg.CreatedAt,
+		sql.NullString{String: finishReason, Valid: finishReason != ""},
+		sql.NullString{String: parentMessageID, Valid: parentMessageID != ""},
+		siblingIndex).Scan(
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &sql.NullString{}, &msg.SiblingIndex, &msg.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -336,23 +420,167 @@ func (r *Repository) SaveAssistantMessageWithToolCalls(ctx context.Context, chat
 	msg.ToolCalls = toolCalls
 	msg.ResponseID = responseID
 	msg.FinishReason = finishReason
+	msg.ParentMessageID = parentMessageID
 	return &msg, nil
 }
 
-// SaveToolResponseMessage saves a tool response message.
-func (r *Repository) SaveToolResponseMessage(ctx context.Context, chatID, toolCallID, result string) (*domain.Message, error) {
+// SaveToolResponseMessage saves a tool response message with optional parent for branching.
+func (r *Repository) SaveToolResponseMessage(ctx context.Context, chatID, toolCallID, result string, parentMessageID string) (*domain.Message, error) {
+	// Calculate sibling_index for branching support
+	siblingIndex := 0
+	if parentMessageID != "" {
+		siblingIndex = r.getNextSiblingIndex(ctx, parentMessageID)
+	}
+
 	var msg domain.Message
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO messages (chat_id, role, content, tool_call_id)
-		VALUES ($1, 'tool', $2, $3)
-		RETURNING id, chat_id, role, content, tool_call_id, created_at
-	`, chatID, result, toolCallID).Scan(
-		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &msg.ToolCallID, &msg.CreatedAt,
+		INSERT INTO messages (chat_id, role, content, tool_call_id, parent_message_id, sibling_index)
+		VALUES ($1, 'tool', $2, $3, $4, $5)
+		RETURNING id, chat_id, role, content, tool_call_id, parent_message_id, sibling_index, created_at
+	`, chatID, result, toolCallID,
+		sql.NullString{String: parentMessageID, Valid: parentMessageID != ""},
+		siblingIndex).Scan(
+		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &msg.ToolCallID, &sql.NullString{}, &msg.SiblingIndex, &msg.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
+	msg.ParentMessageID = parentMessageID
 	return &msg, nil
+}
+
+// Branching Operations
+
+// GetMessageByID retrieves a single message by ID.
+func (r *Repository) GetMessageByID(ctx context.Context, messageID string) (*domain.Message, error) {
+	var m domain.Message
+	var model, toolCallID, responseID, finishReason, parentMessageID sql.NullString
+	var siblingIndex sql.NullInt32
+	var toolCallsJSON []byte
+
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, chat_id, role, content, model, token_count, tool_call_id, tool_calls, response_id, finish_reason, parent_message_id, sibling_index, created_at
+		FROM messages WHERE id = $1
+	`, messageID).Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &toolCallID, &toolCallsJSON, &responseID, &finishReason, &parentMessageID, &siblingIndex, &m.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get message: %w", err)
+	}
+
+	if model.Valid {
+		m.Model = model.String
+	}
+	if toolCallID.Valid {
+		m.ToolCallID = toolCallID.String
+	}
+	if len(toolCallsJSON) > 0 {
+		json.Unmarshal(toolCallsJSON, &m.ToolCalls)
+	}
+	if responseID.Valid {
+		m.ResponseID = responseID.String
+	}
+	if finishReason.Valid {
+		m.FinishReason = finishReason.String
+	}
+	if parentMessageID.Valid {
+		m.ParentMessageID = parentMessageID.String
+	}
+	if siblingIndex.Valid {
+		m.SiblingIndex = int(siblingIndex.Int32)
+	}
+
+	return &m, nil
+}
+
+// GetMessageSiblings returns all messages that share the same parent as the given message.
+// Includes the message itself. Returns in sibling_index order.
+func (r *Repository) GetMessageSiblings(ctx context.Context, messageID string) ([]domain.Message, error) {
+	// First get the parent_message_id of the target message
+	msg, err := r.GetMessageByID(ctx, messageID)
+	if err != nil {
+		return nil, err
+	}
+	if msg == nil {
+		return nil, nil
+	}
+
+	// Query for all siblings (messages with same parent_message_id)
+	var rows *sql.Rows
+	if msg.ParentMessageID == "" {
+		// For root messages (no parent), return just this message
+		return []domain.Message{*msg}, nil
+	}
+
+	rows, err = r.db.QueryContext(ctx, `
+		SELECT id, chat_id, role, content, model, token_count, tool_call_id, tool_calls, response_id, finish_reason, parent_message_id, sibling_index, created_at
+		FROM messages WHERE parent_message_id = $1 ORDER BY sibling_index ASC
+	`, msg.ParentMessageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get siblings: %w", err)
+	}
+	defer rows.Close()
+
+	siblings := make([]domain.Message, 0)
+	for rows.Next() {
+		var m domain.Message
+		var model, toolCallID, responseID, finishReason, parentMessageID sql.NullString
+		var siblingIndex sql.NullInt32
+		var toolCallsJSON []byte
+		if err := rows.Scan(&m.ID, &m.ChatID, &m.Role, &m.Content, &model, &m.TokenCount, &toolCallID, &toolCallsJSON, &responseID, &finishReason, &parentMessageID, &siblingIndex, &m.CreatedAt); err != nil {
+			continue
+		}
+		if model.Valid {
+			m.Model = model.String
+		}
+		if toolCallID.Valid {
+			m.ToolCallID = toolCallID.String
+		}
+		if len(toolCallsJSON) > 0 {
+			json.Unmarshal(toolCallsJSON, &m.ToolCalls)
+		}
+		if responseID.Valid {
+			m.ResponseID = responseID.String
+		}
+		if finishReason.Valid {
+			m.FinishReason = finishReason.String
+		}
+		if parentMessageID.Valid {
+			m.ParentMessageID = parentMessageID.String
+		}
+		if siblingIndex.Valid {
+			m.SiblingIndex = int(siblingIndex.Int32)
+		}
+		siblings = append(siblings, m)
+	}
+
+	return siblings, nil
+}
+
+// SetActiveLeaf updates the active_leaf_message_id for a chat.
+func (r *Repository) SetActiveLeaf(ctx context.Context, chatID, messageID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE chats SET active_leaf_message_id = $1, updated_at = NOW() WHERE id = $2
+	`, sql.NullString{String: messageID, Valid: messageID != ""}, chatID)
+	return err
+}
+
+// GetActiveLeaf returns the active_leaf_message_id for a chat.
+func (r *Repository) GetActiveLeaf(ctx context.Context, chatID string) (string, error) {
+	var activeLeaf sql.NullString
+	err := r.db.QueryRowContext(ctx, `SELECT active_leaf_message_id FROM chats WHERE id = $1`, chatID).Scan(&activeLeaf)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if activeLeaf.Valid {
+		return activeLeaf.String, nil
+	}
+	return "", nil
 }
 
 // Search Operations

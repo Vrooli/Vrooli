@@ -59,21 +59,27 @@ func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry *To
 // SaveCompletionResult persists a completion result to the database.
 // This handles the decision of whether to save as a regular message or
 // as a message with tool calls.
-func (s *CompletionService) SaveCompletionResult(ctx context.Context, chatID, model string, result *domain.CompletionResult) (*domain.Message, error) {
+// parentMessageID is used for branching support (ChatGPT-style regeneration).
+func (s *CompletionService) SaveCompletionResult(ctx context.Context, chatID, model string, result *domain.CompletionResult, parentMessageID string) (*domain.Message, error) {
 	var msg *domain.Message
 	var err error
 
 	if result.RequiresToolExecution() {
 		msg, err = s.repo.SaveAssistantMessageWithToolCalls(
 			ctx, chatID, model, result.Content, result.ToolCalls,
-			result.ResponseID, result.FinishReason, result.TokenCount,
+			result.ResponseID, result.FinishReason, result.TokenCount, parentMessageID,
 		)
 	} else {
-		msg, err = s.repo.SaveAssistantMessage(ctx, chatID, model, result.Content, result.TokenCount)
+		msg, err = s.repo.SaveAssistantMessage(ctx, chatID, model, result.Content, result.TokenCount, parentMessageID)
 	}
 
 	if err != nil {
 		return msg, err
+	}
+
+	// Update active leaf to point to the new message
+	if msg != nil {
+		s.repo.SetActiveLeaf(ctx, chatID, msg.ID)
 	}
 
 	// Save usage record if usage data is available
@@ -92,6 +98,7 @@ func (s *CompletionService) SaveCompletionResult(ctx context.Context, chatID, mo
 
 // ExecuteToolCalls runs all tool calls from a completion result.
 // Returns results for each tool call in order.
+// parentMessageID is the assistant message that made the tool calls (for branching support).
 //
 // TEMPORAL FLOW NOTE: This function executes tool calls sequentially and
 // collects all errors. The returned error aggregates all failures but individual
@@ -101,9 +108,10 @@ func (s *CompletionService) SaveCompletionResult(ctx context.Context, chatID, mo
 //   - Individual tool errors are captured in each ToolExecutionResult
 //   - The returned error is non-nil if ANY tool call failed
 //   - Callers can inspect individual results for partial success scenarios
-func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messageID string, toolCalls []domain.ToolCall) ([]domain.ToolExecutionResult, error) {
+func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messageID string, toolCalls []domain.ToolCall, parentMessageID string) ([]domain.ToolExecutionResult, error) {
 	results := make([]domain.ToolExecutionResult, 0, len(toolCalls))
 	var executionErrors []error
+	var lastToolMsgID string
 
 	for _, tc := range toolCalls {
 		record, err := s.executor.ExecuteTool(ctx, chatID, tc.ID, tc.Function.Name, tc.Function.Arguments)
@@ -117,11 +125,19 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 			s.repo.SaveToolCallRecord(ctx, messageID, record)
 		}
 
-		// Save tool response message
-		s.repo.SaveToolResponseMessage(ctx, chatID, tc.ID, record.Result)
+		// Save tool response message (parented to the assistant message)
+		toolMsg, _ := s.repo.SaveToolResponseMessage(ctx, chatID, tc.ID, record.Result, parentMessageID)
+		if toolMsg != nil {
+			lastToolMsgID = toolMsg.ID
+		}
 
 		// Build result using centralized factory
 		results = append(results, NewToolExecutionResult(tc.ID, tc.Function.Name, record, err))
+	}
+
+	// Update active leaf to the last tool message
+	if lastToolMsgID != "" {
+		s.repo.SetActiveLeaf(ctx, chatID, lastToolMsgID)
 	}
 
 	// Return aggregated error if any tool failed

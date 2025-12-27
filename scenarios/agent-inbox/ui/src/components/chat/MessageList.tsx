@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, forwardRef, useCallback } from "react";
+import { useEffect, useRef, useState, forwardRef, useCallback, useMemo } from "react";
 import {
   Loader2, User, Bot, Wrench, CheckCircle2, XCircle, Play,
   Copy, Volume2, VolumeX, RefreshCw, Pencil, Trash2, GitBranch,
@@ -9,26 +9,42 @@ import type { ActiveToolCall } from "../../hooks/useChats";
 import type { ViewMode } from "../settings/Settings";
 import { Tooltip } from "../ui/tooltip";
 import { useToast } from "../ui/toast";
+import { VersionPicker } from "./VersionPicker";
+import { getSiblingInfo, getPreviousSibling, getNextSibling } from "../../lib/messageTree";
 
 interface MessageListProps {
   messages: Message[];
+  /** All messages including non-visible branches (for sibling computation) */
+  allMessages?: Message[];
   isGenerating: boolean;
   streamingContent: string;
   activeToolCalls?: ActiveToolCall[];
   scrollToMessageId?: string | null;
   onScrollComplete?: () => void;
   viewMode?: ViewMode;
+  /** Called when user requests regeneration of an assistant message */
+  onRegenerateMessage?: (messageId: string) => void;
+  /** Called when user selects a different branch/version */
+  onSelectBranch?: (messageId: string) => void;
+  /** Whether regeneration is in progress */
+  isRegenerating?: boolean;
 }
 
 export function MessageList({
   messages,
+  allMessages,
   isGenerating,
   streamingContent,
   activeToolCalls = [],
   scrollToMessageId,
   onScrollComplete,
   viewMode = "bubble",
+  onRegenerateMessage,
+  onSelectBranch,
+  isRegenerating = false,
 }: MessageListProps) {
+  // Use allMessages for sibling computation, fallback to visible messages
+  const messagesForSiblings = allMessages ?? messages;
   const endRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -85,6 +101,10 @@ export function MessageList({
           key={message.id}
           message={message}
           viewMode={viewMode}
+          allMessages={messagesForSiblings}
+          onRegenerate={onRegenerateMessage}
+          onSelectBranch={onSelectBranch}
+          isRegenerating={isRegenerating}
           ref={(el) => {
             if (el) messageRefs.current.set(message.id, el);
             else messageRefs.current.delete(message.id);
@@ -179,10 +199,18 @@ function ActionButton({ icon, tooltip, onClick, isActive, className }: ActionBut
 interface MessageBubbleProps {
   message: Message;
   viewMode: ViewMode;
+  /** All messages for computing siblings */
+  allMessages: Message[];
+  /** Called when user requests regeneration */
+  onRegenerate?: (messageId: string) => void;
+  /** Called when user selects a different branch */
+  onSelectBranch?: (messageId: string) => void;
+  /** Whether regeneration is in progress */
+  isRegenerating?: boolean;
 }
 
 const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function MessageBubble(
-  { message, viewMode },
+  { message, viewMode, allMessages, onRegenerate, onSelectBranch, isRegenerating = false },
   ref
 ) {
   const { addToast } = useToast();
@@ -192,6 +220,16 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
   const isTool = message.role === "tool";
   const hasToolCalls = message.role === "assistant" && message.tool_calls && message.tool_calls.length > 0;
   const isCompact = viewMode === "compact";
+
+  // Compute sibling info for version picker
+  const siblingInfo = useMemo(() => {
+    if (!isAssistant || !allMessages || allMessages.length === 0) {
+      return { current: 1, total: 1, siblings: [] };
+    }
+    return getSiblingInfo(allMessages, message.id);
+  }, [isAssistant, allMessages, message.id]);
+
+  const hasSiblings = siblingInfo.total > 1;
 
   // State for tool result expansion
   const [isExpanded, setIsExpanded] = useState(false);
@@ -253,10 +291,51 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
     addToast(`${feature} coming soon`, "info");
   }, [addToast]);
 
-  const handleRegenerate = useCallback(() => handleComingSoon("Regenerate"), [handleComingSoon]);
+  // Regenerate handler - calls the actual regeneration function
+  const handleRegenerate = useCallback(() => {
+    if (onRegenerate && isAssistant) {
+      onRegenerate(message.id);
+    } else {
+      handleComingSoon("Regenerate");
+    }
+  }, [onRegenerate, isAssistant, message.id, handleComingSoon]);
+
   const handleEdit = useCallback(() => handleComingSoon("Edit message"), [handleComingSoon]);
   const handleDelete = useCallback(() => handleComingSoon("Delete message"), [handleComingSoon]);
   const handleFork = useCallback(() => handleComingSoon("Fork conversation"), [handleComingSoon]);
+
+  // Version picker navigation handlers
+  const handlePreviousVersion = useCallback(() => {
+    console.log("[VersionPicker] Previous clicked", {
+      messageId: message.id,
+      hasOnSelectBranch: !!onSelectBranch,
+      allMessagesCount: allMessages.length,
+      siblingInfo,
+    });
+    if (!onSelectBranch) {
+      console.log("[VersionPicker] No onSelectBranch handler!");
+      return;
+    }
+    const prevSibling = getPreviousSibling(allMessages, message.id);
+    console.log("[VersionPicker] Previous sibling:", prevSibling);
+    if (prevSibling) {
+      console.log("[VersionPicker] Selecting branch:", prevSibling.id);
+      onSelectBranch(prevSibling.id);
+    }
+  }, [onSelectBranch, allMessages, message.id, siblingInfo]);
+
+  const handleNextVersion = useCallback(() => {
+    console.log("[VersionPicker] Next clicked", {
+      messageId: message.id,
+      hasOnSelectBranch: !!onSelectBranch,
+    });
+    if (!onSelectBranch) return;
+    const nextSibling = getNextSibling(allMessages, message.id);
+    console.log("[VersionPicker] Next sibling:", nextSibling);
+    if (nextSibling) {
+      onSelectBranch(nextSibling.id);
+    }
+  }, [onSelectBranch, allMessages, message.id]);
 
   // Render action buttons for a message
   const renderActions = (position: "user" | "assistant" | "tool") => {
@@ -275,16 +354,35 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
 
     if (position === "assistant") {
       return (
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={handleCopy} />
-          <ActionButton
-            icon={isSpeaking ? <VolumeX className={iconSize} /> : <Volume2 className={iconSize} />}
-            tooltip={isSpeaking ? "Stop reading" : "Read aloud"}
-            onClick={handleReadAloud}
-            isActive={isSpeaking}
-          />
-          <ActionButton icon={<RefreshCw className={iconSize} />} tooltip="Regenerate" onClick={handleRegenerate} />
-          <ActionButton icon={<GitBranch className={iconSize} />} tooltip="Fork from here" onClick={handleFork} />
+        <div className="flex items-center gap-0.5">
+          {/* Version picker - always visible when there are siblings */}
+          {hasSiblings && (
+            <VersionPicker
+              current={siblingInfo.current}
+              total={siblingInfo.total}
+              onPrevious={handlePreviousVersion}
+              onNext={handleNextVersion}
+              disabled={isRegenerating}
+              className="mr-1"
+            />
+          )}
+          {/* Action buttons - visible on hover */}
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={handleCopy} />
+            <ActionButton
+              icon={isSpeaking ? <VolumeX className={iconSize} /> : <Volume2 className={iconSize} />}
+              tooltip={isSpeaking ? "Stop reading" : "Read aloud"}
+              onClick={handleReadAloud}
+              isActive={isSpeaking}
+            />
+            <ActionButton
+              icon={isRegenerating ? <Loader2 className={`${iconSize} animate-spin`} /> : <RefreshCw className={iconSize} />}
+              tooltip={isRegenerating ? "Regenerating..." : "Regenerate"}
+              onClick={handleRegenerate}
+              className={isRegenerating ? "cursor-not-allowed" : ""}
+            />
+            <ActionButton icon={<GitBranch className={iconSize} />} tooltip="Fork from here" onClick={handleFork} />
+          </div>
         </div>
       );
     }

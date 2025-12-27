@@ -30,6 +30,9 @@ import {
   toggleArchive,
   toggleStar,
   autoNameChat,
+  regenerateMessage as apiRegenerateMessage,
+  selectBranch as apiSelectBranch,
+  type StreamingEvent,
 } from "../lib/api";
 import { useCompletion, type ActiveToolCall } from "./useCompletion";
 import { useLabels } from "./useLabels";
@@ -167,6 +170,76 @@ export function useChats(options: UseChatsOptions = {}) {
     },
   });
 
+  // Branch selection mutation
+  const selectBranchMutation = useMutation({
+    mutationFn: ({ chatId, messageId }: { chatId: string; messageId: string }) =>
+      apiSelectBranch(chatId, messageId),
+    onSuccess: (_data, variables) => {
+      // Use chatId from variables, not from closure, to avoid stale data
+      queryClient.invalidateQueries({ queryKey: ["chat", variables.chatId] });
+    },
+  });
+
+  // State for regeneration streaming
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regeneratingContent, setRegeneratingContent] = useState("");
+
+  // Regenerate a message (ChatGPT-style branching)
+  const regenerateMessage = useCallback(
+    async (chatId: string, messageId: string) => {
+      if (isRegenerating || completion.isGenerating) return;
+
+      setIsRegenerating(true);
+      setRegeneratingContent("");
+
+      const abortController = new AbortController();
+
+      try {
+        await apiRegenerateMessage(chatId, messageId, {
+          stream: true,
+          signal: abortController.signal,
+          onChunk: (content: string) => {
+            setRegeneratingContent((prev) => prev + content);
+          },
+          onEvent: (event: StreamingEvent) => {
+            // Handle tool calls and other events if needed
+            if (event.type === "error") {
+              console.error("Regeneration error:", event.error);
+            }
+          },
+        });
+
+        // Refresh chat data after regeneration completes
+        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          console.log("Regeneration aborted");
+        } else {
+          console.error("Regeneration failed:", error);
+        }
+      } finally {
+        setIsRegenerating(false);
+        setRegeneratingContent("");
+      }
+    },
+    [isRegenerating, completion.isGenerating, queryClient]
+  );
+
+  // Select a different message branch
+  const selectBranch = useCallback(
+    (messageId: string) => {
+      console.log("[useChats] selectBranch called", { selectedChatId, messageId });
+      if (!selectedChatId) {
+        console.log("[useChats] No selectedChatId, returning");
+        return;
+      }
+      console.log("[useChats] Calling selectBranchMutation.mutate");
+      selectBranchMutation.mutate({ chatId: selectedChatId, messageId });
+    },
+    [selectedChatId, selectBranchMutation]
+  );
+
   // Send message and run completion
   const sendMessageAndComplete = useCallback(
     async (chatId: string, content: string, needsAutoName: boolean) => {
@@ -254,6 +327,8 @@ export function useChats(options: UseChatsOptions = {}) {
     isGenerating: completion.isGenerating,
     streamingContent: completion.streamingContent,
     activeToolCalls: completion.activeToolCalls,
+    isRegenerating,
+    regeneratingContent,
 
     // Data
     chats,
@@ -285,6 +360,10 @@ export function useChats(options: UseChatsOptions = {}) {
     toggleStar: toggleStarMutation.mutate,
     autoNameChat: autoNameChatMutation.mutate,
 
+    // Branching operations (ChatGPT-style regeneration)
+    regenerateMessage,
+    selectBranch,
+
     // Label operations (delegated)
     createLabel: labelOps.createLabel,
     deleteLabel: labelOps.deleteLabel,
@@ -297,5 +376,6 @@ export function useChats(options: UseChatsOptions = {}) {
     isDeletingAllChats: deleteAllChatsMutation.isPending,
     isUpdatingChat: updateChatMutation.isPending,
     isAutoNaming: autoNameChatMutation.isPending,
+    isSelectingBranch: selectBranchMutation.isPending,
   };
 }

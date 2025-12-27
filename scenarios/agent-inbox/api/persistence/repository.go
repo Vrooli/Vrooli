@@ -206,6 +206,11 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 			)`},
 		{"create idx_tool_configurations_chat_id", `CREATE INDEX IF NOT EXISTS idx_tool_configurations_chat_id ON tool_configurations(chat_id)`},
 		{"create idx_tool_configurations_global", `CREATE INDEX IF NOT EXISTS idx_tool_configurations_global ON tool_configurations(scenario, tool_name) WHERE chat_id IS NULL`},
+		// Message branching support (ChatGPT-style regeneration)
+		{"add messages.parent_message_id", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS parent_message_id UUID REFERENCES messages(id) ON DELETE CASCADE`},
+		{"create idx_messages_parent_id", `CREATE INDEX IF NOT EXISTS idx_messages_parent_id ON messages(parent_message_id)`},
+		{"add messages.sibling_index", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS sibling_index INTEGER DEFAULT 0`},
+		{"add chats.active_leaf_message_id", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS active_leaf_message_id UUID REFERENCES messages(id) ON DELETE SET NULL`},
 	}
 
 	for _, m := range migrations {

@@ -10,35 +10,39 @@ import (
 // A chat contains a sequence of messages between users and AI assistants,
 // and can be organized with labels, starred, or archived.
 type Chat struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	Preview      string    `json:"preview"`
-	Model        string    `json:"model"`
-	ViewMode     string    `json:"view_mode"` // "bubble" (default)
-	IsRead       bool      `json:"is_read"`
-	IsArchived   bool      `json:"is_archived"`
-	IsStarred    bool      `json:"is_starred"`
-	LabelIDs     []string  `json:"label_ids"`
-	SystemPrompt string    `json:"system_prompt"`
-	ToolsEnabled bool      `json:"tools_enabled"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID                  string    `json:"id"`
+	Name                string    `json:"name"`
+	Preview             string    `json:"preview"`
+	Model               string    `json:"model"`
+	ViewMode            string    `json:"view_mode"` // "bubble" (default)
+	IsRead              bool      `json:"is_read"`
+	IsArchived          bool      `json:"is_archived"`
+	IsStarred           bool      `json:"is_starred"`
+	LabelIDs            []string  `json:"label_ids"`
+	SystemPrompt        string    `json:"system_prompt"`
+	ToolsEnabled        bool      `json:"tools_enabled"`
+	ActiveLeafMessageID string    `json:"active_leaf_message_id,omitempty"` // Current branch leaf for message tree
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 // Message represents a single message in a chat.
 // Messages can come from users, assistants, the system, or as tool responses.
+// Messages form a tree structure for conversation branching (ChatGPT-style regeneration).
 type Message struct {
-	ID           string     `json:"id"`
-	ChatID       string     `json:"chat_id"`
-	Role         string     `json:"role"` // "user", "assistant", "system", "tool"
-	Content      string     `json:"content"`
-	Model        string     `json:"model,omitempty"`
-	TokenCount   int        `json:"token_count,omitempty"`
-	ToolCallID   string     `json:"tool_call_id,omitempty"`  // For tool response messages
-	ToolCalls    []ToolCall `json:"tool_calls,omitempty"`    // Tool calls requested by assistant
-	ResponseID   string     `json:"response_id,omitempty"`   // OpenRouter response ID for tracking
-	FinishReason string     `json:"finish_reason,omitempty"` // "stop", "tool_calls", etc.
-	CreatedAt    time.Time  `json:"created_at"`
+	ID              string     `json:"id"`
+	ChatID          string     `json:"chat_id"`
+	Role            string     `json:"role"` // "user", "assistant", "system", "tool"
+	Content         string     `json:"content"`
+	Model           string     `json:"model,omitempty"`
+	TokenCount      int        `json:"token_count,omitempty"`
+	ToolCallID      string     `json:"tool_call_id,omitempty"`      // For tool response messages
+	ToolCalls       []ToolCall `json:"tool_calls,omitempty"`        // Tool calls requested by assistant
+	ResponseID      string     `json:"response_id,omitempty"`       // OpenRouter response ID for tracking
+	FinishReason    string     `json:"finish_reason,omitempty"`     // "stop", "tool_calls", etc.
+	ParentMessageID string     `json:"parent_message_id,omitempty"` // Parent message for branching
+	SiblingIndex    int        `json:"sibling_index"`               // Order among siblings (0 = first)
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 // ToolCall represents a tool invocation requested by the assistant.

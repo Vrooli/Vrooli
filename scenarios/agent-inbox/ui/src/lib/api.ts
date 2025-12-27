@@ -13,6 +13,7 @@ export interface Chat {
   is_archived: boolean;
   is_starred: boolean;
   label_ids: string[];
+  active_leaf_message_id?: string; // Current branch leaf for message tree
   created_at: string;
   updated_at: string;
 }
@@ -37,6 +38,8 @@ export interface Message {
   tool_calls?: ToolCall[];
   response_id?: string;
   finish_reason?: string;
+  parent_message_id?: string; // Parent message for branching
+  sibling_index: number;      // Order among siblings (0 = first)
   created_at: string;
 }
 
@@ -184,6 +187,127 @@ export async function addMessage(chatId: string, data: { role: string; content: 
 
   if (!res.ok) {
     throw new Error(`Failed to add message: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// Message branching (ChatGPT-style regeneration)
+
+/**
+ * Regenerate an assistant message, creating a new sibling response.
+ * The original response is preserved and a new alternative is generated.
+ * Supports streaming via the same options as completeChat.
+ */
+export async function regenerateMessage(
+  chatId: string,
+  messageId: string,
+  options?: {
+    stream?: boolean;
+    onChunk?: (content: string) => void;
+    onEvent?: (event: StreamingEvent) => void;
+    signal?: AbortSignal;
+  }
+): Promise<Message | void> {
+  const stream = options?.stream ?? true;
+  const url = buildApiUrl(`/chats/${chatId}/messages/${messageId}/regenerate?stream=${stream}`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal: options?.signal,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Failed to regenerate message: ${errorText}`);
+  }
+
+  if (stream) {
+    const reader = res.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) {
+      throw new Error("Streaming not supported");
+    }
+
+    try {
+      while (true) {
+        if (options?.signal?.aborted) {
+          reader.cancel();
+          throw new DOMException("Aborted", "AbortError");
+        }
+
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const text = decoder.decode(value, { stream: true });
+        const lines = text.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") continue;
+
+            try {
+              const parsed = JSON.parse(data) as StreamingEvent;
+
+              if (parsed.content && options?.onChunk) {
+                options.onChunk(parsed.content);
+              }
+
+              if (options?.onEvent) {
+                options.onEvent(parsed);
+              }
+            } catch {
+              // Ignore parse errors for partial data
+            }
+          }
+        }
+      }
+    } finally {
+      try {
+        reader.releaseLock();
+      } catch {
+        // Reader may already be released
+      }
+    }
+  } else {
+    return res.json();
+  }
+}
+
+/**
+ * Select a different branch by setting a message as the active leaf.
+ * Used when navigating between alternative responses.
+ */
+export async function selectBranch(chatId: string, messageId: string): Promise<{ active_leaf_message_id: string }> {
+  const url = buildApiUrl(`/chats/${chatId}/messages/${messageId}/select`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to select branch: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Get all sibling messages (alternatives) for a given message.
+ * Returns messages with the same parent, used for the version picker.
+ */
+export async function getMessageSiblings(chatId: string, messageId: string): Promise<Message[]> {
+  const url = buildApiUrl(`/chats/${chatId}/messages/${messageId}/siblings`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to get message siblings: ${res.status}`);
   }
 
   return res.json();
