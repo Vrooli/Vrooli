@@ -87,6 +87,8 @@ interface AINavigationPanelProps {
   onReset: () => void;
   /** Whether the panel is disabled (e.g., no session) */
   disabled?: boolean;
+  /** Initial prompt to pre-fill (from template) */
+  initialPrompt?: string;
 }
 
 /** Get tier badge color */
@@ -134,11 +136,19 @@ export function AINavigationPanel({
   onAbort,
   onReset,
   disabled = false,
+  initialPrompt,
 }: AINavigationPanelProps) {
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState(initialPrompt || '');
   const [selectedModelId, setSelectedModelId] = useState(() => getPersistedModel('qwen3-vl-30b'));
   const [maxSteps, setMaxSteps] = useState(() => getPersistedMaxSteps(20));
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Sync initialPrompt to prompt when it changes (e.g., from template)
+  useEffect(() => {
+    if (initialPrompt && !prompt) {
+      setPrompt(initialPrompt);
+    }
+  }, [initialPrompt, prompt]);
 
   // Persist model selection when it changes
   const handleModelChange = useCallback((modelId: string) => {

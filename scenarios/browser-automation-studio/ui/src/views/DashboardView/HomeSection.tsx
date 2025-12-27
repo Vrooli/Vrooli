@@ -214,11 +214,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   const heroSecondaryAction = useCallback(() => {
     if (aiCapability.available) {
-      onUseTemplate(examplePrompts[0], 'Template jumpstart');
+      // Scroll to templates gallery section
+      document.getElementById('templates-gallery')?.scrollIntoView({ behavior: 'smooth' });
     } else {
       onOpenSettings('apikeys');
     }
-  }, [aiCapability.available, onOpenSettings, onUseTemplate]);
+  }, [aiCapability.available, onOpenSettings]);
 
   const heroSecondaryLabel = aiCapability.available ? 'Start from template' : 'Setup AI keys';
 
@@ -365,7 +366,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </button>
 
         <button
-          onClick={() => onUseTemplate(examplePrompts[0], 'Login Test')}
+          onClick={() => document.getElementById('templates-gallery')?.scrollIntoView({ behavior: 'smooth' })}
           className="flex items-start gap-3 p-4 bg-[rgb(var(--flow-surface))] hover:bg-flow-node-hover border border-flow-border/60 rounded-lg transition-colors text-left"
         >
           <FolderOpen size={18} className="text-flow-text-secondary mt-0.5" />
@@ -769,8 +770,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       )}
 
-      {/* Templates Gallery - Available regardless of AI capability */}
-      <TemplatesGallery onUseTemplate={onUseTemplate} />
+      {/* Templates Gallery - Self-contained with entitlement checks and modals */}
+      <div id="templates-gallery">
+        <TemplatesGallery onOpenSettings={onOpenSettings} />
+      </div>
     </div>
   );
 };

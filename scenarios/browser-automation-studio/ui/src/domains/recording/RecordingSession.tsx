@@ -56,6 +56,16 @@ interface RecordModePageProps {
   onSessionReady?: (sessionId: string) => void;
   /** Callback to close record mode */
   onClose?: () => void;
+  /** Initial URL to navigate to (from template) */
+  initialUrl?: string;
+  /** AI prompt to auto-start with (from template) */
+  aiPrompt?: string;
+  /** AI model to use (from template) */
+  aiModel?: string;
+  /** Max AI steps (from template) */
+  aiMaxSteps?: number;
+  /** Whether to auto-start AI navigation with the prompt */
+  autoStartAI?: boolean;
 }
 
 /** Right panel view state */
@@ -68,6 +78,11 @@ export function RecordModePage({
   onWorkflowGenerated,
   onSessionReady,
   onClose,
+  initialUrl,
+  aiPrompt,
+  aiModel,
+  aiMaxSteps,
+  autoStartAI,
 }: RecordModePageProps) {
   // Track current mode - can switch between recording and execution
   const [mode, setMode] = useState<TimelineMode>(initialMode);
@@ -93,11 +108,14 @@ export function RecordModePage({
     setSessionProfileId,
   } = useRecordingSession({ initialSessionId, onSessionReady });
 
-  // Right panel view state
-  const [rightPanelView, setRightPanelView] = useState<RightPanelView>('preview');
+  // Right panel view state - auto-switch to AI view if autoStartAI is true
+  const [rightPanelView, setRightPanelView] = useState<RightPanelView>(
+    autoStartAI ? 'ai-navigation' : 'preview'
+  );
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState('');
+  // Initialize previewUrl from template's initialUrl if provided
+  const [previewUrl, setPreviewUrl] = useState(initialUrl || '');
   const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
   const viewportSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoStartedRef = useRef(false);
@@ -314,8 +332,48 @@ export function RecordModePage({
     }
   }, [lastActionUrl, previewUrl]);
 
+  // Track whether initial URL navigation has been done to avoid double-navigation
+  const initialUrlNavigatedRef = useRef(false);
+  // Track whether initial navigation is complete (for AI auto-start)
+  const [isInitialNavigationComplete, setIsInitialNavigationComplete] = useState(!initialUrl);
+  // Ref to avoid stale closure when setting completion state
+  const isInitialNavigationCompleteRef = useRef(!initialUrl);
+
+  // Create session when we have a URL but no session yet
+  // This is separate from navigation to avoid race conditions
   useEffect(() => {
-    if (!previewUrl) {
+    if (!previewUrl || sessionId) {
+      return; // No URL needed or session already exists
+    }
+
+    let cancelled = false;
+
+    const createSessionForUrl = async () => {
+      try {
+        const newSessionId = await ensureSession(
+          previewViewport,
+          selectedProfileId ?? sessionProfileId ?? null,
+          streamSettingsRef.current
+        );
+        if (cancelled || !newSessionId) return;
+        // Session is now created, the navigation effect will handle navigation
+      } catch (err) {
+        if (cancelled) return;
+        console.warn('Failed to create session for URL', err);
+      }
+    };
+
+    void createSessionForUrl();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [previewUrl, sessionId, ensureSession, previewViewport, selectedProfileId, sessionProfileId]);
+
+  useEffect(() => {
+    // Don't navigate if no URL or no session yet
+    // We wait for the session to be created by the effect above
+    if (!previewUrl || !sessionId) {
       return;
     }
 
@@ -324,20 +382,41 @@ export function RecordModePage({
 
     const syncPreviewToSession = async () => {
       try {
-        const activeSessionId =
-          sessionId ?? (await ensureSession(previewViewport, selectedProfileId ?? sessionProfileId ?? null, streamSettingsRef.current));
-        if (!activeSessionId || cancelled) return;
+        // For initial URL from template, add a small delay to ensure session is ready
+        // This prevents race conditions with playwright context initialization
+        const isInitialNavigation = initialUrl && !initialUrlNavigatedRef.current;
+        if (isInitialNavigation) {
+          initialUrlNavigatedRef.current = true;
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          if (cancelled) return;
+        }
 
         const config = await getConfig();
-        await fetch(`${config.API_URL}/recordings/live/${activeSessionId}/navigate`, {
+        const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/navigate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: previewUrl }),
           signal: abortController.signal,
         });
+
+        // Mark initial navigation as complete if this was the initial navigation
+        // and it succeeded (or at least didn't throw)
+        if (isInitialNavigation && !cancelled && response.ok) {
+          // Add a brief delay to let the page start rendering
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          if (!cancelled) {
+            isInitialNavigationCompleteRef.current = true;
+            setIsInitialNavigationComplete(true);
+          }
+        }
       } catch (err) {
         if (abortController.signal.aborted || cancelled) return;
         console.warn('Failed to sync preview URL to recording session', err);
+        // Still mark as complete on error so UI isn't stuck
+        if (initialUrl && !isInitialNavigationCompleteRef.current) {
+          isInitialNavigationCompleteRef.current = true;
+          setIsInitialNavigationComplete(true);
+        }
       }
     };
 
@@ -347,7 +426,7 @@ export function RecordModePage({
       cancelled = true;
       abortController.abort();
     };
-  }, [sessionId, previewUrl, ensureSession, previewViewport, selectedProfileId, sessionProfileId]);
+  }, [sessionId, previewUrl, initialUrl]); // Note: isInitialNavigationComplete intentionally NOT in deps to avoid re-triggering navigation
 
   useEffect(() => {
     if (!sessionId || !previewViewport) {
@@ -391,12 +470,15 @@ export function RecordModePage({
     }
   }, [sessionId, isRecording, startRecording]);
 
-  // Reset state when session changes
+  // Reset state when session changes (but preserve AI view if auto-starting)
   useEffect(() => {
     autoStartedRef.current = false;
     exitSelectionMode(); // Clear selection when switching sessions
-    setRightPanelView('preview'); // Return to preview mode
-  }, [sessionId, exitSelectionMode]);
+    // Only reset to preview if we're not auto-starting AI navigation
+    if (!autoStartAI) {
+      setRightPanelView('preview');
+    }
+  }, [sessionId, exitSelectionMode, autoStartAI]);
 
   const handleSelectSessionProfile = useCallback(
     (profileId: string | null) => {
@@ -682,6 +764,10 @@ export function RecordModePage({
               onPreviewUrlChange={setPreviewUrl}
               actions={actions}
               streamSettings={streamSettings ?? undefined}
+              initialPrompt={aiPrompt}
+              initialModel={aiModel}
+              initialMaxSteps={aiMaxSteps}
+              autoStart={autoStartAI && isInitialNavigationComplete}
             />
           )}
         </div>

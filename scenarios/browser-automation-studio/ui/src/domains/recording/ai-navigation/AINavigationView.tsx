@@ -5,7 +5,7 @@
  * Shows the AI controls on the right and the browser on the left.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { AINavigationErrorBoundary } from './AINavigationErrorBoundary';
 import { AINavigationPanel } from './AINavigationPanel';
 import { AINavigationTimeline } from './AINavigationStepCard';
@@ -24,6 +24,14 @@ interface AINavigationViewProps {
   onStatsUpdate?: (stats: FrameStats) => void;
   onPageMetadataChange?: (metadata: PageMetadata) => void;
   pageTitle?: string;
+  /** Initial prompt to pre-fill and optionally auto-start (from template) */
+  initialPrompt?: string;
+  /** Model to use for auto-start (from template) */
+  initialModel?: string;
+  /** Max steps for auto-start (from template) */
+  initialMaxSteps?: number;
+  /** Whether to automatically start AI navigation with the initial prompt */
+  autoStart?: boolean;
 }
 
 export function AINavigationView({
@@ -35,6 +43,10 @@ export function AINavigationView({
   onStatsUpdate,
   onPageMetadataChange,
   pageTitle: externalPageTitle,
+  initialPrompt,
+  initialModel,
+  initialMaxSteps,
+  autoStart,
 }: AINavigationViewProps) {
   const {
     state,
@@ -46,6 +58,43 @@ export function AINavigationView({
   } = useAINavigation({ sessionId });
 
   const [refreshToken, setRefreshToken] = useState(0);
+  const autoStartTriggeredRef = useRef(false);
+
+  // Auto-start AI navigation when session is ready and autoStart is true
+  useEffect(() => {
+    if (
+      autoStart &&
+      sessionId &&
+      previewUrl &&
+      initialPrompt &&
+      !autoStartTriggeredRef.current &&
+      !isNavigating &&
+      state.status === 'idle'
+    ) {
+      autoStartTriggeredRef.current = true;
+
+      // Use the first available model if initialModel is not specified or not available
+      const modelToUse = initialModel && availableModels.some((m) => m.id === initialModel)
+        ? initialModel
+        : availableModels[0]?.id;
+
+      if (modelToUse) {
+        const maxSteps = initialMaxSteps ?? 20;
+        void startNavigation(initialPrompt, modelToUse, maxSteps);
+      }
+    }
+  }, [
+    autoStart,
+    sessionId,
+    previewUrl,
+    initialPrompt,
+    initialModel,
+    initialMaxSteps,
+    isNavigating,
+    state.status,
+    availableModels,
+    startNavigation,
+  ]);
 
   const handleRefresh = useCallback(() => {
     setRefreshToken((t) => t + 1);
@@ -131,6 +180,7 @@ export function AINavigationView({
               onAbort={handleAbort}
               onReset={reset}
               disabled={!sessionId}
+              initialPrompt={initialPrompt}
             />
           </div>
 

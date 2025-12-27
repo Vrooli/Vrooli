@@ -1,8 +1,8 @@
 /**
  * RecordModeView - Route wrapper for browser recording mode.
  */
-import { lazy, Suspense, useCallback, useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useState, useEffect, useMemo } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
 import { getConfig } from '@/config';
@@ -18,7 +18,24 @@ const RecordModePage = lazy(() =>
 export default function RecordModeView() {
   const navigate = useNavigate();
   const { sessionId: routeSessionId } = useParams<{ sessionId?: string }>();
+  const [searchParams] = useSearchParams();
   const [sessionId, setSessionId] = useState<string | null>(routeSessionId ?? null);
+
+  // Extract query params for template-based navigation
+  const templateParams = useMemo(() => {
+    const url = searchParams.get('url');
+    const aiPrompt = searchParams.get('ai_prompt');
+    const aiModel = searchParams.get('ai_model') || undefined;
+    const aiMaxSteps = searchParams.get('ai_max_steps');
+
+    return {
+      initialUrl: url || undefined,
+      aiPrompt: aiPrompt || undefined,
+      aiModel,
+      aiMaxSteps: aiMaxSteps ? parseInt(aiMaxSteps, 10) : undefined,
+      autoStartAI: Boolean(url && aiPrompt),
+    };
+  }, [searchParams]);
 
   // Sync route param to local state
   useEffect(() => {
@@ -54,10 +71,14 @@ export default function RecordModeView() {
   const handleSessionReady = useCallback(
     (newSessionId: string) => {
       setSessionId(newSessionId);
-      // Update URL to include session ID
-      navigate(`/record/${newSessionId}`, { replace: true });
+      // Update URL to include session ID, preserving query params for template flow
+      const currentSearch = searchParams.toString();
+      const newPath = currentSearch
+        ? `/record/${newSessionId}?${currentSearch}`
+        : `/record/${newSessionId}`;
+      navigate(newPath, { replace: true });
     },
-    [navigate]
+    [navigate, searchParams]
   );
 
   const handleWorkflowGenerated = useCallback(
@@ -99,6 +120,11 @@ export default function RecordModeView() {
           onWorkflowGenerated={handleWorkflowGenerated}
           onSessionReady={handleSessionReady}
           onClose={handleClose}
+          initialUrl={templateParams.initialUrl}
+          aiPrompt={templateParams.aiPrompt}
+          aiModel={templateParams.aiModel}
+          aiMaxSteps={templateParams.aiMaxSteps}
+          autoStartAI={templateParams.autoStartAI}
         />
       </Suspense>
     </div>
