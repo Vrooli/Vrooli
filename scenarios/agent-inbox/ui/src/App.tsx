@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Menu, X, ChevronLeft, Star } from "lucide-react";
 import { useChats } from "./hooks/useChats";
+import { useChatRoute, usePopStateListener } from "./hooks/useChatRoute";
 import { useKeyboardShortcuts, type KeyboardShortcut } from "./hooks/useKeyboardShortcuts";
 import { Sidebar } from "./components/layout/Sidebar";
 import { ChatList } from "./components/chat/ChatList";
@@ -22,6 +23,17 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   // Focused chat index for j/k navigation (separate from selected chat)
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+
+  // URL-based routing for chats
+  const { initialChatId, setChatInUrl } = useChatRoute();
+
+  // Handle URL sync when chat changes
+  const handleChatChange = useCallback(
+    (chatId: string | null) => {
+      setChatInUrl(chatId || "");
+    },
+    [setChatInUrl]
+  );
 
   const {
     // State
@@ -63,7 +75,20 @@ export default function App() {
     // Mutation states
     isCreatingChat,
     isDeletingAllChats,
-  } = useChats();
+  } = useChats({
+    initialChatId,
+    onChatChange: handleChatChange,
+  });
+
+  // Handle browser back/forward navigation
+  usePopStateListener(
+    useCallback(
+      (chatId: string) => {
+        selectChat(chatId);
+      },
+      [selectChat]
+    )
+  );
 
   // Close mobile sidebar when a chat is selected
   useEffect(() => {

@@ -40,9 +40,17 @@ export type View = "inbox" | "starred" | "archived";
 // Re-export for convenience
 export type { ActiveToolCall };
 
-export function useChats() {
+export interface UseChatsOptions {
+  /** Initial chat ID from URL - will be selected once chats are loaded */
+  initialChatId?: string;
+  /** Callback when selected chat changes - used for URL sync */
+  onChatChange?: (chatId: string | null) => void;
+}
+
+export function useChats(options: UseChatsOptions = {}) {
+  const { initialChatId, onChatChange } = options;
   const queryClient = useQueryClient();
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(initialChatId || null);
   const [currentView, setCurrentView] = useState<View>("inbox");
 
   // Delegate to focused hooks
@@ -93,6 +101,7 @@ export function useChats() {
     onSuccess: (newChat) => {
       queryClient.invalidateQueries({ queryKey: ["chats"] });
       setSelectedChatId(newChat.id);
+      onChatChange?.(newChat.id);
     },
   });
 
@@ -101,6 +110,7 @@ export function useChats() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chats"] });
       setSelectedChatId(null);
+      onChatChange?.(null);
     },
   });
 
@@ -110,6 +120,7 @@ export function useChats() {
       queryClient.invalidateQueries({ queryKey: ["chats"] });
       queryClient.invalidateQueries({ queryKey: ["chat"] });
       setSelectedChatId(null);
+      onChatChange?.(null);
     },
   });
 
@@ -136,6 +147,7 @@ export function useChats() {
       queryClient.invalidateQueries({ queryKey: ["chats"] });
       if (currentView === "inbox" || currentView === "archived") {
         setSelectedChatId(null);
+        onChatChange?.(null);
       }
     },
   });
@@ -197,6 +209,7 @@ export function useChats() {
         const chatId = newChat.id;
 
         setSelectedChatId(chatId);
+        onChatChange?.(chatId);
         queryClient.invalidateQueries({ queryKey: ["chats"] });
 
         await sendMessageAndComplete(chatId, content, true);
@@ -204,7 +217,7 @@ export function useChats() {
         console.error("Failed to create chat with message:", error);
       }
     },
-    [completion.isGenerating, queryClient, sendMessageAndComplete]
+    [completion.isGenerating, queryClient, sendMessageAndComplete, onChatChange]
   );
 
   // Send message to existing chat
@@ -223,13 +236,15 @@ export function useChats() {
   // Select chat and mark as read
   const selectChat = useCallback(
     (chatId: string) => {
-      setSelectedChatId(chatId);
+      const newId = chatId || null;
+      setSelectedChatId(newId);
+      onChatChange?.(newId);
       const chat = chats.find((c) => c.id === chatId);
       if (chat && !chat.is_read) {
         toggleReadMutation.mutate({ chatId, value: true });
       }
     },
-    [chats, toggleReadMutation]
+    [chats, toggleReadMutation, onChatChange]
   );
 
   return {
