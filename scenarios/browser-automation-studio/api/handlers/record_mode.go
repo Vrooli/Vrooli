@@ -515,6 +515,31 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	// Assign page ID to the action and store in timeline
+	var pageIDForTimeline uuid.UUID
+	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
+		pages := sess.Pages()
+		// If driver provided a page ID, map it; otherwise use active page
+		if action.DriverPageID != "" {
+			if vrooliPageID := pages.GetPageIDByDriverID(action.DriverPageID); vrooliPageID != nil {
+				action.PageID = vrooliPageID.String()
+				pageIDForTimeline = *vrooliPageID
+			}
+		}
+		// Fallback to active page if no page ID assigned
+		if action.PageID == "" {
+			pageIDForTimeline = pages.GetActivePageID()
+			action.PageID = pageIDForTimeline.String()
+		}
+		// Update timeline entry with page ID
+		if timelineEntry != nil {
+			timelineEntry["pageId"] = action.PageID
+		}
+
+		// Store action in timeline
+		h.recordModeService.AddTimelineAction(sessionID, &action, pageIDForTimeline)
+	}
+
 	// Broadcast with both legacy action and timeline_entry
 	if timelineEntry != nil {
 		h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, action, timelineEntry)

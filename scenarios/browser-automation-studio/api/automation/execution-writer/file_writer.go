@@ -248,7 +248,7 @@ func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionRes
 	filePath := r.resultFilePath(executionID)
 	dir := filepath.Dir(filePath)
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create result directory: %w", err)
 	}
 
@@ -261,7 +261,7 @@ func (r *FileWriter) writeResultFile(executionID uuid.UUID, result *ExecutionRes
 		return fmt.Errorf("marshal result data: %w", err)
 	}
 
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
+	if err := os.WriteFile(filePath, data, 0o644); err != nil {
 		return fmt.Errorf("write result file: %w", err)
 	}
 
@@ -293,7 +293,7 @@ This folder contains artifacts captured during a single workflow execution.
 If an artifact type is missing, it was not requested or the engine failed to produce it.
 `)
 
-	if err := os.WriteFile(path, content, 0644); err != nil {
+	if err := os.WriteFile(path, content, 0o644); err != nil {
 		return fmt.Errorf("write readme file: %w", err)
 	}
 	return nil

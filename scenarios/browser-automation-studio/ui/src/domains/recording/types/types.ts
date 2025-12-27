@@ -188,6 +188,10 @@ export interface RecordedAction {
   url: string;
   frameId?: string;
   cursorPos?: Point;
+  /** Page ID for multi-tab recording */
+  pageId?: string;
+  /** Page title at the time of the action */
+  pageTitle?: string;
 }
 
 /**

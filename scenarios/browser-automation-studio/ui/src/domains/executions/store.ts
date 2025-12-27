@@ -135,6 +135,17 @@ export type TimelineFrame = ReplayFrame & {
   domSnapshotArtifactId?: string;
 };
 
+/** Page definition for multi-page workflow executions. */
+export interface ExecutionPage {
+  id: string;
+  url: string;
+  title: string;
+  isInitial: boolean;
+  openerId?: string;
+  /** Whether this page has been closed during execution. */
+  closed?: boolean;
+}
+
 export interface Execution {
   id: string;
   workflowId: string;
@@ -152,6 +163,10 @@ export interface Execution {
     elapsedMs?: number;
     timestamp: Date;
   };
+  /** Pages for multi-page workflow executions. */
+  pages?: ExecutionPage[];
+  /** Currently active page ID during playback. */
+  activePageId?: string;
 }
 
 /**

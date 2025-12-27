@@ -88,6 +88,7 @@ type CreateSessionResponse struct {
 type StartRecordingRequest struct {
 	CallbackURL      string `json:"callback_url"`
 	FrameCallbackURL string `json:"frame_callback_url"`
+	PageCallbackURL  string `json:"page_callback_url"`
 	FrameQuality     int    `json:"frame_quality"`
 	FrameFPS         int    `json:"frame_fps"`
 }
@@ -133,6 +134,11 @@ type RecordedAction struct {
 	URL         string                 `json:"url"`
 	FrameID     string                 `json:"frameId,omitempty"`
 	CursorPos   *contracts.Point       `json:"cursorPos,omitempty"`
+
+	// Multi-page support fields
+	PageID       string `json:"pageId,omitempty"`       // Vrooli's UUID for the page
+	DriverPageID string `json:"driverPageId,omitempty"` // Playwright's internal page ID
+	PageTitle    string `json:"pageTitle,omitempty"`    // Page title at action time
 }
 
 // SelectorSet contains multiple selector strategies for resilience.

@@ -60,6 +60,8 @@ type RecordingMessage = FrameMessage | RecordingSubscribedMessage;
 
 interface PlaywrightViewProps {
   sessionId: string;
+  /** Optional page ID for multi-tab sessions. When provided, frames are received for this specific page. */
+  pageId?: string;
   quality?: number;
   fps?: number;
   onStreamError?: (message: string) => void;
@@ -106,6 +108,7 @@ interface PlaywrightViewProps {
  */
 export function PlaywrightView({
   sessionId,
+  pageId,
   quality = 65,
   fps = 6,
   onStreamError,
@@ -136,6 +139,10 @@ export function PlaywrightView({
   const wsSubscribedRef = useRef(false);
   const [isWsFrameActive, setIsWsFrameActive] = useState(false);
 
+  // Page switching transition state
+  const lastPageIdRef = useRef<string | undefined>(pageId);
+  const [isPageSwitching, setIsPageSwitching] = useState(false);
+
   // WebSocket for real-time frame updates (including binary frames)
   const { isConnected, lastMessage, send, subscribeToBinaryFrames } = useWebSocket();
 
@@ -164,6 +171,26 @@ export function PlaywrightView({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
+
+  // Handle page switching transitions
+  useEffect(() => {
+    if (lastPageIdRef.current !== pageId) {
+      // Page is switching - show brief transition
+      setIsPageSwitching(true);
+      lastPageIdRef.current = pageId;
+
+      // Clear current frame state for clean transition
+      frameDimensionsRef.current = null;
+      setHasFrame(false);
+
+      // Hide transition overlay after brief delay (frames will arrive soon)
+      const timer = setTimeout(() => {
+        setIsPageSwitching(false);
+      }, 300);
+
+      return () => clearTimeout(timer);
+    }
+  }, [pageId]);
 
   // Push frame stats to parent when they change
   useEffect(() => {
@@ -218,17 +245,31 @@ export function PlaywrightView({
   }, [displayDimensions, reportContentRect]);
 
   // Subscribe to recording frames via WebSocket
+  // Re-subscribe when pageId changes to get frames for the new active page
   useEffect(() => {
     if (!useWebSocketFrames || !isConnected || !sessionId) {
       return;
     }
 
-    // Subscribe to recording updates for this session (includes frames)
-    if (!wsSubscribedRef.current) {
-      send({ type: "subscribe_recording", session_id: sessionId });
-      wsSubscribedRef.current = true;
-      console.log("[PlaywrightView] Subscribed to recording frames via WebSocket");
+    // Unsubscribe first if already subscribed (handles pageId changes)
+    if (wsSubscribedRef.current) {
+      send({ type: "unsubscribe_recording" });
+      wsSubscribedRef.current = false;
+      setIsWsFrameActive(false);
     }
+
+    // Subscribe to recording updates for this session (includes frames)
+    // Include pageId if provided for multi-tab support
+    const subscriptionMessage: Record<string, unknown> = {
+      type: "subscribe_recording",
+      session_id: sessionId,
+    };
+    if (pageId) {
+      subscriptionMessage.page_id = pageId;
+    }
+    send(subscriptionMessage);
+    wsSubscribedRef.current = true;
+    console.log("[PlaywrightView] Subscribed to recording frames via WebSocket", pageId ? `(page: ${pageId})` : "(active page)");
 
     return () => {
       if (wsSubscribedRef.current) {
@@ -238,7 +279,7 @@ export function PlaywrightView({
         console.log("[PlaywrightView] Unsubscribed from recording frames");
       }
     };
-  }, [useWebSocketFrames, isConnected, sessionId, send]);
+  }, [useWebSocketFrames, isConnected, sessionId, pageId, send]);
 
   // Handle WebSocket text messages (JSON)
   useEffect(() => {
@@ -470,8 +511,11 @@ export function PlaywrightView({
     const started = performance.now();
     try {
       const config = await getConfig();
-      // Remove cache-busting timestamp; use ETag for conditional requests instead
-      const endpoint = `${config.API_URL}/recordings/live/${sessionId}/frame?quality=${quality}`;
+      // Build frame endpoint URL with quality and optional pageId
+      let endpoint = `${config.API_URL}/recordings/live/${sessionId}/frame?quality=${quality}`;
+      if (pageId) {
+        endpoint += `&page_id=${encodeURIComponent(pageId)}`;
+      }
       const headers: HeadersInit = {};
       // Send If-None-Match header to skip identical frames
       if (lastETagRef.current) {
@@ -566,7 +610,7 @@ export function PlaywrightView({
         pollIntervalRef.current = nextInterval;
       }
     }
-  }, [fps, onStreamError, quality, sessionId, pollInterval, hasFrame, displayDimensions]);
+  }, [fps, onStreamError, quality, sessionId, pageId, pollInterval, hasFrame, displayDimensions]);
 
   // Polling - runs as primary method, stops when WebSocket frames become active
   // This ensures frames are always displayed, with WebSocket as an optimization
@@ -633,21 +677,30 @@ export function PlaywrightView({
     async (payload: unknown) => {
       // Prefer WebSocket for lower latency
       if (isConnected && wsSubscribedRef.current) {
-        send({
+        const message: Record<string, unknown> = {
           type: "recording_input",
           session_id: sessionId,
           input: payload,
-        });
+        };
+        // Include pageId for multi-tab input targeting
+        if (pageId) {
+          message.page_id = pageId;
+        }
+        send(message);
         return;
       }
 
       // Fallback to HTTP POST if WebSocket not available
       try {
         const config = await getConfig();
+        // Include pageId in request body for multi-tab input targeting
+        const body = pageId
+          ? { ...payload as Record<string, unknown>, page_id: pageId }
+          : payload;
         const res = await fetch(`${config.API_URL}/recordings/live/${sessionId}/input`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(body),
         });
         if (!res.ok) {
           const text = await res.text();
@@ -661,7 +714,7 @@ export function PlaywrightView({
         }
       }
     },
-    [isConnected, onStreamError, send, sessionId]
+    [isConnected, onStreamError, pageId, send, sessionId]
   );
 
   const getScaledPoint = useCallback(
@@ -765,8 +818,21 @@ export function PlaywrightView({
         height={displayDimensions?.height || 720}
       />
 
+      {/* Page switching transition overlay */}
+      {isPageSwitching && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 dark:bg-gray-900/80 transition-opacity duration-200 z-10">
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Switching tab…
+          </div>
+        </div>
+      )}
+
       {/* Loading state - shown when no frame yet */}
-      {!hasFrame && (
+      {!hasFrame && !isPageSwitching && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
           {isFetching ? "Connecting to live session…" : "Waiting for first frame…"}
         </div>

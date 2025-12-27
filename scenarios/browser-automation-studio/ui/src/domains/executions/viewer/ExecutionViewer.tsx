@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { ArtifactProfileSelector } from "../components/ArtifactProfileSelector";
 import { ExecutionHeader } from "./components/ExecutionHeader";
+import { ExecutionTabBar } from "./components/ExecutionTabBar";
 import { ScreenshotsPanel } from "./components/ScreenshotsPanel";
 import { LogsPanel } from "./components/LogsPanel";
 import { ReplayPanel } from "./components/ReplayPanel";
@@ -707,6 +708,15 @@ function ActiveExecutionViewer({
         onRestart={handleRestart}
         onExport={openExportDialog}
         onClose={onClose}
+      />
+
+      {/* Multi-page tab bar */}
+      <ExecutionTabBar
+        pages={execution.pages ?? []}
+        activePageId={execution.activePageId ?? null}
+        isRunning={isRunning}
+        executingPageId={replayFrames[replayFrames.length - 1]?.pageId ?? null}
+        show={(execution.pages?.length ?? 0) > 1}
       />
 
       <div className="h-2 bg-flow-bg">

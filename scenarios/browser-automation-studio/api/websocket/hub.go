@@ -322,6 +322,56 @@ func (h *Hub) BroadcastPerfStats(sessionID string, stats any) {
 	}
 }
 
+// BroadcastPageEvent sends a page lifecycle event to clients subscribed to a recording session.
+// This notifies clients when pages are created, navigated, or closed.
+func (h *Hub) BroadcastPageEvent(sessionID string, event any) {
+	message := map[string]any{
+		"type":       "page_event",
+		"session_id": sessionID,
+		"event":      event,
+		"timestamp":  getCurrentTimestamp(),
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		// Only send to clients subscribed to this recording session
+		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+			select {
+			case client.Send <- message:
+			default:
+				// Client buffer full, skip (non-blocking)
+			}
+		}
+	}
+}
+
+// BroadcastPageSwitch sends a page switch notification to clients.
+// This is sent when the active page changes.
+func (h *Hub) BroadcastPageSwitch(sessionID, activePageID string) {
+	message := map[string]any{
+		"type":           "page_switch",
+		"session_id":     sessionID,
+		"active_page_id": activePageID,
+		"timestamp":      getCurrentTimestamp(),
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		// Only send to clients subscribed to this recording session
+		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+			select {
+			case client.Send <- message:
+			default:
+				// Client buffer full, skip (non-blocking)
+			}
+		}
+	}
+}
+
 // GetClientCount returns the number of connected clients.
 func (h *Hub) GetClientCount() int {
 	h.mu.RLock()

@@ -19,9 +19,9 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/internal/resilience"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
-	"google.golang.org/protobuf/encoding/protojson"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -525,6 +525,15 @@ func (c *Client) GetFrame(ctx context.Context, sessionID, queryParams string) (*
 // ForwardInput forwards pointer/keyboard/wheel events to the driver.
 func (c *Client) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
 	return c.postRaw(ctx, fmt.Sprintf("/session/%s/record/input", url.PathEscape(sessionID)), body, nil)
+}
+
+// SetActivePage switches the active page for frame streaming and input forwarding.
+// The driverPageID is the Playwright driver's internal identifier for the page.
+func (c *Client) SetActivePage(ctx context.Context, sessionID, driverPageID string) error {
+	req := map[string]string{
+		"page_id": driverPageID,
+	}
+	return c.post(ctx, fmt.Sprintf("/session/%s/record/active-page", url.PathEscape(sessionID)), req, nil)
 }
 
 // GetStorageState retrieves the browser storage state for session persistence.

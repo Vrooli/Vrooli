@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -15,13 +16,15 @@ import (
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/domain"
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
-	"github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/performance"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	"github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
@@ -59,6 +62,16 @@ type RecordModeService interface {
 	CaptureScreenshot(ctx context.Context, sessionID string, req *autodriver.CaptureScreenshotRequest) (*autodriver.CaptureScreenshotResponse, error)
 	GetFrame(ctx context.Context, sessionID, queryParams string) (*autodriver.GetFrameResponse, error)
 	ForwardInput(ctx context.Context, sessionID string, body []byte) error
+
+	// Multi-page support
+	GetSession(sessionID string) (*autosession.Session, bool)
+	GetPages(sessionID string) (*livecapture.PageListResult, error)
+	ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error
+
+	// Timeline support
+	AddTimelineAction(sessionID string, action *livecapture.RecordedAction, pageID uuid.UUID)
+	AddTimelinePageEvent(sessionID string, event *domain.PageEvent)
+	GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*domain.TimelineResponse, error)
 }
 
 // Handler contains all HTTP handlers

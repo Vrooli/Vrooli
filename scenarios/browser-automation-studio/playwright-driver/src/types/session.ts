@@ -174,12 +174,30 @@ export interface SessionState {
   pages: Page[];
   currentPageIndex: number;
 
+  /**
+   * Map from driver page ID (UUID) to Playwright Page object.
+   * Enables efficient lookup when switching pages by ID.
+   */
+  pageIdMap: Map<string, Page>;
+
+  /**
+   * Reverse map from Playwright Page object to driver page ID.
+   * Used to find the ID when a page emits events.
+   */
+  pageToIdMap: WeakMap<Page, string>;
+
   // Network mocking state
   activeMocks: Map<string, MockRoute>;
 
   // Recording state (Record Mode)
   recordingController?: RecordModeController;
   recordingId?: string;
+
+  /**
+   * Cleanup function for page lifecycle listeners.
+   * Called when recording stops to remove event handlers.
+   */
+  pageLifecycleCleanup?: () => void;
 
   /**
    * Instruction idempotency tracking.

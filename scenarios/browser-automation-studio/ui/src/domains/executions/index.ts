@@ -15,6 +15,7 @@ export { useExecutionStore, mapTimelineEntryToFrame, mapTimelineFrameFromProto }
 export type {
   Execution,
   ExecutionStore,
+  ExecutionPage,
   Screenshot,
   LogEntry,
   TimelineFrame,

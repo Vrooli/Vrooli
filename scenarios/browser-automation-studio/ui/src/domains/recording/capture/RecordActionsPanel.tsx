@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { UnifiedTimeline } from '../timeline/TimelineEventCard';
+import { UnifiedTimeline, type PageColorClass } from '../timeline/TimelineEventCard';
 import type { RecordedAction, SelectorValidation, RecordingSessionProfile } from '../types/types';
 import type { TimelineItem, TimelineMode } from '../types/timeline-unified';
+import type { Page } from '../hooks/usePages';
 
 interface RecordActionsPanelProps {
   /** Legacy: RecordedActions for backward compatibility */
@@ -41,6 +42,10 @@ interface RecordActionsPanelProps {
   onSelectNone: () => void;
   /** Callback to switch to AI navigation mode */
   onAINavigation?: () => void;
+  /** Pages for multi-tab recording */
+  pages?: Page[];
+  /** Map of page ID to color class */
+  pageColorMap?: Map<string, PageColorClass>;
 }
 
 export function RecordActionsPanel({
@@ -74,6 +79,8 @@ export function RecordActionsPanel({
   onSelectAll,
   onSelectNone,
   onAINavigation,
+  pages,
+  pageColorMap,
 }: RecordActionsPanelProps) {
   // Use unified timeline items if provided, otherwise fall back to actions count
   const itemCount = itemCountOverride ?? timelineItems?.length ?? actions.length;
@@ -279,6 +286,8 @@ export function RecordActionsPanel({
             onItemClick={onActionClick}
             onDeleteItem={mode === 'recording' ? onDeleteAction : undefined}
             onEditSelector={mode === 'recording' && onEditSelector ? (index) => onEditSelector(index, '') : undefined}
+            pageColorMap={pageColorMap}
+            showPageColors={pages && pages.length > 1}
           />
         ) : (
           <UnifiedTimeline
@@ -290,6 +299,8 @@ export function RecordActionsPanel({
             selectedIndices={selectedIndices}
             onItemClick={onActionClick}
             onDeleteItem={onDeleteAction}
+            pageColorMap={pageColorMap}
+            showPageColors={pages && pages.length > 1}
           />
         )}
       </div>

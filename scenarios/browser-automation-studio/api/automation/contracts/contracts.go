@@ -250,41 +250,41 @@ const (
 //
 // See: docs/plans/bas-unified-timeline-workflow-types.md
 type StepOutcome struct {
-	SchemaVersion      string            `json:"schema_version"`
-	PayloadVersion     string            `json:"payload_version"`
-	ExecutionID        uuid.UUID         `json:"execution_id,omitempty"`
-	CorrelationID      string            `json:"correlation_id,omitempty"` // Stable per step attempt, assigned by executor/recorder.
-	StepIndex          int               `json:"step_index"`
-	Attempt            int               `json:"attempt"`
-	NodeID             string            `json:"node_id"`
-	StepType           string            `json:"step_type"`
-	Instruction        string            `json:"instruction,omitempty"`
-	Success            bool              `json:"success"`
-	StartedAt          time.Time         `json:"started_at"`                     // UTC, monotonic per attempt.
-	CompletedAt        *time.Time        `json:"completed_at,omitempty"`         // UTC, nil if never completed.
-	DurationMs         int               `json:"duration_ms,omitempty"`          // Derived; CompletedAt-StartedAt preferred source.
-	FinalURL           string            `json:"final_url,omitempty"`            // Normalized URL after navigation.
-	Screenshot         *Screenshot       `json:"screenshot,omitempty"`           // Final screenshot for the attempt.
-	DOMSnapshot        *DOMSnapshot      `json:"dom_snapshot,omitempty"`         // DOM snapshot/html; apply size limits.
-	ConsoleLogs        []ConsoleLogEntry `json:"console_logs,omitempty"`         // Ordered by timestamp.
-	Network            []NetworkEvent    `json:"network,omitempty"`              // Ordered by timestamp.
-	ExtractedData      map[string]any    `json:"extracted_data,omitempty"`       // Structured outputs (typed by workflow spec).
-	Assertion          *AssertionOutcome `json:"assertion,omitempty"`            // Present for assert steps.
-	Condition          *ConditionOutcome `json:"condition,omitempty"`            // Present for branch conditions.
-	ProbeResult        map[string]any    `json:"probe_result,omitempty"`         // For probe nodes; shape defined by workflow spec.
-	ElementBoundingBox *BoundingBox      `json:"element_bounding_box,omitempty"` // Target element bounding box (viewport coords).
-	ClickPosition      *Point            `json:"click_position,omitempty"`       // Actual click coordinates used (viewport coords).
-	FocusedElement     *ElementFocus     `json:"focused_element,omitempty"`      // Focus metadata for framing.
-	ElementSnapshot      *ElementMeta       `json:"element_snapshot,omitempty"`       // Target element metadata (tag, id, class, role, aria-label, etc.) for debugging.
-	UsedSelector         string             `json:"used_selector,omitempty"`          // The selector that was used to find the element.
-	SelectorConfidence   float64            `json:"selector_confidence,omitempty"`    // Match confidence: 1.0 = unique match, lower = ambiguous.
-	SelectorMatchCount   int                `json:"selector_match_count,omitempty"`   // Number of elements that matched the selector.
-	HighlightRegions     []*HighlightRegion `json:"highlight_regions,omitempty"`      // Overlay regions applied for emphasis.
-	MaskRegions        []*MaskRegion      `json:"mask_regions,omitempty"`        // Regions masked/dimmed during capture.
-	ZoomFactor         float64           `json:"zoom_factor,omitempty"`          // Applied zoom for the attempt.
-	CursorTrail        []CursorPosition  `json:"cursor_trail,omitempty"`         // Ordered cursor path for timeline playback.
-	Notes              map[string]string `json:"notes,omitempty"`                // Freeform annotations (e.g., dedupe hints).
-	Failure            *StepFailure      `json:"failure,omitempty"`              // Populated when Success=false.
+	SchemaVersion      string             `json:"schema_version"`
+	PayloadVersion     string             `json:"payload_version"`
+	ExecutionID        uuid.UUID          `json:"execution_id,omitempty"`
+	CorrelationID      string             `json:"correlation_id,omitempty"` // Stable per step attempt, assigned by executor/recorder.
+	StepIndex          int                `json:"step_index"`
+	Attempt            int                `json:"attempt"`
+	NodeID             string             `json:"node_id"`
+	StepType           string             `json:"step_type"`
+	Instruction        string             `json:"instruction,omitempty"`
+	Success            bool               `json:"success"`
+	StartedAt          time.Time          `json:"started_at"`                     // UTC, monotonic per attempt.
+	CompletedAt        *time.Time         `json:"completed_at,omitempty"`         // UTC, nil if never completed.
+	DurationMs         int                `json:"duration_ms,omitempty"`          // Derived; CompletedAt-StartedAt preferred source.
+	FinalURL           string             `json:"final_url,omitempty"`            // Normalized URL after navigation.
+	Screenshot         *Screenshot        `json:"screenshot,omitempty"`           // Final screenshot for the attempt.
+	DOMSnapshot        *DOMSnapshot       `json:"dom_snapshot,omitempty"`         // DOM snapshot/html; apply size limits.
+	ConsoleLogs        []ConsoleLogEntry  `json:"console_logs,omitempty"`         // Ordered by timestamp.
+	Network            []NetworkEvent     `json:"network,omitempty"`              // Ordered by timestamp.
+	ExtractedData      map[string]any     `json:"extracted_data,omitempty"`       // Structured outputs (typed by workflow spec).
+	Assertion          *AssertionOutcome  `json:"assertion,omitempty"`            // Present for assert steps.
+	Condition          *ConditionOutcome  `json:"condition,omitempty"`            // Present for branch conditions.
+	ProbeResult        map[string]any     `json:"probe_result,omitempty"`         // For probe nodes; shape defined by workflow spec.
+	ElementBoundingBox *BoundingBox       `json:"element_bounding_box,omitempty"` // Target element bounding box (viewport coords).
+	ClickPosition      *Point             `json:"click_position,omitempty"`       // Actual click coordinates used (viewport coords).
+	FocusedElement     *ElementFocus      `json:"focused_element,omitempty"`      // Focus metadata for framing.
+	ElementSnapshot    *ElementMeta       `json:"element_snapshot,omitempty"`     // Target element metadata (tag, id, class, role, aria-label, etc.) for debugging.
+	UsedSelector       string             `json:"used_selector,omitempty"`        // The selector that was used to find the element.
+	SelectorConfidence float64            `json:"selector_confidence,omitempty"`  // Match confidence: 1.0 = unique match, lower = ambiguous.
+	SelectorMatchCount int                `json:"selector_match_count,omitempty"` // Number of elements that matched the selector.
+	HighlightRegions   []*HighlightRegion `json:"highlight_regions,omitempty"`    // Overlay regions applied for emphasis.
+	MaskRegions        []*MaskRegion      `json:"mask_regions,omitempty"`         // Regions masked/dimmed during capture.
+	ZoomFactor         float64            `json:"zoom_factor,omitempty"`          // Applied zoom for the attempt.
+	CursorTrail        []CursorPosition   `json:"cursor_trail,omitempty"`         // Ordered cursor path for timeline playback.
+	Notes              map[string]string  `json:"notes,omitempty"`                // Freeform annotations (e.g., dedupe hints).
+	Failure            *StepFailure       `json:"failure,omitempty"`              // Populated when Success=false.
 }
 
 // StepFailure codifies failure taxonomy so the executor can map to retry vs.

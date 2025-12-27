@@ -23,6 +23,8 @@ interface RecordPreviewPanelProps {
   onPreviewUrlChange: (url: string) => void;
   actions: RecordedAction[];
   sessionId?: string | null;
+  /** Active page ID for multi-tab sessions */
+  activePageId?: string | null;
   onViewportChange?: (size: { width: number; height: number }) => void;
   /** Callback when stream settings change (for session creation) */
   onStreamSettingsChange?: (settings: StreamSettingsValues) => void;
@@ -33,6 +35,7 @@ export function RecordPreviewPanel({
   onPreviewUrlChange,
   actions,
   sessionId,
+  activePageId,
   onViewportChange,
   onStreamSettingsChange,
 }: RecordPreviewPanelProps) {
@@ -331,6 +334,7 @@ export function RecordPreviewPanel({
                         effectiveUrl ? (
                           <PlaywrightView
                             sessionId={sessionId}
+                            pageId={activePageId ?? undefined}
                             refreshToken={liveRefreshToken}
                             viewport={currentViewport ?? undefined}
                             quality={streamSettings.quality}
@@ -355,6 +359,7 @@ export function RecordPreviewPanel({
                   effectiveUrl ? (
                     <PlaywrightView
                       sessionId={sessionId}
+                      pageId={activePageId ?? undefined}
                       refreshToken={liveRefreshToken}
                       viewport={currentViewport ?? undefined}
                       quality={streamSettings.quality}

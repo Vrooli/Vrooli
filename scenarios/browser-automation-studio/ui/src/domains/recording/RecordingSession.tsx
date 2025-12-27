@@ -23,6 +23,7 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { RecordActionsPanel } from './capture/RecordActionsPanel';
 import { RecordingHeader } from './capture/RecordingHeader';
+import { TabBar } from './capture/TabBar';
 import { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanners';
 import { ClearActionsModal } from './capture/RecordModeModals';
 import { WorkflowCreationForm } from './conversion/WorkflowCreationForm';
@@ -33,6 +34,7 @@ import { useRecordMode } from './hooks/useRecordMode';
 import { useTimelinePanel } from './hooks/useTimelinePanel';
 import { useActionSelection } from './hooks/useActionSelection';
 import { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
+import { usePages } from './hooks/usePages';
 import { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
 import { mergeConsecutiveActions } from './utils/mergeActions';
 import { recordedActionToTimelineItem } from './types/timeline-unified';
@@ -151,12 +153,55 @@ export function RecordModePage({
     initialActions: actions,
   });
 
+  // Page tracking for multi-tab recording
+  const [recentActivityPageId, setRecentActivityPageId] = useState<string | null>(null);
+  const {
+    openPages,
+    activePageId,
+    switchToPage,
+    closePage,
+    isLoading: isPagesLoading,
+    hasMultiplePages,
+  } = usePages({
+    sessionId,
+    onPageCreated: (page) => {
+      console.log('[RecordModePage] New page created:', page.id, page.url);
+      // Show activity indicator briefly on new pages
+      setRecentActivityPageId(page.id);
+      setTimeout(() => setRecentActivityPageId(null), 2000);
+    },
+    onActivePageChanged: (pageId) => {
+      console.log('[RecordModePage] Active page changed:', pageId);
+    },
+  });
+
   const mergedActions = useMemo(() => mergeConsecutiveActions(actions), [actions]);
 
   const mergedTimelineItems = useMemo(() => {
     if (mode !== 'recording') return timelineItems;
     return mergedActions.map(recordedActionToTimelineItem);
   }, [mergedActions, mode, timelineItems]);
+
+  // Page color palette for visual distinction in multi-tab recording
+  const PAGE_COLORS = [
+    'bg-blue-500',
+    'bg-green-500',
+    'bg-purple-500',
+    'bg-orange-500',
+    'bg-pink-500',
+    'bg-cyan-500',
+    'bg-yellow-500',
+    'bg-red-500',
+  ] as const;
+
+  // Create a stable color map for pages based on creation order
+  const pageColorMap = useMemo(() => {
+    const map = new Map<string, typeof PAGE_COLORS[number]>();
+    openPages.forEach((page, index) => {
+      map.set(page.id, PAGE_COLORS[index % PAGE_COLORS.length]);
+    });
+    return map;
+  }, [openPages]);
 
   const mergedIndexMap = useMemo(() => {
     const map = new Map<number, number[]>();
@@ -528,6 +573,17 @@ export function RecordModePage({
         canExecute={actions.length > 0} // Can execute if we have recorded actions
       />
 
+      {/* Tab bar for multi-tab sessions */}
+      <TabBar
+        pages={openPages}
+        activePageId={activePageId}
+        onTabClick={switchToPage}
+        onTabClose={closePage}
+        isLoading={isPagesLoading}
+        recentActivityPageId={recentActivityPageId}
+        show={hasMultiplePages}
+      />
+
       {/* Error display */}
       {displayError && <ErrorBanner message={displayError} />}
 
@@ -570,6 +626,8 @@ export function RecordModePage({
             onSelectAll={selectAll}
             onSelectNone={selectNone}
             onAINavigation={handleAINavigation}
+            pages={openPages}
+            pageColorMap={pageColorMap}
           />
         )}
 
@@ -578,6 +636,7 @@ export function RecordModePage({
             <RecordPreviewPanel
               previewUrl={previewUrl}
               sessionId={sessionId}
+              activePageId={activePageId}
               onPreviewUrlChange={setPreviewUrl}
               onViewportChange={(size) => setPreviewViewport(size)}
               onStreamSettingsChange={setStreamSettings}

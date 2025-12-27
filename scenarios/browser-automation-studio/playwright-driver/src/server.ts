@@ -341,6 +341,9 @@ function setupRoutes(
   router.post('/session/:id/record/stream-settings', async (req, res, params) => {
     await routes.handleStreamSettings(req, res, params.id, sessionManager, config);
   });
+  router.post('/session/:id/record/active-page', async (req, res, params) => {
+    await routes.handleRecordActivePage(req, res, params.id, sessionManager, config);
+  });
 
   // AI Navigation
   router.post('/session/:id/ai-navigate', async (req, res, params) => {

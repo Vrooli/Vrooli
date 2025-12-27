@@ -71,6 +71,11 @@ import { protoTimestampToDate } from '../../../utils/timestamps';
 export type TimelineMode = 'recording' | 'execution';
 
 /**
+ * Page event types for multi-tab recording.
+ */
+export type PageEventType = 'page_created' | 'page_navigated' | 'page_closed';
+
+/**
  * A timeline item that can be rendered in the UI.
  * This is the common interface that works for both recording and execution.
  */
@@ -87,6 +92,14 @@ export interface TimelineItem {
   mode: TimelineMode;
   /** Raw TimelineEntry for detailed views */
   rawEntry?: TimelineEntry;
+  /** Page ID for multi-tab recording */
+  pageId?: string;
+  /** Type of entry: action or page_event */
+  entryType?: 'action' | 'page_event';
+  /** Page event type (for page events only) */
+  pageEventType?: PageEventType;
+  /** Page title at the time of the event */
+  pageTitle?: string;
 }
 
 /**
@@ -104,6 +117,9 @@ export function recordedActionToTimelineItem(action: RecordedAction): TimelineIt
     url: action.url,
     success: true, // Recording actions are always successful captures
     mode: 'recording',
+    pageId: action.pageId,
+    entryType: 'action',
+    pageTitle: action.pageTitle,
   };
 }
 

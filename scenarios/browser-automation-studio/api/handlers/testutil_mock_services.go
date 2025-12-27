@@ -12,7 +12,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/minio/minio-go/v7"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
@@ -715,6 +717,10 @@ func (m *MockHub) HasRecordingSubscribers(sessionID string) bool {
 
 func (m *MockHub) BroadcastPerfStats(sessionID string, stats any) {}
 
+func (m *MockHub) BroadcastPageEvent(sessionID string, event any) {}
+
+func (m *MockHub) BroadcastPageSwitch(sessionID, activePageID string) {}
+
 func (m *MockHub) HasExecutionFrameSubscribers(executionID string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -1237,6 +1243,44 @@ func (m *MockRecordModeService) ForwardInput(ctx context.Context, sessionID stri
 	m.LastForwardInputBody = body
 
 	return m.ForwardInputError
+}
+
+// Multi-page support methods
+
+func (m *MockRecordModeService) GetSession(sessionID string) (*autosession.Session, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	// Return nil session for testing - tests should use full mock if needed
+	return nil, false
+}
+
+func (m *MockRecordModeService) GetPages(sessionID string) (*livecapture.PageListResult, error) {
+	return &livecapture.PageListResult{
+		Pages:        []*domain.Page{},
+		ActivePageID: "",
+	}, nil
+}
+
+func (m *MockRecordModeService) ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error {
+	return nil
+}
+
+// Timeline support methods
+
+func (m *MockRecordModeService) AddTimelineAction(sessionID string, action *livecapture.RecordedAction, pageID uuid.UUID) {
+	// No-op for mock
+}
+
+func (m *MockRecordModeService) AddTimelinePageEvent(sessionID string, event *domain.PageEvent) {
+	// No-op for mock
+}
+
+func (m *MockRecordModeService) GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*domain.TimelineResponse, error) {
+	return &domain.TimelineResponse{
+		Entries:      []domain.TimelineEntry{},
+		HasMore:      false,
+		TotalEntries: 0,
+	}, nil
 }
 
 // ============================================================================

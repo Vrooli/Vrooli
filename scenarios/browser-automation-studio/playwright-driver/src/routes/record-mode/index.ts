@@ -31,6 +31,8 @@ export type {
   ViewportResponse,
   StreamSettingsRequest,
   StreamSettingsResponse,
+  ActivePageRequest,
+  ActivePageResponse,
 } from './types';
 
 // Recording lifecycle handlers
@@ -55,6 +57,7 @@ export {
   handleRecordInput,
   handleRecordFrame,
   handleRecordViewport,
+  handleRecordActivePage,
   clearFrameCache,
   clearAllFrameCaches,
 } from './recording-interaction';

@@ -25,6 +25,8 @@ import type {
   FrameResponse,
   ViewportRequest,
   ViewportResponse,
+  ActivePageRequest,
+  ActivePageResponse,
 } from './types';
 
 /**
@@ -497,5 +499,100 @@ export async function handleRecordViewport(
     sendJson(res, 200, response);
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/viewport`);
+  }
+}
+
+/**
+ * Switch the active page for frame streaming and input forwarding.
+ *
+ * POST /session/:id/record/active-page
+ *
+ * This endpoint enables multi-tab recording by allowing the client to switch
+ * which page receives frame streaming and input forwarding.
+ *
+ * The page_id is a UUID assigned by the driver when pages are created.
+ * This ID is sent to the API in page_created events and stored for reference.
+ */
+export async function handleRecordActivePage(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    const session = sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, config);
+    const request = body as unknown as ActivePageRequest;
+
+    if (!request.page_id) {
+      sendJson(res, 400, {
+        error: 'MISSING_PAGE_ID',
+        message: 'page_id field is required',
+      });
+      return;
+    }
+
+    // Find the page by ID using the page ID map
+    const targetPage = session.pageIdMap.get(request.page_id);
+
+    if (!targetPage) {
+      // List available page IDs for debugging
+      const availableIds = Array.from(session.pageIdMap.keys());
+      sendJson(res, 404, {
+        error: 'PAGE_NOT_FOUND',
+        message: `Page with ID ${request.page_id} not found.`,
+        available_page_ids: availableIds,
+      });
+      return;
+    }
+
+    // Check if the page is still open
+    if (targetPage.isClosed()) {
+      sendJson(res, 410, {
+        error: 'PAGE_CLOSED',
+        message: `Page ${request.page_id} has been closed`,
+      });
+      return;
+    }
+
+    // Get the previous page ID for logging
+    const previousPageId = session.pageToIdMap.get(session.page) || 'unknown';
+
+    // Find the index of the target page in the pages array
+    const pageIndex = session.pages.indexOf(targetPage);
+    if (pageIndex !== -1) {
+      session.currentPageIndex = pageIndex;
+    }
+
+    // Update session.page to point to the active page
+    session.page = targetPage;
+
+    // Clear frame cache for this session to ensure fresh frames after switch
+    clearFrameCache(sessionId);
+
+    // Get page info for response
+    const url = targetPage.url();
+    const title = await targetPage.title().catch(() => '');
+
+    logger.info('recording: active page switched', {
+      sessionId,
+      previousPageId,
+      newPageId: request.page_id,
+      pageIndex,
+      url,
+      title,
+    });
+
+    const response: ActivePageResponse = {
+      session_id: sessionId,
+      active_page_id: request.page_id,
+      url,
+      title,
+    };
+
+    sendJson(res, 200, response);
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/active-page`);
   }
 }

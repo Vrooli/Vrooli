@@ -265,10 +265,17 @@ export class SessionManager {
       frameStack: [],
       pages: [page],
       currentPageIndex: 0,
+      pageIdMap: new Map(),
+      pageToIdMap: new WeakMap(),
       activeMocks: new Map(),
       // Idempotency: Track executed instructions for replay safety
       executedInstructions: new Map(),
     };
+
+    // Assign an ID to the initial page and track it
+    const initialPageId = crypto.randomUUID();
+    session.pageIdMap.set(initialPageId, page);
+    session.pageToIdMap.set(page, initialPageId);
 
     this.sessions.set(sessionId, session);
 
@@ -278,6 +285,7 @@ export class SessionManager {
       phase: 'ready',
       totalSessions: this.sessions.size,
       viewport: spec.viewport,
+      initialPageId,
     });
 
     // Update metrics

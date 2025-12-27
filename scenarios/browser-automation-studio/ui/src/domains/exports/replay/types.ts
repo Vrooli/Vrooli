@@ -110,6 +110,8 @@ export interface ReplayFrame {
   id: string;
   stepIndex: number;
   nodeId?: string;
+  /** Page ID for multi-page workflows (v2 execution plans). */
+  pageId?: string;
   stepType?: string;
   status?: string;
   success: boolean;
@@ -217,8 +219,18 @@ export interface ReplayPlayerPresentationDimensions {
   deviceScaleFactor?: number;
 }
 
+/** Page definition for multi-page workflow playback. */
+export interface ReplayPage {
+  id: string;
+  title?: string;
+  url?: string;
+  isInitial?: boolean;
+}
+
 export interface ReplayPlayerProps {
   frames: ReplayFrame[];
+  /** Pages for multi-page workflow playback. */
+  pages?: ReplayPage[];
   autoPlay?: boolean;
   loop?: boolean;
   onFrameChange?: (frame: ReplayFrame, index: number) => void;

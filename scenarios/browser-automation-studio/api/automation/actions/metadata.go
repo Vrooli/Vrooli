@@ -44,18 +44,18 @@ type ActionMetadata struct {
 type ActionCategory string
 
 const (
-	CategoryNavigation   ActionCategory = "navigation"
-	CategoryMouse        ActionCategory = "mouse"
-	CategoryKeyboard     ActionCategory = "keyboard"
-	CategoryFocus        ActionCategory = "focus"
-	CategoryForm         ActionCategory = "form"
-	CategoryAssertion    ActionCategory = "assertion"
-	CategoryData         ActionCategory = "data"
-	CategoryContext      ActionCategory = "context"
-	CategoryControlFlow  ActionCategory = "control_flow"
-	CategoryStorage      ActionCategory = "storage"
-	CategoryNetwork      ActionCategory = "network"
-	CategoryCustom       ActionCategory = "custom"
+	CategoryNavigation  ActionCategory = "navigation"
+	CategoryMouse       ActionCategory = "mouse"
+	CategoryKeyboard    ActionCategory = "keyboard"
+	CategoryFocus       ActionCategory = "focus"
+	CategoryForm        ActionCategory = "form"
+	CategoryAssertion   ActionCategory = "assertion"
+	CategoryData        ActionCategory = "data"
+	CategoryContext     ActionCategory = "context"
+	CategoryControlFlow ActionCategory = "control_flow"
+	CategoryStorage     ActionCategory = "storage"
+	CategoryNetwork     ActionCategory = "network"
+	CategoryCustom      ActionCategory = "custom"
 )
 
 // GetMetadata returns the metadata for an action type.

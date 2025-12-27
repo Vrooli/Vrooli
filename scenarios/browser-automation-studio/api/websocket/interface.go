@@ -55,6 +55,14 @@ type HubInterface interface {
 	// Used by the debug performance mode to stream aggregated timing data.
 	BroadcastPerfStats(sessionID string, stats any)
 
+	// BroadcastPageEvent sends a page lifecycle event to clients subscribed to a recording session.
+	// This notifies clients when pages are created, navigated, or closed.
+	BroadcastPageEvent(sessionID string, event any)
+
+	// BroadcastPageSwitch sends a page switch notification to clients.
+	// This is sent when the active page changes.
+	BroadcastPageSwitch(sessionID, activePageID string)
+
 	// HasExecutionFrameSubscribers returns true if any clients are subscribed to execution frame streaming.
 	// Used to avoid processing frames when no one is watching.
 	HasExecutionFrameSubscribers(executionID string) bool

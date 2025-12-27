@@ -22,6 +22,8 @@ export interface StartRecordingRequest {
   callback_url?: string;
   /** Optional callback URL to stream frames to (for WebSocket broadcasting) */
   frame_callback_url?: string;
+  /** Optional callback URL to stream page lifecycle events to (for multi-tab support) */
+  page_callback_url?: string;
   /** Frame quality (0-100), default 65 */
   frame_quality?: number;
   /** Target FPS for frame streaming, default 6 */
@@ -226,4 +228,48 @@ export interface StreamSettingsResponse {
   scale_warning?: string;
   /** Whether debug performance mode is enabled */
   perf_mode: boolean;
+}
+
+/**
+ * POST /session/:id/record/active-page
+ *
+ * Switch the active page for frame streaming and input forwarding.
+ * Used in multi-tab recording sessions.
+ */
+export interface ActivePageRequest {
+  /** Playwright page ID - the internal identifier for the target page */
+  page_id: string;
+}
+
+export interface ActivePageResponse {
+  session_id: string;
+  /** The now-active page ID */
+  active_page_id: string;
+  /** Current URL of the active page */
+  url: string;
+  /** Title of the active page */
+  title: string;
+}
+
+/**
+ * Page event sent to the page callback URL.
+ * Matches the Go DriverPageEvent structure.
+ */
+export interface DriverPageEvent {
+  /** Session ID */
+  sessionId: string;
+  /** Driver's internal page ID (UUID) */
+  driverPageId: string;
+  /** Vrooli's page ID (echoed back if provided) */
+  vrooliPageId: string;
+  /** Event type: "created" | "navigated" | "closed" */
+  eventType: 'created' | 'navigated' | 'closed';
+  /** Current URL of the page */
+  url: string;
+  /** Title of the page */
+  title: string;
+  /** Driver page ID of the opener page (if any) */
+  openerDriverPageId?: string;
+  /** ISO 8601 timestamp */
+  timestamp: string;
 }

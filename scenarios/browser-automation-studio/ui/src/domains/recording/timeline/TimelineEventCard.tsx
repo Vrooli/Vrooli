@@ -15,6 +15,9 @@
 import { useState } from 'react';
 import type { TimelineItem, TimelineMode } from '../types/timeline-unified';
 
+/** Page color type for multi-tab recording */
+export type PageColorClass = 'bg-blue-500' | 'bg-green-500' | 'bg-purple-500' | 'bg-orange-500' | 'bg-pink-500' | 'bg-cyan-500' | 'bg-yellow-500' | 'bg-red-500' | 'bg-gray-500';
+
 interface TimelineEventCardProps {
   /** The timeline item to render */
   item: TimelineItem;
@@ -30,6 +33,10 @@ interface TimelineEventCardProps {
   onDelete?: (index: number) => void;
   /** Callback to edit selector (recording mode only) */
   onEditSelector?: (index: number) => void;
+  /** Page color for multi-tab indicator */
+  pageColor?: PageColorClass;
+  /** Whether to show page color indicator */
+  showPageColor?: boolean;
 }
 
 /** Get icon for action type */
@@ -246,6 +253,8 @@ export function TimelineEventCard({
   onClick,
   onDelete,
   onEditSelector,
+  pageColor,
+  showPageColor = false,
 }: TimelineEventCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -299,6 +308,11 @@ export function TimelineEventCard({
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && handleClick(e as unknown as React.MouseEvent)}
       >
+        {/* Page color indicator for multi-tab */}
+        {showPageColor && pageColor && (
+          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${pageColor}`} />
+        )}
+
         {/* Checkbox (selection mode) or Index */}
         {isSelectionMode ? (
           <label
@@ -441,6 +455,10 @@ interface UnifiedTimelineProps {
   onDeleteItem?: (index: number) => void;
   /** Callback to edit selector */
   onEditSelector?: (index: number) => void;
+  /** Map of page ID to color class for multi-tab recording */
+  pageColorMap?: Map<string, PageColorClass>;
+  /** Whether to show page colors (when multiple pages exist) */
+  showPageColors?: boolean;
 }
 
 export function UnifiedTimeline({
@@ -453,6 +471,8 @@ export function UnifiedTimeline({
   onItemClick,
   onDeleteItem,
   onEditSelector,
+  pageColorMap,
+  showPageColors = false,
 }: UnifiedTimelineProps) {
   if (items.length === 0) {
     return (
@@ -516,6 +536,8 @@ export function UnifiedTimeline({
           onClick={onItemClick}
           onDelete={onDeleteItem}
           onEditSelector={mode === 'recording' ? onEditSelector : undefined}
+          pageColor={item.pageId && pageColorMap ? pageColorMap.get(item.pageId) : undefined}
+          showPageColor={showPageColors}
         />
       ))}
     </div>

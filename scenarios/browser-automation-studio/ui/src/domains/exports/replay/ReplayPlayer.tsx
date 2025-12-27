@@ -69,6 +69,7 @@ export type {
   ReplayScreenshot,
   ReplayRetryHistoryEntry,
   ReplayFrame,
+  ReplayPage,
   ReplayChromeTheme,
   ReplayBackgroundSource,
   ReplayCursorTheme,
@@ -266,6 +267,7 @@ function ReplayOverlayLayer({
 
 export function ReplayPlayer({
   frames,
+  pages,
   autoPlay = true,
   loop = true,
   onFrameChange,
@@ -672,6 +674,7 @@ export function ReplayPlayer({
           currentIndex={currentIndex}
           aspectRatio={aspectRatio}
           onSelectFrame={changeFrame}
+          pages={pages}
         />
       )}
 

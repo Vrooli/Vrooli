@@ -12,12 +12,15 @@ import (
 
 // Session wraps a playwright driver session with mode-aware behavior.
 type Session struct {
-	id     string
-	mode   Mode
-	client *driver.Client
-	mu     sync.RWMutex
-	closed bool
+	id             string
+	mode           Mode
+	client         *driver.Client
+	mu             sync.RWMutex
+	closed         bool
 	closeArtifacts *driver.CloseSessionResponse
+
+	// Multi-page tracking for recording sessions
+	pages *PageTracker
 }
 
 // --- Execution Mode Operations ---
@@ -218,6 +221,16 @@ func (s *Session) UpdateStreamSettings(ctx context.Context, quality, fps *int, s
 	return err
 }
 
+// SetActivePage switches the active page for execution.
+// The driverPageID is the Playwright driver's internal identifier for the page.
+// This is used during multi-page playback to execute actions on the correct page.
+func (s *Session) SetActivePage(ctx context.Context, driverPageID string) error {
+	if s.isClosed() {
+		return errors.New("session closed")
+	}
+	return s.client.SetActivePage(ctx, s.id, driverPageID)
+}
+
 // Reset resets the session to clean state.
 func (s *Session) Reset(ctx context.Context) error {
 	if s.isClosed() {
@@ -264,6 +277,16 @@ func (s *Session) ID() string { return s.id }
 
 // Mode returns the session mode.
 func (s *Session) Mode() Mode { return s.mode }
+
+// Pages returns the page tracker for this session.
+// Returns nil if page tracking is not initialized.
+func (s *Session) Pages() *PageTracker { return s.pages }
+
+// InitializePageTracking sets up page tracking for recording sessions.
+// This should be called after session creation with the initial URL.
+func (s *Session) InitializePageTracking(initialURL string) {
+	s.pages = NewPageTracker(s.id, initialURL)
+}
 
 func (s *Session) isClosed() bool {
 	s.mu.RLock()

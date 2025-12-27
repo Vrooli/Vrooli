@@ -43,4 +43,3 @@ func TestCloseWithArtifacts(t *testing.T) {
 		t.Fatalf("expected 2 video paths, got %#v", resp)
 	}
 }
-

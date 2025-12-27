@@ -10,13 +10,15 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/session"
+	"github.com/vrooli/browser-automation-studio/domain"
 )
 
 // Service provides high-level operations for live capture mode.
-// It orchestrates the session manager and workflow generator.
+// It orchestrates the session manager, workflow generator, and timeline service.
 type Service struct {
 	sessions  *session.Manager
 	generator *WorkflowGenerator
+	timeline  *TimelineService
 	log       *logrus.Logger
 }
 
@@ -28,12 +30,14 @@ func NewService(log *logrus.Logger) *Service {
 		return &Service{
 			sessions:  nil,
 			generator: NewWorkflowGenerator(),
+			timeline:  NewTimelineService(),
 			log:       log,
 		}
 	}
 	return &Service{
 		sessions:  mgr,
 		generator: NewWorkflowGenerator(),
+		timeline:  NewTimelineService(),
 		log:       log,
 	}
 }
@@ -43,6 +47,7 @@ func NewServiceWithManager(mgr *session.Manager, log *logrus.Logger) *Service {
 	return &Service{
 		sessions:  mgr,
 		generator: NewWorkflowGenerator(),
+		timeline:  NewTimelineService(),
 		log:       log,
 	}
 }
@@ -53,6 +58,7 @@ func NewServiceWithClient(client *driver.Client, log *logrus.Logger) *Service {
 	return &Service{
 		sessions:  session.NewManagerWithClient(client, session.WithLogger(log)),
 		generator: NewWorkflowGenerator(),
+		timeline:  NewTimelineService(),
 		log:       log,
 	}
 }
@@ -133,6 +139,9 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 		return nil, fmt.Errorf("create session: %w", err)
 	}
 
+	// Initialize page tracking for multi-tab support
+	sess.InitializePageTracking(cfg.InitialURL)
+
 	// Navigate to initial URL if provided
 	if cfg.InitialURL != "" {
 		if _, err := sess.Navigate(ctx, cfg.InitialURL); err != nil {
@@ -180,6 +189,7 @@ func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *Rec
 	req := &driver.StartRecordingRequest{
 		CallbackURL:      fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/action", apiHost, apiPort, sessionID),
 		FrameCallbackURL: fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/frame", apiHost, apiPort, sessionID),
+		PageCallbackURL:  fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/page-event", apiHost, apiPort, sessionID),
 		FrameQuality:     65,
 		FrameFPS:         6,
 	}
@@ -305,4 +315,99 @@ func (s *Service) GetFrame(ctx context.Context, sessionID, queryParams string) (
 // ForwardInput forwards pointer/keyboard/wheel events to the driver.
 func (s *Service) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
 	return s.sessions.Client().ForwardInput(ctx, sessionID, body)
+}
+
+// GetSession returns the session by ID.
+func (s *Service) GetSession(sessionID string) (*session.Session, bool) {
+	return s.sessions.Get(sessionID)
+}
+
+// GetPages returns all pages for a session.
+func (s *Service) GetPages(sessionID string) (*PageListResult, error) {
+	sess, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+
+	pages := sess.Pages()
+	if pages == nil {
+		return nil, fmt.Errorf("page tracking not initialized for session: %s", sessionID)
+	}
+
+	return &PageListResult{
+		Pages:        pages.ListPages(),
+		ActivePageID: pages.GetActivePageID().String(),
+	}, nil
+}
+
+// PageListResult contains the list of pages and active page ID.
+type PageListResult struct {
+	Pages        []*domain.Page
+	ActivePageID string
+}
+
+// ActivatePage switches the active page for a session.
+func (s *Service) ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error {
+	sess, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return fmt.Errorf("session not found: %s", sessionID)
+	}
+
+	pages := sess.Pages()
+	if pages == nil {
+		return fmt.Errorf("page tracking not initialized for session: %s", sessionID)
+	}
+
+	// Verify page exists and is open
+	page, ok := pages.GetPage(pageID)
+	if !ok {
+		return fmt.Errorf("page not found: %s", pageID)
+	}
+	if page.Status != domain.PageStatusActive {
+		return fmt.Errorf("page is closed: %s", pageID)
+	}
+
+	// Get driver page ID for switching
+	driverPageID := pages.GetDriverPageID(pageID)
+	if driverPageID == "" {
+		return fmt.Errorf("page not registered with driver: %s", pageID)
+	}
+
+	// Tell driver to switch active page
+	if err := s.sessions.Client().SetActivePage(ctx, sessionID, driverPageID); err != nil {
+		return fmt.Errorf("failed to switch page in driver: %w", err)
+	}
+
+	// Update session state
+	return pages.SetActivePage(pageID)
+}
+
+// AddTimelineAction adds a recorded action to the timeline.
+func (s *Service) AddTimelineAction(sessionID string, action *RecordedAction, pageID uuid.UUID) {
+	s.timeline.AddAction(sessionID, action, pageID)
+}
+
+// AddTimelinePageEvent adds a page event to the timeline.
+func (s *Service) AddTimelinePageEvent(sessionID string, event *domain.PageEvent) {
+	s.timeline.AddPageEvent(sessionID, event)
+}
+
+// GetTimeline returns the unified timeline for a session.
+func (s *Service) GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*domain.TimelineResponse, error) {
+	if _, ok := s.sessions.Get(sessionID); !ok {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+
+	entries, hasMore := s.timeline.GetTimelinePaginated(sessionID, pageID, nil, limit)
+
+	return &domain.TimelineResponse{
+		Entries:      entries,
+		HasMore:      hasMore,
+		TotalEntries: s.timeline.GetTimelineCount(sessionID),
+	}, nil
+}
+
+// ClearTimeline clears the timeline for a session.
+func (s *Service) ClearTimeline(sessionID string) {
+	s.timeline.ClearSession(sessionID)
 }
