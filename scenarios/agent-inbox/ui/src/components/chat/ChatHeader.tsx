@@ -20,6 +20,7 @@ import { Dialog, DialogHeader, DialogBody, DialogFooter } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
 import { ModelSelector } from "../settings/ModelSelector";
+import { ChatToolsSelector } from "./ChatToolsSelector";
 import { exportChat } from "../../lib/api";
 import type { Chat, Model, Label, ExportFormat } from "../../lib/api";
 
@@ -104,7 +105,7 @@ export function ChatHeader({
               </Tooltip>
             </div>
 
-            {/* Model Selector & Mode */}
+            {/* Model Selector, Tools & Mode */}
             <div className="flex items-center gap-3 mt-1.5">
               <ModelSelector
                 models={models}
@@ -112,6 +113,10 @@ export function ChatHeader({
                 onSelectModel={(modelId) => onUpdateChat({ model: modelId })}
                 compact
               />
+
+              <span className="text-xs text-slate-600">•</span>
+
+              <ChatToolsSelector chatId={chat.id} />
 
               <span className="text-xs text-slate-600">•</span>
               <span className="text-xs text-slate-500">{chat.view_mode} mode</span>

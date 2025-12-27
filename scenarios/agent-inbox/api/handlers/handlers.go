@@ -15,9 +15,11 @@ import (
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/persistence"
+	"agent-inbox/services"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 )
 
 // Handlers provides HTTP handlers with access to all dependencies.
@@ -25,6 +27,7 @@ import (
 type Handlers struct {
 	Repo         *persistence.Repository
 	OllamaClient *integrations.OllamaClient
+	ToolRegistry *services.ToolRegistry
 }
 
 // New creates a new Handlers instance with all dependencies.
@@ -32,14 +35,16 @@ func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient) 
 	return &Handlers{
 		Repo:         repo,
 		OllamaClient: ollamaClient,
+		ToolRegistry: services.NewToolRegistry(repo),
 	}
 }
 
 // RegisterRoutes sets up all API routes on the given router.
 func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	// Health
-	r.HandleFunc("/health", h.Health).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/v1/health", h.Health).Methods("GET", "OPTIONS")
+	healthHandler := health.New().Version("1.0.0").Check(health.DB(h.Repo.DB()), health.Critical).Handler()
+	r.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/health", healthHandler).Methods("GET", "OPTIONS")
 
 	// Chats
 	r.HandleFunc("/api/v1/chats", h.ListChats).Methods("GET", "OPTIONS")
@@ -70,6 +75,13 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/chats/{id}/complete", h.ChatComplete).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/tool-calls", h.ListChatToolCalls).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/auto-name", h.AutoName).Methods("POST", "OPTIONS")
+
+	// Tool Configuration
+	r.HandleFunc("/api/v1/tools/set", h.GetToolSet).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/tools/scenarios", h.GetScenarioStatuses).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/tools/config", h.SetToolEnabled).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/tools/config", h.ResetToolConfig).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/v1/tools/refresh", h.RefreshTools).Methods("POST", "OPTIONS")
 
 	// Usage tracking
 	r.HandleFunc("/api/v1/usage", h.GetUsageStats).Methods("GET", "OPTIONS")

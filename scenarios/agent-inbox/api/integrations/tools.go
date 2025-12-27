@@ -2,6 +2,11 @@ package integrations
 
 // AvailableTools returns the list of tools available to the AI assistant.
 // These tools enable the AI to dispatch work to specialized scenarios.
+//
+// Deprecated: Use services.ToolRegistry.GetToolsForOpenAI() instead.
+// This function is kept for backward compatibility but will be removed
+// in a future version. The dynamic ToolRegistry fetches tools from
+// all configured scenarios at runtime.
 func AvailableTools() []ToolDefinition {
 	return []ToolDefinition{
 		{

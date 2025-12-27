@@ -27,8 +27,25 @@ func (h *Handlers) ListModels(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListTools returns available tools for AI.
+// Uses the dynamic ToolRegistry to fetch tools from all configured scenarios.
 func (h *Handlers) ListTools(w http.ResponseWriter, r *http.Request) {
-	h.JSONResponse(w, integrations.AvailableTools(), http.StatusOK)
+	tools, err := h.ToolRegistry.GetEffectiveTools(r.Context(), "")
+	if err != nil {
+		log.Printf("warning: failed to get tools from registry: %v", err)
+		// Return empty array on error for graceful degradation
+		h.JSONResponse(w, []interface{}{}, http.StatusOK)
+		return
+	}
+
+	// Convert to OpenAI format for backward compatibility
+	openAITools := make([]map[string]interface{}, len(tools))
+	for i, tool := range tools {
+		if tool.Enabled {
+			openAITools[i] = tool.Tool.ToOpenAIFunction()
+		}
+	}
+
+	h.JSONResponse(w, openAITools, http.StatusOK)
 }
 
 // ListChatToolCalls returns tool calls for a chat.

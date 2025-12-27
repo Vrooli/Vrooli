@@ -630,6 +630,90 @@ export async function fetchUsageRecords(options?: { chatId?: string; limit?: num
 // Export formats
 export type ExportFormat = "markdown" | "json" | "txt";
 
+// -----------------------------------------------------------------------------
+// Tool Discovery Protocol Types
+// -----------------------------------------------------------------------------
+
+export interface ScenarioInfo {
+  name: string;
+  version: string;
+  description: string;
+  base_url?: string;
+}
+
+export interface ToolParameters {
+  type: string;
+  properties: Record<string, ParameterSchema>;
+  required?: string[];
+}
+
+export interface ParameterSchema {
+  type: string;
+  description?: string;
+  enum?: string[];
+  default?: unknown;
+  items?: ParameterSchema;
+  properties?: Record<string, ParameterSchema>;
+  format?: string;
+}
+
+export interface ToolMetadata {
+  enabled_by_default: boolean;
+  requires_approval: boolean;
+  timeout_seconds?: number;
+  rate_limit_per_minute?: number;
+  cost_estimate?: string;
+  tags?: string[];
+  long_running?: boolean;
+  idempotent?: boolean;
+}
+
+export interface ToolCategory {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+}
+
+export interface DiscoveredTool {
+  name: string;
+  description: string;
+  category?: string;
+  parameters: ToolParameters;
+  metadata: ToolMetadata;
+}
+
+export type ToolConfigurationScope = "global" | "chat" | "";
+
+export interface EffectiveTool {
+  scenario: string;
+  tool: DiscoveredTool;
+  enabled: boolean;
+  source: ToolConfigurationScope;
+}
+
+export interface ToolSet {
+  scenarios: ScenarioInfo[];
+  tools: EffectiveTool[];
+  categories: ToolCategory[];
+  generated_at: string;
+}
+
+export interface ScenarioStatus {
+  scenario: string;
+  available: boolean;
+  last_checked: string;
+  tool_count?: number;
+  error?: string;
+}
+
+export interface ToolConfigUpdate {
+  chat_id?: string;
+  scenario: string;
+  tool_name: string;
+  enabled: boolean;
+}
+
 // Export chat to file
 // Triggers browser download with the specified format
 export async function exportChat(chatId: string, format: ExportFormat = "markdown"): Promise<void> {
@@ -662,4 +746,115 @@ export async function exportChat(chatId: string, format: ExportFormat = "markdow
   a.click();
   document.body.removeChild(a);
   window.URL.revokeObjectURL(downloadUrl);
+}
+
+// -----------------------------------------------------------------------------
+// Tool Configuration API Functions
+// -----------------------------------------------------------------------------
+
+/**
+ * Fetch the complete tool set with effective enabled states.
+ * @param chatId - Optional chat ID for chat-specific configurations
+ */
+export async function fetchToolSet(chatId?: string): Promise<ToolSet> {
+  const params = new URLSearchParams();
+  if (chatId) params.set("chat_id", chatId);
+
+  const queryString = params.toString();
+  const endpoint = queryString ? `/tools/set?${queryString}` : "/tools/set";
+  const url = buildApiUrl(endpoint, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch tool set: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Fetch availability status of all configured scenarios.
+ */
+export async function fetchScenarioStatuses(): Promise<ScenarioStatus[]> {
+  const url = buildApiUrl("/tools/scenarios", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch scenario statuses: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Update the enabled state for a tool.
+ * @param config - Tool configuration update
+ */
+export async function setToolEnabled(config: ToolConfigUpdate): Promise<void> {
+  const url = buildApiUrl("/tools/config", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config)
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to update tool configuration: ${res.status}`);
+  }
+}
+
+/**
+ * Reset a tool configuration to default.
+ * @param chatId - Optional chat ID (empty for global)
+ * @param scenario - Scenario name
+ * @param toolName - Tool name
+ */
+export async function resetToolConfig(
+  scenario: string,
+  toolName: string,
+  chatId?: string
+): Promise<void> {
+  const params = new URLSearchParams({
+    scenario,
+    tool_name: toolName
+  });
+  if (chatId) params.set("chat_id", chatId);
+
+  const url = buildApiUrl(`/tools/config?${params.toString()}`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to reset tool configuration: ${res.status}`);
+  }
+}
+
+/**
+ * Trigger a refresh of the tool registry cache.
+ */
+export async function refreshTools(): Promise<{ success: boolean; scenarios_count: number; tools_count: number }> {
+  const url = buildApiUrl("/tools/refresh", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to refresh tools: ${res.status}`);
+  }
+
+  return res.json();
 }

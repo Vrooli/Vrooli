@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -138,6 +139,31 @@ type IntegrationConfig struct {
 
 	// Naming configuration for Ollama-powered auto-naming.
 	Naming NamingConfig
+
+	// ToolDiscovery configuration for dynamic tool loading from scenarios.
+	ToolDiscovery ToolDiscoveryConfig
+}
+
+// ToolDiscoveryConfig controls how agent-inbox discovers tools from scenarios.
+// Audience: Operators configuring multi-scenario deployments.
+type ToolDiscoveryConfig struct {
+	// Scenarios is the list of scenario names to discover tools from.
+	// Set via TOOL_SCENARIOS env var (comma-separated).
+	// Default: ["agent-manager"]
+	Scenarios []string
+
+	// DiscoveryTimeout is the HTTP timeout for fetching tool manifests.
+	// Default: 10s
+	DiscoveryTimeout time.Duration
+
+	// CacheTTL is how long to cache tool manifests before refreshing.
+	// Higher = less network traffic, lower = faster updates when tools change.
+	// Default: 60s
+	CacheTTL time.Duration
+
+	// RefreshOnStartup controls whether to fetch tools on server startup.
+	// Default: true
+	RefreshOnStartup bool
 }
 
 // ResilienceConfig controls failure handling and graceful degradation.
@@ -202,6 +228,12 @@ func Default() *Config {
 				SummaryContentLimit: 200,
 				Timeout:             30 * time.Second,
 				FallbackName:        "New Conversation",
+			},
+			ToolDiscovery: ToolDiscoveryConfig{
+				Scenarios:        getToolScenarios(),
+				DiscoveryTimeout: 10 * time.Second,
+				CacheTTL:         60 * time.Second,
+				RefreshOnStartup: true,
 			},
 		},
 		Resilience: ResilienceConfig{
@@ -280,4 +312,20 @@ func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 		}
 	}
 	return defaultValue
+}
+
+func getToolScenarios() []string {
+	if value := os.Getenv("TOOL_SCENARIOS"); value != "" {
+		var scenarios []string
+		for _, s := range strings.Split(value, ",") {
+			if trimmed := strings.TrimSpace(s); trimmed != "" {
+				scenarios = append(scenarios, trimmed)
+			}
+		}
+		if len(scenarios) > 0 {
+			return scenarios
+		}
+	}
+	// Default to agent-manager
+	return []string{"agent-manager"}
 }

@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
-import { Moon, Sun, Trash2, AlertTriangle, Keyboard, BarChart3, Bot } from "lucide-react";
+import { Moon, Sun, Trash2, AlertTriangle, Keyboard, BarChart3, Wrench } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { ModelSelector } from "./ModelSelector";
+import { ToolConfiguration } from "./ToolConfiguration";
+import { useTools } from "../../hooks/useTools";
 import type { Model } from "../../lib/api";
 
 export type Theme = "dark" | "light";
@@ -52,6 +54,21 @@ export function Settings({
   const [defaultModel, setDefaultModelState] = useState<string>(getDefaultModel);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [showTools, setShowTools] = useState(false);
+
+  // Tool configuration (global defaults)
+  const {
+    toolsByScenario,
+    toolSet,
+    scenarios,
+    enabledTools,
+    isLoading: isLoadingTools,
+    isRefreshing: isRefreshingTools,
+    isUpdating: isUpdatingTools,
+    error: toolsError,
+    toggleTool,
+    refreshToolRegistry,
+  } = useTools({ enabled: open });
 
   // Apply theme class to document
   useEffect(() => {
@@ -165,6 +182,49 @@ export function Settings({
             <BarChart3 className="h-4 w-4" />
             View Usage Statistics
           </Button>
+        </section>
+
+        {/* Tools Configuration Section */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-slate-300">AI Tools</h3>
+            <span className="text-xs text-slate-500">
+              {enabledTools.length} of {toolSet?.tools.length ?? 0} enabled
+            </span>
+          </div>
+          {!showTools ? (
+            <Button
+              variant="secondary"
+              onClick={() => setShowTools(true)}
+              className="w-full justify-start gap-2"
+              data-testid="configure-tools-button"
+            >
+              <Wrench className="h-4 w-4" />
+              Configure Default Tools
+            </Button>
+          ) : (
+            <div className="space-y-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowTools(false)}
+                className="text-slate-400"
+              >
+                Hide tool configuration
+              </Button>
+              <ToolConfiguration
+                toolsByScenario={toolsByScenario}
+                categories={toolSet?.categories ?? []}
+                scenarioStatuses={scenarios}
+                isLoading={isLoadingTools}
+                isRefreshing={isRefreshingTools}
+                isUpdating={isUpdatingTools}
+                error={toolsError?.message}
+                onToggleTool={toggleTool}
+                onRefresh={refreshToolRegistry}
+              />
+            </div>
+          )}
         </section>
 
         {/* Danger Zone */}

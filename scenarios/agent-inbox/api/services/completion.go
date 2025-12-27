@@ -32,15 +32,27 @@ func NewToolExecutionResult(toolCallID, toolName string, record *domain.ToolCall
 // It handles the decision flow for completing a chat with an AI model,
 // including tool execution when requested by the model.
 type CompletionService struct {
-	repo     *persistence.Repository
-	executor *integrations.ToolExecutor
+	repo         *persistence.Repository
+	executor     *integrations.ToolExecutor
+	toolRegistry *ToolRegistry
 }
 
 // NewCompletionService creates a new completion service.
 func NewCompletionService(repo *persistence.Repository) *CompletionService {
 	return &CompletionService{
-		repo:     repo,
-		executor: integrations.NewToolExecutor(),
+		repo:         repo,
+		executor:     integrations.NewToolExecutor(),
+		toolRegistry: NewToolRegistry(repo),
+	}
+}
+
+// NewCompletionServiceWithRegistry creates a completion service with an injected registry.
+// This is the constructor for testing.
+func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry *ToolRegistry) *CompletionService {
+	return &CompletionService{
+		repo:         repo,
+		executor:     integrations.NewToolExecutor(),
+		toolRegistry: registry,
 	}
 }
 
@@ -153,7 +165,7 @@ type CompletionRequest struct {
 	ChatID    string
 	Model     string
 	Messages  []integrations.OpenRouterMessage
-	Tools     []integrations.ToolDefinition
+	Tools     []map[string]interface{}
 	Streaming bool
 }
 
@@ -192,7 +204,13 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 	}
 
 	if settings.ToolsEnabled {
-		req.Tools = integrations.AvailableTools()
+		tools, err := s.toolRegistry.GetToolsForOpenAI(ctx, chatID)
+		if err != nil {
+			// Log but don't fail - tools are optional enhancement
+			log.Printf("warning: failed to get tools from registry: %v", err)
+		} else {
+			req.Tools = tools
+		}
 	}
 
 	return req, nil

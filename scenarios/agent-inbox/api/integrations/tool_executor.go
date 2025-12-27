@@ -1,3 +1,17 @@
+// Package integrations provides clients for external services.
+//
+// This file implements the ToolExecutor for executing tool calls from AI responses.
+// The executor routes tool calls to the appropriate scenario handler and tracks execution.
+//
+// ARCHITECTURE:
+// - ToolExecutor: Central dispatcher for tool execution
+// - ScenarioHandler: Interface for scenario-specific tool handling
+// - Uses ToolRegistry for tool metadata lookup
+// - Maintains backward compatibility with existing agent-manager handlers
+//
+// TESTING SEAMS:
+// - ScenarioHandler interface for mocking scenario implementations
+// - ToolRegistry can be injected for testing
 package integrations
 
 import (
@@ -5,71 +19,118 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"agent-inbox/domain"
 )
 
-// ToolHandler defines how a single tool processes its arguments.
-// Each tool implements this to handle its specific logic.
-type ToolHandler func(ctx context.Context, executor *ToolExecutor, args map[string]interface{}) (interface{}, error)
+// ScenarioHandler defines the interface for executing tools from a specific scenario.
+// Each scenario that provides tools implements this interface.
+type ScenarioHandler interface {
+	// Scenario returns the name of the scenario this handler serves.
+	Scenario() string
 
-// ToolExecutor handles execution of tool calls from AI responses.
-// It routes tool calls to the appropriate handler and tracks execution.
-type ToolExecutor struct {
-	agentManager *AgentManagerClient
-	registry     map[string]toolRegistration
+	// CanHandle checks if this handler can execute the given tool.
+	CanHandle(toolName string) bool
+
+	// Execute runs the tool and returns the result.
+	Execute(ctx context.Context, toolName string, args map[string]interface{}) (interface{}, error)
 }
 
-// toolRegistration contains metadata about a registered tool.
-type toolRegistration struct {
-	handler      ToolHandler
+// ToolExecutor handles execution of tool calls from AI responses.
+// It routes tool calls to the appropriate scenario handler and tracks execution.
+type ToolExecutor struct {
+	mu       sync.RWMutex
+	handlers map[string]ScenarioHandler // scenario name -> handler
+
+	// Legacy support: direct tool handlers for backward compatibility
+	legacyHandlers map[string]legacyToolHandler
+}
+
+// legacyToolHandler is the old-style handler function signature.
+// Kept for backward compatibility during migration.
+type legacyToolHandler struct {
+	handler      func(ctx context.Context, args map[string]interface{}) (interface{}, error)
 	scenarioName string
 }
 
-// NewToolExecutor creates a new tool executor with all tools registered.
+// NewToolExecutor creates a new tool executor with default handlers registered.
 func NewToolExecutor() *ToolExecutor {
 	e := &ToolExecutor{
-		registry: make(map[string]toolRegistration),
+		handlers:       make(map[string]ScenarioHandler),
+		legacyHandlers: make(map[string]legacyToolHandler),
 	}
-	e.registerAgentManagerTools()
+
+	// Register the agent-manager handler
+	e.RegisterHandler(newAgentManagerHandler())
+
 	return e
 }
 
-// registerAgentManagerTools registers all agent-manager integration tools.
-func (e *ToolExecutor) registerAgentManagerTools() {
-	e.registerTool("spawn_coding_agent", "agent-manager", e.spawnCodingAgent)
-	e.registerTool("check_agent_status", "agent-manager", e.checkAgentStatus)
-	e.registerTool("stop_agent", "agent-manager", e.stopAgent)
-	e.registerTool("list_active_agents", "agent-manager", e.listActiveAgents)
-	e.registerTool("get_agent_diff", "agent-manager", e.getAgentDiff)
-	e.registerTool("approve_agent_changes", "agent-manager", e.approveAgentChanges)
-}
-
-// registerTool adds a tool to the registry.
-func (e *ToolExecutor) registerTool(name, scenario string, handler ToolHandler) {
-	e.registry[name] = toolRegistration{
-		handler:      handler,
-		scenarioName: scenario,
+// NewToolExecutorWithHandlers creates a ToolExecutor with custom handlers.
+// This is the constructor for testing.
+func NewToolExecutorWithHandlers(handlers ...ScenarioHandler) *ToolExecutor {
+	e := &ToolExecutor{
+		handlers:       make(map[string]ScenarioHandler),
+		legacyHandlers: make(map[string]legacyToolHandler),
 	}
+
+	for _, h := range handlers {
+		e.RegisterHandler(h)
+	}
+
+	return e
 }
 
-// IsKnownTool checks if a tool name is registered.
+// RegisterHandler adds a scenario handler to the executor.
+func (e *ToolExecutor) RegisterHandler(handler ScenarioHandler) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.handlers[handler.Scenario()] = handler
+}
+
+// UnregisterHandler removes a scenario handler from the executor.
+func (e *ToolExecutor) UnregisterHandler(scenario string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	delete(e.handlers, scenario)
+}
+
+// IsKnownTool checks if any handler can execute this tool.
 func (e *ToolExecutor) IsKnownTool(toolName string) bool {
-	_, exists := e.registry[toolName]
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	for _, handler := range e.handlers {
+		if handler.CanHandle(toolName) {
+			return true
+		}
+	}
+
+	_, exists := e.legacyHandlers[toolName]
 	return exists
 }
 
 // GetToolScenario returns the scenario that provides a tool.
 func (e *ToolExecutor) GetToolScenario(toolName string) string {
-	if reg, exists := e.registry[toolName]; exists {
-		return reg.scenarioName
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	for _, handler := range e.handlers {
+		if handler.CanHandle(toolName) {
+			return handler.Scenario()
+		}
 	}
+
+	if legacy, exists := e.legacyHandlers[toolName]; exists {
+		return legacy.scenarioName
+	}
+
 	return ""
 }
 
 // ExecuteTool runs a tool and returns the result record.
-// Decision: Route to handler based on tool name
 // This is the central dispatch point for all tool execution.
 func (e *ToolExecutor) ExecuteTool(ctx context.Context, chatID, toolCallID, toolName, arguments string) (*domain.ToolCallRecord, error) {
 	record := e.initToolCallRecord(chatID, toolCallID, toolName, arguments)
@@ -117,24 +178,40 @@ func (e *ToolExecutor) parseArguments(arguments string) (map[string]interface{},
 	return args, nil
 }
 
-// routeToHandler dispatches to the appropriate tool handler.
-// Decision boundary: Which handler processes this tool call?
+// routeToHandler dispatches to the appropriate scenario handler.
 func (e *ToolExecutor) routeToHandler(ctx context.Context, toolName string, args map[string]interface{}, record *domain.ToolCallRecord) (interface{}, error) {
-	reg, exists := e.registry[toolName]
-	if !exists {
-		return nil, &UnknownToolError{ToolName: toolName}
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	// Try scenario handlers first
+	for _, handler := range e.handlers {
+		if handler.CanHandle(toolName) {
+			result, err := handler.Execute(ctx, toolName, args)
+
+			// Extract external run ID if present (for long-running tasks)
+			e.extractExternalRunID(result, record)
+
+			return result, err
+		}
 	}
 
-	result, err := reg.handler(ctx, e, args)
+	// Fall back to legacy handlers
+	if legacy, exists := e.legacyHandlers[toolName]; exists {
+		result, err := legacy.handler(ctx, args)
+		e.extractExternalRunID(result, record)
+		return result, err
+	}
 
-	// Extract external run ID if present (for agent-manager tools)
+	return nil, &UnknownToolError{ToolName: toolName}
+}
+
+// extractExternalRunID extracts run_id from result if present.
+func (e *ToolExecutor) extractExternalRunID(result interface{}, record *domain.ToolCallRecord) {
 	if res, ok := result.(map[string]interface{}); ok {
 		if runID, ok := res["run_id"].(string); ok {
 			record.ExternalRunID = runID
 		}
 	}
-
-	return result, err
 }
 
 // failRecord marks a record as failed and returns it.
@@ -165,26 +242,74 @@ func (e *UnknownToolError) Error() string {
 	return fmt.Sprintf("unknown tool: %s", e.ToolName)
 }
 
-// getClient returns or creates the agent manager client.
-func (e *ToolExecutor) getClient() (*AgentManagerClient, error) {
-	if e.agentManager == nil {
-		client, err := NewAgentManagerClient()
-		if err != nil {
-			return nil, err
-		}
-		e.agentManager = client
-	}
-	return e.agentManager, nil
+// -----------------------------------------------------------------------------
+// Agent Manager Handler
+// -----------------------------------------------------------------------------
+
+// agentManagerHandler implements ScenarioHandler for agent-manager tools.
+type agentManagerHandler struct {
+	client *AgentManagerClient
+	tools  map[string]bool // set of tool names this handler supports
 }
 
-// Tool handler implementations
+// newAgentManagerHandler creates a new agent-manager handler.
+func newAgentManagerHandler() *agentManagerHandler {
+	return &agentManagerHandler{
+		tools: map[string]bool{
+			"spawn_coding_agent":    true,
+			"check_agent_status":    true,
+			"stop_agent":            true,
+			"list_active_agents":    true,
+			"get_agent_diff":        true,
+			"approve_agent_changes": true,
+		},
+	}
+}
 
-func (e *ToolExecutor) spawnCodingAgent(ctx context.Context, _ *ToolExecutor, args map[string]interface{}) (interface{}, error) {
-	client, err := e.getClient()
+func (h *agentManagerHandler) Scenario() string {
+	return "agent-manager"
+}
+
+func (h *agentManagerHandler) CanHandle(toolName string) bool {
+	return h.tools[toolName]
+}
+
+func (h *agentManagerHandler) Execute(ctx context.Context, toolName string, args map[string]interface{}) (interface{}, error) {
+	client, err := h.getClient()
 	if err != nil {
 		return nil, err
 	}
 
+	switch toolName {
+	case "spawn_coding_agent":
+		return h.spawnCodingAgent(ctx, client, args)
+	case "check_agent_status":
+		return h.checkAgentStatus(ctx, client, args)
+	case "stop_agent":
+		return h.stopAgent(ctx, client, args)
+	case "list_active_agents":
+		return h.listActiveAgents(ctx, client)
+	case "get_agent_diff":
+		return h.getAgentDiff(ctx, client, args)
+	case "approve_agent_changes":
+		return h.approveAgentChanges(ctx, client, args)
+	default:
+		return nil, fmt.Errorf("unknown agent-manager tool: %s", toolName)
+	}
+}
+
+func (h *agentManagerHandler) getClient() (*AgentManagerClient, error) {
+	if h.client == nil {
+		client, err := NewAgentManagerClient()
+		if err != nil {
+			return nil, err
+		}
+		h.client = client
+	}
+	return h.client, nil
+}
+
+func (h *agentManagerHandler) spawnCodingAgent(ctx context.Context, client *AgentManagerClient, args map[string]interface{}) (interface{}, error) {
 	task, _ := args["task"].(string)
 	if task == "" {
 		return nil, fmt.Errorf("task is required")
@@ -211,12 +336,7 @@ func (e *ToolExecutor) spawnCodingAgent(ctx context.Context, _ *ToolExecutor, ar
 	return client.SpawnCodingAgent(ctx, task, runnerType, workspacePath, timeoutMinutes)
 }
 
-func (e *ToolExecutor) checkAgentStatus(ctx context.Context, _ *ToolExecutor, args map[string]interface{}) (interface{}, error) {
-	client, err := e.getClient()
-	if err != nil {
-		return nil, err
-	}
-
+func (h *agentManagerHandler) checkAgentStatus(ctx context.Context, client *AgentManagerClient, args map[string]interface{}) (interface{}, error) {
 	runID, _ := args["run_id"].(string)
 	if runID == "" {
 		return nil, fmt.Errorf("run_id is required")
@@ -225,12 +345,7 @@ func (e *ToolExecutor) checkAgentStatus(ctx context.Context, _ *ToolExecutor, ar
 	return client.CheckAgentStatus(ctx, runID)
 }
 
-func (e *ToolExecutor) stopAgent(ctx context.Context, _ *ToolExecutor, args map[string]interface{}) (interface{}, error) {
-	client, err := e.getClient()
-	if err != nil {
-		return nil, err
-	}
-
+func (h *agentManagerHandler) stopAgent(ctx context.Context, client *AgentManagerClient, args map[string]interface{}) (interface{}, error) {
 	runID, _ := args["run_id"].(string)
 	if runID == "" {
 		return nil, fmt.Errorf("run_id is required")
@@ -239,21 +354,11 @@ func (e *ToolExecutor) stopAgent(ctx context.Context, _ *ToolExecutor, args map[
 	return client.StopAgent(ctx, runID)
 }
 
-func (e *ToolExecutor) listActiveAgents(ctx context.Context, _ *ToolExecutor, _ map[string]interface{}) (interface{}, error) {
-	client, err := e.getClient()
-	if err != nil {
-		return nil, err
-	}
-
+func (h *agentManagerHandler) listActiveAgents(ctx context.Context, client *AgentManagerClient) (interface{}, error) {
 	return client.ListActiveAgents(ctx)
 }
 
-func (e *ToolExecutor) getAgentDiff(ctx context.Context, _ *ToolExecutor, args map[string]interface{}) (interface{}, error) {
-	client, err := e.getClient()
-	if err != nil {
-		return nil, err
-	}
-
+func (h *agentManagerHandler) getAgentDiff(ctx context.Context, client *AgentManagerClient, args map[string]interface{}) (interface{}, error) {
 	runID, _ := args["run_id"].(string)
 	if runID == "" {
 		return nil, fmt.Errorf("run_id is required")
@@ -262,12 +367,7 @@ func (e *ToolExecutor) getAgentDiff(ctx context.Context, _ *ToolExecutor, args m
 	return client.GetAgentDiff(ctx, runID)
 }
 
-func (e *ToolExecutor) approveAgentChanges(ctx context.Context, _ *ToolExecutor, args map[string]interface{}) (interface{}, error) {
-	client, err := e.getClient()
-	if err != nil {
-		return nil, err
-	}
-
+func (h *agentManagerHandler) approveAgentChanges(ctx context.Context, client *AgentManagerClient, args map[string]interface{}) (interface{}, error) {
 	runID, _ := args["run_id"].(string)
 	if runID == "" {
 		return nil, fmt.Errorf("run_id is required")

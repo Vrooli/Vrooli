@@ -37,10 +37,10 @@ type OpenRouterMessage struct {
 
 // OpenRouterRequest is the request body for chat completions.
 type OpenRouterRequest struct {
-	Model    string              `json:"model"`
-	Messages []OpenRouterMessage `json:"messages"`
-	Stream   bool                `json:"stream"`
-	Tools    []ToolDefinition    `json:"tools,omitempty"`
+	Model    string                   `json:"model"`
+	Messages []OpenRouterMessage      `json:"messages"`
+	Stream   bool                     `json:"stream"`
+	Tools    []map[string]interface{} `json:"tools,omitempty"`
 }
 
 // OpenRouterChoice represents a single choice in the completion response.

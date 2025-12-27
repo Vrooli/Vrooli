@@ -193,6 +193,19 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		{"create idx_usage_records_chat_id", `CREATE INDEX IF NOT EXISTS idx_usage_records_chat_id ON usage_records(chat_id)`},
 		{"create idx_usage_records_created_at", `CREATE INDEX IF NOT EXISTS idx_usage_records_created_at ON usage_records(created_at)`},
 		{"create idx_usage_records_model", `CREATE INDEX IF NOT EXISTS idx_usage_records_model ON usage_records(model)`},
+		{"create tool_configurations table", `
+			CREATE TABLE IF NOT EXISTS tool_configurations (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				chat_id UUID REFERENCES chats(id) ON DELETE CASCADE,
+				scenario TEXT NOT NULL,
+				tool_name TEXT NOT NULL,
+				enabled BOOLEAN NOT NULL DEFAULT true,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				UNIQUE (chat_id, scenario, tool_name)
+			)`},
+		{"create idx_tool_configurations_chat_id", `CREATE INDEX IF NOT EXISTS idx_tool_configurations_chat_id ON tool_configurations(chat_id)`},
+		{"create idx_tool_configurations_global", `CREATE INDEX IF NOT EXISTS idx_tool_configurations_global ON tool_configurations(scenario, tool_name) WHERE chat_id IS NULL`},
 	}
 
 	for _, m := range migrations {
