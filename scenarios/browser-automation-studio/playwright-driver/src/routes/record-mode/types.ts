@@ -262,8 +262,8 @@ export interface DriverPageEvent {
   driverPageId: string;
   /** Vrooli's page ID (echoed back if provided) */
   vrooliPageId: string;
-  /** Event type: "created" | "navigated" | "closed" */
-  eventType: 'created' | 'navigated' | 'closed';
+  /** Event type: "created" | "navigated" | "closed" | "initial" */
+  eventType: 'created' | 'navigated' | 'closed' | 'initial';
   /** Current URL of the page */
   url: string;
   /** Title of the page */

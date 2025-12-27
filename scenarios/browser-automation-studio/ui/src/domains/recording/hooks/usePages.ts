@@ -71,6 +71,8 @@ interface UsePagesOptions {
   onPageClosed?: (pageId: string) => void;
   /** Callback when the active page changes */
   onActivePageChanged?: (pageId: string) => void;
+  /** Callback when a page navigates (URL/title changed). isActive indicates if this is the current active page. */
+  onPageNavigated?: (pageId: string, url: string, title: string, isActive: boolean) => void;
 }
 
 interface UsePagesReturn {
@@ -105,6 +107,7 @@ export function usePages({
   onPageCreated,
   onPageClosed,
   onActivePageChanged,
+  onPageNavigated,
 }: UsePagesOptions): UsePagesReturn {
   const [pages, setPages] = useState<Map<string, Page>>(new Map());
   const [activePageId, setActivePageId] = useState<string | null>(null);
@@ -118,9 +121,11 @@ export function usePages({
   const onPageCreatedRef = useRef(onPageCreated);
   const onPageClosedRef = useRef(onPageClosed);
   const onActivePageChangedRef = useRef(onActivePageChanged);
+  const onPageNavigatedRef = useRef(onPageNavigated);
   onPageCreatedRef.current = onPageCreated;
   onPageClosedRef.current = onPageClosed;
   onActivePageChangedRef.current = onActivePageChanged;
+  onPageNavigatedRef.current = onPageNavigated;
 
   // Initial fetch when session changes
   const refreshPages = useCallback(async () => {
@@ -166,6 +171,10 @@ export function usePages({
     }
   }, [sessionId, refreshPages]);
 
+  // Keep track of active page in a ref for use in callbacks without stale closures
+  const activePageIdRef = useRef(activePageId);
+  activePageIdRef.current = activePageId;
+
   // Handle WebSocket messages for page events
   useEffect(() => {
     if (!lastMessage || !sessionId) return;
@@ -203,11 +212,19 @@ export function usePages({
           case 'page_navigated': {
             const existing = next.get(event.pageId);
             if (existing) {
+              const newUrl = event.url || existing.url;
+              const newTitle = event.title || existing.title;
               next.set(event.pageId, {
                 ...existing,
-                url: event.url || existing.url,
-                title: event.title || existing.title,
+                url: newUrl,
+                title: newTitle,
               });
+
+              // Notify callback with isActive flag
+              if (onPageNavigatedRef.current) {
+                const isActive = event.pageId === activePageIdRef.current;
+                onPageNavigatedRef.current(event.pageId, newUrl, newTitle, isActive);
+              }
             }
             break;
           }

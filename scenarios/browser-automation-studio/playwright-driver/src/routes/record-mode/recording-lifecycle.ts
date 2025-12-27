@@ -406,7 +406,7 @@ export async function handleRecordStart(
           sessionId,
           driverPageId: initialPageId,
           vrooliPageId: '',
-          eventType: 'created',
+          eventType: 'initial',
           url: initialUrl,
           title: initialTitle,
           timestamp: new Date().toISOString(),
@@ -418,6 +418,35 @@ export async function handleRecordStart(
           sessionId,
           pageId: initialPageId,
           url: initialUrl,
+        });
+
+        // Set up navigation listener for the initial page
+        // (new pages get this in setupPageLifecycleListeners, but initial page needs it here)
+        const pageCallbackUrl = request.page_callback_url;
+        session.page.on('framenavigated', async (frame) => {
+          // Only track main frame navigations
+          if (frame !== session.page.mainFrame()) return;
+
+          const navUrl = session.page.url();
+          const navTitle = await session.page.title().catch(() => '');
+
+          logger.debug(scopedLog(LogContext.RECORDING, 'initial page navigated'), {
+            sessionId,
+            pageId: initialPageId,
+            url: navUrl,
+          });
+
+          const navEvent: DriverPageEvent = {
+            sessionId,
+            driverPageId: initialPageId,
+            vrooliPageId: '',
+            eventType: 'navigated',
+            url: navUrl,
+            title: navTitle,
+            timestamp: new Date().toISOString(),
+          };
+
+          await sendPageEvent(sessionId, pageCallbackUrl, navEvent);
         });
       }
     }

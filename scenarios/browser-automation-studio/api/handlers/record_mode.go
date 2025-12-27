@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	"github.com/vrooli/browser-automation-studio/config"
+	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/performance"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
@@ -940,6 +941,26 @@ func (h *Handler) NavigateRecordingSession(w http.ResponseWriter, r *http.Reques
 			"error": err.Error(),
 		}))
 		return
+	}
+
+	// Update the active page's URL and title after navigation completes
+	// This ensures the page tracker stays in sync even if the driver's
+	// page_navigated callback hasn't fired yet
+	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
+		pages := sess.Pages()
+		activePageID := pages.GetActivePageID()
+		pages.UpdatePageInfo(activePageID, resp.URL, resp.Title)
+
+		// Broadcast a page_navigated event so the UI updates
+		pageEvent := &domain.PageEvent{
+			ID:        uuid.New(),
+			Type:      domain.PageEventNavigated,
+			PageID:    activePageID,
+			URL:       resp.URL,
+			Title:     resp.Title,
+			Timestamp: time.Now(),
+		}
+		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
 	}
 
 	// Map service response to handler response type

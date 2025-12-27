@@ -158,6 +158,7 @@ export function RecordModePage({
   const {
     openPages,
     activePageId,
+    pages: pagesMap,
     switchToPage,
     closePage,
     isLoading: isPagesLoading,
@@ -169,9 +170,25 @@ export function RecordModePage({
       // Show activity indicator briefly on new pages
       setRecentActivityPageId(page.id);
       setTimeout(() => setRecentActivityPageId(null), 2000);
+
+      // Auto-switch to new tabs (e.g., opened by clicking target="_blank" links)
+      // This gives the user immediate feedback of the new tab
+      void switchToPage(page.id);
     },
     onActivePageChanged: (pageId) => {
       console.log('[RecordModePage] Active page changed:', pageId);
+      // Update the URL bar to show the new page's URL
+      const page = pagesMap.get(pageId);
+      if (page?.url) {
+        setPreviewUrl(page.url);
+      }
+    },
+    onPageNavigated: (pageId, url, _title, isActive) => {
+      console.log('[RecordModePage] Page navigated:', pageId, url, 'isActive:', isActive);
+      // Update the URL bar if the active page navigated
+      if (isActive && url) {
+        setPreviewUrl(url);
+      }
     },
   });
 
