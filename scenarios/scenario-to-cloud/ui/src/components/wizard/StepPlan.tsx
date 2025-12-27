@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { ListOrdered, Play, CheckCircle2 } from "lucide-react";
+import { ListOrdered, RefreshCw, CheckCircle2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import { LoadingState } from "../ui/spinner";
@@ -28,18 +28,6 @@ export function StepPlan({ deployment }: StepPlanProps) {
 
   return (
     <div className="space-y-6">
-      {/* Generate Plan Button */}
-      <div className="flex items-center gap-3">
-        <Button
-          data-testid={selectors.manifest.planButton}
-          onClick={generatePlan}
-          disabled={isPlanning || !parsedManifest.ok}
-        >
-          <Play className="h-4 w-4 mr-1.5" />
-          {isPlanning ? "Generating..." : "Generate Plan"}
-        </Button>
-      </div>
-
       {/* Loading State */}
       {isPlanning && (
         <LoadingState message="Generating deployment plan..." />
@@ -48,7 +36,19 @@ export function StepPlan({ deployment }: StepPlanProps) {
       {/* Error */}
       {planError && (
         <Alert variant="error" title="Plan Generation Failed">
-          {planError}
+          <div className="space-y-2">
+            <p>{planError}</p>
+            <Button
+              data-testid={selectors.manifest.planButton}
+              variant="outline"
+              size="sm"
+              onClick={generatePlan}
+              disabled={!parsedManifest.ok}
+            >
+              <RefreshCw className="h-4 w-4 mr-1.5" />
+              Retry
+            </Button>
+          </div>
         </Alert>
       )}
 
@@ -56,9 +56,22 @@ export function StepPlan({ deployment }: StepPlanProps) {
       {plan !== null && !isPlanning && (
         <div data-testid={selectors.manifest.planResult} className="space-y-4">
           <Alert variant="info" title="Deployment Plan Ready">
-            <div className="flex items-center gap-2">
-              <ListOrdered className="h-4 w-4" />
-              {plan.length} step{plan.length !== 1 ? "s" : ""} will be executed during deployment.
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ListOrdered className="h-4 w-4" />
+                {plan.length} step{plan.length !== 1 ? "s" : ""} will be executed during deployment.
+              </div>
+              <Button
+                data-testid={selectors.manifest.planButton}
+                variant="ghost"
+                size="sm"
+                onClick={generatePlan}
+                disabled={!parsedManifest.ok}
+                className="text-slate-400 hover:text-slate-200"
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                Regenerate
+              </Button>
             </div>
           </Alert>
 

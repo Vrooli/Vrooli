@@ -100,6 +100,7 @@ export function StepManifest({ deployment }: StepManifestProps) {
         includePackages: parsedManifest.value.bundle?.include_packages ?? true,
         includeAutoheal: parsedManifest.value.bundle?.include_autoheal ?? true,
         caddyEnabled: parsedManifest.value.edge?.caddy?.enabled ?? true,
+        caddyEmail: parsedManifest.value.edge?.caddy?.email ?? "",
       }
     : null;
 
@@ -228,6 +229,9 @@ export function StepManifest({ deployment }: StepManifestProps) {
         break;
       case "caddyEnabled":
         manifest.edge = { ...manifest.edge, caddy: { ...manifest.edge.caddy, enabled: value as boolean } };
+        break;
+      case "caddyEmail":
+        manifest.edge = { ...manifest.edge, caddy: { ...manifest.edge.caddy, email: value as string } };
         break;
       default:
         // Handle dynamic port fields (e.g., "port:ui", "port:playwright_driver")
@@ -502,6 +506,19 @@ export function StepManifest({ deployment }: StepManifestProps) {
                 <HelpTooltip content="Use Caddy for automatic HTTPS with Let's Encrypt" />
               </label>
             </div>
+
+            {/* Caddy Email - shown when Caddy is enabled */}
+            {formValues.caddyEnabled && (
+              <div className="mt-4">
+                <Input
+                  label="Let's Encrypt Email"
+                  placeholder="admin@example.com"
+                  value={formValues.caddyEmail}
+                  onChange={(e) => updateFormField("caddyEmail", e.target.value)}
+                  hint="Required for HTTPS certificate notifications from Let's Encrypt"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

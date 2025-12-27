@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { HelpCircle } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -9,20 +10,29 @@ interface TooltipProps {
   className?: string;
 }
 
+interface TooltipPosition {
+  left: number;
+  top: number;
+}
+
 export function Tooltip({ content, children, side = "top", className }: TooltipProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState<TooltipPosition | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!isOpen || !tooltipRef.current || !triggerRef.current) return;
+  // Use useLayoutEffect to calculate position synchronously before paint
+  useLayoutEffect(() => {
+    if (!isOpen || !tooltipRef.current || !triggerRef.current) {
+      setPosition(null);
+      return;
+    }
 
     const tooltip = tooltipRef.current;
     const trigger = triggerRef.current;
     const triggerRect = trigger.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
 
-    // Adjust position if tooltip goes off-screen
     let left = 0;
     let top = 0;
 
@@ -50,9 +60,31 @@ export function Tooltip({ content, children, side = "top", className }: TooltipP
     left = Math.max(padding, Math.min(left, window.innerWidth - tooltipRect.width - padding));
     top = Math.max(padding, Math.min(top, window.innerHeight - tooltipRect.height - padding));
 
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
+    setPosition({ left, top });
   }, [isOpen, side]);
+
+  // Reset position when closed
+  useEffect(() => {
+    if (!isOpen) {
+      setPosition(null);
+    }
+  }, [isOpen]);
+
+  const tooltipContent = isOpen ? (
+    <div
+      ref={tooltipRef}
+      className="fixed z-50 max-w-xs px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-slate-200 transition-opacity duration-100"
+      style={{
+        left: position?.left ?? -9999,
+        top: position?.top ?? -9999,
+        opacity: position ? 1 : 0,
+        pointerEvents: position ? "auto" : "none",
+      }}
+      role="tooltip"
+    >
+      {content}
+    </div>
+  ) : null;
 
   return (
     <span className={cn("inline-flex", className)}>
@@ -68,15 +100,7 @@ export function Tooltip({ content, children, side = "top", className }: TooltipP
       >
         {children || <HelpCircle className="h-4 w-4" />}
       </button>
-      {isOpen && (
-        <div
-          ref={tooltipRef}
-          className="fixed z-50 max-w-xs px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-slate-200"
-          role="tooltip"
-        >
-          {content}
-        </div>
-      )}
+      {createPortal(tooltipContent, document.body)}
     </span>
   );
 }

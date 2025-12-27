@@ -29,6 +29,7 @@ export type DeploymentManifest = {
     domain: string;
     caddy: {
       enabled: boolean;
+      email?: string;
     };
   };
 };
@@ -105,6 +106,7 @@ export const DEFAULT_MANIFEST: DeploymentManifest = {
     domain: "example.com",
     caddy: {
       enabled: true,
+      email: "",
     },
   },
 };
