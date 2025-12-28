@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"agent-inbox/domain"
@@ -37,6 +38,7 @@ type CompletionService struct {
 	executor         *integrations.ToolExecutor
 	toolRegistry     *ToolRegistry
 	messageConverter *MessageConverter
+	storage          StorageService
 }
 
 // NewCompletionService creates a new completion service.
@@ -46,6 +48,7 @@ func NewCompletionService(repo *persistence.Repository, storage StorageService) 
 		executor:         integrations.NewToolExecutor(),
 		toolRegistry:     NewToolRegistry(repo),
 		messageConverter: NewMessageConverter(storage),
+		storage:          storage,
 	}
 }
 
@@ -57,6 +60,7 @@ func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry *To
 		executor:         integrations.NewToolExecutor(),
 		toolRegistry:     registry,
 		messageConverter: NewMessageConverter(storage),
+		storage:          storage,
 	}
 }
 
@@ -84,6 +88,27 @@ func (s *CompletionService) SaveCompletionResult(ctx context.Context, chatID, mo
 	// Update active leaf to point to the new message
 	if msg != nil {
 		s.repo.SetActiveLeaf(ctx, chatID, msg.ID)
+	}
+
+	// Save generated images as attachments
+	if len(result.Images) > 0 && msg != nil {
+		for i, imageDataURL := range result.Images {
+			att, saveErr := s.storage.SaveBase64Image(ctx, imageDataURL, fmt.Sprintf("generated_%d", i+1))
+			if saveErr != nil {
+				log.Printf("warning: failed to save generated image %d: %v", i+1, saveErr)
+				continue
+			}
+			// Create attachment record in database
+			if createErr := s.repo.CreateAttachment(ctx, att); createErr != nil {
+				log.Printf("warning: failed to create attachment record for generated image: %v", createErr)
+				continue
+			}
+			// Link attachment to message
+			if linkErr := s.repo.AttachToMessage(ctx, att.ID, msg.ID); linkErr != nil {
+				log.Printf("warning: failed to link generated image to message: %v", linkErr)
+			}
+		}
+		log.Printf("[DEBUG] Saved %d generated images as attachments for message %s", len(result.Images), msg.ID)
 	}
 
 	// Save usage record if usage data is available
@@ -343,12 +368,13 @@ func (s *CompletionService) GetChatSettings(ctx context.Context, chatID string) 
 
 // CompletionRequest contains validated data needed to make a completion.
 type CompletionRequest struct {
-	ChatID    string
-	Model     string
-	Messages  []integrations.OpenRouterMessage
-	Tools     []map[string]interface{}
-	Plugins   []integrations.OpenRouterPlugin
-	Streaming bool
+	ChatID     string
+	Model      string
+	Messages   []integrations.OpenRouterMessage
+	Tools      []map[string]interface{}
+	Plugins    []integrations.OpenRouterPlugin
+	Modalities []string // ["image", "text"] for image generation models
+	Streaming  bool
 }
 
 // ShouldIncludeTools returns true if tools should be sent with the request.
@@ -359,6 +385,11 @@ func (r *CompletionRequest) ShouldIncludeTools() bool {
 // ShouldIncludePlugins returns true if plugins should be sent with the request.
 func (r *CompletionRequest) ShouldIncludePlugins() bool {
 	return len(r.Plugins) > 0
+}
+
+// ShouldIncludeModalities returns true if modalities should be sent with the request.
+func (r *CompletionRequest) ShouldIncludeModalities() bool {
+	return len(r.Modalities) > 0
 }
 
 // PrepareCompletionRequest builds a validated completion request.
@@ -431,7 +462,16 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 		Streaming: streaming,
 	}
 
-	if settings.ToolsEnabled {
+	// Enable image generation modalities if the model supports it
+	// Image generation models typically don't support tool use, so skip tools
+	isImageGen := isImageGenerationModel(settings.Model)
+	if isImageGen {
+		req.Modalities = []string{"image", "text"}
+		log.Printf("[DEBUG] Image generation enabled for model: %s (tools disabled)", settings.Model)
+	}
+
+	// Only add tools for non-image-generation models that have tools enabled
+	if settings.ToolsEnabled && !isImageGen {
 		tools, err := s.toolRegistry.GetToolsForOpenAI(ctx, chatID)
 		if err != nil {
 			// Log but don't fail - tools are optional enhancement
@@ -442,4 +482,28 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 	}
 
 	return req, nil
+}
+
+// imageGenerationModelPatterns contains known patterns for image generation models.
+// This is a fallback when model metadata is not available.
+var imageGenerationModelPatterns = []string{
+	"gemini-2.5-flash-image",
+	"gemini-2.0-flash-image",
+	"flux",
+	"dall-e",
+	"stable-diffusion",
+	"sdxl",
+	"imagen",
+}
+
+// isImageGenerationModel checks if a model ID indicates image generation capability.
+// Uses pattern matching as a fallback when model metadata is not available.
+func isImageGenerationModel(modelID string) bool {
+	modelIDLower := strings.ToLower(modelID)
+	for _, pattern := range imageGenerationModelPatterns {
+		if strings.Contains(modelIDLower, pattern) {
+			return true
+		}
+	}
+	return false
 }

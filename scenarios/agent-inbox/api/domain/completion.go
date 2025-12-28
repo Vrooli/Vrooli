@@ -2,9 +2,10 @@
 package domain
 
 // CompletionResult represents the outcome of an AI completion request.
-// This type makes explicit the two possible completion outcomes:
+// This type makes explicit the possible completion outcomes:
 // 1. Regular content response (text reply from the model)
 // 2. Tool call response (model wants to invoke tools)
+// 3. Image generation response (model generated images)
 type CompletionResult struct {
 	Content      string     `json:"content"`
 	TokenCount   int        `json:"token_count"`
@@ -12,6 +13,7 @@ type CompletionResult struct {
 	ToolCalls    []ToolCall `json:"tool_calls,omitempty"`
 	ResponseID   string     `json:"response_id,omitempty"`
 	Usage        *Usage     `json:"usage,omitempty"`
+	Images       []string   `json:"images,omitempty"` // AI-generated images as base64 data URLs
 }
 
 // Usage contains token usage information from a completion.
@@ -56,6 +58,7 @@ type StreamingAccumulator struct {
 	FinishReason   string
 	ResponseID     string
 	Usage          *Usage
+	Images         []string // AI-generated images accumulated during streaming
 }
 
 // NewStreamingAccumulator creates a new accumulator for streaming responses.
@@ -69,6 +72,11 @@ func NewStreamingAccumulator() *StreamingAccumulator {
 func (a *StreamingAccumulator) AppendContent(content string) {
 	a.ContentBuilder += content
 	a.TokenCount++
+}
+
+// AppendImage adds a generated image to the accumulator.
+func (a *StreamingAccumulator) AppendImage(dataURL string) {
+	a.Images = append(a.Images, dataURL)
 }
 
 // AppendToolCallDelta merges a tool call delta into the accumulated tool calls.
@@ -135,6 +143,7 @@ func (a *StreamingAccumulator) ToResult() *CompletionResult {
 		ToolCalls:    a.ToolCalls,
 		ResponseID:   a.ResponseID,
 		Usage:        a.Usage,
+		Images:       a.Images,
 	}
 }
 

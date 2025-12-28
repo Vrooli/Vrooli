@@ -35,6 +35,19 @@ type OpenRouterMessage struct {
 	Content    interface{}       `json:"content,omitempty"` // string or []ContentPart
 	ToolCalls  []domain.ToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string            `json:"tool_call_id,omitempty"`
+	Images     []GeneratedImage  `json:"images,omitempty"` // AI-generated images in response
+}
+
+// GeneratedImage represents an AI-generated image in an OpenRouter response.
+// Images are returned as base64 data URLs in PNG format.
+type GeneratedImage struct {
+	Type     string              `json:"type"`      // "image_url"
+	ImageURL *GeneratedImageURL  `json:"image_url"` // Contains the base64 data URL
+}
+
+// GeneratedImageURL contains the URL for a generated image.
+type GeneratedImageURL struct {
+	URL string `json:"url"` // base64 data URL: data:image/png;base64,...
 }
 
 // ContentPart represents a part of a multimodal message content array.
@@ -62,11 +75,12 @@ type FileContent struct {
 
 // OpenRouterRequest is the request body for chat completions.
 type OpenRouterRequest struct {
-	Model    string                   `json:"model"`
-	Messages []OpenRouterMessage      `json:"messages"`
-	Stream   bool                     `json:"stream"`
-	Tools    []map[string]interface{} `json:"tools,omitempty"`
-	Plugins  []OpenRouterPlugin       `json:"plugins,omitempty"`
+	Model      string                   `json:"model"`
+	Messages   []OpenRouterMessage      `json:"messages"`
+	Stream     bool                     `json:"stream"`
+	Tools      []map[string]interface{} `json:"tools,omitempty"`
+	Plugins    []OpenRouterPlugin       `json:"plugins,omitempty"`
+	Modalities []string                 `json:"modalities,omitempty"` // ["image", "text"] for image generation
 }
 
 // OpenRouterPlugin configures a plugin for enhanced capabilities.
@@ -146,6 +160,20 @@ type Architecture struct {
 	Output   []string `json:"output,omitempty"`
 }
 
+// SupportsImageGeneration returns true if the model can generate images.
+// This checks if "image" is in the model's output modalities.
+func (m *ModelInfo) SupportsImageGeneration() bool {
+	if m.Architecture == nil || len(m.Architecture.Output) == 0 {
+		return false
+	}
+	for _, output := range m.Architecture.Output {
+		if output == "image" {
+			return true
+		}
+	}
+	return false
+}
+
 // ModelsResponse is the response from resource-openrouter content models --json.
 type ModelsResponse struct {
 	Source       string      `json:"source"`
@@ -188,8 +216,8 @@ func (c *OpenRouterClient) CreateCompletion(ctx context.Context, req *OpenRouter
 	}
 
 	// Debug: log what we're sending
-	log.Printf("[DEBUG] OpenRouter request: model=%s, messages=%d, plugins=%v, stream=%v",
-		req.Model, len(req.Messages), req.Plugins, req.Stream)
+	log.Printf("[DEBUG] OpenRouter request: model=%s, messages=%d, plugins=%v, modalities=%v, tools=%d, stream=%v",
+		req.Model, len(req.Messages), req.Plugins, req.Modalities, len(req.Tools), req.Stream)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(reqBody))
 	if err != nil {

@@ -16,6 +16,7 @@ interface ChatViewProps {
   isGenerating: boolean;
   streamingContent: string;
   activeToolCalls?: ActiveToolCall[];
+  generatedImages?: string[];
   scrollToMessageId?: string | null;
   onScrollComplete?: () => void;
   onSendMessage: (payload: MessagePayload) => void;
@@ -43,6 +44,7 @@ export function ChatView({
   isGenerating,
   streamingContent,
   activeToolCalls = [],
+  generatedImages = [],
   scrollToMessageId,
   onScrollComplete,
   onSendMessage,
@@ -119,6 +121,7 @@ export function ChatView({
         isGenerating={isGenerating}
         streamingContent={streamingContent}
         activeToolCalls={activeToolCalls}
+        generatedImages={generatedImages}
         toolCallRecords={chatData.tool_call_records}
         scrollToMessageId={scrollToMessageId}
         onScrollComplete={onScrollComplete}

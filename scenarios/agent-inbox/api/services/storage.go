@@ -27,6 +27,11 @@ type StorageService interface {
 	// The file is stored with a generated UUID name in a date-organized directory.
 	Upload(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*domain.Attachment, error)
 
+	// SaveBase64Image saves a base64 data URL image and returns attachment metadata.
+	// Used for storing AI-generated images from model responses.
+	// The dataURL should be in format: data:image/png;base64,{base64data}
+	SaveBase64Image(ctx context.Context, dataURL string, filenamePrefix string) (*domain.Attachment, error)
+
 	// GetPath returns the full filesystem path for a stored file.
 	GetPath(storagePath string) string
 
@@ -116,6 +121,58 @@ func (s *LocalStorageService) Upload(ctx context.Context, file multipart.File, h
 		FileName:    header.Filename,
 		ContentType: contentType,
 		FileSize:    header.Size,
+		StoragePath: storagePath,
+		Width:       width,
+		Height:      height,
+		CreatedAt:   now,
+	}, nil
+}
+
+// SaveBase64Image saves a base64 data URL image and returns attachment metadata.
+// Used for storing AI-generated images from model responses.
+func (s *LocalStorageService) SaveBase64Image(ctx context.Context, dataURL string, filenamePrefix string) (*domain.Attachment, error) {
+	// Parse the data URL: data:image/png;base64,{base64data}
+	contentType, data, err := parseBase64DataURL(dataURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse data URL: %w", err)
+	}
+
+	// Generate storage path: YYYY/MM/DD/{uuid}.{ext}
+	now := time.Now()
+	dateDir := now.Format("2006/01/02")
+	ext := extensionFromContentType(contentType)
+	if ext == "" {
+		ext = ".png" // Default to PNG for generated images
+	}
+	fileID := uuid.New().String()
+	storagePath := filepath.Join(dateDir, fileID+ext)
+	fullPath := filepath.Join(s.cfg.BasePath, storagePath)
+
+	// Ensure directory exists
+	dir := filepath.Dir(fullPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+
+	// Write the image data
+	if err := os.WriteFile(fullPath, data, 0o644); err != nil {
+		return nil, fmt.Errorf("failed to write file %s: %w", fullPath, err)
+	}
+
+	// Get image dimensions if applicable
+	width, height := 0, 0
+	if strings.HasPrefix(contentType, "image/") {
+		width, height = getImageDimensions(fullPath)
+	}
+
+	// Generate a human-readable filename
+	filename := fmt.Sprintf("%s_%s%s", filenamePrefix, fileID[:8], ext)
+
+	return &domain.Attachment{
+		ID:          fileID,
+		FileName:    filename,
+		ContentType: contentType,
+		FileSize:    int64(len(data)),
 		StoragePath: storagePath,
 		Width:       width,
 		Height:      height,
@@ -226,6 +283,52 @@ func getImageDimensions(path string) (width, height int) {
 	return 0, 0
 }
 
+// parseBase64DataURL parses a data URL and returns content type and decoded data.
+// Expected format: data:image/png;base64,{base64data}
+func parseBase64DataURL(dataURL string) (contentType string, data []byte, err error) {
+	// Check for data URL prefix
+	if !strings.HasPrefix(dataURL, "data:") {
+		return "", nil, fmt.Errorf("invalid data URL: missing 'data:' prefix")
+	}
+
+	// Find the comma that separates metadata from data
+	commaIdx := strings.Index(dataURL, ",")
+	if commaIdx == -1 {
+		return "", nil, fmt.Errorf("invalid data URL: missing comma separator")
+	}
+
+	// Parse metadata (e.g., "data:image/png;base64")
+	metadata := dataURL[5:commaIdx] // Skip "data:"
+	base64Data := dataURL[commaIdx+1:]
+
+	// Extract content type and verify it's base64
+	parts := strings.Split(metadata, ";")
+	if len(parts) == 0 {
+		return "", nil, fmt.Errorf("invalid data URL: no content type")
+	}
+	contentType = parts[0]
+
+	// Verify base64 encoding
+	isBase64 := false
+	for _, part := range parts[1:] {
+		if part == "base64" {
+			isBase64 = true
+			break
+		}
+	}
+	if !isBase64 {
+		return "", nil, fmt.Errorf("invalid data URL: not base64 encoded")
+	}
+
+	// Decode the base64 data
+	data, err = base64.StdEncoding.DecodeString(base64Data)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to decode base64: %w", err)
+	}
+
+	return contentType, data, nil
+}
+
 // MockStorageService provides an in-memory implementation for testing.
 type MockStorageService struct {
 	files        map[string]*domain.Attachment
@@ -268,6 +371,36 @@ func (m *MockStorageService) Upload(ctx context.Context, file multipart.File, he
 		FileName:    header.Filename,
 		ContentType: contentType,
 		FileSize:    header.Size,
+		StoragePath: storagePath,
+		CreatedAt:   time.Now(),
+	}
+
+	m.files[storagePath] = att
+	m.fileData[storagePath] = data
+
+	return att, nil
+}
+
+// SaveBase64Image saves a base64 data URL image in memory.
+func (m *MockStorageService) SaveBase64Image(ctx context.Context, dataURL string, filenamePrefix string) (*domain.Attachment, error) {
+	contentType, data, err := parseBase64DataURL(dataURL)
+	if err != nil {
+		return nil, err
+	}
+
+	fileID := uuid.New().String()
+	ext := extensionFromContentType(contentType)
+	if ext == "" {
+		ext = ".png"
+	}
+	storagePath := "mock/" + fileID + ext
+	filename := fmt.Sprintf("%s_%s%s", filenamePrefix, fileID[:8], ext)
+
+	att := &domain.Attachment{
+		ID:          fileID,
+		FileName:    filename,
+		ContentType: contentType,
+		FileSize:    int64(len(data)),
 		StoragePath: storagePath,
 		CreatedAt:   time.Now(),
 	}

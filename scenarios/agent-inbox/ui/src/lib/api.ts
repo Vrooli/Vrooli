@@ -625,9 +625,11 @@ export async function fetchChatToolCalls(chatId: string): Promise<ToolCallRecord
 // from the same completion request, helping prevent stale event handling
 // when requests are cancelled or replaced.
 export interface StreamingEvent {
-  type: "content" | "tool_call_start" | "tool_call_result" | "tool_calls_complete" | "tool_pending_approval" | "awaiting_approvals" | "error" | "warning" | "progress";
+  type: "content" | "image_generated" | "tool_call_start" | "tool_call_result" | "tool_calls_complete" | "tool_pending_approval" | "awaiting_approvals" | "error" | "warning" | "progress";
   completion_id?: string;
   content?: string;
+  // Image generation event fields
+  image_url?: string;
   tool_name?: string;
   tool_id?: string;
   tool_call_id?: string;

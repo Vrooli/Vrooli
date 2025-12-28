@@ -1,17 +1,18 @@
 /**
  * Model capability detection for multimodal features.
  *
- * This module determines what input types a model supports based on
- * the architecture.input field from OpenRouter's model metadata.
+ * This module determines what input/output types a model supports based on
+ * the architecture.input/output fields from OpenRouter's model metadata.
  */
 
 import type { Model } from "./api";
 
 export interface ModelCapabilities {
-  supportsImages: boolean;
-  supportsPDFs: boolean;
-  supportsText: boolean;
-  supportsTools: boolean;
+  supportsImages: boolean; // Can receive images as input
+  supportsPDFs: boolean; // Can receive PDFs as input
+  supportsText: boolean; // Can receive text (always true)
+  supportsTools: boolean; // Supports function calling
+  supportsImageGeneration: boolean; // Can generate images as output
 }
 
 /**
@@ -43,6 +44,20 @@ const PDF_MODEL_PATTERNS = [
   "claude-3.5",
   "gemini-1.5",
   "gemini-2",
+];
+
+/**
+ * Known image generation model patterns.
+ * These models can generate images as output.
+ */
+const IMAGE_GENERATION_PATTERNS = [
+  "gemini-2.5-flash-image",
+  "gemini-2.0-flash-image",
+  "flux",
+  "dall-e",
+  "stable-diffusion",
+  "sdxl",
+  "imagen",
 ];
 
 /**
@@ -104,6 +119,27 @@ export function supportsTools(model: Model | null): boolean {
 }
 
 /**
+ * Check if a model can generate images as output.
+ * Uses architecture.output metadata if available, falls back to name pattern matching.
+ */
+export function supportsImageGeneration(model: Model | null): boolean {
+  if (!model) return false;
+
+  // Check architecture.output metadata first
+  if (model.architecture?.output) {
+    if (model.architecture.output.includes("image")) {
+      return true;
+    }
+  }
+
+  // Fallback to name-based detection
+  const modelId = model.id.toLowerCase();
+  return IMAGE_GENERATION_PATTERNS.some((pattern) =>
+    modelId.includes(pattern.toLowerCase())
+  );
+}
+
+/**
  * Get full capabilities for a model.
  */
 export function getModelCapabilities(model: Model | null): ModelCapabilities {
@@ -112,6 +148,7 @@ export function getModelCapabilities(model: Model | null): ModelCapabilities {
     supportsPDFs: supportsPDFs(model),
     supportsText: true, // All models support text
     supportsTools: supportsTools(model),
+    supportsImageGeneration: supportsImageGeneration(model),
   };
 }
 

@@ -406,6 +406,7 @@ export function useChats(options: UseChatsOptions = {}) {
     awaitingApprovals: completion.awaitingApprovals,
     isRegenerating,
     regeneratingContent,
+    generatedImages: completion.generatedImages,
 
     // Data
     chats,

@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { Search, Bot, Check, ChevronDown, Building2, ArrowUpDown, Image, MessageSquare, Type, Clock, X } from "lucide-react";
+import { Search, Bot, Check, ChevronDown, Building2, ArrowUpDown, Image, MessageSquare, Type, Clock, X, Sparkles } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Dropdown, DropdownItem } from "../ui/dropdown";
 import type { Model } from "../../lib/api";
+import { supportsImageGeneration } from "../../lib/modelCapabilities";
 
 interface ModelSelectorModalProps {
   open: boolean;
@@ -436,6 +437,8 @@ export function ModelSelectorModal({
                     const modalities = getModalityBadges(model);
                     const hasImageSupport = modalities.includes("image");
 
+                    const canGenerateImages = supportsImageGeneration(model);
+
                     return (
                       <button
                         key={`recent-${model.id}`}
@@ -464,6 +467,12 @@ export function ModelSelectorModal({
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
                                 <Image className="h-3 w-3" />
                                 <span>Vision</span>
+                              </span>
+                            )}
+                            {canGenerateImages && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300">
+                                <Sparkles className="h-3 w-3" />
+                                <span>Image Gen</span>
                               </span>
                             )}
                             {model.context_length && (
@@ -527,6 +536,7 @@ export function ModelSelectorModal({
                     const isSelected = model.id === selectedModel;
                     const modalities = getModalityBadges(model);
                     const hasImageSupport = modalities.includes("image");
+                    const canGenerateImages = supportsImageGeneration(model);
 
                     return (
                       <button
@@ -559,6 +569,12 @@ export function ModelSelectorModal({
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
                                 <Image className="h-3 w-3" />
                                 <span>Vision</span>
+                              </span>
+                            )}
+                            {canGenerateImages && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300">
+                                <Sparkles className="h-3 w-3" />
+                                <span>Image Gen</span>
                               </span>
                             )}
 

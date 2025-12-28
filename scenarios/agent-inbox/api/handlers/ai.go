@@ -154,11 +154,12 @@ func (h *Handlers) ChatComplete(w http.ResponseWriter, r *http.Request) {
 
 	// Build and execute request
 	orReq := &integrations.OpenRouterRequest{
-		Model:    prepReq.Model,
-		Messages: prepReq.Messages,
-		Stream:   prepReq.Streaming,
-		Tools:    prepReq.Tools,
-		Plugins:  prepReq.Plugins,
+		Model:      prepReq.Model,
+		Messages:   prepReq.Messages,
+		Stream:     prepReq.Streaming,
+		Tools:      prepReq.Tools,
+		Plugins:    prepReq.Plugins,
+		Modalities: prepReq.Modalities,
 	}
 
 	resp, err := orClient.CreateCompletion(r.Context(), orReq)
@@ -220,9 +221,9 @@ func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Reques
 func parseStreamingChunks(body interface{ Read([]byte) (int, error) }, sw *StreamWriter) *domain.CompletionResult {
 	acc := domain.NewStreamingAccumulator()
 	scanner := bufio.NewScanner(body)
-	// Increase buffer size to handle large SSE chunks (e.g., web search results)
-	// Default is 64KB, we increase to 1MB
-	const maxScanTokenSize = 1024 * 1024
+	// Increase buffer size to handle large SSE chunks (e.g., generated images as base64)
+	// Default is 64KB, we increase to 16MB for large image data URLs
+	const maxScanTokenSize = 16 * 1024 * 1024
 	buf := make([]byte, maxScanTokenSize)
 	scanner.Buffer(buf, maxScanTokenSize)
 
@@ -248,6 +249,11 @@ func parseStreamingChunks(body interface{ Read([]byte) (int, error) }, sw *Strea
 			break
 		}
 
+		// Log raw data for first few chunks to debug response format
+		if dataLineCount <= 3 {
+			log.Printf("[DEBUG] SSE raw chunk %d: %s", dataLineCount, data[:min(500, len(data))])
+		}
+
 		var chunk integrations.OpenRouterResponse
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
 			log.Printf("[DEBUG] SSE parse error: %v, data: %s", err, data[:min(100, len(data))])
@@ -255,6 +261,13 @@ func parseStreamingChunks(body interface{ Read([]byte) (int, error) }, sw *Strea
 		}
 
 		log.Printf("[DEBUG] SSE chunk: id=%s, choices=%d", chunk.ID, len(chunk.Choices))
+		if len(chunk.Choices) > 0 {
+			// Log detailed info about the first choice to see content structure
+			choice := chunk.Choices[0]
+			contentBytes, _ := json.Marshal(choice.Delta.Content)
+			log.Printf("[DEBUG] SSE choice[0]: finish_reason=%s, delta.content=%s, delta.images=%d",
+				choice.FinishReason, string(contentBytes)[:min(200, len(contentBytes))], len(choice.Delta.Images))
+		}
 		acc.SetResponseID(chunk.ID)
 
 		// Capture usage data if present (typically in final chunk)
@@ -272,19 +285,59 @@ func parseStreamingChunks(body interface{ Read([]byte) (int, error) }, sw *Strea
 	}
 
 	result := acc.ToResult()
-	log.Printf("[DEBUG] SSE parsing complete: %d total lines, %d data lines, content length=%d, tool_calls=%d",
-		lineCount, dataLineCount, len(result.Content), len(result.ToolCalls))
+	log.Printf("[DEBUG] SSE parsing complete: %d total lines, %d data lines, content length=%d, tool_calls=%d, images=%d",
+		lineCount, dataLineCount, len(result.Content), len(result.ToolCalls), len(result.Images))
 	return result
 }
 
 // processStreamingChoice processes a single choice from a streaming chunk.
 func processStreamingChoice(choice integrations.OpenRouterChoice, acc *domain.StreamingAccumulator, sw *StreamWriter) {
 	// Forward content to client and accumulate
-	// Content is interface{} to support multimodal, but streaming deltas are always strings
-	log.Printf("[DEBUG] processStreamingChoice: delta.Content type=%T, value=%v", choice.Delta.Content, choice.Delta.Content)
-	if content, ok := choice.Delta.Content.(string); ok && content != "" {
-		sw.WriteContentChunk(content)
-		acc.AppendContent(content)
+	// Content can be either a string (normal text) or array of content parts (multimodal with images)
+	log.Printf("[DEBUG] processStreamingChoice: delta.Content type=%T", choice.Delta.Content)
+
+	switch c := choice.Delta.Content.(type) {
+	case string:
+		if c != "" {
+			sw.WriteContentChunk(c)
+			acc.AppendContent(c)
+		}
+	case []interface{}:
+		// Multimodal streaming - extract text and images from content parts
+		log.Printf("[DEBUG] Streaming multimodal content with %d parts", len(c))
+		for _, part := range c {
+			partMap, ok := part.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			partType, _ := partMap["type"].(string)
+
+			switch partType {
+			case "text":
+				if text, ok := partMap["text"].(string); ok && text != "" {
+					sw.WriteContentChunk(text)
+					acc.AppendContent(text)
+				}
+			case "image_url":
+				// Extract image URL from image_url object
+				if imgURL, ok := partMap["image_url"].(map[string]interface{}); ok {
+					if url, ok := imgURL["url"].(string); ok && url != "" {
+						log.Printf("[DEBUG] Streaming: found image in content part")
+						acc.AppendImage(url)
+						sw.WriteImageGenerated(url)
+					}
+				}
+			}
+		}
+	}
+
+	// Handle generated images in legacy Images field
+	for _, img := range choice.Delta.Images {
+		if img.ImageURL != nil && img.ImageURL.URL != "" {
+			log.Printf("[DEBUG] Received generated image in delta.Images")
+			acc.AppendImage(img.ImageURL.URL)
+			sw.WriteImageGenerated(img.ImageURL.URL)
+		}
 	}
 
 	// Accumulate tool calls
@@ -408,15 +461,69 @@ func (h *Handlers) handleNonStreamingResponse(w http.ResponseWriter, r *http.Req
 // convertToCompletionResult converts an OpenRouter response to domain type.
 func convertToCompletionResult(resp *integrations.OpenRouterResponse) *domain.CompletionResult {
 	choice := resp.Choices[0]
-	// Content is interface{} to support multimodal, but responses are always strings
-	content, _ := choice.Message.Content.(string)
+
+	// Extract content and images from message
+	// Content can be either a string or an array of content parts (multimodal)
+	var content string
+	var images []string
+
+	log.Printf("[DEBUG] convertToCompletionResult: Content type=%T", choice.Message.Content)
+
+	switch c := choice.Message.Content.(type) {
+	case string:
+		content = c
+	case []interface{}:
+		// Multimodal response - extract text and images from content parts
+		log.Printf("[DEBUG] Multimodal content with %d parts", len(c))
+		for _, part := range c {
+			partMap, ok := part.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			partType, _ := partMap["type"].(string)
+			log.Printf("[DEBUG] Content part type: %s", partType)
+
+			switch partType {
+			case "text":
+				if text, ok := partMap["text"].(string); ok {
+					if content != "" {
+						content += "\n"
+					}
+					content += text
+				}
+			case "image_url":
+				// Extract image URL from image_url object
+				if imgURL, ok := partMap["image_url"].(map[string]interface{}); ok {
+					if url, ok := imgURL["url"].(string); ok && url != "" {
+						log.Printf("[DEBUG] Found image in content: %s...", url[:min(50, len(url))])
+						images = append(images, url)
+					}
+				}
+			}
+		}
+	default:
+		log.Printf("[DEBUG] Unexpected content type: %T", choice.Message.Content)
+	}
+
 	result := &domain.CompletionResult{
 		Content:      content,
 		TokenCount:   resp.Usage.CompletionTokens,
 		FinishReason: choice.FinishReason,
 		ToolCalls:    choice.Message.ToolCalls,
 		ResponseID:   resp.ID,
+		Images:       images,
 	}
+
+	// Also extract from legacy Images field if present
+	for _, img := range choice.Message.Images {
+		if img.ImageURL != nil && img.ImageURL.URL != "" {
+			result.Images = append(result.Images, img.ImageURL.URL)
+		}
+	}
+	if len(result.Images) > 0 {
+		log.Printf("[DEBUG] Total images extracted: %d", len(result.Images))
+	}
+
 	// Capture full usage data if available
 	if resp.Usage.PromptTokens > 0 || resp.Usage.CompletionTokens > 0 {
 		result.Usage = &domain.Usage{

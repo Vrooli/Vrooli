@@ -11,6 +11,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -113,6 +114,16 @@ func (sw *StreamWriter) WriteContentChunk(content string) {
 	sw.WriteEvent(map[string]interface{}{
 		"content":       content,
 		"type":          "content",
+		"completion_id": sw.completionID,
+	})
+}
+
+// WriteImageGenerated sends an event when an AI-generated image is received.
+func (sw *StreamWriter) WriteImageGenerated(imageURL string) {
+	log.Printf("[DEBUG] WriteImageGenerated: sending image_generated event (url length: %d)", len(imageURL))
+	sw.WriteEvent(map[string]interface{}{
+		"type":          "image_generated",
+		"image_url":     imageURL,
 		"completion_id": sw.completionID,
 	})
 }

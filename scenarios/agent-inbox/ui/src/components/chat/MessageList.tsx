@@ -20,6 +20,8 @@ interface MessageListProps {
   allMessages?: Message[];
   isGenerating: boolean;
   streamingContent: string;
+  /** AI-generated images during streaming (before they're saved as attachments) */
+  generatedImages?: string[];
   activeToolCalls?: ActiveToolCall[];
   /** Persisted tool call records with status/result info */
   toolCallRecords?: ToolCallRecord[];
@@ -53,6 +55,7 @@ export function MessageList({
   allMessages,
   isGenerating,
   streamingContent,
+  generatedImages = [],
   activeToolCalls = [],
   toolCallRecords = [],
   pendingApprovals = [],
@@ -247,17 +250,30 @@ export function MessageList({
           <div className="border-l-2 border-l-emerald-500 pl-3 py-1" data-testid="streaming-message">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-medium text-emerald-400">Assistant</span>
-              {!streamingContent && (
+              {!streamingContent && generatedImages.length === 0 && (
                 <Loader2 className="h-3 w-3 animate-spin text-emerald-400" />
               )}
             </div>
+            {/* Show generated images during streaming */}
+            {generatedImages.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {generatedImages.map((imgUrl, idx) => (
+                  <img
+                    key={idx}
+                    src={imgUrl}
+                    alt={`Generated image ${idx + 1}`}
+                    className="max-w-[150px] max-h-[150px] rounded-lg object-contain border border-slate-200 dark:border-slate-700"
+                  />
+                ))}
+              </div>
+            )}
             {streamingContent ? (
               <div className="text-sm text-slate-700 dark:text-slate-200">
                 <MarkdownRenderer content={streamingContent} isStreaming />
               </div>
-            ) : (
+            ) : generatedImages.length === 0 ? (
               <span className="text-sm text-slate-500 dark:text-slate-400">Thinking...</span>
-            )}
+            ) : null}
           </div>
         ) : (
           <div className="flex justify-start" data-testid="streaming-message">
@@ -266,14 +282,27 @@ export function MessageList({
                 <Bot className="h-4 w-4 text-indigo-400" />
               </div>
               <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200">
+                {/* Show generated images during streaming */}
+                {generatedImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {generatedImages.map((imgUrl, idx) => (
+                      <img
+                        key={idx}
+                        src={imgUrl}
+                        alt={`Generated image ${idx + 1}`}
+                        className="max-w-[300px] max-h-[300px] rounded-lg object-contain border border-slate-200 dark:border-slate-700"
+                      />
+                    ))}
+                  </div>
+                )}
                 {streamingContent ? (
                   <MarkdownRenderer content={streamingContent} isStreaming />
-                ) : (
+                ) : generatedImages.length === 0 ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin text-indigo-500 dark:text-indigo-400" />
                     <span className="text-sm text-slate-500 dark:text-slate-400">Thinking...</span>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           </div>

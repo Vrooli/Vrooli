@@ -43,6 +43,7 @@ function AppContent() {
     isGenerating,
     streamingContent,
     activeToolCalls,
+    generatedImages,
     isRegenerating,
 
     // Data
@@ -458,6 +459,7 @@ function AppContent() {
             isGenerating={isGenerating}
             streamingContent={streamingContent}
             activeToolCalls={activeToolCalls}
+            generatedImages={generatedImages}
             scrollToMessageId={scrollToMessageId}
             onScrollComplete={() => setScrollToMessageId(null)}
             onSendMessage={sendMessage}

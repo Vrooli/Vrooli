@@ -40,6 +40,7 @@ export interface PendingApproval {
 export interface CompletionState {
   isGenerating: boolean;
   streamingContent: string;
+  generatedImages: string[]; // AI-generated image URLs during streaming
   activeToolCalls: ActiveToolCall[];
   pendingApprovals: PendingApproval[];
   awaitingApprovals: boolean;
@@ -62,6 +63,7 @@ function generateRequestId(): number {
 export function useCompletion(): CompletionState & CompletionActions {
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [activeToolCalls, setActiveToolCalls] = useState<ActiveToolCall[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
   const [awaitingApprovals, setAwaitingApprovals] = useState(false);
@@ -93,6 +95,12 @@ export function useCompletion(): CompletionState & CompletionActions {
         case "content":
           if (event.content) {
             setStreamingContent((prev) => prev + event.content);
+          }
+          break;
+
+        case "image_generated":
+          if (event.image_url) {
+            setGeneratedImages((prev) => [...prev, event.image_url!]);
           }
           break;
 
@@ -178,6 +186,7 @@ export function useCompletion(): CompletionState & CompletionActions {
     currentRequestIdRef.current = 0;
     setIsGenerating(false);
     setStreamingContent("");
+    setGeneratedImages([]);
     setActiveToolCalls([]);
     setPendingApprovals([]);
     setAwaitingApprovals(false);
@@ -199,6 +208,7 @@ export function useCompletion(): CompletionState & CompletionActions {
       // Reset state for new request
       setIsGenerating(true);
       setStreamingContent("");
+      setGeneratedImages([]);
       setActiveToolCalls([]);
       setPendingApprovals([]);
       setAwaitingApprovals(false);
@@ -214,6 +224,7 @@ export function useCompletion(): CompletionState & CompletionActions {
         if (currentRequestIdRef.current === requestId) {
           setIsGenerating(false);
           setStreamingContent("");
+          setGeneratedImages([]);
           setActiveToolCalls([]);
           // Note: Don't reset pendingApprovals here as we might be awaiting approvals
         }
@@ -222,6 +233,7 @@ export function useCompletion(): CompletionState & CompletionActions {
         if (currentRequestIdRef.current === requestId) {
           setIsGenerating(false);
           setStreamingContent("");
+          setGeneratedImages([]);
           setActiveToolCalls([]);
           setPendingApprovals([]);
           setAwaitingApprovals(false);
@@ -317,6 +329,7 @@ export function useCompletion(): CompletionState & CompletionActions {
     // State
     isGenerating,
     streamingContent,
+    generatedImages,
     activeToolCalls,
     pendingApprovals,
     awaitingApprovals,
