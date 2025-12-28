@@ -20,6 +20,7 @@ export type SSHConnectionStatus =
   | "key_not_found"
   | "permission_denied"
   | "ipv6_unavailable"
+  | "host_key_changed"
   | "unknown_error";
 
 // API Response Types
@@ -172,6 +173,15 @@ export const SSH_ERROR_HINTS: Record<
       "Most ISPs still only provide IPv4 addresses",
       "Use the IPv4 address of your server instead",
       "Check your VPS dashboard for the IPv4 address",
+    ],
+  },
+  host_key_changed: {
+    title: "Server Identity Changed",
+    hints: [
+      "The server's host key has changed since you last connected",
+      "This could happen if the server was rebuilt or reinstalled",
+      "If unexpected, this could indicate a security issue",
+      "Run: ssh-keygen -R <host> to remove the old key",
     ],
   },
   unknown_error: {

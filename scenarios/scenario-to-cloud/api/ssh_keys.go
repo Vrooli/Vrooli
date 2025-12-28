@@ -526,12 +526,20 @@ func TestSSHConnection(ctx context.Context, req TestSSHConnectionRequest) TestSS
 
 	if err != nil {
 		// Parse error to provide helpful hints
-		errStr := err.Error()
+		// Check both err.Error() and stderr for SSH error messages
+		errStr := err.Error() + " " + result.Stderr
 		status := "unknown_error"
 		message := "SSH connection failed"
-		hint := errStr
+		hint := result.Stderr
+		if hint == "" {
+			hint = err.Error()
+		}
 
-		if strings.Contains(errStr, "Permission denied") || result.ExitCode == 255 {
+		if strings.Contains(errStr, "Host key verification failed") {
+			status = "host_key_changed"
+			message = "Server host key has changed"
+			hint = "The server's identity has changed since you last connected. This could indicate a server rebuild or a security issue. Remove the old key with: ssh-keygen -R " + req.Host
+		} else if strings.Contains(errStr, "Permission denied") {
 			status = "auth_failed"
 			message = "SSH authentication failed"
 			hint = "The server rejected the SSH key. Use 'Copy Key to Server' to add your key, or verify the correct key is selected."
@@ -539,7 +547,7 @@ func TestSSHConnection(ctx context.Context, req TestSSHConnectionRequest) TestSS
 			status = "host_unreachable"
 			message = "SSH connection refused"
 			hint = "Verify the host and port are correct and that SSH is running on the server."
-		} else if strings.Contains(errStr, "i/o timeout") || strings.Contains(errStr, "connection timed out") {
+		} else if strings.Contains(errStr, "i/o timeout") || strings.Contains(errStr, "connection timed out") || strings.Contains(errStr, "timed out") {
 			status = "timeout"
 			message = "SSH connection timed out"
 			if isIPv6(req.Host) {

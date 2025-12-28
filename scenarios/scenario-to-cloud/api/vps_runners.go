@@ -57,6 +57,7 @@ func (ExecSSHRunner) Run(ctx context.Context, cfg SSHConfig, command string) (SS
 		"-o", "ConnectTimeout=5",
 		"-o", "ServerAliveInterval=5",
 		"-o", "ServerAliveCountMax=1",
+		"-o", "StrictHostKeyChecking=accept-new",
 		"-p", strconv.Itoa(cfg.Port),
 	}
 	if cfg.KeyPath != "" {
@@ -98,6 +99,7 @@ func (ExecSCPRunner) Copy(ctx context.Context, cfg SSHConfig, localPath, remoteP
 	args := []string{
 		"-o", "BatchMode=yes",
 		"-o", "ConnectTimeout=5",
+		"-o", "StrictHostKeyChecking=accept-new",
 		"-P", strconv.Itoa(cfg.Port),
 	}
 	if cfg.KeyPath != "" {
