@@ -316,6 +316,13 @@ const literalSelectors = {
     startNewButton: "deploy-start-new-button",
     liveLink: "deploy-live-link",
   },
+  // Docs
+  docs: {
+    sidebar: "docs-sidebar",
+    viewer: "docs-viewer",
+    copyPath: "docs-copy-path",
+    searchInput: "docs-search-input",
+  },
 } as const satisfies LiteralSelectorTree;
 
 const dynamicSelectorDefinitions = {

@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Cloud, RefreshCw, CheckCircle2, XCircle, Home, Server } from "lucide-react";
+import { Cloud, RefreshCw, CheckCircle2, XCircle, Home, Server, BookOpen } from "lucide-react";
 import { fetchHealth } from "../../lib/api";
 import { cn } from "../../lib/utils";
 
-export type View = "dashboard" | "wizard" | "deployments";
+export type View = "dashboard" | "wizard" | "deployments" | "docs";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -63,6 +63,18 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
                 >
                   <Server className="h-4 w-4" />
                   <span className="hidden sm:inline">Deployments</span>
+                </button>
+                <button
+                  onClick={() => onNavigate("docs")}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    currentView === "docs"
+                      ? "bg-blue-500/20 text-blue-400"
+                      : "text-slate-400 hover:text-white hover:bg-white/5"
+                  )}
+                >
+                  <BookOpen className="h-4 w-4" />
+                  <span className="hidden sm:inline">Docs</span>
                 </button>
               </nav>
             )}

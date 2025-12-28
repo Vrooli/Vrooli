@@ -97,6 +97,10 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/deployments/{id}/execute", s.handleExecuteDeployment).Methods("POST")
 	api.HandleFunc("/deployments/{id}/inspect", s.handleInspectDeployment).Methods("POST")
 	api.HandleFunc("/deployments/{id}/stop", s.handleStopDeployment).Methods("POST")
+
+	// Documentation
+	api.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")
+	api.HandleFunc("/docs/content", s.handleGetDocContent).Methods("GET")
 }
 
 // Router returns the HTTP handler for use with server.Run

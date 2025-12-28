@@ -3,6 +3,7 @@ import { Layout, View } from "./components/layout/Layout";
 import { Dashboard } from "./components/Dashboard";
 import { WizardContainer } from "./components/wizard";
 import { DeploymentsPage } from "./components/deployments/DeploymentsPage";
+import { DocsPage } from "./components/docs";
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>("dashboard");
@@ -46,6 +47,9 @@ export default function App() {
       )}
       {currentView === "deployments" && (
         <DeploymentsPage onBack={handleBackToDashboard} />
+      )}
+      {currentView === "docs" && (
+        <DocsPage onBack={handleBackToDashboard} />
       )}
     </Layout>
   );
