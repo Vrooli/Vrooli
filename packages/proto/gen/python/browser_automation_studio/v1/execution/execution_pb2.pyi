@@ -4,6 +4,7 @@ from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from common.v1 import types_pb2 as _types_pb2
 from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
+from browser_automation_studio.v1.base import browser_profile_pb2 as _browser_profile_pb2
 from browser_automation_studio.v1.domain import telemetry_pb2 as _telemetry_pb2
 from browser_automation_studio.v1.workflows import definition_pb2 as _definition_pb2
 from google.protobuf.internal import containers as _containers
@@ -87,6 +88,7 @@ class ExecutionParameters(_message.Message):
     INITIAL_STORE_FIELD_NUMBER: _ClassVar[int]
     ENV_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_CONFIG_FIELD_NUMBER: _ClassVar[int]
+    BROWSER_PROFILE_FIELD_NUMBER: _ClassVar[int]
     start_url: str
     variables: _containers.ScalarMap[str, str]
     viewport_width: int
@@ -100,7 +102,8 @@ class ExecutionParameters(_message.Message):
     initial_store: _containers.MessageMap[str, _types_pb2.JsonValue]
     env: _containers.MessageMap[str, _types_pb2.JsonValue]
     artifact_config: ArtifactCollectionConfig
-    def __init__(self, start_url: _Optional[str] = ..., variables: _Optional[_Mapping[str, str]] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., headless: _Optional[bool] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., project_root: _Optional[str] = ..., initial_params: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., initial_store: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., env: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., artifact_config: _Optional[_Union[ArtifactCollectionConfig, _Mapping]] = ...) -> None: ...
+    browser_profile: _browser_profile_pb2.BrowserProfile
+    def __init__(self, start_url: _Optional[str] = ..., variables: _Optional[_Mapping[str, str]] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., headless: _Optional[bool] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., project_root: _Optional[str] = ..., initial_params: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., initial_store: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., env: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., artifact_config: _Optional[_Union[ArtifactCollectionConfig, _Mapping]] = ..., browser_profile: _Optional[_Union[_browser_profile_pb2.BrowserProfile, _Mapping]] = ...) -> None: ...
 
 class ExecutionResult(_message.Message):
     __slots__ = ()

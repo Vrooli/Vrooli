@@ -1,5 +1,6 @@
 from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.base import geometry_pb2 as _geometry_pb2
+from browser_automation_studio.v1.base import browser_profile_pb2 as _browser_profile_pb2
 from browser_automation_studio.v1.actions import action_pb2 as _action_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
@@ -54,6 +55,7 @@ class WorkflowSettingsV2(_message.Message):
     ENTRY_SELECTOR_FIELD_NUMBER: _ClassVar[int]
     ENTRY_SELECTOR_TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    BROWSER_PROFILE_FIELD_NUMBER: _ClassVar[int]
     viewport_width: int
     viewport_height: int
     user_agent: str
@@ -62,7 +64,8 @@ class WorkflowSettingsV2(_message.Message):
     entry_selector: str
     entry_selector_timeout_ms: int
     timeout_ms: int
-    def __init__(self, viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., headless: _Optional[bool] = ..., entry_selector: _Optional[str] = ..., entry_selector_timeout_ms: _Optional[int] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+    browser_profile: _browser_profile_pb2.BrowserProfile
+    def __init__(self, viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., headless: _Optional[bool] = ..., entry_selector: _Optional[str] = ..., entry_selector_timeout_ms: _Optional[int] = ..., timeout_ms: _Optional[int] = ..., browser_profile: _Optional[_Union[_browser_profile_pb2.BrowserProfile, _Mapping]] = ...) -> None: ...
 
 class WorkflowNodeV2(_message.Message):
     __slots__ = ()

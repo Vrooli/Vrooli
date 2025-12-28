@@ -4,6 +4,7 @@ package browser_automation_studio.v1;
 
 import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/base/geometry.proto";
+import "browser-automation-studio/v1/base/browser_profile.proto";
 import "browser-automation-studio/v1/actions/action.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows;workflows";
@@ -90,6 +91,11 @@ message WorkflowSettingsV2 {
   optional int32 entry_selector_timeout_ms = 8;
   // Overall timeout in milliseconds (default: 300000 = 5 minutes).
   optional int32 timeout_ms = 9;
+
+  // Default browser profile for anti-detection and human-like behavior.
+  // Can be overridden at execution time via ExecutionParameters.browser_profile.
+  // Use presets ("stealth", "balanced", "fast", "none") for common configurations.
+  BrowserProfile browser_profile = 10;
 }
 
 // WorkflowNodeV2 represents a single workflow step.

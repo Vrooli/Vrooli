@@ -211,9 +211,13 @@ type WorkflowSettingsV2 struct {
 	// Timeout for entry selector in milliseconds (default: 30000).
 	EntrySelectorTimeoutMs *int32 `protobuf:"varint,8,opt,name=entry_selector_timeout_ms,json=entrySelectorTimeoutMs,proto3,oneof" json:"entry_selector_timeout_ms,omitempty"`
 	// Overall timeout in milliseconds (default: 300000 = 5 minutes).
-	TimeoutMs     *int32 `protobuf:"varint,9,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	TimeoutMs *int32 `protobuf:"varint,9,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	// Default browser profile for anti-detection and human-like behavior.
+	// Can be overridden at execution time via ExecutionParameters.browser_profile.
+	// Use presets ("stealth", "balanced", "fast", "none") for common configurations.
+	BrowserProfile *base.BrowserProfile `protobuf:"bytes,10,opt,name=browser_profile,json=browserProfile,proto3" json:"browser_profile,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *WorkflowSettingsV2) Reset() {
@@ -300,6 +304,13 @@ func (x *WorkflowSettingsV2) GetTimeoutMs() int32 {
 		return *x.TimeoutMs
 	}
 	return 0
+}
+
+func (x *WorkflowSettingsV2) GetBrowserProfile() *base.BrowserProfile {
+	if x != nil {
+		return x.BrowserProfile
+	}
+	return nil
 }
 
 // WorkflowNodeV2 represents a single workflow step.
@@ -684,7 +695,7 @@ var File_browser_automation_studio_v1_workflows_definition_proto protoreflect.Fi
 
 const file_browser_automation_studio_v1_workflows_definition_proto_rawDesc = "" +
 	"\n" +
-	"7browser-automation-studio/v1/workflows/definition.proto\x12\x1cbrowser_automation_studio.v1\x1a.browser-automation-studio/v1/base/shared.proto\x1a0browser-automation-studio/v1/base/geometry.proto\x1a1browser-automation-studio/v1/actions/action.proto\"\xba\x02\n" +
+	"7browser-automation-studio/v1/workflows/definition.proto\x12\x1cbrowser_automation_studio.v1\x1a.browser-automation-studio/v1/base/shared.proto\x1a0browser-automation-studio/v1/base/geometry.proto\x1a7browser-automation-studio/v1/base/browser_profile.proto\x1a1browser-automation-studio/v1/actions/action.proto\"\xba\x02\n" +
 	"\x14WorkflowDefinitionV2\x12L\n" +
 	"\bmetadata\x18\x01 \x01(\v20.browser_automation_studio.v1.WorkflowMetadataV2R\bmetadata\x12L\n" +
 	"\bsettings\x18\x02 \x01(\v20.browser_automation_studio.v1.WorkflowSettingsV2R\bsettings\x12B\n" +
@@ -705,7 +716,7 @@ const file_browser_automation_studio_v1_workflows_definition_proto_rawDesc = "" 
 	"\n" +
 	"\b_versionB\x0e\n" +
 	"\f_requirementB\b\n" +
-	"\x06_owner\"\xf4\x03\n" +
+	"\x06_owner\"\xcb\x04\n" +
 	"\x12WorkflowSettingsV2\x12*\n" +
 	"\x0eviewport_width\x18\x01 \x01(\x05H\x00R\rviewportWidth\x88\x01\x01\x12,\n" +
 	"\x0fviewport_height\x18\x02 \x01(\x05H\x01R\x0eviewportHeight\x88\x01\x01\x12\"\n" +
@@ -716,7 +727,9 @@ const file_browser_automation_studio_v1_workflows_definition_proto_rawDesc = "" 
 	"\x0eentry_selector\x18\a \x01(\tH\x05R\rentrySelector\x88\x01\x01\x12>\n" +
 	"\x19entry_selector_timeout_ms\x18\b \x01(\x05H\x06R\x16entrySelectorTimeoutMs\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"timeout_ms\x18\t \x01(\x05H\aR\ttimeoutMs\x88\x01\x01B\x11\n" +
+	"timeout_ms\x18\t \x01(\x05H\aR\ttimeoutMs\x88\x01\x01\x12U\n" +
+	"\x0fbrowser_profile\x18\n" +
+	" \x01(\v2,.browser_automation_studio.v1.BrowserProfileR\x0ebrowserProfileB\x11\n" +
 	"\x0f_viewport_widthB\x12\n" +
 	"\x10_viewport_heightB\r\n" +
 	"\v_user_agentB\t\n" +
@@ -798,9 +811,10 @@ var file_browser_automation_studio_v1_workflows_definition_proto_goTypes = []any
 	(*ResilienceConfig)(nil),         // 5: browser_automation_studio.v1.ResilienceConfig
 	(*WorkflowEdgeV2)(nil),           // 6: browser_automation_studio.v1.WorkflowEdgeV2
 	nil,                              // 7: browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
-	(*actions.ActionDefinition)(nil), // 8: browser_automation_studio.v1.ActionDefinition
-	(*base.NodePosition)(nil),        // 9: browser_automation_studio.v1.NodePosition
-	(base.WorkflowEdgeType)(0),       // 10: browser_automation_studio.v1.WorkflowEdgeType
+	(*base.BrowserProfile)(nil),      // 8: browser_automation_studio.v1.BrowserProfile
+	(*actions.ActionDefinition)(nil), // 9: browser_automation_studio.v1.ActionDefinition
+	(*base.NodePosition)(nil),        // 10: browser_automation_studio.v1.NodePosition
+	(base.WorkflowEdgeType)(0),       // 11: browser_automation_studio.v1.WorkflowEdgeType
 }
 var file_browser_automation_studio_v1_workflows_definition_proto_depIdxs = []int32{
 	1,  // 0: browser_automation_studio.v1.WorkflowDefinitionV2.metadata:type_name -> browser_automation_studio.v1.WorkflowMetadataV2
@@ -808,16 +822,17 @@ var file_browser_automation_studio_v1_workflows_definition_proto_depIdxs = []int
 	3,  // 2: browser_automation_studio.v1.WorkflowDefinitionV2.nodes:type_name -> browser_automation_studio.v1.WorkflowNodeV2
 	6,  // 3: browser_automation_studio.v1.WorkflowDefinitionV2.edges:type_name -> browser_automation_studio.v1.WorkflowEdgeV2
 	7,  // 4: browser_automation_studio.v1.WorkflowMetadataV2.labels:type_name -> browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
-	8,  // 5: browser_automation_studio.v1.WorkflowNodeV2.action:type_name -> browser_automation_studio.v1.ActionDefinition
-	9,  // 6: browser_automation_studio.v1.WorkflowNodeV2.position:type_name -> browser_automation_studio.v1.NodePosition
-	4,  // 7: browser_automation_studio.v1.WorkflowNodeV2.execution_settings:type_name -> browser_automation_studio.v1.NodeExecutionSettings
-	5,  // 8: browser_automation_studio.v1.NodeExecutionSettings.resilience:type_name -> browser_automation_studio.v1.ResilienceConfig
-	10, // 9: browser_automation_studio.v1.WorkflowEdgeV2.type:type_name -> browser_automation_studio.v1.WorkflowEdgeType
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	8,  // 5: browser_automation_studio.v1.WorkflowSettingsV2.browser_profile:type_name -> browser_automation_studio.v1.BrowserProfile
+	9,  // 6: browser_automation_studio.v1.WorkflowNodeV2.action:type_name -> browser_automation_studio.v1.ActionDefinition
+	10, // 7: browser_automation_studio.v1.WorkflowNodeV2.position:type_name -> browser_automation_studio.v1.NodePosition
+	4,  // 8: browser_automation_studio.v1.WorkflowNodeV2.execution_settings:type_name -> browser_automation_studio.v1.NodeExecutionSettings
+	5,  // 9: browser_automation_studio.v1.NodeExecutionSettings.resilience:type_name -> browser_automation_studio.v1.ResilienceConfig
+	11, // 10: browser_automation_studio.v1.WorkflowEdgeV2.type:type_name -> browser_automation_studio.v1.WorkflowEdgeType
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_workflows_definition_proto_init() }
