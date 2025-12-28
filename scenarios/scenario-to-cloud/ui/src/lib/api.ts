@@ -414,6 +414,8 @@ import type {
   TestSSHConnectionResponse,
   CopySSHKeyRequest,
   CopySSHKeyResponse,
+  DeleteSSHKeyRequest,
+  DeleteSSHKeyResponse,
 } from "../types/ssh";
 
 /**
@@ -505,4 +507,23 @@ export async function copySSHKey(
     throw new Error(`Failed to copy SSH key: ${res.status} ${text}`);
   }
   return res.json() as Promise<CopySSHKeyResponse>;
+}
+
+/**
+ * Delete an SSH key pair (private and public key files)
+ */
+export async function deleteSSHKey(
+  request: DeleteSSHKeyRequest
+): Promise<DeleteSSHKeyResponse> {
+  const url = buildApiUrl("/ssh/keys", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to delete SSH key: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<DeleteSSHKeyResponse>;
 }

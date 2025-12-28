@@ -206,3 +206,32 @@ func (s *Server) handleCopySSHKey(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, result)
 }
+
+// handleDeleteSSHKey handles DELETE /api/v1/ssh/keys
+func (s *Server) handleDeleteSSHKey(w http.ResponseWriter, r *http.Request) {
+	req, err := decodeJSON[DeleteSSHKeyRequest](r.Body, 1<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	if req.KeyPath == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_key_path",
+			Message: "key_path is required",
+		})
+		return
+	}
+
+	result := DeleteSSHKey(req)
+
+	if result.OK {
+		writeJSON(w, http.StatusOK, result)
+	} else {
+		writeJSON(w, http.StatusBadRequest, result)
+	}
+}

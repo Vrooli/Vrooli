@@ -105,6 +105,7 @@ func (s *Server) setupRoutes() {
 
 	// SSH Key Management
 	api.HandleFunc("/ssh/keys", s.handleListSSHKeys).Methods("GET")
+	api.HandleFunc("/ssh/keys", s.handleDeleteSSHKey).Methods("DELETE")
 	api.HandleFunc("/ssh/keys/generate", s.handleGenerateSSHKey).Methods("POST")
 	api.HandleFunc("/ssh/keys/public", s.handleGetPublicKey).Methods("POST")
 	api.HandleFunc("/ssh/test", s.handleTestSSHConnection).Methods("POST")

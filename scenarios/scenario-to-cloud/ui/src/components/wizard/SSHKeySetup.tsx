@@ -12,6 +12,7 @@ import {
   Loader2,
   ChevronDown,
   HelpCircle,
+  Trash2,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -24,6 +25,7 @@ import {
   testSSHConnection,
   copySSHKey,
   getPublicKey,
+  deleteSSHKey,
   type SSHKeyInfo,
   type SSHConnectionStatus,
 } from "../../lib/api";
@@ -78,6 +80,11 @@ export function SSHKeySetup({
   // Public key display state
   const [publicKeyContent, setPublicKeyContent] = useState<string | null>(null);
   const [showPublicKey, setShowPublicKey] = useState(false);
+
+  // Delete key state
+  const [keyToDelete, setKeyToDelete] = useState<SSHKeyInfo | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Load keys on mount
   const loadKeys = useCallback(async () => {
@@ -245,6 +252,35 @@ export function SSHKeySetup({
     }
   };
 
+  // Delete key handler
+  const handleDeleteKey = async () => {
+    if (!keyToDelete) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const response = await deleteSSHKey({ key_path: keyToDelete.path });
+
+      if (response.ok) {
+        // Remove key from list
+        setKeys((prev) => prev.filter((k) => k.path !== keyToDelete.path));
+        // Clear selection if deleted key was selected
+        if (selectedKeyPath === keyToDelete.path) {
+          onKeyPathChange(null);
+          setConnectionStatus("untested");
+        }
+        setKeyToDelete(null);
+      } else {
+        setDeleteError(response.message ?? "Failed to delete key");
+      }
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Failed to delete key");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Get status badge for the collapsible header
   const statusBadge = useMemo(() => {
     if (!selectedKeyPath) {
@@ -345,34 +381,50 @@ export function SSHKeySetup({
                   </div>
                 ) : (
                   keys.map((key) => (
-                    <button
+                    <div
                       key={key.path}
-                      type="button"
-                      onClick={() => {
-                        onKeyPathChange(key.path);
-                        setShowKeyDropdown(false);
-                        setConnectionStatus("untested");
-                      }}
-                      className={`w-full text-left px-3 py-2 hover:bg-slate-800 ${
+                      className={`flex items-center px-3 py-2 hover:bg-slate-800 ${
                         key.path === selectedKeyPath ? "bg-slate-800" : ""
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Key className="h-4 w-4 text-slate-500" />
-                        <span className="text-sm text-slate-100 truncate flex-1">
-                          {key.path.replace(/^.*[/\\]/, "")}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {key.type.toUpperCase()}
-                        </span>
-                        {key.path === selectedKeyPath && (
-                          <CheckCircle2 className="h-4 w-4 text-green-400" />
-                        )}
-                      </div>
-                      <div className="text-xs text-slate-500 mt-0.5 truncate ml-6">
-                        {key.fingerprint}
-                      </div>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onKeyPathChange(key.path);
+                          setShowKeyDropdown(false);
+                          setConnectionStatus("untested");
+                        }}
+                        className="flex-1 text-left min-w-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Key className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                          <span className="text-sm text-slate-100 truncate flex-1">
+                            {key.path.replace(/^.*[/\\]/, "")}
+                          </span>
+                          <span className="text-xs text-slate-500 flex-shrink-0">
+                            {key.type.toUpperCase()}
+                          </span>
+                          {key.path === selectedKeyPath && (
+                            <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0" />
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5 truncate ml-6">
+                          {key.fingerprint}
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setKeyToDelete(key);
+                          setDeleteError(null);
+                        }}
+                        className="ml-2 p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded flex-shrink-0"
+                        title="Delete key"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   ))
                 )}
               </div>
@@ -660,6 +712,81 @@ export function SSHKeySetup({
                 </p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Delete Confirmation Dialog */}
+        {keyToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-slate-900 border border-white/10 rounded-lg shadow-xl max-w-md w-full mx-4 p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-full bg-red-500/10">
+                  <Trash2 className="h-5 w-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-slate-100">Delete SSH Key?</h3>
+                  <p className="text-sm text-slate-400 mt-1">
+                    This will permanently delete both the private and public key files:
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-black/30 rounded-lg p-3 border border-white/5">
+                <div className="flex items-center gap-2">
+                  <Key className="h-4 w-4 text-slate-500" />
+                  <span className="text-sm text-slate-300 font-mono truncate">
+                    {keyToDelete.path.replace(/^.*[/\\]/, "")}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    ({keyToDelete.type.toUpperCase()})
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 ml-6 truncate">
+                  {keyToDelete.fingerprint}
+                </p>
+              </div>
+
+              <Alert variant="warning" title="Warning">
+                This action cannot be undone. If this key is used to access servers,
+                you will lose access unless you have another authorized key.
+              </Alert>
+
+              {deleteError && (
+                <Alert variant="error" title="Delete Failed">
+                  {deleteError}
+                </Alert>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setKeyToDelete(null);
+                    setDeleteError(null);
+                  }}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteKey}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete Key
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

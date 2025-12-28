@@ -95,6 +95,18 @@ export interface CopySSHKeyResponse {
   timestamp: string;
 }
 
+export interface DeleteSSHKeyRequest {
+  key_path: string;
+}
+
+export interface DeleteSSHKeyResponse {
+  ok: boolean;
+  message?: string;
+  private_deleted: boolean;
+  public_deleted: boolean;
+  timestamp: string;
+}
+
 // Error hints for UI display
 export const SSH_ERROR_HINTS: Record<
   SSHConnectionStatus,

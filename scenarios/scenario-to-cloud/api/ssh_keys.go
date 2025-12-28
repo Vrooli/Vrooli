@@ -110,6 +110,20 @@ type CopySSHKeyResponse struct {
 	Timestamp     string `json:"timestamp"`
 }
 
+// DeleteSSHKeyRequest is the request for deleting an SSH key
+type DeleteSSHKeyRequest struct {
+	KeyPath string `json:"key_path"`
+}
+
+// DeleteSSHKeyResponse is the response from deleting an SSH key
+type DeleteSSHKeyResponse struct {
+	OK             bool   `json:"ok"`
+	Message        string `json:"message,omitempty"`
+	PrivateDeleted bool   `json:"private_deleted"`
+	PublicDeleted  bool   `json:"public_deleted"`
+	Timestamp      string `json:"timestamp"`
+}
+
 // getSSHDir returns the user's ~/.ssh directory
 func getSSHDir() (string, error) {
 	homeDir, err := os.UserHomeDir()
@@ -737,8 +751,10 @@ func CopySSHKeyToServer(ctx context.Context, req CopySSHKeyRequest) CopySSHKeyRe
 	defer addSession.Close()
 
 	// Create .ssh directory, add key, set permissions
+	// The complex condition ensures we add a newline before the key if the file
+	// exists but doesn't end with a newline (which would corrupt both keys)
 	addCmd := fmt.Sprintf(
-		"mkdir -p ~/.ssh && chmod 700 ~/.ssh && printf '%%s\\n' %s >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys",
+		`mkdir -p ~/.ssh && chmod 700 ~/.ssh && { [ ! -f ~/.ssh/authorized_keys ] || [ -z "$(tail -c1 ~/.ssh/authorized_keys)" ] || echo ''; printf '%%s\n' %s; } >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys`,
 		shellQuoteSingle(pubKeyLine),
 	)
 
@@ -759,6 +775,81 @@ func CopySSHKeyToServer(ctx context.Context, req CopySSHKeyRequest) CopySSHKeyRe
 		KeyCopied:     true,
 		AlreadyExists: false,
 		Timestamp:     timestamp,
+	}
+}
+
+// DeleteSSHKey deletes an SSH key pair (private and public key files)
+func DeleteSSHKey(req DeleteSSHKeyRequest) DeleteSSHKeyResponse {
+	timestamp := time.Now().UTC().Format(time.RFC3339)
+
+	keyPath := expandPath(req.KeyPath)
+
+	// Validate key path is within ~/.ssh
+	if err := validateSSHPath(keyPath); err != nil {
+		return DeleteSSHKeyResponse{
+			OK:        false,
+			Message:   fmt.Sprintf("Invalid key path: %s", err.Error()),
+			Timestamp: timestamp,
+		}
+	}
+
+	// Ensure we're not deleting .pub file directly - we want the base key path
+	if strings.HasSuffix(keyPath, ".pub") {
+		keyPath = strings.TrimSuffix(keyPath, ".pub")
+	}
+
+	// Don't allow deleting special files
+	baseName := filepath.Base(keyPath)
+	if baseName == "authorized_keys" || baseName == "known_hosts" || baseName == "config" {
+		return DeleteSSHKeyResponse{
+			OK:        false,
+			Message:   fmt.Sprintf("Cannot delete special file: %s", baseName),
+			Timestamp: timestamp,
+		}
+	}
+
+	var privateDeleted, publicDeleted bool
+
+	// Delete private key
+	if _, err := os.Stat(keyPath); err == nil {
+		if err := os.Remove(keyPath); err != nil {
+			return DeleteSSHKeyResponse{
+				OK:        false,
+				Message:   fmt.Sprintf("Failed to delete private key: %s", err.Error()),
+				Timestamp: timestamp,
+			}
+		}
+		privateDeleted = true
+	}
+
+	// Delete public key
+	pubKeyPath := keyPath + ".pub"
+	if _, err := os.Stat(pubKeyPath); err == nil {
+		if err := os.Remove(pubKeyPath); err != nil {
+			return DeleteSSHKeyResponse{
+				OK:             false,
+				Message:        fmt.Sprintf("Deleted private key but failed to delete public key: %s", err.Error()),
+				PrivateDeleted: privateDeleted,
+				Timestamp:      timestamp,
+			}
+		}
+		publicDeleted = true
+	}
+
+	if !privateDeleted && !publicDeleted {
+		return DeleteSSHKeyResponse{
+			OK:        false,
+			Message:   "Key files not found",
+			Timestamp: timestamp,
+		}
+	}
+
+	return DeleteSSHKeyResponse{
+		OK:             true,
+		Message:        "SSH key deleted successfully",
+		PrivateDeleted: privateDeleted,
+		PublicDeleted:  publicDeleted,
+		Timestamp:      timestamp,
 	}
 }
 
