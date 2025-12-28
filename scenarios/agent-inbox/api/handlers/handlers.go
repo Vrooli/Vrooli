@@ -104,6 +104,9 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/usage", h.GetUsageStats).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/usage/records", h.GetUsageRecords).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/usage", h.GetChatUsageStats).Methods("GET", "OPTIONS")
+
+	// Utilities
+	r.HandleFunc("/api/v1/link-preview", h.GetLinkPreview).Methods("GET", "OPTIONS")
 }
 
 // Response helpers

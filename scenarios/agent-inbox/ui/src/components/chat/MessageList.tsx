@@ -12,6 +12,7 @@ import { useToast } from "../ui/toast";
 import { VersionPicker } from "./VersionPicker";
 import { PendingApprovalCard } from "./PendingApprovalCard";
 import { getSiblingInfo, getPreviousSibling, getNextSibling } from "../../lib/messageTree";
+import { MarkdownRenderer } from "../markdown";
 
 interface MessageListProps {
   messages: Message[];
@@ -251,7 +252,9 @@ export function MessageList({
               )}
             </div>
             {streamingContent ? (
-              <div className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{streamingContent}</div>
+              <div className="text-sm text-slate-700 dark:text-slate-200">
+                <MarkdownRenderer content={streamingContent} isStreaming />
+              </div>
             ) : (
               <span className="text-sm text-slate-500 dark:text-slate-400">Thinking...</span>
             )}
@@ -264,7 +267,7 @@ export function MessageList({
               </div>
               <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200">
                 {streamingContent ? (
-                  <p className="whitespace-pre-wrap">{streamingContent}</p>
+                  <MarkdownRenderer content={streamingContent} isStreaming />
                 ) : (
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin text-indigo-500 dark:text-indigo-400" />
@@ -638,7 +641,7 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
     return (
       <div ref={ref} className="flex justify-center transition-all duration-300" data-testid={`message-${message.id}`}>
         <div className={`bg-slate-200/50 dark:bg-slate-800/50 rounded-lg px-4 py-2 text-sm text-slate-500 dark:text-slate-400 italic ${isCompact ? "w-full text-left" : "max-w-[80%]"}`}>
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <MarkdownRenderer content={message.content} />
         </div>
       </div>
     );
@@ -667,7 +670,9 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
             {getToolContent()}
           </pre>
         ) : (
-          <div className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{message.content}</div>
+          <div className="text-sm text-slate-700 dark:text-slate-200">
+            <MarkdownRenderer content={message.content} />
+          </div>
         )}
         {hasToolCalls && (
           <div className="mt-2 pl-2 border-l border-amber-500/30">
@@ -726,7 +731,7 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
                 <div className="flex items-center justify-end gap-2 mb-1">
                   {renderActions("assistant")}
                 </div>
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <MarkdownRenderer content={message.content} />
               </div>
             )}
             <div className="bg-amber-50 dark:bg-slate-800/60 border border-amber-200 dark:border-amber-500/20 rounded-xl px-4 py-3">
@@ -783,7 +788,7 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
           <div className={`flex items-center ${isUser ? "justify-start" : "justify-end"} gap-2 mb-1`}>
             {renderActions(isUser ? "user" : "assistant")}
           </div>
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <MarkdownRenderer content={message.content} />
           <p
             className={`text-xs mt-1.5 ${
               isUser ? "text-indigo-200/60" : "text-slate-400 dark:text-slate-500"

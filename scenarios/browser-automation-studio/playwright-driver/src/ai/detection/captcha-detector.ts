@@ -138,6 +138,43 @@ export async function detectCaptcha(page: Page): Promise<CaptchaDetectionResult>
   try {
     // Run detection in browser context
     const results = await page.evaluate((patterns: DetectionPattern[]) => {
+      /**
+       * Check if an element is visible to users.
+       *
+       * Catches common hiding techniques:
+       * - display: none (zero bounding rect)
+       * - width/height: 0 (zero bounding rect)
+       * - visibility: hidden (invisible but occupies space)
+       * - opacity: 0 (fully transparent)
+       * - Off-screen positioning (left: -9999px pattern)
+       * - Hidden parent elements (child rect becomes zero)
+       */
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      function isElementVisible(element: any): boolean {
+        // Bounding rect catches: display:none, zero size, hidden parents
+        const rect = element.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) {
+          return false;
+        }
+
+        // Computed style catches: visibility:hidden, opacity:0
+        const style = window.getComputedStyle(element);
+        if (style.visibility === 'hidden') {
+          return false;
+        }
+        if (style.opacity === '0') {
+          return false;
+        }
+
+        // Off-screen check catches: position:absolute; left:-9999px
+        // Note: Don't check right/bottom edges - element could legitimately be below fold
+        if (rect.right <= 0 || rect.bottom <= 0) {
+          return false;
+        }
+
+        return true;
+      }
+
       const detections: BrowserDetectionResult[] = [];
 
       for (const pattern of patterns) {
@@ -145,18 +182,13 @@ export async function detectCaptcha(page: Page): Promise<CaptchaDetectionResult>
         for (const selector of pattern.selectors) {
           try {
             const element = document.querySelector(selector);
-            if (element) {
-              // Verify element is visible
-              const rect = element.getBoundingClientRect();
-              const isVisible = rect.width > 0 && rect.height > 0;
-              if (isVisible) {
-                detections.push({
-                  type: pattern.type,
-                  confidence: 'high',
-                  selector,
-                  matchedPattern: `selector: ${selector}`,
-                });
-              }
+            if (element && isElementVisible(element)) {
+              detections.push({
+                type: pattern.type,
+                confidence: 'high',
+                selector,
+                matchedPattern: `selector: ${selector}`,
+              });
             }
           } catch {
             // Invalid selector, skip
@@ -166,6 +198,9 @@ export async function detectCaptcha(page: Page): Promise<CaptchaDetectionResult>
         // Check iframe sources (high confidence)
         const iframes = document.querySelectorAll('iframe');
         for (const iframe of iframes) {
+          // Skip hidden iframes (e.g., preloaded captchas)
+          if (!isElementVisible(iframe)) continue;
+
           const src = iframe.getAttribute('src') || '';
           for (const srcPattern of pattern.iframeSrcPatterns) {
             if (srcPattern.test(src)) {
