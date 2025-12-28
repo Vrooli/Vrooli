@@ -212,6 +212,106 @@ export interface RecordingSessionProfile {
   updatedAt: string;
   lastUsedAt: string;
   hasStorageState: boolean;
+  browserProfile?: BrowserProfile;
+}
+
+// ============================================================================
+// Browser Profile Types - Anti-detection and Human-like Behavior Settings
+// ============================================================================
+
+/**
+ * Quality preset for browser profile.
+ * - stealth: Maximum anti-detection, natural human behavior
+ * - balanced: Good anti-detection, reasonable speed
+ * - fast: Minimal delays, basic anti-detection
+ * - none: No anti-detection or behavior modifications
+ */
+export type ProfilePreset = 'stealth' | 'balanced' | 'fast' | 'none';
+
+/**
+ * User agent preset for common browser/OS combinations.
+ */
+export type UserAgentPreset =
+  | 'chrome_windows'
+  | 'chrome_mac'
+  | 'chrome_linux'
+  | 'firefox_windows'
+  | 'firefox_mac'
+  | 'safari_mac'
+  | 'edge_windows'
+  | 'custom';
+
+/**
+ * Mouse movement style for human-like behavior.
+ */
+export type MouseMovementStyle = 'linear' | 'bezier' | 'natural';
+
+/**
+ * Scroll behavior style.
+ */
+export type ScrollStyle = 'instant' | 'smooth' | 'natural';
+
+/**
+ * Fingerprint settings for browser identity.
+ */
+export interface FingerprintSettings {
+  viewportWidth?: number;
+  viewportHeight?: number;
+  deviceScaleFactor?: number;
+  hardwareConcurrency?: number;
+  deviceMemory?: number;
+  userAgent?: string;
+  userAgentPreset?: UserAgentPreset;
+  locale?: string;
+  timezoneId?: string;
+  geolocationEnabled?: boolean;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  colorScheme?: 'light' | 'dark' | 'no-preference';
+}
+
+/**
+ * Human-like behavior settings.
+ */
+export interface BehaviorSettings {
+  typingDelayMin?: number;
+  typingDelayMax?: number;
+  mouseMovementStyle?: MouseMovementStyle;
+  mouseJitterAmount?: number;
+  clickDelayMin?: number;
+  clickDelayMax?: number;
+  scrollStyle?: ScrollStyle;
+  scrollSpeedMin?: number;
+  scrollSpeedMax?: number;
+  microPauseEnabled?: boolean;
+  microPauseMinMs?: number;
+  microPauseMaxMs?: number;
+  microPauseFrequency?: number;
+}
+
+/**
+ * Anti-detection settings for bypassing bot detection.
+ */
+export interface AntiDetectionSettings {
+  disableAutomationControlled?: boolean;
+  disableWebRTC?: boolean;
+  patchNavigatorWebdriver?: boolean;
+  patchNavigatorPlugins?: boolean;
+  patchNavigatorLanguages?: boolean;
+  patchWebGL?: boolean;
+  patchCanvas?: boolean;
+  headlessDetectionBypass?: boolean;
+}
+
+/**
+ * Full browser profile configuration.
+ */
+export interface BrowserProfile {
+  preset?: ProfilePreset;
+  fingerprint?: FingerprintSettings;
+  behavior?: BehaviorSettings;
+  antiDetection?: AntiDetectionSettings;
 }
 
 /**

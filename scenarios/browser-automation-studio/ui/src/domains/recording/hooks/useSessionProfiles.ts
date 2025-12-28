@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getConfig } from '@/config';
 import { logger } from '@/utils/logger';
-import type { RecordingSessionProfile } from '../types/types';
+import type { BrowserProfile, RecordingSessionProfile } from '../types/types';
 
 interface UseSessionProfilesResult {
   profiles: RecordingSessionProfile[];
@@ -13,6 +13,7 @@ interface UseSessionProfilesResult {
   remove: (id: string) => Promise<void>;
   refresh: () => Promise<void>;
   getDefaultProfileId: () => string | null;
+  updateBrowserProfile: (id: string, browserProfile: BrowserProfile) => Promise<void>;
 }
 
 export function useSessionProfiles(): UseSessionProfilesResult {
@@ -110,6 +111,28 @@ export function useSessionProfiles(): UseSessionProfilesResult {
     }
   }, []);
 
+  const updateBrowserProfile = useCallback(async (id: string, browserProfile: BrowserProfile) => {
+    setError(null);
+    try {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/recordings/sessions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ browser_profile: browserProfile }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to update browser profile (${response.status})`);
+      }
+      const updated = (await response.json()) as RecordingSessionProfile;
+      setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update browser profile';
+      setError(message);
+      logger.error(message, { component: 'useSessionProfiles', action: 'updateBrowserProfile' }, err);
+      throw err;
+    }
+  }, []);
+
   useEffect(() => {
     void fetchProfiles();
   }, [fetchProfiles]);
@@ -131,7 +154,8 @@ export function useSessionProfiles(): UseSessionProfilesResult {
       remove: deleteProfile,
       refresh: fetchProfiles,
       getDefaultProfileId,
+      updateBrowserProfile,
     }),
-    [profiles, loading, creating, error, renameProfile, createProfile, deleteProfile, fetchProfiles, getDefaultProfileId]
+    [profiles, loading, creating, error, renameProfile, createProfile, deleteProfile, fetchProfiles, getDefaultProfileId, updateBrowserProfile]
   );
 }

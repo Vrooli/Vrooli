@@ -1,9 +1,24 @@
 import { mkdir } from 'fs/promises';
 import path from 'path';
 import { Browser, BrowserContext } from 'playwright';
-import type { SessionSpec } from '../types';
+import type { SessionSpec, BehaviorSettings } from '../types';
 import type { Config } from '../config';
 import { logger } from '../utils';
+import {
+  mergeWithPreset,
+  resolveUserAgent,
+  applyAntiDetection,
+} from '../browser-profile';
+
+// Symbol to store behavior settings on context for handler access
+export const BEHAVIOR_SETTINGS_KEY = Symbol('behaviorSettings');
+
+// Extend BrowserContext type to include behavior settings
+declare module 'playwright' {
+  interface BrowserContext {
+    [BEHAVIOR_SETTINGS_KEY]?: BehaviorSettings;
+  }
+}
 
 /**
  * Build BrowserContext from SessionSpec
@@ -15,6 +30,7 @@ import { logger } from '../utils';
  * - Tracing
  * - Base URL
  * - User agent and other browser options
+ * - Browser profile (fingerprint, behavior, anti-detection)
  */
 export async function buildContext(
   browser: Browser,
@@ -29,34 +45,48 @@ export async function buildContext(
   const artifactPaths = spec.artifact_paths ?? {};
   const artifactRoot = (artifactPaths.root ?? '').trim();
 
+  // Merge browser profile with preset defaults
+  const { fingerprint, behavior, antiDetection } = mergeWithPreset(spec.browser_profile);
+
+  // Determine viewport: browser profile overrides spec if set
+  const viewportWidth = fingerprint.viewport_width || spec.viewport.width;
+  const viewportHeight = fingerprint.viewport_height || spec.viewport.height;
+
+  // Determine device scale factor from profile
+  const deviceScaleFactor = fingerprint.device_scale_factor || 2;
+
+  // Resolve user agent: profile > spec > default
+  const userAgent = spec.user_agent || resolveUserAgent(fingerprint);
+
   const contextOptions: Parameters<typeof browser.newContext>[0] = {
     viewport: {
-      width: spec.viewport.width,
-      height: spec.viewport.height,
+      width: viewportWidth,
+      height: viewportHeight,
     },
-    // Use 2x device scale for crisp screenshots on HiDPI displays
-    // This renders at 2x resolution (e.g., 1280x720 viewport = 2560x1440 pixels)
-    deviceScaleFactor: 2,
+    deviceScaleFactor,
     baseURL: spec.base_url,
     ignoreHTTPSErrors: config.browser.ignoreHTTPSErrors,
+    userAgent,
+    locale: spec.locale || fingerprint.locale || undefined,
+    timezoneId: spec.timezone || fingerprint.timezone_id || undefined,
+    colorScheme: fingerprint.color_scheme || undefined,
   };
 
-  // Browser context configuration from spec
-  if (spec.user_agent) {
-    contextOptions.userAgent = spec.user_agent;
-  }
-  if (spec.locale) {
-    contextOptions.locale = spec.locale;
-  }
-  if (spec.timezone) {
-    contextOptions.timezoneId = spec.timezone;
-  }
+  // Geolocation: spec overrides profile
   if (spec.geolocation) {
     contextOptions.geolocation = spec.geolocation;
-  }
-  if (spec.permissions) {
+    contextOptions.permissions = [...(spec.permissions || []), 'geolocation'];
+  } else if (fingerprint.geolocation_enabled) {
+    contextOptions.geolocation = {
+      latitude: fingerprint.latitude,
+      longitude: fingerprint.longitude,
+      accuracy: fingerprint.accuracy,
+    };
+    contextOptions.permissions = [...(spec.permissions || []), 'geolocation'];
+  } else if (spec.permissions) {
     contextOptions.permissions = spec.permissions;
   }
+
   if (spec.storage_state) {
     contextOptions.storageState = spec.storage_state;
   }
@@ -105,6 +135,37 @@ export async function buildContext(
   // Create context
   const context = await browser.newContext(contextOptions);
 
+  // Apply anti-detection patches
+  const hasAntiDetection = Object.values(antiDetection).some(Boolean);
+  if (hasAntiDetection) {
+    await applyAntiDetection(context, antiDetection, fingerprint);
+    logger.debug('Anti-detection patches applied', {
+      executionId: spec.execution_id,
+      patches: Object.entries(antiDetection)
+        .filter(([, v]) => v)
+        .map(([k]) => k),
+    });
+  }
+
+  // Store behavior settings on context for handler access
+  // Convert from snake_case to camelCase for internal use
+  const behaviorSettings: BehaviorSettings = {
+    typing_delay_min: behavior.typing_delay_min,
+    typing_delay_max: behavior.typing_delay_max,
+    mouse_movement_style: behavior.mouse_movement_style,
+    mouse_jitter_amount: behavior.mouse_jitter_amount,
+    click_delay_min: behavior.click_delay_min,
+    click_delay_max: behavior.click_delay_max,
+    scroll_style: behavior.scroll_style,
+    scroll_speed_min: behavior.scroll_speed_min,
+    scroll_speed_max: behavior.scroll_speed_max,
+    micro_pause_enabled: behavior.micro_pause_enabled,
+    micro_pause_min_ms: behavior.micro_pause_min_ms,
+    micro_pause_max_ms: behavior.micro_pause_max_ms,
+    micro_pause_frequency: behavior.micro_pause_frequency,
+  };
+  (context as any)[BEHAVIOR_SETTINGS_KEY] = behaviorSettings;
+
   // Start tracing if enabled
   if (shouldTrace && tracePath) {
     await context.tracing.start({
@@ -117,10 +178,12 @@ export async function buildContext(
 
   logger.info('Browser context created', {
     executionId: spec.execution_id,
-    viewport: spec.viewport,
+    viewport: { width: viewportWidth, height: viewportHeight },
     har: !!harPath,
     video: !!videoDir,
     tracing: !!tracePath,
+    browserProfile: spec.browser_profile?.preset || 'none',
+    hasAntiDetection,
   });
 
   return {

@@ -11,12 +11,13 @@ import (
 )
 
 type sessionProfileResponse struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
-	LastUsedAt      string `json:"last_used_at"`
-	HasStorageState bool   `json:"has_storage_state"`
+	ID              string                           `json:"id"`
+	Name            string                           `json:"name"`
+	CreatedAt       string                           `json:"created_at"`
+	UpdatedAt       string                           `json:"updated_at"`
+	LastUsedAt      string                           `json:"last_used_at"`
+	HasStorageState bool                             `json:"has_storage_state"`
+	BrowserProfile  *archiveingestion.BrowserProfile `json:"browser_profile,omitempty"`
 }
 
 func toSessionProfileResponse(p *archiveingestion.SessionProfile) sessionProfileResponse {
@@ -30,6 +31,7 @@ func toSessionProfileResponse(p *archiveingestion.SessionProfile) sessionProfile
 		UpdatedAt:       p.UpdatedAt.Format(time.RFC3339),
 		LastUsedAt:      p.LastUsedAt.Format(time.RFC3339),
 		HasStorageState: len(p.StorageState) > 0,
+		BrowserProfile:  p.BrowserProfile,
 	}
 }
 
@@ -86,7 +88,7 @@ func (h *Handler) CreateRecordingSessionProfile(w http.ResponseWriter, r *http.R
 	h.respondSuccess(w, http.StatusCreated, toSessionProfileResponse(profile))
 }
 
-// UpdateRecordingSessionProfile renames an existing profile.
+// UpdateRecordingSessionProfile updates an existing profile's name and/or browser profile settings.
 func (h *Handler) UpdateRecordingSessionProfile(w http.ResponseWriter, r *http.Request) {
 	if h.sessionProfiles == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
@@ -102,7 +104,8 @@ func (h *Handler) UpdateRecordingSessionProfile(w http.ResponseWriter, r *http.R
 	}
 
 	var req struct {
-		Name string `json:"name"`
+		Name           string                           `json:"name"`
+		BrowserProfile *archiveingestion.BrowserProfile `json:"browser_profile"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
@@ -110,23 +113,55 @@ func (h *Handler) UpdateRecordingSessionProfile(w http.ResponseWriter, r *http.R
 		}))
 		return
 	}
-	if strings.TrimSpace(req.Name) == "" {
+
+	// At least one field must be provided
+	hasName := strings.TrimSpace(req.Name) != ""
+	hasBrowserProfile := req.BrowserProfile != nil
+
+	if !hasName && !hasBrowserProfile {
 		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
-			"field": "name",
+			"error": "At least one of 'name' or 'browser_profile' must be provided",
 		}))
 		return
 	}
 
-	profile, err := h.sessionProfiles.Rename(profileID, req.Name)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
+	var profile *archiveingestion.SessionProfile
+	var err error
+
+	// Update name if provided
+	if hasName {
+		profile, err = h.sessionProfiles.Rename(profileID, req.Name)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
+				return
+			}
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+				"error": err.Error(),
+			}))
 			return
 		}
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": err.Error(),
-		}))
-		return
+	}
+
+	// Update browser profile if provided
+	if hasBrowserProfile {
+		profile, err = h.sessionProfiles.UpdateBrowserProfile(profileID, req.BrowserProfile)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
+				return
+			}
+			if strings.Contains(err.Error(), "invalid browser profile") {
+				h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+					"error": err.Error(),
+				}))
+				return
+			}
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+				"error": err.Error(),
+			}))
+			return
+		}
 	}
 
 	h.respondSuccess(w, http.StatusOK, toSessionProfileResponse(profile))

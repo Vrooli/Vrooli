@@ -1,5 +1,6 @@
 import { Page, BrowserContext, Browser, Frame } from 'playwright';
 import type { RecordModeController } from '../recording/controller';
+import type { BrowserProfile } from './browser-profile';
 
 export type ReuseMode = 'fresh' | 'clean' | 'reuse';
 
@@ -56,6 +57,8 @@ export interface SessionSpec {
       localStorage: Array<{ name: string; value: string }>;
     }>;
   };
+  // Anti-detection and human-like behavior configuration
+  browser_profile?: BrowserProfile;
 }
 
 /**
@@ -284,6 +287,10 @@ export interface StartSessionRequest {
     /** Screenshot scale: 'css' for 1x scale (default), 'device' for device pixel ratio */
     scale?: 'css' | 'device';
   };
+  /**
+   * Optional: Browser profile for anti-detection and human-like behavior.
+   */
+  browser_profile?: BrowserProfile;
 }
 
 export interface StartSessionResponse {

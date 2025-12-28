@@ -55,9 +55,10 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Resolve session profile for authentication persistence
+	// Resolve session profile for authentication persistence and browser configuration
 	var profileID, profileName, profileLastUsed string
 	var storageState json.RawMessage
+	var browserProfile *archiveingestion.BrowserProfile
 	if h.sessionProfiles != nil {
 		profile, err := h.resolveSessionProfile(req.SessionProfileID)
 		if err != nil {
@@ -69,6 +70,7 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 			profileName = profile.Name
 			profileLastUsed = profile.LastUsedAt.Format(time.RFC3339)
 			storageState = profile.StorageState
+			browserProfile = profile.BrowserProfile
 		}
 	}
 
@@ -97,6 +99,7 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		StorageState:   storageState,
 		APIHost:        os.Getenv("API_HOST"),
 		APIPort:        os.Getenv("API_PORT"),
+		BrowserProfile: browserProfile,
 	}
 
 	result, err := h.recordModeService.CreateSession(ctx, cfg)

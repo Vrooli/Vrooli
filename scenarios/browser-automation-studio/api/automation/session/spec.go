@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 )
 
 // Mode determines what capabilities the session needs.
@@ -60,6 +61,9 @@ type Spec struct {
 
 	// Labels for debugging/filtering
 	Labels map[string]string
+
+	// Anti-detection and human-like behavior configuration
+	BrowserProfile *archiveingestion.BrowserProfile
 }
 
 // FrameStreamingConfig configures live preview frame streaming.

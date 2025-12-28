@@ -75,6 +75,15 @@ export type {
   StorageStateOrigin,
   StorageStateStats,
   StorageStateResponse,
+  // Browser Profile types
+  ProfilePreset,
+  UserAgentPreset,
+  MouseMovementStyle,
+  ScrollStyle,
+  FingerprintSettings,
+  BehaviorSettings,
+  AntiDetectionSettings,
+  BrowserProfile,
 } from './types/types';
 
 // Unified Timeline Types

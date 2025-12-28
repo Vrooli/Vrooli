@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/domain"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 )
 
 // Service provides high-level operations for live capture mode.
@@ -87,6 +88,7 @@ type SessionConfig struct {
 	StorageState   json.RawMessage
 	APIHost        string
 	APIPort        string
+	BrowserProfile *archiveingestion.BrowserProfile // Anti-detection and behavior settings
 }
 
 // SessionResult is the result of creating a session.
@@ -132,6 +134,7 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 		Labels: map[string]string{
 			"purpose": "record-mode",
 		},
+		BrowserProfile: cfg.BrowserProfile,
 	}
 
 	sess, err := s.sessions.Create(ctx, spec)

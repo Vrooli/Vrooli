@@ -88,6 +88,7 @@ export async function handleSessionStart(
       required_capabilities: request.required_capabilities,
       artifact_paths: request.artifact_paths,
       storage_state: request.storage_state,
+      browser_profile: request.browser_profile,
     };
 
     // Start session - returns session info including whether it was reused

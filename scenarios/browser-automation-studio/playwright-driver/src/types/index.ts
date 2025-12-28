@@ -26,6 +26,9 @@
 // Re-export session types
 export * from './session';
 
+// Re-export browser profile types
+export * from './browser-profile';
+
 // Re-export proto types for convenience
 // Note: HandlerInstruction is a handler-friendly wrapper with plain object params
 // CompiledInstruction is the actual proto wire type with JsonValue params

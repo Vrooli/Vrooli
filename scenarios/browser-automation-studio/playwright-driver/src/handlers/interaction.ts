@@ -1,6 +1,6 @@
 import type { Page } from 'playwright';
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { HandlerInstruction } from '../types';
+import type { HandlerInstruction, BehaviorSettings } from '../types';
 import {
   getClickParams,
   getHoverParams,
@@ -11,6 +11,8 @@ import {
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 import { captureElementContext, type ElementContext } from '../telemetry';
+import { HumanBehavior, sleep } from '../browser-profile';
+import { BEHAVIOR_SETTINGS_KEY } from '../session/context-builder';
 import type winston from 'winston';
 
 // =============================================================================
@@ -51,6 +53,15 @@ function successWithElementContext(elementContext: ElementContext): HandlerResul
 /** Resolve timeout from params or config */
 function resolveTimeout(paramsTimeout: number | undefined, configTimeout: number | undefined): number {
   return paramsTimeout || configTimeout || DEFAULT_TIMEOUT_MS;
+}
+
+/** Get human behavior settings from context */
+function getBehaviorFromContext(context: HandlerContext): HumanBehavior | null {
+  const browserContext = context.page.context();
+  const settings = (browserContext as any)[BEHAVIOR_SETTINGS_KEY] as BehaviorSettings | undefined;
+  if (!settings) return null;
+  const behavior = new HumanBehavior(settings);
+  return behavior.isEnabled() ? behavior : null;
 }
 
 // =============================================================================
@@ -103,10 +114,30 @@ export class InteractionHandler extends BaseHandler {
     if (!params.selector) return missingSelectorError('click');
 
     const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
-    logger.debug('instruction: click starting', { selector: params.selector, timeout });
+    const behavior = getBehaviorFromContext(context);
+
+    logger.debug('instruction: click starting', {
+      selector: params.selector,
+      timeout,
+      humanBehavior: !!behavior,
+    });
 
     // Capture element context BEFORE the action (recording-quality telemetry)
     const elementContext = await captureElementContext(page, params.selector, { timeout });
+
+    // Apply human-like delay before clicking
+    if (behavior) {
+      const clickDelay = behavior.getClickDelay();
+      if (clickDelay > 0) {
+        await sleep(clickDelay);
+      }
+
+      // Optional micro-pause
+      if (behavior.shouldMicroPause()) {
+        await sleep(behavior.getMicroPauseDuration());
+      }
+    }
+
     await page.click(params.selector, { timeout });
 
     logger.debug('instruction: click completed', { selector: params.selector });
@@ -143,11 +174,40 @@ export class InteractionHandler extends BaseHandler {
     if (!params.selector) return missingSelectorError('type');
 
     const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
-    logger.debug('instruction: type starting', { selector: params.selector, textLength: params.value.length, timeout });
+    const behavior = getBehaviorFromContext(context);
+
+    logger.debug('instruction: type starting', {
+      selector: params.selector,
+      textLength: params.value.length,
+      timeout,
+      humanBehavior: !!behavior,
+    });
 
     // Capture element context BEFORE the action (recording-quality telemetry)
     const elementContext = await captureElementContext(page, params.selector, { timeout });
-    await page.fill(params.selector, params.value, { timeout });
+
+    if (behavior && behavior.getTypingDelay() > 0) {
+      // Human-like typing: clear field first, then type character by character
+      await page.fill(params.selector, '', { timeout });
+      await page.click(params.selector, { timeout });
+
+      // Type each character with random delays
+      for (const char of params.value) {
+        await page.keyboard.type(char);
+        const delay = behavior.getTypingDelay();
+        if (delay > 0) {
+          await sleep(delay);
+        }
+
+        // Occasional micro-pause during typing
+        if (behavior.shouldMicroPause()) {
+          await sleep(behavior.getMicroPauseDuration());
+        }
+      }
+    } else {
+      // Fast fill without delays
+      await page.fill(params.selector, params.value, { timeout });
+    }
 
     logger.debug('instruction: type completed', { selector: params.selector, textLength: params.value.length });
     return successWithElementContext(elementContext);
