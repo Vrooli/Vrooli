@@ -255,6 +255,22 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 				END IF;
 			END
 			$$`},
+		// Multimodal input support: attachments and web search
+		{"create attachments table", `
+			CREATE TABLE IF NOT EXISTS attachments (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+				file_name TEXT NOT NULL,
+				content_type TEXT NOT NULL,
+				file_size BIGINT NOT NULL,
+				storage_path TEXT NOT NULL UNIQUE,
+				width INTEGER,
+				height INTEGER,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			)`},
+		{"create idx_attachments_message_id", `CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(message_id)`},
+		{"add chats.web_search_enabled", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS web_search_enabled BOOLEAN DEFAULT false`},
+		{"add messages.web_search", `ALTER TABLE messages ADD COLUMN IF NOT EXISTS web_search BOOLEAN`},
 	}
 
 	for _, m := range migrations {

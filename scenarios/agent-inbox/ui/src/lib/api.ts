@@ -13,6 +13,7 @@ export interface Chat {
   is_archived: boolean;
   is_starred: boolean;
   label_ids: string[];
+  web_search_enabled: boolean; // Default web search setting for new messages
   active_leaf_message_id?: string; // Current branch leaf for message tree
   created_at: string;
   updated_at: string;
@@ -25,6 +26,19 @@ export interface ToolCall {
     name: string;
     arguments: string;
   };
+}
+
+export interface Attachment {
+  id: string;
+  message_id?: string;
+  file_name: string;
+  content_type: string;
+  file_size: number;
+  storage_path: string;
+  url?: string; // Full URL for display
+  width?: number;
+  height?: number;
+  created_at: string;
 }
 
 export interface Message {
@@ -40,6 +54,8 @@ export interface Message {
   finish_reason?: string;
   parent_message_id?: string; // Parent message for branching
   sibling_index: number;      // Order among siblings (0 = first)
+  attachments?: Attachment[]; // Attached images/PDFs
+  web_search?: boolean;       // Per-message web search override
   created_at: string;
 }
 
@@ -229,7 +245,15 @@ export async function forkChat(chatId: string, messageId: string): Promise<Chat>
   return res.json();
 }
 
-export async function addMessage(chatId: string, data: { role: string; content: string; model?: string }): Promise<Message> {
+export interface AddMessageData {
+  role: string;
+  content: string;
+  model?: string;
+  attachment_ids?: string[];
+  web_search?: boolean;
+}
+
+export async function addMessage(chatId: string, data: AddMessageData): Promise<Message> {
   const url = buildApiUrl(`/chats/${chatId}/messages`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
@@ -1194,5 +1218,90 @@ export async function rejectToolCall(toolCallId: string, chatId: string, reason?
   if (!res.ok) {
     const errorText = await res.text();
     throw new Error(`Failed to reject tool call: ${errorText}`);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Attachment Upload API Functions
+// -----------------------------------------------------------------------------
+
+export interface UploadResponse {
+  id: string;
+  file_name: string;
+  content_type: string;
+  file_size: number;
+  storage_path: string;
+  url: string;
+}
+
+/**
+ * Upload a file attachment.
+ * @param file - The file to upload
+ * @returns Upload response with file metadata and URL
+ */
+export async function uploadAttachment(file: File): Promise<UploadResponse> {
+  const url = buildApiUrl("/attachments/upload", { baseUrl: API_BASE });
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    if (res.status === 413) {
+      throw new Error("File is too large");
+    }
+    if (res.status === 415) {
+      throw new Error("File type not supported");
+    }
+    throw new Error(`Failed to upload file: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// -----------------------------------------------------------------------------
+// Web Search Settings API Functions
+// -----------------------------------------------------------------------------
+
+/**
+ * Get the web search enabled setting for a chat.
+ * @param chatId - Chat ID
+ */
+export async function getWebSearchEnabled(chatId: string): Promise<boolean> {
+  const url = buildApiUrl(`/chats/${chatId}/settings/web-search`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to get web search setting: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.enabled;
+}
+
+/**
+ * Set the web search enabled setting for a chat.
+ * @param chatId - Chat ID
+ * @param enabled - Whether to enable web search by default
+ */
+export async function setWebSearchEnabled(chatId: string, enabled: boolean): Promise<void> {
+  const url = buildApiUrl(`/chats/${chatId}/settings/web-search`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to set web search setting: ${res.status}`);
   }
 }

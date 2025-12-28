@@ -9,7 +9,6 @@
 //   - Metrics provide insight into service behavior
 package handlers
 
-
 // ServiceStatus represents the overall health state.
 type ServiceStatus string
 
@@ -117,4 +116,3 @@ type DegradationInfo struct {
 	// Recovery suggests what action to take.
 	Recovery string `json:"recovery"`
 }
-

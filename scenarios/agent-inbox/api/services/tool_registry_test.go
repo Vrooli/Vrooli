@@ -58,8 +58,8 @@ func (m *mockScenarioClient) CheckScenarioStatus(ctx context.Context, scenarioNa
 	return status
 }
 
-func (m *mockScenarioClient) InvalidateCache(scenarioName string)    {}
-func (m *mockScenarioClient) InvalidateAllCache()                    {}
+func (m *mockScenarioClient) InvalidateCache(scenarioName string) {}
+func (m *mockScenarioClient) InvalidateAllCache()                 {}
 
 func TestToolRegistry_BuildToolSet(t *testing.T) {
 	registry := &ToolRegistry{

@@ -40,6 +40,7 @@ import {
 import { useCompletion, type ActiveToolCall, type PendingApproval } from "./useCompletion";
 import { useLabels } from "./useLabels";
 import { getDefaultModel } from "../components/settings/Settings";
+import type { MessagePayload } from "../components/chat/MessageInput";
 
 export type View = "inbox" | "starred" | "archived";
 
@@ -245,9 +246,14 @@ export function useChats(options: UseChatsOptions = {}) {
 
   // Send message and run completion
   const sendMessageAndComplete = useCallback(
-    async (chatId: string, content: string, needsAutoName: boolean) => {
-      // Add user message
-      await addMessage(chatId, { role: "user", content: content.trim() });
+    async (chatId: string, payload: MessagePayload, needsAutoName: boolean) => {
+      // Add user message with attachments and web search settings
+      await addMessage(chatId, {
+        role: "user",
+        content: payload.content.trim(),
+        attachment_ids: payload.attachmentIds.length > 0 ? payload.attachmentIds : undefined,
+        web_search: payload.webSearchEnabled ? true : undefined,
+      });
       queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
       queryClient.invalidateQueries({ queryKey: ["chats"] });
 
@@ -276,8 +282,9 @@ export function useChats(options: UseChatsOptions = {}) {
 
   // Create a new chat and immediately send a message
   const createChatWithMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim() || completion.isGenerating) return;
+    async (payload: MessagePayload) => {
+      const hasContent = payload.content.trim() || payload.attachmentIds.length > 0;
+      if (!hasContent || completion.isGenerating) return;
 
       try {
         const defaultModel = getDefaultModel();
@@ -288,7 +295,7 @@ export function useChats(options: UseChatsOptions = {}) {
         onChatChange?.(chatId);
         queryClient.invalidateQueries({ queryKey: ["chats"] });
 
-        await sendMessageAndComplete(chatId, content, true);
+        await sendMessageAndComplete(chatId, payload, true);
       } catch (error) {
         console.error("Failed to create chat with message:", error);
       }
@@ -298,13 +305,14 @@ export function useChats(options: UseChatsOptions = {}) {
 
   // Send message to existing chat
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!selectedChatId || !content.trim() || completion.isGenerating) return;
+    async (payload: MessagePayload) => {
+      const hasContent = payload.content.trim() || payload.attachmentIds.length > 0;
+      if (!selectedChatId || !hasContent || completion.isGenerating) return;
 
       const currentChat = chats.find((c) => c.id === selectedChatId);
       const needsAutoName = currentChat?.name === "New Chat";
 
-      await sendMessageAndComplete(selectedChatId, content, needsAutoName);
+      await sendMessageAndComplete(selectedChatId, payload, needsAutoName);
     },
     [selectedChatId, completion.isGenerating, chats, sendMessageAndComplete]
   );

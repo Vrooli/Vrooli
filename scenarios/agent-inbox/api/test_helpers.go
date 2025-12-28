@@ -10,11 +10,13 @@ import (
 	"os"
 	"testing"
 
+	"agent-inbox/config"
 	"agent-inbox/domain"
 	"agent-inbox/handlers"
 	"agent-inbox/integrations"
 	"agent-inbox/middleware"
 	"agent-inbox/persistence"
+	"agent-inbox/services"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -50,7 +52,11 @@ func setupTestServer(t *testing.T) *TestServer {
 		t.Fatalf("Failed to initialize schema: %v", err)
 	}
 
-	h := handlers.New(repo, integrations.NewOllamaClient())
+	// Create storage service for tests
+	storageCfg := config.GetStorageConfig()
+	storage := services.NewLocalStorageService(storageCfg)
+
+	h := handlers.New(repo, integrations.NewOllamaClient(), storage)
 	router := mux.NewRouter()
 	router.Use(middleware.Logging)
 	router.Use(middleware.CORS)

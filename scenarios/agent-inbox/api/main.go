@@ -13,6 +13,7 @@ import (
 	"context"
 	"log"
 
+	"agent-inbox/config"
 	"agent-inbox/handlers"
 	"agent-inbox/integrations"
 	"agent-inbox/middleware"
@@ -57,14 +58,23 @@ func main() {
 		log.Printf("reconciliation: reconciled %d orphaned tool calls", reconciled)
 	}
 
+	// Create storage service for file uploads
+	storageCfg := config.GetStorageConfig()
+	storage := services.NewLocalStorageService(storageCfg)
+
 	// Create handlers with all dependencies
-	h := handlers.New(repo, integrations.NewOllamaClient())
+	h := handlers.New(repo, integrations.NewOllamaClient(), storage)
+
+	// Create upload handlers
+	uploadHandlers := handlers.NewUploadHandlers(storage, storageCfg)
+	uploadHandlers.SetRepo(repo)
 
 	router := mux.NewRouter()
 	router.Use(middleware.RequestID) // Request ID first for tracing
 	router.Use(middleware.Logging)
 	router.Use(middleware.CORS)
 	h.RegisterRoutes(router)
+	uploadHandlers.RegisterRoutes(router)
 
 	// Start server with graceful shutdown
 	if err := server.Run(server.Config{

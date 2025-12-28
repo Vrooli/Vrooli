@@ -28,14 +28,16 @@ type Handlers struct {
 	Repo         *persistence.Repository
 	OllamaClient *integrations.OllamaClient
 	ToolRegistry *services.ToolRegistry
+	Storage      services.StorageService
 }
 
 // New creates a new Handlers instance with all dependencies.
-func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient) *Handlers {
+func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService) *Handlers {
 	return &Handlers{
 		Repo:         repo,
 		OllamaClient: ollamaClient,
 		ToolRegistry: services.NewToolRegistry(repo),
+		Storage:      storage,
 	}
 }
 

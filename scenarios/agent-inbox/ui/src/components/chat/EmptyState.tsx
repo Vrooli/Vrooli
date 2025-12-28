@@ -2,9 +2,10 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { MessageSquare, Sparkles, Zap, Shield, Send, Loader2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
+import type { MessagePayload } from "./MessageInput";
 
 interface EmptyStateProps {
-  onStartChat: (message: string) => void;
+  onStartChat: (payload: MessagePayload) => void;
   isCreating: boolean;
 }
 
@@ -24,7 +25,11 @@ export function EmptyState({ onStartChat, isCreating }: EmptyStateProps) {
   const handleSubmit = useCallback(() => {
     const trimmedMessage = message.trim();
     if (trimmedMessage && !isCreating) {
-      onStartChat(trimmedMessage);
+      onStartChat({
+        content: trimmedMessage,
+        attachmentIds: [],
+        webSearchEnabled: false,
+      });
       setMessage("");
     }
   }, [message, isCreating, onStartChat]);

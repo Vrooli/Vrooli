@@ -183,7 +183,7 @@ func (h *Handlers) GetPendingApprovals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	svc := services.NewCompletionService(h.Repo)
+	svc := services.NewCompletionService(h.Repo, h.Storage)
 	pending, err := svc.GetPendingApprovals(r.Context(), chatID)
 	if err != nil {
 		h.JSONError(w, "Failed to get pending approvals", http.StatusInternalServerError)
@@ -213,7 +213,7 @@ func (h *Handlers) ApproveToolCall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	svc := services.NewCompletionService(h.Repo)
+	svc := services.NewCompletionService(h.Repo, h.Storage)
 	result, err := svc.ApproveToolCall(r.Context(), chatID, toolCallID)
 	if err != nil {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
@@ -249,6 +249,7 @@ func (h *Handlers) ApproveToolCall(w http.ResponseWriter, r *http.Request) {
 // POST /api/v1/tool-calls/{id}/reject
 // Query params:
 //   - chat_id: required chat ID for validation
+//
 // Body: { "reason": "optional rejection reason" }
 func (h *Handlers) RejectToolCall(w http.ResponseWriter, r *http.Request) {
 	toolCallID := mux.Vars(r)["id"]
@@ -268,7 +269,7 @@ func (h *Handlers) RejectToolCall(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&req) // Ignore error - reason is optional
 
-	svc := services.NewCompletionService(h.Repo)
+	svc := services.NewCompletionService(h.Repo, h.Storage)
 	if err := svc.RejectToolCall(r.Context(), chatID, toolCallID, req.Reason); err != nil {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
 		return

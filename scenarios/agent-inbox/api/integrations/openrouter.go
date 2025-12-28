@@ -28,11 +28,27 @@ type OpenRouterClient struct {
 }
 
 // OpenRouterMessage represents a message in the OpenRouter API format.
+// Content can be either a string or an array of ContentPart for multimodal messages.
 type OpenRouterMessage struct {
 	Role       string            `json:"role"`
-	Content    string            `json:"content,omitempty"`
+	Content    interface{}       `json:"content,omitempty"` // string or []ContentPart
 	ToolCalls  []domain.ToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string            `json:"tool_call_id,omitempty"`
+}
+
+// ContentPart represents a part of a multimodal message content array.
+// Used when sending images or files along with text.
+type ContentPart struct {
+	Type string       `json:"type"` // "text" or "file"
+	Text string       `json:"text,omitempty"`
+	File *FileContent `json:"file,omitempty"`
+}
+
+// FileContent contains file data for multimodal messages.
+// Used for images (sent inline) and PDFs (parsed via plugin).
+type FileContent struct {
+	Filename string `json:"filename"`
+	FileData string `json:"file_data"` // base64 data URI, e.g., "data:image/jpeg;base64,..."
 }
 
 // OpenRouterRequest is the request body for chat completions.
@@ -41,6 +57,22 @@ type OpenRouterRequest struct {
 	Messages []OpenRouterMessage      `json:"messages"`
 	Stream   bool                     `json:"stream"`
 	Tools    []map[string]interface{} `json:"tools,omitempty"`
+	Plugins  []OpenRouterPlugin       `json:"plugins,omitempty"`
+}
+
+// OpenRouterPlugin configures a plugin for enhanced capabilities.
+// See: https://openrouter.ai/docs/plugins
+type OpenRouterPlugin struct {
+	ID string `json:"id"` // "web" for web search, "file-parser" for PDF parsing
+	// Web search options
+	MaxResults int `json:"max_results,omitempty"` // Number of search results (default 5, max 20)
+	// PDF parser options (set via PDFOptions if needed)
+	PDF *PDFOptions `json:"pdf,omitempty"`
+}
+
+// PDFOptions contains options for the file-parser plugin.
+type PDFOptions struct {
+	Engine string `json:"engine,omitempty"` // "pdf-text" or "mistral-ocr"
 }
 
 // OpenRouterChoice represents a single choice in the completion response.
@@ -262,4 +294,3 @@ func trimToJSON(raw []byte) []byte {
 	}
 	return []byte(data)
 }
-

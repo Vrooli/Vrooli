@@ -84,35 +84,86 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
   // Refs for each chat item to enable scroll-into-view on focus
   const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
+  // Server-side search (must be defined before displayChats)
+  const search = useSearch({ debounceMs: 300, limit: 20 });
+
+  // When not searching, show chats from props; when searching, show search results
+  // Must be defined before toggleChatSelection which uses it
+  const displayChats = useMemo(() => {
+    if (!search.isActive) return chats;
+    return search.results.map((r) => r.chat);
+  }, [chats, search.isActive, search.results]);
+
   // Bulk selection state
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set());
+  // Track last selected index for shift+click range selection
+  const lastSelectedIndexRef = useRef<number>(-1);
 
   // Exit selection mode when view changes
   useEffect(() => {
     setSelectionMode(false);
     setSelectedChatIds(new Set());
+    lastSelectedIndexRef.current = -1;
   }, [currentView]);
 
-  // Toggle selection for a chat
-  const toggleChatSelection = useCallback((chatId: string, event: React.MouseEvent) => {
-    event.stopPropagation();
-    setSelectedChatIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(chatId)) {
-        next.delete(chatId);
-      } else {
-        next.add(chatId);
+  // Update anchor when user navigates to a chat (for shift+click to work from viewed chat)
+  useEffect(() => {
+    if (selectedChatId && !selectionMode) {
+      const idx = displayChats.findIndex((c) => c.id === selectedChatId);
+      if (idx !== -1) {
+        lastSelectedIndexRef.current = idx;
       }
-      return next;
-    });
-  }, []);
+    }
+  }, [selectedChatId, displayChats, selectionMode]);
+
+  // Toggle selection for a chat with shift+click support
+  const toggleChatSelection = useCallback((chatId: string, index: number, event: React.MouseEvent) => {
+    event.stopPropagation();
+
+    // Always enter selection mode
+    setSelectionMode(true);
+
+    if (event.shiftKey) {
+      // Calculate anchor index BEFORE setState to avoid closure issues
+      let anchorIndex = lastSelectedIndexRef.current;
+      if (anchorIndex === -1 && selectedChatId) {
+        anchorIndex = displayChats.findIndex((c) => c.id === selectedChatId);
+      }
+      if (anchorIndex === -1) {
+        anchorIndex = 0;
+      }
+
+      // Calculate range
+      const start = Math.min(anchorIndex, index);
+      const end = Math.max(anchorIndex, index);
+
+      // Get all IDs in range
+      const rangeIds = displayChats.slice(start, end + 1).map((c) => c.id);
+
+      // Add all range IDs to selection
+      setSelectedChatIds((prev) => new Set([...prev, ...rangeIds]));
+    } else {
+      // Ctrl/Cmd+click or regular click: toggle single item
+      setSelectedChatIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(chatId)) {
+          next.delete(chatId);
+        } else {
+          next.add(chatId);
+        }
+        return next;
+      });
+    }
+
+    // Update anchor for next shift+click
+    lastSelectedIndexRef.current = index;
+  }, [displayChats, selectedChatId]);
 
   // Select all visible chats
   const selectAll = useCallback(() => {
-    const displayChatIds = chats.map((c) => c.id);
-    setSelectedChatIds(new Set(displayChatIds));
-  }, [chats]);
+    setSelectedChatIds(new Set(displayChats.map((c) => c.id)));
+  }, [displayChats]);
 
   // Deselect all
   const deselectAll = useCallback(() => {
@@ -144,15 +195,6 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
       }
     }
   }, [focusedIndex]);
-
-  // Server-side search
-  const search = useSearch({ debounceMs: 300, limit: 20 });
-
-  // When not searching, show chats from props; when searching, show search results
-  const displayChats = useMemo(() => {
-    if (!search.isActive) return chats;
-    return search.results.map((r) => r.chat);
-  }, [chats, search.isActive, search.results]);
 
   // Build a map of search results by chat ID for snippet display
   const searchResultsMap = useMemo(() => {
@@ -460,7 +502,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
                 searchResult={searchResult}
                 selectionMode={selectionMode}
                 isChecked={selectedChatIds.has(chat.id)}
-                onToggleSelect={(e) => toggleChatSelection(chat.id, e)}
+                onToggleSelect={(e) => toggleChatSelection(chat.id, index, e)}
               />
             );
           })
@@ -597,11 +639,24 @@ const ChatListItem = forwardRef<HTMLDivElement, ChatListItemProps>(function Chat
     }
   };
 
-  const handleClick = selectionMode && onToggleSelect
-    ? onToggleSelect
-    : isEditing
-    ? undefined
-    : onClick;
+  const handleClick = (e: React.MouseEvent) => {
+    if (isEditing) return;
+
+    // Shift+click or Ctrl/Cmd+click triggers selection (even outside selection mode)
+    if ((e.shiftKey || e.ctrlKey || e.metaKey) && onToggleSelect) {
+      onToggleSelect(e);
+      return;
+    }
+
+    // In selection mode, regular click toggles selection
+    if (selectionMode && onToggleSelect) {
+      onToggleSelect(e);
+      return;
+    }
+
+    // Normal click navigates to the chat
+    onClick();
+  };
 
   return (
     <div

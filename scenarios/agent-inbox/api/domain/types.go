@@ -21,6 +21,7 @@ type Chat struct {
 	LabelIDs            []string  `json:"label_ids"`
 	SystemPrompt        string    `json:"system_prompt"`
 	ToolsEnabled        bool      `json:"tools_enabled"`
+	WebSearchEnabled    bool      `json:"web_search_enabled"`               // Default web search setting for new messages
 	ActiveLeafMessageID string    `json:"active_leaf_message_id,omitempty"` // Current branch leaf for message tree
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
@@ -30,19 +31,21 @@ type Chat struct {
 // Messages can come from users, assistants, the system, or as tool responses.
 // Messages form a tree structure for conversation branching (ChatGPT-style regeneration).
 type Message struct {
-	ID              string     `json:"id"`
-	ChatID          string     `json:"chat_id"`
-	Role            string     `json:"role"` // "user", "assistant", "system", "tool"
-	Content         string     `json:"content"`
-	Model           string     `json:"model,omitempty"`
-	TokenCount      int        `json:"token_count,omitempty"`
-	ToolCallID      string     `json:"tool_call_id,omitempty"`      // For tool response messages
-	ToolCalls       []ToolCall `json:"tool_calls,omitempty"`        // Tool calls requested by assistant
-	ResponseID      string     `json:"response_id,omitempty"`       // OpenRouter response ID for tracking
-	FinishReason    string     `json:"finish_reason,omitempty"`     // "stop", "tool_calls", etc.
-	ParentMessageID string     `json:"parent_message_id,omitempty"` // Parent message for branching
-	SiblingIndex    int        `json:"sibling_index"`               // Order among siblings (0 = first)
-	CreatedAt       time.Time  `json:"created_at"`
+	ID              string       `json:"id"`
+	ChatID          string       `json:"chat_id"`
+	Role            string       `json:"role"` // "user", "assistant", "system", "tool"
+	Content         string       `json:"content"`
+	Model           string       `json:"model,omitempty"`
+	TokenCount      int          `json:"token_count,omitempty"`
+	ToolCallID      string       `json:"tool_call_id,omitempty"`      // For tool response messages
+	ToolCalls       []ToolCall   `json:"tool_calls,omitempty"`        // Tool calls requested by assistant
+	ResponseID      string       `json:"response_id,omitempty"`       // OpenRouter response ID for tracking
+	FinishReason    string       `json:"finish_reason,omitempty"`     // "stop", "tool_calls", etc.
+	ParentMessageID string       `json:"parent_message_id,omitempty"` // Parent message for branching
+	SiblingIndex    int          `json:"sibling_index"`               // Order among siblings (0 = first)
+	Attachments     []Attachment `json:"attachments,omitempty"`       // Attached images/PDFs
+	WebSearch       *bool        `json:"web_search,omitempty"`        // Per-message web search override (nil = use chat default)
+	CreatedAt       time.Time    `json:"created_at"`
 }
 
 // ToolCall represents a tool invocation requested by the assistant.
@@ -53,7 +56,7 @@ type Message struct {
 // that identifies which tool call each fragment belongs to. The ID is only present
 // in the first delta; subsequent deltas use Index for correlation.
 type ToolCall struct {
-	Index    int    `json:"index"`          // Position in the tool_calls array (for streaming delta correlation)
+	Index    int    `json:"index"` // Position in the tool_calls array (for streaming delta correlation)
 	ID       string `json:"id"`
 	Type     string `json:"type"` // "function"
 	Function struct {
@@ -87,6 +90,35 @@ type Label struct {
 	Name      string    `json:"name"`
 	Color     string    `json:"color"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// Attachment represents a file attached to a message.
+// Supports images (for vision models) and PDFs (parsed via OpenRouter plugin).
+type Attachment struct {
+	ID          string    `json:"id"`
+	MessageID   string    `json:"message_id,omitempty"`
+	FileName    string    `json:"file_name"`
+	ContentType string    `json:"content_type"`
+	FileSize    int64     `json:"file_size"`
+	StoragePath string    `json:"storage_path"`
+	Width       int       `json:"width,omitempty"`  // Images only
+	Height      int       `json:"height,omitempty"` // Images only
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// IsImage returns true if this attachment is an image.
+func (a *Attachment) IsImage() bool {
+	switch a.ContentType {
+	case "image/jpeg", "image/png", "image/gif", "image/webp":
+		return true
+	default:
+		return false
+	}
+}
+
+// IsPDF returns true if this attachment is a PDF document.
+func (a *Attachment) IsPDF() bool {
+	return a.ContentType == "application/pdf"
 }
 
 // ChatWithMessages combines a chat with its message history.
@@ -139,20 +171,20 @@ type UsageRecord struct {
 	PromptTokens     int       `json:"prompt_tokens"`
 	CompletionTokens int       `json:"completion_tokens"`
 	TotalTokens      int       `json:"total_tokens"`
-	PromptCost       float64   `json:"prompt_cost"`       // Cost in USD cents
-	CompletionCost   float64   `json:"completion_cost"`   // Cost in USD cents
-	TotalCost        float64   `json:"total_cost"`        // Cost in USD cents
+	PromptCost       float64   `json:"prompt_cost"`     // Cost in USD cents
+	CompletionCost   float64   `json:"completion_cost"` // Cost in USD cents
+	TotalCost        float64   `json:"total_cost"`      // Cost in USD cents
 	CreatedAt        time.Time `json:"created_at"`
 }
 
 // UsageStats provides aggregated usage statistics.
 type UsageStats struct {
-	TotalPromptTokens     int                     `json:"total_prompt_tokens"`
-	TotalCompletionTokens int                     `json:"total_completion_tokens"`
-	TotalTokens           int                     `json:"total_tokens"`
-	TotalCost             float64                 `json:"total_cost"` // In USD cents
-	ByModel               map[string]*ModelUsage  `json:"by_model"`
-	ByDay                 map[string]*DailyUsage  `json:"by_day,omitempty"`
+	TotalPromptTokens     int                    `json:"total_prompt_tokens"`
+	TotalCompletionTokens int                    `json:"total_completion_tokens"`
+	TotalTokens           int                    `json:"total_tokens"`
+	TotalCost             float64                `json:"total_cost"` // In USD cents
+	ByModel               map[string]*ModelUsage `json:"by_model"`
+	ByDay                 map[string]*DailyUsage `json:"by_day,omitempty"`
 }
 
 // ModelUsage provides usage breakdown for a single model.

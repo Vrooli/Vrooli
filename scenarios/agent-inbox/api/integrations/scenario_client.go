@@ -43,10 +43,10 @@ type URLResolver interface {
 
 // ScenarioClient fetches tool manifests from external scenarios.
 type ScenarioClient struct {
-	httpClient   HTTPClient
-	urlResolver  URLResolver
-	timeout      time.Duration
-	cacheTTL     time.Duration
+	httpClient  HTTPClient
+	urlResolver URLResolver
+	timeout     time.Duration
+	cacheTTL    time.Duration
 
 	// Cache for manifests
 	mu    sync.RWMutex

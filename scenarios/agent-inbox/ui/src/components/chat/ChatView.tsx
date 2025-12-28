@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { ChatHeader } from "./ChatHeader";
 import { MessageList } from "./MessageList";
-import { MessageInput } from "./MessageInput";
+import { MessageInput, type MessagePayload } from "./MessageInput";
 import type { ChatWithMessages, Model, Label } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
 import type { ViewMode } from "../settings/Settings";
@@ -18,7 +18,7 @@ interface ChatViewProps {
   activeToolCalls?: ActiveToolCall[];
   scrollToMessageId?: string | null;
   onScrollComplete?: () => void;
-  onSendMessage: (content: string) => void;
+  onSendMessage: (payload: MessagePayload) => void;
   onUpdateChat: (data: { name?: string; model?: string }) => void;
   onToggleRead: () => void;
   onToggleStar: () => void;
@@ -130,7 +130,12 @@ export function ChatView({
         isForking={isForking}
       />
 
-      <MessageInput onSend={onSendMessage} isGenerating={isGenerating} />
+      <MessageInput
+        onSend={onSendMessage}
+        isGenerating={isGenerating}
+        currentModel={models.find((m) => m.id === chatData.chat.model) || null}
+        chatWebSearchDefault={chatData.chat.web_search_enabled || false}
+      />
     </div>
   );
 }

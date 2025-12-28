@@ -40,8 +40,8 @@ var modelPricing = map[string]ModelPricing{
 	},
 	"openai/gpt-4o-mini": {
 		Model:              "openai/gpt-4o-mini",
-		PromptCostPerM:     15,  // $0.00015/1K
-		CompletionCostPerM: 60,  // $0.0006/1K
+		PromptCostPerM:     15, // $0.00015/1K
+		CompletionCostPerM: 60, // $0.0006/1K
 	},
 	"openai/gpt-4-turbo": {
 		Model:              "openai/gpt-4-turbo",
@@ -51,8 +51,8 @@ var modelPricing = map[string]ModelPricing{
 	// Google
 	"google/gemini-pro-1.5": {
 		Model:              "google/gemini-pro-1.5",
-		PromptCostPerM:     125,  // $0.00125/1K
-		CompletionCostPerM: 500,  // $0.005/1K
+		PromptCostPerM:     125, // $0.00125/1K
+		CompletionCostPerM: 500, // $0.005/1K
 	},
 	"google/gemini-flash-1.5": {
 		Model:              "google/gemini-flash-1.5",
@@ -62,8 +62,8 @@ var modelPricing = map[string]ModelPricing{
 	// Meta
 	"meta-llama/llama-3.1-70b-instruct": {
 		Model:              "meta-llama/llama-3.1-70b-instruct",
-		PromptCostPerM:     52,  // $0.00052/1K
-		CompletionCostPerM: 75,  // $0.00075/1K
+		PromptCostPerM:     52, // $0.00052/1K
+		CompletionCostPerM: 75, // $0.00075/1K
 	},
 	"meta-llama/llama-3.1-8b-instruct": {
 		Model:              "meta-llama/llama-3.1-8b-instruct",

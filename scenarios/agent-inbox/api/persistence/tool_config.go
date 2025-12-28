@@ -45,7 +45,6 @@ func (r *Repository) SaveToolConfiguration(ctx context.Context, cfg *domain.Tool
 	err := r.db.QueryRowContext(ctx, query,
 		chatID, cfg.Scenario, cfg.ToolName, cfg.Enabled, approvalOverride, now,
 	).Scan(&cfg.ID, &cfg.CreatedAt, &cfg.UpdatedAt)
-
 	if err != nil {
 		return fmt.Errorf("failed to save tool configuration: %w", err)
 	}

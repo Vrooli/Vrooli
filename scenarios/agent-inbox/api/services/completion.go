@@ -33,27 +33,30 @@ func NewToolExecutionResult(toolCallID, toolName string, record *domain.ToolCall
 // It handles the decision flow for completing a chat with an AI model,
 // including tool execution when requested by the model.
 type CompletionService struct {
-	repo         *persistence.Repository
-	executor     *integrations.ToolExecutor
-	toolRegistry *ToolRegistry
+	repo             *persistence.Repository
+	executor         *integrations.ToolExecutor
+	toolRegistry     *ToolRegistry
+	messageConverter *MessageConverter
 }
 
 // NewCompletionService creates a new completion service.
-func NewCompletionService(repo *persistence.Repository) *CompletionService {
+func NewCompletionService(repo *persistence.Repository, storage StorageService) *CompletionService {
 	return &CompletionService{
-		repo:         repo,
-		executor:     integrations.NewToolExecutor(),
-		toolRegistry: NewToolRegistry(repo),
+		repo:             repo,
+		executor:         integrations.NewToolExecutor(),
+		toolRegistry:     NewToolRegistry(repo),
+		messageConverter: NewMessageConverter(storage),
 	}
 }
 
 // NewCompletionServiceWithRegistry creates a completion service with an injected registry.
 // This is the constructor for testing.
-func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry *ToolRegistry) *CompletionService {
+func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry *ToolRegistry, storage StorageService) *CompletionService {
 	return &CompletionService{
-		repo:         repo,
-		executor:     integrations.NewToolExecutor(),
-		toolRegistry: registry,
+		repo:             repo,
+		executor:         integrations.NewToolExecutor(),
+		toolRegistry:     registry,
+		messageConverter: NewMessageConverter(storage),
 	}
 }
 
@@ -316,14 +319,15 @@ func (s *CompletionService) UpdateChatPreview(ctx context.Context, chatID string
 
 // ChatSettings contains the settings needed for chat completion.
 type ChatSettings struct {
-	Model        string
-	ToolsEnabled bool
+	Model            string
+	ToolsEnabled     bool
+	WebSearchEnabled bool
 }
 
 // GetChatSettings retrieves settings for a chat completion.
 // Returns nil if chat doesn't exist.
 func (s *CompletionService) GetChatSettings(ctx context.Context, chatID string) (*ChatSettings, error) {
-	model, toolsEnabled, err := s.repo.GetChatSettings(ctx, chatID)
+	model, toolsEnabled, webSearchEnabled, err := s.repo.GetChatSettingsWithWebSearch(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -331,8 +335,9 @@ func (s *CompletionService) GetChatSettings(ctx context.Context, chatID string) 
 		return nil, nil // Chat not found
 	}
 	return &ChatSettings{
-		Model:        model,
-		ToolsEnabled: toolsEnabled,
+		Model:            model,
+		ToolsEnabled:     toolsEnabled,
+		WebSearchEnabled: webSearchEnabled,
 	}, nil
 }
 
@@ -342,12 +347,18 @@ type CompletionRequest struct {
 	Model     string
 	Messages  []integrations.OpenRouterMessage
 	Tools     []map[string]interface{}
+	Plugins   []integrations.OpenRouterPlugin
 	Streaming bool
 }
 
 // ShouldIncludeTools returns true if tools should be sent with the request.
 func (r *CompletionRequest) ShouldIncludeTools() bool {
 	return len(r.Tools) > 0
+}
+
+// ShouldIncludePlugins returns true if plugins should be sent with the request.
+func (r *CompletionRequest) ShouldIncludePlugins() bool {
+	return len(r.Plugins) > 0
 }
 
 // PrepareCompletionRequest builds a validated completion request.
@@ -372,10 +383,46 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 		return nil, ErrNoMessages
 	}
 
+	// Get message IDs to fetch attachments
+	messageIDs := make([]string, len(messages))
+	for i, msg := range messages {
+		messageIDs[i] = msg.ID
+	}
+
+	// Fetch attachments for all messages
+	attachmentsByMsgID, err := s.repo.GetAttachmentsForMessages(ctx, messageIDs)
+	if err != nil {
+		log.Printf("warning: failed to fetch attachments: %v", err)
+		attachmentsByMsgID = make(map[string][]domain.Attachment) // Continue without attachments
+	}
+
+	// Convert messages with multimodal support
+	orMessages := s.messageConverter.ConvertToOpenRouter(ctx, messages, attachmentsByMsgID)
+
+	// Determine effective web search setting
+	// Check if any user message has web_search enabled
+	webSearchEnabled := settings.WebSearchEnabled
+	for _, msg := range messages {
+		if msg.Role == "user" && msg.WebSearch != nil && *msg.WebSearch {
+			webSearchEnabled = true
+			break
+		}
+	}
+
+	// Check for PDF attachments
+	hasPDF := false
+	for _, attachments := range attachmentsByMsgID {
+		if HasPDFAttachment(attachments) {
+			hasPDF = true
+			break
+		}
+	}
+
 	req := &CompletionRequest{
 		ChatID:    chatID,
 		Model:     settings.Model,
-		Messages:  integrations.ConvertMessages(messages),
+		Messages:  orMessages,
+		Plugins:   s.messageConverter.BuildPlugins(webSearchEnabled, hasPDF),
 		Streaming: streaming,
 	}
 

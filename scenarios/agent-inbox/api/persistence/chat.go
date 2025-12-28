@@ -56,15 +56,16 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 	var chat domain.Chat
 	var labelIDs []byte
 	var activeLeafMessageID sql.NullString
+	var webSearchEnabled sql.NullBool
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.active_leaf_message_id, c.created_at, c.updated_at,
+		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.web_search_enabled, c.active_leaf_message_id, c.created_at, c.updated_at,
 			COALESCE(array_agg(cl.label_id) FILTER (WHERE cl.label_id IS NOT NULL), '{}') as label_ids
 		FROM chats c
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
 		WHERE c.id = $1
 		GROUP BY c.id
-	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &activeLeafMessageID, &chat.CreatedAt, &chat.UpdatedAt, &labelIDs)
+	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &webSearchEnabled, &activeLeafMessageID, &chat.CreatedAt, &chat.UpdatedAt, &labelIDs)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -77,6 +78,9 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 	if activeLeafMessageID.Valid {
 		chat.ActiveLeafMessageID = activeLeafMessageID.String
 	}
+	if webSearchEnabled.Valid {
+		chat.WebSearchEnabled = webSearchEnabled.Bool
+	}
 	return &chat, nil
 }
 
@@ -87,6 +91,19 @@ func (r *Repository) GetChatSettings(ctx context.Context, chatID string) (model 
 		return "", false, nil
 	}
 	return model, toolsEnabled, err
+}
+
+// GetChatSettingsWithWebSearch retrieves model, tools_enabled, and web_search_enabled for a chat.
+func (r *Repository) GetChatSettingsWithWebSearch(ctx context.Context, chatID string) (model string, toolsEnabled bool, webSearchEnabled bool, err error) {
+	var webSearchNull sql.NullBool
+	err = r.db.QueryRowContext(ctx, "SELECT model, tools_enabled, web_search_enabled FROM chats WHERE id = $1", chatID).Scan(&model, &toolsEnabled, &webSearchNull)
+	if err == sql.ErrNoRows {
+		return "", false, false, nil
+	}
+	if webSearchNull.Valid {
+		webSearchEnabled = webSearchNull.Bool
+	}
+	return model, toolsEnabled, webSearchEnabled, err
 }
 
 // CreateChat creates a new chat with the given parameters.
@@ -199,6 +216,27 @@ func (r *Repository) UpdateChatPreview(ctx context.Context, chatID, preview stri
 	return err
 }
 
+// GetWebSearchEnabled returns the web search setting for a chat.
+func (r *Repository) GetWebSearchEnabled(ctx context.Context, chatID string) (bool, error) {
+	var enabled sql.NullBool
+	err := r.db.QueryRowContext(ctx, "SELECT web_search_enabled FROM chats WHERE id = $1", chatID).Scan(&enabled)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return enabled.Valid && enabled.Bool, nil
+}
+
+// SetWebSearchEnabled updates the web search setting for a chat.
+func (r *Repository) SetWebSearchEnabled(ctx context.Context, chatID string, enabled bool) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE chats SET web_search_enabled = $1, updated_at = NOW() WHERE id = $2
+	`, enabled, chatID)
+	return err
+}
+
 // Message Operations
 
 // GetMessages retrieves all messages for a chat.
@@ -252,7 +290,7 @@ func (r *Repository) GetMessages(ctx context.Context, chatID string) ([]domain.M
 // GetMessagesForCompletion retrieves messages in the format needed for AI completion.
 // For branching support, this returns only messages on the active branch path.
 // Falls back to all messages (ordered by created_at) if no active_leaf_message_id is set.
-func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string) ([]map[string]interface{}, error) {
+func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string) ([]domain.Message, error) {
 	// Get the active leaf for this chat
 	activeLeaf, err := r.GetActiveLeaf(ctx, chatID)
 	if err != nil {
@@ -265,26 +303,26 @@ func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string
 		rows, err = r.db.QueryContext(ctx, `
 			WITH RECURSIVE active_path AS (
 				-- Start from the active leaf
-				SELECT id, parent_message_id, role, content, tool_call_id, tool_calls, created_at
+				SELECT id, parent_message_id, role, content, tool_call_id, tool_calls, web_search, created_at
 				FROM messages
 				WHERE id = $2 AND chat_id = $1
 
 				UNION ALL
 
 				-- Walk up the tree to parents
-				SELECT m.id, m.parent_message_id, m.role, m.content, m.tool_call_id, m.tool_calls, m.created_at
+				SELECT m.id, m.parent_message_id, m.role, m.content, m.tool_call_id, m.tool_calls, m.web_search, m.created_at
 				FROM messages m
 				JOIN active_path ap ON m.id = ap.parent_message_id
 				WHERE m.chat_id = $1
 			)
-			SELECT role, content, tool_call_id, tool_calls
+			SELECT id, role, content, tool_call_id, tool_calls, web_search
 			FROM active_path
 			ORDER BY created_at ASC
 		`, chatID, activeLeaf)
 	} else {
 		// Legacy fallback: get all messages ordered by created_at
 		rows, err = r.db.QueryContext(ctx, `
-			SELECT role, content, tool_call_id, tool_calls FROM messages WHERE chat_id = $1 ORDER BY created_at ASC
+			SELECT id, role, content, tool_call_id, tool_calls, web_search FROM messages WHERE chat_id = $1 ORDER BY created_at ASC
 		`, chatID)
 	}
 	if err != nil {
@@ -292,25 +330,24 @@ func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string
 	}
 	defer rows.Close()
 
-	messages := make([]map[string]interface{}, 0) // Always return [] instead of null in JSON
+	messages := make([]domain.Message, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
-		var role, content string
+		var msg domain.Message
 		var toolCallID sql.NullString
 		var toolCallsJSON []byte
-		if err := rows.Scan(&role, &content, &toolCallID, &toolCallsJSON); err != nil {
+		var webSearch sql.NullBool
+		if err := rows.Scan(&msg.ID, &msg.Role, &msg.Content, &toolCallID, &toolCallsJSON, &webSearch); err != nil {
 			continue
 		}
-		msg := map[string]interface{}{
-			"role":    role,
-			"content": content,
-		}
 		if toolCallID.Valid {
-			msg["tool_call_id"] = toolCallID.String
+			msg.ToolCallID = toolCallID.String
 		}
 		if len(toolCallsJSON) > 0 {
-			var toolCalls []domain.ToolCall
-			json.Unmarshal(toolCallsJSON, &toolCalls)
-			msg["tool_calls"] = toolCalls
+			json.Unmarshal(toolCallsJSON, &msg.ToolCalls)
+		}
+		if webSearch.Valid {
+			val := webSearch.Bool
+			msg.WebSearch = &val
 		}
 		messages = append(messages, msg)
 	}

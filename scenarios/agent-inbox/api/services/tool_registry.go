@@ -327,9 +327,9 @@ func (r *ToolRegistry) buildToolSet(manifests map[string]*domain.ToolManifest) *
 				Scenario:         scenarioName,
 				Tool:             tool,
 				Enabled:          tool.Metadata.EnabledByDefault,
-				Source:           "",                              // Empty means using tool's default
-				RequiresApproval: tool.Metadata.RequiresApproval,  // Default from tool metadata
-				ApprovalSource:   "",                              // Empty means using tool's default
+				Source:           "",                             // Empty means using tool's default
+				RequiresApproval: tool.Metadata.RequiresApproval, // Default from tool metadata
+				ApprovalSource:   "",                             // Empty means using tool's default
 			})
 		}
 

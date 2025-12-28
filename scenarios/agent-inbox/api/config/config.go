@@ -27,6 +27,7 @@ type Config struct {
 	AI          AIConfig
 	Integration IntegrationConfig
 	Resilience  ResilienceConfig
+	Storage     StorageConfig
 }
 
 // ServerConfig controls HTTP server behavior.
@@ -199,6 +200,35 @@ type ResilienceConfig struct {
 	EnableNamingFallback bool
 }
 
+// StorageConfig controls file upload and storage behavior.
+// Audience: Operators configuring file storage location and limits.
+type StorageConfig struct {
+	// BasePath is the directory where uploaded files are stored.
+	// Files are organized as: BasePath/YYYY/MM/DD/{uuid}.{ext}
+	// Set via UPLOAD_BASE_PATH env var.
+	// Default: "./uploads"
+	BasePath string
+
+	// BaseURL is the URL prefix for serving uploaded files.
+	// Set via UPLOAD_BASE_URL env var.
+	// Default: "/api/v1/uploads"
+	BaseURL string
+
+	// MaxFileSize is the maximum allowed file size in bytes.
+	// Higher = allows larger files, lower = faster uploads/less storage.
+	// Set via UPLOAD_MAX_SIZE_MB env var (in megabytes).
+	// Default: 20MB (20 * 1024 * 1024)
+	MaxFileSize int64
+
+	// AllowedImageTypes is the list of allowed image MIME types.
+	// Default: ["image/jpeg", "image/png", "image/gif", "image/webp"]
+	AllowedImageTypes []string
+
+	// AllowedDocumentTypes is the list of allowed document MIME types.
+	// Default: ["application/pdf"]
+	AllowedDocumentTypes []string
+}
+
 // Default returns the default configuration with all sane defaults.
 // This configuration works well for local development and typical deployments.
 func Default() *Config {
@@ -244,6 +274,13 @@ func Default() *Config {
 			CircuitBreakerCooldown:  30 * time.Second,
 			EnableNamingFallback:    true,
 		},
+		Storage: StorageConfig{
+			BasePath:             getEnvOrDefault("UPLOAD_BASE_PATH", "./uploads"),
+			BaseURL:              getEnvOrDefault("UPLOAD_BASE_URL", "/api/v1/uploads"),
+			MaxFileSize:          getEnvInt64("UPLOAD_MAX_SIZE_MB", 20) * 1024 * 1024,
+			AllowedImageTypes:    []string{"image/jpeg", "image/png", "image/gif", "image/webp"},
+			AllowedDocumentTypes: []string{"application/pdf"},
+		},
 	}
 }
 
@@ -285,6 +322,17 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("resilience.circuit_breaker_threshold must be >= 1, got %d", c.Resilience.CircuitBreakerThreshold)
 	}
 
+	// Storage validation
+	if c.Storage.BasePath == "" {
+		return fmt.Errorf("storage.base_path must not be empty")
+	}
+	if c.Storage.MaxFileSize < 1024*1024 {
+		return fmt.Errorf("storage.max_file_size must be >= 1MB, got %d", c.Storage.MaxFileSize)
+	}
+	if c.Storage.MaxFileSize > 100*1024*1024 {
+		return fmt.Errorf("storage.max_file_size must be <= 100MB, got %d", c.Storage.MaxFileSize)
+	}
+
 	return nil
 }
 
@@ -314,6 +362,15 @@ func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 	return defaultValue
 }
 
+func getEnvInt64(key string, defaultValue int64) int64 {
+	if value := os.Getenv(key); value != "" {
+		if i, err := strconv.ParseInt(value, 10, 64); err == nil {
+			return i
+		}
+	}
+	return defaultValue
+}
+
 func getToolScenarios() []string {
 	if value := os.Getenv("TOOL_SCENARIOS"); value != "" {
 		var scenarios []string
@@ -328,4 +385,15 @@ func getToolScenarios() []string {
 	}
 	// Default to agent-manager
 	return []string{"agent-manager"}
+}
+
+// GetStorageConfig returns the storage configuration with defaults.
+func GetStorageConfig() *StorageConfig {
+	return &StorageConfig{
+		BasePath:             getEnvOrDefault("UPLOAD_BASE_PATH", "./uploads"),
+		BaseURL:              getEnvOrDefault("UPLOAD_BASE_URL", "/api/v1/uploads"),
+		MaxFileSize:          getEnvInt64("UPLOAD_MAX_SIZE_MB", 20) * 1024 * 1024,
+		AllowedImageTypes:    []string{"image/jpeg", "image/png", "image/gif", "image/webp"},
+		AllowedDocumentTypes: []string{"application/pdf"},
+	}
 }

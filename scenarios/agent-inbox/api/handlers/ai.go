@@ -137,7 +137,7 @@ func (h *Handlers) ChatComplete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prepare completion request (validates chat exists and has messages)
-	svc := services.NewCompletionService(h.Repo)
+	svc := services.NewCompletionService(h.Repo, h.Storage)
 	prepReq, err := svc.PrepareCompletionRequest(r.Context(), chatID, isStreamingRequest(r))
 	if err != nil {
 		statusCode := mapCompletionErrorToStatus(err)
@@ -158,6 +158,7 @@ func (h *Handlers) ChatComplete(w http.ResponseWriter, r *http.Request) {
 		Messages: prepReq.Messages,
 		Stream:   prepReq.Streaming,
 		Tools:    prepReq.Tools,
+		Plugins:  prepReq.Plugins,
 	}
 
 	resp, err := orClient.CreateCompletion(r.Context(), orReq)
@@ -254,9 +255,10 @@ func parseStreamingChunks(body interface{ Read([]byte) (int, error) }, sw *Strea
 // processStreamingChoice processes a single choice from a streaming chunk.
 func processStreamingChoice(choice integrations.OpenRouterChoice, acc *domain.StreamingAccumulator, sw *StreamWriter) {
 	// Forward content to client and accumulate
-	if choice.Delta.Content != "" {
-		sw.WriteContentChunk(choice.Delta.Content)
-		acc.AppendContent(choice.Delta.Content)
+	// Content is interface{} to support multimodal, but streaming deltas are always strings
+	if content, ok := choice.Delta.Content.(string); ok && content != "" {
+		sw.WriteContentChunk(content)
+		acc.AppendContent(content)
 	}
 
 	// Accumulate tool calls
@@ -380,8 +382,10 @@ func (h *Handlers) handleNonStreamingResponse(w http.ResponseWriter, r *http.Req
 // convertToCompletionResult converts an OpenRouter response to domain type.
 func convertToCompletionResult(resp *integrations.OpenRouterResponse) *domain.CompletionResult {
 	choice := resp.Choices[0]
+	// Content is interface{} to support multimodal, but responses are always strings
+	content, _ := choice.Message.Content.(string)
 	result := &domain.CompletionResult{
-		Content:      choice.Message.Content,
+		Content:      content,
 		TokenCount:   resp.Usage.CompletionTokens,
 		FinishReason: choice.FinishReason,
 		ToolCalls:    choice.Message.ToolCalls,
@@ -457,11 +461,11 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 	}
 
 	response := map[string]interface{}{
-		"message":             msg,
-		"tool_results":        resultsMap,
-		"needs_followup":      !outcome.HasPendingApprovals, // Only needs AI followup if no pending approvals
-		"pending_approvals":   pendingApprovalsMap,
-		"awaiting_approvals":  outcome.HasPendingApprovals,
+		"message":            msg,
+		"tool_results":       resultsMap,
+		"needs_followup":     !outcome.HasPendingApprovals, // Only needs AI followup if no pending approvals
+		"pending_approvals":  pendingApprovalsMap,
+		"awaiting_approvals": outcome.HasPendingApprovals,
 	}
 
 	// Include error summary in response if any tools failed
