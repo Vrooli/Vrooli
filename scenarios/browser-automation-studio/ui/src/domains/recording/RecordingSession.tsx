@@ -204,7 +204,6 @@ export function RecordModePage({
     closePage,
     createPage,
     isLoading: isPagesLoading,
-    hasMultiplePages,
   } = usePages({
     sessionId,
     onPageCreated: (page) => {
@@ -729,7 +728,7 @@ export function RecordModePage({
         onNavigateToSessionSettings={handleNavigateToSessionSettings}
       />
 
-      {/* Tab bar for multi-tab sessions */}
+      {/* Tab bar - always visible for consistent layout */}
       <TabBar
         pages={openPages}
         activePageId={activePageId}
@@ -738,7 +737,7 @@ export function RecordModePage({
         onCreateTab={() => createPage()}
         isLoading={isPagesLoading}
         recentActivityPageId={recentActivityPageId}
-        show={hasMultiplePages}
+        show={true}
       />
 
       {/* Error display */}

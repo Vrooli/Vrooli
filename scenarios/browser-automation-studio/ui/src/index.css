@@ -950,6 +950,37 @@
   animation: slide-in-right 0.3s ease-out both;
 }
 
+/* Recording dots wave animation */
+@keyframes recording-dot-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
+}
+
+.animate-recording-dot {
+  animation: recording-dot-pulse 1.4s ease-in-out infinite;
+}
+
+.animate-recording-dot-1 {
+  animation: recording-dot-pulse 1.4s ease-in-out infinite;
+  animation-delay: 0ms;
+}
+
+.animate-recording-dot-2 {
+  animation: recording-dot-pulse 1.4s ease-in-out infinite;
+  animation-delay: 200ms;
+}
+
+.animate-recording-dot-3 {
+  animation: recording-dot-pulse 1.4s ease-in-out infinite;
+  animation-delay: 400ms;
+}
+
 /* Progress bar fill animation for navigation dots */
 @keyframes progress-bar {
   from {

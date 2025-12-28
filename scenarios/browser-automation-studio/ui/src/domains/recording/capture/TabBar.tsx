@@ -6,8 +6,9 @@
  * and activity indicators.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Page } from '../hooks/usePages';
+import { useLinkPreview } from '../hooks/useLinkPreview';
 
 interface TabBarProps {
   /** List of open pages */
@@ -66,6 +67,20 @@ function Tab({
   // First letter of domain for favicon placeholder
   const faviconLetter = domain.charAt(0).toUpperCase() || 'P';
 
+  // Fetch favicon from link preview
+  const { preview, fetch: fetchPreview } = useLinkPreview(page.url);
+  const [faviconError, setFaviconError] = useState(false);
+
+  // Fetch preview on mount (for favicon)
+  useEffect(() => {
+    if (page.url) {
+      fetchPreview();
+    }
+  }, [page.url, fetchPreview]);
+
+  const faviconUrl = preview?.favicon;
+  const showFavicon = faviconUrl && !faviconError;
+
   // Handle close button click
   const handleClose = useCallback(
     (e: React.MouseEvent) => {
@@ -92,16 +107,25 @@ function Tab({
       `}
       title={`${page.title}\n${page.url}`}
     >
-      {/* Favicon placeholder */}
-      <div className={`
-        flex-shrink-0 w-4 h-4 rounded flex items-center justify-center text-[10px] font-semibold
-        ${isActive
-          ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
-          : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-        }
-      `}>
-        {faviconLetter}
-      </div>
+      {/* Favicon - show image if available, otherwise show letter */}
+      {showFavicon ? (
+        <img
+          src={faviconUrl}
+          alt=""
+          className="flex-shrink-0 w-4 h-4 rounded object-contain"
+          onError={() => setFaviconError(true)}
+        />
+      ) : (
+        <div className={`
+          flex-shrink-0 w-4 h-4 rounded flex items-center justify-center text-[10px] font-semibold
+          ${isActive
+            ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+            : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+          }
+        `}>
+          {faviconLetter}
+        </div>
+      )}
 
       {/* Tab title */}
       <span className={`
@@ -177,32 +201,47 @@ export function TabBar({
     [onTabClose]
   );
 
-  // Don't render if only one page or told to hide
-  if (!show || pages.length <= 1) {
-    return null;
-  }
+  // Always render the tab bar container for consistent layout
+  // Show empty state placeholder when no pages or only one page
+  const showTabs = show && pages.length > 1;
+  const showEmptyState = pages.length <= 1;
 
   return (
-    <div className="flex items-end px-2 pt-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-      {/* Tab list */}
-      <div className="flex items-end gap-0.5" role="tablist" aria-label="Browser tabs">
-        {pages.map((page) => (
-          <Tab
-            key={page.id}
-            page={page}
-            isActive={page.id === activePageId}
-            hasActivity={page.id === recentActivityPageId}
-            onClick={() => handleTabClick(page.id)}
-            onClose={onTabClose ? () => handleTabClose(page.id) : undefined}
-          />
-        ))}
-      </div>
+    <div className="flex items-center px-2 py-1.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 overflow-x-auto min-h-[42px]">
+      {/* Empty state placeholder when no tabs or single tab */}
+      {showEmptyState && (
+        <div className="flex items-center gap-2 px-2 py-1 text-xs text-gray-400 dark:text-gray-500">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5z" />
+          </svg>
+          <span>Open links to create new tabs</span>
+        </div>
+      )}
+
+      {/* Tab list - only show when multiple pages */}
+      {showTabs && (
+        <div className="flex items-end gap-0.5" role="tablist" aria-label="Browser tabs">
+          {pages.map((page) => (
+            <Tab
+              key={page.id}
+              page={page}
+              isActive={page.id === activePageId}
+              hasActivity={page.id === recentActivityPageId}
+              onClick={() => handleTabClick(page.id)}
+              onClose={onTabClose ? () => handleTabClose(page.id) : undefined}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Spacer to push new tab button to the right when showing tabs */}
+      {showTabs && <div className="flex-1" />}
 
       {/* New tab button */}
       {onCreateTab && (
         <button
           onClick={onCreateTab}
-          className="flex-shrink-0 ml-1 mb-0.5 p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          className="flex-shrink-0 ml-1 p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           title="Open new tab"
           aria-label="Open new tab"
         >

@@ -11,12 +11,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-const STORAGE_KEY = 'browser-automation-studio:url-history';
+export const URL_HISTORY_STORAGE_KEY = 'browser-automation-studio:url-history';
 const MAX_HISTORY_ITEMS = 50;
 const MAX_VISIBLE_SUGGESTIONS = 8;
 
 /** A single URL history entry */
-interface HistoryEntry {
+export interface HistoryEntry {
   url: string;
   title?: string;
   visitCount: number;
@@ -91,9 +91,9 @@ function parseUrlForDisplay(url: string): { protocol: string; host: string; path
 /**
  * Load URL history from localStorage
  */
-function loadHistory(): HistoryEntry[] {
+export function loadHistory(): HistoryEntry[] {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(URL_HISTORY_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored) as HistoryEntry[];
       // Validate and filter
@@ -112,7 +112,7 @@ function loadHistory(): HistoryEntry[] {
  */
 function saveHistory(history: HistoryEntry[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, MAX_HISTORY_ITEMS)));
+    localStorage.setItem(URL_HISTORY_STORAGE_KEY, JSON.stringify(history.slice(0, MAX_HISTORY_ITEMS)));
   } catch {
     // localStorage unavailable
   }

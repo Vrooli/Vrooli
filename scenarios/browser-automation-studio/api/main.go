@@ -294,6 +294,10 @@ func main() {
 		// POST /api/v1/preview-screenshot
 		r.Post("/preview-screenshot", handler.TakePreviewScreenshot)
 
+		// Link preview route for fetching OpenGraph metadata
+		// GET /api/v1/link-preview?url=<encoded-url>
+		r.Get("/link-preview", handler.GetLinkPreview)
+
 		// Element analysis route for intelligent selector detection
 		r.Post("/analyze-elements", handler.AnalyzeElements)
 

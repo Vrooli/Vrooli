@@ -351,10 +351,10 @@ export function ActionTimeline({
       <div className="flex flex-col items-center justify-center h-48 text-gray-500">
         {isRecording ? (
           <>
-            <div className="animate-pulse flex space-x-1 mb-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="flex space-x-1.5 mb-3">
+              <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-recording-dot-1" />
+              <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-recording-dot-2" />
+              <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-recording-dot-3" />
             </div>
             <p className="text-sm">Recording... Perform actions in the browser</p>
           </>
