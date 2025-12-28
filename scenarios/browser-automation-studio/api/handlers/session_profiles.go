@@ -369,3 +369,257 @@ func (h *Handler) GetStorageState(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 }
+
+// ========================================================================
+// Storage State Modification (Delete Operations)
+// ========================================================================
+
+// ClearAllStorage removes all cookies and localStorage from a session profile.
+// DELETE /recordings/sessions/{profileId}/storage
+func (h *Handler) ClearAllStorage(w http.ResponseWriter, r *http.Request) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	// Save empty storage state
+	emptyState := json.RawMessage(`{"cookies":[],"origins":[]}`)
+	if _, err := h.sessionProfiles.SaveStorageState(profileID, emptyState); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
+			return
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]string{
+		"status": "cleared",
+	})
+}
+
+// ClearAllCookies removes all cookies from a session profile.
+// DELETE /recordings/sessions/{profileId}/storage/cookies
+func (h *Handler) ClearAllCookies(w http.ResponseWriter, r *http.Request) {
+	h.modifyStorageState(w, r, func(state *playwrightStorageState) {
+		state.Cookies = nil
+	})
+}
+
+// DeleteCookiesByDomain removes all cookies for a specific domain.
+// DELETE /recordings/sessions/{profileId}/storage/cookies/{domain}
+func (h *Handler) DeleteCookiesByDomain(w http.ResponseWriter, r *http.Request) {
+	domain := chi.URLParam(r, "domain")
+	if strings.TrimSpace(domain) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "domain",
+		}))
+		return
+	}
+
+	h.modifyStorageState(w, r, func(state *playwrightStorageState) {
+		filtered := make([]struct {
+			Name     string  `json:"name"`
+			Value    string  `json:"value"`
+			Domain   string  `json:"domain"`
+			Path     string  `json:"path"`
+			Expires  float64 `json:"expires"`
+			HttpOnly bool    `json:"httpOnly"`
+			Secure   bool    `json:"secure"`
+			SameSite string  `json:"sameSite"`
+		}, 0)
+		for _, c := range state.Cookies {
+			if c.Domain != domain {
+				filtered = append(filtered, c)
+			}
+		}
+		state.Cookies = filtered
+	})
+}
+
+// DeleteCookie removes a specific cookie by domain and name.
+// DELETE /recordings/sessions/{profileId}/storage/cookies/{domain}/{name}
+func (h *Handler) DeleteCookie(w http.ResponseWriter, r *http.Request) {
+	domain := chi.URLParam(r, "domain")
+	name := chi.URLParam(r, "name")
+	if strings.TrimSpace(domain) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "domain",
+		}))
+		return
+	}
+	if strings.TrimSpace(name) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "name",
+		}))
+		return
+	}
+
+	h.modifyStorageState(w, r, func(state *playwrightStorageState) {
+		filtered := make([]struct {
+			Name     string  `json:"name"`
+			Value    string  `json:"value"`
+			Domain   string  `json:"domain"`
+			Path     string  `json:"path"`
+			Expires  float64 `json:"expires"`
+			HttpOnly bool    `json:"httpOnly"`
+			Secure   bool    `json:"secure"`
+			SameSite string  `json:"sameSite"`
+		}, 0)
+		for _, c := range state.Cookies {
+			if !(c.Domain == domain && c.Name == name) {
+				filtered = append(filtered, c)
+			}
+		}
+		state.Cookies = filtered
+	})
+}
+
+// ClearAllLocalStorage removes all localStorage from a session profile.
+// DELETE /recordings/sessions/{profileId}/storage/origins
+func (h *Handler) ClearAllLocalStorage(w http.ResponseWriter, r *http.Request) {
+	h.modifyStorageState(w, r, func(state *playwrightStorageState) {
+		state.Origins = nil
+	})
+}
+
+// DeleteLocalStorageByOrigin removes all localStorage items for a specific origin.
+// DELETE /recordings/sessions/{profileId}/storage/origins/{origin}
+func (h *Handler) DeleteLocalStorageByOrigin(w http.ResponseWriter, r *http.Request) {
+	origin := chi.URLParam(r, "origin")
+	if strings.TrimSpace(origin) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "origin",
+		}))
+		return
+	}
+
+	h.modifyStorageState(w, r, func(state *playwrightStorageState) {
+		filtered := make([]struct {
+			Origin       string `json:"origin"`
+			LocalStorage []struct {
+				Name  string `json:"name"`
+				Value string `json:"value"`
+			} `json:"localStorage"`
+		}, 0)
+		for _, o := range state.Origins {
+			if o.Origin != origin {
+				filtered = append(filtered, o)
+			}
+		}
+		state.Origins = filtered
+	})
+}
+
+// DeleteLocalStorageItem removes a specific localStorage item by origin and key.
+// DELETE /recordings/sessions/{profileId}/storage/origins/{origin}/{name}
+func (h *Handler) DeleteLocalStorageItem(w http.ResponseWriter, r *http.Request) {
+	origin := chi.URLParam(r, "origin")
+	name := chi.URLParam(r, "name")
+	if strings.TrimSpace(origin) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "origin",
+		}))
+		return
+	}
+	if strings.TrimSpace(name) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "name",
+		}))
+		return
+	}
+
+	h.modifyStorageState(w, r, func(state *playwrightStorageState) {
+		for i := range state.Origins {
+			if state.Origins[i].Origin == origin {
+				filtered := make([]struct {
+					Name  string `json:"name"`
+					Value string `json:"value"`
+				}, 0)
+				for _, item := range state.Origins[i].LocalStorage {
+					if item.Name != name {
+						filtered = append(filtered, item)
+					}
+				}
+				state.Origins[i].LocalStorage = filtered
+				// Remove origin if no items left
+				if len(filtered) == 0 {
+					state.Origins = append(state.Origins[:i], state.Origins[i+1:]...)
+				}
+				break
+			}
+		}
+	})
+}
+
+// modifyStorageState is a helper that loads, modifies, and saves storage state.
+func (h *Handler) modifyStorageState(w http.ResponseWriter, r *http.Request, modify func(*playwrightStorageState)) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	profile, err := h.sessionProfiles.Get(profileID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
+			return
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	// Parse existing storage state or start with empty
+	var state playwrightStorageState
+	if len(profile.StorageState) > 0 {
+		if err := json.Unmarshal(profile.StorageState, &state); err != nil {
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+				"error": "Failed to parse storage state: " + err.Error(),
+			}))
+			return
+		}
+	}
+
+	// Apply modification
+	modify(&state)
+
+	// Marshal and save
+	newState, err := json.Marshal(state)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to serialize storage state: " + err.Error(),
+		}))
+		return
+	}
+
+	if _, err := h.sessionProfiles.SaveStorageState(profileID, newState); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]string{
+		"status": "deleted",
+	})
+}

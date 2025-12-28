@@ -31,8 +31,21 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
   const [behavior, setBehavior] = useState<BehaviorSettings>(initialProfile?.behavior ?? {});
   const [antiDetection, setAntiDetection] = useState<AntiDetectionSettings>(initialProfile?.anti_detection ?? {});
 
-  // Storage state (read-only for now)
-  const { storageState, loading: storageLoading, error: storageError, fetchStorageState, clear: clearStorage } = useStorageState();
+  // Storage state with delete operations
+  const {
+    storageState,
+    loading: storageLoading,
+    error: storageError,
+    deleting: storageDeleting,
+    fetchStorageState,
+    clear: clearStorage,
+    clearAllCookies,
+    deleteCookiesByDomain,
+    deleteCookie,
+    clearAllLocalStorage,
+    deleteLocalStorageByOrigin,
+    deleteLocalStorageItem,
+  } = useStorageState();
 
   // Fetch storage when switching to storage sections
   useEffect(() => {
@@ -114,6 +127,31 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     setError(null);
   }, [initialProfile]);
 
+  // Wrapped delete handlers that pass profileId
+  const handleClearAllCookies = useCallback(async () => {
+    return clearAllCookies(profileId);
+  }, [clearAllCookies, profileId]);
+
+  const handleDeleteCookiesByDomain = useCallback(async (domain: string) => {
+    return deleteCookiesByDomain(profileId, domain);
+  }, [deleteCookiesByDomain, profileId]);
+
+  const handleDeleteCookie = useCallback(async (domain: string, name: string) => {
+    return deleteCookie(profileId, domain, name);
+  }, [deleteCookie, profileId]);
+
+  const handleClearAllLocalStorage = useCallback(async () => {
+    return clearAllLocalStorage(profileId);
+  }, [clearAllLocalStorage, profileId]);
+
+  const handleDeleteLocalStorageByOrigin = useCallback(async (origin: string) => {
+    return deleteLocalStorageByOrigin(profileId, origin);
+  }, [deleteLocalStorageByOrigin, profileId]);
+
+  const handleDeleteLocalStorageItem = useCallback(async (origin: string, name: string) => {
+    return deleteLocalStorageItem(profileId, origin, name);
+  }, [deleteLocalStorageItem, profileId]);
+
   return {
     // Section navigation
     activeSection,
@@ -135,6 +173,15 @@ export function useSessionManager({ profileId, initialProfile, onSave }: UseSess
     storageState,
     storageLoading,
     storageError,
+    storageDeleting,
+
+    // Storage delete actions
+    clearAllCookies: handleClearAllCookies,
+    deleteCookiesByDomain: handleDeleteCookiesByDomain,
+    deleteCookie: handleDeleteCookie,
+    clearAllLocalStorage: handleClearAllLocalStorage,
+    deleteLocalStorageByOrigin: handleDeleteLocalStorageByOrigin,
+    deleteLocalStorageItem: handleDeleteLocalStorageItem,
 
     // Save state
     saving,

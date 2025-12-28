@@ -277,6 +277,13 @@ func main() {
 		r.Patch("/recordings/sessions/{profileId}", handler.UpdateRecordingSessionProfile)
 		r.Delete("/recordings/sessions/{profileId}", handler.DeleteRecordingSessionProfile)
 		r.Get("/recordings/sessions/{profileId}/storage", handler.GetStorageState)
+		r.Delete("/recordings/sessions/{profileId}/storage", handler.ClearAllStorage)
+		r.Delete("/recordings/sessions/{profileId}/storage/cookies", handler.ClearAllCookies)
+		r.Delete("/recordings/sessions/{profileId}/storage/cookies/{domain}", handler.DeleteCookiesByDomain)
+		r.Delete("/recordings/sessions/{profileId}/storage/cookies/{domain}/{name}", handler.DeleteCookie)
+		r.Delete("/recordings/sessions/{profileId}/storage/origins", handler.ClearAllLocalStorage)
+		r.Delete("/recordings/sessions/{profileId}/storage/origins/{origin}", handler.DeleteLocalStorageByOrigin)
+		r.Delete("/recordings/sessions/{profileId}/storage/origins/{origin}/{name}", handler.DeleteLocalStorageItem)
 
 		// Screenshot serving routes
 		r.Get("/screenshots/*", handler.ServeScreenshot)

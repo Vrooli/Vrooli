@@ -1,4 +1,5 @@
-import { X, Loader2, AlertCircle, Cookie, Database } from 'lucide-react';
+import { X, Loader2, AlertCircle, Cookie, Database, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import type { BrowserProfile } from '@/domains/recording/types/types';
 import { SessionSidebar, isSettingsSection } from './SessionSidebar';
 import { useSessionManager } from './useSessionManager';
@@ -37,11 +38,30 @@ export function SessionManager({
     storageState,
     storageLoading,
     storageError,
+    storageDeleting,
+    clearAllCookies,
+    deleteCookiesByDomain,
+    deleteCookie,
+    clearAllLocalStorage,
+    deleteLocalStorageByOrigin,
+    deleteLocalStorageItem,
     saving,
     error,
     isDirty,
     handleSave,
   } = useSessionManager({ profileId, initialProfile, onSave });
+
+  // Confirmation modal state for clear all operations
+  const [confirmClearAll, setConfirmClearAll] = useState<'cookies' | 'localStorage' | null>(null);
+
+  const handleConfirmClearAll = async () => {
+    if (confirmClearAll === 'cookies') {
+      await clearAllCookies();
+    } else if (confirmClearAll === 'localStorage') {
+      await clearAllLocalStorage();
+    }
+    setConfirmClearAll(null);
+  };
 
   const handleClose = () => {
     if (isDirty) {
@@ -114,23 +134,74 @@ export function SessionManager({
 
             {/* Storage sections */}
             {activeSection === 'cookies' && (
-              <StorageContent
-                loading={storageLoading}
-                error={storageError}
-                emptyMessage="No cookies saved in this session."
-              >
-                {storageState && <CookiesTable cookies={storageState.cookies} />}
-              </StorageContent>
+              <div className="space-y-4">
+                {/* Header with Clear All button */}
+                {storageState && storageState.cookies.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {storageState.stats.cookieCount} cookie{storageState.stats.cookieCount !== 1 ? 's' : ''}
+                    </h3>
+                    <button
+                      onClick={() => setConfirmClearAll('cookies')}
+                      disabled={storageDeleting}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50"
+                    >
+                      <Trash2 size={14} />
+                      Clear All
+                    </button>
+                  </div>
+                )}
+                <StorageContent
+                  loading={storageLoading}
+                  error={storageError}
+                  emptyMessage="No cookies saved in this session."
+                >
+                  {storageState && (
+                    <CookiesTable
+                      cookies={storageState.cookies}
+                      deleting={storageDeleting}
+                      onDeleteDomain={deleteCookiesByDomain}
+                      onDeleteCookie={deleteCookie}
+                    />
+                  )}
+                </StorageContent>
+              </div>
             )}
 
             {activeSection === 'local-storage' && (
-              <StorageContent
-                loading={storageLoading}
-                error={storageError}
-                emptyMessage="No localStorage data saved in this session."
-              >
-                {storageState && <LocalStorageTable origins={storageState.origins} />}
-              </StorageContent>
+              <div className="space-y-4">
+                {/* Header with Clear All button */}
+                {storageState && storageState.origins.some((o) => o.localStorage.length > 0) && (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {storageState.stats.localStorageCount} item{storageState.stats.localStorageCount !== 1 ? 's' : ''}{' '}
+                      across {storageState.stats.originCount} origin{storageState.stats.originCount !== 1 ? 's' : ''}
+                    </h3>
+                    <button
+                      onClick={() => setConfirmClearAll('localStorage')}
+                      disabled={storageDeleting}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50"
+                    >
+                      <Trash2 size={14} />
+                      Clear All
+                    </button>
+                  </div>
+                )}
+                <StorageContent
+                  loading={storageLoading}
+                  error={storageError}
+                  emptyMessage="No localStorage data saved in this session."
+                >
+                  {storageState && (
+                    <LocalStorageTable
+                      origins={storageState.origins}
+                      deleting={storageDeleting}
+                      onDeleteOrigin={deleteLocalStorageByOrigin}
+                      onDeleteItem={deleteLocalStorageItem}
+                    />
+                  )}
+                </StorageContent>
+              </div>
             )}
           </div>
         </div>
@@ -174,6 +245,43 @@ export function SessionManager({
             )}
           </div>
         </div>
+
+        {/* Clear All Confirmation Modal */}
+        {confirmClearAll && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
+            onClick={() => setConfirmClearAll(null)}
+          >
+            <div
+              className="bg-white dark:bg-gray-900 rounded-lg shadow-xl p-6 max-w-sm mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                Clear All {confirmClearAll === 'cookies' ? 'Cookies' : 'LocalStorage'}?
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                This will permanently delete all{' '}
+                {confirmClearAll === 'cookies' ? 'cookies' : 'localStorage data'} from this session.
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setConfirmClearAll(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmClearAll}
+                  disabled={storageDeleting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  {storageDeleting ? 'Deleting...' : 'Clear All'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
