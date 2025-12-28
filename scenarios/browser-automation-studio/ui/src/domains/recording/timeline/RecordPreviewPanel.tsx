@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SlidersHorizontal, Palette } from 'lucide-react';
 import type { RecordedAction } from '../types/types';
-import { PlaywrightView, type FrameStats, type PageMetadata } from '../capture/PlaywrightView';
+import { PlaywrightView, type FrameStats, type PageMetadata, type StreamConnectionStatus } from '../capture/PlaywrightView';
 import { StreamSettings, useStreamSettings, type StreamSettingsValues } from '../capture/StreamSettings';
 import { FrameStatsDisplay } from '../capture/FrameStatsDisplay';
 import { BrowserUrlBar } from '../capture/BrowserUrlBar';
@@ -28,6 +28,10 @@ interface RecordPreviewPanelProps {
   onViewportChange?: (size: { width: number; height: number }) => void;
   /** Callback when stream settings change (for session creation) */
   onStreamSettingsChange?: (settings: StreamSettingsValues) => void;
+  /** Callback when stream connection status changes */
+  onConnectionStatusChange?: (status: StreamConnectionStatus) => void;
+  /** Whether to hide the in-preview connection indicator (shown in header instead) */
+  hideConnectionIndicator?: boolean;
 }
 
 export function RecordPreviewPanel({
@@ -38,6 +42,8 @@ export function RecordPreviewPanel({
   activePageId,
   onViewportChange,
   onStreamSettingsChange,
+  onConnectionStatusChange,
+  hideConnectionIndicator = false,
 }: RecordPreviewPanelProps) {
   const lastUrl = useMemo(() => {
     if (actions.length === 0) return '';
@@ -342,6 +348,8 @@ export function RecordPreviewPanel({
                             onStatsUpdate={handleStatsUpdate}
                             onPageMetadataChange={handlePageMetadataChange}
                             onContentRectChange={handleContentRectChange}
+                            onConnectionStatusChange={onConnectionStatusChange}
+                            hideConnectionIndicator={hideConnectionIndicator}
                           />
                         ) : (
                           <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
@@ -366,6 +374,8 @@ export function RecordPreviewPanel({
                       fps={streamSettings.fps}
                       onStatsUpdate={handleStatsUpdate}
                       onPageMetadataChange={handlePageMetadataChange}
+                      onConnectionStatusChange={onConnectionStatusChange}
+                      hideConnectionIndicator={hideConnectionIndicator}
                     />
                   ) : (
                     <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />

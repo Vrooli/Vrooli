@@ -58,6 +58,16 @@ interface RecordingSubscribedMessage {
 /** Union type for recording-related WebSocket messages */
 type RecordingMessage = FrameMessage | RecordingSubscribedMessage;
 
+/** Connection status for the live preview stream */
+export interface StreamConnectionStatus {
+  /** Whether the stream is connected and receiving frames */
+  isConnected: boolean;
+  /** Whether using WebSocket (true) or polling fallback (false) */
+  isWebSocket: boolean;
+  /** Last frame timestamp, if available */
+  lastFrameTime?: string;
+}
+
 interface PlaywrightViewProps {
   sessionId: string;
   /** Optional page ID for multi-tab sessions. When provided, frames are received for this specific page. */
@@ -76,6 +86,10 @@ interface PlaywrightViewProps {
   onPageMetadataChange?: (metadata: PageMetadata) => void;
   /** Callback with the rendered content rect (relative to the container) */
   onContentRectChange?: (rect: { x: number; y: number; width: number; height: number }) => void;
+  /** Callback when stream connection status changes */
+  onConnectionStatusChange?: (status: StreamConnectionStatus) => void;
+  /** Whether to hide the in-preview connection indicator (use when status is shown in header) */
+  hideConnectionIndicator?: boolean;
 }
 
 /**
@@ -118,6 +132,8 @@ export function PlaywrightView({
   onStatsUpdate,
   onPageMetadataChange,
   onContentRectChange,
+  onConnectionStatusChange,
+  hideConnectionIndicator = false,
 }: PlaywrightViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -157,6 +173,10 @@ export function PlaywrightView({
   const lastPageMetadataRef = useRef<PageMetadata | null>(null);
   const onContentRectChangeRef = useRef(onContentRectChange);
   onContentRectChangeRef.current = onContentRectChange;
+
+  // Connection status callback
+  const onConnectionStatusChangeRef = useRef(onConnectionStatusChange);
+  onConnectionStatusChangeRef.current = onConnectionStatusChange;
 
   // Track displayed timestamp for UI (updated via ref to avoid re-renders)
   const [displayedTimestamp, setDisplayedTimestamp] = useState<string | null>(null);
@@ -198,6 +218,17 @@ export function PlaywrightView({
       onStatsUpdateRef.current(frameStats);
     }
   }, [frameStats]);
+
+  // Push connection status to parent when it changes
+  useEffect(() => {
+    if (onConnectionStatusChangeRef.current) {
+      onConnectionStatusChangeRef.current({
+        isConnected: hasFrame,
+        isWebSocket: isWsFrameActive,
+        lastFrameTime: displayedTimestamp ?? undefined,
+      });
+    }
+  }, [hasFrame, isWsFrameActive, displayedTimestamp]);
 
   const pollInterval = useMemo(() => Math.max(300, Math.floor(1000 / fps)), [fps]);
   const pollIntervalRef = useRef(pollInterval);
@@ -838,18 +869,21 @@ export function PlaywrightView({
         </div>
       )}
 
-      <div
-        className="absolute left-2 top-2 rounded-full bg-white/90 dark:bg-gray-900/80 px-3 py-1 text-[11px] text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-2 cursor-help group"
-        title="Recording session is synced to this URL. Interactions are executed in the Playwright browser session."
-      >
-        <span className={`w-2 h-2 rounded-full ${isWsFrameActive ? "bg-green-500" : "bg-yellow-500"}`} />
-        Live {isWsFrameActive ? "(WebSocket)" : "(polling)"}
-        {displayedTimestamp && (
-          <span className="text-gray-500 dark:text-gray-400">
-            {new Date(displayedTimestamp).toLocaleTimeString()}
-          </span>
-        )}
-      </div>
+      {/* Connection status indicator - hidden when displayed in header instead */}
+      {!hideConnectionIndicator && (
+        <div
+          className="absolute left-2 top-2 rounded-full bg-white/90 dark:bg-gray-900/80 px-3 py-1 text-[11px] text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-2 cursor-help group"
+          title="Recording session is synced to this URL. Interactions are executed in the Playwright browser session."
+        >
+          <span className={`w-2 h-2 rounded-full ${isWsFrameActive ? "bg-green-500" : "bg-yellow-500"}`} />
+          Live {isWsFrameActive ? "(WebSocket)" : "(polling)"}
+          {displayedTimestamp && (
+            <span className="text-gray-500 dark:text-gray-400">
+              {new Date(displayedTimestamp).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="absolute inset-x-4 bottom-4 rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-200 text-xs px-3 py-2 border border-red-100 dark:border-red-800 shadow-sm">

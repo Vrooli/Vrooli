@@ -163,7 +163,15 @@ export function AINavigationPanel({
   }, []);
 
   const selectedModel = useMemo(
-    () => models.find((m) => m.id === selectedModelId) ?? models[0],
+    () => models.find((m) => m.id === selectedModelId) ?? models[0] ?? {
+      id: 'unknown',
+      displayName: 'No models available',
+      tier: 'standard' as const,
+      inputCostPer1MTokens: 0,
+      outputCostPer1MTokens: 0,
+      provider: 'openrouter' as const,
+      recommended: false,
+    },
     [models, selectedModelId]
   );
 
@@ -299,72 +307,73 @@ export function AINavigationPanel({
           </p>
         </div>
 
-        {/* Model Selector */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-            Vision Model
-          </label>
-          <div className="grid gap-2">
-            {models.filter((m) => m.recommended).map((model) => (
-              <button
-                key={model.id}
-                onClick={() => handleModelChange(model.id)}
-                disabled={isNavigating}
-                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                  selectedModelId === model.id
-                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                } ${isNavigating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={`w-4 h-4 rounded-full border-2 ${
-                    selectedModelId === model.id
-                      ? 'border-purple-500 bg-purple-500'
-                      : 'border-gray-300 dark:border-gray-600'
-                  }`}>
-                    {selectedModelId === model.id && (
-                      <svg className="w-full h-full text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="font-medium text-gray-900 dark:text-white">{model.displayName}</span>
-                  <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${getTierBadgeClass(model.tier)}`}>
-                    {model.tier.toUpperCase()}
-                  </span>
-                </div>
-                <div className="text-xs text-gray-500">
-                  ~{formatCost(model.inputCostPer1MTokens)}/M in, {formatCost(model.outputCostPer1MTokens)}/M out
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Show more models toggle */}
+        {/* Model Selector - Collapsible accordion, collapsed by default */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
           <button
+            type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="mt-2 text-xs text-purple-500 hover:text-purple-600"
+            disabled={isNavigating}
+            className={`w-full flex items-center justify-between p-3 text-left transition-colors ${
+              showAdvanced
+                ? 'bg-gray-50 dark:bg-gray-800/50'
+                : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+            } ${isNavigating ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            {showAdvanced ? 'Show fewer models' : `+${models.length - models.filter((m) => m.recommended).length} more models`}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Vision Model</span>
+              <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${getTierBadgeClass(selectedModel.tier)}`}>
+                {selectedModel.displayName}
+              </span>
+            </div>
+            <svg
+              className={`w-4 h-4 text-gray-400 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
           </button>
 
           {showAdvanced && (
-            <div className="mt-2 grid gap-2">
-              {models.filter((m) => !m.recommended).map((model) => (
+            <div className="p-3 pt-0 space-y-2 border-t border-gray-200 dark:border-gray-700">
+              {/* All models in a flat list */}
+              {models.map((model) => (
                 <button
                   key={model.id}
                   onClick={() => handleModelChange(model.id)}
                   disabled={isNavigating}
-                  className={`flex items-center justify-between p-2 rounded-lg border text-sm transition-colors ${
+                  className={`w-full flex items-center justify-between p-2.5 rounded-lg border transition-colors ${
                     selectedModelId === model.id
                       ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
                       : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                   } ${isNavigating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
-                  <span className="text-gray-700 dark:text-gray-300">{model.displayName}</span>
-                  <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${getTierBadgeClass(model.tier)}`}>
-                    {model.tier.toUpperCase()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                      selectedModelId === model.id
+                        ? 'border-purple-500 bg-purple-500'
+                        : 'border-gray-300 dark:border-gray-600'
+                    }`}>
+                      {selectedModelId === model.id && (
+                        <svg className="w-full h-full text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="font-medium text-gray-900 dark:text-white text-sm">{model.displayName}</span>
+                    <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${getTierBadgeClass(model.tier)}`}>
+                      {model.tier.toUpperCase()}
+                    </span>
+                    {model.recommended && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded">
+                        Recommended
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 text-right">
+                    ~{formatCost(model.inputCostPer1MTokens)}/M in
+                  </div>
                 </button>
               ))}
             </div>

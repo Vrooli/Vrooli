@@ -76,6 +76,22 @@ export type TimelineMode = 'recording' | 'execution';
 export type PageEventType = 'page_created' | 'page_navigated' | 'page_closed';
 
 /**
+ * AI metadata for actions performed by AI navigation.
+ */
+export interface AIMetadata {
+  /** AI reasoning for why this action was taken */
+  reasoning?: string;
+  /** Tokens used for this step */
+  tokensUsed?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  /** Whether the AI achieved its goal with this action */
+  goalAchieved?: boolean;
+}
+
+/**
  * A timeline item that can be rendered in the UI.
  * This is the common interface that works for both recording and execution.
  */
@@ -100,13 +116,23 @@ export interface TimelineItem {
   pageEventType?: PageEventType;
   /** Page title at the time of the event */
   pageTitle?: string;
+  /** Whether this action was performed by AI navigation */
+  isAI?: boolean;
+  /** AI-specific metadata (reasoning, tokens, etc.) */
+  aiMetadata?: AIMetadata;
 }
 
 /**
  * Convert a legacy RecordedAction to a TimelineItem for unified rendering.
  * Used when receiving RecordedAction from legacy API responses.
+ *
+ * @param action - The recorded action to convert
+ * @param aiMetadata - Optional AI metadata if this action was performed by AI navigation
  */
-export function recordedActionToTimelineItem(action: RecordedAction): TimelineItem {
+export function recordedActionToTimelineItem(
+  action: RecordedAction,
+  aiMetadata?: AIMetadata,
+): TimelineItem {
   return {
     id: action.id,
     sequenceNum: action.sequenceNum,
@@ -120,6 +146,8 @@ export function recordedActionToTimelineItem(action: RecordedAction): TimelineIt
     pageId: action.pageId,
     entryType: 'action',
     pageTitle: action.pageTitle,
+    isAI: aiMetadata !== undefined,
+    aiMetadata,
   };
 }
 
@@ -424,4 +452,105 @@ export function parseTimelineEntry(timelineEntryJson: unknown): TimelineEntry | 
   // For now, we return it as-is since the proto types are interfaces
   // In a full implementation, you'd use protojson to properly deserialize
   return timelineEntryJson as TimelineEntry;
+}
+
+/**
+ * AI Navigation Step interface (imported types to avoid circular deps).
+ * This mirrors the AINavigationStep from ai-navigation/types.ts.
+ */
+interface AIStepForMerge {
+  id: string;
+  stepNumber: number;
+  action: {
+    type: string;
+    text?: string;
+    url?: string;
+  };
+  reasoning: string;
+  currentUrl: string;
+  goalAchieved: boolean;
+  tokensUsed: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  durationMs: number;
+  error?: string;
+  timestamp: Date;
+}
+
+/**
+ * Map AI action types to recorded action types.
+ * AI uses slightly different naming conventions.
+ */
+function normalizeActionType(aiActionType: string): string {
+  const mapping: Record<string, string> = {
+    type: 'input',
+    keypress: 'keyboard',
+    done: 'wait', // 'done' doesn't map to a recorded action
+  };
+  return mapping[aiActionType] ?? aiActionType;
+}
+
+/**
+ * Merge AI navigation steps with recorded actions.
+ *
+ * This function matches AI steps to recorded actions based on:
+ * 1. Timestamp proximity (within 5 seconds)
+ * 2. Action type matching
+ *
+ * When a match is found, the AI metadata is attached to the TimelineItem.
+ *
+ * @param actions - Recorded actions from the session
+ * @param aiSteps - AI navigation steps from useAINavigation
+ * @returns TimelineItems with AI metadata merged in
+ */
+export function mergeActionsWithAISteps(
+  actions: RecordedAction[],
+  aiSteps: AIStepForMerge[],
+): TimelineItem[] {
+  if (aiSteps.length === 0) {
+    // No AI steps - just convert actions to timeline items
+    return actions.map((action) => recordedActionToTimelineItem(action));
+  }
+
+  // Create a working copy of AI steps to track which ones have been matched
+  const unmatchedSteps = [...aiSteps];
+
+  return actions.map((action) => {
+    const actionTime = new Date(action.timestamp).getTime();
+    const normalizedActionType = action.actionType;
+
+    // Find the best matching AI step
+    let bestMatchIndex = -1;
+    let bestMatchTimeDiff = Infinity;
+
+    for (let i = 0; i < unmatchedSteps.length; i++) {
+      const step = unmatchedSteps[i];
+      const stepTime = step.timestamp.getTime();
+      const timeDiff = Math.abs(actionTime - stepTime);
+
+      // Must be within 5 seconds and action types must match
+      const normalizedStepType = normalizeActionType(step.action.type);
+      if (timeDiff < 5000 && normalizedStepType === normalizedActionType) {
+        if (timeDiff < bestMatchTimeDiff) {
+          bestMatchTimeDiff = timeDiff;
+          bestMatchIndex = i;
+        }
+      }
+    }
+
+    if (bestMatchIndex >= 0) {
+      // Found a match - remove from unmatched and attach metadata
+      const matchedStep = unmatchedSteps.splice(bestMatchIndex, 1)[0];
+      return recordedActionToTimelineItem(action, {
+        reasoning: matchedStep.reasoning,
+        tokensUsed: matchedStep.tokensUsed,
+        goalAchieved: matchedStep.goalAchieved,
+      });
+    }
+
+    // No match - return without AI metadata
+    return recordedActionToTimelineItem(action);
+  });
 }

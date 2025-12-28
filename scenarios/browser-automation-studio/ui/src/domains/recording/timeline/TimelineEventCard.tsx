@@ -229,7 +229,16 @@ function getStatusIndicator(item: TimelineItem, mode: TimelineMode) {
 }
 
 /** Mode badge */
-function ModeBadge({ mode }: { mode: TimelineMode }) {
+function ModeBadge({ mode, isAI }: { mode: TimelineMode; isAI?: boolean }) {
+  // AI badge takes precedence when action is AI-originated
+  if (isAI) {
+    return (
+      <span className="px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded">
+        AI
+      </span>
+    );
+  }
+
   if (mode === 'recording') {
     return (
       <span className="px-1.5 py-0.5 text-[10px] font-medium bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded">
@@ -348,7 +357,7 @@ export function TimelineEventCard({
         </span>
 
         {/* Mode badge */}
-        <ModeBadge mode={item.mode} />
+        <ModeBadge mode={item.mode} isAI={item.isAI} />
 
         {/* Status indicator */}
         {getStatusIndicator(item, item.mode)}
@@ -390,6 +399,36 @@ export function TimelineEventCard({
       {/* Expanded details */}
       {isExpanded && (
         <div className="mt-3 ml-9 space-y-2 text-sm">
+          {/* AI Reasoning (for AI-originated actions) */}
+          {item.isAI && item.aiMetadata?.reasoning && (
+            <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+              <span className="text-purple-600 dark:text-purple-400 text-xs uppercase tracking-wide block mb-1">AI Reasoning</span>
+              <p className="text-purple-800 dark:text-purple-200 text-sm whitespace-pre-wrap">
+                {item.aiMetadata.reasoning}
+              </p>
+            </div>
+          )}
+
+          {/* AI Token Usage */}
+          {item.isAI && item.aiMetadata?.tokensUsed && (
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+              <span>Tokens: {item.aiMetadata.tokensUsed.totalTokens.toLocaleString()}</span>
+              <span className="text-gray-400">
+                ({item.aiMetadata.tokensUsed.promptTokens.toLocaleString()} in, {item.aiMetadata.tokensUsed.completionTokens.toLocaleString()} out)
+              </span>
+            </div>
+          )}
+
+          {/* Goal achieved indicator */}
+          {item.isAI && item.aiMetadata?.goalAchieved && (
+            <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              Goal achieved
+            </div>
+          )}
+
           {/* Error message */}
           {item.error && (
             <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">

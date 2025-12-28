@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TimelineMode } from '../types/timeline-unified';
 import type { RecordingSessionProfile } from '../types/types';
+import type { StreamConnectionStatus } from './PlaywrightView';
 
 interface RecordingHeaderProps {
   isRecording: boolean;
@@ -22,6 +23,8 @@ interface RecordingHeaderProps {
   selectedSessionProfileId?: string | null;
   onSelectSessionProfile?: (profileId: string | null) => void;
   onCreateSessionProfile?: () => void;
+  /** Stream connection status (for combined live indicator) */
+  connectionStatus?: StreamConnectionStatus | null;
 }
 
 export function RecordingHeader({
@@ -39,6 +42,7 @@ export function RecordingHeader({
   selectedSessionProfileId,
   onSelectSessionProfile,
   onCreateSessionProfile,
+  connectionStatus,
 }: RecordingHeaderProps) {
   const title = mode === 'recording' ? 'Record Mode' : 'Execution Mode';
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
@@ -47,6 +51,43 @@ export function RecordingHeader({
     () => sessionProfiles.find((profile) => profile.id === selectedSessionProfileId),
     [sessionProfiles, selectedSessionProfileId]
   );
+
+  // Ref for click-outside detection
+  const sessionMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!sessionMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sessionMenuRef.current && !sessionMenuRef.current.contains(event.target as Node)) {
+        setSessionMenuOpen(false);
+      }
+    };
+
+    // Use mousedown to catch clicks before they bubble
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [sessionMenuOpen]);
+
+  // Close dropdown on Escape key
+  useEffect(() => {
+    if (!sessionMenuOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSessionMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [sessionMenuOpen]);
+
+  const handleSessionSelect = useCallback((profileId: string | null) => {
+    onSelectSessionProfile?.(profileId);
+    setSessionMenuOpen(false);
+  }, [onSelectSessionProfile]);
 
   const formatLastUsed = (value?: string) => {
     if (!value) return 'never';
@@ -114,11 +155,38 @@ export function RecordingHeader({
           </div>
         )}
 
-        {/* Recording indicator */}
+        {/* Combined Recording + Connection Status indicator */}
         {mode === 'recording' && isRecording && (
-          <span className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded-full">
+          <span
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full cursor-help border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200"
+            title={connectionStatus?.isWebSocket
+              ? "Recording via WebSocket (real-time)"
+              : "Recording via polling (fallback)"
+            }
+          >
+            {/* Recording dot (red, pulsing) */}
             <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-            Recording
+            <span className="text-red-600 dark:text-red-400">Recording</span>
+
+            {/* Separator */}
+            <span className="w-px h-3 bg-gray-300 dark:bg-gray-600" />
+
+            {/* Connection status dot (green for WS, yellow for polling) */}
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              connectionStatus?.isConnected
+                ? connectionStatus?.isWebSocket
+                  ? 'bg-green-500'
+                  : 'bg-yellow-500'
+                : 'bg-gray-400'
+            }`} />
+            <span className="text-gray-600 dark:text-gray-300">
+              {connectionStatus?.isConnected
+                ? connectionStatus?.isWebSocket
+                  ? 'Live'
+                  : 'Polling'
+                : 'Connecting…'
+              }
+            </span>
           </span>
         )}
 
@@ -133,7 +201,7 @@ export function RecordingHeader({
       <div className="flex items-center gap-2">
         {/* Session selector */}
         {onSelectSessionProfile && (
-          <div className="relative" onMouseLeave={() => setSessionMenuOpen(false)}>
+          <div className="relative" ref={sessionMenuRef}>
             <button
               type="button"
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -182,10 +250,7 @@ export function RecordingHeader({
                             ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-200'
                             : 'text-gray-800 dark:text-gray-100'
                         }`}
-                        onClick={() => {
-                          onSelectSessionProfile(profile.id);
-                          setSessionMenuOpen(false);
-                        }}
+                        onClick={() => handleSessionSelect(profile.id)}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium">{profile.name}</span>

@@ -3,17 +3,19 @@
  *
  * Combines the browser preview with the AI navigation panel.
  * Shows the AI controls on the right and the browser on the left.
+ *
+ * Note: AI steps are now shown in the main timeline (left sidebar) instead of
+ * a separate section here. This reduces duplication and provides a unified view.
  */
 
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { AINavigationErrorBoundary } from './AINavigationErrorBoundary';
 import { AINavigationPanel } from './AINavigationPanel';
-import { AINavigationTimeline } from './AINavigationStepCard';
-import { useAINavigation } from './useAINavigation';
 import type { RecordedAction } from '../types/types';
 import { PlaywrightView, type FrameStats, type PageMetadata } from '../capture/PlaywrightView';
 import { BrowserUrlBar } from '../capture/BrowserUrlBar';
 import type { StreamSettingsValues } from '../capture/StreamSettings';
+import type { AINavigationState, VisionModelSpec } from './types';
 
 interface AINavigationViewProps {
   sessionId: string | null;
@@ -32,6 +34,18 @@ interface AINavigationViewProps {
   initialMaxSteps?: number;
   /** Whether to automatically start AI navigation with the initial prompt */
   autoStart?: boolean;
+  /** AI navigation state (lifted from parent) */
+  aiState?: AINavigationState;
+  /** Available vision models */
+  aiModels?: VisionModelSpec[];
+  /** Whether AI navigation is in progress */
+  aiIsNavigating?: boolean;
+  /** Start AI navigation */
+  onAIStart?: (prompt: string, model: string, maxSteps: number) => Promise<void>;
+  /** Abort AI navigation */
+  onAIAbort?: () => Promise<void>;
+  /** Reset AI state */
+  onAIReset?: () => void;
 }
 
 export function AINavigationView({
@@ -47,15 +61,26 @@ export function AINavigationView({
   initialModel,
   initialMaxSteps,
   autoStart,
+  aiState,
+  aiModels,
+  aiIsNavigating,
+  onAIStart,
+  onAIAbort,
+  onAIReset,
 }: AINavigationViewProps) {
-  const {
-    state,
-    startNavigation,
-    abortNavigation,
-    reset,
-    availableModels,
-    isNavigating,
-  } = useAINavigation({ sessionId });
+  // Use provided state/handlers or defaults
+  const state = aiState ?? {
+    isNavigating: false,
+    navigationId: null,
+    prompt: '',
+    model: 'qwen3-vl-30b',
+    steps: [],
+    status: 'idle' as const,
+    totalTokens: 0,
+    error: null,
+  };
+  const availableModels = aiModels ?? [];
+  const isNavigating = aiIsNavigating ?? false;
 
   const [refreshToken, setRefreshToken] = useState(0);
   const autoStartTriggeredRef = useRef(false);
@@ -69,7 +94,8 @@ export function AINavigationView({
       initialPrompt &&
       !autoStartTriggeredRef.current &&
       !isNavigating &&
-      state.status === 'idle'
+      state.status === 'idle' &&
+      onAIStart
     ) {
       autoStartTriggeredRef.current = true;
 
@@ -80,7 +106,7 @@ export function AINavigationView({
 
       if (modelToUse) {
         const maxSteps = initialMaxSteps ?? 20;
-        void startNavigation(initialPrompt, modelToUse, maxSteps);
+        void onAIStart(initialPrompt, modelToUse, maxSteps);
       }
     }
   }, [
@@ -93,7 +119,7 @@ export function AINavigationView({
     isNavigating,
     state.status,
     availableModels,
-    startNavigation,
+    onAIStart,
   ]);
 
   const handleRefresh = useCallback(() => {
@@ -102,14 +128,24 @@ export function AINavigationView({
 
   const handleStart = useCallback(
     (prompt: string, model: string, maxSteps: number) => {
-      void startNavigation(prompt, model, maxSteps);
+      if (onAIStart) {
+        void onAIStart(prompt, model, maxSteps);
+      }
     },
-    [startNavigation]
+    [onAIStart]
   );
 
   const handleAbort = useCallback(() => {
-    void abortNavigation();
-  }, [abortNavigation]);
+    if (onAIAbort) {
+      void onAIAbort();
+    }
+  }, [onAIAbort]);
+
+  const handleReset = useCallback(() => {
+    if (onAIReset) {
+      onAIReset();
+    }
+  }, [onAIReset]);
 
   const lastUrl = actions.length > 0 ? actions[actions.length - 1]?.url ?? '' : '';
   const effectiveUrl = previewUrl || lastUrl;
@@ -164,11 +200,11 @@ export function AINavigationView({
         </div>
       </div>
 
-      {/* Right: AI Navigation Panel & Steps */}
+      {/* Right: AI Navigation Panel */}
       <div className="w-96 flex flex-col border-l border-gray-200 dark:border-gray-700">
-        <AINavigationErrorBoundary onReset={reset}>
-          {/* AI Navigation Controls */}
-          <div className="flex-shrink-0" style={{ maxHeight: '60%' }}>
+        <AINavigationErrorBoundary onReset={handleReset}>
+          {/* AI Navigation Controls - now takes full height since steps are in main timeline */}
+          <div className="flex-1 overflow-hidden">
             <AINavigationPanel
               models={availableModels}
               isNavigating={isNavigating}
@@ -178,30 +214,12 @@ export function AINavigationView({
               error={state.error}
               onStart={handleStart}
               onAbort={handleAbort}
-              onReset={reset}
+              onReset={handleReset}
               disabled={!sessionId}
               initialPrompt={initialPrompt}
             />
           </div>
-
-          {/* AI Navigation Steps Timeline */}
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col border-t border-gray-200 dark:border-gray-700">
-            <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  AI Steps
-                </span>
-                {state.steps.length > 0 && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded">
-                    {state.steps.length}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <AINavigationTimeline steps={state.steps} isNavigating={isNavigating} />
-            </div>
-          </div>
+          {/* Note: AI steps are now shown in the main timeline (left sidebar) with AI badge */}
         </AINavigationErrorBoundary>
       </div>
     </div>

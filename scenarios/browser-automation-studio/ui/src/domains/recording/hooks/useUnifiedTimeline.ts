@@ -71,7 +71,7 @@ export function useUnifiedTimeline({
   onItemsReceived,
 }: UseUnifiedTimelineOptions): UseUnifiedTimelineReturn {
   const [items, setItems] = useState<TimelineItem[]>(() =>
-    mergeConsecutiveActions(initialActions).map(recordedActionToTimelineItem)
+    mergeConsecutiveActions(initialActions).map((action) => recordedActionToTimelineItem(action))
   );
   const [isLive, setIsLive] = useState(false);
   // Error state for future error handling
@@ -83,7 +83,7 @@ export function useUnifiedTimeline({
   // Update items when initialActions change (recording mode)
   useEffect(() => {
     if (mode === 'recording') {
-      const newItems = mergeConsecutiveActions(initialActions).map(recordedActionToTimelineItem);
+      const newItems = mergeConsecutiveActions(initialActions).map((action) => recordedActionToTimelineItem(action));
       setItems(newItems);
     }
   }, [mode, initialActions]);

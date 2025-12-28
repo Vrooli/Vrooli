@@ -40,8 +40,11 @@ import { mergeConsecutiveActions } from './utils/mergeActions';
 import { recordedActionToTimelineItem } from './types/timeline-unified';
 import { getConfig } from '@/config';
 import type { StreamSettingsValues } from './capture/StreamSettings';
+import type { StreamConnectionStatus } from './capture/PlaywrightView';
 import type { TimelineMode } from './types/timeline-unified';
+import { mergeActionsWithAISteps } from './types/timeline-unified';
 import { AINavigationView } from './ai-navigation';
+import { useAINavigation } from './ai-navigation/useAINavigation';
 
 interface RecordModePageProps {
   /** Browser session ID */
@@ -125,6 +128,9 @@ export function RecordModePage({
   const streamSettingsRef = useRef<StreamSettingsValues | null>(null);
   streamSettingsRef.current = streamSettings;
 
+  // Connection status for header indicator
+  const [connectionStatus, setConnectionStatus] = useState<StreamConnectionStatus | null>(null);
+
   const {
     isSidebarOpen,
     timelineWidth,
@@ -132,6 +138,16 @@ export function RecordModePage({
     handleSidebarToggle,
     handleSidebarResizeStart,
   } = useTimelinePanel();
+
+  // AI Navigation state - lifted here to merge AI steps with timeline
+  const {
+    state: aiState,
+    startNavigation: aiStartNavigation,
+    abortNavigation: aiAbortNavigation,
+    reset: aiReset,
+    availableModels: aiAvailableModels,
+    isNavigating: aiIsNavigating,
+  } = useAINavigation({ sessionId });
 
   const {
     isRecording,
@@ -215,8 +231,12 @@ export function RecordModePage({
 
   const mergedTimelineItems = useMemo(() => {
     if (mode !== 'recording') return timelineItems;
-    return mergedActions.map(recordedActionToTimelineItem);
-  }, [mergedActions, mode, timelineItems]);
+    // If we have AI steps, merge them with the recorded actions
+    if (aiState.steps.length > 0) {
+      return mergeActionsWithAISteps(mergedActions, aiState.steps);
+    }
+    return mergedActions.map((action) => recordedActionToTimelineItem(action));
+  }, [mergedActions, mode, timelineItems, aiState.steps]);
 
   // Page color palette for visual distinction in multi-tab recording
   const PAGE_COLORS = [
@@ -676,6 +696,7 @@ export function RecordModePage({
         selectedSessionProfileId={selectedProfileId}
         onSelectSessionProfile={handleSelectSessionProfile}
         onCreateSessionProfile={handleCreateSessionProfile}
+        connectionStatus={connectionStatus}
       />
 
       {/* Tab bar for multi-tab sessions */}
@@ -741,6 +762,8 @@ export function RecordModePage({
               onPreviewUrlChange={setPreviewUrl}
               onViewportChange={(size) => setPreviewViewport(size)}
               onStreamSettingsChange={setStreamSettings}
+              onConnectionStatusChange={setConnectionStatus}
+              hideConnectionIndicator={true}
               actions={actions}
             />
           )}
@@ -770,6 +793,12 @@ export function RecordModePage({
               initialModel={aiModel}
               initialMaxSteps={aiMaxSteps}
               autoStart={autoStartAI && isInitialNavigationComplete}
+              aiState={aiState}
+              aiModels={aiAvailableModels}
+              aiIsNavigating={aiIsNavigating}
+              onAIStart={aiStartNavigation}
+              onAIAbort={aiAbortNavigation}
+              onAIReset={aiReset}
             />
           )}
         </div>
