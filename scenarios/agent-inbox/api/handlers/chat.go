@@ -98,6 +98,31 @@ func (h *Handlers) GetChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch attachments for all messages
+	if len(messages) > 0 {
+		messageIDs := make([]string, len(messages))
+		for i, msg := range messages {
+			messageIDs[i] = msg.ID
+		}
+
+		attachmentsByMsgID, err := h.Repo.GetAttachmentsForMessages(r.Context(), messageIDs)
+		if err != nil {
+			log.Printf("[WARN] [%s] GetAttachmentsForMessages failed: %v", middleware.GetRequestID(r.Context()), err)
+			// Non-fatal: continue without attachments
+		} else {
+			// Populate attachments on each message and add URLs
+			for i := range messages {
+				if attachments, ok := attachmentsByMsgID[messages[i].ID]; ok {
+					// Add URL for each attachment
+					for j := range attachments {
+						attachments[j].URL = h.Storage.GetFileURL(attachments[j].StoragePath)
+					}
+					messages[i].Attachments = attachments
+				}
+			}
+		}
+	}
+
 	// Fetch tool call records for status/result info
 	toolCallRecords, err := h.Repo.ListToolCallsForChat(r.Context(), chatID)
 	if err != nil {

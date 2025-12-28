@@ -51,6 +51,8 @@ func (c *MessageConverter) ConvertToOpenRouter(ctx context.Context, messages []d
 }
 
 // buildMultimodalContent creates a content array with text and file parts.
+// Images use the "image_url" type for vision models.
+// Documents (PDFs) use the "file" type for the file-parser plugin.
 func (c *MessageConverter) buildMultimodalContent(ctx context.Context, text string, attachments []domain.Attachment) []integrations.ContentPart {
 	parts := make([]integrations.ContentPart, 0, len(attachments)+1)
 
@@ -62,7 +64,7 @@ func (c *MessageConverter) buildMultimodalContent(ctx context.Context, text stri
 		})
 	}
 
-	// Add file parts
+	// Add attachment parts - format depends on content type
 	for _, att := range attachments {
 		fileData, err := c.storage.ReadAsBase64DataURI(ctx, att.StoragePath)
 		if err != nil {
@@ -70,13 +72,24 @@ func (c *MessageConverter) buildMultimodalContent(ctx context.Context, text stri
 			continue
 		}
 
-		parts = append(parts, integrations.ContentPart{
-			Type: "file",
-			File: &integrations.FileContent{
-				Filename: att.FileName,
-				FileData: fileData,
-			},
-		})
+		if att.IsImage() {
+			// Images use image_url format for vision models
+			parts = append(parts, integrations.ContentPart{
+				Type: "image_url",
+				ImageURL: &integrations.ImageURLContent{
+					URL: fileData,
+				},
+			})
+		} else {
+			// Documents (PDFs, etc.) use file format for file-parser plugin
+			parts = append(parts, integrations.ContentPart{
+				Type: "file",
+				File: &integrations.FileContent{
+					Filename: att.FileName,
+					FileData: fileData,
+				},
+			})
+		}
 	}
 
 	return parts

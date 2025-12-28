@@ -4,7 +4,7 @@ import {
   Copy, Volume2, VolumeX, RefreshCw, Pencil, Trash2, GitBranch,
   ChevronDown, ChevronUp, ShieldAlert
 } from "lucide-react";
-import type { Message, ToolCall, ToolCallRecord } from "../../lib/api";
+import type { Attachment, Message, ToolCall, ToolCallRecord } from "../../lib/api";
 import type { ActiveToolCall, PendingApproval } from "../../hooks/useCompletion";
 import type { ViewMode } from "../settings/Settings";
 import { Tooltip } from "../ui/tooltip";
@@ -399,6 +399,80 @@ function ToolCallItem({ toolCall, record, variant }: ToolCallItemProps) {
   );
 }
 
+// Component for displaying message attachments (images)
+interface MessageAttachmentsProps {
+  attachments?: Attachment[];
+  isUser?: boolean;
+  compact?: boolean;
+}
+
+function MessageAttachments({ attachments, isUser = false, compact = false }: MessageAttachmentsProps) {
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+
+  if (!attachments || attachments.length === 0) {
+    return null;
+  }
+
+  // Filter to only show images
+  const images = attachments.filter(att =>
+    att.content_type?.startsWith("image/")
+  );
+
+  if (images.length === 0) {
+    return null;
+  }
+
+  const imageSize = compact ? "max-w-[150px] max-h-[150px]" : "max-w-[300px] max-h-[300px]";
+
+  return (
+    <>
+      <div className={`flex flex-wrap gap-2 ${compact ? "mt-1 mb-1" : "mt-2 mb-2"}`}>
+        {images.map((attachment) => (
+          <button
+            key={attachment.id}
+            onClick={() => setExpandedImage(attachment.url || null)}
+            className={`relative group/img rounded-lg overflow-hidden border ${
+              isUser
+                ? "border-indigo-400/30 hover:border-indigo-300/50"
+                : "border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500"
+            } transition-colors cursor-pointer`}
+          >
+            <img
+              src={attachment.url}
+              alt={attachment.file_name}
+              className={`${imageSize} object-cover`}
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors" />
+          </button>
+        ))}
+      </div>
+
+      {/* Expanded image modal */}
+      {expandedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={() => setExpandedImage(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 text-white hover:text-gray-300 transition-colors"
+            onClick={() => setExpandedImage(null)}
+            aria-label="Close"
+          >
+            <XCircle className="h-8 w-8" />
+          </button>
+          <img
+            src={expandedImage}
+            alt="Expanded view"
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
 interface MessageBubbleProps {
   message: Message;
   viewMode: ViewMode;
@@ -671,6 +745,7 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
           </pre>
         ) : (
           <div className="text-sm text-slate-700 dark:text-slate-200">
+            <MessageAttachments attachments={message.attachments} isUser={isUser} compact />
             <MarkdownRenderer content={message.content} />
           </div>
         )}
@@ -726,12 +801,13 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
             <Bot className="h-4 w-4 text-indigo-400" />
           </div>
           <div className="space-y-2">
-            {message.content && (
+            {(message.content || (message.attachments && message.attachments.length > 0)) && (
               <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 text-slate-700 dark:text-slate-200">
                 <div className="flex items-center justify-end gap-2 mb-1">
                   {renderActions("assistant")}
                 </div>
-                <MarkdownRenderer content={message.content} />
+                <MessageAttachments attachments={message.attachments} />
+                {message.content && <MarkdownRenderer content={message.content} />}
               </div>
             )}
             <div className="bg-amber-50 dark:bg-slate-800/60 border border-amber-200 dark:border-amber-500/20 rounded-xl px-4 py-3">
@@ -788,6 +864,7 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
           <div className={`flex items-center ${isUser ? "justify-start" : "justify-end"} gap-2 mb-1`}>
             {renderActions(isUser ? "user" : "assistant")}
           </div>
+          <MessageAttachments attachments={message.attachments} isUser={isUser} />
           <MarkdownRenderer content={message.content} />
           <p
             className={`text-xs mt-1.5 ${

@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useRef } from "react";
-import { Search, Bot, Check, ChevronDown, Building2, ArrowUpDown, Image, MessageSquare, Type } from "lucide-react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { Search, Bot, Check, ChevronDown, Building2, ArrowUpDown, Image, MessageSquare, Type, Clock, X } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Dropdown, DropdownItem } from "../ui/dropdown";
@@ -29,6 +29,53 @@ const MODALITY_OPTIONS: { value: ModalityFilter; label: string; icon: typeof Mes
   { value: "image", label: "Image support", icon: Image },
   { value: "text+image", label: "Text + Image", icon: Image },
 ];
+
+const RECENT_MODELS_KEY = "recentModels";
+const MAX_RECENT_MODELS = 5;
+
+/**
+ * Get recently used model IDs from localStorage.
+ */
+function getRecentModelIds(): string[] {
+  try {
+    const stored = localStorage.getItem(RECENT_MODELS_KEY);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id): id is string => typeof id === "string");
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Add a model ID to the recent models list.
+ * Moves it to the front if already present, maintains max size.
+ */
+function addRecentModelId(modelId: string): void {
+  try {
+    const current = getRecentModelIds();
+    const filtered = current.filter((id) => id !== modelId);
+    const updated = [modelId, ...filtered].slice(0, MAX_RECENT_MODELS);
+    localStorage.setItem(RECENT_MODELS_KEY, JSON.stringify(updated));
+  } catch {
+    // Silently fail if localStorage is unavailable
+  }
+}
+
+/**
+ * Remove a model ID from the recent models list.
+ */
+function removeRecentModelId(modelId: string): string[] {
+  try {
+    const current = getRecentModelIds();
+    const updated = current.filter((id) => id !== modelId);
+    localStorage.setItem(RECENT_MODELS_KEY, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Extract provider from model ID or use the provider field.
@@ -101,15 +148,17 @@ export function ModelSelectorModal({
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [modalityFilter, setModalityFilter] = useState<ModalityFilter>("all");
+  const [recentModelIds, setRecentModelIds] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset state when modal opens
+  // Reset state and load recent models when modal opens
   useEffect(() => {
     if (open) {
       setSearchQuery("");
       setSelectedProvider(null);
       setSortBy("name");
       setModalityFilter("all");
+      setRecentModelIds(getRecentModelIds());
       const timer = setTimeout(() => {
         searchInputRef.current?.focus();
       }, 50);
@@ -128,6 +177,14 @@ export function ModelSelectorModal({
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([name, count]) => ({ name, count }));
   }, [models]);
+
+  // Get recent models that exist in the current models list
+  const recentModels = useMemo(() => {
+    const modelMap = new Map(models.map((m) => [m.id, m]));
+    return recentModelIds
+      .map((id) => modelMap.get(id))
+      .filter((m): m is Model => m !== undefined);
+  }, [models, recentModelIds]);
 
   // Filter and sort models
   const filteredModels = useMemo(() => {
@@ -201,10 +258,31 @@ export function ModelSelectorModal({
     return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredModels, sortBy]);
 
-  const handleSelectModel = (modelId: string) => {
+  // Show recent section only when in default view (no search/filters active)
+  const showRecentSection =
+    recentModels.length > 0 &&
+    !searchQuery.trim() &&
+    !selectedProvider &&
+    modalityFilter === "all" &&
+    sortBy === "name";
+
+  // Create a set of recent model IDs for quick lookup (to avoid showing duplicates in main list)
+  const recentModelIdSet = useMemo(
+    () => new Set(showRecentSection ? recentModelIds : []),
+    [showRecentSection, recentModelIds]
+  );
+
+  const handleSelectModel = useCallback((modelId: string) => {
+    addRecentModelId(modelId);
     onSelectModel(modelId);
     onClose();
-  };
+  }, [onSelectModel, onClose]);
+
+  const handleRemoveRecentModel = useCallback((e: React.MouseEvent, modelId: string) => {
+    e.stopPropagation(); // Prevent selecting the model when clicking remove
+    const updated = removeRecentModelId(modelId);
+    setRecentModelIds(updated);
+  }, []);
 
   const selectedProviderLabel = selectedProvider
     ? formatProviderName(selectedProvider)
@@ -344,7 +422,98 @@ export function ModelSelectorModal({
             </div>
           ) : (
             <div className="p-2">
-              {groupedModels.map(([provider, providerModels]) => (
+              {/* Recent models section */}
+              {showRecentSection && (
+                <div className="mb-2">
+                  <div className="px-3 py-2 flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5 text-slate-500" />
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      Recent
+                    </h3>
+                  </div>
+                  {recentModels.map((model) => {
+                    const isSelected = model.id === selectedModel;
+                    const modalities = getModalityBadges(model);
+                    const hasImageSupport = modalities.includes("image");
+
+                    return (
+                      <button
+                        key={`recent-${model.id}`}
+                        onClick={() => handleSelectModel(model.id)}
+                        className={`w-full flex items-start gap-3 p-3 rounded-lg text-left transition-colors ${
+                          isSelected
+                            ? "bg-indigo-500/20 border border-indigo-500/50"
+                            : "hover:bg-white/5 border border-transparent"
+                        }`}
+                        data-testid={`recent-model-option-${model.id}`}
+                      >
+                        <div className="shrink-0 mt-0.5">
+                          <Bot className={`h-5 w-5 ${isSelected ? "text-indigo-400" : "text-slate-400"}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-medium ${isSelected ? "text-white" : "text-slate-200"}`}>
+                              {model.name}
+                            </span>
+                            {isSelected && (
+                              <Check className="h-4 w-4 text-indigo-400 shrink-0" />
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+                            {hasImageSupport && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                                <Image className="h-3 w-3" />
+                                <span>Vision</span>
+                              </span>
+                            )}
+                            {model.context_length && (
+                              <span>{(model.context_length / 1000).toFixed(0)}K ctx</span>
+                            )}
+                            {model.pricing && (
+                              <>
+                                <span className="text-slate-600">•</span>
+                                <span className="text-emerald-400">
+                                  {formatPrice(model.pricing.prompt)}/M in
+                                </span>
+                                <span className="text-slate-600">/</span>
+                                <span className="text-amber-400">
+                                  {formatPrice(model.pricing.completion)}/M out
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => handleRemoveRecentModel(e, model.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleRemoveRecentModel(e as unknown as React.MouseEvent, model.id);
+                            }
+                          }}
+                          className="shrink-0 p-1.5 rounded-md hover:bg-white/10 text-slate-500 hover:text-slate-300 transition-colors"
+                          title="Remove from recent"
+                          data-testid={`remove-recent-${model.id}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                  <div className="my-2 mx-3 border-t border-white/10" />
+                </div>
+              )}
+              {groupedModels.map(([provider, providerModels]) => {
+                // Filter out models already shown in Recent section
+                const displayModels = showRecentSection
+                  ? providerModels.filter((m) => !recentModelIdSet.has(m.id))
+                  : providerModels;
+
+                if (displayModels.length === 0) return null;
+
+                return (
                 <div key={provider || "all"}>
                   {/* Provider section header (only show when sorting by name and not filtering by provider) */}
                   {provider && !selectedProvider && sortBy === "name" && (
@@ -354,7 +523,7 @@ export function ModelSelectorModal({
                       </h3>
                     </div>
                   )}
-                  {providerModels.map((model) => {
+                  {displayModels.map((model) => {
                     const isSelected = model.id === selectedModel;
                     const modalities = getModalityBadges(model);
                     const hasImageSupport = modalities.includes("image");
@@ -423,7 +592,8 @@ export function ModelSelectorModal({
                     );
                   })}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

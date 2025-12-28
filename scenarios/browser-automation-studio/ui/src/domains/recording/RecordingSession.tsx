@@ -21,13 +21,15 @@
  */
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { RecordActionsPanel } from './capture/RecordActionsPanel';
 import { RecordingHeader } from './capture/RecordingHeader';
 import { TabBar } from './capture/TabBar';
 import { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanners';
 import { ClearActionsModal } from './capture/RecordModeModals';
 import { WorkflowCreationForm } from './conversion/WorkflowCreationForm';
-import type { ReplayPreviewResponse } from './types/types';
+import type { BrowserProfile, RecordingSessionProfile, ReplayPreviewResponse } from './types/types';
+import { BrowserProfileEditor } from '@/views/SettingsView/sections/sessions';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useRecordMode } from './hooks/useRecordMode';
@@ -87,6 +89,8 @@ export function RecordModePage({
   aiMaxSteps,
   autoStartAI,
 }: RecordModePageProps) {
+  const navigate = useNavigate();
+
   // Track current mode - can switch between recording and execution
   const [mode, setMode] = useState<TimelineMode>(initialMode);
 
@@ -117,6 +121,8 @@ export function RecordModePage({
   );
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  // Session settings modal state
+  const [configuringProfile, setConfiguringProfile] = useState<RecordingSessionProfile | null>(null);
   // Initialize previewUrl from template's initialUrl if provided
   const [previewUrl, setPreviewUrl] = useState(initialUrl || '');
   const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
@@ -518,6 +524,27 @@ export function RecordModePage({
     }
   }, [sessionProfiles, setSessionProfileId]);
 
+  const handleConfigureSession = useCallback((profileId: string) => {
+    const profile = sessionProfiles.profiles.find((p) => p.id === profileId);
+    if (profile) {
+      setConfiguringProfile(profile);
+    }
+  }, [sessionProfiles.profiles]);
+
+  const handleNavigateToSessionSettings = useCallback(() => {
+    navigate('/settings?tab=sessions');
+  }, [navigate]);
+
+  const handleSaveBrowserProfile = useCallback(
+    async (browserProfile: BrowserProfile) => {
+      if (!configuringProfile) return;
+      await sessionProfiles.updateBrowserProfile(configuringProfile.id, browserProfile);
+      // Refresh the profile in state
+      await sessionProfiles.refresh();
+    },
+    [configuringProfile, sessionProfiles]
+  );
+
   // Flush session state when leaving the page or closing the tab
   useEffect(() => {
     if (!sessionId) return;
@@ -698,6 +725,8 @@ export function RecordModePage({
         onSelectSessionProfile={handleSelectSessionProfile}
         onCreateSessionProfile={handleCreateSessionProfile}
         connectionStatus={connectionStatus}
+        onConfigureSession={handleConfigureSession}
+        onNavigateToSessionSettings={handleNavigateToSessionSettings}
       />
 
       {/* Tab bar for multi-tab sessions */}
@@ -813,6 +842,16 @@ export function RecordModePage({
         onCancel={() => setShowClearConfirm(false)}
         onConfirm={handleClearActions}
       />
+
+      {/* Session settings modal */}
+      {configuringProfile && (
+        <BrowserProfileEditor
+          profileName={configuringProfile.name}
+          initialProfile={configuringProfile.browser_profile}
+          onSave={handleSaveBrowserProfile}
+          onClose={() => setConfiguringProfile(null)}
+        />
+      )}
     </div>
   );
 }

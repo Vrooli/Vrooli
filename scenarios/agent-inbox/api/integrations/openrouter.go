@@ -40,16 +40,24 @@ type OpenRouterMessage struct {
 // ContentPart represents a part of a multimodal message content array.
 // Used when sending images or files along with text.
 type ContentPart struct {
-	Type string       `json:"type"` // "text" or "file"
-	Text string       `json:"text,omitempty"`
-	File *FileContent `json:"file,omitempty"`
+	Type     string           `json:"type"` // "text", "image_url", or "file"
+	Text     string           `json:"text,omitempty"`
+	ImageURL *ImageURLContent `json:"image_url,omitempty"` // For images (vision)
+	File     *FileContent     `json:"file,omitempty"`      // For documents (file-parser plugin)
 }
 
-// FileContent contains file data for multimodal messages.
-// Used for images (sent inline) and PDFs (parsed via plugin).
+// ImageURLContent contains image data for vision-capable models.
+// The URL can be a data URI (base64) or a public URL.
+type ImageURLContent struct {
+	URL    string `json:"url"`              // data:image/jpeg;base64,... or https://...
+	Detail string `json:"detail,omitempty"` // "auto", "low", or "high" (optional)
+}
+
+// FileContent contains file data for the file-parser plugin.
+// Used for PDFs and documents (NOT for images - use ImageURLContent instead).
 type FileContent struct {
 	Filename string `json:"filename"`
-	FileData string `json:"file_data"` // base64 data URI, e.g., "data:image/jpeg;base64,..."
+	FileData string `json:"file_data"` // base64 data URI, e.g., "data:application/pdf;base64,..."
 }
 
 // OpenRouterRequest is the request body for chat completions.

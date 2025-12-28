@@ -25,6 +25,10 @@ interface RecordingHeaderProps {
   onCreateSessionProfile?: () => void;
   /** Stream connection status (for combined live indicator) */
   connectionStatus?: StreamConnectionStatus | null;
+  /** Callback to configure a specific session's browser profile */
+  onConfigureSession?: (profileId: string) => void;
+  /** Callback to navigate to the Sessions settings page */
+  onNavigateToSessionSettings?: () => void;
 }
 
 export function RecordingHeader({
@@ -43,6 +47,8 @@ export function RecordingHeader({
   onSelectSessionProfile,
   onCreateSessionProfile,
   connectionStatus,
+  onConfigureSession,
+  onNavigateToSessionSettings,
 }: RecordingHeaderProps) {
   const title = mode === 'recording' ? 'Record Mode' : 'Execution Mode';
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
@@ -243,33 +249,57 @@ export function RecordingHeader({
                     </button>
                   ) : (
                     sessionProfiles.map((profile) => (
-                      <button
+                      <div
                         key={profile.id}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                        className={`flex items-center hover:bg-gray-50 dark:hover:bg-gray-700 ${
                           profile.id === selectedSessionProfileId
-                            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-200'
-                            : 'text-gray-800 dark:text-gray-100'
+                            ? 'bg-blue-50 dark:bg-blue-900/20'
+                            : ''
                         }`}
-                        onClick={() => handleSessionSelect(profile.id)}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium">{profile.name}</span>
-                          {profile.has_storage_state && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200">
-                              Auth saved
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                          Last used {formatLastUsed(profile.last_used_at)}
-                        </div>
-                      </button>
+                        <button
+                          className={`flex-1 text-left px-3 py-2 text-sm ${
+                            profile.id === selectedSessionProfileId
+                              ? 'text-blue-700 dark:text-blue-200'
+                              : 'text-gray-800 dark:text-gray-100'
+                          }`}
+                          onClick={() => handleSessionSelect(profile.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{profile.name}</span>
+                            {profile.has_storage_state && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200">
+                                Auth saved
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                            Last used {formatLastUsed(profile.last_used_at)}
+                          </div>
+                        </button>
+                        {onConfigureSession && (
+                          <button
+                            className="p-2 mr-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onConfigureSession(profile.id);
+                              setSessionMenuOpen(false);
+                            }}
+                            title={`Configure ${profile.name}`}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     ))
                   )}
                 </div>
-                <div className="border-t border-gray-100 dark:border-gray-700">
+                <div className="flex border-t border-gray-100 dark:border-gray-700">
                   <button
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    className="flex-1 text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
                     onClick={() => {
                       onCreateSessionProfile?.();
                       setSessionMenuOpen(false);
@@ -277,6 +307,18 @@ export function RecordingHeader({
                   >
                     + New session
                   </button>
+                  {onNavigateToSessionSettings && (
+                    <button
+                      className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border-l border-gray-100 dark:border-gray-700"
+                      onClick={() => {
+                        onNavigateToSessionSettings();
+                        setSessionMenuOpen(false);
+                      }}
+                      title="Open session settings page"
+                    >
+                      Session settings
+                    </button>
+                  )}
                 </div>
               </div>
             )}

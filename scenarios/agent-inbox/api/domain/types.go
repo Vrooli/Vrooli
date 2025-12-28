@@ -101,8 +101,9 @@ type Attachment struct {
 	ContentType string    `json:"content_type"`
 	FileSize    int64     `json:"file_size"`
 	StoragePath string    `json:"storage_path"`
-	Width       int       `json:"width,omitempty"`  // Images only
-	Height      int       `json:"height,omitempty"` // Images only
+	URL         string    `json:"url,omitempty"`     // Full URL for display (populated at runtime)
+	Width       int       `json:"width,omitempty"`   // Images only
+	Height      int       `json:"height,omitempty"`  // Images only
 	CreatedAt   time.Time `json:"created_at"`
 }
 
