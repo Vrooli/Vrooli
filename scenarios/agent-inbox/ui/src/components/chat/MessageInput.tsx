@@ -17,21 +17,35 @@ export interface MessagePayload {
 
 interface MessageInputProps {
   onSend: (payload: MessagePayload) => void;
-  isGenerating: boolean;
+  isLoading?: boolean;
   placeholder?: string;
-  currentModel: Model | null;
-  chatWebSearchDefault: boolean;
+  /** Enable attachment support (images, PDFs). Requires currentModel. Default: true */
+  enableAttachments?: boolean;
+  /** Enable web search toggle. Requires chatWebSearchDefault. Default: true */
+  enableWebSearch?: boolean;
+  /** Auto-focus the textarea on mount. Default: false */
+  autoFocus?: boolean;
+  currentModel?: Model | null;
+  chatWebSearchDefault?: boolean;
   onChatWebSearchDefaultChange?: (enabled: boolean) => void;
+  /** @deprecated Use isLoading instead */
+  isGenerating?: boolean;
 }
 
 export function MessageInput({
   onSend,
+  isLoading,
   isGenerating,
   placeholder = "Type a message...",
-  currentModel,
-  chatWebSearchDefault,
+  enableAttachments = true,
+  enableWebSearch = true,
+  autoFocus = false,
+  currentModel = null,
+  chatWebSearchDefault = false,
   onChatWebSearchDefaultChange,
 }: MessageInputProps) {
+  // Support both isLoading and deprecated isGenerating
+  const loading = isLoading ?? isGenerating ?? false;
   const [message, setMessage] = useState("");
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -47,17 +61,22 @@ export function MessageInput({
     getUploadedIds,
   } = useAttachments();
 
+  // Only use attachments if enabled
+  const effectiveAttachments = enableAttachments ? attachments : [];
+
   // Reset web search to chat default when it changes
   useEffect(() => {
-    setWebSearchEnabled(chatWebSearchDefault);
-  }, [chatWebSearchDefault]);
+    if (enableWebSearch) {
+      setWebSearchEnabled(chatWebSearchDefault);
+    }
+  }, [chatWebSearchDefault, enableWebSearch]);
 
-  // Model capabilities
-  const modelSupportsImages = supportsImages(currentModel);
-  const modelSupportsPDFs = supportsPDFs(currentModel);
+  // Model capabilities (only relevant when attachments are enabled)
+  const modelSupportsImages = enableAttachments && supportsImages(currentModel);
+  const modelSupportsPDFs = enableAttachments && supportsPDFs(currentModel);
 
   // Check if any attachments are incompatible with the model
-  const hasIncompatibleAttachments = attachments.some((att) => {
+  const hasIncompatibleAttachments = effectiveAttachments.some((att) => {
     if (att.type === "image" && !modelSupportsImages) return true;
     if (att.type === "pdf" && !modelSupportsPDFs) return true;
     return false;
@@ -72,36 +91,52 @@ export function MessageInput({
     }
   }, [message]);
 
+  // Auto-focus on mount if enabled
+  useEffect(() => {
+    if (autoFocus && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [autoFocus]);
+
   const handleSubmit = useCallback(() => {
     const trimmedMessage = message.trim();
-    const hasContent = trimmedMessage || attachments.length > 0;
+    const hasContent = trimmedMessage || effectiveAttachments.length > 0;
 
     // Block send if:
     // - No content (text or attachments)
-    // - Still uploading
-    // - Has upload errors
+    // - Still uploading (when attachments enabled)
+    // - Has upload errors (when attachments enabled)
     // - Has incompatible attachments
-    // - AI is generating
-    if (!hasContent || isUploading || hasErrors || hasIncompatibleAttachments || isGenerating) {
+    // - AI is loading/generating
+    if (!hasContent || loading) {
       return;
     }
 
-    // If attachments exist but not all uploaded, wait
-    if (attachments.length > 0 && !allUploaded) {
-      return;
+    if (enableAttachments) {
+      if (isUploading || hasErrors || hasIncompatibleAttachments) {
+        return;
+      }
+      // If attachments exist but not all uploaded, wait
+      if (effectiveAttachments.length > 0 && !allUploaded) {
+        return;
+      }
     }
 
     const payload: MessagePayload = {
       content: trimmedMessage,
-      attachmentIds: getUploadedIds(),
-      webSearchEnabled,
+      attachmentIds: enableAttachments ? getUploadedIds() : [],
+      webSearchEnabled: enableWebSearch ? webSearchEnabled : false,
     };
 
     onSend(payload);
     setMessage("");
-    clearAttachments();
+    if (enableAttachments) {
+      clearAttachments();
+    }
     // Reset web search to chat default after sending
-    setWebSearchEnabled(chatWebSearchDefault);
+    if (enableWebSearch) {
+      setWebSearchEnabled(chatWebSearchDefault);
+    }
 
     // Reset height
     if (textareaRef.current) {
@@ -109,17 +144,19 @@ export function MessageInput({
     }
   }, [
     message,
-    attachments,
+    effectiveAttachments,
     isUploading,
     hasErrors,
     hasIncompatibleAttachments,
-    isGenerating,
+    loading,
     allUploaded,
     getUploadedIds,
     webSearchEnabled,
     onSend,
     clearAttachments,
     chatWebSearchDefault,
+    enableAttachments,
+    enableWebSearch,
   ]);
 
   const handleKeyDown = useCallback(
@@ -151,34 +188,35 @@ export function MessageInput({
   );
 
   // Determine if send button should be disabled
-  const hasContent = message.trim() || attachments.length > 0;
-  const canSend =
-    hasContent &&
-    !isGenerating &&
-    !isUploading &&
-    !hasErrors &&
-    !hasIncompatibleAttachments &&
-    (attachments.length === 0 || allUploaded);
+  const hasContent = message.trim() || effectiveAttachments.length > 0;
+  const canSend = (() => {
+    if (!hasContent || loading) return false;
+    if (enableAttachments) {
+      if (isUploading || hasErrors || hasIncompatibleAttachments) return false;
+      if (effectiveAttachments.length > 0 && !allUploaded) return false;
+    }
+    return true;
+  })();
 
   // Build send button tooltip
   let sendTooltip = "Send message (Enter)";
-  if (isGenerating) {
+  if (loading) {
     sendTooltip = "AI is responding...";
-  } else if (isUploading) {
+  } else if (enableAttachments && isUploading) {
     sendTooltip = "Uploading attachments...";
-  } else if (hasErrors) {
+  } else if (enableAttachments && hasErrors) {
     sendTooltip = "Fix attachment errors before sending";
-  } else if (hasIncompatibleAttachments) {
+  } else if (enableAttachments && hasIncompatibleAttachments) {
     sendTooltip = "Remove attachments not supported by this model";
   }
 
   return (
-    <div className="p-4 border-t border-white/10 bg-slate-950/50" data-testid="message-input-container">
+    <div className="p-4" data-testid="message-input-container">
       {/* Attachment preview area */}
-      {attachments.length > 0 && (
+      {enableAttachments && effectiveAttachments.length > 0 && (
         <div className="mb-2">
           <AttachmentPreview
-            attachments={attachments}
+            attachments={effectiveAttachments}
             onRemove={removeAttachment}
             isUploading={isUploading}
           />
@@ -190,48 +228,49 @@ export function MessageInput({
         </div>
       )}
 
-      <div className="flex items-end gap-2">
-        {/* Attachment Button */}
-        <AttachmentButton
-          onImageSelect={handleImageSelect}
-          onPDFSelect={handlePDFSelect}
-          webSearchEnabled={webSearchEnabled}
-          onWebSearchToggle={handleWebSearchToggle}
-          disabled={isGenerating}
-          modelSupportsImages={modelSupportsImages}
-          modelSupportsPDFs={modelSupportsPDFs}
+      {/* Input container with buttons inside */}
+      <div className="flex items-end gap-2 p-3 bg-white/5 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-transparent transition-all">
+        {/* Attachment Button (inside, on left) */}
+        {enableAttachments && (
+          <AttachmentButton
+            onImageSelect={handleImageSelect}
+            onPDFSelect={handlePDFSelect}
+            webSearchEnabled={webSearchEnabled}
+            onWebSearchToggle={enableWebSearch ? handleWebSearchToggle : undefined}
+            disabled={loading}
+            modelSupportsImages={modelSupportsImages}
+            modelSupportsPDFs={modelSupportsPDFs}
+          />
+        )}
+
+        {/* Textarea */}
+        <textarea
+          ref={textareaRef}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={loading}
+          rows={1}
+          className="flex-1 bg-transparent text-sm text-white placeholder:text-slate-500 resize-none focus:outline-none disabled:opacity-50 min-h-[40px]"
+          data-testid="message-input"
         />
 
-        {/* Input Area */}
-        <div className="flex-1 relative">
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={isGenerating}
-            rows={1}
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder:text-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50"
-            data-testid="message-input"
-          />
-          <div className="absolute right-3 bottom-3 flex items-center gap-1">
-            {!isGenerating && message.length > 0 && (
-              <span className="text-xs text-slate-600">{message.length}</span>
-            )}
-          </div>
-        </div>
+        {/* Character count */}
+        {!loading && message.length > 0 && (
+          <span className="text-xs text-slate-600 self-end pb-2">{message.length}</span>
+        )}
 
-        {/* Send Button */}
+        {/* Send Button (inside, on right) */}
         <Tooltip content={sendTooltip}>
           <Button
             onClick={handleSubmit}
             disabled={!canSend}
             size="icon"
-            className="h-11 w-11 shrink-0"
+            className="h-10 w-10 shrink-0"
             data-testid="send-message-button"
           >
-            {isGenerating ? (
+            {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />
@@ -248,12 +287,14 @@ export function MessageInput({
             send, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Shift+Enter</kbd>{" "}
             for new line
           </p>
-          <WebSearchIndicator
-            enabled={webSearchEnabled}
-            onDisable={() => setWebSearchEnabled(false)}
-          />
+          {enableWebSearch && (
+            <WebSearchIndicator
+              enabled={webSearchEnabled}
+              onDisable={() => setWebSearchEnabled(false)}
+            />
+          )}
         </div>
-        {isGenerating && (
+        {loading && (
           <span className="text-xs text-indigo-400 flex items-center gap-1">
             <Loader2 className="h-3 w-3 animate-spin" />
             AI is responding...

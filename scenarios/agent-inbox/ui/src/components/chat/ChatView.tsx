@@ -130,12 +130,14 @@ export function ChatView({
         isForking={isForking}
       />
 
-      <MessageInput
-        onSend={onSendMessage}
-        isGenerating={isGenerating}
-        currentModel={models.find((m) => m.id === chatData.chat.model) || null}
-        chatWebSearchDefault={chatData.chat.web_search_enabled || false}
-      />
+      <div className="border-t border-white/10 bg-slate-950/50">
+        <MessageInput
+          onSend={onSendMessage}
+          isLoading={isGenerating}
+          currentModel={models.find((m) => m.id === chatData.chat.model) || null}
+          chatWebSearchDefault={chatData.chat.web_search_enabled || false}
+        />
+      </div>
     </div>
   );
 }

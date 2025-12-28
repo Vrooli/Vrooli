@@ -476,7 +476,7 @@ function AppContent() {
             isForking={isForking}
           />
         ) : (
-          <EmptyState onStartChat={createChatWithMessage} isCreating={isCreatingChat} />
+          <EmptyState onStartChat={createChatWithMessage} isCreating={isCreatingChat} models={models} />
         )}
       </div>
 

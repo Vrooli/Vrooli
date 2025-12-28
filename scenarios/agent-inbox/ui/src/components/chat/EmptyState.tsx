@@ -1,48 +1,16 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import { MessageSquare, Sparkles, Zap, Shield, Send, Loader2 } from "lucide-react";
-import { Button } from "../ui/button";
-import { Tooltip } from "../ui/tooltip";
-import type { MessagePayload } from "./MessageInput";
+import { MessageSquare, Sparkles, Zap, Shield } from "lucide-react";
+import { MessageInput, type MessagePayload } from "./MessageInput";
+import type { Model } from "../../lib/api";
 
 interface EmptyStateProps {
   onStartChat: (payload: MessagePayload) => void;
   isCreating: boolean;
+  models: Model[];
 }
 
-export function EmptyState({ onStartChat, isCreating }: EmptyStateProps) {
-  const [message, setMessage] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Auto-resize textarea
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
-    }
-  }, [message]);
-
-  const handleSubmit = useCallback(() => {
-    const trimmedMessage = message.trim();
-    if (trimmedMessage && !isCreating) {
-      onStartChat({
-        content: trimmedMessage,
-        attachmentIds: [],
-        webSearchEnabled: false,
-      });
-      setMessage("");
-    }
-  }, [message, isCreating, onStartChat]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSubmit();
-      }
-    },
-    [handleSubmit]
-  );
+export function EmptyState({ onStartChat, isCreating, models }: EmptyStateProps) {
+  // Use the first model as default for capability checking
+  const defaultModel = models[0] ?? null;
 
   return (
     <div className="flex-1 flex items-center justify-center bg-slate-950 p-4 sm:p-8" data-testid="empty-state">
@@ -65,40 +33,13 @@ export function EmptyState({ onStartChat, isCreating }: EmptyStateProps) {
 
         {/* Chat Input - Primary CTA */}
         <div className="mb-8">
-          <div className="flex items-end gap-2 p-3 bg-white/5 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-transparent transition-all">
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your message to start a conversation..."
-              disabled={isCreating}
-              rows={1}
-              autoFocus
-              className="flex-1 bg-transparent text-sm sm:text-base text-white placeholder:text-slate-500 resize-none focus:outline-none disabled:opacity-50 min-h-[40px]"
-              data-testid="empty-state-input"
-            />
-            <Tooltip content={isCreating ? "Creating chat..." : "Start conversation (Enter)"}>
-              <Button
-                onClick={handleSubmit}
-                disabled={!message.trim() || isCreating}
-                size="icon"
-                className="h-10 w-10 shrink-0"
-                data-testid="empty-state-send-button"
-              >
-                {isCreating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </Tooltip>
-          </div>
-          <p className="text-xs text-slate-600 mt-2 text-center">
-            Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Enter</kbd> to
-            send, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Shift+Enter</kbd>{" "}
-            for new line
-          </p>
+          <MessageInput
+            onSend={onStartChat}
+            isLoading={isCreating}
+            placeholder="Type your message to start a conversation..."
+            currentModel={defaultModel}
+            autoFocus
+          />
         </div>
 
         {/* Features - Compact on mobile */}

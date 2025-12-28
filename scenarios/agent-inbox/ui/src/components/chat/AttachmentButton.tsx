@@ -14,8 +14,10 @@ import { Tooltip } from "../ui/tooltip";
 interface AttachmentButtonProps {
   onImageSelect: (file: File) => void;
   onPDFSelect: (file: File) => void;
-  webSearchEnabled: boolean;
-  onWebSearchToggle: (enabled: boolean) => void;
+  /** Whether web search is enabled. Only used when showWebSearch is true. */
+  webSearchEnabled?: boolean;
+  /** Callback when web search is toggled. If not provided, web search option is hidden. */
+  onWebSearchToggle?: (enabled: boolean) => void;
   disabled?: boolean;
   modelSupportsImages: boolean;
   modelSupportsPDFs: boolean;
@@ -24,12 +26,13 @@ interface AttachmentButtonProps {
 export function AttachmentButton({
   onImageSelect,
   onPDFSelect,
-  webSearchEnabled,
+  webSearchEnabled = false,
   onWebSearchToggle,
   disabled = false,
   modelSupportsImages,
   modelSupportsPDFs,
 }: AttachmentButtonProps) {
+  const showWebSearch = !!onWebSearchToggle;
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -89,7 +92,7 @@ export function AttachmentButton({
   );
 
   const handleWebSearchClick = useCallback(() => {
-    onWebSearchToggle(!webSearchEnabled);
+    onWebSearchToggle?.(!webSearchEnabled);
     setIsOpen(false);
   }, [webSearchEnabled, onWebSearchToggle]);
 
@@ -166,26 +169,30 @@ export function AttachmentButton({
               </div>
             </button>
 
-            {/* Divider */}
-            <div className="my-1 border-t border-white/10" />
+            {/* Web search toggle (only shown when enabled) */}
+            {showWebSearch && (
+              <>
+                {/* Divider */}
+                <div className="my-1 border-t border-white/10" />
 
-            {/* Web search toggle */}
-            <button
-              onClick={handleWebSearchClick}
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-white/10 text-left"
-              data-testid="attachment-search-option"
-            >
-              <Globe className="h-4 w-4 text-green-400" />
-              <div className="flex-1">
-                <div className="text-white">Web search</div>
-                <div className="text-xs text-slate-500">
-                  {webSearchEnabled ? "Enabled for this message" : "Search the web for answers"}
-                </div>
-              </div>
-              {webSearchEnabled && (
-                <Check className="h-4 w-4 text-green-400" />
-              )}
-            </button>
+                <button
+                  onClick={handleWebSearchClick}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-white/10 text-left"
+                  data-testid="attachment-search-option"
+                >
+                  <Globe className="h-4 w-4 text-green-400" />
+                  <div className="flex-1">
+                    <div className="text-white">Web search</div>
+                    <div className="text-xs text-slate-500">
+                      {webSearchEnabled ? "Enabled for this message" : "Search the web for answers"}
+                    </div>
+                  </div>
+                  {webSearchEnabled && (
+                    <Check className="h-4 w-4 text-green-400" />
+                  )}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
