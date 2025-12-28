@@ -4,7 +4,7 @@ import { loadHistory, type HistoryEntry } from '../capture/BrowserUrlBar';
 import { useLinkPreviewsBatch, type LinkPreviewData } from '../hooks/useLinkPreview';
 import type { RecordedAction } from '../types/types';
 import { PlaywrightView, type FrameStats, type PageMetadata, type StreamConnectionStatus } from '../capture/PlaywrightView';
-import { StreamSettings, useStreamSettings, type StreamSettingsValues } from '../capture/StreamSettings';
+import { useStreamSettings, type StreamSettingsValues } from '../capture/StreamSettings';
 import { FrameStatsDisplay } from '../capture/FrameStatsDisplay';
 import { BrowserUrlBar } from '../capture/BrowserUrlBar';
 import { usePerfStats } from '../hooks/usePerfStats';
@@ -16,8 +16,7 @@ import type { ReplayRect } from '@/domains/replay-layout';
 import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
 import ReplayPresentation from '@/domains/exports/replay/ReplayPresentation';
 import { useReplayPresentationModel } from '@/domains/exports/replay/useReplayPresentationModel';
-import { ReplaySection } from '@/views/SettingsView/sections/ReplaySection';
-import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
+import { PreviewSettingsDialog } from '@/domains/preview-settings';
 import clsx from 'clsx';
 
 interface RecordPreviewPanelProps {
@@ -71,21 +70,17 @@ export function RecordPreviewPanel({
   // Track viewport for passing to PlaywrightView (for coordinate mapping)
   const [currentViewport, setCurrentViewport] = useState<{ width: number; height: number } | null>(null);
   const [showReplayStyle, setShowReplayStyle] = useState(false);
-  const [showReplaySettings, setShowReplaySettings] = useState(false);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [newPresetName, setNewPresetName] = useState('');
+  const [showPreviewSettings, setShowPreviewSettings] = useState(false);
   const [previewContentRect, setPreviewContentRect] = useState<ReplayRect | null>(null);
 
-  // Stream settings management
-  const { preset, settings: streamSettings, showStats, setPreset, setShowStats } = useStreamSettings();
+  // Stream settings management (read-only here - modifications happen in PreviewSettingsDialog)
+  const { settings: streamSettings, showStats } = useStreamSettings();
 
   // Debug performance stats from server (enabled when showStats is on)
   const { stats: perfStats } = usePerfStats(sessionId ?? null, showStats);
   const {
     replay,
     setReplaySetting,
-    randomizeSettings,
-    saveAsPreset,
   } = useSettingsStore();
 
   const styleOverrides = useMemo(
@@ -227,14 +222,6 @@ export function RecordPreviewPanel({
 
   const previewLayout = showReplayStyle ? presentationModel.layout : null;
 
-  const handleSavePreset = useCallback(() => {
-    const trimmedName = newPresetName.trim();
-    if (!trimmedName) return;
-    saveAsPreset(trimmedName);
-    setNewPresetName('');
-    setShowSaveDialog(false);
-  }, [newPresetName, saveAsPreset]);
-
   const handleContentRectChange = useCallback(
     (rect: ReplayRect) => {
       const viewportNode = viewportRef.current;
@@ -297,23 +284,13 @@ export function RecordPreviewPanel({
 
         <button
           type="button"
-          onClick={() => setShowReplaySettings(true)}
+          onClick={() => setShowPreviewSettings(true)}
           className="flex items-center gap-2 px-2 py-1.5 text-xs text-gray-300 hover:text-surface bg-gray-800/70 border border-gray-700 rounded-lg transition-colors"
-          title="Configure replay styling"
+          title="Configure stream and replay settings"
         >
           <SlidersHorizontal size={14} />
           Settings
         </button>
-
-        {/* Stream quality settings */}
-        <StreamSettings
-          sessionId={sessionId}
-          preset={preset}
-          onPresetChange={setPreset}
-          onSettingsChange={(newSettings) => onStreamSettingsChange?.(newSettings)}
-          showStats={showStats}
-          onShowStatsChange={setShowStats}
-        />
       </div>
       <div className="flex-1 overflow-hidden" ref={previewBoundsRef}>
         <div
@@ -391,74 +368,11 @@ export function RecordPreviewPanel({
         </div>
       </div>
 
-      <ResponsiveDialog
-        isOpen={showReplaySettings}
-        onDismiss={() => setShowReplaySettings(false)}
-        ariaLabel="Replay settings"
-        size="xl"
-      >
-        <div className="max-h-[85vh] overflow-y-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-semibold text-surface">Replay Settings</h2>
-              <p className="text-xs text-gray-400">Tune styling for the live replay preview.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowReplaySettings(false)}
-              className="px-3 py-1.5 text-xs text-gray-300 hover:text-surface bg-gray-800 rounded-lg"
-            >
-              Close
-            </button>
-          </div>
-          <ReplaySection
-            onRandomize={() => randomizeSettings()}
-            onSavePreset={() => setShowSaveDialog(true)}
-          />
-        </div>
-      </ResponsiveDialog>
-
-      <ResponsiveDialog
-        isOpen={showSaveDialog}
-        onDismiss={() => setShowSaveDialog(false)}
-        ariaLabel="Save replay preset"
-      >
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 w-full max-w-md">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-gray-800 rounded-lg">
-              <SlidersHorizontal size={16} className="text-flow-accent" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-surface">Save Preset</h2>
-              <p className="text-xs text-gray-400">Name this replay style for reuse.</p>
-            </div>
-          </div>
-          <input
-            type="text"
-            value={newPresetName}
-            onChange={(e) => setNewPresetName(e.target.value)}
-            placeholder="My replay preset"
-            className="w-full px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded-lg text-surface focus:outline-none focus:ring-2 focus:ring-flow-accent/50 mb-4"
-          />
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setShowSaveDialog(false)}
-              className="flex-1 px-4 py-2 text-subtle hover:text-surface hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSavePreset}
-              disabled={!newPresetName.trim()}
-              className="flex-1 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Save Preset
-            </button>
-          </div>
-        </div>
-      </ResponsiveDialog>
+      <PreviewSettingsDialog
+        isOpen={showPreviewSettings}
+        onClose={() => setShowPreviewSettings(false)}
+        sessionId={sessionId ?? null}
+      />
     </div>
   );
 }
