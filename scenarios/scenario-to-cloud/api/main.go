@@ -81,6 +81,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/manifest/validate", s.handleManifestValidate).Methods("POST")
 	api.HandleFunc("/plan", s.handlePlan).Methods("POST")
 	api.HandleFunc("/bundle/build", s.handleBundleBuild).Methods("POST")
+	api.HandleFunc("/bundles", s.handleListBundles).Methods("GET")
 	api.HandleFunc("/preflight", s.handlePreflight).Methods("POST")
 	api.HandleFunc("/vps/setup/plan", s.handleVPSSetupPlan).Methods("POST")
 	api.HandleFunc("/vps/setup/apply", s.handleVPSSetupApply).Methods("POST")
@@ -206,6 +207,34 @@ func (s *Server) handleBundleBuild(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"artifact":  artifact,
 		"issues":    issues,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handleListBundles(w http.ResponseWriter, r *http.Request) {
+	repoRoot, err := FindRepoRootFromCWD()
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "repo_root_not_found",
+			Message: "Unable to locate Vrooli repo root from server working directory",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	bundlesDir := repoRoot + "/scenarios/scenario-to-cloud/coverage/bundles"
+	bundles, err := ListBundles(bundlesDir)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "list_bundles_failed",
+			Message: "Failed to list bundles",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"bundles":   bundles,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
 }

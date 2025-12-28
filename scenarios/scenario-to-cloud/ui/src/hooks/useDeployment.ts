@@ -306,6 +306,7 @@ export function useDeployment() {
 
     // Bundle
     bundleArtifact,
+    setBundleArtifact,
     bundleError,
     isBuildingBundle,
     build,

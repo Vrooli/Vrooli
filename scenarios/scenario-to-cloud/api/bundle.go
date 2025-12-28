@@ -23,6 +23,73 @@ type BundleArtifact struct {
 	SizeBytes int64  `json:"size_bytes"`
 }
 
+type BundleInfo struct {
+	Path       string `json:"path"`
+	Filename   string `json:"filename"`
+	ScenarioID string `json:"scenario_id"`
+	Sha256     string `json:"sha256"`
+	SizeBytes  int64  `json:"size_bytes"`
+	CreatedAt  string `json:"created_at"`
+}
+
+func ListBundles(bundlesDir string) ([]BundleInfo, error) {
+	if !dirExists(bundlesDir) {
+		return []BundleInfo{}, nil
+	}
+
+	entries, err := os.ReadDir(bundlesDir)
+	if err != nil {
+		return nil, fmt.Errorf("read bundles directory: %w", err)
+	}
+
+	var bundles []BundleInfo
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasPrefix(name, "mini-vrooli_") || !strings.HasSuffix(name, ".tar.gz") {
+			continue
+		}
+
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		scenarioID, sha256Hash := parseBundleFilename(name)
+		bundles = append(bundles, BundleInfo{
+			Path:       filepath.Join(bundlesDir, name),
+			Filename:   name,
+			ScenarioID: scenarioID,
+			Sha256:     sha256Hash,
+			SizeBytes:  info.Size(),
+			CreatedAt:  info.ModTime().UTC().Format(time.RFC3339),
+		})
+	}
+
+	// Sort by creation time, newest first
+	sort.Slice(bundles, func(i, j int) bool {
+		return bundles[i].CreatedAt > bundles[j].CreatedAt
+	})
+
+	return bundles, nil
+}
+
+func parseBundleFilename(name string) (scenarioID, sha256Hash string) {
+	// Format: mini-vrooli_<scenario-id>_<sha256>.tar.gz
+	name = strings.TrimPrefix(name, "mini-vrooli_")
+	name = strings.TrimSuffix(name, ".tar.gz")
+
+	// Find the last underscore followed by a 64-char hex string (SHA256)
+	lastUnderscore := strings.LastIndex(name, "_")
+	if lastUnderscore == -1 || len(name)-lastUnderscore-1 != 64 {
+		return name, ""
+	}
+
+	return name[:lastUnderscore], name[lastUnderscore+1:]
+}
+
 func FindRepoRootFromCWD() (string, error) {
 	if override := strings.TrimSpace(os.Getenv("SCENARIO_TO_CLOUD_REPO_ROOT")); override != "" {
 		return filepath.Clean(override), nil

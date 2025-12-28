@@ -36,6 +36,16 @@ export type PlanResponse = { plan: PlanStep[]; timestamp: string };
 export type BundleArtifact = { path: string; sha256: string; size_bytes: number };
 export type BundleBuildResponse = { artifact: BundleArtifact; timestamp: string };
 
+export type BundleInfo = {
+  path: string;
+  filename: string;
+  scenario_id: string;
+  sha256: string;
+  size_bytes: number;
+  created_at: string;
+};
+export type ListBundlesResponse = { bundles: BundleInfo[]; timestamp: string };
+
 export type PortConfig = {
   env_var?: string;
   description?: string;
@@ -114,6 +124,19 @@ export async function buildBundle(manifest: unknown) {
     throw new Error(`Bundle build failed: ${res.status} ${text}`);
   }
   return res.json() as Promise<BundleBuildResponse>;
+}
+
+export async function listBundles() {
+  const url = buildApiUrl("/bundles", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list bundles: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ListBundlesResponse>;
 }
 
 export async function listScenarios() {
