@@ -176,14 +176,6 @@ func (h *Handler) CloseRecordingPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Don't allow closing the initial page
-	if pageID == pages.GetInitialPageID() {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
-			"error": "Cannot close the initial page",
-		}))
-		return
-	}
-
 	// Close the page
 	if err := pages.ClosePage(pageID); err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{

@@ -304,13 +304,6 @@ export function usePages({
       return;
     }
 
-    // Don't close if it's the initial page (protection on UI side as well)
-    const page = pages.get(pageId);
-    if (page?.isInitial) {
-      console.warn('[usePages] Cannot close the initial page');
-      return;
-    }
-
     try {
       const response = await fetch(
         `${apiUrl}/recordings/live/${sessionId}/pages/${pageId}/close`,
@@ -355,7 +348,7 @@ export function usePages({
       setError(message);
       console.error('[usePages] Error closing page:', err);
     }
-  }, [apiUrl, sessionId, pages]);
+  }, [apiUrl, sessionId]);
 
   // Create a new page (user-initiated)
   const createPage = useCallback(async (url?: string) => {

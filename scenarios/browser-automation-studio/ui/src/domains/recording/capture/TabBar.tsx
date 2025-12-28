@@ -25,8 +25,6 @@ interface TabBarProps {
   isLoading?: boolean;
   /** Page ID with recent activity (for activity indicator) */
   recentActivityPageId?: string | null;
-  /** Whether to show the tab bar (hidden when only one page) */
-  show?: boolean;
 }
 
 /** Individual tab component */
@@ -43,8 +41,8 @@ function Tab({
   onClick: () => void;
   onClose?: () => void;
 }) {
-  // Can this tab be closed?
-  const canClose = onClose && !page.isInitial;
+  // Can this tab be closed? (all tabs are closable now)
+  const canClose = !!onClose;
 
   // Truncate title for display
   const displayTitle = useMemo(() => {
@@ -163,17 +161,43 @@ function Tab({
         </button>
       )}
 
-      {/* Initial page badge */}
-      {page.isInitial && (
-        <span className="flex-shrink-0 text-[9px] px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-          main
-        </span>
-      )}
-
       {/* Active indicator line */}
       {isActive && (
         <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
       )}
+    </div>
+  );
+}
+
+/** Placeholder tab shown when no pages are open */
+function NewTabPlaceholder({ onClick }: { onClick?: () => void }) {
+  return (
+    <div
+      role="tab"
+      aria-selected={true}
+      onClick={onClick}
+      className={`
+        relative group flex items-center gap-2 px-3 py-2 max-w-[200px]
+        rounded-t-lg transition-all duration-150 ease-out
+        border-t border-l border-r cursor-pointer
+        bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 z-10 -mb-px
+      `}
+      title="New Tab"
+    >
+      {/* Plus icon */}
+      <div className="flex-shrink-0 w-4 h-4 rounded flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      </div>
+
+      {/* Tab title */}
+      <span className="flex-1 text-xs font-medium truncate text-gray-900 dark:text-gray-100">
+        New Tab
+      </span>
+
+      {/* Active indicator line */}
+      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
     </div>
   );
 }
@@ -186,7 +210,6 @@ export function TabBar({
   onCreateTab,
   isLoading = false,
   recentActivityPageId = null,
-  show = true,
 }: TabBarProps) {
   const handleTabClick = useCallback((pageId: string) => {
     if (pageId !== activePageId) {
@@ -201,27 +224,16 @@ export function TabBar({
     [onTabClose]
   );
 
-  // Always render the tab bar container for consistent layout
-  // Show empty state placeholder when no pages or only one page
-  const showTabs = show && pages.length > 1;
-  const showEmptyState = pages.length <= 1;
+  // Always show tabs - either real pages or a "New Tab" placeholder
+  const hasPages = pages.length > 0;
 
   return (
     <div className="flex items-center px-2 py-1.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 overflow-x-auto min-h-[42px]">
-      {/* Empty state placeholder when no tabs or single tab */}
-      {showEmptyState && (
-        <div className="flex items-center gap-2 px-2 py-1 text-xs text-gray-400 dark:text-gray-500">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5z" />
-          </svg>
-          <span>Open links to create new tabs</span>
-        </div>
-      )}
-
-      {/* Tab list - only show when multiple pages */}
-      {showTabs && (
-        <div className="flex items-end gap-0.5" role="tablist" aria-label="Browser tabs">
-          {pages.map((page) => (
+      {/* Tab list */}
+      <div className="flex items-end gap-0.5" role="tablist" aria-label="Browser tabs">
+        {hasPages ? (
+          // Show actual page tabs
+          pages.map((page) => (
             <Tab
               key={page.id}
               page={page}
@@ -230,15 +242,15 @@ export function TabBar({
               onClick={() => handleTabClick(page.id)}
               onClose={onTabClose ? () => handleTabClose(page.id) : undefined}
             />
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          // Show "New Tab" placeholder when no pages
+          <NewTabPlaceholder onClick={onCreateTab} />
+        )}
+      </div>
 
-      {/* Spacer to push new tab button to the right when showing tabs */}
-      {showTabs && <div className="flex-1" />}
-
-      {/* New tab button */}
-      {onCreateTab && (
+      {/* New tab button - only show when there are actual pages */}
+      {onCreateTab && hasPages && (
         <button
           onClick={onCreateTab}
           className="flex-shrink-0 ml-1 p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"

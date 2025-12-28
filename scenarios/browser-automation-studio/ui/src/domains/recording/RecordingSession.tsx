@@ -216,6 +216,20 @@ export function RecordModePage({
       // This gives the user immediate feedback of the new tab
       void switchToPage(page.id);
     },
+    onPageClosed: (pageId) => {
+      console.log('[RecordModePage] Page closed:', pageId);
+      // If the closed page was the one being viewed, clear the URL
+      // The openPages array will be updated after this callback, so we check
+      // if we're closing the active page and there will be no pages left
+      if (pageId === activePageId) {
+        // Check how many open pages remain (excluding the one being closed)
+        const remainingPages = openPages.filter(p => p.id !== pageId);
+        if (remainingPages.length === 0) {
+          // No more pages - clear the URL to show the empty state
+          setPreviewUrl('');
+        }
+      }
+    },
     onActivePageChanged: (pageId) => {
       console.log('[RecordModePage] Active page changed:', pageId);
       // Update the URL bar to show the new page's URL
@@ -737,7 +751,6 @@ export function RecordModePage({
         onCreateTab={() => createPage()}
         isLoading={isPagesLoading}
         recentActivityPageId={recentActivityPageId}
-        show={true}
       />
 
       {/* Error display */}

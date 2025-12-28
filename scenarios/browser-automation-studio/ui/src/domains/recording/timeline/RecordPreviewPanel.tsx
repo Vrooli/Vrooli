@@ -52,7 +52,15 @@ export function RecordPreviewPanel({
     return actions[actions.length - 1]?.url ?? '';
   }, [actions]);
 
-  const effectiveUrl = previewUrl || lastUrl;
+  // Check if URL is navigable (not empty, about:blank, or chrome-error://)
+  const isNavigableUrl = (url: string) => {
+    if (!url) return false;
+    const lowerUrl = url.toLowerCase();
+    return !lowerUrl.startsWith('about:') && !lowerUrl.startsWith('chrome-error://');
+  };
+
+  const rawEffectiveUrl = previewUrl || lastUrl;
+  const effectiveUrl = isNavigableUrl(rawEffectiveUrl) ? rawEffectiveUrl : '';
 
   const [liveRefreshToken, setLiveRefreshToken] = useState(0);
   const previewBoundsRef = useRef<HTMLDivElement | null>(null);
@@ -338,24 +346,20 @@ export function RecordPreviewPanel({
                 >
                   <div className="flex h-full w-full items-center justify-center">
                     <div ref={playwrightContainerRef} className="relative flex h-full w-full overflow-hidden">
-                      {sessionId ? (
-                        effectiveUrl ? (
-                          <PlaywrightView
-                            sessionId={sessionId}
-                            pageId={activePageId ?? undefined}
-                            refreshToken={liveRefreshToken}
-                            viewport={currentViewport ?? undefined}
-                            quality={streamSettings.quality}
-                            fps={streamSettings.fps}
-                            onStatsUpdate={handleStatsUpdate}
-                            onPageMetadataChange={handlePageMetadataChange}
-                            onContentRectChange={handleContentRectChange}
-                            onConnectionStatusChange={onConnectionStatusChange}
-                            hideConnectionIndicator={hideConnectionIndicator}
-                          />
-                        ) : (
-                          <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
-                        )
+                      {sessionId && effectiveUrl ? (
+                        <PlaywrightView
+                          sessionId={sessionId}
+                          pageId={activePageId ?? undefined}
+                          refreshToken={liveRefreshToken}
+                          viewport={currentViewport ?? undefined}
+                          quality={streamSettings.quality}
+                          fps={streamSettings.fps}
+                          onStatsUpdate={handleStatsUpdate}
+                          onPageMetadataChange={handlePageMetadataChange}
+                          onContentRectChange={handleContentRectChange}
+                          onConnectionStatusChange={onConnectionStatusChange}
+                          hideConnectionIndicator={hideConnectionIndicator}
+                        />
                       ) : (
                         <StartRecordingState onNavigate={onPreviewUrlChange} />
                       )}
@@ -365,23 +369,19 @@ export function RecordPreviewPanel({
               </div>
             ) : (
               <div className="h-full w-full">
-                {sessionId ? (
-                  effectiveUrl ? (
-                    <PlaywrightView
-                      sessionId={sessionId}
-                      pageId={activePageId ?? undefined}
-                      refreshToken={liveRefreshToken}
-                      viewport={currentViewport ?? undefined}
-                      quality={streamSettings.quality}
-                      fps={streamSettings.fps}
-                      onStatsUpdate={handleStatsUpdate}
-                      onPageMetadataChange={handlePageMetadataChange}
-                      onConnectionStatusChange={onConnectionStatusChange}
-                      hideConnectionIndicator={hideConnectionIndicator}
-                    />
-                  ) : (
-                    <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
-                  )
+                {sessionId && effectiveUrl ? (
+                  <PlaywrightView
+                    sessionId={sessionId}
+                    pageId={activePageId ?? undefined}
+                    refreshToken={liveRefreshToken}
+                    viewport={currentViewport ?? undefined}
+                    quality={streamSettings.quality}
+                    fps={streamSettings.fps}
+                    onStatsUpdate={handleStatsUpdate}
+                    onPageMetadataChange={handlePageMetadataChange}
+                    onConnectionStatusChange={onConnectionStatusChange}
+                    hideConnectionIndicator={hideConnectionIndicator}
+                  />
                 ) : (
                   <StartRecordingState onNavigate={onPreviewUrlChange} />
                 )}
@@ -459,28 +459,6 @@ export function RecordPreviewPanel({
           </div>
         </div>
       </ResponsiveDialog>
-    </div>
-  );
-}
-
-function EmptyState({ title, subtitle, actionLabel, onAction }: { title: string; subtitle?: string; actionLabel?: string; onAction?: () => void }) {
-  return (
-    <div className="h-full flex flex-col items-center justify-center text-center px-6">
-      {/* Clock icon with full circle */}
-      <svg className="w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="10" strokeWidth={1.5} />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6l4 2" />
-      </svg>
-      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{title}</p>
-      {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
-      {actionLabel && onAction && (
-        <button
-          className="mt-3 px-3 py-1.5 text-xs font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600"
-          onClick={onAction}
-        >
-          {actionLabel}
-        </button>
-      )}
     </div>
   );
 }
