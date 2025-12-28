@@ -3,7 +3,8 @@ import { useSessionProfiles } from '@/domains/recording';
 import type { BrowserProfile, RecordingSessionProfile } from '@/domains/recording';
 import { BrowserProfileEditor, StorageStateModal } from './sessions';
 
-const formatLastUsed = (value: string) => {
+const formatLastUsed = (value: string | undefined) => {
+  if (!value) return 'Unknown';
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
     return 'Unknown';
@@ -29,7 +30,7 @@ export function SessionProfilesTab() {
 
   const sortedProfiles = useMemo(
     () =>
-      [...profiles].sort((a, b) => new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime()),
+      [...profiles].sort((a, b) => new Date(b.last_used_at).getTime() - new Date(a.last_used_at).getTime()),
     [profiles]
   );
 
@@ -139,14 +140,14 @@ export function SessionProfilesTab() {
                     <>
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{profile.name}</p>
-                        {profile.hasStorageState && (
+                        {profile.has_storage_state && (
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200">
                             Auth saved
                           </span>
                         )}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Last used {formatLastUsed(profile.lastUsedAt)}
+                        Last used {formatLastUsed(profile.last_used_at)}
                       </p>
                     </>
                   )}
@@ -200,7 +201,7 @@ export function SessionProfilesTab() {
       {configuringProfile && (
         <BrowserProfileEditor
           profileName={configuringProfile.name}
-          initialProfile={configuringProfile.browserProfile}
+          initialProfile={configuringProfile.browser_profile}
           onSave={handleSaveBrowserProfile}
           onClose={() => setConfiguringProfile(null)}
         />

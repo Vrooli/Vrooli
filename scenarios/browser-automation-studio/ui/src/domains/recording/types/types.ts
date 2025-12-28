@@ -208,11 +208,11 @@ export interface RecordingState {
 export interface RecordingSessionProfile {
   id: string;
   name: string;
-  createdAt: string;
-  updatedAt: string;
-  lastUsedAt: string;
-  hasStorageState: boolean;
-  browserProfile?: BrowserProfile;
+  created_at: string;
+  updated_at: string;
+  last_used_at: string;
+  has_storage_state: boolean;
+  browser_profile?: BrowserProfile;
 }
 
 // ============================================================================
@@ -255,53 +255,53 @@ export type ScrollStyle = 'instant' | 'smooth' | 'natural';
  * Fingerprint settings for browser identity.
  */
 export interface FingerprintSettings {
-  viewportWidth?: number;
-  viewportHeight?: number;
-  deviceScaleFactor?: number;
-  hardwareConcurrency?: number;
-  deviceMemory?: number;
-  userAgent?: string;
-  userAgentPreset?: UserAgentPreset;
+  viewport_width?: number;
+  viewport_height?: number;
+  device_scale_factor?: number;
+  hardware_concurrency?: number;
+  device_memory?: number;
+  user_agent?: string;
+  user_agent_preset?: UserAgentPreset;
   locale?: string;
-  timezoneId?: string;
-  geolocationEnabled?: boolean;
+  timezone_id?: string;
+  geolocation_enabled?: boolean;
   latitude?: number;
   longitude?: number;
   accuracy?: number;
-  colorScheme?: 'light' | 'dark' | 'no-preference';
+  color_scheme?: 'light' | 'dark' | 'no-preference';
 }
 
 /**
  * Human-like behavior settings.
  */
 export interface BehaviorSettings {
-  typingDelayMin?: number;
-  typingDelayMax?: number;
-  mouseMovementStyle?: MouseMovementStyle;
-  mouseJitterAmount?: number;
-  clickDelayMin?: number;
-  clickDelayMax?: number;
-  scrollStyle?: ScrollStyle;
-  scrollSpeedMin?: number;
-  scrollSpeedMax?: number;
-  microPauseEnabled?: boolean;
-  microPauseMinMs?: number;
-  microPauseMaxMs?: number;
-  microPauseFrequency?: number;
+  typing_delay_min?: number;
+  typing_delay_max?: number;
+  mouse_movement_style?: MouseMovementStyle;
+  mouse_jitter_amount?: number;
+  click_delay_min?: number;
+  click_delay_max?: number;
+  scroll_style?: ScrollStyle;
+  scroll_speed_min?: number;
+  scroll_speed_max?: number;
+  micro_pause_enabled?: boolean;
+  micro_pause_min_ms?: number;
+  micro_pause_max_ms?: number;
+  micro_pause_frequency?: number;
 }
 
 /**
  * Anti-detection settings for bypassing bot detection.
  */
 export interface AntiDetectionSettings {
-  disableAutomationControlled?: boolean;
-  disableWebRTC?: boolean;
-  patchNavigatorWebdriver?: boolean;
-  patchNavigatorPlugins?: boolean;
-  patchNavigatorLanguages?: boolean;
-  patchWebGL?: boolean;
-  patchCanvas?: boolean;
-  headlessDetectionBypass?: boolean;
+  disable_automation_controlled?: boolean;
+  disable_webrtc?: boolean;
+  patch_navigator_webdriver?: boolean;
+  patch_navigator_plugins?: boolean;
+  patch_navigator_languages?: boolean;
+  patch_webgl?: boolean;
+  patch_canvas?: boolean;
+  headless_detection_bypass?: boolean;
 }
 
 /**
@@ -311,7 +311,7 @@ export interface BrowserProfile {
   preset?: ProfilePreset;
   fingerprint?: FingerprintSettings;
   behavior?: BehaviorSettings;
-  antiDetection?: AntiDetectionSettings;
+  anti_detection?: AntiDetectionSettings;
 }
 
 /**

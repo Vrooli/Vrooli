@@ -17,106 +17,106 @@ interface BrowserProfileEditorProps {
   onClose: () => void;
 }
 
-// Preset configurations
+// Preset configurations (using snake_case to match API)
 const PRESET_CONFIGS: Record<ProfilePreset, { behavior: Partial<BehaviorSettings>; antiDetection: Partial<AntiDetectionSettings> }> = {
   stealth: {
     behavior: {
-      typingDelayMin: 50,
-      typingDelayMax: 150,
-      mouseMovementStyle: 'natural',
-      mouseJitterAmount: 2,
-      clickDelayMin: 100,
-      clickDelayMax: 300,
-      scrollStyle: 'natural',
-      microPauseEnabled: true,
-      microPauseMinMs: 500,
-      microPauseMaxMs: 2000,
-      microPauseFrequency: 0.15,
+      typing_delay_min: 50,
+      typing_delay_max: 150,
+      mouse_movement_style: 'natural',
+      mouse_jitter_amount: 2,
+      click_delay_min: 100,
+      click_delay_max: 300,
+      scroll_style: 'natural',
+      micro_pause_enabled: true,
+      micro_pause_min_ms: 500,
+      micro_pause_max_ms: 2000,
+      micro_pause_frequency: 0.15,
     },
     antiDetection: {
-      disableAutomationControlled: true,
-      patchNavigatorWebdriver: true,
-      patchNavigatorPlugins: true,
-      patchNavigatorLanguages: true,
-      patchWebGL: true,
-      patchCanvas: true,
-      headlessDetectionBypass: true,
-      disableWebRTC: true,
+      disable_automation_controlled: true,
+      patch_navigator_webdriver: true,
+      patch_navigator_plugins: true,
+      patch_navigator_languages: true,
+      patch_webgl: true,
+      patch_canvas: true,
+      headless_detection_bypass: true,
+      disable_webrtc: true,
     },
   },
   balanced: {
     behavior: {
-      typingDelayMin: 30,
-      typingDelayMax: 80,
-      mouseMovementStyle: 'bezier',
-      mouseJitterAmount: 1,
-      clickDelayMin: 50,
-      clickDelayMax: 150,
-      scrollStyle: 'smooth',
-      microPauseEnabled: true,
-      microPauseMinMs: 200,
-      microPauseMaxMs: 800,
-      microPauseFrequency: 0.08,
+      typing_delay_min: 30,
+      typing_delay_max: 80,
+      mouse_movement_style: 'bezier',
+      mouse_jitter_amount: 1,
+      click_delay_min: 50,
+      click_delay_max: 150,
+      scroll_style: 'smooth',
+      micro_pause_enabled: true,
+      micro_pause_min_ms: 200,
+      micro_pause_max_ms: 800,
+      micro_pause_frequency: 0.08,
     },
     antiDetection: {
-      disableAutomationControlled: true,
-      patchNavigatorWebdriver: true,
-      patchNavigatorPlugins: true,
-      patchNavigatorLanguages: false,
-      patchWebGL: false,
-      patchCanvas: false,
-      headlessDetectionBypass: true,
-      disableWebRTC: false,
+      disable_automation_controlled: true,
+      patch_navigator_webdriver: true,
+      patch_navigator_plugins: true,
+      patch_navigator_languages: false,
+      patch_webgl: false,
+      patch_canvas: false,
+      headless_detection_bypass: true,
+      disable_webrtc: false,
     },
   },
   fast: {
     behavior: {
-      typingDelayMin: 10,
-      typingDelayMax: 30,
-      mouseMovementStyle: 'linear',
-      mouseJitterAmount: 0,
-      clickDelayMin: 20,
-      clickDelayMax: 50,
-      scrollStyle: 'smooth',
-      microPauseEnabled: false,
-      microPauseMinMs: 0,
-      microPauseMaxMs: 0,
-      microPauseFrequency: 0,
+      typing_delay_min: 10,
+      typing_delay_max: 30,
+      mouse_movement_style: 'linear',
+      mouse_jitter_amount: 0,
+      click_delay_min: 20,
+      click_delay_max: 50,
+      scroll_style: 'smooth',
+      micro_pause_enabled: false,
+      micro_pause_min_ms: 0,
+      micro_pause_max_ms: 0,
+      micro_pause_frequency: 0,
     },
     antiDetection: {
-      disableAutomationControlled: true,
-      patchNavigatorWebdriver: true,
-      patchNavigatorPlugins: false,
-      patchNavigatorLanguages: false,
-      patchWebGL: false,
-      patchCanvas: false,
-      headlessDetectionBypass: false,
-      disableWebRTC: false,
+      disable_automation_controlled: true,
+      patch_navigator_webdriver: true,
+      patch_navigator_plugins: false,
+      patch_navigator_languages: false,
+      patch_webgl: false,
+      patch_canvas: false,
+      headless_detection_bypass: false,
+      disable_webrtc: false,
     },
   },
   none: {
     behavior: {
-      typingDelayMin: 0,
-      typingDelayMax: 0,
-      mouseMovementStyle: 'linear',
-      mouseJitterAmount: 0,
-      clickDelayMin: 0,
-      clickDelayMax: 0,
-      scrollStyle: 'instant',
-      microPauseEnabled: false,
-      microPauseMinMs: 0,
-      microPauseMaxMs: 0,
-      microPauseFrequency: 0,
+      typing_delay_min: 0,
+      typing_delay_max: 0,
+      mouse_movement_style: 'linear',
+      mouse_jitter_amount: 0,
+      click_delay_min: 0,
+      click_delay_max: 0,
+      scroll_style: 'instant',
+      micro_pause_enabled: false,
+      micro_pause_min_ms: 0,
+      micro_pause_max_ms: 0,
+      micro_pause_frequency: 0,
     },
     antiDetection: {
-      disableAutomationControlled: false,
-      patchNavigatorWebdriver: false,
-      patchNavigatorPlugins: false,
-      patchNavigatorLanguages: false,
-      patchWebGL: false,
-      patchCanvas: false,
-      headlessDetectionBypass: false,
-      disableWebRTC: false,
+      disable_automation_controlled: false,
+      patch_navigator_webdriver: false,
+      patch_navigator_plugins: false,
+      patch_navigator_languages: false,
+      patch_webgl: false,
+      patch_canvas: false,
+      headless_detection_bypass: false,
+      disable_webrtc: false,
     },
   },
 };
@@ -144,7 +144,7 @@ export function BrowserProfileEditor({ profileName, initialProfile, onSave, onCl
   const [preset, setPreset] = useState<ProfilePreset>(initialProfile?.preset ?? 'none');
   const [fingerprint, setFingerprint] = useState<FingerprintSettings>(initialProfile?.fingerprint ?? {});
   const [behavior, setBehavior] = useState<BehaviorSettings>(initialProfile?.behavior ?? {});
-  const [antiDetection, setAntiDetection] = useState<AntiDetectionSettings>(initialProfile?.antiDetection ?? {});
+  const [antiDetection, setAntiDetection] = useState<AntiDetectionSettings>(initialProfile?.anti_detection ?? {});
 
   // Apply preset defaults when preset changes
   const applyPreset = useCallback((newPreset: ProfilePreset) => {
@@ -161,7 +161,7 @@ export function BrowserProfileEditor({ profileName, initialProfile, onSave, onCl
       setPreset(initialProfile.preset ?? 'none');
       setFingerprint(initialProfile.fingerprint ?? {});
       setBehavior(initialProfile.behavior ?? {});
-      setAntiDetection(initialProfile.antiDetection ?? {});
+      setAntiDetection(initialProfile.anti_detection ?? {});
     }
   }, [initialProfile]);
 
@@ -173,7 +173,7 @@ export function BrowserProfileEditor({ profileName, initialProfile, onSave, onCl
         preset,
         fingerprint: Object.keys(fingerprint).length > 0 ? fingerprint : undefined,
         behavior: Object.keys(behavior).length > 0 ? behavior : undefined,
-        antiDetection: Object.keys(antiDetection).length > 0 ? antiDetection : undefined,
+        anti_detection: Object.keys(antiDetection).length > 0 ? antiDetection : undefined,
       };
       await onSave(profile);
       setIsDirty(false);
@@ -381,8 +381,8 @@ function FingerprintTab({
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Width</label>
             <input
               type="number"
-              value={fingerprint.viewportWidth ?? ''}
-              onChange={(e) => onChange('viewportWidth', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={fingerprint.viewport_width ?? ''}
+              onChange={(e) => onChange('viewport_width', e.target.value ? parseInt(e.target.value) : undefined)}
               placeholder="1920"
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             />
@@ -391,8 +391,8 @@ function FingerprintTab({
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Height</label>
             <input
               type="number"
-              value={fingerprint.viewportHeight ?? ''}
-              onChange={(e) => onChange('viewportHeight', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={fingerprint.viewport_height ?? ''}
+              onChange={(e) => onChange('viewport_height', e.target.value ? parseInt(e.target.value) : undefined)}
               placeholder="1080"
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             />
@@ -407,8 +407,8 @@ function FingerprintTab({
           <div>
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">User Agent Preset</label>
             <select
-              value={fingerprint.userAgentPreset ?? 'chrome_windows'}
-              onChange={(e) => onChange('userAgentPreset', e.target.value as UserAgentPreset)}
+              value={fingerprint.user_agent_preset ?? 'chrome_windows'}
+              onChange={(e) => onChange('user_agent_preset', e.target.value as UserAgentPreset)}
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             >
               {Object.entries(USER_AGENT_LABELS).map(([value, label]) => (
@@ -418,13 +418,13 @@ function FingerprintTab({
               ))}
             </select>
           </div>
-          {fingerprint.userAgentPreset === 'custom' && (
+          {fingerprint.user_agent_preset === 'custom' && (
             <div>
               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Custom User Agent</label>
               <input
                 type="text"
-                value={fingerprint.userAgent ?? ''}
-                onChange={(e) => onChange('userAgent', e.target.value || undefined)}
+                value={fingerprint.user_agent ?? ''}
+                onChange={(e) => onChange('user_agent', e.target.value || undefined)}
                 placeholder="Mozilla/5.0..."
                 className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
               />
@@ -451,8 +451,8 @@ function FingerprintTab({
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Timezone</label>
             <input
               type="text"
-              value={fingerprint.timezoneId ?? ''}
-              onChange={(e) => onChange('timezoneId', e.target.value || undefined)}
+              value={fingerprint.timezone_id ?? ''}
+              onChange={(e) => onChange('timezone_id', e.target.value || undefined)}
               placeholder="America/New_York"
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             />
@@ -466,13 +466,13 @@ function FingerprintTab({
         <label className="flex items-center gap-2 mb-3">
           <input
             type="checkbox"
-            checked={fingerprint.geolocationEnabled ?? false}
-            onChange={(e) => onChange('geolocationEnabled', e.target.checked)}
+            checked={fingerprint.geolocation_enabled ?? false}
+            onChange={(e) => onChange('geolocation_enabled', e.target.checked)}
             className="rounded border-gray-300 dark:border-gray-600"
           />
           <span className="text-sm text-gray-700 dark:text-gray-300">Enable geolocation spoofing</span>
         </label>
-        {fingerprint.geolocationEnabled && (
+        {fingerprint.geolocation_enabled && (
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Latitude</label>
@@ -509,8 +509,8 @@ function FingerprintTab({
             <input
               type="number"
               step="0.5"
-              value={fingerprint.deviceScaleFactor ?? ''}
-              onChange={(e) => onChange('deviceScaleFactor', e.target.value ? parseFloat(e.target.value) : undefined)}
+              value={fingerprint.device_scale_factor ?? ''}
+              onChange={(e) => onChange('device_scale_factor', e.target.value ? parseFloat(e.target.value) : undefined)}
               placeholder="2"
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             />
@@ -519,8 +519,8 @@ function FingerprintTab({
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">CPU Cores</label>
             <input
               type="number"
-              value={fingerprint.hardwareConcurrency ?? ''}
-              onChange={(e) => onChange('hardwareConcurrency', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={fingerprint.hardware_concurrency ?? ''}
+              onChange={(e) => onChange('hardware_concurrency', e.target.value ? parseInt(e.target.value) : undefined)}
               placeholder="8"
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             />
@@ -529,8 +529,8 @@ function FingerprintTab({
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Memory (GB)</label>
             <input
               type="number"
-              value={fingerprint.deviceMemory ?? ''}
-              onChange={(e) => onChange('deviceMemory', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={fingerprint.device_memory ?? ''}
+              onChange={(e) => onChange('device_memory', e.target.value ? parseInt(e.target.value) : undefined)}
               placeholder="16"
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             />
@@ -558,8 +558,8 @@ function BehaviorTab({
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Min Delay (ms)</label>
             <input
               type="number"
-              value={behavior.typingDelayMin ?? ''}
-              onChange={(e) => onChange('typingDelayMin', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={behavior.typing_delay_min ?? ''}
+              onChange={(e) => onChange('typing_delay_min', e.target.value ? parseInt(e.target.value) : undefined)}
               placeholder="50"
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             />
@@ -568,8 +568,8 @@ function BehaviorTab({
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Max Delay (ms)</label>
             <input
               type="number"
-              value={behavior.typingDelayMax ?? ''}
-              onChange={(e) => onChange('typingDelayMax', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={behavior.typing_delay_max ?? ''}
+              onChange={(e) => onChange('typing_delay_max', e.target.value ? parseInt(e.target.value) : undefined)}
               placeholder="150"
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             />
@@ -584,8 +584,8 @@ function BehaviorTab({
           <div>
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Movement Style</label>
             <select
-              value={behavior.mouseMovementStyle ?? 'linear'}
-              onChange={(e) => onChange('mouseMovementStyle', e.target.value as MouseMovementStyle)}
+              value={behavior.mouse_movement_style ?? 'linear'}
+              onChange={(e) => onChange('mouse_movement_style', e.target.value as MouseMovementStyle)}
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             >
               <option value="linear">Linear (Fast)</option>
@@ -598,8 +598,8 @@ function BehaviorTab({
             <input
               type="number"
               step="0.5"
-              value={behavior.mouseJitterAmount ?? ''}
-              onChange={(e) => onChange('mouseJitterAmount', e.target.value ? parseFloat(e.target.value) : undefined)}
+              value={behavior.mouse_jitter_amount ?? ''}
+              onChange={(e) => onChange('mouse_jitter_amount', e.target.value ? parseFloat(e.target.value) : undefined)}
               placeholder="2"
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             />
@@ -615,8 +615,8 @@ function BehaviorTab({
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Min Delay (ms)</label>
             <input
               type="number"
-              value={behavior.clickDelayMin ?? ''}
-              onChange={(e) => onChange('clickDelayMin', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={behavior.click_delay_min ?? ''}
+              onChange={(e) => onChange('click_delay_min', e.target.value ? parseInt(e.target.value) : undefined)}
               placeholder="100"
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             />
@@ -625,8 +625,8 @@ function BehaviorTab({
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Max Delay (ms)</label>
             <input
               type="number"
-              value={behavior.clickDelayMax ?? ''}
-              onChange={(e) => onChange('clickDelayMax', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={behavior.click_delay_max ?? ''}
+              onChange={(e) => onChange('click_delay_max', e.target.value ? parseInt(e.target.value) : undefined)}
               placeholder="300"
               className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
             />
@@ -640,8 +640,8 @@ function BehaviorTab({
         <div>
           <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Scroll Style</label>
           <select
-            value={behavior.scrollStyle ?? 'smooth'}
-            onChange={(e) => onChange('scrollStyle', e.target.value as ScrollStyle)}
+            value={behavior.scroll_style ?? 'smooth'}
+            onChange={(e) => onChange('scroll_style', e.target.value as ScrollStyle)}
             className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
           >
             <option value="instant">Instant</option>
@@ -657,20 +657,20 @@ function BehaviorTab({
         <label className="flex items-center gap-2 mb-3">
           <input
             type="checkbox"
-            checked={behavior.microPauseEnabled ?? false}
-            onChange={(e) => onChange('microPauseEnabled', e.target.checked)}
+            checked={behavior.micro_pause_enabled ?? false}
+            onChange={(e) => onChange('micro_pause_enabled', e.target.checked)}
             className="rounded border-gray-300 dark:border-gray-600"
           />
           <span className="text-sm text-gray-700 dark:text-gray-300">Enable random micro-pauses</span>
         </label>
-        {behavior.microPauseEnabled && (
+        {behavior.micro_pause_enabled && (
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Min (ms)</label>
               <input
                 type="number"
-                value={behavior.microPauseMinMs ?? ''}
-                onChange={(e) => onChange('microPauseMinMs', e.target.value ? parseInt(e.target.value) : undefined)}
+                value={behavior.micro_pause_min_ms ?? ''}
+                onChange={(e) => onChange('micro_pause_min_ms', e.target.value ? parseInt(e.target.value) : undefined)}
                 placeholder="500"
                 className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
               />
@@ -679,8 +679,8 @@ function BehaviorTab({
               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Max (ms)</label>
               <input
                 type="number"
-                value={behavior.microPauseMaxMs ?? ''}
-                onChange={(e) => onChange('microPauseMaxMs', e.target.value ? parseInt(e.target.value) : undefined)}
+                value={behavior.micro_pause_max_ms ?? ''}
+                onChange={(e) => onChange('micro_pause_max_ms', e.target.value ? parseInt(e.target.value) : undefined)}
                 placeholder="2000"
                 className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
               />
@@ -690,8 +690,8 @@ function BehaviorTab({
               <input
                 type="number"
                 step="0.01"
-                value={behavior.microPauseFrequency ?? ''}
-                onChange={(e) => onChange('microPauseFrequency', e.target.value ? parseFloat(e.target.value) : undefined)}
+                value={behavior.micro_pause_frequency ?? ''}
+                onChange={(e) => onChange('micro_pause_frequency', e.target.value ? parseFloat(e.target.value) : undefined)}
                 placeholder="0.15"
                 className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
               />
@@ -712,42 +712,42 @@ function AntiDetectionTab({
 }) {
   const toggles: { key: keyof AntiDetectionSettings; label: string; description: string }[] = [
     {
-      key: 'disableAutomationControlled',
+      key: 'disable_automation_controlled',
       label: 'Disable Automation Controlled Flag',
       description: 'Removes browser automation indicators from window properties',
     },
     {
-      key: 'patchNavigatorWebdriver',
+      key: 'patch_navigator_webdriver',
       label: 'Patch navigator.webdriver',
       description: 'Hides the webdriver property that indicates automation',
     },
     {
-      key: 'patchNavigatorPlugins',
+      key: 'patch_navigator_plugins',
       label: 'Patch navigator.plugins',
       description: 'Spoofs browser plugins to appear as a real browser',
     },
     {
-      key: 'patchNavigatorLanguages',
+      key: 'patch_navigator_languages',
       label: 'Patch navigator.languages',
       description: 'Sets language preferences to match locale settings',
     },
     {
-      key: 'patchWebGL',
+      key: 'patch_webgl',
       label: 'Patch WebGL',
       description: 'Modifies WebGL renderer and vendor strings',
     },
     {
-      key: 'patchCanvas',
+      key: 'patch_canvas',
       label: 'Patch Canvas Fingerprint',
       description: 'Adds noise to canvas fingerprinting attempts',
     },
     {
-      key: 'headlessDetectionBypass',
+      key: 'headless_detection_bypass',
       label: 'Headless Detection Bypass',
       description: 'Bypasses checks for headless browser mode',
     },
     {
-      key: 'disableWebRTC',
+      key: 'disable_webrtc',
       label: 'Disable WebRTC',
       description: 'Prevents WebRTC from leaking real IP address',
     },

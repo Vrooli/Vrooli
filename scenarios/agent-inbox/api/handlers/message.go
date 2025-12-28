@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
@@ -19,18 +20,22 @@ func (h *Handlers) AddMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Role            string `json:"role"`
-		Content         string `json:"content"`
-		Model           string `json:"model"`
-		TokenCount      int    `json:"token_count"`
-		ToolCallID      string `json:"tool_call_id,omitempty"`
-		ParentMessageID string `json:"parent_message_id,omitempty"` // Optional override for explicit parent
+		Role            string   `json:"role"`
+		Content         string   `json:"content"`
+		Model           string   `json:"model"`
+		TokenCount      int      `json:"token_count"`
+		ToolCallID      string   `json:"tool_call_id,omitempty"`
+		ParentMessageID string   `json:"parent_message_id,omitempty"` // Optional override for explicit parent
+		AttachmentIDs   []string `json:"attachment_ids,omitempty"`    // IDs of uploaded attachments to link
+		WebSearch       *bool    `json:"web_search,omitempty"`        // Per-message web search override
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.JSONError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+
+	log.Printf("[DEBUG] AddMessage: web_search=%v, attachment_ids=%v", req.WebSearch, req.AttachmentIDs)
 
 	// Validate message input using centralized validation
 	if result := domain.ValidateMessageInput(req.Role, req.Content, req.ToolCallID); !result.Valid {
@@ -51,10 +56,18 @@ func (h *Handlers) AddMessage(w http.ResponseWriter, r *http.Request) {
 		parentMessageID, _ = h.Repo.GetActiveLeaf(r.Context(), chatID)
 	}
 
-	msg, err := h.Repo.CreateMessage(r.Context(), chatID, req.Role, req.Content, req.Model, req.ToolCallID, req.TokenCount, parentMessageID)
+	msg, err := h.Repo.CreateMessage(r.Context(), chatID, req.Role, req.Content, req.Model, req.ToolCallID, req.TokenCount, parentMessageID, req.WebSearch)
 	if err != nil {
 		h.JSONError(w, "Failed to add message", http.StatusInternalServerError)
 		return
+	}
+
+	// Link attachments to the message if provided
+	if len(req.AttachmentIDs) > 0 {
+		if linkErr := h.Repo.LinkAttachmentsToMessage(r.Context(), msg.ID, req.AttachmentIDs); linkErr != nil {
+			// Log but don't fail the request - message was created successfully
+			// The attachments may have expired or been deleted
+		}
 	}
 
 	// Update active leaf to point to this new message

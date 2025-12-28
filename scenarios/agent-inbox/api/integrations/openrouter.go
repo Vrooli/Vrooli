@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -177,6 +178,10 @@ func (c *OpenRouterClient) CreateCompletion(ctx context.Context, req *OpenRouter
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
+	// Debug: log what we're sending
+	log.Printf("[DEBUG] OpenRouter request: model=%s, messages=%d, plugins=%v, stream=%v",
+		req.Model, len(req.Messages), req.Plugins, req.Stream)
+
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -189,12 +194,16 @@ func (c *OpenRouterClient) CreateCompletion(ctx context.Context, req *OpenRouter
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
+		log.Printf("[DEBUG] OpenRouter request error: %v", err)
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
+
+	log.Printf("[DEBUG] OpenRouter response status: %d", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
+		log.Printf("[DEBUG] OpenRouter error response: %s", string(body))
 		return nil, fmt.Errorf("OpenRouter error (%d): %s", resp.StatusCode, string(body))
 	}
 

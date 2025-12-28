@@ -209,7 +209,7 @@ export function TimelineSidebar({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 <span className="font-medium max-w-[80px] truncate">{selectedSession?.name ?? 'Default'}</span>
-                {selectedSession?.hasStorageState && (
+                {selectedSession?.has_storage_state && (
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" title="Auth saved" />
                 )}
                 <svg className={`w-3 h-3 text-gray-400 transition-transform ${sessionMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
@@ -253,14 +253,14 @@ export function TimelineSidebar({
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-medium truncate">{profile.name}</span>
-                            {profile.hasStorageState && (
+                            {profile.has_storage_state && (
                               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200">
                                 Auth
                               </span>
                             )}
                           </div>
                           <div className="text-[10px] text-gray-500 dark:text-gray-400">
-                            Last used {formatLastUsed(profile.lastUsedAt)}
+                            Last used {formatLastUsed(profile.last_used_at)}
                           </div>
                         </button>
                       ))

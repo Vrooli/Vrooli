@@ -402,12 +402,17 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 	// Determine effective web search setting
 	// Check if any user message has web_search enabled
 	webSearchEnabled := settings.WebSearchEnabled
+	log.Printf("[DEBUG] web search: chat default=%v, checking %d messages", webSearchEnabled, len(messages))
 	for _, msg := range messages {
-		if msg.Role == "user" && msg.WebSearch != nil && *msg.WebSearch {
-			webSearchEnabled = true
-			break
+		if msg.Role == "user" {
+			log.Printf("[DEBUG] user message %s: web_search=%v", msg.ID, msg.WebSearch)
+			if msg.WebSearch != nil && *msg.WebSearch {
+				webSearchEnabled = true
+				break
+			}
 		}
 	}
+	log.Printf("[DEBUG] effective web search enabled=%v", webSearchEnabled)
 
 	// Check for PDF attachments
 	hasPDF := false

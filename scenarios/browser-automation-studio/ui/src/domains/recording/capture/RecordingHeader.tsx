@@ -212,7 +212,7 @@ export function RecordingHeader({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
               <span className="font-medium max-w-[100px] truncate">{selectedSession?.name ?? 'Default'}</span>
-              {selectedSession?.hasStorageState && (
+              {selectedSession?.has_storage_state && (
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500" title="Auth saved" />
               )}
               <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${sessionMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
@@ -254,14 +254,14 @@ export function RecordingHeader({
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium">{profile.name}</span>
-                          {profile.hasStorageState && (
+                          {profile.has_storage_state && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200">
                               Auth saved
                             </span>
                           )}
                         </div>
                         <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                          Last used {formatLastUsed(profile.lastUsedAt)}
+                          Last used {formatLastUsed(profile.last_used_at)}
                         </div>
                       </button>
                     ))

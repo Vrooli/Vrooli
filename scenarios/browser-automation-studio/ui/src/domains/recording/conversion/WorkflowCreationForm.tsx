@@ -317,7 +317,7 @@ export function WorkflowCreationForm({
             {sessionProfiles.map((profile) => (
               <option key={profile.id} value={profile.id}>
                 {profile.name}
-                {profile.hasStorageState ? ' (Auth saved)' : ''}
+                {profile.has_storage_state ? ' (Auth saved)' : ''}
               </option>
             ))}
           </select>

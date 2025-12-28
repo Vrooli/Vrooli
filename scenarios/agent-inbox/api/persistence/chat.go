@@ -357,7 +357,8 @@ func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string
 
 // CreateMessage adds a new message to a chat with optional parent for branching.
 // If parentMessageID is provided, sibling_index is auto-calculated based on existing siblings.
-func (r *Repository) CreateMessage(ctx context.Context, chatID, role, content, model, toolCallID string, tokenCount int, parentMessageID string) (*domain.Message, error) {
+// webSearch enables per-message web search override (nil = use chat default).
+func (r *Repository) CreateMessage(ctx context.Context, chatID, role, content, model, toolCallID string, tokenCount int, parentMessageID string, webSearch *bool) (*domain.Message, error) {
 	// Calculate sibling_index for branching support
 	siblingIndex := 0
 	if parentMessageID != "" {
@@ -365,16 +366,22 @@ func (r *Repository) CreateMessage(ctx context.Context, chatID, role, content, m
 	}
 
 	var msg domain.Message
+	var webSearchNull sql.NullBool
+	if webSearch != nil {
+		webSearchNull = sql.NullBool{Bool: *webSearch, Valid: true}
+	}
+
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO messages (chat_id, role, content, model, token_count, tool_call_id, parent_message_id, sibling_index)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO messages (chat_id, role, content, model, token_count, tool_call_id, parent_message_id, sibling_index, web_search)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, chat_id, role, content, model, token_count, tool_call_id, parent_message_id, sibling_index, created_at
 	`, chatID, role, content,
 		sql.NullString{String: model, Valid: model != ""},
 		tokenCount,
 		sql.NullString{String: toolCallID, Valid: toolCallID != ""},
 		sql.NullString{String: parentMessageID, Valid: parentMessageID != ""},
-		siblingIndex).Scan(
+		siblingIndex,
+		webSearchNull).Scan(
 		&msg.ID, &msg.ChatID, &msg.Role, &msg.Content, &sql.NullString{}, &msg.TokenCount, &sql.NullString{}, &sql.NullString{}, &msg.SiblingIndex, &msg.CreatedAt,
 	)
 	if err != nil {
@@ -383,6 +390,7 @@ func (r *Repository) CreateMessage(ctx context.Context, chatID, role, content, m
 	msg.Model = model
 	msg.ToolCallID = toolCallID
 	msg.ParentMessageID = parentMessageID
+	msg.WebSearch = webSearch
 	return &msg, nil
 }
 

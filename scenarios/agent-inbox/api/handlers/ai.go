@@ -220,9 +220,25 @@ func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Reques
 func parseStreamingChunks(body interface{ Read([]byte) (int, error) }, sw *StreamWriter) *domain.CompletionResult {
 	acc := domain.NewStreamingAccumulator()
 	scanner := bufio.NewScanner(body)
+	// Increase buffer size to handle large SSE chunks (e.g., web search results)
+	// Default is 64KB, we increase to 1MB
+	const maxScanTokenSize = 1024 * 1024
+	buf := make([]byte, maxScanTokenSize)
+	scanner.Buffer(buf, maxScanTokenSize)
 
+	lineCount := 0
+	dataLineCount := 0
 	for scanner.Scan() {
 		line := scanner.Text()
+		lineCount++
+		// Log first 5 lines and any line containing "data"
+		if lineCount <= 5 {
+			log.Printf("[DEBUG] SSE line %d: %s", lineCount, line[:min(len(line), 100)])
+		}
+		if strings.Contains(strings.ToLower(line), "data") {
+			dataLineCount++
+			log.Printf("[DEBUG] SSE data line %d: %s", dataLineCount, line[:min(len(line), 200)])
+		}
 		if !strings.HasPrefix(line, "data: ") {
 			continue
 		}
@@ -234,9 +250,11 @@ func parseStreamingChunks(body interface{ Read([]byte) (int, error) }, sw *Strea
 
 		var chunk integrations.OpenRouterResponse
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			log.Printf("[DEBUG] SSE parse error: %v, data: %s", err, data[:min(100, len(data))])
 			continue
 		}
 
+		log.Printf("[DEBUG] SSE chunk: id=%s, choices=%d", chunk.ID, len(chunk.Choices))
 		acc.SetResponseID(chunk.ID)
 
 		// Capture usage data if present (typically in final chunk)
@@ -249,13 +267,21 @@ func parseStreamingChunks(body interface{ Read([]byte) (int, error) }, sw *Strea
 		}
 	}
 
-	return acc.ToResult()
+	if err := scanner.Err(); err != nil {
+		log.Printf("[DEBUG] SSE scanner error: %v", err)
+	}
+
+	result := acc.ToResult()
+	log.Printf("[DEBUG] SSE parsing complete: %d total lines, %d data lines, content length=%d, tool_calls=%d",
+		lineCount, dataLineCount, len(result.Content), len(result.ToolCalls))
+	return result
 }
 
 // processStreamingChoice processes a single choice from a streaming chunk.
 func processStreamingChoice(choice integrations.OpenRouterChoice, acc *domain.StreamingAccumulator, sw *StreamWriter) {
 	// Forward content to client and accumulate
 	// Content is interface{} to support multimodal, but streaming deltas are always strings
+	log.Printf("[DEBUG] processStreamingChoice: delta.Content type=%T, value=%v", choice.Delta.Content, choice.Delta.Content)
 	if content, ok := choice.Delta.Content.(string); ok && content != "" {
 		sw.WriteContentChunk(content)
 		acc.AppendContent(content)

@@ -80,6 +80,21 @@ func (r *Repository) AttachToMessage(ctx context.Context, attachmentID, messageI
 	return nil
 }
 
+// LinkAttachmentsToMessage associates multiple attachments with a message.
+// Errors linking individual attachments are collected and returned as a combined error.
+func (r *Repository) LinkAttachmentsToMessage(ctx context.Context, messageID string, attachmentIDs []string) error {
+	var errors []string
+	for _, attID := range attachmentIDs {
+		if err := r.AttachToMessage(ctx, attID, messageID); err != nil {
+			errors = append(errors, err.Error())
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to link %d attachments: %s", len(errors), joinStrings(errors, "; "))
+	}
+	return nil
+}
+
 // GetAttachmentsByMessageID retrieves all attachments for a message.
 func (r *Repository) GetAttachmentsByMessageID(ctx context.Context, messageID string) ([]domain.Attachment, error) {
 	rows, err := r.db.QueryContext(ctx, `

@@ -804,7 +804,7 @@ export function TimelineFullView({
                               <option value="">No saved session</option>
                               {sessionProfiles.map((profile) => (
                                 <option key={profile.id} value={profile.id}>
-                                  {profile.name}{profile.hasStorageState ? ' (Auth)' : ''}
+                                  {profile.name}{profile.has_storage_state ? ' (Auth)' : ''}
                                 </option>
                               ))}
                             </select>
