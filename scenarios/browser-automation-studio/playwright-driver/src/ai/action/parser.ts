@@ -24,6 +24,7 @@ import type {
   WaitAction,
   KeyPressAction,
   DoneAction,
+  RequestHumanAction,
 } from './types';
 
 /**
@@ -120,6 +121,11 @@ function parseActionSyntax(response: string): BrowserAction | null {
 
     case 'done':
       return parseDoneArgs(args);
+
+    case 'request_human':
+    case 'requesthuman':
+    case 'human':
+      return parseRequestHumanArgs(args);
 
     default:
       return null;
@@ -384,6 +390,29 @@ function parseDoneArgs(args: (string | number | boolean)[]): DoneAction {
 }
 
 /**
+ * Parse request_human action arguments.
+ *
+ * Formats:
+ * - request_human("reason")
+ * - request_human("reason", "instructions")
+ * - request_human("reason", "instructions", "captcha")
+ */
+function parseRequestHumanArgs(args: (string | number | boolean)[]): RequestHumanAction {
+  const reason = typeof args[0] === 'string' ? args[0] : 'Human intervention required';
+  const instructions = typeof args[1] === 'string' ? args[1] : undefined;
+  const interventionType = typeof args[2] === 'string'
+    ? args[2] as RequestHumanAction['interventionType']
+    : 'other';
+
+  return {
+    type: 'request_human',
+    reason,
+    instructions,
+    interventionType,
+  };
+}
+
+/**
  * Parse JSON block in response.
  * Looks for ```json ... ``` or ``` ... ``` blocks.
  */
@@ -454,7 +483,7 @@ function validateAction(action: BrowserAction): BrowserAction {
 
   const validTypes = [
     'click', 'type', 'scroll', 'navigate', 'hover',
-    'select', 'wait', 'keypress', 'done'
+    'select', 'wait', 'keypress', 'done', 'request_human'
   ];
 
   if (!validTypes.includes(action.type)) {
@@ -524,6 +553,15 @@ function validateAction(action: BrowserAction): BrowserAction {
       if (typeof action.success !== 'boolean') {
         throw new ActionParseError(
           'Done action requires success boolean',
+          JSON.stringify(action)
+        );
+      }
+      break;
+
+    case 'request_human':
+      if (typeof action.reason !== 'string') {
+        throw new ActionParseError(
+          'Request human action requires reason string',
           JSON.stringify(action)
         );
       }

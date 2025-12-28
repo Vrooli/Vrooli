@@ -102,6 +102,22 @@ Examples:
 - \`ACTION: done(true, "Successfully logged in and reached dashboard")\`
 - \`ACTION: done(false, "Could not find the checkout button")\`
 
+### Request human intervention
+\`\`\`
+ACTION: request_human("REASON", "INSTRUCTIONS", "TYPE")
+\`\`\`
+Use this when you encounter situations that require human intervention:
+- **captcha**: CAPTCHAs, reCAPTCHA, hCaptcha, "I'm not a robot" challenges
+- **verification**: "Verify you're human", email/phone verification, 2FA prompts
+- **login_required**: Login walls, authentication requirements you cannot bypass
+- **complex_interaction**: Drag-and-drop puzzles, complex UI that's hard to automate
+- **other**: Any other situation requiring human help
+
+Examples:
+- \`ACTION: request_human("CAPTCHA detected", "Please complete the CAPTCHA and click I'm Done", "captcha")\`
+- \`ACTION: request_human("2FA required", "Please enter the verification code", "verification")\`
+- \`ACTION: request_human("Login wall", "Please log in to continue", "login_required")\`
+
 ## Response Format
 
 Always respond with:

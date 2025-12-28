@@ -11,6 +11,7 @@
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { AINavigationErrorBoundary } from './AINavigationErrorBoundary';
 import { AINavigationPanel } from './AINavigationPanel';
+import { HumanInterventionOverlay } from './HumanInterventionOverlay';
 import type { RecordedAction } from '../types/types';
 import { PlaywrightView, type FrameStats, type PageMetadata } from '../capture/PlaywrightView';
 import { BrowserUrlBar } from '../capture/BrowserUrlBar';
@@ -44,6 +45,8 @@ interface AINavigationViewProps {
   onAIStart?: (prompt: string, model: string, maxSteps: number) => Promise<void>;
   /** Abort AI navigation */
   onAIAbort?: () => Promise<void>;
+  /** Resume AI navigation after human intervention */
+  onAIResume?: () => Promise<void>;
   /** Reset AI state */
   onAIReset?: () => void;
 }
@@ -66,6 +69,7 @@ export function AINavigationView({
   aiIsNavigating,
   onAIStart,
   onAIAbort,
+  onAIResume,
   onAIReset,
 }: AINavigationViewProps) {
   // Use provided state/handlers or defaults
@@ -78,6 +82,7 @@ export function AINavigationView({
     status: 'idle' as const,
     totalTokens: 0,
     error: null,
+    humanIntervention: null,
   };
   const availableModels = aiModels ?? [];
   const isNavigating = aiIsNavigating ?? false;
@@ -141,6 +146,12 @@ export function AINavigationView({
     }
   }, [onAIAbort]);
 
+  const handleResume = useCallback(() => {
+    if (onAIResume) {
+      void onAIResume();
+    }
+  }, [onAIResume]);
+
   const handleReset = useCallback(() => {
     if (onAIReset) {
       onAIReset();
@@ -168,17 +179,27 @@ export function AINavigationView({
         </div>
 
         {/* Browser View */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden relative">
           {sessionId ? (
             effectiveUrl ? (
-              <PlaywrightView
-                sessionId={sessionId}
-                refreshToken={refreshToken}
-                quality={streamSettings?.quality}
-                fps={streamSettings?.fps}
-                onStatsUpdate={onStatsUpdate}
-                onPageMetadataChange={onPageMetadataChange}
-              />
+              <>
+                <PlaywrightView
+                  sessionId={sessionId}
+                  refreshToken={refreshToken}
+                  quality={streamSettings?.quality}
+                  fps={streamSettings?.fps}
+                  onStatsUpdate={onStatsUpdate}
+                  onPageMetadataChange={onPageMetadataChange}
+                />
+                {/* Human Intervention Overlay */}
+                {state.humanIntervention && (
+                  <HumanInterventionOverlay
+                    intervention={state.humanIntervention}
+                    onComplete={handleResume}
+                    onAbort={handleAbort}
+                  />
+                )}
+              </>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center px-6">
                 <svg className="w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

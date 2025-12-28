@@ -299,6 +299,7 @@ func main() {
 		r.Post("/ai-navigate", handler.AINavigate)
 		r.Get("/ai-navigate/{navigationId}/status", handler.AINavigateStatus)
 		r.Post("/ai-navigate/{navigationId}/abort", handler.AINavigateAbort)
+		r.Post("/ai-navigate/{navigationId}/resume", handler.AINavigateResume)
 
 		// Internal callback route for playwright-driver step events
 		r.Post("/internal/ai-navigate/callback", handler.AINavigateCallback)

@@ -23,7 +23,8 @@ export type BrowserAction =
   | SelectAction
   | WaitAction
   | KeyPressAction
-  | DoneAction;
+  | DoneAction
+  | RequestHumanAction;
 
 /**
  * Click on an element or coordinates.
@@ -121,6 +122,20 @@ export interface DoneAction {
 }
 
 /**
+ * Request human intervention for tasks the AI cannot complete.
+ * Used when encountering CAPTCHAs, human verification, or complex interactive elements.
+ */
+export interface RequestHumanAction {
+  type: 'request_human';
+  /** Why human intervention is needed */
+  reason: string;
+  /** Instructions for the human user */
+  instructions?: string;
+  /** Type of intervention needed */
+  interventionType: 'captcha' | 'verification' | 'complex_interaction' | 'login_required' | 'other';
+}
+
+/**
  * Extract the action type as a string literal type.
  * Useful for switch statements and type guards.
  */
@@ -145,4 +160,11 @@ export function isTypeAction(action: BrowserAction): action is TypeAction {
  */
 export function isDoneAction(action: BrowserAction): action is DoneAction {
   return action.type === 'done';
+}
+
+/**
+ * Type guard to check if an action is a request human action.
+ */
+export function isRequestHumanAction(action: BrowserAction): action is RequestHumanAction {
+  return action.type === 'request_human';
 }

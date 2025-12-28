@@ -349,6 +349,60 @@ export async function handleSessionAINavigateAbort(
 }
 
 /**
+ * Handle POST /session/:id/ai-navigate/resume
+ *
+ * Resumes AI navigation after human intervention is complete.
+ */
+export async function handleSessionAINavigateResume(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  _config: Config
+): Promise<void> {
+  // Validate session exists
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    sendError(res, new Error(`Session not found: ${sessionId}`), '/session/:id/ai-navigate/resume');
+    return;
+  }
+
+  // Check for active navigation
+  const active = activeNavigations.get(sessionId);
+  if (!active) {
+    sendJson(res, 404, {
+      error: 'not_found',
+      message: 'No AI navigation in progress for this session',
+    });
+    return;
+  }
+
+  // Check if agent is paused
+  if (!active.agent.isPaused()) {
+    sendJson(res, 409, {
+      error: 'conflict',
+      message: 'Navigation is not paused. Cannot resume.',
+      navigation_id: active.navigationId,
+    });
+    return;
+  }
+
+  // Resume navigation
+  active.agent.resume();
+
+  logger.info('AI navigation resumed after human intervention', {
+    sessionId,
+    navigationId: active.navigationId,
+  });
+
+  sendJson(res, 200, {
+    status: 'resumed',
+    navigation_id: active.navigationId,
+    message: 'Navigation resumed. Will continue from where it paused.',
+  });
+}
+
+/**
  * Handle GET /session/:id/ai-navigate/status
  *
  * Returns status of AI navigation for the session.
@@ -377,10 +431,12 @@ export async function handleSessionAINavigateStatus(
     return;
   }
 
+  const isPaused = active.agent.isPaused();
   sendJson(res, 200, {
-    status: 'navigating',
+    status: isPaused ? 'awaiting_human' : 'navigating',
     navigation_id: active.navigationId,
     is_navigating: active.agent.isNavigating(),
+    is_paused: isPaused,
   });
 }
 

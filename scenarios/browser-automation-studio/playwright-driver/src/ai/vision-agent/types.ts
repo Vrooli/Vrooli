@@ -50,6 +50,20 @@ export interface NavigationConfig {
 }
 
 /**
+ * Human intervention details when awaiting human action.
+ */
+export interface HumanInterventionDetails {
+  /** Why human intervention is needed */
+  reason: string;
+  /** Instructions for the user */
+  instructions?: string;
+  /** Type of intervention needed */
+  interventionType: string;
+  /** What triggered the intervention */
+  trigger: 'programmatic' | 'ai_requested';
+}
+
+/**
  * Data emitted after each navigation step.
  */
 export interface NavigationStep {
@@ -66,6 +80,10 @@ export interface NavigationStep {
   error?: string;
   /** Element labels visible in this step */
   elementLabels?: ElementLabel[];
+  /** Whether this step is awaiting human intervention */
+  awaitingHuman?: boolean;
+  /** Human intervention details if awaiting */
+  humanIntervention?: HumanInterventionDetails;
 }
 
 /**
@@ -91,7 +109,8 @@ export type NavigationStatus =
   | 'failed'
   | 'aborted'
   | 'max_steps_reached'
-  | 'loop_detected';
+  | 'loop_detected'
+  | 'awaiting_human';
 
 /**
  * Vision Agent interface.
@@ -112,6 +131,16 @@ export interface VisionAgent {
    * Check if navigation is currently in progress.
    */
   isNavigating(): boolean;
+
+  /**
+   * Resume navigation after human intervention.
+   */
+  resume(): void;
+
+  /**
+   * Check if navigation is paused awaiting human intervention.
+   */
+  isPaused(): boolean;
 }
 
 /**

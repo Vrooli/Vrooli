@@ -76,7 +76,7 @@ interface AINavigationPanelProps {
   /** Total tokens used */
   totalTokens: number;
   /** Current status */
-  status: 'idle' | 'navigating' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected';
+  status: 'idle' | 'navigating' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected' | 'awaiting_human';
   /** Error message if any */
   error: string | null;
   /** Callback to start navigation */
@@ -253,6 +253,10 @@ export function AINavigationPanel({
         return 'Navigation aborted';
       case 'max_steps_reached':
         return 'Maximum steps reached';
+      case 'loop_detected':
+        return 'Loop detected - navigation stuck';
+      case 'awaiting_human':
+        return 'Waiting for human intervention...';
       default:
         return null;
     }
@@ -431,6 +435,8 @@ export function AINavigationPanel({
                 status === 'failed' ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300' :
                 status === 'aborted' ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300' :
                 status === 'max_steps_reached' ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300' :
+                status === 'loop_detected' ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300' :
+                status === 'awaiting_human' ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300' :
                 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
               }`}>
                 {status === 'navigating' && (
@@ -444,9 +450,14 @@ export function AINavigationPanel({
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 )}
-                {(status === 'failed' || status === 'aborted' || status === 'max_steps_reached') && (
+                {(status === 'failed' || status === 'aborted' || status === 'max_steps_reached' || status === 'loop_detected') && (
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                )}
+                {status === 'awaiting_human' && (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                   </svg>
                 )}
                 <span>{statusMessage}</span>

@@ -95,7 +95,7 @@ export interface TokenUsage {
  * Browser action from vision model.
  */
 export interface BrowserAction {
-  type: 'click' | 'type' | 'scroll' | 'navigate' | 'hover' | 'select' | 'wait' | 'keypress' | 'done';
+  type: 'click' | 'type' | 'scroll' | 'navigate' | 'hover' | 'select' | 'wait' | 'keypress' | 'done' | 'request_human';
   elementId?: number;
   coordinates?: { x: number; y: number };
   text?: string;
@@ -104,6 +104,10 @@ export interface BrowserAction {
   key?: string;
   result?: string;
   success?: boolean;
+  // For request_human action
+  reason?: string;
+  instructions?: string;
+  interventionType?: 'captcha' | 'verification' | 'complex_interaction' | 'login_required' | 'other';
 }
 
 /**
@@ -131,7 +135,7 @@ export interface AINavigationCompleteEvent {
   type: 'ai_navigation_complete';
   navigationId: string;
   sessionId: string;
-  status: 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected';
+  status: 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected' | 'awaiting_human';
   totalSteps: number;
   totalTokens: number;
   totalDurationMs: number;
@@ -139,6 +143,42 @@ export interface AINavigationCompleteEvent {
   error?: string;
   summary?: string;
   timestamp: string;
+}
+
+/**
+ * AI navigation awaiting human intervention event (received via WebSocket).
+ */
+export interface AINavigationAwaitingHumanEvent {
+  type: 'ai_navigation_awaiting_human';
+  navigationId: string;
+  sessionId: string;
+  stepNumber: number;
+  reason: string;
+  instructions?: string;
+  interventionType: 'captcha' | 'verification' | 'complex_interaction' | 'login_required' | 'other';
+  trigger: 'programmatic' | 'ai_requested';
+  timestamp: string;
+}
+
+/**
+ * AI navigation resumed event (received via WebSocket).
+ */
+export interface AINavigationResumedEvent {
+  type: 'ai_navigation_resumed';
+  navigationId: string;
+  sessionId: string;
+  timestamp: string;
+}
+
+/**
+ * Human intervention state for UI display.
+ */
+export interface HumanInterventionState {
+  reason: string;
+  instructions?: string;
+  interventionType: 'captcha' | 'verification' | 'complex_interaction' | 'login_required' | 'other';
+  trigger: 'programmatic' | 'ai_requested';
+  startedAt: Date;
 }
 
 /**
@@ -162,9 +202,10 @@ export interface AINavigationState {
   prompt: string;
   model: string;
   steps: AINavigationStep[];
-  status: 'idle' | 'navigating' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected';
+  status: 'idle' | 'navigating' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected' | 'awaiting_human';
   totalTokens: number;
   error: string | null;
+  humanIntervention: HumanInterventionState | null;
 }
 
 /**

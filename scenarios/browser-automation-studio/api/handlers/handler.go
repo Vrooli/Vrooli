@@ -422,3 +422,8 @@ func (h *Handler) AINavigateStatus(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) AINavigateAbort(w http.ResponseWriter, r *http.Request) {
 	h.visionNavigationHandler.HandleAINavigateAbort(w, r)
 }
+
+// AINavigateResume delegates to the vision navigation handler
+func (h *Handler) AINavigateResume(w http.ResponseWriter, r *http.Request) {
+	h.visionNavigationHandler.HandleAINavigateResume(w, r)
+}

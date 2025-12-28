@@ -18,6 +18,8 @@ import type {
   AINavigationStep,
   AINavigationStepEvent,
   AINavigationCompleteEvent,
+  AINavigationAwaitingHumanEvent,
+  AINavigationResumedEvent,
   VisionModelSpec,
 } from './types';
 import { VISION_MODELS } from './types';
@@ -37,12 +39,16 @@ interface UseAINavigationReturn {
   startNavigation: (prompt: string, model: string, maxSteps?: number) => Promise<void>;
   /** Abort the current navigation */
   abortNavigation: () => Promise<void>;
+  /** Resume navigation after human intervention */
+  resumeNavigation: () => Promise<void>;
   /** Reset the navigation state */
   reset: () => void;
   /** Available vision models */
   availableModels: VisionModelSpec[];
   /** Whether navigation is in progress */
   isNavigating: boolean;
+  /** Whether navigation is awaiting human intervention */
+  isAwaitingHuman: boolean;
 }
 
 const initialState: AINavigationState = {
@@ -54,6 +60,7 @@ const initialState: AINavigationState = {
   status: 'idle',
   totalTokens: 0,
   error: null,
+  humanIntervention: null,
 };
 
 export function useAINavigation({
@@ -130,10 +137,45 @@ export function useAINavigation({
         status,
         totalTokens,
         error: event.error ?? null,
+        humanIntervention: null,
       }));
 
       navigationIdRef.current = null;
       onCompleteRef.current?.(status, event.summary);
+    }
+
+    // Handle AI navigation awaiting human intervention events
+    if (msg.type === 'ai_navigation_awaiting_human') {
+      const event = msg as unknown as AINavigationAwaitingHumanEvent;
+
+      // Only process events for our current navigation
+      if (event.navigationId !== navigationIdRef.current) return;
+
+      setState((prev) => ({
+        ...prev,
+        status: 'awaiting_human',
+        humanIntervention: {
+          reason: event.reason,
+          instructions: event.instructions,
+          interventionType: event.interventionType,
+          trigger: event.trigger,
+          startedAt: new Date(event.timestamp),
+        },
+      }));
+    }
+
+    // Handle AI navigation resumed events
+    if (msg.type === 'ai_navigation_resumed') {
+      const event = msg as unknown as AINavigationResumedEvent;
+
+      // Only process events for our current navigation
+      if (event.navigationId !== navigationIdRef.current) return;
+
+      setState((prev) => ({
+        ...prev,
+        status: 'navigating',
+        humanIntervention: null,
+      }));
     }
   }, [lastMessage]);
 
@@ -254,6 +296,39 @@ export function useAINavigation({
     }
   }, [apiUrl, state.navigationId]);
 
+  const resumeNavigation = useCallback(async () => {
+    if (!state.navigationId) {
+      return;
+    }
+
+    if (state.status !== 'awaiting_human') {
+      setState((prev) => ({
+        ...prev,
+        error: 'Navigation is not awaiting human intervention',
+      }));
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiUrl}/ai-navigate/${state.navigationId}/resume`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to resume navigation');
+      }
+
+      // The WebSocket resumed event will clear humanIntervention
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to resume navigation';
+      setState((prev) => ({
+        ...prev,
+        error: message,
+      }));
+    }
+  }, [apiUrl, state.navigationId, state.status]);
+
   const reset = useCallback(() => {
     setState(initialState);
     navigationIdRef.current = null;
@@ -263,8 +338,10 @@ export function useAINavigation({
     state,
     startNavigation,
     abortNavigation,
+    resumeNavigation,
     reset,
     availableModels: VISION_MODELS,
     isNavigating: state.isNavigating,
+    isAwaitingHuman: state.status === 'awaiting_human',
   };
 }

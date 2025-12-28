@@ -355,6 +355,9 @@ function setupRoutes(
   router.post('/session/:id/ai-navigate/abort', async (req, res, params) => {
     await routes.handleSessionAINavigateAbort(req, res, params.id, sessionManager, config);
   });
+  router.post('/session/:id/ai-navigate/resume', async (req, res, params) => {
+    await routes.handleSessionAINavigateResume(req, res, params.id, sessionManager, config);
+  });
   router.get('/session/:id/ai-navigate/status', async (req, res, params) => {
     await routes.handleSessionAINavigateStatus(req, res, params.id, sessionManager, config);
   });

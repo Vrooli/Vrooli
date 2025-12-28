@@ -50,14 +50,24 @@ type VisionNavigationHandler struct {
 
 // NavigationSession tracks an active navigation.
 type NavigationSession struct {
-	NavigationID string
-	SessionID    string
-	UserID       string
-	Model        string
-	StartedAt    time.Time
-	StepCount    int
-	TotalTokens  int
-	Status       string // "navigating", "completed", "failed", "aborted"
+	NavigationID      string
+	SessionID         string
+	UserID            string
+	Model             string
+	StartedAt         time.Time
+	StepCount         int
+	TotalTokens       int
+	Status            string // "navigating", "completed", "failed", "aborted", "awaiting_human"
+	AwaitingHuman     bool
+	HumanIntervention *HumanInterventionInfo
+}
+
+// HumanInterventionInfo contains details about human intervention.
+type HumanInterventionInfo struct {
+	Reason           string `json:"reason"`
+	Instructions     string `json:"instructions,omitempty"`
+	InterventionType string `json:"interventionType"`
+	Trigger          string `json:"trigger"` // "programmatic" or "ai_requested"
 }
 
 // VisionNavigationHandlerOption configures VisionNavigationHandler.
@@ -148,6 +158,8 @@ type NavigationStepCallback struct {
 	GoalAchieved         bool                   `json:"goalAchieved"`
 	Error                string                 `json:"error,omitempty"`
 	ElementLabels        []interface{}          `json:"elementLabels,omitempty"`
+	AwaitingHuman        bool                   `json:"awaitingHuman,omitempty"`
+	HumanIntervention    *HumanInterventionInfo `json:"humanIntervention,omitempty"`
 }
 
 // NavigationCompleteCallback is received when navigation ends.
@@ -443,10 +455,11 @@ func (h *VisionNavigationHandler) HandleAINavigateCallback(w http.ResponseWriter
 // handleStepCallback processes a navigation step event.
 func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http.ResponseWriter, event *NavigationStepCallback) {
 	h.log.WithFields(logrus.Fields{
-		"navigation_id": event.NavigationID,
-		"step_number":   event.StepNumber,
-		"action_type":   event.Action["type"],
-		"goal_achieved": event.GoalAchieved,
+		"navigation_id":  event.NavigationID,
+		"step_number":    event.StepNumber,
+		"action_type":    event.Action["type"],
+		"goal_achieved":  event.GoalAchieved,
+		"awaiting_human": event.AwaitingHuman,
 	}).Debug("vision_navigation_callback: received step")
 
 	// Update navigation session
@@ -455,6 +468,11 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 	if session != nil {
 		session.StepCount = event.StepNumber
 		session.TotalTokens += event.TokensUsed.TotalTokens
+		session.AwaitingHuman = event.AwaitingHuman
+		session.HumanIntervention = event.HumanIntervention
+		if event.AwaitingHuman {
+			session.Status = "awaiting_human"
+		}
 	}
 	h.mu.Unlock()
 
@@ -475,6 +493,7 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 
 	// Broadcast via WebSocket
 	if h.wsHub != nil && session != nil {
+		// Always send step event
 		wsEvent := map[string]interface{}{
 			"type":         "ai_navigation_step",
 			"navigationId": event.NavigationID,
@@ -493,6 +512,31 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 		}
 
 		h.wsHub.BroadcastEnvelope(wsEvent)
+
+		// If awaiting human intervention, send additional event
+		if event.AwaitingHuman && event.HumanIntervention != nil {
+			humanEvent := map[string]interface{}{
+				"type":             "ai_navigation_awaiting_human",
+				"navigationId":    event.NavigationID,
+				"sessionId":       session.SessionID,
+				"stepNumber":      event.StepNumber,
+				"reason":          event.HumanIntervention.Reason,
+				"interventionType": event.HumanIntervention.InterventionType,
+				"trigger":         event.HumanIntervention.Trigger,
+				"timestamp":       time.Now().UTC().Format(time.RFC3339),
+			}
+			if event.HumanIntervention.Instructions != "" {
+				humanEvent["instructions"] = event.HumanIntervention.Instructions
+			}
+
+			h.wsHub.BroadcastEnvelope(humanEvent)
+
+			h.log.WithFields(logrus.Fields{
+				"navigation_id":     event.NavigationID,
+				"intervention_type": event.HumanIntervention.InterventionType,
+				"trigger":           event.HumanIntervention.Trigger,
+			}).Info("vision_navigation_callback: awaiting human intervention")
+		}
 	}
 
 	// Respond with acknowledgment
@@ -654,6 +698,106 @@ func (h *VisionNavigationHandler) HandleAINavigateAbort(w http.ResponseWriter, r
 		"status":        "aborting",
 		"navigation_id": navigationID,
 		"message":       "Abort signal sent. Navigation will stop after current step.",
+	})
+}
+
+// HandleAINavigateResume handles POST /api/v1/ai-navigate/:id/resume.
+// Resumes navigation after human intervention is complete.
+func (h *VisionNavigationHandler) HandleAINavigateResume(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Extract navigation ID from URL
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 4 {
+		RespondError(w, ErrInvalidRequest)
+		return
+	}
+	navigationID := parts[len(parts)-2] // /api/v1/ai-navigate/{id}/resume
+
+	h.mu.RLock()
+	session := h.activeNavigations[navigationID]
+	h.mu.RUnlock()
+
+	if session == nil {
+		RespondError(w, &APIError{
+			Status:  http.StatusNotFound,
+			Code:    "NAVIGATION_NOT_FOUND",
+			Message: "Navigation session not found",
+		})
+		return
+	}
+
+	// Check if session is awaiting human intervention
+	if !session.AwaitingHuman {
+		RespondError(w, &APIError{
+			Status:  http.StatusConflict,
+			Code:    "NOT_AWAITING_HUMAN",
+			Message: "Navigation is not awaiting human intervention",
+		})
+		return
+	}
+
+	// Forward resume to playwright-driver
+	driverURL := fmt.Sprintf("%s/session/%s/ai-navigate/resume", h.driverBaseURL, session.SessionID)
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, nil)
+	if err != nil {
+		h.log.WithError(err).Error("vision_navigation: failed to create resume request")
+		RespondError(w, ErrInternalServer)
+		return
+	}
+
+	resp, err := h.httpClient.Do(httpReq)
+	if err != nil {
+		h.log.WithError(err).Warn("vision_navigation: resume request failed")
+		RespondError(w, &APIError{
+			Status:  http.StatusBadGateway,
+			Code:    "DRIVER_UNAVAILABLE",
+			Message: "Failed to connect to browser driver",
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		h.log.WithField("status", resp.StatusCode).WithField("body", string(respBody)).
+			Warn("vision_navigation: driver resume returned error")
+		RespondError(w, &APIError{
+			Status:  resp.StatusCode,
+			Code:    "DRIVER_ERROR",
+			Message: "Driver returned an error during resume",
+		})
+		return
+	}
+
+	// Update session status
+	h.mu.Lock()
+	if s := h.activeNavigations[navigationID]; s != nil {
+		s.Status = "navigating"
+		s.AwaitingHuman = false
+		s.HumanIntervention = nil
+	}
+	h.mu.Unlock()
+
+	// Broadcast resume event via WebSocket
+	if h.wsHub != nil {
+		resumeEvent := map[string]interface{}{
+			"type":         "ai_navigation_resumed",
+			"navigationId": navigationID,
+			"sessionId":    session.SessionID,
+			"timestamp":    time.Now().UTC().Format(time.RFC3339),
+		}
+		h.wsHub.BroadcastEnvelope(resumeEvent)
+	}
+
+	h.log.WithField("navigation_id", navigationID).Info("vision_navigation: resumed after human intervention")
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":        "resumed",
+		"navigation_id": navigationID,
+		"message":       "Navigation resumed. Will continue from where it paused.",
 	})
 }
 

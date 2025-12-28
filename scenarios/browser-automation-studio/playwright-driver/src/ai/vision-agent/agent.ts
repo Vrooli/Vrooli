@@ -30,7 +30,9 @@ import type {
   LoggerInterface,
   ConversationMessageInterface,
 } from './types';
-import type { BrowserAction, DoneAction, ScrollAction } from '../action/types';
+import type { BrowserAction, DoneAction, ScrollAction, RequestHumanAction } from '../action/types';
+import { detectCaptcha } from '../detection/captcha-detector';
+import type { HumanInterventionDetails } from './types';
 import type { TokenUsage, ElementLabel } from '../vision-client/types';
 import { extractInteractiveElements, formatElementLabelsForPrompt } from '../screenshot/annotate';
 import {
@@ -105,6 +107,8 @@ export function createVisionAgent(
   const loopDetector = createLoopDetector(config.loopDetection);
   let abortController: AbortController | null = null;
   let isNavigating = false;
+  let isPausedState = false;
+  let resumeResolver: (() => void) | null = null;
 
   return {
     async navigate(navConfig: NavigationConfig): Promise<NavigationResult> {
@@ -182,6 +186,56 @@ export function createVisionAgent(
 
           // Get current URL
           const currentUrl = navConfig.page.url();
+
+          // CAPTCHA DETECTION: Check for verification challenges BEFORE AI decides
+          const captchaResult = await detectCaptcha(navConfig.page);
+          if (captchaResult.detected) {
+            deps.logger.info('CAPTCHA detected programmatically', {
+              navigationId: navConfig.navigationId,
+              type: captchaResult.type,
+              confidence: captchaResult.confidence,
+            });
+
+            // Emit awaiting_human step
+            const humanStep: NavigationStep = {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              action: {
+                type: 'request_human',
+                reason: captchaResult.reason,
+                instructions: captchaResult.instructions,
+                interventionType: captchaResult.type || 'captcha',
+              } as RequestHumanAction,
+              reasoning: `Detected ${captchaResult.type}: ${captchaResult.reason}`,
+              screenshot,
+              currentUrl,
+              tokensUsed: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+              durationMs: Date.now() - stepStartTime,
+              goalAchieved: false,
+              awaitingHuman: true,
+              humanIntervention: {
+                reason: captchaResult.reason,
+                instructions: captchaResult.instructions,
+                interventionType: captchaResult.type || 'captcha',
+                trigger: 'programmatic',
+              },
+              elementLabels,
+            };
+
+            await safeEmit(deps, humanStep, navConfig.callbackUrl, navConfig.onStep);
+
+            // Pause and wait for resume
+            isPausedState = true;
+            deps.logger.info('Pausing for human intervention', { navigationId: navConfig.navigationId });
+            await new Promise<void>((resolve) => {
+              resumeResolver = resolve;
+            });
+            isPausedState = false;
+            deps.logger.info('Resumed from human intervention', { navigationId: navConfig.navigationId });
+
+            // After resume, continue loop (will take new screenshot)
+            continue;
+          }
 
           // Build conversation history for context
           updateConversationHistory(
@@ -280,6 +334,52 @@ export function createVisionAgent(
               summary,
             });
             break;
+          }
+
+          // AI-REQUESTED HUMAN INTERVENTION: Check if AI wants human help
+          if (analysisResult.action.type === 'request_human') {
+            const humanAction = analysisResult.action as RequestHumanAction;
+
+            deps.logger.info('AI requested human intervention', {
+              navigationId: navConfig.navigationId,
+              reason: humanAction.reason,
+              interventionType: humanAction.interventionType,
+            });
+
+            // Emit awaiting_human step
+            const humanStep: NavigationStep = {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              action: humanAction,
+              reasoning: analysisResult.reasoning,
+              screenshot,
+              currentUrl,
+              tokensUsed: analysisResult.tokensUsed,
+              durationMs: Date.now() - stepStartTime,
+              goalAchieved: false,
+              awaitingHuman: true,
+              humanIntervention: {
+                reason: humanAction.reason,
+                instructions: humanAction.instructions,
+                interventionType: humanAction.interventionType,
+                trigger: 'ai_requested',
+              },
+              elementLabels,
+            };
+
+            await safeEmit(deps, humanStep, navConfig.callbackUrl, navConfig.onStep);
+
+            // Pause and wait for resume
+            isPausedState = true;
+            deps.logger.info('Pausing for human intervention (AI requested)', { navigationId: navConfig.navigationId });
+            await new Promise<void>((resolve) => {
+              resumeResolver = resolve;
+            });
+            isPausedState = false;
+            deps.logger.info('Resumed from human intervention', { navigationId: navConfig.navigationId });
+
+            // After resume, continue loop
+            continue;
           }
 
           // ACT: Execute the action
@@ -418,6 +518,18 @@ export function createVisionAgent(
 
     isNavigating(): boolean {
       return isNavigating;
+    },
+
+    resume(): void {
+      if (resumeResolver) {
+        resumeResolver();
+        resumeResolver = null;
+        deps.logger.info('Resume signal sent');
+      }
+    },
+
+    isPaused(): boolean {
+      return isPausedState;
     },
   };
 }
