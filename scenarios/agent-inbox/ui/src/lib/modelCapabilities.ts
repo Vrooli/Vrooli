@@ -11,6 +11,7 @@ export interface ModelCapabilities {
   supportsImages: boolean;
   supportsPDFs: boolean;
   supportsText: boolean;
+  supportsTools: boolean;
 }
 
 /**
@@ -86,6 +87,23 @@ export function supportsPDFs(model: Model | null): boolean {
 }
 
 /**
+ * Check if a model supports tool/function calling.
+ * Uses supported_parameters metadata from OpenRouter.
+ * This is required for features like web search that use tools under the hood.
+ */
+export function supportsTools(model: Model | null): boolean {
+  if (!model) return false;
+
+  // Check supported_parameters from OpenRouter API
+  if (model.supported_parameters) {
+    return model.supported_parameters.includes("tools");
+  }
+
+  // Fallback: assume no tool support if metadata is missing
+  return false;
+}
+
+/**
  * Get full capabilities for a model.
  */
 export function getModelCapabilities(model: Model | null): ModelCapabilities {
@@ -93,6 +111,7 @@ export function getModelCapabilities(model: Model | null): ModelCapabilities {
     supportsImages: supportsImages(model),
     supportsPDFs: supportsPDFs(model),
     supportsText: true, // All models support text
+    supportsTools: supportsTools(model),
   };
 }
 

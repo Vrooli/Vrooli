@@ -21,6 +21,8 @@ interface AttachmentButtonProps {
   disabled?: boolean;
   modelSupportsImages: boolean;
   modelSupportsPDFs: boolean;
+  /** Whether the current model supports web search (requires tool calling). Default: true */
+  modelSupportsWebSearch?: boolean;
 }
 
 export function AttachmentButton({
@@ -31,6 +33,7 @@ export function AttachmentButton({
   disabled = false,
   modelSupportsImages,
   modelSupportsPDFs,
+  modelSupportsWebSearch = true,
 }: AttachmentButtonProps) {
   const showWebSearch = !!onWebSearchToggle;
   const [isOpen, setIsOpen] = useState(false);
@@ -177,17 +180,22 @@ export function AttachmentButton({
 
                 <button
                   onClick={handleWebSearchClick}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-white/10 text-left"
+                  disabled={!modelSupportsWebSearch}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-left"
                   data-testid="attachment-search-option"
                 >
                   <Globe className="h-4 w-4 text-green-400" />
                   <div className="flex-1">
                     <div className="text-white">Web search</div>
-                    <div className="text-xs text-slate-500">
-                      {webSearchEnabled ? "Enabled for this message" : "Search the web for answers"}
+                    <div className={`text-xs ${!modelSupportsWebSearch ? "text-amber-400" : "text-slate-500"}`}>
+                      {!modelSupportsWebSearch
+                        ? "Model doesn't support tool use"
+                        : webSearchEnabled
+                          ? "Enabled for this message"
+                          : "Search the web for answers"}
                     </div>
                   </div>
-                  {webSearchEnabled && (
+                  {webSearchEnabled && modelSupportsWebSearch && (
                     <Check className="h-4 w-4 text-green-400" />
                   )}
                 </button>

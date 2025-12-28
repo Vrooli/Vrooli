@@ -564,6 +564,7 @@ export interface Model {
   max_completion_tokens?: number;
   pricing?: ModelPricing;
   architecture?: ModelArchitecture;
+  supported_parameters?: string[];
 }
 
 export async function fetchModels(): Promise<Model[]> {

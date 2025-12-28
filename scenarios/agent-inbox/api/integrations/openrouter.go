@@ -120,6 +120,7 @@ type ModelInfo struct {
 	MaxCompletionTokens int           `json:"max_completion_tokens,omitempty"`
 	Pricing             *Pricing      `json:"pricing,omitempty"`
 	Architecture        *Architecture `json:"architecture,omitempty"`
+	SupportedParameters []string      `json:"supported_parameters,omitempty"`
 }
 
 // Pricing contains model pricing information (cost per token in USD).

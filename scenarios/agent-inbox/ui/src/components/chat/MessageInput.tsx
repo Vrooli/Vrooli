@@ -6,7 +6,7 @@ import { AttachmentButton } from "./AttachmentButton";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { WebSearchIndicator } from "./WebSearchIndicator";
 import { useAttachments } from "../../hooks/useAttachments";
-import { supportsImages, supportsPDFs } from "../../lib/modelCapabilities";
+import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapabilities";
 import type { Model } from "../../lib/api";
 
 export interface MessagePayload {
@@ -64,16 +64,23 @@ export function MessageInput({
   // Only use attachments if enabled
   const effectiveAttachments = enableAttachments ? attachments : [];
 
-  // Reset web search to chat default when it changes
-  useEffect(() => {
-    if (enableWebSearch) {
-      setWebSearchEnabled(chatWebSearchDefault);
-    }
-  }, [chatWebSearchDefault, enableWebSearch]);
-
   // Model capabilities (only relevant when attachments are enabled)
   const modelSupportsImages = enableAttachments && supportsImages(currentModel);
   const modelSupportsPDFs = enableAttachments && supportsPDFs(currentModel);
+  // Web search requires tool support (it uses tools under the hood)
+  const modelSupportsWebSearch = enableWebSearch && supportsTools(currentModel);
+
+  // Reset web search to chat default when it changes, or disable if model doesn't support it
+  useEffect(() => {
+    if (enableWebSearch) {
+      if (!modelSupportsWebSearch) {
+        // Disable web search if model doesn't support it
+        setWebSearchEnabled(false);
+      } else {
+        setWebSearchEnabled(chatWebSearchDefault);
+      }
+    }
+  }, [chatWebSearchDefault, enableWebSearch, modelSupportsWebSearch]);
 
   // Check if any attachments are incompatible with the model
   const hasIncompatibleAttachments = effectiveAttachments.some((att) => {
@@ -240,6 +247,7 @@ export function MessageInput({
             disabled={loading}
             modelSupportsImages={modelSupportsImages}
             modelSupportsPDFs={modelSupportsPDFs}
+            modelSupportsWebSearch={modelSupportsWebSearch}
           />
         )}
 
@@ -287,7 +295,7 @@ export function MessageInput({
             send, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Shift+Enter</kbd>{" "}
             for new line
           </p>
-          {enableWebSearch && (
+          {enableWebSearch && modelSupportsWebSearch && (
             <WebSearchIndicator
               enabled={webSearchEnabled}
               onDisable={() => setWebSearchEnabled(false)}
