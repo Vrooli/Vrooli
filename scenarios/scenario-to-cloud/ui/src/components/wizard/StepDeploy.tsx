@@ -1,4 +1,4 @@
-import { Rocket, Play, CheckCircle2, ExternalLink, PartyPopper } from "lucide-react";
+import { Rocket, Play, CheckCircle2, ExternalLink, PartyPopper, Server } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import { LoadingState } from "../ui/spinner";
@@ -7,12 +7,14 @@ import type { useDeployment } from "../../hooks/useDeployment";
 
 interface StepDeployProps {
   deployment: ReturnType<typeof useDeployment>;
+  onViewDeployments?: () => void;
 }
 
-export function StepDeploy({ deployment }: StepDeployProps) {
+export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
   const {
     deploymentStatus,
     deploymentError,
+    deploymentId,
     deploy,
     parsedManifest,
     reset,
@@ -72,6 +74,12 @@ export function StepDeploy({ deployment }: StepDeployProps) {
                 Deployment Complete
               </h3>
 
+              {deploymentId && (
+                <p className="text-xs text-slate-500 mb-4 font-mono">
+                  ID: {deploymentId}
+                </p>
+              )}
+
               {domain && (
                 <p className="text-slate-300 mb-4">
                   Your scenario is now live at:
@@ -91,12 +99,17 @@ export function StepDeploy({ deployment }: StepDeployProps) {
               )}
 
               <div className="mt-8 pt-6 border-t border-slate-700">
-                <p className="text-sm text-slate-400 mb-4">
-                  Ready to deploy another scenario?
-                </p>
-                <Button onClick={reset}>
-                  Start New Deployment
-                </Button>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  {onViewDeployments && (
+                    <Button onClick={onViewDeployments} variant="outline">
+                      <Server className="h-4 w-4 mr-1.5" />
+                      View Deployments
+                    </Button>
+                  )}
+                  <Button onClick={reset}>
+                    Start New Deployment
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -138,11 +151,6 @@ export function StepDeploy({ deployment }: StepDeployProps) {
         </Card>
       )}
 
-      {/* Note about API */}
-      <p className="text-xs text-slate-500">
-        Note: Full deployment functionality will be available when the deploy API is implemented.
-        Current deployment is simulated for UI demonstration.
-      </p>
     </div>
   );
 }

@@ -13,9 +13,10 @@ import { cn } from "../../lib/utils";
 
 interface WizardContainerProps {
   onBackToDashboard?: () => void;
+  onViewDeployments?: () => void;
 }
 
-export function WizardContainer({ onBackToDashboard }: WizardContainerProps) {
+export function WizardContainer({ onBackToDashboard, onViewDeployments }: WizardContainerProps) {
   const deployment = useDeployment();
   const { currentStepIndex, currentStep, steps, goToStep, goNext, goBack, canProceed, reset } = deployment;
 
@@ -32,7 +33,7 @@ export function WizardContainer({ onBackToDashboard }: WizardContainerProps) {
       case "preflight":
         return <StepPreflight deployment={deployment} />;
       case "deploy":
-        return <StepDeploy deployment={deployment} />;
+        return <StepDeploy deployment={deployment} onViewDeployments={onViewDeployments} />;
       default:
         return null;
     }

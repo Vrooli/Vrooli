@@ -1,18 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
-import { Cloud, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
+import { Cloud, RefreshCw, CheckCircle2, XCircle, Home, Server } from "lucide-react";
 import { fetchHealth } from "../../lib/api";
 import { cn } from "../../lib/utils";
 
+export type View = "dashboard" | "wizard" | "deployments";
+
 interface LayoutProps {
   children: React.ReactNode;
+  currentView?: View;
+  onNavigate?: (view: View) => void;
 }
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, currentView, onNavigate }: LayoutProps) {
   const { data: health, isLoading, error, refetch } = useQuery({
     queryKey: ["health"],
     queryFn: fetchHealth,
     refetchInterval: 30000, // Refresh every 30s
   });
+
+  const showTabs = currentView && onNavigate && currentView !== "wizard";
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
@@ -30,6 +36,36 @@ export function Layout({ children }: LayoutProps) {
                 <p className="text-xs text-slate-400 hidden sm:block">Deploy scenarios to VPS</p>
               </div>
             </div>
+
+            {/* Tab Navigation (only shown on dashboard/deployments, not wizard) */}
+            {showTabs && (
+              <nav className="flex items-center gap-1">
+                <button
+                  onClick={() => onNavigate("dashboard")}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    currentView === "dashboard"
+                      ? "bg-blue-500/20 text-blue-400"
+                      : "text-slate-400 hover:text-white hover:bg-white/5"
+                  )}
+                >
+                  <Home className="h-4 w-4" />
+                  <span className="hidden sm:inline">Dashboard</span>
+                </button>
+                <button
+                  onClick={() => onNavigate("deployments")}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    currentView === "deployments"
+                      ? "bg-blue-500/20 text-blue-400"
+                      : "text-slate-400 hover:text-white hover:bg-white/5"
+                  )}
+                >
+                  <Server className="h-4 w-4" />
+                  <span className="hidden sm:inline">Deployments</span>
+                </button>
+              </nav>
+            )}
 
             {/* API Status */}
             <div className="flex items-center gap-3">

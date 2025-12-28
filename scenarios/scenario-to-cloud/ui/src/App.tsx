@@ -1,9 +1,8 @@
 import { useState, useCallback } from "react";
-import { Layout } from "./components/layout/Layout";
+import { Layout, View } from "./components/layout/Layout";
 import { Dashboard } from "./components/Dashboard";
 import { WizardContainer } from "./components/wizard";
-
-type View = "dashboard" | "wizard";
+import { DeploymentsPage } from "./components/deployments/DeploymentsPage";
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>("dashboard");
@@ -26,13 +25,27 @@ export default function App() {
     setCurrentView("dashboard");
   }, []);
 
+  const handleNavigate = useCallback((view: View) => {
+    setCurrentView(view);
+  }, []);
+
+  const handleViewDeployments = useCallback(() => {
+    setCurrentView("deployments");
+  }, []);
+
   return (
-    <Layout>
+    <Layout currentView={currentView} onNavigate={handleNavigate}>
       {currentView === "dashboard" && (
         <Dashboard onStartNew={handleStartNew} onResume={handleResume} />
       )}
       {currentView === "wizard" && (
-        <WizardContainer onBackToDashboard={handleBackToDashboard} />
+        <WizardContainer
+          onBackToDashboard={handleBackToDashboard}
+          onViewDeployments={handleViewDeployments}
+        />
+      )}
+      {currentView === "deployments" && (
+        <DeploymentsPage onBack={handleBackToDashboard} />
       )}
     </Layout>
   );

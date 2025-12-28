@@ -4,6 +4,8 @@ import {
   buildPlan,
   buildBundle,
   runPreflight as runPreflightApi,
+  createDeployment,
+  executeDeployment,
   type ValidationIssue,
   type PlanStep,
   type BundleArtifact,
@@ -82,9 +84,10 @@ export function useDeployment() {
   const [preflightError, setPreflightError] = useState<string | null>(null);
   const [isRunningPreflight, setIsRunningPreflight] = useState(false);
 
-  // Deploy state (placeholder)
+  // Deploy state
   const [deploymentStatus, setDeploymentStatus] = useState<"idle" | "deploying" | "success" | "failed">("idle");
   const [deploymentError, setDeploymentError] = useState<string | null>(null);
+  const [deploymentId, setDeploymentId] = useState<string | null>(null);
 
   // Parse manifest
   const parsedManifest = useMemo((): { ok: true; value: DeploymentManifest } | { ok: false; error: string } => {
@@ -207,16 +210,31 @@ export function useDeployment() {
   const deploy = useCallback(async () => {
     setDeploymentStatus("deploying");
     setDeploymentError(null);
+    setDeploymentId(null);
 
     try {
-      // Placeholder - will be implemented when deploy API is ready
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setDeploymentStatus("success");
+      if (!parsedManifest.ok) {
+        throw new Error(`Invalid manifest: ${parsedManifest.error}`);
+      }
+
+      // Step 1: Create or get existing deployment record
+      const createRes = await createDeployment(parsedManifest.value);
+      setDeploymentId(createRes.deployment.id);
+
+      // Step 2: Execute deployment (setup + deploy)
+      const execRes = await executeDeployment(createRes.deployment.id);
+
+      if (execRes.success) {
+        setDeploymentStatus("success");
+      } else {
+        setDeploymentError(execRes.error || "Deployment failed");
+        setDeploymentStatus("failed");
+      }
     } catch (e) {
       setDeploymentError(e instanceof Error ? e.message : String(e));
       setDeploymentStatus("failed");
     }
-  }, []);
+  }, [parsedManifest]);
 
   const reset = useCallback(() => {
     clearSavedDeployment();
@@ -233,6 +251,7 @@ export function useDeployment() {
     setPreflightError(null);
     setDeploymentStatus("idle");
     setDeploymentError(null);
+    setDeploymentId(null);
   }, []);
 
   // Computed state
@@ -301,6 +320,7 @@ export function useDeployment() {
     // Deploy
     deploymentStatus,
     deploymentError,
+    deploymentId,
     deploy,
 
     // Actions

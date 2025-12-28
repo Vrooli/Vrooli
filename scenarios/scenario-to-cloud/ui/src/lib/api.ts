@@ -187,3 +187,176 @@ export async function runPreflight(manifest: unknown) {
   }
   return res.json() as Promise<PreflightResponse>;
 }
+
+// ============================================================================
+// Deployment Management Types & Functions
+// ============================================================================
+
+export type DeploymentStatus =
+  | "pending"
+  | "setup_running"
+  | "setup_complete"
+  | "deploying"
+  | "deployed"
+  | "failed"
+  | "stopped";
+
+export type DeploymentSummary = {
+  id: string;
+  name: string;
+  scenario_id: string;
+  status: DeploymentStatus;
+  domain?: string;
+  host?: string;
+  error_message?: string;
+  created_at: string;
+  last_deployed_at?: string;
+};
+
+export type Deployment = {
+  id: string;
+  name: string;
+  scenario_id: string;
+  status: DeploymentStatus;
+  manifest: unknown;
+  bundle_path?: string;
+  bundle_sha256?: string;
+  bundle_size_bytes?: number;
+  setup_result?: unknown;
+  deploy_result?: unknown;
+  last_inspect_result?: VPSInspectResult;
+  error_message?: string;
+  error_step?: string;
+  created_at: string;
+  updated_at: string;
+  last_deployed_at?: string;
+  last_inspected_at?: string;
+};
+
+export type VPSInspectResult = {
+  ok: boolean;
+  scenario_status?: unknown;
+  resource_status?: unknown;
+  scenario_logs?: string;
+  error?: string;
+  timestamp: string;
+};
+
+export type ListDeploymentsResponse = {
+  deployments: DeploymentSummary[];
+  timestamp: string;
+};
+
+export type DeploymentResponse = {
+  deployment: Deployment;
+  created?: boolean;
+  updated?: boolean;
+  timestamp: string;
+};
+
+export type ExecuteDeploymentResponse = {
+  deployment: Deployment;
+  success: boolean;
+  error?: string;
+  timestamp: string;
+};
+
+export type InspectDeploymentResponse = {
+  result: VPSInspectResult;
+  timestamp: string;
+};
+
+export async function listDeployments(): Promise<ListDeploymentsResponse> {
+  const url = buildApiUrl("/deployments", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list deployments: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ListDeploymentsResponse>;
+}
+
+export async function createDeployment(
+  manifest: unknown,
+  name?: string
+): Promise<DeploymentResponse> {
+  const url = buildApiUrl("/deployments", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ manifest, name })
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to create deployment: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<DeploymentResponse>;
+}
+
+export async function getDeployment(id: string): Promise<DeploymentResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get deployment: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<DeploymentResponse>;
+}
+
+export async function executeDeployment(id: string): Promise<ExecuteDeploymentResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(id)}/execute`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to execute deployment: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ExecuteDeploymentResponse>;
+}
+
+export async function inspectDeployment(id: string): Promise<InspectDeploymentResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(id)}/inspect`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to inspect deployment: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<InspectDeploymentResponse>;
+}
+
+export async function stopDeployment(id: string): Promise<{ success: boolean; error?: string; timestamp: string }> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(id)}/stop`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to stop deployment: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+export async function deleteDeployment(id: string, stopOnVPS = false): Promise<{ deleted: boolean; timestamp: string }> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(id)}${stopOnVPS ? "?stop=true" : ""}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to delete deployment: ${res.status} ${text}`);
+  }
+  return res.json();
+}

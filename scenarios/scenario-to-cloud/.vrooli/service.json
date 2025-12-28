@@ -218,6 +218,14 @@
     }
   },
   "dependencies": {
-    "resources": {}
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Deployment records storage",
+        "schema": "scenario_to_cloud"
+      }
+    }
   }
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,9 +14,13 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+
+	"scenario-to-cloud/persistence"
 )
 
 // Config holds minimal runtime configuration
@@ -27,6 +32,8 @@ type Config struct {
 type Server struct {
 	config *Config
 	router *mux.Router
+	db     *sql.DB
+	repo   *persistence.Repository
 }
 
 // NewServer initializes configuration, database, and routes
@@ -35,9 +42,26 @@ func NewServer() (*Server, error) {
 		Port: requireEnv("API_PORT"),
 	}
 
+	// Connect to database
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver: database.DriverPostgres,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize repository and schema
+	repo := persistence.NewRepository(db)
+	if err := repo.InitSchema(context.Background()); err != nil {
+		db.Close()
+		return nil, err
+	}
+
 	srv := &Server{
 		config: cfg,
 		router: mux.NewRouter(),
+		db:     db,
+		repo:   repo,
 	}
 
 	srv.setupRoutes()
@@ -64,6 +88,15 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/vps/deploy/apply", s.handleVPSDeployApply).Methods("POST")
 	api.HandleFunc("/vps/inspect/plan", s.handleVPSInspectPlan).Methods("POST")
 	api.HandleFunc("/vps/inspect/apply", s.handleVPSInspectApply).Methods("POST")
+
+	// Deployment management
+	api.HandleFunc("/deployments", s.handleListDeployments).Methods("GET")
+	api.HandleFunc("/deployments", s.handleCreateDeployment).Methods("POST")
+	api.HandleFunc("/deployments/{id}", s.handleGetDeployment).Methods("GET")
+	api.HandleFunc("/deployments/{id}", s.handleDeleteDeployment).Methods("DELETE")
+	api.HandleFunc("/deployments/{id}/execute", s.handleExecuteDeployment).Methods("POST")
+	api.HandleFunc("/deployments/{id}/inspect", s.handleInspectDeployment).Methods("POST")
+	api.HandleFunc("/deployments/{id}/stop", s.handleStopDeployment).Methods("POST")
 }
 
 // Router returns the HTTP handler for use with server.Run
@@ -501,6 +534,12 @@ func main() {
 	if err := server.Run(server.Config{
 		Handler:      srv.Router(),
 		WriteTimeout: 35 * time.Minute,
+		Cleanup: func(ctx context.Context) error {
+			if srv.db != nil {
+				return srv.db.Close()
+			}
+			return nil
+		},
 	}); err != nil {
 		log.Fatalf("server stopped with error: %v", err)
 	}
