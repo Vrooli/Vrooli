@@ -29,7 +29,7 @@ import { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanner
 import { ClearActionsModal } from './capture/RecordModeModals';
 import { WorkflowCreationForm } from './conversion/WorkflowCreationForm';
 import type { BrowserProfile, RecordingSessionProfile, ReplayPreviewResponse } from './types/types';
-import { BrowserProfileEditor } from '@/views/SettingsView/sections/sessions';
+import { SessionManager } from '@/views/SettingsView/sections/sessions';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useRecordMode } from './hooks/useRecordMode';
@@ -845,9 +845,11 @@ export function RecordModePage({
 
       {/* Session settings modal */}
       {configuringProfile && (
-        <BrowserProfileEditor
+        <SessionManager
+          profileId={configuringProfile.id}
           profileName={configuringProfile.name}
           initialProfile={configuringProfile.browser_profile}
+          hasStorageState={configuringProfile.has_storage_state}
           onSave={handleSaveBrowserProfile}
           onClose={() => setConfiguringProfile(null)}
         />

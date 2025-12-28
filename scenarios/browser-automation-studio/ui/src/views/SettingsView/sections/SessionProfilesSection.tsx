@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSessionProfiles } from '@/domains/recording';
 import type { BrowserProfile, RecordingSessionProfile } from '@/domains/recording';
-import { BrowserProfileEditor, StorageStateModal } from './sessions';
+import { SessionManager } from './sessions';
 
 const formatLastUsed = (value: string | undefined) => {
   if (!value) return 'Unknown';
@@ -17,15 +17,14 @@ export function SessionProfilesTab() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showStorageModal, setShowStorageModal] = useState<string | null>(null);
-  const [configuringProfile, setConfiguringProfile] = useState<RecordingSessionProfile | null>(null);
+  const [managingProfile, setManagingProfile] = useState<RecordingSessionProfile | null>(null);
 
   const handleSaveBrowserProfile = useCallback(
     async (browserProfile: BrowserProfile) => {
-      if (!configuringProfile) return;
-      await updateBrowserProfile(configuringProfile.id, browserProfile);
+      if (!managingProfile) return;
+      await updateBrowserProfile(managingProfile.id, browserProfile);
     },
-    [configuringProfile, updateBrowserProfile]
+    [managingProfile, updateBrowserProfile]
   );
 
   const sortedProfiles = useMemo(
@@ -157,19 +156,13 @@ export function SessionProfilesTab() {
                   {renamingId !== profile.id && (
                     <>
                       <button
-                        className="px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-900/40 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/60"
-                        onClick={() => setConfiguringProfile(profile)}
-                      >
-                        Configure
-                      </button>
-                      <button
-                        className="px-2 py-1 text-xs font-medium text-purple-700 dark:text-purple-200 bg-purple-50 dark:bg-purple-900/40 rounded-md hover:bg-purple-100 dark:hover:bg-purple-900/60"
-                        onClick={() => setShowStorageModal(profile.id)}
-                      >
-                        View Storage
-                      </button>
-                      <button
                         className="px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/40 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/60"
+                        onClick={() => setManagingProfile(profile)}
+                      >
+                        Manage
+                      </button>
+                      <button
+                        className="px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
                         onClick={() => handleStartRename(profile)}
                       >
                         Rename
@@ -190,20 +183,14 @@ export function SessionProfilesTab() {
         )}
       </div>
 
-      {showStorageModal && (
-        <StorageStateModal
-          profileId={showStorageModal}
-          profileName={profiles.find((p) => p.id === showStorageModal)?.name ?? 'Session'}
-          onClose={() => setShowStorageModal(null)}
-        />
-      )}
-
-      {configuringProfile && (
-        <BrowserProfileEditor
-          profileName={configuringProfile.name}
-          initialProfile={configuringProfile.browser_profile}
+      {managingProfile && (
+        <SessionManager
+          profileId={managingProfile.id}
+          profileName={managingProfile.name}
+          initialProfile={managingProfile.browser_profile}
+          hasStorageState={managingProfile.has_storage_state}
           onSave={handleSaveBrowserProfile}
-          onClose={() => setConfiguringProfile(null)}
+          onClose={() => setManagingProfile(null)}
         />
       )}
     </div>
