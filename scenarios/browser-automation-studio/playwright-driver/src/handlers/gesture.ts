@@ -5,6 +5,13 @@ import { getDragDropParams, getGestureParams } from '../types';
 import { normalizeError } from '../utils/errors';
 import { DEFAULT_DRAG_ANIMATION_STEPS } from '../constants';
 import { captureElementContext } from '../telemetry';
+import {
+  getBehaviorFromContext,
+  applyPreActionDelay,
+  applyPostActionPause,
+  sleep,
+} from './behavior-utils';
+import { HumanBehavior } from '../browser-profile';
 
 /** Internal gesture params type for handler use */
 interface GestureParams {
@@ -29,6 +36,12 @@ type GestureType = 'drag' | 'swipe' | 'pinch' | 'zoom' | 'unknown';
  * - swipe: Swipe gesture (mobile/touch emulation)
  * - pinch: Pinch-to-zoom gesture
  * - zoom: Zoom gesture
+ *
+ * Behavior settings used:
+ * - mouse_movement_style: Natural path generation for drag operations
+ * - scroll_speed_min/max: Controls swipe speed
+ * - click_delay_min/max: Pre-gesture delays
+ * - micro_pause_*: Random pauses during gestures
  *
  * Phase 3 handler - Advanced interactions
  */
@@ -130,6 +143,7 @@ export class GestureHandler extends BaseHandler {
    * - Drag from source to target element
    * - Drag by offset (x, y)
    * - Animated drag with configurable steps
+   * - Human-like mouse paths (bezier/natural) when behavior is enabled
    */
   private async handleDragDrop(
     instruction: HandlerInstruction,
@@ -142,6 +156,7 @@ export class GestureHandler extends BaseHandler {
 
     // Prefer param timeout, fallback to config, then hard-coded default
     const timeout = validated.timeoutMs || context.config.execution.defaultTimeoutMs || 30000;
+    const behavior = getBehaviorFromContext(context);
 
     logger.debug('drag-drop: starting operation', {
       sourceSelector: validated.sourceSelector,
@@ -149,7 +164,11 @@ export class GestureHandler extends BaseHandler {
       offset: validated.offsetX || validated.offsetY ? { x: validated.offsetX, y: validated.offsetY } : undefined,
       steps: validated.steps,
       timeout,
+      humanBehavior: !!behavior,
     });
+
+    // Apply pre-drag delay if behavior is enabled
+    await applyPreActionDelay(behavior, (b) => b.getClickDelay());
 
     // Capture element context for source element BEFORE the drag (recording-quality telemetry)
     const sourceElementContext = await captureElementContext(page, validated.sourceSelector, { timeout });
@@ -261,22 +280,45 @@ export class GestureHandler extends BaseHandler {
 
     // Perform drag-and-drop
     const steps = validated.steps || DEFAULT_DRAG_ANIMATION_STEPS;
+    const delayMs = validated.delayMs || (behavior ? 15 : 0); // Default delay if behavior enabled
 
     await page.mouse.move(sourceX, sourceY);
     await page.mouse.down();
 
-    // Animate drag if steps > 1
-    if (steps > 1) {
+    // Use human-like path if behavior is enabled with bezier/natural movement
+    if (behavior && behavior.getMouseMovementStyle() !== 'linear') {
+      // Generate natural mouse path for drag
+      const path = behavior.generateMousePath(
+        { x: sourceX, y: sourceY },
+        { x: targetX, y: targetY },
+        steps
+      );
+
+      // Move along the generated path
+      for (let i = 1; i < path.length; i++) {
+        const point = path[i];
+        await page.mouse.move(point.x, point.y);
+
+        if (delayMs > 0) {
+          await sleep(delayMs);
+        }
+
+        // Occasional micro-pause during drag
+        if (behavior.shouldMicroPause()) {
+          await sleep(behavior.getMicroPauseDuration());
+        }
+      }
+    } else if (steps > 1) {
+      // Linear animation for non-behavior or linear style
       const deltaX = (targetX - sourceX) / steps;
       const deltaY = (targetY - sourceY) / steps;
-      const delayMs = validated.delayMs || 0;
 
       for (let i = 1; i <= steps; i++) {
         const currentX = sourceX + deltaX * i;
         const currentY = sourceY + deltaY * i;
         await page.mouse.move(currentX, currentY);
         if (delayMs > 0) {
-          await page.waitForTimeout(delayMs);
+          await sleep(delayMs);
         }
       }
     } else {
@@ -285,10 +327,14 @@ export class GestureHandler extends BaseHandler {
 
     await page.mouse.up();
 
+    // Apply post-drag micro-pause
+    await applyPostActionPause(behavior);
+
     logger.info('drag-drop: completed', {
       from: { x: sourceX, y: sourceY },
       to: { x: targetX, y: targetY },
       steps,
+      humanBehavior: !!behavior,
     });
 
     return {
@@ -352,12 +398,14 @@ export class GestureHandler extends BaseHandler {
       scale: validated.scale,
     });
 
+    const behavior = getBehaviorFromContext(context);
+
     switch (validated.type) {
       case 'swipe':
-        return this.handleSwipe(page, validated, logger, context.config.recording.defaultSwipeDistance);
+        return this.handleSwipe(page, validated, logger, context.config.recording.defaultSwipeDistance, behavior);
       case 'pinch':
       case 'zoom':
-        return this.handlePinchZoom(page, validated, logger);
+        return this.handlePinchZoom(page, validated, logger, behavior);
       default:
         return {
           success: false,
@@ -372,9 +420,15 @@ export class GestureHandler extends BaseHandler {
   }
 
   /**
-   * Execute swipe gesture
+   * Execute swipe gesture with human-like behavior support
    */
-  private async handleSwipe(page: Page, params: GestureParams, logger: any, defaultDistance: number = 300): Promise<HandlerResult> {
+  private async handleSwipe(
+    page: Page,
+    params: GestureParams,
+    logger: any,
+    defaultDistance: number = 300,
+    behavior: HumanBehavior | null = null
+  ): Promise<HandlerResult> {
     const viewport = page.viewportSize();
     if (!viewport) {
       return {
@@ -427,16 +481,48 @@ export class GestureHandler extends BaseHandler {
         };
     }
 
-    // Execute swipe
+    // Apply pre-swipe delay if behavior is enabled
+    await applyPreActionDelay(behavior, (b) => b.getClickDelay() / 2);
+
+    // Calculate steps based on behavior scroll speed if available
+    const scrollSpeed = behavior ? behavior.getScrollSpeed() : 100;
+    const steps = Math.max(5, Math.ceil(distance / scrollSpeed));
+    const stepDelay = behavior ? 10 : 0;
+
+    // Execute swipe with human-like movement if behavior enabled
     await page.mouse.move(startX, startY);
     await page.mouse.down();
-    await page.mouse.move(endX, endY, { steps: 10 });
+
+    if (behavior && behavior.getMouseMovementStyle() !== 'linear') {
+      // Use natural path for swipe
+      const path = behavior.generateMousePath(
+        { x: startX, y: startY },
+        { x: endX, y: endY },
+        steps
+      );
+
+      for (let i = 1; i < path.length; i++) {
+        const point = path[i];
+        await page.mouse.move(point.x, point.y);
+        if (stepDelay > 0) {
+          await sleep(stepDelay);
+        }
+      }
+    } else {
+      // Linear swipe
+      await page.mouse.move(endX, endY, { steps });
+    }
+
     await page.mouse.up();
+
+    // Apply post-swipe micro-pause
+    await applyPostActionPause(behavior);
 
     logger.info('Swipe completed', {
       direction: params.direction,
       from: { x: startX, y: startY },
       to: { x: endX, y: endY },
+      humanBehavior: !!behavior,
     });
 
     return {
@@ -458,9 +544,17 @@ export class GestureHandler extends BaseHandler {
    * Note: This is a basic implementation using CSS transform.
    * For true touch events, consider using touch APIs or CDP commands.
    */
-  private async handlePinchZoom(page: Page, params: GestureParams, logger: any): Promise<HandlerResult> {
+  private async handlePinchZoom(
+    page: Page,
+    params: GestureParams,
+    logger: any,
+    behavior: HumanBehavior | null = null
+  ): Promise<HandlerResult> {
     const scale = params.scale || 1.0;
     const selector = params.selector;
+
+    // Apply pre-action delay if behavior is enabled
+    await applyPreActionDelay(behavior, (b) => b.getClickDelay() / 2);
 
     if (!selector) {
       // Apply zoom to entire page via CSS transform
@@ -470,7 +564,10 @@ export class GestureHandler extends BaseHandler {
         (globalThis as any).document.body.style.transformOrigin = 'center center';
       }, scale);
 
-      logger.info('Page zoom applied', { scale });
+      // Apply post-action micro-pause
+      await applyPostActionPause(behavior);
+
+      logger.info('Page zoom applied', { scale, humanBehavior: !!behavior });
 
       return {
         success: true,
@@ -504,7 +601,10 @@ export class GestureHandler extends BaseHandler {
         el.style.transformOrigin = 'center center';
       }, scale);
 
-      logger.info('Element zoom applied', { selector, scale });
+      // Apply post-action micro-pause
+      await applyPostActionPause(behavior);
+
+      logger.info('Element zoom applied', { selector, scale, humanBehavior: !!behavior });
 
       return {
         success: true,

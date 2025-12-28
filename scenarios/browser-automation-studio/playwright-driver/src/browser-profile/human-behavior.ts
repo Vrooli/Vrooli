@@ -93,6 +93,13 @@ export class HumanBehavior {
   }
 
   /**
+   * Get the scroll style.
+   */
+  getScrollStyle(): 'smooth' | 'stepped' {
+    return this.settings.scroll_style as 'smooth' | 'stepped';
+  }
+
+  /**
    * Generate a path for mouse movement from one point to another.
    */
   generateMousePath(from: Point, to: Point, steps: number = 20): Point[] {

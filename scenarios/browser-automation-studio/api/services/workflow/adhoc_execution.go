@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -93,13 +94,20 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 		wf.Name = "adhoc"
 	}
 
-	store, params, env, artifactCfg, projectRoot, startURL := executionParametersToMaps(req.Parameters)
+	store, params, env, artifactCfg, execBrowserProfile, projectRoot, startURL := executionParametersToMaps(req.Parameters)
 	if err := validateSeedRequirements(req.FlowDefinition, store, params, env); err != nil {
 		return nil, err
 	}
 	if err := s.validateAdhocSubflows(ctx, req.FlowDefinition, workflowID, projectRoot); err != nil {
 		return nil, err
 	}
+
+	// Extract adhoc workflow's default browser profile and merge with execution override
+	var workflowBrowserProfile *archiveingestion.BrowserProfile
+	if req.FlowDefinition != nil && req.FlowDefinition.Settings != nil && req.FlowDefinition.Settings.BrowserProfile != nil {
+		workflowBrowserProfile = archiveingestion.BrowserProfileFromProto(req.FlowDefinition.Settings.BrowserProfile)
+	}
+	finalBrowserProfile := archiveingestion.MergeBrowserProfiles(workflowBrowserProfile, execBrowserProfile)
 
 	execIndex := &database.ExecutionIndex{
 		ID:        executionID,
@@ -114,7 +122,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
-	s.startExecutionRunnerWithOptions(wf, executionID, store, params, env, artifactCfg, opts, projectRoot, startURL)
+	s.startExecutionRunnerWithOptions(wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, opts, projectRoot, startURL)
 
 	// Adhoc runs return immediately; callers should poll the execution ID.
 	return &basexecution.ExecuteAdhocResponse{

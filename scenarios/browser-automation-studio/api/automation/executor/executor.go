@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/config"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
 
@@ -47,6 +48,10 @@ type Request struct {
 	// When nil, defaults to "full" profile (all artifacts collected).
 	// See: config/artifact_profiles.go for available profiles and settings.
 	ArtifactConfig *config.ArtifactCollectionSettings
+
+	// BrowserProfile configures anti-detection and human-like behavior settings.
+	// When nil, the driver uses default settings (no special behaviors applied).
+	BrowserProfile *archiveingestion.BrowserProfile
 }
 
 // Executor orchestrates plan execution using an engine, recorder, and event sink.

@@ -27,7 +27,7 @@ const PRESET_CONFIGS: Record<ProfilePreset, { behavior: Partial<BehaviorSettings
       mouse_jitter_amount: 2,
       click_delay_min: 100,
       click_delay_max: 300,
-      scroll_style: 'natural',
+      scroll_style: 'stepped',
       micro_pause_enabled: true,
       micro_pause_min_ms: 500,
       micro_pause_max_ms: 2000,
@@ -102,7 +102,7 @@ const PRESET_CONFIGS: Record<ProfilePreset, { behavior: Partial<BehaviorSettings
       mouse_jitter_amount: 0,
       click_delay_min: 0,
       click_delay_max: 0,
-      scroll_style: 'instant',
+      scroll_style: 'smooth',
       micro_pause_enabled: false,
       micro_pause_min_ms: 0,
       micro_pause_max_ms: 0,
@@ -644,9 +644,8 @@ function BehaviorTab({
             onChange={(e) => onChange('scroll_style', e.target.value as ScrollStyle)}
             className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
           >
-            <option value="instant">Instant</option>
-            <option value="smooth">Smooth</option>
-            <option value="natural">Natural (Variable speed)</option>
+            <option value="smooth">Smooth (Continuous)</option>
+            <option value="stepped">Stepped (Human-like)</option>
           </select>
         </div>
       </div>

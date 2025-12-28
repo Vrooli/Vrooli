@@ -248,8 +248,9 @@ export type MouseMovementStyle = 'linear' | 'bezier' | 'natural';
 
 /**
  * Scroll behavior style.
+ * Must match API validation: smooth (continuous) or stepped (discrete, human-like).
  */
-export type ScrollStyle = 'instant' | 'smooth' | 'natural';
+export type ScrollStyle = 'smooth' | 'stepped';
 
 /**
  * Fingerprint settings for browser identity.

@@ -1,6 +1,6 @@
 import type { Page } from 'playwright';
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { HandlerInstruction, BehaviorSettings } from '../types';
+import type { HandlerInstruction } from '../types';
 import {
   getClickParams,
   getHoverParams,
@@ -11,8 +11,14 @@ import {
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 import { captureElementContext, type ElementContext } from '../telemetry';
-import { HumanBehavior, sleep } from '../browser-profile';
-import { BEHAVIOR_SETTINGS_KEY } from '../session/context-builder';
+import {
+  getBehaviorFromContext,
+  applyPreActionDelay,
+  applyPostActionPause,
+  moveMouseNaturally,
+  getElementCenter,
+  sleep,
+} from './behavior-utils';
 import type winston from 'winston';
 
 // =============================================================================
@@ -53,15 +59,6 @@ function successWithElementContext(elementContext: ElementContext): HandlerResul
 /** Resolve timeout from params or config */
 function resolveTimeout(paramsTimeout: number | undefined, configTimeout: number | undefined): number {
   return paramsTimeout || configTimeout || DEFAULT_TIMEOUT_MS;
-}
-
-/** Get human behavior settings from context */
-function getBehaviorFromContext(context: HandlerContext): HumanBehavior | null {
-  const browserContext = context.page.context();
-  const settings = (browserContext as any)[BEHAVIOR_SETTINGS_KEY] as BehaviorSettings | undefined;
-  if (!settings) return null;
-  const behavior = new HumanBehavior(settings);
-  return behavior.isEnabled() ? behavior : null;
 }
 
 // =============================================================================
@@ -125,16 +122,17 @@ export class InteractionHandler extends BaseHandler {
     // Capture element context BEFORE the action (recording-quality telemetry)
     const elementContext = await captureElementContext(page, params.selector, { timeout });
 
-    // Apply human-like delay before clicking
+    // Apply human-like behavior if enabled
     if (behavior) {
-      const clickDelay = behavior.getClickDelay();
-      if (clickDelay > 0) {
-        await sleep(clickDelay);
-      }
+      // Apply pre-click delay
+      await applyPreActionDelay(behavior, (b) => b.getClickDelay());
 
-      // Optional micro-pause
-      if (behavior.shouldMicroPause()) {
-        await sleep(behavior.getMicroPauseDuration());
+      // Move mouse naturally to element if using bezier/natural movement
+      if (behavior.getMouseMovementStyle() !== 'linear') {
+        const center = await getElementCenter(page, params.selector, timeout);
+        if (center) {
+          await moveMouseNaturally(page, center.x, center.y, behavior);
+        }
       }
     }
 
@@ -154,11 +152,35 @@ export class InteractionHandler extends BaseHandler {
     if (!params.selector) return missingSelectorError('hover');
 
     const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
-    logger.debug('instruction: hover starting', { selector: params.selector, timeout });
+    const behavior = getBehaviorFromContext(context);
+
+    logger.debug('instruction: hover starting', {
+      selector: params.selector,
+      timeout,
+      humanBehavior: !!behavior,
+    });
 
     // Capture element context BEFORE the action (recording-quality telemetry)
     const elementContext = await captureElementContext(page, params.selector, { timeout });
+
+    // Apply human-like behavior if enabled
+    if (behavior) {
+      // Apply pre-hover delay (use click delay as hover delay)
+      await applyPreActionDelay(behavior, (b) => b.getClickDelay());
+
+      // Move mouse naturally to element if using bezier/natural movement
+      if (behavior.getMouseMovementStyle() !== 'linear') {
+        const center = await getElementCenter(page, params.selector, timeout);
+        if (center) {
+          await moveMouseNaturally(page, center.x, center.y, behavior);
+        }
+      }
+    }
+
     await page.hover(params.selector, { timeout });
+
+    // Apply post-hover micro-pause
+    await applyPostActionPause(behavior);
 
     logger.debug('instruction: hover completed', { selector: params.selector });
     return successWithElementContext(elementContext);
@@ -187,6 +209,14 @@ export class InteractionHandler extends BaseHandler {
     const elementContext = await captureElementContext(page, params.selector, { timeout });
 
     if (behavior && behavior.getTypingDelay() > 0) {
+      // Move mouse naturally to element if using bezier/natural movement
+      if (behavior.getMouseMovementStyle() !== 'linear') {
+        const center = await getElementCenter(page, params.selector, timeout);
+        if (center) {
+          await moveMouseNaturally(page, center.x, center.y, behavior);
+        }
+      }
+
       // Human-like typing: clear field first, then type character by character
       await page.fill(params.selector, '', { timeout });
       await page.click(params.selector, { timeout });

@@ -311,7 +311,7 @@ func (s *SessionProfileStore) UpdateBrowserProfile(id string, browserProfile *Br
 
 	// Validate browser profile if provided
 	if browserProfile != nil {
-		if err := validateBrowserProfile(browserProfile); err != nil {
+		if err := ValidateBrowserProfile(browserProfile); err != nil {
 			return nil, fmt.Errorf("invalid browser profile: %w", err)
 		}
 	}
@@ -325,8 +325,9 @@ func (s *SessionProfileStore) UpdateBrowserProfile(id string, browserProfile *Br
 	return profile, nil
 }
 
-// validateBrowserProfile checks that browser profile settings are within valid ranges.
-func validateBrowserProfile(bp *BrowserProfile) error {
+// ValidateBrowserProfile checks that browser profile settings are within valid ranges.
+// Exported for use by the execution service during workflow execution.
+func ValidateBrowserProfile(bp *BrowserProfile) error {
 	if bp == nil {
 		return nil
 	}

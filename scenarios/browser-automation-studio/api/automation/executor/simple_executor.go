@@ -186,6 +186,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 		Labels:         map[string]string{},
 		Capabilities:   requirements,
 		FrameStreaming: frameStreamingConfig,
+		BrowserProfile: req.BrowserProfile,
 	}
 
 	var session engine.EngineSession

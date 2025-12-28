@@ -5,8 +5,9 @@
  * │ FILE GUIDE:                                                             │
  * │                                                                         │
  * │ CORE (stable, rarely changes):                                          │
- * │   base.ts      - InstructionHandler interface, HandlerContext/Result    │
- * │   registry.ts  - Handler lookup by instruction type                     │
+ * │   base.ts           - InstructionHandler interface, HandlerContext      │
+ * │   registry.ts       - Handler lookup by instruction type                │
+ * │   behavior-utils.ts - Human-like behavior utilities (delays, paths)     │
  * │                                                                         │
  * │ HANDLERS (one file per instruction category):                           │
  * │   navigation.ts    - goto, goBack, goForward, reload                    │
@@ -39,6 +40,7 @@
 // Core abstractions
 export * from './base';
 export * from './registry';
+export * from './behavior-utils';
 
 // Navigation & Frames
 export * from './navigation';

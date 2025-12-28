@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 )
 
 // SessionReuseMode controls how engines treat state between instructions.
@@ -35,8 +36,9 @@ type SessionSpec struct {
 	ReuseMode      SessionReuseMode
 	BaseURL        string
 	Labels         map[string]string
-	Capabilities   contracts.CapabilityRequirement // Required capabilities derived from plan.
-	FrameStreaming *FrameStreamingConfig           // Optional: enables live frame streaming during execution.
+	Capabilities   contracts.CapabilityRequirement  // Required capabilities derived from plan.
+	FrameStreaming *FrameStreamingConfig            // Optional: enables live frame streaming during execution.
+	BrowserProfile *archiveingestion.BrowserProfile // Optional: anti-detection and human-like behavior settings.
 }
 
 // AutomationEngine exposes engine capabilities and produces engine sessions.

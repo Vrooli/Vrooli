@@ -4,11 +4,23 @@ import { getSelectParams } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 import { captureElementContext } from '../telemetry';
+import {
+  getBehaviorFromContext,
+  applyPreActionDelay,
+  applyPostActionPause,
+  moveMouseNaturally,
+  getElementCenter,
+} from './behavior-utils';
 
 /**
  * Select handler
  *
- * Handles dropdown selection operations: select by value, label, or index
+ * Handles dropdown selection operations: select by value, label, or index.
+ *
+ * Behavior settings used:
+ * - click_delay_min/max: Applied before selection
+ * - mouse_movement_style: Natural mouse movement to element
+ * - micro_pause_*: Random pauses after selection
  */
 export class SelectHandler extends BaseHandler {
   getSupportedTypes(): string[] {
@@ -50,7 +62,8 @@ export class SelectHandler extends BaseHandler {
         };
       }
 
-      const timeout = params.timeoutMs || DEFAULT_TIMEOUT_MS;
+      const timeout = params.timeoutMs || context.config.execution.defaultTimeoutMs || DEFAULT_TIMEOUT_MS;
+      const behavior = getBehaviorFromContext(context);
 
       logger.debug('Selecting option', {
         selector: params.selector,
@@ -58,6 +71,7 @@ export class SelectHandler extends BaseHandler {
         label: params.label,
         index: params.index,
         timeout,
+        humanBehavior: !!behavior,
       });
 
       // Wait for select element
@@ -65,6 +79,20 @@ export class SelectHandler extends BaseHandler {
 
       // Capture element context BEFORE the action (recording-quality telemetry)
       const elementContext = await captureElementContext(page, params.selector, { timeout });
+
+      // Apply human-like behavior if enabled
+      if (behavior) {
+        // Apply pre-selection delay (use click delay)
+        await applyPreActionDelay(behavior, (b) => b.getClickDelay());
+
+        // Move mouse naturally to element if using bezier/natural movement
+        if (behavior.getMouseMovementStyle() !== 'linear') {
+          const center = await getElementCenter(page, params.selector, timeout);
+          if (center) {
+            await moveMouseNaturally(page, center.x, center.y, behavior);
+          }
+        }
+      }
 
       let selectedValue: string | string[] | null = null;
 
@@ -97,6 +125,9 @@ export class SelectHandler extends BaseHandler {
           selectedValue,
         });
       }
+
+      // Apply post-selection micro-pause
+      await applyPostActionPause(behavior);
 
       return {
         success: true,

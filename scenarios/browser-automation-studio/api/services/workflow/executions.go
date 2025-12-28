@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -102,10 +103,17 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		return nil, err
 	}
 
-	initialStore, initialParams, env, artifactCfg, projectRoot, startURL := executionParametersToMaps(req.Parameters)
+	initialStore, initialParams, env, artifactCfg, execBrowserProfile, projectRoot, startURL := executionParametersToMaps(req.Parameters)
 	if err := validateSeedRequirements(workflowSummary.FlowDefinition, initialStore, initialParams, env); err != nil {
 		return nil, err
 	}
+
+	// Extract workflow default browser profile and merge with execution override
+	var workflowBrowserProfile *archiveingestion.BrowserProfile
+	if workflowSummary.FlowDefinition != nil && workflowSummary.FlowDefinition.Settings != nil && workflowSummary.FlowDefinition.Settings.BrowserProfile != nil {
+		workflowBrowserProfile = archiveingestion.BrowserProfileFromProto(workflowSummary.FlowDefinition.Settings.BrowserProfile)
+	}
+	finalBrowserProfile := archiveingestion.MergeBrowserProfiles(workflowBrowserProfile, execBrowserProfile)
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
@@ -135,7 +143,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
-	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, opts, projectRoot, startURL)
+	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, opts, projectRoot, startURL)
 
 	if req.WaitForCompletion {
 		// Poll for completion; execution updates are persisted to the DB index by the runner.
@@ -186,15 +194,15 @@ func (s *WorkflowService) resolveWorkflowForExecution(ctx context.Context, workf
 	return getResp.Workflow, nil
 }
 
-// executionParametersToMaps extracts namespace maps, artifact config, project root, and start URL from ExecutionParameters.
-// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, projectRoot, startURL.
+// executionParametersToMaps extracts namespace maps, artifact config, browser profile, project root, and start URL from ExecutionParameters.
+// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, browser profile, projectRoot, startURL.
 // projectRoot is used for filesystem-based subflow resolution when the calling workflow has no database project.
-func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string, startURL string) {
+func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, projectRoot string, startURL string) {
 	store = map[string]any{}
 	params = map[string]any{}
 	env = map[string]any{}
 	if p == nil {
-		return store, params, env, nil, "", ""
+		return store, params, env, nil, nil, "", ""
 	}
 
 	for k, v := range p.InitialStore {
@@ -219,6 +227,11 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 		artifactCfg = &settings
 	}
 
+	// Extract browser profile for anti-detection and human-like behavior if provided
+	if p.BrowserProfile != nil {
+		browserProfile = archiveingestion.BrowserProfileFromProto(p.BrowserProfile)
+	}
+
 	// Extract project_root for filesystem-based subflow resolution.
 	// Used by adhoc workflows that need to resolve workflowPath references.
 	if p.ProjectRoot != nil {
@@ -227,7 +240,7 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 
 	startURL = strings.TrimSpace(p.GetStartUrl())
 
-	return store, params, env, artifactCfg, projectRoot, startURL
+	return store, params, env, artifactCfg, browserProfile, projectRoot, startURL
 }
 
 func jsonValueToAny(v *commonv1.JsonValue) any {
@@ -242,25 +255,26 @@ func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary,
 }
 
 func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
-	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, projectRoot, "")
+	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, nil, projectRoot, "")
 }
 
-func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions, projectRoot string, startURL string) {
+func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, opts *ExecuteOptions, projectRoot string, startURL string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.storeExecutionCancel(executionID, cancel)
-	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, opts, projectRoot, startURL)
+	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, opts, projectRoot, startURL)
 }
 
 // executeWorkflowAsync is the single implementation for running workflows asynchronously.
 // It handles both legacy (flat parameters in store) and new (namespaced store/params/env) callers.
 // artifactCfg controls what artifacts are collected; nil means use default (full profile).
 func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
-	s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, nil, "", "")
+	s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, nil, nil, "", "")
 }
 
 // executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
 // projectRoot is the absolute path to the project root for filesystem-based subflow resolution.
-func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, opts *ExecuteOptions, projectRoot string, startURL string) {
+// browserProfile configures anti-detection and human-like behavior settings for the execution.
+func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, opts *ExecuteOptions, projectRoot string, startURL string) {
 	defer s.cancelExecutionByID(executionID)
 
 	persistenceCtx := context.Background()
@@ -360,6 +374,7 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		Env:                env,
 		StartURL:           strings.TrimSpace(startURL),
 		ArtifactConfig:     artifactCfg,
+		BrowserProfile:     browserProfile,
 	}
 
 	executor := s.executor
