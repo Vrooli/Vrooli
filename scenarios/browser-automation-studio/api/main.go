@@ -276,6 +276,7 @@ func main() {
 		r.Post("/recordings/sessions", handler.CreateRecordingSessionProfile)
 		r.Patch("/recordings/sessions/{profileId}", handler.UpdateRecordingSessionProfile)
 		r.Delete("/recordings/sessions/{profileId}", handler.DeleteRecordingSessionProfile)
+		r.Get("/recordings/sessions/{profileId}/storage", handler.GetStorageState)
 
 		// Screenshot serving routes
 		r.Get("/screenshots/*", handler.ServeScreenshot)

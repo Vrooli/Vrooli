@@ -308,6 +308,94 @@ function ActionButton({ icon, tooltip, onClick, isActive, className }: ActionBut
   );
 }
 
+// Component for displaying a single tool call with expandable result
+interface ToolCallItemProps {
+  toolCall: ToolCall;
+  record?: ToolCallRecord;
+  variant: "compact" | "bubble";
+}
+
+function ToolCallItem({ toolCall, record, variant }: ToolCallItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const status = record?.status || "pending";
+  const errorMessage = record?.error_message;
+  const result = record?.result;
+  const isFailed = status === "failed" || status === "rejected" || status === "cancelled";
+  const hasResult = status === "completed" && result;
+
+  const isCompact = variant === "compact";
+  const textSize = isCompact ? "text-xs" : "text-sm";
+  const iconSize = isCompact ? "h-3 w-3" : "h-3 w-3";
+  const codeClass = isCompact
+    ? "bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded"
+    : "bg-amber-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs";
+
+  // Try to format result as JSON if possible
+  const formatResult = (resultStr: string) => {
+    try {
+      const parsed = JSON.parse(resultStr);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return resultStr;
+    }
+  };
+
+  return (
+    <div className={`${textSize} text-slate-600 dark:text-slate-400`}>
+      <div className="flex items-center gap-2">
+        {status === "completed" ? (
+          <CheckCircle2 className={`${iconSize} text-green-500 dark:text-green-400`} />
+        ) : isFailed ? (
+          <XCircle className={`${iconSize} text-red-500 dark:text-red-400`} />
+        ) : status === "running" ? (
+          <Loader2 className={`${iconSize} text-amber-500 dark:text-amber-400 animate-spin`} />
+        ) : status === "pending_approval" ? (
+          <ShieldAlert className={`${iconSize} text-yellow-500 dark:text-yellow-400`} />
+        ) : (
+          <Play className={`${iconSize} text-amber-500 dark:text-amber-400`} />
+        )}
+        <code className={codeClass}>{toolCall.function.name}</code>
+        {status === "completed" && (
+          <span className={`${isCompact ? "" : "text-xs"} text-green-600 dark:text-green-400`}>completed</span>
+        )}
+        {isFailed && (
+          <span className={`${isCompact ? "" : "text-xs"} text-red-600 dark:text-red-400`}>{status}</span>
+        )}
+        {hasResult && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="ml-auto flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            {isExpanded ? (
+              <>
+                <ChevronUp className="h-3 w-3" />
+                <span>Hide</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-3 w-3" />
+                <span>Show result</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
+      {isFailed && errorMessage && (
+        <div className="ml-5 mt-1 text-xs text-red-500 dark:text-red-400 bg-red-500/10 rounded px-2 py-1 break-words">
+          {errorMessage}
+        </div>
+      )}
+      {hasResult && isExpanded && (
+        <div className="ml-5 mt-1 text-xs bg-slate-100 dark:bg-slate-800 rounded px-2 py-1 overflow-x-auto max-h-48 overflow-y-auto">
+          <pre className="whitespace-pre-wrap break-words text-slate-600 dark:text-slate-300">
+            {formatResult(result)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface MessageBubbleProps {
   message: Message;
   viewMode: ViewMode;
@@ -587,37 +675,14 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
               <Wrench className="h-3 w-3" />
               Using tools
             </div>
-            {message.tool_calls!.map((tc: ToolCall) => {
-              const record = toolCallRecordMap.get(tc.id);
-              const status = record?.status || "pending";
-              const errorMessage = record?.error_message;
-              const isFailed = status === "failed" || status === "rejected" || status === "cancelled";
-              return (
-                <div key={tc.id} className="text-xs text-slate-600 dark:text-slate-400">
-                  <div className="flex items-center gap-2">
-                    {status === "completed" ? (
-                      <CheckCircle2 className="h-3 w-3 text-green-500 dark:text-green-400" />
-                    ) : isFailed ? (
-                      <XCircle className="h-3 w-3 text-red-500 dark:text-red-400" />
-                    ) : status === "running" ? (
-                      <Loader2 className="h-3 w-3 text-amber-500 dark:text-amber-400 animate-spin" />
-                    ) : status === "pending_approval" ? (
-                      <ShieldAlert className="h-3 w-3 text-yellow-500 dark:text-yellow-400" />
-                    ) : (
-                      <Play className="h-3 w-3 text-amber-500 dark:text-amber-400" />
-                    )}
-                    <code className="bg-slate-200 dark:bg-slate-700 px-1 py-0.5 rounded">{tc.function.name}</code>
-                    {status === "completed" && <span className="text-green-600 dark:text-green-400">completed</span>}
-                    {isFailed && <span className="text-red-600 dark:text-red-400">{status}</span>}
-                  </div>
-                  {isFailed && errorMessage && (
-                    <div className="ml-5 mt-1 text-red-500 dark:text-red-400 bg-red-500/10 rounded px-2 py-1 break-words">
-                      {errorMessage}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {message.tool_calls!.map((tc: ToolCall) => (
+              <ToolCallItem
+                key={tc.id}
+                toolCall={tc}
+                record={toolCallRecordMap.get(tc.id)}
+                variant="compact"
+              />
+            ))}
           </div>
         )}
       </div>
@@ -669,37 +734,14 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
                 <Wrench className="h-3 w-3" />
                 Using tools
               </div>
-              {message.tool_calls!.map((tc: ToolCall) => {
-                const record = toolCallRecordMap.get(tc.id);
-                const status = record?.status || "pending";
-                const errorMessage = record?.error_message;
-                const isFailed = status === "failed" || status === "rejected" || status === "cancelled";
-                return (
-                  <div key={tc.id} className="text-sm text-slate-600 dark:text-slate-300">
-                    <div className="flex items-center gap-2">
-                      {status === "completed" ? (
-                        <CheckCircle2 className="h-3 w-3 text-green-500 dark:text-green-400" />
-                      ) : isFailed ? (
-                        <XCircle className="h-3 w-3 text-red-500 dark:text-red-400" />
-                      ) : status === "running" ? (
-                        <Loader2 className="h-3 w-3 text-amber-500 dark:text-amber-400 animate-spin" />
-                      ) : status === "pending_approval" ? (
-                        <ShieldAlert className="h-3 w-3 text-yellow-500 dark:text-yellow-400" />
-                      ) : (
-                        <Play className="h-3 w-3 text-amber-500 dark:text-amber-400" />
-                      )}
-                      <code className="bg-amber-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs">{tc.function.name}</code>
-                      {status === "completed" && <span className="text-xs text-green-600 dark:text-green-400">completed</span>}
-                      {isFailed && <span className="text-xs text-red-600 dark:text-red-400">{status}</span>}
-                    </div>
-                    {isFailed && errorMessage && (
-                      <div className="ml-5 mt-1 text-xs text-red-500 dark:text-red-400 bg-red-500/10 rounded px-2 py-1 break-words">
-                        {errorMessage}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {message.tool_calls!.map((tc: ToolCall) => (
+                <ToolCallItem
+                  key={tc.id}
+                  toolCall={tc}
+                  record={toolCallRecordMap.get(tc.id)}
+                  variant="bubble"
+                />
+              ))}
               <p className="text-xs mt-2 text-slate-400 dark:text-slate-500">{formatTime(message.created_at)}</p>
             </div>
           </div>

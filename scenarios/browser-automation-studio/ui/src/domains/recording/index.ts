@@ -42,7 +42,9 @@ export { useTimelinePanel } from './hooks/useTimelinePanel';
 export { useFrameStats } from './hooks/useFrameStats';
 export { usePerfStats } from './hooks/usePerfStats';
 export { useRecordModeLayout } from './hooks/useRecordModeLayout';
+export { useStorageState } from './hooks/useStorageState';
 export type { UseUnifiedTimelineOptions, UseUnifiedTimelineReturn } from './hooks/useUnifiedTimeline';
+export type { UseStorageStateResult } from './hooks/useStorageState';
 
 // Utilities
 export { mergeConsecutiveActions, getMergeDescription } from './utils/mergeActions';
@@ -68,6 +70,11 @@ export type {
   SelectorValidation,
   RecordingSessionProfile,
   ReplayPreviewResponse,
+  StorageStateCookie,
+  StorageStateLocalStorageItem,
+  StorageStateOrigin,
+  StorageStateStats,
+  StorageStateResponse,
 } from './types/types';
 
 // Unified Timeline Types

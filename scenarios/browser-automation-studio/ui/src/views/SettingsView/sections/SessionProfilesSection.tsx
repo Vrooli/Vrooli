@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSessionProfiles } from '@/domains/recording';
 import type { RecordingSessionProfile } from '@/domains/recording';
+import { StorageStateModal } from './sessions';
 
 const formatLastUsed = (value: string) => {
   const parsed = new Date(value);
@@ -15,6 +16,7 @@ export function SessionProfilesTab() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showStorageModal, setShowStorageModal] = useState<string | null>(null);
 
   const sortedProfiles = useMemo(
     () =>
@@ -143,12 +145,20 @@ export function SessionProfilesTab() {
 
                 <div className="flex items-center gap-2">
                   {renamingId !== profile.id && (
-                    <button
-                      className="px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/40 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/60"
-                      onClick={() => handleStartRename(profile)}
-                    >
-                      Rename
-                    </button>
+                    <>
+                      <button
+                        className="px-2 py-1 text-xs font-medium text-purple-700 dark:text-purple-200 bg-purple-50 dark:bg-purple-900/40 rounded-md hover:bg-purple-100 dark:hover:bg-purple-900/60"
+                        onClick={() => setShowStorageModal(profile.id)}
+                      >
+                        View Storage
+                      </button>
+                      <button
+                        className="px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-blue-900/40 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/60"
+                        onClick={() => handleStartRename(profile)}
+                      >
+                        Rename
+                      </button>
+                    </>
                   )}
                   <button
                     className="px-2 py-1 text-xs font-medium text-red-700 dark:text-red-200 bg-red-50 dark:bg-red-900/40 rounded-md hover:bg-red-100 dark:hover:bg-red-900/60 disabled:opacity-60"
@@ -163,6 +173,14 @@ export function SessionProfilesTab() {
           </ul>
         )}
       </div>
+
+      {showStorageModal && (
+        <StorageStateModal
+          profileId={showStorageModal}
+          profileName={profiles.find((p) => p.id === showStorageModal)?.name ?? 'Session'}
+          onClose={() => setShowStorageModal(null)}
+        />
+      )}
     </div>
   );
 }

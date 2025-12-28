@@ -172,3 +172,165 @@ func (h *Handler) removeProfileSessions(profileID string) {
 		h.sessionProfiles.ClearSessionsForProfile(profileID)
 	}
 }
+
+// ========================================================================
+// Storage State Visibility
+// ========================================================================
+
+// storageStateCookie represents a cookie with optional value masking.
+type storageStateCookie struct {
+	Name        string  `json:"name"`
+	Value       string  `json:"value"`
+	ValueMasked bool    `json:"valueMasked"`
+	Domain      string  `json:"domain"`
+	Path        string  `json:"path"`
+	Expires     float64 `json:"expires"`
+	HttpOnly    bool    `json:"httpOnly"`
+	Secure      bool    `json:"secure"`
+	SameSite    string  `json:"sameSite"`
+}
+
+// storageStateLocalStorageItem represents a localStorage key-value pair.
+type storageStateLocalStorageItem struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// storageStateOrigin represents localStorage for a specific origin.
+type storageStateOrigin struct {
+	Origin       string                         `json:"origin"`
+	LocalStorage []storageStateLocalStorageItem `json:"localStorage"`
+}
+
+// storageStateStats provides summary statistics.
+type storageStateStats struct {
+	CookieCount       int `json:"cookieCount"`
+	LocalStorageCount int `json:"localStorageCount"`
+	OriginCount       int `json:"originCount"`
+}
+
+// storageStateResponse is the API response for GET /recordings/sessions/{profileId}/storage.
+type storageStateResponse struct {
+	Cookies []storageStateCookie `json:"cookies"`
+	Origins []storageStateOrigin `json:"origins"`
+	Stats   storageStateStats    `json:"stats"`
+}
+
+// playwrightStorageState matches the Playwright storage state format.
+type playwrightStorageState struct {
+	Cookies []struct {
+		Name     string  `json:"name"`
+		Value    string  `json:"value"`
+		Domain   string  `json:"domain"`
+		Path     string  `json:"path"`
+		Expires  float64 `json:"expires"`
+		HttpOnly bool    `json:"httpOnly"`
+		Secure   bool    `json:"secure"`
+		SameSite string  `json:"sameSite"`
+	} `json:"cookies"`
+	Origins []struct {
+		Origin       string `json:"origin"`
+		LocalStorage []struct {
+			Name  string `json:"name"`
+			Value string `json:"value"`
+		} `json:"localStorage"`
+	} `json:"origins"`
+}
+
+// GetStorageState returns the storage state (cookies and localStorage) for a session profile.
+// HttpOnly cookie values are masked for security.
+func (h *Handler) GetStorageState(w http.ResponseWriter, r *http.Request) {
+	if h.sessionProfiles == nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
+		return
+	}
+
+	profileID := chi.URLParam(r, "profileId")
+	if strings.TrimSpace(profileID) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "profileId",
+		}))
+		return
+	}
+
+	profile, err := h.sessionProfiles.Get(profileID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
+			return
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	// Return empty response if no storage state
+	if len(profile.StorageState) == 0 {
+		h.respondSuccess(w, http.StatusOK, storageStateResponse{
+			Cookies: []storageStateCookie{},
+			Origins: []storageStateOrigin{},
+			Stats:   storageStateStats{},
+		})
+		return
+	}
+
+	// Parse the Playwright storage state
+	var pwState playwrightStorageState
+	if err := json.Unmarshal(profile.StorageState, &pwState); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to parse storage state: " + err.Error(),
+		}))
+		return
+	}
+
+	// Build response with masked httpOnly cookie values
+	cookies := make([]storageStateCookie, 0, len(pwState.Cookies))
+	for _, c := range pwState.Cookies {
+		cookie := storageStateCookie{
+			Name:     c.Name,
+			Domain:   c.Domain,
+			Path:     c.Path,
+			Expires:  c.Expires,
+			HttpOnly: c.HttpOnly,
+			Secure:   c.Secure,
+			SameSite: c.SameSite,
+		}
+		if c.HttpOnly {
+			cookie.Value = "[HIDDEN]"
+			cookie.ValueMasked = true
+		} else {
+			cookie.Value = c.Value
+			cookie.ValueMasked = false
+		}
+		cookies = append(cookies, cookie)
+	}
+
+	// Build origins with localStorage
+	origins := make([]storageStateOrigin, 0, len(pwState.Origins))
+	localStorageCount := 0
+	for _, o := range pwState.Origins {
+		items := make([]storageStateLocalStorageItem, 0, len(o.LocalStorage))
+		for _, item := range o.LocalStorage {
+			items = append(items, storageStateLocalStorageItem{
+				Name:  item.Name,
+				Value: item.Value,
+			})
+		}
+		localStorageCount += len(items)
+		origins = append(origins, storageStateOrigin{
+			Origin:       o.Origin,
+			LocalStorage: items,
+		})
+	}
+
+	h.respondSuccess(w, http.StatusOK, storageStateResponse{
+		Cookies: cookies,
+		Origins: origins,
+		Stats: storageStateStats{
+			CookieCount:       len(cookies),
+			LocalStorageCount: localStorageCount,
+			OriginCount:       len(origins),
+		},
+	})
+}

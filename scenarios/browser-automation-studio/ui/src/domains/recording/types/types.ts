@@ -215,6 +215,55 @@ export interface RecordingSessionProfile {
 }
 
 /**
+ * Cookie from browser storage state.
+ */
+export interface StorageStateCookie {
+  name: string;
+  value: string;
+  valueMasked: boolean;
+  domain: string;
+  path: string;
+  expires: number;
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: 'Strict' | 'Lax' | 'None';
+}
+
+/**
+ * LocalStorage key-value pair.
+ */
+export interface StorageStateLocalStorageItem {
+  name: string;
+  value: string;
+}
+
+/**
+ * LocalStorage grouped by origin.
+ */
+export interface StorageStateOrigin {
+  origin: string;
+  localStorage: StorageStateLocalStorageItem[];
+}
+
+/**
+ * Summary statistics for storage state.
+ */
+export interface StorageStateStats {
+  cookieCount: number;
+  localStorageCount: number;
+  originCount: number;
+}
+
+/**
+ * Full storage state response from API.
+ */
+export interface StorageStateResponse {
+  cookies: StorageStateCookie[];
+  origins: StorageStateOrigin[];
+  stats: StorageStateStats;
+}
+
+/**
  * Response from start recording endpoint.
  */
 export interface StartRecordingResponse {
