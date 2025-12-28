@@ -174,20 +174,11 @@ export function createVisionAgent(
             await delay(cfg.stepDelayMs);
           }
 
-          // OBSERVE: Capture screenshot and extract elements
-          const { screenshot, elementLabels: rawElementLabels } = await observePhase(
-            navConfig.page,
-            deps,
-            cfg
-          );
-
-          // PERFORMANCE: Limit element labels to prevent token explosion
-          const elementLabels = rawElementLabels.slice(0, cfg.maxElementLabels);
-
-          // Get current URL
+          // Get current URL (before any operations that might fail)
           const currentUrl = navConfig.page.url();
 
-          // CAPTCHA DETECTION: Check for verification challenges BEFORE AI decides
+          // CAPTCHA DETECTION: Check for verification challenges BEFORE taking screenshot
+          // This is critical because CAPTCHAs (especially in iframes) can cause screenshot failures
           const captchaResult = await detectCaptcha(navConfig.page);
           if (captchaResult.detected) {
             deps.logger.info('CAPTCHA detected programmatically', {
@@ -195,6 +186,21 @@ export function createVisionAgent(
               type: captchaResult.type,
               confidence: captchaResult.confidence,
             });
+
+            // Try to capture a screenshot, but don't fail if it doesn't work
+            // (user can see the live browser anyway)
+            let captchaScreenshot: Buffer = Buffer.alloc(0);
+            try {
+              captchaScreenshot = await deps.screenshotCapture.capture(navConfig.page, {
+                quality: cfg.screenshotQuality,
+                fullPage: cfg.fullPageScreenshot,
+              });
+            } catch (screenshotErr) {
+              deps.logger.warn('Screenshot failed during CAPTCHA detection (expected for some CAPTCHAs)', {
+                navigationId: navConfig.navigationId,
+                error: screenshotErr instanceof Error ? screenshotErr.message : String(screenshotErr),
+              });
+            }
 
             // Emit awaiting_human step
             const humanStep: NavigationStep = {
@@ -207,7 +213,7 @@ export function createVisionAgent(
                 interventionType: captchaResult.type || 'captcha',
               } as RequestHumanAction,
               reasoning: `Detected ${captchaResult.type}: ${captchaResult.reason}`,
-              screenshot,
+              screenshot: captchaScreenshot,
               currentUrl,
               tokensUsed: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
               durationMs: Date.now() - stepStartTime,
@@ -219,22 +225,118 @@ export function createVisionAgent(
                 interventionType: captchaResult.type || 'captcha',
                 trigger: 'programmatic',
               },
-              elementLabels,
+              elementLabels: [],
             };
 
             await safeEmit(deps, humanStep, navConfig.callbackUrl, navConfig.onStep);
 
-            // Pause and wait for resume
+            // Pause and wait for resume or abort
             isPausedState = true;
             deps.logger.info('Pausing for human intervention', { navigationId: navConfig.navigationId });
-            await new Promise<void>((resolve) => {
-              resumeResolver = resolve;
-            });
+            const pauseResult = await waitForHumanIntervention(signal, (r) => { resumeResolver = r; });
             isPausedState = false;
+
+            if (pauseResult === 'aborted') {
+              deps.logger.info('Navigation aborted during human intervention', { navigationId: navConfig.navigationId });
+              status = 'aborted';
+              error = 'Navigation aborted by user';
+              break;
+            }
+
             deps.logger.info('Resumed from human intervention', { navigationId: navConfig.navigationId });
 
             // After resume, continue loop (will take new screenshot)
             continue;
+          }
+
+          // OBSERVE: Capture screenshot and extract elements (only if no CAPTCHA detected)
+          let screenshot: Buffer;
+          let elementLabels: ElementLabel[];
+
+          try {
+            const observeResult = await observePhase(navConfig.page, deps, cfg);
+            screenshot = observeResult.screenshot;
+            elementLabels = observeResult.elementLabels.slice(0, cfg.maxElementLabels);
+          } catch (observeErr) {
+            // Screenshot failed - this often happens with CAPTCHAs that block page capture
+            const errMsg = observeErr instanceof Error ? observeErr.message : String(observeErr);
+            deps.logger.warn('Observe phase failed (screenshot error)', {
+              navigationId: navConfig.navigationId,
+              stepNumber,
+              error: errMsg,
+            });
+
+            // Check if this might be a CAPTCHA we missed - some CAPTCHAs may not be
+            // detected by DOM inspection but still block screenshots
+            const isScreenshotProtocolError = errMsg.includes('captureScreenshot') ||
+              errMsg.includes('Unable to capture screenshot') ||
+              errMsg.includes('Protocol error');
+
+            if (isScreenshotProtocolError) {
+              deps.logger.info('Screenshot blocked - treating as potential CAPTCHA/verification', {
+                navigationId: navConfig.navigationId,
+              });
+
+              // Emit human intervention step (screenshot blocked could indicate CAPTCHA)
+              const blockedStep: NavigationStep = {
+                navigationId: navConfig.navigationId,
+                stepNumber,
+                action: {
+                  type: 'request_human',
+                  reason: 'Screenshot capture blocked - possible CAPTCHA or verification',
+                  instructions: 'Please check the browser for any verification challenges (CAPTCHA, "verify you\'re human", etc.). Complete them and click "I\'m Done".',
+                  interventionType: 'captcha',
+                } as RequestHumanAction,
+                reasoning: `Screenshot capture failed: ${errMsg}. This often indicates a CAPTCHA or iframe-based verification blocking page capture.`,
+                screenshot: Buffer.alloc(0),
+                currentUrl,
+                tokensUsed: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+                durationMs: Date.now() - stepStartTime,
+                goalAchieved: false,
+                awaitingHuman: true,
+                humanIntervention: {
+                  reason: 'Screenshot capture blocked - possible CAPTCHA or verification challenge',
+                  instructions: 'Please check the browser for any verification challenges. Complete them and click "I\'m Done".',
+                  interventionType: 'captcha',
+                  trigger: 'programmatic',
+                },
+                elementLabels: [],
+              };
+
+              await safeEmit(deps, blockedStep, navConfig.callbackUrl, navConfig.onStep);
+
+              // Pause and wait for resume or abort
+              isPausedState = true;
+              deps.logger.info('Pausing for human intervention (screenshot blocked)', { navigationId: navConfig.navigationId });
+              const pauseResult = await waitForHumanIntervention(signal, (r) => { resumeResolver = r; });
+              isPausedState = false;
+
+              if (pauseResult === 'aborted') {
+                deps.logger.info('Navigation aborted during human intervention', { navigationId: navConfig.navigationId });
+                status = 'aborted';
+                error = 'Navigation aborted by user';
+                break;
+              }
+
+              deps.logger.info('Resumed from human intervention', { navigationId: navConfig.navigationId });
+
+              // After resume, continue loop (will try again)
+              continue;
+            }
+
+            // Non-CAPTCHA screenshot failure - emit error and fail
+            const errorStep = createErrorStep(
+              navConfig.navigationId,
+              stepNumber,
+              Buffer.alloc(0),
+              currentUrl,
+              `Screenshot failed: ${errMsg}`,
+              Date.now() - stepStartTime
+            );
+            await safeEmit(deps, errorStep, navConfig.callbackUrl, navConfig.onStep);
+            status = 'failed';
+            error = `Screenshot failed: ${errMsg}`;
+            break;
           }
 
           // Build conversation history for context
@@ -369,13 +471,19 @@ export function createVisionAgent(
 
             await safeEmit(deps, humanStep, navConfig.callbackUrl, navConfig.onStep);
 
-            // Pause and wait for resume
+            // Pause and wait for resume or abort
             isPausedState = true;
             deps.logger.info('Pausing for human intervention (AI requested)', { navigationId: navConfig.navigationId });
-            await new Promise<void>((resolve) => {
-              resumeResolver = resolve;
-            });
+            const pauseResult = await waitForHumanIntervention(signal, (r) => { resumeResolver = r; });
             isPausedState = false;
+
+            if (pauseResult === 'aborted') {
+              deps.logger.info('Navigation aborted during human intervention', { navigationId: navConfig.navigationId });
+              status = 'aborted';
+              error = 'Navigation aborted by user';
+              break;
+            }
+
             deps.logger.info('Resumed from human intervention', { navigationId: navConfig.navigationId });
 
             // After resume, continue loop
@@ -724,6 +832,42 @@ async function safeEmit(
  */
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Result of waiting for human intervention.
+ */
+type PauseResult = 'resumed' | 'aborted';
+
+/**
+ * Wait for human intervention with abort support.
+ * Returns 'resumed' if user completed intervention, 'aborted' if abort was triggered.
+ */
+function waitForHumanIntervention(
+  signal: AbortSignal,
+  setResumeResolver: (resolver: (() => void) | null) => void
+): Promise<PauseResult> {
+  return new Promise((resolve) => {
+    // If already aborted, return immediately
+    if (signal.aborted) {
+      resolve('aborted');
+      return;
+    }
+
+    // Set up abort handler
+    const onAbort = () => {
+      setResumeResolver(null);
+      resolve('aborted');
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+
+    // Set up resume resolver
+    setResumeResolver(() => {
+      signal.removeEventListener('abort', onAbort);
+      setResumeResolver(null);
+      resolve('resumed');
+    });
+  });
 }
 
 /**

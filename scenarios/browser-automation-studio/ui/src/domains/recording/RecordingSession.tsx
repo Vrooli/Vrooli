@@ -144,6 +144,7 @@ export function RecordModePage({
     state: aiState,
     startNavigation: aiStartNavigation,
     abortNavigation: aiAbortNavigation,
+    resumeNavigation: aiResumeNavigation,
     reset: aiReset,
     availableModels: aiAvailableModels,
     isNavigating: aiIsNavigating,
@@ -798,6 +799,7 @@ export function RecordModePage({
               aiIsNavigating={aiIsNavigating}
               onAIStart={aiStartNavigation}
               onAIAbort={aiAbortNavigation}
+              onAIResume={aiResumeNavigation}
               onAIReset={aiReset}
             />
           )}

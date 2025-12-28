@@ -66,7 +66,7 @@ export function createCallbackEmitter(
  * Convert NavigationStep to NavigationStepEvent for sending to API.
  */
 function stepToEvent(step: NavigationStep): NavigationStepEvent {
-  return {
+  const event: NavigationStepEvent = {
     navigationId: step.navigationId,
     stepNumber: step.stepNumber,
     action: step.action,
@@ -80,6 +80,21 @@ function stepToEvent(step: NavigationStep): NavigationStepEvent {
     error: step.error,
     elementLabels: step.elementLabels,
   };
+
+  // Include human intervention fields if present
+  if (step.awaitingHuman) {
+    event.awaitingHuman = true;
+  }
+  if (step.humanIntervention) {
+    event.humanIntervention = {
+      reason: step.humanIntervention.reason,
+      instructions: step.humanIntervention.instructions,
+      interventionType: step.humanIntervention.interventionType,
+      trigger: step.humanIntervention.trigger,
+    };
+  }
+
+  return event;
 }
 
 /**

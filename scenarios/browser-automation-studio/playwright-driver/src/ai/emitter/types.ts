@@ -37,6 +37,15 @@ export interface NavigationStepEvent {
   error?: string;
   /** Element labels visible in this step */
   elementLabels?: ElementLabel[];
+  /** Whether this step is awaiting human intervention */
+  awaitingHuman?: boolean;
+  /** Human intervention details if awaiting */
+  humanIntervention?: {
+    reason: string;
+    instructions?: string;
+    interventionType: string;
+    trigger: 'programmatic' | 'ai_requested';
+  };
 }
 
 /**

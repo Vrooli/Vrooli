@@ -282,10 +282,12 @@ export function useAINavigation({
         throw new Error(errorData.message || 'Failed to abort navigation');
       }
 
-      // Mark as aborting - the WebSocket complete event will set isNavigating: false
+      // Mark as aborting and clear intervention overlay
+      // The WebSocket complete event will set isNavigating: false
       setState((prev) => ({
         ...prev,
         status: 'aborted',
+        humanIntervention: null,
       }));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to abort navigation';
