@@ -260,6 +260,8 @@ export function SSHKeySetup({
       case "host_unreachable":
       case "timeout":
         return <StatusBadge status="error">Unreachable</StatusBadge>;
+      case "ipv6_unavailable":
+        return <StatusBadge status="error">IPv6 unavailable</StatusBadge>;
       case "key_not_found":
         return <StatusBadge status="error">Key missing</StatusBadge>;
       default:
@@ -511,7 +513,7 @@ export function SSHKeySetup({
                   ? "bg-emerald-500/10 border-emerald-500/30"
                   : connectionStatus === "auth_failed"
                     ? "bg-amber-500/10 border-amber-500/30"
-                    : connectionStatus === "host_unreachable" || connectionStatus === "timeout"
+                    : connectionStatus === "host_unreachable" || connectionStatus === "timeout" || connectionStatus === "ipv6_unavailable"
                       ? "bg-red-500/10 border-red-500/30"
                       : connectionStatus === "testing"
                         ? "bg-blue-500/10 border-blue-500/30"
@@ -525,7 +527,7 @@ export function SSHKeySetup({
                 {connectionStatus === "auth_failed" && (
                   <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0" />
                 )}
-                {(connectionStatus === "host_unreachable" || connectionStatus === "timeout" || connectionStatus === "key_not_found") && (
+                {(connectionStatus === "host_unreachable" || connectionStatus === "timeout" || connectionStatus === "key_not_found" || connectionStatus === "ipv6_unavailable") && (
                   <XCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
                 )}
                 {connectionStatus === "testing" && (

@@ -19,6 +19,7 @@ export type SSHConnectionStatus =
   | "timeout"
   | "key_not_found"
   | "permission_denied"
+  | "ipv6_unavailable"
   | "unknown_error";
 
 // API Response Types
@@ -81,6 +82,7 @@ export type CopySSHKeyStatus =
   | "copied"
   | "already_exists"
   | "auth_failed"
+  | "ipv6_unavailable"
   | "error";
 
 export interface CopySSHKeyResponse {
@@ -149,6 +151,15 @@ export const SSH_ERROR_HINTS: Record<
       "The SSH key file may have incorrect permissions",
       "Run: chmod 600 ~/.ssh/your_key",
       "Ensure the key file is owned by your user",
+    ],
+  },
+  ipv6_unavailable: {
+    title: "IPv6 Not Available",
+    hints: [
+      "Your network does not have IPv6 connectivity",
+      "Most ISPs still only provide IPv4 addresses",
+      "Use the IPv4 address of your server instead",
+      "Check your VPS dashboard for the IPv4 address",
     ],
   },
   unknown_error: {

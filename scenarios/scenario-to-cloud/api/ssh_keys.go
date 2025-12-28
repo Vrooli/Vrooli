@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -452,6 +453,15 @@ func ReadPublicKey(keyPath string) (publicKey, fingerprint string, err error) {
 	return publicKey, fingerprint, nil
 }
 
+// isIPv6 checks if the given host is an IPv6 address
+func isIPv6(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.To4() == nil
+}
+
+// ipv6ConnectivityHint returns a helpful hint for IPv6 connectivity issues
+const ipv6ConnectivityHint = "You entered an IPv6 address, but your network may not have IPv6 connectivity. Most ISPs still only provide IPv4. Try using the IPv4 address of your server instead."
+
 // TestSSHConnection tests SSH connection to a host using key authentication
 func TestSSHConnection(ctx context.Context, req TestSSHConnectionRequest) TestSSHConnectionResponse {
 	timestamp := time.Now().UTC().Format(time.RFC3339)
@@ -518,11 +528,23 @@ func TestSSHConnection(ctx context.Context, req TestSSHConnectionRequest) TestSS
 		} else if strings.Contains(errStr, "i/o timeout") || strings.Contains(errStr, "connection timed out") {
 			status = "timeout"
 			message = "SSH connection timed out"
-			hint = "Check network connectivity and firewall rules."
-		} else if strings.Contains(errStr, "No route to host") {
-			status = "host_unreachable"
-			message = "Host unreachable"
-			hint = "The network path to the host could not be found. Check the IP address and network connectivity."
+			if isIPv6(req.Host) {
+				status = "ipv6_unavailable"
+				message = "SSH connection timed out (IPv6)"
+				hint = ipv6ConnectivityHint
+			} else {
+				hint = "Check network connectivity and firewall rules."
+			}
+		} else if strings.Contains(errStr, "No route to host") || strings.Contains(errStr, "network is unreachable") {
+			if isIPv6(req.Host) {
+				status = "ipv6_unavailable"
+				message = "IPv6 not available"
+				hint = ipv6ConnectivityHint
+			} else {
+				status = "host_unreachable"
+				message = "Host unreachable"
+				hint = "The network path to the host could not be found. Check the IP address and network connectivity."
+			}
 		}
 
 		return TestSSHConnectionResponse{
@@ -623,7 +645,7 @@ func CopySSHKeyToServer(ctx context.Context, req CopySSHKeyRequest) CopySSHKeyRe
 		Timeout:         10 * time.Second,
 	}
 
-	addr := fmt.Sprintf("%s:%d", req.Host, req.Port)
+	addr := net.JoinHostPort(req.Host, fmt.Sprint(req.Port))
 	client, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
 		status := "error"
@@ -639,10 +661,26 @@ func CopySSHKeyToServer(ctx context.Context, req CopySSHKeyRequest) CopySSHKeyRe
 			status = "error"
 			message = "SSH connection refused"
 			hint = "Verify the host and port are correct and that SSH is running on the server."
-		} else if strings.Contains(err.Error(), "i/o timeout") {
-			status = "error"
-			message = "SSH connection timed out"
-			hint = "Check network connectivity and firewall rules."
+		} else if strings.Contains(err.Error(), "i/o timeout") || strings.Contains(err.Error(), "connection timed out") {
+			if isIPv6(req.Host) {
+				status = "ipv6_unavailable"
+				message = "SSH connection timed out (IPv6)"
+				hint = ipv6ConnectivityHint
+			} else {
+				status = "error"
+				message = "SSH connection timed out"
+				hint = "Check network connectivity and firewall rules."
+			}
+		} else if strings.Contains(err.Error(), "no route to host") || strings.Contains(err.Error(), "network is unreachable") {
+			if isIPv6(req.Host) {
+				status = "ipv6_unavailable"
+				message = "IPv6 not available"
+				hint = ipv6ConnectivityHint
+			} else {
+				status = "error"
+				message = "Host unreachable"
+				hint = "The network path to the host could not be found. Check the IP address and network connectivity."
+			}
 		}
 
 		return CopySSHKeyResponse{

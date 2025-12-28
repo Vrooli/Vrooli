@@ -235,12 +235,28 @@ func checkHostReachability(ctx context.Context, host string) ReachabilityResult 
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
 	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, "22"))
 	if err != nil {
+		errStr := err.Error()
+
+		// Check for IPv6-specific errors
+		if isIPv6(host) && (strings.Contains(errStr, "no route to host") ||
+			strings.Contains(errStr, "network is unreachable")) {
+			result.Reachable = false
+			result.Message = "IPv6 not available"
+			result.Hint = ipv6ConnectivityHint
+			return result
+		}
+
 		// Check if it's a timeout or connection refused
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			result.Reachable = false
-			result.Message = "Connection timed out"
-			result.Hint = "The host may be unreachable, or SSH port 22 may be blocked. You can proceed if the server is not yet configured."
-		} else if strings.Contains(err.Error(), "connection refused") {
+			if isIPv6(host) {
+				result.Message = "Connection timed out (IPv6)"
+				result.Hint = ipv6ConnectivityHint
+			} else {
+				result.Message = "Connection timed out"
+				result.Hint = "The host may be unreachable, or SSH port 22 may be blocked. You can proceed if the server is not yet configured."
+			}
+		} else if strings.Contains(errStr, "connection refused") {
 			// Connection refused means the host is reachable but SSH isn't running
 			result.Reachable = true
 			result.Message = "Host reachable, but SSH port 22 is closed"

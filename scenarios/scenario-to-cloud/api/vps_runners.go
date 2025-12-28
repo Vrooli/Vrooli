@@ -103,7 +103,12 @@ func (ExecSCPRunner) Copy(ctx context.Context, cfg SSHConfig, localPath, remoteP
 	if cfg.KeyPath != "" {
 		args = append(args, "-i", cfg.KeyPath)
 	}
-	target := fmt.Sprintf("%s@%s:%s", cfg.User, cfg.Host, remotePath)
+	// Wrap IPv6 addresses in brackets for scp target format
+	host := cfg.Host
+	if strings.Contains(host, ":") {
+		host = "[" + host + "]"
+	}
+	target := fmt.Sprintf("%s@%s:%s", cfg.User, host, remotePath)
 	args = append(args, localPath, target)
 
 	cmd := exec.CommandContext(copyCtx, "scp", args...)
