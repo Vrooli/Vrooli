@@ -102,6 +102,13 @@ func (s *Server) setupRoutes() {
 	// Documentation
 	api.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")
 	api.HandleFunc("/docs/content", s.handleGetDocContent).Methods("GET")
+
+	// SSH Key Management
+	api.HandleFunc("/ssh/keys", s.handleListSSHKeys).Methods("GET")
+	api.HandleFunc("/ssh/keys/generate", s.handleGenerateSSHKey).Methods("POST")
+	api.HandleFunc("/ssh/keys/public", s.handleGetPublicKey).Methods("POST")
+	api.HandleFunc("/ssh/test", s.handleTestSSHConnection).Methods("POST")
+	api.HandleFunc("/ssh/copy-key", s.handleCopySSHKey).Methods("POST")
 }
 
 // Router returns the HTTP handler for use with server.Run

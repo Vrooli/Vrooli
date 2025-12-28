@@ -6,6 +6,8 @@ export type DeploymentTarget = {
     host: string;
     port?: number;
     user?: string;
+    key_path?: string;
+    workdir?: string;
   };
 };
 

@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import { Textarea, Input } from "../ui/input";
 import { Alert } from "../ui/alert";
 import { HelpTooltip } from "../ui/tooltip";
+import { SSHKeySetup } from "./SSHKeySetup";
 import { selectors } from "../../consts/selectors";
 import type { useDeployment } from "../../hooks/useDeployment";
 import {
@@ -440,6 +441,31 @@ export function StepManifest({ deployment }: StepManifestProps) {
               />
             </div>
           </div>
+
+          {/* SSH Configuration Section - shown when host is entered */}
+          {formValues.host && formValues.host !== "203.0.113.10" && (
+            <div className="md:col-span-2">
+              <SSHKeySetup
+                host={formValues.host}
+                port={parsedManifest.ok ? parsedManifest.value.target?.vps?.port ?? 22 : 22}
+                user={parsedManifest.ok ? parsedManifest.value.target?.vps?.user ?? "root" : "root"}
+                selectedKeyPath={deployment.sshKeyPath}
+                onKeyPathChange={(keyPath) => {
+                  deployment.setSSHKeyPath(keyPath);
+                  // Also update the manifest's key_path field
+                  if (keyPath && parsedManifest.ok) {
+                    const manifest = { ...parsedManifest.value };
+                    manifest.target = {
+                      ...manifest.target,
+                      vps: { ...manifest.target.vps, key_path: keyPath }
+                    };
+                    deployment.setManifestJson(JSON.stringify(manifest, null, 2));
+                  }
+                }}
+                onConnectionStatusChange={deployment.setSSHConnectionStatus}
+              />
+            </div>
+          )}
 
           {/* Ports Section */}
           <div className="space-y-4 md:col-span-2">

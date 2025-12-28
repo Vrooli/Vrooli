@@ -383,3 +383,126 @@ export async function deleteDeployment(id: string, stopOnVPS = false): Promise<{
   }
   return res.json();
 }
+
+// ============================================================================
+// SSH Key Management Types & Functions
+// ============================================================================
+
+// Re-export types from types/ssh.ts for convenience
+export type {
+  SSHKeyInfo,
+  SSHKeyType,
+  SSHConnectionStatus,
+  ListSSHKeysResponse,
+  GenerateSSHKeyRequest,
+  GenerateSSHKeyResponse,
+  GetPublicKeyRequest,
+  GetPublicKeyResponse,
+  TestSSHConnectionRequest,
+  TestSSHConnectionResponse,
+  CopySSHKeyRequest,
+  CopySSHKeyResponse,
+  CopySSHKeyStatus,
+} from "../types/ssh";
+
+import type {
+  ListSSHKeysResponse,
+  GenerateSSHKeyRequest,
+  GenerateSSHKeyResponse,
+  GetPublicKeyResponse,
+  TestSSHConnectionRequest,
+  TestSSHConnectionResponse,
+  CopySSHKeyRequest,
+  CopySSHKeyResponse,
+} from "../types/ssh";
+
+/**
+ * List available SSH keys from ~/.ssh/
+ */
+export async function listSSHKeys(): Promise<ListSSHKeysResponse> {
+  const url = buildApiUrl("/ssh/keys", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list SSH keys: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ListSSHKeysResponse>;
+}
+
+/**
+ * Generate a new SSH key pair
+ */
+export async function generateSSHKey(
+  request: GenerateSSHKeyRequest
+): Promise<GenerateSSHKeyResponse> {
+  const url = buildApiUrl("/ssh/keys/generate", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to generate SSH key: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<GenerateSSHKeyResponse>;
+}
+
+/**
+ * Get public key content for display/copying
+ */
+export async function getPublicKey(keyPath: string): Promise<GetPublicKeyResponse> {
+  const url = buildApiUrl("/ssh/keys/public", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key_path: keyPath }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get public key: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<GetPublicKeyResponse>;
+}
+
+/**
+ * Test SSH connection to a host using key authentication
+ */
+export async function testSSHConnection(
+  request: TestSSHConnectionRequest
+): Promise<TestSSHConnectionResponse> {
+  const url = buildApiUrl("/ssh/test", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to test SSH connection: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<TestSSHConnectionResponse>;
+}
+
+/**
+ * Copy SSH public key to remote host (ssh-copy-id equivalent)
+ * Requires password authentication to copy the key
+ */
+export async function copySSHKey(
+  request: CopySSHKeyRequest
+): Promise<CopySSHKeyResponse> {
+  const url = buildApiUrl("/ssh/copy-key", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to copy SSH key: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<CopySSHKeyResponse>;
+}

@@ -10,6 +10,7 @@ import {
   type PlanStep,
   type BundleArtifact,
   type PreflightCheck,
+  type SSHConnectionStatus,
 } from "../lib/api";
 import {
   type DeploymentManifest,
@@ -24,6 +25,7 @@ type SavedDeployment = {
   manifestJson: string;
   currentStep: number;
   timestamp: number;
+  sshKeyPath?: string | null;
 };
 
 function loadSavedDeployment(): SavedDeployment | null {
@@ -89,6 +91,10 @@ export function useDeployment() {
   const [deploymentError, setDeploymentError] = useState<string | null>(null);
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
 
+  // SSH state
+  const [sshKeyPath, setSSHKeyPath] = useState<string | null>(saved?.sshKeyPath ?? null);
+  const [sshConnectionStatus, setSSHConnectionStatus] = useState<SSHConnectionStatus>("untested");
+
   // Parse manifest
   const parsedManifest = useMemo((): { ok: true; value: DeploymentManifest } | { ok: false; error: string } => {
     try {
@@ -108,8 +114,9 @@ export function useDeployment() {
       manifestJson: json,
       currentStep: currentStepIndex,
       timestamp: Date.now(),
+      sshKeyPath,
     });
-  }, [currentStepIndex]);
+  }, [currentStepIndex, sshKeyPath]);
 
   // Navigation
   const goToStep = useCallback((index: number) => {
@@ -119,9 +126,22 @@ export function useDeployment() {
         manifestJson,
         currentStep: index,
         timestamp: Date.now(),
+        sshKeyPath,
       });
     }
-  }, [manifestJson]);
+  }, [manifestJson, sshKeyPath]);
+
+  // Update SSH key path with persistence
+  const updateSSHKeyPath = useCallback((keyPath: string | null) => {
+    setSSHKeyPath(keyPath);
+    setSSHConnectionStatus("untested"); // Reset connection status when key changes
+    saveDeployment({
+      manifestJson,
+      currentStep: currentStepIndex,
+      timestamp: Date.now(),
+      sshKeyPath: keyPath,
+    });
+  }, [manifestJson, currentStepIndex]);
 
   const goNext = useCallback(() => {
     goToStep(currentStepIndex + 1);
@@ -252,6 +272,8 @@ export function useDeployment() {
     setDeploymentStatus("idle");
     setDeploymentError(null);
     setDeploymentId(null);
+    setSSHKeyPath(null);
+    setSSHConnectionStatus("untested");
   }, []);
 
   // Computed state
@@ -323,6 +345,12 @@ export function useDeployment() {
     deploymentError,
     deploymentId,
     deploy,
+
+    // SSH
+    sshKeyPath,
+    setSSHKeyPath: updateSSHKeyPath,
+    sshConnectionStatus,
+    setSSHConnectionStatus,
 
     // Actions
     reset,
