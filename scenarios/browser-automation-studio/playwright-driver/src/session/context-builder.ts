@@ -148,10 +148,13 @@ export async function buildContext(
   }
 
   // Store behavior settings on context for handler access
-  // Convert from snake_case to camelCase for internal use
   const behaviorSettings: BehaviorSettings = {
     typing_delay_min: behavior.typing_delay_min,
     typing_delay_max: behavior.typing_delay_max,
+    typing_start_delay_min: behavior.typing_start_delay_min,
+    typing_start_delay_max: behavior.typing_start_delay_max,
+    typing_paste_threshold: behavior.typing_paste_threshold,
+    typing_variance_enabled: behavior.typing_variance_enabled,
     mouse_movement_style: behavior.mouse_movement_style,
     mouse_jitter_amount: behavior.mouse_jitter_amount,
     click_delay_min: behavior.click_delay_min,

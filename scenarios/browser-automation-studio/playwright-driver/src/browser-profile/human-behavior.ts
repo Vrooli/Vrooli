@@ -2,6 +2,8 @@
  * Human-Like Behavior Module
  *
  * Provides realistic timing and movement patterns for browser automation.
+ * Includes enhanced typing variance that simulates human typing patterns
+ * based on key positions, digraphs, and character types.
  */
 
 import type { BehaviorSettings } from '../types/browser-profile';
@@ -12,17 +14,61 @@ export interface Point {
 }
 
 /**
+ * Common digraphs that are typed faster due to muscle memory.
+ * These are the most common two-letter combinations in English.
+ * Stored as a Set for O(1) lookup.
+ */
+const FAST_DIGRAPHS = new Set([
+  'th', 'he', 'in', 'er', 'an', 're', 'on', 'en', 'at', 'es',
+  'ed', 'to', 'it', 'or', 'st', 'is', 'ar', 'nd', 'ti', 'ng',
+  'te', 'al', 'nt', 'as', 'ha', 'ou', 'se', 'le', 'of', 'ea',
+  've', 'me', 'de', 'hi', 'ri', 'ro', 'ic', 'ne', 'ea', 'ra',
+  'ce', 'li', 'll', 'be', 'ma', 'si', 'om', 'ur', 'ca', 'el',
+  'ta', 'la', 'ns', 'di', 'fo', 'ho', 'pe', 'ec', 'pr', 'no',
+  'ct', 'us', 'ac', 'ot', 'il', 'tr', 'ly', 'nc', 'et', 'ut',
+  'ss', 'so', 'rs', 'un', 'lo', 'wa', 'ge', 'ie', 'wh', 'ee',
+  'wi', 'em', 'ad', 'ol', 'rt', 'po', 'we', 'na', 'ul', 'ni',
+  'ts', 'mo', 'ow', 'pa', 'im', 'pl', 'ay', 'ds', 'id', 'am',
+]);
+
+/**
+ * Shifted characters (require holding shift key) - slower to type.
+ */
+const SHIFTED_CHARS = new Set([
+  '~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+',
+  '{', '}', '|', ':', '"', '<', '>', '?',
+  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+]);
+
+/**
+ * Number characters - slightly slower (hand movement to number row).
+ */
+const NUMBER_CHARS = new Set(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']);
+
+/**
+ * Uncommon symbols - slower due to unfamiliarity.
+ */
+const UNCOMMON_SYMBOLS = new Set(['`', '~', '^', '{', '}', '[', ']', '|', '\\', '<', '>']);
+
+/**
  * Human-like behavior controller.
- * Provides timing delays and mouse movement simulation.
+ * Provides timing delays and mouse movement simulation with
+ * enhanced typing variance that mimics real human typing patterns.
  */
 export class HumanBehavior {
   private settings: Required<BehaviorSettings>;
+  private lastChar: string | null = null;
 
   constructor(settings: BehaviorSettings) {
     // Apply defaults for any missing settings
     this.settings = {
       typing_delay_min: settings.typing_delay_min ?? 0,
       typing_delay_max: settings.typing_delay_max ?? 0,
+      typing_start_delay_min: settings.typing_start_delay_min ?? 0,
+      typing_start_delay_max: settings.typing_start_delay_max ?? 0,
+      typing_paste_threshold: settings.typing_paste_threshold ?? 0,
+      typing_variance_enabled: settings.typing_variance_enabled ?? true,
       mouse_movement_style: settings.mouse_movement_style ?? 'linear',
       mouse_jitter_amount: settings.mouse_jitter_amount ?? 0,
       click_delay_min: settings.click_delay_min ?? 0,
@@ -50,10 +96,121 @@ export class HumanBehavior {
   }
 
   /**
-   * Get a random delay for typing a character.
+   * Reset typing state. Call this at the start of a new typing session.
+   */
+  resetTypingState(): void {
+    this.lastChar = null;
+  }
+
+  /**
+   * Get a random delay before starting to type in a field.
+   * Simulates the human pause before beginning to type.
+   */
+  getTypingStartDelay(): number {
+    return this.randomBetween(
+      this.settings.typing_start_delay_min,
+      this.settings.typing_start_delay_max
+    );
+  }
+
+  /**
+   * Determine if text should be pasted instead of typed.
+   * Long text is often pasted by humans rather than typed.
+   *
+   * @param textLength - Length of the text to be entered
+   * @returns true if text should be pasted, false if typed
+   */
+  shouldPaste(textLength: number): boolean {
+    const threshold = this.settings.typing_paste_threshold;
+
+    // -1 means always paste
+    if (threshold === -1) return true;
+
+    // 0 or undefined means always type
+    if (threshold <= 0) return false;
+
+    // Otherwise, paste if text exceeds threshold
+    return textLength > threshold;
+  }
+
+  /**
+   * Get a random delay for typing a character (basic version).
+   * Use getTypingDelayForChar() for enhanced variance.
    */
   getTypingDelay(): number {
     return this.randomBetween(this.settings.typing_delay_min, this.settings.typing_delay_max);
+  }
+
+  /**
+   * Get a delay for typing a specific character with enhanced variance.
+   * Takes into account:
+   * - Digraph patterns (common pairs are faster)
+   * - Shifted characters (slower)
+   * - Numbers (slightly slower)
+   * - Uncommon symbols (slower)
+   * - Random variance for natural feel
+   *
+   * @param char - The character being typed
+   * @returns Delay in milliseconds before typing the next character
+   */
+  getTypingDelayForChar(char: string): number {
+    const baseDelay = this.getTypingDelay();
+
+    // If variance is disabled or base delay is 0, return base delay
+    if (!this.settings.typing_variance_enabled || baseDelay === 0) {
+      this.lastChar = char;
+      return baseDelay;
+    }
+
+    let multiplier = 1.0;
+
+    // Check for fast digraph (previous + current char)
+    if (this.lastChar) {
+      const digraph = (this.lastChar + char).toLowerCase();
+      if (FAST_DIGRAPHS.has(digraph)) {
+        // Fast digraphs: 60-80% of normal delay
+        multiplier *= this.randomBetween(60, 80) / 100;
+      }
+    }
+
+    // Shifted characters are slower (need to hold shift)
+    if (SHIFTED_CHARS.has(char)) {
+      // Shifted: 130-160% of normal delay
+      multiplier *= this.randomBetween(130, 160) / 100;
+    }
+
+    // Numbers are slightly slower (hand movement)
+    if (NUMBER_CHARS.has(char)) {
+      // Numbers: 110-130% of normal delay
+      multiplier *= this.randomBetween(110, 130) / 100;
+    }
+
+    // Uncommon symbols are slower (unfamiliarity)
+    if (UNCOMMON_SYMBOLS.has(char)) {
+      // Uncommon: 140-180% of normal delay
+      multiplier *= this.randomBetween(140, 180) / 100;
+    }
+
+    // Space is often typed quickly (thumb)
+    if (char === ' ') {
+      multiplier *= this.randomBetween(70, 90) / 100;
+    }
+
+    // Add ±15% random variance for natural feel
+    const variance = this.randomBetween(85, 115) / 100;
+    multiplier *= variance;
+
+    // Update last character for next digraph check
+    this.lastChar = char;
+
+    // Apply multiplier and clamp to reasonable range
+    const adjustedDelay = Math.round(baseDelay * multiplier);
+
+    // Ensure delay is at least 5ms (realistic minimum) and not absurdly long
+    const minDelay = Math.min(5, this.settings.typing_delay_min);
+    const maxDelay = Math.max(this.settings.typing_delay_max * 2, 500);
+
+    return Math.max(minDelay, Math.min(maxDelay, adjustedDelay));
   }
 
   /**
@@ -231,6 +388,7 @@ export function sleep(ms: number): Promise<void> {
 
 /**
  * Type text character by character with random delays.
+ * Uses basic delay without enhanced variance.
  */
 export async function typeWithDelay(
   typeChar: (char: string) => Promise<void>,
@@ -245,6 +403,32 @@ export async function typeWithDelay(
     }
 
     // Occasional micro-pause during typing
+    if (behavior.shouldMicroPause()) {
+      await sleep(behavior.getMicroPauseDuration());
+    }
+  }
+}
+
+/**
+ * Type text character by character with enhanced variance.
+ * Uses character-aware delays for realistic typing patterns.
+ */
+export async function typeWithEnhancedVariance(
+  typeChar: (char: string) => Promise<void>,
+  text: string,
+  behavior: HumanBehavior
+): Promise<void> {
+  // Reset typing state for fresh digraph tracking
+  behavior.resetTypingState();
+
+  for (const char of text) {
+    await typeChar(char);
+    const delay = behavior.getTypingDelayForChar(char);
+    if (delay > 0) {
+      await sleep(delay);
+    }
+
+    // Occasional micro-pause during typing (simulate thinking/hesitation)
     if (behavior.shouldMicroPause()) {
       await sleep(behavior.getMicroPauseDuration());
     }

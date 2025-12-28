@@ -65,9 +65,19 @@ type FingerprintSettings struct {
 
 // BehaviorSettings controls human-like interaction patterns.
 type BehaviorSettings struct {
-	// Typing behavior
+	// Typing behavior - inter-keystroke delays
 	TypingDelayMin int `json:"typing_delay_min,omitempty"` // Min ms between keystrokes
 	TypingDelayMax int `json:"typing_delay_max,omitempty"` // Max ms between keystrokes
+
+	// Typing behavior - pre-typing delay (pause before starting to type)
+	TypingStartDelayMin int `json:"typing_start_delay_min,omitempty"` // Min ms to wait before starting to type
+	TypingStartDelayMax int `json:"typing_start_delay_max,omitempty"` // Max ms to wait before starting to type
+
+	// Typing behavior - paste threshold (paste long text instead of typing)
+	TypingPasteThreshold int `json:"typing_paste_threshold,omitempty"` // Paste if text > this length (0 = always type, -1 = always paste)
+
+	// Typing behavior - enhanced variance (simulate human typing patterns)
+	TypingVarianceEnabled bool `json:"typing_variance_enabled,omitempty"` // Enable digraph/shift/symbol variance
 
 	// Mouse movement
 	MouseMovementStyle string  `json:"mouse_movement_style,omitempty"` // linear, bezier, natural
@@ -125,17 +135,21 @@ func GetPresetBrowserProfile(preset string) *BrowserProfile {
 				DeviceMemory:        8,
 			},
 			Behavior: &BehaviorSettings{
-				TypingDelayMin:      50,
-				TypingDelayMax:      150,
-				MouseMovementStyle:  "natural",
-				MouseJitterAmount:   2,
-				ClickDelayMin:       100,
-				ClickDelayMax:       300,
-				ScrollStyle:         "smooth",
-				MicroPauseEnabled:   true,
-				MicroPauseMinMs:     200,
-				MicroPauseMaxMs:     800,
-				MicroPauseFrequency: 0.15,
+				TypingDelayMin:        50,
+				TypingDelayMax:        150,
+				TypingStartDelayMin:   100,
+				TypingStartDelayMax:   300,
+				TypingPasteThreshold:  200, // Paste text longer than 200 chars
+				TypingVarianceEnabled: true,
+				MouseMovementStyle:    "natural",
+				MouseJitterAmount:     2,
+				ClickDelayMin:         100,
+				ClickDelayMax:         300,
+				ScrollStyle:           "smooth",
+				MicroPauseEnabled:     true,
+				MicroPauseMinMs:       200,
+				MicroPauseMaxMs:       800,
+				MicroPauseFrequency:   0.15,
 			},
 			AntiDetection: &AntiDetectionSettings{
 				DisableAutomationControlled: true,
@@ -152,15 +166,19 @@ func GetPresetBrowserProfile(preset string) *BrowserProfile {
 		return &BrowserProfile{
 			Preset: PresetBalanced,
 			Behavior: &BehaviorSettings{
-				TypingDelayMin:      30,
-				TypingDelayMax:      80,
-				MouseMovementStyle:  "bezier",
-				ClickDelayMin:       50,
-				ClickDelayMax:       150,
-				MicroPauseEnabled:   true,
-				MicroPauseMinMs:     100,
-				MicroPauseMaxMs:     400,
-				MicroPauseFrequency: 0.08,
+				TypingDelayMin:        30,
+				TypingDelayMax:        80,
+				TypingStartDelayMin:   50,
+				TypingStartDelayMax:   150,
+				TypingPasteThreshold:  150, // Paste text longer than 150 chars
+				TypingVarianceEnabled: true,
+				MouseMovementStyle:    "bezier",
+				ClickDelayMin:         50,
+				ClickDelayMax:         150,
+				MicroPauseEnabled:     true,
+				MicroPauseMinMs:       100,
+				MicroPauseMaxMs:       400,
+				MicroPauseFrequency:   0.08,
 			},
 			AntiDetection: &AntiDetectionSettings{
 				DisableAutomationControlled: true,
@@ -171,12 +189,16 @@ func GetPresetBrowserProfile(preset string) *BrowserProfile {
 		return &BrowserProfile{
 			Preset: PresetFast,
 			Behavior: &BehaviorSettings{
-				TypingDelayMin:     10,
-				TypingDelayMax:     30,
-				MouseMovementStyle: "linear",
-				ClickDelayMin:      20,
-				ClickDelayMax:      50,
-				MicroPauseEnabled:  false,
+				TypingDelayMin:        10,
+				TypingDelayMax:        30,
+				TypingStartDelayMin:   10,
+				TypingStartDelayMax:   30,
+				TypingPasteThreshold:  100, // Paste text longer than 100 chars
+				TypingVarianceEnabled: true,
+				MouseMovementStyle:    "linear",
+				ClickDelayMin:         20,
+				ClickDelayMax:         50,
+				MicroPauseEnabled:     false,
 			},
 			AntiDetection: &AntiDetectionSettings{
 				DisableAutomationControlled: true,
@@ -369,6 +391,7 @@ func ValidateBrowserProfile(bp *BrowserProfile) error {
 
 	// Validate behavior settings
 	if bh := bp.Behavior; bh != nil {
+		// Typing delay validation
 		if bh.TypingDelayMin < 0 || bh.TypingDelayMin > 5000 {
 			return fmt.Errorf("typing_delay_min must be between 0 and 5000")
 		}
@@ -378,6 +401,23 @@ func ValidateBrowserProfile(bp *BrowserProfile) error {
 		if bh.TypingDelayMin > bh.TypingDelayMax && bh.TypingDelayMax > 0 {
 			return fmt.Errorf("typing_delay_min cannot exceed typing_delay_max")
 		}
+
+		// Typing start delay validation
+		if bh.TypingStartDelayMin < 0 || bh.TypingStartDelayMin > 5000 {
+			return fmt.Errorf("typing_start_delay_min must be between 0 and 5000")
+		}
+		if bh.TypingStartDelayMax < 0 || bh.TypingStartDelayMax > 5000 {
+			return fmt.Errorf("typing_start_delay_max must be between 0 and 5000")
+		}
+		if bh.TypingStartDelayMin > bh.TypingStartDelayMax && bh.TypingStartDelayMax > 0 {
+			return fmt.Errorf("typing_start_delay_min cannot exceed typing_start_delay_max")
+		}
+
+		// Typing paste threshold validation (-1 = always paste, 0 = always type, >0 = paste if text > threshold)
+		if bh.TypingPasteThreshold < -1 || bh.TypingPasteThreshold > 10000 {
+			return fmt.Errorf("typing_paste_threshold must be between -1 and 10000")
+		}
+
 		validMouseStyles := map[string]bool{"": true, "linear": true, "bezier": true, "natural": true}
 		if !validMouseStyles[bh.MouseMovementStyle] {
 			return fmt.Errorf("mouse_movement_style must be linear, bezier, or natural")

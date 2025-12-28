@@ -53,9 +53,19 @@ export type UserAgentPreset =
  * Behavior settings control human-like interaction patterns.
  */
 export interface BehaviorSettings {
-  // Typing behavior
+  // Typing behavior - inter-keystroke delays
   typing_delay_min?: number; // Min ms between keystrokes
   typing_delay_max?: number; // Max ms between keystrokes
+
+  // Typing behavior - pre-typing delay (pause before starting to type)
+  typing_start_delay_min?: number; // Min ms to wait before starting to type
+  typing_start_delay_max?: number; // Max ms to wait before starting to type
+
+  // Typing behavior - paste threshold (paste long text instead of typing)
+  typing_paste_threshold?: number; // If text length > this, paste instead of type (0 = always type, -1 = always paste)
+
+  // Typing behavior - enhanced variance (simulate human typing patterns)
+  typing_variance_enabled?: boolean; // Enable digraph/shift/symbol variance
 
   // Mouse movement
   mouse_movement_style?: 'linear' | 'bezier' | 'natural';

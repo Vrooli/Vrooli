@@ -255,6 +255,15 @@ type BehaviorSettings struct {
 	// Typing behavior - milliseconds between keystrokes
 	TypingDelayMin *int32 `protobuf:"varint,1,opt,name=typing_delay_min,json=typingDelayMin,proto3,oneof" json:"typing_delay_min,omitempty"`
 	TypingDelayMax *int32 `protobuf:"varint,2,opt,name=typing_delay_max,json=typingDelayMax,proto3,oneof" json:"typing_delay_max,omitempty"`
+	// Typing behavior - pre-typing delay (pause before starting to type)
+	TypingStartDelayMin *int32 `protobuf:"varint,14,opt,name=typing_start_delay_min,json=typingStartDelayMin,proto3,oneof" json:"typing_start_delay_min,omitempty"`
+	TypingStartDelayMax *int32 `protobuf:"varint,15,opt,name=typing_start_delay_max,json=typingStartDelayMax,proto3,oneof" json:"typing_start_delay_max,omitempty"`
+	// Typing behavior - paste threshold (paste long text instead of typing)
+	// 0 = always type, -1 = always paste, >0 = paste if text length exceeds threshold
+	TypingPasteThreshold *int32 `protobuf:"varint,16,opt,name=typing_paste_threshold,json=typingPasteThreshold,proto3,oneof" json:"typing_paste_threshold,omitempty"`
+	// Typing behavior - enhanced variance (simulate human typing patterns)
+	// When enabled, typing speed varies based on character pairs, shifted chars, etc.
+	TypingVarianceEnabled *bool `protobuf:"varint,17,opt,name=typing_variance_enabled,json=typingVarianceEnabled,proto3,oneof" json:"typing_variance_enabled,omitempty"`
 	// Mouse movement style: "linear", "bezier", or "natural"
 	MouseMovementStyle *string  `protobuf:"bytes,3,opt,name=mouse_movement_style,json=mouseMovementStyle,proto3,oneof" json:"mouse_movement_style,omitempty"`
 	MouseJitterAmount  *float64 `protobuf:"fixed64,4,opt,name=mouse_jitter_amount,json=mouseJitterAmount,proto3,oneof" json:"mouse_jitter_amount,omitempty"` // Pixels of random movement
@@ -316,6 +325,34 @@ func (x *BehaviorSettings) GetTypingDelayMax() int32 {
 		return *x.TypingDelayMax
 	}
 	return 0
+}
+
+func (x *BehaviorSettings) GetTypingStartDelayMin() int32 {
+	if x != nil && x.TypingStartDelayMin != nil {
+		return *x.TypingStartDelayMin
+	}
+	return 0
+}
+
+func (x *BehaviorSettings) GetTypingStartDelayMax() int32 {
+	if x != nil && x.TypingStartDelayMax != nil {
+		return *x.TypingStartDelayMax
+	}
+	return 0
+}
+
+func (x *BehaviorSettings) GetTypingPasteThreshold() int32 {
+	if x != nil && x.TypingPasteThreshold != nil {
+		return *x.TypingPasteThreshold
+	}
+	return 0
+}
+
+func (x *BehaviorSettings) GetTypingVarianceEnabled() bool {
+	if x != nil && x.TypingVarianceEnabled != nil {
+		return *x.TypingVarianceEnabled
+	}
+	return false
 }
 
 func (x *BehaviorSettings) GetMouseMovementStyle() string {
@@ -545,25 +582,34 @@ const file_browser_automation_studio_v1_base_browser_profile_proto_rawDesc = "" 
 	"\n" +
 	"_longitudeB\v\n" +
 	"\t_accuracyB\x0f\n" +
-	"\r_color_scheme\"\xac\a\n" +
+	"\r_color_scheme\"\x85\n" +
+	"\n" +
 	"\x10BehaviorSettings\x12-\n" +
 	"\x10typing_delay_min\x18\x01 \x01(\x05H\x00R\x0etypingDelayMin\x88\x01\x01\x12-\n" +
-	"\x10typing_delay_max\x18\x02 \x01(\x05H\x01R\x0etypingDelayMax\x88\x01\x01\x125\n" +
-	"\x14mouse_movement_style\x18\x03 \x01(\tH\x02R\x12mouseMovementStyle\x88\x01\x01\x123\n" +
-	"\x13mouse_jitter_amount\x18\x04 \x01(\x01H\x03R\x11mouseJitterAmount\x88\x01\x01\x12+\n" +
-	"\x0fclick_delay_min\x18\x05 \x01(\x05H\x04R\rclickDelayMin\x88\x01\x01\x12+\n" +
-	"\x0fclick_delay_max\x18\x06 \x01(\x05H\x05R\rclickDelayMax\x88\x01\x01\x12&\n" +
-	"\fscroll_style\x18\a \x01(\tH\x06R\vscrollStyle\x88\x01\x01\x12-\n" +
-	"\x10scroll_speed_min\x18\b \x01(\x05H\aR\x0escrollSpeedMin\x88\x01\x01\x12-\n" +
-	"\x10scroll_speed_max\x18\t \x01(\x05H\bR\x0escrollSpeedMax\x88\x01\x01\x123\n" +
+	"\x10typing_delay_max\x18\x02 \x01(\x05H\x01R\x0etypingDelayMax\x88\x01\x01\x128\n" +
+	"\x16typing_start_delay_min\x18\x0e \x01(\x05H\x02R\x13typingStartDelayMin\x88\x01\x01\x128\n" +
+	"\x16typing_start_delay_max\x18\x0f \x01(\x05H\x03R\x13typingStartDelayMax\x88\x01\x01\x129\n" +
+	"\x16typing_paste_threshold\x18\x10 \x01(\x05H\x04R\x14typingPasteThreshold\x88\x01\x01\x12;\n" +
+	"\x17typing_variance_enabled\x18\x11 \x01(\bH\x05R\x15typingVarianceEnabled\x88\x01\x01\x125\n" +
+	"\x14mouse_movement_style\x18\x03 \x01(\tH\x06R\x12mouseMovementStyle\x88\x01\x01\x123\n" +
+	"\x13mouse_jitter_amount\x18\x04 \x01(\x01H\aR\x11mouseJitterAmount\x88\x01\x01\x12+\n" +
+	"\x0fclick_delay_min\x18\x05 \x01(\x05H\bR\rclickDelayMin\x88\x01\x01\x12+\n" +
+	"\x0fclick_delay_max\x18\x06 \x01(\x05H\tR\rclickDelayMax\x88\x01\x01\x12&\n" +
+	"\fscroll_style\x18\a \x01(\tH\n" +
+	"R\vscrollStyle\x88\x01\x01\x12-\n" +
+	"\x10scroll_speed_min\x18\b \x01(\x05H\vR\x0escrollSpeedMin\x88\x01\x01\x12-\n" +
+	"\x10scroll_speed_max\x18\t \x01(\x05H\fR\x0escrollSpeedMax\x88\x01\x01\x123\n" +
 	"\x13micro_pause_enabled\x18\n" +
-	" \x01(\bH\tR\x11microPauseEnabled\x88\x01\x01\x120\n" +
-	"\x12micro_pause_min_ms\x18\v \x01(\x05H\n" +
-	"R\x0fmicroPauseMinMs\x88\x01\x01\x120\n" +
-	"\x12micro_pause_max_ms\x18\f \x01(\x05H\vR\x0fmicroPauseMaxMs\x88\x01\x01\x127\n" +
-	"\x15micro_pause_frequency\x18\r \x01(\x01H\fR\x13microPauseFrequency\x88\x01\x01B\x13\n" +
+	" \x01(\bH\rR\x11microPauseEnabled\x88\x01\x01\x120\n" +
+	"\x12micro_pause_min_ms\x18\v \x01(\x05H\x0eR\x0fmicroPauseMinMs\x88\x01\x01\x120\n" +
+	"\x12micro_pause_max_ms\x18\f \x01(\x05H\x0fR\x0fmicroPauseMaxMs\x88\x01\x01\x127\n" +
+	"\x15micro_pause_frequency\x18\r \x01(\x01H\x10R\x13microPauseFrequency\x88\x01\x01B\x13\n" +
 	"\x11_typing_delay_minB\x13\n" +
-	"\x11_typing_delay_maxB\x17\n" +
+	"\x11_typing_delay_maxB\x19\n" +
+	"\x17_typing_start_delay_minB\x19\n" +
+	"\x17_typing_start_delay_maxB\x19\n" +
+	"\x17_typing_paste_thresholdB\x1a\n" +
+	"\x18_typing_variance_enabledB\x17\n" +
 	"\x15_mouse_movement_styleB\x16\n" +
 	"\x14_mouse_jitter_amountB\x12\n" +
 	"\x10_click_delay_minB\x12\n" +

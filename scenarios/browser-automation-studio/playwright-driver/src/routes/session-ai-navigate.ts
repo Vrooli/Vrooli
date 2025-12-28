@@ -47,6 +47,8 @@ import { createVisionClient, isModelSupported, getSupportedModelIds } from '../a
 import { createScreenshotCapture, createElementAnnotator } from '../ai/screenshot';
 import { createActionExecutor } from '../ai/action';
 import { createCallbackEmitter, emitNavigationComplete, type NavigationCompleteEvent } from '../ai/emitter';
+import { BEHAVIOR_SETTINGS_KEY } from '../session/context-builder';
+import type { BehaviorSettings } from '../types/browser-profile';
 
 /**
  * Request body for AI navigation.
@@ -190,7 +192,15 @@ export async function handleSessionAINavigate(
 
   const screenshotCapture = createScreenshotCapture();
   const annotator = createElementAnnotator();
-  const actionExecutor = createActionExecutor();
+
+  // Get behavior settings from the session's browser context for human-like typing
+  const behaviorSettings = session.context
+    ? (session.context as any)[BEHAVIOR_SETTINGS_KEY] as BehaviorSettings | undefined
+    : undefined;
+
+  const actionExecutor = createActionExecutor({
+    behaviorSettings,
+  });
   const stepEmitter = createCallbackEmitter();
 
   const deps: VisionAgentDeps = {

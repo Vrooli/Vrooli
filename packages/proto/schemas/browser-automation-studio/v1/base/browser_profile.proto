@@ -77,6 +77,18 @@ message BehaviorSettings {
   optional int32 typing_delay_min = 1;
   optional int32 typing_delay_max = 2;
 
+  // Typing behavior - pre-typing delay (pause before starting to type)
+  optional int32 typing_start_delay_min = 14;
+  optional int32 typing_start_delay_max = 15;
+
+  // Typing behavior - paste threshold (paste long text instead of typing)
+  // 0 = always type, -1 = always paste, >0 = paste if text length exceeds threshold
+  optional int32 typing_paste_threshold = 16;
+
+  // Typing behavior - enhanced variance (simulate human typing patterns)
+  // When enabled, typing speed varies based on character pairs, shifted chars, etc.
+  optional bool typing_variance_enabled = 17;
+
   // Mouse movement style: "linear", "bezier", or "natural"
   optional string mouse_movement_style = 3;
   optional double mouse_jitter_amount = 4;   // Pixels of random movement

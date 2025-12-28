@@ -276,15 +276,34 @@ export interface FingerprintSettings {
  * Human-like behavior settings.
  */
 export interface BehaviorSettings {
+  // Typing behavior - inter-keystroke delays
   typing_delay_min?: number;
   typing_delay_max?: number;
+
+  // Typing behavior - pre-typing delay (pause before starting to type)
+  typing_start_delay_min?: number;
+  typing_start_delay_max?: number;
+
+  // Typing behavior - paste threshold (paste long text instead of typing)
+  typing_paste_threshold?: number; // If text > this, paste. 0 = always type, -1 = always paste
+
+  // Typing behavior - enhanced variance (simulate human typing patterns)
+  typing_variance_enabled?: boolean; // Enable digraph/shift/symbol variance
+
+  // Mouse movement
   mouse_movement_style?: MouseMovementStyle;
   mouse_jitter_amount?: number;
+
+  // Click behavior
   click_delay_min?: number;
   click_delay_max?: number;
+
+  // Scroll behavior
   scroll_style?: ScrollStyle;
   scroll_speed_min?: number;
   scroll_speed_max?: number;
+
+  // Random micro-pauses between actions
   micro_pause_enabled?: boolean;
   micro_pause_min_ms?: number;
   micro_pause_max_ms?: number;

@@ -53,6 +53,10 @@ class BehaviorSettings(_message.Message):
     __slots__ = ()
     TYPING_DELAY_MIN_FIELD_NUMBER: _ClassVar[int]
     TYPING_DELAY_MAX_FIELD_NUMBER: _ClassVar[int]
+    TYPING_START_DELAY_MIN_FIELD_NUMBER: _ClassVar[int]
+    TYPING_START_DELAY_MAX_FIELD_NUMBER: _ClassVar[int]
+    TYPING_PASTE_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
+    TYPING_VARIANCE_ENABLED_FIELD_NUMBER: _ClassVar[int]
     MOUSE_MOVEMENT_STYLE_FIELD_NUMBER: _ClassVar[int]
     MOUSE_JITTER_AMOUNT_FIELD_NUMBER: _ClassVar[int]
     CLICK_DELAY_MIN_FIELD_NUMBER: _ClassVar[int]
@@ -66,6 +70,10 @@ class BehaviorSettings(_message.Message):
     MICRO_PAUSE_FREQUENCY_FIELD_NUMBER: _ClassVar[int]
     typing_delay_min: int
     typing_delay_max: int
+    typing_start_delay_min: int
+    typing_start_delay_max: int
+    typing_paste_threshold: int
+    typing_variance_enabled: bool
     mouse_movement_style: str
     mouse_jitter_amount: float
     click_delay_min: int
@@ -77,7 +85,7 @@ class BehaviorSettings(_message.Message):
     micro_pause_min_ms: int
     micro_pause_max_ms: int
     micro_pause_frequency: float
-    def __init__(self, typing_delay_min: _Optional[int] = ..., typing_delay_max: _Optional[int] = ..., mouse_movement_style: _Optional[str] = ..., mouse_jitter_amount: _Optional[float] = ..., click_delay_min: _Optional[int] = ..., click_delay_max: _Optional[int] = ..., scroll_style: _Optional[str] = ..., scroll_speed_min: _Optional[int] = ..., scroll_speed_max: _Optional[int] = ..., micro_pause_enabled: _Optional[bool] = ..., micro_pause_min_ms: _Optional[int] = ..., micro_pause_max_ms: _Optional[int] = ..., micro_pause_frequency: _Optional[float] = ...) -> None: ...
+    def __init__(self, typing_delay_min: _Optional[int] = ..., typing_delay_max: _Optional[int] = ..., typing_start_delay_min: _Optional[int] = ..., typing_start_delay_max: _Optional[int] = ..., typing_paste_threshold: _Optional[int] = ..., typing_variance_enabled: _Optional[bool] = ..., mouse_movement_style: _Optional[str] = ..., mouse_jitter_amount: _Optional[float] = ..., click_delay_min: _Optional[int] = ..., click_delay_max: _Optional[int] = ..., scroll_style: _Optional[str] = ..., scroll_speed_min: _Optional[int] = ..., scroll_speed_max: _Optional[int] = ..., micro_pause_enabled: _Optional[bool] = ..., micro_pause_min_ms: _Optional[int] = ..., micro_pause_max_ms: _Optional[int] = ..., micro_pause_frequency: _Optional[float] = ...) -> None: ...
 
 class AntiDetectionSettings(_message.Message):
     __slots__ = ()

@@ -5,6 +5,13 @@
  *
  * This module executes BrowserAction objects via Playwright.
  * It translates high-level actions into Playwright operations.
+ *
+ * Supports human-like typing behavior via BehaviorSettings:
+ * - Pre-typing delays (pause before starting to type)
+ * - Character-by-character typing with variable delays
+ * - Enhanced variance based on digraphs, shifted chars, etc.
+ * - Paste threshold for long text
+ * - Micro-pauses during typing
  */
 
 import type { Page } from 'playwright';
@@ -25,6 +32,8 @@ import type {
   ActionExecutionResult,
   ActionExecutionContext,
 } from '../vision-agent/types';
+import type { BehaviorSettings } from '../../types/browser-profile';
+import { HumanBehavior, sleep } from '../../browser-profile/human-behavior';
 
 /**
  * Default timeout for actions in milliseconds.
@@ -44,7 +53,9 @@ export interface ActionExecutorConfig {
   actionTimeout?: number;
   /** Whether to wait for navigation after clicks */
   waitForNavigation?: boolean;
-  /** Delay between typing characters in ms (0 for instant) */
+  /** Behavior settings for human-like interactions */
+  behaviorSettings?: BehaviorSettings;
+  /** @deprecated Use behaviorSettings instead. Delay between typing characters in ms (0 for instant) */
   typeDelay?: number;
 }
 
@@ -57,7 +68,10 @@ export function createActionExecutor(
   config: ActionExecutorConfig = {}
 ): ActionExecutorInterface {
   const actionTimeout = config.actionTimeout ?? DEFAULT_ACTION_TIMEOUT;
-  const typeDelay = config.typeDelay ?? 0;
+  // Create HumanBehavior instance if settings provided
+  const behavior = config.behaviorSettings ? new HumanBehavior(config.behaviorSettings) : null;
+  // Legacy fallback for typeDelay
+  const legacyTypeDelay = config.typeDelay ?? 0;
 
   return {
     async execute(
@@ -75,7 +89,7 @@ export function createActionExecutor(
             break;
 
           case 'type':
-            await executeType(page, action, elementLabels, actionTimeout, typeDelay);
+            await executeType(page, action, elementLabels, actionTimeout, behavior, legacyTypeDelay);
             break;
 
           case 'scroll':
@@ -192,15 +206,26 @@ async function executeClick(
 }
 
 /**
- * Execute a type action.
+ * Execute a type action with human-like behavior.
+ *
+ * When HumanBehavior is provided:
+ * - Applies pre-typing delay (pause before starting to type)
+ * - Checks paste threshold (paste long text instead of typing)
+ * - Types character-by-character with enhanced variance
+ * - Adds micro-pauses during typing
+ *
+ * Falls back to legacy typeDelay or instant typing if no behavior provided.
  */
 async function executeType(
   page: Page,
   action: TypeAction,
   elementLabels: ElementLabel[] | undefined,
   timeout: number,
-  typeDelay: number
+  behavior: HumanBehavior | null,
+  legacyTypeDelay: number
 ): Promise<void> {
+  const text = action.text;
+
   if (action.elementId !== undefined) {
     const selector = getSelectorForElement(action.elementId, elementLabels);
 
@@ -218,8 +243,16 @@ async function executeType(
       await page.click(selector);
     }
 
-    // Type with optional delay
-    await page.keyboard.type(action.text, { delay: typeDelay });
+    // Apply human-like typing behavior if available
+    if (behavior && behavior.isEnabled()) {
+      await typeWithHumanBehavior(page, text, behavior, selector);
+    } else if (legacyTypeDelay > 0) {
+      // Legacy: uniform delay
+      await page.keyboard.type(text, { delay: legacyTypeDelay });
+    } else {
+      // Instant typing
+      await page.keyboard.type(text);
+    }
   } else {
     // Type into currently focused element
     if (action.clearFirst) {
@@ -227,7 +260,74 @@ async function executeType(
       await page.keyboard.press('Control+a');
     }
 
-    await page.keyboard.type(action.text, { delay: typeDelay });
+    // Apply human-like typing behavior if available
+    if (behavior && behavior.isEnabled()) {
+      await typeWithHumanBehavior(page, text, behavior);
+    } else if (legacyTypeDelay > 0) {
+      // Legacy: uniform delay
+      await page.keyboard.type(text, { delay: legacyTypeDelay });
+    } else {
+      // Instant typing
+      await page.keyboard.type(text);
+    }
+  }
+}
+
+/**
+ * Type text with human-like behavior patterns.
+ *
+ * This function implements realistic human typing by:
+ * 1. Applying a pre-typing delay (thinking time before typing)
+ * 2. Checking if text should be pasted instead of typed (for long text)
+ * 3. Typing character-by-character with enhanced variance:
+ *    - Common digraphs (e.g., "th", "er") are typed faster
+ *    - Shifted characters (capitals, symbols) are typed slower
+ *    - Numbers are slightly slower
+ *    - Spaces are fast (thumb typing)
+ * 4. Adding occasional micro-pauses (hesitations)
+ */
+async function typeWithHumanBehavior(
+  page: Page,
+  text: string,
+  behavior: HumanBehavior,
+  selector?: string
+): Promise<void> {
+  // 1. Apply pre-typing delay (human pause before starting to type)
+  const startDelay = behavior.getTypingStartDelay();
+  if (startDelay > 0) {
+    await sleep(startDelay);
+  }
+
+  // 2. Check paste threshold - paste long text instead of typing
+  if (behavior.shouldPaste(text.length)) {
+    if (selector) {
+      // Use fill() for pasting - it's instant and simulates paste
+      await page.fill(selector, text);
+    } else {
+      // For focused element, use clipboard simulation
+      // First clear any selection, then "paste" via keyboard.type with no delay
+      await page.keyboard.type(text, { delay: 0 });
+    }
+    return;
+  }
+
+  // 3. Type character-by-character with enhanced variance
+  behavior.resetTypingState();
+
+  for (const char of text) {
+    // Type the character
+    await page.keyboard.type(char, { delay: 0 });
+
+    // Get delay for this specific character (considers digraphs, shift, etc.)
+    const delay = behavior.getTypingDelayForChar(char);
+    if (delay > 0) {
+      await sleep(delay);
+    }
+
+    // 4. Occasional micro-pause during typing (simulates thinking/hesitation)
+    if (behavior.shouldMicroPause()) {
+      await sleep(behavior.getMicroPauseDuration());
+    }
   }
 }
 

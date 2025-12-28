@@ -57,19 +57,23 @@ func behaviorFromProto(p *basbase.BehaviorSettings) *BehaviorSettings {
 		return nil
 	}
 	return &BehaviorSettings{
-		TypingDelayMin:      int(p.GetTypingDelayMin()),
-		TypingDelayMax:      int(p.GetTypingDelayMax()),
-		MouseMovementStyle:  p.GetMouseMovementStyle(),
-		MouseJitterAmount:   p.GetMouseJitterAmount(),
-		ClickDelayMin:       int(p.GetClickDelayMin()),
-		ClickDelayMax:       int(p.GetClickDelayMax()),
-		ScrollStyle:         p.GetScrollStyle(),
-		ScrollSpeedMin:      int(p.GetScrollSpeedMin()),
-		ScrollSpeedMax:      int(p.GetScrollSpeedMax()),
-		MicroPauseEnabled:   p.GetMicroPauseEnabled(),
-		MicroPauseMinMs:     int(p.GetMicroPauseMinMs()),
-		MicroPauseMaxMs:     int(p.GetMicroPauseMaxMs()),
-		MicroPauseFrequency: p.GetMicroPauseFrequency(),
+		TypingDelayMin:        int(p.GetTypingDelayMin()),
+		TypingDelayMax:        int(p.GetTypingDelayMax()),
+		TypingStartDelayMin:   int(p.GetTypingStartDelayMin()),
+		TypingStartDelayMax:   int(p.GetTypingStartDelayMax()),
+		TypingPasteThreshold:  int(p.GetTypingPasteThreshold()),
+		TypingVarianceEnabled: p.GetTypingVarianceEnabled(),
+		MouseMovementStyle:    p.GetMouseMovementStyle(),
+		MouseJitterAmount:     p.GetMouseJitterAmount(),
+		ClickDelayMin:         int(p.GetClickDelayMin()),
+		ClickDelayMax:         int(p.GetClickDelayMax()),
+		ScrollStyle:           p.GetScrollStyle(),
+		ScrollSpeedMin:        int(p.GetScrollSpeedMin()),
+		ScrollSpeedMax:        int(p.GetScrollSpeedMax()),
+		MicroPauseEnabled:     p.GetMicroPauseEnabled(),
+		MicroPauseMinMs:       int(p.GetMicroPauseMinMs()),
+		MicroPauseMaxMs:       int(p.GetMicroPauseMaxMs()),
+		MicroPauseFrequency:   p.GetMicroPauseFrequency(),
 	}
 }
 
@@ -177,6 +181,18 @@ func behaviorToProto(bh *BehaviorSettings) *basbase.BehaviorSettings {
 	}
 	if bh.TypingDelayMax != 0 {
 		p.TypingDelayMax = proto.Int32(int32(bh.TypingDelayMax))
+	}
+	if bh.TypingStartDelayMin != 0 {
+		p.TypingStartDelayMin = proto.Int32(int32(bh.TypingStartDelayMin))
+	}
+	if bh.TypingStartDelayMax != 0 {
+		p.TypingStartDelayMax = proto.Int32(int32(bh.TypingStartDelayMax))
+	}
+	if bh.TypingPasteThreshold != 0 {
+		p.TypingPasteThreshold = proto.Int32(int32(bh.TypingPasteThreshold))
+	}
+	if bh.TypingVarianceEnabled {
+		p.TypingVarianceEnabled = proto.Bool(bh.TypingVarianceEnabled)
 	}
 	if bh.MouseMovementStyle != "" {
 		p.MouseMovementStyle = proto.String(bh.MouseMovementStyle)
@@ -362,6 +378,18 @@ func mergeBehaviorSettings(base, override *BehaviorSettings) *BehaviorSettings {
 	}
 	if override.TypingDelayMax != 0 {
 		result.TypingDelayMax = override.TypingDelayMax
+	}
+	if override.TypingStartDelayMin != 0 {
+		result.TypingStartDelayMin = override.TypingStartDelayMin
+	}
+	if override.TypingStartDelayMax != 0 {
+		result.TypingStartDelayMax = override.TypingStartDelayMax
+	}
+	if override.TypingPasteThreshold != 0 {
+		result.TypingPasteThreshold = override.TypingPasteThreshold
+	}
+	if override.TypingVarianceEnabled {
+		result.TypingVarianceEnabled = override.TypingVarianceEnabled
 	}
 	if override.MouseMovementStyle != "" {
 		result.MouseMovementStyle = override.MouseMovementStyle

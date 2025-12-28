@@ -23,6 +23,10 @@ const PRESET_CONFIGS: Record<ProfilePreset, { behavior: Partial<BehaviorSettings
     behavior: {
       typing_delay_min: 50,
       typing_delay_max: 150,
+      typing_start_delay_min: 100,
+      typing_start_delay_max: 300,
+      typing_paste_threshold: 200,
+      typing_variance_enabled: true,
       mouse_movement_style: 'natural',
       mouse_jitter_amount: 2,
       click_delay_min: 100,
@@ -48,6 +52,10 @@ const PRESET_CONFIGS: Record<ProfilePreset, { behavior: Partial<BehaviorSettings
     behavior: {
       typing_delay_min: 30,
       typing_delay_max: 80,
+      typing_start_delay_min: 50,
+      typing_start_delay_max: 150,
+      typing_paste_threshold: 150,
+      typing_variance_enabled: true,
       mouse_movement_style: 'bezier',
       mouse_jitter_amount: 1,
       click_delay_min: 50,
@@ -73,6 +81,10 @@ const PRESET_CONFIGS: Record<ProfilePreset, { behavior: Partial<BehaviorSettings
     behavior: {
       typing_delay_min: 10,
       typing_delay_max: 30,
+      typing_start_delay_min: 10,
+      typing_start_delay_max: 30,
+      typing_paste_threshold: 100,
+      typing_variance_enabled: true,
       mouse_movement_style: 'linear',
       mouse_jitter_amount: 0,
       click_delay_min: 20,
@@ -98,6 +110,10 @@ const PRESET_CONFIGS: Record<ProfilePreset, { behavior: Partial<BehaviorSettings
     behavior: {
       typing_delay_min: 0,
       typing_delay_max: 0,
+      typing_start_delay_min: 0,
+      typing_start_delay_max: 0,
+      typing_paste_threshold: 0,
+      typing_variance_enabled: false,
       mouse_movement_style: 'linear',
       mouse_jitter_amount: 0,
       click_delay_min: 0,
@@ -550,9 +566,10 @@ function BehaviorTab({
 }) {
   return (
     <div className="space-y-6">
-      {/* Typing Delays */}
+      {/* Typing Delays - Inter-keystroke */}
       <div>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Typing Behavior</h4>
+        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Typing Speed</h4>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Delay between each keystroke</p>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Min Delay (ms)</label>
@@ -575,6 +592,65 @@ function BehaviorTab({
             />
           </div>
         </div>
+      </div>
+
+      {/* Typing Start Delay */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Pre-Typing Delay</h4>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Pause before starting to type (simulates human thinking)</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Min Delay (ms)</label>
+            <input
+              type="number"
+              value={behavior.typing_start_delay_min ?? ''}
+              onChange={(e) => onChange('typing_start_delay_min', e.target.value ? parseInt(e.target.value) : undefined)}
+              placeholder="100"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Max Delay (ms)</label>
+            <input
+              type="number"
+              value={behavior.typing_start_delay_max ?? ''}
+              onChange={(e) => onChange('typing_start_delay_max', e.target.value ? parseInt(e.target.value) : undefined)}
+              placeholder="300"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Typing Paste Threshold */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Paste Threshold</h4>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Long text is pasted instead of typed (0 = always type, -1 = always paste)</p>
+        <div>
+          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Character Limit</label>
+          <input
+            type="number"
+            value={behavior.typing_paste_threshold ?? ''}
+            onChange={(e) => onChange('typing_paste_threshold', e.target.value ? parseInt(e.target.value) : undefined)}
+            placeholder="200"
+            className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+          />
+        </div>
+      </div>
+
+      {/* Typing Variance */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Enhanced Typing Variance</h4>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Simulate human typing patterns (faster for common pairs, slower for capitals)</p>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={behavior.typing_variance_enabled ?? false}
+            onChange={(e) => onChange('typing_variance_enabled', e.target.checked)}
+            className="rounded border-gray-300 dark:border-gray-600"
+          />
+          <span className="text-sm text-gray-700 dark:text-gray-300">Enable character-aware typing variance</span>
+        </label>
       </div>
 
       {/* Mouse Movement */}

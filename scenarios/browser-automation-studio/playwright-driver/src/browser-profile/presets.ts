@@ -38,6 +38,10 @@ export const DEFAULT_FINGERPRINT: Required<FingerprintSettings> = {
 export const DEFAULT_BEHAVIOR: Required<BehaviorSettings> = {
   typing_delay_min: 0,
   typing_delay_max: 0,
+  typing_start_delay_min: 0,
+  typing_start_delay_max: 0,
+  typing_paste_threshold: 0,
+  typing_variance_enabled: false,
   mouse_movement_style: 'linear',
   mouse_jitter_amount: 0,
   click_delay_min: 0,
@@ -79,6 +83,10 @@ export const PRESET_STEALTH: BrowserProfile = {
   behavior: {
     typing_delay_min: 50,
     typing_delay_max: 150,
+    typing_start_delay_min: 100,
+    typing_start_delay_max: 300,
+    typing_paste_threshold: 200, // Paste text longer than 200 chars
+    typing_variance_enabled: true,
     mouse_movement_style: 'natural',
     mouse_jitter_amount: 2,
     click_delay_min: 100,
@@ -110,6 +118,10 @@ export const PRESET_BALANCED: BrowserProfile = {
   behavior: {
     typing_delay_min: 30,
     typing_delay_max: 80,
+    typing_start_delay_min: 50,
+    typing_start_delay_max: 150,
+    typing_paste_threshold: 150, // Paste text longer than 150 chars
+    typing_variance_enabled: true,
     mouse_movement_style: 'bezier',
     click_delay_min: 50,
     click_delay_max: 150,
@@ -133,6 +145,10 @@ export const PRESET_FAST: BrowserProfile = {
   behavior: {
     typing_delay_min: 10,
     typing_delay_max: 30,
+    typing_start_delay_min: 10,
+    typing_start_delay_max: 30,
+    typing_paste_threshold: 100, // Paste text longer than 100 chars
+    typing_variance_enabled: true,
     mouse_movement_style: 'linear',
     click_delay_min: 20,
     click_delay_max: 50,
