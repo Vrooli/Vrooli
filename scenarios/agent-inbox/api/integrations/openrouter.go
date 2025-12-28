@@ -340,3 +340,90 @@ func trimToJSON(raw []byte) []byte {
 	}
 	return []byte(data)
 }
+
+// GenerationStats contains usage and cost data from OpenRouter's generation API.
+// This provides accurate cost accounting using OpenRouter's actual pricing.
+type GenerationStats struct {
+	ID                     string  `json:"id"`
+	Model                  string  `json:"model"`
+	TotalCost              float64 `json:"total_cost"`               // Cost in USD
+	TokensPrompt           int     `json:"tokens_prompt"`            // Normalized token count
+	TokensCompletion       int     `json:"tokens_completion"`        // Normalized token count
+	NativeTokensPrompt     int     `json:"native_tokens_prompt"`     // Model's native tokenizer
+	NativeTokensCompletion int     `json:"native_tokens_completion"` // Model's native tokenizer
+	CacheDiscount          float64 `json:"cache_discount"`           // Savings from prompt caching
+	GenerationTime         int     `json:"generation_time"`          // Processing time in seconds
+	Streamed               bool    `json:"streamed"`
+	CreatedAt              string  `json:"created_at"`
+}
+
+// generationResponse wraps the API response.
+type generationResponse struct {
+	Data GenerationStats `json:"data"`
+}
+
+// FetchGenerationStats retrieves usage and cost data for a completed generation.
+// This should be called after a completion request using the response ID.
+// See: https://openrouter.ai/docs/use-cases/usage-accounting
+func (c *OpenRouterClient) FetchGenerationStats(ctx context.Context, generationID string) (*GenerationStats, error) {
+	if generationID == "" {
+		return nil, fmt.Errorf("generation ID is required")
+	}
+
+	url := fmt.Sprintf("%s/generation?id=%s", c.baseURL, generationID)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("generation stats error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var result generationResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &result.Data, nil
+}
+
+// CreateUsageRecordFromStats creates a UsageRecord from OpenRouter generation stats.
+// Converts cost from USD to cents for consistency with existing schema.
+func CreateUsageRecordFromStats(chatID, messageID string, stats *GenerationStats) *domain.UsageRecord {
+	if stats == nil {
+		return nil
+	}
+
+	// Use native token counts for accuracy, fallback to normalized if not available
+	promptTokens := stats.NativeTokensPrompt
+	completionTokens := stats.NativeTokensCompletion
+	if promptTokens == 0 && completionTokens == 0 {
+		promptTokens = stats.TokensPrompt
+		completionTokens = stats.TokensCompletion
+	}
+
+	// Convert USD to cents (* 100)
+	totalCostCents := stats.TotalCost * 100
+
+	return &domain.UsageRecord{
+		ChatID:           chatID,
+		MessageID:        messageID,
+		Model:            stats.Model,
+		PromptTokens:     promptTokens,
+		CompletionTokens: completionTokens,
+		TotalTokens:      promptTokens + completionTokens,
+		PromptCost:       0, // OpenRouter only provides total cost
+		CompletionCost:   0, // OpenRouter only provides total cost
+		TotalCost:        totalCostCents,
+	}
+}

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Check, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { AttachmentButton } from "./AttachmentButton";
@@ -7,7 +7,7 @@ import { AttachmentPreview } from "./AttachmentPreview";
 import { WebSearchIndicator } from "./WebSearchIndicator";
 import { useAttachments } from "../../hooks/useAttachments";
 import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapabilities";
-import type { Model } from "../../lib/api";
+import type { Model, Message } from "../../lib/api";
 
 export interface MessagePayload {
   content: string;
@@ -30,6 +30,12 @@ interface MessageInputProps {
   onChatWebSearchDefaultChange?: (enabled: boolean) => void;
   /** @deprecated Use isLoading instead */
   isGenerating?: boolean;
+  /** Message being edited (enables edit mode when set) */
+  editingMessage?: Message | null;
+  /** Callback when edit is cancelled */
+  onCancelEdit?: () => void;
+  /** Callback when edit is submitted */
+  onSubmitEdit?: (payload: MessagePayload) => void;
 }
 
 export function MessageInput({
@@ -43,12 +49,18 @@ export function MessageInput({
   currentModel = null,
   chatWebSearchDefault = false,
   onChatWebSearchDefaultChange,
+  editingMessage,
+  onCancelEdit,
+  onSubmitEdit,
 }: MessageInputProps) {
   // Support both isLoading and deprecated isGenerating
   const loading = isLoading ?? isGenerating ?? false;
   const [message, setMessage] = useState("");
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Edit mode detection
+  const isEditMode = !!editingMessage;
 
   const {
     attachments,
@@ -105,6 +117,21 @@ export function MessageInput({
     }
   }, [autoFocus]);
 
+  // Populate textarea when entering edit mode
+  useEffect(() => {
+    if (editingMessage) {
+      setMessage(editingMessage.content);
+      // Focus and move cursor to end
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(
+          editingMessage.content.length,
+          editingMessage.content.length
+        );
+      }
+    }
+  }, [editingMessage]);
+
   const handleSubmit = useCallback(() => {
     const trimmedMessage = message.trim();
     const hasContent = trimmedMessage || effectiveAttachments.length > 0;
@@ -135,7 +162,13 @@ export function MessageInput({
       webSearchEnabled: enableWebSearch ? webSearchEnabled : false,
     };
 
-    onSend(payload);
+    // Call appropriate handler based on mode
+    if (isEditMode && onSubmitEdit) {
+      onSubmitEdit(payload);
+    } else {
+      onSend(payload);
+    }
+
     setMessage("");
     if (enableAttachments) {
       clearAttachments();
@@ -164,6 +197,8 @@ export function MessageInput({
     chatWebSearchDefault,
     enableAttachments,
     enableWebSearch,
+    isEditMode,
+    onSubmitEdit,
   ]);
 
   const handleKeyDown = useCallback(
@@ -172,8 +207,14 @@ export function MessageInput({
         e.preventDefault();
         handleSubmit();
       }
+      // Escape cancels edit mode
+      if (e.key === "Escape" && isEditMode && onCancelEdit) {
+        e.preventDefault();
+        setMessage("");
+        onCancelEdit();
+      }
     },
-    [handleSubmit]
+    [handleSubmit, isEditMode, onCancelEdit]
   );
 
   const handleWebSearchToggle = useCallback((enabled: boolean) => {
@@ -206,7 +247,7 @@ export function MessageInput({
   })();
 
   // Build send button tooltip
-  let sendTooltip = "Send message (Enter)";
+  let sendTooltip = isEditMode ? "Save edit (Enter)" : "Send message (Enter)";
   if (loading) {
     sendTooltip = "AI is responding...";
   } else if (enableAttachments && isUploading) {
@@ -219,6 +260,23 @@ export function MessageInput({
 
   return (
     <div className="p-4" data-testid="message-input-container">
+      {/* Edit mode banner */}
+      {isEditMode && (
+        <div className="mb-2 px-3 py-2 bg-amber-500/20 border border-amber-500/30 rounded-lg flex items-center justify-between">
+          <span className="text-sm text-amber-300">Editing message</span>
+          <button
+            onClick={() => {
+              setMessage("");
+              onCancelEdit?.();
+            }}
+            className="text-xs text-amber-400 hover:text-amber-200 flex items-center gap-1"
+          >
+            <X className="h-3 w-3" />
+            Cancel
+          </button>
+        </div>
+      )}
+
       {/* Attachment preview area */}
       {enableAttachments && effectiveAttachments.length > 0 && (
         <div className="mb-2">
@@ -269,17 +327,19 @@ export function MessageInput({
           <span className="text-xs text-slate-600 self-end pb-2">{message.length}</span>
         )}
 
-        {/* Send Button (inside, on right) */}
+        {/* Send/Save Button (inside, on right) */}
         <Tooltip content={sendTooltip}>
           <Button
             onClick={handleSubmit}
             disabled={!canSend}
             size="icon"
-            className="h-10 w-10 shrink-0"
-            data-testid="send-message-button"
+            className={`h-10 w-10 shrink-0 ${isEditMode ? "bg-amber-600 hover:bg-amber-500" : ""}`}
+            data-testid={isEditMode ? "save-edit-button" : "send-message-button"}
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isEditMode ? (
+              <Check className="h-4 w-4" />
             ) : (
               <Send className="h-4 w-4" />
             )}
@@ -291,9 +351,19 @@ export function MessageInput({
       <div className="flex items-center justify-between mt-2 px-1">
         <div className="flex items-center gap-3">
           <p className="text-xs text-slate-600">
-            Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Enter</kbd> to
-            send, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Shift+Enter</kbd>{" "}
-            for new line
+            {isEditMode ? (
+              <>
+                Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Enter</kbd> to
+                save, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Escape</kbd>{" "}
+                to cancel
+              </>
+            ) : (
+              <>
+                Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Enter</kbd> to
+                send, <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-slate-400">Shift+Enter</kbd>{" "}
+                for new line
+              </>
+            )}
           </p>
           {enableWebSearch && modelSupportsWebSearch && (
             <WebSearchIndicator

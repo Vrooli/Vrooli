@@ -40,6 +40,8 @@ interface MessageListProps {
   onSelectBranch?: (messageId: string) => void;
   /** Called when user wants to fork the conversation from a specific message */
   onForkConversation?: (messageId: string) => void;
+  /** Called when user wants to edit a user message */
+  onEditMessage?: (message: Message) => void;
   /** Called when user approves a pending tool call */
   onApproveTool?: (toolCallId: string) => void;
   /** Called when user rejects a pending tool call */
@@ -67,6 +69,7 @@ export function MessageList({
   onRegenerateMessage,
   onSelectBranch,
   onForkConversation,
+  onEditMessage,
   onApproveTool,
   onRejectTool,
   isRegenerating = false,
@@ -152,6 +155,7 @@ export function MessageList({
           onRegenerate={onRegenerateMessage}
           onSelectBranch={onSelectBranch}
           onFork={onForkConversation}
+          onEdit={onEditMessage}
           isRegenerating={isRegenerating}
           isForking={isForking}
           ref={(el) => {
@@ -515,6 +519,8 @@ interface MessageBubbleProps {
   onSelectBranch?: (messageId: string) => void;
   /** Called when user wants to fork the conversation from this message */
   onFork?: (messageId: string) => void;
+  /** Called when user wants to edit a user message */
+  onEdit?: (message: Message) => void;
   /** Whether regeneration is in progress */
   isRegenerating?: boolean;
   /** Whether forking is in progress */
@@ -522,7 +528,7 @@ interface MessageBubbleProps {
 }
 
 const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function MessageBubble(
-  { message, viewMode, allMessages, toolCallRecordMap, onRegenerate, onSelectBranch, onFork, isRegenerating = false, isForking = false },
+  { message, viewMode, allMessages, toolCallRecordMap, onRegenerate, onSelectBranch, onFork, onEdit, isRegenerating = false, isForking = false },
   ref
 ) {
   const { addToast } = useToast();
@@ -612,7 +618,15 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
     }
   }, [onRegenerate, isAssistant, message.id, handleComingSoon]);
 
-  const handleEdit = useCallback(() => handleComingSoon("Edit message"), [handleComingSoon]);
+  // Edit handler - only for user messages
+  const handleEdit = useCallback(() => {
+    if (onEdit && isUser) {
+      onEdit(message);
+    } else {
+      handleComingSoon("Edit message");
+    }
+  }, [onEdit, isUser, message, handleComingSoon]);
+
   const handleDelete = useCallback(() => handleComingSoon("Delete message"), [handleComingSoon]);
 
   // Fork conversation handler - calls the actual fork function

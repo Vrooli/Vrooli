@@ -31,11 +31,13 @@ import {
   toggleStar,
   autoNameChat,
   regenerateMessage as apiRegenerateMessage,
+  editMessage as apiEditMessage,
   selectBranch as apiSelectBranch,
   bulkOperateChats as apiBulkOperateChats,
   forkChat as apiForkChat,
   type StreamingEvent,
   type BulkOperation,
+  type Message,
 } from "../lib/api";
 import { useCompletion, type ActiveToolCall, type PendingApproval } from "./useCompletion";
 import { useLabels } from "./useLabels";
@@ -188,6 +190,10 @@ export function useChats(options: UseChatsOptions = {}) {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [regeneratingContent, setRegeneratingContent] = useState("");
 
+  // State for message editing
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+
   // Regenerate a message (ChatGPT-style branching)
   const regenerateMessage = useCallback(
     async (chatId: string, messageId: string) => {
@@ -243,6 +249,47 @@ export function useChats(options: UseChatsOptions = {}) {
     },
     [selectedChatId, selectBranchMutation]
   );
+
+  // Edit a message (creates sibling and triggers new AI response)
+  const editMessageAndComplete = useCallback(
+    async (messageId: string, payload: MessagePayload) => {
+      if (!selectedChatId || isEditing || completion.isGenerating) return;
+
+      setIsEditing(true);
+      // Clear editing state immediately so the input clears
+      setEditingMessage(null);
+
+      try {
+        // Create the edited message (new sibling)
+        await apiEditMessage(selectedChatId, messageId, {
+          content: payload.content.trim(),
+          attachment_ids: payload.attachmentIds.length > 0 ? payload.attachmentIds : undefined,
+          web_search: payload.webSearchEnabled ? true : undefined,
+        });
+
+        // Refresh chat data immediately to show the new message
+        queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
+
+        // Run AI completion (this uses useCompletion for proper streaming)
+        await completion.runCompletion(selectedChatId);
+
+        // Refresh again after completion
+        queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
+      } catch (error) {
+        console.error("Edit message failed:", error);
+      } finally {
+        setIsEditing(false);
+      }
+    },
+    [selectedChatId, isEditing, completion, queryClient]
+  );
+
+  // Cancel edit mode
+  const cancelEdit = useCallback(() => {
+    setEditingMessage(null);
+  }, []);
 
   // Send message and run completion
   const sendMessageAndComplete = useCallback(
@@ -407,6 +454,9 @@ export function useChats(options: UseChatsOptions = {}) {
     isRegenerating,
     regeneratingContent,
     generatedImages: completion.generatedImages,
+    // Edit state
+    editingMessage,
+    isEditing,
 
     // Data
     chats,
@@ -441,6 +491,11 @@ export function useChats(options: UseChatsOptions = {}) {
     // Branching operations (ChatGPT-style regeneration)
     regenerateMessage,
     selectBranch,
+
+    // Edit operations
+    setEditingMessage,
+    editMessageAndComplete,
+    cancelEdit,
 
     // Bulk operations
     bulkOperate: bulkOperateMutation.mutate,

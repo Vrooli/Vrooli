@@ -111,16 +111,8 @@ func (s *CompletionService) SaveCompletionResult(ctx context.Context, chatID, mo
 		log.Printf("[DEBUG] Saved %d generated images as attachments for message %s", len(result.Images), msg.ID)
 	}
 
-	// Save usage record if usage data is available
-	if result.Usage != nil && msg != nil {
-		usageRecord := integrations.CreateUsageRecord(chatID, msg.ID, model, result.Usage)
-		if usageRecord != nil {
-			if saveErr := s.repo.SaveUsageRecord(ctx, usageRecord); saveErr != nil {
-				// Log but don't fail the request - usage tracking is non-critical
-				log.Printf("warning: failed to save usage record: %v", saveErr)
-			}
-		}
-	}
+	// Note: Usage record saving is now handled asynchronously by the handler
+	// using OpenRouter's generation stats API for accurate cost data.
 
 	return msg, nil
 }

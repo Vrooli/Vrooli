@@ -79,6 +79,12 @@ function AppContent() {
     regenerateMessage,
     selectBranch,
 
+    // Edit operations
+    editingMessage,
+    setEditingMessage,
+    editMessageAndComplete,
+    cancelEdit,
+
     // Bulk operations
     bulkOperate,
 
@@ -446,7 +452,7 @@ function AppContent() {
 
       {/* Main Content - Chat View or Empty State */}
       <div
-        className={`flex-1 flex flex-col pt-14 lg:pt-0 ${
+        className={`flex-1 flex flex-col min-h-0 pt-14 lg:pt-0 ${
           chatListOpen && selectedChatId ? "hidden lg:flex" : "flex"
         }`}
       >
@@ -476,6 +482,14 @@ function AppContent() {
             onForkConversation={forkConversation}
             isRegenerating={isRegenerating}
             isForking={isForking}
+            editingMessage={editingMessage}
+            onEditMessage={setEditingMessage}
+            onCancelEdit={cancelEdit}
+            onSubmitEdit={(payload) => {
+              if (editingMessage) {
+                editMessageAndComplete(editingMessage.id, payload);
+              }
+            }}
           />
         ) : (
           <EmptyState onStartChat={createChatWithMessage} isCreating={isCreatingChat} models={models} />

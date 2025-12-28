@@ -62,6 +62,7 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	// Messages and chat state
 	r.HandleFunc("/api/v1/chats/{id}/messages", h.AddMessage).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/messages/{msgId}/regenerate", h.RegenerateMessage).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/messages/{msgId}/edit", h.EditMessage).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/messages/{msgId}/select", h.SelectBranch).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/messages/{msgId}/siblings", h.GetMessageSiblings).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/read", h.ToggleRead).Methods("POST", "OPTIONS")

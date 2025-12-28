@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { ChatHeader } from "./ChatHeader";
 import { MessageList } from "./MessageList";
 import { MessageInput, type MessagePayload } from "./MessageInput";
-import type { ChatWithMessages, Model, Label } from "../../lib/api";
+import type { ChatWithMessages, Model, Label, Message } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
 import type { ViewMode } from "../settings/Settings";
 import { computeVisibleMessages } from "../../lib/messageTree";
@@ -34,6 +34,11 @@ interface ChatViewProps {
   onForkConversation?: (messageId: string) => void;
   isRegenerating?: boolean;
   isForking?: boolean;
+  // Edit operations
+  editingMessage?: Message | null;
+  onEditMessage?: (message: Message) => void;
+  onCancelEdit?: () => void;
+  onSubmitEdit?: (payload: MessagePayload) => void;
 }
 
 export function ChatView({
@@ -61,6 +66,10 @@ export function ChatView({
   onForkConversation,
   isRegenerating = false,
   isForking = false,
+  editingMessage,
+  onEditMessage,
+  onCancelEdit,
+  onSubmitEdit,
 }: ChatViewProps) {
   if (isLoading) {
     return (
@@ -101,7 +110,7 @@ export function ChatView({
   }, [allMessages, chatData.chat.active_leaf_message_id]);
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-950" data-testid="chat-view">
+    <div className="flex-1 flex flex-col min-h-0 bg-slate-950" data-testid="chat-view">
       <ChatHeader
         chat={chatData.chat}
         models={models}
@@ -129,6 +138,7 @@ export function ChatView({
         onRegenerateMessage={onRegenerateMessage}
         onSelectBranch={onSelectBranch}
         onForkConversation={onForkConversation}
+        onEditMessage={onEditMessage}
         isRegenerating={isRegenerating}
         isForking={isForking}
       />
@@ -139,6 +149,9 @@ export function ChatView({
           isLoading={isGenerating}
           currentModel={models.find((m) => m.id === chatData.chat.model) || null}
           chatWebSearchDefault={chatData.chat.web_search_enabled || false}
+          editingMessage={editingMessage}
+          onCancelEdit={onCancelEdit}
+          onSubmitEdit={onSubmitEdit}
         />
       </div>
     </div>

@@ -2,17 +2,62 @@ package handlers
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/services"
 )
+
+// fetchAndSaveGenerationStats asynchronously fetches usage/cost data from OpenRouter
+// and saves it to the database. This is called after a completion request finishes.
+// It runs in a background goroutine to not block the response to the client.
+func (h *Handlers) fetchAndSaveGenerationStats(chatID, messageID, generationID string) {
+	if generationID == "" {
+		return
+	}
+
+	go func() {
+		// Use a fresh context since the request context may be cancelled
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Create OpenRouter client
+		orClient, err := integrations.NewOpenRouterClient()
+		if err != nil {
+			log.Printf("[WARN] Failed to create OpenRouter client for usage stats: %v", err)
+			return
+		}
+
+		// Fetch generation stats
+		stats, err := orClient.FetchGenerationStats(ctx, generationID)
+		if err != nil {
+			log.Printf("[WARN] Failed to fetch generation stats for %s: %v", generationID, err)
+			return
+		}
+
+		// Create and save usage record
+		usageRecord := integrations.CreateUsageRecordFromStats(chatID, messageID, stats)
+		if usageRecord == nil {
+			return
+		}
+
+		if err := h.Repo.SaveUsageRecord(ctx, usageRecord); err != nil {
+			log.Printf("[WARN] Failed to save usage record for %s: %v", generationID, err)
+			return
+		}
+
+		log.Printf("[INFO] Saved usage stats: model=%s, tokens=%d, cost=$%.4f",
+			stats.Model, usageRecord.TotalTokens, stats.TotalCost)
+	}()
+}
 
 // ListModels returns available AI models from OpenRouter.
 // Fetches dynamically from resource-openrouter CLI, with fallback to curated list.
@@ -211,8 +256,11 @@ func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Reques
 	// Parse and accumulate streaming chunks
 	result := parseStreamingChunks(body, sw)
 
-	// Handle the completion result
-	h.handleCompletionResult(r, sw, svc, chatID, model, result)
+	// Handle the completion result and get message ID
+	messageID := h.handleCompletionResult(r, sw, svc, chatID, model, result)
+
+	// Fetch and save generation stats asynchronously (non-blocking)
+	h.fetchAndSaveGenerationStats(chatID, messageID, result.ResponseID)
 
 	sw.WriteDone()
 }
@@ -353,7 +401,8 @@ func processStreamingChoice(choice integrations.OpenRouterChoice, acc *domain.St
 // This is the key decision point - if the model requested tool calls,
 // we execute them and signal the client to continue. Otherwise,
 // we simply save the message and update the preview.
-func (h *Handlers) handleCompletionResult(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) {
+// Returns the message ID of the saved message (empty if none saved).
+func (h *Handlers) handleCompletionResult(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) string {
 	ctx := r.Context()
 
 	// Get the active leaf (the user message that triggered this completion)
@@ -361,28 +410,33 @@ func (h *Handlers) handleCompletionResult(r *http.Request, sw *StreamWriter, svc
 	parentMessageID, _ := h.Repo.GetActiveLeaf(ctx, chatID)
 
 	if result.RequiresToolExecution() {
-		h.handleToolCallsStreaming(r, sw, svc, chatID, model, result, parentMessageID)
+		return h.handleToolCallsStreaming(r, sw, svc, chatID, model, result, parentMessageID)
 	} else if result.HasContent() {
 		// Save regular message
-		svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
+		msg, _ := svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
 		svc.UpdateChatPreview(ctx, chatID, result)
+		if msg != nil {
+			return msg.ID
+		}
 	}
+	return ""
 }
 
 // handleToolCallsStreaming executes tool calls during a streaming response.
 // parentMessageID is the user message that triggered this completion (for branching support).
+// Returns the message ID of the saved assistant message (empty if save failed).
 //
 // TEMPORAL FLOW NOTE: Tool calls are executed sequentially to maintain
 // deterministic ordering. Errors are reported via SSE events but do not
 // stop subsequent tool execution - this allows partial success scenarios.
-func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult, parentMessageID string) {
+func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult, parentMessageID string) string {
 	ctx := r.Context()
 
 	// Save the assistant message with tool calls (parented to the user message)
 	msg, err := svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
 	if err != nil {
 		sw.WriteError(err)
-		return
+		return ""
 	}
 
 	svc.UpdateChatPreview(ctx, chatID, result)
@@ -433,6 +487,8 @@ func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, s
 	} else {
 		sw.WriteToolCallsComplete()
 	}
+
+	return messageID
 }
 
 // handleNonStreamingResponse processes a non-streaming AI response.
@@ -606,6 +662,9 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 		response["tool_errors"] = toolErr.Error()
 	}
 
+	// Fetch and save generation stats asynchronously
+	h.fetchAndSaveGenerationStats(chatID, messageID, result.ResponseID)
+
 	h.JSONResponse(w, response, http.StatusOK)
 }
 
@@ -621,6 +680,13 @@ func (h *Handlers) handleRegularMessageNonStreaming(w http.ResponseWriter, r *ht
 	}
 
 	svc.UpdateChatPreview(r.Context(), chatID, result)
+
+	// Fetch and save generation stats asynchronously
+	messageID := ""
+	if msg != nil {
+		messageID = msg.ID
+	}
+	h.fetchAndSaveGenerationStats(chatID, messageID, result.ResponseID)
 
 	h.JSONResponse(w, msg, http.StatusOK)
 }

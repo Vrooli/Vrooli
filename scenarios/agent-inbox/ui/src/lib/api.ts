@@ -353,6 +353,38 @@ export async function regenerateMessage(
   }
 }
 
+export interface EditMessageData {
+  content: string;
+  attachment_ids?: string[];
+  web_search?: boolean;
+}
+
+/**
+ * Edit a user message by creating a new sibling with updated content.
+ * The original message is preserved (branch-based editing).
+ * Returns the new message. The caller should trigger completion separately.
+ */
+export async function editMessage(
+  chatId: string,
+  messageId: string,
+  data: EditMessageData
+): Promise<Message> {
+  const url = buildApiUrl(`/chats/${chatId}/messages/${messageId}/edit`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Failed to edit message: ${errorText}`);
+  }
+
+  return res.json();
+}
+
 /**
  * Select a different branch by setting a message as the active leaf.
  * Used when navigating between alternative responses.
