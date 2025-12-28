@@ -2,8 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Cloud, RefreshCw, CheckCircle2, XCircle, Home, Server, BookOpen } from "lucide-react";
 import { fetchHealth } from "../../lib/api";
 import { cn } from "../../lib/utils";
-
-export type View = "dashboard" | "wizard" | "deployments" | "docs";
+import type { View } from "../../hooks/useHashRouter";
 
 interface LayoutProps {
   children: React.ReactNode;

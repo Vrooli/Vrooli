@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DocsSidebar } from "./DocsSidebar";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { useDocsManifest, useDocContent } from "../../hooks/useDocs";
@@ -6,31 +6,62 @@ import { Card, CardContent } from "../ui/card";
 
 interface DocsPageProps {
   onBack?: () => void;
+  /** Initial doc path from URL (e.g., "guides/vps-setup") */
+  initialDocPath?: string | null;
+  /** Callback when doc path changes - updates URL */
+  onDocPathChange?: (path: string) => void;
 }
 
-export function DocsPage({ onBack }: DocsPageProps) {
+export function DocsPage({ onBack, initialDocPath, onDocPathChange }: DocsPageProps) {
   const { data: manifest, isLoading: manifestLoading, error: manifestError } = useDocsManifest();
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Auto-select default document when manifest loads
+  // Initialize from URL path or default document
   useEffect(() => {
-    if (manifest && !selectedPath) {
+    if (!manifest) return;
+
+    // If we have an initial path from URL, validate and use it
+    if (initialDocPath) {
+      // Check if the path exists in the manifest
+      const pathWithExt = initialDocPath.endsWith(".md") ? initialDocPath : `${initialDocPath}.md`;
+      const allDocs = manifest.sections.flatMap(s => s.documents);
+      const docExists = allDocs.some(d => d.path === pathWithExt || d.path === initialDocPath);
+
+      if (docExists) {
+        setSelectedPath(pathWithExt);
+        return;
+      }
+    }
+
+    // Fall back to default document if no valid path from URL
+    if (!selectedPath) {
       setSelectedPath(manifest.defaultDocument);
     }
-  }, [manifest, selectedPath]);
+  }, [manifest, initialDocPath, selectedPath]);
 
   const { data: content, isLoading: contentLoading, error: contentError } = useDocContent(selectedPath);
 
-  const handleSelectDoc = (path: string) => {
+  const handleSelectDoc = useCallback((path: string) => {
     setSelectedPath(path);
-  };
-
-  const handleBack = () => {
-    if (manifest) {
-      setSelectedPath(manifest.defaultDocument);
+    // Update URL to reflect the selected doc
+    if (onDocPathChange) {
+      // Remove .md extension for cleaner URLs
+      const cleanPath = path.replace(/\.md$/, "");
+      onDocPathChange(cleanPath);
     }
-  };
+  }, [onDocPathChange]);
+
+  const handleBack = useCallback(() => {
+    if (manifest) {
+      const defaultPath = manifest.defaultDocument;
+      setSelectedPath(defaultPath);
+      if (onDocPathChange) {
+        const cleanPath = defaultPath.replace(/\.md$/, "");
+        onDocPathChange(cleanPath);
+      }
+    }
+  }, [manifest, onDocPathChange]);
 
   // If manifest failed to load, show a fallback with basic info
   if (manifestError) {

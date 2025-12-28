@@ -1,12 +1,13 @@
-import { useState, useCallback } from "react";
-import { Layout, View } from "./components/layout/Layout";
+import { useCallback } from "react";
+import { Layout } from "./components/layout/Layout";
 import { Dashboard } from "./components/Dashboard";
 import { WizardContainer } from "./components/wizard";
 import { DeploymentsPage } from "./components/deployments/DeploymentsPage";
 import { DocsPage } from "./components/docs";
+import { useHashRouter, View } from "./hooks/useHashRouter";
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<View>("dashboard");
+  const { view, docPath, navigate, navigateToDoc } = useHashRouter();
 
   const handleStartNew = useCallback(() => {
     // Clear any saved progress before starting new
@@ -15,41 +16,45 @@ export default function App() {
     } catch {
       // Ignore storage errors
     }
-    setCurrentView("wizard");
-  }, []);
+    navigate("wizard");
+  }, [navigate]);
 
   const handleResume = useCallback(() => {
-    setCurrentView("wizard");
-  }, []);
+    navigate("wizard");
+  }, [navigate]);
 
   const handleBackToDashboard = useCallback(() => {
-    setCurrentView("dashboard");
-  }, []);
+    navigate("dashboard");
+  }, [navigate]);
 
-  const handleNavigate = useCallback((view: View) => {
-    setCurrentView(view);
-  }, []);
+  const handleNavigate = useCallback((newView: View) => {
+    navigate(newView);
+  }, [navigate]);
 
   const handleViewDeployments = useCallback(() => {
-    setCurrentView("deployments");
-  }, []);
+    navigate("deployments");
+  }, [navigate]);
 
   return (
-    <Layout currentView={currentView} onNavigate={handleNavigate}>
-      {currentView === "dashboard" && (
+    <Layout currentView={view} onNavigate={handleNavigate}>
+      {view === "dashboard" && (
         <Dashboard onStartNew={handleStartNew} onResume={handleResume} />
       )}
-      {currentView === "wizard" && (
+      {view === "wizard" && (
         <WizardContainer
           onBackToDashboard={handleBackToDashboard}
           onViewDeployments={handleViewDeployments}
         />
       )}
-      {currentView === "deployments" && (
+      {view === "deployments" && (
         <DeploymentsPage onBack={handleBackToDashboard} />
       )}
-      {currentView === "docs" && (
-        <DocsPage onBack={handleBackToDashboard} />
+      {view === "docs" && (
+        <DocsPage
+          onBack={handleBackToDashboard}
+          initialDocPath={docPath}
+          onDocPathChange={navigateToDoc}
+        />
       )}
     </Layout>
   );

@@ -407,10 +407,18 @@ export function StepManifest({ deployment }: StepManifestProps) {
 
           {/* Target Section */}
           <div className="space-y-4 md:col-span-2">
-            <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              Target Server
-              <HelpTooltip content="The VPS where your scenario will be deployed. Must have SSH access." />
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                Target Server
+                <HelpTooltip content="The VPS where your scenario will be deployed. Must have SSH access." />
+              </h3>
+              <a
+                href="#docs/guides/vps-setup"
+                className="text-xs text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+              >
+                Need help setting up a VPS?
+              </a>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
                 label="Host IP or Hostname"
