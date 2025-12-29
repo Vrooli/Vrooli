@@ -27,6 +27,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxanalyzer "github.com/vrooli/browser-automation-studio/services/uxmetrics/analyzer"
 	uxrepository "github.com/vrooli/browser-automation-studio/services/uxmetrics/repository"
+	"github.com/vrooli/browser-automation-studio/sidecar"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
@@ -158,6 +159,28 @@ func main() {
 	// Wire up WebSocket input forwarding for low-latency input events
 	// This allows the UI to send input via WebSocket instead of HTTP POST
 	hub.SetInputForwarder(handler.CreateInputForwarder())
+
+	// Initialize playwright-driver sidecar management
+	// This enables automatic restart on crashes, health monitoring, and recording recovery
+	var sidecarDeps *sidecar.Dependencies
+	driverClient, err := driver.NewClient(driver.WithLogger(log))
+	if err != nil {
+		log.WithError(err).Warn("⚠️  Failed to create driver client - sidecar management disabled")
+	} else {
+		sidecarDeps, err = sidecar.BuildDependencies(db.DB, driverClient, hub, log)
+		if err != nil {
+			log.WithError(err).Warn("⚠️  Failed to initialize sidecar management")
+		} else if sidecarDeps.IsEnabled() {
+			// Start sidecar services (spawns playwright-driver)
+			startCtx, startCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			if err := sidecarDeps.Start(startCtx); err != nil {
+				log.WithError(err).Warn("⚠️  Sidecar failed to start - playwright-driver may not be available")
+			} else {
+				log.Info("✅ Playwright-driver sidecar started")
+			}
+			startCancel()
+		}
+	}
 
 	// Startup health check - validate critical dependencies before accepting requests
 	// This prevents the scenario where the API starts but all workflow executions fail
@@ -430,6 +453,13 @@ func main() {
 				log.Info("Stopping scheduler...")
 				if err := schedulerSvc.Stop(); err != nil {
 					log.WithError(err).Error("Failed to stop scheduler cleanly")
+				}
+			}
+			// Stop sidecar (stops playwright-driver and health monitor)
+			if sidecarDeps != nil && sidecarDeps.IsEnabled() {
+				log.Info("Stopping sidecar...")
+				if err := sidecarDeps.Stop(ctx); err != nil {
+					log.WithError(err).Error("Failed to stop sidecar cleanly")
 				}
 			}
 			// Close database connection

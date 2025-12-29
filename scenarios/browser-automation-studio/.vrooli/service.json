@@ -174,15 +174,8 @@
       "steps": [
         {
           "name": "start-playwright-driver",
-          "run": "if [ -n \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then exit 0; fi; cd playwright-driver && node dist/server.js",
-          "env": {
-            "PLAYWRIGHT_DRIVER_PORT": "${PLAYWRIGHT_DRIVER_PORT}"
-          },
-          "description": "Start Playwright driver (v2.0) if no driver URL is configured",
-          "background": true,
-          "condition": {
-            "file_exists": "playwright-driver/dist/server.js"
-          }
+          "run": "echo 'ℹ️  Playwright driver lifecycle managed by API sidecar supervisor'",
+          "description": "Skipped - API manages playwright driver lifecycle via sidecar supervisor. Set BAS_SIDECAR_ENABLED=false or PLAYWRIGHT_DRIVER_URL to use external driver."
         },
         {
           "name": "start-api",

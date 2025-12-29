@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/config"
+	"github.com/vrooli/browser-automation-studio/sidecar/health"
 )
 
 // Client represents a WebSocket client
@@ -21,6 +22,7 @@ type Client struct {
 	ExecutionID            *uuid.UUID // Optional: client can subscribe to specific execution timeline events
 	RecordingSessionID     *string    // Optional: client can subscribe to recording session updates
 	ExecutionFrameStreamID *string    // Optional: client can subscribe to execution frame streaming
+	DriverStatusSubscribed bool       // Optional: client can subscribe to driver status updates
 }
 
 // InputForwarder is a function that forwards input events to the playwright-driver.
@@ -36,6 +38,10 @@ type Hub struct {
 	log            *logrus.Logger
 	mu             sync.RWMutex
 	inputForwarder InputForwarder // Optional: forwards input events to playwright-driver
+
+	// Driver status broadcasting
+	currentDriverStatus *health.DriverHealth // Cached for immediate send on subscribe
+	driverStatusMu      sync.RWMutex
 }
 
 // NewHub creates a new WebSocket hub
@@ -372,6 +378,53 @@ func (h *Hub) BroadcastPageSwitch(sessionID, activePageID string) {
 	}
 }
 
+// BroadcastDriverStatus sends driver health status to clients subscribed to driver status updates.
+// This enables real-time visibility into the playwright-driver sidecar health.
+func (h *Hub) BroadcastDriverStatus(driverHealth health.DriverHealth) {
+	// Cache for new subscribers
+	h.driverStatusMu.Lock()
+	h.currentDriverStatus = &driverHealth
+	h.driverStatusMu.Unlock()
+
+	message := h.driverHealthToMessage(&driverHealth)
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		if client.DriverStatusSubscribed {
+			select {
+			case client.Send <- message:
+			default:
+				// Client buffer full, skip (non-blocking)
+			}
+		}
+	}
+}
+
+// driverHealthToMessage converts a DriverHealth to a WebSocket message.
+func (h *Hub) driverHealthToMessage(driverHealth *health.DriverHealth) map[string]any {
+	msg := map[string]any{
+		"type":            "driver_status",
+		"status":          string(driverHealth.Status),
+		"circuit_breaker": driverHealth.CircuitBreaker,
+		"active_sessions": driverHealth.ActiveSessions,
+		"restart_count":   driverHealth.RestartCount,
+		"uptime_ms":       driverHealth.UptimeMS,
+		"updated_at":      driverHealth.UpdatedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
+		"timestamp":       getCurrentTimestamp(),
+	}
+
+	if driverHealth.LastError != nil {
+		msg["last_error"] = *driverHealth.LastError
+	}
+	if driverHealth.EstimatedRecoveryMS != nil {
+		msg["estimated_recovery_ms"] = *driverHealth.EstimatedRecoveryMS
+	}
+
+	return msg
+}
+
 // GetClientCount returns the number of connected clients.
 func (h *Hub) GetClientCount() int {
 	h.mu.RLock()
@@ -505,6 +558,30 @@ func (c *Client) readPump() {
 						}
 					}(sessionID, input)
 				}
+			case "subscribe_driver_status":
+				c.DriverStatusSubscribed = true
+				c.Hub.log.WithField("client_id", c.ID).Info("Client subscribed to driver status")
+				// Send current status immediately if available
+				c.Hub.driverStatusMu.RLock()
+				if c.Hub.currentDriverStatus != nil {
+					msg := c.Hub.driverHealthToMessage(c.Hub.currentDriverStatus)
+					select {
+					case c.Send <- msg:
+					default:
+					}
+				}
+				c.Hub.driverStatusMu.RUnlock()
+				// Send confirmation
+				select {
+				case c.Send <- map[string]any{
+					"type":      "driver_status_subscribed",
+					"timestamp": getCurrentTimestamp(),
+				}:
+				default:
+				}
+			case "unsubscribe_driver_status":
+				c.DriverStatusSubscribed = false
+				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from driver status")
 			}
 		}
 	}
