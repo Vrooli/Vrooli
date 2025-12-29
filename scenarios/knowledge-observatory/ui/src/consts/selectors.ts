@@ -266,25 +266,62 @@ const createSelectorRegistry = <
 };
 
 const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
-  dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+  header: {
+    title: "ko-header-title",
+    statusBadge: "ko-status-badge",
+    pageTitle: "ko-page-title",
   },
-  */
+  nav: {
+    dashboard: "ko-nav-dashboard",
+    search: "ko-nav-search",
+    graph: "ko-nav-graph",
+    metrics: "ko-nav-metrics",
+  },
+  dashboard: {
+    quickActions: "ko-dashboard-quick-actions",
+    quickSearch: "ko-dashboard-quick-search",
+    quickMetrics: "ko-dashboard-quick-metrics",
+    quickGraph: "ko-dashboard-quick-graph",
+    healthSection: "ko-health-section",
+    healthRefresh: "ko-health-refresh",
+    healthError: "ko-health-error",
+    featureSearch: "ko-feature-search",
+    featureGraph: "ko-feature-graph",
+    featureMetrics: "ko-feature-metrics",
+    cliSection: "ko-cli-section",
+  },
+  search: {
+    form: "ko-search-form",
+    input: "ko-search-input",
+    submit: "ko-search-submit",
+    clear: "ko-search-clear",
+    sampleGroup: "ko-search-samples",
+    sampleButton: "ko-search-sample",
+    resultsSummary: "ko-search-summary",
+    resultsList: "ko-search-results",
+    emptyState: "ko-search-empty",
+    error: "ko-search-error",
+  },
+  metrics: {
+    overall: "ko-metrics-overall",
+    refresh: "ko-metrics-refresh",
+    legend: "ko-metrics-legend",
+    collections: "ko-metrics-collections",
+    summary: "ko-metrics-summary",
+  },
+  graph: {
+    emptyState: "ko-graph-empty",
+  },
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  /*
-  Example dynamic selectors:
-  projects: {
-    cardByName: defineDynamicSelector({
-      description: 'Project card filtered by name',
-      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
-      params: { name: { type: 'string' } },
+  search: {
+    sampleByQuery: defineDynamicSelector({
+      description: "Sample query button filtered by query text",
+      selectorPattern: '[data-testid="ko-search-sample"][data-query="${query}"]',
+      params: { query: { type: "string" } },
     }),
   },
-  */
 };
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);

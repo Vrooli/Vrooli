@@ -457,8 +457,8 @@ func (h *Handlers) handleCompletionResult(r *http.Request, sw *StreamWriter, svc
 
 	if result.RequiresToolExecution() {
 		return h.handleToolCallsStreaming(r, sw, svc, chatID, model, result, parentMessageID)
-	} else if result.HasContent() {
-		// Save regular message
+	} else if result.HasResponse() {
+		// Save regular message (text and/or images)
 		msg, _ := svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
 		svc.UpdateChatPreview(ctx, chatID, result)
 		if msg != nil {

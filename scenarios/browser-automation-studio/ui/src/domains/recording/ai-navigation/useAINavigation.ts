@@ -268,13 +268,17 @@ export function useAINavigation({
   );
 
   const abortNavigation = useCallback(async () => {
-    if (!state.navigationId) {
-      console.warn('[useAINavigation] Cannot abort: no navigationId');
+    // Use ref for the most current navigationId (avoids stale closure issues)
+    const navId = navigationIdRef.current;
+    if (!navId) {
+      console.warn('[useAINavigation] Cannot abort: no navigationId in ref');
       return;
     }
 
+    console.log('[useAINavigation] Aborting navigation:', navId);
+
     try {
-      const response = await fetch(`${apiUrl}/ai-navigate/${state.navigationId}/abort`, {
+      const response = await fetch(`${apiUrl}/ai-navigate/${navId}/abort`, {
         method: 'POST',
       });
 
@@ -282,6 +286,8 @@ export function useAINavigation({
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to abort navigation');
       }
+
+      console.log('[useAINavigation] Abort successful');
 
       // Mark as aborted immediately and set isNavigating to false
       // Don't wait for WebSocket complete event since it may be delayed
@@ -303,7 +309,7 @@ export function useAINavigation({
         error: message,
       }));
     }
-  }, [apiUrl, state.navigationId]);
+  }, [apiUrl]);
 
   const resumeNavigation = useCallback(async () => {
     if (!state.navigationId) {

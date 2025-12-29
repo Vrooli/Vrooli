@@ -98,6 +98,16 @@ export function AutoTab({
     inputRef.current?.focus();
   }, []);
 
+  // Auto-resize textarea when value changes (e.g., from localStorage or example click)
+  useEffect(() => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    const lineHeight = 20; // ~20px per line at text-sm
+    const maxHeight = lineHeight * 6 + 16; // 6 lines + padding
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+  }, [inputValue]);
+
   const handleSubmit = useCallback(
     (e?: React.FormEvent) => {
       e?.preventDefault();
@@ -238,7 +248,7 @@ export function AutoTab({
 
       {/* Input Area */}
       <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+        <form onSubmit={handleSubmit} className="flex gap-2 items-end">
           <textarea
             ref={inputRef}
             value={inputValue}
@@ -246,7 +256,7 @@ export function AutoTab({
             onKeyDown={handleKeyDown}
             placeholder={isNavigating ? 'Navigation in progress...' : 'Where do you want to go?'}
             disabled={isNavigating}
-            className="flex-1 min-h-[40px] max-h-[120px] px-3 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 min-h-[40px] max-h-[136px] px-3 py-2 text-sm leading-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
             rows={1}
             aria-label="Navigation prompt"
           />

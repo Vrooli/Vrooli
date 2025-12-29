@@ -3,10 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { searchKnowledge, type SearchResult } from "../lib/api";
+import { selectors } from "../consts/selectors";
 
 export function SearchPanel() {
   const [query, setQuery] = useState("");
   const [searchTrigger, setSearchTrigger] = useState<string | null>(null);
+  const sampleQueries = [
+    "recent knowledge health status",
+    "semantic drift detection playbooks",
+    "qdrant collections overview",
+  ];
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["search", searchTrigger],
@@ -14,40 +20,87 @@ export function SearchPanel() {
     enabled: !!searchTrigger,
   });
 
+  const runSearch = (nextQuery: string) => {
+    const trimmed = nextQuery.trim();
+    if (!trimmed) return;
+    setQuery(trimmed);
+    setSearchTrigger(trimmed);
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) {
-      setSearchTrigger(query);
-    }
+    runSearch(query);
+  };
+
+  const handleClear = () => {
+    setQuery("");
+    setSearchTrigger(null);
   };
 
   return (
     <div className="space-y-4">
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <div className="flex-1 relative">
+      <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3" data-testid={selectors.search.form}>
+        <div className="flex-1">
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Enter your semantic query..."
+            placeholder="Ask a question or describe the concept you want to find..."
             className="w-full px-4 py-2 bg-black border border-green-900/50 rounded text-green-400 placeholder-green-700 focus:outline-none focus:border-green-600"
+            data-testid={selectors.search.input}
+            aria-label="Semantic search query"
           />
+          <p className="mt-2 text-xs text-green-700">
+            Use natural language, e.g. “knowledge health status” or “semantic drift detector”.
+          </p>
         </div>
-        <Button
-          type="submit"
-          disabled={isLoading || !query.trim()}
-          className="bg-green-900 hover:bg-green-800 text-green-100 border border-green-700"
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Search className="h-4 w-4" />
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type="submit"
+            disabled={isLoading || !query.trim()}
+            className="bg-green-900 hover:bg-green-800 text-green-100 border border-green-700"
+            data-testid={selectors.search.submit}
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
+            <span className="ml-2">Search</span>
+          </Button>
+          <Button
+            type="button"
+            onClick={handleClear}
+            className="bg-black/40 hover:bg-green-950/30 text-green-200 border border-green-900/50"
+            data-testid={selectors.search.clear}
+            disabled={!query && !data}
+          >
+            Clear
+          </Button>
+        </div>
       </form>
 
+      <div className="flex flex-wrap items-center gap-2" data-testid={selectors.search.sampleGroup}>
+        <span className="text-xs text-green-700 uppercase tracking-wider">Try:</span>
+        {sampleQueries.map((sample) => (
+          <Button
+            key={sample}
+            type="button"
+            onClick={() => runSearch(sample)}
+            className="bg-black/30 hover:bg-green-950/30 text-green-200 border border-green-900/40 text-xs h-8 px-3"
+            data-testid={selectors.search.sampleButton}
+            data-query={sample}
+          >
+            {sample}
+          </Button>
+        ))}
+      </div>
+
       {error && (
-        <div className="p-4 border border-red-900/50 bg-red-950/20 rounded flex items-start gap-2">
+        <div
+          className="p-4 border border-red-900/50 bg-red-950/20 rounded flex items-start gap-2"
+          data-testid={selectors.search.error}
+        >
           <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-red-400 font-semibold">Search Error</p>
@@ -58,18 +111,21 @@ export function SearchPanel() {
 
       {data && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-sm text-green-600">
+          <div className="flex flex-wrap items-center justify-between text-sm text-green-600" data-testid={selectors.search.resultsSummary}>
             <span>Found {data.results.length} results</span>
             <span>Took {data.took_ms}ms</span>
           </div>
 
           {data.results.length === 0 ? (
-            <div className="p-6 text-center border border-green-900/50 bg-green-950/10 rounded">
+            <div
+              className="p-6 text-center border border-green-900/50 bg-green-950/10 rounded"
+              data-testid={selectors.search.emptyState}
+            >
               <p className="text-green-600">No results found for "{data.query}"</p>
-              <p className="text-sm text-green-700 mt-1">Try a different query or lower the threshold</p>
+              <p className="text-sm text-green-700 mt-1">Try a different phrasing or a broader concept.</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2" data-testid={selectors.search.resultsList}>
               {data.results.map((result: SearchResult) => (
                 <div
                   key={result.id}
@@ -100,7 +156,10 @@ export function SearchPanel() {
       )}
 
       {!data && !error && !isLoading && (
-        <div className="p-8 text-center border border-green-900/50 bg-green-950/10 rounded">
+        <div
+          className="p-8 text-center border border-green-900/50 bg-green-950/10 rounded"
+          data-testid={selectors.search.emptyState}
+        >
           <Search className="h-12 w-12 text-green-700 mx-auto mb-3" />
           <p className="text-green-600">Enter a query to search the knowledge base</p>
           <p className="text-sm text-green-700 mt-1">Uses semantic embeddings to find relevant content</p>

@@ -36,12 +36,26 @@ func (r *CompletionResult) HasContent() bool {
 	return r.Content != ""
 }
 
+// HasImages returns true if the response contains generated images.
+func (r *CompletionResult) HasImages() bool {
+	return len(r.Images) > 0
+}
+
+// HasResponse returns true if the response contains any displayable content (text or images).
+func (r *CompletionResult) HasResponse() bool {
+	return r.HasContent() || r.HasImages()
+}
+
 // PreviewText returns a truncated version of the content for chat list display.
-// Returns a fallback message if the response has tool calls but no content.
+// Returns a fallback message if the response has tool calls but no content,
+// or if the response contains generated images.
 // Uses domain.PreviewMaxLength for consistent truncation across the codebase.
 func (r *CompletionResult) PreviewText() string {
 	if r.RequiresToolExecution() && !r.HasContent() {
 		return "Using tools..."
+	}
+	if r.HasImages() && !r.HasContent() {
+		return "Generated image"
 	}
 	if r.Content == "" {
 		return ""

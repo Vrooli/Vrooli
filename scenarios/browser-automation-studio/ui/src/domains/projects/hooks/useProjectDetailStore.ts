@@ -59,6 +59,12 @@ interface ProjectDetailState {
   dragSourcePath: string | null;
   dropTargetFolder: string | null;
 
+  // Keyboard navigation
+  focusedTreePath: string | null;
+
+  // Preview pane
+  previewWorkflowId: string | null;
+
   // Menu states
   showWorkflowActionsFor: string | null;
   showStatsPopover: boolean;
@@ -108,6 +114,12 @@ interface ProjectDetailActions {
   setDragSourcePath: (path: string | null) => void;
   setDropTargetFolder: (folder: string | null) => void;
 
+  // Keyboard navigation
+  setFocusedTreePath: (path: string | null) => void;
+
+  // Preview pane
+  setPreviewWorkflowId: (id: string | null) => void;
+
   // Menu states
   setShowWorkflowActionsFor: (id: string | null) => void;
   setShowStatsPopover: (show: boolean) => void;
@@ -137,7 +149,7 @@ const initialState: ProjectDetailState = {
   projectEntriesLoading: false,
   projectEntriesError: null,
   searchTerm: "",
-  viewMode: "card",
+  viewMode: "tree",
   activeTab: "workflows",
   selectionMode: false,
   selectedWorkflows: new Set(),
@@ -145,6 +157,8 @@ const initialState: ProjectDetailState = {
   selectedTreeFolder: null,
   dragSourcePath: null,
   dropTargetFolder: null,
+  focusedTreePath: null,
+  previewWorkflowId: null,
   showWorkflowActionsFor: null,
   showStatsPopover: false,
   showViewModeDropdown: false,
@@ -309,6 +323,12 @@ export const useProjectDetailStore = create<ProjectDetailState & ProjectDetailAc
   setSelectedTreeFolder: (path) => set({ selectedTreeFolder: path }),
   setDragSourcePath: (path) => set({ dragSourcePath: path }),
   setDropTargetFolder: (folder) => set({ dropTargetFolder: folder }),
+
+  // Keyboard navigation
+  setFocusedTreePath: (path) => set({ focusedTreePath: path }),
+
+  // Preview pane
+  setPreviewWorkflowId: (id) => set({ previewWorkflowId: id }),
 
   // Menu states
   setShowWorkflowActionsFor: (id) => set({ showWorkflowActionsFor: id }),

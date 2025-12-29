@@ -33,10 +33,15 @@ Knowledge Observatory helps Vrooli operators and agents inspect what semantic kn
 
 - Replaced modal-driven feature cards with hash-based routing + persistent tabs: `#/` (Dashboard), `#/search`, `#/metrics`, `#/graph`.
 - Kept the existing Dashboard content as the “home” surface and converted feature cards into direct links to the full pages.
+- Added a “Start a Knowledge Check” quick-action row so first-time and returning users can jump to Search/Metrics/Graph immediately.
+- Improved system health clarity with icon-led error messaging and responsive status cards.
+- Enhanced Search with guidance copy, sample queries, a clear action, and stronger empty/error states.
+- Added metrics legend and responsive grids to clarify what “good” looks like at a glance.
+- Introduced selector-driven `data-testid` hooks for key UI elements to support BAS automation.
 
 ## Opportunities for Future Loops
 
 1. **Graph end-to-end wiring** – Implement the knowledge graph API (if missing) and add a minimal, dependency-free graph viewer (even a list/table-first “graph inspector” would surface value before full visualization).
 2. **State persistence across navigation** – Preserve the last search query / last viewed collection metrics when switching tabs so returning curators can “continue where they left off”.
 3. **Triage shortcuts** – Add “Go to Search” / “Go to Metrics” actions in the offline/unhealthy health panel to shorten ops troubleshooting loops.
-
+4. **Search filters** – Add collection/threshold controls to narrow results without leaving the search context.

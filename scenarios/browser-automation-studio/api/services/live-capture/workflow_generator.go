@@ -4,10 +4,68 @@ package livecapture
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vrooli/browser-automation-studio/automation/actions"
 )
+
+// Enum normalization functions for converting lowercase strings to proto enum format.
+// These ensure generated workflows use proper proto enum names that protojson can parse.
+
+// normalizeMouseButton converts a lowercase button name to proto MouseButton format.
+func normalizeMouseButton(button string) string {
+	switch strings.ToLower(button) {
+	case "left":
+		return "MOUSE_BUTTON_LEFT"
+	case "right":
+		return "MOUSE_BUTTON_RIGHT"
+	case "middle":
+		return "MOUSE_BUTTON_MIDDLE"
+	default:
+		return button // Return as-is if already in proto format or unknown
+	}
+}
+
+// normalizeWaitState converts a lowercase state to proto WaitState format.
+func normalizeWaitState(state string) string {
+	switch strings.ToLower(state) {
+	case "attached":
+		return "WAIT_STATE_ATTACHED"
+	case "detached":
+		return "WAIT_STATE_DETACHED"
+	case "visible":
+		return "WAIT_STATE_VISIBLE"
+	case "hidden":
+		return "WAIT_STATE_HIDDEN"
+	default:
+		return state
+	}
+}
+
+// normalizeAssertionMode converts a lowercase mode to proto AssertionMode format.
+func normalizeAssertionMode(mode string) string {
+	switch strings.ToLower(mode) {
+	case "exists":
+		return "ASSERTION_MODE_EXISTS"
+	case "not_exists", "notexists":
+		return "ASSERTION_MODE_NOT_EXISTS"
+	case "visible":
+		return "ASSERTION_MODE_VISIBLE"
+	case "hidden":
+		return "ASSERTION_MODE_HIDDEN"
+	case "text_equals":
+		return "ASSERTION_MODE_TEXT_EQUALS"
+	case "text_contains":
+		return "ASSERTION_MODE_TEXT_CONTAINS"
+	case "attribute_equals":
+		return "ASSERTION_MODE_ATTRIBUTE_EQUALS"
+	case "attribute_contains":
+		return "ASSERTION_MODE_ATTRIBUTE_CONTAINS"
+	default:
+		return mode
+	}
+}
 
 // WorkflowGenerator converts recorded actions into workflow definitions.
 type WorkflowGenerator struct{}
@@ -258,8 +316,8 @@ func buildV2ActionParams(nodeType string, action RecordedAction, data map[string
 		if action.Selector != nil {
 			params["selector"] = action.Selector.Primary
 		}
-		if btn, ok := data["button"]; ok {
-			params["button"] = btn
+		if btn, ok := data["button"].(string); ok {
+			params["button"] = normalizeMouseButton(btn)
 		}
 		if count, ok := data["clickCount"]; ok {
 			params["click_count"] = count
@@ -308,11 +366,19 @@ func buildV2ActionParams(nodeType string, action RecordedAction, data map[string
 		if action.Selector != nil {
 			params["selector"] = action.Selector.Primary
 		}
-		// Copy all payload data as assert params
+		// Copy all payload data as assert params, normalizing enum values
 		for k, v := range data {
-			if k != "selector" && k != "label" {
-				params[k] = v
+			if k == "selector" || k == "label" {
+				continue
 			}
+			// Normalize mode enum if present
+			if k == "mode" {
+				if mode, ok := v.(string); ok {
+					params[k] = normalizeAssertionMode(mode)
+					continue
+				}
+			}
+			params[k] = v
 		}
 	default:
 		// For unknown types, copy data as params
@@ -417,7 +483,7 @@ func createWaitNode(template *WaitTemplate, nodeID string, posY float64) map[str
 
 	if template.WaitType == "selector" && template.Selector != "" {
 		waitParams["selector"] = template.Selector
-		waitParams["state"] = "visible" // Default to waiting for visible state
+		waitParams["state"] = "WAIT_STATE_VISIBLE" // Default to waiting for visible state
 	} else if template.WaitType == "timeout" {
 		waitParams["duration_ms"] = template.TimeoutMs
 	}

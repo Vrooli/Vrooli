@@ -20,6 +20,7 @@ import {
   FolderOpen,
   FileCode,
   FileText,
+  GripVertical,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -68,7 +69,7 @@ export function renderTreePrefix(prefixParts: boolean[]): ReactNode {
   return (
     <span
       aria-hidden="true"
-      className="font-mono text-[11px] leading-4 text-gray-500 whitespace-pre pointer-events-none select-none"
+      className="font-mono text-xs leading-5 text-gray-500 whitespace-pre pointer-events-none select-none"
     >
       {prefix}
     </span>
@@ -91,12 +92,12 @@ export function fileTypeLabelFromPath(relPath: string): string | null {
  */
 export function fileKindIcon(node: FileTreeNode): ReactNode {
   if (node.kind === "folder") {
-    return <FolderOpen size={14} className="text-yellow-500" />;
+    return <FolderOpen size={16} className="text-yellow-500 flex-shrink-0" />;
   }
   if (node.kind === "workflow_file") {
-    return <FileCode size={14} className="text-green-400" />;
+    return <FileCode size={16} className="text-green-400 flex-shrink-0" />;
   }
-  return <FileText size={14} className="text-gray-400" />;
+  return <FileText size={16} className="text-gray-400 flex-shrink-0" />;
 }
 
 // ============================================================================
@@ -118,6 +119,8 @@ export interface FileTreeItemProps {
   dragSourcePath: string | null;
   /** Path of current drop target folder */
   dropTargetFolder: string | null;
+  /** Currently focused path for keyboard navigation */
+  focusedTreePath: string | null;
 
   // Callbacks
   /** Toggle folder expansion */
@@ -130,7 +133,9 @@ export interface FileTreeItemProps {
   onSetDropTargetFolder: (path: string | null) => void;
   /** Handle drop for move operation */
   onDropMove: (e: React.DragEvent, targetFolderPath: string) => void;
-  /** Open a workflow file */
+  /** Preview a workflow file (single click) */
+  onPreviewWorkflow: (workflowId: string) => void;
+  /** Open a workflow file (double click) */
   onOpenWorkflowFile: (workflowId: string) => Promise<void>;
   /** Execute a workflow */
   onExecuteWorkflow: (e: React.MouseEvent, workflowId: string) => Promise<void>;
@@ -138,6 +143,8 @@ export interface FileTreeItemProps {
   onDeleteNode: (path: string) => Promise<void>;
   /** Rename/move a node */
   onRenameNode: (path: string) => Promise<void>;
+  /** Show inline add menu for a folder */
+  onShowInlineAddMenu?: (folderPath: string, e?: React.MouseEvent) => void;
 }
 
 // ============================================================================
@@ -154,15 +161,18 @@ export function FileTreeItem({
   selectedTreeFolder,
   dragSourcePath,
   dropTargetFolder,
+  focusedTreePath,
   onToggleFolder,
   onSelectFolder,
   onSetDragSourcePath,
   onSetDropTargetFolder,
   onDropMove,
+  onPreviewWorkflow,
   onOpenWorkflowFile,
   onExecuteWorkflow,
   onDeleteNode,
   onRenameNode,
+  onShowInlineAddMenu,
 }: FileTreeItemProps) {
   const isFolder = node.kind === "folder";
   const isExpanded = isFolder && expandedFolders.has(node.path);
@@ -172,10 +182,18 @@ export function FileTreeItem({
   const isDropTarget = Boolean(
     dragSourcePath !== null && dropTargetFolder !== null && dropTargetFolder === node.path
   );
+  const isFocused = focusedTreePath === node.path;
 
   const handleToggle = () => {
     if (!isFolder) return;
     onToggleFolder(node.path);
+  };
+
+  const handlePreviewWorkflow = () => {
+    if (node.kind !== "workflow_file" || !node.workflowId) {
+      return;
+    }
+    onPreviewWorkflow(node.workflowId);
   };
 
   const handleOpenWorkflowFile = async () => {
@@ -230,7 +248,20 @@ export function FileTreeItem({
     onSetDropTargetFolder(node.path);
   };
 
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only clear if leaving the actual folder element (not entering a child)
+    const relatedTarget = e.relatedTarget as Node | null;
+    const currentTarget = e.currentTarget as HTMLElement;
+    if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
+      onSetDropTargetFolder(null);
+    }
+  };
+
   const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!isFolder) return;
     onDropMove(e, node.path);
   };
@@ -242,10 +273,18 @@ export function FileTreeItem({
       return;
     }
     if (node.kind === "workflow_file") {
-      void handleOpenWorkflowFile();
+      // Single click shows preview
+      handlePreviewWorkflow();
       return;
     }
     toast("Assets are read-only in v1");
+  };
+
+  const handleDoubleClick = () => {
+    if (node.kind === "workflow_file") {
+      // Double click opens for editing
+      void handleOpenWorkflowFile();
+    }
   };
 
   return (
@@ -253,95 +292,135 @@ export function FileTreeItem({
       <div
         draggable={node.path !== ""}
         data-testid={isFolder ? "file-tree-folder" : "file-tree-file"}
+        data-path={node.path}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`flex items-center gap-1.5 px-2 py-1.5 rounded cursor-pointer transition-colors group ${
-          isFolder && selectedTreeFolder === node.path ? "bg-flow-node" : "hover:bg-flow-node"
-        } ${isDropTarget ? "ring-1 ring-flow-accent bg-flow-node" : ""}`}
+        className={`flex items-center gap-2 px-2 py-2 rounded cursor-pointer transition-colors group ${
+          isFolder && selectedTreeFolder === node.path
+            ? "bg-flow-node"
+            : "hover:bg-flow-node"
+        } ${isDropTarget ? "ring-1 ring-flow-accent bg-flow-node" : ""} ${
+          isFocused ? "ring-2 ring-flow-accent/50 bg-flow-node" : ""
+        }`}
         onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
       >
+        {/* Drag handle - visible on hover */}
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing flex-shrink-0">
+          <GripVertical size={14} className="text-gray-500" />
+        </div>
+
         {renderTreePrefix(prefixParts)}
+
+        {/* Expand/collapse chevron for folders */}
         {isFolder ? (
           hasChildren ? (
             isExpanded ? (
-              <ChevronDown size={14} className="text-gray-400" />
+              <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
             ) : (
-              <ChevronRight size={14} className="text-gray-400" />
+              <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
             )
           ) : (
-            <span className="inline-block w-3.5" aria-hidden="true" />
+            <span className="inline-block w-4" aria-hidden="true" />
           )
         ) : (
-          <span className="inline-block w-3.5" aria-hidden="true" />
+          <span className="inline-block w-4" aria-hidden="true" />
         )}
-        {fileKindIcon(node)}
-        <span className="text-sm text-gray-300">
-          {node.name}
-          {typeLabel ? (
-            <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">
-              {typeLabel}
-            </span>
-          ) : null}
-        </span>
 
-        <div className="ml-auto flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+        {/* File/folder icon */}
+        {fileKindIcon(node)}
+
+        {/* Name and type badge */}
+        <span className="text-base text-gray-300 truncate">
+          {node.name}
+        </span>
+        {typeLabel ? (
+          <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 flex-shrink-0">
+            {typeLabel}
+          </span>
+        ) : null}
+
+        {/* Action buttons - positioned close to name, visible on hover */}
+        <div className="ml-3 flex items-center gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
           {node.kind === "workflow_file" && node.workflowId ? (
             <button
               onClick={handleExecuteFromTree}
-              className="text-subtle hover:text-surface"
+              className="p-1 rounded text-subtle hover:text-surface hover:bg-gray-700 transition-colors"
               title={typeLabel === "Case" ? "Test" : "Run"}
               aria-label={typeLabel === "Case" ? "Test workflow" : "Run workflow"}
             >
-              {typeLabel === "Case" ? <ListChecks size={14} /> : <Play size={14} />}
+              {typeLabel === "Case" ? <ListChecks size={16} /> : <Play size={16} />}
             </button>
           ) : null}
           <button
             onClick={handleRenameNode}
-            className="text-subtle hover:text-surface"
+            className="p-1 rounded text-subtle hover:text-surface hover:bg-gray-700 transition-colors"
             title="Rename / Move"
             aria-label="Rename / Move"
           >
-            <PencilLine size={14} />
+            <PencilLine size={16} />
           </button>
           <button
             onClick={handleDeleteNode}
-            className="text-subtle hover:text-red-300"
+            className="p-1 rounded text-subtle hover:text-red-300 hover:bg-red-500/10 transition-colors"
             title="Delete"
             aria-label="Delete"
           >
-            <Trash2 size={14} />
+            <Trash2 size={16} />
           </button>
         </div>
       </div>
 
-      {isFolder &&
-        isExpanded &&
-        children.map((child, index) => {
-          const isLastChild = index === children.length - 1;
-          const childPrefix = [...prefixParts, !isLastChild];
-          return (
-            <FileTreeItem
-              key={`${child.kind}:${child.path}`}
-              node={child}
-              prefixParts={childPrefix}
-              expandedFolders={expandedFolders}
-              selectedTreeFolder={selectedTreeFolder}
-              dragSourcePath={dragSourcePath}
-              dropTargetFolder={dropTargetFolder}
-              onToggleFolder={onToggleFolder}
-              onSelectFolder={onSelectFolder}
-              onSetDragSourcePath={onSetDragSourcePath}
-              onSetDropTargetFolder={onSetDropTargetFolder}
-              onDropMove={onDropMove}
-              onOpenWorkflowFile={onOpenWorkflowFile}
-              onExecuteWorkflow={onExecuteWorkflow}
-              onDeleteNode={onDeleteNode}
-              onRenameNode={onRenameNode}
-            />
-          );
-        })}
+      {/* Render children when folder is expanded */}
+      {isFolder && isExpanded && (
+        <>
+          {children.map((child, index) => {
+            const isLastChild = index === children.length - 1 && !onShowInlineAddMenu;
+            const childPrefix = [...prefixParts, !isLastChild];
+            return (
+              <FileTreeItem
+                key={`${child.kind}:${child.path}`}
+                node={child}
+                prefixParts={childPrefix}
+                expandedFolders={expandedFolders}
+                selectedTreeFolder={selectedTreeFolder}
+                dragSourcePath={dragSourcePath}
+                dropTargetFolder={dropTargetFolder}
+                focusedTreePath={focusedTreePath}
+                onToggleFolder={onToggleFolder}
+                onSelectFolder={onSelectFolder}
+                onSetDragSourcePath={onSetDragSourcePath}
+                onSetDropTargetFolder={onSetDropTargetFolder}
+                onDropMove={onDropMove}
+                onPreviewWorkflow={onPreviewWorkflow}
+                onOpenWorkflowFile={onOpenWorkflowFile}
+                onExecuteWorkflow={onExecuteWorkflow}
+                onDeleteNode={onDeleteNode}
+                onRenameNode={onRenameNode}
+                onShowInlineAddMenu={onShowInlineAddMenu}
+              />
+            );
+          })}
+
+          {/* Inline "Add" button at the bottom of expanded folders */}
+          {onShowInlineAddMenu && (
+            <div
+              className="flex items-center gap-2 px-2 py-1.5 ml-6 rounded cursor-pointer text-gray-500 hover:text-gray-300 hover:bg-flow-node transition-colors group"
+              onClick={(e) => {
+                e.stopPropagation();
+                onShowInlineAddMenu(node.path, e);
+              }}
+            >
+              {renderTreePrefix([...prefixParts, false])}
+              <span className="inline-block w-4" aria-hidden="true" />
+              <span className="text-sm italic">+ Add new...</span>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

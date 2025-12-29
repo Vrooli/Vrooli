@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Database, TrendingUp, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "./ui/button";
 import { fetchKnowledgeHealth, type QualityMetrics } from "../lib/api";
+import { selectors } from "../consts/selectors";
 
 function MetricCard({ label, value, description }: { label: string; value: number; description: string }) {
   const percentage = (value * 100).toFixed(1);
@@ -35,6 +36,7 @@ export function MetricsPanel() {
     return (
       <div className="flex items-center justify-center p-12">
         <Loader2 className="h-8 w-8 text-green-500 animate-spin" />
+        <span className="ml-3 text-sm text-green-600">Loading metrics...</span>
       </div>
     );
   }
@@ -66,7 +68,7 @@ export function MetricsPanel() {
   return (
     <div className="space-y-6">
       {/* Overall Status */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-testid={selectors.metrics.overall}>
         <div>
           <h3 className="text-lg font-semibold text-green-400">Overall Health</h3>
           <p className="text-sm text-green-600 capitalize">{data.overall_health} condition</p>
@@ -76,10 +78,19 @@ export function MetricsPanel() {
           variant="outline"
           size="sm"
           className="border-green-900/50 text-green-400 hover:bg-green-950/30"
+          data-testid={selectors.metrics.refresh}
         >
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
+      </div>
+
+      <div
+        className="border border-green-900/50 bg-black/30 p-3 rounded text-xs text-green-700"
+        data-testid={selectors.metrics.legend}
+      >
+        Green signals healthy quality, yellow means watch closely, and red indicates degradation. Redundancy scores are
+        better when lower.
       </div>
 
       {!metrics && (
@@ -90,7 +101,7 @@ export function MetricsPanel() {
 
       {/* Metrics Grid */}
       {metrics && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {typeof metrics.coherence === "number" && (
             <MetricCard label="Coherence" value={metrics.coherence} description="Topical consistency across knowledge" />
           )}
@@ -108,7 +119,10 @@ export function MetricsPanel() {
 
       {/* Collections Breakdown */}
       {data.collections && data.collections.length > 0 && (
-        <div className="border border-green-900/50 bg-green-950/10 rounded p-4">
+        <div
+          className="border border-green-900/50 bg-green-950/10 rounded p-4"
+          data-testid={selectors.metrics.collections}
+        >
           <div className="flex items-center gap-2 mb-4">
             <Database className="h-5 w-5 text-green-500" />
             <h4 className="font-semibold text-green-400">Collections</h4>
@@ -123,7 +137,7 @@ export function MetricsPanel() {
                   </span>
                 </div>
                 {collection.metrics && (
-                  <div className="grid grid-cols-4 gap-2 text-xs">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                     {typeof collection.metrics.coherence === "number" && (
                       <div>
                         <span className="text-green-700">Coherence:</span>
@@ -157,7 +171,7 @@ export function MetricsPanel() {
       )}
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 gap-4 text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm" data-testid={selectors.metrics.summary}>
         <div className="border border-green-900/50 bg-black/40 p-3 rounded">
           <p className="text-xs text-green-600 uppercase tracking-wider mb-1">Total Vectors</p>
           <p className="text-xl font-bold text-green-400">
