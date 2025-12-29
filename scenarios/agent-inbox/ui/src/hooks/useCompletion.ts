@@ -19,7 +19,7 @@
  * by mocking the api module.
  */
 import { useState, useCallback, useRef, useEffect } from "react";
-import { completeChat, approveToolCall, rejectToolCall, StreamingEvent } from "../lib/api";
+import { completeChat, approveToolCall, rejectToolCall, StreamingEvent, ApprovalResult } from "../lib/api";
 
 export interface ActiveToolCall {
   id: string;
@@ -47,10 +47,10 @@ export interface CompletionState {
 }
 
 export interface CompletionActions {
-  runCompletion: (chatId: string) => Promise<void>;
+  runCompletion: (chatId: string, options?: { forcedTool?: { scenario: string; toolName: string } }) => Promise<void>;
   resetCompletion: () => void;
   cancelCompletion: () => void;
-  approveTool: (chatId: string, toolCallId: string) => Promise<void>;
+  approveTool: (chatId: string, toolCallId: string) => Promise<ApprovalResult>;
   rejectTool: (chatId: string, toolCallId: string, reason?: string) => Promise<void>;
 }
 
@@ -193,7 +193,7 @@ export function useCompletion(): CompletionState & CompletionActions {
   }, []);
 
   const runCompletion = useCallback(
-    async (chatId: string) => {
+    async (chatId: string, options?: { forcedTool?: { scenario: string; toolName: string } }) => {
       // Cancel any existing request before starting new one
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -218,6 +218,7 @@ export function useCompletion(): CompletionState & CompletionActions {
           stream: true,
           onEvent: createEventHandler(requestId),
           signal: abortController.signal,
+          forcedTool: options?.forcedTool,
         });
 
         // Only reset state if this is still the active request

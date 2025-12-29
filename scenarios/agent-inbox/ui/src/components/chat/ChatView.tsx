@@ -148,6 +148,7 @@ export function ChatView({
           onSend={onSendMessage}
           isLoading={isGenerating}
           currentModel={models.find((m) => m.id === chatData.chat.model) || null}
+          chatId={chatData.chat.id}
           chatWebSearchDefault={chatData.chat.web_search_enabled || false}
           editingMessage={editingMessage}
           onCancelEdit={onCancelEdit}

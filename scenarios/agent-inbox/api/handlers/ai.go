@@ -226,9 +226,12 @@ func (h *Handlers) ChatComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse optional force_tool query param (format: "scenario:tool_name")
+	forcedTool := r.URL.Query().Get("force_tool")
+
 	// Prepare completion request (validates chat exists and has messages)
 	svc := services.NewCompletionService(h.Repo, h.Storage)
-	prepReq, err := svc.PrepareCompletionRequest(r.Context(), chatID, isStreamingRequest(r))
+	prepReq, err := svc.PrepareCompletionRequest(r.Context(), chatID, isStreamingRequest(r), forcedTool)
 	if err != nil {
 		statusCode := mapCompletionErrorToStatus(err)
 		h.JSONError(w, err.Error(), statusCode)
@@ -248,6 +251,7 @@ func (h *Handlers) ChatComplete(w http.ResponseWriter, r *http.Request) {
 		Messages:   prepReq.Messages,
 		Stream:     prepReq.Streaming,
 		Tools:      prepReq.Tools,
+		ToolChoice: prepReq.ToolChoice,
 		Plugins:    prepReq.Plugins,
 		Modalities: prepReq.Modalities,
 	}

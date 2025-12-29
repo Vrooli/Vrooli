@@ -688,10 +688,16 @@ export async function completeChat(
     onChunk?: (content: string) => void;
     onEvent?: (event: StreamingEvent) => void;
     signal?: AbortSignal;
+    forcedTool?: { scenario: string; toolName: string };
   }
 ): Promise<Message | void> {
   const stream = options?.stream ?? true;
-  const url = buildApiUrl(`/chats/${chatId}/complete?stream=${stream}`, { baseUrl: API_BASE });
+  const params = new URLSearchParams();
+  params.set("stream", String(stream));
+  if (options?.forcedTool) {
+    params.set("force_tool", `${options.forcedTool.scenario}:${options.forcedTool.toolName}`);
+  }
+  const url = buildApiUrl(`/chats/${chatId}/complete?${params.toString()}`, { baseUrl: API_BASE });
 
   const res = await fetch(url, {
     method: "POST",

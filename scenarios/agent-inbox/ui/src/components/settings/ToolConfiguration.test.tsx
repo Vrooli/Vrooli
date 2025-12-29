@@ -42,6 +42,7 @@ function createMockTool(overrides: Partial<EffectiveTool> = {}): EffectiveTool {
     },
     enabled: true,
     source: "",
+    requires_approval: false,
     ...overrides,
   };
 }

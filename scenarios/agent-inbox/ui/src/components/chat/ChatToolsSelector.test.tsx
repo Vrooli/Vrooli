@@ -36,6 +36,7 @@ const mockToolSet: api.ToolSet = {
       },
       enabled: true,
       source: "",
+      requires_approval: false,
     },
     {
       scenario: "agent-manager",
@@ -47,6 +48,7 @@ const mockToolSet: api.ToolSet = {
       },
       enabled: false,
       source: "chat",
+      requires_approval: false,
     },
   ],
   categories: [],

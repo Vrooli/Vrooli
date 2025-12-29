@@ -79,8 +79,21 @@ type OpenRouterRequest struct {
 	Messages   []OpenRouterMessage      `json:"messages"`
 	Stream     bool                     `json:"stream"`
 	Tools      []map[string]interface{} `json:"tools,omitempty"`
+	ToolChoice interface{}              `json:"tool_choice,omitempty"` // "auto", "none", "required", or ToolChoiceFunction
 	Plugins    []OpenRouterPlugin       `json:"plugins,omitempty"`
 	Modalities []string                 `json:"modalities,omitempty"` // ["image", "text"] for image generation
+}
+
+// ToolChoiceFunction forces the model to call a specific function.
+// Used when the user explicitly selects a tool to force.
+type ToolChoiceFunction struct {
+	Type     string                 `json:"type"` // "function"
+	Function ToolChoiceFunctionName `json:"function"`
+}
+
+// ToolChoiceFunctionName specifies the name of the function to call.
+type ToolChoiceFunctionName struct {
+	Name string `json:"name"`
 }
 
 // OpenRouterPlugin configures a plugin for enhanced capabilities.

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"agent-inbox/config"
@@ -369,6 +370,7 @@ type CompletionRequest struct {
 	Model      string
 	Messages   []integrations.OpenRouterMessage
 	Tools      []map[string]interface{}
+	ToolChoice interface{} // nil for auto, ToolChoiceFunction for forced tool
 	Plugins    []integrations.OpenRouterPlugin
 	Modalities []string // ["image", "text"] for image generation models
 	Streaming  bool
@@ -392,7 +394,8 @@ func (r *CompletionRequest) ShouldIncludeModalities() bool {
 // PrepareCompletionRequest builds a validated completion request.
 // Returns an error if the chat doesn't exist or has no messages.
 // Uses sentinel errors (ErrChatNotFound, ErrNoMessages) for type-safe error handling.
-func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID string, streaming bool) (*CompletionRequest, error) {
+// forcedTool is an optional parameter in format "scenario:tool_name" to force the AI to use a specific tool.
+func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID string, streaming bool, forcedTool string) (*CompletionRequest, error) {
 	// Get chat settings
 	settings, err := s.GetChatSettings(ctx, chatID)
 	if err != nil {
@@ -497,6 +500,27 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 			log.Printf("warning: failed to get tools from registry: %v", err)
 		} else {
 			req.Tools = tools
+		}
+
+		// Handle forced tool selection
+		if forcedTool != "" && len(req.Tools) > 0 {
+			parts := strings.SplitN(forcedTool, ":", 2)
+			if len(parts) == 2 {
+				toolName := parts[1]
+				// Validate tool exists in the tools list
+				for _, t := range req.Tools {
+					if fn, ok := t["function"].(map[string]interface{}); ok {
+						if fn["name"] == toolName {
+							req.ToolChoice = integrations.ToolChoiceFunction{
+								Type:     "function",
+								Function: integrations.ToolChoiceFunctionName{Name: toolName},
+							}
+							log.Printf("[DEBUG] Forcing tool: %s", toolName)
+							break
+						}
+					}
+				}
+			}
 		}
 	}
 

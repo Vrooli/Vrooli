@@ -2,10 +2,12 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { Send, Loader2, Check, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
-import { AttachmentButton } from "./AttachmentButton";
+import { AttachmentButton, type ForcedTool } from "./AttachmentButton";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { WebSearchIndicator } from "./WebSearchIndicator";
+import { ForcedToolIndicator } from "./ForcedToolIndicator";
 import { useAttachments } from "../../hooks/useAttachments";
+import { useTools } from "../../hooks/useTools";
 import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapabilities";
 import type { Model, Message } from "../../lib/api";
 
@@ -13,6 +15,7 @@ export interface MessagePayload {
   content: string;
   attachmentIds: string[];
   webSearchEnabled: boolean;
+  forcedTool?: ForcedTool;
 }
 
 interface MessageInputProps {
@@ -23,9 +26,13 @@ interface MessageInputProps {
   enableAttachments?: boolean;
   /** Enable web search toggle. Requires chatWebSearchDefault. Default: true */
   enableWebSearch?: boolean;
+  /** Enable force tool selection. Requires chatId. Default: true */
+  enableForceTools?: boolean;
   /** Auto-focus the textarea on mount. Default: false */
   autoFocus?: boolean;
   currentModel?: Model | null;
+  /** Current chat ID (required for force tool selection) */
+  chatId?: string;
   chatWebSearchDefault?: boolean;
   onChatWebSearchDefaultChange?: (enabled: boolean) => void;
   /** @deprecated Use isLoading instead */
@@ -45,8 +52,10 @@ export function MessageInput({
   placeholder = "Type a message...",
   enableAttachments = true,
   enableWebSearch = true,
+  enableForceTools = true,
   autoFocus = false,
   currentModel = null,
+  chatId,
   chatWebSearchDefault = false,
   onChatWebSearchDefaultChange,
   editingMessage,
@@ -57,6 +66,7 @@ export function MessageInput({
   const loading = isLoading ?? isGenerating ?? false;
   const [message, setMessage] = useState("");
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [forcedTool, setForcedTool] = useState<ForcedTool | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Edit mode detection
@@ -72,6 +82,12 @@ export function MessageInput({
     allUploaded,
     getUploadedIds,
   } = useAttachments();
+
+  // Get tools for force tool selection (only if enabled and have chatId)
+  const { toolsByScenario, enabledTools } = useTools({
+    chatId: enableForceTools && chatId ? chatId : undefined,
+    enabled: enableForceTools && !!chatId,
+  });
 
   // Only use attachments if enabled
   const effectiveAttachments = enableAttachments ? attachments : [];
@@ -160,6 +176,7 @@ export function MessageInput({
       content: trimmedMessage,
       attachmentIds: enableAttachments ? getUploadedIds() : [],
       webSearchEnabled: enableWebSearch ? webSearchEnabled : false,
+      forcedTool: forcedTool ?? undefined,
     };
 
     // Call appropriate handler based on mode
@@ -177,6 +194,8 @@ export function MessageInput({
     if (enableWebSearch) {
       setWebSearchEnabled(chatWebSearchDefault);
     }
+    // Reset forced tool after sending
+    setForcedTool(null);
 
     // Reset height
     if (textareaRef.current) {
@@ -192,6 +211,7 @@ export function MessageInput({
     allUploaded,
     getUploadedIds,
     webSearchEnabled,
+    forcedTool,
     onSend,
     clearAttachments,
     chatWebSearchDefault,
@@ -234,6 +254,17 @@ export function MessageInput({
     },
     [addAttachment]
   );
+
+  const handleForceTool = useCallback((scenario: string, toolName: string) => {
+    setForcedTool({ scenario, toolName });
+  }, []);
+
+  const handleClearForcedTool = useCallback(() => {
+    setForcedTool(null);
+  }, []);
+
+  // Model supports tools (required for force tool)
+  const modelSupportsToolUse = supportsTools(currentModel);
 
   // Determine if send button should be disabled
   const hasContent = message.trim() || effectiveAttachments.length > 0;
@@ -306,6 +337,10 @@ export function MessageInput({
             modelSupportsImages={modelSupportsImages}
             modelSupportsPDFs={modelSupportsPDFs}
             modelSupportsWebSearch={modelSupportsWebSearch}
+            enabledToolsByScenario={enableForceTools && chatId ? toolsByScenario : undefined}
+            forcedTool={forcedTool}
+            onForceTool={enableForceTools && chatId && modelSupportsToolUse ? handleForceTool : undefined}
+            modelSupportsTools={modelSupportsToolUse}
           />
         )}
 
@@ -369,6 +404,13 @@ export function MessageInput({
             <WebSearchIndicator
               enabled={webSearchEnabled}
               onDisable={() => setWebSearchEnabled(false)}
+            />
+          )}
+          {forcedTool && (
+            <ForcedToolIndicator
+              scenario={forcedTool.scenario}
+              toolName={forcedTool.toolName}
+              onClear={handleClearForcedTool}
             />
           )}
         </div>

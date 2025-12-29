@@ -4,7 +4,7 @@ import { cn } from "../../lib/utils";
 type TooltipSide = "top" | "bottom" | "left" | "right";
 
 interface TooltipProps {
-  content: string;
+  content: ReactNode;
   children: ReactNode;
   side?: TooltipSide;
   delay?: number;

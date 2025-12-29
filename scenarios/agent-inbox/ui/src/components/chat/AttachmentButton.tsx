@@ -5,11 +5,19 @@
  * - Image upload
  * - PDF upload
  * - Web search toggle
+ * - Force tool selection (cascading menu)
  */
-import { useState, useRef, useCallback, useEffect } from "react";
-import { Plus, Image, FileText, Globe, Check } from "lucide-react";
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from "react";
+import { Plus, Image, FileText, Globe, Check, Wrench, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
+import type { EffectiveTool } from "../../lib/api";
+
+/** Forced tool selection state */
+export interface ForcedTool {
+  scenario: string;
+  toolName: string;
+}
 
 interface AttachmentButtonProps {
   onImageSelect: (file: File) => void;
@@ -23,6 +31,14 @@ interface AttachmentButtonProps {
   modelSupportsPDFs: boolean;
   /** Whether the current model supports web search (requires tool calling). Default: true */
   modelSupportsWebSearch?: boolean;
+  /** Enabled tools grouped by scenario for force tool selection */
+  enabledToolsByScenario?: Map<string, EffectiveTool[]>;
+  /** Currently forced tool, if any */
+  forcedTool?: ForcedTool | null;
+  /** Callback when a tool is force-selected */
+  onForceTool?: (scenario: string, toolName: string) => void;
+  /** Whether the current model supports tool calling. Default: true */
+  modelSupportsTools?: boolean;
 }
 
 export function AttachmentButton({
@@ -34,13 +50,28 @@ export function AttachmentButton({
   modelSupportsImages,
   modelSupportsPDFs,
   modelSupportsWebSearch = true,
+  enabledToolsByScenario,
+  forcedTool,
+  onForceTool,
+  modelSupportsTools = true,
 }: AttachmentButtonProps) {
   const showWebSearch = !!onWebSearchToggle;
+  const showForceTools = !!onForceTool && modelSupportsTools;
   const [isOpen, setIsOpen] = useState(false);
+  const [expandedScenario, setExpandedScenario] = useState<string | null>(null);
+  const [flyoutDirection, setFlyoutDirection] = useState<"right" | "left">("right");
+  const [flyoutVertical, setFlyoutVertical] = useState<"top" | "bottom">("top");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  const scenarioButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+
+  // Get scenarios that have enabled tools
+  const scenariosWithTools = enabledToolsByScenario
+    ? Array.from(enabledToolsByScenario.entries()).filter(([, tools]) => tools.length > 0)
+    : [];
+  const hasEnabledTools = scenariosWithTools.length > 0;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -52,6 +83,7 @@ export function AttachmentButton({
         !buttonRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setExpandedScenario(null);
       }
     }
 
@@ -64,11 +96,13 @@ export function AttachmentButton({
   const handleImageClick = useCallback(() => {
     imageInputRef.current?.click();
     setIsOpen(false);
+    setExpandedScenario(null);
   }, []);
 
   const handlePDFClick = useCallback(() => {
     pdfInputRef.current?.click();
     setIsOpen(false);
+    setExpandedScenario(null);
   }, []);
 
   const handleImageChange = useCallback(
@@ -97,7 +131,60 @@ export function AttachmentButton({
   const handleWebSearchClick = useCallback(() => {
     onWebSearchToggle?.(!webSearchEnabled);
     setIsOpen(false);
+    setExpandedScenario(null);
   }, [webSearchEnabled, onWebSearchToggle]);
+
+  const handleScenarioClick = useCallback((scenario: string) => {
+    setExpandedScenario((prev) => (prev === scenario ? null : scenario));
+  }, []);
+
+  // Calculate flyout direction based on available viewport space
+  useLayoutEffect(() => {
+    if (!expandedScenario) return;
+
+    const scenarioButton = scenarioButtonRefs.current.get(expandedScenario);
+    if (!scenarioButton) return;
+
+    const rect = scenarioButton.getBoundingClientRect();
+    const flyoutWidth = 256; // w-64 = 16rem = 256px
+    const flyoutMaxHeight = 320; // max-h-80 = 20rem = 320px
+    const margin = 8;
+
+    // Horizontal positioning
+    const spaceOnRight = window.innerWidth - rect.right;
+    const spaceOnLeft = rect.left;
+
+    if (spaceOnRight >= flyoutWidth + margin) {
+      setFlyoutDirection("right");
+    } else if (spaceOnLeft >= flyoutWidth + margin) {
+      setFlyoutDirection("left");
+    } else {
+      // Default to right if neither side has enough space
+      setFlyoutDirection("right");
+    }
+
+    // Vertical positioning - align to top or bottom of trigger
+    const spaceBelow = window.innerHeight - rect.top;
+    const spaceAbove = rect.bottom;
+
+    if (spaceBelow >= flyoutMaxHeight) {
+      setFlyoutVertical("top"); // Align flyout top with trigger top
+    } else if (spaceAbove >= flyoutMaxHeight) {
+      setFlyoutVertical("bottom"); // Align flyout bottom with trigger bottom
+    } else {
+      // Default to top alignment
+      setFlyoutVertical("top");
+    }
+  }, [expandedScenario]);
+
+  const handleToolSelect = useCallback(
+    (scenario: string, toolName: string) => {
+      onForceTool?.(scenario, toolName);
+      setIsOpen(false);
+      setExpandedScenario(null);
+    },
+    [onForceTool]
+  );
 
   return (
     <div className="relative">
@@ -199,6 +286,87 @@ export function AttachmentButton({
                     <Check className="h-4 w-4 text-green-400" />
                   )}
                 </button>
+              </>
+            )}
+
+            {/* Force tool selection (cascading flyout menu) */}
+            {showForceTools && hasEnabledTools && (
+              <>
+                {/* Divider (only if web search isn't shown, otherwise already have one) */}
+                {!showWebSearch && <div className="my-1 border-t border-white/10" />}
+
+                <div data-testid="force-tool-section">
+                  {/* Force tool header */}
+                  <div className="px-3 py-1.5 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Force Tool
+                  </div>
+
+                  {/* Scenario list with flyout submenus */}
+                  {scenariosWithTools.map(([scenario, tools]) => (
+                    <div key={scenario} className="relative">
+                      {/* Scenario header (clickable to show flyout) */}
+                      <button
+                        ref={(el) => {
+                          if (el) scenarioButtonRefs.current.set(scenario, el);
+                          else scenarioButtonRefs.current.delete(scenario);
+                        }}
+                        onClick={() => handleScenarioClick(scenario)}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-white/10 text-left ${
+                          expandedScenario === scenario ? "bg-white/5" : ""
+                        }`}
+                        data-testid={`scenario-${scenario}`}
+                      >
+                        {flyoutDirection === "left" && expandedScenario === scenario && (
+                          <ChevronLeft className="h-4 w-4 text-slate-400" />
+                        )}
+                        <Wrench className="h-4 w-4 text-violet-400" />
+                        <div className="flex-1">
+                          <div className="text-white">{scenario}</div>
+                          <div className="text-xs text-slate-500">
+                            {tools.length} tool{tools.length !== 1 ? "s" : ""} available
+                          </div>
+                        </div>
+                        {(flyoutDirection === "right" || expandedScenario !== scenario) && (
+                          <ChevronRight className="h-4 w-4 text-slate-400" />
+                        )}
+                      </button>
+
+                      {/* Flyout submenu (positioned based on available space) */}
+                      {expandedScenario === scenario && (
+                        <div
+                          className={`absolute w-64 max-h-80 overflow-y-auto rounded-lg border border-white/10 bg-slate-900 shadow-xl z-50 ${
+                            flyoutDirection === "right" ? "left-full ml-1" : "right-full mr-1"
+                          } ${flyoutVertical === "top" ? "top-0" : "bottom-0"}`}
+                        >
+                          <div className="p-1">
+                            {tools.map((tool) => (
+                              <button
+                                key={tool.tool.name}
+                                onClick={() => handleToolSelect(scenario, tool.tool.name)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-white/10 text-left"
+                                data-testid={`tool-${tool.tool.name}`}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-white truncate">{tool.tool.name}</div>
+                                  {tool.tool.description && (
+                                    <div className="text-xs text-slate-500 line-clamp-2">
+                                      {tool.tool.description}
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Show check if this tool is currently forced */}
+                                {forcedTool?.scenario === scenario &&
+                                  forcedTool?.toolName === tool.tool.name && (
+                                    <Check className="h-4 w-4 text-violet-400 shrink-0" />
+                                  )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </>
             )}
           </div>
