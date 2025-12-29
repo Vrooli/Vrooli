@@ -2,9 +2,64 @@
 package domain
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"time"
 )
+
+// NullRawMessage is a json.RawMessage that handles NULL values from the database.
+type NullRawMessage struct {
+	Data  json.RawMessage
+	Valid bool
+}
+
+// Scan implements the sql.Scanner interface.
+func (n *NullRawMessage) Scan(value interface{}) error {
+	if value == nil {
+		n.Data = nil
+		n.Valid = false
+		return nil
+	}
+	n.Valid = true
+	switch v := value.(type) {
+	case []byte:
+		n.Data = v
+	case string:
+		n.Data = []byte(v)
+	default:
+		n.Data = nil
+		n.Valid = false
+	}
+	return nil
+}
+
+// Value implements the driver.Valuer interface.
+func (n NullRawMessage) Value() (driver.Value, error) {
+	if !n.Valid || n.Data == nil {
+		return nil, nil
+	}
+	return []byte(n.Data), nil
+}
+
+// MarshalJSON implements json.Marshaler.
+func (n NullRawMessage) MarshalJSON() ([]byte, error) {
+	if !n.Valid || n.Data == nil {
+		return []byte("null"), nil
+	}
+	return n.Data, nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (n *NullRawMessage) UnmarshalJSON(data []byte) error {
+	if data == nil || string(data) == "null" {
+		n.Data = nil
+		n.Valid = false
+		return nil
+	}
+	n.Data = data
+	n.Valid = true
+	return nil
+}
 
 // DeploymentStatus represents the current state of a deployment.
 type DeploymentStatus string
@@ -32,9 +87,9 @@ type Deployment struct {
 	BundleSizeBytes *int64           `json:"bundle_size_bytes,omitempty"`
 
 	// Results from each deployment phase (stored as JSON for flexibility)
-	SetupResult       json.RawMessage `json:"setup_result,omitempty"`
-	DeployResult      json.RawMessage `json:"deploy_result,omitempty"`
-	LastInspectResult json.RawMessage `json:"last_inspect_result,omitempty"`
+	SetupResult       NullRawMessage `json:"setup_result,omitempty"`
+	DeployResult      NullRawMessage `json:"deploy_result,omitempty"`
+	LastInspectResult NullRawMessage `json:"last_inspect_result,omitempty"`
 
 	// Error tracking
 	ErrorMessage *string `json:"error_message,omitempty"`

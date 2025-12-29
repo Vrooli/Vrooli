@@ -395,6 +395,8 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
     preflightChecks,
     preflightError,
     isRunningPreflight,
+    preflightOverride,
+    setPreflightOverride,
     runPreflight,
     parsedManifest,
   } = deployment;
@@ -573,6 +575,29 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
           ))}
         </ul>
       </div>
+
+      {/* Override checkbox - shown when preflight fails but checks have run */}
+      {preflightPassed === false && preflightChecks !== null && !isRunningPreflight && (
+        <div className="mt-4 p-4 bg-slate-800/50 border border-amber-500/30 rounded-lg">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={preflightOverride}
+              onChange={(e) => setPreflightOverride(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-700 text-amber-500 focus:ring-amber-500"
+            />
+            <div>
+              <span className="text-sm font-medium text-amber-400">
+                Continue anyway despite failed checks
+              </span>
+              <p className="text-xs text-slate-400 mt-1">
+                Some issues (like DNS not yet configured) can be resolved after deployment.
+                Check this box if you understand the risks and want to proceed.
+              </p>
+            </div>
+          </label>
+        </div>
+      )}
 
       {/* Disk Usage Modal */}
       {showDiskModal && (

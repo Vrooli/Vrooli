@@ -85,6 +85,7 @@ export function useDeployment() {
   const [preflightChecks, setPreflightChecks] = useState<PreflightCheck[] | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
   const [isRunningPreflight, setIsRunningPreflight] = useState(false);
+  const [preflightOverride, setPreflightOverride] = useState(false);
 
   // Deploy state
   const [deploymentStatus, setDeploymentStatus] = useState<"idle" | "deploying" | "success" | "failed">("idle");
@@ -210,6 +211,7 @@ export function useDeployment() {
     setPreflightPassed(null);
     setPreflightChecks(null);
     setPreflightError(null);
+    setPreflightOverride(false); // Reset override when re-running checks
     setIsRunningPreflight(true);
 
     try {
@@ -269,6 +271,7 @@ export function useDeployment() {
     setPreflightPassed(null);
     setPreflightChecks(null);
     setPreflightError(null);
+    setPreflightOverride(false);
     setDeploymentStatus("idle");
     setDeploymentError(null);
     setDeploymentId(null);
@@ -288,13 +291,14 @@ export function useDeployment() {
       case "build":
         return bundleArtifact !== null;
       case "preflight":
-        return preflightPassed === true;
+        // Allow proceeding if passed, OR if user explicitly overrides (checks must have run)
+        return preflightPassed === true || (preflightOverride && preflightChecks !== null);
       case "deploy":
         return deploymentStatus === "success";
       default:
         return false;
     }
-  }, [currentStep.id, parsedManifest, validationIssues, plan, bundleArtifact, preflightPassed, deploymentStatus]);
+  }, [currentStep.id, parsedManifest, validationIssues, plan, bundleArtifact, preflightPassed, preflightOverride, preflightChecks, deploymentStatus]);
 
   const hasSavedProgress = saved !== null && saved.manifestJson !== DEFAULT_MANIFEST_JSON;
 
@@ -338,6 +342,8 @@ export function useDeployment() {
     preflightChecks,
     preflightError,
     isRunningPreflight,
+    preflightOverride,
+    setPreflightOverride,
     runPreflight,
 
     // Deploy

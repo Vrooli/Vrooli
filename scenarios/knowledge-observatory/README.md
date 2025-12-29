@@ -101,7 +101,8 @@ knowledge-observatory health --watch
 Notes:
 - `search` and `ingest` are implemented and call the Knowledge Observatory API.
 - `ingest-job` and `job-status` are implemented for async chunked ingestion.
-- `graph`, `metrics`, and `health --watch` are planned CLI commands; the API currently exposes `GET /api/v1/knowledge/health` for health metrics.
+- `graph`, `metrics`, and `health` are implemented and call the Knowledge Observatory API.
+- `health --watch` is supported for live polling output.
 
 ### API Endpoints
 The API is accessible on a dynamically allocated port. Check with `vrooli scenario status knowledge-observatory`.

@@ -97,7 +97,7 @@ func (r *Repository) GetDeploymentByHostAndScenario(ctx context.Context, host, s
 			created_at, updated_at, last_deployed_at, last_inspected_at
 		FROM deployments
 		WHERE scenario_id = $1
-		  AND manifest->>'target'->>'vps'->>'host' = $2
+		  AND manifest->'target'->'vps'->>'host' = $2
 		ORDER BY created_at DESC
 		LIMIT 1
 	`
