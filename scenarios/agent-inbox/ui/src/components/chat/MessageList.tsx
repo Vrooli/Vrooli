@@ -12,7 +12,7 @@ import { useToast } from "../ui/toast";
 import { VersionPicker } from "./VersionPicker";
 import { PendingApprovalCard } from "./PendingApprovalCard";
 import { getSiblingInfo, getPreviousSibling, getNextSibling } from "../../lib/messageTree";
-import { MarkdownRenderer } from "../markdown";
+import { MarkdownRenderer, CodeBlock } from "../markdown";
 
 interface MessageListProps {
   messages: Message[];
@@ -143,9 +143,29 @@ export function MessageList({
 
   const isCompact = viewMode === "compact";
 
+  // Filter out tool messages whose results are already displayed inline in the
+  // preceding assistant message's ToolCallItem. Only show tool messages as a
+  // fallback when there's no ToolCallRecord with a result.
+  const filteredMessages = useMemo(() => {
+    return messages.filter((message) => {
+      // Only filter tool messages
+      if (message.role !== "tool" || !message.tool_call_id) {
+        return true;
+      }
+      // Check if we have a record with a result for this tool call
+      const record = toolCallRecordMap.get(message.tool_call_id);
+      // Hide if record exists with a result (it's already shown inline)
+      if (record && record.status === "completed" && record.result) {
+        return false;
+      }
+      // Show as fallback when no record or no result
+      return true;
+    });
+  }, [messages, toolCallRecordMap]);
+
   return (
     <div className={`flex-1 overflow-y-auto p-4 ${isCompact ? "space-y-2" : "space-y-4"}`} data-testid="message-list">
-      {messages.map((message) => (
+      {filteredMessages.map((message) => (
         <MessageBubble
           key={message.id}
           message={message}
@@ -422,10 +442,8 @@ function ToolCallItem({ toolCall, record, variant }: ToolCallItemProps) {
         </div>
       )}
       {hasResult && isExpanded && (
-        <div className="ml-5 mt-1 text-xs bg-slate-100 dark:bg-slate-800 rounded px-2 py-1 overflow-x-auto max-h-48 overflow-y-auto">
-          <pre className="whitespace-pre-wrap break-words text-slate-600 dark:text-slate-300">
-            {formatResult(result)}
-          </pre>
+        <div className="ml-5 mt-1 max-h-80 overflow-y-auto">
+          <CodeBlock code={formatResult(result)} language="json" />
         </div>
       )}
     </div>
@@ -549,8 +567,6 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
 
   const hasSiblings = siblingInfo.total > 1;
 
-  // State for tool result expansion
-  const [isExpanded, setIsExpanded] = useState(false);
   // State for text-to-speech
   const [isSpeaking, setIsSpeaking] = useState(false);
 
@@ -731,26 +747,8 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
       );
     }
 
-    // Tool messages
-    return (
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={handleCopy} />
-        <ActionButton
-          icon={isExpanded ? <ChevronUp className={iconSize} /> : <ChevronDown className={iconSize} />}
-          tooltip={isExpanded ? "Collapse" : "Expand"}
-          onClick={() => setIsExpanded(!isExpanded)}
-          isActive={isExpanded}
-        />
-      </div>
-    );
-  };
-
-  // Get tool content - truncated or full based on expansion
-  const getToolContent = () => {
-    if (isExpanded || message.content.length <= 500) {
-      return message.content;
-    }
-    return message.content.slice(0, 500) + "...";
+    // Tool messages - CodeBlock handles copy button, so no actions needed
+    return null;
   };
 
   // System messages - same in both modes
@@ -783,9 +781,16 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
           {renderActions(isUser ? "user" : isTool ? "tool" : "assistant")}
         </div>
         {isTool ? (
-          <pre className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap overflow-x-auto">
-            {getToolContent()}
-          </pre>
+          <div className="max-h-80 overflow-y-auto">
+            <CodeBlock code={(() => {
+              try {
+                const parsed = JSON.parse(message.content);
+                return JSON.stringify(parsed, null, 2);
+              } catch {
+                return message.content;
+              }
+            })()} language="json" />
+          </div>
         ) : (
           <div className="text-sm text-slate-700 dark:text-slate-200">
             <MessageAttachments attachments={message.attachments} isUser={isUser} compact />
@@ -814,20 +819,29 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
 
   // Bubble mode: Tool response messages
   if (isTool) {
+    // Format tool content as JSON if possible
+    const formatToolContent = (content: string) => {
+      try {
+        const parsed = JSON.parse(content);
+        return JSON.stringify(parsed, null, 2);
+      } catch {
+        return content;
+      }
+    };
+
     return (
       <div ref={ref} className="group flex justify-start transition-all duration-300" data-testid={`message-${message.id}`}>
         <div className="flex gap-3 max-w-[85%]">
           <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
             <Wrench className="h-4 w-4 text-amber-500 dark:text-amber-400" />
           </div>
-          <div className="bg-amber-50 dark:bg-slate-800/60 border border-amber-200 dark:border-amber-500/20 rounded-2xl rounded-tl-md px-4 py-3 text-slate-600 dark:text-slate-300">
-            <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="text-slate-600 dark:text-slate-300">
+            <div className="flex items-center gap-2 mb-1">
               <span className="text-xs text-amber-600 dark:text-amber-400">Tool Result</span>
-              {renderActions("tool")}
             </div>
-            <pre className="text-xs whitespace-pre-wrap overflow-x-auto max-h-40 overflow-y-auto">
-              {getToolContent()}
-            </pre>
+            <div className="max-h-80 overflow-y-auto">
+              <CodeBlock code={formatToolContent(message.content)} language="json" />
+            </div>
             <p className="text-xs mt-1.5 text-slate-400 dark:text-slate-500">{formatTime(message.created_at)}</p>
           </div>
         </div>
