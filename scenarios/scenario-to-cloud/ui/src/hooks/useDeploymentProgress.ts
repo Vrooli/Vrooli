@@ -151,46 +151,43 @@ export function useDeploymentProgress(
       }
     });
 
-    // Handle error events
-    eventSource.addEventListener("error", (e) => {
+    // Handle deployment_error events (renamed from "error" to avoid browser SSE conflict)
+    eventSource.addEventListener("deployment_error", (e) => {
       try {
-        // Check if this is an SSE error event or our custom error event
-        if (e instanceof MessageEvent && e.data) {
-          const data = JSON.parse(e.data) as ProgressEvent;
-          setProgress((prev) => {
-            // Reconstruct step states: all steps before failed step = completed, failed step = failed
-            let steps = prev?.steps ?? getInitialSteps();
-            if (data.step) {
-              let foundFailed = false;
-              steps = steps.map((s) => {
-                if (s.id === data.step) {
-                  foundFailed = true;
-                  return { ...s, status: "failed" as StepStatus };
-                }
-                if (!foundFailed) {
-                  return { ...s, status: "completed" as StepStatus };
-                }
-                return s;
-              });
-            }
+        const data = JSON.parse(e.data) as ProgressEvent;
+        setProgress((prev) => {
+          // Reconstruct step states: all steps before failed step = completed, failed step = failed
+          let steps = prev?.steps ?? getInitialSteps();
+          if (data.step) {
+            let foundFailed = false;
+            steps = steps.map((s) => {
+              if (s.id === data.step) {
+                foundFailed = true;
+                return { ...s, status: "failed" as StepStatus };
+              }
+              if (!foundFailed) {
+                return { ...s, status: "completed" as StepStatus };
+              }
+              return s;
+            });
+          }
 
-            return {
-              currentStep: data.step || prev?.currentStep || "",
-              currentStepTitle: prev?.currentStepTitle || "",
-              progress: data.progress,
-              steps,
-              error: data.error,
-              isComplete: true,
-            };
-          });
-          eventSource.close();
-          setIsConnected(false);
-          const errorMsg = data.error || "Deployment failed";
-          onError?.(errorMsg);
-          onComplete?.(false, errorMsg);
-        }
+          return {
+            currentStep: data.step || prev?.currentStep || "",
+            currentStepTitle: prev?.currentStepTitle || "",
+            progress: data.progress,
+            steps,
+            error: data.error,
+            isComplete: true,
+          };
+        });
+        eventSource.close();
+        setIsConnected(false);
+        const errorMsg = data.error || "Deployment failed";
+        onError?.(errorMsg);
+        onComplete?.(false, errorMsg);
       } catch {
-        // Connection error, not our custom error event
+        // Ignore parse errors
       }
     });
 

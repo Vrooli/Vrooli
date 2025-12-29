@@ -371,9 +371,17 @@ func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existi
 		}
 	}
 
-	// Helper for errors
-	emitError := func(step, errMsg string) {
-		emitProgress("error", step, "", progress, errMsg)
+	// Helper for errors (used for bundle_build step which isn't in VPS runners)
+	emitError := func(step, stepTitle, errMsg string) {
+		event := ProgressEvent{
+			Type:      "deployment_error",
+			Step:      step,
+			StepTitle: stepTitle,
+			Progress:  progress,
+			Error:     errMsg,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		}
+		s.progressHub.Broadcast(id, event)
 	}
 
 	// Step 1: Build bundle (if not already built)
@@ -386,7 +394,7 @@ func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existi
 		repoRoot, err := FindRepoRootFromCWD()
 		if err != nil {
 			setDeploymentError(s.repo, ctx, id, "bundle_build", err.Error())
-			emitError("bundle_build", err.Error())
+			emitError("bundle_build", "Building bundle", err.Error())
 			return
 		}
 
@@ -394,7 +402,7 @@ func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existi
 		artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, manifest)
 		if err != nil {
 			setDeploymentError(s.repo, ctx, id, "bundle_build", err.Error())
-			emitError("bundle_build", err.Error())
+			emitError("bundle_build", "Building bundle", err.Error())
 			return
 		}
 
@@ -419,8 +427,12 @@ func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existi
 	}
 
 	if !setupResult.OK {
-		setDeploymentError(s.repo, ctx, id, "vps_setup", setupResult.Error)
-		emitError("vps_setup", setupResult.Error)
+		// VPS runner already emitted deployment_error event with correct step
+		failedStep := setupResult.FailedStep
+		if failedStep == "" {
+			failedStep = "vps_setup"
+		}
+		setDeploymentError(s.repo, ctx, id, failedStep, setupResult.Error)
 		return
 	}
 
@@ -436,8 +448,12 @@ func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existi
 	}
 
 	if !deployResult.OK {
-		setDeploymentError(s.repo, ctx, id, "vps_deploy", deployResult.Error)
-		emitError("vps_deploy", deployResult.Error)
+		// VPS runner already emitted deployment_error event with correct step
+		failedStep := deployResult.FailedStep
+		if failedStep == "" {
+			failedStep = "vps_deploy"
+		}
+		setDeploymentError(s.repo, ctx, id, failedStep, deployResult.Error)
 		return
 	}
 

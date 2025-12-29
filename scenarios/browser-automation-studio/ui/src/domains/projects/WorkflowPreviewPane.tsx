@@ -470,10 +470,9 @@ export function WorkflowPreviewPane({
       e.stopPropagation();
       try {
         // Start the execution to get an execution ID
-        await startExecution(workflow.id);
-        // Navigate to Record page in execution mode
-        // The execution will be tracked via the execution store
-        navigate(`/record/new?mode=execution`);
+        const executionId = await startExecution(workflow.id);
+        // Navigate to Record page in execution mode with execution ID
+        navigate(`/record/new?mode=execution&execution_id=${encodeURIComponent(executionId)}`);
       } catch (error) {
         logger.error(
           "Failed to start execution",

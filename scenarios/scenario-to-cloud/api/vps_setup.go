@@ -23,10 +23,11 @@ type VPSPlanStep struct {
 }
 
 type VPSSetupResult struct {
-	OK        bool         `json:"ok"`
-	Steps     []VPSPlanStep `json:"steps"`
-	Error     string       `json:"error,omitempty"`
-	Timestamp string       `json:"timestamp"`
+	OK         bool          `json:"ok"`
+	Steps      []VPSPlanStep `json:"steps"`
+	Error      string        `json:"error,omitempty"`
+	FailedStep string        `json:"failed_step,omitempty"`
+	Timestamp  string        `json:"timestamp"`
 }
 
 func BuildVPSSetupPlan(manifest CloudManifest, bundlePath string) ([]VPSPlanStep, error) {
@@ -173,6 +174,20 @@ func RunVPSSetupWithProgress(
 		}
 	}
 
+	// Helper to emit error and return failed result
+	failStep := func(stepID, stepTitle, errMsg string) VPSSetupResult {
+		event := ProgressEvent{
+			Type:      "deployment_error",
+			Step:      stepID,
+			StepTitle: stepTitle,
+			Progress:  *progress,
+			Error:     errMsg,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		}
+		hub.Broadcast(deploymentID, event)
+		return VPSSetupResult{OK: false, Steps: steps, Error: errMsg, FailedStep: stepID, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	}
+
 	run := func(cmd string) error {
 		res, err := sshRunner.Run(ctx, cfg, cmd)
 		if err != nil {
@@ -187,7 +202,7 @@ func RunVPSSetupWithProgress(
 	// Step: mkdir
 	emit("step_started", "mkdir", "Creating directories")
 	if err := run(fmt.Sprintf("mkdir -p %s %s", shellQuoteSingle(manifest.Target.VPS.Workdir), shellQuoteSingle(remoteBundleDir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("mkdir", "Creating directories", err.Error())
 	}
 	*progress += StepWeights["mkdir"]
 	emit("step_completed", "mkdir", "Creating directories")
@@ -195,7 +210,7 @@ func RunVPSSetupWithProgress(
 	// Step: upload
 	emit("step_started", "upload", "Uploading bundle")
 	if err := scpRunner.Copy(ctx, cfg, bundlePath, remoteBundlePath); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("upload", "Uploading bundle", err.Error())
 	}
 	*progress += StepWeights["upload"]
 	emit("step_completed", "upload", "Uploading bundle")
@@ -203,7 +218,7 @@ func RunVPSSetupWithProgress(
 	// Step: extract
 	emit("step_started", "extract", "Extracting bundle")
 	if err := run(fmt.Sprintf("tar -xzf %s -C %s", shellQuoteSingle(remoteBundlePath), shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("extract", "Extracting bundle", err.Error())
 	}
 	*progress += StepWeights["extract"]
 	emit("step_completed", "extract", "Extracting bundle")
@@ -211,7 +226,7 @@ func RunVPSSetupWithProgress(
 	// Step: setup
 	emit("step_started", "setup", "Running setup")
 	if err := run(fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes", shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("setup", "Running setup", err.Error())
 	}
 	*progress += StepWeights["setup"]
 	emit("step_completed", "setup", "Running setup")
@@ -219,7 +234,7 @@ func RunVPSSetupWithProgress(
 	// Step: autoheal
 	emit("step_started", "autoheal", "Configuring autoheal")
 	if err := run(fmt.Sprintf("mkdir -p %s && printf '%%s' %s > %s", shellQuoteSingle(safeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud")), shellQuoteSingle(minimalAutohealScopeJSON(manifest)), shellQuoteSingle(autohealConfigPath))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("autoheal", "Configuring autoheal", err.Error())
 	}
 	*progress += StepWeights["autoheal"]
 	emit("step_completed", "autoheal", "Configuring autoheal")
@@ -227,7 +242,7 @@ func RunVPSSetupWithProgress(
 	// Step: verify
 	emit("step_started", "verify_setup", "Verifying installation")
 	if err := run(fmt.Sprintf("cd %s && vrooli --version", shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("verify_setup", "Verifying installation", err.Error())
 	}
 	*progress += StepWeights["verify_setup"]
 	emit("step_completed", "verify_setup", "Verifying installation")

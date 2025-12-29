@@ -38,13 +38,21 @@ export function DeploymentProgress({ deploymentId, onComplete }: DeploymentProgr
 
   const progressPercent = progress?.progress ?? 0;
   const currentTitle = progress?.currentStepTitle ?? "Initializing...";
+  const isComplete = progress?.isComplete ?? false;
 
   return (
     <div className="space-y-6">
+      {/* Error display - shown prominently above progress */}
+      {progress?.error && (
+        <Alert variant="error" title="Deployment Failed">
+          {progress.error}
+        </Alert>
+      )}
+
       <Card>
         <CardContent className="py-6">
-          {/* Connection status */}
-          {connectionError && (
+          {/* Connection status - only show when not complete */}
+          {connectionError && !isComplete && (
             <div className="flex items-center gap-2 text-amber-400 text-sm mb-4">
               <WifiOff className="h-4 w-4" />
               {connectionError}
@@ -55,7 +63,11 @@ export function DeploymentProgress({ deploymentId, onComplete }: DeploymentProgr
           <div className="mb-4">
             <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-blue-500 to-emerald-500 h-3 rounded-full transition-all duration-500 ease-out"
+                className={`h-3 rounded-full transition-all duration-500 ease-out ${
+                  progress?.error
+                    ? "bg-gradient-to-r from-red-600 to-red-500"
+                    : "bg-gradient-to-r from-blue-500 to-emerald-500"
+                }`}
                 style={{ width: `${Math.min(progressPercent, 100)}%` }}
               />
             </div>
@@ -64,8 +76,8 @@ export function DeploymentProgress({ deploymentId, onComplete }: DeploymentProgr
           {/* Current step info */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              {!progress?.isComplete && <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />}
-              {progress?.isComplete && !progress?.error && (
+              {!isComplete && <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />}
+              {isComplete && !progress?.error && (
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
               )}
               {progress?.error && <XCircle className="h-4 w-4 text-red-400" />}
@@ -102,22 +114,17 @@ export function DeploymentProgress({ deploymentId, onComplete }: DeploymentProgr
         </CardContent>
       </Card>
 
-      {/* Error display */}
-      {progress?.error && (
-        <Alert variant="error" title="Deployment Failed">
-          {progress.error}
-        </Alert>
+      {/* Connection indicator - only show when actively streaming */}
+      {!isComplete && (
+        <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              isConnected ? "bg-emerald-400" : "bg-amber-400"
+            }`}
+          />
+          {isConnected ? "Connected" : "Reconnecting..."}
+        </div>
       )}
-
-      {/* Connection indicator */}
-      <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
-        <div
-          className={`w-2 h-2 rounded-full ${
-            isConnected ? "bg-emerald-400" : "bg-amber-400"
-          }`}
-        />
-        {isConnected ? "Connected" : "Reconnecting..."}
-      </div>
     </div>
   );
 }

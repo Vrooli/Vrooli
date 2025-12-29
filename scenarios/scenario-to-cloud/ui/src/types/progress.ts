@@ -6,7 +6,7 @@ export type ProgressEventType =
   | "step_started"
   | "step_completed"
   | "progress_update"
-  | "error"
+  | "deployment_error"
   | "completed";
 
 export interface ProgressEvent {

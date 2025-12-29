@@ -78,7 +78,7 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 			step = *deployment.ProgressStep
 		}
 		sendEvent(ProgressEvent{
-			Type:      "error",
+			Type:      "deployment_error",
 			Step:      step,
 			Error:     errMsg,
 			Progress:  deployment.ProgressPercent,
@@ -88,7 +88,7 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 
 	case domain.StatusStopped:
 		sendEvent(ProgressEvent{
-			Type:      "error",
+			Type:      "deployment_error",
 			Error:     "Deployment was stopped",
 			Progress:  0,
 			Timestamp: time.Now().UTC().Format(time.RFC3339),

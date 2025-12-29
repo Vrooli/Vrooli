@@ -13,10 +13,11 @@ type VPSDeployRequest struct {
 }
 
 type VPSDeployResult struct {
-	OK        bool          `json:"ok"`
-	Steps     []VPSPlanStep `json:"steps"`
-	Error     string        `json:"error,omitempty"`
-	Timestamp string        `json:"timestamp"`
+	OK         bool          `json:"ok"`
+	Steps      []VPSPlanStep `json:"steps"`
+	Error      string        `json:"error,omitempty"`
+	FailedStep string        `json:"failed_step,omitempty"`
+	Timestamp  string        `json:"timestamp"`
 }
 
 // buildPortEnvVars builds environment variable assignments for all ports in the manifest
@@ -220,6 +221,20 @@ func RunVPSDeployWithProgress(
 		}
 	}
 
+	// Helper to emit error and return failed result
+	failStep := func(stepID, stepTitle, errMsg string) VPSDeployResult {
+		event := ProgressEvent{
+			Type:      "deployment_error",
+			Step:      stepID,
+			StepTitle: stepTitle,
+			Progress:  *progress,
+			Error:     errMsg,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		}
+		hub.Broadcast(deploymentID, event)
+		return VPSDeployResult{OK: false, Steps: steps, Error: errMsg, FailedStep: stepID, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	}
+
 	run := func(cmd string) error {
 		res, err := sshRunner.Run(ctx, cfg, cmd)
 		if err != nil {
@@ -234,10 +249,10 @@ func RunVPSDeployWithProgress(
 	// Step: caddy_install
 	emit("step_started", "caddy_install", "Installing Caddy")
 	if err := run("command -v caddy >/dev/null || (apt-get update -y && apt-get install -y caddy)"); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("caddy_install", "Installing Caddy", err.Error())
 	}
 	if err := run("systemctl enable --now caddy"); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("caddy_install", "Installing Caddy", err.Error())
 	}
 	*progress += StepWeights["caddy_install"]
 	emit("step_completed", "caddy_install", "Installing Caddy")
@@ -247,10 +262,10 @@ func RunVPSDeployWithProgress(
 	caddyfilePath := "/etc/caddy/Caddyfile"
 	caddyfile := buildCaddyfile(manifest.Edge.Domain, uiPort)
 	if err := run(fmt.Sprintf("printf '%%s' %s > %s", shellQuoteSingle(caddyfile), shellQuoteSingle(caddyfilePath))); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("caddy_config", "Configuring Caddy", err.Error())
 	}
 	if err := run("systemctl reload caddy"); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("caddy_config", "Configuring Caddy", err.Error())
 	}
 	*progress += StepWeights["caddy_config"]
 	emit("step_completed", "caddy_config", "Configuring Caddy")
@@ -261,7 +276,7 @@ func RunVPSDeployWithProgress(
 		emit("step_started", "resource_start", "Starting resources")
 		for _, res := range resources {
 			if err := run(fmt.Sprintf("cd %s && vrooli resource start %s", shellQuoteSingle(workdir), shellQuoteSingle(res))); err != nil {
-				return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+				return failStep("resource_start", "Starting resources", err.Error())
 			}
 		}
 		*progress += StepWeights["resource_start"]
@@ -281,7 +296,7 @@ func RunVPSDeployWithProgress(
 		emit("step_started", "scenario_deps", "Starting dependencies")
 		for _, scen := range depScenarios {
 			if err := run(fmt.Sprintf("cd %s && vrooli scenario start %s", shellQuoteSingle(workdir), shellQuoteSingle(scen))); err != nil {
-				return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+				return failStep("scenario_deps", "Starting dependencies", err.Error())
 			}
 		}
 		*progress += StepWeights["scenario_deps"]
@@ -294,7 +309,7 @@ func RunVPSDeployWithProgress(
 	emit("step_started", "scenario_target", "Starting scenario")
 	portEnvVars := buildPortEnvVars(manifest.Ports)
 	if err := run(fmt.Sprintf("cd %s && %s vrooli scenario start %s", shellQuoteSingle(workdir), portEnvVars, shellQuoteSingle(manifest.Scenario.ID))); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("scenario_target", "Starting scenario", err.Error())
 	}
 	*progress += StepWeights["scenario_target"]
 	emit("step_completed", "scenario_target", "Starting scenario")
@@ -302,7 +317,7 @@ func RunVPSDeployWithProgress(
 	// Step: verify_local
 	emit("step_started", "verify_local", "Verifying local health")
 	if err := run(fmt.Sprintf("curl -fsS --max-time 5 http://127.0.0.1:%d/health", uiPort)); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("verify_local", "Verifying local health", err.Error())
 	}
 	*progress += StepWeights["verify_local"]
 	emit("step_completed", "verify_local", "Verifying local health")
@@ -310,7 +325,7 @@ func RunVPSDeployWithProgress(
 	// Step: verify_https
 	emit("step_started", "verify_https", "Verifying HTTPS")
 	if err := run(fmt.Sprintf("curl -fsS --max-time 10 https://%s/health", manifest.Edge.Domain)); err != nil {
-		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return failStep("verify_https", "Verifying HTTPS", err.Error())
 	}
 	*progress += StepWeights["verify_https"]
 	emit("step_completed", "verify_https", "Verifying HTTPS")
