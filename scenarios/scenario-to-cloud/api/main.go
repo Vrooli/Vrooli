@@ -30,10 +30,11 @@ type Config struct {
 
 // Server wires the HTTP router.
 type Server struct {
-	config *Config
-	router *mux.Router
-	db     *sql.DB
-	repo   *persistence.Repository
+	config      *Config
+	router      *mux.Router
+	db          *sql.DB
+	repo        *persistence.Repository
+	progressHub *ProgressHub
 }
 
 // NewServer initializes configuration, database, and routes
@@ -58,10 +59,11 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
-		config: cfg,
-		router: mux.NewRouter(),
-		db:     db,
-		repo:   repo,
+		config:      cfg,
+		router:      mux.NewRouter(),
+		db:          db,
+		repo:        repo,
+		progressHub: NewProgressHub(),
 	}
 
 	srv.setupRoutes()
@@ -96,6 +98,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/deployments/{id}", s.handleGetDeployment).Methods("GET")
 	api.HandleFunc("/deployments/{id}", s.handleDeleteDeployment).Methods("DELETE")
 	api.HandleFunc("/deployments/{id}/execute", s.handleExecuteDeployment).Methods("POST")
+	api.HandleFunc("/deployments/{id}/progress", s.handleDeploymentProgress).Methods("GET")
 	api.HandleFunc("/deployments/{id}/inspect", s.handleInspectDeployment).Methods("POST")
 	api.HandleFunc("/deployments/{id}/stop", s.handleStopDeployment).Methods("POST")
 

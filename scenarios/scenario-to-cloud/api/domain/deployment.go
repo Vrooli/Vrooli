@@ -95,6 +95,10 @@ type Deployment struct {
 	ErrorMessage *string `json:"error_message,omitempty"`
 	ErrorStep    *string `json:"error_step,omitempty"`
 
+	// Progress tracking (for SSE streaming)
+	ProgressStep    *string `json:"progress_step,omitempty"`
+	ProgressPercent float64 `json:"progress_percent"`
+
 	// Timestamps
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`

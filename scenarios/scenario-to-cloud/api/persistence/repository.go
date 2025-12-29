@@ -103,7 +103,10 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		sql  string
 	}{
 		// Add migrations here as schema evolves
-		// {"add some_column", `ALTER TABLE deployments ADD COLUMN IF NOT EXISTS some_column TEXT`},
+		{"add_progress_fields", `
+			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS progress_step TEXT;
+			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS progress_percent REAL DEFAULT 0;
+		`},
 	}
 
 	for _, m := range migrations {

@@ -272,7 +272,9 @@ func (s *Server) handleDeleteDeployment(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-// handleExecuteDeployment runs the full deployment pipeline: bundle build, VPS setup, VPS deploy.
+// handleExecuteDeployment starts the deployment pipeline in the background.
+// Returns immediately with the deployment info. Clients can subscribe to
+// /deployments/{id}/progress for real-time progress updates via SSE.
 func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -290,6 +292,15 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 		writeAPIError(w, http.StatusNotFound, APIError{
 			Code:    "not_found",
 			Message: "Deployment not found",
+		})
+		return
+	}
+
+	// Check if already running
+	if deployment.Status == domain.StatusSetupRunning || deployment.Status == domain.StatusDeploying {
+		writeAPIError(w, http.StatusConflict, APIError{
+			Code:    "already_running",
+			Message: "Deployment is already in progress",
 		})
 		return
 	}
@@ -316,34 +327,74 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
+	// Reset progress for new deployment
+	if err := s.repo.ResetDeploymentProgress(r.Context(), id); err != nil {
+		s.log("failed to reset progress", map[string]interface{}{"error": err.Error()})
+	}
+
+	// Start deployment in background
+	go s.runDeploymentPipeline(id, normalized, deployment.BundlePath)
+
+	writeJSON(w, http.StatusAccepted, map[string]interface{}{
+		"deployment": deployment,
+		"message":    "Deployment started. Subscribe to /deployments/{id}/progress for real-time updates.",
+		"timestamp":  time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+// runDeploymentPipeline executes the full deployment with progress tracking.
+func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existingBundlePath *string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
+	progress := 0.0
+
+	// Helper to emit and persist progress
+	emitProgress := func(eventType, step, stepTitle string, pct float64, errMsg string) {
+		event := ProgressEvent{
+			Type:      eventType,
+			Step:      step,
+			StepTitle: stepTitle,
+			Progress:  pct,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		}
+		if errMsg != "" {
+			event.Error = errMsg
+		}
+
+		// Broadcast to SSE clients
+		s.progressHub.Broadcast(id, event)
+
+		// Persist to database for reconnection
+		if err := s.repo.UpdateDeploymentProgress(ctx, id, step, pct); err != nil {
+			s.log("failed to persist progress", map[string]interface{}{"error": err.Error()})
+		}
+	}
+
+	// Helper for errors
+	emitError := func(step, errMsg string) {
+		emitProgress("error", step, "", progress, errMsg)
+	}
+
 	// Step 1: Build bundle (if not already built)
+	emitProgress("step_started", "bundle_build", "Building bundle", progress, "")
+
 	var bundlePath string
-	if deployment.BundlePath != nil && *deployment.BundlePath != "" {
-		bundlePath = *deployment.BundlePath
+	if existingBundlePath != nil && *existingBundlePath != "" {
+		bundlePath = *existingBundlePath
 	} else {
 		repoRoot, err := FindRepoRootFromCWD()
 		if err != nil {
 			setDeploymentError(s.repo, ctx, id, "bundle_build", err.Error())
-			writeAPIError(w, http.StatusInternalServerError, APIError{
-				Code:    "repo_root_not_found",
-				Message: "Unable to locate Vrooli repo root",
-				Hint:    err.Error(),
-			})
+			emitError("bundle_build", err.Error())
 			return
 		}
 
 		outDir := repoRoot + "/scenarios/scenario-to-cloud/coverage/bundles"
-		artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, normalized)
+		artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, manifest)
 		if err != nil {
 			setDeploymentError(s.repo, ctx, id, "bundle_build", err.Error())
-			writeAPIError(w, http.StatusInternalServerError, APIError{
-				Code:    "bundle_build_failed",
-				Message: "Failed to build bundle",
-				Hint:    err.Error(),
-			})
+			emitError("bundle_build", err.Error())
 			return
 		}
 
@@ -353,12 +404,15 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	progress += StepWeights["bundle_build"]
+	emitProgress("step_completed", "bundle_build", "Building bundle", progress, "")
+
 	// Step 2: VPS Setup
 	if err := s.repo.UpdateDeploymentStatus(ctx, id, domain.StatusSetupRunning, nil, nil); err != nil {
 		s.log("failed to update status", map[string]interface{}{"error": err.Error()})
 	}
 
-	setupResult := RunVPSSetup(ctx, normalized, bundlePath, ExecSSHRunner{}, ExecSCPRunner{})
+	setupResult := RunVPSSetupWithProgress(ctx, manifest, bundlePath, ExecSSHRunner{}, ExecSCPRunner{}, s.progressHub, s.repo, id, &progress)
 	setupJSON, _ := json.Marshal(setupResult)
 	if err := s.repo.UpdateDeploymentSetupResult(ctx, id, setupJSON); err != nil {
 		s.log("failed to save setup result", map[string]interface{}{"error": err.Error()})
@@ -366,13 +420,7 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 
 	if !setupResult.OK {
 		setDeploymentError(s.repo, ctx, id, "vps_setup", setupResult.Error)
-		writeJSON(w, http.StatusOK, map[string]interface{}{
-			"deployment": deployment,
-			"step":       "setup",
-			"success":    false,
-			"error":      setupResult.Error,
-			"timestamp":  time.Now().UTC().Format(time.RFC3339),
-		})
+		emitError("vps_setup", setupResult.Error)
 		return
 	}
 
@@ -381,7 +429,7 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 		s.log("failed to update status", map[string]interface{}{"error": err.Error()})
 	}
 
-	deployResult := RunVPSDeploy(ctx, normalized, ExecSSHRunner{})
+	deployResult := RunVPSDeployWithProgress(ctx, manifest, ExecSSHRunner{}, s.progressHub, s.repo, id, &progress)
 	deployJSON, _ := json.Marshal(deployResult)
 	if err := s.repo.UpdateDeploymentDeployResult(ctx, id, deployJSON, deployResult.OK); err != nil {
 		s.log("failed to save deploy result", map[string]interface{}{"error": err.Error()})
@@ -389,16 +437,16 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 
 	if !deployResult.OK {
 		setDeploymentError(s.repo, ctx, id, "vps_deploy", deployResult.Error)
+		emitError("vps_deploy", deployResult.Error)
+		return
 	}
 
-	// Fetch updated deployment
-	deployment, _ = s.repo.GetDeployment(ctx, id)
-
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"deployment": deployment,
-		"success":    deployResult.OK,
-		"error":      deployResult.Error,
-		"timestamp":  time.Now().UTC().Format(time.RFC3339),
+	// Success!
+	s.progressHub.Broadcast(id, ProgressEvent{
+		Type:      "completed",
+		Progress:  100,
+		Message:   "Deployment successful",
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 }
 

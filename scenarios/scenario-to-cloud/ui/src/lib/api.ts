@@ -277,10 +277,11 @@ export type DeploymentResponse = {
   timestamp: string;
 };
 
+// Execute deployment is now non-blocking - it returns immediately
+// and the actual progress is tracked via SSE on /deployments/{id}/progress
 export type ExecuteDeploymentResponse = {
   deployment: Deployment;
-  success: boolean;
-  error?: string;
+  message: string;
   timestamp: string;
 };
 

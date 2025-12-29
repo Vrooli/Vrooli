@@ -53,6 +53,7 @@ func (r *Repository) GetDeployment(ctx context.Context, id string) (*domain.Depl
 			bundle_path, bundle_sha256, bundle_size_bytes,
 			setup_result, deploy_result, last_inspect_result,
 			error_message, error_step,
+			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
 		FROM deployments
 		WHERE id = $1
@@ -72,6 +73,8 @@ func (r *Repository) GetDeployment(ctx context.Context, id string) (*domain.Depl
 		&d.LastInspectResult,
 		&d.ErrorMessage,
 		&d.ErrorStep,
+		&d.ProgressStep,
+		&d.ProgressPercent,
 		&d.CreatedAt,
 		&d.UpdatedAt,
 		&d.LastDeployedAt,
@@ -94,6 +97,7 @@ func (r *Repository) GetDeploymentByHostAndScenario(ctx context.Context, host, s
 			bundle_path, bundle_sha256, bundle_size_bytes,
 			setup_result, deploy_result, last_inspect_result,
 			error_message, error_step,
+			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
 		FROM deployments
 		WHERE scenario_id = $1
@@ -116,6 +120,8 @@ func (r *Repository) GetDeploymentByHostAndScenario(ctx context.Context, host, s
 		&d.LastInspectResult,
 		&d.ErrorMessage,
 		&d.ErrorStep,
+		&d.ProgressStep,
+		&d.ProgressPercent,
 		&d.CreatedAt,
 		&d.UpdatedAt,
 		&d.LastDeployedAt,
@@ -138,6 +144,7 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 			bundle_path, bundle_sha256, bundle_size_bytes,
 			setup_result, deploy_result, last_inspect_result,
 			error_message, error_step,
+			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
 		FROM deployments
 		WHERE 1=1
@@ -188,6 +195,8 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 			&d.LastInspectResult,
 			&d.ErrorMessage,
 			&d.ErrorStep,
+			&d.ProgressStep,
+			&d.ProgressPercent,
 			&d.CreatedAt,
 			&d.UpdatedAt,
 			&d.LastDeployedAt,
@@ -375,5 +384,39 @@ func (r *Repository) DeleteDeployment(ctx context.Context, id string) error {
 		return fmt.Errorf("deployment not found: %s", id)
 	}
 
+	return nil
+}
+
+// UpdateDeploymentProgress updates the current progress step and percentage.
+func (r *Repository) UpdateDeploymentProgress(ctx context.Context, id, step string, percent float64) error {
+	const q = `
+		UPDATE deployments SET
+			progress_step = $2,
+			progress_percent = $3,
+			updated_at = $4
+		WHERE id = $1
+	`
+	now := time.Now()
+	_, err := r.db.ExecContext(ctx, q, id, step, percent, now)
+	if err != nil {
+		return fmt.Errorf("failed to update progress: %w", err)
+	}
+	return nil
+}
+
+// ResetDeploymentProgress clears the progress fields when starting a new deployment.
+func (r *Repository) ResetDeploymentProgress(ctx context.Context, id string) error {
+	const q = `
+		UPDATE deployments SET
+			progress_step = NULL,
+			progress_percent = 0,
+			updated_at = $2
+		WHERE id = $1
+	`
+	now := time.Now()
+	_, err := r.db.ExecContext(ctx, q, id, now)
+	if err != nil {
+		return fmt.Errorf("failed to reset progress: %w", err)
+	}
 	return nil
 }

@@ -1,8 +1,8 @@
-import { Rocket, Play, CheckCircle2, ExternalLink, PartyPopper, Server } from "lucide-react";
+import { Rocket, CheckCircle2, ExternalLink, PartyPopper, Server } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
-import { LoadingState } from "../ui/spinner";
 import { Card, CardContent } from "../ui/card";
+import { DeploymentProgress } from "./DeploymentProgress";
 import type { useDeployment } from "../../hooks/useDeployment";
 
 interface StepDeployProps {
@@ -18,6 +18,7 @@ export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
     deploy,
     parsedManifest,
     reset,
+    onDeploymentComplete,
   } = deployment;
 
   const isDeploying = deploymentStatus === "deploying";
@@ -27,31 +28,42 @@ export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
   // Get domain for success message
   const domain = parsedManifest.ok ? parsedManifest.value.edge?.domain : null;
 
+  // Handler for when progress completes (called by DeploymentProgress via SSE)
+  const handleProgressComplete = (success: boolean, error?: string) => {
+    onDeploymentComplete(success, error);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Deploy Button */}
-      {!isSuccess && (
+      {/* Deploy Button - only show when idle */}
+      {deploymentStatus === "idle" && (
         <div className="flex items-center gap-3">
           <Button
             onClick={deploy}
-            disabled={isDeploying || !parsedManifest.ok}
+            disabled={!parsedManifest.ok}
           >
             <Rocket className="h-4 w-4 mr-1.5" />
-            {isDeploying ? "Deploying..." : "Deploy to VPS"}
+            Deploy to VPS
           </Button>
         </div>
       )}
 
-      {/* Loading State */}
-      {isDeploying && (
-        <LoadingState message="Deploying to VPS..." />
+      {/* Progress Tracking - show when deploying OR failed (to see which steps passed/failed) */}
+      {(isDeploying || isFailed) && deploymentId && (
+        <DeploymentProgress
+          deploymentId={deploymentId}
+          onComplete={handleProgressComplete}
+        />
       )}
 
-      {/* Error */}
-      {isFailed && deploymentError && (
-        <Alert variant="error" title="Deployment Failed">
-          {deploymentError}
-        </Alert>
+      {/* Retry button when failed */}
+      {isFailed && (
+        <div className="flex items-center gap-3">
+          <Button onClick={deploy}>
+            <Rocket className="h-4 w-4 mr-1.5" />
+            Retry Deployment
+          </Button>
+        </div>
       )}
 
       {/* Success */}

@@ -244,19 +244,28 @@ export function useDeployment() {
       setDeploymentId(createRes.deployment.id);
 
       // Step 2: Execute deployment (setup + deploy)
-      const execRes = await executeDeployment(createRes.deployment.id);
+      // This is now non-blocking - it returns immediately.
+      // Progress is tracked via SSE on /deployments/{id}/progress
+      // and status updates come via the onDeploymentComplete callback
+      await executeDeployment(createRes.deployment.id);
 
-      if (execRes.success) {
-        setDeploymentStatus("success");
-      } else {
-        setDeploymentError(execRes.error || "Deployment failed");
-        setDeploymentStatus("failed");
-      }
+      // Status remains "deploying" - will be updated via SSE progress events
     } catch (e) {
       setDeploymentError(e instanceof Error ? e.message : String(e));
       setDeploymentStatus("failed");
     }
   }, [parsedManifest]);
+
+  // Called when SSE progress stream reports completion or error
+  const onDeploymentComplete = useCallback((success: boolean, error?: string) => {
+    if (success) {
+      setDeploymentStatus("success");
+      setDeploymentError(null);
+    } else {
+      setDeploymentStatus("failed");
+      setDeploymentError(error || "Deployment failed");
+    }
+  }, []);
 
   const reset = useCallback(() => {
     clearSavedDeployment();
@@ -351,6 +360,7 @@ export function useDeployment() {
     deploymentError,
     deploymentId,
     deploy,
+    onDeploymentComplete,
 
     // SSH
     sshKeyPath,
