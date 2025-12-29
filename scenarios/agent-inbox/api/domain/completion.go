@@ -69,9 +69,11 @@ func NewStreamingAccumulator() *StreamingAccumulator {
 }
 
 // AppendContent adds content from a streaming chunk.
+// Note: TokenCount is set from Usage data in the final chunk, not incremented per chunk.
+// The per-chunk increment was incorrect as chunks don't correspond to tokens.
 func (a *StreamingAccumulator) AppendContent(content string) {
 	a.ContentBuilder += content
-	a.TokenCount++
+	// TokenCount is populated from Usage data via SetUsage, not incremented here
 }
 
 // AppendImage adds a generated image to the accumulator.
@@ -135,10 +137,16 @@ func (a *StreamingAccumulator) SetUsage(promptTokens, completionTokens, totalTok
 }
 
 // ToResult converts the accumulated data into a CompletionResult.
+// TokenCount is derived from Usage.CompletionTokens when available (accurate),
+// otherwise falls back to the accumulated TokenCount (may be 0 for streaming).
 func (a *StreamingAccumulator) ToResult() *CompletionResult {
+	tokenCount := a.TokenCount
+	if a.Usage != nil && a.Usage.CompletionTokens > 0 {
+		tokenCount = a.Usage.CompletionTokens
+	}
 	return &CompletionResult{
 		Content:      a.ContentBuilder,
-		TokenCount:   a.TokenCount,
+		TokenCount:   tokenCount,
 		FinishReason: a.FinishReason,
 		ToolCalls:    a.ToolCalls,
 		ResponseID:   a.ResponseID,

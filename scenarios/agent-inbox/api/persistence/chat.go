@@ -290,6 +290,7 @@ func (r *Repository) GetMessages(ctx context.Context, chatID string) ([]domain.M
 // GetMessagesForCompletion retrieves messages in the format needed for AI completion.
 // For branching support, this returns only messages on the active branch path.
 // Falls back to all messages (ordered by created_at) if no active_leaf_message_id is set.
+// Includes token_count for context window management.
 func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string) ([]domain.Message, error) {
 	// Get the active leaf for this chat
 	activeLeaf, err := r.GetActiveLeaf(ctx, chatID)
@@ -303,26 +304,26 @@ func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string
 		rows, err = r.db.QueryContext(ctx, `
 			WITH RECURSIVE active_path AS (
 				-- Start from the active leaf
-				SELECT id, parent_message_id, role, content, tool_call_id, tool_calls, web_search, created_at
+				SELECT id, parent_message_id, role, content, tool_call_id, tool_calls, web_search, token_count, created_at
 				FROM messages
 				WHERE id = $2 AND chat_id = $1
 
 				UNION ALL
 
 				-- Walk up the tree to parents
-				SELECT m.id, m.parent_message_id, m.role, m.content, m.tool_call_id, m.tool_calls, m.web_search, m.created_at
+				SELECT m.id, m.parent_message_id, m.role, m.content, m.tool_call_id, m.tool_calls, m.web_search, m.token_count, m.created_at
 				FROM messages m
 				JOIN active_path ap ON m.id = ap.parent_message_id
 				WHERE m.chat_id = $1
 			)
-			SELECT id, role, content, tool_call_id, tool_calls, web_search
+			SELECT id, role, content, tool_call_id, tool_calls, web_search, token_count
 			FROM active_path
 			ORDER BY created_at ASC
 		`, chatID, activeLeaf)
 	} else {
 		// Legacy fallback: get all messages ordered by created_at
 		rows, err = r.db.QueryContext(ctx, `
-			SELECT id, role, content, tool_call_id, tool_calls, web_search FROM messages WHERE chat_id = $1 ORDER BY created_at ASC
+			SELECT id, role, content, tool_call_id, tool_calls, web_search, token_count FROM messages WHERE chat_id = $1 ORDER BY created_at ASC
 		`, chatID)
 	}
 	if err != nil {
@@ -336,7 +337,7 @@ func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string
 		var toolCallID sql.NullString
 		var toolCallsJSON []byte
 		var webSearch sql.NullBool
-		if err := rows.Scan(&msg.ID, &msg.Role, &msg.Content, &toolCallID, &toolCallsJSON, &webSearch); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.Role, &msg.Content, &toolCallID, &toolCallsJSON, &webSearch, &msg.TokenCount); err != nil {
 			continue
 		}
 		if toolCallID.Valid {

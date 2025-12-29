@@ -74,6 +74,16 @@ type AIConfig struct {
 	// Higher = more buffering before backpressure, lower = more responsive streaming.
 	// Default: 4096 bytes
 	StreamBufferSize int
+
+	// CompletionReservePercent is the percentage of context window to reserve for the response.
+	// Higher = more room for AI response, lower = more room for conversation history.
+	// Default: 25 (25% of context reserved for completion)
+	CompletionReservePercent int
+
+	// DefaultContextLength is the fallback context length when model info is unavailable.
+	// Used when the model registry doesn't have context length data for a model.
+	// Default: 8192
+	DefaultContextLength int
 }
 
 // NamingConfig controls the auto-naming feature powered by local Ollama.
@@ -137,6 +147,11 @@ type IntegrationConfig struct {
 	// Note: Should be >= CompletionTimeout for streaming responses.
 	// Default: 120s
 	OpenRouterTimeout time.Duration
+
+	// ModelCacheTTL is how long to cache model metadata (context lengths, etc).
+	// Higher = fewer CLI calls to resource-openrouter, lower = faster model updates.
+	// Default: 5 minutes
+	ModelCacheTTL time.Duration
 
 	// Naming configuration for Ollama-powered auto-naming.
 	Naming NamingConfig
@@ -241,15 +256,18 @@ func Default() *Config {
 			ShutdownTimeout: 10 * time.Second,
 		},
 		AI: AIConfig{
-			DefaultModel:      getEnvOrDefault("DEFAULT_AI_MODEL", "anthropic/claude-3.5-sonnet"),
-			CompletionTimeout: 120 * time.Second,
-			StreamBufferSize:  4096,
+			DefaultModel:             getEnvOrDefault("DEFAULT_AI_MODEL", "anthropic/claude-3.5-sonnet"),
+			CompletionTimeout:        120 * time.Second,
+			StreamBufferSize:         4096,
+			CompletionReservePercent: 25,
+			DefaultContextLength:     8192,
 		},
 		Integration: IntegrationConfig{
 			OllamaBaseURL:       getOllamaBaseURL(),
 			OllamaTimeout:       30 * time.Second,
 			AgentManagerTimeout: 60 * time.Second,
 			OpenRouterTimeout:   120 * time.Second,
+			ModelCacheTTL:       5 * time.Minute,
 			Naming: NamingConfig{
 				Model:               getEnvOrDefault("OLLAMA_NAMING_MODEL", "llama3.1:8b"),
 				Temperature:         0.3,

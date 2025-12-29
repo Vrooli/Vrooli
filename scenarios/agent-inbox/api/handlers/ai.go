@@ -19,52 +19,97 @@ import (
 // fetchAndSaveGenerationStats asynchronously fetches usage/cost data from OpenRouter
 // and saves it to the database. This is called after a completion request finishes.
 // It runs in a background goroutine to not block the response to the client.
-func (h *Handlers) fetchAndSaveGenerationStats(chatID, messageID, generationID string) {
-	if generationID == "" {
+//
+// The function uses a hybrid approach:
+// 1. Retry fetching generation stats with exponential backoff (OpenRouter needs time to index)
+// 2. If stats are available, save record with accurate cost from OpenRouter
+// 3. If all retries fail, save fallback record with token counts from response (cost = 0)
+//
+// This ensures we always capture at least token usage, even when cost data is unavailable.
+func (h *Handlers) fetchAndSaveGenerationStats(chatID, messageID, model, generationID string, fallbackUsage *domain.Usage) {
+	// Skip if we have neither generation ID nor fallback usage data
+	if generationID == "" && fallbackUsage == nil {
 		return
 	}
 
 	go func() {
-		// Use a fresh context since the request context may be cancelled
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		// Use a fresh context with enough time for retries
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
-		// Create OpenRouter client
-		orClient, err := integrations.NewOpenRouterClient()
-		if err != nil {
-			log.Printf("[WARN] Failed to create OpenRouter client for usage stats: %v", err)
+		var stats *integrations.GenerationStats
+		var fetchErr error
+
+		// Try to fetch generation stats with exponential backoff
+		if generationID != "" {
+			orClient, err := integrations.NewOpenRouterClient()
+			if err != nil {
+				log.Printf("[WARN] Failed to create OpenRouter client for usage stats: %v", err)
+			} else {
+				// Exponential backoff: wait before each attempt since OpenRouter needs time to index
+				// Delays: 2s, 4s, 8s (total wait ~14s before giving up)
+				delays := []time.Duration{2 * time.Second, 4 * time.Second, 8 * time.Second}
+
+				for attempt, delay := range delays {
+					time.Sleep(delay)
+
+					stats, fetchErr = orClient.FetchGenerationStats(ctx, generationID)
+					if fetchErr == nil {
+						break
+					}
+
+					log.Printf("[DEBUG] Generation stats attempt %d/%d for %s: %v",
+						attempt+1, len(delays), generationID, fetchErr)
+				}
+			}
+		}
+
+		// If we got stats, use them (preferred - has accurate cost)
+		if stats != nil {
+			usageRecord := integrations.CreateUsageRecordFromStats(chatID, messageID, stats)
+			if usageRecord != nil {
+				if err := h.Repo.SaveUsageRecord(ctx, usageRecord); err != nil {
+					log.Printf("[WARN] Failed to save usage record: %v", err)
+					return
+				}
+				log.Printf("[INFO] Saved usage stats: model=%s, tokens=%d, cost=$%.4f",
+					stats.Model, usageRecord.TotalTokens, stats.TotalCost)
+			}
 			return
 		}
 
-		// Fetch generation stats
-		stats, err := orClient.FetchGenerationStats(ctx, generationID)
-		if err != nil {
-			log.Printf("[WARN] Failed to fetch generation stats for %s: %v", generationID, err)
-			return
+		// Fallback: use usage data from response if available (tokens only, no cost)
+		if fallbackUsage != nil && messageID != "" {
+			fallbackRecord := &domain.UsageRecord{
+				ChatID:           chatID,
+				MessageID:        messageID,
+				Model:            model,
+				PromptTokens:     fallbackUsage.PromptTokens,
+				CompletionTokens: fallbackUsage.CompletionTokens,
+				TotalTokens:      fallbackUsage.TotalTokens,
+				TotalCost:        0, // Cost unknown - generation stats unavailable
+			}
+			if err := h.Repo.SaveUsageRecord(ctx, fallbackRecord); err != nil {
+				log.Printf("[WARN] Failed to save fallback usage record: %v", err)
+				return
+			}
+			log.Printf("[INFO] Saved fallback usage (no cost data): model=%s, tokens=%d",
+				model, fallbackRecord.TotalTokens)
 		}
 
-		// Create and save usage record
-		usageRecord := integrations.CreateUsageRecordFromStats(chatID, messageID, stats)
-		if usageRecord == nil {
-			return
+		// Log final failure if we couldn't get generation stats
+		if fetchErr != nil {
+			log.Printf("[WARN] All attempts to fetch generation stats failed for %s: %v",
+				generationID, fetchErr)
 		}
-
-		if err := h.Repo.SaveUsageRecord(ctx, usageRecord); err != nil {
-			log.Printf("[WARN] Failed to save usage record for %s: %v", generationID, err)
-			return
-		}
-
-		log.Printf("[INFO] Saved usage stats: model=%s, tokens=%d, cost=$%.4f",
-			stats.Model, usageRecord.TotalTokens, stats.TotalCost)
 	}()
 }
 
 // ListModels returns available AI models from OpenRouter.
-// Fetches dynamically from resource-openrouter CLI, with fallback to curated list.
+// Uses cached model registry to avoid repeated CLI calls.
 func (h *Handlers) ListModels(w http.ResponseWriter, r *http.Request) {
-	models, err := integrations.FetchModels(r.Context())
+	models, err := h.ModelRegistry.GetModels(r.Context())
 	if err != nil {
-		// This shouldn't happen since FetchModels falls back gracefully
 		h.JSONError(w, "Failed to fetch models", http.StatusInternalServerError)
 		return
 	}
@@ -260,7 +305,8 @@ func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Reques
 	messageID := h.handleCompletionResult(r, sw, svc, chatID, model, result)
 
 	// Fetch and save generation stats asynchronously (non-blocking)
-	h.fetchAndSaveGenerationStats(chatID, messageID, result.ResponseID)
+	// Pass model and usage data for fallback if OpenRouter stats are unavailable
+	h.fetchAndSaveGenerationStats(chatID, messageID, model, result.ResponseID, result.Usage)
 
 	sw.WriteDone()
 }
@@ -663,7 +709,8 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 	}
 
 	// Fetch and save generation stats asynchronously
-	h.fetchAndSaveGenerationStats(chatID, messageID, result.ResponseID)
+	// Pass model and usage data for fallback if OpenRouter stats are unavailable
+	h.fetchAndSaveGenerationStats(chatID, messageID, model, result.ResponseID, result.Usage)
 
 	h.JSONResponse(w, response, http.StatusOK)
 }
@@ -682,11 +729,12 @@ func (h *Handlers) handleRegularMessageNonStreaming(w http.ResponseWriter, r *ht
 	svc.UpdateChatPreview(r.Context(), chatID, result)
 
 	// Fetch and save generation stats asynchronously
+	// Pass model and usage data for fallback if OpenRouter stats are unavailable
 	messageID := ""
 	if msg != nil {
 		messageID = msg.ID
 	}
-	h.fetchAndSaveGenerationStats(chatID, messageID, result.ResponseID)
+	h.fetchAndSaveGenerationStats(chatID, messageID, model, result.ResponseID, result.Usage)
 
 	h.JSONResponse(w, msg, http.StatusOK)
 }

@@ -25,19 +25,21 @@ import (
 // Handlers provides HTTP handlers with access to all dependencies.
 // This struct enables dependency injection for testing.
 type Handlers struct {
-	Repo         *persistence.Repository
-	OllamaClient *integrations.OllamaClient
-	ToolRegistry *services.ToolRegistry
-	Storage      services.StorageService
+	Repo          *persistence.Repository
+	OllamaClient  *integrations.OllamaClient
+	ToolRegistry  *services.ToolRegistry
+	ModelRegistry *services.ModelRegistry
+	Storage       services.StorageService
 }
 
 // New creates a new Handlers instance with all dependencies.
 func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService) *Handlers {
 	return &Handlers{
-		Repo:         repo,
-		OllamaClient: ollamaClient,
-		ToolRegistry: services.NewToolRegistry(repo),
-		Storage:      storage,
+		Repo:          repo,
+		OllamaClient:  ollamaClient,
+		ToolRegistry:  services.NewToolRegistry(repo),
+		ModelRegistry: services.NewModelRegistry(),
+		Storage:       storage,
 	}
 }
 

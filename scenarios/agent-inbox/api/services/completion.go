@@ -6,9 +6,9 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
+	"agent-inbox/config"
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/persistence"
@@ -37,16 +37,19 @@ type CompletionService struct {
 	repo             *persistence.Repository
 	executor         *integrations.ToolExecutor
 	toolRegistry     *ToolRegistry
+	contextManager   *ContextManager
 	messageConverter *MessageConverter
 	storage          StorageService
 }
 
 // NewCompletionService creates a new completion service.
 func NewCompletionService(repo *persistence.Repository, storage StorageService) *CompletionService {
+	modelRegistry := NewModelRegistry()
 	return &CompletionService{
 		repo:             repo,
 		executor:         integrations.NewToolExecutor(),
 		toolRegistry:     NewToolRegistry(repo),
+		contextManager:   NewContextManager(modelRegistry, config.Default()),
 		messageConverter: NewMessageConverter(storage),
 		storage:          storage,
 	}
@@ -55,10 +58,12 @@ func NewCompletionService(repo *persistence.Repository, storage StorageService) 
 // NewCompletionServiceWithRegistry creates a completion service with an injected registry.
 // This is the constructor for testing.
 func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry *ToolRegistry, storage StorageService) *CompletionService {
+	modelRegistry := NewModelRegistry()
 	return &CompletionService{
 		repo:             repo,
 		executor:         integrations.NewToolExecutor(),
 		toolRegistry:     registry,
+		contextManager:   NewContextManager(modelRegistry, config.Default()),
 		messageConverter: NewMessageConverter(storage),
 		storage:          storage,
 	}
@@ -419,8 +424,31 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 		attachmentsByMsgID = make(map[string][]domain.Attachment) // Continue without attachments
 	}
 
+	// Check if this is an image generation model
+	isImageGen := s.contextManager.IsImageGenerationModel(ctx, settings.Model)
+
+	// Validate and truncate messages to fit context window
+	// This handles all models (including image generation) automatically
+	messages, err = s.contextManager.ValidateAndTruncate(ctx, settings.Model, messages)
+	if err != nil {
+		log.Printf("warning: context validation failed: %v", err)
+		// Continue with original messages on error
+	}
+
+	// Update attachment map to only include messages that survived truncation
+	messageIDSet := make(map[string]bool, len(messages))
+	for _, msg := range messages {
+		messageIDSet[msg.ID] = true
+	}
+	filteredAttachments := make(map[string][]domain.Attachment)
+	for msgID, atts := range attachmentsByMsgID {
+		if messageIDSet[msgID] {
+			filteredAttachments[msgID] = atts
+		}
+	}
+
 	// Convert messages with multimodal support
-	orMessages := s.messageConverter.ConvertToOpenRouter(ctx, messages, attachmentsByMsgID)
+	orMessages := s.messageConverter.ConvertToOpenRouter(ctx, messages, filteredAttachments)
 
 	// Determine effective web search setting
 	// Check if any user message has web_search enabled
@@ -456,7 +484,6 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 
 	// Enable image generation modalities if the model supports it
 	// Image generation models typically don't support tool use, so skip tools
-	isImageGen := isImageGenerationModel(settings.Model)
 	if isImageGen {
 		req.Modalities = []string{"image", "text"}
 		log.Printf("[DEBUG] Image generation enabled for model: %s (tools disabled)", settings.Model)
@@ -476,26 +503,4 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 	return req, nil
 }
 
-// imageGenerationModelPatterns contains known patterns for image generation models.
-// This is a fallback when model metadata is not available.
-var imageGenerationModelPatterns = []string{
-	"gemini-2.5-flash-image",
-	"gemini-2.0-flash-image",
-	"flux",
-	"dall-e",
-	"stable-diffusion",
-	"sdxl",
-	"imagen",
-}
-
-// isImageGenerationModel checks if a model ID indicates image generation capability.
-// Uses pattern matching as a fallback when model metadata is not available.
-func isImageGenerationModel(modelID string) bool {
-	modelIDLower := strings.ToLower(modelID)
-	for _, pattern := range imageGenerationModelPatterns {
-		if strings.Contains(modelIDLower, pattern) {
-			return true
-		}
-	}
-	return false
-}
+// Note: isImageGenerationModel logic moved to ContextManager.IsImageGenerationModel
