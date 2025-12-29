@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { X, Clock, Globe, AlertCircle, ChevronDown, Workflow } from 'lucide-react';
 import { ResponsiveDialog } from '@shared/layout';
 import type { WorkflowSchedule, CreateScheduleInput, UpdateScheduleInput } from '@stores/scheduleStore';
@@ -19,6 +19,9 @@ interface ScheduleModalProps {
   workflows?: WorkflowOption[];
 }
 
+// Stable empty array for default workflows prop
+const EMPTY_WORKFLOWS: WorkflowOption[] = [];
+
 export function ScheduleModal({
   isOpen,
   onClose,
@@ -26,7 +29,7 @@ export function ScheduleModal({
   schedule,
   workflowId: initialWorkflowId,
   workflowName,
-  workflows = [],
+  workflows = EMPTY_WORKFLOWS,
 }: ScheduleModalProps) {
   const isEditing = Boolean(schedule);
 
@@ -41,9 +44,14 @@ export function ScheduleModal({
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Reset form when modal opens or schedule changes
+  // Track if we've initialized the form for the current open state
+  const wasOpenRef = useRef(false);
+
+  // Reset form only when modal first opens (transition from closed to open)
   useEffect(() => {
-    if (isOpen) {
+    // Only reset when transitioning from closed to open
+    if (isOpen && !wasOpenRef.current) {
+      wasOpenRef.current = true;
       if (schedule) {
         setName(schedule.name);
         setDescription(schedule.description ?? '');
@@ -72,6 +80,9 @@ export function ScheduleModal({
         setSelectedPreset('0 9 * * *');
       }
       setError(null);
+    } else if (!isOpen) {
+      // Reset the ref when modal closes so we reinitialize next time
+      wasOpenRef.current = false;
     }
   }, [isOpen, schedule, initialWorkflowId, workflows]);
 
@@ -134,6 +145,7 @@ export function ScheduleModal({
       onDismiss={onClose}
       ariaLabel={isEditing ? 'Edit schedule' : 'Create schedule'}
       size="wide"
+      className="!p-0"
     >
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}

@@ -5,10 +5,7 @@ import {
   WifiOff,
   RefreshCw,
   Loader,
-  Play,
-  Clock,
   FileCode,
-  ExternalLink,
   Plus,
   X,
 } from "lucide-react";
@@ -30,6 +27,7 @@ import {
 } from "./hooks/useProjectDetailStore";
 import { useFileTreeOperations } from "./hooks/useFileTreeOperations";
 import { selectors } from "@constants/selectors";
+import { WorkflowPreviewPane } from "./WorkflowPreviewPane";
 
 interface ProjectFileTreeProps {
   project: Project;
@@ -630,15 +628,6 @@ export function ProjectFileTree({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [inlineAddMenuFolder]);
 
-  // Format date helper
-  const formatDate = useCallback((dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }, []);
-
   // Resize divider start handler
   const handleDividerResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -930,127 +919,12 @@ export function ProjectFileTree({
 
       {/* Right: Preview Pane */}
       {previewedWorkflow && (
-        <div className="flex-1 overflow-auto p-4">
-          <div className="bg-flow-node border border-gray-700 rounded-lg h-full flex flex-col">
-            {/* Preview Header */}
-            <div className="p-4 border-b border-gray-700 flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/20">
-                  <FileCode size={18} className="text-green-400" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-lg font-semibold text-surface truncate">
-                    {previewedWorkflow.name}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    {previewedWorkflow.stats?.execution_count ?? 0} executions
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setPreviewWorkflowId(null)}
-                className="p-1.5 text-gray-500 hover:text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
-                title="Close preview"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Preview Content */}
-            <div className="flex-1 p-4 space-y-4 overflow-auto">
-              {/* Description */}
-              <div>
-                <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                  Description
-                </h4>
-                <p className="text-sm text-gray-300">
-                  {(previewedWorkflow.description as string | undefined) || (
-                    <span className="italic text-gray-500">No description</span>
-                  )}
-                </p>
-              </div>
-
-              {/* Stats */}
-              {previewedWorkflow.stats && (
-                <div>
-                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                    Statistics
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gray-800/50 rounded-lg px-3 py-2">
-                      <div className="text-lg font-semibold text-surface">
-                        {previewedWorkflow.stats.execution_count}
-                      </div>
-                      <div className="text-xs text-gray-500">Total Runs</div>
-                    </div>
-                    <div className="bg-gray-800/50 rounded-lg px-3 py-2">
-                      <div
-                        className={`text-lg font-semibold ${
-                          previewedWorkflow.stats.success_rate != null
-                            ? previewedWorkflow.stats.success_rate >= 80
-                              ? "text-green-400"
-                              : previewedWorkflow.stats.success_rate >= 50
-                                ? "text-amber-400"
-                                : "text-red-400"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {previewedWorkflow.stats.success_rate != null
-                          ? `${previewedWorkflow.stats.success_rate}%`
-                          : "—"}
-                      </div>
-                      <div className="text-xs text-gray-500">Success Rate</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Timestamps */}
-              <div>
-                <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                  Activity
-                </h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-400">
-                    <Clock size={14} />
-                    <span>Updated {formatDate(previewedWorkflow.updated_at || "")}</span>
-                  </div>
-                  {previewedWorkflow.stats?.last_execution && (
-                    <div className="flex items-center gap-2 text-green-400/80">
-                      <Play size={14} />
-                      <span>Last run {formatDate(previewedWorkflow.stats.last_execution)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Preview Actions */}
-            <div className="p-4 border-t border-gray-700 flex gap-3">
-              <button
-                onClick={() => {
-                  if (previewedWorkflow) {
-                    void handleOpenWorkflowFile(previewedWorkflow.id);
-                  }
-                }}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                <ExternalLink size={16} />
-                <span>Open Editor</span>
-              </button>
-              <button
-                onClick={async (e) => {
-                  if (previewedWorkflow) {
-                    await handleExecuteWorkflow(e, previewedWorkflow.id);
-                  }
-                }}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Play size={16} />
-                <span>Run</span>
-              </button>
-            </div>
-          </div>
+        <div className="flex-1 overflow-hidden p-4">
+          <WorkflowPreviewPane
+            workflow={previewedWorkflow}
+            onClose={() => setPreviewWorkflowId(null)}
+            onOpenEditor={handleOpenWorkflowFile}
+          />
         </div>
       )}
 

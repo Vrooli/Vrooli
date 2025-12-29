@@ -27,6 +27,8 @@ export default function RecordModeView() {
     const aiPrompt = searchParams.get('ai_prompt');
     const aiModel = searchParams.get('ai_model') || undefined;
     const aiMaxSteps = searchParams.get('ai_max_steps');
+    const mode = searchParams.get('mode') as 'recording' | 'execution' | null;
+    const executionId = searchParams.get('execution_id') || undefined;
 
     return {
       initialUrl: url || undefined,
@@ -34,6 +36,8 @@ export default function RecordModeView() {
       aiModel,
       aiMaxSteps: aiMaxSteps ? parseInt(aiMaxSteps, 10) : undefined,
       autoStartAI: Boolean(url && aiPrompt),
+      mode: mode === 'execution' ? 'execution' : 'recording',
+      executionId,
     };
   }, [searchParams]);
 
@@ -117,6 +121,8 @@ export default function RecordModeView() {
       >
         <RecordModePage
           sessionId={sessionId}
+          mode={templateParams.mode as 'recording' | 'execution'}
+          executionId={templateParams.executionId}
           onWorkflowGenerated={handleWorkflowGenerated}
           onSessionReady={handleSessionReady}
           onClose={handleClose}

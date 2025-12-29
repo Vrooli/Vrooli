@@ -26,6 +26,10 @@ interface ProjectDetailProps {
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
   onStartRecording?: () => void;
+  /** Initial preview workflow ID from URL */
+  initialPreviewWorkflowId?: string;
+  /** Callback when preview changes (for URL sync) */
+  onPreviewChange?: (workflowId: string | null) => void;
 }
 
 /**
@@ -41,6 +45,8 @@ function ProjectDetail({
   onCreateWorkflow,
   onCreateWorkflowDirect,
   onStartRecording,
+  initialPreviewWorkflowId,
+  onPreviewChange,
 }: ProjectDetailProps) {
   // Store state
   const activeTab = useProjectDetailStore((s) => s.activeTab);
@@ -48,6 +54,7 @@ function ProjectDetail({
   const workflows = useProjectDetailStore((s) => s.workflows);
   const error = useProjectDetailStore((s) => s.error);
   const showEditProjectModal = useProjectDetailStore((s) => s.showEditProjectModal);
+  const previewWorkflowId = useProjectDetailStore((s) => s.previewWorkflowId);
 
   // Store actions
   const initializeForProject = useProjectDetailStore((s) => s.initializeForProject);
@@ -58,6 +65,7 @@ function ProjectDetail({
   const setShowEditProjectModal = useProjectDetailStore((s) => s.setShowEditProjectModal);
   const setIsDeletingProject = useProjectDetailStore((s) => s.setIsDeletingProject);
   const setIsImportingRecording = useProjectDetailStore((s) => s.setIsImportingRecording);
+  const setPreviewWorkflowId = useProjectDetailStore((s) => s.setPreviewWorkflowId);
 
   // Project store
   const { deleteProject } = useProjectStore();
@@ -79,6 +87,20 @@ function ProjectDetail({
       reset();
     };
   }, [project.id, initializeForProject, fetchWorkflows, fetchProjectEntries, reset]);
+
+  // Initialize preview from URL param on mount
+  useEffect(() => {
+    if (initialPreviewWorkflowId) {
+      setPreviewWorkflowId(initialPreviewWorkflowId);
+    }
+  }, [initialPreviewWorkflowId, setPreviewWorkflowId]);
+
+  // Sync preview changes to URL
+  useEffect(() => {
+    if (onPreviewChange) {
+      onPreviewChange(previewWorkflowId);
+    }
+  }, [previewWorkflowId, onPreviewChange]);
 
   // Handle delete project
   const handleDeleteProject = useCallback(async () => {

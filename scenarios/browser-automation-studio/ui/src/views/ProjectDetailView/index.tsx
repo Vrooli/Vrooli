@@ -44,6 +44,24 @@ export default function ProjectDetailView() {
     }
   }, [loading, project, searchParams, setSearchParams, openAIModal]);
 
+  // Get initial preview workflow ID from URL query param
+  const initialPreviewWorkflowId = searchParams.get('preview') || undefined;
+
+  // Callback to update URL when preview changes
+  const handlePreviewChange = useCallback(
+    (workflowId: string | null) => {
+      if (workflowId) {
+        setSearchParams({ preview: workflowId }, { replace: true });
+      } else {
+        // Remove preview param when deselecting
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('preview');
+        setSearchParams(newParams, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams]
+  );
+
   // Load project on mount
   useEffect(() => {
     const loadProject = async () => {
@@ -254,6 +272,8 @@ export default function ProjectDetailView() {
           onCreateWorkflow={handleCreateWorkflow}
           onCreateWorkflowDirect={handleCreateWorkflowDirect}
           onStartRecording={handleStartRecording}
+          initialPreviewWorkflowId={initialPreviewWorkflowId}
+          onPreviewChange={handlePreviewChange}
         />
       </Suspense>
 
