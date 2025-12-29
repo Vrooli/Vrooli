@@ -527,3 +527,121 @@ export async function deleteSSHKey(
   }
   return res.json() as Promise<DeleteSSHKeyResponse>;
 }
+
+// ============================================================================
+// Preflight Fix Actions
+// ============================================================================
+
+export interface StopPortServicesRequest {
+  host: string;
+  port?: number;
+  user?: string;
+  key_path: string;
+}
+
+export interface StopPortServicesResponse {
+  ok: boolean;
+  stopped: string[];
+  failed?: string[];
+  message: string;
+  timestamp: string;
+}
+
+export interface DiskUsageRequest {
+  host: string;
+  port?: number;
+  user?: string;
+  key_path: string;
+}
+
+export interface DiskUsageEntry {
+  path: string;
+  size: string;
+  bytes: number;
+}
+
+export interface DiskUsageResponse {
+  ok: boolean;
+  free_space: string;
+  free_bytes: number;
+  total_space: string;
+  total_bytes: number;
+  used_percent: number;
+  largest_dirs: DiskUsageEntry[];
+  timestamp: string;
+}
+
+export interface DiskCleanupRequest {
+  host: string;
+  port?: number;
+  user?: string;
+  key_path: string;
+  actions?: string[];
+}
+
+export interface DiskCleanupResponse {
+  ok: boolean;
+  space_freed: string;
+  space_freed_kb: number;
+  message: string;
+  actions_run: string[];
+  actions_failed?: string[];
+  timestamp: string;
+}
+
+/**
+ * Stop services using ports 80/443
+ */
+export async function stopPortServices(
+  request: StopPortServicesRequest
+): Promise<StopPortServicesResponse> {
+  const url = buildApiUrl("/preflight/fix/ports", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to stop port services: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<StopPortServicesResponse>;
+}
+
+/**
+ * Get detailed disk usage information
+ */
+export async function getDiskUsage(
+  request: DiskUsageRequest
+): Promise<DiskUsageResponse> {
+  const url = buildApiUrl("/preflight/disk/usage", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get disk usage: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<DiskUsageResponse>;
+}
+
+/**
+ * Run disk cleanup operations
+ */
+export async function runDiskCleanup(
+  request: DiskCleanupRequest
+): Promise<DiskCleanupResponse> {
+  const url = buildApiUrl("/preflight/disk/cleanup", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to run disk cleanup: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<DiskCleanupResponse>;
+}

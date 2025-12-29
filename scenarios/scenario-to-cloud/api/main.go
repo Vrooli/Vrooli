@@ -110,6 +110,11 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/ssh/keys/public", s.handleGetPublicKey).Methods("POST")
 	api.HandleFunc("/ssh/test", s.handleTestSSHConnection).Methods("POST")
 	api.HandleFunc("/ssh/copy-key", s.handleCopySSHKey).Methods("POST")
+
+	// Preflight fix actions
+	api.HandleFunc("/preflight/fix/ports", s.handleStopPortServices).Methods("POST")
+	api.HandleFunc("/preflight/disk/usage", s.handleDiskUsage).Methods("POST")
+	api.HandleFunc("/preflight/disk/cleanup", s.handleDiskCleanup).Methods("POST")
 }
 
 // Router returns the HTTP handler for use with server.Run

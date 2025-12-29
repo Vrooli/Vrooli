@@ -64,7 +64,10 @@ func (ExecSSHRunner) Run(ctx context.Context, cfg SSHConfig, command string) (SS
 		args = append(args, "-i", cfg.KeyPath)
 	}
 	target := fmt.Sprintf("%s@%s", cfg.User, cfg.Host)
-	args = append(args, target, "--", "bash", "-lc", command)
+	// Pass command directly - SSH runs it through remote user's shell
+	// Note: Previously used "bash -lc" wrapper but that broke when SSH
+	// concatenated separate args, causing commands with spaces to fail
+	args = append(args, target, "--", command)
 
 	cmd := exec.CommandContext(ctx, "ssh", args...)
 	var stdout, stderr bytes.Buffer

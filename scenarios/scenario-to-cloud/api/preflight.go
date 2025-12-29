@@ -99,12 +99,25 @@ func RunVPSPreflight(
 	}
 
 	if vpsErr == nil && edgeErr == nil && !intersects(vpsIPs, edgeIPs) {
+		// Build helpful DNS provider instructions
+		domain := manifest.Edge.Domain
+		targetIP := vpsIPs[0] // Use first IP for instructions
+		hint := fmt.Sprintf(
+			"Update DNS A record for %s to point to %s.\n\n"+
+				"Common DNS providers:\n"+
+				"- Cloudflare: DNS > Records > Add A record with name '@' or subdomain, IPv4 address %s\n"+
+				"- Namecheap: Domain List > Manage > Advanced DNS > Add A Record\n"+
+				"- GoDaddy: DNS Management > Add > Type: A, Points to: %s\n"+
+				"- DigitalOcean: Networking > Domains > Add A record\n\n"+
+				"DNS changes can take up to 48 hours to propagate (usually 5-30 minutes).",
+			domain, targetIP, targetIP, targetIP,
+		)
 		fail(
 			"dns_points_to_vps",
 			"DNS points to VPS",
-			"edge.domain does not resolve to the same IP(s) as target.vps.host",
-			fmt.Sprintf("Update DNS for %s to point to one of: %s", manifest.Edge.Domain, strings.Join(vpsIPs, ", ")),
-			map[string]string{"vps_ips": strings.Join(vpsIPs, ","), "edge_ips": strings.Join(edgeIPs, ",")},
+			fmt.Sprintf("%s resolves to %s, not your VPS (%s)", domain, strings.Join(edgeIPs, ", "), strings.Join(vpsIPs, ", ")),
+			hint,
+			map[string]string{"vps_ips": strings.Join(vpsIPs, ","), "edge_ips": strings.Join(edgeIPs, ","), "domain": domain},
 		)
 	} else if vpsErr == nil && edgeErr == nil {
 		pass("dns_points_to_vps", "DNS points to VPS", "edge.domain resolves to the VPS", nil)
@@ -128,7 +141,7 @@ func RunVPSPreflight(
 			"os_release",
 			"Ubuntu version",
 			"Unable to read /etc/os-release",
-			"Ensure the VPS is Ubuntu 24.04 and that /etc/os-release is readable.",
+			"Ensure the VPS is running Ubuntu and that /etc/os-release is readable.",
 			map[string]string{"stderr": osRes.Stderr},
 		)
 	} else {
@@ -138,38 +151,53 @@ func RunVPSPreflight(
 				"os_release",
 				"Ubuntu version",
 				fmt.Sprintf("Unsupported OS: %s", id),
-				"P0 supports Ubuntu 24.04 only.",
+				"scenario-to-cloud requires Ubuntu. Debian may work but is untested.",
 				map[string]string{"id": id, "version_id": ver},
 			)
-		} else if ver != "24.04" {
-			fail(
+		} else if ver == "24.04" {
+			pass("os_release", "Ubuntu version", "Ubuntu 24.04 detected", map[string]string{"id": id, "version_id": ver})
+		} else if ver == "22.04" || ver == "20.04" {
+			// Older LTS versions should work but aren't officially tested
+			warn(
 				"os_release",
 				"Ubuntu version",
-				fmt.Sprintf("Unsupported Ubuntu version: %s", ver),
-				"P0 supports Ubuntu 24.04 only.",
+				fmt.Sprintf("Ubuntu %s detected (24.04 recommended)", ver),
+				"Ubuntu 22.04/20.04 should work but 24.04 LTS is recommended for best compatibility.",
 				map[string]string{"id": id, "version_id": ver},
 			)
 		} else {
-			pass("os_release", "Ubuntu version", "Ubuntu 24.04 detected", map[string]string{"id": id, "version_id": ver})
+			warn(
+				"os_release",
+				"Ubuntu version",
+				fmt.Sprintf("Ubuntu %s detected (24.04 recommended)", ver),
+				"This Ubuntu version is untested. Consider using Ubuntu 24.04 LTS.",
+				map[string]string{"id": id, "version_id": ver},
+			)
 		}
 	}
 
-	portsRes, portsErr := sshRunner.Run(ctx, cfg, `ss -ltnH '( sport = :80 or sport = :443 )'`)
+	portsRes, portsErr := sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`)
 	if portsErr != nil {
 		warn(
 			"ports_80_443",
 			"Ports 80/443 availability",
 			"Unable to check ports 80/443 via ss",
-			"Ensure ports 80 and 443 are free for Caddy/Let’s Encrypt HTTP-01.",
+			"Ensure ports 80 and 443 are free for Caddy/Let's Encrypt HTTP-01.",
 			map[string]string{"stderr": portsRes.Stderr},
 		)
 	} else if strings.TrimSpace(portsRes.Stdout) != "" {
+		// Parse the ss output to identify what's running
+		processes := parsePortProcesses(portsRes.Stdout)
+		hint := "Stop the service(s) using these ports before deploying."
+		if len(processes) > 0 {
+			hint = fmt.Sprintf("Services using ports: %s. Run: sudo systemctl stop <service> or sudo kill <pid>", strings.Join(processes, ", "))
+		}
 		fail(
 			"ports_80_443",
 			"Ports 80/443 availability",
 			"Port 80 and/or 443 appears to already be in use",
-			"Stop whatever is bound to 80/443 before deploying Caddy.",
-			map[string]string{"ss": portsRes.Stdout},
+			hint,
+			map[string]string{"ss": portsRes.Stdout, "processes": strings.Join(processes, ",")},
 		)
 	} else {
 		pass("ports_80_443", "Ports 80/443 availability", "Ports 80/443 appear free", nil)
@@ -190,27 +218,48 @@ func RunVPSPreflight(
 
 	diskRes, diskErr := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`)
 	if diskErr != nil || diskRes.ExitCode != 0 {
-		warn("disk_free", "Disk free space", "Unable to determine free disk space", "Ensure the VPS has sufficient free disk for builds and resources.", nil)
+		warn("disk_free", "Disk free space", "Unable to determine free disk space", "Ensure the VPS has sufficient free disk for builds and resources.", map[string]string{"stderr": diskRes.Stderr})
 	} else {
 		kb, _ := strconv.ParseInt(strings.TrimSpace(diskRes.Stdout), 10, 64)
 		const minKB = 5 * 1024 * 1024 // 5 GiB
 		if kb > 0 && kb < minKB {
-			fail("disk_free", "Disk free space", fmt.Sprintf("Low free disk space: %d KB", kb), "Increase disk size or free space before deploying.", map[string]string{"free_kb": diskRes.Stdout})
+			fail(
+				"disk_free",
+				"Disk free space",
+				fmt.Sprintf("Low free disk space: %s", formatBytes(kb)),
+				"At least 5 GB free space is recommended. Run: sudo apt clean && sudo journalctl --vacuum-size=100M",
+				map[string]string{"free_kb": diskRes.Stdout, "free_human": formatBytes(kb)},
+			)
 		} else {
-			pass("disk_free", "Disk free space", "Disk free space looks OK", map[string]string{"free_kb": diskRes.Stdout})
+			pass("disk_free", "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(kb)), map[string]string{"free_kb": diskRes.Stdout, "free_human": formatBytes(kb)})
 		}
 	}
 
 	ramRes, ramErr := sshRunner.Run(ctx, cfg, `awk '/MemTotal/ {print $2}' /proc/meminfo`)
 	if ramErr != nil || ramRes.ExitCode != 0 {
-		warn("ram_total", "RAM", "Unable to determine total RAM", "Ensure the VPS has sufficient RAM for the scenario and resources.", nil)
+		warn("ram_total", "RAM", "Unable to determine total RAM", "Ensure the VPS has sufficient RAM for the scenario and resources.", map[string]string{"stderr": ramRes.Stderr})
 	} else {
 		kb, _ := strconv.ParseInt(strings.TrimSpace(ramRes.Stdout), 10, 64)
-		const minKB = 1024 * 1024 // 1 GiB
+		const minKB = 1024 * 1024      // 1 GiB
+		const warnKB = 2 * 1024 * 1024 // 2 GiB
 		if kb > 0 && kb < minKB {
-			fail("ram_total", "RAM", fmt.Sprintf("Low RAM: %d KB", kb), "Increase RAM before deploying.", map[string]string{"memtotal_kb": ramRes.Stdout})
+			fail(
+				"ram_total",
+				"RAM",
+				fmt.Sprintf("Low RAM: %s", formatBytes(kb)),
+				"At least 1 GB RAM is required. 2+ GB is recommended for most scenarios.",
+				map[string]string{"memtotal_kb": ramRes.Stdout, "memtotal_human": formatBytes(kb)},
+			)
+		} else if kb > 0 && kb < warnKB {
+			warn(
+				"ram_total",
+				"RAM",
+				fmt.Sprintf("RAM: %s (2+ GB recommended)", formatBytes(kb)),
+				"Your VPS has limited RAM. Consider upgrading for better performance.",
+				map[string]string{"memtotal_kb": ramRes.Stdout, "memtotal_human": formatBytes(kb)},
+			)
 		} else {
-			pass("ram_total", "RAM", "RAM looks OK", map[string]string{"memtotal_kb": ramRes.Stdout})
+			pass("ram_total", "RAM", fmt.Sprintf("RAM: %s", formatBytes(kb)), map[string]string{"memtotal_kb": ramRes.Stdout, "memtotal_human": formatBytes(kb)})
 		}
 	}
 
@@ -240,4 +289,73 @@ func parseOSRelease(contents string) (id, versionID string) {
 		}
 	}
 	return strings.ToLower(id), versionID
+}
+
+// parsePortProcesses extracts process names from ss -ltnp output
+// Example line: LISTEN 0 4096 *:80 *:* users:(("nginx",pid=1234,fd=6))
+func parsePortProcesses(ssOutput string) []string {
+	var processes []string
+	seen := make(map[string]bool)
+
+	for _, line := range strings.Split(ssOutput, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// Look for users:(("name",pid=N,fd=N)) pattern
+		if idx := strings.Index(line, "users:(("); idx != -1 {
+			rest := line[idx+8:] // Skip "users:(("
+			if endIdx := strings.Index(rest, `"`); endIdx > 0 {
+				// Find the process name between quotes
+				if startQuote := strings.Index(rest, `"`); startQuote == 0 {
+					nameEnd := strings.Index(rest[1:], `"`)
+					if nameEnd > 0 {
+						name := rest[1 : nameEnd+1]
+						if !seen[name] {
+							seen[name] = true
+							// Also try to get pid
+							if pidIdx := strings.Index(rest, "pid="); pidIdx != -1 {
+								pidEnd := strings.IndexAny(rest[pidIdx+4:], ",)")
+								if pidEnd > 0 {
+									pid := rest[pidIdx+4 : pidIdx+4+pidEnd]
+									processes = append(processes, fmt.Sprintf("%s (pid %s)", name, pid))
+								} else {
+									processes = append(processes, name)
+								}
+							} else {
+								processes = append(processes, name)
+							}
+						}
+					}
+				}
+			}
+		} else {
+			// No process info available, just note the port
+			fields := strings.Fields(line)
+			if len(fields) >= 4 {
+				localAddr := fields[3]
+				if strings.HasSuffix(localAddr, ":80") && !seen["port80"] {
+					seen["port80"] = true
+					processes = append(processes, "unknown on :80")
+				}
+				if strings.HasSuffix(localAddr, ":443") && !seen["port443"] {
+					seen["port443"] = true
+					processes = append(processes, "unknown on :443")
+				}
+			}
+		}
+	}
+
+	return processes
+}
+
+// formatBytes converts bytes to human-readable format
+func formatBytes(kb int64) string {
+	if kb >= 1024*1024 {
+		return fmt.Sprintf("%.1f GB", float64(kb)/(1024*1024))
+	} else if kb >= 1024 {
+		return fmt.Sprintf("%.1f MB", float64(kb)/1024)
+	}
+	return fmt.Sprintf("%d KB", kb)
 }
