@@ -269,6 +269,7 @@ export function useAINavigation({
 
   const abortNavigation = useCallback(async () => {
     if (!state.navigationId) {
+      console.warn('[useAINavigation] Cannot abort: no navigationId');
       return;
     }
 
@@ -282,15 +283,21 @@ export function useAINavigation({
         throw new Error(errorData.message || 'Failed to abort navigation');
       }
 
-      // Mark as aborting and clear intervention overlay
-      // The WebSocket complete event will set isNavigating: false
+      // Mark as aborted immediately and set isNavigating to false
+      // Don't wait for WebSocket complete event since it may be delayed
       setState((prev) => ({
         ...prev,
+        isNavigating: false,
         status: 'aborted',
         humanIntervention: null,
       }));
+      navigationIdRef.current = null;
+
+      // Trigger onComplete callback so message UI updates
+      onCompleteRef.current?.('aborted', 'Navigation was aborted');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to abort navigation';
+      console.error('[useAINavigation] Abort failed:', message);
       setState((prev) => ({
         ...prev,
         error: message,

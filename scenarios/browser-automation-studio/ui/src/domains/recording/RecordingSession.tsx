@@ -22,7 +22,6 @@
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RecordActionsPanel } from './capture/RecordActionsPanel';
 import { RecordingHeader } from './capture/RecordingHeader';
 import { TabBar } from './capture/TabBar';
 import { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanners';
@@ -33,7 +32,6 @@ import { SessionManager } from '@/views/SettingsView/sections/sessions';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useRecordMode } from './hooks/useRecordMode';
-import { useTimelinePanel } from './hooks/useTimelinePanel';
 import { useActionSelection } from './hooks/useActionSelection';
 import { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
 import { usePages } from './hooks/usePages';
@@ -45,8 +43,9 @@ import type { StreamSettingsValues } from './capture/StreamSettings';
 import type { StreamConnectionStatus } from './capture/PlaywrightView';
 import type { TimelineMode } from './types/timeline-unified';
 import { mergeActionsWithAISteps } from './types/timeline-unified';
-import { AINavigationView } from './ai-navigation';
-import { useAINavigation } from './ai-navigation/useAINavigation';
+import { UnifiedSidebar, useUnifiedSidebar, useAISettings } from './sidebar';
+import { useAIConversation } from './ai-conversation';
+import { HumanInterventionOverlay } from './ai-navigation';
 
 interface RecordModePageProps {
   /** Browser session ID */
@@ -74,7 +73,7 @@ interface RecordModePageProps {
 }
 
 /** Right panel view state */
-type RightPanelView = 'preview' | 'create-workflow' | 'ai-navigation';
+type RightPanelView = 'preview' | 'create-workflow';
 
 export function RecordModePage({
   sessionId: initialSessionId,
@@ -115,10 +114,8 @@ export function RecordModePage({
     setSessionProfileId,
   } = useRecordingSession({ initialSessionId, onSessionReady });
 
-  // Right panel view state - auto-switch to AI view if autoStartAI is true
-  const [rightPanelView, setRightPanelView] = useState<RightPanelView>(
-    autoStartAI ? 'ai-navigation' : 'preview'
-  );
+  // Right panel view state
+  const [rightPanelView, setRightPanelView] = useState<RightPanelView>('preview');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   // Session settings modal state
@@ -137,24 +134,48 @@ export function RecordModePage({
   // Connection status for header indicator
   const [connectionStatus, setConnectionStatus] = useState<StreamConnectionStatus | null>(null);
 
+  // Unified sidebar state - auto-switch to Auto tab if autoStartAI
   const {
-    isSidebarOpen,
-    timelineWidth,
-    isResizingSidebar,
-    handleSidebarToggle,
-    handleSidebarResizeStart,
-  } = useTimelinePanel();
+    isOpen: isSidebarOpen,
+    setIsOpen: setSidebarOpen,
+    toggleOpen: handleSidebarToggle,
+    activeTab: sidebarActiveTab,
+    setActiveTab: setSidebarTab,
+    setAutoActivity,
+  } = useUnifiedSidebar({
+    initialTab: autoStartAI ? 'auto' : 'timeline',
+  });
 
-  // AI Navigation state - lifted here to merge AI steps with timeline
+  // AI settings (for Auto tab)
   const {
-    state: aiState,
-    startNavigation: aiStartNavigation,
+    settings: aiSettings,
+    updateSettings: updateAISettings,
+  } = useAISettings({
+    initialSettings: {
+      model: aiModel,
+      maxSteps: aiMaxSteps,
+    },
+  });
+
+  // AI Conversation - wraps useAINavigation with chat message management
+  const {
+    messages: aiMessages,
+    sendMessage: aiSendMessage,
     abortNavigation: aiAbortNavigation,
     resumeNavigation: aiResumeNavigation,
-    reset: aiReset,
-    availableModels: aiAvailableModels,
+    clearConversation: aiClearConversation,
     isNavigating: aiIsNavigating,
-  } = useAINavigation({ sessionId });
+    navigationSteps: aiSteps,
+    availableModels: aiAvailableModels,
+    humanIntervention: aiHumanIntervention,
+  } = useAIConversation({
+    sessionId,
+    settings: aiSettings,
+    onTimelineAction: () => {
+      // Flash the timeline tab when AI performs an action
+      setAutoActivity(true);
+    },
+  });
 
   const {
     isRecording,
@@ -252,11 +273,11 @@ export function RecordModePage({
   const mergedTimelineItems = useMemo(() => {
     if (mode !== 'recording') return timelineItems;
     // If we have AI steps, merge them with the recorded actions
-    if (aiState.steps.length > 0) {
-      return mergeActionsWithAISteps(mergedActions, aiState.steps);
+    if (aiSteps.length > 0) {
+      return mergeActionsWithAISteps(mergedActions, aiSteps);
     }
     return mergedActions.map((action) => recordedActionToTimelineItem(action));
-  }, [mergedActions, mode, timelineItems, aiState.steps]);
+  }, [mergedActions, mode, timelineItems, aiSteps]);
 
   // Page color palette for visual distinction in multi-tab recording
   const PAGE_COLORS = [
@@ -511,15 +532,32 @@ export function RecordModePage({
     }
   }, [sessionId, isRecording, startRecording]);
 
-  // Reset state when session changes (but preserve AI view if auto-starting)
+  // Auto-start AI navigation when requested (e.g., from template)
+  const aiAutoStartedRef = useRef(false);
+  useEffect(() => {
+    if (
+      autoStartAI &&
+      aiPrompt &&
+      isInitialNavigationComplete &&
+      sessionId &&
+      !aiAutoStartedRef.current &&
+      !aiIsNavigating
+    ) {
+      aiAutoStartedRef.current = true;
+      // Send the initial prompt to start AI navigation
+      aiSendMessage(aiPrompt).catch((err) => {
+        console.error('Failed to auto-start AI navigation:', err);
+      });
+    }
+  }, [autoStartAI, aiPrompt, isInitialNavigationComplete, sessionId, aiIsNavigating, aiSendMessage]);
+
+  // Reset state when session changes
   useEffect(() => {
     autoStartedRef.current = false;
+    aiAutoStartedRef.current = false;
     exitSelectionMode(); // Clear selection when switching sessions
-    // Only reset to preview if we're not auto-starting AI navigation
-    if (!autoStartAI) {
-      setRightPanelView('preview');
-    }
-  }, [sessionId, exitSelectionMode, autoStartAI]);
+    setRightPanelView('preview');
+  }, [sessionId, exitSelectionMode]);
 
   const handleSelectSessionProfile = useCallback(
     (profileId: string | null) => {
@@ -610,10 +648,12 @@ export function RecordModePage({
     setRightPanelView('preview');
   }, []);
 
-  // Navigate to AI navigation mode
+  // Navigate to AI navigation mode - switch to Auto tab in sidebar
   const handleAINavigation = useCallback(() => {
-    setRightPanelView('ai-navigation');
-  }, []);
+    setSidebarTab('auto');
+    // Ensure sidebar is open
+    setSidebarOpen(true);
+  }, [setSidebarTab, setSidebarOpen]);
 
   // Test selected actions
   const handleTestSelectedActions = useCallback(
@@ -761,53 +801,75 @@ export function RecordModePage({
         <UnstableSelectorsBanner lowConfidenceCount={lowConfidenceCount} />
       )}
 
-      {/* Main content split: timeline + right panel (preview or workflow form) */}
+      {/* Main content split: sidebar + right panel (preview or workflow form) */}
       <div className="flex-1 overflow-hidden flex">
-        {isSidebarOpen && (
-          <RecordActionsPanel
-            actions={actions}
-            timelineItems={mergedTimelineItems}
-            itemCountOverride={timelineItemCount}
-            mode={mode}
-            isRecording={isRecording}
-            isLoading={isLoading}
-            isReplaying={isReplaying}
-            isLive={isTimelineLive}
-            hasUnstableSelectors={hasUnstableSelectors}
-            timelineWidth={timelineWidth}
-            isResizingSidebar={isResizingSidebar}
-            onResizeStart={handleSidebarResizeStart}
-            onClearRequested={() => setShowClearConfirm(true)}
-            onCreateWorkflow={handleCreateWorkflow}
-            onDeleteAction={handleDeleteMergedAction}
-            onValidateSelector={validateSelector}
-            onEditSelector={handleEditMergedSelector}
-            onEditPayload={handleEditMergedPayload}
-            isSelectionMode={isSelectionMode}
-            selectedIndices={selectedIndices}
-            onToggleSelectionMode={toggleSelectionMode}
-            onActionClick={handleActionClick}
-            onSelectAll={selectAll}
-            onSelectNone={selectNone}
-            onAINavigation={handleAINavigation}
-            pages={openPages}
-            pageColorMap={pageColorMap}
-          />
-        )}
+        <UnifiedSidebar
+          isOpen={isSidebarOpen}
+          onOpenChange={setSidebarOpen}
+          activeTab={sidebarActiveTab}
+          onTabChange={setSidebarTab}
+          timelineProps={{
+            actions,
+            timelineItems: mergedTimelineItems,
+            itemCountOverride: timelineItemCount,
+            mode,
+            isRecording,
+            isLoading,
+            isReplaying,
+            isLive: isTimelineLive,
+            hasUnstableSelectors,
+            onClearRequested: () => setShowClearConfirm(true),
+            onCreateWorkflow: handleCreateWorkflow,
+            onDeleteAction: handleDeleteMergedAction,
+            onValidateSelector: validateSelector,
+            onEditSelector: handleEditMergedSelector,
+            onEditPayload: handleEditMergedPayload,
+            isSelectionMode,
+            selectedIndices,
+            onToggleSelectionMode: toggleSelectionMode,
+            onActionClick: handleActionClick,
+            onSelectAll: selectAll,
+            onSelectNone: selectNone,
+            onAINavigation: handleAINavigation,
+            pages: openPages,
+            pageColorMap,
+          }}
+          autoProps={{
+            messages: aiMessages,
+            isNavigating: aiIsNavigating,
+            settings: aiSettings,
+            availableModels: aiAvailableModels,
+            onSendMessage: aiSendMessage,
+            onAbort: aiAbortNavigation,
+            onHumanDone: aiResumeNavigation,
+            onSettingsChange: updateAISettings,
+            onClear: aiClearConversation,
+          }}
+        />
 
         <div className="flex-1 h-full">
           {rightPanelView === 'preview' && (
-            <RecordPreviewPanel
-              previewUrl={previewUrl}
-              sessionId={sessionId}
-              activePageId={activePageId}
-              onPreviewUrlChange={setPreviewUrl}
-              onViewportChange={(size) => setPreviewViewport(size)}
-              onStreamSettingsChange={setStreamSettings}
-              onConnectionStatusChange={setConnectionStatus}
-              hideConnectionIndicator={true}
-              actions={actions}
-            />
+            <div className="relative h-full">
+              <RecordPreviewPanel
+                previewUrl={previewUrl}
+                sessionId={sessionId}
+                activePageId={activePageId}
+                onPreviewUrlChange={setPreviewUrl}
+                onViewportChange={(size) => setPreviewViewport(size)}
+                onStreamSettingsChange={setStreamSettings}
+                onConnectionStatusChange={setConnectionStatus}
+                hideConnectionIndicator={true}
+                actions={actions}
+              />
+              {/* Human intervention overlay - shown over browser preview for maximum visibility */}
+              {aiHumanIntervention && (
+                <HumanInterventionOverlay
+                  intervention={aiHumanIntervention}
+                  onComplete={aiResumeNavigation}
+                  onAbort={aiAbortNavigation}
+                />
+              )}
+            </div>
           )}
           {rightPanelView === 'create-workflow' && (
             <WorkflowCreationForm
@@ -822,26 +884,6 @@ export function RecordModePage({
               onGenerate={handleGenerateFromSelection}
               lowConfidenceCount={lowConfidenceCount}
               mediumConfidenceCount={mediumConfidenceCount}
-            />
-          )}
-          {rightPanelView === 'ai-navigation' && (
-            <AINavigationView
-              sessionId={sessionId}
-              previewUrl={previewUrl}
-              onPreviewUrlChange={setPreviewUrl}
-              actions={actions}
-              streamSettings={streamSettings ?? undefined}
-              initialPrompt={aiPrompt}
-              initialModel={aiModel}
-              initialMaxSteps={aiMaxSteps}
-              autoStart={autoStartAI && isInitialNavigationComplete}
-              aiState={aiState}
-              aiModels={aiAvailableModels}
-              aiIsNavigating={aiIsNavigating}
-              onAIStart={aiStartNavigation}
-              onAIAbort={aiAbortNavigation}
-              onAIResume={aiResumeNavigation}
-              onAIReset={aiReset}
             />
           )}
         </div>

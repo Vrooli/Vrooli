@@ -21,7 +21,7 @@ export { TimelineSidebar } from './timeline/TimelineSidebar';
 export { PlaywrightView } from './capture/PlaywrightView';
 export { BrowserUrlBar } from './capture/BrowserUrlBar';
 export { RecordingHeader } from './capture/RecordingHeader';
-export { RecordActionsPanel } from './capture/RecordActionsPanel';
+// RecordActionsPanel is deprecated - use sidebar/TimelineTab instead
 export { FloatingActionBar } from './capture/FloatingActionBar';
 export { FloatingMiniPreview } from './capture/FloatingMiniPreview';
 export { FrameStatsDisplay } from './capture/FrameStatsDisplay';
