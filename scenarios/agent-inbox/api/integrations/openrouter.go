@@ -229,8 +229,8 @@ func (c *OpenRouterClient) CreateCompletion(ctx context.Context, req *OpenRouter
 	}
 
 	// Debug: log what we're sending
-	log.Printf("[DEBUG] OpenRouter request: model=%s, messages=%d, plugins=%v, modalities=%v, tools=%d, stream=%v",
-		req.Model, len(req.Messages), req.Plugins, req.Modalities, len(req.Tools), req.Stream)
+	log.Printf("[DEBUG] OpenRouter request: model=%s, messages=%d, plugins=%v, modalities=%v, tools=%d, stream=%v, tool_choice=%+v",
+		req.Model, len(req.Messages), req.Plugins, req.Modalities, len(req.Tools), req.Stream, req.ToolChoice)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(reqBody))
 	if err != nil {

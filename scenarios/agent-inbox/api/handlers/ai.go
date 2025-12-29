@@ -291,7 +291,11 @@ func mapCompletionErrorToStatus(err error) int {
 	}
 }
 
-// handleStreamingResponse processes a streaming AI response.
+// handleStreamingResponse processes a streaming AI response with auto-continue.
+// After tool calls complete, it automatically makes follow-up requests so the AI
+// can respond to tool results. This continues until the AI responds without tool calls
+// or a maximum iteration limit is reached.
+//
 // The response arrives as Server-Sent Events (SSE) that must be parsed,
 // accumulated, and forwarded to the client.
 func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Request, body interface{ Read([]byte) (int, error) }, chatID, model string, svc *services.CompletionService) {
@@ -302,15 +306,85 @@ func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Parse and accumulate streaming chunks
-	result := parseStreamingChunks(body, sw)
+	// Maximum iterations to prevent infinite loops (tool call -> response -> tool call -> ...)
+	const maxIterations = 10
+	iteration := 0
 
-	// Handle the completion result and get message ID
-	messageID := h.handleCompletionResult(r, sw, svc, chatID, model, result)
+	// Current response body to process
+	currentBody := body
 
-	// Fetch and save generation stats asynchronously (non-blocking)
-	// Pass model and usage data for fallback if OpenRouter stats are unavailable
-	h.fetchAndSaveGenerationStats(chatID, messageID, model, result.ResponseID, result.Usage)
+	for iteration < maxIterations {
+		iteration++
+		log.Printf("[DEBUG] handleStreamingResponse iteration %d", iteration)
+
+		// Parse and accumulate streaming chunks
+		result := parseStreamingChunks(currentBody, sw)
+
+		// Handle the completion result
+		messageID, hasPendingApprovals := h.handleCompletionResultWithStatus(r, sw, svc, chatID, model, result)
+
+		// Fetch and save generation stats asynchronously (non-blocking)
+		h.fetchAndSaveGenerationStats(chatID, messageID, model, result.ResponseID, result.Usage)
+
+		// If there are pending approvals, stop and wait for user action
+		if hasPendingApprovals {
+			log.Printf("[DEBUG] Stopping auto-continue: pending approvals")
+			break
+		}
+
+		// If no tool calls were made, we're done
+		if !result.RequiresToolExecution() {
+			log.Printf("[DEBUG] Stopping auto-continue: no tool calls (finish_reason=%s)", result.FinishReason)
+			break
+		}
+
+		// Tool calls were made and executed - make a follow-up request
+		// to let the AI respond to the tool results
+		log.Printf("[DEBUG] Auto-continuing after tool execution (iteration %d)", iteration)
+
+		// Create a new OpenRouter client for the follow-up request
+		orClient, err := integrations.NewOpenRouterClient()
+		if err != nil {
+			log.Printf("[ERROR] Failed to create OpenRouter client for auto-continue: %v", err)
+			sw.WriteError(err)
+			break
+		}
+
+		// Prepare a new completion request (will include tool results from DB)
+		// Note: forcedTool is not passed on follow-up - we only force on the initial request
+		prepReq, err := svc.PrepareCompletionRequest(r.Context(), chatID, true, "")
+		if err != nil {
+			log.Printf("[ERROR] Failed to prepare follow-up request: %v", err)
+			sw.WriteError(err)
+			break
+		}
+
+		// Build and execute the follow-up request
+		orReq := &integrations.OpenRouterRequest{
+			Model:      prepReq.Model,
+			Messages:   prepReq.Messages,
+			Stream:     true,
+			Tools:      prepReq.Tools,
+			ToolChoice: nil, // Auto for follow-up
+			Plugins:    prepReq.Plugins,
+			Modalities: prepReq.Modalities,
+		}
+
+		resp, err := orClient.CreateCompletion(r.Context(), orReq)
+		if err != nil {
+			log.Printf("[ERROR] Follow-up completion failed: %v", err)
+			sw.WriteError(err)
+			break
+		}
+
+		// Update currentBody for the next iteration
+		currentBody = resp.Body
+		// Note: resp.Body will be closed when we exit the loop or on next iteration
+	}
+
+	if iteration >= maxIterations {
+		log.Printf("[WARN] Auto-continue reached max iterations (%d)", maxIterations)
+	}
 
 	sw.WriteDone()
 }
@@ -453,6 +527,13 @@ func processStreamingChoice(choice integrations.OpenRouterChoice, acc *domain.St
 // we simply save the message and update the preview.
 // Returns the message ID of the saved message (empty if none saved).
 func (h *Handlers) handleCompletionResult(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) string {
+	messageID, _ := h.handleCompletionResultWithStatus(r, sw, svc, chatID, model, result)
+	return messageID
+}
+
+// handleCompletionResultWithStatus is like handleCompletionResult but also returns
+// whether there are pending approvals. This is used by the auto-continue loop.
+func (h *Handlers) handleCompletionResultWithStatus(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) (string, bool) {
 	ctx := r.Context()
 
 	// Get the active leaf (the user message that triggered this completion)
@@ -460,16 +541,16 @@ func (h *Handlers) handleCompletionResult(r *http.Request, sw *StreamWriter, svc
 	parentMessageID, _ := h.Repo.GetActiveLeaf(ctx, chatID)
 
 	if result.RequiresToolExecution() {
-		return h.handleToolCallsStreaming(r, sw, svc, chatID, model, result, parentMessageID)
+		return h.handleToolCallsStreamingWithStatus(r, sw, svc, chatID, model, result, parentMessageID)
 	} else if result.HasResponse() {
 		// Save regular message (text and/or images)
 		msg, _ := svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
 		svc.UpdateChatPreview(ctx, chatID, result)
 		if msg != nil {
-			return msg.ID
+			return msg.ID, false
 		}
 	}
-	return ""
+	return "", false
 }
 
 // handleToolCallsStreaming executes tool calls during a streaming response.
@@ -480,13 +561,20 @@ func (h *Handlers) handleCompletionResult(r *http.Request, sw *StreamWriter, svc
 // deterministic ordering. Errors are reported via SSE events but do not
 // stop subsequent tool execution - this allows partial success scenarios.
 func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult, parentMessageID string) string {
+	messageID, _ := h.handleToolCallsStreamingWithStatus(r, sw, svc, chatID, model, result, parentMessageID)
+	return messageID
+}
+
+// handleToolCallsStreamingWithStatus is like handleToolCallsStreaming but also returns
+// whether there are pending approvals. This is used by the auto-continue loop.
+func (h *Handlers) handleToolCallsStreamingWithStatus(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult, parentMessageID string) (string, bool) {
 	ctx := r.Context()
 
 	// Save the assistant message with tool calls (parented to the user message)
 	msg, err := svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
 	if err != nil {
 		sw.WriteError(err)
-		return ""
+		return "", false
 	}
 
 	svc.UpdateChatPreview(ctx, chatID, result)
@@ -538,7 +626,7 @@ func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, s
 		sw.WriteToolCallsComplete()
 	}
 
-	return messageID
+	return messageID, hasPendingApprovals
 }
 
 // handleNonStreamingResponse processes a non-streaming AI response.

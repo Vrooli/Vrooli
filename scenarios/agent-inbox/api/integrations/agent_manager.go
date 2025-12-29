@@ -67,50 +67,119 @@ func getAgentManagerURL() (string, error) {
 }
 
 // SpawnCodingAgent creates a new coding agent run.
-func (c *AgentManagerClient) SpawnCodingAgent(ctx context.Context, task, runnerType, workspacePath string, timeoutMinutes int) (map[string]interface{}, error) {
-	reqBody := map[string]interface{}{
+// This is a two-step process:
+// 1. Create a Task with the description
+// 2. Create a Run referencing that task
+func (c *AgentManagerClient) SpawnCodingAgent(ctx context.Context, taskDescription, runnerType, workspacePath string, timeoutMinutes int) (map[string]interface{}, error) {
+	// Step 1: Create the Task
+	taskReqBody := map[string]interface{}{
 		"task": map[string]interface{}{
-			"name":        "Chat-initiated task",
-			"description": task,
+			"title":        "Chat-initiated task",
+			"description":  taskDescription,
+			"scope_path":   "agent-inbox/chat-tasks",
+			"project_root": workspacePath,
 		},
-		"runner_type":     runnerType,
-		"workspace_path":  workspacePath,
-		"timeout_seconds": timeoutMinutes * 60,
-		"auto_approve":    false,
 	}
 
-	body, err := json.Marshal(reqBody)
+	taskBody, err := json.Marshal(taskReqBody)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal task request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/runs", bytes.NewReader(body))
+	taskReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/tasks", bytes.NewReader(taskBody))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create task request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	taskReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	taskResp, err := c.httpClient.Do(taskReq)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to agent-manager: %w", err)
+		return nil, fmt.Errorf("failed to connect to agent-manager for task creation: %w", err)
 	}
-	defer resp.Body.Close()
+	defer taskResp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("agent-manager returned %d: %s", resp.StatusCode, string(respBody))
+	taskRespBody, _ := io.ReadAll(taskResp.Body)
+	if taskResp.StatusCode != http.StatusOK && taskResp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("agent-manager task creation returned %d: %s", taskResp.StatusCode, string(taskRespBody))
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, err
+	var taskResult map[string]interface{}
+	if err := json.Unmarshal(taskRespBody, &taskResult); err != nil {
+		return nil, fmt.Errorf("failed to parse task response: %w", err)
 	}
+
+	// Extract task ID from the response (nested under "task")
+	taskData, ok := taskResult["task"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected task response format: missing 'task' field")
+	}
+	taskID, ok := taskData["id"].(string)
+	if !ok || taskID == "" {
+		return nil, fmt.Errorf("unexpected task response format: missing or invalid task id")
+	}
+
+	// Step 2: Create the Run
+	// Map runner_type to proto enum string format
+	runnerTypeProto := "RUNNER_TYPE_CLAUDE_CODE"
+	switch runnerType {
+	case "claude-code":
+		runnerTypeProto = "RUNNER_TYPE_CLAUDE_CODE"
+	case "codex":
+		runnerTypeProto = "RUNNER_TYPE_CODEX"
+	case "opencode":
+		runnerTypeProto = "RUNNER_TYPE_OPENCODE"
+	}
+
+	runReqBody := map[string]interface{}{
+		"task_id": taskID,
+		"inline_config": map[string]interface{}{
+			"runner_type":       runnerTypeProto,
+			"timeout":           fmt.Sprintf("%ds", timeoutMinutes*60),
+			"requires_approval": true,
+		},
+	}
+
+	runBody, err := json.Marshal(runReqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal run request: %w", err)
+	}
+
+	runReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/runs", bytes.NewReader(runBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create run request: %w", err)
+	}
+	runReq.Header.Set("Content-Type", "application/json")
+
+	runResp, err := c.httpClient.Do(runReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to agent-manager for run creation: %w", err)
+	}
+	defer runResp.Body.Close()
+
+	runRespBody, _ := io.ReadAll(runResp.Body)
+	if runResp.StatusCode != http.StatusOK && runResp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("agent-manager run creation returned %d: %s", runResp.StatusCode, string(runRespBody))
+	}
+
+	var runResult map[string]interface{}
+	if err := json.Unmarshal(runRespBody, &runResult); err != nil {
+		return nil, fmt.Errorf("failed to parse run response: %w", err)
+	}
+
+	// Extract run data from response (nested under "run")
+	runData, ok := runResult["run"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected run response format: missing 'run' field")
+	}
+	runID, _ := runData["id"].(string)
+	runStatus, _ := runData["status"].(string)
 
 	return map[string]interface{}{
 		"success": true,
-		"run_id":  result["id"],
-		"status":  result["status"],
-		"message": fmt.Sprintf("Coding agent spawned successfully. Run ID: %v", result["id"]),
+		"run_id":  runID,
+		"task_id": taskID,
+		"status":  runStatus,
+		"message": fmt.Sprintf("Coding agent spawned successfully. Run ID: %s, Task ID: %s", runID, taskID),
 	}, nil
 }
 

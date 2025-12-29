@@ -200,9 +200,18 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 		}
 
 		// Save tool response message (parented to the assistant message)
-		toolMsg, _ := s.repo.SaveToolResponseMessage(ctx, chatID, tc.ID, record.Result, parentMessageID)
-		if toolMsg != nil {
+		// This is CRITICAL - if we fail to save the tool result, subsequent completions
+		// will fail with "No tool output found for function call" errors
+		toolMsg, toolMsgErr := s.repo.SaveToolResponseMessage(ctx, chatID, tc.ID, record.Result, parentMessageID)
+		if toolMsgErr != nil {
+			log.Printf("[ERROR] Failed to save tool response message for %s (tool_call_id=%s): %v",
+				tc.Function.Name, tc.ID, toolMsgErr)
+			// Add to execution errors so caller knows something went wrong
+			executionErrors = append(executionErrors, fmt.Errorf("failed to save tool result for %s: %w", tc.Function.Name, toolMsgErr))
+		} else if toolMsg != nil {
 			lastToolMsgID = toolMsg.ID
+			log.Printf("[DEBUG] Saved tool response message: id=%s, tool_call_id=%s, parent=%s",
+				toolMsg.ID, tc.ID, parentMessageID)
 		}
 
 		// Build result using centralized factory
@@ -483,6 +492,32 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 		Messages:  orMessages,
 		Plugins:   s.messageConverter.BuildPlugins(webSearchEnabled, hasPDF),
 		Streaming: streaming,
+	}
+
+	// Debug: Log messages being sent to OpenRouter to diagnose tool_call issues
+	for i, msg := range orMessages {
+		toolCallsStr := ""
+		if len(msg.ToolCalls) > 0 {
+			ids := make([]string, len(msg.ToolCalls))
+			for j, tc := range msg.ToolCalls {
+				ids[j] = tc.ID
+			}
+			toolCallsStr = fmt.Sprintf(", tool_calls=%v", ids)
+		}
+		toolCallIDStr := ""
+		if msg.ToolCallID != "" {
+			toolCallIDStr = fmt.Sprintf(", tool_call_id=%s", msg.ToolCallID)
+		}
+		contentPreview := ""
+		if s, ok := msg.Content.(string); ok && len(s) > 50 {
+			contentPreview = s[:50] + "..."
+		} else if s, ok := msg.Content.(string); ok {
+			contentPreview = s
+		} else {
+			contentPreview = "[multimodal]"
+		}
+		log.Printf("[DEBUG] PrepareCompletionRequest msg[%d]: role=%s, content=%q%s%s",
+			i, msg.Role, contentPreview, toolCallsStr, toolCallIDStr)
 	}
 
 	// Enable image generation modalities if the model supports it
