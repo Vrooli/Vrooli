@@ -5,14 +5,18 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 var upgrader = websocket.Upgrader{
@@ -122,15 +126,9 @@ func (s *Server) handleTerminalWebSocket(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Start shell
-	workdir := normalized.Target.VPS.Workdir
 	if err := session.Shell(); err != nil {
 		sendTerminalError(conn, "Failed to start shell: "+err.Error())
 		return
-	}
-
-	// Change to workdir
-	if _, err := stdin.Write([]byte("cd " + shellQuoteSingle(workdir) + " && clear\n")); err != nil {
-		log.Printf("Terminal: failed to change to workdir: %v", err)
 	}
 
 	// Create context for cleanup
@@ -252,23 +250,37 @@ func (s *Server) handleTerminalWebSocket(w http.ResponseWriter, r *http.Request)
 func createSSHClient(manifest CloudManifest) (*ssh.Client, error) {
 	vps := manifest.Target.VPS
 
-	// Read private key
-	key, err := readSSHPrivateKey(vps.KeyPath)
-	if err != nil {
-		return nil, err
+	// Expand ~ in key path
+	keyPath := expandKeyPath(vps.KeyPath)
+
+	// Build auth methods - try SSH agent first, then key file
+	var authMethods []ssh.AuthMethod
+
+	// Try SSH agent first (most common for interactive use)
+	if agentAuth := getSSHAgentAuth(); agentAuth != nil {
+		authMethods = append(authMethods, agentAuth)
 	}
 
-	// Parse private key
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		return nil, err
+	// Also try the key file directly
+	key, err := readSSHPrivateKey(keyPath)
+	if err == nil {
+		signer, parseErr := ssh.ParsePrivateKey(key)
+		if parseErr == nil {
+			authMethods = append(authMethods, ssh.PublicKeys(signer))
+		} else {
+			log.Printf("Terminal: failed to parse private key %s: %v", keyPath, parseErr)
+		}
+	} else {
+		log.Printf("Terminal: failed to read private key %s: %v", keyPath, err)
+	}
+
+	if len(authMethods) == 0 {
+		return nil, err // Return the key read error if no auth methods available
 	}
 
 	config := &ssh.ClientConfig{
-		User: vps.User,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
+		User:            vps.User,
+		Auth:            authMethods,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: Use known_hosts in production
 		Timeout:         30 * time.Second,
 	}
@@ -285,6 +297,35 @@ func createSSHClient(manifest CloudManifest) (*ssh.Client, error) {
 	}
 
 	return client, nil
+}
+
+// expandKeyPath expands ~ to the user's home directory.
+func expandKeyPath(path string) string {
+	if strings.HasPrefix(path, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return path
+		}
+		return filepath.Join(homeDir, path[2:])
+	}
+	return path
+}
+
+// getSSHAgentAuth returns an SSH agent auth method if available.
+func getSSHAgentAuth() ssh.AuthMethod {
+	socket := os.Getenv("SSH_AUTH_SOCK")
+	if socket == "" {
+		return nil
+	}
+
+	conn, err := net.Dial("unix", socket)
+	if err != nil {
+		log.Printf("Terminal: failed to connect to SSH agent: %v", err)
+		return nil
+	}
+
+	agentClient := agent.NewClient(conn)
+	return ssh.PublicKeysCallback(agentClient.Signers)
 }
 
 // sendTerminalError sends an error message over the terminal WebSocket.

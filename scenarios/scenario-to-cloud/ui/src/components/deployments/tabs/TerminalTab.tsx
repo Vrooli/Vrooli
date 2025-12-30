@@ -99,16 +99,34 @@ export function TerminalTab({ deploymentId }: TerminalTabProps) {
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (connectionState !== "connected") return;
 
+    // Handle special keys that shouldn't go through textarea onChange
     if (e.key === "Enter") {
       e.preventDefault();
-      sendInput(inputBuffer + "\n");
+      sendInput("\r"); // Just send carriage return, chars already sent via onChange
       setInputBuffer("");
     } else if (e.key === "Backspace") {
-      // Send backspace character
-      sendInput("\x7f");
+      e.preventDefault();
+      sendInput("\x7f"); // Send backspace character
+      setInputBuffer((prev) => prev.slice(0, -1)); // Update local buffer
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      sendInput("\x1b[A"); // Up arrow
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      sendInput("\x1b[B"); // Down arrow
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      sendInput("\x1b[C"); // Right arrow
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      sendInput("\x1b[D"); // Left arrow
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      sendInput("\t"); // Tab for autocomplete
     } else if (e.ctrlKey && e.key === "c") {
       e.preventDefault();
       sendInput("\x03"); // Ctrl+C
+      setInputBuffer("");
     } else if (e.ctrlKey && e.key === "d") {
       e.preventDefault();
       sendInput("\x04"); // Ctrl+D
@@ -116,8 +134,24 @@ export function TerminalTab({ deploymentId }: TerminalTabProps) {
       e.preventDefault();
       setOutput([]);
       sendInput("\x0c"); // Ctrl+L (clear screen)
+    } else if (e.ctrlKey && e.key === "a") {
+      e.preventDefault();
+      sendInput("\x01"); // Ctrl+A (beginning of line)
+    } else if (e.ctrlKey && e.key === "e") {
+      e.preventDefault();
+      sendInput("\x05"); // Ctrl+E (end of line)
+    } else if (e.ctrlKey && e.key === "u") {
+      e.preventDefault();
+      sendInput("\x15"); // Ctrl+U (clear line)
+      setInputBuffer("");
+    } else if (e.ctrlKey && e.key === "k") {
+      e.preventDefault();
+      sendInput("\x0b"); // Ctrl+K (kill to end of line)
+    } else if (e.ctrlKey && e.key === "w") {
+      e.preventDefault();
+      sendInput("\x17"); // Ctrl+W (delete word)
     }
-  }, [connectionState, inputBuffer, sendInput]);
+  }, [connectionState, sendInput]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -144,12 +178,16 @@ export function TerminalTab({ deploymentId }: TerminalTabProps) {
 
   // Process ANSI escape codes for display
   const processAnsi = (text: string): string => {
-    // Remove most ANSI codes but keep the text
-    // This is a simplified version - a full terminal would handle these properly
+    // Remove ANSI codes - a full terminal would use xterm.js for proper handling
     return text
-      .replace(/\x1b\[[0-9;]*m/g, "") // Remove color codes
-      .replace(/\x1b\[[0-9;]*[ABCDK]/g, "") // Remove cursor movement
-      .replace(/\x1b\[\?[0-9;]*[hl]/g, ""); // Remove mode switches
+      // Remove OSC sequences (window title, etc) - \x1b]...(\x07|\x1b\\)
+      .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "")
+      // Remove CSI sequences - \x1b[...letter
+      .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")
+      // Remove other escape sequences
+      .replace(/\x1b[=>]/g, "")
+      // Remove standalone control characters (bell, etc)
+      .replace(/[\x07]/g, "");
   };
 
   return (
@@ -246,7 +284,7 @@ export function TerminalTab({ deploymentId }: TerminalTabProps) {
       {/* Terminal */}
       <div
         className={cn(
-          "relative rounded-lg border border-white/10 bg-slate-950 overflow-hidden",
+          "relative rounded-lg border border-white/10 bg-slate-950",
           isFullscreen ? "flex-1 h-full" : "h-[500px]"
         )}
       >
@@ -263,21 +301,14 @@ export function TerminalTab({ deploymentId }: TerminalTabProps) {
             {/* Output area */}
             <div
               ref={terminalRef}
-              className="h-full overflow-y-auto p-4 font-mono text-sm text-slate-200"
+              className="h-full overflow-y-auto pt-1 px-4 pb-4 font-mono text-sm text-slate-200"
               onClick={() => inputRef.current?.focus()}
             >
-              <pre className="whitespace-pre-wrap break-all">
-                {output.map((line, i) => (
+              <pre className="whitespace-pre-wrap break-all m-0">{output.map((line, i) => (
                   <span key={i}>{processAnsi(line)}</span>
-                ))}
-              </pre>
-              {/* Input line with cursor */}
-              {connectionState === "connected" && (
-                <span className="inline">
-                  <span className="text-emerald-400">{inputBuffer}</span>
+                ))}{/* Cursor indicator inline with output */}{connectionState === "connected" && (
                   <span className="animate-pulse">▋</span>
-                </span>
-              )}
+                )}</pre>
             </div>
 
             {/* Hidden input for keyboard capture */}
