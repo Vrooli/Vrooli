@@ -121,6 +121,12 @@ func (s *Server) setupRoutes() {
 	// Terminal (Ground Truth Redesign - Phase 8)
 	api.HandleFunc("/deployments/{id}/terminal", s.handleTerminalWebSocket).Methods("GET")
 
+	// Edge/TLS Management (Ground Truth Redesign - Enhancement)
+	api.HandleFunc("/deployments/{id}/edge/dns-check", s.handleDNSCheck).Methods("GET")
+	api.HandleFunc("/deployments/{id}/edge/caddy", s.handleCaddyControl).Methods("POST")
+	api.HandleFunc("/deployments/{id}/edge/tls", s.handleTLSInfo).Methods("GET")
+	api.HandleFunc("/deployments/{id}/edge/tls/renew", s.handleTLSRenew).Methods("POST")
+
 	// Documentation
 	api.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")
 	api.HandleFunc("/docs/content", s.handleGetDocContent).Methods("GET")

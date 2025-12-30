@@ -125,7 +125,7 @@ export function LiveStateTab({ deploymentId }: LiveStateTabProps) {
           <SystemResources system={liveState.system} />
         )}
         {activeSection === "caddy" && liveState.caddy && (
-          <CaddyStatus caddy={liveState.caddy} />
+          <CaddyStatus caddy={liveState.caddy} deploymentId={deploymentId} />
         )}
       </div>
     </div>

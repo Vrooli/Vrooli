@@ -832,11 +832,20 @@ export type SwapInfo = {
   usage_percent: number;
 };
 
+export type SSHHealth = {
+  connected: boolean;
+  latency_ms: number;
+  key_in_auth: boolean;
+  key_path: string;
+  error?: string;
+};
+
 export type SystemState = {
   cpu: CPUInfo;
   memory: MemoryInfo;
   disk: DiskInfo;
   swap: SwapInfo;
+  ssh: SSHHealth;
   uptime_seconds: number;
 };
 
@@ -1127,4 +1136,125 @@ export async function getLogs(
     throw new Error(`Failed to get logs: ${res.status} ${text}`);
   }
   return res.json() as Promise<LogsResponse>;
+}
+
+// ============================================================================
+// Edge/TLS Management Types & Functions (Ground Truth Redesign - Enhancement)
+// ============================================================================
+
+export type DNSCheckResponse = {
+  ok: boolean;
+  domain: string;
+  vps_host: string;
+  domain_ips?: string[];
+  vps_ips?: string[];
+  points_to_vps: boolean;
+  message: string;
+  hint?: string;
+  timestamp: string;
+};
+
+export type CaddyAction = "start" | "stop" | "restart" | "reload";
+
+export type CaddyControlRequest = {
+  action: CaddyAction;
+};
+
+export type CaddyControlResponse = {
+  ok: boolean;
+  action: string;
+  message: string;
+  output?: string;
+  timestamp: string;
+};
+
+export type TLSInfoResponse = {
+  ok: boolean;
+  domain: string;
+  valid: boolean;
+  issuer?: string;
+  subject?: string;
+  not_before?: string;
+  not_after?: string;
+  days_remaining: number;
+  serial_number?: string;
+  sans?: string[];
+  error?: string;
+  timestamp: string;
+};
+
+export type TLSRenewResponse = {
+  ok: boolean;
+  domain: string;
+  message: string;
+  output?: string;
+  timestamp: string;
+};
+
+/**
+ * Check if domain DNS points to VPS
+ */
+export async function checkDNS(deploymentId: string): Promise<DNSCheckResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/edge/dns-check`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to check DNS: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<DNSCheckResponse>;
+}
+
+/**
+ * Control Caddy service (start, stop, restart, reload)
+ */
+export async function controlCaddy(
+  deploymentId: string,
+  action: CaddyAction
+): Promise<CaddyControlResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/edge/caddy`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to control Caddy: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<CaddyControlResponse>;
+}
+
+/**
+ * Get detailed TLS certificate information
+ */
+export async function getTLSInfo(deploymentId: string): Promise<TLSInfoResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/edge/tls`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get TLS info: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<TLSInfoResponse>;
+}
+
+/**
+ * Force TLS certificate renewal
+ */
+export async function renewTLS(deploymentId: string): Promise<TLSRenewResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/edge/tls/renew`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to renew TLS: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<TLSRenewResponse>;
 }

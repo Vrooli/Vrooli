@@ -217,6 +217,11 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 	cfg := sshConfigFromManifest(normalized)
 	workdir := normalized.Target.VPS.Workdir
 
+	// Handle relative paths by prepending workdir
+	if !strings.HasPrefix(requestedPath, "/") {
+		requestedPath = workdir + "/" + requestedPath
+	}
+
 	// Security: Ensure path is within workdir (with exception for common config files)
 	allowedPaths := []string{"/etc/caddy/Caddyfile"}
 	pathAllowed := isPathWithinWorkdir(requestedPath, workdir)
@@ -231,7 +236,7 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, APIError{
 			Code:    "path_not_allowed",
 			Message: "Path must be within the deployment workdir",
-			Hint:    "Requested path: " + requestedPath,
+			Hint:    "Requested path: " + requestedPath + ", Workdir: " + workdir,
 		})
 		return
 	}

@@ -2,6 +2,7 @@ import {
   FileText,
   Loader2,
   AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { CodeBlock } from "../../ui/code-block";
 import { formatBytes } from "../../../hooks/useLiveState";
@@ -12,6 +13,7 @@ interface FileViewerProps {
   isLoading: boolean;
   truncated?: boolean;
   sizeBytes?: number;
+  error?: Error | null;
 }
 
 export function FileViewer({
@@ -20,6 +22,7 @@ export function FileViewer({
   isLoading,
   truncated,
   sizeBytes,
+  error,
 }: FileViewerProps) {
   if (!path) {
     return (
@@ -38,11 +41,46 @@ export function FileViewer({
     );
   }
 
+  if (error) {
+    // Parse error message to provide better context
+    const errorMessage = error.message || "Unknown error";
+    let displayMessage = "Unable to load file content";
+    let hint = "";
+
+    if (errorMessage.includes("path_not_allowed")) {
+      displayMessage = "Access denied";
+      hint = "This path is outside the allowed directory.";
+    } else if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+      displayMessage = "File not found";
+      hint = "The file may have been moved or deleted.";
+    } else if (errorMessage.includes("ssh_failed")) {
+      displayMessage = "SSH connection failed";
+      hint = "Unable to connect to the VPS.";
+    } else if (errorMessage.includes("400")) {
+      displayMessage = "Invalid request";
+      hint = errorMessage;
+    } else {
+      hint = errorMessage;
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center h-48 text-slate-500">
+        <AlertCircle className="h-12 w-12 mb-2 text-red-400 opacity-70" />
+        <p className="text-sm font-medium text-red-400">{displayMessage}</p>
+        {hint && (
+          <p className="text-xs text-slate-500 mt-1 max-w-sm text-center">{hint}</p>
+        )}
+        <p className="text-xs text-slate-600 mt-2 font-mono">{path}</p>
+      </div>
+    );
+  }
+
   if (content === undefined) {
     return (
       <div className="flex flex-col items-center justify-center h-48 text-slate-500">
         <FileText className="h-12 w-12 mb-2 opacity-50" />
         <p className="text-sm">Unable to load file content</p>
+        <p className="text-xs text-slate-600 mt-1">Try selecting the file again</p>
       </div>
     );
   }

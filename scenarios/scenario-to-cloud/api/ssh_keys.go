@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -512,27 +513,52 @@ func TestSSHConnection(ctx context.Context, req TestSSHConnectionRequest) TestSS
 		}
 	}
 
-	// Use the existing ExecSSHRunner for consistency
-	cfg := SSHConfig{
-		Host:    req.Host,
-		Port:    req.Port,
-		User:    req.User,
-		KeyPath: keyPath,
+	// Build SSH command with IdentitiesOnly=yes to test ONLY the specified key
+	// (not SSH agent keys). This ensures the test accurately reflects whether
+	// the key file itself is authorized on the server.
+	args := []string{
+		"-o", "BatchMode=yes",
+		"-o", "ConnectTimeout=10",
+		"-o", "StrictHostKeyChecking=accept-new",
+		"-o", "IdentitiesOnly=yes", // Only use the specified key, not SSH agent
+		"-p", fmt.Sprintf("%d", req.Port),
+		"-i", keyPath,
+		fmt.Sprintf("%s@%s", req.User, req.Host),
+		"--",
+		"echo ok && cat /etc/os-release 2>/dev/null | head -5",
 	}
 
 	start := time.Now()
-	result, err := ExecSSHRunner{}.Run(ctx, cfg, "echo ok && cat /etc/os-release 2>/dev/null | head -5")
+	cmd := exec.CommandContext(ctx, "ssh", args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	runErr := cmd.Run()
 	latency := time.Since(start).Milliseconds()
 
-	if err != nil {
+	result := SSHResult{
+		Stdout:   strings.TrimRight(stdout.String(), "\n"),
+		Stderr:   strings.TrimRight(stderr.String(), "\n"),
+		ExitCode: 0,
+	}
+	if runErr != nil {
+		var ee *exec.ExitError
+		if errors.As(runErr, &ee) {
+			result.ExitCode = ee.ExitCode()
+		} else {
+			result.ExitCode = 255
+		}
+	}
+
+	if runErr != nil {
 		// Parse error to provide helpful hints
 		// Check both err.Error() and stderr for SSH error messages
-		errStr := err.Error() + " " + result.Stderr
+		errStr := runErr.Error() + " " + result.Stderr
 		status := "unknown_error"
 		message := "SSH connection failed"
 		hint := result.Stderr
 		if hint == "" {
-			hint = err.Error()
+			hint = runErr.Error()
 		}
 
 		if strings.Contains(errStr, "Host key verification failed") {

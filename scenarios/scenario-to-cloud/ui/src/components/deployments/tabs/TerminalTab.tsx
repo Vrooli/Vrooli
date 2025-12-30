@@ -10,7 +10,7 @@ import {
   Minimize2,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
-import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
+import { resolveWsBase, buildWsUrl } from "@vrooli/api-base";
 
 interface TerminalTabProps {
   deploymentId: string;
@@ -38,10 +38,8 @@ export function TerminalTab({ deploymentId }: TerminalTabProps) {
     setErrorMessage(null);
 
     // Build WebSocket URL
-    const apiBase = resolveApiBase({ appendSuffix: true });
-    const wsUrl = apiBase
-      .replace(/^http/, "ws")
-      .replace(/\/$/, "") + `/deployments/${deploymentId}/terminal`;
+    const wsBase = resolveWsBase({ appendSuffix: true });
+    const wsUrl = buildWsUrl(`/deployments/${deploymentId}/terminal`, { baseUrl: wsBase });
 
     try {
       const ws = new WebSocket(wsUrl);

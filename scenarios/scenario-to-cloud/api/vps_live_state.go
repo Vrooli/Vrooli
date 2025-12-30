@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -118,7 +120,17 @@ type SystemState struct {
 	Memory        MemoryInfo `json:"memory"`
 	Disk          DiskInfo   `json:"disk"`
 	Swap          SwapInfo   `json:"swap"`
+	SSH           SSHHealth  `json:"ssh"`
 	UptimeSeconds int64      `json:"uptime_seconds"`
+}
+
+// SSHHealth contains SSH connectivity status.
+type SSHHealth struct {
+	Connected    bool   `json:"connected"`
+	LatencyMs    int64  `json:"latency_ms"`
+	KeyInAuth    bool   `json:"key_in_auth"`    // Is manifest key in authorized_keys?
+	KeyPath      string `json:"key_path"`       // Path to the key file used
+	Error        string `json:"error,omitempty"`
 }
 
 // CPUInfo contains CPU information.
@@ -172,6 +184,10 @@ func RunLiveStateInspection(ctx context.Context, manifest CloudManifest, sshRunn
 	workdir := manifest.Target.VPS.Workdir
 	targetScenario := manifest.Scenario.ID
 
+	// Get the public key fingerprint for SSH key verification
+	keyPath := cfg.KeyPath
+	pubKeyFingerprint := getPublicKeyFingerprint(keyPath)
+
 	// Define all commands to execute
 	commands := []sshCommand{
 		{id: "ps", command: "ps aux --no-headers"},
@@ -182,10 +198,15 @@ func RunLiveStateInspection(ctx context.Context, manifest CloudManifest, sshRunn
 		{id: "uptime", command: "cat /proc/uptime 2>/dev/null"},
 		{id: "cpuinfo", command: "grep -c processor /proc/cpuinfo 2>/dev/null"},
 		{id: "cpumodel", command: "grep 'model name' /proc/cpuinfo 2>/dev/null | head -1"},
+		// Get CPU usage by sampling /proc/stat twice with 1 second delay
+		// This gives accurate current CPU usage, not since-boot average
+		{id: "cpuusage", command: "cat /proc/stat | head -1; sleep 1; cat /proc/stat | head -1"},
 		{id: "scenario_status", command: fmt.Sprintf("cd %s && vrooli scenario status %s --json 2>/dev/null", shellQuoteSingle(workdir), shellQuoteSingle(targetScenario))},
 		{id: "resource_status", command: fmt.Sprintf("cd %s && vrooli resource status --json 2>/dev/null", shellQuoteSingle(workdir))},
 		{id: "caddy_config", command: "cat /etc/caddy/Caddyfile 2>/dev/null || echo ''"},
 		{id: "caddy_running", command: "pgrep -x caddy >/dev/null 2>&1 && echo 'running' || echo 'stopped'"},
+		// SSH health: check if our public key is in authorized_keys
+		{id: "ssh_key_check", command: "cat ~/.ssh/authorized_keys 2>/dev/null || echo ''"},
 	}
 
 	// Execute commands in parallel
@@ -222,8 +243,8 @@ func RunLiveStateInspection(ctx context.Context, manifest CloudManifest, sshRunn
 		SyncDurationMs: time.Since(start).Milliseconds(),
 	}
 
-	// Parse system info
-	systemState := parseSystemState(results)
+	// Parse system info (including SSH health)
+	systemState := parseSystemState(results, keyPath, pubKeyFingerprint, time.Since(start).Milliseconds())
 	liveState.System = &systemState
 
 	// Parse port bindings
@@ -508,4 +529,25 @@ func findSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// getPublicKeyFingerprint reads the public key content from the key file.
+// Returns the public key content (not fingerprint) for matching in authorized_keys.
+func getPublicKeyFingerprint(keyPath string) string {
+	// Expand ~ in path
+	if len(keyPath) > 0 && keyPath[0] == '~' {
+		if home, err := os.UserHomeDir(); err == nil {
+			keyPath = home + keyPath[1:]
+		}
+	}
+
+	// Read public key file (.pub extension)
+	pubKeyPath := keyPath + ".pub"
+	content, err := os.ReadFile(pubKeyPath)
+	if err != nil {
+		return ""
+	}
+
+	// Return the key content for matching
+	return strings.TrimSpace(string(content))
 }

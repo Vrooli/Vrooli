@@ -31,6 +31,7 @@ import {
 import { cn } from "../../lib/utils";
 import type { Deployment } from "../../lib/api";
 import { LiveStateTab, FilesTab, DriftTab, HistoryTab, TerminalTab } from "./tabs";
+import { CodeBlock } from "../ui/code-block";
 
 interface DeploymentDetailsProps {
   deploymentId: string;
@@ -46,7 +47,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const [showSetupResult, setShowSetupResult] = useState(false);
   const [showDeployResult, setShowDeployResult] = useState(false);
   const [showLogs, setShowLogs] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "live-state" | "files" | "drift" | "history" | "terminal">("live-state");
+  const [activeTab, setActiveTab] = useState<"overview" | "live-state" | "files" | "drift" | "history" | "terminal">("overview");
 
   if (isLoading) {
     return (
@@ -202,6 +203,18 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       {/* Tab Navigation */}
       <div className="flex gap-1 border-b border-white/10 pb-px overflow-x-auto">
         <button
+          onClick={() => setActiveTab("overview")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
+            activeTab === "overview"
+              ? "bg-slate-800 text-white border-b-2 border-blue-500"
+              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+          )}
+        >
+          <LayoutDashboard className="h-4 w-4" />
+          Overview
+        </button>
+        <button
           onClick={() => setActiveTab("live-state")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
@@ -260,18 +273,6 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
         >
           <Terminal className="h-4 w-4" />
           Terminal
-        </button>
-        <button
-          onClick={() => setActiveTab("overview")}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
-            activeTab === "overview"
-              ? "bg-slate-800 text-white border-b-2 border-blue-500"
-              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
-          )}
-        >
-          <LayoutDashboard className="h-4 w-4" />
-          Overview
         </button>
       </div>
 
@@ -386,9 +387,13 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           isOpen={showSetupResult}
           onToggle={() => setShowSetupResult(!showSetupResult)}
         >
-          <pre className="text-xs text-slate-300 overflow-x-auto">
-            {JSON.stringify(deployment.setup_result, null, 2)}
-          </pre>
+          <CodeBlock
+            code={JSON.stringify(deployment.setup_result, null, 2)}
+            language="json"
+            maxHeight="400px"
+            showLineNumbers={true}
+            showHeader={true}
+          />
         </CollapsibleSection>
       )}
 
@@ -399,9 +404,13 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           isOpen={showDeployResult}
           onToggle={() => setShowDeployResult(!showDeployResult)}
         >
-          <pre className="text-xs text-slate-300 overflow-x-auto">
-            {JSON.stringify(deployment.deploy_result, null, 2)}
-          </pre>
+          <CodeBlock
+            code={JSON.stringify(deployment.deploy_result, null, 2)}
+            language="json"
+            maxHeight="400px"
+            showLineNumbers={true}
+            showHeader={true}
+          />
         </CollapsibleSection>
       )}
 

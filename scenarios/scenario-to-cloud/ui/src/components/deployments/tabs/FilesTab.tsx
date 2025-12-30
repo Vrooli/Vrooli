@@ -54,6 +54,7 @@ export function FilesTab({ deploymentId }: FilesTabProps) {
   const {
     data: fileContent,
     isLoading: isLoadingContent,
+    error: fileContentError,
   } = useFileContent(deploymentId, selectedFile);
 
   const handleNavigate = (path: string) => {
@@ -247,6 +248,7 @@ export function FilesTab({ deploymentId }: FilesTabProps) {
                   isLoading={isLoadingContent}
                   truncated={fileContent?.truncated}
                   sizeBytes={fileContent?.sizeBytes}
+                  error={fileContentError}
                 />
               </div>
             </div>

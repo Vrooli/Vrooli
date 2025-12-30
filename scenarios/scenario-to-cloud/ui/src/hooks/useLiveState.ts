@@ -8,6 +8,10 @@ import {
   restartProcess,
   getHistory,
   getLogs,
+  checkDNS,
+  controlCaddy,
+  getTLSInfo,
+  renewTLS,
   type LiveStateResult,
   type FileEntry,
   type DriftReport,
@@ -15,6 +19,9 @@ import {
   type RestartRequest,
   type HistoryEvent,
   type LogEntry,
+  type CaddyAction,
+  type DNSCheckResponse,
+  type TLSInfoResponse,
 } from "../lib/api";
 
 /**
@@ -268,4 +275,72 @@ export function getLogLevelInfo(level: string): { color: string; bg: string } {
   };
 
   return levelMap[level.toUpperCase()] || { color: "text-slate-400", bg: "bg-slate-500/20" };
+}
+
+// ============================================================================
+// Edge/TLS Hooks (Ground Truth Redesign - Enhancement)
+// ============================================================================
+
+/**
+ * Hook to check DNS resolution (domain points to VPS).
+ */
+export function useDNSCheck(deploymentId: string | null) {
+  return useQuery({
+    queryKey: ["dnsCheck", deploymentId],
+    queryFn: async () => {
+      if (!deploymentId) return null;
+      return checkDNS(deploymentId);
+    },
+    enabled: !!deploymentId,
+    staleTime: 60000, // DNS doesn't change often
+  });
+}
+
+/**
+ * Hook to control Caddy service (start, stop, restart, reload).
+ */
+export function useCaddyControl(deploymentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (action: CaddyAction) => {
+      return controlCaddy(deploymentId, action);
+    },
+    onSuccess: () => {
+      // Invalidate live state to refresh caddy status
+      queryClient.invalidateQueries({ queryKey: ["liveState", deploymentId] });
+      queryClient.invalidateQueries({ queryKey: ["drift", deploymentId] });
+    },
+  });
+}
+
+/**
+ * Hook to fetch detailed TLS certificate information.
+ */
+export function useTLSInfo(deploymentId: string | null) {
+  return useQuery({
+    queryKey: ["tlsInfo", deploymentId],
+    queryFn: async () => {
+      if (!deploymentId) return null;
+      return getTLSInfo(deploymentId);
+    },
+    enabled: !!deploymentId,
+    staleTime: 300000, // TLS info rarely changes (5 min)
+  });
+}
+
+/**
+ * Hook to force TLS certificate renewal.
+ */
+export function useTLSRenew(deploymentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      return renewTLS(deploymentId);
+    },
+    onSuccess: () => {
+      // Invalidate TLS info to refresh certificate status
+      queryClient.invalidateQueries({ queryKey: ["tlsInfo", deploymentId] });
+      queryClient.invalidateQueries({ queryKey: ["liveState", deploymentId] });
+    },
+  });
 }

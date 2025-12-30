@@ -1,4 +1,13 @@
-import { Cpu, HardDrive, Database, Clock } from "lucide-react";
+import {
+  Cpu,
+  HardDrive,
+  Database,
+  Clock,
+  Key,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
 import type { SystemState } from "../../../lib/api";
 import { formatUptime, formatMB } from "../../../hooks/useLiveState";
 import { cn } from "../../../lib/utils";
@@ -23,7 +32,7 @@ export function SystemResources({ system }: SystemResourcesProps) {
             max={100}
             color="blue"
           />
-          {system.cpu.load_average.length > 0 && (
+          {system.cpu.load_average && system.cpu.load_average.length > 0 && (
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500">Load Average:</span>
               <span className="text-slate-300 font-mono">
@@ -118,6 +127,74 @@ export function SystemResources({ system }: SystemResourcesProps) {
             <span className="text-slate-500">Uptime:</span>
             <span className="text-slate-300">{formatUptime(system.uptime_seconds)}</span>
           </div>
+        </div>
+      </ResourceCard>
+
+      {/* SSH Connectivity */}
+      <ResourceCard
+        icon={Key}
+        title="SSH"
+        subtitle={system.ssh.connected ? `${system.ssh.latency_ms}ms latency` : "Disconnected"}
+      >
+        <div className="space-y-3">
+          {/* Connection Status */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-500">Connection:</span>
+            {system.ssh.connected ? (
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+                <CheckCircle2 className="h-3 w-3" />
+                Connected
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs text-red-400">
+                <XCircle className="h-3 w-3" />
+                Disconnected
+              </span>
+            )}
+          </div>
+
+          {/* Key Authorization Status */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-500">Key in authorized_keys:</span>
+            {system.ssh.key_in_auth ? (
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+                <CheckCircle2 className="h-3 w-3" />
+                Yes
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs text-amber-400">
+                <AlertTriangle className="h-3 w-3" />
+                No
+              </span>
+            )}
+          </div>
+
+          {/* Key Path */}
+          {system.ssh.key_path && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-500">Key:</span>
+              <span className="text-slate-300 font-mono text-[10px] truncate max-w-[180px]" title={system.ssh.key_path}>
+                {system.ssh.key_path.split("/").pop()}
+              </span>
+            </div>
+          )}
+
+          {/* Error */}
+          {system.ssh.error && (
+            <div className="text-xs text-red-400 mt-2">
+              {system.ssh.error}
+            </div>
+          )}
+
+          {/* Warning if key not in authorized_keys */}
+          {system.ssh.connected && !system.ssh.key_in_auth && (
+            <div className="mt-2 p-2 rounded bg-amber-500/10 border border-amber-500/20">
+              <p className="text-xs text-amber-400">
+                The configured SSH key is not in the VPS authorized_keys.
+                SSH may fail if the current session uses SSH agent.
+              </p>
+            </div>
+          )}
         </div>
       </ResourceCard>
     </div>
