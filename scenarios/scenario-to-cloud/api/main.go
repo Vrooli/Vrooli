@@ -82,7 +82,6 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/scenarios/{id}/ports", s.handleScenarioPorts).Methods("GET")
 	api.HandleFunc("/validate/reachability", s.handleReachabilityCheck).Methods("POST")
 	api.HandleFunc("/manifest/validate", s.handleManifestValidate).Methods("POST")
-	api.HandleFunc("/plan", s.handlePlan).Methods("POST")
 	api.HandleFunc("/bundle/build", s.handleBundleBuild).Methods("POST")
 	api.HandleFunc("/bundles", s.handleListBundles).Methods("GET")
 	api.HandleFunc("/bundles/stats", s.handleBundleStats).Methods("GET")
@@ -170,36 +169,6 @@ func (s *Server) handleManifestValidate(w http.ResponseWriter, r *http.Request) 
 		SchemaHint: "This endpoint is the consumer-side contract. deployment-manager is responsible for exporting the manifest.",
 	}
 	writeJSON(w, http.StatusOK, resp)
-}
-
-func (s *Server) handlePlan(w http.ResponseWriter, r *http.Request) {
-	manifest, err := decodeJSON[CloudManifest](r.Body, 1<<20)
-	if err != nil {
-		writeAPIError(w, http.StatusBadRequest, APIError{
-			Code:    "invalid_json",
-			Message: "Request body must be valid JSON",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	normalized, issues := ValidateAndNormalizeManifest(manifest)
-	if hasBlockingIssues(issues) {
-		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
-			Valid:     false,
-			Issues:    issues,
-			Manifest:  normalized,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		})
-		return
-	}
-
-	plan := BuildPlan(normalized)
-	writeJSON(w, http.StatusOK, PlanResponse{
-		Plan:      plan,
-		Issues:    issues,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	})
 }
 
 func (s *Server) handleBundleBuild(w http.ResponseWriter, r *http.Request) {

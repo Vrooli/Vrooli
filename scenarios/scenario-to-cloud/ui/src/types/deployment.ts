@@ -1,4 +1,4 @@
-import type { BundleArtifact, PlanStep, ValidationIssue } from "../lib/api";
+import type { BundleArtifact, ValidationIssue } from "../lib/api";
 
 export type DeploymentTarget = {
   type: "vps";
@@ -39,7 +39,6 @@ export type DeploymentManifest = {
 export type WizardStep =
   | "manifest"
   | "validate"
-  | "plan"
   | "build"
   | "preflight"
   | "deploy";
@@ -47,7 +46,6 @@ export type WizardStep =
 export const WIZARD_STEPS: Array<{ id: WizardStep; label: string; description: string }> = [
   { id: "manifest", label: "Manifest", description: "Configure deployment settings" },
   { id: "validate", label: "Validate", description: "Check manifest for errors" },
-  { id: "plan", label: "Plan", description: "Review deployment steps" },
   { id: "build", label: "Build", description: "Create deployment bundle" },
   { id: "preflight", label: "Preflight", description: "Verify target server" },
   { id: "deploy", label: "Deploy", description: "Deploy to server" },
@@ -63,11 +61,6 @@ export type DeploymentState = {
   validationIssues: ValidationIssue[] | null;
   validationError: string | null;
   isValidating: boolean;
-
-  // Plan
-  plan: PlanStep[] | null;
-  planError: string | null;
-  isPlanning: boolean;
 
   // Bundle
   bundleArtifact: BundleArtifact | null;

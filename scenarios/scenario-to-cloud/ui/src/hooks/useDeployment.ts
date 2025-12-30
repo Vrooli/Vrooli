@@ -1,13 +1,11 @@
 import { useState, useMemo, useCallback } from "react";
 import {
   validateManifest,
-  buildPlan,
   buildBundle,
   runPreflight as runPreflightApi,
   createDeployment,
   executeDeployment,
   type ValidationIssue,
-  type PlanStep,
   type BundleArtifact,
   type PreflightCheck,
   type SSHConnectionStatus,
@@ -69,11 +67,6 @@ export function useDeployment() {
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[] | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-
-  // Plan state
-  const [plan, setPlan] = useState<PlanStep[] | null>(null);
-  const [planError, setPlanError] = useState<string | null>(null);
-  const [isPlanning, setIsPlanning] = useState(false);
 
   // Bundle state
   const [bundleArtifact, setBundleArtifact] = useState<BundleArtifact | null>(null);
@@ -171,24 +164,6 @@ export function useDeployment() {
     }
   }, [parsedManifest]);
 
-  const generatePlan = useCallback(async () => {
-    setPlan(null);
-    setPlanError(null);
-    setIsPlanning(true);
-
-    try {
-      if (!parsedManifest.ok) {
-        throw new Error(`Invalid JSON: ${parsedManifest.error}`);
-      }
-      const res = await buildPlan(parsedManifest.value);
-      setPlan(res.plan ?? []);
-    } catch (e) {
-      setPlanError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setIsPlanning(false);
-    }
-  }, [parsedManifest]);
-
   const build = useCallback(async () => {
     setBundleArtifact(null);
     setBundleError(null);
@@ -273,8 +248,6 @@ export function useDeployment() {
     setManifestJson(DEFAULT_MANIFEST_JSON);
     setValidationIssues(null);
     setValidationError(null);
-    setPlan(null);
-    setPlanError(null);
     setBundleArtifact(null);
     setBundleError(null);
     setPreflightPassed(null);
@@ -295,8 +268,6 @@ export function useDeployment() {
         return parsedManifest.ok;
       case "validate":
         return validationIssues !== null && validationIssues.filter((i) => i.severity === "error").length === 0;
-      case "plan":
-        return plan !== null && plan.length > 0;
       case "build":
         return bundleArtifact !== null;
       case "preflight":
@@ -307,7 +278,7 @@ export function useDeployment() {
       default:
         return false;
     }
-  }, [currentStep.id, parsedManifest, validationIssues, plan, bundleArtifact, preflightPassed, preflightOverride, preflightChecks, deploymentStatus]);
+  }, [currentStep.id, parsedManifest, validationIssues, bundleArtifact, preflightPassed, preflightOverride, preflightChecks, deploymentStatus]);
 
   const hasSavedProgress = saved !== null && saved.manifestJson !== DEFAULT_MANIFEST_JSON;
 
@@ -332,12 +303,6 @@ export function useDeployment() {
     validationError,
     isValidating,
     validate,
-
-    // Plan
-    plan,
-    planError,
-    isPlanning,
-    generatePlan,
 
     // Bundle
     bundleArtifact,

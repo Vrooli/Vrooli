@@ -298,8 +298,6 @@ const literalSelectors = {
     caddyEnabledCheckbox: "manifest-caddy-enabled-checkbox",
     validateButton: "manifest-validate-button",
     validateResult: "manifest-validate-result",
-    planButton: "manifest-plan-button",
-    planResult: "manifest-plan-result",
     bundleBuildButton: "manifest-bundle-build-button",
     bundleBuildResult: "manifest-bundle-build-result",
   },
@@ -335,14 +333,7 @@ const dynamicSelectorDefinitions = {
     stepByName: defineDynamicSelector({
       description: "Wizard step by name",
       testIdPattern: "wizard-step-${name}",
-      params: { name: { type: "enum", values: ["manifest", "validate", "plan", "build", "preflight", "deploy"] } },
-    }),
-  },
-  plan: {
-    stepByIndex: defineDynamicSelector({
-      description: "Plan step by index (0-based)",
-      testIdPattern: "plan-step-${index}",
-      params: { index: { type: "number" } },
+      params: { name: { type: "enum", values: ["manifest", "validate", "build", "preflight", "deploy"] } },
     }),
   },
   validation: {

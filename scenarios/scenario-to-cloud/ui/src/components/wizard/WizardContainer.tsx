@@ -5,7 +5,6 @@ import { Card, CardContent } from "../ui/card";
 import { useDeployment } from "../../hooks/useDeployment";
 import { StepManifest } from "./StepManifest";
 import { StepValidate } from "./StepValidate";
-import { StepPlan } from "./StepPlan";
 import { StepBuild } from "./StepBuild";
 import { StepPreflight } from "./StepPreflight";
 import { StepDeploy } from "./StepDeploy";
@@ -26,8 +25,6 @@ export function WizardContainer({ onBackToDashboard, onViewDeployments }: Wizard
         return <StepManifest deployment={deployment} />;
       case "validate":
         return <StepValidate deployment={deployment} />;
-      case "plan":
-        return <StepPlan deployment={deployment} />;
       case "build":
         return <StepBuild deployment={deployment} />;
       case "preflight":
