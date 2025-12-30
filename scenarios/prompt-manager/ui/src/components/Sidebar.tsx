@@ -9,31 +9,89 @@ import {
   Settings,
   HelpCircle,
   X,
+  type LucideIcon,
 } from 'lucide-react'
 import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
+
+export type ViewFilter = 'campaigns' | 'favorites' | 'recent' | 'popular'
+
+interface SidebarItem {
+  key: ViewFilter
+  icon: LucideIcon
+  label: string
+  badge?: number
+}
 
 interface SidebarProps {
   collapsed: boolean
   onToggle: () => void
   variant?: 'desktop' | 'floating'
   onClose?: () => void
+  activeFilter: ViewFilter
+  onFilterChange: (filter: ViewFilter) => void
+  counts?: {
+    favorites?: number
+    recent?: number
+    popular?: number
+  }
 }
-
-const sidebarItems = [
-  { icon: Folder, label: 'All Campaigns', active: true },
-  { icon: Star, label: 'Favorites', badge: '12' },
-  { icon: Clock, label: 'Recent', badge: '3' },
-  { icon: TrendingUp, label: 'Popular' },
-]
 
 const bottomItems = [
   { icon: Settings, label: 'Settings' },
   { icon: HelpCircle, label: 'Help' },
 ]
 
-export function Sidebar({ collapsed, onToggle, variant = 'desktop', onClose }: SidebarProps) {
+export function Sidebar({
+  collapsed,
+  onToggle,
+  variant = 'desktop',
+  onClose,
+  activeFilter,
+  onFilterChange,
+  counts = {}
+}: SidebarProps) {
   const handleClose = onClose ?? onToggle
+
+  const sidebarItems: SidebarItem[] = [
+    { key: 'campaigns', icon: Folder, label: 'All Campaigns' },
+    { key: 'favorites', icon: Star, label: 'Favorites', badge: counts.favorites },
+    { key: 'recent', icon: Clock, label: 'Recent', badge: counts.recent },
+    { key: 'popular', icon: TrendingUp, label: 'Popular', badge: counts.popular },
+  ]
+
+  const renderNavItem = (item: SidebarItem, index: number) => {
+    const isActive = activeFilter === item.key
+    return (
+      <motion.div
+        key={item.key}
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: index * 0.08 }}
+      >
+        <Button
+          variant={isActive ? 'secondary' : 'ghost'}
+          onClick={() => onFilterChange(item.key)}
+          className={cn(
+            'w-full justify-start h-10 px-3',
+            isActive && 'bg-primary/10 text-primary border border-primary/20'
+          )}
+        >
+          <item.icon className="h-4 w-4 mr-3" />
+          <span className="flex-1 text-left">{item.label}</span>
+          {item.badge !== undefined && item.badge > 0 && (
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="ml-auto bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full"
+            >
+              {item.badge}
+            </motion.span>
+          )}
+        </Button>
+      </motion.div>
+    )
+  }
 
   if (variant === 'floating') {
     return (
@@ -63,34 +121,7 @@ export function Sidebar({ collapsed, onToggle, variant = 'desktop', onClose }: S
           animate={{ opacity: 1 }}
           className="px-4 pb-4 space-y-2"
         >
-          {sidebarItems.map((item, index) => (
-            <motion.div
-              key={item.label}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.08 }}
-            >
-              <Button
-                variant={item.active ? 'secondary' : 'ghost'}
-                className={cn(
-                  'w-full justify-start h-10 px-3',
-                  item.active && 'bg-primary/10 text-primary border border-primary/20'
-                )}
-              >
-                <item.icon className="h-4 w-4 mr-3" />
-                <span className="flex-1 text-left">{item.label}</span>
-                {item.badge && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="ml-auto bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full"
-                  >
-                    {item.badge}
-                  </motion.span>
-                )}
-              </Button>
-            </motion.div>
-          ))}
+          {sidebarItems.map((item, index) => renderNavItem(item, index))}
         </motion.nav>
 
         <motion.div
@@ -142,34 +173,7 @@ export function Sidebar({ collapsed, onToggle, variant = 'desktop', onClose }: S
           className="flex-1 p-4 space-y-2"
         >
           <div className="space-y-1">
-            {sidebarItems.map((item, index) => (
-              <motion.div
-                key={item.label}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Button
-                  variant={item.active ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start h-10 px-3",
-                    item.active && "bg-primary/10 text-primary border border-primary/20"
-                  )}
-                >
-                  <item.icon className="h-4 w-4 mr-3" />
-                  <span className="flex-1 text-left">{item.label}</span>
-                  {item.badge && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="ml-auto bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full"
-                    >
-                      {item.badge}
-                    </motion.span>
-                  )}
-                </Button>
-              </motion.div>
-            ))}
+            {sidebarItems.map((item, index) => renderNavItem(item, index))}
           </div>
         </motion.nav>
       )}
@@ -201,38 +205,38 @@ export function Sidebar({ collapsed, onToggle, variant = 'desktop', onClose }: S
           animate={{ opacity: 1 }}
           className="flex-1 p-2 space-y-2"
         >
-          {sidebarItems.map((item, index) => (
-            <motion.div
-              key={item.label}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.1 }}
-              className="relative group"
-            >
-              <Button
-                variant={item.active ? "secondary" : "ghost"}
-                size="icon"
-                className={cn(
-                  "w-full h-10",
-                  item.active && "bg-primary/10 text-primary"
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-              </Button>
-              
-              {/* Tooltip */}
+          {sidebarItems.map((item, index) => {
+            const isActive = activeFilter === item.key
+            return (
               <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                whileHover={{ opacity: 1, x: 0 }}
-                className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 z-50 group-hover:block hidden"
+                key={item.key}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.1 }}
+                className="relative group"
               >
-                <div className="bg-popover text-popover-foreground text-sm px-2 py-1 rounded border shadow-lg whitespace-nowrap">
-                  {item.label}
-                  <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-popover border-l border-b rotate-45" />
+                <Button
+                  variant={isActive ? 'secondary' : 'ghost'}
+                  size="icon"
+                  onClick={() => onFilterChange(item.key)}
+                  className={cn(
+                    'w-full h-10',
+                    isActive && 'bg-primary/10 text-primary'
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                </Button>
+
+                {/* Tooltip */}
+                <div className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 z-50 hidden group-hover:block pointer-events-none">
+                  <div className="bg-popover text-popover-foreground text-sm px-2 py-1 rounded border shadow-lg whitespace-nowrap">
+                    {item.label}
+                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-popover border-l border-b rotate-45" />
+                  </div>
                 </div>
               </motion.div>
-            </motion.div>
-          ))}
+            )
+          })}
         </motion.div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   RefreshCw,
   Loader2,
@@ -6,6 +6,7 @@ import {
   FolderTree,
   Package,
   FileText,
+  GripVertical,
 } from "lucide-react";
 import { useFiles, useFileContent } from "../../../hooks/useLiveState";
 import { FileTree } from "./FileTree";
@@ -20,10 +21,27 @@ interface FilesTabProps {
 
 type Section = "explorer" | "bundles";
 
+const STORAGE_KEY = "stc.files.treeWidth";
+const MIN_TREE_WIDTH = 200;
+const MAX_TREE_WIDTH = 600;
+const DEFAULT_TREE_WIDTH = 280;
+
 export function FilesTab({ deploymentId }: FilesTabProps) {
   const [currentPath, setCurrentPath] = useState<string | undefined>(undefined);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<Section>("explorer");
+
+  // Resizable panel state
+  const [treeWidth, setTreeWidth] = useState(() => {
+    if (typeof window === "undefined") return DEFAULT_TREE_WIDTH;
+    const stored = Number(localStorage.getItem(STORAGE_KEY));
+    return Number.isFinite(stored) && stored >= MIN_TREE_WIDTH && stored <= MAX_TREE_WIDTH
+      ? stored
+      : DEFAULT_TREE_WIDTH;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   const {
     data: filesData,
@@ -54,6 +72,53 @@ export function FilesTab({ deploymentId }: FilesTabProps) {
   const handleRefresh = () => {
     refetch();
   };
+
+  // Persist tree width to localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(STORAGE_KEY, String(treeWidth));
+  }, [treeWidth]);
+
+  // Handle resize start
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizeRef.current = { startX: e.clientX, startWidth: treeWidth };
+    setIsResizing(true);
+  }, [treeWidth]);
+
+  // Handle resize move and end
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const delta = e.clientX - resizeRef.current.startX;
+      const newWidth = Math.max(
+        MIN_TREE_WIDTH,
+        Math.min(MAX_TREE_WIDTH, resizeRef.current.startWidth + delta)
+      );
+      setTreeWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      resizeRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing]);
 
   const sections = [
     { id: "explorer" as const, label: "File Explorer", icon: FolderTree },
@@ -134,30 +199,56 @@ export function FilesTab({ deploymentId }: FilesTabProps) {
             selectedPath={selectedFile}
           />
 
-          {/* File Explorer and Viewer */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* File Tree */}
-            <div className="border border-white/10 rounded-lg bg-slate-900/50 p-4 max-h-[600px] overflow-auto">
-              <h3 className="text-sm font-medium text-slate-400 mb-3">Directory Tree</h3>
-              <FileTree
-                entries={filesData?.entries || []}
-                currentPath={filesData?.path || "/"}
-                onNavigate={handleNavigate}
-                onSelectFile={handleSelectFile}
-                selectedFile={selectedFile}
-              />
+          {/* File Explorer and Viewer - Resizable */}
+          <div
+            ref={containerRef}
+            className="flex border border-white/10 rounded-lg bg-slate-900/50 overflow-hidden"
+            style={{ minHeight: "600px" }}
+          >
+            {/* File Tree Panel */}
+            <div
+              className="flex-shrink-0 overflow-auto border-r border-white/10"
+              style={{ width: treeWidth }}
+            >
+              <div className="p-4">
+                <h3 className="text-sm font-medium text-slate-400 mb-3">Directory Tree</h3>
+                <FileTree
+                  entries={filesData?.entries || []}
+                  currentPath={filesData?.path || "/"}
+                  onNavigate={handleNavigate}
+                  onSelectFile={handleSelectFile}
+                  selectedFile={selectedFile}
+                />
+              </div>
             </div>
 
-            {/* File Viewer */}
-            <div className="border border-white/10 rounded-lg bg-slate-900/50 p-4 max-h-[600px] overflow-auto">
-              <h3 className="text-sm font-medium text-slate-400 mb-3">File Content</h3>
-              <FileViewer
-                path={selectedFile}
-                content={fileContent?.content}
-                isLoading={isLoadingContent}
-                truncated={fileContent?.truncated}
-                sizeBytes={fileContent?.sizeBytes}
-              />
+            {/* Resize Handle */}
+            <div
+              className={cn(
+                "flex-shrink-0 w-2 cursor-col-resize flex items-center justify-center",
+                "bg-slate-800/50 hover:bg-slate-700/50 transition-colors",
+                isResizing && "bg-blue-600/30"
+              )}
+              onMouseDown={handleResizeStart}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize panels"
+            >
+              <GripVertical className="h-4 w-4 text-slate-600" />
+            </div>
+
+            {/* File Viewer Panel */}
+            <div className="flex-1 min-w-0 overflow-auto">
+              <div className="p-4">
+                <h3 className="text-sm font-medium text-slate-400 mb-3">File Content</h3>
+                <FileViewer
+                  path={selectedFile}
+                  content={fileContent?.content}
+                  isLoading={isLoadingContent}
+                  truncated={fileContent?.truncated}
+                  sizeBytes={fileContent?.sizeBytes}
+                />
+              </div>
             </div>
           </div>
         </div>
