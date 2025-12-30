@@ -28,6 +28,7 @@ import type {
   SelectorSet,
   ReplayPreviewResponse,
 } from '../types/types';
+import type { WorkflowSettingsTyped } from '@/types/workflow';
 
 interface UseRecordModeOptions {
   sessionId: string | null;
@@ -48,7 +49,7 @@ interface UseRecordModeReturn {
   deleteAction: (index: number) => void;
   updateSelector: (index: number, newSelector: string) => void;
   updatePayload: (index: number, payload: Record<string, unknown>) => void;
-  generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[]) => Promise<GenerateWorkflowResponse>;
+  generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped) => Promise<GenerateWorkflowResponse>;
   validateSelector: (selector: string) => Promise<SelectorValidation>;
   refreshActions: () => Promise<void>;
   replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]) => Promise<ReplayPreviewResponse>;
@@ -78,7 +79,7 @@ interface UseRecordingTransportReturn {
   error: string | null;
   startRecording: (sessionIdOverride?: string) => Promise<void>;
   stopRecording: () => Promise<void>;
-  generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[]) => Promise<GenerateWorkflowResponse>;
+  generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped) => Promise<GenerateWorkflowResponse>;
   validateSelector: (selector: string) => Promise<SelectorValidation>;
   refreshActions: () => Promise<void>;
   replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]) => Promise<ReplayPreviewResponse>;
@@ -287,7 +288,7 @@ function useRecordingTransport({
   }, [apiUrl, refreshActions]);
 
   const generateWorkflow = useCallback(
-    async (name: string, projectId?: string, actionsOverride?: RecordedAction[]): Promise<GenerateWorkflowResponse> => {
+    async (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped): Promise<GenerateWorkflowResponse> => {
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
         throw new Error('No session ID provided');
@@ -311,6 +312,7 @@ function useRecordingTransport({
               name,
               project_id: projectId,
               actions: actionsToSend,
+              settings,
             }),
           }
         );

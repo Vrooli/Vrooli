@@ -42,7 +42,7 @@ describe('NavigationHandler', () => {
       expect(mockPage.goto).toHaveBeenCalledWith(
         'https://example.com/',
         expect.objectContaining({
-          waitUntil: 'networkidle',
+          waitUntil: 'domcontentloaded',
         })
       );
       expect(result.success).toBe(true);
@@ -156,10 +156,11 @@ describe('NavigationHandler', () => {
       await handler.execute(instruction, context);
 
       // Note: URL is normalized (trailing slash added by URL.href)
+      // Default is 'domcontentloaded' - 'networkidle' times out on ad-heavy sites
       expect(mockPage.goto).toHaveBeenCalledWith(
         'https://example.com/',
         expect.objectContaining({
-          waitUntil: 'networkidle',
+          waitUntil: 'domcontentloaded',
         })
       );
     });

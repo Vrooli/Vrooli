@@ -114,7 +114,8 @@ export class NavigationHandler extends BaseHandler {
       const normalizedUrl = urlValidation.normalized || url;
       // Prefer config timeout, fallback to param, then constant default
       const timeout = params.timeoutMs || context.config.execution.navigationTimeoutMs || DEFAULT_NAVIGATION_TIMEOUT_MS;
-      const waitUntil = (params.waitUntil || 'networkidle') as 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
+      // Use 'domcontentloaded' as default - 'networkidle' times out on ad-heavy sites
+      const waitUntil = (params.waitUntil || 'domcontentloaded') as 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
 
       logger.debug('instruction: navigate starting', {
         targetUrl: normalizedUrl,

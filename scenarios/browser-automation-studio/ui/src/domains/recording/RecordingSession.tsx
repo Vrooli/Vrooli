@@ -28,6 +28,7 @@ import { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanner
 import { ClearActionsModal } from './capture/RecordModeModals';
 import { WorkflowCreationForm } from './conversion/WorkflowCreationForm';
 import type { BrowserProfile, RecordingSessionProfile, ReplayPreviewResponse } from './types/types';
+import type { WorkflowSettingsTyped } from '@/types/workflow';
 import { SessionManager } from '@/views/SettingsView/sections/sessions';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
@@ -683,6 +684,7 @@ export function RecordModePage({
       path?: string;
       referenceWorkflowId?: string;
       compositionMode?: 'inline' | 'reference';
+      settings?: WorkflowSettingsTyped;
     }) => {
       setIsGenerating(true);
       try {
@@ -715,6 +717,7 @@ export function RecordModePage({
                 name: params.name,
                 type: params.workflowType || 'flow',
                 flow_definition: flowDefinition,
+                settings: params.settings,
               },
             }),
           });
@@ -741,7 +744,7 @@ export function RecordModePage({
             ? params.actionIndices.map((index) => mergedActions[index]).filter(Boolean)
             : [];
           const actionsToGenerate = selectedActions.length > 0 ? selectedActions : mergedActions;
-          const result = await generateWorkflow(params.name, params.projectId, actionsToGenerate);
+          const result = await generateWorkflow(params.name, params.projectId, actionsToGenerate, params.settings);
 
           // Reset state
           setRightPanelView('preview');

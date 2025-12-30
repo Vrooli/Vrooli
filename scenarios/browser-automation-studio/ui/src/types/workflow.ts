@@ -16,6 +16,9 @@ export interface WorkflowMetadataTyped {
   version?: string;
 }
 
+/** Navigation wait condition for page.goto() */
+export type NavigationWaitUntil = 'domcontentloaded' | 'networkidle' | 'load' | 'commit';
+
 export interface WorkflowSettingsTyped {
   viewport_width?: number;
   viewport_height?: number;
@@ -24,6 +27,12 @@ export interface WorkflowSettingsTyped {
   timeout_ms?: number;
   entry_selector_timeout_ms?: number;
   headless?: boolean;
+  /** Navigation wait condition - when to consider navigation complete */
+  navigation_wait_until?: NavigationWaitUntil;
+  /** Whether to continue execution when a step fails */
+  continue_on_error?: boolean;
+  /** Delay between actions in ms (for debugging/demos) */
+  slow_motion_ms?: number;
   extras?: Record<string, unknown>;
 }
 

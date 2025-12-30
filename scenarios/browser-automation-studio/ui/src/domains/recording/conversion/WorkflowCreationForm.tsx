@@ -9,20 +9,34 @@
  * - Project selection dropdown
  * - Default session selection (for workflow execution)
  * - Selection summary (step count, ranges)
+ * - Advanced settings (navigation, timeouts, viewport)
  * - Test button to validate before generating
  * - Generate button to create the workflow
  * - Back button to return to Live Preview
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { ChevronDown, ChevronRight, Settings2, ArrowLeft, Play, Sparkles, CheckCircle2, XCircle, AlertTriangle, FolderTree, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { useProjectStore, type Project } from '@/domains/projects';
+import ProjectModal from '@/domains/projects/ProjectModal';
 import type { RecordedAction, RecordingSessionProfile, ReplayPreviewResponse } from '../types/types';
+import type { NavigationWaitUntil, WorkflowSettingsTyped } from '@/types/workflow';
+import { ProjectPickerModal } from './ProjectPickerModal';
 
 /** Describes a contiguous range of selected steps */
 export interface SelectionRange {
   start: number;
   end: number;
   count: number;
+}
+
+/** Advanced workflow settings from the form */
+export interface WorkflowAdvancedSettings {
+  navigationWaitUntil: NavigationWaitUntil;
+  actionTimeoutSeconds: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  continueOnError: boolean;
 }
 
 interface WorkflowCreationFormProps {
@@ -48,12 +62,30 @@ interface WorkflowCreationFormProps {
     projectId: string;
     defaultSessionId: string | null;
     actionIndices: number[];
+    settings?: WorkflowSettingsTyped;
   }) => Promise<void>;
   /** Count of actions with low confidence selectors */
   lowConfidenceCount: number;
   /** Count of actions with medium confidence selectors */
   mediumConfidenceCount: number;
 }
+
+// Default values for advanced settings
+const DEFAULT_SETTINGS: WorkflowAdvancedSettings = {
+  navigationWaitUntil: 'domcontentloaded',
+  actionTimeoutSeconds: 30,
+  viewportWidth: 1920,
+  viewportHeight: 1080,
+  continueOnError: false,
+};
+
+// Navigation wait options
+const NAVIGATION_WAIT_OPTIONS: { value: NavigationWaitUntil; label: string; description: string }[] = [
+  { value: 'domcontentloaded', label: 'DOM Ready', description: 'Wait for HTML to parse (fast, recommended)' },
+  { value: 'load', label: 'Page Load', description: 'Wait for all resources to load' },
+  { value: 'networkidle', label: 'Network Idle', description: 'Wait for no network activity (slow on heavy sites)' },
+  { value: 'commit', label: 'Commit', description: 'Wait for first response byte (fastest)' },
+];
 
 /**
  * Compute contiguous ranges from sorted indices.
@@ -69,16 +101,13 @@ export function computeSelectionRanges(indices: number[]): SelectionRange[] {
 
   for (let i = 1; i < sorted.length; i++) {
     if (sorted[i] === rangeEnd + 1) {
-      // Contiguous
       rangeEnd = sorted[i];
     } else {
-      // Gap - close current range and start new one
       ranges.push({ start: rangeStart, end: rangeEnd, count: rangeEnd - rangeStart + 1 });
       rangeStart = sorted[i];
       rangeEnd = sorted[i];
     }
   }
-  // Close final range
   ranges.push({ start: rangeStart, end: rangeEnd, count: rangeEnd - rangeStart + 1 });
 
   return ranges;
@@ -87,7 +116,6 @@ export function computeSelectionRanges(indices: number[]): SelectionRange[] {
 /**
  * Format ranges for display.
  * E.g., [{start: 0, end: 2}, {start: 5, end: 6}] -> "Steps 1-3, 6-7"
- * (Using 1-indexed for user display)
  */
 function formatRanges(ranges: SelectionRange[]): string {
   if (ranges.length === 0) return 'No steps selected';
@@ -116,13 +144,22 @@ export function WorkflowCreationForm({
   lowConfidenceCount,
   mediumConfidenceCount,
 }: WorkflowCreationFormProps) {
-  const { projects, fetchProjects, isLoading: projectsLoading, getSmartDefaultProject } = useProjectStore();
+  const { projects, fetchProjects, getSmartDefaultProject } = useProjectStore();
 
+  // Basic form state
   const [workflowName, setWorkflowName] = useState('');
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<ReplayPreviewResponse | null>(null);
+
+  // Project picker modal state
+  const [isProjectPickerOpen, setIsProjectPickerOpen] = useState(false);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+
+  // Advanced settings state
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advancedSettings, setAdvancedSettings] = useState<WorkflowAdvancedSettings>(DEFAULT_SETTINGS);
 
   // Fetch projects on mount
   useEffect(() => {
@@ -131,21 +168,28 @@ export function WorkflowCreationForm({
 
   // Set default project when projects load
   useEffect(() => {
-    if (!selectedProjectId && projects.length > 0) {
+    if (!selectedProject && projects.length > 0) {
       const defaultProject = getSmartDefaultProject();
       if (defaultProject) {
-        setSelectedProjectId(defaultProject.id);
+        setSelectedProject(defaultProject);
       }
     }
-  }, [projects, selectedProjectId, getSmartDefaultProject]);
+  }, [projects, selectedProject, getSmartDefaultProject]);
 
   // Compute selection info
   const selectionRanges = useMemo(() => computeSelectionRanges(selectedIndices), [selectedIndices]);
   const totalSelected = selectedIndices.length;
-  const hasMultipleRanges = selectionRanges.length > 1;
 
   // Check for unstable selectors in selection
   const hasUnstableSelectors = lowConfidenceCount > 0 || mediumConfidenceCount > 0;
+
+  // Update a single advanced setting
+  const updateSetting = useCallback(<K extends keyof WorkflowAdvancedSettings>(
+    key: K,
+    value: WorkflowAdvancedSettings[K]
+  ) => {
+    setAdvancedSettings(prev => ({ ...prev, [key]: value }));
+  }, []);
 
   const handleTest = async () => {
     setError(null);
@@ -163,7 +207,7 @@ export function WorkflowCreationForm({
       setError('Please enter a workflow name');
       return;
     }
-    if (!selectedProjectId) {
+    if (!selectedProject) {
       setError('Please select a project');
       return;
     }
@@ -174,184 +218,309 @@ export function WorkflowCreationForm({
 
     setError(null);
     try {
+      // Convert form settings to WorkflowSettingsTyped
+      const settings: WorkflowSettingsTyped = {
+        navigation_wait_until: advancedSettings.navigationWaitUntil,
+        entry_selector_timeout_ms: advancedSettings.actionTimeoutSeconds * 1000,
+        viewport_width: advancedSettings.viewportWidth,
+        viewport_height: advancedSettings.viewportHeight,
+        continue_on_error: advancedSettings.continueOnError,
+      };
+
       await onGenerate({
         name: workflowName.trim(),
-        projectId: selectedProjectId,
+        projectId: selectedProject.id,
         defaultSessionId: selectedSessionId,
         actionIndices: selectedIndices,
+        settings,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate workflow');
     }
   };
 
-  const isFormValid = workflowName.trim().length > 0 && selectedProjectId && totalSelected > 0;
+  const isFormValid = workflowName.trim().length > 0 && selectedProject !== null && totalSelected > 0;
+
+  // Handle project creation from ProjectModal
+  const handleProjectCreated = useCallback((project: Project) => {
+    setSelectedProject(project);
+    setIsProjectModalOpen(false);
+  }, []);
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+          className="flex items-center gap-1.5 px-2 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back
+          <ArrowLeft size={16} />
+          <span>Back</span>
         </button>
         <div className="flex-1" />
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Create Workflow</h2>
         <div className="flex-1" />
-        {/* Spacer to center title */}
-        <div className="w-[52px]" />
+        <div className="w-[72px]" /> {/* Spacer to center title */}
       </div>
 
       {/* Form Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Selection Summary */}
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-blue-100 dark:bg-blue-800 rounded-full">
-              <span className="text-lg font-bold text-blue-600 dark:text-blue-300">{totalSelected}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                {totalSelected === 1 ? '1 step selected' : `${totalSelected} steps selected`}
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
-                {formatRanges(selectionRanges)}
-              </p>
-              {hasMultipleRanges && (
-                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                  {selectionRanges.length} separate ranges will create {selectionRanges.length} workflow{selectionRanges.length > 1 ? 's' : ''}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-4">
+          {/* Selection Summary Card */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                <span className="text-xl font-bold text-blue-600 dark:text-blue-400">{totalSelected}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {totalSelected === 1 ? '1 step selected' : `${totalSelected} steps selected`}
                 </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Unstable Selectors Warning */}
-        {hasUnstableSelectors && (
-          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-            <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <div>
-                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                  {lowConfidenceCount > 0
-                    ? `${lowConfidenceCount} step${lowConfidenceCount > 1 ? 's have' : ' has'} unstable selectors`
-                    : `${mediumConfidenceCount} step${mediumConfidenceCount > 1 ? 's have' : ' has'} potentially unstable selectors`}
-                </p>
-                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                  The workflow may fail on replay. Consider editing selectors before generating.
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {formatRanges(selectionRanges)}
                 </p>
               </div>
             </div>
           </div>
-        )}
 
-        {/* Workflow Name */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Workflow Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={workflowName}
-            onChange={(e) => setWorkflowName(e.target.value)}
-            placeholder="e.g., Login Flow, Submit Form"
-            className="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            autoFocus
-          />
-        </div>
+          {/* Unstable Selectors Warning */}
+          {hasUnstableSelectors && (
+            <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+              <AlertTriangle size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  {lowConfidenceCount > 0
+                    ? `${lowConfidenceCount} step${lowConfidenceCount > 1 ? 's have' : ' has'} unstable selectors`
+                    : `${mediumConfidenceCount} step${mediumConfidenceCount > 1 ? 's have' : ' has'} potentially unstable selectors`}
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                  Consider editing selectors before generating.
+                </p>
+              </div>
+            </div>
+          )}
 
-        {/* Project Selection */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Project <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={selectedProjectId || ''}
-            onChange={(e) => setSelectedProjectId(e.target.value || null)}
-            disabled={projectsLoading}
-            className="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-          >
-            {projectsLoading ? (
-              <option value="">Loading projects...</option>
-            ) : projects.length === 0 ? (
-              <option value="">No projects available</option>
-            ) : (
-              <>
-                <option value="">Select a project</option>
-                {projects.map((project: Project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
+          {/* Main Form Card */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+            {/* Workflow Name */}
+            <div className="p-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Workflow Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={workflowName}
+                onChange={(e) => setWorkflowName(e.target.value)}
+                placeholder="e.g., Login Flow, Submit Form"
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoFocus
+              />
+            </div>
+
+            {/* Project Selection */}
+            <div className="p-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Project <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsProjectPickerOpen(true)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-left hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  selectedProject
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+                }`}>
+                  <FolderTree size={16} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  {selectedProject ? (
+                    <>
+                      <div className="font-medium text-gray-900 dark:text-white truncate">
+                        {selectedProject.name}
+                      </div>
+                      {selectedProject.description && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {selectedProject.description}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-gray-400 dark:text-gray-500">
+                      Select a project...
+                    </div>
+                  )}
+                </div>
+                <ChevronRightIcon size={16} className="text-gray-400 flex-shrink-0" />
+              </button>
+            </div>
+
+            {/* Default Session Selection */}
+            <div className="p-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Default Session
+              </label>
+              <select
+                value={selectedSessionId || ''}
+                onChange={(e) => setSelectedSessionId(e.target.value || null)}
+                disabled={sessionProfilesLoading}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+              >
+                <option value="">None (create new each run)</option>
+                {sessionProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name}
+                    {profile.has_storage_state ? ' (Auth saved)' : ''}
                   </option>
                 ))}
-              </>
-            )}
-          </select>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            The workflow will be saved to this project.
-          </p>
-        </div>
+              </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                Use a saved browser session with existing login state.
+              </p>
+            </div>
+          </div>
 
-        {/* Default Session Selection */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Default Session
-          </label>
-          <select
-            value={selectedSessionId || ''}
-            onChange={(e) => setSelectedSessionId(e.target.value || null)}
-            disabled={sessionProfilesLoading}
-            className="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-          >
-            <option value="">None (create new each run)</option>
-            {sessionProfiles.map((profile) => (
-              <option key={profile.id} value={profile.id}>
-                {profile.name}
-                {profile.has_storage_state ? ' (Auth saved)' : ''}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Optional: Use a saved browser session with existing login state.
-          </p>
-        </div>
-
-        {/* Test Results */}
-        {testResults && (
-          <div
-            className={`p-4 rounded-lg border ${
-              testResults.success
-                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              {testResults.success ? (
-                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+          {/* Advanced Settings Accordion */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Settings2 size={16} className="text-gray-500 dark:text-gray-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Advanced Settings</span>
+              </div>
+              {showAdvanced ? (
+                <ChevronDown size={16} className="text-gray-400" />
               ) : (
-                <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                <ChevronRight size={16} className="text-gray-400" />
+              )}
+            </button>
+
+            {showAdvanced && (
+              <div className="border-t border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+                {/* Navigation Wait */}
+                <div className="p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Navigation Wait
+                  </label>
+                  <select
+                    value={advancedSettings.navigationWaitUntil}
+                    onChange={(e) => updateSetting('navigationWaitUntil', e.target.value as NavigationWaitUntil)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {NAVIGATION_WAIT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                    {NAVIGATION_WAIT_OPTIONS.find(o => o.value === advancedSettings.navigationWaitUntil)?.description}
+                  </p>
+                </div>
+
+                {/* Action Timeout */}
+                <div className="p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Action Timeout
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={300}
+                      value={advancedSettings.actionTimeoutSeconds}
+                      onChange={(e) => updateSetting('actionTimeoutSeconds', Math.max(1, Math.min(300, parseInt(e.target.value) || 30)))}
+                      className="w-24 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <span className="text-sm text-gray-500 dark:text-gray-400">seconds</span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                    How long to wait for elements before timing out.
+                  </p>
+                </div>
+
+                {/* Viewport */}
+                <div className="p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Viewport Size
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={320}
+                      max={3840}
+                      value={advancedSettings.viewportWidth}
+                      onChange={(e) => updateSetting('viewportWidth', Math.max(320, Math.min(3840, parseInt(e.target.value) || 1920)))}
+                      className="w-24 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <span className="text-sm text-gray-500 dark:text-gray-400">×</span>
+                    <input
+                      type="number"
+                      min={240}
+                      max={2160}
+                      value={advancedSettings.viewportHeight}
+                      onChange={(e) => updateSetting('viewportHeight', Math.max(240, Math.min(2160, parseInt(e.target.value) || 1080)))}
+                      className="w-24 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <span className="text-sm text-gray-500 dark:text-gray-400">px</span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                    Browser window dimensions for workflow execution.
+                  </p>
+                </div>
+
+                {/* Continue on Error */}
+                <div className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Continue on Error
+                      </label>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Keep running even if a step fails.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={advancedSettings.continueOnError}
+                      onClick={() => updateSetting('continueOnError', !advancedSettings.continueOnError)}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        advancedSettings.continueOnError
+                          ? 'bg-blue-500'
+                          : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          advancedSettings.continueOnError ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Test Results */}
+          {testResults && (
+            <div
+              className={`flex items-center gap-3 p-4 rounded-lg border ${
+                testResults.success
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+              }`}
+            >
+              {testResults.success ? (
+                <CheckCircle2 size={20} className="text-green-500 flex-shrink-0" />
+              ) : (
+                <XCircle size={20} className="text-red-500 flex-shrink-0" />
               )}
               <div className="flex-1">
                 <p
@@ -372,57 +541,38 @@ export function WorkflowCreationForm({
                       : 'text-red-700 dark:text-red-300'
                   }`}
                 >
-                  {(testResults.total_duration_ms / 1000).toFixed(1)}s total
+                  Completed in {(testResults.total_duration_ms / 1000).toFixed(1)}s
                 </p>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Error Message */}
-        {error && (
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-          </div>
-        )}
+          {/* Error Message */}
+          {error && (
+            <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+              <XCircle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Footer Actions */}
-      <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+      <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <div className="flex gap-3">
           <button
             onClick={handleTest}
             disabled={isReplaying || isGenerating || totalSelected === 0}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isReplaying ? (
               <>
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
+                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                 Testing...
               </>
             ) : (
               <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+                <Play size={16} />
                 Test First
               </>
             )}
@@ -430,31 +580,38 @@ export function WorkflowCreationForm({
           <button
             onClick={handleGenerate}
             disabled={!isFormValid || isReplaying || isGenerating}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isGenerating ? (
               <>
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 Generating...
               </>
             ) : (
               <>
+                <Sparkles size={16} />
                 Generate
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
               </>
             )}
           </button>
         </div>
       </div>
+
+      {/* Project Picker Modal */}
+      <ProjectPickerModal
+        isOpen={isProjectPickerOpen}
+        onClose={() => setIsProjectPickerOpen(false)}
+        onSelect={setSelectedProject}
+        onCreateNew={() => setIsProjectModalOpen(true)}
+        selectedProject={selectedProject}
+      />
+
+      {/* Project Creation Modal */}
+      <ProjectModal
+        isOpen={isProjectModalOpen}
+        onClose={() => setIsProjectModalOpen(false)}
+        onSuccess={handleProjectCreated}
+      />
     </div>
   );
 }
