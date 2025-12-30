@@ -1,0 +1,78 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "prompt-manager-must-have-cli-for-quick-prompt-operations",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Implement command-line interface for basic prompt operations (CRUD)",
+      "id": "REQ-P0-005",
+      "prd_ref": "prompt-manager-must-have-cli-for-quick-prompt-operations",
+      "status": "draft",
+      "title": "CLI Basic Operations",
+      "validation": [
+        {
+          "notes": "All CRUD commands functional",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Command argument validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Help documentation available",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI operations affect database",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Error handling and feedback",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI commands complete within 1 second",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can manage prompts via CLI",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI provides clear feedback",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "CLI for quick prompt operations"
+}

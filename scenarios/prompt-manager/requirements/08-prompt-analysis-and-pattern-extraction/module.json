@@ -1,0 +1,75 @@
+{
+  "description": "",
+  "module_id": "MOD-P1-008",
+  "prd_ref": "prompt-manager-should-have-prompt-analysis-and-pattern-extraction",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Implement analysis system to identify patterns and commonalities in prompt structure",
+      "id": "REQ-P1-002",
+      "prd_ref": "prompt-manager-should-have-prompt-analysis-and-pattern-extraction",
+      "status": "draft",
+      "title": "Prompt Pattern Analysis",
+      "validation": [
+        {
+          "notes": "Pattern detection algorithms",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Analysis result formatting",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Pattern categorization",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Analysis system integration",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Pattern storage and retrieval",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Analysis complete within 5s for 100 prompts",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Patterns provide valuable insights",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Analysis results are actionable",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Prompt analysis and pattern extraction"
+}

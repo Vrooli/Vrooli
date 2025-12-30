@@ -2,21 +2,38 @@
   "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
   "_metadata": {
     "description": "Testing configuration for prompt-manager",
-    "generated_from": "test/phases/test-unit.sh",
-    "last_updated": "2025-11-06T23:58:55-05:00"
+    "last_updated": "2025-12-30T00:00:00Z"
   },
   "version": "1.0.0",
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ]
+  },
   "unit": {
     "languages": {
-      "go": {
-        "coverage": {
-          "warn_threshold": 15,
-          "error_threshold": 10
-        }
+      "go": {},
+      "node": {}
+    }
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
       }
-    },
-    "options": {
-      "verbose": false
+    }
+  },
+  "performance": {
+    "checks": {
+      "lighthouse": {
+        "enabled": true
+      },
+      "bundle_size": {
+        "enabled": true
+      }
     }
   }
 }

@@ -1,0 +1,79 @@
+{
+  "description": "",
+  "module_id": "MOD-P2-015",
+  "prd_ref": "prompt-manager-nice-to-have-version-history-for-prompts-complete-full-implementation-with-api-endpoints-automatic-versioning-cli-commands",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-012"
+      ],
+      "description": "Implement version history system for tracking prompt changes over time",
+      "id": "REQ-P2-004",
+      "prd_ref": "prompt-manager-nice-to-have-version-history-for-prompts-complete-full-implementation-with-api-endpoints-automatic-versioning-cli-commands",
+      "status": "draft",
+      "title": "Prompt Version Control",
+      "validation": [
+        {
+          "notes": "Version creation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "History tracking",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Rollback functionality",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Version control system integration",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API endpoint functionality",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Version operations under 500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Changes are tracked effectively",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Version history is maintainable",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Version history for prompts (COMPLETE: Full implementation with API endpoints, automatic versioning, CLI commands)"
+}

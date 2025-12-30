@@ -1,0 +1,370 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus database status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "version": "string",
+          "checks": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "prompt-manager status"
+      }
+    },
+    {
+      "id": "list-campaigns",
+      "path": "/api/v1/campaigns",
+      "method": "GET",
+      "summary": "List all campaigns",
+      "description": "Returns all campaigns ordered by sort_order and name",
+      "category": "campaigns",
+      "response": {
+        "type": "array",
+        "items": {
+          "type": "Campaign"
+        }
+      },
+      "examples": [
+        {
+          "name": "List campaigns",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/campaigns"
+        }
+      ],
+      "cli_mapping": {
+        "command": "prompt-manager campaigns list"
+      }
+    },
+    {
+      "id": "create-campaign",
+      "path": "/api/v1/campaigns",
+      "method": "POST",
+      "summary": "Create a new campaign",
+      "description": "Creates a new campaign for organizing prompts",
+      "category": "campaigns",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string (required)",
+          "description": "string",
+          "color": "string",
+          "icon": "string",
+          "parent_id": "string"
+        }
+      },
+      "cli_mapping": {
+        "command": "prompt-manager campaigns create"
+      }
+    },
+    {
+      "id": "get-campaign",
+      "path": "/api/v1/campaigns/{id}",
+      "method": "GET",
+      "summary": "Get campaign by ID",
+      "description": "Returns a single campaign with its metadata",
+      "category": "campaigns"
+    },
+    {
+      "id": "update-campaign",
+      "path": "/api/v1/campaigns/{id}",
+      "method": "PUT",
+      "summary": "Update a campaign",
+      "description": "Updates campaign properties",
+      "category": "campaigns"
+    },
+    {
+      "id": "delete-campaign",
+      "path": "/api/v1/campaigns/{id}",
+      "method": "DELETE",
+      "summary": "Delete a campaign",
+      "description": "Deletes a campaign (must have no prompts)",
+      "category": "campaigns"
+    },
+    {
+      "id": "get-campaign-prompts",
+      "path": "/api/v1/campaigns/{id}/prompts",
+      "method": "GET",
+      "summary": "Get prompts in campaign",
+      "description": "Returns all non-archived prompts in a campaign",
+      "category": "campaigns"
+    },
+    {
+      "id": "list-prompts",
+      "path": "/api/v1/prompts",
+      "method": "GET",
+      "summary": "List prompts",
+      "description": "Returns prompts with optional filters (archived, favorites, limit)",
+      "category": "prompts",
+      "query_params": [
+        {"name": "limit", "type": "integer", "default": 50},
+        {"name": "archived", "type": "boolean", "default": false},
+        {"name": "favorites", "type": "boolean", "default": false}
+      ],
+      "cli_mapping": {
+        "command": "prompt-manager list"
+      }
+    },
+    {
+      "id": "create-prompt",
+      "path": "/api/v1/prompts",
+      "method": "POST",
+      "summary": "Create a new prompt",
+      "description": "Creates a new prompt in a campaign",
+      "category": "prompts",
+      "cli_mapping": {
+        "command": "prompt-manager add"
+      }
+    },
+    {
+      "id": "get-prompt",
+      "path": "/api/v1/prompts/{id}",
+      "method": "GET",
+      "summary": "Get prompt by ID",
+      "description": "Returns a single prompt with tags",
+      "category": "prompts",
+      "cli_mapping": {
+        "command": "prompt-manager show"
+      }
+    },
+    {
+      "id": "update-prompt",
+      "path": "/api/v1/prompts/{id}",
+      "method": "PUT",
+      "summary": "Update a prompt",
+      "description": "Updates prompt content and metadata, creates version snapshot",
+      "category": "prompts"
+    },
+    {
+      "id": "delete-prompt",
+      "path": "/api/v1/prompts/{id}",
+      "method": "DELETE",
+      "summary": "Delete a prompt",
+      "description": "Permanently deletes a prompt and its tags",
+      "category": "prompts"
+    },
+    {
+      "id": "record-usage",
+      "path": "/api/v1/prompts/{id}/use",
+      "method": "POST",
+      "summary": "Record prompt usage",
+      "description": "Increments usage count and updates last_used timestamp",
+      "category": "prompts",
+      "cli_mapping": {
+        "command": "prompt-manager use"
+      }
+    },
+    {
+      "id": "search-prompts",
+      "path": "/api/v1/search/prompts",
+      "method": "GET",
+      "summary": "Full-text search prompts",
+      "description": "Searches prompts using PostgreSQL full-text search",
+      "category": "search",
+      "query_params": [
+        {"name": "q", "type": "string", "required": true}
+      ],
+      "cli_mapping": {
+        "command": "prompt-manager search"
+      }
+    },
+    {
+      "id": "semantic-search",
+      "path": "/api/v1/prompts/semantic",
+      "method": "POST",
+      "summary": "Semantic vector search",
+      "description": "Searches prompts using Qdrant vector similarity (requires Qdrant + Ollama)",
+      "category": "search",
+      "optional_dependencies": ["qdrant", "ollama"]
+    },
+    {
+      "id": "get-quick-access",
+      "path": "/api/v1/prompts/quick/{key}",
+      "method": "GET",
+      "summary": "Get prompt by quick access key",
+      "description": "Returns prompt by its quick access key",
+      "category": "prompts",
+      "cli_mapping": {
+        "command": "prompt-manager quick"
+      }
+    },
+    {
+      "id": "get-recent",
+      "path": "/api/v1/prompts/recent",
+      "method": "GET",
+      "summary": "Get recently used prompts",
+      "description": "Returns prompts ordered by last_used",
+      "category": "prompts"
+    },
+    {
+      "id": "get-favorites",
+      "path": "/api/v1/prompts/favorites",
+      "method": "GET",
+      "summary": "Get favorite prompts",
+      "description": "Returns prompts marked as favorites",
+      "category": "prompts"
+    },
+    {
+      "id": "test-prompt",
+      "path": "/api/v1/prompts/{id}/test",
+      "method": "POST",
+      "summary": "Test prompt with LLM",
+      "description": "Runs prompt through Ollama and saves test result",
+      "category": "testing",
+      "optional_dependencies": ["ollama"]
+    },
+    {
+      "id": "get-test-history",
+      "path": "/api/v1/prompts/{id}/test-history",
+      "method": "GET",
+      "summary": "Get prompt test history",
+      "description": "Returns previous test results for a prompt",
+      "category": "testing"
+    },
+    {
+      "id": "list-tags",
+      "path": "/api/v1/tags",
+      "method": "GET",
+      "summary": "List all tags",
+      "description": "Returns all tags for categorizing prompts",
+      "category": "tags"
+    },
+    {
+      "id": "create-tag",
+      "path": "/api/v1/tags",
+      "method": "POST",
+      "summary": "Create a new tag",
+      "description": "Creates a new tag for prompts",
+      "category": "tags"
+    },
+    {
+      "id": "list-templates",
+      "path": "/api/v1/templates",
+      "method": "GET",
+      "summary": "List prompt templates",
+      "description": "Returns reusable prompt templates",
+      "category": "templates"
+    },
+    {
+      "id": "get-template",
+      "path": "/api/v1/templates/{id}",
+      "method": "GET",
+      "summary": "Get template by ID",
+      "description": "Returns a single template",
+      "category": "templates"
+    },
+    {
+      "id": "export-data",
+      "path": "/api/v1/export",
+      "method": "GET",
+      "summary": "Export all data",
+      "description": "Exports campaigns, prompts, and tags as JSON",
+      "category": "data",
+      "query_params": [
+        {"name": "campaign_id", "type": "string"},
+        {"name": "include_archived", "type": "boolean", "default": false}
+      ]
+    },
+    {
+      "id": "import-data",
+      "path": "/api/v1/import",
+      "method": "POST",
+      "summary": "Import data from JSON",
+      "description": "Imports campaigns, prompts, and tags from export file",
+      "category": "data"
+    },
+    {
+      "id": "get-prompt-versions",
+      "path": "/api/v1/prompts/{id}/versions",
+      "method": "GET",
+      "summary": "Get prompt version history",
+      "description": "Returns all versions of a prompt",
+      "category": "versions",
+      "cli_mapping": {
+        "command": "prompt-manager versions"
+      }
+    },
+    {
+      "id": "revert-prompt-version",
+      "path": "/api/v1/prompts/{id}/revert/{version}",
+      "method": "POST",
+      "summary": "Revert to previous version",
+      "description": "Reverts prompt content to a previous version",
+      "category": "versions",
+      "cli_mapping": {
+        "command": "prompt-manager revert"
+      }
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "campaigns list",
+      "description": "List all campaigns",
+      "endpoint_id": "list-campaigns"
+    },
+    {
+      "name": "campaigns create",
+      "description": "Create a new campaign",
+      "endpoint_id": "create-campaign"
+    },
+    {
+      "name": "list",
+      "description": "List prompts with optional filters",
+      "endpoint_id": "list-prompts"
+    },
+    {
+      "name": "add",
+      "description": "Create a new prompt",
+      "endpoint_id": "create-prompt"
+    },
+    {
+      "name": "show",
+      "description": "Show prompt details",
+      "endpoint_id": "get-prompt"
+    },
+    {
+      "name": "use",
+      "description": "Copy prompt and record usage",
+      "endpoint_id": "record-usage"
+    },
+    {
+      "name": "search",
+      "description": "Search prompts by query",
+      "endpoint_id": "search-prompts"
+    },
+    {
+      "name": "quick",
+      "description": "Access prompt by quick key",
+      "endpoint_id": "get-quick-access"
+    },
+    {
+      "name": "versions",
+      "description": "View prompt version history",
+      "endpoint_id": "get-prompt-versions"
+    },
+    {
+      "name": "revert",
+      "description": "Revert to previous version",
+      "endpoint_id": "revert-prompt-version"
+    }
+  ]
+}

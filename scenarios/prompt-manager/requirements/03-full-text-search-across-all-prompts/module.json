@@ -1,0 +1,78 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "prompt-manager-must-have-full-text-search-across-all-prompts",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-012"
+      ],
+      "description": "Implement PostgreSQL full-text search across prompt content and metadata",
+      "id": "REQ-P0-004",
+      "prd_ref": "prompt-manager-must-have-full-text-search-across-all-prompts",
+      "status": "draft",
+      "title": "Full-text Search Implementation",
+      "validation": [
+        {
+          "notes": "Search by exact match",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search with partial terms",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Case-insensitive search",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search across multiple fields",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Result ranking verification",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search results returned within 300ms for 10k prompts",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can find prompts efficiently",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search results are relevant",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Full-text search across all prompts"
+}

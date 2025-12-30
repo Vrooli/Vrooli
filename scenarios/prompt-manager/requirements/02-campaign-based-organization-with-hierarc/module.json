@@ -1,0 +1,75 @@
+{
+  "description": "",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "prompt-manager-must-have-campaign-based-organization-with-hierarchical-structure",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Implement data model and logic for nested campaign hierarchies with unlimited depth",
+      "id": "REQ-P0-003",
+      "prd_ref": "prompt-manager-must-have-campaign-based-organization-with-hierarchical-structure",
+      "status": "draft",
+      "title": "Hierarchical Campaign Structure",
+      "validation": [
+        {
+          "notes": "Create nested campaigns",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Move campaigns within hierarchy",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Delete campaign with children",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Complex hierarchy operations",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cascade operations testing",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Tree traversal under 100ms for 1000 nodes",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Logical campaign organization possible",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Hierarchy visualization accurate",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Campaign-based organization with hierarchical structure"
+}

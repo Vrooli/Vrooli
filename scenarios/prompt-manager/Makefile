@@ -63,14 +63,18 @@ status: ## Check scenario status
 
 clean: ## Clean build artifacts
 	@echo "$(YELLOW)🧹 Cleaning build artifacts...$(RESET)"
-	@rm -rf api/prompt-manager-api
-	@rm -rf ui/node_modules
+	@rm -rf ui/dist 2>/dev/null || true
+	@rm -f api/prompt-manager-api 2>/dev/null || true
 	@echo "$(GREEN)✅ Cleaned$(RESET)"
 
 build: ## Build all components
 	@echo "$(BLUE)🔨 Building $(SCENARIO_NAME)...$(RESET)"
-	@cd api && go mod download && go build -o prompt-manager-api .
-	@cd ui && npm install
+	@if [ -f api/go.mod ]; then \
+		cd api && GOWORK=off go mod download && GOWORK=off go build -o prompt-manager-api .; \
+	fi
+	@if [ -f ui/package.json ]; then \
+		cd ui && pnpm run build; \
+	fi
 	@echo "$(GREEN)✅ Build complete$(RESET)"
 
 dev: ## Start in development mode
@@ -90,7 +94,7 @@ fmt-go: ## Format Go code
 
 fmt-ui: ## Format UI code
 	@echo "$(BLUE)🎨 Formatting UI code...$(RESET)"
-	@cd ui && npm run lint:fix 2>/dev/null || echo "$(YELLOW)⚠️  No lint:fix script$(RESET)"
+	@cd ui && pnpm run lint:fix 2>/dev/null || echo "$(YELLOW)⚠️  No lint:fix script$(RESET)"
 	@echo "$(GREEN)✅ UI code formatted$(RESET)"
 
 lint: lint-go lint-ui ## Lint all code
@@ -106,7 +110,7 @@ lint-go: ## Lint Go code
 
 lint-ui: ## Lint UI code
 	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
-	@cd ui && npm run lint 2>/dev/null || echo "$(YELLOW)⚠️  No lint script$(RESET)"
+	@cd ui && pnpm run lint 2>/dev/null || echo "$(YELLOW)⚠️  No lint script$(RESET)"
 	@echo "$(GREEN)✅ UI code linted$(RESET)"
 
 check: fmt lint test ## Run all checks (format + lint + test)

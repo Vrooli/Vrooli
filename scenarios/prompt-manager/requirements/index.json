@@ -1,0 +1,117 @@
+{
+  "_metadata": {
+    "entity": "prompt-manager",
+    "generated_at": "2025-12-30T14:32:21-05:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-crud-operations-for-prompts-and-campaign/module.json",
+    "02-campaign-based-organization-with-hierarc/module.json",
+    "03-full-text-search-across-all-prompts/module.json",
+    "04-cli-for-quick-prompt-operations/module.json",
+    "05-web-ui-for-visual-prompt-management/module.json",
+    "06-postgresql-integration-for-persistent-st/module.json",
+    "07-semantic-search-using-qdrant-vector-data/module.json",
+    "08-prompt-analysis-and-pattern-extraction/module.json",
+    "09-prompt-enhancement-suggestions/module.json",
+    "10-usage-tracking-and-metrics/module.json",
+    "11-tag-based-categorization/module.json",
+    "12-export-import-functionality/module.json",
+    "13-collaboration-features/module.json",
+    "14-advanced-analytics-dashboard/module.json",
+    "15-version-history-for-prompts/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-crud-operations-for-prompts-and-campaign",
+      "priority": "P0",
+      "title": "CRUD operations for prompts and campaigns via API"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-campaign-based-organization-with-hierarc",
+      "priority": "P0",
+      "title": "Campaign-based organization with hierarchical structure"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-full-text-search-across-all-prompts",
+      "priority": "P0",
+      "title": "Full-text search across all prompts"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-cli-for-quick-prompt-operations",
+      "priority": "P0",
+      "title": "CLI for quick prompt operations"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-web-ui-for-visual-prompt-management",
+      "priority": "P0",
+      "title": "Web UI for visual prompt management"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-postgresql-integration-for-persistent-st",
+      "priority": "P0",
+      "title": "PostgreSQL integration for persistent storage"
+    },
+    {
+      "id": "MOD-P1-007",
+      "path": "07-semantic-search-using-qdrant-vector-data",
+      "priority": "P1",
+      "title": "Semantic search using Qdrant vector database"
+    },
+    {
+      "id": "MOD-P1-008",
+      "path": "08-prompt-analysis-and-pattern-extraction",
+      "priority": "P1",
+      "title": "Prompt analysis and pattern extraction"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-prompt-enhancement-suggestions",
+      "priority": "P1",
+      "title": "Prompt enhancement suggestions"
+    },
+    {
+      "id": "MOD-P1-010",
+      "path": "10-usage-tracking-and-metrics",
+      "priority": "P1",
+      "title": "Usage tracking and metrics"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-tag-based-categorization",
+      "priority": "P1",
+      "title": "Tag-based categorization"
+    },
+    {
+      "id": "MOD-P2-012",
+      "path": "12-export-import-functionality",
+      "priority": "P2",
+      "title": "Export/import functionality (COMPLETE: Fixed database column mismatch, tested and working)"
+    },
+    {
+      "id": "MOD-P2-013",
+      "path": "13-collaboration-features",
+      "priority": "P2",
+      "title": "Collaboration features"
+    },
+    {
+      "id": "MOD-P2-014",
+      "path": "14-advanced-analytics-dashboard",
+      "priority": "P2",
+      "title": "Advanced analytics dashboard"
+    },
+    {
+      "id": "MOD-P2-015",
+      "path": "15-version-history-for-prompts",
+      "priority": "P2",
+      "title": "Version history for prompts (COMPLETE: Full implementation with API endpoints, automatic versioning, CLI commands)"
+    }
+  ]
+}
