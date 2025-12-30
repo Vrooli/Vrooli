@@ -4,7 +4,7 @@ import {
   Copy, Volume2, VolumeX, RefreshCw, Pencil, Trash2, GitBranch,
   ChevronDown, ChevronUp, ShieldAlert
 } from "lucide-react";
-import type { Attachment, Message, ToolCall, ToolCallRecord } from "../../lib/api";
+import { resolveAttachmentUrl, type Attachment, type Message, type ToolCall, type ToolCallRecord } from "../../lib/api";
 import type { ActiveToolCall, PendingApproval } from "../../hooks/useCompletion";
 import type { ViewMode } from "../settings/Settings";
 import { Tooltip } from "../ui/tooltip";
@@ -284,7 +284,7 @@ export function MessageList({
                 {generatedImages.map((imgUrl, idx) => (
                   <img
                     key={idx}
-                    src={imgUrl}
+                    src={resolveAttachmentUrl(imgUrl)}
                     alt={`Generated image ${idx + 1}`}
                     className="max-w-[150px] max-h-[150px] rounded-lg object-contain border border-slate-200 dark:border-slate-700"
                   />
@@ -312,7 +312,7 @@ export function MessageList({
                     {generatedImages.map((imgUrl, idx) => (
                       <img
                         key={idx}
-                        src={imgUrl}
+                        src={resolveAttachmentUrl(imgUrl)}
                         alt={`Generated image ${idx + 1}`}
                         className="max-w-[300px] max-h-[300px] rounded-lg object-contain border border-slate-200 dark:border-slate-700"
                       />
@@ -478,25 +478,28 @@ function MessageAttachments({ attachments, isUser = false, compact = false }: Me
   return (
     <>
       <div className={`flex flex-wrap gap-2 ${compact ? "mt-1 mb-1" : "mt-2 mb-2"}`}>
-        {images.map((attachment) => (
-          <button
-            key={attachment.id}
-            onClick={() => setExpandedImage(attachment.url || null)}
-            className={`relative group/img rounded-lg overflow-hidden border ${
-              isUser
-                ? "border-indigo-400/30 hover:border-indigo-300/50"
-                : "border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500"
-            } transition-colors cursor-pointer`}
-          >
-            <img
-              src={attachment.url}
-              alt={attachment.file_name}
-              className={`${imageSize} object-cover`}
-              loading="lazy"
-            />
-            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors" />
-          </button>
-        ))}
+        {images.map((attachment) => {
+          const resolvedUrl = resolveAttachmentUrl(attachment.url);
+          return (
+            <button
+              key={attachment.id}
+              onClick={() => setExpandedImage(resolvedUrl || null)}
+              className={`relative group/img rounded-lg overflow-hidden border ${
+                isUser
+                  ? "border-indigo-400/30 hover:border-indigo-300/50"
+                  : "border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500"
+              } transition-colors cursor-pointer`}
+            >
+              <img
+                src={resolvedUrl}
+                alt={attachment.file_name}
+                className={`${imageSize} object-cover`}
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors" />
+            </button>
+          );
+        })}
       </div>
 
       {/* Expanded image modal */}

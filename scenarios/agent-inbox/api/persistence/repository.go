@@ -35,28 +35,8 @@ func (r *Repository) DB() *sql.DB {
 
 // InitSchema initializes the database schema for the agent-inbox scenario.
 // This creates all required tables and indexes, and runs any necessary migrations.
+// Note: With per-scenario databases, we use the public schema directly.
 func (r *Repository) InitSchema(ctx context.Context) error {
-	schemaName := "agent_inbox"
-
-	// Create scenario-specific schema
-	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schemaName)); err != nil {
-		return fmt.Errorf("failed to create schema: %w", err)
-	}
-
-	// Set search_path at database level so all connections use it
-	// This is more robust than per-connection SET because connection pools may use different connections
-	var dbname string
-	if err := r.db.QueryRowContext(ctx, "SELECT current_database()").Scan(&dbname); err == nil {
-		if _, err := r.db.ExecContext(ctx, fmt.Sprintf("ALTER DATABASE %s SET search_path TO %s, public", dbname, schemaName)); err != nil {
-			// Ignore error - may not have ALTER DATABASE permission, will use session-level instead
-		}
-	}
-
-	// Set for current session to ensure this connection works
-	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %s, public", schemaName)); err != nil {
-		return fmt.Errorf("failed to set session search_path: %w", err)
-	}
-
 	// Create base tables
 	baseSchema := `
 	CREATE TABLE IF NOT EXISTS chats (
