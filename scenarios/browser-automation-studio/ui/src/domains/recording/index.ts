@@ -16,6 +16,7 @@ export { TimelineEventCard, UnifiedTimeline } from './timeline/TimelineEventCard
 export { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
 export { TimelineFullView } from './timeline/TimelineFullView';
 export { TimelineSidebar } from './timeline/TimelineSidebar';
+export { WorkflowInfoCard } from './timeline/WorkflowInfoCard';
 
 // Capture components
 export { PlaywrightView } from './capture/PlaywrightView';
@@ -31,6 +32,9 @@ export { ClearActionsModal } from './capture/RecordModeModals';
 
 // Conversion components
 export { WorkflowCreationForm } from './conversion/WorkflowCreationForm';
+export { WorkflowPickerModal } from './conversion/WorkflowPickerModal';
+export { ProjectPickerModal } from './conversion/ProjectPickerModal';
+export { ProjectSelector } from './conversion/ProjectSelector';
 
 // Hooks
 export { useRecordMode } from './hooks/useRecordMode';

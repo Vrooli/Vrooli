@@ -27,6 +27,8 @@ import { TabBar } from './capture/TabBar';
 import { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanners';
 import { ClearActionsModal } from './capture/RecordModeModals';
 import { WorkflowCreationForm } from './conversion/WorkflowCreationForm';
+import { WorkflowPickerModal } from './conversion/WorkflowPickerModal';
+import { WorkflowInfoCard } from './timeline/WorkflowInfoCard';
 import type { BrowserProfile, RecordingSessionProfile, ReplayPreviewResponse } from './types/types';
 import type { WorkflowSettingsTyped } from '@/types/workflow';
 import { SessionManager } from '@/views/SettingsView/sections/sessions';
@@ -48,6 +50,9 @@ import { mergeActionsWithAISteps } from './types/timeline-unified';
 import { UnifiedSidebar, useUnifiedSidebar, useAISettings } from './sidebar';
 import { useAIConversation } from './ai-conversation';
 import { HumanInterventionOverlay } from './ai-navigation';
+import { useExecutionStore, useStartWorkflow } from '@/domains/executions';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
 
 interface RecordModePageProps {
   /** Browser session ID */
@@ -102,9 +107,15 @@ export function RecordModePage({
     // Clear timeline when switching modes
     if (newMode === 'recording') {
       // Switching to recording mode - timeline will be populated from actions
+      // Clear workflow selection when going back to recording
+      setSelectedWorkflowId(null);
+      setSelectedProjectId(null);
+      setSelectedWorkflowName(null);
+      setLocalExecutionId(null);
     }
     // When switching to execution mode, the workflow selection will trigger execution
   }, [mode]);
+
   const sessionProfiles = useSessionProfiles();
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
@@ -135,6 +146,33 @@ export function RecordModePage({
 
   // Connection status for header indicator
   const [connectionStatus, setConnectionStatus] = useState<StreamConnectionStatus | null>(null);
+
+  // Workflow selection and execution state
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedWorkflowName, setSelectedWorkflowName] = useState<string | null>(null);
+  const [localExecutionId, setLocalExecutionId] = useState<string | null>(executionId ?? null);
+  const [showWorkflowPicker, setShowWorkflowPicker] = useState(false);
+
+  // Confirmation dialog for unsaved actions
+  const { dialogState: confirmDialogState, confirm, close: closeConfirmDialog } = useConfirmDialog();
+
+  // Execution store for status tracking
+  const currentExecution = useExecutionStore(s => s.currentExecution);
+  const stopExecution = useExecutionStore(s => s.stopExecution);
+
+  // Derived execution status
+  const executionStatus = currentExecution?.id === localExecutionId ? currentExecution.status : null;
+  const canRun = selectedWorkflowId && (!localExecutionId || executionStatus === 'pending');
+  const isExecuting = executionStatus === 'running';
+  const isReadOnly = !!(localExecutionId && executionStatus && !['pending'].includes(executionStatus));
+
+  // Start workflow hook
+  const { startWorkflow } = useStartWorkflow({
+    onSuccess: (execId) => {
+      setLocalExecutionId(execId);
+    },
+  });
 
   // Unified sidebar state - auto-switch to Auto tab if autoStartAI
   const {
@@ -202,6 +240,45 @@ export function RecordModePage({
       console.log('New actions received:', newActions.length);
     },
   });
+
+  // Handle Execute button click - opens workflow picker with optional confirmation
+  const handleExecuteClick = useCallback(async () => {
+    // If we have unsaved recorded actions, confirm before switching
+    if (actions.length > 0 && !isRecording) {
+      const confirmed = await confirm({
+        title: 'Unsaved Recording',
+        message: 'You have recorded actions that have not been saved as a workflow. Switching to execution mode will not save these actions. Continue?',
+        confirmLabel: 'Continue',
+        cancelLabel: 'Go Back',
+        danger: false,
+      });
+      if (!confirmed) return;
+    }
+    setShowWorkflowPicker(true);
+  }, [actions.length, isRecording, confirm]);
+
+  // Handle workflow selection from picker
+  const handleWorkflowSelect = useCallback((workflowId: string, projectId: string, name: string) => {
+    setSelectedWorkflowId(workflowId);
+    setSelectedProjectId(projectId);
+    setSelectedWorkflowName(name);
+    setLocalExecutionId(null); // Clear any previous execution
+    setShowWorkflowPicker(false);
+    setMode('execution');
+  }, []);
+
+  // Handle Run button click - start execution
+  const handleRun = useCallback(async () => {
+    if (!selectedWorkflowId) return;
+    await startWorkflow({ workflowId: selectedWorkflowId });
+  }, [selectedWorkflowId, startWorkflow]);
+
+  // Handle Stop button click - stop execution
+  const handleStop = useCallback(async () => {
+    if (localExecutionId) {
+      await stopExecution(localExecutionId);
+    }
+  }, [localExecutionId, stopExecution]);
 
   // Unified timeline for both recording and execution modes
   // TODO: Use clearTimelineItems, getRecordedActions, and timelineStats when fully integrated
@@ -775,7 +852,13 @@ export function RecordModePage({
         mode={mode}
         onModeChange={handleModeChange}
         showModeToggle={true}
-        canExecute={actions.length > 0}
+        onExecuteClick={handleExecuteClick}
+        selectedWorkflowName={selectedWorkflowName}
+        showRunButton={!!canRun}
+        onRun={handleRun}
+        isExecuting={isExecuting}
+        onStop={handleStop}
+        sessionReadOnly={isReadOnly}
         sessionProfiles={sessionProfiles.profiles}
         sessionProfilesLoading={sessionProfiles.loading}
         selectedSessionProfileId={selectedProfileId}
@@ -854,11 +937,21 @@ export function RecordModePage({
         <div className="flex-1 h-full">
           {rightPanelView === 'preview' && (
             <div className="relative h-full">
-              {mode === 'execution' && executionId ? (
+              {mode === 'execution' && localExecutionId && executionStatus && executionStatus !== 'pending' ? (
+                // Show execution viewer when execution is running/completed/failed
                 <ExecutionPreviewPanel
-                  executionId={executionId}
+                  executionId={localExecutionId}
+                />
+              ) : mode === 'execution' && selectedWorkflowId ? (
+                // Show workflow info card when workflow selected but not yet running
+                <WorkflowInfoCard
+                  workflowId={selectedWorkflowId}
+                  workflowName={selectedWorkflowName ?? 'Workflow'}
+                  onRun={handleRun}
+                  onChangeWorkflow={() => setShowWorkflowPicker(true)}
                 />
               ) : (
+                // Show recording preview in recording mode
                 <>
                   <RecordPreviewPanel
                     previewUrl={previewUrl}
@@ -920,6 +1013,17 @@ export function RecordModePage({
           onClose={() => setConfiguringProfile(null)}
         />
       )}
+
+      {/* Workflow picker modal */}
+      <WorkflowPickerModal
+        isOpen={showWorkflowPicker}
+        onClose={() => setShowWorkflowPicker(false)}
+        onSelect={handleWorkflowSelect}
+        initialProjectId={selectedProjectId}
+      />
+
+      {/* Confirmation dialog for unsaved actions */}
+      <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
     </div>
   );
 }

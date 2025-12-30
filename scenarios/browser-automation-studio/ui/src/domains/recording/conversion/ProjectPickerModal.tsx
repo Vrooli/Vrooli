@@ -14,8 +14,11 @@ interface ProjectPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (project: Project) => void;
-  onCreateNew: () => void;
+  /** Callback when "Create New Project" is clicked. Required unless hideCreateNew is true. */
+  onCreateNew?: () => void;
   selectedProject: Project | null;
+  /** Hide the "Create New Project" option */
+  hideCreateNew?: boolean;
 }
 
 export function ProjectPickerModal({
@@ -24,6 +27,7 @@ export function ProjectPickerModal({
   onSelect,
   onCreateNew,
   selectedProject,
+  hideCreateNew = false,
 }: ProjectPickerModalProps) {
   const titleId = useId();
   const { projects, isLoading } = useProjectStore();
@@ -34,6 +38,7 @@ export function ProjectPickerModal({
   }, [onSelect, onClose]);
 
   const handleCreateNew = useCallback(() => {
+    if (!onCreateNew) return;
     onClose();
     onCreateNew();
   }, [onClose, onCreateNew]);
@@ -116,21 +121,23 @@ export function ProjectPickerModal({
                 </div>
 
                 {/* Create New Button */}
-                <button
-                  type="button"
-                  onClick={handleCreateNew}
-                  className="flex items-center gap-3 w-full p-3 rounded-xl border-2 border-dashed border-gray-600 bg-gray-800/30 hover:border-gray-500 hover:bg-gray-800/50 transition-all text-left"
-                >
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-green-500/20 text-green-400">
-                    <FolderPlus size={16} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-white">Create New Project</div>
-                    <div className="text-xs text-gray-500">
-                      Start fresh with a new project
+                {!hideCreateNew && onCreateNew && (
+                  <button
+                    type="button"
+                    onClick={handleCreateNew}
+                    className="flex items-center gap-3 w-full p-3 rounded-xl border-2 border-dashed border-gray-600 bg-gray-800/30 hover:border-gray-500 hover:bg-gray-800/50 transition-all text-left"
+                  >
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-green-500/20 text-green-400">
+                      <FolderPlus size={16} />
                     </div>
-                  </div>
-                </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-white">Create New Project</div>
+                      <div className="text-xs text-gray-500">
+                        Start fresh with a new project
+                      </div>
+                    </div>
+                  </button>
+                )}
               </>
             )}
           </div>

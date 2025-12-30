@@ -15,8 +15,20 @@ interface RecordingHeaderProps {
   onModeChange?: (mode: TimelineMode) => void;
   /** Whether mode toggle should be shown */
   showModeToggle?: boolean;
-  /** Whether execution mode can be selected (e.g., workflow available) */
-  canExecute?: boolean;
+  /** Callback when Execute button is clicked (opens workflow picker) */
+  onExecuteClick?: () => void;
+  /** Selected workflow name for display */
+  selectedWorkflowName?: string | null;
+  /** Whether to show the Run button */
+  showRunButton?: boolean;
+  /** Callback when Run button is clicked */
+  onRun?: () => void;
+  /** Whether an execution is currently running */
+  isExecuting?: boolean;
+  /** Callback when Stop button is clicked */
+  onStop?: () => void;
+  /** Whether session selector should be read-only (for historical executions) */
+  sessionReadOnly?: boolean;
   /** Session profile data */
   sessionProfiles?: RecordingSessionProfile[];
   sessionProfilesLoading?: boolean;
@@ -40,7 +52,13 @@ export function RecordingHeader({
   mode = 'recording',
   onModeChange,
   showModeToggle = false,
-  canExecute = false,
+  onExecuteClick,
+  selectedWorkflowName,
+  showRunButton = false,
+  onRun,
+  isExecuting = false,
+  onStop,
+  sessionReadOnly = false,
   sessionProfiles = [],
   sessionProfilesLoading = false,
   selectedSessionProfileId,
@@ -50,7 +68,6 @@ export function RecordingHeader({
   onConfigureSession,
   onNavigateToSessionSettings,
 }: RecordingHeaderProps) {
-  const title = mode === 'recording' ? 'Record Mode' : 'Execution Mode';
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
 
   const selectedSession = useMemo(
@@ -121,13 +138,11 @@ export function RecordingHeader({
           </span>
         </button>
 
-        <h1 className="text-lg font-semibold text-surface">{title}</h1>
-
         {/* Mode toggle buttons */}
-        {showModeToggle && onModeChange && (
+        {showModeToggle && (
           <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
             <button
-              onClick={() => onModeChange('recording')}
+              onClick={() => onModeChange?.('recording')}
               className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                 mode === 'recording'
                   ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm'
@@ -141,16 +156,13 @@ export function RecordingHeader({
               Record
             </button>
             <button
-              onClick={() => onModeChange('execution')}
-              disabled={!canExecute}
+              onClick={() => onExecuteClick ? onExecuteClick() : onModeChange?.('execution')}
               className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                 mode === 'execution'
                   ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                  : canExecute
-                    ? 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                    : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
               }`}
-              title={canExecute ? 'Switch to execution mode' : 'Select a workflow to execute'}
+              title="Select a workflow to execute"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -159,6 +171,41 @@ export function RecordingHeader({
               Execute
             </button>
           </div>
+        )}
+
+        {/* Selected workflow name (in execution mode) */}
+        {mode === 'execution' && selectedWorkflowName && (
+          <span className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-[200px]" title={selectedWorkflowName}>
+            {selectedWorkflowName}
+          </span>
+        )}
+
+        {/* Run button (when workflow selected but not running) */}
+        {showRunButton && onRun && (
+          <button
+            onClick={onRun}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-green-500 text-white hover:bg-green-600 transition-colors"
+            title="Run the selected workflow"
+          >
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+            </svg>
+            Run
+          </button>
+        )}
+
+        {/* Stop button (when execution is running) */}
+        {isExecuting && onStop && (
+          <button
+            onClick={onStop}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors"
+            title="Stop execution"
+          >
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+            </svg>
+            Stop
+          </button>
         )}
 
         {/* Combined Recording + Connection Status indicator */}
@@ -196,11 +243,11 @@ export function RecordingHeader({
           </span>
         )}
 
-        {/* Execution indicator */}
-        {mode === 'execution' && (
+        {/* Execution indicator (only when actively running) */}
+        {isExecuting && (
           <span className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
             <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-            Executing
+            Running
           </span>
         )}
       </div>
@@ -210,9 +257,14 @@ export function RecordingHeader({
           <div className="relative" ref={sessionMenuRef}>
             <button
               type="button"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-              onClick={() => setSessionMenuOpen((open) => !open)}
-              title="Select recording session"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 ${
+                sessionReadOnly
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+              onClick={() => !sessionReadOnly && setSessionMenuOpen((open) => !open)}
+              disabled={sessionReadOnly}
+              title={sessionReadOnly ? "Session is fixed for this execution" : "Select recording session"}
             >
               <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

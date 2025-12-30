@@ -20,6 +20,7 @@ export { ProjectDetailHeader } from './ProjectDetailHeader';
 export { ProjectDetailTabs } from './ProjectDetailTabs';
 export { ExecutionPanel } from './ExecutionPanel';
 export { WorkflowCardGrid } from './WorkflowCardGrid';
+export { WorkflowCard } from './WorkflowCard';
 export { ProjectFileTree } from './ProjectFileTree';
 
 // FileTree components

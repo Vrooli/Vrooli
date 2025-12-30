@@ -16,12 +16,11 @@
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { ChevronDown, ChevronRight, Settings2, ArrowLeft, Play, Sparkles, CheckCircle2, XCircle, AlertTriangle, FolderTree, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { ChevronDown, ChevronRight, Settings2, ArrowLeft, Play, Sparkles, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import { useProjectStore, type Project } from '@/domains/projects';
-import ProjectModal from '@/domains/projects/ProjectModal';
 import type { RecordedAction, RecordingSessionProfile, ReplayPreviewResponse } from '../types/types';
 import type { NavigationWaitUntil, WorkflowSettingsTyped } from '@/types/workflow';
-import { ProjectPickerModal } from './ProjectPickerModal';
+import { ProjectSelector } from './ProjectSelector';
 
 /** Describes a contiguous range of selected steps */
 export interface SelectionRange {
@@ -153,9 +152,6 @@ export function WorkflowCreationForm({
   const [error, setError] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<ReplayPreviewResponse | null>(null);
 
-  // Project picker modal state
-  const [isProjectPickerOpen, setIsProjectPickerOpen] = useState(false);
-  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
   // Advanced settings state
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -241,12 +237,6 @@ export function WorkflowCreationForm({
 
   const isFormValid = workflowName.trim().length > 0 && selectedProject !== null && totalSelected > 0;
 
-  // Handle project creation from ProjectModal
-  const handleProjectCreated = useCallback((project: Project) => {
-    setSelectedProject(project);
-    setIsProjectModalOpen(false);
-  }, []);
-
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -323,38 +313,12 @@ export function WorkflowCreationForm({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Project <span className="text-red-500">*</span>
               </label>
-              <button
-                type="button"
-                onClick={() => setIsProjectPickerOpen(true)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-left hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  selectedProject
-                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
-                }`}>
-                  <FolderTree size={16} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  {selectedProject ? (
-                    <>
-                      <div className="font-medium text-gray-900 dark:text-white truncate">
-                        {selectedProject.name}
-                      </div>
-                      {selectedProject.description && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {selectedProject.description}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="text-gray-400 dark:text-gray-500">
-                      Select a project...
-                    </div>
-                  )}
-                </div>
-                <ChevronRightIcon size={16} className="text-gray-400 flex-shrink-0" />
-              </button>
+              <ProjectSelector
+                selectedProject={selectedProject}
+                onSelectProject={setSelectedProject}
+                allowCreate
+                variant="button"
+              />
             </div>
 
             {/* Default Session Selection */}
@@ -597,21 +561,6 @@ export function WorkflowCreationForm({
         </div>
       </div>
 
-      {/* Project Picker Modal */}
-      <ProjectPickerModal
-        isOpen={isProjectPickerOpen}
-        onClose={() => setIsProjectPickerOpen(false)}
-        onSelect={setSelectedProject}
-        onCreateNew={() => setIsProjectModalOpen(true)}
-        selectedProject={selectedProject}
-      />
-
-      {/* Project Creation Modal */}
-      <ProjectModal
-        isOpen={isProjectModalOpen}
-        onClose={() => setIsProjectModalOpen(false)}
-        onSuccess={handleProjectCreated}
-      />
     </div>
   );
 }
