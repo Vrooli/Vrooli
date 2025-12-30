@@ -528,6 +528,14 @@ function Header({
       // Check if workflow starts with a navigate step
       const hasNavigateStep = workflowStartsWithNavigate(nodes, edges);
 
+      // Debug logging
+      console.log('[Header] Checking navigate step:', {
+        hasNavigateStep,
+        nodesCount: nodes.length,
+        edgesCount: edges.length,
+        firstNode: nodes[0] ? { id: nodes[0].id, type: nodes[0].type, action: (nodes[0] as any).action } : null,
+      });
+
       let startUrl: string | undefined;
 
       // If workflow doesn't start with navigate, prompt for start URL

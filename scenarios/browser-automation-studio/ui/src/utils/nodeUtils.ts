@@ -1,5 +1,6 @@
 import type { Node, Edge } from 'reactflow';
 import { getConfig } from '../config';
+import { ACTION_TYPES, type ActionDefinition } from './actionBuilder';
 
 // Cache for resolved scenario URLs to avoid redundant API calls
 const scenarioUrlCache = new Map<string, { url: string; timestamp: number }>();
@@ -73,6 +74,20 @@ const extractScreenshotFromNode = (node: Node): NodeScreenshot | null => {
 };
 
 /**
+ * Checks if a node is a navigate node by examining its action type.
+ * Falls back to checking node.type for legacy compatibility.
+ */
+function isNavigateNode(node: Node): boolean {
+  // Check action.type first (V2 format - canonical source of truth)
+  const action = (node as Node & { action?: ActionDefinition }).action;
+  if (action?.type) {
+    return action.type === ACTION_TYPES.NAVIGATE;
+  }
+  // Fallback to node.type for legacy format
+  return node.type?.toLowerCase() === 'navigate';
+}
+
+/**
  * Resolves a scenario name (and optional path) to its actual URL
  */
 async function resolveScenarioUrl(scenarioName: string, scenarioPath?: string): Promise<string | null> {
@@ -143,7 +158,7 @@ export function findUpstreamNavigateNode(
     }
 
     // If this is a Navigate node and it's not the starting node, return it
-    if (currentNode.type === 'navigate' && currentNodeId !== nodeId) {
+    if (isNavigateNode(currentNode) && currentNodeId !== nodeId) {
       return currentNode;
     }
 
@@ -210,8 +225,14 @@ export function getUpstreamScreenshot(
  * Use getNavigateNodeUrlAsync for actual resolution
  */
 export function getNavigateNodeUrl(node: Node): string | null {
-  if (node.type !== 'navigate') {
+  if (!isNavigateNode(node)) {
     return null;
+  }
+
+  // Check V2 action format first
+  const action = (node as Node & { action?: ActionDefinition }).action;
+  if (action?.navigate?.url) {
+    return action.navigate.url;
   }
 
   const destinationType = node.data?.destinationType || '';
@@ -229,7 +250,7 @@ export function getNavigateNodeUrl(node: Node): string | null {
       : `scenario://${scenarioName}`;
   }
 
-  // Regular URL navigation
+  // Regular URL navigation (legacy format)
   if (!node.data?.url) {
     return null;
   }
@@ -241,8 +262,14 @@ export function getNavigateNodeUrl(node: Node): string | null {
  * Resolves scenario URLs to actual HTTP URLs
  */
 export async function getNavigateNodeUrlAsync(node: Node): Promise<string | null> {
-  if (node.type !== 'navigate') {
+  if (!isNavigateNode(node)) {
     return null;
+  }
+
+  // Check V2 action format first
+  const action = (node as Node & { action?: ActionDefinition }).action;
+  if (action?.navigate?.url) {
+    return action.navigate.url;
   }
 
   const destinationType = node.data?.destinationType || '';
@@ -258,7 +285,7 @@ export async function getNavigateNodeUrlAsync(node: Node): Promise<string | null
     return await resolveScenarioUrl(scenarioName, scenarioPath);
   }
 
-  // Regular URL navigation
+  // Regular URL navigation (legacy format)
   if (!node.data?.url) {
     return null;
   }
@@ -326,5 +353,5 @@ export function workflowStartsWithNavigate(nodes: Node[], edges: Edge[]): boolea
   }
 
   // Check if ALL entry nodes are navigate nodes
-  return entryNodes.every(node => node.type === 'navigate');
+  return entryNodes.every(node => isNavigateNode(node));
 }
