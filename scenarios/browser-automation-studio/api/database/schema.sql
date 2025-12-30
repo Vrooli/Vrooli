@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS workflows (
     version INTEGER DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(name, folder_path)
+    UNIQUE(project_id, name, folder_path)
 );
 
 CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);

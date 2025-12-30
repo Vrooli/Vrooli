@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { useWebSocket, type WebSocketMessage } from '@/contexts/WebSocketContext';
 import { useExecutionStore, type Execution } from '../store';
 import {
@@ -38,14 +38,15 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
   // Track current subscription to avoid duplicate subscribe messages
   const subscribedIdRef = useRef<string | null>(null);
 
-  // Create handlers object for processExecutionEvent
-  const handlers: ExecutionEventHandlers = {
+  // Memoize handlers object to prevent infinite re-render loops
+  // Store methods from Zustand are stable references, but the object itself must be memoized
+  const handlers: ExecutionEventHandlers = useMemo(() => ({
     updateExecutionStatus,
     updateProgress,
     addLog,
     addScreenshot,
     recordHeartbeat,
-  };
+  }), [updateExecutionStatus, updateProgress, addLog, addScreenshot, recordHeartbeat]);
 
   // Handle legacy message format (backwards compatibility)
   const handleLegacyUpdate = useCallback((raw: ExecutionUpdateMessage) => {
@@ -132,10 +133,13 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
   // Subscribe/unsubscribe based on execution state
   useEffect(() => {
     const executionId = execution?.id;
-    const isRunning = execution?.status === 'running';
+    const status = execution?.status;
+    // Subscribe when execution is active (pending or running)
+    // Unsubscribe when completed, failed, or cancelled
+    const isActive = status === 'pending' || status === 'running';
 
-    // Unsubscribe if no execution or not running
-    if (!executionId || !isRunning) {
+    // Unsubscribe if no execution or not active
+    if (!executionId || !isActive) {
       if (subscribedIdRef.current) {
         send({ type: 'unsubscribe', execution_id: subscribedIdRef.current });
         subscribedIdRef.current = null;

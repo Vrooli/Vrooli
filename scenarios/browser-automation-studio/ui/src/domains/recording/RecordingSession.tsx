@@ -36,6 +36,7 @@ import { useActionSelection } from './hooks/useActionSelection';
 import { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
 import { usePages } from './hooks/usePages';
 import { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
+import { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
 import { mergeConsecutiveActions } from './utils/mergeActions';
 import { recordedActionToTimelineItem } from './types/timeline-unified';
 import { getConfig } from '@/config';
@@ -850,24 +851,32 @@ export function RecordModePage({
         <div className="flex-1 h-full">
           {rightPanelView === 'preview' && (
             <div className="relative h-full">
-              <RecordPreviewPanel
-                previewUrl={previewUrl}
-                sessionId={sessionId}
-                activePageId={activePageId}
-                onPreviewUrlChange={setPreviewUrl}
-                onViewportChange={(size) => setPreviewViewport(size)}
-                onStreamSettingsChange={setStreamSettings}
-                onConnectionStatusChange={setConnectionStatus}
-                hideConnectionIndicator={true}
-                actions={actions}
-              />
-              {/* Human intervention overlay - shown over browser preview for maximum visibility */}
-              {aiHumanIntervention && (
-                <HumanInterventionOverlay
-                  intervention={aiHumanIntervention}
-                  onComplete={aiResumeNavigation}
-                  onAbort={aiAbortNavigation}
+              {mode === 'execution' && executionId ? (
+                <ExecutionPreviewPanel
+                  executionId={executionId}
                 />
+              ) : (
+                <>
+                  <RecordPreviewPanel
+                    previewUrl={previewUrl}
+                    sessionId={sessionId}
+                    activePageId={activePageId}
+                    onPreviewUrlChange={setPreviewUrl}
+                    onViewportChange={(size) => setPreviewViewport(size)}
+                    onStreamSettingsChange={setStreamSettings}
+                    onConnectionStatusChange={setConnectionStatus}
+                    hideConnectionIndicator={true}
+                    actions={actions}
+                  />
+                  {/* Human intervention overlay - shown over browser preview for maximum visibility */}
+                  {aiHumanIntervention && (
+                    <HumanInterventionOverlay
+                      intervention={aiHumanIntervention}
+                      onComplete={aiResumeNavigation}
+                      onAbort={aiAbortNavigation}
+                    />
+                  )}
+                </>
               )}
             </div>
           )}

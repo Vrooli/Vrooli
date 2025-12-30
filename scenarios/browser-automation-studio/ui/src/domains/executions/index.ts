@@ -27,6 +27,9 @@ export type {
   TimelineLog,
 } from './store';
 
+// Hooks
+export { useExecutionEvents } from './hooks/useExecutionEvents';
+
 // Event processor utilities
 export {
   processExecutionEvent,

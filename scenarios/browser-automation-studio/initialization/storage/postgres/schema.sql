@@ -26,6 +26,7 @@ CREATE INDEX idx_workflow_folders_parent ON workflow_folders(parent_id);
 -- Workflows table
 CREATE TABLE IF NOT EXISTS workflows (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID REFERENCES workflow_folders(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     folder_path VARCHAR(500) DEFAULT '/',
     flow_definition JSONB NOT NULL DEFAULT '{"nodes": [], "edges": []}',
@@ -38,7 +39,7 @@ CREATE TABLE IF NOT EXISTS workflows (
     last_change_description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_workflow_name_in_folder UNIQUE (name, folder_path)
+    CONSTRAINT unique_workflow_name_in_project_folder UNIQUE (project_id, name, folder_path)
 );
 
 -- Create indexes for workflows

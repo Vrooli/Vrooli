@@ -300,12 +300,20 @@ func (db *DB) initSchema() error {
 }
 
 func (db *DB) applyIndexSchemaMigrations(ctx context.Context) error {
+	// Legacy database instances may already have tables created without newer index columns.
+	// Avoid SELECT * scan breakages by ensuring expected columns exist.
+
+	// First, migrate the unique constraint on workflows table.
+	// Old constraint: UNIQUE(name, folder_path) - global uniqueness
+	// New constraint: UNIQUE(project_id, name, folder_path) - per-project uniqueness
+	if err := db.migrateWorkflowUniqueConstraint(ctx); err != nil {
+		return fmt.Errorf("migrate workflow unique constraint: %w", err)
+	}
+
 	if db.dialect != DialectPostgres {
 		return nil
 	}
 
-	// Legacy database instances may already have tables created without newer index columns.
-	// Avoid SELECT * scan breakages by ensuring expected columns exist.
 	statements := []string{
 		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS folder_path VARCHAR(500)`,
 		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
@@ -349,4 +357,140 @@ func (db *DB) applyIndexSchemaMigrations(ctx context.Context) error {
 func getCurrentFilePath() string {
 	_, filename, _, _ := runtime.Caller(0)
 	return filename
+}
+
+// migrateWorkflowUniqueConstraint migrates the workflows table unique constraint
+// from (name, folder_path) to (project_id, name, folder_path).
+// This allows different projects to have workflows with the same name.
+func (db *DB) migrateWorkflowUniqueConstraint(ctx context.Context) error {
+	switch db.dialect {
+	case DialectPostgres:
+		return db.migrateWorkflowUniqueConstraintPostgres(ctx)
+	case DialectSQLite:
+		return db.migrateWorkflowUniqueConstraintSQLite(ctx)
+	default:
+		return nil
+	}
+}
+
+func (db *DB) migrateWorkflowUniqueConstraintPostgres(ctx context.Context) error {
+	// Check if the old constraint exists and drop it
+	// PostgreSQL constraint names from different schema files:
+	// - "unique_workflow_name_in_folder" (initialization schema)
+	// - "workflows_name_folder_path_key" (auto-generated from UNIQUE(name, folder_path))
+	dropStatements := []string{
+		`ALTER TABLE workflows DROP CONSTRAINT IF EXISTS unique_workflow_name_in_folder`,
+		`ALTER TABLE workflows DROP CONSTRAINT IF EXISTS workflows_name_folder_path_key`,
+	}
+
+	for _, stmt := range dropStatements {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			// Log but don't fail - constraint might not exist
+			if db.log != nil {
+				db.log.WithError(err).Debug("Constraint drop statement (may not exist)")
+			}
+		}
+	}
+
+	// Add the new constraint if it doesn't exist
+	// Note: PostgreSQL doesn't have "ADD CONSTRAINT IF NOT EXISTS", so we check first
+	checkConstraint := `
+		SELECT 1 FROM pg_constraint
+		WHERE conname = 'unique_workflow_name_in_project_folder'
+		AND conrelid = 'workflows'::regclass
+	`
+	var exists int
+	if err := db.GetContext(ctx, &exists, checkConstraint); err != nil {
+		// Constraint doesn't exist, add it
+		addConstraint := `
+			ALTER TABLE workflows
+			ADD CONSTRAINT unique_workflow_name_in_project_folder
+			UNIQUE (project_id, name, folder_path)
+		`
+		if _, err := db.ExecContext(ctx, addConstraint); err != nil {
+			return fmt.Errorf("add new unique constraint: %w", err)
+		}
+		if db.log != nil {
+			db.log.Info("Migrated workflow unique constraint to include project_id")
+		}
+	}
+
+	return nil
+}
+
+func (db *DB) migrateWorkflowUniqueConstraintSQLite(ctx context.Context) error {
+	// SQLite doesn't support ALTER TABLE to modify constraints directly.
+	// We need to check if the constraint is already correct by examining the schema.
+
+	// Get the current table schema
+	var tableSQL string
+	err := db.GetContext(ctx, &tableSQL, "SELECT sql FROM sqlite_master WHERE type='table' AND name='workflows'")
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows") {
+			// Table doesn't exist yet, will be created with correct schema
+			return nil
+		}
+		return fmt.Errorf("get workflows table schema: %w", err)
+	}
+
+	// Check if the constraint already includes project_id
+	if strings.Contains(tableSQL, "UNIQUE(project_id, name, folder_path)") {
+		// Already migrated
+		return nil
+	}
+
+	// Check if this is the old constraint that needs migration
+	if !strings.Contains(tableSQL, "UNIQUE(name, folder_path)") {
+		// Neither old nor new constraint - might be a different schema
+		return nil
+	}
+
+	// SQLite requires recreating the table to change constraints
+	// This is a destructive operation, so we use a transaction
+	tx, err := db.Beginx()
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	migrationStatements := []string{
+		// Rename old table
+		`ALTER TABLE workflows RENAME TO workflows_old`,
+		// Create new table with correct constraint
+		`CREATE TABLE workflows (
+			id TEXT PRIMARY KEY,
+			project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+			name TEXT NOT NULL,
+			folder_path TEXT NOT NULL,
+			file_path TEXT,
+			version INTEGER DEFAULT 1,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(project_id, name, folder_path)
+		)`,
+		// Copy data
+		`INSERT INTO workflows SELECT * FROM workflows_old`,
+		// Drop old table
+		`DROP TABLE workflows_old`,
+		// Recreate indexes
+		`CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path)`,
+		`CREATE INDEX IF NOT EXISTS idx_workflows_name ON workflows(name)`,
+	}
+
+	for _, stmt := range migrationStatements {
+		if _, err := tx.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("migrate workflow table: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit migration: %w", err)
+	}
+
+	if db.log != nil {
+		db.log.Info("Migrated SQLite workflow unique constraint to include project_id")
+	}
+
+	return nil
 }

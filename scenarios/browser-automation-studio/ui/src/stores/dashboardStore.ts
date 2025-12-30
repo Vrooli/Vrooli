@@ -152,7 +152,7 @@ const normalizeRecentExecution = (raw: Record<string, unknown>, workflowNames: M
   const status = validStatuses.includes(statusValue) ? statusValue as RecentExecution['status'] : 'pending';
 
   return {
-    id: String(raw.id ?? raw.execution_id ?? ''),
+    id: String(raw.id ?? raw.executionId ?? raw.execution_id ?? ''),
     workflowId,
     workflowName: workflowInfo?.name ?? 'Unknown Workflow',
     projectId: workflowInfo?.projectId,

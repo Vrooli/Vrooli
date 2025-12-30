@@ -702,6 +702,12 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       const config = await getConfig();
       const response = await fetch(`${config.API_URL}/executions/${executionId}/timeline`);
 
+      // 404 means no timeline yet (execution just started or no steps completed yet)
+      // This is expected for newly started executions - timeline data will arrive via WebSocket
+      if (response.status === 404) {
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(`Failed to load execution timeline: ${response.status}`);
       }
