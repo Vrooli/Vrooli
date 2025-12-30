@@ -4,6 +4,7 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: './',  // Required for tunnel/proxy contexts
   plugins: [react()],
   resolve: {
     alias: {

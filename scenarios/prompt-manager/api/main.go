@@ -207,12 +207,15 @@ func main() {
 		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
 	)
 
-	// Health check (outside versioning for simplicity)
+	// Health check - at root for infrastructure and under /api/v1 for client requests
 	healthHandler := health.New().Version("1.0.0").Check(health.DB(apiServer.db), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API v1 routes
 	v1 := router.PathPrefix("/api/v1").Subrouter()
+
+	// Health check under /api/v1 for client requests via proxy
+	v1.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Campaign endpoints
 	v1.HandleFunc("/campaigns", apiServer.getCampaigns).Methods("GET")

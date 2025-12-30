@@ -132,8 +132,8 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x prompt-manager && ln -sf $(pwd)/prompt-manager ~/.local/bin/prompt-manager 2>/dev/null || true",
-          "description": "Install CLI command globally"
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
         },
         {
           "name": "build-api",
@@ -225,7 +225,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "data"
+            "type": "seed"
           }
         ]
       },
