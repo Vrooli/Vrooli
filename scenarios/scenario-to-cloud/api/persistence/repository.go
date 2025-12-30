@@ -88,6 +88,9 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS progress_step TEXT;
 			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS progress_percent REAL DEFAULT 0;
 		`},
+		{"add_deployment_history", `
+			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS deployment_history JSONB DEFAULT '[]'::jsonb;
+		`},
 	}
 
 	for _, m := range migrations {

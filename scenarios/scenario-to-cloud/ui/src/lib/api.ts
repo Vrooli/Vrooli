@@ -723,3 +723,408 @@ export async function runDiskCleanup(
   }
   return res.json() as Promise<DiskCleanupResponse>;
 }
+
+// ============================================================================
+// Live State Types & Functions (Ground Truth Redesign)
+// ============================================================================
+
+export type ProcessPort = {
+  name?: string;
+  port: number;
+  status: string;
+  responding?: boolean;
+  clients?: number;
+};
+
+export type ProcessResources = {
+  cpu_percent: number;
+  memory_mb: number;
+  memory_percent: number;
+};
+
+export type ScenarioProcess = {
+  id: string;
+  status: string;
+  pid: number;
+  uptime_seconds: number;
+  last_restart?: string;
+  ports?: ProcessPort[];
+  resources: ProcessResources;
+  vrooli_status?: unknown;
+};
+
+export type ResourceProcess = {
+  id: string;
+  status: string;
+  pid: number;
+  port?: number;
+  uptime_seconds: number;
+  metrics?: unknown;
+  vrooli_status?: unknown;
+};
+
+export type UnexpectedProcess = {
+  pid: number;
+  command: string;
+  port?: number;
+  user: string;
+};
+
+export type ProcessState = {
+  scenarios: ScenarioProcess[];
+  resources: ResourceProcess[];
+  unexpected: UnexpectedProcess[];
+};
+
+export type PortBinding = {
+  port: number;
+  process: string;
+  type: "system" | "edge" | "scenario" | "resource" | "unexpected";
+  matches_manifest?: boolean;
+  pid?: number;
+  command?: string;
+};
+
+export type TLSInfo = {
+  valid: boolean;
+  issuer?: string;
+  expires?: string;
+  days_remaining?: number;
+  error?: string;
+};
+
+export type CaddyRoute = {
+  path: string;
+  upstream: string;
+};
+
+export type CaddyState = {
+  running: boolean;
+  domain: string;
+  tls: TLSInfo;
+  routes: CaddyRoute[];
+};
+
+export type CPUInfo = {
+  cores: number;
+  model?: string;
+  usage_percent: number;
+  load_average: number[];
+};
+
+export type MemoryInfo = {
+  total_mb: number;
+  used_mb: number;
+  free_mb: number;
+  usage_percent: number;
+};
+
+export type DiskInfo = {
+  total_gb: number;
+  used_gb: number;
+  free_gb: number;
+  usage_percent: number;
+};
+
+export type SwapInfo = {
+  total_mb: number;
+  used_mb: number;
+  usage_percent: number;
+};
+
+export type SystemState = {
+  cpu: CPUInfo;
+  memory: MemoryInfo;
+  disk: DiskInfo;
+  swap: SwapInfo;
+  uptime_seconds: number;
+};
+
+export type LiveStateResult = {
+  ok: boolean;
+  timestamp: string;
+  sync_duration_ms: number;
+  processes?: ProcessState;
+  ports?: PortBinding[];
+  caddy?: CaddyState;
+  system?: SystemState;
+  error?: string;
+};
+
+export type LiveStateResponse = {
+  result: LiveStateResult;
+  timestamp: string;
+};
+
+export type FileEntry = {
+  name: string;
+  type: "file" | "directory" | "symlink";
+  size_bytes: number;
+  modified: string;
+  permissions: string;
+};
+
+export type FilesResponse = {
+  ok: boolean;
+  path: string;
+  entries: FileEntry[];
+  timestamp: string;
+};
+
+export type FileContentResponse = {
+  ok: boolean;
+  path: string;
+  size_bytes: number;
+  content: string;
+  truncated: boolean;
+  timestamp: string;
+};
+
+export type DriftCheck = {
+  category: "scenarios" | "resources" | "ports" | "edge";
+  name: string;
+  status: "pass" | "warning" | "drift";
+  expected: string;
+  actual: string;
+  message?: string;
+  actions?: string[];
+};
+
+export type DriftSummary = {
+  passed: number;
+  warnings: number;
+  drifts: number;
+};
+
+export type DriftReport = {
+  ok: boolean;
+  timestamp: string;
+  summary: DriftSummary;
+  checks: DriftCheck[];
+};
+
+export type DriftResponse = {
+  result: DriftReport;
+  timestamp: string;
+};
+
+export type KillProcessRequest = {
+  pid: number;
+  signal?: string;
+};
+
+export type KillProcessResponse = {
+  ok: boolean;
+  pid: number;
+  signal: string;
+  timestamp: string;
+};
+
+export type RestartRequest = {
+  type: "scenario" | "resource";
+  id: string;
+};
+
+export type RestartResponse = {
+  ok: boolean;
+  type: string;
+  id: string;
+  output?: string;
+  timestamp: string;
+};
+
+/**
+ * Fetch live state from VPS (processes, ports, system info, caddy)
+ */
+export async function getLiveState(deploymentId: string): Promise<LiveStateResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/live-state`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get live state: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<LiveStateResponse>;
+}
+
+/**
+ * List files in a directory on VPS
+ */
+export async function getFiles(deploymentId: string, path?: string): Promise<FilesResponse> {
+  const params = path ? `?path=${encodeURIComponent(path)}` : "";
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/files${params}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list files: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<FilesResponse>;
+}
+
+/**
+ * Read file content from VPS
+ */
+export async function getFileContent(deploymentId: string, path: string): Promise<FileContentResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/files/content?path=${encodeURIComponent(path)}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to read file: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<FileContentResponse>;
+}
+
+/**
+ * Get drift report comparing manifest vs actual state
+ */
+export async function getDrift(deploymentId: string): Promise<DriftResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/drift`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get drift report: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<DriftResponse>;
+}
+
+/**
+ * Kill a process on VPS
+ */
+export async function killProcess(deploymentId: string, request: KillProcessRequest): Promise<KillProcessResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/actions/kill`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to kill process: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<KillProcessResponse>;
+}
+
+/**
+ * Restart a scenario or resource on VPS
+ */
+export async function restartProcess(deploymentId: string, request: RestartRequest): Promise<RestartResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/actions/restart`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to restart: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<RestartResponse>;
+}
+
+// ============================================================================
+// History & Logs Types & Functions (Ground Truth Redesign - Phase 7)
+// ============================================================================
+
+export type HistoryEventType =
+  | "deployment_created"
+  | "bundle_built"
+  | "preflight_started"
+  | "preflight_completed"
+  | "setup_started"
+  | "setup_completed"
+  | "deploy_started"
+  | "deploy_completed"
+  | "deploy_failed"
+  | "inspection"
+  | "stopped"
+  | "restarted"
+  | "autoheal_triggered";
+
+export type HistoryEvent = {
+  type: HistoryEventType;
+  timestamp: string;
+  message?: string;
+  details?: string;
+  duration_ms?: number;
+  success?: boolean;
+  bundle_hash?: string;
+  step_name?: string;
+  data?: unknown;
+};
+
+export type HistoryResponse = {
+  ok: boolean;
+  history: HistoryEvent[];
+  timestamp: string;
+};
+
+export type LogEntry = {
+  timestamp: string;
+  source: string;
+  level: string;
+  message: string;
+};
+
+export type LogsResponse = {
+  ok: boolean;
+  logs: LogEntry[];
+  total: number;
+  filtered: number;
+  sources: string[];
+};
+
+/**
+ * Get deployment history timeline
+ */
+export async function getHistory(deploymentId: string): Promise<HistoryResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/history`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get history: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<HistoryResponse>;
+}
+
+/**
+ * Get aggregated logs from VPS
+ */
+export async function getLogs(
+  deploymentId: string,
+  options: { source?: string; level?: string; tail?: number; search?: string } = {}
+): Promise<LogsResponse> {
+  const params = new URLSearchParams();
+  if (options.source) params.set("source", options.source);
+  if (options.level) params.set("level", options.level);
+  if (options.tail) params.set("tail", options.tail.toString());
+  if (options.search) params.set("search", options.search);
+  const queryString = params.toString();
+
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/logs${queryString ? `?${queryString}` : ""}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get logs: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<LogsResponse>;
+}

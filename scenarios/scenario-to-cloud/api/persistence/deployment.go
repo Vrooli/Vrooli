@@ -431,3 +431,48 @@ func (r *Repository) ResetDeploymentProgress(ctx context.Context, id string) err
 	}
 	return nil
 }
+
+// AppendHistoryEvent adds a new event to the deployment history.
+func (r *Repository) AppendHistoryEvent(ctx context.Context, id string, event domain.HistoryEvent) error {
+	eventJSON, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to marshal history event: %w", err)
+	}
+
+	const q = `
+		UPDATE deployments SET
+			deployment_history = COALESCE(deployment_history, '[]'::jsonb) || $2::jsonb,
+			updated_at = $3
+		WHERE id = $1
+	`
+	now := time.Now()
+	_, err = r.db.ExecContext(ctx, q, id, eventJSON, now)
+	if err != nil {
+		return fmt.Errorf("failed to append history event: %w", err)
+	}
+	return nil
+}
+
+// GetDeploymentHistory retrieves the deployment history for a deployment.
+func (r *Repository) GetDeploymentHistory(ctx context.Context, id string) ([]domain.HistoryEvent, error) {
+	const q = `
+		SELECT COALESCE(deployment_history, '[]'::jsonb)
+		FROM deployments
+		WHERE id = $1
+	`
+	var historyJSON []byte
+	err := r.db.QueryRowContext(ctx, q, id).Scan(&historyJSON)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deployment history: %w", err)
+	}
+
+	var history []domain.HistoryEvent
+	if err := json.Unmarshal(historyJSON, &history); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal deployment history: %w", err)
+	}
+
+	return history, nil
+}

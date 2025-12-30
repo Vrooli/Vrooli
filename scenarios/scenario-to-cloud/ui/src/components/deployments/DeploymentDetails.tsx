@@ -15,6 +15,11 @@ import {
   XCircle,
   Loader2,
   AlertCircle,
+  Activity,
+  LayoutDashboard,
+  FolderOpen,
+  GitCompare,
+  History,
 } from "lucide-react";
 import {
   useDeployment,
@@ -25,6 +30,7 @@ import {
 } from "../../hooks/useDeployments";
 import { cn } from "../../lib/utils";
 import type { Deployment } from "../../lib/api";
+import { LiveStateTab, FilesTab, DriftTab, HistoryTab, TerminalTab } from "./tabs";
 
 interface DeploymentDetailsProps {
   deploymentId: string;
@@ -40,6 +46,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const [showSetupResult, setShowSetupResult] = useState(false);
   const [showDeployResult, setShowDeployResult] = useState(false);
   const [showLogs, setShowLogs] = useState(true);
+  const [activeTab, setActiveTab] = useState<"overview" | "live-state" | "files" | "drift" | "history" | "terminal">("live-state");
 
   if (isLoading) {
     return (
@@ -192,7 +199,101 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
         </div>
       )}
 
-      {/* Info cards */}
+      {/* Tab Navigation */}
+      <div className="flex gap-1 border-b border-white/10 pb-px overflow-x-auto">
+        <button
+          onClick={() => setActiveTab("live-state")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
+            activeTab === "live-state"
+              ? "bg-slate-800 text-white border-b-2 border-blue-500"
+              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+          )}
+        >
+          <Activity className="h-4 w-4" />
+          Live State
+        </button>
+        <button
+          onClick={() => setActiveTab("files")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
+            activeTab === "files"
+              ? "bg-slate-800 text-white border-b-2 border-blue-500"
+              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+          )}
+        >
+          <FolderOpen className="h-4 w-4" />
+          Files
+        </button>
+        <button
+          onClick={() => setActiveTab("drift")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
+            activeTab === "drift"
+              ? "bg-slate-800 text-white border-b-2 border-blue-500"
+              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+          )}
+        >
+          <GitCompare className="h-4 w-4" />
+          Drift
+        </button>
+        <button
+          onClick={() => setActiveTab("history")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
+            activeTab === "history"
+              ? "bg-slate-800 text-white border-b-2 border-blue-500"
+              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+          )}
+        >
+          <History className="h-4 w-4" />
+          History
+        </button>
+        <button
+          onClick={() => setActiveTab("terminal")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
+            activeTab === "terminal"
+              ? "bg-slate-800 text-white border-b-2 border-blue-500"
+              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+          )}
+        >
+          <Terminal className="h-4 w-4" />
+          Terminal
+        </button>
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
+            activeTab === "overview"
+              ? "bg-slate-800 text-white border-b-2 border-blue-500"
+              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+          )}
+        >
+          <LayoutDashboard className="h-4 w-4" />
+          Overview
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === "live-state" && (
+        <LiveStateTab deploymentId={deploymentId} />
+      )}
+      {activeTab === "files" && (
+        <FilesTab deploymentId={deploymentId} />
+      )}
+      {activeTab === "drift" && (
+        <DriftTab deploymentId={deploymentId} />
+      )}
+      {activeTab === "history" && (
+        <HistoryTab deploymentId={deploymentId} />
+      )}
+      {activeTab === "terminal" && (
+        <TerminalTab deploymentId={deploymentId} />
+      )}
+      {activeTab === "overview" && (
+        <>
+          {/* Info cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Manifest summary */}
         <div className="border border-white/10 rounded-lg bg-slate-900/50 p-4">
@@ -313,6 +414,8 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
         >
           <LogsSection inspectResult={deployment.last_inspect_result} />
         </CollapsibleSection>
+      )}
+        </>
       )}
     </div>
   );

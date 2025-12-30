@@ -91,6 +91,9 @@ type Deployment struct {
 	DeployResult      NullRawMessage `json:"deploy_result,omitempty"`
 	LastInspectResult NullRawMessage `json:"last_inspect_result,omitempty"`
 
+	// Deployment history (timeline of events)
+	DeploymentHistory NullRawMessage `json:"deployment_history,omitempty"`
+
 	// Error tracking
 	ErrorMessage *string `json:"error_message,omitempty"`
 	ErrorStep    *string `json:"error_step,omitempty"`
@@ -143,4 +146,36 @@ type UpdateDeploymentStatusRequest struct {
 // DeleteDeploymentRequest contains options for deployment deletion.
 type DeleteDeploymentRequest struct {
 	StopOnVPS bool `json:"stop_on_vps"` // Whether to stop the deployment on VPS before deleting
+}
+
+// HistoryEventType represents the type of deployment event.
+type HistoryEventType string
+
+const (
+	EventDeploymentCreated  HistoryEventType = "deployment_created"
+	EventBundleBuilt        HistoryEventType = "bundle_built"
+	EventPreflightStarted   HistoryEventType = "preflight_started"
+	EventPreflightCompleted HistoryEventType = "preflight_completed"
+	EventSetupStarted       HistoryEventType = "setup_started"
+	EventSetupCompleted     HistoryEventType = "setup_completed"
+	EventDeployStarted      HistoryEventType = "deploy_started"
+	EventDeployCompleted    HistoryEventType = "deploy_completed"
+	EventDeployFailed       HistoryEventType = "deploy_failed"
+	EventInspection         HistoryEventType = "inspection"
+	EventStopped            HistoryEventType = "stopped"
+	EventRestarted          HistoryEventType = "restarted"
+	EventAutohealTriggered  HistoryEventType = "autoheal_triggered"
+)
+
+// HistoryEvent represents a single event in the deployment timeline.
+type HistoryEvent struct {
+	Type       HistoryEventType `json:"type"`
+	Timestamp  time.Time        `json:"timestamp"`
+	Message    string           `json:"message,omitempty"`
+	Details    string           `json:"details,omitempty"`
+	DurationMs int64            `json:"duration_ms,omitempty"`
+	Success    *bool            `json:"success,omitempty"`
+	BundleHash string           `json:"bundle_hash,omitempty"`
+	StepName   string           `json:"step_name,omitempty"`
+	Data       json.RawMessage  `json:"data,omitempty"`
 }

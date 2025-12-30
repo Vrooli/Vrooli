@@ -105,6 +105,22 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/deployments/{id}/inspect", s.handleInspectDeployment).Methods("POST")
 	api.HandleFunc("/deployments/{id}/stop", s.handleStopDeployment).Methods("POST")
 
+	// Live state inspection (Ground Truth Redesign - Phase 1)
+	api.HandleFunc("/deployments/{id}/live-state", s.handleGetLiveState).Methods("GET")
+	api.HandleFunc("/deployments/{id}/files", s.handleGetFiles).Methods("GET")
+	api.HandleFunc("/deployments/{id}/files/content", s.handleGetFileContent).Methods("GET")
+	api.HandleFunc("/deployments/{id}/drift", s.handleGetDrift).Methods("GET")
+	api.HandleFunc("/deployments/{id}/actions/kill", s.handleKillProcess).Methods("POST")
+	api.HandleFunc("/deployments/{id}/actions/restart", s.handleRestartProcess).Methods("POST")
+
+	// History & Logs (Ground Truth Redesign - Phase 7)
+	api.HandleFunc("/deployments/{id}/history", s.handleGetHistory).Methods("GET")
+	api.HandleFunc("/deployments/{id}/history", s.handleAddHistoryEvent).Methods("POST")
+	api.HandleFunc("/deployments/{id}/logs", s.handleGetLogs).Methods("GET")
+
+	// Terminal (Ground Truth Redesign - Phase 8)
+	api.HandleFunc("/deployments/{id}/terminal", s.handleTerminalWebSocket).Methods("GET")
+
 	// Documentation
 	api.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")
 	api.HandleFunc("/docs/content", s.handleGetDocContent).Methods("GET")
