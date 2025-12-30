@@ -387,6 +387,17 @@ func (r *Repository) DeleteDeployment(ctx context.Context, id string) error {
 	return nil
 }
 
+// CountDeploymentsByBundleSHA256 returns the number of deployments using a specific bundle.
+// Used to check if a bundle can be safely deleted (no other deployments reference it).
+func (r *Repository) CountDeploymentsByBundleSHA256(ctx context.Context, sha256 string) (int, error) {
+	const q = `SELECT COUNT(*) FROM deployments WHERE bundle_sha256 = $1`
+	var count int
+	if err := r.db.QueryRowContext(ctx, q, sha256).Scan(&count); err != nil {
+		return 0, fmt.Errorf("failed to count deployments: %w", err)
+	}
+	return count, nil
+}
+
 // UpdateDeploymentProgress updates the current progress step and percentage.
 func (r *Repository) UpdateDeploymentProgress(ctx context.Context, id, step string, percent float64) error {
 	const q = `

@@ -29,27 +29,8 @@ func (r *Repository) DB() *sql.DB {
 
 // InitSchema initializes the database schema for the scenario-to-cloud scenario.
 // This creates all required tables and indexes using idempotent statements.
+// Note: With per-scenario databases, we use the public schema directly.
 func (r *Repository) InitSchema(ctx context.Context) error {
-	schemaName := "scenario_to_cloud"
-
-	// Create scenario-specific schema
-	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schemaName)); err != nil {
-		return fmt.Errorf("failed to create schema: %w", err)
-	}
-
-	// Set search_path at database level so all connections use it
-	var dbname string
-	if err := r.db.QueryRowContext(ctx, "SELECT current_database()").Scan(&dbname); err == nil {
-		if _, err := r.db.ExecContext(ctx, fmt.Sprintf("ALTER DATABASE %s SET search_path TO %s, public", dbname, schemaName)); err != nil {
-			// Ignore error - may not have ALTER DATABASE permission
-		}
-	}
-
-	// Set for current session
-	if _, err := r.db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %s, public", schemaName)); err != nil {
-		return fmt.Errorf("failed to set session search_path: %w", err)
-	}
-
 	// Create deployments table
 	baseSchema := `
 	CREATE TABLE IF NOT EXISTS deployments (

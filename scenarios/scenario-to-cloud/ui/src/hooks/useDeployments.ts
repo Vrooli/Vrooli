@@ -131,8 +131,16 @@ export function useStopDeployment() {
 export function useDeleteDeployment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, stopOnVPS }: { id: string; stopOnVPS: boolean }) => {
-      return deleteDeployment(id, stopOnVPS);
+    mutationFn: async ({
+      id,
+      stopOnVPS,
+      cleanupBundles,
+    }: {
+      id: string;
+      stopOnVPS?: boolean;
+      cleanupBundles?: boolean;
+    }) => {
+      return deleteDeployment(id, { stopOnVPS, cleanupBundles });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deployments"] });

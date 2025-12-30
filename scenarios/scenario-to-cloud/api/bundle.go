@@ -90,6 +90,166 @@ func parseBundleFilename(name string) (scenarioID, sha256Hash string) {
 	return name[:lastUnderscore], name[lastUnderscore+1:]
 }
 
+// ScenarioStats holds per-scenario bundle statistics.
+type ScenarioStats struct {
+	Count     int   `json:"count"`
+	SizeBytes int64 `json:"size_bytes"`
+}
+
+// BundleStats holds aggregate bundle storage statistics.
+type BundleStats struct {
+	TotalCount     int                      `json:"total_count"`
+	TotalSizeBytes int64                    `json:"total_size_bytes"`
+	OldestCreatedAt string                  `json:"oldest_created_at,omitempty"`
+	NewestCreatedAt string                  `json:"newest_created_at,omitempty"`
+	ByScenario     map[string]ScenarioStats `json:"by_scenario"`
+}
+
+// GetBundleStats returns aggregate storage statistics for all bundles.
+func GetBundleStats(bundlesDir string) (BundleStats, error) {
+	bundles, err := ListBundles(bundlesDir)
+	if err != nil {
+		return BundleStats{}, err
+	}
+
+	stats := BundleStats{
+		ByScenario: make(map[string]ScenarioStats),
+	}
+
+	for _, b := range bundles {
+		stats.TotalCount++
+		stats.TotalSizeBytes += b.SizeBytes
+
+		// Track per-scenario stats
+		scenStats := stats.ByScenario[b.ScenarioID]
+		scenStats.Count++
+		scenStats.SizeBytes += b.SizeBytes
+		stats.ByScenario[b.ScenarioID] = scenStats
+
+		// Track oldest/newest (bundles are sorted newest first)
+		if stats.NewestCreatedAt == "" {
+			stats.NewestCreatedAt = b.CreatedAt
+		}
+		stats.OldestCreatedAt = b.CreatedAt
+	}
+
+	return stats, nil
+}
+
+// DeleteBundle removes a single bundle by SHA256 hash.
+// Returns the size of the deleted file in bytes, or 0 if not found.
+func DeleteBundle(bundlesDir, sha256Hash string) (int64, error) {
+	if sha256Hash == "" {
+		return 0, fmt.Errorf("sha256 hash is required")
+	}
+
+	bundles, err := ListBundles(bundlesDir)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, b := range bundles {
+		if b.Sha256 == sha256Hash {
+			if err := os.Remove(b.Path); err != nil {
+				if os.IsNotExist(err) {
+					return 0, nil // Already deleted, idempotent
+				}
+				return 0, fmt.Errorf("delete bundle %s: %w", b.Filename, err)
+			}
+			return b.SizeBytes, nil
+		}
+	}
+
+	return 0, nil // Not found, idempotent
+}
+
+// DeleteBundlesForScenario removes bundles for a specific scenario,
+// keeping the N most recent bundles (by creation time).
+// Returns the list of deleted bundles and total freed bytes.
+func DeleteBundlesForScenario(bundlesDir, scenarioID string, keepLatest int) ([]BundleInfo, int64, error) {
+	if scenarioID == "" {
+		return nil, 0, fmt.Errorf("scenario ID is required")
+	}
+	if keepLatest < 0 {
+		keepLatest = 0
+	}
+
+	bundles, err := ListBundles(bundlesDir)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Filter bundles for this scenario (already sorted newest first)
+	var scenarioBundles []BundleInfo
+	for _, b := range bundles {
+		if b.ScenarioID == scenarioID {
+			scenarioBundles = append(scenarioBundles, b)
+		}
+	}
+
+	// Keep the newest N bundles, delete the rest
+	var deleted []BundleInfo
+	var freedBytes int64
+
+	for i, b := range scenarioBundles {
+		if i < keepLatest {
+			continue // Keep this one
+		}
+		if err := os.Remove(b.Path); err != nil {
+			if os.IsNotExist(err) {
+				continue // Already deleted
+			}
+			return deleted, freedBytes, fmt.Errorf("delete bundle %s: %w", b.Filename, err)
+		}
+		deleted = append(deleted, b)
+		freedBytes += b.SizeBytes
+	}
+
+	return deleted, freedBytes, nil
+}
+
+// DeleteAllOldBundles removes bundles across all scenarios, keeping N newest per scenario.
+// Returns the list of deleted bundles and total freed bytes.
+func DeleteAllOldBundles(bundlesDir string, keepLatestPerScenario int) ([]BundleInfo, int64, error) {
+	if keepLatestPerScenario < 0 {
+		keepLatestPerScenario = 0
+	}
+
+	bundles, err := ListBundles(bundlesDir)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Group bundles by scenario
+	byScenario := make(map[string][]BundleInfo)
+	for _, b := range bundles {
+		byScenario[b.ScenarioID] = append(byScenario[b.ScenarioID], b)
+	}
+
+	var deleted []BundleInfo
+	var freedBytes int64
+
+	// For each scenario, keep N newest and delete the rest
+	for _, scenarioBundles := range byScenario {
+		for i, b := range scenarioBundles {
+			if i < keepLatestPerScenario {
+				continue // Keep this one
+			}
+			if err := os.Remove(b.Path); err != nil {
+				if os.IsNotExist(err) {
+					continue // Already deleted
+				}
+				// Log but continue with other deletions
+				continue
+			}
+			deleted = append(deleted, b)
+			freedBytes += b.SizeBytes
+		}
+	}
+
+	return deleted, freedBytes, nil
+}
+
 func FindRepoRootFromCWD() (string, error) {
 	if override := strings.TrimSpace(os.Getenv("SCENARIO_TO_CLOUD_REPO_ROOT")); override != "" {
 		return filepath.Clean(override), nil

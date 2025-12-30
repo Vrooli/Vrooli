@@ -28,15 +28,21 @@ export function DeploymentsPage({ onBack }: DeploymentsPageProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
   const [deleteStopOnVPS, setDeleteStopOnVPS] = useState(false);
+  const [deleteCleanupBundles, setDeleteCleanupBundles] = useState(false);
 
   const deleteMutation = useDeleteDeployment();
   const inspectMutation = useInspectDeployment();
 
   const handleDelete = async () => {
     if (!showDeleteDialog) return;
-    await deleteMutation.mutateAsync({ id: showDeleteDialog, stopOnVPS: deleteStopOnVPS });
+    await deleteMutation.mutateAsync({
+      id: showDeleteDialog,
+      stopOnVPS: deleteStopOnVPS,
+      cleanupBundles: deleteCleanupBundles,
+    });
     setShowDeleteDialog(null);
     setDeleteStopOnVPS(false);
+    setDeleteCleanupBundles(false);
   };
 
   const handleInspect = async (id: string) => {
@@ -135,7 +141,7 @@ export function DeploymentsPage({ onBack }: DeploymentsPageProps) {
             <p className="text-slate-400 mb-4">
               Are you sure you want to delete this deployment record?
             </p>
-            <label className="flex items-center gap-2 mb-4 text-sm">
+            <label className="flex items-center gap-2 mb-3 text-sm">
               <input
                 type="checkbox"
                 checked={deleteStopOnVPS}
@@ -144,11 +150,21 @@ export function DeploymentsPage({ onBack }: DeploymentsPageProps) {
               />
               <span className="text-slate-300">Also stop the scenario on the VPS</span>
             </label>
+            <label className="flex items-center gap-2 mb-4 text-sm">
+              <input
+                type="checkbox"
+                checked={deleteCleanupBundles}
+                onChange={(e) => setDeleteCleanupBundles(e.target.checked)}
+                className="rounded border-white/20 bg-slate-800 text-blue-500 focus:ring-blue-500"
+              />
+              <span className="text-slate-300">Also delete associated bundle files (local + VPS)</span>
+            </label>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => {
                   setShowDeleteDialog(null);
                   setDeleteStopOnVPS(false);
+                  setDeleteCleanupBundles(false);
                 }}
                 className="px-4 py-2 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
               >

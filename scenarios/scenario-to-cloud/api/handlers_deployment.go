@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -219,10 +220,11 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleDeleteDeployment removes a deployment record, optionally stopping it first.
+// handleDeleteDeployment removes a deployment record, optionally stopping it first and cleaning up bundles.
 func (s *Server) handleDeleteDeployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	stopOnVPS := r.URL.Query().Get("stop") == "true"
+	cleanupBundles := r.URL.Query().Get("cleanup") == "true"
 
 	deployment, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
@@ -243,17 +245,44 @@ func (s *Server) handleDeleteDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Optionally stop the deployment on VPS first
-	if stopOnVPS {
-		var manifest CloudManifest
-		if err := json.Unmarshal(deployment.Manifest, &manifest); err == nil {
-			stopResult := s.stopDeploymentOnVPS(r.Context(), manifest)
-			if !stopResult.OK {
-				// Log the error but continue with deletion
-				s.log("failed to stop deployment on VPS", map[string]interface{}{
-					"deployment_id": id,
-					"error":         stopResult.Error,
-				})
-			}
+	var manifest CloudManifest
+	if stopOnVPS || cleanupBundles {
+		if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
+			s.log("failed to unmarshal manifest", map[string]interface{}{
+				"deployment_id": id,
+				"error":         err.Error(),
+			})
+		}
+	}
+
+	if stopOnVPS && manifest.Target.VPS != nil {
+		stopResult := s.stopDeploymentOnVPS(r.Context(), manifest)
+		if !stopResult.OK {
+			// Log the error but continue with deletion
+			s.log("failed to stop deployment on VPS", map[string]interface{}{
+				"deployment_id": id,
+				"error":         stopResult.Error,
+			})
+		}
+	}
+
+	// Optionally clean up bundle files (local + VPS)
+	if cleanupBundles && deployment.BundleSHA256 != nil && *deployment.BundleSHA256 != "" {
+		// Check if other deployments use this bundle
+		refCount, err := s.repo.CountDeploymentsByBundleSHA256(r.Context(), *deployment.BundleSHA256)
+		if err != nil {
+			s.log("failed to check bundle references", map[string]interface{}{
+				"sha256": *deployment.BundleSHA256,
+				"error":  err.Error(),
+			})
+		} else if refCount <= 1 {
+			// Safe to delete - only this deployment uses this bundle
+			s.cleanupDeploymentBundles(r.Context(), deployment, manifest)
+		} else {
+			s.log("skipping bundle cleanup - bundle used by other deployments", map[string]interface{}{
+				"sha256":    *deployment.BundleSHA256,
+				"ref_count": refCount,
+			})
 		}
 	}
 
@@ -270,6 +299,53 @@ func (s *Server) handleDeleteDeployment(w http.ResponseWriter, r *http.Request) 
 		"deleted":   true,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+// cleanupDeploymentBundles removes bundle files for a deployment (local + VPS).
+func (s *Server) cleanupDeploymentBundles(ctx context.Context, deployment *domain.Deployment, manifest CloudManifest) {
+	// 1. Delete local bundle
+	if deployment.BundleSHA256 != nil && *deployment.BundleSHA256 != "" {
+		repoRoot, err := FindRepoRootFromCWD()
+		if err == nil {
+			bundlesDir := repoRoot + "/scenarios/scenario-to-cloud/coverage/bundles"
+			freedBytes, err := DeleteBundle(bundlesDir, *deployment.BundleSHA256)
+			if err != nil {
+				s.log("failed to delete local bundle", map[string]interface{}{
+					"sha256": *deployment.BundleSHA256,
+					"error":  err.Error(),
+				})
+			} else if freedBytes > 0 {
+				s.log("deleted local bundle", map[string]interface{}{
+					"sha256":      *deployment.BundleSHA256,
+					"freed_bytes": freedBytes,
+				})
+			}
+		}
+	}
+
+	// 2. Delete VPS bundle
+	if manifest.Target.VPS != nil && deployment.BundlePath != nil && *deployment.BundlePath != "" {
+		cfg := sshConfigFromManifest(manifest)
+		workdir := manifest.Target.VPS.Workdir
+		bundleFilename := filepath.Base(*deployment.BundlePath)
+		remoteBundlePath := safeRemoteJoin(workdir, ".vrooli/cloud/bundles", bundleFilename)
+
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
+		cmd := fmt.Sprintf("rm -f %s", shellQuoteSingle(remoteBundlePath))
+		sshRunner := ExecSSHRunner{}
+		if _, err := sshRunner.Run(ctx, cfg, cmd); err != nil {
+			s.log("failed to delete VPS bundle", map[string]interface{}{
+				"path":  remoteBundlePath,
+				"error": err.Error(),
+			})
+		} else {
+			s.log("deleted VPS bundle", map[string]interface{}{
+				"path": remoteBundlePath,
+			})
+		}
+	}
 }
 
 // handleExecuteDeployment starts the deployment pipeline in the background.
@@ -399,6 +475,21 @@ func (s *Server) runDeploymentPipeline(id string, manifest CloudManifest, existi
 		}
 
 		outDir := repoRoot + "/scenarios/scenario-to-cloud/coverage/bundles"
+
+		// Clean up old bundles for this scenario before building new one (keep 3 newest)
+		const retentionCount = 3
+		if deleted, _, err := DeleteBundlesForScenario(outDir, manifest.Scenario.ID, retentionCount); err != nil {
+			s.log("bundle cleanup warning", map[string]interface{}{
+				"scenario_id": manifest.Scenario.ID,
+				"error":       err.Error(),
+			})
+		} else if len(deleted) > 0 {
+			s.log("cleaned old bundles", map[string]interface{}{
+				"scenario_id": manifest.Scenario.ID,
+				"count":       len(deleted),
+			})
+		}
+
 		artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, manifest)
 		if err != nil {
 			setDeploymentError(s.repo, ctx, id, "bundle_build", err.Error())

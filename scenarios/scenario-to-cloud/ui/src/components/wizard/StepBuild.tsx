@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Package, Play, FileArchive, Hash, HardDrive, Clock, CheckCircle2, History } from "lucide-react";
+import { Package, Play, FileArchive, Hash, HardDrive, Clock, CheckCircle2, History, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import { LoadingState, Spinner } from "../ui/spinner";
 import { Card, CardContent } from "../ui/card";
 import { selectors } from "../../consts/selectors";
 import type { useDeployment } from "../../hooks/useDeployment";
-import { listBundles, type BundleInfo } from "../../lib/api";
+import { listBundles, cleanupBundles, type BundleInfo } from "../../lib/api";
 
 interface StepBuildProps {
   deployment: ReturnType<typeof useDeployment>;
@@ -55,6 +55,8 @@ export function StepBuild({ deployment }: StepBuildProps) {
   const [existingBundles, setExistingBundles] = useState<BundleInfo[]>([]);
   const [isLoadingBundles, setIsLoadingBundles] = useState(true);
   const [bundlesError, setBundlesError] = useState<string | null>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
 
   // Get the scenario ID from the manifest
   const scenarioId = parsedManifest.ok ? parsedManifest.value?.scenario?.id : null;
@@ -89,6 +91,26 @@ export function StepBuild({ deployment }: StepBuildProps) {
       size_bytes: bundle.size_bytes,
     });
   };
+
+  // Handle bundle cleanup
+  const handleCleanup = async () => {
+    setIsCleaningUp(true);
+    setCleanupMessage(null);
+    try {
+      const result = await cleanupBundles({ keep_latest: 3 });
+      setCleanupMessage(result.message);
+      // Refresh bundles list
+      const response = await listBundles();
+      setExistingBundles(response.bundles);
+    } catch (err) {
+      setCleanupMessage(err instanceof Error ? err.message : "Cleanup failed");
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
+  // Calculate total storage used
+  const totalStorageBytes = existingBundles.reduce((sum, b) => sum + b.size_bytes, 0);
 
   return (
     <div className="space-y-6">
@@ -152,6 +174,44 @@ export function StepBuild({ deployment }: StepBuildProps) {
                 </Card>
               ))}
             </div>
+          )}
+
+          {/* Storage Summary */}
+          {!isLoadingBundles && existingBundles.length > 0 && (
+            <Card className="bg-slate-800/30 border-slate-700/50">
+              <CardContent className="py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <HardDrive className="h-4 w-4" />
+                    <span>
+                      {existingBundles.length} bundle{existingBundles.length !== 1 ? "s" : ""} using{" "}
+                      {formatBytes(totalStorageBytes)}
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCleanup}
+                    disabled={isCleaningUp}
+                  >
+                    {isCleaningUp ? (
+                      <>
+                        <Spinner size="sm" className="mr-1.5" />
+                        Cleaning...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4 mr-1.5" />
+                        Clean up old
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {cleanupMessage && (
+                  <p className="text-xs text-slate-500 mt-2">{cleanupMessage}</p>
+                )}
+              </CardContent>
+            </Card>
           )}
         </div>
       )}

@@ -46,6 +46,46 @@ export type BundleInfo = {
 };
 export type ListBundlesResponse = { bundles: BundleInfo[]; timestamp: string };
 
+export type ScenarioStats = {
+  count: number;
+  size_bytes: number;
+};
+
+export type BundleStats = {
+  total_count: number;
+  total_size_bytes: number;
+  oldest_created_at?: string;
+  newest_created_at?: string;
+  by_scenario: Record<string, ScenarioStats>;
+};
+
+export type BundleStatsResponse = {
+  stats: BundleStats;
+  timestamp: string;
+};
+
+export type BundleCleanupRequest = {
+  scenario_id?: string;
+  keep_latest?: number;
+  clean_vps?: boolean;
+  host?: string;
+  port?: number;
+  user?: string;
+  key_path?: string;
+  workdir?: string;
+};
+
+export type BundleCleanupResponse = {
+  ok: boolean;
+  local_deleted?: BundleInfo[];
+  local_freed_bytes: number;
+  vps_deleted?: number;
+  vps_freed_bytes?: number;
+  vps_error?: string;
+  message: string;
+  timestamp: string;
+};
+
 export type PortConfig = {
   env_var?: string;
   description?: string;
@@ -137,6 +177,33 @@ export async function listBundles() {
     throw new Error(`Failed to list bundles: ${res.status} ${text}`);
   }
   return res.json() as Promise<ListBundlesResponse>;
+}
+
+export async function getBundleStats() {
+  const url = buildApiUrl("/bundles/stats", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get bundle stats: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<BundleStatsResponse>;
+}
+
+export async function cleanupBundles(request: BundleCleanupRequest) {
+  const url = buildApiUrl("/bundles/cleanup", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to cleanup bundles: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<BundleCleanupResponse>;
 }
 
 export async function listScenarios() {
@@ -372,11 +439,21 @@ export async function stopDeployment(id: string): Promise<{ success: boolean; er
   return res.json();
 }
 
-export async function deleteDeployment(id: string, stopOnVPS = false): Promise<{ deleted: boolean; timestamp: string }> {
-  const url = buildApiUrl(`/deployments/${encodeURIComponent(id)}${stopOnVPS ? "?stop=true" : ""}`, { baseUrl: API_BASE });
+export async function deleteDeployment(
+  id: string,
+  options: { stopOnVPS?: boolean; cleanupBundles?: boolean } = {},
+): Promise<{ deleted: boolean; timestamp: string }> {
+  const params = new URLSearchParams();
+  if (options.stopOnVPS) params.set("stop", "true");
+  if (options.cleanupBundles) params.set("cleanup", "true");
+  const queryString = params.toString();
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(id)}${queryString ? `?${queryString}` : ""}`,
+    { baseUrl: API_BASE },
+  );
   const res = await fetch(url, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) {
     const text = await res.text();

@@ -73,10 +73,11 @@ func NewServer() (*Server, error) {
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	s.router.HandleFunc("/health", health.Handler()).Methods("GET")
+	healthHandler := health.Handler(health.DB(s.db))
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	api := s.router.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/health", health.Handler()).Methods("GET")
+	api.HandleFunc("/health", healthHandler).Methods("GET")
 	api.HandleFunc("/scenarios", s.handleListScenarios).Methods("GET")
 	api.HandleFunc("/scenarios/{id}/ports", s.handleScenarioPorts).Methods("GET")
 	api.HandleFunc("/validate/reachability", s.handleReachabilityCheck).Methods("POST")
@@ -84,6 +85,8 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/plan", s.handlePlan).Methods("POST")
 	api.HandleFunc("/bundle/build", s.handleBundleBuild).Methods("POST")
 	api.HandleFunc("/bundles", s.handleListBundles).Methods("GET")
+	api.HandleFunc("/bundles/stats", s.handleBundleStats).Methods("GET")
+	api.HandleFunc("/bundles/cleanup", s.handleBundleCleanup).Methods("POST")
 	api.HandleFunc("/preflight", s.handlePreflight).Methods("POST")
 	api.HandleFunc("/vps/setup/plan", s.handleVPSSetupPlan).Methods("POST")
 	api.HandleFunc("/vps/setup/apply", s.handleVPSSetupApply).Methods("POST")
