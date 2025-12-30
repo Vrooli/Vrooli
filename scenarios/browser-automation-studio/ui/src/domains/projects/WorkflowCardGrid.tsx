@@ -16,10 +16,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
-import { useExecutionStore } from "@/domains/executions";
+import { useStartWorkflow } from "@/domains/executions";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { selectors } from "@constants/selectors";
-import { ConfirmDialog } from "@shared/ui";
+import { ConfirmDialog, PromptDialog } from "@shared/ui";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
 import {
@@ -70,7 +70,13 @@ export function WorkflowCardGrid({
 
   // External stores
   const { bulkDeleteWorkflows } = useWorkflowStore();
-  const startExecution = useExecutionStore((state) => state.startExecution);
+
+  // Execution hook with start URL prompt
+  const { startWorkflow, promptDialogProps } = useStartWorkflow({
+    onSuccess: () => {
+      setActiveTab("executions");
+    },
+  });
 
   // Dialog hooks
   const {
@@ -95,13 +101,15 @@ export function WorkflowCardGrid({
       setExecutionInProgress(workflowId, true);
 
       try {
-        await startExecution(workflowId);
-        setActiveTab("executions");
-        logger.info("Workflow execution started", {
-          component: "WorkflowCardGrid",
-          action: "handleExecuteWorkflow",
-          workflowId,
-        });
+        const executionId = await startWorkflow({ workflowId });
+        if (executionId) {
+          logger.info("Workflow execution started", {
+            component: "WorkflowCardGrid",
+            action: "handleExecuteWorkflow",
+            workflowId,
+            executionId,
+          });
+        }
       } catch (error) {
         logger.error(
           "Failed to execute workflow",
@@ -112,12 +120,12 @@ export function WorkflowCardGrid({
           },
           error,
         );
-        alert("Failed to execute workflow. Please try again.");
+        toast.error("Failed to execute workflow. Please try again.");
       } finally {
         setExecutionInProgress(workflowId, false);
       }
     },
-    [startExecution, setExecutionInProgress, setActiveTab],
+    [startWorkflow, setExecutionInProgress],
   );
 
   const handleDeleteWorkflow = useCallback(
@@ -278,6 +286,7 @@ export function WorkflowCardGrid({
           )}
         </div>
         <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
+        <PromptDialog {...promptDialogProps} />
       </div>
     );
   }
@@ -308,6 +317,7 @@ export function WorkflowCardGrid({
           </div>
         </div>
         <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
+        <PromptDialog {...promptDialogProps} />
       </div>
     );
   }
@@ -515,6 +525,7 @@ export function WorkflowCardGrid({
         })}
       </div>
       <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
+      <PromptDialog {...promptDialogProps} />
     </div>
   );
 }

@@ -20,7 +20,17 @@ import (
 func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, workflow *basapi.WorkflowSummary) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
 	_ = ctx // Reserved for future use (e.g., context-aware compilation)
 
+	logrus.WithFields(logrus.Fields{
+		"execution_id": executionID,
+		"workflow_id":  workflow.GetId(),
+	}).Debug("CompileWorkflowToContracts: starting")
+
 	plan, err := CompileWorkflow(workflow)
+	logrus.WithFields(logrus.Fields{
+		"execution_id":  executionID,
+		"workflow_id":   workflow.GetId(),
+		"compile_error": err != nil,
+	}).Debug("CompileWorkflowToContracts: CompileWorkflow returned")
 	if err != nil {
 		return contracts.ExecutionPlan{}, nil, err
 	}

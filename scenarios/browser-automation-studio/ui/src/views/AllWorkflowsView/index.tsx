@@ -3,9 +3,9 @@
  */
 import { lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LoadingSpinner } from '@shared/ui';
+import { LoadingSpinner, PromptDialog } from '@shared/ui';
 import { selectors } from '@constants/selectors';
-import { useExecutionStore } from '@/domains/executions';
+import { useStartWorkflow } from '@/domains/executions';
 import toast from 'react-hot-toast';
 import { logger } from '@utils/logger';
 
@@ -17,7 +17,21 @@ const GlobalWorkflowsView = lazy(() =>
 
 export default function AllWorkflowsView() {
   const navigate = useNavigate();
-  const startExecution = useExecutionStore((state) => state.startExecution);
+
+  // Execution hook with start URL prompt
+  const { startWorkflow, promptDialogProps } = useStartWorkflow({
+    onSuccess: () => {
+      toast.success('Workflow execution started');
+    },
+    onError: (error) => {
+      logger.error(
+        'Failed to start workflow execution',
+        { component: 'AllWorkflowsView', action: 'handleRunWorkflow' },
+        error
+      );
+      toast.error('Failed to start workflow');
+    },
+  });
 
   const handleBack = () => {
     // Go back in history if possible, otherwise navigate home
@@ -37,19 +51,10 @@ export default function AllWorkflowsView() {
 
   const handleRunWorkflow = useCallback(
     async (workflowId: string) => {
-      try {
-        await startExecution(workflowId);
-        toast.success('Workflow execution started');
-      } catch (error) {
-        logger.error(
-          'Failed to start workflow execution',
-          { component: 'AllWorkflowsView', action: 'handleRunWorkflow', workflowId },
-          error
-        );
-        toast.error('Failed to start workflow');
-      }
+      // startWorkflow handles success/error via hook options
+      await startWorkflow({ workflowId });
     },
-    [startExecution]
+    [startWorkflow]
   );
 
   return (
@@ -67,6 +72,9 @@ export default function AllWorkflowsView() {
           onRunWorkflow={handleRunWorkflow}
         />
       </Suspense>
+
+      {/* Start URL prompt for workflows without navigate step */}
+      <PromptDialog {...promptDialogProps} />
     </div>
   );
 }

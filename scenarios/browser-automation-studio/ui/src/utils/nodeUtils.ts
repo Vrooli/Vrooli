@@ -296,3 +296,35 @@ export async function getUpstreamUrlAsync(
   }
   return await getNavigateNodeUrlAsync(navigateNode);
 }
+
+/**
+ * Finds all entry nodes in a workflow (nodes with no incoming edges).
+ * Entry nodes are where workflow execution begins.
+ */
+export function findEntryNodes(nodes: Node[], edges: Edge[]): Node[] {
+  const nodesWithIncomingEdges = new Set(edges.map(edge => edge.target));
+  return nodes.filter(node => !nodesWithIncomingEdges.has(node.id));
+}
+
+/**
+ * Checks if a workflow starts with a navigate step.
+ * A workflow "starts with navigate" if all of its entry nodes (nodes with no incoming edges)
+ * are navigate nodes. If there are no entry nodes or no nodes, returns false.
+ *
+ * @returns true if all entry points are navigate nodes, false otherwise
+ */
+export function workflowStartsWithNavigate(nodes: Node[], edges: Edge[]): boolean {
+  if (!nodes || nodes.length === 0) {
+    return false;
+  }
+
+  const entryNodes = findEntryNodes(nodes, edges);
+
+  // If no entry nodes, the workflow has a cycle or is empty
+  if (entryNodes.length === 0) {
+    return false;
+  }
+
+  // Check if ALL entry nodes are navigate nodes
+  return entryNodes.every(node => node.type === 'navigate');
+}

@@ -11,8 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -57,6 +59,7 @@ type Position struct {
 // CompileWorkflow converts a stored workflow definition into an execution plan.
 // It accepts a proto WorkflowSummary which contains the ID, name, and flow definition.
 func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
+	logrus.WithField("workflow_id", workflow.GetId()).Debug("CompileWorkflow: start")
 	if workflow == nil {
 		return nil, errors.New("workflow is nil")
 	}
@@ -71,20 +74,31 @@ func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
 	if flowDef == nil {
 		return nil, errors.New("workflow has no flow_definition")
 	}
+	logrus.WithField("workflow_id", workflow.GetId()).Debug("CompileWorkflow: got flow_definition")
 
 	// Convert proto flow definition to internal flowDefinition struct
 	// We use protojson.Marshal to properly serialize proto messages to JSON
 	var raw flowDefinition
+	logrus.WithField("workflow_id", workflow.GetId()).Debug("CompileWorkflow: about to marshal")
 	data, err := (protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}).Marshal(flowDef)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal workflow definition: %w", err)
 	}
+	logrus.WithFields(logrus.Fields{
+		"workflow_id": workflow.GetId(),
+		"data_len":    len(data),
+	}).Debug("CompileWorkflow: marshaled")
 
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("invalid workflow definition: %w", err)
 	}
+	logrus.WithFields(logrus.Fields{
+		"workflow_id": workflow.GetId(),
+		"node_count":  len(raw.Nodes),
+	}).Debug("CompileWorkflow: unmarshaled")
 
 	if len(raw.Nodes) == 0 {
+		logrus.WithField("workflow_id", workflow.GetId()).Debug("CompileWorkflow: empty workflow")
 		return &ExecutionPlan{
 			WorkflowID:   workflowID,
 			WorkflowName: workflowName,
@@ -93,6 +107,7 @@ func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
 		}, nil
 	}
 
+	logrus.WithField("workflow_id", workflow.GetId()).Debug("CompileWorkflow: about to compileFlow")
 	plan, err := compileFlow(flowFragment{definition: raw}, workflowID, workflowName)
 	if err != nil {
 		return nil, err
@@ -119,21 +134,42 @@ func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
 }
 
 func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName string) (*ExecutionPlan, error) {
+	logrus.WithFields(logrus.Fields{
+		"workflow_id":   workflowID,
+		"workflow_name": workflowName,
+	}).Debug("compileFlow: start")
+
 	planner := newPlanner(fragment.definition)
+	logrus.WithField("workflow_id", workflowID).Debug("compileFlow: planner created")
+
 	loopFragments, err := planner.extractLoopBodies()
 	if err != nil {
 		return nil, err
 	}
+	logrus.WithFields(logrus.Fields{
+		"workflow_id":    workflowID,
+		"loop_count":     len(loopFragments),
+	}).Debug("compileFlow: loop bodies extracted")
 
 	steps, err := planner.buildSteps()
 	if err != nil {
 		return nil, err
 	}
+	logrus.WithFields(logrus.Fields{
+		"workflow_id": workflowID,
+		"step_count":  len(steps),
+	}).Debug("compileFlow: steps built")
 
 	for idx := range steps {
 		if steps[idx].Type != StepLoop {
 			continue
 		}
+		logrus.WithFields(logrus.Fields{
+			"workflow_id": workflowID,
+			"loop_idx":    idx,
+			"loop_node":   steps[idx].NodeID,
+		}).Debug("compileFlow: processing loop step")
+
 		bodyFragment, ok := loopFragments[steps[idx].NodeID]
 		if !ok {
 			return nil, fmt.Errorf("loop node %s has no body definition", steps[idx].NodeID)
@@ -144,6 +180,7 @@ func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName strin
 		}
 		steps[idx].LoopPlan = childPlan
 	}
+	logrus.WithField("workflow_id", workflowID).Debug("compileFlow: loops processed")
 
 	plan := &ExecutionPlan{
 		WorkflowID:   workflowID,
@@ -691,13 +728,20 @@ func (p *planner) findIncomingEdges(nodeID string) []rawEdge {
 }
 
 func (p *planner) buildSteps() ([]ExecutionStep, error) {
+	logrus.Debug("buildSteps: about to topologicalOrder")
 	order := p.topologicalOrder()
+	logrus.WithField("order_len", len(order)).Debug("buildSteps: topologicalOrder done")
 	if len(order) != len(p.definition.Nodes) {
 		return nil, errors.New("workflow contains a cycle or disconnected nodes")
 	}
 
 	steps := make([]ExecutionStep, 0, len(order))
 	for idx, nodeID := range order {
+		logrus.WithFields(logrus.Fields{
+			"idx":     idx,
+			"node_id": nodeID,
+		}).Debug("buildSteps: processing node")
+
 		node := p.nodesByID[nodeID]
 		nodeType, err := node.getStepType()
 		if err != nil {
@@ -721,15 +765,19 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 
 		// Resolve navigate node URLs from destinationType: "scenario" format
 		if stepType == StepNavigate {
+			logrus.WithField("node_id", nodeID).Debug("buildSteps: resolving navigate URL")
 			if err := resolveNavigateURL(&step); err != nil {
 				return nil, fmt.Errorf("failed to resolve navigate URL for node %s: %w", nodeID, err)
 			}
+			logrus.WithField("node_id", nodeID).Debug("buildSteps: navigate URL resolved")
 		}
 
 		// Resolve @selector/ references in all steps that have selector parameters
+		logrus.WithField("node_id", nodeID).Debug("buildSteps: about to resolveSelectors")
 		if err := resolveSelectors(&step); err != nil {
 			return nil, fmt.Errorf("failed to resolve selectors for node %s: %w", nodeID, err)
 		}
+		logrus.WithField("node_id", nodeID).Debug("buildSteps: selectors resolved")
 
 		for _, edge := range p.outgoing[nodeID] {
 			if isLoopBodyEdge(edge) {
@@ -950,8 +998,9 @@ func resolveNavigateURL(step *ExecutionStep) error {
 		return fmt.Errorf("navigate node with destinationType 'scenario' missing scenario name")
 	}
 
-	// Resolve URL via scenarioport package
-	ctx := context.Background()
+	// Resolve URL via scenarioport package with a timeout to prevent hanging
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	resolvedURL, _, err := scenarioport.ResolveURL(ctx, scenarioName, scenarioPath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve URL for scenario %s: %w", scenarioName, err)
@@ -972,8 +1021,11 @@ var (
 
 // loadSelectorManifest loads the selector manifest from ui/src/consts/selectors.manifest.json
 func loadSelectorManifest() error {
+	logrus.Debug("loadSelectorManifest: called")
 	selectorManifestOnce.Do(func() {
+		logrus.Debug("loadSelectorManifest: inside Once.Do")
 		scenarioDir := paths.ResolveScenarioDir(nil)
+		logrus.WithField("scenario_dir", scenarioDir).Debug("loadSelectorManifest: resolved scenario dir")
 
 		// Try multiple paths to find the manifest, depending on working directory
 		// (working directory could be scenario root or api/ subdirectory)
@@ -1016,6 +1068,7 @@ func loadSelectorManifest() error {
 
 // resolveSelectors resolves @selector/ references in step parameters to actual CSS selectors
 func resolveSelectors(step *ExecutionStep) error {
+	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: start")
 	if step == nil || step.Params == nil {
 		return nil
 	}
@@ -1048,13 +1101,20 @@ func resolveSelectors(step *ExecutionStep) error {
 
 	// Only load manifest if we found @selector/ references
 	if !hasSelectorsRefs {
+		logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: no @selector/ refs, returning early")
 		return nil
 	}
 
+	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: has @selector/ refs, loading manifest")
 	// Load manifest if not already loaded
 	if err := loadSelectorManifest(); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"node_id": step.NodeID,
+			"error":   err.Error(),
+		}).Debug("resolveSelectors: manifest load failed")
 		return err
 	}
+	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: manifest loaded")
 
 	// Check for selector-related parameters and resolve @selector/ references
 	for _, paramName := range selectorParams {
@@ -1149,11 +1209,13 @@ func resolveSelectorReference(selectorRef string) string {
 // resolveSelectorTokens replaces any @selector/ references embedded in a selector string.
 func resolveSelectorTokens(selectorRef string) string {
 	resolved := selectorRef
+	searchStart := 0
 	for {
-		idx := strings.Index(resolved, "@selector/")
+		idx := strings.Index(resolved[searchStart:], "@selector/")
 		if idx == -1 {
 			return resolved
 		}
+		idx += searchStart // Adjust to absolute position
 		end := idx + len("@selector/")
 		for end < len(resolved) {
 			ch := resolved[end]
@@ -1165,8 +1227,13 @@ func resolveSelectorTokens(selectorRef string) string {
 		token := resolved[idx:end]
 		replacement := resolveSelectorReference(token)
 		if replacement == "" {
-			replacement = token
+			// Selector not found - skip past this token to avoid infinite loop
+			logrus.WithField("token", token).Warn("resolveSelectorTokens: unresolved @selector/ reference")
+			searchStart = end
+			continue
 		}
 		resolved = resolved[:idx] + replacement + resolved[end:]
+		// Adjust search position to account for replacement length difference
+		searchStart = idx + len(replacement)
 	}
 }

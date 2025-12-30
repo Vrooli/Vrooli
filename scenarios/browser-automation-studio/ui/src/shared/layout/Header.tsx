@@ -21,10 +21,13 @@ import { useProjectStore, type Project } from "@/domains/projects";
 import { AIEditModal } from "@/domains/ai";
 import toast from "react-hot-toast";
 import { usePopoverPosition } from "@hooks/usePopoverPosition";
+import { usePromptDialog } from "@hooks/usePromptDialog";
 import ResponsiveDialog from "./ResponsiveDialog";
+import { PromptDialog } from "@shared/ui/PromptDialog";
 import { selectors } from "@constants/selectors";
 import { SubscriptionBadge } from "@shared/components";
 import Breadcrumbs from "./Breadcrumbs";
+import { workflowStartsWithNavigate } from "@utils/nodeUtils";
 
 type HeaderWorkflow = Pick<
   Workflow,
@@ -103,6 +106,8 @@ function Header({
   );
   const restoringVersion = useWorkflowStore((state) => state.restoringVersion);
   const startExecution = useExecutionStore((state) => state.startExecution);
+  const nodes = useWorkflowStore((state) => state.nodes);
+  const edges = useWorkflowStore((state) => state.edges);
   const { isConnected, error } = useProjectStore();
   const [showAIEditModal, setShowAIEditModal] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -114,6 +119,15 @@ function Header({
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showSaveErrorDetails, setShowSaveErrorDetails] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
+
+  // Prompt dialog for start URL when workflow doesn't begin with navigate
+  const {
+    dialogState: startUrlDialogState,
+    prompt: promptStartUrl,
+    setValue: setStartUrlValue,
+    close: closeStartUrlDialog,
+    submit: submitStartUrl,
+  } = usePromptDialog();
 
   const { floatingStyles: workflowInfoStyles } = usePopoverPosition(
     infoButtonRef,
@@ -510,7 +524,61 @@ function Header({
 
     try {
       setIsExecuting(true);
+
+      // Check if workflow starts with a navigate step
+      const hasNavigateStep = workflowStartsWithNavigate(nodes, edges);
+
+      let startUrl: string | undefined;
+
+      // If workflow doesn't start with navigate, prompt for start URL
+      if (!hasNavigateStep && nodes.length > 0) {
+        const url = await promptStartUrl(
+          {
+            title: "Start URL Required",
+            message: "This workflow doesn't begin with a Navigate step. Please enter the URL where the workflow should start.",
+            label: "Start URL",
+            placeholder: "example.com",
+            submitLabel: "Run Workflow",
+            cancelLabel: "Cancel",
+          },
+          {
+            validate: (value) => {
+              if (!value.trim()) {
+                return "Please enter a URL";
+              }
+              // Normalize the URL for validation
+              let urlToValidate = value.trim();
+              if (!/^https?:\/\//i.test(urlToValidate)) {
+                urlToValidate = `https://${urlToValidate}`;
+              }
+              try {
+                new URL(urlToValidate);
+                return null;
+              } catch {
+                return "Please enter a valid URL (e.g., example.com)";
+              }
+            },
+            normalize: (value) => {
+              const trimmed = value.trim();
+              // Auto-prepend https:// if no protocol
+              if (!/^https?:\/\//i.test(trimmed)) {
+                return `https://${trimmed}`;
+              }
+              return trimmed;
+            },
+          }
+        );
+
+        if (!url) {
+          // User cancelled
+          setIsExecuting(false);
+          return;
+        }
+        startUrl = url;
+      }
+
       await startExecution(currentWorkflow.id, {
+        startUrl,
         saveWorkflowFn: async () => {
           if (!isDirty) {
             return;
@@ -627,7 +695,7 @@ function Header({
     };
     window.addEventListener('execute-workflow', handleExecuteEvent);
     return () => window.removeEventListener('execute-workflow', handleExecuteEvent);
-  }, [currentWorkflow, isExecuting, isDirty, startExecution, saveWorkflow]);
+  }, [currentWorkflow, isExecuting, isDirty, startExecution, saveWorkflow, nodes, edges]);
 
   return (
     <>
@@ -1140,6 +1208,14 @@ function Header({
           </div>
         )}
       </ResponsiveDialog>
+
+      {/* Start URL prompt for workflows without navigate step */}
+      <PromptDialog
+        state={startUrlDialogState}
+        onValueChange={setStartUrlValue}
+        onClose={closeStartUrlDialog}
+        onSubmit={submitStartUrl}
+      />
     </>
   );
 }

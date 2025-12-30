@@ -904,6 +904,7 @@ func (h *Handler) ReplayRecordingPreview(w http.ResponseWriter, r *http.Request)
 
 // NavigateRecordingSession handles POST /api/v1/recordings/live/{sessionId}/navigate
 // Navigates the Playwright recording session to a URL and optionally returns a screenshot.
+// Also creates a navigate action in the recording timeline so the navigation is captured.
 func (h *Handler) NavigateRecordingSession(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
 	defer cancel()
@@ -954,6 +955,38 @@ func (h *Handler) NavigateRecordingSession(w http.ResponseWriter, r *http.Reques
 		activePageID := pages.GetActivePageID()
 		pages.UpdatePageInfo(activePageID, resp.URL, resp.Title)
 
+		// Create a navigate action for the recording timeline
+		// This ensures user-initiated navigation via URL bar is captured as a workflow step
+		now := time.Now()
+		navigateAction := livecapture.RecordedAction{
+			ID:          uuid.NewString(),
+			SessionID:   sessionID,
+			Timestamp:   now.Format(time.RFC3339Nano),
+			ActionType:  "navigate",
+			Confidence:  1.0, // High confidence for user-initiated navigation
+			URL:         resp.URL,
+			PageID:      activePageID.String(),
+			PageTitle:   resp.Title,
+		}
+
+		// Add the navigate action to the timeline
+		h.recordModeService.AddTimelineAction(sessionID, &navigateAction, activePageID)
+
+		// Convert to timeline entry and broadcast via WebSocket
+		timelineEntry := h.convertRecordedActionToTimelineEntry(&navigateAction)
+		if timelineEntry != nil {
+			timelineEntry["pageId"] = activePageID.String()
+			h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, navigateAction, timelineEntry)
+		} else {
+			h.wsHub.BroadcastRecordingAction(sessionID, navigateAction)
+		}
+
+		h.log.WithFields(map[string]interface{}{
+			"session_id":  sessionID,
+			"action_type": "navigate",
+			"url":         resp.URL,
+		}).Debug("Created and broadcast navigate action from URL bar navigation")
+
 		// Broadcast a page_navigated event so the UI updates
 		pageEvent := &domain.PageEvent{
 			ID:        uuid.New(),
@@ -961,7 +994,7 @@ func (h *Handler) NavigateRecordingSession(w http.ResponseWriter, r *http.Reques
 			PageID:    activePageID,
 			URL:       resp.URL,
 			Title:     resp.Title,
-			Timestamp: time.Now(),
+			Timestamp: now,
 		}
 		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
 	}

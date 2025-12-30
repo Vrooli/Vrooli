@@ -201,10 +201,21 @@ func (q *executionQueue) run() {
 }
 
 func (q *executionQueue) emit(event contracts.EventEnvelope) {
-	if protoMap, ok := eventToProtoMap(event); ok {
+	protoMap, ok := eventToProtoMap(event)
+	if ok {
+		logrus.WithFields(logrus.Fields{
+			"event_kind":   event.Kind,
+			"execution_id": event.ExecutionID,
+			"step_index":   event.StepIndex,
+			"msg_type":     protoMap["type"],
+		}).Debug("Broadcasting proto event via WebSocket")
 		q.hub.BroadcastEnvelope(protoMap)
 		return
 	}
+	logrus.WithFields(logrus.Fields{
+		"event_kind":   event.Kind,
+		"execution_id": event.ExecutionID,
+	}).Warn("Proto conversion failed, broadcasting raw event envelope")
 	q.hub.BroadcastEnvelope(event)
 }
 
@@ -340,8 +351,20 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.Tim
 		if out, ok := asMap["outcome"].(contracts.StepOutcome); ok {
 			outcome = &out
 		}
+		// Debug: log payload keys and progress value
+		keys := make([]string, 0, len(asMap))
+		for k := range asMap {
+			keys = append(keys, k)
+		}
+		logrus.WithFields(logrus.Fields{
+			"event_kind":     ev.Kind,
+			"payload_keys":   keys,
+			"has_outcome":    outcome != nil,
+			"progress_value": extractInt(asMap, "progress"),
+		}).Debug("Building timeline entry from envelope")
 	} else if out, ok := ev.Payload.(contracts.StepOutcome); ok {
 		outcome = &out
+		logrus.WithField("event_kind", ev.Kind).Debug("Building timeline entry from direct StepOutcome")
 	}
 
 	// Use the unified telemetry conversion when we have a StepOutcome

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { X, Clock, Globe, AlertCircle, ChevronDown, Workflow } from 'lucide-react';
+import { X, Clock, Globe, AlertCircle, ChevronDown, Workflow, Link } from 'lucide-react';
 import { ResponsiveDialog } from '@shared/layout';
 import type { WorkflowSchedule, CreateScheduleInput, UpdateScheduleInput } from '@stores/scheduleStore';
 import { CRON_PRESETS, COMMON_TIMEZONES, describeCron } from '@stores/scheduleStore';
@@ -41,6 +41,7 @@ export function ScheduleModal({
   const [isActive, setIsActive] = useState(true);
   const [usePreset, setUsePreset] = useState(true);
   const [selectedPreset, setSelectedPreset] = useState<string | null>('0 9 * * *');
+  const [startUrl, setStartUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -59,6 +60,8 @@ export function ScheduleModal({
         setCronExpression(schedule.cron_expression);
         setTimezone(schedule.timezone);
         setIsActive(schedule.is_active);
+        // Load start_url from parameters if present
+        setStartUrl((schedule.parameters?.start_url as string) ?? '');
         // Check if current expression matches a preset
         const matchingPreset = CRON_PRESETS.find(p => p.value === schedule.cron_expression);
         if (matchingPreset) {
@@ -78,6 +81,7 @@ export function ScheduleModal({
         setIsActive(true);
         setUsePreset(true);
         setSelectedPreset('0 9 * * *');
+        setStartUrl('');
       }
       setError(null);
     } else if (!isOpen) {
@@ -121,12 +125,18 @@ export function ScheduleModal({
     setError(null);
 
     try {
+      // Build parameters object with start_url if provided
+      const parameters: Record<string, unknown> | undefined = startUrl.trim()
+        ? { start_url: startUrl.trim() }
+        : undefined;
+
       const input: CreateScheduleInput | UpdateScheduleInput = {
         name: name.trim(),
         description: description.trim() || undefined,
         cron_expression: cronExpression.trim(),
         timezone,
         is_active: isActive,
+        parameters,
       };
 
       await onSave(input, selectedWorkflowId);
@@ -137,7 +147,7 @@ export function ScheduleModal({
     } finally {
       setIsSaving(false);
     }
-  }, [name, description, cronExpression, timezone, isActive, selectedWorkflowId, isEditing, onSave, onClose]);
+  }, [name, description, cronExpression, timezone, isActive, startUrl, selectedWorkflowId, isEditing, onSave, onClose]);
 
   return (
     <ResponsiveDialog
@@ -230,6 +240,26 @@ export function ScheduleModal({
               rows={2}
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
             />
+          </div>
+
+          {/* Start URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              <span className="flex items-center gap-1.5">
+                <Link size={14} />
+                Start URL
+              </span>
+            </label>
+            <input
+              type="url"
+              value={startUrl}
+              onChange={(e) => setStartUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Required if the workflow doesn't start with a Navigate step
+            </p>
           </div>
 
           {/* Cron Expression */}

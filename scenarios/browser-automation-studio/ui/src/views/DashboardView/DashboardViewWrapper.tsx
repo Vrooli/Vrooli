@@ -10,8 +10,9 @@ import { type DashboardTab } from './DashboardTabs';
 import { type Project, useProjectStore, buildProjectFolderPath } from '@/domains/projects';
 import { WorkflowCreationDialog, type WorkflowCreationType } from '@/domains/workflows';
 import { useWorkflowStore } from '@stores/workflowStore';
-import { useExecutionStore } from '@/domains/executions';
+import { useExecutionStore, useStartWorkflow } from '@/domains/executions';
 import { useModals } from '@shared/modals';
+import { PromptDialog } from '@shared/ui';
 import { useGuidedTour } from '@shared/onboarding';
 import { selectors } from '@constants/selectors';
 import { logger } from '@utils/logger';
@@ -36,8 +37,22 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
     closeWorkflowCreationModal,
   } = useModals();
   const { openTour } = useGuidedTour();
-  const startExecution = useExecutionStore((state) => state.startExecution);
   const loadExecution = useExecutionStore((state) => state.loadExecution);
+
+  // Execution hook with start URL prompt
+  const { startWorkflow, promptDialogProps } = useStartWorkflow({
+    onSuccess: () => {
+      toast.success('Workflow execution started');
+    },
+    onError: (error) => {
+      logger.error(
+        'Failed to start workflow execution',
+        { component: 'DashboardViewWrapper', action: 'handleRunWorkflow' },
+        error
+      );
+      toast.error('Failed to start workflow');
+    },
+  });
 
   // Get tab from URL params or use initialTab or default to 'home'
   const tabParam = searchParams.get('tab') as DashboardTab | null;
@@ -195,19 +210,10 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
 
   const handleRunWorkflow = useCallback(
     async (workflowId: string) => {
-      try {
-        await startExecution(workflowId);
-        toast.success('Workflow execution started');
-      } catch (error) {
-        logger.error(
-          'Failed to start workflow execution',
-          { component: 'DashboardViewWrapper', action: 'handleRunWorkflow', workflowId },
-          error
-        );
-        toast.error('Failed to start workflow');
-      }
+      // startWorkflow handles success/error via hook options
+      await startWorkflow({ workflowId });
     },
-    [startExecution]
+    [startWorkflow]
   );
 
   const handleViewAllWorkflows = useCallback(() => {
@@ -304,6 +310,9 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
         onSelectType={handleWorkflowTypeSelected}
         onCreateProject={openProjectModal}
       />
+
+      {/* Start URL prompt for workflows without navigate step */}
+      <PromptDialog {...promptDialogProps} />
     </div>
   );
 }

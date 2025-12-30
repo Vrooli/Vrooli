@@ -379,9 +379,14 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			return session, fmt.Errorf("record step outcome: %w", recordErr)
 		}
 
+		// Calculate progress: (completed steps / total steps) * 100
+		totalSteps := len(req.Plan.Instructions)
+		progressPercent := calculateProgress(instruction.Index, totalSteps)
+
 		payload := map[string]any{
 			"outcome":   normalized,
 			"artifacts": recordResult.ArtifactIDs,
+			"progress":  progressPercent,
 		}
 		if recordResult.TimelineArtifactID != nil {
 			payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
@@ -615,6 +620,21 @@ func (e *SimpleExecutor) failureMessage(outcome contracts.StepOutcome) string {
 		return outcome.Failure.Message
 	}
 	return "unknown failure"
+}
+
+// calculateProgress computes execution progress as a percentage (0-100).
+// For linear execution, progress = (completedStepIndex + 1) / totalSteps * 100.
+// The +1 accounts for zero-based indexing so completing step 0 shows some progress.
+func calculateProgress(stepIndex, totalSteps int) int {
+	if totalSteps <= 0 {
+		return 0
+	}
+	// Add 1 to stepIndex to convert from "current step" to "completed steps"
+	progress := (stepIndex + 1) * 100 / totalSteps
+	if progress > 100 {
+		progress = 100
+	}
+	return progress
 }
 
 const (

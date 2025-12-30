@@ -201,6 +201,8 @@ export interface StartExecutionOptions {
   requiresVideo?: boolean;
   /** Function to save the workflow before execution */
   saveWorkflowFn?: () => Promise<void>;
+  /** Start URL for workflows that don't begin with a navigate step */
+  startUrl?: string;
 }
 
 /** Profile descriptions for UI display */
@@ -559,6 +561,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         body: JSON.stringify({
           wait_for_completion: false,
           parameters: {
+            // Include start_url if provided (for workflows without navigate step)
+            ...(options?.startUrl && { start_url: options.startUrl }),
             artifact_config: {
               profile: artifactConfig.profile ?? 'full',
               ...(artifactConfig.profile === 'custom' && {

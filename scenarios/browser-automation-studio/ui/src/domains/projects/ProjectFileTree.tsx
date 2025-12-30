@@ -15,7 +15,7 @@ import {
 } from "./FileTree";
 import type { Project } from "./store";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
-import { useExecutionStore } from "@/domains/executions";
+import { useStartWorkflow } from "@/domains/executions";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { usePromptDialog } from "@hooks/usePromptDialog";
 import { ConfirmDialog, PromptDialog } from "@shared/ui";
@@ -103,7 +103,13 @@ export function ProjectFileTree({
 
   // External stores
   const loadWorkflow = useWorkflowStore((state) => state.loadWorkflow);
-  const startExecution = useExecutionStore((state) => state.startExecution);
+
+  // Execution hook with start URL prompt
+  const { startWorkflow, promptDialogProps: startUrlPromptProps } = useStartWorkflow({
+    onSuccess: () => {
+      setActiveTab("executions");
+    },
+  });
 
   // Get the previewed workflow details
   const previewedWorkflow = useMemo(() => {
@@ -285,13 +291,15 @@ export function ProjectFileTree({
       setExecutionInProgress(workflowId, true);
 
       try {
-        await startExecution(workflowId);
-        setActiveTab("executions");
-        logger.info("Workflow execution started", {
-          component: "ProjectFileTree",
-          action: "handleExecuteWorkflow",
-          workflowId,
-        });
+        const executionId = await startWorkflow({ workflowId });
+        if (executionId) {
+          logger.info("Workflow execution started", {
+            component: "ProjectFileTree",
+            action: "handleExecuteWorkflow",
+            workflowId,
+            executionId,
+          });
+        }
       } catch (error) {
         logger.error(
           "Failed to execute workflow",
@@ -302,12 +310,12 @@ export function ProjectFileTree({
           },
           error,
         );
-        alert("Failed to execute workflow. Please try again.");
+        toast.error("Failed to execute workflow. Please try again.");
       } finally {
         setExecutionInProgress(workflowId, false);
       }
     },
-    [startExecution, setExecutionInProgress, setActiveTab],
+    [startWorkflow, setExecutionInProgress],
   );
 
   const handleDeleteTreeNode = useCallback(
@@ -935,6 +943,8 @@ export function ProjectFileTree({
         onClose={closePromptDialog}
         onSubmit={submitPrompt}
       />
+      {/* Start URL prompt for workflows without navigate step */}
+      <PromptDialog {...startUrlPromptProps} />
     </div>
   );
 }

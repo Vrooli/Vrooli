@@ -29,6 +29,8 @@ export type {
 
 // Hooks
 export { useExecutionEvents } from './hooks/useExecutionEvents';
+export { useStartWorkflow } from './hooks/useStartWorkflow';
+export type { UseStartWorkflowOptions, StartWorkflowParams } from './hooks/useStartWorkflow';
 
 // Event processor utilities
 export {

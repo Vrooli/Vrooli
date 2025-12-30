@@ -35,9 +35,10 @@ import {
 } from "lucide-react";
 import type { WorkflowWithStats } from "./hooks/useProjectDetailStore";
 import { useScheduleStore, type WorkflowSchedule, type CreateScheduleInput, type UpdateScheduleInput, describeCron, formatNextRun } from "@stores/scheduleStore";
-import { useExecutionStore, type Execution } from "@/domains/executions";
+import { useExecutionStore, useStartWorkflow, type Execution } from "@/domains/executions";
 import { useWorkflowStore } from "@stores/workflowStore";
 import { ScheduleModal } from "@/views/SettingsView/sections/schedules/ScheduleModal";
+import { PromptDialog } from "@shared/ui/PromptDialog";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
 
@@ -343,7 +344,6 @@ export function WorkflowPreviewPane({
   // Workflow store for loading full workflow definition
   const loadWorkflow = useWorkflowStore((s) => s.loadWorkflow);
   const currentWorkflow = useWorkflowStore((s) => s.currentWorkflow);
-  const startExecution = useExecutionStore((s) => s.startExecution);
 
   // State for full workflow JSON
   const [fullWorkflowJson, setFullWorkflowJson] = useState<string | null>(null);
@@ -368,6 +368,9 @@ export function WorkflowPreviewPane({
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<WorkflowSchedule | null>(null);
   const [executionsLoading, setExecutionsLoading] = useState(false);
+
+  // Execution hook with start URL prompt for workflows without navigate step
+  const { startWorkflow, promptDialogProps } = useStartWorkflow();
 
   // Filter schedules for this workflow
   const workflowSchedules = useMemo(
@@ -469,10 +472,19 @@ export function WorkflowPreviewPane({
     async (e: React.MouseEvent) => {
       e.stopPropagation();
       try {
-        // Start the execution to get an execution ID
-        const executionId = await startExecution(workflow.id);
-        // Navigate to Record page in execution mode with execution ID
-        navigate(`/record/new?mode=execution&execution_id=${encodeURIComponent(executionId)}`);
+        // startWorkflow handles navigate step check and prompts for URL if needed
+        // It will fetch the workflow definition if nodes/edges aren't available
+        const executionId = await startWorkflow({
+          workflowId: workflow.id,
+          nodes: workflow.nodes,
+          edges: workflow.edges,
+        });
+
+        if (executionId) {
+          // Navigate to Record page in execution mode with execution ID
+          navigate(`/record/new?mode=execution&execution_id=${encodeURIComponent(executionId)}`);
+        }
+        // If executionId is null, user cancelled the start URL prompt
       } catch (error) {
         logger.error(
           "Failed to start execution",
@@ -482,7 +494,7 @@ export function WorkflowPreviewPane({
         toast.error("Failed to start execution");
       }
     },
-    [workflow.id, startExecution, navigate]
+    [workflow.id, workflow.nodes, workflow.edges, startWorkflow, navigate]
   );
 
   // Calculate stats
@@ -771,6 +783,9 @@ export function WorkflowPreviewPane({
         workflowId={workflow.id}
         workflowName={workflow.name}
       />
+
+      {/* Start URL prompt for workflows without navigate step */}
+      <PromptDialog {...promptDialogProps} />
     </div>
   );
 }

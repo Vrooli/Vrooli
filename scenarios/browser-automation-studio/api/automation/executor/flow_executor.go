@@ -179,9 +179,17 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 		return normalized, session, fmt.Errorf("record step outcome: %w", recordErr)
 	}
 
+	// Calculate progress for graph execution
+	totalSteps := len(req.Plan.Graph.Steps)
+	if totalSteps == 0 {
+		totalSteps = len(req.Plan.Instructions)
+	}
+	progressPercent := calculateProgress(instruction.Index, totalSteps)
+
 	payload := map[string]any{
 		"outcome":   normalized,
 		"artifacts": recordResult.ArtifactIDs,
+		"progress":  progressPercent,
 	}
 	if recordResult.TimelineArtifactID != nil {
 		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
@@ -295,9 +303,18 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 	if recordErr != nil {
 		return loopOutcome, session, fmt.Errorf("record loop outcome: %w", recordErr)
 	}
+
+	// Calculate progress for loop completion
+	totalSteps := len(req.Plan.Graph.Steps)
+	if totalSteps == 0 {
+		totalSteps = len(req.Plan.Instructions)
+	}
+	progressPercent := calculateProgress(step.Index, totalSteps)
+
 	payload := map[string]any{
 		"outcome":   loopOutcome,
 		"artifacts": recordResult.ArtifactIDs,
+		"progress":  progressPercent,
 	}
 	if recordResult.TimelineArtifactID != nil {
 		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
@@ -351,9 +368,17 @@ func (e *SimpleExecutor) executeSubflow(ctx context.Context, req Request, execCt
 		return normalized, updatedSession, fmt.Errorf("record subflow outcome: %w", recordErr)
 	}
 
+	// Calculate progress for subflow completion
+	totalSteps := len(req.Plan.Graph.Steps)
+	if totalSteps == 0 {
+		totalSteps = len(req.Plan.Instructions)
+	}
+	progressPercent := calculateProgress(stepIndex, totalSteps)
+
 	payload := map[string]any{
 		"outcome":   normalized,
 		"artifacts": recordResult.ArtifactIDs,
+		"progress":  progressPercent,
 	}
 	if recordResult.TimelineArtifactID != nil {
 		payload["timeline_artifact_id"] = *recordResult.TimelineArtifactID
@@ -417,6 +442,14 @@ func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx ex
 		"node_id":           step.NodeID,
 		"child_workflow_id": childWorkflowID,
 	}).Debug("Resolved subflow workflow")
+
+	// Debug: Log workflow details before compilation
+	logrus.WithFields(logrus.Fields{
+		"execution_id":        req.Plan.ExecutionID,
+		"child_workflow_id":   childWorkflowID,
+		"has_flow_definition": childWorkflow.GetFlowDefinition() != nil,
+		"workflow_name":       childWorkflow.GetName(),
+	}).Debug("About to compile subflow")
 
 	childPlan, _, err := BuildContractsPlanWithCompiler(ctx, req.Plan.ExecutionID, childWorkflow, execCtx.compiler)
 	if err != nil {
@@ -637,9 +670,17 @@ func (e *SimpleExecutor) applySetVariable(ctx context.Context, req Request, step
 		return outcome, recordErr
 	}
 
+	// Calculate progress for set_variable step
+	totalSteps := len(req.Plan.Graph.Steps)
+	if totalSteps == 0 {
+		totalSteps = len(req.Plan.Instructions)
+	}
+	progressPercent := calculateProgress(stepIndex, totalSteps)
+
 	payload := map[string]any{
 		"outcome":   outcome,
 		"artifacts": recordResult.ArtifactIDs,
+		"progress":  progressPercent,
 	}
 	e.emitEvent(ctx, req, contracts.EventKindStepCompleted, &stepIndex, intPtr(1), payload)
 	return outcome, nil
