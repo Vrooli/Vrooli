@@ -51,7 +51,7 @@ import { mergeActionsWithAISteps } from './types/timeline-unified';
 import { UnifiedSidebar, useUnifiedSidebar, useAISettings } from './sidebar';
 import { useAIConversation } from './ai-conversation';
 import { HumanInterventionOverlay } from './ai-navigation';
-import { useExecutionStore, useStartWorkflow } from '@/domains/executions';
+import { useExecutionStore, useStartWorkflow, useExecutionEvents } from '@/domains/executions';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
 
@@ -168,9 +168,19 @@ export function RecordModePage({
 
   // Derived execution status
   const executionStatus = currentExecution?.id === localExecutionId ? currentExecution.status : null;
-  const canRun = selectedWorkflowId && (!localExecutionId || executionStatus === 'pending');
+  // Can run only when workflow selected but no execution started yet
+  const canRun = selectedWorkflowId && !localExecutionId;
   const isExecuting = executionStatus === 'running';
-  const isReadOnly = !!(localExecutionId && executionStatus && !['pending'].includes(executionStatus));
+  // Session is read-only whenever viewing an execution (any status)
+  const isReadOnly = !!(localExecutionId && executionStatus);
+
+  // Subscribe to execution events via WebSocket
+  // This updates the store when execution status changes (pending -> running -> completed)
+  useExecutionEvents(
+    localExecutionId && executionStatus
+      ? { id: localExecutionId, status: executionStatus }
+      : undefined
+  );
 
   // Start workflow hook
   const { startWorkflow } = useStartWorkflow({
@@ -955,13 +965,13 @@ export function RecordModePage({
         <div className="flex-1 h-full">
           {rightPanelView === 'preview' && (
             <div className="relative h-full">
-              {mode === 'execution' && localExecutionId && executionStatus && executionStatus !== 'pending' ? (
-                // Show execution viewer when execution is running/completed/failed
+              {mode === 'execution' && localExecutionId && executionStatus ? (
+                // Show execution viewer when execution exists (pending/running/completed/failed)
                 <ExecutionPreviewPanel
                   executionId={localExecutionId}
                 />
               ) : mode === 'execution' && selectedWorkflowId ? (
-                // Show workflow info card when workflow selected but not yet running
+                // Show workflow info card when workflow selected but no execution started yet
                 <div className="h-full flex flex-col bg-white dark:bg-gray-900">
                   <BrowserChrome
                     previewUrl=""
