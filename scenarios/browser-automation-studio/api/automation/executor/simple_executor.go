@@ -187,6 +187,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 		Capabilities:   requirements,
 		FrameStreaming: frameStreamingConfig,
 		BrowserProfile: req.BrowserProfile,
+		StorageState:   req.StorageState,
 	}
 
 	var session engine.EngineSession
@@ -433,11 +434,24 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 		}
 		session = newSession
 
-		if runErr != nil {
-			return session, runErr
-		}
-		if !normalized.Success {
-			return session, fmt.Errorf("step %d failed: %s", normalized.StepIndex, e.failureMessage(normalized))
+		// Check if we should continue despite errors/failures
+		if runErr != nil || !normalized.Success {
+			if shouldContinueOnError(instruction, req.ContinueOnError) {
+				// Log the error but continue execution
+				logrus.WithFields(logrus.Fields{
+					"step_index": instruction.Index,
+					"node_id":    instruction.NodeID,
+					"error":      runErr,
+					"success":    normalized.Success,
+				}).Warn("Step failed but continue_on_error is enabled, continuing execution")
+				// Continue to next instruction
+			} else {
+				// Stop execution on error
+				if runErr != nil {
+					return session, runErr
+				}
+				return session, fmt.Errorf("step %d failed: %s", normalized.StepIndex, e.failureMessage(normalized))
+			}
 		}
 	}
 
@@ -1357,6 +1371,9 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 	delay := cfg.Delay
 	timeout := instructionTimeout(req.Plan, instruction)
 
+	// Apply execution-level navigation wait default if applicable
+	instruction = applyNavigationWaitDefault(instruction, req.NavigationWaitUntil)
+
 	for attempt := 1; attempt <= cfg.MaxAttempts; attempt++ {
 		attemptStart := time.Now().UTC()
 
@@ -1646,4 +1663,61 @@ func (e *SimpleExecutor) recordTerminatedStep(ctx context.Context, req Request, 
 	e.emitEvent(persistCtx, req, contracts.EventKindStepFailed, &outcome.StepIndex, &outcome.Attempt, payload)
 
 	return outcome, cause
+}
+
+// applyNavigationWaitDefault applies the execution-level navigation wait default to a navigate instruction
+// if the instruction doesn't already have an explicit wait_until value.
+// This modifies the instruction in place and returns it for convenience.
+func applyNavigationWaitDefault(instruction contracts.CompiledInstruction, defaultWaitUntil string) contracts.CompiledInstruction {
+	if defaultWaitUntil == "" {
+		return instruction
+	}
+	if instruction.Action == nil || instruction.Action.Type != basactions.ActionType_ACTION_TYPE_NAVIGATE {
+		return instruction
+	}
+	navigate := instruction.Action.GetNavigate()
+	if navigate == nil {
+		return instruction
+	}
+	// Only apply default if action doesn't have an explicit wait_until
+	if navigate.WaitUntil != nil && *navigate.WaitUntil != basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED {
+		return instruction
+	}
+	// Apply the execution-level default
+	waitEvent := stringToNavigateWaitEvent(defaultWaitUntil)
+	if waitEvent != basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED {
+		navigate.WaitUntil = &waitEvent
+	}
+	return instruction
+}
+
+// stringToNavigateWaitEvent converts a string to NavigateWaitEvent enum.
+func stringToNavigateWaitEvent(s string) basactions.NavigateWaitEvent {
+	switch strings.ToLower(s) {
+	case "load":
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_LOAD
+	case "domcontentloaded":
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED
+	case "networkidle":
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE
+	default:
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED
+	}
+}
+
+// shouldContinueOnError determines if execution should continue after an error or failure.
+// Priority: instruction context > request default > false (stop on error)
+func shouldContinueOnError(instruction contracts.CompiledInstruction, requestDefault *bool) bool {
+	// First check instruction context (per-node setting)
+	if instruction.Context != nil {
+		if continueOnError, ok := instruction.Context["continueOnError"].(bool); ok {
+			return continueOnError
+		}
+	}
+	// Fall back to request-level default
+	if requestDefault != nil {
+		return *requestDefault
+	}
+	// Default: stop on error
+	return false
 }

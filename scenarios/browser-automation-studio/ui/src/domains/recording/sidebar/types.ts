@@ -1,7 +1,7 @@
 /**
  * Sidebar Domain Types
  *
- * Types for the unified sidebar with Timeline, Auto, Screenshots, and Logs tabs.
+ * Types for the unified sidebar with Timeline, Auto, and Artifacts tabs.
  */
 
 import type { AINavigationStep, HumanInterventionState, TokenUsage } from '../ai-navigation/types';
@@ -15,10 +15,20 @@ import type { TimelineMode } from '../types/timeline-unified';
  * Available sidebar tabs.
  * - timeline: Recording/execution timeline (both modes)
  * - auto: AI navigation chat (recording mode only)
- * - screenshots: Execution screenshots (execution mode only)
- * - logs: Execution logs (execution mode only)
+ * - artifacts: Execution artifacts including screenshots, logs, network, DOM (execution mode only)
  */
-export type TabId = 'timeline' | 'auto' | 'screenshots' | 'logs';
+export type TabId = 'timeline' | 'auto' | 'artifacts';
+
+/**
+ * Sub-types within the Artifacts tab.
+ * Allows switching between different artifact views.
+ */
+export type ArtifactSubType =
+  | 'screenshots'        // Captured screenshots
+  | 'execution-logs'     // Execution progress logs (step started/completed/failed)
+  | 'console'            // Browser console logs
+  | 'network'            // Network requests/responses
+  | 'dom-snapshots';     // DOM snapshots
 
 /**
  * Configuration for a sidebar tab.
@@ -54,18 +64,17 @@ export const TAB_CONFIGS: TabConfig[] = [
     visibleIn: ['recording'],
   },
   {
-    id: 'screenshots',
-    label: 'Screenshots',
-    tooltip: 'Captured screenshots from execution',
-    visibleIn: ['execution'],
-  },
-  {
-    id: 'logs',
-    label: 'Logs',
-    tooltip: 'Execution logs and console output',
+    id: 'artifacts',
+    label: 'Artifacts',
+    tooltip: 'Screenshots, logs, network requests, and more',
     visibleIn: ['execution'],
   },
 ];
+
+/**
+ * Default artifact sub-type.
+ */
+export const DEFAULT_ARTIFACT_SUBTYPE: ArtifactSubType = 'screenshots';
 
 /**
  * Get visible tabs for a given mode.
@@ -102,8 +111,9 @@ export interface UnifiedSidebarState {
   isResizing: boolean;
   timelineActivity: boolean;
   autoActivity: boolean;
-  screenshotsActivity: boolean;
-  logsActivity: boolean;
+  artifactsActivity: boolean;
+  /** Current sub-type selected within Artifacts tab */
+  artifactSubType: ArtifactSubType;
 }
 
 // ============================================================================
@@ -236,6 +246,7 @@ export const STORAGE_KEYS = {
   SIDEBAR_WIDTH: 'unified-sidebar-width',
   SIDEBAR_OPEN: 'unified-sidebar-open',
   SIDEBAR_TAB: 'unified-sidebar-tab',
+  ARTIFACT_SUBTYPE: 'unified-sidebar-artifact-subtype',
   AI_MODEL: 'ai-navigation-model',
   AI_MAX_STEPS: 'ai-navigation-max-steps',
   AI_INPUT_DRAFT: 'ai-navigation-input-draft',

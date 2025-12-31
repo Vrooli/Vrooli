@@ -17,7 +17,13 @@ export { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
 export { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
 export { TimelineFullView } from './timeline/TimelineFullView';
 export { TimelineSidebar } from './timeline/TimelineSidebar';
-export { WorkflowInfoCard } from './timeline/WorkflowInfoCard';
+export { WorkflowInfoCard, type ExecutionConfigSettings } from './timeline/WorkflowInfoCard';
+export {
+  ExecutionConfigPanel,
+  DEFAULT_EXECUTION_SETTINGS,
+  NAVIGATION_WAIT_OPTIONS,
+} from './timeline/ExecutionConfigPanel';
+export type { ExecutionConfigSettings as ExecutionConfigPanelSettings } from './timeline/ExecutionConfigPanel';
 
 // Capture components
 export { PlaywrightView } from './capture/PlaywrightView';

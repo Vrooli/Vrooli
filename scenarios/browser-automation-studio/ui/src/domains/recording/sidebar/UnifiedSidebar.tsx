@@ -2,14 +2,13 @@
  * UnifiedSidebar Component
  *
  * The unified sidebar container with tabbed navigation for Timeline, Auto,
- * Screenshots, and Logs tabs. Mode-aware: different tabs are shown based
- * on whether we're in recording or execution mode.
+ * and Artifacts tabs. Mode-aware: different tabs are shown based on whether
+ * we're in recording or execution mode.
  *
  * Features:
  * - Timeline tab: Shows recorded/executed actions (both modes)
  * - Auto tab: AI navigation chat interface (recording mode only)
- * - Screenshots tab: Execution screenshots (execution mode only)
- * - Logs tab: Execution logs (execution mode only)
+ * - Artifacts tab: Execution artifacts - screenshots, logs, network, etc. (execution mode only)
  * - Activity indicators for each tab
  * - Resizable width with persistence
  */
@@ -17,12 +16,10 @@
 import { useEffect, useCallback, useMemo } from 'react';
 import { TimelineTab, type TimelineTabProps } from './TimelineTab';
 import { AutoTab, type AutoTabProps } from './AutoTab';
-import { ScreenshotsTab } from './ScreenshotsTab';
-import { LogsTab } from './LogsTab';
+import { ArtifactsTab, type ArtifactsTabProps } from './ArtifactsTab';
 import { useUnifiedSidebar, type UseUnifiedSidebarOptions } from './useUnifiedSidebar';
-import { getVisibleTabs, isTabVisible, getDefaultTab, type TabId } from './types';
+import { getVisibleTabs, isTabVisible, getDefaultTab, type TabId, type ArtifactSubType } from './types';
 import type { TimelineMode } from '../types/timeline-unified';
-import type { Screenshot, LogEntry, Execution } from '@/domains/executions';
 
 // ============================================================================
 // Helpers
@@ -51,24 +48,10 @@ export type TimelineTabPassthroughProps = Omit<TimelineTabProps, 'className'>;
 export type AutoTabPassthroughProps = Omit<AutoTabProps, 'className'>;
 
 /**
- * Props for ScreenshotsTab passed through UnifiedSidebar.
+ * Props for ArtifactsTab passed through UnifiedSidebar.
+ * Omits className as it's applied internally.
  */
-export interface ScreenshotsTabPassthroughProps {
-  screenshots: Screenshot[];
-  selectedIndex?: number;
-  onSelectScreenshot?: (index: number) => void;
-  executionStatus?: Execution['status'];
-}
-
-/**
- * Props for LogsTab passed through UnifiedSidebar.
- */
-export interface LogsTabPassthroughProps {
-  logs: LogEntry[];
-  filter?: 'all' | 'error' | 'warning' | 'info' | 'success';
-  onFilterChange?: (filter: 'all' | 'error' | 'warning' | 'info' | 'success') => void;
-  executionStatus?: Execution['status'];
-}
+export type ArtifactsTabPassthroughProps = Omit<ArtifactsTabProps, 'className'>;
 
 export interface UnifiedSidebarProps {
   /** Current mode (determines which tabs are visible) */
@@ -77,10 +60,8 @@ export interface UnifiedSidebarProps {
   timelineProps: TimelineTabPassthroughProps;
   /** Props to pass through to AutoTab */
   autoProps: AutoTabPassthroughProps;
-  /** Props to pass through to ScreenshotsTab (execution mode only) */
-  screenshotsProps?: ScreenshotsTabPassthroughProps;
-  /** Props to pass through to LogsTab (execution mode only) */
-  logsProps?: LogsTabPassthroughProps;
+  /** Props to pass through to ArtifactsTab (execution mode only) */
+  artifactsProps?: ArtifactsTabPassthroughProps;
   /** Initial tab to show (used when activeTab is not controlled) */
   initialTab?: TabId;
   /** Controlled active tab (use with onTabChange for controlled behavior) */
@@ -91,6 +72,10 @@ export interface UnifiedSidebarProps {
   onOpenChange?: (open: boolean) => void;
   /** Callback when tab changes */
   onTabChange?: (tab: TabId) => void;
+  /** Controlled artifact sub-type (for ArtifactsTab) */
+  artifactSubType?: ArtifactSubType;
+  /** Callback when artifact sub-type changes */
+  onArtifactSubTypeChange?: (subType: ArtifactSubType) => void;
   /** Optional className for the container */
   className?: string;
 }
@@ -103,13 +88,14 @@ export function UnifiedSidebar({
   mode,
   timelineProps,
   autoProps,
-  screenshotsProps,
-  logsProps,
+  artifactsProps,
   initialTab,
   activeTab: controlledActiveTab,
   isOpen: controlledIsOpen,
   onOpenChange,
   onTabChange,
+  artifactSubType: controlledArtifactSubType,
+  onArtifactSubTypeChange,
   className = '',
 }: UnifiedSidebarProps) {
   // Get visible tabs for current mode
@@ -127,18 +113,21 @@ export function UnifiedSidebar({
     setIsOpen,
     activeTab: internalActiveTab,
     setActiveTab,
+    artifactSubType: internalArtifactSubType,
+    setArtifactSubType,
     width,
     isResizing,
     handleResizeStart,
     timelineActivity,
     autoActivity,
-    screenshotsActivity,
-    logsActivity,
+    artifactsActivity,
     setTimelineActivity,
     setAutoActivity,
-    setScreenshotsActivity,
-    setLogsActivity,
+    setArtifactsActivity,
   } = useUnifiedSidebar(sidebarOptions);
+
+  // Use controlled artifactSubType if provided, otherwise use internal state
+  const artifactSubType = controlledArtifactSubType ?? internalArtifactSubType;
 
   // Use controlled activeTab if provided, otherwise use internal state
   const activeTab = controlledActiveTab ?? internalActiveTab;
@@ -186,19 +175,26 @@ export function UnifiedSidebar({
     }
   }, [autoProps.messages.length, activeTab, setAutoActivity]);
 
-  // Show screenshots activity when screenshots change (only if not viewing screenshots)
+  // Show artifacts activity when artifacts change (only if not viewing artifacts)
   useEffect(() => {
-    if (activeTab !== 'screenshots' && screenshotsProps?.screenshots && screenshotsProps.screenshots.length > 0) {
-      setScreenshotsActivity(true);
+    if (activeTab !== 'artifacts' && artifactsProps?.screenshots && artifactsProps.screenshots.length > 0) {
+      setArtifactsActivity(true);
     }
-  }, [screenshotsProps?.screenshots?.length, activeTab, setScreenshotsActivity]);
+  }, [artifactsProps?.screenshots?.length, activeTab, setArtifactsActivity]);
 
-  // Show logs activity when logs change (only if not viewing logs)
+  // Sync controlled artifactSubType
   useEffect(() => {
-    if (activeTab !== 'logs' && logsProps?.logs && logsProps.logs.length > 0) {
-      setLogsActivity(true);
+    if (controlledArtifactSubType !== undefined && controlledArtifactSubType !== internalArtifactSubType) {
+      setArtifactSubType(controlledArtifactSubType);
     }
-  }, [logsProps?.logs?.length, activeTab, setLogsActivity]);
+  }, [controlledArtifactSubType, internalArtifactSubType, setArtifactSubType]);
+
+  // Notify parent of artifact sub-type changes
+  useEffect(() => {
+    if (onArtifactSubTypeChange && controlledArtifactSubType !== artifactSubType) {
+      onArtifactSubTypeChange(artifactSubType);
+    }
+  }, [artifactSubType, onArtifactSubTypeChange, controlledArtifactSubType]);
 
   // Clear activity when switching to that tab
   useEffect(() => {
@@ -206,12 +202,10 @@ export function UnifiedSidebar({
       setTimelineActivity(false);
     } else if (activeTab === 'auto') {
       setAutoActivity(false);
-    } else if (activeTab === 'screenshots') {
-      setScreenshotsActivity(false);
-    } else if (activeTab === 'logs') {
-      setLogsActivity(false);
+    } else if (activeTab === 'artifacts') {
+      setArtifactsActivity(false);
     }
-  }, [activeTab, setTimelineActivity, setAutoActivity, setScreenshotsActivity, setLogsActivity]);
+  }, [activeTab, setTimelineActivity, setAutoActivity, setArtifactsActivity]);
 
   const handleTabClick = useCallback(
     (tab: TabId) => {
@@ -253,11 +247,10 @@ export function UnifiedSidebar({
     switch (tabId) {
       case 'timeline': return timelineActivity;
       case 'auto': return autoActivity;
-      case 'screenshots': return screenshotsActivity;
-      case 'logs': return logsActivity;
+      case 'artifacts': return artifactsActivity;
       default: return false;
     }
-  }, [timelineActivity, autoActivity, screenshotsActivity, logsActivity]);
+  }, [timelineActivity, autoActivity, artifactsActivity]);
 
   if (!isOpen) {
     return null;
@@ -288,11 +281,16 @@ export function UnifiedSidebar({
       <div className="flex-1 overflow-hidden">
         {activeTab === 'timeline' && <TimelineTab {...timelineProps} className="h-full" />}
         {activeTab === 'auto' && <AutoTab {...autoProps} className="h-full" />}
-        {activeTab === 'screenshots' && screenshotsProps && (
-          <ScreenshotsTab {...screenshotsProps} className="h-full" />
-        )}
-        {activeTab === 'logs' && logsProps && (
-          <LogsTab {...logsProps} className="h-full" />
+        {activeTab === 'artifacts' && artifactsProps && (
+          <ArtifactsTab
+            {...artifactsProps}
+            activeSubType={artifactSubType}
+            onSubTypeChange={(subType) => {
+              setArtifactSubType(subType);
+              onArtifactSubTypeChange?.(subType);
+            }}
+            className="h-full"
+          />
         )}
       </div>
 

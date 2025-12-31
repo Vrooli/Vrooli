@@ -15,7 +15,13 @@ import { ProjectSelector } from './ProjectSelector';
 interface WorkflowPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (workflowId: string, projectId: string, workflowName: string) => void;
+  /** Callback when a workflow is selected, including optional default session ID */
+  onSelect: (
+    workflowId: string,
+    projectId: string,
+    workflowName: string,
+    defaultSessionId?: string | null
+  ) => void;
   /** Initial project to show (from last selection or smart default) */
   initialProjectId?: string | null;
 }
@@ -82,7 +88,9 @@ export function WorkflowPickerModal({
 
   const handleWorkflowClick = useCallback((workflow: WorkflowWithStats) => {
     if (!selectedProject) return;
-    onSelect(workflow.id, selectedProject.id, workflow.name);
+    // Pass default_session_id if available (workflow may have a preferred session)
+    const defaultSessionId = (workflow as { default_session_id?: string }).default_session_id;
+    onSelect(workflow.id, selectedProject.id, workflow.name, defaultSessionId);
     onClose();
   }, [onSelect, selectedProject, onClose]);
 

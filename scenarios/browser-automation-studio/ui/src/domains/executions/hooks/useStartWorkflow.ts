@@ -1,5 +1,10 @@
 import { useCallback } from 'react';
-import { useExecutionStore, type StartExecutionOptions } from '../store';
+import {
+  useExecutionStore,
+  type StartExecutionOptions,
+  type ExecutionSettingsOverrides,
+  type ArtifactProfile,
+} from '../store';
 import { usePromptDialog } from '@hooks/usePromptDialog';
 import { workflowStartsWithNavigate } from '@utils/nodeUtils';
 import { getConfig } from '../../../config';
@@ -63,7 +68,13 @@ export interface StartWorkflowParams {
   nodes?: Node[];
   /** Optional pre-fetched edges (avoids API call if available) */
   edges?: Edge[];
-  /** Additional execution options */
+  /** Session profile ID to use for this execution */
+  sessionProfileId?: string | null;
+  /** Runtime overrides for workflow execution settings */
+  overrides?: ExecutionSettingsOverrides;
+  /** Artifact collection profile */
+  artifactProfile?: ArtifactProfile;
+  /** Additional execution options (legacy, prefer individual params above) */
   options?: StartExecutionOptions;
 }
 
@@ -102,6 +113,9 @@ export function useStartWorkflow(hookOptions: UseStartWorkflowOptions = {}) {
     workflowId,
     nodes: providedNodes,
     edges: providedEdges,
+    sessionProfileId,
+    overrides,
+    artifactProfile,
     options = {},
   }: StartWorkflowParams): Promise<string | null> => {
     try {
@@ -176,10 +190,13 @@ export function useStartWorkflow(hookOptions: UseStartWorkflowOptions = {}) {
         await hookOptions.beforeExecute();
       }
 
-      // Start the execution
+      // Start the execution with all options merged
       const executionId = await startExecution(workflowId, {
         ...options,
         startUrl,
+        sessionProfileId,
+        executionOverrides: overrides,
+        artifactConfig: artifactProfile ? { profile: artifactProfile } : options.artifactConfig,
       });
 
       if (hookOptions.onSuccess) {

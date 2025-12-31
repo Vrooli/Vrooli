@@ -121,6 +121,7 @@ func BuildDependencies(repo database.Repository, hub *wsHub.Hub, log *logrus.Log
 		ArtifactRecorder:  autoRecorder,
 		EventSinkFactory:  eventSinkFactory,
 		ExecutionDataRoot: recordingsRoot,
+		SessionProfiles:   sessionProfiles,
 	})
 
 	// Ensure the demo project exists

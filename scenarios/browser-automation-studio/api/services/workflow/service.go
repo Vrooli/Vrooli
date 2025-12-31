@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/ai"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
@@ -61,6 +62,7 @@ type WorkflowService struct {
 	planCompiler     autoexec.PlanCompiler
 	eventSinkFactory func() autoevents.Sink
 	executionDataRoot string
+	sessionProfiles   *archiveingestion.SessionProfileStore
 	syncLocks        sync.Map
 	filePathCache    sync.Map
 	executionCancels sync.Map
@@ -124,6 +126,9 @@ type WorkflowServiceOptions struct {
 	// ExecutionDataRoot controls where execution artifacts and proto snapshots are persisted.
 	// When empty, defaults to "/tmp/bas-executions" for backward compatibility with earlier recorder defaults.
 	ExecutionDataRoot string
+	// SessionProfiles provides access to session profiles for authenticated execution.
+	// When set, workflows can use session_profile_id to inject storage state (cookies, localStorage).
+	SessionProfiles *archiveingestion.SessionProfileStore
 }
 
 // NewWorkflowServiceWithDeps allows advanced configuration for upcoming engine
@@ -143,15 +148,16 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub wsHub.HubInterfa
 	}
 
 	svc := &WorkflowService{
-		repo:             repo,
-		log:              log,
-		aiClient:         aiClient,
-		executor:         opts.Executor,
-		engineFactory:    opts.EngineFactory,
-		artifactRecorder: opts.ArtifactRecorder,
-		planCompiler:     opts.PlanCompiler,
-		eventSinkFactory: eventSinkFactory,
+		repo:              repo,
+		log:               log,
+		aiClient:          aiClient,
+		executor:          opts.Executor,
+		engineFactory:     opts.EngineFactory,
+		artifactRecorder:  opts.ArtifactRecorder,
+		planCompiler:      opts.PlanCompiler,
+		eventSinkFactory:  eventSinkFactory,
 		executionDataRoot: strings.TrimSpace(opts.ExecutionDataRoot),
+		sessionProfiles:   opts.SessionProfiles,
 	}
 
 	return svc

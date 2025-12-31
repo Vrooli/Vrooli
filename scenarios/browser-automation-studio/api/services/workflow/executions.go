@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -103,17 +105,38 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		return nil, err
 	}
 
-	initialStore, initialParams, env, artifactCfg, execBrowserProfile, projectRoot, startURL := executionParametersToMaps(req.Parameters)
+	initialStore, initialParams, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
 	if err := validateSeedRequirements(workflowSummary.FlowDefinition, initialStore, initialParams, env); err != nil {
 		return nil, err
 	}
 
+	// Resolve session profile if provided for authenticated execution
+	var storageState json.RawMessage
+	var profileBrowserSettings *archiveingestion.BrowserProfile
+	if sessionProfileID != "" && s.sessionProfiles != nil {
+		profile, err := s.sessionProfiles.Get(sessionProfileID)
+		if err != nil {
+			return nil, fmt.Errorf("session profile %s not found: %w", sessionProfileID, err)
+		}
+		storageState = profile.StorageState
+		profileBrowserSettings = profile.BrowserProfile
+
+		// Update usage tracking to keep profile LRU order current
+		if _, err := s.sessionProfiles.Touch(sessionProfileID); err != nil && s.log != nil {
+			s.log.WithError(err).WithField("session_profile_id", sessionProfileID).Warn("Failed to update session profile usage timestamp")
+		}
+	}
+
 	// Extract workflow default browser profile and merge with execution override
+	// Priority order: execution params > session profile > workflow defaults
 	var workflowBrowserProfile *archiveingestion.BrowserProfile
 	if workflowSummary.FlowDefinition != nil && workflowSummary.FlowDefinition.Settings != nil && workflowSummary.FlowDefinition.Settings.BrowserProfile != nil {
 		workflowBrowserProfile = archiveingestion.BrowserProfileFromProto(workflowSummary.FlowDefinition.Settings.BrowserProfile)
 	}
-	finalBrowserProfile := archiveingestion.MergeBrowserProfiles(workflowBrowserProfile, execBrowserProfile)
+	// First merge workflow defaults with session profile defaults
+	baseBrowserProfile := archiveingestion.MergeBrowserProfiles(workflowBrowserProfile, profileBrowserSettings)
+	// Then merge with execution-level overrides (highest priority)
+	finalBrowserProfile := archiveingestion.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
@@ -143,7 +166,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
-	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, opts, projectRoot, startURL)
+	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, navigationWaitUntil, continueOnError)
 
 	if req.WaitForCompletion {
 		// Poll for completion; execution updates are persisted to the DB index by the runner.
@@ -194,15 +217,17 @@ func (s *WorkflowService) resolveWorkflowForExecution(ctx context.Context, workf
 	return getResp.Workflow, nil
 }
 
-// executionParametersToMaps extracts namespace maps, artifact config, browser profile, project root, and start URL from ExecutionParameters.
-// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, browser profile, projectRoot, startURL.
+// executionParametersToMaps extracts namespace maps, artifact config, browser profile, project root, start URL, and session profile ID from ExecutionParameters.
+// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, browser profile, projectRoot, startURL, sessionProfileID, navigationWaitUntil, continueOnError.
 // projectRoot is used for filesystem-based subflow resolution when the calling workflow has no database project.
-func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, projectRoot string, startURL string) {
+// sessionProfileID references a stored session profile for authenticated execution.
+// navigationWaitUntil and continueOnError are execution-level defaults that override workflow settings.
+func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, projectRoot string, startURL string, sessionProfileID string, navigationWaitUntil string, continueOnError *bool) {
 	store = map[string]any{}
 	params = map[string]any{}
 	env = map[string]any{}
 	if p == nil {
-		return store, params, env, nil, nil, "", ""
+		return store, params, env, nil, nil, "", "", "", "", nil
 	}
 
 	for k, v := range p.InitialStore {
@@ -240,11 +265,38 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 
 	startURL = strings.TrimSpace(p.GetStartUrl())
 
-	return store, params, env, artifactCfg, browserProfile, projectRoot, startURL
+	// Extract session profile ID for authenticated execution.
+	// When set, the profile's storage state (cookies, localStorage) will be loaded into the browser context.
+	if p.SessionProfileId != nil {
+		sessionProfileID = strings.TrimSpace(*p.SessionProfileId)
+	}
+
+	// Extract execution-level defaults for navigation and error handling.
+	// These override workflow defaults but can be further overridden by per-node settings.
+	if p.NavigationWaitUntil != nil {
+		navigationWaitUntil = navigateWaitEventToString(*p.NavigationWaitUntil)
+	}
+	continueOnError = p.ContinueOnError
+
+	return store, params, env, artifactCfg, browserProfile, projectRoot, startURL, sessionProfileID, navigationWaitUntil, continueOnError
 }
 
 func jsonValueToAny(v *commonv1.JsonValue) any {
 	return typeconv.JsonValueToAny(v)
+}
+
+// navigateWaitEventToString converts the NavigateWaitEvent enum to a string value.
+func navigateWaitEventToString(e basactions.NavigateWaitEvent) string {
+	switch e {
+	case basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_LOAD:
+		return "load"
+	case basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED:
+		return "domcontentloaded"
+	case basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE:
+		return "networkidle"
+	default:
+		return ""
+	}
 }
 
 func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary, executionID uuid.UUID, parameters map[string]any) {
@@ -255,26 +307,28 @@ func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary,
 }
 
 func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
-	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, nil, projectRoot, "")
+	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, projectRoot, "", "", nil)
 }
 
-func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, opts *ExecuteOptions, projectRoot string, startURL string) {
+func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, navigationWaitUntil string, continueOnError *bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.storeExecutionCancel(executionID, cancel)
-	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, opts, projectRoot, startURL)
+	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, navigationWaitUntil, continueOnError)
 }
 
 // executeWorkflowAsync is the single implementation for running workflows asynchronously.
 // It handles both legacy (flat parameters in store) and new (namespaced store/params/env) callers.
 // artifactCfg controls what artifacts are collected; nil means use default (full profile).
 func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
-	s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, nil, nil, "", "")
+	s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, "", "", "", nil)
 }
 
 // executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
 // projectRoot is the absolute path to the project root for filesystem-based subflow resolution.
 // browserProfile configures anti-detection and human-like behavior settings for the execution.
-func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, opts *ExecuteOptions, projectRoot string, startURL string) {
+// storageState contains cookies/localStorage from a session profile for authenticated execution.
+// navigationWaitUntil and continueOnError are execution-level defaults that override workflow settings.
+func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, navigationWaitUntil string, continueOnError *bool) {
 	defer s.cancelExecutionByID(executionID)
 
 	persistenceCtx := context.Background()
@@ -371,10 +425,13 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		ProjectRoot:        projectRoot,
 		InitialStore:       store,
 		InitialParams:      params,
-		Env:                env,
-		StartURL:           strings.TrimSpace(startURL),
-		ArtifactConfig:     artifactCfg,
-		BrowserProfile:     browserProfile,
+		Env:                 env,
+		StartURL:            strings.TrimSpace(startURL),
+		ArtifactConfig:      artifactCfg,
+		BrowserProfile:      browserProfile,
+		StorageState:        storageState,
+		NavigationWaitUntil: navigationWaitUntil,
+		ContinueOnError:     continueOnError,
 	}
 
 	executor := s.executor

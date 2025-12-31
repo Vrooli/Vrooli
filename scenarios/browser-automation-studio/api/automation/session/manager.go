@@ -205,11 +205,9 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 		}
 	}
 
-	// Recording-specific config
-	if spec.Mode == ModeRecording || spec.Mode == ModeHybrid {
-		if len(spec.StorageState) > 0 {
-			req.StorageState = spec.StorageState
-		}
+	// Storage state for authenticated sessions (all modes support this)
+	if len(spec.StorageState) > 0 {
+		req.StorageState = spec.StorageState
 	}
 
 	// Execution-specific config

@@ -12,10 +12,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   type TabId,
+  type ArtifactSubType,
   SIDEBAR_MIN_WIDTH,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_DEFAULT_WIDTH,
   STORAGE_KEYS,
+  DEFAULT_ARTIFACT_SUBTYPE,
 } from './types';
 import type { TimelineMode } from '../types/timeline-unified';
 
@@ -52,7 +54,31 @@ function getStoredTab(key: string, defaultValue: TabId): TabId {
   if (typeof window === 'undefined') return defaultValue;
   try {
     const stored = localStorage.getItem(key);
-    if (stored === 'timeline' || stored === 'auto' || stored === 'screenshots' || stored === 'logs') {
+    // Handle new tab values and migrate old values
+    if (stored === 'timeline' || stored === 'auto' || stored === 'artifacts') {
+      return stored;
+    }
+    // Migrate old 'screenshots' or 'logs' to 'artifacts'
+    if (stored === 'screenshots' || stored === 'logs') {
+      return 'artifacts';
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return defaultValue;
+}
+
+function getStoredArtifactSubType(key: string, defaultValue: ArtifactSubType): ArtifactSubType {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const stored = localStorage.getItem(key);
+    if (
+      stored === 'screenshots' ||
+      stored === 'execution-logs' ||
+      stored === 'console' ||
+      stored === 'network' ||
+      stored === 'dom-snapshots'
+    ) {
       return stored;
     }
   } catch {
@@ -101,6 +127,10 @@ export interface UseUnifiedSidebarReturn {
   activeTab: TabId;
   setActiveTab: (tab: TabId) => void;
 
+  // Artifact sub-type management
+  artifactSubType: ArtifactSubType;
+  setArtifactSubType: (subType: ArtifactSubType) => void;
+
   // Dimensions
   width: number;
   minWidth: number;
@@ -113,12 +143,10 @@ export interface UseUnifiedSidebarReturn {
   // Activity indicators (flash when tab has new content)
   timelineActivity: boolean;
   autoActivity: boolean;
-  screenshotsActivity: boolean;
-  logsActivity: boolean;
+  artifactsActivity: boolean;
   setTimelineActivity: (active: boolean) => void;
   setAutoActivity: (active: boolean) => void;
-  setScreenshotsActivity: (active: boolean) => void;
-  setLogsActivity: (active: boolean) => void;
+  setArtifactsActivity: (active: boolean) => void;
 }
 
 // ============================================================================
@@ -148,15 +176,18 @@ export function useUnifiedSidebar(
   const resizeStartXRef = useRef(0);
   const resizeStartWidthRef = useRef(0);
 
+  // Artifact sub-type state
+  const [artifactSubType, setArtifactSubTypeState] = useState<ArtifactSubType>(() =>
+    getStoredArtifactSubType(STORAGE_KEYS.ARTIFACT_SUBTYPE, DEFAULT_ARTIFACT_SUBTYPE)
+  );
+
   // Activity indicators
   const [timelineActivity, setTimelineActivity] = useState(false);
   const [autoActivity, setAutoActivity] = useState(false);
-  const [screenshotsActivity, setScreenshotsActivity] = useState(false);
-  const [logsActivity, setLogsActivity] = useState(false);
+  const [artifactsActivity, setArtifactsActivity] = useState(false);
   const timelineActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const autoActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const screenshotsActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const logsActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const artifactsActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Persist open state
   const setIsOpen = useCallback((open: boolean) => {
@@ -181,6 +212,12 @@ export function useUnifiedSidebar(
     },
     [onTabChange]
   );
+
+  // Persist artifact sub-type
+  const setArtifactSubType = useCallback((subType: ArtifactSubType) => {
+    setArtifactSubTypeState(subType);
+    setStoredValue(STORAGE_KEYS.ARTIFACT_SUBTYPE, subType);
+  }, []);
 
   // Activity indicator with auto-clear
   const setTimelineActivityWithClear = useCallback((active: boolean) => {
@@ -207,26 +244,14 @@ export function useUnifiedSidebar(
     }
   }, []);
 
-  const setScreenshotsActivityWithClear = useCallback((active: boolean) => {
-    if (screenshotsActivityTimerRef.current) {
-      clearTimeout(screenshotsActivityTimerRef.current);
+  const setArtifactsActivityWithClear = useCallback((active: boolean) => {
+    if (artifactsActivityTimerRef.current) {
+      clearTimeout(artifactsActivityTimerRef.current);
     }
-    setScreenshotsActivity(active);
+    setArtifactsActivity(active);
     if (active) {
-      screenshotsActivityTimerRef.current = setTimeout(() => {
-        setScreenshotsActivity(false);
-      }, 2000);
-    }
-  }, []);
-
-  const setLogsActivityWithClear = useCallback((active: boolean) => {
-    if (logsActivityTimerRef.current) {
-      clearTimeout(logsActivityTimerRef.current);
-    }
-    setLogsActivity(active);
-    if (active) {
-      logsActivityTimerRef.current = setTimeout(() => {
-        setLogsActivity(false);
+      artifactsActivityTimerRef.current = setTimeout(() => {
+        setArtifactsActivity(false);
       }, 2000);
     }
   }, []);
@@ -236,8 +261,7 @@ export function useUnifiedSidebar(
     return () => {
       if (timelineActivityTimerRef.current) clearTimeout(timelineActivityTimerRef.current);
       if (autoActivityTimerRef.current) clearTimeout(autoActivityTimerRef.current);
-      if (screenshotsActivityTimerRef.current) clearTimeout(screenshotsActivityTimerRef.current);
-      if (logsActivityTimerRef.current) clearTimeout(logsActivityTimerRef.current);
+      if (artifactsActivityTimerRef.current) clearTimeout(artifactsActivityTimerRef.current);
     };
   }, []);
 
@@ -294,6 +318,10 @@ export function useUnifiedSidebar(
     activeTab,
     setActiveTab,
 
+    // Artifact sub-type management
+    artifactSubType,
+    setArtifactSubType,
+
     // Dimensions
     width,
     minWidth: SIDEBAR_MIN_WIDTH,
@@ -306,11 +334,9 @@ export function useUnifiedSidebar(
     // Activity indicators
     timelineActivity,
     autoActivity,
-    screenshotsActivity,
-    logsActivity,
+    artifactsActivity,
     setTimelineActivity: setTimelineActivityWithClear,
     setAutoActivity: setAutoActivityWithClear,
-    setScreenshotsActivity: setScreenshotsActivityWithClear,
-    setLogsActivity: setLogsActivityWithClear,
+    setArtifactsActivity: setArtifactsActivityWithClear,
   };
 }

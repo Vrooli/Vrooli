@@ -122,6 +122,7 @@ func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (
 			MinViewportHeight: spec.Capabilities.MinViewportHeight,
 		},
 		BrowserProfile: spec.BrowserProfile,
+		StorageState:   spec.StorageState,
 	}
 
 	// Add frame streaming config if enabled (for live execution preview)

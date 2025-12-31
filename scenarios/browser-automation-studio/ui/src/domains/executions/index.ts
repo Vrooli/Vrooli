@@ -25,6 +25,10 @@ export type {
   TimelineAssertion,
   TimelineArtifact,
   TimelineLog,
+  StartExecutionOptions,
+  ExecutionSettingsOverrides,
+  ArtifactProfile,
+  ArtifactCollectionConfig,
 } from './store';
 
 // Hooks

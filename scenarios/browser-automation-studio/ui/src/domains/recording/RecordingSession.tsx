@@ -29,7 +29,7 @@ import { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanner
 import { ClearActionsModal } from './capture/RecordModeModals';
 import { WorkflowCreationForm } from './conversion/WorkflowCreationForm';
 import { WorkflowPickerModal } from './conversion/WorkflowPickerModal';
-import { WorkflowInfoCard } from './timeline/WorkflowInfoCard';
+import { WorkflowInfoCard, type ExecutionConfigSettings } from './timeline/WorkflowInfoCard';
 import type { BrowserProfile, RecordingSessionProfile, ReplayPreviewResponse } from './types/types';
 import type { WorkflowSettingsTyped } from '@/types/workflow';
 import { SessionManager } from '@/views/SettingsView/sections/sessions';
@@ -49,11 +49,13 @@ import type { StreamConnectionStatus } from './capture/PlaywrightView';
 import type { TimelineMode } from './types/timeline-unified';
 import { mergeActionsWithAISteps } from './types/timeline-unified';
 import { UnifiedSidebar, useUnifiedSidebar, useAISettings } from './sidebar';
+import type { ConsoleLogEntry, NetworkEventEntry, DomSnapshotEntry } from './sidebar/ArtifactsTab';
 import { useAIConversation } from './ai-conversation';
 import { HumanInterventionOverlay } from './ai-navigation';
-import { useExecutionStore, useStartWorkflow, useExecutionEvents } from '@/domains/executions';
+import { useExecutionStore, useStartWorkflow, useExecutionEvents, type TimelineFrame } from '@/domains/executions';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
+import toast from 'react-hot-toast';
 
 interface RecordModePageProps {
   /** Browser session ID */
@@ -82,6 +84,104 @@ interface RecordModePageProps {
 
 /** Right panel view state */
 type RightPanelView = 'preview' | 'create-workflow';
+
+// ============================================================================
+// Artifact Extraction Helpers
+// ============================================================================
+
+/**
+ * Extract console logs from timeline artifacts.
+ * Console logs are captured as artifacts with type 'console'.
+ */
+function extractConsoleLogs(timeline: TimelineFrame[]): ConsoleLogEntry[] {
+  const consoleLogs: ConsoleLogEntry[] = [];
+  for (const frame of timeline) {
+    if (!frame.artifacts) continue;
+    for (const artifact of frame.artifacts) {
+      if (artifact.type === 'console' && artifact.payload) {
+        const payload = artifact.payload as {
+          level?: string;
+          text?: string;
+          timestamp?: string;
+          stack?: string;
+          location?: string;
+        };
+        consoleLogs.push({
+          id: artifact.id,
+          level: (payload.level as ConsoleLogEntry['level']) ?? 'log',
+          text: payload.text ?? '',
+          timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
+          stack: payload.stack,
+          location: payload.location,
+        });
+      }
+    }
+  }
+  return consoleLogs;
+}
+
+/**
+ * Extract network events from timeline artifacts.
+ * Network events are captured as artifacts with type 'network'.
+ */
+function extractNetworkEvents(timeline: TimelineFrame[]): NetworkEventEntry[] {
+  const networkEvents: NetworkEventEntry[] = [];
+  for (const frame of timeline) {
+    if (!frame.artifacts) continue;
+    for (const artifact of frame.artifacts) {
+      if (artifact.type === 'network' && artifact.payload) {
+        const payload = artifact.payload as {
+          type?: string;
+          url?: string;
+          method?: string;
+          resourceType?: string;
+          status?: number;
+          ok?: boolean;
+          failure?: string;
+          timestamp?: string;
+          durationMs?: number;
+        };
+        networkEvents.push({
+          id: artifact.id,
+          type: (payload.type as NetworkEventEntry['type']) ?? 'request',
+          url: payload.url ?? '',
+          method: payload.method,
+          resourceType: payload.resourceType,
+          status: payload.status,
+          ok: payload.ok,
+          failure: payload.failure,
+          timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
+          durationMs: payload.durationMs,
+        });
+      }
+    }
+  }
+  return networkEvents;
+}
+
+/**
+ * Extract DOM snapshots from timeline artifacts.
+ * DOM snapshots are captured as artifacts with type 'dom_snapshot'.
+ */
+function extractDomSnapshots(timeline: TimelineFrame[]): DomSnapshotEntry[] {
+  const snapshots: DomSnapshotEntry[] = [];
+  for (const frame of timeline) {
+    if (!frame.artifacts) continue;
+    for (const artifact of frame.artifacts) {
+      if (artifact.type === 'dom_snapshot') {
+        snapshots.push({
+          id: artifact.id,
+          stepIndex: artifact.step_index ?? frame.stepIndex ?? 0,
+          stepName: artifact.label ?? frame.stepType ?? 'Step',
+          timestamp: new Date(),
+          storageUrl: artifact.storage_url,
+          sizeBytes: artifact.size_bytes,
+        });
+      }
+    }
+  }
+  return snapshots;
+}
 
 export function RecordModePage({
   sessionId: initialSessionId,
@@ -187,6 +287,9 @@ export function RecordModePage({
     onSuccess: (execId) => {
       setLocalExecutionId(execId);
     },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to start workflow execution');
+    },
   });
 
   // Unified sidebar state - auto-switch to Auto tab if autoStartAI
@@ -273,20 +376,47 @@ export function RecordModePage({
   }, [actions.length, isRecording, confirm]);
 
   // Handle workflow selection from picker
-  const handleWorkflowSelect = useCallback((workflowId: string, projectId: string, name: string) => {
+  const handleWorkflowSelect = useCallback((
+    workflowId: string,
+    projectId: string,
+    name: string,
+    defaultSessionId?: string | null
+  ) => {
     setSelectedWorkflowId(workflowId);
     setSelectedProjectId(projectId);
     setSelectedWorkflowName(name);
     setLocalExecutionId(null); // Clear any previous execution
     setShowWorkflowPicker(false);
     setMode('execution');
-  }, []);
 
-  // Handle Run button click - start execution
-  const handleRun = useCallback(async () => {
+    // Auto-select the workflow's default session if provided
+    if (defaultSessionId) {
+      setSelectedProfileId(defaultSessionId);
+      setSessionProfileId(defaultSessionId);
+    }
+  }, [setSessionProfileId]);
+
+  // Handle Run button click - start execution with optional config overrides
+  const handleRun = useCallback(async (overrides?: ExecutionConfigSettings) => {
     if (!selectedWorkflowId) return;
-    await startWorkflow({ workflowId: selectedWorkflowId });
-  }, [selectedWorkflowId, startWorkflow]);
+    try {
+      await startWorkflow({
+        workflowId: selectedWorkflowId,
+        sessionProfileId: selectedProfileId,
+        overrides: overrides ? {
+          viewport_width: overrides.viewportWidth,
+          viewport_height: overrides.viewportHeight,
+          timeout_ms: overrides.actionTimeoutSeconds * 1000,
+          navigation_wait_until: overrides.navigationWaitUntil,
+          continue_on_error: overrides.continueOnError,
+        } : undefined,
+        artifactProfile: overrides?.artifactProfile,
+      });
+    } catch {
+      // Error is already handled by onError callback (shows toast)
+      // Catch here to prevent unhandled promise rejection
+    }
+  }, [selectedWorkflowId, selectedProfileId, startWorkflow]);
 
   // Handle Stop button click - stop execution
   const handleStop = useCallback(async () => {
@@ -948,16 +1078,16 @@ export function RecordModePage({
             onSettingsChange: updateAISettings,
             onClear: aiClearConversation,
           }}
-          screenshotsProps={{
+          artifactsProps={{
             screenshots: currentExecution?.screenshots ?? [],
-            selectedIndex: selectedScreenshotIndex,
+            selectedScreenshotIndex: selectedScreenshotIndex,
             onSelectScreenshot: setSelectedScreenshotIndex,
-            executionStatus: executionStatus ?? undefined,
-          }}
-          logsProps={{
-            logs: currentExecution?.logs ?? [],
-            filter: logsFilter,
-            onFilterChange: setLogsFilter,
+            executionLogs: currentExecution?.logs ?? [],
+            logFilter: logsFilter,
+            onLogFilterChange: setLogsFilter,
+            consoleLogs: extractConsoleLogs(currentExecution?.timeline ?? []),
+            networkEvents: extractNetworkEvents(currentExecution?.timeline ?? []),
+            domSnapshots: extractDomSnapshots(currentExecution?.timeline ?? []),
             executionStatus: executionStatus ?? undefined,
           }}
         />

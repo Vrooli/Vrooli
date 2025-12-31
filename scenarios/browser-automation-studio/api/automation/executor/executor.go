@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -52,6 +53,23 @@ type Request struct {
 	// BrowserProfile configures anti-detection and human-like behavior settings.
 	// When nil, the driver uses default settings (no special behaviors applied).
 	BrowserProfile *archiveingestion.BrowserProfile
+
+	// StorageState is the session profile's storage state (cookies, localStorage).
+	// When set, injects the profile's authenticated state into the browser context
+	// before workflow execution begins. This enables running workflows in an
+	// authenticated state without requiring login steps.
+	StorageState json.RawMessage
+
+	// NavigationWaitUntil is the default wait condition for navigate actions.
+	// When set, overrides the workflow default but can be further overridden by
+	// per-action NavigateParams.wait_until settings.
+	// Values: "load", "domcontentloaded", "networkidle", "commit"
+	NavigationWaitUntil string
+
+	// ContinueOnError is the default continue-on-error behavior for all steps.
+	// When true, workflow continues to next step even if current step fails.
+	// Can be overridden by per-node NodeExecutionSettings.continue_on_error.
+	ContinueOnError *bool
 }
 
 // Executor orchestrates plan execution using an engine, recorder, and event sink.

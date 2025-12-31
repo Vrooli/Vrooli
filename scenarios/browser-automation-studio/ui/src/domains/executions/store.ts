@@ -192,6 +192,34 @@ export interface ArtifactCollectionConfig {
 }
 
 /**
+ * Runtime overrides for workflow execution settings.
+ * These override the workflow's saved settings for this execution only.
+ */
+export interface ExecutionSettingsOverrides {
+  viewport_width?: number;
+  viewport_height?: number;
+  timeout_ms?: number;
+  navigation_wait_until?: 'domcontentloaded' | 'networkidle' | 'load';
+  continue_on_error?: boolean;
+}
+
+/**
+ * Maps short-form navigation wait values to proto enum values.
+ * The proto expects full enum names like 'NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED'.
+ */
+function toProtoNavigationWaitUntil(
+  value: 'domcontentloaded' | 'networkidle' | 'load' | undefined
+): string | undefined {
+  if (!value) return undefined;
+  const mapping: Record<string, string> = {
+    domcontentloaded: 'NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED',
+    networkidle: 'NAVIGATE_WAIT_EVENT_NETWORKIDLE',
+    load: 'NAVIGATE_WAIT_EVENT_LOAD',
+  };
+  return mapping[value];
+}
+
+/**
  * Options for starting a workflow execution.
  */
 export interface StartExecutionOptions {
@@ -203,6 +231,10 @@ export interface StartExecutionOptions {
   saveWorkflowFn?: () => Promise<void>;
   /** Start URL for workflows that don't begin with a navigate step */
   startUrl?: string;
+  /** Session profile ID to use for this execution */
+  sessionProfileId?: string | null;
+  /** Runtime overrides for workflow execution settings */
+  executionOverrides?: ExecutionSettingsOverrides;
 }
 
 /** Profile descriptions for UI display */
@@ -553,6 +585,9 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         executeURL.searchParams.set('requires_video', 'true');
       }
 
+      // Build execution overrides for the request
+      const overrides = options?.executionOverrides;
+
       const response = await fetch(executeURL.toString(), {
         method: 'POST',
         headers: {
@@ -563,6 +598,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           parameters: {
             // Include start_url if provided (for workflows without navigate step)
             ...(options?.startUrl && { start_url: options.startUrl }),
+            // Session profile ID for authenticated execution (injects cookies/localStorage from profile)
+            ...(options?.sessionProfileId && { session_profile_id: options.sessionProfileId }),
+            // Include execution setting overrides
+            ...(overrides?.viewport_width && { viewport_width: overrides.viewport_width }),
+            ...(overrides?.viewport_height && { viewport_height: overrides.viewport_height }),
+            ...(overrides?.timeout_ms && { timeout_ms: overrides.timeout_ms }),
+            ...(overrides?.navigation_wait_until && { navigation_wait_until: toProtoNavigationWaitUntil(overrides.navigation_wait_until) }),
+            ...(overrides?.continue_on_error != null && { continue_on_error: overrides.continue_on_error }),
             artifact_config: {
               profile: artifactConfig.profile ?? 'full',
               ...(artifactConfig.profile === 'custom' && {
@@ -581,7 +624,21 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to start execution: ${response.status}`);
+        // Try to extract error message from response body
+        let errorMessage = `Failed to start execution: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+          } else if (errorData.details?.error) {
+            errorMessage = errorData.details.error;
+          }
+        } catch {
+          // Response wasn't JSON, use default message
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();

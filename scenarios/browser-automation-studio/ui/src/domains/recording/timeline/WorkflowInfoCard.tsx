@@ -4,11 +4,23 @@
  * Displays workflow information in a "ready to run" state when a workflow
  * is selected but not yet executing. Shows workflow details, execution
  * history stats, and provides actions to run or change the workflow.
+ *
+ * Features:
+ * - Workflow name and description
+ * - Execution statistics (run count, success rate, last run, avg duration)
+ * - Collapsible execution settings panel
+ * - Run and Change Workflow actions
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Play, RefreshCw, CheckCircle2, XCircle, Clock, BarChart3 } from 'lucide-react';
 import { getConfig } from '@/config';
+import {
+  ExecutionConfigPanel,
+  DEFAULT_EXECUTION_SETTINGS,
+  type ExecutionConfigSettings,
+} from './ExecutionConfigPanel';
+import type { NavigationWaitUntil } from '@/types/workflow';
 
 interface WorkflowStats {
   execution_count: number;
@@ -17,20 +29,35 @@ interface WorkflowStats {
   avg_duration_ms?: number;
 }
 
+interface WorkflowSettings {
+  viewport_width?: number;
+  viewport_height?: number;
+  timeout_ms?: number;
+  entry_selector_timeout_ms?: number;
+  navigation_wait_until?: NavigationWaitUntil;
+  continue_on_error?: boolean;
+}
+
 interface WorkflowDetails {
   id: string;
   name: string;
   description?: string;
   node_count?: number;
   stats?: WorkflowStats;
+  definition?: {
+    settings_typed?: WorkflowSettings;
+  };
 }
 
 interface WorkflowInfoCardProps {
   workflowId: string;
   workflowName: string;
-  onRun: () => void;
+  /** Callback when Run is clicked, optionally with execution config overrides */
+  onRun: (overrides?: ExecutionConfigSettings) => void;
   onChangeWorkflow: () => void;
 }
+
+export type { ExecutionConfigSettings };
 
 export function WorkflowInfoCard({
   workflowId,
@@ -41,6 +68,11 @@ export function WorkflowInfoCard({
   const [workflow, setWorkflow] = useState<WorkflowDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Execution config state
+  const [configDefaults, setConfigDefaults] = useState<ExecutionConfigSettings>(DEFAULT_EXECUTION_SETTINGS);
+  const [configSettings, setConfigSettings] = useState<ExecutionConfigSettings>(DEFAULT_EXECUTION_SETTINGS);
+  const [configCollapsed, setConfigCollapsed] = useState(true);
 
   useEffect(() => {
     const fetchWorkflowDetails = async () => {
@@ -54,6 +86,23 @@ export function WorkflowInfoCard({
         }
         const data = await response.json();
         setWorkflow(data);
+
+        // Extract workflow settings for config defaults
+        const settings = data.definition?.settings_typed;
+        if (settings) {
+          const defaults: ExecutionConfigSettings = {
+            navigationWaitUntil: settings.navigation_wait_until ?? DEFAULT_EXECUTION_SETTINGS.navigationWaitUntil,
+            actionTimeoutSeconds: settings.entry_selector_timeout_ms
+              ? Math.round(settings.entry_selector_timeout_ms / 1000)
+              : DEFAULT_EXECUTION_SETTINGS.actionTimeoutSeconds,
+            viewportWidth: settings.viewport_width ?? DEFAULT_EXECUTION_SETTINGS.viewportWidth,
+            viewportHeight: settings.viewport_height ?? DEFAULT_EXECUTION_SETTINGS.viewportHeight,
+            continueOnError: settings.continue_on_error ?? DEFAULT_EXECUTION_SETTINGS.continueOnError,
+            artifactProfile: DEFAULT_EXECUTION_SETTINGS.artifactProfile,
+          };
+          setConfigDefaults(defaults);
+          setConfigSettings(defaults);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load workflow');
       } finally {
@@ -63,6 +112,14 @@ export function WorkflowInfoCard({
 
     fetchWorkflowDetails();
   }, [workflowId]);
+
+  const handleConfigChange = useCallback((settings: ExecutionConfigSettings) => {
+    setConfigSettings(settings);
+  }, []);
+
+  const handleRun = useCallback(() => {
+    onRun(configSettings);
+  }, [onRun, configSettings]);
 
   const formatDuration = (ms?: number) => {
     if (!ms) return null;
@@ -188,17 +245,28 @@ export function WorkflowInfoCard({
 
       {/* No executions yet message */}
       {(!stats || stats.execution_count === 0) && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-8 max-w-md text-center">
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-6 max-w-md text-center">
           <p className="text-sm text-blue-600 dark:text-blue-400">
             This workflow hasn't been executed yet. Click Run to start your first execution.
           </p>
         </div>
       )}
 
+      {/* Execution Config Panel */}
+      <ExecutionConfigPanel
+        defaults={configDefaults}
+        value={configSettings}
+        onChange={handleConfigChange}
+        collapsed={configCollapsed}
+        onCollapseChange={setConfigCollapsed}
+        showArtifactProfile
+        className="w-full max-w-md mb-6"
+      />
+
       {/* Action buttons */}
       <div className="flex items-center gap-4">
         <button
-          onClick={onRun}
+          onClick={handleRun}
           className="flex items-center gap-2 px-6 py-3 bg-flow-accent text-white font-medium rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-flow-accent/25"
         >
           <Play size={20} />

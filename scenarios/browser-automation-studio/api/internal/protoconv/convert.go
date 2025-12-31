@@ -480,7 +480,30 @@ func mapToExecutionParameters(source map[string]any) *basexecution.ExecutionPara
 	if v, ok := source["locale"].(string); ok && v != "" {
 		params.Locale = &v
 	}
+	// Extract navigation_wait_until
+	if v, ok := source["navigation_wait_until"].(string); ok && v != "" {
+		waitEvent := parseNavigateWaitEvent(v)
+		params.NavigationWaitUntil = &waitEvent
+	}
+	// Extract continue_on_error
+	if v, ok := source["continue_on_error"].(bool); ok {
+		params.ContinueOnError = &v
+	}
 	return params
+}
+
+// parseNavigateWaitEvent converts a string value to the NavigateWaitEvent enum.
+func parseNavigateWaitEvent(s string) basactions.NavigateWaitEvent {
+	switch s {
+	case "load":
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_LOAD
+	case "domcontentloaded":
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED
+	case "networkidle":
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE
+	default:
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED
+	}
 }
 
 // mapToExecutionResult converts a map to the typed ExecutionResult proto.

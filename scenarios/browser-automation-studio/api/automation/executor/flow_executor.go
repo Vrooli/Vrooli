@@ -224,7 +224,18 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	}
 	session = newSession
 
+	// Check if we should continue despite the error
 	if runErr != nil {
+		if shouldContinueOnError(instruction, req.ContinueOnError) {
+			// Log the error but continue execution
+			logrus.WithFields(logrus.Fields{
+				"step_index": instruction.Index,
+				"node_id":    instruction.NodeID,
+				"error":      runErr,
+			}).Warn("Step failed but continue_on_error is enabled, continuing execution")
+			// Return normalized (with failure info) but no error to allow continuation
+			return normalized, session, nil
+		}
 		return normalized, session, runErr
 	}
 

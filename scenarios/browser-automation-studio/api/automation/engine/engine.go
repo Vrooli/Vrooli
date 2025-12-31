@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -39,6 +40,7 @@ type SessionSpec struct {
 	Capabilities   contracts.CapabilityRequirement  // Required capabilities derived from plan.
 	FrameStreaming *FrameStreamingConfig            // Optional: enables live frame streaming during execution.
 	BrowserProfile *archiveingestion.BrowserProfile // Optional: anti-detection and human-like behavior settings.
+	StorageState   json.RawMessage                  // Optional: session profile's storage state (cookies, localStorage) for authenticated execution.
 }
 
 // AutomationEngine exposes engine capabilities and produces engine sessions.

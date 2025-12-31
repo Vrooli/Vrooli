@@ -17,7 +17,7 @@ export interface WorkflowMetadataTyped {
 }
 
 /** Navigation wait condition for page.goto() */
-export type NavigationWaitUntil = 'domcontentloaded' | 'networkidle' | 'load' | 'commit';
+export type NavigationWaitUntil = 'domcontentloaded' | 'networkidle' | 'load';
 
 export interface WorkflowSettingsTyped {
   viewport_width?: number;

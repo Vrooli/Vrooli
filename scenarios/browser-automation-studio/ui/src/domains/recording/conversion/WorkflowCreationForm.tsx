@@ -83,7 +83,6 @@ const NAVIGATION_WAIT_OPTIONS: { value: NavigationWaitUntil; label: string; desc
   { value: 'domcontentloaded', label: 'DOM Ready', description: 'Wait for HTML to parse (fast, recommended)' },
   { value: 'load', label: 'Page Load', description: 'Wait for all resources to load' },
   { value: 'networkidle', label: 'Network Idle', description: 'Wait for no network activity (slow on heavy sites)' },
-  { value: 'commit', label: 'Commit', description: 'Wait for first response byte (fastest)' },
 ];
 
 /**
