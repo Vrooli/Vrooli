@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Code, FormInput, AlertCircle, Check, AlertTriangle, Search } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Code, FormInput, AlertCircle, Check, AlertTriangle, Search, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
-import { Textarea, Input } from "../ui/input";
+import { Input } from "../ui/input";
 import { Alert } from "../ui/alert";
 import { HelpTooltip } from "../ui/tooltip";
 import { SSHKeySetup } from "./SSHKeySetup";
+import { ValidationSummary } from "./ValidationSummary";
+import { AutoFixPanel } from "./AutoFixPanel";
+import { AnnotatedCodeBlock, type LineAnnotation } from "../ui/annotated-code-block";
+import { mapJsonPathsToLines } from "../../lib/jsonPathToLine";
 import { selectors } from "../../consts/selectors";
 import type { useDeployment } from "../../hooks/useDeployment";
 import {
@@ -50,8 +54,51 @@ function portKeyToLabel(key: string): string {
 }
 
 export function StepManifest({ deployment }: StepManifestProps) {
-  const { manifestJson, setManifestJson, parsedManifest } = deployment;
+  const {
+    manifestJson,
+    setManifestJson,
+    parsedManifest,
+    validationIssues,
+    validationError,
+    isValidating,
+    validate,
+    normalizedManifest,
+    applyAllFixes,
+  } = deployment;
   const [mode, setMode] = useState<Mode>("form");
+
+  // Debounced validation
+  const validateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastValidatedJsonRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Skip if JSON hasn't changed since last validation
+    if (manifestJson === lastValidatedJsonRef.current) {
+      return;
+    }
+
+    // Skip if JSON is invalid (parse error will be shown)
+    if (!parsedManifest.ok) {
+      return;
+    }
+
+    // Clear previous timeout
+    if (validateTimeoutRef.current) {
+      clearTimeout(validateTimeoutRef.current);
+    }
+
+    // Debounce validation
+    validateTimeoutRef.current = setTimeout(() => {
+      lastValidatedJsonRef.current = manifestJson;
+      validate();
+    }, 800);
+
+    return () => {
+      if (validateTimeoutRef.current) {
+        clearTimeout(validateTimeoutRef.current);
+      }
+    };
+  }, [manifestJson, parsedManifest.ok, validate]);
 
   // Scenarios list state
   const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
@@ -279,25 +326,64 @@ export function StepManifest({ deployment }: StepManifestProps) {
     return "Domain name for HTTPS (requires DNS configured)";
   }, [domainReachability, isCheckingDomain]);
 
+  // Compute line annotations from validation issues for JSON mode
+  const lineAnnotations = useMemo((): LineAnnotation[] => {
+    if (!validationIssues || validationIssues.length === 0) return [];
+
+    const pathMapping = mapJsonPathsToLines(manifestJson);
+    const annotations: LineAnnotation[] = [];
+
+    for (const issue of validationIssues) {
+      const lineInfo = pathMapping[issue.path];
+      if (lineInfo) {
+        annotations.push({
+          line: lineInfo.line,
+          severity: issue.severity,
+          message: issue.message,
+          hint: issue.hint,
+          path: issue.path,
+          fixable: normalizedManifest !== null,
+        });
+      }
+    }
+
+    return annotations;
+  }, [validationIssues, manifestJson, normalizedManifest]);
+
   return (
     <div className="space-y-6">
-      {/* Mode Toggle */}
-      <div className="flex items-center gap-2">
+      {/* Mode Toggle and Actions */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={mode === "form" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("form")}
+          >
+            <FormInput className="h-4 w-4 mr-1.5" />
+            Form
+          </Button>
+          <Button
+            variant={mode === "json" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setMode("json")}
+          >
+            <Code className="h-4 w-4 mr-1.5" />
+            JSON
+          </Button>
+        </div>
         <Button
-          variant={mode === "form" ? "default" : "outline"}
+          variant="ghost"
           size="sm"
-          onClick={() => setMode("form")}
+          onClick={() => {
+            lastValidatedJsonRef.current = null;
+            validate();
+          }}
+          disabled={isValidating || !parsedManifest.ok}
+          className="text-slate-400 hover:text-slate-200"
         >
-          <FormInput className="h-4 w-4 mr-1.5" />
-          Form
-        </Button>
-        <Button
-          variant={mode === "json" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setMode("json")}
-        >
-          <Code className="h-4 w-4 mr-1.5" />
-          JSON
+          <RefreshCw className={`h-4 w-4 mr-1.5 ${isValidating ? "animate-spin" : ""}`} />
+          Revalidate
         </Button>
       </div>
 
@@ -306,6 +392,16 @@ export function StepManifest({ deployment }: StepManifestProps) {
         <Alert variant="error" title="Invalid JSON">
           {parsedManifest.error}
         </Alert>
+      )}
+
+      {/* Validation Summary (shown in Form mode) */}
+      {mode === "form" && (
+        <ValidationSummary
+          issues={validationIssues}
+          error={validationError}
+          isValidating={isValidating}
+          onViewInJson={() => setMode("json")}
+        />
       )}
 
       {/* Form Mode */}
@@ -569,16 +665,65 @@ export function StepManifest({ deployment }: StepManifestProps) {
 
       {/* JSON Mode */}
       {mode === "json" && (
-        <Textarea
-          data-testid={selectors.manifest.input}
-          label="Cloud Manifest JSON"
-          hint="The complete deployment manifest in JSON format"
-          value={manifestJson}
-          onChange={(e) => setManifestJson(e.target.value)}
-          className="font-mono text-xs h-80"
-          spellCheck={false}
-          error={!parsedManifest.ok ? parsedManifest.error : undefined}
-        />
+        <div className="space-y-4">
+          {/* API validation error (e.g., unknown field, schema error) */}
+          {validationError && (
+            <Alert variant="error" title="Validation Error">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>{validationError}</span>
+              </div>
+            </Alert>
+          )}
+
+          {/* Single editable code block with syntax highlighting and annotations */}
+          <AnnotatedCodeBlock
+            code={manifestJson}
+            language="json"
+            annotations={lineAnnotations}
+            maxHeight="400px"
+            showHeader={true}
+            editable={true}
+            onChange={setManifestJson}
+            placeholder="Enter your deployment manifest JSON..."
+            error={!parsedManifest.ok ? parsedManifest.error : undefined}
+            testId={selectors.manifest.input}
+          />
+
+          {/* Validation issues list */}
+          {validationIssues && validationIssues.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-slate-700 p-3 bg-slate-900/50">
+              <div className="text-sm font-medium text-slate-300 mb-2">Validation Issues</div>
+              {validationIssues.map((issue, index) => (
+                <div
+                  key={`${issue.severity}-${issue.path}-${index}`}
+                  className="flex items-start gap-2 text-sm p-2 rounded bg-slate-800/50"
+                >
+                  {issue.severity === "error" ? (
+                    <AlertCircle className="h-3.5 w-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <code className="text-xs text-slate-500 font-mono">{issue.path}</code>
+                    <p className="text-slate-300">{issue.message}</p>
+                    {issue.hint && (
+                      <p className="text-xs text-slate-500 mt-0.5">{issue.hint}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Auto-fix panel */}
+          <AutoFixPanel
+            issues={validationIssues}
+            normalizedManifest={normalizedManifest}
+            currentManifest={parsedManifest.ok ? parsedManifest.value : null}
+            onApplyAll={applyAllFixes}
+          />
+        </div>
       )}
     </div>
   );

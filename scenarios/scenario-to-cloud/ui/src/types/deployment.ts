@@ -38,14 +38,12 @@ export type DeploymentManifest = {
 
 export type WizardStep =
   | "manifest"
-  | "validate"
   | "build"
   | "preflight"
   | "deploy";
 
 export const WIZARD_STEPS: Array<{ id: WizardStep; label: string; description: string }> = [
-  { id: "manifest", label: "Manifest", description: "Configure deployment settings" },
-  { id: "validate", label: "Validate", description: "Check manifest for errors" },
+  { id: "manifest", label: "Configure", description: "Configure and validate deployment settings" },
   { id: "build", label: "Build", description: "Create deployment bundle" },
   { id: "preflight", label: "Preflight", description: "Verify target server" },
   { id: "deploy", label: "Deploy", description: "Deploy to server" },

@@ -67,6 +67,7 @@ export function useDeployment() {
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[] | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [normalizedManifest, setNormalizedManifest] = useState<DeploymentManifest | null>(null);
 
   // Bundle state
   const [bundleArtifact, setBundleArtifact] = useState<BundleArtifact | null>(null);
@@ -149,6 +150,7 @@ export function useDeployment() {
   const validate = useCallback(async () => {
     setValidationError(null);
     setValidationIssues(null);
+    setNormalizedManifest(null);
     setIsValidating(true);
 
     try {
@@ -157,12 +159,33 @@ export function useDeployment() {
       }
       const res = await validateManifest(parsedManifest.value);
       setValidationIssues(res.issues ?? []);
+      // Store the normalized manifest for auto-fix functionality
+      if (res.manifest) {
+        setNormalizedManifest(res.manifest as DeploymentManifest);
+      }
     } catch (e) {
       setValidationError(e instanceof Error ? e.message : String(e));
     } finally {
       setIsValidating(false);
     }
   }, [parsedManifest]);
+
+  // Apply all auto-fixes by replacing manifest with normalized version
+  const applyAllFixes = useCallback(() => {
+    if (normalizedManifest) {
+      const json = JSON.stringify(normalizedManifest, null, 2);
+      setManifestJson(json);
+      saveDeployment({
+        manifestJson: json,
+        currentStep: currentStepIndex,
+        timestamp: Date.now(),
+        sshKeyPath,
+      });
+      // Clear validation state to trigger re-validation
+      setValidationIssues(null);
+      setNormalizedManifest(null);
+    }
+  }, [normalizedManifest, currentStepIndex, sshKeyPath]);
 
   const build = useCallback(async () => {
     setBundleArtifact(null);
@@ -248,6 +271,7 @@ export function useDeployment() {
     setManifestJson(DEFAULT_MANIFEST_JSON);
     setValidationIssues(null);
     setValidationError(null);
+    setNormalizedManifest(null);
     setBundleArtifact(null);
     setBundleError(null);
     setPreflightPassed(null);
@@ -265,9 +289,12 @@ export function useDeployment() {
   const canProceed = useMemo(() => {
     switch (currentStep.id) {
       case "manifest":
-        return parsedManifest.ok;
-      case "validate":
-        return validationIssues !== null && validationIssues.filter((i) => i.severity === "error").length === 0;
+        // Merged manifest + validate: require valid JSON AND no blocking validation errors
+        return (
+          parsedManifest.ok &&
+          validationIssues !== null &&
+          validationIssues.filter((i) => i.severity === "error").length === 0
+        );
       case "build":
         return bundleArtifact !== null;
       case "preflight":
@@ -303,6 +330,8 @@ export function useDeployment() {
     validationError,
     isValidating,
     validate,
+    normalizedManifest,
+    applyAllFixes,
 
     // Bundle
     bundleArtifact,

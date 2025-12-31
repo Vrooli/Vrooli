@@ -27,7 +27,10 @@ export type ValidationIssue = {
 export type ManifestValidateResponse = {
   valid: boolean;
   issues?: ValidationIssue[];
+  /** The normalized/auto-fixed manifest returned by the backend */
+  manifest: unknown;
   timestamp: string;
+  schema_hint?: string;
 };
 
 export type BundleArtifact = { path: string; sha256: string; size_bytes: number };

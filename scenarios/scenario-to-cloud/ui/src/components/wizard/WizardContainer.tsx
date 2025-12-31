@@ -4,7 +4,6 @@ import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { useDeployment } from "../../hooks/useDeployment";
 import { StepManifest } from "./StepManifest";
-import { StepValidate } from "./StepValidate";
 import { StepBuild } from "./StepBuild";
 import { StepPreflight } from "./StepPreflight";
 import { StepDeploy } from "./StepDeploy";
@@ -23,8 +22,6 @@ export function WizardContainer({ onBackToDashboard, onViewDeployments }: Wizard
     switch (currentStep.id) {
       case "manifest":
         return <StepManifest deployment={deployment} />;
-      case "validate":
-        return <StepValidate deployment={deployment} />;
       case "build":
         return <StepBuild deployment={deployment} />;
       case "preflight":

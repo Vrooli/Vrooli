@@ -185,6 +185,7 @@ func ValidateAndNormalizeManifest(in CloudManifest) (CloudManifest, []Validation
 	}
 
 	if strings.TrimSpace(out.Dependencies.Analyzer.Tool) == "" {
+		out.Dependencies.Analyzer.Tool = "scenario-dependency-analyzer"
 		issues = append(issues, ValidationIssue{
 			Path:     "dependencies.analyzer.tool",
 			Message:  "dependencies.analyzer.tool should be set",

@@ -333,7 +333,7 @@ const dynamicSelectorDefinitions = {
     stepByName: defineDynamicSelector({
       description: "Wizard step by name",
       testIdPattern: "wizard-step-${name}",
-      params: { name: { type: "enum", values: ["manifest", "validate", "build", "preflight", "deploy"] } },
+      params: { name: { type: "enum", values: ["manifest", "build", "preflight", "deploy"] } },
     }),
   },
   validation: {
