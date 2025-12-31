@@ -29,6 +29,7 @@ export type {
   ExecutionSettingsOverrides,
   ArtifactProfile,
   ArtifactCollectionConfig,
+  FrameStreamingConfig,
 } from './store';
 
 // Hooks

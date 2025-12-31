@@ -1,5 +1,20 @@
+/**
+ * RecordPreviewPanel - Live preview panel for recording mode
+ *
+ * Shows the live browser preview during recording sessions with:
+ * - PlaywrightView for live browser streaming
+ * - Replay style presentation wrapper (optional)
+ * - Stream settings and performance stats
+ *
+ * Note: This component has custom presentation handling due to coordinate
+ * mapping requirements (playwrightContainerRef) for cursor tracking during
+ * recording. The shared PresentationWrapper is used by ExecutionPreviewPanel
+ * which doesn't need this specific functionality.
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Globe, Loader2 } from 'lucide-react';
+import clsx from 'clsx';
 import { loadHistory, type HistoryEntry } from '../capture/BrowserUrlBar';
 import { useLinkPreviewsBatch, type LinkPreviewData } from '../hooks/useLinkPreview';
 import type { RecordedAction } from '../types/types';
@@ -8,15 +23,12 @@ import { useStreamSettings, type StreamSettingsValues } from '../capture/StreamS
 import { BrowserChrome } from '../capture/BrowserChrome';
 import { usePerfStats } from '../hooks/usePerfStats';
 import { useSettingsStore } from '@stores/settingsStore';
-import {
-  useReplaySettingsSync,
-} from '@/domains/replay-style';
+import { useReplaySettingsSync } from '@/domains/replay-style';
 import type { ReplayRect } from '@/domains/replay-layout';
 import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
 import ReplayPresentation from '@/domains/exports/replay/ReplayPresentation';
 import { useReplayPresentationModel } from '@/domains/exports/replay/useReplayPresentationModel';
 import { PreviewSettingsDialog } from '@/domains/preview-settings';
-import clsx from 'clsx';
 
 interface RecordPreviewPanelProps {
   previewUrl: string;

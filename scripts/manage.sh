@@ -119,7 +119,7 @@ manage::main() {
     
     # If we have a potential scenario name argument, try to find it
     if [[ -n "$scenario_arg" ]]; then
-        local scenarios_dir="${VROOLI_ROOT}/scenarios"
+        local scenarios_dir="${var_SCENARIOS_DIR}"
         local scenario_path="${scenarios_dir}/${scenario_arg}"
         
         if [[ -d "$scenario_path" && -f "${scenario_path}/.vrooli/service.json" ]]; then

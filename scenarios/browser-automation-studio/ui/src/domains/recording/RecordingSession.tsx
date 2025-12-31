@@ -400,6 +400,8 @@ export function RecordModePage({
   const handleRun = useCallback(async (overrides?: ExecutionConfigSettings) => {
     if (!selectedWorkflowId) return;
     try {
+      // Use stream settings for frame streaming if available
+      const currentStreamSettings = streamSettingsRef.current;
       await startWorkflow({
         workflowId: selectedWorkflowId,
         sessionProfileId: selectedProfileId,
@@ -411,6 +413,12 @@ export function RecordModePage({
           continue_on_error: overrides.continueOnError,
         } : undefined,
         artifactProfile: overrides?.artifactProfile,
+        // Enable live frame streaming for real-time execution preview
+        frameStreaming: {
+          enabled: true,
+          quality: currentStreamSettings?.quality ?? 55,
+          fps: currentStreamSettings?.fps ?? 6,
+        },
       });
     } catch {
       // Error is already handled by onError callback (shows toast)

@@ -8,6 +8,7 @@ package execution
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	actions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	base "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	workflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -240,8 +241,22 @@ type ExecutionParameters struct {
 	// Use presets ("stealth", "balanced", "fast", "none") for common configurations,
 	// or configure individual fingerprint, behavior, and anti_detection settings.
 	BrowserProfile *base.BrowserProfile `protobuf:"bytes,21,opt,name=browser_profile,json=browserProfile,proto3" json:"browser_profile,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Session profile ID for authenticated execution.
+	// When set, loads the profile's storage state (cookies, localStorage)
+	// into the browser context before workflow execution begins.
+	// This enables running workflows in an authenticated state without login steps.
+	// @format uuid
+	SessionProfileId *string `protobuf:"bytes,22,opt,name=session_profile_id,json=sessionProfileId,proto3,oneof" json:"session_profile_id,omitempty"`
+	// Default navigation wait condition for all navigate steps.
+	// Overrides workflow-level default, but individual NavigateParams.wait_until takes precedence.
+	// @see NavigateWaitEvent enum in actions/action.proto
+	NavigationWaitUntil *actions.NavigateWaitEvent `protobuf:"varint,23,opt,name=navigation_wait_until,json=navigationWaitUntil,proto3,enum=browser_automation_studio.v1.NavigateWaitEvent,oneof" json:"navigation_wait_until,omitempty"`
+	// Default continue-on-error behavior for all steps.
+	// When true, workflow continues to next step even if current step fails.
+	// Overrides workflow default, but individual NodeExecutionSettings.continue_on_error takes precedence.
+	ContinueOnError *bool `protobuf:"varint,24,opt,name=continue_on_error,json=continueOnError,proto3,oneof" json:"continue_on_error,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ExecutionParameters) Reset() {
@@ -370,6 +385,27 @@ func (x *ExecutionParameters) GetBrowserProfile() *base.BrowserProfile {
 		return x.BrowserProfile
 	}
 	return nil
+}
+
+func (x *ExecutionParameters) GetSessionProfileId() string {
+	if x != nil && x.SessionProfileId != nil {
+		return *x.SessionProfileId
+	}
+	return ""
+}
+
+func (x *ExecutionParameters) GetNavigationWaitUntil() actions.NavigateWaitEvent {
+	if x != nil && x.NavigationWaitUntil != nil {
+		return *x.NavigationWaitUntil
+	}
+	return actions.NavigateWaitEvent(0)
+}
+
+func (x *ExecutionParameters) GetContinueOnError() bool {
+	if x != nil && x.ContinueOnError != nil {
+		return *x.ContinueOnError
+	}
+	return false
 }
 
 // ExecutionResult captures typed execution outcomes.
@@ -1466,7 +1502,7 @@ var File_browser_automation_studio_v1_execution_execution_proto protoreflect.Fil
 
 const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
-	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a7browser-automation-studio/v1/base/browser_profile.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\"\xa3\b\n" +
+	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a7browser-automation-studio/v1/base/browser_profile.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\x1a1browser-automation-studio/v1/actions/action.proto\"\xa3\b\n" +
 	"\x18ArtifactCollectionConfig\x12\x1d\n" +
 	"\aprofile\x18\x01 \x01(\tH\x00R\aprofile\x88\x01\x01\x124\n" +
 	"\x13collect_screenshots\x18\x02 \x01(\bH\x01R\x12collectScreenshots\x88\x01\x01\x127\n" +
@@ -1495,8 +1531,7 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\x15_max_screenshot_bytesB\x19\n" +
 	"\x17_max_dom_snapshot_bytesB\x1a\n" +
 	"\x18_max_console_entry_bytesB\x1c\n" +
-	"\x1a_max_network_preview_bytes\"\xb9\n" +
-	"\n" +
+	"\x1a_max_network_preview_bytes\"\xd8\f\n" +
 	"\x13ExecutionParameters\x12 \n" +
 	"\tstart_url\x18\x01 \x01(\tH\x00R\bstartUrl\x88\x01\x01\x12^\n" +
 	"\tvariables\x18\x02 \x03(\v2@.browser_automation_studio.v1.ExecutionParameters.VariablesEntryR\tvariables\x12*\n" +
@@ -1514,7 +1549,11 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\rinitial_store\x18\f \x03(\v2C.browser_automation_studio.v1.ExecutionParameters.InitialStoreEntryR\finitialStore\x12L\n" +
 	"\x03env\x18\r \x03(\v2:.browser_automation_studio.v1.ExecutionParameters.EnvEntryR\x03env\x12_\n" +
 	"\x0fartifact_config\x18\x14 \x01(\v26.browser_automation_studio.v1.ArtifactCollectionConfigR\x0eartifactConfig\x12U\n" +
-	"\x0fbrowser_profile\x18\x15 \x01(\v2,.browser_automation_studio.v1.BrowserProfileR\x0ebrowserProfile\x1a<\n" +
+	"\x0fbrowser_profile\x18\x15 \x01(\v2,.browser_automation_studio.v1.BrowserProfileR\x0ebrowserProfile\x12;\n" +
+	"\x12session_profile_id\x18\x16 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\bR\x10sessionProfileId\x88\x01\x01\x12h\n" +
+	"\x15navigation_wait_until\x18\x17 \x01(\x0e2/.browser_automation_studio.v1.NavigateWaitEventH\tR\x13navigationWaitUntil\x88\x01\x01\x12/\n" +
+	"\x11continue_on_error\x18\x18 \x01(\bH\n" +
+	"R\x0fcontinueOnError\x88\x01\x01\x1a<\n" +
 	"\x0eVariablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aV\n" +
@@ -1535,7 +1574,10 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\v_user_agentB\t\n" +
 	"\a_localeB\r\n" +
 	"\v_timeout_msB\x0f\n" +
-	"\r_project_rootJ\x04\b\x05\x10\x06\"\x81\x05\n" +
+	"\r_project_rootB\x15\n" +
+	"\x13_session_profile_idB\x18\n" +
+	"\x16_navigation_wait_untilB\x14\n" +
+	"\x12_continue_on_errorJ\x04\b\x05\x10\x06\"\x81\x05\n" +
 	"\x0fExecutionResult\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12%\n" +
 	"\x0esteps_executed\x18\x02 \x01(\x05R\rstepsExecuted\x12!\n" +
@@ -1720,14 +1762,15 @@ var file_browser_automation_studio_v1_execution_execution_proto_goTypes = []any{
 	nil,                                    // 17: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
 	nil,                                    // 18: browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
 	(*base.BrowserProfile)(nil),            // 19: browser_automation_studio.v1.BrowserProfile
-	(base.ExecutionStatus)(0),              // 20: browser_automation_studio.v1.ExecutionStatus
-	(base.TriggerType)(0),                  // 21: browser_automation_studio.v1.TriggerType
-	(*timestamppb.Timestamp)(nil),          // 22: google.protobuf.Timestamp
-	(*workflows.WorkflowDefinitionV2)(nil), // 23: browser_automation_studio.v1.WorkflowDefinitionV2
-	(*domain.TimelineScreenshot)(nil),      // 24: browser_automation_studio.v1.TimelineScreenshot
-	(base.ExportStatus)(0),                 // 25: browser_automation_studio.v1.ExportStatus
-	(*v1.JsonObject)(nil),                  // 26: common.v1.JsonObject
-	(*v1.JsonValue)(nil),                   // 27: common.v1.JsonValue
+	(actions.NavigateWaitEvent)(0),         // 20: browser_automation_studio.v1.NavigateWaitEvent
+	(base.ExecutionStatus)(0),              // 21: browser_automation_studio.v1.ExecutionStatus
+	(base.TriggerType)(0),                  // 22: browser_automation_studio.v1.TriggerType
+	(*timestamppb.Timestamp)(nil),          // 23: google.protobuf.Timestamp
+	(*workflows.WorkflowDefinitionV2)(nil), // 24: browser_automation_studio.v1.WorkflowDefinitionV2
+	(*domain.TimelineScreenshot)(nil),      // 25: browser_automation_studio.v1.TimelineScreenshot
+	(base.ExportStatus)(0),                 // 26: browser_automation_studio.v1.ExportStatus
+	(*v1.JsonObject)(nil),                  // 27: common.v1.JsonObject
+	(*v1.JsonValue)(nil),                   // 28: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_execution_execution_proto_depIdxs = []int32{
 	13, // 0: browser_automation_studio.v1.ExecutionParameters.variables:type_name -> browser_automation_studio.v1.ExecutionParameters.VariablesEntry
@@ -1736,37 +1779,38 @@ var file_browser_automation_studio_v1_execution_execution_proto_depIdxs = []int3
 	16, // 3: browser_automation_studio.v1.ExecutionParameters.env:type_name -> browser_automation_studio.v1.ExecutionParameters.EnvEntry
 	0,  // 4: browser_automation_studio.v1.ExecutionParameters.artifact_config:type_name -> browser_automation_studio.v1.ArtifactCollectionConfig
 	19, // 5: browser_automation_studio.v1.ExecutionParameters.browser_profile:type_name -> browser_automation_studio.v1.BrowserProfile
-	17, // 6: browser_automation_studio.v1.ExecutionResult.extracted_data:type_name -> browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
-	18, // 7: browser_automation_studio.v1.ExecutionResult.screenshot_artifacts:type_name -> browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
-	20, // 8: browser_automation_studio.v1.Execution.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	21, // 9: browser_automation_studio.v1.Execution.trigger_type:type_name -> browser_automation_studio.v1.TriggerType
-	22, // 10: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
-	22, // 11: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
-	22, // 12: browser_automation_studio.v1.Execution.last_heartbeat_at:type_name -> google.protobuf.Timestamp
-	22, // 13: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
-	22, // 14: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
-	1,  // 15: browser_automation_studio.v1.Execution.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
-	2,  // 16: browser_automation_studio.v1.Execution.result:type_name -> browser_automation_studio.v1.ExecutionResult
-	3,  // 17: browser_automation_studio.v1.Execution.trigger_metadata:type_name -> browser_automation_studio.v1.TriggerMetadata
-	23, // 18: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
-	6,  // 19: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
-	1,  // 20: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
-	20, // 21: browser_automation_studio.v1.ExecuteAdhocResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	22, // 22: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
-	24, // 23: browser_automation_studio.v1.ExecutionScreenshot.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
-	22, // 24: browser_automation_studio.v1.ExecutionScreenshot.timestamp:type_name -> google.protobuf.Timestamp
-	8,  // 25: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.ExecutionScreenshot
-	25, // 26: browser_automation_studio.v1.ExecutionExportPreview.status:type_name -> browser_automation_studio.v1.ExportStatus
-	26, // 27: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> common.v1.JsonObject
-	27, // 28: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry.value:type_name -> common.v1.JsonValue
-	27, // 29: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry.value:type_name -> common.v1.JsonValue
-	27, // 30: browser_automation_studio.v1.ExecutionParameters.EnvEntry.value:type_name -> common.v1.JsonValue
-	27, // 31: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
-	32, // [32:32] is the sub-list for method output_type
-	32, // [32:32] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	20, // 6: browser_automation_studio.v1.ExecutionParameters.navigation_wait_until:type_name -> browser_automation_studio.v1.NavigateWaitEvent
+	17, // 7: browser_automation_studio.v1.ExecutionResult.extracted_data:type_name -> browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
+	18, // 8: browser_automation_studio.v1.ExecutionResult.screenshot_artifacts:type_name -> browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
+	21, // 9: browser_automation_studio.v1.Execution.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	22, // 10: browser_automation_studio.v1.Execution.trigger_type:type_name -> browser_automation_studio.v1.TriggerType
+	23, // 11: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
+	23, // 12: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
+	23, // 13: browser_automation_studio.v1.Execution.last_heartbeat_at:type_name -> google.protobuf.Timestamp
+	23, // 14: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
+	23, // 15: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
+	1,  // 16: browser_automation_studio.v1.Execution.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
+	2,  // 17: browser_automation_studio.v1.Execution.result:type_name -> browser_automation_studio.v1.ExecutionResult
+	3,  // 18: browser_automation_studio.v1.Execution.trigger_metadata:type_name -> browser_automation_studio.v1.TriggerMetadata
+	24, // 19: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	6,  // 20: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
+	1,  // 21: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
+	21, // 22: browser_automation_studio.v1.ExecuteAdhocResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	23, // 23: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
+	25, // 24: browser_automation_studio.v1.ExecutionScreenshot.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
+	23, // 25: browser_automation_studio.v1.ExecutionScreenshot.timestamp:type_name -> google.protobuf.Timestamp
+	8,  // 26: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.ExecutionScreenshot
+	26, // 27: browser_automation_studio.v1.ExecutionExportPreview.status:type_name -> browser_automation_studio.v1.ExportStatus
+	27, // 28: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> common.v1.JsonObject
+	28, // 29: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry.value:type_name -> common.v1.JsonValue
+	28, // 30: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry.value:type_name -> common.v1.JsonValue
+	28, // 31: browser_automation_studio.v1.ExecutionParameters.EnvEntry.value:type_name -> common.v1.JsonValue
+	28, // 32: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
+	33, // [33:33] is the sub-list for method output_type
+	33, // [33:33] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_execution_execution_proto_init() }

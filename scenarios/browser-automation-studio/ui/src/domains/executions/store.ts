@@ -220,6 +220,18 @@ function toProtoNavigationWaitUntil(
 }
 
 /**
+ * Frame streaming configuration for live execution preview.
+ */
+export interface FrameStreamingConfig {
+  /** Enable live frame streaming during execution */
+  enabled: boolean;
+  /** JPEG quality (1-100, default: 55) */
+  quality?: number;
+  /** Target frames per second (1-30, default: 6) */
+  fps?: number;
+}
+
+/**
  * Options for starting a workflow execution.
  */
 export interface StartExecutionOptions {
@@ -235,6 +247,8 @@ export interface StartExecutionOptions {
   sessionProfileId?: string | null;
   /** Runtime overrides for workflow execution settings */
   executionOverrides?: ExecutionSettingsOverrides;
+  /** Live frame streaming configuration for real-time execution preview */
+  frameStreaming?: FrameStreamingConfig;
 }
 
 /** Profile descriptions for UI display */
@@ -583,6 +597,17 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       const executeURL = new URL(`${config.API_URL}/workflows/${workflowId}/execute`);
       if (requiresVideo) {
         executeURL.searchParams.set('requires_video', 'true');
+      }
+
+      // Add frame streaming parameters for live execution preview
+      if (options?.frameStreaming?.enabled) {
+        executeURL.searchParams.set('frame_streaming', 'true');
+        if (options.frameStreaming.quality) {
+          executeURL.searchParams.set('frame_streaming_quality', String(options.frameStreaming.quality));
+        }
+        if (options.frameStreaming.fps) {
+          executeURL.searchParams.set('frame_streaming_fps', String(options.frameStreaming.fps));
+        }
       }
 
       // Build execution overrides for the request

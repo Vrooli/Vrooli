@@ -1,12 +1,14 @@
 /**
  * BrowserChrome Component
  *
- * The browser chrome UI (URL bar, frame stats, settings) that appears
- * above the browser viewport. Extracted from RecordPreviewPanel to be
- * reusable in both recording and execution modes.
+ * The browser chrome UI (URL bar, frame stats, replay style toggle, settings)
+ * that appears above the browser viewport. Used in both recording and execution modes.
+ *
+ * The Replay Style and Settings buttons are always visible regardless of mode.
+ * Frame stats are shown when live streaming (recording mode with showStats=true).
  */
 
-import { Palette, SlidersHorizontal, CheckCircle, Loader2, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Palette, SlidersHorizontal } from 'lucide-react';
 import { BrowserUrlBar } from './BrowserUrlBar';
 import { FrameStatsDisplay } from './FrameStatsDisplay';
 import type { FrameStats } from '../hooks/useFrameStats';
@@ -24,49 +26,29 @@ interface BrowserChromeProps {
   pageTitle?: string;
   placeholder?: string;
 
-  // Frame stats (optional)
+  // Frame stats (optional - shown during live streaming)
   frameStats?: FrameStats | null;
   targetFps?: number;
   debugStats?: FrameStatsAggregated | null;
   showStats?: boolean;
 
-  // Replay style toggle
+  // Replay style toggle (always visible)
   showReplayStyleToggle?: boolean;
   showReplayStyle?: boolean;
   onReplayStyleToggle?: () => void;
 
-  // Settings
+  // Settings (always visible)
   onSettingsClick?: () => void;
 
-  // Mode context
+  // Mode context (for URL bar behavior)
   mode?: 'recording' | 'execution';
   executionStatus?: ExecutionStatus;
 
-  // Read-only (execution playback)
+  // Read-only (execution playback - disables URL editing)
   readOnly?: boolean;
 
   // Additional class name
   className?: string;
-}
-
-/** Status indicator for execution mode */
-function ExecutionStatusIndicator({ status }: { status: ExecutionStatus }) {
-  const config: Record<ExecutionStatus, { icon: typeof Clock; text: string; className: string; spin?: boolean }> = {
-    pending: { icon: Clock, text: 'Pending', className: 'text-gray-500 dark:text-gray-400' },
-    running: { icon: Loader2, text: 'Running', className: 'text-blue-500', spin: true },
-    completed: { icon: CheckCircle, text: 'Completed', className: 'text-green-500' },
-    failed: { icon: XCircle, text: 'Failed', className: 'text-red-500' },
-    cancelled: { icon: AlertCircle, text: 'Cancelled', className: 'text-amber-500' },
-  };
-
-  const { icon: Icon, text, className, spin } = config[status];
-
-  return (
-    <div className={clsx('flex items-center gap-1.5 text-xs font-medium', className)}>
-      <Icon size={14} className={spin ? 'animate-spin' : ''} />
-      <span>{text}</span>
-    </div>
-  );
 }
 
 export function BrowserChrome({
@@ -84,8 +66,6 @@ export function BrowserChrome({
   showReplayStyle = false,
   onReplayStyleToggle,
   onSettingsClick,
-  mode = 'recording',
-  executionStatus,
   readOnly = false,
   className,
 }: BrowserChromeProps) {
@@ -114,12 +94,7 @@ export function BrowserChrome({
         disabled={readOnly}
       />
 
-      {/* Execution status indicator (execution mode only) */}
-      {mode === 'execution' && executionStatus && (
-        <ExecutionStatusIndicator status={executionStatus} />
-      )}
-
-      {/* Frame stats display (conditionally shown) */}
+      {/* Frame stats display (shown during live streaming) */}
       {showStats && (
         <FrameStatsDisplay
           stats={frameStats ?? null}
@@ -128,7 +103,7 @@ export function BrowserChrome({
         />
       )}
 
-      {/* Replay style toggle (optional, typically recording mode) */}
+      {/* Replay style toggle */}
       {showReplayStyleToggle && onReplayStyleToggle && (
         <button
           type="button"

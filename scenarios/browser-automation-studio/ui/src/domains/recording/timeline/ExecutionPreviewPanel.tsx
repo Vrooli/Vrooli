@@ -7,13 +7,27 @@
  * - Progress indicator
  * - Current step being executed
  * - Live screenshots as they come in
+ * - Slideshow playback for completed executions
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Play, Loader2, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { useExecutionStore, type Execution, useExecutionEvents } from '@/domains/executions';
+import { useExecutionFrameStream } from '@/domains/executions/hooks/useExecutionFrameStream';
 import { useWorkflowStore } from '@stores/workflowStore';
+import { useSettingsStore } from '@stores/settingsStore';
 import { BrowserChrome, type ExecutionStatus } from '../capture/BrowserChrome';
+import { useReplaySettingsSync } from '@/domains/replay-style';
+import { useReplayPresentationModel } from '@/domains/exports/replay/useReplayPresentationModel';
+import { PreviewSettingsDialog } from '@/domains/preview-settings';
+import type { ReplayRect } from '@/domains/replay-layout';
+import {
+  PresentationWrapper,
+  PlaybackControls,
+  ScreenshotSlideshow,
+  useSlideshowPlayback,
+  type Screenshot,
+} from '../shared';
 
 interface ExecutionPreviewPanelProps {
   /** Execution ID to display */
@@ -34,17 +48,162 @@ export function ExecutionPreviewPanel({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Replay style and settings state
+  const [showReplayStyle, setShowReplayStyle] = useState(false);
+  const [showPreviewSettings, setShowPreviewSettings] = useState(false);
+  const previewBoundsRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const [previewBounds, setPreviewBounds] = useState<{ width: number; height: number } | null>(null);
+  // Content rect for coordinate mapping - will be used when we add live streaming
+  const previewContentRect = useRef<ReplayRect | null>(null);
+
   // Subscribe to WebSocket updates for real-time execution progress
   // This hook bridges WebSocket events to the execution store
   useExecutionEvents(
     currentExecution ? { id: currentExecution.id, status: currentExecution.status } : undefined
   );
 
+  // Subscribe to live frame streaming when execution is running
+  const isExecutionRunning = currentExecution?.status === 'running';
+  const { frameUrl, isStreaming, frameCount } = useExecutionFrameStream(
+    isExecutionRunning ? executionId : null,
+    { enabled: isExecutionRunning }
+  );
+
+  // Determine content type based on execution state and available data
+  type ContentType = 'live-stream' | 'video' | 'slideshow' | 'status' | 'pending';
+  const contentType: ContentType = useMemo(() => {
+    if (!currentExecution) return 'pending';
+    if (isExecutionRunning && isStreaming) return 'live-stream';
+    if (currentExecution.status === 'completed' || currentExecution.status === 'failed' || currentExecution.status === 'cancelled') {
+      // TODO: Check for video URL when video support is added
+      // if (currentExecution.videoUrl) return 'video';
+      if (currentExecution.screenshots && currentExecution.screenshots.length > 0) return 'slideshow';
+      return 'status';
+    }
+    return 'status';
+  }, [currentExecution, isExecutionRunning, isStreaming]);
+
   // Get workflow info for display
   const workflows = useWorkflowStore((s) => s.workflows);
   const workflowName = currentExecution?.workflowId
     ? workflows.find((w) => w.id === currentExecution.workflowId)?.name
     : null;
+
+  // Replay settings from settings store
+  const { replay, setReplaySetting } = useSettingsStore();
+
+  const styleOverrides = useMemo(
+    () => ({
+      presentation: replay.presentation,
+      chromeTheme: replay.chromeTheme,
+      background: replay.background,
+      cursorTheme: replay.cursorTheme,
+      cursorInitialPosition: replay.cursorInitialPosition,
+      cursorClickAnimation: replay.cursorClickAnimation,
+      cursorScale: replay.cursorScale,
+      browserScale: replay.browserScale,
+    }),
+    [
+      replay.background,
+      replay.browserScale,
+      replay.chromeTheme,
+      replay.cursorClickAnimation,
+      replay.cursorInitialPosition,
+      replay.cursorScale,
+      replay.cursorTheme,
+      replay.presentation,
+    ],
+  );
+
+  const extraConfig = useMemo(
+    () => ({
+      cursorSpeedProfile: replay.cursorSpeedProfile,
+      cursorPathStyle: replay.cursorPathStyle,
+      renderSource: replay.exportRenderSource,
+      watermark: replay.watermark,
+      introCard: replay.introCard,
+      outroCard: replay.outroCard,
+    }),
+    [
+      replay.cursorPathStyle,
+      replay.cursorSpeedProfile,
+      replay.exportRenderSource,
+      replay.introCard,
+      replay.outroCard,
+      replay.watermark,
+    ],
+  );
+
+  useReplaySettingsSync({
+    styleOverrides,
+    extraConfig,
+    onStyleHydrated: (style) => {
+      setReplaySetting('presentation', style.presentation);
+      setReplaySetting('chromeTheme', style.chromeTheme);
+      setReplaySetting('background', style.background);
+      setReplaySetting('cursorTheme', style.cursorTheme);
+      setReplaySetting('cursorInitialPosition', style.cursorInitialPosition);
+      setReplaySetting('cursorClickAnimation', style.cursorClickAnimation);
+      setReplaySetting('cursorScale', style.cursorScale);
+      setReplaySetting('browserScale', style.browserScale);
+    },
+  });
+
+  // Observe preview container size for presentation layout
+  useEffect(() => {
+    const node = previewBoundsRef.current;
+    if (!node) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const width = entry.contentRect.width;
+      const height = entry.contentRect.height;
+      if (width <= 0 || height <= 0) return;
+      setPreviewBounds({ width, height });
+    });
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  // Calculate viewport dimensions for presentation
+  const activeViewport = useMemo(() => {
+    if (!showReplayStyle && previewBounds) {
+      const width = Math.min(3840, Math.max(320, Math.round(previewBounds.width)));
+      const height = Math.min(3840, Math.max(320, Math.round(previewBounds.height)));
+      return { width, height };
+    }
+    const width = Math.min(3840, Math.max(320, Math.round(replay.presentationWidth)));
+    const height = Math.min(3840, Math.max(320, Math.round(replay.presentationHeight)));
+    return { width, height };
+  }, [previewBounds, replay.presentationHeight, replay.presentationWidth, showReplayStyle]);
+
+  const previewTitle = workflowName || 'Execution Preview';
+  const presentationModel = useReplayPresentationModel({
+    style: styleOverrides,
+    title: previewTitle,
+    canvasDimensions: { width: activeViewport.width, height: activeViewport.height },
+    viewportDimensions: activeViewport,
+    presentationBounds: previewBounds ?? undefined,
+    presentationFit: previewBounds ? 'contain' : 'none',
+  });
+
+  // Convert execution screenshots to slideshow format
+  const slideshowScreenshots: Screenshot[] = useMemo(() => {
+    if (!currentExecution?.screenshots) return [];
+    return currentExecution.screenshots.map((s, i) => ({
+      url: s.url,
+      timestamp: s.timestamp.getTime(),
+      stepLabel: s.stepName || currentExecution.timeline?.[i]?.stepType || `Step ${i + 1}`,
+    }));
+  }, [currentExecution?.screenshots, currentExecution?.timeline]);
+
+  // Slideshow playback state (only used when contentType is 'slideshow')
+  const slideshow = useSlideshowPlayback(slideshowScreenshots.length, {
+    interval: 1500,
+    loop: true,
+  });
 
   // Load execution data on mount
   useEffect(() => {
@@ -139,6 +298,15 @@ export function ExecutionPreviewPanel({
     return '';
   })();
 
+  // Handle settings click - use internal dialog or external callback
+  const handleSettingsClick = useCallback(() => {
+    if (onSettingsClick) {
+      onSettingsClick();
+    } else {
+      setShowPreviewSettings(true);
+    }
+  }, [onSettingsClick]);
+
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900">
       {/* Browser chrome header with read-only URL bar */}
@@ -149,17 +317,59 @@ export function ExecutionPreviewPanel({
         mode="execution"
         executionStatus={currentExecution.status as ExecutionStatus}
         readOnly={true}
-        onSettingsClick={onSettingsClick}
-        showReplayStyleToggle={false}
+        showReplayStyleToggle={true}
+        showReplayStyle={showReplayStyle}
+        onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
+        onSettingsClick={handleSettingsClick}
       />
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto">
-        <ExecutionContent
-          execution={currentExecution}
-          onStart={onExecutionStart}
-        />
+      <div className="flex-1 overflow-hidden" ref={previewBoundsRef}>
+        <PresentationWrapper
+          showReplayStyle={showReplayStyle}
+          presentationModel={presentationModel}
+          previewContentRect={previewContentRect.current}
+          viewportRef={viewportRef}
+          watermark={replay.watermark}
+        >
+          {contentType === 'live-stream' && frameUrl ? (
+            <LiveStreamView frameUrl={frameUrl} frameCount={frameCount} />
+          ) : contentType === 'slideshow' ? (
+            <ScreenshotSlideshow
+              screenshots={slideshowScreenshots}
+              currentIndex={slideshow.currentIndex}
+            />
+          ) : (
+            <ExecutionContent
+              execution={currentExecution}
+              onStart={onExecutionStart}
+            />
+          )}
+        </PresentationWrapper>
       </div>
+
+      {/* Playback controls for slideshow content */}
+      {contentType === 'slideshow' && slideshowScreenshots.length > 1 && (
+        <PlaybackControls
+          contentType="slideshow"
+          isPlaying={slideshow.isPlaying}
+          progress={slideshow.progress}
+          currentIndex={slideshow.currentIndex}
+          totalFrames={slideshow.totalFrames}
+          onPlayPause={slideshow.toggle}
+          onPrevious={slideshow.previous}
+          onNext={slideshow.next}
+          onSeek={(position) => {
+            slideshow.seekTo(Math.round(position * (slideshow.totalFrames - 1)));
+          }}
+        />
+      )}
+
+      <PreviewSettingsDialog
+        isOpen={showPreviewSettings}
+        onClose={() => setShowPreviewSettings(false)}
+        sessionId={null}
+      />
     </div>
   );
 }
@@ -357,6 +567,37 @@ function ExecutionContent({
           Start Execution
         </button>
       )}
+    </div>
+  );
+}
+
+/** Live stream view - displays real-time frames from execution */
+function LiveStreamView({
+  frameUrl,
+  frameCount,
+}: {
+  frameUrl: string;
+  frameCount: number;
+}) {
+  return (
+    <div className="h-full w-full flex flex-col items-center justify-center bg-gray-900">
+      {/* Live frame display */}
+      <div className="relative w-full h-full flex items-center justify-center">
+        <img
+          src={frameUrl}
+          alt="Live execution preview"
+          className="max-w-full max-h-full object-contain"
+        />
+        {/* Live indicator */}
+        <div className="absolute top-3 left-3 flex items-center gap-2 px-2 py-1 bg-red-600/90 rounded text-white text-xs font-medium">
+          <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+          LIVE
+        </div>
+        {/* Frame counter */}
+        <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/60 rounded text-white text-xs">
+          Frame {frameCount}
+        </div>
+      </div>
     </div>
   );
 }

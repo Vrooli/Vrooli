@@ -9,6 +9,7 @@ import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/base/browser_profile.proto";
 import "browser-automation-studio/v1/domain/telemetry.proto";
 import "browser-automation-studio/v1/workflows/definition.proto";
+import "browser-automation-studio/v1/actions/action.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution;execution";
 
@@ -194,6 +195,33 @@ message ExecutionParameters {
   // Use presets ("stealth", "balanced", "fast", "none") for common configurations,
   // or configure individual fingerprint, behavior, and anti_detection settings.
   BrowserProfile browser_profile = 21;
+
+  // =============================================================================
+  // SESSION PROFILE SETTINGS
+  // =============================================================================
+
+  // Session profile ID for authenticated execution.
+  // When set, loads the profile's storage state (cookies, localStorage)
+  // into the browser context before workflow execution begins.
+  // This enables running workflows in an authenticated state without login steps.
+  // @format uuid
+  optional string session_profile_id = 22 [(buf.validate.field).string.uuid = true];
+
+  // =============================================================================
+  // EXECUTION-LEVEL DEFAULTS
+  // =============================================================================
+  // These provide execution-level defaults that override workflow settings
+  // but can be further overridden by per-node settings.
+
+  // Default navigation wait condition for all navigate steps.
+  // Overrides workflow-level default, but individual NavigateParams.wait_until takes precedence.
+  // @see NavigateWaitEvent enum in actions/action.proto
+  optional NavigateWaitEvent navigation_wait_until = 23;
+
+  // Default continue-on-error behavior for all steps.
+  // When true, workflow continues to next step even if current step fails.
+  // Overrides workflow default, but individual NodeExecutionSettings.continue_on_error takes precedence.
+  optional bool continue_on_error = 24;
 }
 
 // ExecutionResult captures typed execution outcomes.

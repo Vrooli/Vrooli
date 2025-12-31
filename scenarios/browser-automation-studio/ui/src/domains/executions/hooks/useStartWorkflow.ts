@@ -4,6 +4,7 @@ import {
   type StartExecutionOptions,
   type ExecutionSettingsOverrides,
   type ArtifactProfile,
+  type FrameStreamingConfig,
 } from '../store';
 import { usePromptDialog } from '@hooks/usePromptDialog';
 import { workflowStartsWithNavigate } from '@utils/nodeUtils';
@@ -74,6 +75,8 @@ export interface StartWorkflowParams {
   overrides?: ExecutionSettingsOverrides;
   /** Artifact collection profile */
   artifactProfile?: ArtifactProfile;
+  /** Live frame streaming configuration for real-time execution preview */
+  frameStreaming?: FrameStreamingConfig;
   /** Additional execution options (legacy, prefer individual params above) */
   options?: StartExecutionOptions;
 }
@@ -116,6 +119,7 @@ export function useStartWorkflow(hookOptions: UseStartWorkflowOptions = {}) {
     sessionProfileId,
     overrides,
     artifactProfile,
+    frameStreaming,
     options = {},
   }: StartWorkflowParams): Promise<string | null> => {
     try {
@@ -197,6 +201,7 @@ export function useStartWorkflow(hookOptions: UseStartWorkflowOptions = {}) {
         sessionProfileId,
         executionOverrides: overrides,
         artifactConfig: artifactProfile ? { profile: artifactProfile } : options.artifactConfig,
+        frameStreaming,
       });
 
       if (hookOptions.onSuccess) {
