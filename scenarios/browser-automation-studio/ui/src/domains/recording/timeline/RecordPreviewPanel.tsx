@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SlidersHorizontal, Palette, Globe, Loader2 } from 'lucide-react';
+import { Globe, Loader2 } from 'lucide-react';
 import { loadHistory, type HistoryEntry } from '../capture/BrowserUrlBar';
 import { useLinkPreviewsBatch, type LinkPreviewData } from '../hooks/useLinkPreview';
 import type { RecordedAction } from '../types/types';
 import { PlaywrightView, type FrameStats, type PageMetadata, type StreamConnectionStatus } from '../capture/PlaywrightView';
 import { useStreamSettings, type StreamSettingsValues } from '../capture/StreamSettings';
-import { FrameStatsDisplay } from '../capture/FrameStatsDisplay';
-import { BrowserUrlBar } from '../capture/BrowserUrlBar';
+import { BrowserChrome } from '../capture/BrowserChrome';
 import { usePerfStats } from '../hooks/usePerfStats';
 import { useSettingsStore } from '@stores/settingsStore';
 import {
@@ -244,54 +243,24 @@ export function RecordPreviewPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with browser-like URL bar and settings */}
-      <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center gap-2">
-        {/* Browser URL bar */}
-        <BrowserUrlBar
-          value={previewUrl}
-          onChange={onPreviewUrlChange}
-          onNavigate={handleUrlNavigate}
-          onRefresh={handleRefresh}
-          placeholder={lastUrl || 'Search or enter URL'}
-          pageTitle={pageTitle}
-        />
-
-        {/* Frame stats display (conditionally shown) */}
-        {showStats && (
-          <FrameStatsDisplay
-            stats={frameStats}
-            targetFps={streamSettings.fps}
-            debugStats={perfStats}
-          />
-        )}
-
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showReplayStyle}
-          onClick={() => setShowReplayStyle((prev) => !prev)}
-          className={clsx(
-            'flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg border transition-colors',
-            showReplayStyle
-              ? 'border-flow-accent/50 bg-flow-accent/10 text-flow-accent'
-              : 'border-gray-700 bg-gray-800/70 text-gray-300 hover:text-surface',
-          )}
-          title="Toggle replay styling for the live preview"
-        >
-          <Palette size={14} />
-          Replay Style
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowPreviewSettings(true)}
-          className="flex items-center gap-2 px-2 py-1.5 text-xs text-gray-300 hover:text-surface bg-gray-800/70 border border-gray-700 rounded-lg transition-colors"
-          title="Configure stream and replay settings"
-        >
-          <SlidersHorizontal size={14} />
-          Settings
-        </button>
-      </div>
+      {/* Browser chrome header */}
+      <BrowserChrome
+        previewUrl={previewUrl}
+        onPreviewUrlChange={onPreviewUrlChange}
+        onNavigate={handleUrlNavigate}
+        onRefresh={handleRefresh}
+        placeholder={lastUrl || 'Search or enter URL'}
+        pageTitle={pageTitle}
+        frameStats={frameStats}
+        targetFps={streamSettings.fps}
+        debugStats={perfStats}
+        showStats={showStats}
+        showReplayStyleToggle={true}
+        showReplayStyle={showReplayStyle}
+        onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
+        onSettingsClick={() => setShowPreviewSettings(true)}
+        mode="recording"
+      />
       <div className="flex-1 overflow-hidden" ref={previewBoundsRef}>
         <div
           className={clsx(

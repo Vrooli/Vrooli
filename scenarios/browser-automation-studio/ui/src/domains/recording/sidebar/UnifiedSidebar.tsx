@@ -1,12 +1,15 @@
 /**
  * UnifiedSidebar Component
  *
- * The unified sidebar container with tabbed navigation for Timeline and Auto tabs.
- * Manages tab switching, resize handle, and activity indicators.
+ * The unified sidebar container with tabbed navigation for Timeline, Auto,
+ * Screenshots, and Logs tabs. Mode-aware: different tabs are shown based
+ * on whether we're in recording or execution mode.
  *
  * Features:
- * - Timeline tab: Shows recorded actions with selection controls
- * - Auto tab: AI navigation chat interface
+ * - Timeline tab: Shows recorded/executed actions (both modes)
+ * - Auto tab: AI navigation chat interface (recording mode only)
+ * - Screenshots tab: Execution screenshots (execution mode only)
+ * - Logs tab: Execution logs (execution mode only)
  * - Activity indicators for each tab
  * - Resizable width with persistence
  */
@@ -14,8 +17,12 @@
 import { useEffect, useCallback, useMemo } from 'react';
 import { TimelineTab, type TimelineTabProps } from './TimelineTab';
 import { AutoTab, type AutoTabProps } from './AutoTab';
+import { ScreenshotsTab } from './ScreenshotsTab';
+import { LogsTab } from './LogsTab';
 import { useUnifiedSidebar, type UseUnifiedSidebarOptions } from './useUnifiedSidebar';
-import type { TabId } from './types';
+import { getVisibleTabs, isTabVisible, getDefaultTab, type TabId } from './types';
+import type { TimelineMode } from '../types/timeline-unified';
+import type { Screenshot, LogEntry, Execution } from '@/domains/executions';
 
 // ============================================================================
 // Helpers
@@ -43,11 +50,37 @@ export type TimelineTabPassthroughProps = Omit<TimelineTabProps, 'className'>;
  */
 export type AutoTabPassthroughProps = Omit<AutoTabProps, 'className'>;
 
+/**
+ * Props for ScreenshotsTab passed through UnifiedSidebar.
+ */
+export interface ScreenshotsTabPassthroughProps {
+  screenshots: Screenshot[];
+  selectedIndex?: number;
+  onSelectScreenshot?: (index: number) => void;
+  executionStatus?: Execution['status'];
+}
+
+/**
+ * Props for LogsTab passed through UnifiedSidebar.
+ */
+export interface LogsTabPassthroughProps {
+  logs: LogEntry[];
+  filter?: 'all' | 'error' | 'warning' | 'info' | 'success';
+  onFilterChange?: (filter: 'all' | 'error' | 'warning' | 'info' | 'success') => void;
+  executionStatus?: Execution['status'];
+}
+
 export interface UnifiedSidebarProps {
+  /** Current mode (determines which tabs are visible) */
+  mode: TimelineMode;
   /** Props to pass through to TimelineTab */
   timelineProps: TimelineTabPassthroughProps;
   /** Props to pass through to AutoTab */
   autoProps: AutoTabPassthroughProps;
+  /** Props to pass through to ScreenshotsTab (execution mode only) */
+  screenshotsProps?: ScreenshotsTabPassthroughProps;
+  /** Props to pass through to LogsTab (execution mode only) */
+  logsProps?: LogsTabPassthroughProps;
   /** Initial tab to show (used when activeTab is not controlled) */
   initialTab?: TabId;
   /** Controlled active tab (use with onTabChange for controlled behavior) */
@@ -67,8 +100,11 @@ export interface UnifiedSidebarProps {
 // ============================================================================
 
 export function UnifiedSidebar({
+  mode,
   timelineProps,
   autoProps,
+  screenshotsProps,
+  logsProps,
   initialTab,
   activeTab: controlledActiveTab,
   isOpen: controlledIsOpen,
@@ -76,10 +112,14 @@ export function UnifiedSidebar({
   onTabChange,
   className = '',
 }: UnifiedSidebarProps) {
+  // Get visible tabs for current mode
+  const visibleTabs = useMemo(() => getVisibleTabs(mode), [mode]);
+
   const sidebarOptions: UseUnifiedSidebarOptions = {
     initialTab: controlledActiveTab ?? initialTab,
     initialOpen: controlledIsOpen,
     onTabChange,
+    mode,
   };
 
   const {
@@ -92,12 +132,24 @@ export function UnifiedSidebar({
     handleResizeStart,
     timelineActivity,
     autoActivity,
+    screenshotsActivity,
+    logsActivity,
     setTimelineActivity,
     setAutoActivity,
+    setScreenshotsActivity,
+    setLogsActivity,
   } = useUnifiedSidebar(sidebarOptions);
 
   // Use controlled activeTab if provided, otherwise use internal state
   const activeTab = controlledActiveTab ?? internalActiveTab;
+
+  // Auto-switch to valid tab when mode changes and current tab becomes invisible
+  useEffect(() => {
+    if (!isTabVisible(activeTab, mode)) {
+      const defaultTab = getDefaultTab(mode);
+      setActiveTab(defaultTab);
+    }
+  }, [mode, activeTab, setActiveTab]);
 
   // Sync controlled active tab
   useEffect(() => {
@@ -134,14 +186,32 @@ export function UnifiedSidebar({
     }
   }, [autoProps.messages.length, activeTab, setAutoActivity]);
 
+  // Show screenshots activity when screenshots change (only if not viewing screenshots)
+  useEffect(() => {
+    if (activeTab !== 'screenshots' && screenshotsProps?.screenshots && screenshotsProps.screenshots.length > 0) {
+      setScreenshotsActivity(true);
+    }
+  }, [screenshotsProps?.screenshots?.length, activeTab, setScreenshotsActivity]);
+
+  // Show logs activity when logs change (only if not viewing logs)
+  useEffect(() => {
+    if (activeTab !== 'logs' && logsProps?.logs && logsProps.logs.length > 0) {
+      setLogsActivity(true);
+    }
+  }, [logsProps?.logs?.length, activeTab, setLogsActivity]);
+
   // Clear activity when switching to that tab
   useEffect(() => {
     if (activeTab === 'timeline') {
       setTimelineActivity(false);
     } else if (activeTab === 'auto') {
       setAutoActivity(false);
+    } else if (activeTab === 'screenshots') {
+      setScreenshotsActivity(false);
+    } else if (activeTab === 'logs') {
+      setLogsActivity(false);
     }
-  }, [activeTab, setTimelineActivity, setAutoActivity]);
+  }, [activeTab, setTimelineActivity, setAutoActivity, setScreenshotsActivity, setLogsActivity]);
 
   const handleTabClick = useCallback(
     (tab: TabId) => {
@@ -150,7 +220,8 @@ export function UnifiedSidebar({
     [setActiveTab]
   );
 
-  // Keyboard shortcuts: Cmd+1/2 (Mac) or Ctrl+1/2 (Windows/Linux)
+  // Keyboard shortcuts: Cmd+1/2/3 (Mac) or Ctrl+1/2/3 (Windows/Linux)
+  // Only for visible tabs
   useEffect(() => {
     if (!isOpen) return;
 
@@ -159,22 +230,34 @@ export function UnifiedSidebar({
       const modifierKey = isMac() ? e.metaKey : e.ctrlKey;
       if (!modifierKey) return;
 
-      // Switch tabs with 1/2
-      if (e.key === '1') {
+      // Switch tabs with number keys based on visible tabs
+      const keyNum = parseInt(e.key, 10);
+      if (keyNum >= 1 && keyNum <= visibleTabs.length) {
         e.preventDefault();
-        setActiveTab('timeline');
-      } else if (e.key === '2') {
-        e.preventDefault();
-        setActiveTab('auto');
+        const targetTab = visibleTabs[keyNum - 1];
+        if (targetTab) {
+          setActiveTab(targetTab.id);
+        }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, setActiveTab]);
+  }, [isOpen, setActiveTab, visibleTabs]);
 
   // Get keyboard shortcut modifier for tooltips
   const modifierKey = useMemo(() => (isMac() ? '⌘' : 'Ctrl+'), []);
+
+  // Get activity state for each tab
+  const getActivityForTab = useCallback((tabId: TabId): boolean => {
+    switch (tabId) {
+      case 'timeline': return timelineActivity;
+      case 'auto': return autoActivity;
+      case 'screenshots': return screenshotsActivity;
+      case 'logs': return logsActivity;
+      default: return false;
+    }
+  }, [timelineActivity, autoActivity, screenshotsActivity, logsActivity]);
 
   if (!isOpen) {
     return null;
@@ -185,32 +268,32 @@ export function UnifiedSidebar({
       className={`relative flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${className}`}
       style={{ width: `${width}px`, minWidth: `${width}px` }}
     >
-      {/* Tab Header */}
+      {/* Tab Header - dynamically render visible tabs */}
       <div className="flex items-center border-b border-gray-200 dark:border-gray-700" role="tablist">
-        <TabButton
-          label="Timeline"
-          tabId="timeline"
-          isActive={activeTab === 'timeline'}
-          hasActivity={timelineActivity}
-          onClick={handleTabClick}
-          shortcut={`${modifierKey}1`}
-          tooltip="View recorded actions"
-        />
-        <TabButton
-          label="Auto"
-          tabId="auto"
-          isActive={activeTab === 'auto'}
-          hasActivity={autoActivity}
-          onClick={handleTabClick}
-          shortcut={`${modifierKey}2`}
-          tooltip="AI-powered browser automation"
-        />
+        {visibleTabs.map((tab) => (
+          <TabButton
+            key={tab.id}
+            label={tab.label}
+            tabId={tab.id}
+            isActive={activeTab === tab.id}
+            hasActivity={getActivityForTab(tab.id)}
+            onClick={handleTabClick}
+            shortcut={`${modifierKey}${tab.shortcutKey}`}
+            tooltip={tab.tooltip}
+          />
+        ))}
       </div>
 
       {/* Tab Content */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'timeline' && <TimelineTab {...timelineProps} className="h-full" />}
         {activeTab === 'auto' && <AutoTab {...autoProps} className="h-full" />}
+        {activeTab === 'screenshots' && screenshotsProps && (
+          <ScreenshotsTab {...screenshotsProps} className="h-full" />
+        )}
+        {activeTab === 'logs' && logsProps && (
+          <LogsTab {...logsProps} className="h-full" />
+        )}
       </div>
 
       {/* Resize Handle */}

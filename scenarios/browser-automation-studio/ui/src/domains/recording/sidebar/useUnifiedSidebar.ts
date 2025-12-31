@@ -17,6 +17,7 @@ import {
   SIDEBAR_DEFAULT_WIDTH,
   STORAGE_KEYS,
 } from './types';
+import type { TimelineMode } from '../types/timeline-unified';
 
 // ============================================================================
 // LocalStorage Helpers
@@ -51,7 +52,9 @@ function getStoredTab(key: string, defaultValue: TabId): TabId {
   if (typeof window === 'undefined') return defaultValue;
   try {
     const stored = localStorage.getItem(key);
-    if (stored === 'timeline' || stored === 'auto') return stored;
+    if (stored === 'timeline' || stored === 'auto' || stored === 'screenshots' || stored === 'logs') {
+      return stored;
+    }
   } catch {
     // Ignore storage errors
   }
@@ -80,6 +83,8 @@ export interface UseUnifiedSidebarOptions {
   initialOpen?: boolean;
   /** Callback when tab changes */
   onTabChange?: (tab: TabId) => void;
+  /** Current mode (recording or execution) - used for tab visibility */
+  mode?: TimelineMode;
 }
 
 // ============================================================================
@@ -108,8 +113,12 @@ export interface UseUnifiedSidebarReturn {
   // Activity indicators (flash when tab has new content)
   timelineActivity: boolean;
   autoActivity: boolean;
+  screenshotsActivity: boolean;
+  logsActivity: boolean;
   setTimelineActivity: (active: boolean) => void;
   setAutoActivity: (active: boolean) => void;
+  setScreenshotsActivity: (active: boolean) => void;
+  setLogsActivity: (active: boolean) => void;
 }
 
 // ============================================================================
@@ -142,8 +151,12 @@ export function useUnifiedSidebar(
   // Activity indicators
   const [timelineActivity, setTimelineActivity] = useState(false);
   const [autoActivity, setAutoActivity] = useState(false);
+  const [screenshotsActivity, setScreenshotsActivity] = useState(false);
+  const [logsActivity, setLogsActivity] = useState(false);
   const timelineActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const autoActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const screenshotsActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const logsActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Persist open state
   const setIsOpen = useCallback((open: boolean) => {
@@ -194,11 +207,37 @@ export function useUnifiedSidebar(
     }
   }, []);
 
+  const setScreenshotsActivityWithClear = useCallback((active: boolean) => {
+    if (screenshotsActivityTimerRef.current) {
+      clearTimeout(screenshotsActivityTimerRef.current);
+    }
+    setScreenshotsActivity(active);
+    if (active) {
+      screenshotsActivityTimerRef.current = setTimeout(() => {
+        setScreenshotsActivity(false);
+      }, 2000);
+    }
+  }, []);
+
+  const setLogsActivityWithClear = useCallback((active: boolean) => {
+    if (logsActivityTimerRef.current) {
+      clearTimeout(logsActivityTimerRef.current);
+    }
+    setLogsActivity(active);
+    if (active) {
+      logsActivityTimerRef.current = setTimeout(() => {
+        setLogsActivity(false);
+      }, 2000);
+    }
+  }, []);
+
   // Cleanup activity timers
   useEffect(() => {
     return () => {
       if (timelineActivityTimerRef.current) clearTimeout(timelineActivityTimerRef.current);
       if (autoActivityTimerRef.current) clearTimeout(autoActivityTimerRef.current);
+      if (screenshotsActivityTimerRef.current) clearTimeout(screenshotsActivityTimerRef.current);
+      if (logsActivityTimerRef.current) clearTimeout(logsActivityTimerRef.current);
     };
   }, []);
 
@@ -267,7 +306,11 @@ export function useUnifiedSidebar(
     // Activity indicators
     timelineActivity,
     autoActivity,
+    screenshotsActivity,
+    logsActivity,
     setTimelineActivity: setTimelineActivityWithClear,
     setAutoActivity: setAutoActivityWithClear,
+    setScreenshotsActivity: setScreenshotsActivityWithClear,
+    setLogsActivity: setLogsActivityWithClear,
   };
 }

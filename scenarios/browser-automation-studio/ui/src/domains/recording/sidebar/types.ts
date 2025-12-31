@@ -1,10 +1,11 @@
 /**
  * Sidebar Domain Types
  *
- * Types for the unified sidebar with Timeline and Auto tabs.
+ * Types for the unified sidebar with Timeline, Auto, Screenshots, and Logs tabs.
  */
 
 import type { AINavigationStep, HumanInterventionState, TokenUsage } from '../ai-navigation/types';
+import type { TimelineMode } from '../types/timeline-unified';
 
 // ============================================================================
 // Tab State Types
@@ -12,8 +13,85 @@ import type { AINavigationStep, HumanInterventionState, TokenUsage } from '../ai
 
 /**
  * Available sidebar tabs.
+ * - timeline: Recording/execution timeline (both modes)
+ * - auto: AI navigation chat (recording mode only)
+ * - screenshots: Execution screenshots (execution mode only)
+ * - logs: Execution logs (execution mode only)
  */
-export type TabId = 'timeline' | 'auto';
+export type TabId = 'timeline' | 'auto' | 'screenshots' | 'logs';
+
+/**
+ * Configuration for a sidebar tab.
+ */
+export interface TabConfig {
+  /** Unique tab identifier */
+  id: TabId;
+  /** Display label */
+  label: string;
+  /** Tooltip description */
+  tooltip: string;
+  /** Which modes this tab is visible in */
+  visibleIn: TimelineMode[];
+  /** Keyboard shortcut number (1-9) - assigned dynamically based on visible tabs */
+  shortcutKey?: number;
+}
+
+/**
+ * Tab configurations with visibility rules.
+ * Note: shortcutKey is assigned dynamically based on visible tabs order.
+ */
+export const TAB_CONFIGS: TabConfig[] = [
+  {
+    id: 'timeline',
+    label: 'Timeline',
+    tooltip: 'View recorded or executed actions',
+    visibleIn: ['recording', 'execution'],
+  },
+  {
+    id: 'auto',
+    label: 'Auto',
+    tooltip: 'AI-powered browser automation',
+    visibleIn: ['recording'],
+  },
+  {
+    id: 'screenshots',
+    label: 'Screenshots',
+    tooltip: 'Captured screenshots from execution',
+    visibleIn: ['execution'],
+  },
+  {
+    id: 'logs',
+    label: 'Logs',
+    tooltip: 'Execution logs and console output',
+    visibleIn: ['execution'],
+  },
+];
+
+/**
+ * Get visible tabs for a given mode.
+ */
+export function getVisibleTabs(mode: TimelineMode): TabConfig[] {
+  return TAB_CONFIGS.filter(tab => tab.visibleIn.includes(mode)).map((tab, index) => ({
+    ...tab,
+    shortcutKey: index + 1,
+  }));
+}
+
+/**
+ * Check if a tab is visible in a given mode.
+ */
+export function isTabVisible(tabId: TabId, mode: TimelineMode): boolean {
+  const tab = TAB_CONFIGS.find(t => t.id === tabId);
+  return tab ? tab.visibleIn.includes(mode) : false;
+}
+
+/**
+ * Get default tab for a mode.
+ */
+export function getDefaultTab(mode: TimelineMode): TabId {
+  const visibleTabs = getVisibleTabs(mode);
+  return visibleTabs.length > 0 ? visibleTabs[0].id : 'timeline';
+}
 
 /**
  * State for the unified sidebar.
@@ -24,6 +102,8 @@ export interface UnifiedSidebarState {
   isResizing: boolean;
   timelineActivity: boolean;
   autoActivity: boolean;
+  screenshotsActivity: boolean;
+  logsActivity: boolean;
 }
 
 // ============================================================================

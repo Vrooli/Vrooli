@@ -10,20 +10,24 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Play, Loader2, CheckCircle, XCircle, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { Play, Loader2, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { useExecutionStore, type Execution, useExecutionEvents } from '@/domains/executions';
 import { useWorkflowStore } from '@stores/workflowStore';
+import { BrowserChrome, type ExecutionStatus } from '../capture/BrowserChrome';
 
 interface ExecutionPreviewPanelProps {
   /** Execution ID to display */
   executionId: string;
   /** Callback when execution starts/restarts */
   onExecutionStart?: () => void;
+  /** Callback for settings button click */
+  onSettingsClick?: () => void;
 }
 
 export function ExecutionPreviewPanel({
   executionId,
   onExecutionStart,
+  onSettingsClick,
 }: ExecutionPreviewPanelProps) {
   const currentExecution = useExecutionStore((s) => s.currentExecution);
   const loadExecution = useExecutionStore((s) => s.loadExecution);
@@ -125,22 +129,29 @@ export function ExecutionPreviewPanel({
     );
   }
 
+  // Derive current URL from the latest timeline entry
+  // The execution state doesn't track URL directly, so we extract from timeline frames
+  const currentUrl = (() => {
+    // Try to get URL from the last timeline entry (finalUrl from ReplayFrame)
+    const lastEntry = currentExecution.timeline?.[currentExecution.timeline.length - 1];
+    if (lastEntry?.finalUrl) return lastEntry.finalUrl;
+    // Fall back to empty string - the URL bar will be read-only anyway
+    return '';
+  })();
+
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {workflowName || 'Workflow Execution'}
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Execution ID: {executionId.slice(0, 8)}...
-            </p>
-          </div>
-          <ExecutionStatusBadge status={currentExecution.status} />
-        </div>
-      </div>
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
+      {/* Browser chrome header with read-only URL bar */}
+      <BrowserChrome
+        previewUrl={currentUrl}
+        onPreviewUrlChange={() => {}} // Read-only in execution mode
+        pageTitle={workflowName ?? undefined}
+        mode="execution"
+        executionStatus={currentExecution.status as ExecutionStatus}
+        readOnly={true}
+        onSettingsClick={onSettingsClick}
+        showReplayStyleToggle={false}
+      />
 
       {/* Main content */}
       <div className="flex-1 overflow-auto">
@@ -150,26 +161,6 @@ export function ExecutionPreviewPanel({
         />
       </div>
     </div>
-  );
-}
-
-/** Status badge component */
-function ExecutionStatusBadge({ status }: { status: Execution['status'] }) {
-  const config: Record<string, { icon: typeof Clock; text: string; className: string; spin?: boolean }> = {
-    pending: { icon: Clock, text: 'Pending', className: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
-    running: { icon: Loader2, text: 'Running', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300', spin: true },
-    completed: { icon: CheckCircle, text: 'Completed', className: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300' },
-    failed: { icon: XCircle, text: 'Failed', className: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' },
-    cancelled: { icon: XCircle, text: 'Cancelled', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' },
-  };
-
-  const { icon: Icon, text, className, spin } = config[status] || config.pending;
-
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${className}`}>
-      <Icon size={14} className={spin ? 'animate-spin' : ''} />
-      {text}
-    </span>
   );
 }
 

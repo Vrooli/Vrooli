@@ -14,6 +14,7 @@ export { ActionTimeline } from './timeline/ActionTimeline';
 export { SelectorEditor } from './timeline/SelectorEditor';
 export { TimelineEventCard, UnifiedTimeline } from './timeline/TimelineEventCard';
 export { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
+export { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
 export { TimelineFullView } from './timeline/TimelineFullView';
 export { TimelineSidebar } from './timeline/TimelineSidebar';
 export { WorkflowInfoCard } from './timeline/WorkflowInfoCard';
@@ -21,6 +22,7 @@ export { WorkflowInfoCard } from './timeline/WorkflowInfoCard';
 // Capture components
 export { PlaywrightView } from './capture/PlaywrightView';
 export { BrowserUrlBar } from './capture/BrowserUrlBar';
+export { BrowserChrome, type ExecutionStatus } from './capture/BrowserChrome';
 export { RecordingHeader } from './capture/RecordingHeader';
 // RecordActionsPanel is deprecated - use sidebar/TimelineTab instead
 export { FloatingActionBar } from './capture/FloatingActionBar';

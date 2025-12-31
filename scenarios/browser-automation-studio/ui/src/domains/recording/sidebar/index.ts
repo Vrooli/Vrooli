@@ -27,9 +27,15 @@ export type { TimelineTabProps } from './TimelineTab';
 export { AutoTab } from './AutoTab';
 export type { AutoTabProps } from './AutoTab';
 
+export { ScreenshotsTab } from './ScreenshotsTab';
+
+export { LogsTab } from './LogsTab';
+
 export { UnifiedSidebar } from './UnifiedSidebar';
 export type {
   UnifiedSidebarProps,
   TimelineTabPassthroughProps,
   AutoTabPassthroughProps,
+  ScreenshotsTabPassthroughProps,
+  LogsTabPassthroughProps,
 } from './UnifiedSidebar';

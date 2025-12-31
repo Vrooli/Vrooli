@@ -23,6 +23,7 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RecordingHeader } from './capture/RecordingHeader';
+import { BrowserChrome } from './capture/BrowserChrome';
 import { TabBar } from './capture/TabBar';
 import { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanners';
 import { ClearActionsModal } from './capture/RecordModeModals';
@@ -153,6 +154,10 @@ export function RecordModePage({
   const [selectedWorkflowName, setSelectedWorkflowName] = useState<string | null>(null);
   const [localExecutionId, setLocalExecutionId] = useState<string | null>(executionId ?? null);
   const [showWorkflowPicker, setShowWorkflowPicker] = useState(false);
+
+  // Execution sidebar state (screenshots and logs tabs)
+  const [selectedScreenshotIndex, setSelectedScreenshotIndex] = useState(0);
+  const [logsFilter, setLogsFilter] = useState<'all' | 'error' | 'warning' | 'info' | 'success'>('all');
 
   // Confirmation dialog for unsaved actions
   const { dialogState: confirmDialogState, confirm, close: closeConfirmDialog } = useConfirmDialog();
@@ -891,6 +896,7 @@ export function RecordModePage({
       {/* Main content split: sidebar + right panel (preview or workflow form) */}
       <div className="flex-1 overflow-hidden flex">
         <UnifiedSidebar
+          mode={mode}
           isOpen={isSidebarOpen}
           onOpenChange={setSidebarOpen}
           activeTab={sidebarActiveTab}
@@ -932,6 +938,18 @@ export function RecordModePage({
             onSettingsChange: updateAISettings,
             onClear: aiClearConversation,
           }}
+          screenshotsProps={{
+            screenshots: currentExecution?.screenshots ?? [],
+            selectedIndex: selectedScreenshotIndex,
+            onSelectScreenshot: setSelectedScreenshotIndex,
+            executionStatus: executionStatus ?? undefined,
+          }}
+          logsProps={{
+            logs: currentExecution?.logs ?? [],
+            filter: logsFilter,
+            onFilterChange: setLogsFilter,
+            executionStatus: executionStatus ?? undefined,
+          }}
         />
 
         <div className="flex-1 h-full">
@@ -944,12 +962,25 @@ export function RecordModePage({
                 />
               ) : mode === 'execution' && selectedWorkflowId ? (
                 // Show workflow info card when workflow selected but not yet running
-                <WorkflowInfoCard
-                  workflowId={selectedWorkflowId}
-                  workflowName={selectedWorkflowName ?? 'Workflow'}
-                  onRun={handleRun}
-                  onChangeWorkflow={() => setShowWorkflowPicker(true)}
-                />
+                <div className="h-full flex flex-col bg-white dark:bg-gray-900">
+                  <BrowserChrome
+                    previewUrl=""
+                    onPreviewUrlChange={() => {}}
+                    pageTitle={selectedWorkflowName ?? 'Workflow'}
+                    mode="execution"
+                    executionStatus="pending"
+                    readOnly={true}
+                    showReplayStyleToggle={false}
+                  />
+                  <div className="flex-1 overflow-auto">
+                    <WorkflowInfoCard
+                      workflowId={selectedWorkflowId}
+                      workflowName={selectedWorkflowName ?? 'Workflow'}
+                      onRun={handleRun}
+                      onChangeWorkflow={() => setShowWorkflowPicker(true)}
+                    />
+                  </div>
+                </div>
               ) : (
                 // Show recording preview in recording mode
                 <>
