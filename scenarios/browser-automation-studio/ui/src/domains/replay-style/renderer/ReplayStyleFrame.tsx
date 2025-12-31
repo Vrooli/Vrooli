@@ -145,7 +145,7 @@ export function ReplayStyleFrame({
             {overlayNode && (
               <OverlayRegistryContext.Provider value={registryRef.current}>
                 <div
-                  className="absolute z-[5]"
+                  className="pointer-events-none absolute z-[5]"
                   style={{
                     left: `${layout.viewportRect.x}px`,
                     top: `${layout.viewportRect.y}px`,

@@ -1,34 +1,23 @@
 /**
- * RecordPreviewPanel - Live preview panel for recording mode
+ * RecordPreviewPanel - Content-only live preview for recording mode
  *
- * Shows the live browser preview during recording sessions with:
- * - PlaywrightView for live browser streaming
- * - Replay style presentation wrapper (optional)
- * - Stream settings and performance stats
+ * This component renders ONLY the content (PlaywrightView or StartRecordingState).
+ * It is completely agnostic to presentation styling - that is handled by PreviewContainer.
  *
- * Note: This component has custom presentation handling due to coordinate
- * mapping requirements (playwrightContainerRef) for cursor tracking during
- * recording. The shared PresentationWrapper is used by ExecutionPreviewPanel
- * which doesn't need this specific functionality.
+ * The component:
+ * - Renders PlaywrightView when a session and URL are active
+ * - Renders StartRecordingState when no session/URL is active
+ * - Exposes metadata (pageTitle, frameStats) via callbacks for the parent to use
+ * - Fills available space (h-full w-full)
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Globe, Loader2 } from 'lucide-react';
-import clsx from 'clsx';
 import { loadHistory, type HistoryEntry } from '../capture/BrowserUrlBar';
 import { useLinkPreviewsBatch, type LinkPreviewData } from '../hooks/useLinkPreview';
 import type { RecordedAction } from '../types/types';
 import { PlaywrightView, type FrameStats, type PageMetadata, type StreamConnectionStatus } from '../capture/PlaywrightView';
-import { useStreamSettings, type StreamSettingsValues } from '../capture/StreamSettings';
-import { BrowserChrome } from '../capture/BrowserChrome';
-import { usePerfStats } from '../hooks/usePerfStats';
-import { useSettingsStore } from '@stores/settingsStore';
-import { useReplaySettingsSync } from '@/domains/replay-style';
-import type { ReplayRect } from '@/domains/replay-layout';
-import { WatermarkOverlay } from '@/domains/exports/replay/WatermarkOverlay';
-import ReplayPresentation from '@/domains/exports/replay/ReplayPresentation';
-import { useReplayPresentationModel } from '@/domains/exports/replay/useReplayPresentationModel';
-import { PreviewSettingsDialog } from '@/domains/preview-settings';
+import { useStreamSettings } from '../capture/StreamSettings';
 
 interface RecordPreviewPanelProps {
   previewUrl: string;
@@ -37,13 +26,18 @@ interface RecordPreviewPanelProps {
   sessionId?: string | null;
   /** Active page ID for multi-tab sessions */
   activePageId?: string | null;
+  /** Callback when viewport size changes (for session creation) */
   onViewportChange?: (size: { width: number; height: number }) => void;
-  /** Callback when stream settings change (for session creation) */
-  onStreamSettingsChange?: (settings: StreamSettingsValues) => void;
   /** Callback when stream connection status changes */
   onConnectionStatusChange?: (status: StreamConnectionStatus) => void;
   /** Whether to hide the in-preview connection indicator (shown in header instead) */
   hideConnectionIndicator?: boolean;
+  /** Callback when page title changes (for BrowserChrome display) */
+  onPageTitleChange?: (title: string) => void;
+  /** Callback when frame stats update (for BrowserChrome display) */
+  onFrameStatsChange?: (stats: FrameStats | null) => void;
+  /** Refresh token - increment to trigger a page refresh */
+  refreshToken?: number;
 }
 
 export function RecordPreviewPanel({
@@ -53,9 +47,11 @@ export function RecordPreviewPanel({
   sessionId,
   activePageId,
   onViewportChange,
-  onStreamSettingsChange,
   onConnectionStatusChange,
   hideConnectionIndicator = false,
+  onPageTitleChange,
+  onFrameStatsChange,
+  refreshToken = 0,
 }: RecordPreviewPanelProps) {
   const lastUrl = useMemo(() => {
     if (actions.length === 0) return '';
@@ -72,118 +68,16 @@ export function RecordPreviewPanel({
   const rawEffectiveUrl = previewUrl || lastUrl;
   const effectiveUrl = isNavigableUrl(rawEffectiveUrl) ? rawEffectiveUrl : '';
 
-  const [liveRefreshToken, setLiveRefreshToken] = useState(0);
-  const previewBoundsRef = useRef<HTMLDivElement | null>(null);
-  const viewportRef = useRef<HTMLDivElement | null>(null);
-  const playwrightContainerRef = useRef<HTMLDivElement | null>(null);
-  const [previewBounds, setPreviewBounds] = useState<{ width: number; height: number } | null>(null);
-  const lastViewportRef = useRef<{ width: number; height: number } | null>(null);
-  // Track viewport for passing to PlaywrightView (for coordinate mapping)
-  const [currentViewport, setCurrentViewport] = useState<{ width: number; height: number } | null>(null);
-  const [showReplayStyle, setShowReplayStyle] = useState(false);
-  const [showPreviewSettings, setShowPreviewSettings] = useState(false);
-  const [previewContentRect, setPreviewContentRect] = useState<ReplayRect | null>(null);
+  // Stream settings (for quality/fps)
+  const { settings: streamSettings } = useStreamSettings();
 
-  // Stream settings management (read-only here - modifications happen in PreviewSettingsDialog)
-  const { settings: streamSettings, showStats } = useStreamSettings();
+  // Container ref for measuring available space
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);
 
-  // Debug performance stats from server (enabled when showStats is on)
-  const { stats: perfStats } = usePerfStats(sessionId ?? null, showStats);
-  const {
-    replay,
-    setReplaySetting,
-  } = useSettingsStore();
-
-  const styleOverrides = useMemo(
-    () => ({
-      presentation: replay.presentation,
-      chromeTheme: replay.chromeTheme,
-      background: replay.background,
-      cursorTheme: replay.cursorTheme,
-      cursorInitialPosition: replay.cursorInitialPosition,
-      cursorClickAnimation: replay.cursorClickAnimation,
-      cursorScale: replay.cursorScale,
-      browserScale: replay.browserScale,
-    }),
-    [
-      replay.background,
-      replay.browserScale,
-      replay.chromeTheme,
-      replay.cursorClickAnimation,
-      replay.cursorInitialPosition,
-      replay.cursorScale,
-      replay.cursorTheme,
-      replay.presentation,
-    ],
-  );
-
-  const extraConfig = useMemo(
-    () => ({
-      cursorSpeedProfile: replay.cursorSpeedProfile,
-      cursorPathStyle: replay.cursorPathStyle,
-      renderSource: replay.exportRenderSource,
-      watermark: replay.watermark,
-      introCard: replay.introCard,
-      outroCard: replay.outroCard,
-    }),
-    [
-      replay.cursorPathStyle,
-      replay.cursorSpeedProfile,
-      replay.exportRenderSource,
-      replay.introCard,
-      replay.outroCard,
-      replay.watermark,
-    ],
-  );
-
-  useReplaySettingsSync({
-    styleOverrides,
-    extraConfig,
-    onStyleHydrated: (style) => {
-      setReplaySetting('presentation', style.presentation);
-      setReplaySetting('chromeTheme', style.chromeTheme);
-      setReplaySetting('background', style.background);
-      setReplaySetting('cursorTheme', style.cursorTheme);
-      setReplaySetting('cursorInitialPosition', style.cursorInitialPosition);
-      setReplaySetting('cursorClickAnimation', style.cursorClickAnimation);
-      setReplaySetting('cursorScale', style.cursorScale);
-      setReplaySetting('browserScale', style.browserScale);
-    },
-  });
-
-  // Frame statistics from PlaywrightView
-  const [frameStats, setFrameStats] = useState<FrameStats | null>(null);
-  const handleStatsUpdate = useCallback((stats: FrameStats) => {
-    setFrameStats(stats);
-  }, []);
-
-  // Page metadata (title, url) from PlaywrightView - used for history display
-  const [pageTitle, setPageTitle] = useState<string>('');
-  const handlePageMetadataChange = useCallback((metadata: PageMetadata) => {
-    setPageTitle(metadata.title);
-  }, []);
-
-  // Notify parent when stream settings change (for session creation)
+  // Measure container for viewport sizing
   useEffect(() => {
-    onStreamSettingsChange?.(streamSettings);
-  }, [streamSettings, onStreamSettingsChange]);
-
-  // Handle URL navigation from BrowserUrlBar
-  const handleUrlNavigate = useCallback(
-    (url: string) => {
-      onPreviewUrlChange(url);
-    },
-    [onPreviewUrlChange]
-  );
-
-  // Handle refresh
-  const handleRefresh = useCallback(() => {
-    setLiveRefreshToken((t) => t + 1);
-  }, []);
-
-  // Observe preview container size and notify parent for viewport sizing.
-  useEffect(() => {
-    const node = previewBoundsRef.current;
+    const node = containerRef.current;
     if (!node) return;
 
     const observer = new ResizeObserver((entries) => {
@@ -191,169 +85,57 @@ export function RecordPreviewPanel({
       const width = entry.contentRect.width;
       const height = entry.contentRect.height;
       if (width <= 0 || height <= 0) return;
-      setPreviewBounds({ width, height });
+      setContainerSize({ width, height });
     });
 
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
 
-  const activeViewport = useMemo(() => {
-    if (!showReplayStyle && previewBounds) {
-      const width = Math.min(3840, Math.max(320, Math.round(previewBounds.width)));
-      const height = Math.min(3840, Math.max(320, Math.round(previewBounds.height)));
-      return { width, height };
-    }
-    const width = Math.min(3840, Math.max(320, Math.round(replay.presentationWidth)));
-    const height = Math.min(3840, Math.max(320, Math.round(replay.presentationHeight)));
-    return { width, height };
-  }, [previewBounds, replay.presentationHeight, replay.presentationWidth, showReplayStyle]);
+  // Calculate viewport for PlaywrightView based on container size
+  const viewport = useMemo(() => {
+    if (!containerSize) return undefined;
+    return {
+      width: Math.min(3840, Math.max(320, Math.round(containerSize.width))),
+      height: Math.min(3840, Math.max(320, Math.round(containerSize.height))),
+    };
+  }, [containerSize]);
 
+  // Notify parent of viewport changes (for session creation)
   useEffect(() => {
-    const target = activeViewport;
-    const last = lastViewportRef.current;
-    if (!last || last.width !== target.width || last.height !== target.height) {
-      lastViewportRef.current = target;
-      setCurrentViewport(target);
-      onViewportChange?.(target);
+    if (viewport) {
+      onViewportChange?.(viewport);
     }
-  }, [activeViewport, onViewportChange]);
+  }, [viewport, onViewportChange]);
 
-  const targetWidth = activeViewport.width;
-  const targetHeight = activeViewport.height;
-  const previewTitle = pageTitle || effectiveUrl || 'Live Preview';
-  const presentationModel = useReplayPresentationModel({
-    style: styleOverrides,
-    title: previewTitle,
-    canvasDimensions: { width: targetWidth, height: targetHeight },
-    viewportDimensions: currentViewport ?? { width: targetWidth, height: targetHeight },
-    presentationBounds: previewBounds ?? undefined,
-    presentationFit: previewBounds ? 'contain' : 'none',
-  });
+  // Frame statistics from PlaywrightView
+  const handleStatsUpdate = useCallback((stats: FrameStats) => {
+    onFrameStatsChange?.(stats);
+  }, [onFrameStatsChange]);
 
-  const previewLayout = showReplayStyle ? presentationModel.layout : null;
-
-  const handleContentRectChange = useCallback(
-    (rect: ReplayRect) => {
-      const viewportNode = viewportRef.current;
-      const containerNode = playwrightContainerRef.current;
-      if (!viewportNode || !containerNode) {
-        setPreviewContentRect(rect);
-        return;
-      }
-      const viewportBounds = viewportNode.getBoundingClientRect();
-      const containerBounds = containerNode.getBoundingClientRect();
-      setPreviewContentRect({
-        x: rect.x + (containerBounds.left - viewportBounds.left),
-        y: rect.y + (containerBounds.top - viewportBounds.top),
-        width: rect.width,
-        height: rect.height,
-      });
-    },
-    [],
-  );
+  // Page metadata (title, url) from PlaywrightView
+  const handlePageMetadataChange = useCallback((metadata: PageMetadata) => {
+    onPageTitleChange?.(metadata.title);
+  }, [onPageTitleChange]);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Browser chrome header */}
-      <BrowserChrome
-        previewUrl={previewUrl}
-        onPreviewUrlChange={onPreviewUrlChange}
-        onNavigate={handleUrlNavigate}
-        onRefresh={handleRefresh}
-        placeholder={lastUrl || 'Search or enter URL'}
-        pageTitle={pageTitle}
-        frameStats={frameStats}
-        targetFps={streamSettings.fps}
-        debugStats={perfStats}
-        showStats={showStats}
-        showReplayStyleToggle={true}
-        showReplayStyle={showReplayStyle}
-        onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
-        onSettingsClick={() => setShowPreviewSettings(true)}
-        mode="recording"
-      />
-      <div className="flex-1 overflow-hidden" ref={previewBoundsRef}>
-        <div
-          className={clsx(
-            'h-full w-full flex',
-            showReplayStyle ? 'bg-slate-950/95' : 'bg-transparent',
-            showReplayStyle ? 'items-center justify-center p-4' : 'items-stretch justify-stretch',
-          )}
-        >
-          <div
-            style={
-              showReplayStyle && previewLayout
-                ? {
-                    width: previewLayout.display.width + previewLayout.contentInset.x * 2,
-                    height: previewLayout.display.height + previewLayout.contentInset.y * 2,
-                  }
-                : { width: '100%', height: '100%' }
-            }
-            className={clsx('relative', !showReplayStyle && 'h-full w-full')}
-          >
-            {showReplayStyle && previewLayout ? (
-              <div data-theme="dark" className="relative h-full w-full">
-                <ReplayPresentation
-                  model={presentationModel}
-                  viewportContentRect={previewContentRect ?? undefined}
-                  viewportRef={viewportRef}
-                  overlayNode={replay.watermark ? <WatermarkOverlay settings={replay.watermark} /> : null}
-                  containerClassName="h-full w-full"
-                  contentClassName="h-full w-full"
-                >
-                  <div className="flex h-full w-full items-center justify-center">
-                    <div ref={playwrightContainerRef} className="relative flex h-full w-full overflow-hidden">
-                      {sessionId && effectiveUrl ? (
-                        <PlaywrightView
-                          sessionId={sessionId}
-                          pageId={activePageId ?? undefined}
-                          refreshToken={liveRefreshToken}
-                          viewport={currentViewport ?? undefined}
-                          quality={streamSettings.quality}
-                          fps={streamSettings.fps}
-                          onStatsUpdate={handleStatsUpdate}
-                          onPageMetadataChange={handlePageMetadataChange}
-                          onContentRectChange={handleContentRectChange}
-                          onConnectionStatusChange={onConnectionStatusChange}
-                          hideConnectionIndicator={hideConnectionIndicator}
-                        />
-                      ) : (
-                        <StartRecordingState onNavigate={onPreviewUrlChange} />
-                      )}
-                    </div>
-                  </div>
-                </ReplayPresentation>
-              </div>
-            ) : (
-              <div className="h-full w-full">
-                {sessionId && effectiveUrl ? (
-                  <PlaywrightView
-                    sessionId={sessionId}
-                    pageId={activePageId ?? undefined}
-                    refreshToken={liveRefreshToken}
-                    viewport={currentViewport ?? undefined}
-                    quality={streamSettings.quality}
-                    fps={streamSettings.fps}
-                    onStatsUpdate={handleStatsUpdate}
-                    onPageMetadataChange={handlePageMetadataChange}
-                    onConnectionStatusChange={onConnectionStatusChange}
-                    hideConnectionIndicator={hideConnectionIndicator}
-                  />
-                ) : (
-                  <StartRecordingState onNavigate={onPreviewUrlChange} />
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <PreviewSettingsDialog
-        isOpen={showPreviewSettings}
-        onClose={() => setShowPreviewSettings(false)}
-        sessionId={sessionId ?? null}
-      />
+    <div ref={containerRef} className="h-full w-full">
+      {sessionId && effectiveUrl ? (
+        <PlaywrightView
+          sessionId={sessionId}
+          pageId={activePageId ?? undefined}
+          refreshToken={refreshToken}
+          viewport={viewport}
+          quality={streamSettings.quality}
+          fps={streamSettings.fps}
+          onStatsUpdate={handleStatsUpdate}
+          onPageMetadataChange={handlePageMetadataChange}
+          onConnectionStatusChange={onConnectionStatusChange}
+          hideConnectionIndicator={hideConnectionIndicator}
+        />
+      ) : (
+        <StartRecordingState onNavigate={onPreviewUrlChange} />
+      )}
     </div>
   );
 }

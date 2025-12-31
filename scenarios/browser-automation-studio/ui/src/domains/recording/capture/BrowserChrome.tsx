@@ -111,10 +111,10 @@ export function BrowserChrome({
           aria-checked={showReplayStyle}
           onClick={onReplayStyleToggle}
           className={clsx(
-            'flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg border transition-colors',
+            'flex-shrink-0 flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg border transition-colors',
             showReplayStyle
               ? 'border-flow-accent/50 bg-flow-accent/10 text-flow-accent'
-              : 'border-gray-700 bg-gray-800/70 text-gray-300 hover:text-surface',
+              : 'border-gray-700 bg-gray-800/70 text-gray-300 hover:text-white',
           )}
           title="Toggle replay styling for the live preview"
         >
@@ -128,7 +128,7 @@ export function BrowserChrome({
         <button
           type="button"
           onClick={onSettingsClick}
-          className="flex items-center gap-2 px-2 py-1.5 text-xs text-gray-300 hover:text-surface bg-gray-800/70 border border-gray-700 rounded-lg transition-colors"
+          className="flex-shrink-0 flex items-center gap-2 px-2 py-1.5 text-xs text-gray-300 hover:text-white bg-gray-800/70 border border-gray-700 rounded-lg transition-colors"
           title="Configure stream and replay settings"
         >
           <SlidersHorizontal size={14} />

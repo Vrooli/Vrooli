@@ -9,6 +9,10 @@
 export { PresentationWrapper } from './PresentationWrapper';
 export type { PresentationWrapperProps } from './PresentationWrapper';
 
+// Unified preview container
+export { PreviewContainer } from './PreviewContainer';
+export type { PreviewContainerProps, PreviewContainerContext } from './PreviewContainer';
+
 // Playback controls
 export { PlaybackControls } from './PlaybackControls';
 export type { PlaybackControlsProps, PlaybackContentType } from './PlaybackControls';

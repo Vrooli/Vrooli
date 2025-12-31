@@ -41,8 +41,10 @@ export const computeReplayLayout = (input: ReplayLayoutInput): ReplayLayoutModel
     ? Math.max(0, input.chromeHeaderHeight ?? 0)
     : 0;
 
+  // Scale to fit container while maintaining aspect ratio
+  // No cap at 1 - allows shrinking when canvas is larger than container
   const scale = fit === 'contain' && container
-    ? Math.min(container.width / canvas.width, container.height / canvas.height, 1)
+    ? Math.min(container.width / canvas.width, container.height / canvas.height)
     : 1;
 
   const display = {

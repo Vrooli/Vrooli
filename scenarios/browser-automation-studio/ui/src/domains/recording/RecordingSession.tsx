@@ -20,10 +20,9 @@
  * - Action editing (selector and payload)
  */
 
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RecordingHeader } from './capture/RecordingHeader';
-import { BrowserChrome } from './capture/BrowserChrome';
 import { TabBar } from './capture/TabBar';
 import { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanners';
 import { ClearActionsModal } from './capture/RecordModeModals';
@@ -41,11 +40,13 @@ import { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
 import { usePages } from './hooks/usePages';
 import { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
 import { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
+import { PreviewContainer } from './shared';
+import { PreviewSettingsDialog } from '@/domains/preview-settings';
 import { mergeConsecutiveActions } from './utils/mergeActions';
 import { recordedActionToTimelineItem } from './types/timeline-unified';
 import { getConfig } from '@/config';
-import type { StreamSettingsValues } from './capture/StreamSettings';
-import type { StreamConnectionStatus } from './capture/PlaywrightView';
+import { useStreamSettings, type StreamSettingsValues } from './capture/StreamSettings';
+import type { StreamConnectionStatus, FrameStats } from './capture/PlaywrightView';
 import type { TimelineMode } from './types/timeline-unified';
 import { mergeActionsWithAISteps } from './types/timeline-unified';
 import { UnifiedSidebar, useUnifiedSidebar, useAISettings } from './sidebar';
@@ -240,8 +241,8 @@ export function RecordModePage({
   const viewportSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoStartedRef = useRef(false);
 
-  // Stream settings for session creation
-  const [streamSettings, setStreamSettings] = useState<StreamSettingsValues | null>(null);
+  // Stream settings for session creation (from shared context)
+  const { settings: streamSettings } = useStreamSettings();
   const streamSettingsRef = useRef<StreamSettingsValues | null>(null);
   streamSettingsRef.current = streamSettings;
 
@@ -258,6 +259,18 @@ export function RecordModePage({
   // Execution sidebar state (screenshots and logs tabs)
   const [selectedScreenshotIndex, setSelectedScreenshotIndex] = useState(0);
   const [logsFilter, setLogsFilter] = useState<'all' | 'error' | 'warning' | 'info' | 'success'>('all');
+
+  // Unified replay style and settings state (shared across all preview panels)
+  const [showReplayStyle, setShowReplayStyle] = useState(false);
+  const [showPreviewSettings, setShowPreviewSettings] = useState(false);
+
+  // Metadata from content panels for PreviewContainer's BrowserChrome
+  const [recordingPageTitle, setRecordingPageTitle] = useState<string>('');
+  const [recordingFrameStats, setRecordingFrameStats] = useState<FrameStats | null>(null);
+  const [executionWorkflowName, setExecutionWorkflowName] = useState<string | null>(null);
+  const [executionCurrentUrl, setExecutionCurrentUrl] = useState<string>('');
+  const [executionFooter, setExecutionFooter] = useState<ReactNode>(null);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   // Confirmation dialog for unsaved actions
   const { dialogState: confirmDialogState, confirm, close: closeConfirmDialog } = useConfirmDialog();
@@ -1105,43 +1118,71 @@ export function RecordModePage({
             <div className="relative h-full">
               {mode === 'execution' && localExecutionId && executionStatus ? (
                 // Show execution viewer when execution exists (pending/running/completed/failed)
-                <ExecutionPreviewPanel
-                  executionId={localExecutionId}
-                />
+                <PreviewContainer
+                  showReplayStyle={showReplayStyle}
+                  onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
+                  onSettingsClick={() => setShowPreviewSettings(true)}
+                  previewUrl={executionCurrentUrl}
+                  onPreviewUrlChange={() => {}}
+                  pageTitle={executionWorkflowName ?? undefined}
+                  readOnly={true}
+                  mode="execution"
+                  executionStatus={executionStatus}
+                  footer={executionFooter}
+                >
+                  <ExecutionPreviewPanel
+                    executionId={localExecutionId}
+                    onWorkflowNameChange={setExecutionWorkflowName}
+                    onCurrentUrlChange={setExecutionCurrentUrl}
+                    renderFooter={setExecutionFooter}
+                  />
+                </PreviewContainer>
               ) : mode === 'execution' && selectedWorkflowId ? (
                 // Show workflow info card when workflow selected but no execution started yet
-                <div className="h-full flex flex-col bg-white dark:bg-gray-900">
-                  <BrowserChrome
-                    previewUrl=""
-                    onPreviewUrlChange={() => {}}
-                    pageTitle={selectedWorkflowName ?? 'Workflow'}
-                    mode="execution"
-                    executionStatus="pending"
-                    readOnly={true}
-                    showReplayStyleToggle={false}
+                <PreviewContainer
+                  showReplayStyle={showReplayStyle}
+                  onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
+                  onSettingsClick={() => setShowPreviewSettings(true)}
+                  previewUrl=""
+                  onPreviewUrlChange={() => {}}
+                  pageTitle={selectedWorkflowName ?? 'Workflow'}
+                  readOnly={true}
+                  mode="execution"
+                >
+                  <WorkflowInfoCard
+                    workflowId={selectedWorkflowId}
+                    workflowName={selectedWorkflowName ?? 'Workflow'}
+                    onRun={handleRun}
+                    onChangeWorkflow={() => setShowWorkflowPicker(true)}
                   />
-                  <div className="flex-1 overflow-auto">
-                    <WorkflowInfoCard
-                      workflowId={selectedWorkflowId}
-                      workflowName={selectedWorkflowName ?? 'Workflow'}
-                      onRun={handleRun}
-                      onChangeWorkflow={() => setShowWorkflowPicker(true)}
-                    />
-                  </div>
-                </div>
+                </PreviewContainer>
               ) : (
                 // Show recording preview in recording mode
-                <>
+                <PreviewContainer
+                  showReplayStyle={showReplayStyle}
+                  onReplayStyleToggle={() => setShowReplayStyle((prev) => !prev)}
+                  onSettingsClick={() => setShowPreviewSettings(true)}
+                  previewUrl={previewUrl}
+                  onPreviewUrlChange={setPreviewUrl}
+                  onNavigate={setPreviewUrl}
+                  onRefresh={() => setRefreshToken((t) => t + 1)}
+                  pageTitle={recordingPageTitle || undefined}
+                  placeholder={actions[actions.length - 1]?.url || 'Search or enter URL'}
+                  frameStats={recordingFrameStats}
+                  mode="recording"
+                >
                   <RecordPreviewPanel
                     previewUrl={previewUrl}
+                    onPreviewUrlChange={setPreviewUrl}
                     sessionId={sessionId}
                     activePageId={activePageId}
-                    onPreviewUrlChange={setPreviewUrl}
-                    onViewportChange={(size) => setPreviewViewport(size)}
-                    onStreamSettingsChange={setStreamSettings}
+                    actions={actions}
+                    onViewportChange={setPreviewViewport}
                     onConnectionStatusChange={setConnectionStatus}
                     hideConnectionIndicator={true}
-                    actions={actions}
+                    onPageTitleChange={setRecordingPageTitle}
+                    onFrameStatsChange={setRecordingFrameStats}
+                    refreshToken={refreshToken}
                   />
                   {/* Human intervention overlay - shown over browser preview for maximum visibility */}
                   {aiHumanIntervention && (
@@ -1151,7 +1192,7 @@ export function RecordModePage({
                       onAbort={aiAbortNavigation}
                     />
                   )}
-                </>
+                </PreviewContainer>
               )}
             </div>
           )}
@@ -1199,6 +1240,13 @@ export function RecordModePage({
         onClose={() => setShowWorkflowPicker(false)}
         onSelect={handleWorkflowSelect}
         initialProjectId={selectedProjectId}
+      />
+
+      {/* Preview settings dialog (unified for all preview panels) */}
+      <PreviewSettingsDialog
+        isOpen={showPreviewSettings}
+        onClose={() => setShowPreviewSettings(false)}
+        sessionId={sessionId}
       />
 
       {/* Confirmation dialog for unsaved actions */}
