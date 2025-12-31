@@ -15,10 +15,7 @@ import type { RecordedAction } from '../types/types';
 import type { TimelineItem, TimelineMode, ExecutionTimelineItem, ExecutionStatus } from '../types/timeline-unified';
 import {
   recordedActionToTimelineItem,
-  timelineEntryToTimelineItem,
   timelineEntryToRecordedAction,
-  hasTimelineEntry,
-  parseTimelineEntry,
   workflowNodesToTimelineItems,
   updateTimelineItemStatus,
 } from '../types/timeline-unified';
@@ -161,118 +158,94 @@ export function useUnifiedTimeline({
   useEffect(() => {
     if (!lastMessage) return;
 
-    const msg = lastMessage as WebSocketMessage & { action?: unknown; timeline_entry?: unknown };
+    const msg = lastMessage as WebSocketMessage & { action?: unknown; timeline_entry?: unknown; node_id?: string; status?: string };
+
+    // Log all messages in execution mode for debugging
+    if (mode === 'execution') {
+      console.log('[useUnifiedTimeline] WebSocket message received:', msg);
+    }
 
     // Recording mode timeline is driven by initialActions from useRecordMode.
 
-    // Execution mode: Handle step events with timeline_entry (V2 unified format)
-    if (mode === 'execution' && msg.type === 'step') {
-      // Check if the message includes the new timeline_entry field
-      if (hasTimelineEntry(msg)) {
-        const timelineEntry = parseTimelineEntry(msg.timeline_entry);
-        if (timelineEntry) {
-          const newItem = timelineEntryToTimelineItem(timelineEntry);
+    // Execution mode: Handle timeline entry messages
+    // Support both 'step' (legacy) and 'TIMELINE_MESSAGE_TYPE_ENTRY' (current) formats
+    if (mode === 'execution' && (msg.type === 'step' || msg.type === 'TIMELINE_MESSAGE_TYPE_ENTRY')) {
+      // The message has entry data in the 'entry' field
+      const msgAny = msg as unknown as Record<string, unknown>;
+      const entryData = msgAny.entry as Record<string, unknown> | undefined;
 
-          setItems((prev) => {
-            // First, try to update a pre-populated item by node_id
-            const nodeId = (msg as { node_id?: string }).node_id;
-            if (nodeId) {
-              const prePopIndex = prev.findIndex((item) =>
-                (item as ExecutionTimelineItem).nodeId === nodeId
-              );
-              if (prePopIndex >= 0) {
-                // Determine status from context
-                const status: ExecutionStatus = newItem.success === true ? 'completed'
-                  : newItem.success === false ? 'failed'
-                  : 'running';
-                const updated = [...prev];
-                updated[prePopIndex] = {
-                  ...prev[prePopIndex],
-                  ...newItem,
-                  nodeId,
-                  executionStatus: status,
-                } as ExecutionTimelineItem;
-                return updated;
+      if (entryData) {
+        console.log('[useUnifiedTimeline] Processing entry:', entryData);
+
+        // Extract node_id from the entry - it might be nested in context or at top level
+        const context = entryData.context as Record<string, unknown> | undefined;
+        const stepIndex = entryData.step_index as number | undefined;
+
+        // The actual workflow node_id is in context.node_id (for completed steps)
+        // For "step started" messages, we need to use step_index to find the matching item
+        const actualNodeId = (context?.node_id as string) ?? (entryData.node_id as string);
+
+        // Extract status from context
+        const isSuccess = context?.success as boolean | undefined;
+        const errorMsg = context?.error as string | undefined;
+
+        // Determine execution status
+        let execStatus: ExecutionStatus = 'running';
+        if (isSuccess === true) {
+          execStatus = 'completed';
+        } else if (isSuccess === false || errorMsg) {
+          execStatus = 'failed';
+        }
+
+        console.log('[useUnifiedTimeline] Extracted:', { actualNodeId, stepIndex, execStatus, isSuccess, errorMsg });
+
+        setItems((prev) => {
+          console.log('[useUnifiedTimeline] Current items nodeIds:', prev.map(item => (item as ExecutionTimelineItem).nodeId));
+
+          // Try to find the matching item
+          let prePopIndex = -1;
+
+          // First, try by actual node_id (for completed steps)
+          if (actualNodeId) {
+            console.log('[useUnifiedTimeline] Looking for actualNodeId:', actualNodeId);
+            prePopIndex = prev.findIndex((item) =>
+              (item as ExecutionTimelineItem).nodeId === actualNodeId
+            );
+          }
+
+          // If not found and we have step_index, try by index (for "step started" messages)
+          if (prePopIndex === -1 && stepIndex !== undefined) {
+            console.log('[useUnifiedTimeline] Looking by stepIndex:', stepIndex);
+            // step_index is 0-based, matches the order of pre-populated items
+            if (stepIndex >= 0 && stepIndex < prev.length) {
+              const item = prev[stepIndex] as ExecutionTimelineItem;
+              // Only match if it's a pre-populated item (has a nodeId that's not an execution ID)
+              if (item.nodeId && !item.nodeId.includes('-step-')) {
+                prePopIndex = stepIndex;
               }
             }
+          }
 
-            // Check if we're updating an existing item (retry) or adding new
-            const existingIndex = prev.findIndex((item) => item.id === newItem.id);
-            if (existingIndex >= 0) {
-              // Update existing item (e.g., on retry)
-              const updated = [...prev];
-              updated[existingIndex] = newItem;
-              return updated;
-            }
+          console.log('[useUnifiedTimeline] Found at index:', prePopIndex);
 
-            const updated = [...prev, newItem];
-            if (onItemsReceived) {
-              onItemsReceived([newItem]);
-            }
-            return updated;
-          });
-        }
-      } else {
-        // Fall back to legacy step event format
-        const stepData = msg as {
-          node_id?: string;
-          step_num?: number;
-          action?: string;
-          status?: string;
-          error?: string;
-          duration_ms?: number;
-        };
-
-        if (stepData.node_id) {
-          // Map status string to ExecutionStatus
-          const status: ExecutionStatus = stepData.status === 'completed' ? 'completed'
-            : stepData.status === 'failed' ? 'failed'
-            : stepData.status === 'running' || stepData.status === 'started' ? 'running'
-            : 'pending';
-
-          setItems((prev) => {
-            // First, try to update a pre-populated item by node_id
-            const prePopIndex = prev.findIndex((item) =>
-              (item as ExecutionTimelineItem).nodeId === stepData.node_id
+          if (prePopIndex >= 0) {
+            const targetNodeId = (prev[prePopIndex] as ExecutionTimelineItem).nodeId;
+            const updated = updateTimelineItemStatus(
+              prev as ExecutionTimelineItem[],
+              targetNodeId,
+              execStatus,
+              errorMsg,
+              entryData.duration_ms as number | undefined
             );
-            if (prePopIndex >= 0) {
-              const updated = updateTimelineItemStatus(
-                prev as ExecutionTimelineItem[],
-                stepData.node_id!,
-                status,
-                stepData.error,
-                stepData.duration_ms
-              );
-              console.log('[useUnifiedTimeline] Updated step', stepData.node_id, 'to status', status);
-              return updated;
-            }
-
-            // Otherwise, add as a new item (fallback for backwards compatibility)
-            const newItem: TimelineItem = {
-              id: stepData.node_id!,
-              sequenceNum: stepData.step_num ?? 0,
-              timestamp: new Date(),
-              actionType: stepData.action ?? 'unknown',
-              success: status === 'completed' ? true : status === 'failed' ? false : undefined,
-              error: stepData.error,
-              mode: 'execution',
-              durationMs: stepData.duration_ms,
-            };
-
-            const existingIndex = prev.findIndex((item) => item.id === newItem.id);
-            if (existingIndex >= 0) {
-              const updated = [...prev];
-              updated[existingIndex] = newItem;
-              return updated;
-            }
-
-            const updated = [...prev, newItem];
-            if (onItemsReceived) {
-              onItemsReceived([newItem]);
-            }
+            console.log('[useUnifiedTimeline] Updated step', targetNodeId, 'to status', execStatus);
             return updated;
-          });
-        }
+          }
+
+          // Node not found - DON'T add new items for execution steps
+          // We only want to show pre-populated workflow steps
+          console.log('[useUnifiedTimeline] Ignoring unmatched entry (not adding new item)');
+          return prev;
+        });
       }
     }
 
