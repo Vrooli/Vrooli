@@ -93,6 +93,9 @@ type DependencyStatus struct {
 
 	// Error describes why the check failed (optional).
 	Error string `json:"error,omitempty"`
+
+	// Database is the connected database name (for database dependencies only).
+	Database string `json:"database,omitempty"`
 }
 
 // CheckResult is returned by a Checker after performing its health check.
@@ -108,6 +111,9 @@ type CheckResult struct {
 
 	// Error is set if the check failed.
 	Error error
+
+	// Database is the connected database name (for database checkers only).
+	Database string
 }
 
 // Checker performs a health check on a dependency.
@@ -274,6 +280,7 @@ func (b *Builder) runChecks(ctx context.Context, resp *Response) map[string]Depe
 		result := meta.result
 		status := DependencyStatus{
 			Connected: result.Connected,
+			Database:  result.Database,
 		}
 
 		if result.Latency > 0 {
@@ -359,11 +366,28 @@ func (c *dbChecker) Check(ctx context.Context) CheckResult {
 	}
 	start := time.Now()
 	err := c.db.PingContext(ctx)
+	latency := time.Since(start)
+
+	if err != nil {
+		return CheckResult{
+			Name:      c.name,
+			Connected: false,
+			Latency:   latency,
+			Error:     err,
+		}
+	}
+
+	// Query the current database name for visibility
+	var dbName string
+	if row := c.db.QueryRowContext(ctx, "SELECT current_database()"); row != nil {
+		_ = row.Scan(&dbName) // Ignore error - database name is optional info
+	}
+
 	return CheckResult{
 		Name:      c.name,
-		Connected: err == nil,
-		Latency:   time.Since(start),
-		Error:     err,
+		Connected: true,
+		Latency:   latency,
+		Database:  dbName,
 	}
 }
 

@@ -780,7 +780,40 @@ ports::get_scenario_environment() {
         env_vars=$(echo "$env_vars" | jq ". + $resource_env")
         message="$message with resource environment"
     fi
-    
+
+    # Phase 3.5: Per-Scenario Database Override
+    # Each scenario gets its own database by default (vrooli_<scenario_name>)
+    # Scenarios can opt-in to share a database via "database" field in service.json
+    local postgres_enabled
+    postgres_enabled=$(jq -r '.dependencies.resources.postgres.enabled // false' "$service_json_path" 2>/dev/null)
+
+    if [[ "$postgres_enabled" == "true" ]]; then
+        local explicit_db db_name
+        explicit_db=$(jq -r '.dependencies.resources.postgres.database // empty' "$service_json_path" 2>/dev/null)
+
+        if [[ -n "$explicit_db" && "$explicit_db" != "null" ]]; then
+            db_name="$explicit_db"
+        else
+            # Default: vrooli_<scenario_name> with hyphens converted to underscores
+            db_name="vrooli_$(echo "$scenario_name" | tr '-' '_')"
+        fi
+
+        # Override POSTGRES_DB and DATABASE_URL in env_vars
+        local pg_host pg_port pg_user pg_pass pg_sslmode
+        pg_host=$(echo "$env_vars" | jq -r '.POSTGRES_HOST // "localhost"')
+        pg_port=$(echo "$env_vars" | jq -r '.POSTGRES_PORT // "5433"')
+        pg_user=$(echo "$env_vars" | jq -r '.POSTGRES_USER // "vrooli"')
+        pg_pass=$(echo "$env_vars" | jq -r '.POSTGRES_PASSWORD // ""')
+        pg_sslmode=$(echo "$env_vars" | jq -r '.POSTGRES_SSLMODE // "disable"')
+
+        local new_url="postgres://${pg_user}:${pg_pass}@${pg_host}:${pg_port}/${db_name}?sslmode=${pg_sslmode}"
+
+        env_vars=$(echo "$env_vars" | jq \
+            --arg db "$db_name" \
+            --arg url "$new_url" \
+            '. + {"POSTGRES_DB": $db, "POSTGRES_URL": $url, "DATABASE_URL": $url}')
+    fi
+
     # Phase 4: Return Complete Environment
     jq -n \
         --argjson env_vars "$env_vars" \

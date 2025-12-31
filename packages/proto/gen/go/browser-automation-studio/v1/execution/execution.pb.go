@@ -589,9 +589,9 @@ func (x *TriggerMetadata) GetUserAgent() string {
 // Execution is returned by GET /api/v1/executions/{id} and list APIs.
 type Execution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique execution identifier. JSON name preserved as "id" for backwards compatibility.
+	// Unique execution identifier.
 	// @format uuid
-	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=id,proto3" json:"execution_id,omitempty"`
+	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
 	// Workflow ID associated with this execution.
 	// @format uuid
 	WorkflowId string `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
@@ -1576,9 +1576,9 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\x14_external_request_idB\f\n" +
 	"\n" +
 	"_source_ipB\r\n" +
-	"\v_user_agent\"\xc2\t\n" +
-	"\tExecution\x12\x18\n" +
-	"\fexecution_id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\v_user_agent\"\xcb\t\n" +
+	"\tExecution\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
 	"workflowId\x12)\n" +
 	"\x10workflow_version\x18\x03 \x01(\x05R\x0fworkflowVersion\x12E\n" +

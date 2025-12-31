@@ -9,6 +9,7 @@ import type {
 
 // Use @vrooli/api-base for automatic API resolution across all deployment contexts
 const API_BASE = resolveApiBase({ appendSuffix: true })
+console.log('[prompt-manager api] API_BASE resolved to:', API_BASE)
 
 class ApiClient {
   private async request<T>(
@@ -16,24 +17,32 @@ class ApiClient {
     options?: RequestInit
   ): Promise<T> {
     const url = buildApiUrl(endpoint, { baseUrl: API_BASE })
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      ...options,
-    })
+    console.log('[prompt-manager api] Fetching:', url)
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        ...options,
+      })
 
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`)
+      console.log('[prompt-manager api] Response status:', response.status, response.statusText)
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
+      }
+
+      // Handle 204 No Content responses
+      if (response.status === 204) {
+        return {} as T
+      }
+
+      return response.json()
+    } catch (error) {
+      console.error('[prompt-manager api] Fetch error:', error)
+      throw error
     }
-
-    // Handle 204 No Content responses
-    if (response.status === 204) {
-      return {} as T
-    }
-
-    return response.json()
   }
 
   // Campaign methods
@@ -124,10 +133,11 @@ class ApiClient {
 
   // Search methods
   async searchPrompts(query: string, filters?: SearchFilters): Promise<Prompt[]> {
-    return this.request<Prompt[]>('/search/prompts', {
-      method: 'POST',
-      body: JSON.stringify({ query, ...filters }),
-    })
+    const params = new URLSearchParams({ q: query })
+    if (filters?.campaign_id) params.append('campaign_id', filters.campaign_id)
+    if (filters?.is_favorite !== undefined) params.append('is_favorite', String(filters.is_favorite))
+    if (filters?.limit) params.append('limit', String(filters.limit))
+    return this.request<Prompt[]>(`/search/prompts?${params.toString()}`)
   }
 
   async searchTags(query: string): Promise<string[]> {

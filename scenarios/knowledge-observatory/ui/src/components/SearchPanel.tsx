@@ -38,7 +38,7 @@ export function SearchPanel() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="ko-stack-sm">
       <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3" data-testid={selectors.search.form}>
         <div className="flex-1">
           <input
@@ -46,11 +46,11 @@ export function SearchPanel() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ask a question or describe the concept you want to find..."
-            className="w-full px-4 py-2 bg-black border border-green-900/50 rounded text-green-400 placeholder-green-700 focus:outline-none focus:border-green-600"
+            className="ko-input"
             data-testid={selectors.search.input}
             aria-label="Semantic search query"
           />
-          <p className="mt-2 text-xs text-green-700">
+          <p className="ko-input-help">
             Use natural language, e.g. “knowledge health status” or “semantic drift detector”.
           </p>
         </div>
@@ -58,7 +58,7 @@ export function SearchPanel() {
           <Button
             type="submit"
             disabled={isLoading || !query.trim()}
-            className="bg-green-900 hover:bg-green-800 text-green-100 border border-green-700"
+            className="ko-button-primary"
             data-testid={selectors.search.submit}
           >
             {isLoading ? (
@@ -71,7 +71,7 @@ export function SearchPanel() {
           <Button
             type="button"
             onClick={handleClear}
-            className="bg-black/40 hover:bg-green-950/30 text-green-200 border border-green-900/50"
+            className="ko-button-secondary"
             data-testid={selectors.search.clear}
             disabled={!query && !data}
           >
@@ -81,13 +81,13 @@ export function SearchPanel() {
       </form>
 
       <div className="flex flex-wrap items-center gap-2" data-testid={selectors.search.sampleGroup}>
-        <span className="text-xs text-green-700 uppercase tracking-wider">Try:</span>
+        <span className="ko-meta">Try:</span>
         {sampleQueries.map((sample) => (
           <Button
             key={sample}
             type="button"
             onClick={() => runSearch(sample)}
-            className="bg-black/30 hover:bg-green-950/30 text-green-200 border border-green-900/40 text-xs h-8 px-3"
+            className="ko-button-secondary ko-button-compact"
             data-testid={selectors.search.sampleButton}
             data-query={sample}
           >
@@ -98,51 +98,51 @@ export function SearchPanel() {
 
       {error && (
         <div
-          className="p-4 border border-red-900/50 bg-red-950/20 rounded flex items-start gap-2"
+          className="ko-alert ko-alert-danger"
           data-testid={selectors.search.error}
         >
           <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-red-400 font-semibold">Search Error</p>
-            <p className="text-sm text-red-600 mt-1">{(error as Error).message}</p>
+            <p className="text-red-300 ko-alert-title">Search Error</p>
+            <p className="ko-text-sm text-red-600 mt-1">{(error as Error).message}</p>
           </div>
         </div>
       )}
 
       {data && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between text-sm text-green-600" data-testid={selectors.search.resultsSummary}>
+        <div className="ko-stack-sm">
+          <div className="flex flex-wrap items-center justify-between ko-text-sm ko-muted" data-testid={selectors.search.resultsSummary}>
             <span>Found {data.results.length} results</span>
             <span>Took {data.took_ms}ms</span>
           </div>
 
           {data.results.length === 0 ? (
             <div
-              className="p-6 text-center border border-green-900/50 bg-green-950/10 rounded"
+              className="ko-panel p-6 text-center"
               data-testid={selectors.search.emptyState}
             >
-              <p className="text-green-600">No results found for "{data.query}"</p>
-              <p className="text-sm text-green-700 mt-1">Try a different phrasing or a broader concept.</p>
+              <p className="ko-muted">No results found for "{data.query}"</p>
+              <p className="ko-text-sm ko-subtle mt-1">Try a different phrasing or a broader concept.</p>
             </div>
           ) : (
-            <div className="space-y-2" data-testid={selectors.search.resultsList}>
+            <div className="ko-stack-xs" data-testid={selectors.search.resultsList}>
               {data.results.map((result: SearchResult) => (
                 <div
                   key={result.id}
-                  className="p-4 border border-green-900/50 bg-black/40 rounded hover:border-green-700 transition-colors"
+                  className="ko-card p-4 hover:border-green-500/70 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-4 mb-2">
-                    <span className="text-xs text-green-700 font-mono">ID: {result.id}</span>
-                    <span className="text-xs text-green-500 font-semibold">
+                    <span className="ko-text-xs text-green-500 font-mono">ID: {result.id}</span>
+                    <span className="ko-text-xs text-green-300 font-semibold">
                       Score: {(result.score * 100).toFixed(1)}%
                     </span>
                   </div>
-                  <p className="text-sm text-green-300">{result.content || "No content available"}</p>
+                  <p className="ko-text-sm text-green-200">{result.content || "No content available"}</p>
                   {Object.keys(result.metadata).length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-green-900/30">
-                      <details className="text-xs text-green-700">
-                        <summary className="cursor-pointer hover:text-green-500">Metadata</summary>
-                        <pre className="mt-2 p-2 bg-black/60 rounded overflow-x-auto">
+                    <div className="mt-2 pt-2 border-t border-green-800/40">
+                      <details className="ko-text-xs text-green-500">
+                        <summary className="cursor-pointer hover:text-green-300">Metadata</summary>
+                        <pre className="mt-2 p-2 bg-black/70 rounded overflow-x-auto text-green-200 font-mono">
                           {JSON.stringify(result.metadata, null, 2)}
                         </pre>
                       </details>
@@ -157,12 +157,12 @@ export function SearchPanel() {
 
       {!data && !error && !isLoading && (
         <div
-          className="p-8 text-center border border-green-900/50 bg-green-950/10 rounded"
+          className="ko-panel p-8 text-center"
           data-testid={selectors.search.emptyState}
         >
-          <Search className="h-12 w-12 text-green-700 mx-auto mb-3" />
-          <p className="text-green-600">Enter a query to search the knowledge base</p>
-          <p className="text-sm text-green-700 mt-1">Uses semantic embeddings to find relevant content</p>
+          <Search className="h-12 w-12 text-green-600 mx-auto mb-3" />
+          <p className="ko-muted">Enter a query to search the knowledge base</p>
+          <p className="ko-text-sm ko-subtle mt-1">Uses semantic embeddings to find relevant content</p>
         </div>
       )}
     </div>

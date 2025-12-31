@@ -245,9 +245,9 @@ message TriggerMetadata {
 
 // Execution is returned by GET /api/v1/executions/{id} and list APIs.
 message Execution {
-  // Unique execution identifier. JSON name preserved as "id" for backwards compatibility.
+  // Unique execution identifier.
   // @format uuid
-  string execution_id = 1 [json_name = "id"];
+  string execution_id = 1;
   // Workflow ID associated with this execution.
   // @format uuid
   string workflow_id = 2;

@@ -160,6 +160,56 @@ lifecycle::step_conditions_met() {
 
 quote() { printf '%q' "$1"; }
 
+#######################################
+# Ensure scenario-specific database exists
+# Creates the database if it doesn't exist using postgres resource
+# Arguments:
+#   $1 - Database name
+#   $2 - Service JSON path (for logging context)
+# Returns:
+#   0 on success (or database already exists), continues on failure with warning
+#######################################
+lifecycle::ensure_database() {
+    local db_name="$1"
+    local service_json="${2:-}"
+
+    [[ -z "$db_name" ]] && return 0
+
+    # Source postgres database library if available
+    local postgres_db_lib="${APP_ROOT}/resources/postgres/lib/database.sh"
+    local postgres_common_lib="${APP_ROOT}/resources/postgres/lib/common.sh"
+    local postgres_defaults="${APP_ROOT}/resources/postgres/config/defaults.sh"
+
+    if [[ ! -f "$postgres_db_lib" ]]; then
+        log::debug "Postgres resource not installed, skipping database creation"
+        return 0
+    fi
+
+    # Source required postgres libraries (only if not already loaded)
+    # Guard prevents readonly variable errors when sourced multiple times
+    if [[ -z "${_POSTGRES_LIBS_LOADED:-}" ]]; then
+        source "$postgres_defaults" 2>/dev/null || true
+        source "$postgres_common_lib" 2>/dev/null || true
+        source "$postgres_db_lib" 2>/dev/null || true
+        export _POSTGRES_LIBS_LOADED=1
+    fi
+
+    # Check if postgres is running
+    if ! postgres::common::is_running "main" 2>/dev/null; then
+        log::warning "Postgres not running, skipping database creation for: $db_name"
+        return 0
+    fi
+
+    # Create database (function handles "already exists" gracefully)
+    log::info "Ensuring database exists: $db_name"
+    if postgres::database::create "main" "$db_name" 2>/dev/null; then
+        return 0
+    else
+        log::warning "Could not create database '$db_name', may already exist or postgres not ready"
+        return 0
+    fi
+}
+
 ################################################################################
 # PID-Based Process Tracking System
 ################################################################################
@@ -493,6 +543,11 @@ lifecycle::execute_phase() {
                 if [[ "$is_running" == "true" ]]; then
                     log::info "Scenario processes are currently running"
                 fi
+            fi
+
+            # Ensure per-scenario database exists (if postgres is enabled)
+            if [[ -n "${POSTGRES_DB:-}" ]]; then
+                lifecycle::ensure_database "$POSTGRES_DB" "$service_json"
             fi
         else
             local error_msg

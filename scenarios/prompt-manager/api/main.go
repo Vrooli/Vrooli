@@ -427,7 +427,7 @@ func (s *APIServer) getPrompts(w http.ResponseWriter, r *http.Request) {
 	favorites := r.URL.Query().Get("favorites") == "true"
 
 	query := `
-		SELECT p.id, p.campaign_id, p.title, p.content_cache, p.description,
+		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
 		       p.variables, p.usage_count, p.last_used, p.is_favorite,
 		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
 		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
@@ -494,15 +494,18 @@ func (s *APIServer) createPrompt(w http.ResponseWriter, r *http.Request) {
 
 	variablesJSON, _ := json.Marshal(prompt.Variables)
 
+	// Generate a file_path based on campaign and title (for file-based storage compatibility)
+	filePath := fmt.Sprintf("user/%s/%s.md", prompt.CampaignID, prompt.ID)
+
 	query := `
-		INSERT INTO prompts (id, campaign_id, title, content, description, variables,
-		                    quick_access_key, word_count, estimated_tokens, 
+		INSERT INTO prompts (id, campaign_id, title, file_path, content_cache, description, variables,
+		                    quick_access_key, word_count, estimated_tokens,
 		                    effectiveness_rating, notes, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING usage_count, last_used, is_favorite, is_archived, version, parent_version_id`
 
 	err := s.db.QueryRow(query,
-		prompt.ID, prompt.CampaignID, prompt.Title, prompt.Content,
+		prompt.ID, prompt.CampaignID, prompt.Title, filePath, prompt.Content,
 		prompt.Description, variablesJSON, prompt.QuickAccessKey,
 		prompt.WordCount, prompt.EstimatedTokens, prompt.EffectivenessRating,
 		prompt.Notes, prompt.CreatedAt, prompt.UpdatedAt,
@@ -529,10 +532,10 @@ func (s *APIServer) getPrompt(w http.ResponseWriter, r *http.Request) {
 	promptID := vars["id"]
 
 	query := `
-		SELECT p.id, p.campaign_id, p.title, p.content, p.description, 
-		       p.variables, p.usage_count, p.last_used, p.is_favorite, 
+		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
+		       p.variables, p.usage_count, p.last_used, p.is_favorite,
 		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating, 
+		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
 		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
 		FROM prompts p
 		LEFT JOIN campaigns c ON p.campaign_id = c.id
@@ -566,7 +569,7 @@ func (s *APIServer) searchPrompts(w http.ResponseWriter, r *http.Request) {
 
 	// Use PostgreSQL full-text search
 	sqlQuery := `
-		SELECT p.id, p.campaign_id, p.title, p.content_cache, p.description,
+		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
 		       p.variables, p.usage_count, p.last_used, p.is_favorite,
 		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
 		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
@@ -575,7 +578,7 @@ func (s *APIServer) searchPrompts(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN campaigns c ON p.campaign_id = c.id
 		WHERE p.is_archived = false AND (
 			to_tsvector('english', p.title) @@ plainto_tsquery('english', $1) OR
-			to_tsvector('english', p.content_cache) @@ plainto_tsquery('english', $1) OR
+			to_tsvector('english', COALESCE(p.content_cache, '')) @@ plainto_tsquery('english', $1) OR
 			to_tsvector('english', COALESCE(p.description, '')) @@ plainto_tsquery('english', $1)
 		)
 		ORDER BY
@@ -819,7 +822,7 @@ func (s *APIServer) getCampaignPrompts(w http.ResponseWriter, r *http.Request) {
 	campaignID := vars["id"]
 
 	query := `
-		SELECT p.id, p.campaign_id, p.title, p.content_cache, p.description,
+		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
 		       p.variables, p.usage_count, p.last_used, p.is_favorite,
 		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
 		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
@@ -887,7 +890,7 @@ func (s *APIServer) updatePrompt(w http.ResponseWriter, r *http.Request) {
 		argIndex++
 	}
 	if req.Content != nil {
-		updates = append(updates, fmt.Sprintf("content = $%d", argIndex))
+		updates = append(updates, fmt.Sprintf("content_cache = $%d", argIndex))
 		args = append(args, *req.Content)
 		argIndex++
 		// Update word count and token count
@@ -1150,7 +1153,7 @@ func (s *APIServer) searchQdrant(embedding []float32, limit int, campaignFilter 
 
 	// Fetch full prompt details from PostgreSQL
 	query := `
-		SELECT p.id, p.campaign_id, p.title, p.content_cache, p.description,
+		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
 		       p.variables, p.usage_count, p.last_used, p.is_favorite,
 		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
 		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
@@ -1203,7 +1206,7 @@ func (s *APIServer) testPrompt(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch the prompt
 	query := `
-		SELECT p.id, p.campaign_id, p.title, p.content_cache, p.description,
+		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
 		       p.variables, p.usage_count, p.last_used, p.is_favorite,
 		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
 		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
@@ -1443,7 +1446,7 @@ func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Export prompts
-	promptQuery := `SELECT id, campaign_id, title, content_cache, description, variables,
+	promptQuery := `SELECT id, campaign_id, title, COALESCE(content_cache, '') as content, description, variables,
 		usage_count, last_used, is_favorite, is_archived, quick_access_key,
 		version, parent_version_id, word_count, estimated_tokens,
 		effectiveness_rating, notes, created_at, updated_at
@@ -1609,14 +1612,16 @@ func (s *APIServer) importData(w http.ResponseWriter, r *http.Request) {
 		}
 
 		varsJSON, _ := json.Marshal(prompt.Variables)
+		// Generate file_path for imported prompts
+		filePath := fmt.Sprintf("imported/%s/%s.md", campaignID, newID)
 
 		_, err := tx.Exec(`
-			INSERT INTO prompts (id, campaign_id, title, content, description, 
-				variables, usage_count, last_used, is_favorite, is_archived, 
-				quick_access_key, version, word_count, estimated_tokens, 
-				effectiveness_rating, notes, created_at, updated_at) 
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
-			newID, campaignID, prompt.Title, prompt.Content, prompt.Description,
+			INSERT INTO prompts (id, campaign_id, title, file_path, content_cache, description,
+				variables, usage_count, last_used, is_favorite, is_archived,
+				quick_access_key, version, word_count, estimated_tokens,
+				effectiveness_rating, notes, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+			newID, campaignID, prompt.Title, filePath, prompt.Content, prompt.Description,
 			string(varsJSON), 0, nil, prompt.IsFavorite, prompt.IsArchived,
 			nil, 1, prompt.WordCount, prompt.EstimatedTokens,
 			prompt.EffectivenessRating, prompt.Notes, time.Now(), time.Now())
