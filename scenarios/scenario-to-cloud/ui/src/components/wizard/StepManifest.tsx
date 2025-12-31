@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Code, FormInput, AlertCircle, Check, AlertTriangle, Search, RefreshCw } from "lucide-react";
+import { Code, FormInput, AlertCircle, Check, AlertTriangle, Search, RefreshCw, Undo2, Redo2, RotateCcw, ChevronDown } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Alert } from "../ui/alert";
@@ -64,8 +64,60 @@ export function StepManifest({ deployment }: StepManifestProps) {
     validate,
     normalizedManifest,
     applyAllFixes,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    resetManifestToDefaults,
+    resetManifestWithScenario,
   } = deployment;
   const [mode, setMode] = useState<Mode>("form");
+  const [showResetMenu, setShowResetMenu] = useState(false);
+  const resetMenuRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle when not typing in an input/textarea (except our JSON editor)
+      const target = e.target as HTMLElement;
+      const isEditorTextarea = target.getAttribute("data-testid") === selectors.manifest.input;
+      const isInputElement = target.tagName === "INPUT" || (target.tagName === "TEXTAREA" && !isEditorTextarea);
+
+      if (isInputElement) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        if (e.shiftKey) {
+          e.preventDefault();
+          redo();
+        } else {
+          e.preventDefault();
+          undo();
+        }
+      }
+      // Also support Ctrl+Y for redo
+      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo]);
+
+  // Close reset menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (resetMenuRef.current && !resetMenuRef.current.contains(e.target as Node)) {
+        setShowResetMenu(false);
+      }
+    };
+
+    if (showResetMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showResetMenu]);
 
   // Debounced validation
   const validateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -372,19 +424,107 @@ export function StepManifest({ deployment }: StepManifestProps) {
             JSON
           </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            lastValidatedJsonRef.current = null;
-            validate();
-          }}
-          disabled={isValidating || !parsedManifest.ok}
-          className="text-slate-400 hover:text-slate-200"
-        >
-          <RefreshCw className={`h-4 w-4 mr-1.5 ${isValidating ? "animate-spin" : ""}`} />
-          Revalidate
-        </Button>
+
+        <div className="flex items-center gap-1">
+          {/* Undo/Redo buttons */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={undo}
+            disabled={!canUndo}
+            className="text-slate-400 hover:text-slate-200 px-2"
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={redo}
+            disabled={!canRedo}
+            className="text-slate-400 hover:text-slate-200 px-2"
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <Redo2 className="h-4 w-4" />
+          </Button>
+
+          <div className="w-px h-5 bg-slate-700 mx-1" />
+
+          {/* Reset dropdown */}
+          <div className="relative" ref={resetMenuRef}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowResetMenu(!showResetMenu)}
+              className="text-slate-400 hover:text-slate-200"
+            >
+              <RotateCcw className="h-4 w-4 mr-1.5" />
+              Reset
+              <ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+
+            {showResetMenu && (
+              <div className="absolute right-0 mt-1 w-56 rounded-lg border border-white/10 bg-slate-900 shadow-lg z-20">
+                <div className="p-1">
+                  {selectedScenario && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const ports: Record<string, number> = {};
+                        if (selectedScenario.ports) {
+                          for (const [key, config] of Object.entries(selectedScenario.ports)) {
+                            const port = getPortFromConfig(config);
+                            if (port) {
+                              const normalizedKey = key === "websocket" ? "ws" : key;
+                              ports[normalizedKey] = port;
+                            }
+                          }
+                        }
+                        resetManifestWithScenario(selectedScenario.id, ports);
+                        setShowResetMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-800 text-slate-200"
+                    >
+                      <div className="font-medium">Reset with current scenario</div>
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        Keep "{selectedScenario.id}" selected, reset other fields
+                      </div>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetManifestToDefaults();
+                      setShowResetMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-800 text-slate-200"
+                  >
+                    <div className="font-medium">Reset to defaults</div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      Clear all fields and start fresh
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="w-px h-5 bg-slate-700 mx-1" />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              lastValidatedJsonRef.current = null;
+              validate();
+            }}
+            disabled={isValidating || !parsedManifest.ok}
+            className="text-slate-400 hover:text-slate-200"
+          >
+            <RefreshCw className={`h-4 w-4 mr-1.5 ${isValidating ? "animate-spin" : ""}`} />
+            Revalidate
+          </Button>
+        </div>
       </div>
 
       {/* JSON Parse Error */}

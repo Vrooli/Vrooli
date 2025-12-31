@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import {
   validateManifest,
   buildBundle,
@@ -13,9 +13,12 @@ import {
 import {
   type DeploymentManifest,
   type WizardStep,
+  DEFAULT_MANIFEST,
   DEFAULT_MANIFEST_JSON,
   WIZARD_STEPS,
 } from "../types/deployment";
+
+const MAX_HISTORY_SIZE = 50;
 
 const STORAGE_KEY = "scenario-to-cloud:deployment";
 
@@ -90,6 +93,11 @@ export function useDeployment() {
   const [sshKeyPath, setSSHKeyPath] = useState<string | null>(saved?.sshKeyPath ?? null);
   const [sshConnectionStatus, setSSHConnectionStatus] = useState<SSHConnectionStatus>("untested");
 
+  // Undo/redo history
+  const historyRef = useRef<string[]>([]);
+  const futureRef = useRef<string[]>([]);
+  const isUndoRedoRef = useRef(false);
+
   // Parse manifest
   const parsedManifest = useMemo((): { ok: true; value: DeploymentManifest } | { ok: false; error: string } => {
     try {
@@ -102,8 +110,17 @@ export function useDeployment() {
 
   const currentStep = WIZARD_STEPS[currentStepIndex];
 
-  // Save on manifest/step change
+  // Save on manifest/step change (with undo history tracking)
   const updateManifestJson = useCallback((json: string) => {
+    // Skip history tracking during undo/redo operations
+    if (!isUndoRedoRef.current) {
+      // Push current state to history before changing
+      historyRef.current = [...historyRef.current, manifestJson].slice(-MAX_HISTORY_SIZE);
+      // Clear future on new change
+      futureRef.current = [];
+    }
+    isUndoRedoRef.current = false;
+
     setManifestJson(json);
     saveDeployment({
       manifestJson: json,
@@ -111,7 +128,47 @@ export function useDeployment() {
       timestamp: Date.now(),
       sshKeyPath,
     });
-  }, [currentStepIndex, sshKeyPath]);
+  }, [currentStepIndex, sshKeyPath, manifestJson]);
+
+  // Undo last manifest change
+  const undo = useCallback(() => {
+    if (historyRef.current.length === 0) return;
+
+    const previousState = historyRef.current[historyRef.current.length - 1];
+    historyRef.current = historyRef.current.slice(0, -1);
+    futureRef.current = [manifestJson, ...futureRef.current];
+
+    isUndoRedoRef.current = true;
+    setManifestJson(previousState);
+    saveDeployment({
+      manifestJson: previousState,
+      currentStep: currentStepIndex,
+      timestamp: Date.now(),
+      sshKeyPath,
+    });
+  }, [manifestJson, currentStepIndex, sshKeyPath]);
+
+  // Redo last undone change
+  const redo = useCallback(() => {
+    if (futureRef.current.length === 0) return;
+
+    const nextState = futureRef.current[0];
+    futureRef.current = futureRef.current.slice(1);
+    historyRef.current = [...historyRef.current, manifestJson];
+
+    isUndoRedoRef.current = true;
+    setManifestJson(nextState);
+    saveDeployment({
+      manifestJson: nextState,
+      currentStep: currentStepIndex,
+      timestamp: Date.now(),
+      sshKeyPath,
+    });
+  }, [manifestJson, currentStepIndex, sshKeyPath]);
+
+  // Check if undo/redo is available (for UI state)
+  const canUndo = historyRef.current.length > 0;
+  const canRedo = futureRef.current.length > 0;
 
   // Navigation
   const goToStep = useCallback((index: number) => {
@@ -265,8 +322,55 @@ export function useDeployment() {
     }
   }, []);
 
+  // Reset manifest to defaults (keeps current step)
+  const resetManifestToDefaults = useCallback(() => {
+    // Push current state to history so user can undo
+    historyRef.current = [...historyRef.current, manifestJson].slice(-MAX_HISTORY_SIZE);
+    futureRef.current = [];
+
+    setManifestJson(DEFAULT_MANIFEST_JSON);
+    setValidationIssues(null);
+    setValidationError(null);
+    setNormalizedManifest(null);
+    saveDeployment({
+      manifestJson: DEFAULT_MANIFEST_JSON,
+      currentStep: currentStepIndex,
+      timestamp: Date.now(),
+      sshKeyPath,
+    });
+  }, [manifestJson, currentStepIndex, sshKeyPath]);
+
+  // Reset manifest but preserve scenario selection and auto-populate its ports
+  const resetManifestWithScenario = useCallback((scenarioId: string, scenarioPorts: Record<string, number>) => {
+    // Push current state to history so user can undo
+    historyRef.current = [...historyRef.current, manifestJson].slice(-MAX_HISTORY_SIZE);
+    futureRef.current = [];
+
+    const newManifest: DeploymentManifest = {
+      ...DEFAULT_MANIFEST,
+      scenario: { id: scenarioId },
+      dependencies: { ...DEFAULT_MANIFEST.dependencies, scenarios: [scenarioId] },
+      ports: scenarioPorts,
+    };
+    const json = JSON.stringify(newManifest, null, 2);
+
+    setManifestJson(json);
+    setValidationIssues(null);
+    setValidationError(null);
+    setNormalizedManifest(null);
+    saveDeployment({
+      manifestJson: json,
+      currentStep: currentStepIndex,
+      timestamp: Date.now(),
+      sshKeyPath,
+    });
+  }, [manifestJson, currentStepIndex, sshKeyPath]);
+
+  // Full reset (returns to step 0, clears everything)
   const reset = useCallback(() => {
     clearSavedDeployment();
+    historyRef.current = [];
+    futureRef.current = [];
     setCurrentStepIndex(0);
     setManifestJson(DEFAULT_MANIFEST_JSON);
     setValidationIssues(null);
@@ -324,6 +428,16 @@ export function useDeployment() {
     manifestJson,
     setManifestJson: updateManifestJson,
     parsedManifest,
+
+    // Undo/redo
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+
+    // Reset options
+    resetManifestToDefaults,
+    resetManifestWithScenario,
 
     // Validation
     validationIssues,
