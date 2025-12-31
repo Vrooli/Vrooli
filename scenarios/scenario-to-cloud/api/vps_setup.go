@@ -76,8 +76,8 @@ func BuildVPSSetupPlan(manifest CloudManifest, bundlePath string) ([]VPSPlanStep
 		{
 			ID:          "setup",
 			Title:       "Run Vrooli setup",
-			Description: "Runs ./scripts/manage.sh setup --yes yes inside the mini bundle.",
-			Command:     localSSHCommand(cfg, fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes", shellQuoteSingle(manifest.Target.VPS.Workdir))),
+			Description: "Runs production setup with only required resources.",
+			Command:     localSSHCommand(cfg, fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes --environment production", shellQuoteSingle(manifest.Target.VPS.Workdir))),
 		},
 		{
 			ID:          "autoheal",
@@ -131,7 +131,7 @@ func RunVPSSetup(ctx context.Context, manifest CloudManifest, bundlePath string,
 	if err := run(fmt.Sprintf("tar -xzf %s -C %s", shellQuoteSingle(remoteBundlePath), shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
 		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "extract", Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
-	if err := run(fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes", shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
+	if err := run(fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes --environment production", shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
 		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "setup", Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 	if err := run(fmt.Sprintf("mkdir -p %s && printf '%%s' %s > %s", shellQuoteSingle(safeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud")), shellQuoteSingle(minimalAutohealScopeJSON(manifest)), shellQuoteSingle(autohealConfigPath))); err != nil {
@@ -246,9 +246,9 @@ func RunVPSSetupWithProgress(
 	*progress += StepWeights["extract"]
 	emit("step_completed", "extract", "Extracting bundle")
 
-	// Step: setup
+	// Step: setup (production mode - skips dev tools, installs only required resources)
 	emit("step_started", "setup", "Running setup")
-	if err := run(fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes", shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
+	if err := run(fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes --environment production", shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
 		return failStep("setup", "Running setup", err.Error())
 	}
 	*progress += StepWeights["setup"]

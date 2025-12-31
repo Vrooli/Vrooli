@@ -228,19 +228,23 @@ setup::generic_main() {
         log::success "✅ Git configured to ignore permission changes"
     fi
     
-    # Step 5: Install Test Tools (for development/CI)
-    if flow::is_yes "$is_ci" || [[ "$environment" == "development" ]]; then
+    # Step 5: Install Test Tools (only for development/CI, skip for production/minimal)
+    if [[ "$environment" == "minimal" ]]; then
+        log::info "Minimal mode: Skipping test tools installation"
+    elif flow::is_yes "$is_ci" || [[ "$environment" == "development" ]]; then
         log::info "Installing test tools..."
         bats::install
         shellcheck::install
         lychee::install
         ast_grep::install
+    else
+        log::info "Production mode: Skipping test tools installation"
     fi
     
     # Step 6: Install Common Runtimes
     log::header "🚀 Installing Common Runtimes"
-    
-    # Docker (commonly needed)
+
+    # Docker (always needed - even in minimal mode)
     log::info "Installing Docker..."
     if ! docker::ensure_installed; then
         log::error "Docker installation failed"
@@ -248,62 +252,96 @@ setup::generic_main() {
         docker::diagnose || true
         return "${ERROR_DOCKER_SETUP_FAILED:-1}"
     fi
-    
-    # Node.js (commonly needed)
-    log::info "Installing Node.js..."
-    nodejs::ensure_installed || log::warning "Node.js installation failed (not critical)"
 
-    if system::is_command node; then
-        js_yaml::install || log::warning "js-yaml CLI installation skipped"
-        ajv_cli::install || log::warning "ajv CLI installation skipped"
+    # For minimal mode, skip everything else after Docker
+    if [[ "$environment" == "minimal" ]]; then
+        log::info "Minimal mode: Skipping additional runtimes (Node.js, Python, Go, etc.)"
     else
-        log::warning "Skipping js-yaml/ajv CLI install because Node.js is unavailable"
-    fi
-    
-    # Python (commonly needed - with venv support)
-    log::info "Installing Python..."
-    python::ensure_installed || log::warning "Python installation failed (not critical)"
-    
-    # Go (commonly needed)
-    log::info "Installing Go..."
-    # Install Go dev tools in development environment
-    if [[ "$environment" == "development" ]]; then
-        export GO_INSTALL_DEV_TOOLS=true
-    fi
-    go::ensure_installed || log::warning "Go installation failed (not critical)"
+        # Node.js (commonly needed)
+        log::info "Installing Node.js..."
+        nodejs::ensure_installed || log::warning "Node.js installation failed (not critical)"
 
-    # Buf (protobuf CLI for contracts/codegen)
-    log::info "Installing Buf (proto CLI)..."
-    buf::ensure_installed || log::warning "Buf installation failed (not critical)"
-    
-    # Helm (for Kubernetes deployments)
-    log::info "Installing Helm..."
-    helm::ensure_installed || log::warning "Helm installation failed (not critical)"
-    
-    # SQLite (for database operations)
-    log::info "Installing SQLite..."
-    sqlite::ensure_installed || log::warning "SQLite installation failed (not critical)"
-    
-    # Cloudflare tunnel support
-    log::info "Setting up Cloudflare tunnel support..."
-    if [[ -f "${var_LIB_SERVICE_DIR}/cloudflare-tunnel.sh" ]]; then
-        # shellcheck disable=SC1091
-        source "${var_LIB_SERVICE_DIR}/cloudflare-tunnel.sh"
-        main || log::warning "Cloudflare tunnel setup failed (not critical)"
-    else
-        log::debug "Cloudflare tunnel setup script not found - skipping"
+        if system::is_command node; then
+            js_yaml::install || log::warning "js-yaml CLI installation skipped"
+            ajv_cli::install || log::warning "ajv CLI installation skipped"
+        else
+            log::warning "Skipping js-yaml/ajv CLI install because Node.js is unavailable"
+        fi
+
+        # Python (commonly needed - with venv support)
+        log::info "Installing Python..."
+        python::ensure_installed || log::warning "Python installation failed (not critical)"
+
+        # Go (commonly needed)
+        log::info "Installing Go..."
+        # Install Go dev tools ONLY in development environment
+        if [[ "$environment" == "development" ]]; then
+            export GO_INSTALL_DEV_TOOLS=true
+        else
+            log::info "Production mode: Skipping Go dev tools (gofumpt, golangci-lint, etc.)"
+        fi
+        go::ensure_installed || log::warning "Go installation failed (not critical)"
+
+        # Buf (protobuf CLI for contracts/codegen)
+        log::info "Installing Buf (proto CLI)..."
+        buf::ensure_installed || log::warning "Buf installation failed (not critical)"
+
+        # Helm (for Kubernetes deployments) - skip in production unless specifically needed
+        if [[ "$environment" == "development" ]]; then
+            log::info "Installing Helm..."
+            helm::ensure_installed || log::warning "Helm installation failed (not critical)"
+        else
+            log::debug "Production mode: Skipping Helm installation"
+        fi
+
+        # SQLite (for database operations)
+        log::info "Installing SQLite..."
+        sqlite::ensure_installed || log::warning "SQLite installation failed (not critical)"
+
+        # Cloudflare tunnel support
+        log::info "Setting up Cloudflare tunnel support..."
+        if [[ -f "${var_LIB_SERVICE_DIR}/cloudflare-tunnel.sh" ]]; then
+            # shellcheck disable=SC1091
+            source "${var_LIB_SERVICE_DIR}/cloudflare-tunnel.sh"
+            main || log::warning "Cloudflare tunnel setup failed (not critical)"
+        else
+            log::debug "Cloudflare tunnel setup script not found - skipping"
+        fi
     fi
     
-    # Step 7: Install Enabled Resources
+    # Step 7: Install Enabled Resources (respects RESOURCES environment variable)
     log::header "🔨 Installing Enabled Resources"
-    # shellcheck disable=SC1091
-    source "${var_LIB_DIR}/resources/resource-orchestrator.sh"
-    if [[ -f "${var_SERVICE_JSON_FILE}" ]]; then
-        resource_auto::install_enabled "${var_SERVICE_JSON_FILE}" || {
-            log::warning "Some resources failed to install - continuing with setup"
-        }
+
+    # Check RESOURCES environment variable
+    if [[ "${resources}" == "none" ]]; then
+        log::info "Resource installation skipped (--resources none)"
+    elif [[ "$environment" == "minimal" ]]; then
+        log::info "Minimal mode: Skipping resource installation"
     else
-        log::debug "No service.json found - skipping resource installation"
+        # shellcheck disable=SC1091
+        source "${var_LIB_DIR}/resources/resource-orchestrator.sh"
+
+        if [[ -n "${resources}" && "${resources}" != "enabled" ]]; then
+            # Specific resources requested (comma-separated list)
+            log::info "Installing specific resources: ${resources}"
+            IFS=',' read -ra RESOURCE_LIST <<< "${resources}"
+            for resource_name in "${RESOURCE_LIST[@]}"; do
+                resource_name=$(echo "$resource_name" | xargs)  # trim whitespace
+                if [[ -n "$resource_name" ]]; then
+                    log::info "Installing resource: $resource_name"
+                    resource_auto::install_resource "$resource_name" "{}" || {
+                        log::warning "Failed to install resource: $resource_name"
+                    }
+                fi
+            done
+        elif [[ -f "${var_SERVICE_JSON_FILE}" ]]; then
+            # Default: install enabled resources from service.json
+            resource_auto::install_enabled "${var_SERVICE_JSON_FILE}" || {
+                log::warning "Some resources failed to install - continuing with setup"
+            }
+        else
+            log::debug "No service.json found - skipping resource installation"
+        fi
     fi
     
     

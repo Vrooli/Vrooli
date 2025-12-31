@@ -758,36 +758,101 @@ func buildMiniServiceJSON(repoRoot string, manifest CloudManifest) ([]byte, erro
 		return nil, fmt.Errorf("parse .vrooli/service.json: %w", err)
 	}
 
-	resourcesAny, ok := doc["resources"]
-	if !ok {
-		return json.MarshalIndent(doc, "", "  ")
-	}
-	resources, ok := resourcesAny.(map[string]interface{})
-	if !ok {
-		return json.MarshalIndent(doc, "", "  ")
-	}
-
-	required := map[string]struct{}{}
+	// Build set of required resources from manifest
+	requiredResources := map[string]struct{}{}
 	for _, id := range stableUniqueStrings(manifest.Bundle.Resources) {
-		required[id] = struct{}{}
+		requiredResources[id] = struct{}{}
 	}
 
-	for key, val := range resources {
-		m, ok := val.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		_, keep := required[key]
-		m["enabled"] = keep
-		resources[key] = m
+	// Build set of required scenarios from manifest
+	requiredScenarios := map[string]struct{}{}
+	for _, id := range stableUniqueStrings(manifest.Bundle.Scenarios) {
+		requiredScenarios[id] = struct{}{}
 	}
-	for id := range required {
-		if _, ok := resources[id]; ok {
-			continue
-		}
-		resources[id] = map[string]interface{}{"enabled": true}
+	// Also include the main scenario being deployed
+	if manifest.Scenario.ID != "" {
+		requiredScenarios[manifest.Scenario.ID] = struct{}{}
 	}
-	doc["resources"] = resources
+
+	// Ensure dependencies section exists
+	dependenciesAny, hasDeps := doc["dependencies"]
+	var dependencies map[string]interface{}
+	if hasDeps {
+		dependencies, _ = dependenciesAny.(map[string]interface{})
+	}
+	if dependencies == nil {
+		dependencies = make(map[string]interface{})
+	}
+
+	// Handle resources
+	if len(requiredResources) > 0 {
+		existingResources := make(map[string]interface{})
+		if resourcesAny, hasResources := dependencies["resources"]; hasResources {
+			if r, ok := resourcesAny.(map[string]interface{}); ok {
+				existingResources = r
+			}
+		}
+
+		newResources := make(map[string]interface{})
+		for id := range requiredResources {
+			if existing, ok := existingResources[id]; ok {
+				// Keep existing config but ensure enabled=true
+				if m, ok := existing.(map[string]interface{}); ok {
+					m["enabled"] = true
+					newResources[id] = m
+				} else {
+					newResources[id] = map[string]interface{}{"enabled": true}
+				}
+			} else {
+				// Resource not in original config, add minimal entry
+				newResources[id] = map[string]interface{}{"enabled": true}
+			}
+		}
+		dependencies["resources"] = newResources
+	}
+
+	// Handle scenarios - ensure we have at least the deployed scenario
+	if len(requiredScenarios) > 0 {
+		existingScenarios := make(map[string]interface{})
+		if scenariosAny, hasScenarios := dependencies["scenarios"]; hasScenarios {
+			if s, ok := scenariosAny.(map[string]interface{}); ok {
+				existingScenarios = s
+			}
+		}
+
+		newScenarios := make(map[string]interface{})
+		for id := range requiredScenarios {
+			if existing, ok := existingScenarios[id]; ok {
+				newScenarios[id] = existing
+			} else {
+				// Scenario not in original config, add minimal entry
+				newScenarios[id] = map[string]interface{}{"enabled": true}
+			}
+		}
+		dependencies["scenarios"] = newScenarios
+	}
+
+	doc["dependencies"] = dependencies
+
+	// Also handle legacy top-level "resources" key if present
+	if resourcesAny, ok := doc["resources"]; ok {
+		if resources, ok := resourcesAny.(map[string]interface{}); ok {
+			newResources := make(map[string]interface{})
+			for id := range requiredResources {
+				if existing, ok := resources[id]; ok {
+					if m, ok := existing.(map[string]interface{}); ok {
+						m["enabled"] = true
+						newResources[id] = m
+					} else {
+						newResources[id] = map[string]interface{}{"enabled": true}
+					}
+				} else {
+					newResources[id] = map[string]interface{}{"enabled": true}
+				}
+			}
+			doc["resources"] = newResources
+		}
+	}
 
 	return json.MarshalIndent(doc, "", "  ")
 }
