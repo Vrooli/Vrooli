@@ -12,15 +12,31 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useWebSocket, type WebSocketMessage } from '@/contexts/WebSocketContext';
 import type { RecordedAction } from '../types/types';
-import type { TimelineItem, TimelineMode } from '../types/timeline-unified';
+import type { TimelineItem, TimelineMode, ExecutionTimelineItem, ExecutionStatus } from '../types/timeline-unified';
 import {
   recordedActionToTimelineItem,
   timelineEntryToTimelineItem,
   timelineEntryToRecordedAction,
   hasTimelineEntry,
   parseTimelineEntry,
+  workflowNodesToTimelineItems,
+  updateTimelineItemStatus,
 } from '../types/timeline-unified';
 import { mergeConsecutiveActions } from '../utils/mergeActions';
+
+/** Minimal node type for workflow conversion */
+export interface WorkflowNode {
+  id: string;
+  type?: string;
+  data?: Record<string, unknown>;
+  action?: { type: string; metadata?: { label?: string }; navigate?: { url?: string } };
+}
+
+/** Minimal edge type for workflow conversion */
+export interface WorkflowEdge {
+  source: string;
+  target: string;
+}
 
 export interface UseUnifiedTimelineOptions {
   /** Current mode: 'recording' for live recording, 'execution' for workflow playback */
@@ -29,6 +45,10 @@ export interface UseUnifiedTimelineOptions {
   executionId?: string | null;
   /** Optional: Pre-existing recorded actions (for recording mode) */
   initialActions?: RecordedAction[];
+  /** Optional: Workflow nodes for pre-populating timeline in execution mode */
+  workflowNodes?: WorkflowNode[];
+  /** Optional: Workflow edges for pre-populating timeline in execution mode */
+  workflowEdges?: WorkflowEdge[];
   /** Callback when new items arrive */
   onItemsReceived?: (items: TimelineItem[]) => void;
 }
@@ -68,6 +88,8 @@ export function useUnifiedTimeline({
   mode,
   executionId,
   initialActions = [],
+  workflowNodes,
+  workflowEdges,
   onItemsReceived,
 }: UseUnifiedTimelineOptions): UseUnifiedTimelineReturn {
   const [items, setItems] = useState<TimelineItem[]>(() =>
@@ -79,14 +101,61 @@ export function useUnifiedTimeline({
 
   const { isConnected, lastMessage, send } = useWebSocket();
   const subscribedExecutionRef = useRef<string | null>(null);
+  // Track if we've pre-populated from workflow to avoid re-populating on each render
+  const prePopulatedWorkflowRef = useRef<string | null>(null);
+
+  // Track previous mode to detect mode switches
+  const prevModeRef = useRef<TimelineMode>(mode);
+
+  // Clear timeline when switching from recording to execution mode
+  useEffect(() => {
+    if (prevModeRef.current === 'recording' && mode === 'execution') {
+      // Clear items immediately when switching to execution mode
+      // They will be repopulated from workflow nodes when available
+      setItems([]);
+      prePopulatedWorkflowRef.current = null;
+      console.log('[useUnifiedTimeline] Cleared timeline for execution mode');
+    }
+    prevModeRef.current = mode;
+  }, [mode]);
 
   // Update items when initialActions change (recording mode)
   useEffect(() => {
     if (mode === 'recording') {
       const newItems = mergeConsecutiveActions(initialActions).map((action) => recordedActionToTimelineItem(action));
       setItems(newItems);
+      prePopulatedWorkflowRef.current = null; // Reset when switching to recording
     }
   }, [mode, initialActions]);
+
+  // Pre-populate timeline with workflow steps when entering execution mode
+  useEffect(() => {
+    console.log('[useUnifiedTimeline] Pre-populate effect triggered:', {
+      mode,
+      hasWorkflowNodes: !!workflowNodes,
+      workflowNodesLength: workflowNodes?.length ?? 0,
+      hasWorkflowEdges: !!workflowEdges,
+      workflowEdgesLength: workflowEdges?.length ?? 0,
+    });
+
+    if (mode === 'execution' && workflowNodes && workflowNodes.length > 0 && workflowEdges) {
+      // Create a key to track which workflow we've pre-populated
+      const workflowKey = workflowNodes.map(n => n.id).join(',');
+      console.log('[useUnifiedTimeline] Workflow key:', workflowKey, 'Previous:', prePopulatedWorkflowRef.current);
+
+      if (prePopulatedWorkflowRef.current !== workflowKey) {
+        const workflowItems = workflowNodesToTimelineItems(workflowNodes, workflowEdges);
+        console.log('[useUnifiedTimeline] Setting items:', workflowItems);
+        setItems(workflowItems);
+        prePopulatedWorkflowRef.current = workflowKey;
+        console.log('[useUnifiedTimeline] Pre-populated timeline with', workflowItems.length, 'workflow steps');
+      } else {
+        console.log('[useUnifiedTimeline] Skipping - already populated for this workflow');
+      }
+    } else {
+      console.log('[useUnifiedTimeline] Conditions not met for pre-population');
+    }
+  }, [mode, workflowNodes, workflowEdges]);
 
   // Handle WebSocket messages for both modes
   useEffect(() => {
@@ -105,6 +174,28 @@ export function useUnifiedTimeline({
           const newItem = timelineEntryToTimelineItem(timelineEntry);
 
           setItems((prev) => {
+            // First, try to update a pre-populated item by node_id
+            const nodeId = (msg as { node_id?: string }).node_id;
+            if (nodeId) {
+              const prePopIndex = prev.findIndex((item) =>
+                (item as ExecutionTimelineItem).nodeId === nodeId
+              );
+              if (prePopIndex >= 0) {
+                // Determine status from context
+                const status: ExecutionStatus = newItem.success === true ? 'completed'
+                  : newItem.success === false ? 'failed'
+                  : 'running';
+                const updated = [...prev];
+                updated[prePopIndex] = {
+                  ...prev[prePopIndex],
+                  ...newItem,
+                  nodeId,
+                  executionStatus: status,
+                } as ExecutionTimelineItem;
+                return updated;
+              }
+            }
+
             // Check if we're updating an existing item (retry) or adding new
             const existingIndex = prev.findIndex((item) => item.id === newItem.id);
             if (existingIndex >= 0) {
@@ -129,20 +220,45 @@ export function useUnifiedTimeline({
           action?: string;
           status?: string;
           error?: string;
+          duration_ms?: number;
         };
 
         if (stepData.node_id) {
-          const newItem: TimelineItem = {
-            id: stepData.node_id,
-            sequenceNum: stepData.step_num ?? 0,
-            timestamp: new Date(),
-            actionType: stepData.action ?? 'unknown',
-            success: stepData.status === 'completed',
-            error: stepData.error,
-            mode: 'execution',
-          };
+          // Map status string to ExecutionStatus
+          const status: ExecutionStatus = stepData.status === 'completed' ? 'completed'
+            : stepData.status === 'failed' ? 'failed'
+            : stepData.status === 'running' || stepData.status === 'started' ? 'running'
+            : 'pending';
 
           setItems((prev) => {
+            // First, try to update a pre-populated item by node_id
+            const prePopIndex = prev.findIndex((item) =>
+              (item as ExecutionTimelineItem).nodeId === stepData.node_id
+            );
+            if (prePopIndex >= 0) {
+              const updated = updateTimelineItemStatus(
+                prev as ExecutionTimelineItem[],
+                stepData.node_id!,
+                status,
+                stepData.error,
+                stepData.duration_ms
+              );
+              console.log('[useUnifiedTimeline] Updated step', stepData.node_id, 'to status', status);
+              return updated;
+            }
+
+            // Otherwise, add as a new item (fallback for backwards compatibility)
+            const newItem: TimelineItem = {
+              id: stepData.node_id!,
+              sequenceNum: stepData.step_num ?? 0,
+              timestamp: new Date(),
+              actionType: stepData.action ?? 'unknown',
+              success: status === 'completed' ? true : status === 'failed' ? false : undefined,
+              error: stepData.error,
+              mode: 'execution',
+              durationMs: stepData.duration_ms,
+            };
+
             const existingIndex = prev.findIndex((item) => item.id === newItem.id);
             if (existingIndex >= 0) {
               const updated = [...prev];
@@ -163,7 +279,18 @@ export function useUnifiedTimeline({
     // Execution started/stopped
     if (msg.type === 'execution_started') {
       setIsLive(true);
-      setItems([]); // Clear on new execution
+      // Don't clear items if we have pre-populated from workflow
+      // Instead, reset all items to pending status
+      if (prePopulatedWorkflowRef.current) {
+        setItems((prev) => prev.map(item => ({
+          ...item,
+          success: undefined,
+          error: undefined,
+          executionStatus: 'pending' as ExecutionStatus,
+        } as ExecutionTimelineItem)));
+      } else {
+        setItems([]); // Clear on new execution if no workflow pre-populated
+      }
     }
 
     if (msg.type === 'execution_completed' || msg.type === 'execution_failed') {
@@ -183,7 +310,10 @@ export function useUnifiedTimeline({
       send({ type: 'subscribe_execution', execution_id: execId });
       subscribedExecutionRef.current = execId;
       setIsLive(true);
-      setItems([]); // Clear for new execution
+      // Don't clear items if pre-populated from workflow
+      if (!prePopulatedWorkflowRef.current) {
+        setItems([]);
+      }
       console.log('[useUnifiedTimeline] Subscribed to execution:', execId);
     },
     [send]

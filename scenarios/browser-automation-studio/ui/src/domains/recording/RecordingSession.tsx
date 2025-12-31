@@ -256,6 +256,10 @@ export function RecordModePage({
   const [localExecutionId, setLocalExecutionId] = useState<string | null>(executionId ?? null);
   const [showWorkflowPicker, setShowWorkflowPicker] = useState(false);
 
+  // Workflow nodes/edges for timeline pre-population
+  const [workflowNodes, setWorkflowNodes] = useState<Array<{ id: string; type?: string; data?: Record<string, unknown>; action?: { type: string; metadata?: { label?: string }; navigate?: { url?: string } } }>>([]);
+  const [workflowEdges, setWorkflowEdges] = useState<Array<{ source: string; target: string }>>([]);
+
   // Execution sidebar state (screenshots and logs tabs)
   const [selectedScreenshotIndex, setSelectedScreenshotIndex] = useState(0);
   const [logsFilter, setLogsFilter] = useState<'all' | 'error' | 'warning' | 'info' | 'success'>('all');
@@ -446,6 +450,48 @@ export function RecordModePage({
     }
   }, [localExecutionId, stopExecution]);
 
+  // Fetch workflow nodes/edges when a workflow is selected for execution mode
+  useEffect(() => {
+    console.log('[RecordingSession] Workflow fetch effect:', { selectedWorkflowId, mode });
+
+    if (!selectedWorkflowId || mode !== 'execution') {
+      console.log('[RecordingSession] Skipping fetch - conditions not met');
+      setWorkflowNodes([]);
+      setWorkflowEdges([]);
+      return;
+    }
+
+    const fetchWorkflowDefinition = async () => {
+      try {
+        const config = await getConfig();
+        console.log('[RecordingSession] Fetching workflow:', `${config.API_URL}/workflows/${selectedWorkflowId}`);
+        const response = await fetch(`${config.API_URL}/workflows/${selectedWorkflowId}`);
+        if (!response.ok) {
+          console.error('[RecordingSession] Failed to fetch workflow definition, status:', response.status);
+          return;
+        }
+        const data = await response.json();
+        console.log('[RecordingSession] Raw workflow data:', JSON.stringify(data, null, 2).slice(0, 1000));
+
+        // Extract nodes and edges from the workflow definition
+        // API returns { workflow: { flow_definition: { nodes, edges } } }
+        const workflow = data.workflow ?? data;
+        const flowDef = workflow.flow_definition ?? workflow.flowDefinition ?? {};
+        const nodes = flowDef.nodes ?? workflow.nodes ?? [];
+        const edges = flowDef.edges ?? workflow.edges ?? [];
+
+        console.log('[RecordingSession] Loaded workflow with', nodes.length, 'nodes and', edges.length, 'edges');
+        console.log('[RecordingSession] First node sample:', nodes[0]);
+        setWorkflowNodes(nodes);
+        setWorkflowEdges(edges);
+      } catch (error) {
+        console.error('[RecordingSession] Error fetching workflow definition:', error);
+      }
+    };
+
+    fetchWorkflowDefinition();
+  }, [selectedWorkflowId, mode]);
+
   // Unified timeline for both recording and execution modes
   // TODO: Use clearTimelineItems, getRecordedActions, and timelineStats when fully integrated
   const {
@@ -458,6 +504,8 @@ export function RecordModePage({
     mode,
     executionId,
     initialActions: actions,
+    workflowNodes: mode === 'execution' ? workflowNodes : undefined,
+    workflowEdges: mode === 'execution' ? workflowEdges : undefined,
   });
 
   // Page tracking for multi-tab recording

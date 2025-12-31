@@ -75,6 +75,7 @@ export function useExecutionFrameStream(
         action: 'subscribe',
         executionId: execId,
       });
+      console.log('[useExecutionFrameStream] Cannot subscribe - WebSocket not connected', execId);
       return;
     }
 
@@ -83,6 +84,7 @@ export function useExecutionFrameStream(
       action: 'subscribe',
       executionId: execId,
     });
+    console.log('[useExecutionFrameStream] Subscribing to execution frames', execId);
 
     send({ type: 'subscribe_execution_frames', execution_id: execId });
     subscribedIdRef.current = execId;
@@ -145,12 +147,14 @@ export function useExecutionFrameStream(
         action: 'handleMessage',
         executionId: lastMessage.execution_id,
       });
+      console.log('[useExecutionFrameStream] Subscription confirmed for', lastMessage.execution_id);
       setIsStreaming(true);
       return;
     }
 
     // Handle execution frames
     if (lastMessage.type === 'execution_frame') {
+      console.log('[useExecutionFrameStream] Received frame for', (lastMessage as { execution_id?: string }).execution_id);
       const msg = lastMessage as unknown as {
         execution_id: string;
         data: string;

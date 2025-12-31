@@ -180,34 +180,6 @@ export function RecordingHeader({
           </span>
         )}
 
-        {/* Run button (when workflow selected but not running) */}
-        {showRunButton && onRun && (
-          <button
-            onClick={onRun}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-green-500 text-white hover:bg-green-600 transition-colors"
-            title="Run the selected workflow"
-          >
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-            </svg>
-            Run
-          </button>
-        )}
-
-        {/* Stop button (when execution is running) */}
-        {isExecuting && onStop && (
-          <button
-            onClick={onStop}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors"
-            title="Stop execution"
-          >
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
-            </svg>
-            Stop
-          </button>
-        )}
-
         {/* Combined Recording + Connection Status indicator */}
         {mode === 'recording' && isRecording && (
           <span
@@ -375,6 +347,34 @@ export function RecordingHeader({
               </div>
             )}
           </div>
+        )}
+
+        {/* Run button (when workflow selected but not running) */}
+        {showRunButton && onRun && (
+          <button
+            onClick={onRun}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-green-500 text-white hover:bg-green-600 transition-colors"
+            title="Run the selected workflow"
+          >
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+            </svg>
+            Run
+          </button>
+        )}
+
+        {/* Stop button (when execution is running) */}
+        {isExecuting && onStop && (
+          <button
+            onClick={onStop}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors"
+            title="Stop execution"
+          >
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+            </svg>
+            Stop
+          </button>
         )}
 
         {onClose && (

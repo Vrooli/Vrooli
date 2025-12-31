@@ -184,8 +184,11 @@ function getStatusIndicator(item: TimelineItem, mode: TimelineMode) {
     );
   }
 
-  // Execution mode: show success/failure
-  if (item.success === true) {
+  // Check for executionStatus field (from ExecutionTimelineItem)
+  const execStatus = (item as { executionStatus?: string }).executionStatus;
+
+  // Execution mode: show status based on executionStatus or success
+  if (item.success === true || execStatus === 'completed') {
     return (
       <span className="flex-shrink-0 text-green-500" title="Success">
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -199,7 +202,7 @@ function getStatusIndicator(item: TimelineItem, mode: TimelineMode) {
     );
   }
 
-  if (item.success === false) {
+  if (item.success === false || execStatus === 'failed') {
     return (
       <span className="flex-shrink-0 text-red-500" title={item.error ?? 'Failed'}>
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -213,7 +216,14 @@ function getStatusIndicator(item: TimelineItem, mode: TimelineMode) {
     );
   }
 
-  // Pending/in-progress
+  // Pending (not started yet) - show gray circle
+  if (execStatus === 'pending') {
+    return (
+      <span className="flex-shrink-0 w-2.5 h-2.5 rounded-full border-2 border-gray-400 dark:border-gray-500" title="Pending" />
+    );
+  }
+
+  // Running/in-progress - show blue spinner
   return (
     <span className="flex-shrink-0 text-blue-500 animate-spin" title="In Progress">
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -301,12 +311,25 @@ export function TimelineEventCard({
     }
   };
 
+  // Check for execution status
+  const execStatus = (item as { executionStatus?: string }).executionStatus;
+  const isRunning = execStatus === 'running';
+  const isPending = execStatus === 'pending';
+  const isCompleted = execStatus === 'completed' || item.success === true;
+  const isFailed = execStatus === 'failed' || item.success === false;
+
   return (
     <div
       className={`py-2 px-3 transition-colors border-b border-gray-200 dark:border-gray-700 ${
         isExpanded ? 'bg-gray-50 dark:bg-gray-800/50' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
       } ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 border-l-2 border-l-blue-500' : ''} ${
-        item.success === false ? 'border-l-2 border-l-red-400' : ''
+        isFailed ? 'border-l-2 border-l-red-400' : ''
+      } ${
+        isRunning ? 'bg-blue-50/50 dark:bg-blue-900/20 border-l-4 border-l-blue-500 animate-pulse' : ''
+      } ${
+        isPending && !isRunning ? 'opacity-60' : ''
+      } ${
+        isCompleted ? 'border-l-2 border-l-green-500' : ''
       }`}
     >
       {/* Card header */}

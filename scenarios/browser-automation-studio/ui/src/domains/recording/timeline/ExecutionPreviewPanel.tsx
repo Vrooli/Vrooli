@@ -54,24 +54,34 @@ export function ExecutionPreviewPanel({
     currentExecution ? { id: currentExecution.id, status: currentExecution.status } : undefined
   );
 
-  // Subscribe to live frame streaming when execution is running
+  // Subscribe to live frame streaming immediately when we have an execution ID
+  // We subscribe early (before store loads) to avoid missing frames due to race conditions
+  // The backend only sends frames when execution is actually running, so early subscription is safe
+  // We unsubscribe when execution is completed/failed/cancelled
   const isExecutionRunning = currentExecution?.status === 'running';
+  const isExecutionActive = !currentExecution ||
+    currentExecution.status === 'pending' ||
+    currentExecution.status === 'running';
   const { frameUrl, isStreaming, frameCount } = useExecutionFrameStream(
-    isExecutionRunning ? executionId : null,
-    { enabled: isExecutionRunning }
+    isExecutionActive ? executionId : null,
+    { enabled: isExecutionActive }
   );
 
   // Determine content type based on execution state and available data
   type ContentType = 'live-stream' | 'video' | 'slideshow' | 'status' | 'pending';
   const contentType: ContentType = useMemo(() => {
+    // Show live stream if we're streaming frames, regardless of store state
+    // This avoids showing fallback content while store is still loading
+    if (isStreaming && frameUrl) return 'live-stream';
     if (!currentExecution) return 'pending';
-    if (isExecutionRunning && isStreaming) return 'live-stream';
+    // Also show live stream if execution is running even if no frames yet
+    if (isExecutionRunning) return 'live-stream';
     if (currentExecution.status === 'completed' || currentExecution.status === 'failed' || currentExecution.status === 'cancelled') {
       if (currentExecution.screenshots && currentExecution.screenshots.length > 0) return 'slideshow';
       return 'status';
     }
     return 'status';
-  }, [currentExecution, isExecutionRunning, isStreaming]);
+  }, [currentExecution, isExecutionRunning, isStreaming, frameUrl]);
 
   // Get workflow info for display
   const workflows = useWorkflowStore((s) => s.workflows);
@@ -172,8 +182,8 @@ export function ExecutionPreviewPanel({
     };
   }, [executionId, loadExecution]);
 
-  // Loading state
-  if (isLoading) {
+  // Loading state - but show live stream if frames are arriving even while loading
+  if (isLoading && !(isStreaming && frameUrl)) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center text-center px-6">
         <Loader2 className="w-12 h-12 text-flow-accent animate-spin mb-4" />
@@ -184,8 +194,8 @@ export function ExecutionPreviewPanel({
     );
   }
 
-  // Error state
-  if (error) {
+  // Error state - but still show live stream if frames are arriving
+  if (error && !(isStreaming && frameUrl)) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center text-center px-6">
         <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
@@ -204,8 +214,8 @@ export function ExecutionPreviewPanel({
     );
   }
 
-  // No execution found
-  if (!currentExecution) {
+  // No execution found - but still show live stream if frames are arriving
+  if (!currentExecution && !(isStreaming && frameUrl)) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center text-center px-6">
         <AlertCircle className="w-12 h-12 text-amber-500 mb-4" />
@@ -224,16 +234,24 @@ export function ExecutionPreviewPanel({
     <div className="h-full w-full">
       {contentType === 'live-stream' && frameUrl ? (
         <LiveStreamView frameUrl={frameUrl} frameCount={frameCount} />
-      ) : contentType === 'slideshow' ? (
+      ) : contentType === 'slideshow' && currentExecution ? (
         <ScreenshotSlideshow
           screenshots={slideshowScreenshots}
           currentIndex={slideshow.currentIndex}
         />
-      ) : (
+      ) : currentExecution ? (
         <ExecutionContent
           execution={currentExecution}
           onStart={onExecutionStart}
         />
+      ) : (
+        // Fallback for edge case where we have no execution and no streaming
+        <div className="h-full w-full flex flex-col items-center justify-center text-center px-6">
+          <Loader2 className="w-12 h-12 text-flow-accent animate-spin mb-4" />
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            Waiting for execution...
+          </p>
+        </div>
       )}
     </div>
   );

@@ -455,6 +455,199 @@ export function parseTimelineEntry(timelineEntryJson: unknown): TimelineEntry | 
 }
 
 /**
+ * Execution status for timeline items during workflow execution.
+ */
+export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+/**
+ * Extended TimelineItem with execution status for workflow execution.
+ */
+export interface ExecutionTimelineItem extends TimelineItem {
+  /** Execution status for this step */
+  executionStatus: ExecutionStatus;
+  /** Node ID from the workflow (for matching with execution events) */
+  nodeId: string;
+}
+
+// ============================================================================
+// Workflow ↔ Timeline Bidirectional Conversion
+// ============================================================================
+
+/**
+ * Node types that should NOT appear in the timeline.
+ * These are structural/control nodes, not action nodes.
+ */
+const NON_ACTION_NODE_TYPES = new Set([
+  'start',
+  'end',
+  'entry',
+  'exit',
+  'group',
+  'comment',
+  'note',
+  'annotation',
+]);
+
+/**
+ * Check if a node is an action node that should appear in the timeline.
+ * Handles both V2 format (node.action.type) and legacy format (node.type).
+ */
+function isActionNode(node: { type?: string; action?: { type: string } }): boolean {
+  // Get the effective type from either format
+  const nodeType = node.type ?? node.action?.type;
+  if (!nodeType) return false;
+
+  // Normalize V2 format (ACTION_TYPE_NAVIGATE -> navigate)
+  const normalizedType = nodeType.replace('ACTION_TYPE_', '').toLowerCase();
+
+  return !NON_ACTION_NODE_TYPES.has(normalizedType);
+}
+
+/**
+ * Extract action type from a workflow node.
+ * Handles both V2 format (node.action.type) and legacy format (node.type).
+ */
+function getNodeActionType(node: { type?: string; action?: { type: string } }): string {
+  if (node.action?.type) {
+    // V2 format: ACTION_TYPE_NAVIGATE -> navigate
+    return node.action.type.replace('ACTION_TYPE_', '').toLowerCase();
+  }
+  if (node.type) {
+    return node.type.toLowerCase();
+  }
+  return 'unknown';
+}
+
+/**
+ * Convert workflow nodes to timeline items for pre-populating the timeline.
+ * Uses STORED ORDER (array index order) - not topological sort.
+ * This preserves the visual order from the workflow builder.
+ *
+ * @param nodes - React Flow nodes from the workflow
+ * @param _edges - React Flow edges (currently unused, kept for future use)
+ * @returns Timeline items with pending execution status
+ */
+export function workflowNodesToTimelineItems(
+  nodes: Array<{ id: string; type?: string; data?: Record<string, unknown>; action?: { type: string; metadata?: { label?: string }; navigate?: { url?: string } } }>,
+  _edges: Array<{ source: string; target: string }>
+): ExecutionTimelineItem[] {
+  console.log('[workflowNodesToTimelineItems] Input nodes:', nodes?.length ?? 0, nodes);
+
+  if (!nodes || nodes.length === 0) {
+    console.log('[workflowNodesToTimelineItems] No nodes provided');
+    return [];
+  }
+
+  const items: ExecutionTimelineItem[] = [];
+  let sequenceNum = 1;
+
+  // Use stored order (array index) - filter out non-action nodes
+  for (const node of nodes) {
+    const nodeTypeInfo = {
+      id: node.id,
+      type: node.type,
+      actionType: node.action?.type,
+      isAction: isActionNode(node),
+    };
+    console.log('[workflowNodesToTimelineItems] Processing node:', nodeTypeInfo);
+
+    // Skip non-action nodes
+    if (!isActionNode(node)) {
+      console.log('[workflowNodesToTimelineItems] Skipping non-action node:', node.id);
+      continue;
+    }
+
+    const actionType = getNodeActionType(node);
+
+    // Get label for display
+    const label = node.action?.metadata?.label ?? (node.data?.label as string | undefined);
+
+    // Get selector if available
+    const selector = node.data?.selector as string | undefined;
+
+    // Get URL for navigate nodes
+    let url: string | undefined;
+    if (actionType === 'navigate') {
+      url = (node.data?.url as string) ?? node.action?.navigate?.url;
+    }
+
+    items.push({
+      id: `workflow-step-${node.id}`,
+      nodeId: node.id,
+      sequenceNum: sequenceNum++,
+      timestamp: new Date(), // Will be updated during execution
+      actionType,
+      selector,
+      url,
+      mode: 'execution',
+      executionStatus: 'pending',
+      entryType: 'action',
+      // Use label as page title for display
+      pageTitle: label,
+    });
+  }
+
+  console.log('[workflowNodesToTimelineItems] Converted', items.length, 'of', nodes.length, 'nodes to timeline items');
+  return items;
+}
+
+/**
+ * Convert timeline items back to workflow nodes.
+ * This is the reverse operation for editing workflows from timeline.
+ *
+ * @param items - Timeline items to convert
+ * @returns Workflow nodes (without position data - caller must add)
+ */
+export function timelineItemsToWorkflowNodes(
+  items: TimelineItem[]
+): Array<{ id: string; type: string; data: Record<string, unknown> }> {
+  return items
+    .filter(item => item.entryType === 'action')
+    .map(item => ({
+      id: (item as ExecutionTimelineItem).nodeId ?? item.id,
+      type: item.actionType,
+      data: {
+        label: item.pageTitle ?? item.actionType,
+        selector: item.selector,
+        url: item.url,
+      },
+    }));
+}
+
+/**
+ * Update timeline items with execution event data.
+ * Matches by node_id and updates status.
+ *
+ * @param items - Current timeline items
+ * @param nodeId - Node ID from execution event
+ * @param status - New execution status
+ * @param error - Optional error message
+ * @param durationMs - Optional duration in milliseconds
+ * @returns Updated timeline items
+ */
+export function updateTimelineItemStatus(
+  items: ExecutionTimelineItem[],
+  nodeId: string,
+  status: ExecutionStatus,
+  error?: string,
+  durationMs?: number
+): ExecutionTimelineItem[] {
+  return items.map(item => {
+    if (item.nodeId === nodeId) {
+      return {
+        ...item,
+        executionStatus: status,
+        success: status === 'completed' ? true : status === 'failed' ? false : undefined,
+        error,
+        durationMs: durationMs ?? item.durationMs,
+        timestamp: status === 'running' ? new Date() : item.timestamp,
+      };
+    }
+    return item;
+  });
+}
+
+/**
  * AI Navigation Step interface (imported types to avoid circular deps).
  * This mirrors the AINavigationStep from ai-navigation/types.ts.
  */
