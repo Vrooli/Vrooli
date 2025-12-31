@@ -41,13 +41,15 @@ func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 	summaries := make([]domain.DeploymentSummary, len(deployments))
 	for i, d := range deployments {
 		summary := domain.DeploymentSummary{
-			ID:             d.ID,
-			Name:           d.Name,
-			ScenarioID:     d.ScenarioID,
-			Status:         d.Status,
-			ErrorMessage:   d.ErrorMessage,
-			CreatedAt:      d.CreatedAt,
-			LastDeployedAt: d.LastDeployedAt,
+			ID:              d.ID,
+			Name:            d.Name,
+			ScenarioID:      d.ScenarioID,
+			Status:          d.Status,
+			ErrorMessage:    d.ErrorMessage,
+			ProgressStep:    d.ProgressStep,
+			ProgressPercent: d.ProgressPercent,
+			CreatedAt:       d.CreatedAt,
+			LastDeployedAt:  d.LastDeployedAt,
 		}
 		// Extract domain and host from manifest
 		if d.Manifest != nil {
@@ -684,6 +686,7 @@ func (s *Server) stopDeploymentOnVPS(ctx context.Context, manifest CloudManifest
 // setDeploymentError is a helper to set error status on a deployment.
 func setDeploymentError(repo interface {
 	UpdateDeploymentStatus(ctx context.Context, id string, status domain.DeploymentStatus, errorMsg, errorStep *string) error
-}, ctx context.Context, id, step, errMsg string) {
+}, ctx context.Context, id, step, errMsg string,
+) {
 	_ = repo.UpdateDeploymentStatus(ctx, id, domain.StatusFailed, &errMsg, &step)
 }

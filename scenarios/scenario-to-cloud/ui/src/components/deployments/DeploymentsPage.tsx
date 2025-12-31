@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Server,
   RefreshCw,
@@ -15,6 +15,7 @@ import {
   Globe,
 } from "lucide-react";
 import { useDeployments, useDeleteDeployment, useInspectDeployment, getStatusInfo } from "../../hooks/useDeployments";
+import { useDeploymentListProgress } from "../../hooks/useDeploymentListProgress";
 import { cn } from "../../lib/utils";
 import type { DeploymentSummary } from "../../lib/api";
 import { DeploymentDetails } from "./DeploymentDetails";
@@ -32,6 +33,17 @@ export function DeploymentsPage({ onBack }: DeploymentsPageProps) {
 
   const deleteMutation = useDeleteDeployment();
   const inspectMutation = useInspectDeployment();
+
+  // Get IDs of in-progress deployments for real-time progress tracking
+  const inProgressIds = useMemo(() => {
+    if (!deployments) return [];
+    return deployments
+      .filter((d) => d.status === "setup_running" || d.status === "deploying" || d.status === "pending")
+      .map((d) => d.id);
+  }, [deployments]);
+
+  // Track progress for in-progress deployments
+  const { progressMap } = useDeploymentListProgress(inProgressIds);
 
   const handleDelete = async () => {
     if (!showDeleteDialog) return;
@@ -120,16 +132,25 @@ export function DeploymentsPage({ onBack }: DeploymentsPageProps) {
       {/* Deployments list */}
       {deployments && deployments.length > 0 && (
         <div className="space-y-3">
-          {deployments.map((deployment) => (
-            <DeploymentCard
-              key={deployment.id}
-              deployment={deployment}
-              onSelect={() => setSelectedId(deployment.id)}
-              onInspect={() => handleInspect(deployment.id)}
-              onDelete={() => setShowDeleteDialog(deployment.id)}
-              isInspecting={inspectMutation.isPending && inspectMutation.variables === deployment.id}
-            />
-          ))}
+          {deployments.map((deployment) => {
+            // Use real-time progress from polling if available, fall back to initial API data
+            const liveProgress = progressMap[deployment.id];
+            const progressStep = liveProgress?.progress_step ?? deployment.progress_step;
+            const progressPercent = liveProgress?.progress_percent ?? deployment.progress_percent ?? 0;
+
+            return (
+              <DeploymentCard
+                key={deployment.id}
+                deployment={deployment}
+                progressStep={progressStep}
+                progressPercent={progressPercent}
+                onSelect={() => setSelectedId(deployment.id)}
+                onInspect={() => handleInspect(deployment.id)}
+                onDelete={() => setShowDeleteDialog(deployment.id)}
+                isInspecting={inspectMutation.isPending && inspectMutation.variables === deployment.id}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -226,6 +247,8 @@ function StatusBadge({ status }: { status: DeploymentSummary["status"] }) {
 // Deployment card component
 interface DeploymentCardProps {
   deployment: DeploymentSummary;
+  progressStep?: string;
+  progressPercent?: number;
   onSelect: () => void;
   onInspect: () => void;
   onDelete: () => void;
@@ -234,6 +257,8 @@ interface DeploymentCardProps {
 
 function DeploymentCard({
   deployment,
+  progressStep,
+  progressPercent = 0,
   onSelect,
   onInspect,
   onDelete,
@@ -242,6 +267,8 @@ function DeploymentCard({
   const formattedDate = deployment.last_deployed_at
     ? new Date(deployment.last_deployed_at).toLocaleString()
     : new Date(deployment.created_at).toLocaleString();
+
+  const isInProgress = deployment.status === "setup_running" || deployment.status === "deploying" || deployment.status === "pending";
 
   return (
     <div className="border border-white/10 rounded-lg bg-slate-900/50 p-4 hover:border-white/20 transition-colors">
@@ -331,6 +358,25 @@ function DeploymentCard({
           </button>
         </div>
       </div>
+
+      {/* Progress bar for in-progress deployments */}
+      {isInProgress && (
+        <div className="mt-3 pt-3 border-t border-white/10">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+            <span className="flex items-center gap-1.5">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {progressStep ?? "Starting..."}
+            </span>
+            <span className="font-medium">{Math.round(progressPercent)}%</span>
+          </div>
+          <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+            <div
+              className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-500 ease-out"
+              style={{ width: `${Math.min(progressPercent, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

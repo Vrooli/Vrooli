@@ -285,6 +285,8 @@ export type DeploymentSummary = {
   domain?: string;
   host?: string;
   error_message?: string;
+  progress_step?: string;
+  progress_percent?: number;
   created_at: string;
   last_deployed_at?: string;
 };
@@ -303,6 +305,8 @@ export type Deployment = {
   last_inspect_result?: VPSInspectResult;
   error_message?: string;
   error_step?: string;
+  progress_step?: string;
+  progress_percent?: number;
   created_at: string;
   updated_at: string;
   last_deployed_at?: string;
@@ -354,6 +358,30 @@ export async function listDeployments(): Promise<ListDeploymentsResponse> {
     throw new Error(`Failed to list deployments: ${res.status} ${text}`);
   }
   return res.json() as Promise<ListDeploymentsResponse>;
+}
+
+/**
+ * Find an in-progress deployment, optionally filtered by scenario ID.
+ * Returns the most recently created in-progress deployment, or null if none found.
+ */
+export async function findInProgressDeployment(
+  scenarioId?: string
+): Promise<DeploymentSummary | null> {
+  const { deployments } = await listDeployments();
+
+  // Filter to in-progress deployments
+  const inProgress = deployments.filter(
+    (d) =>
+      (d.status === "setup_running" || d.status === "deploying" || d.status === "pending") &&
+      (!scenarioId || d.scenario_id === scenarioId)
+  );
+
+  if (inProgress.length === 0) {
+    return null;
+  }
+
+  // Return most recent (list is already sorted by created_at desc from API)
+  return inProgress[0];
 }
 
 export async function createDeployment(

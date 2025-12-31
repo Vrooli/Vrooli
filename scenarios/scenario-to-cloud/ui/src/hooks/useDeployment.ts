@@ -1,14 +1,17 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   validateManifest,
   buildBundle,
   runPreflight as runPreflightApi,
   createDeployment,
   executeDeployment,
+  getDeployment,
+  findInProgressDeployment,
   type ValidationIssue,
   type BundleArtifact,
   type PreflightCheck,
   type SSHConnectionStatus,
+  type DeploymentStatus,
 } from "../lib/api";
 import {
   type DeploymentManifest,
@@ -27,6 +30,8 @@ type SavedDeployment = {
   currentStep: number;
   timestamp: number;
   sshKeyPath?: string | null;
+  deploymentId?: string | null;
+  deploymentStatus?: "idle" | "deploying" | "success" | "failed" | null;
 };
 
 function loadSavedDeployment(): SavedDeployment | null {
@@ -84,10 +89,13 @@ export function useDeployment() {
   const [isRunningPreflight, setIsRunningPreflight] = useState(false);
   const [preflightOverride, setPreflightOverride] = useState(false);
 
-  // Deploy state
-  const [deploymentStatus, setDeploymentStatus] = useState<"idle" | "deploying" | "success" | "failed">("idle");
+  // Deploy state - initialize from saved state if available
+  const [deploymentStatus, setDeploymentStatus] = useState<"idle" | "deploying" | "success" | "failed">(
+    saved?.deploymentStatus ?? "idle"
+  );
   const [deploymentError, setDeploymentError] = useState<string | null>(null);
-  const [deploymentId, setDeploymentId] = useState<string | null>(null);
+  const [deploymentId, setDeploymentId] = useState<string | null>(saved?.deploymentId ?? null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   // SSH state
   const [sshKeyPath, setSSHKeyPath] = useState<string | null>(saved?.sshKeyPath ?? null);
@@ -110,6 +118,79 @@ export function useDeployment() {
 
   const currentStep = WIZARD_STEPS[currentStepIndex];
 
+  // Reconnection logic: Check for in-progress deployment on mount
+  useEffect(() => {
+    const checkForInProgressDeployment = async () => {
+      // Case 1: Same-device refresh - we have a saved deploymentId
+      if (saved?.deploymentId && saved?.deploymentStatus === "deploying") {
+        setIsReconnecting(true);
+        try {
+          const res = await getDeployment(saved.deploymentId);
+          const status = res.deployment.status;
+
+          if (status === "setup_running" || status === "deploying") {
+            // Still in progress - state already initialized from saved, just verify
+            setDeploymentId(saved.deploymentId);
+            setDeploymentStatus("deploying");
+            // Navigate to deploy step if not already there
+            if (currentStepIndex !== 3) {
+              setCurrentStepIndex(3);
+            }
+          } else if (status === "deployed") {
+            // Completed successfully
+            setDeploymentStatus("success");
+            setDeploymentId(saved.deploymentId);
+          } else if (status === "failed" || status === "stopped") {
+            // Failed or stopped
+            setDeploymentStatus("failed");
+            setDeploymentId(saved.deploymentId);
+            setDeploymentError(res.deployment.error_message ?? "Deployment failed");
+          }
+        } catch {
+          // Deployment no longer exists - clear saved state
+          clearSavedDeployment();
+          setDeploymentId(null);
+          setDeploymentStatus("idle");
+        } finally {
+          setIsReconnecting(false);
+        }
+        return;
+      }
+
+      // Case 2: Cross-device - check if there's an in-progress deployment for this scenario
+      if (saved?.manifestJson && !saved?.deploymentId) {
+        try {
+          const manifest = JSON.parse(saved.manifestJson) as DeploymentManifest;
+          const scenarioId = manifest.scenario?.id;
+          if (scenarioId) {
+            const inProgress = await findInProgressDeployment(scenarioId);
+            if (inProgress) {
+              // Found an in-progress deployment - resume it
+              setDeploymentId(inProgress.id);
+              setDeploymentStatus("deploying");
+              setCurrentStepIndex(3); // Navigate to deploy step
+              // Save the discovered deployment to localStorage
+              saveDeployment({
+                manifestJson: saved.manifestJson,
+                currentStep: 3,
+                timestamp: Date.now(),
+                sshKeyPath: saved.sshKeyPath,
+                deploymentId: inProgress.id,
+                deploymentStatus: "deploying",
+              });
+            }
+          }
+        } catch {
+          // Ignore errors during cross-device detection
+        }
+      }
+    };
+
+    checkForInProgressDeployment();
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Save on manifest/step change (with undo history tracking)
   const updateManifestJson = useCallback((json: string) => {
     // Skip history tracking during undo/redo operations
@@ -127,8 +208,10 @@ export function useDeployment() {
       currentStep: currentStepIndex,
       timestamp: Date.now(),
       sshKeyPath,
+      deploymentId,
+      deploymentStatus,
     });
-  }, [currentStepIndex, sshKeyPath, manifestJson]);
+  }, [currentStepIndex, sshKeyPath, manifestJson, deploymentId, deploymentStatus]);
 
   // Undo last manifest change
   const undo = useCallback(() => {
@@ -145,8 +228,10 @@ export function useDeployment() {
       currentStep: currentStepIndex,
       timestamp: Date.now(),
       sshKeyPath,
+      deploymentId,
+      deploymentStatus,
     });
-  }, [manifestJson, currentStepIndex, sshKeyPath]);
+  }, [manifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
 
   // Redo last undone change
   const redo = useCallback(() => {
@@ -163,8 +248,10 @@ export function useDeployment() {
       currentStep: currentStepIndex,
       timestamp: Date.now(),
       sshKeyPath,
+      deploymentId,
+      deploymentStatus,
     });
-  }, [manifestJson, currentStepIndex, sshKeyPath]);
+  }, [manifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
 
   // Check if undo/redo is available (for UI state)
   const canUndo = historyRef.current.length > 0;
@@ -179,9 +266,11 @@ export function useDeployment() {
         currentStep: index,
         timestamp: Date.now(),
         sshKeyPath,
+        deploymentId,
+        deploymentStatus,
       });
     }
-  }, [manifestJson, sshKeyPath]);
+  }, [manifestJson, sshKeyPath, deploymentId, deploymentStatus]);
 
   // Update SSH key path with persistence
   const updateSSHKeyPath = useCallback((keyPath: string | null) => {
@@ -192,8 +281,10 @@ export function useDeployment() {
       currentStep: currentStepIndex,
       timestamp: Date.now(),
       sshKeyPath: keyPath,
+      deploymentId,
+      deploymentStatus,
     });
-  }, [manifestJson, currentStepIndex]);
+  }, [manifestJson, currentStepIndex, deploymentId, deploymentStatus]);
 
   const goNext = useCallback(() => {
     goToStep(currentStepIndex + 1);
@@ -237,12 +328,14 @@ export function useDeployment() {
         currentStep: currentStepIndex,
         timestamp: Date.now(),
         sshKeyPath,
+        deploymentId,
+        deploymentStatus,
       });
       // Clear validation state to trigger re-validation
       setValidationIssues(null);
       setNormalizedManifest(null);
     }
-  }, [normalizedManifest, currentStepIndex, sshKeyPath]);
+  }, [normalizedManifest, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
 
   const build = useCallback(async () => {
     setBundleArtifact(null);
@@ -296,23 +389,35 @@ export function useDeployment() {
 
       // Step 1: Create or get existing deployment record
       const createRes = await createDeployment(parsedManifest.value);
-      setDeploymentId(createRes.deployment.id);
+      const newDeploymentId = createRes.deployment.id;
+      setDeploymentId(newDeploymentId);
+
+      // Save deployment ID to localStorage for reconnection on refresh
+      saveDeployment({
+        manifestJson,
+        currentStep: currentStepIndex,
+        timestamp: Date.now(),
+        sshKeyPath,
+        deploymentId: newDeploymentId,
+        deploymentStatus: "deploying",
+      });
 
       // Step 2: Execute deployment (setup + deploy)
       // This is now non-blocking - it returns immediately.
       // Progress is tracked via SSE on /deployments/{id}/progress
       // and status updates come via the onDeploymentComplete callback
-      await executeDeployment(createRes.deployment.id);
+      await executeDeployment(newDeploymentId);
 
       // Status remains "deploying" - will be updated via SSE progress events
     } catch (e) {
       setDeploymentError(e instanceof Error ? e.message : String(e));
       setDeploymentStatus("failed");
     }
-  }, [parsedManifest]);
+  }, [parsedManifest, manifestJson, currentStepIndex, sshKeyPath]);
 
   // Called when SSE progress stream reports completion or error
   const onDeploymentComplete = useCallback((success: boolean, error?: string) => {
+    const newStatus = success ? "success" : "failed";
     if (success) {
       setDeploymentStatus("success");
       setDeploymentError(null);
@@ -320,7 +425,16 @@ export function useDeployment() {
       setDeploymentStatus("failed");
       setDeploymentError(error || "Deployment failed");
     }
-  }, []);
+    // Save final status to localStorage
+    saveDeployment({
+      manifestJson,
+      currentStep: currentStepIndex,
+      timestamp: Date.now(),
+      sshKeyPath,
+      deploymentId,
+      deploymentStatus: newStatus,
+    });
+  }, [manifestJson, currentStepIndex, sshKeyPath, deploymentId]);
 
   // Reset manifest to defaults (keeps current step)
   const resetManifestToDefaults = useCallback(() => {
@@ -337,8 +451,10 @@ export function useDeployment() {
       currentStep: currentStepIndex,
       timestamp: Date.now(),
       sshKeyPath,
+      deploymentId,
+      deploymentStatus,
     });
-  }, [manifestJson, currentStepIndex, sshKeyPath]);
+  }, [manifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
 
   // Reset manifest but preserve scenario selection and auto-populate its ports
   const resetManifestWithScenario = useCallback((scenarioId: string, scenarioPorts: Record<string, number>) => {
@@ -363,8 +479,10 @@ export function useDeployment() {
       currentStep: currentStepIndex,
       timestamp: Date.now(),
       sshKeyPath,
+      deploymentId,
+      deploymentStatus,
     });
-  }, [manifestJson, currentStepIndex, sshKeyPath]);
+  }, [manifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
 
   // Full reset (returns to step 0, clears everything)
   const reset = useCallback(() => {
@@ -469,6 +587,7 @@ export function useDeployment() {
     deploymentId,
     deploy,
     onDeploymentComplete,
+    isReconnecting,
 
     // SSH
     sshKeyPath,

@@ -111,15 +111,17 @@ type Deployment struct {
 
 // DeploymentSummary is a lightweight view of a deployment for list views.
 type DeploymentSummary struct {
-	ID             string           `json:"id"`
-	Name           string           `json:"name"`
-	ScenarioID     string           `json:"scenario_id"`
-	Status         DeploymentStatus `json:"status"`
-	Domain         string           `json:"domain,omitempty"`
-	Host           string           `json:"host,omitempty"`
-	ErrorMessage   *string          `json:"error_message,omitempty"`
-	CreatedAt      time.Time        `json:"created_at"`
-	LastDeployedAt *time.Time       `json:"last_deployed_at,omitempty"`
+	ID              string           `json:"id"`
+	Name            string           `json:"name"`
+	ScenarioID      string           `json:"scenario_id"`
+	Status          DeploymentStatus `json:"status"`
+	Domain          string           `json:"domain,omitempty"`
+	Host            string           `json:"host,omitempty"`
+	ErrorMessage    *string          `json:"error_message,omitempty"`
+	ProgressStep    *string          `json:"progress_step,omitempty"`
+	ProgressPercent float64          `json:"progress_percent"`
+	CreatedAt       time.Time        `json:"created_at"`
+	LastDeployedAt  *time.Time       `json:"last_deployed_at,omitempty"`
 }
 
 // ListFilter contains options for filtering deployment lists.
