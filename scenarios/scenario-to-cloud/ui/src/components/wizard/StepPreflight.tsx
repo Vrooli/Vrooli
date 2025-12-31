@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Play, CheckCircle2, AlertTriangle, XCircle, Server, Globe, Key, Network, HardDrive, Cpu, Wifi, Loader2, Zap, Trash2, Info, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
+import { Shield, Play, CheckCircle2, AlertTriangle, XCircle, Server, Globe, Key, Network, HardDrive, Cpu, Wifi, Loader2, Zap, Trash2, Info, ChevronDown, ChevronUp, Copy, Check, Package } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import type { useDeployment } from "../../hooks/useDeployment";
@@ -21,6 +21,13 @@ const CHECK_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
   outbound_network: Wifi,
   disk_free: HardDrive,
   ram_total: Cpu,
+  // Bootstrap prerequisite checks
+  cmd_curl: Package,
+  cmd_git: Package,
+  cmd_unzip: Package,
+  cmd_tar: Package,
+  cmd_jq: Package,
+  apt_access: Package,
 };
 
 // Check definitions - used for preview and running states
@@ -34,6 +41,13 @@ const CHECK_DEFINITIONS = [
   { id: "outbound_network", title: "Outbound network", description: "Test outbound HTTPS access" },
   { id: "disk_free", title: "Disk free space", description: "Ensure sufficient disk space" },
   { id: "ram_total", title: "RAM", description: "Check available RAM" },
+  // Bootstrap prerequisite checks
+  { id: "cmd_curl", title: "curl available", description: "Check curl is installed" },
+  { id: "cmd_git", title: "git available", description: "Check git is installed" },
+  { id: "cmd_unzip", title: "unzip available", description: "Check unzip is installed" },
+  { id: "cmd_tar", title: "tar available", description: "Check tar is installed" },
+  { id: "cmd_jq", title: "jq available", description: "Check jq is installed" },
+  { id: "apt_access", title: "apt accessible", description: "Verify apt-get can be run" },
 ];
 
 type CheckState = "pending" | "running" | PreflightCheckStatus;

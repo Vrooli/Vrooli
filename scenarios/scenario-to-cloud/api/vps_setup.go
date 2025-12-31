@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+// bootstrapCommand installs system prerequisites on a fresh VPS.
+// Uses noninteractive mode to prevent apt/debconf from hanging on prompts.
+const bootstrapCommand = `export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a && ` +
+	`apt-get update -qq && ` +
+	`apt-get install -y -qq curl git unzip tar jq ca-certificates gnupg lsb-release`
+
 type VPSSetupRequest struct {
 	Manifest   CloudManifest `json:"manifest"`
 	BundlePath string        `json:"bundle_path"`
@@ -48,6 +54,12 @@ func BuildVPSSetupPlan(manifest CloudManifest, bundlePath string) ([]VPSPlanStep
 			Title:       "Create remote directories",
 			Description: "Ensure the deployment workdir and bundle directory exist.",
 			Command:     localSSHCommand(cfg, fmt.Sprintf("mkdir -p %s %s", shellQuoteSingle(manifest.Target.VPS.Workdir), shellQuoteSingle(remoteBundleDir))),
+		},
+		{
+			ID:          "bootstrap",
+			Title:       "Install system prerequisites",
+			Description: "Update apt and install required packages (curl, git, unzip, etc.)",
+			Command:     localSSHCommand(cfg, bootstrapCommand),
 		},
 		{
 			ID:          "upload",
@@ -108,22 +120,25 @@ func RunVPSSetup(ctx context.Context, manifest CloudManifest, bundlePath string,
 	}
 
 	if err := run(fmt.Sprintf("mkdir -p %s %s", shellQuoteSingle(manifest.Target.VPS.Workdir), shellQuoteSingle(remoteBundleDir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "mkdir", Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	}
+	if err := run(bootstrapCommand); err != nil {
+		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "bootstrap", Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 	if err := scpRunner.Copy(ctx, cfg, bundlePath, remoteBundlePath); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "upload", Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 	if err := run(fmt.Sprintf("tar -xzf %s -C %s", shellQuoteSingle(remoteBundlePath), shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "extract", Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 	if err := run(fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes", shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "setup", Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 	if err := run(fmt.Sprintf("mkdir -p %s && printf '%%s' %s > %s", shellQuoteSingle(safeRemoteJoin(manifest.Target.VPS.Workdir, ".vrooli", "cloud")), shellQuoteSingle(minimalAutohealScopeJSON(manifest)), shellQuoteSingle(autohealConfigPath))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "autoheal", Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 	if err := run(fmt.Sprintf("cd %s && vrooli --version", shellQuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
-		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		return VPSSetupResult{OK: false, Steps: steps, Error: err.Error(), FailedStep: "verify", Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
 	return VPSSetupResult{OK: true, Steps: steps, Timestamp: time.Now().UTC().Format(time.RFC3339)}
@@ -206,6 +221,14 @@ func RunVPSSetupWithProgress(
 	}
 	*progress += StepWeights["mkdir"]
 	emit("step_completed", "mkdir", "Creating directories")
+
+	// Step: bootstrap
+	emit("step_started", "bootstrap", "Installing prerequisites")
+	if err := run(bootstrapCommand); err != nil {
+		return failStep("bootstrap", "Installing prerequisites", err.Error())
+	}
+	*progress += StepWeights["bootstrap"]
+	emit("step_completed", "bootstrap", "Installing prerequisites")
 
 	// Step: upload
 	emit("step_started", "upload", "Uploading bundle")

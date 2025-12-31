@@ -78,7 +78,7 @@ export function useDeployment() {
   const [normalizedManifest, setNormalizedManifest] = useState<DeploymentManifest | null>(null);
 
   // Bundle state
-  const [bundleArtifact, setBundleArtifact] = useState<BundleArtifact | null>(null);
+  const [bundleArtifact, setBundleArtifactRaw] = useState<BundleArtifact | null>(null);
   const [bundleError, setBundleError] = useState<string | null>(null);
   const [isBuildingBundle, setIsBuildingBundle] = useState(false);
 
@@ -117,6 +117,18 @@ export function useDeployment() {
   }, [manifestJson]);
 
   const currentStep = WIZARD_STEPS[currentStepIndex];
+
+  // Wrapper to reset deployment state when bundle changes
+  const setBundleArtifact = useCallback((artifact: BundleArtifact | null) => {
+    setBundleArtifactRaw(artifact);
+    // Reset deployment state when a new bundle is selected
+    // This ensures "Retry Deployment" uses the new bundle
+    if (artifact !== null) {
+      setDeploymentStatus("idle");
+      setDeploymentError(null);
+      setDeploymentId(null);
+    }
+  }, []);
 
   // Reconnection logic: Check for in-progress deployment on mount
   useEffect(() => {
@@ -353,7 +365,7 @@ export function useDeployment() {
     } finally {
       setIsBuildingBundle(false);
     }
-  }, [parsedManifest]);
+  }, [parsedManifest, setBundleArtifact]);
 
   const runPreflight = useCallback(async () => {
     setPreflightPassed(null);
@@ -387,8 +399,12 @@ export function useDeployment() {
         throw new Error(`Invalid manifest: ${parsedManifest.error}`);
       }
 
-      // Step 1: Create or get existing deployment record
-      const createRes = await createDeployment(parsedManifest.value);
+      // Step 1: Create or get existing deployment record with bundle info
+      const createRes = await createDeployment(parsedManifest.value, {
+        bundlePath: bundleArtifact?.path,
+        bundleSha256: bundleArtifact?.sha256,
+        bundleSizeBytes: bundleArtifact?.size_bytes,
+      });
       const newDeploymentId = createRes.deployment.id;
       setDeploymentId(newDeploymentId);
 
@@ -413,7 +429,7 @@ export function useDeployment() {
       setDeploymentError(e instanceof Error ? e.message : String(e));
       setDeploymentStatus("failed");
     }
-  }, [parsedManifest, manifestJson, currentStepIndex, sshKeyPath]);
+  }, [parsedManifest, manifestJson, currentStepIndex, sshKeyPath, bundleArtifact]);
 
   // Called when SSE progress stream reports completion or error
   const onDeploymentComplete = useCallback((success: boolean, error?: string) => {

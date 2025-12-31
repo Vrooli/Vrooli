@@ -386,13 +386,25 @@ export async function findInProgressDeployment(
 
 export async function createDeployment(
   manifest: unknown,
-  name?: string
+  options?: {
+    name?: string;
+    bundlePath?: string;
+    bundleSha256?: string;
+    bundleSizeBytes?: number;
+  }
 ): Promise<DeploymentResponse> {
   const url = buildApiUrl("/deployments", { baseUrl: API_BASE });
+  const body: Record<string, unknown> = { manifest };
+  if (options?.name) body.name = options.name;
+  if (options?.bundlePath) {
+    body.bundle_path = options.bundlePath;
+    body.bundle_sha256 = options.bundleSha256;
+    body.bundle_size_bytes = options.bundleSizeBytes;
+  }
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ manifest, name })
+    body: JSON.stringify(body)
   });
   if (!res.ok) {
     const text = await res.text();

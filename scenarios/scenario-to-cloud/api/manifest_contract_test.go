@@ -25,9 +25,9 @@ func TestValidateAndNormalizeManifest_MinimalValidVPS(t *testing.T) {
 			Scenarios:       []string{"landing-page-business-suite", "vrooli-autoheal"},
 		},
 		Ports: ManifestPorts{
-			UI:  3000,
-			API: 3001,
-			WS:  3002,
+			"ui":  3000,
+			"api": 3001,
+			"ws":  3002,
 		},
 		Edge: ManifestEdge{
 			Domain: "example.com",

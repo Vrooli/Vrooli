@@ -12,7 +12,7 @@ func TestManifestValidationErrorsAreActionable(t *testing.T) {
 		},
 		Scenario: ManifestScenario{ID: "landing-page-business-suite"},
 		Bundle:   ManifestBundle{IncludePackages: true, IncludeAutoheal: true},
-		Ports:    ManifestPorts{UI: 3000, API: 3001, WS: 3002},
+		Ports:    ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
 		Edge:     ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true}},
 	}
 

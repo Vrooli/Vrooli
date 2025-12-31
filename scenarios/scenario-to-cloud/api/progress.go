@@ -27,11 +27,12 @@ type ProgressEmitter interface {
 var StepWeights = map[string]float64{
 	"bundle_build":    5,
 	"mkdir":           0, // Trivial, no weight
+	"bootstrap":       5, // apt update + install prereqs
 	"upload":          20,
 	"extract":         5,
-	"setup":           15,
+	"setup":           12, // Reduced from 15 (bootstrap handles some work now)
 	"autoheal":        2,
-	"verify_setup":    3,
+	"verify_setup":    1, // Reduced from 3
 	"caddy_install":   5,
 	"caddy_config":    5,
 	"resource_start":  15,
@@ -51,6 +52,7 @@ type StepInfo struct {
 // SetupSteps defines the steps in the VPS setup phase.
 var SetupSteps = []StepInfo{
 	{ID: "mkdir", Title: "Creating directories", Weight: StepWeights["mkdir"]},
+	{ID: "bootstrap", Title: "Installing prerequisites", Weight: StepWeights["bootstrap"]},
 	{ID: "upload", Title: "Uploading bundle", Weight: StepWeights["upload"]},
 	{ID: "extract", Title: "Extracting bundle", Weight: StepWeights["extract"]},
 	{ID: "setup", Title: "Running setup", Weight: StepWeights["setup"]},

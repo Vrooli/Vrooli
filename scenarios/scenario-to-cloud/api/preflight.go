@@ -263,6 +263,57 @@ func RunVPSPreflight(
 		}
 	}
 
+	// Check: required system commands (bootstrap will install if missing)
+	requiredCmds := []struct {
+		name string
+		id   string
+	}{
+		{"curl", "cmd_curl"},
+		{"git", "cmd_git"},
+		{"unzip", "cmd_unzip"},
+		{"tar", "cmd_tar"},
+	}
+	for _, cmd := range requiredCmds {
+		res, err := sshRunner.Run(ctx, cfg, "which "+cmd.name)
+		if err != nil || res.ExitCode != 0 {
+			warn(cmd.id, cmd.name+" available",
+				cmd.name+" not found on VPS",
+				"Bootstrap phase will install this automatically",
+				nil)
+		} else {
+			pass(cmd.id, cmd.name+" available",
+				"Found at "+strings.TrimSpace(res.Stdout), nil)
+		}
+	}
+
+	// Check: jq (nice to have, warn only)
+	jqRes, jqErr := sshRunner.Run(ctx, cfg, "which jq")
+	if jqErr != nil || jqRes.ExitCode != 0 {
+		warn("cmd_jq", "jq available",
+			"jq not found on VPS",
+			"Bootstrap phase will install this automatically",
+			nil)
+	} else {
+		pass("cmd_jq", "jq available",
+			"Found at "+strings.TrimSpace(jqRes.Stdout), nil)
+	}
+
+	// Check: apt access (required for bootstrap to work)
+	aptRes, aptErr := sshRunner.Run(ctx, cfg, "apt-get update --print-uris 2>&1 | head -1")
+	if aptErr != nil {
+		fail("apt_access", "apt accessible",
+			"Unable to run apt-get",
+			"Bootstrap requires apt access. Ensure the user has sudo/root privileges.",
+			map[string]string{"error": aptErr.Error()})
+	} else if strings.Contains(aptRes.Stderr, "Permission denied") || strings.Contains(aptRes.Stdout, "Permission denied") {
+		fail("apt_access", "apt accessible",
+			"apt-get permission denied",
+			"Bootstrap requires apt access. Ensure the user has sudo/root privileges.",
+			nil)
+	} else {
+		pass("apt_access", "apt accessible", "apt-get is accessible", nil)
+	}
+
 	ok := true
 	for _, c := range checks {
 		if c.Status == PreflightFail {

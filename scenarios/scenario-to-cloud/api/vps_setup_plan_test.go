@@ -32,7 +32,7 @@ func TestBuildVPSSetupPlanIncludesUploadAndSetup(t *testing.T) {
 			Resources: []string{"postgres"},
 		},
 		Bundle: ManifestBundle{IncludePackages: true, IncludeAutoheal: true},
-		Ports:  ManifestPorts{UI: 3000, API: 3001, WS: 3002},
+		Ports:  ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
 		Edge:   ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true}},
 	}
 
@@ -40,11 +40,11 @@ func TestBuildVPSSetupPlanIncludesUploadAndSetup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildVPSSetupPlan: %v", err)
 	}
-	if len(plan) < 5 {
-		t.Fatalf("expected plan steps, got: %+v", plan)
+	if len(plan) < 7 {
+		t.Fatalf("expected at least 7 plan steps (mkdir, bootstrap, upload, extract, setup, autoheal, verify), got: %d", len(plan))
 	}
 
-	var hasUpload, hasSetup bool
+	var hasUpload, hasSetup, hasBootstrap bool
 	for _, step := range plan {
 		if strings.Contains(step.Command, "scp") {
 			hasUpload = true
@@ -52,9 +52,15 @@ func TestBuildVPSSetupPlanIncludesUploadAndSetup(t *testing.T) {
 		if strings.Contains(step.Command, "./scripts/manage.sh setup") {
 			hasSetup = true
 		}
+		if step.ID == "bootstrap" && strings.Contains(step.Command, "apt-get") {
+			hasBootstrap = true
+		}
 	}
 	if !hasUpload || !hasSetup {
 		t.Fatalf("expected upload and setup steps, got: %+v", plan)
+	}
+	if !hasBootstrap {
+		t.Fatalf("expected bootstrap step with apt-get command, got: %+v", plan)
 	}
 }
 

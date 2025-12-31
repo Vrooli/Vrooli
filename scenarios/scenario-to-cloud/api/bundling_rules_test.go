@@ -51,7 +51,7 @@ func TestMiniVrooliBundleSpec_IncludesAutohealAndPackagesAndFiltersScenariosReso
 			IncludeAutoheal: true,
 			Scenarios:       []string{"app-a", "vrooli-autoheal"},
 		},
-		Ports: ManifestPorts{UI: 3000, API: 3001, WS: 3002},
+		Ports: ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
 		Edge:  ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
 	}
 	manifest.Dependencies.Analyzer.Tool = "scenario-dependency-analyzer"
@@ -107,7 +107,7 @@ func TestWriteDeterministicTarGz_IsReproducibleAndRelative(t *testing.T) {
 			IncludeAutoheal: true,
 			Scenarios:       []string{"app-a", "vrooli-autoheal"},
 		},
-		Ports: ManifestPorts{UI: 3000, API: 3001, WS: 3002},
+		Ports: ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
 		Edge:  ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
 	}
 
@@ -173,7 +173,7 @@ func TestMiniVrooliBundleSpec_OverridesServiceJSONEnabledResources(t *testing.T)
 			Scenarios:       []string{"app-a", "vrooli-autoheal"},
 			Resources:       []string{"postgres"},
 		},
-		Ports: ManifestPorts{UI: 3000, API: 3001, WS: 3002},
+		Ports: ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
 		Edge:  ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
 	}
 
@@ -260,7 +260,7 @@ use (
 			IncludeAutoheal: true,
 			Scenarios:       []string{"app-a", "vrooli-autoheal"},
 		},
-		Ports: ManifestPorts{UI: 3000, API: 3001, WS: 3002},
+		Ports: ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
 		Edge:  ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true, Email: "ops@example.com"}},
 	}
 
@@ -324,7 +324,7 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 			Scenarios:       []string{"app-a", "vrooli-autoheal"},
 			Resources:       []string{"postgres"},
 		},
-		Ports: ManifestPorts{UI: 3000, API: 3001, WS: 3002},
+		Ports: ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
 		Edge:  ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true}},
 	}
 	manifest.Dependencies.Analyzer.Tool = "scenario-dependency-analyzer"

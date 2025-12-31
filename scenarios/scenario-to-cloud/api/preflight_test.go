@@ -61,7 +61,7 @@ func TestVPSPreflightHappyPath(t *testing.T) {
 			Resources: []string{},
 		},
 		Bundle: ManifestBundle{IncludePackages: true, IncludeAutoheal: true},
-		Ports:  ManifestPorts{UI: 3000, API: 3001, WS: 3002},
+		Ports:  ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
 		Edge:   ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true}},
 	}
 
@@ -79,14 +79,21 @@ func TestVPSPreflightHappyPath(t *testing.T) {
 			"curl -fsS --max-time 5 https://example.com >/dev/null": {ExitCode: 0, Stdout: ""},
 			"df -Pk / | tail -n 1 | awk '{print $4}'":               {ExitCode: 0, Stdout: "9999999"},
 			"awk '/MemTotal/ {print $2}' /proc/meminfo":             {ExitCode: 0, Stdout: "2097152"},
+			// Bootstrap prerequisite checks
+			"which curl":  {ExitCode: 0, Stdout: "/usr/bin/curl"},
+			"which git":   {ExitCode: 0, Stdout: "/usr/bin/git"},
+			"which unzip": {ExitCode: 0, Stdout: "/usr/bin/unzip"},
+			"which tar":   {ExitCode: 0, Stdout: "/bin/tar"},
+			"which jq":    {ExitCode: 0, Stdout: "/usr/bin/jq"},
+			"apt-get update --print-uris 2>&1 | head -1": {ExitCode: 0, Stdout: ""},
 		}},
 	)
 
 	if !resp.OK {
 		t.Fatalf("expected OK, got: %+v", resp)
 	}
-	if len(resp.Checks) < 6 {
-		t.Fatalf("expected checks, got: %+v", resp.Checks)
+	if len(resp.Checks) < 12 {
+		t.Fatalf("expected at least 12 checks (original + prerequisites), got: %d checks: %+v", len(resp.Checks), resp.Checks)
 	}
 }
 
@@ -106,7 +113,7 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 			Scenarios: []string{"landing-page-business-suite"},
 		},
 		Bundle: ManifestBundle{IncludePackages: true, IncludeAutoheal: true},
-		Ports:  ManifestPorts{UI: 3000, API: 3001, WS: 3002},
+		Ports:  ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
 		Edge:   ManifestEdge{Domain: "example.com", Caddy: ManifestCaddy{Enabled: true}},
 	}
 
@@ -124,6 +131,13 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 			"curl -fsS --max-time 5 https://example.com >/dev/null": {ExitCode: 0, Stdout: ""},
 			"df -Pk / | tail -n 1 | awk '{print $4}'":               {ExitCode: 0, Stdout: "9999999"},
 			"awk '/MemTotal/ {print $2}' /proc/meminfo":             {ExitCode: 0, Stdout: "2097152"},
+			// Bootstrap prerequisite checks
+			"which curl":  {ExitCode: 0, Stdout: "/usr/bin/curl"},
+			"which git":   {ExitCode: 0, Stdout: "/usr/bin/git"},
+			"which unzip": {ExitCode: 0, Stdout: "/usr/bin/unzip"},
+			"which tar":   {ExitCode: 0, Stdout: "/bin/tar"},
+			"which jq":    {ExitCode: 0, Stdout: "/usr/bin/jq"},
+			"apt-get update --print-uris 2>&1 | head -1": {ExitCode: 0, Stdout: ""},
 		}},
 	)
 

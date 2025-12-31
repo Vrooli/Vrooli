@@ -143,6 +143,13 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 			existing.Name = req.Name
 		}
 
+		// Update bundle info if provided
+		if req.BundlePath != "" {
+			existing.BundlePath = &req.BundlePath
+			existing.BundleSHA256 = &req.BundleSHA256
+			existing.BundleSizeBytes = &req.BundleSizeBytes
+		}
+
 		if err := s.repo.UpdateDeployment(r.Context(), existing); err != nil {
 			writeAPIError(w, http.StatusInternalServerError, APIError{
 				Code:    "update_failed",
@@ -176,6 +183,13 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		Manifest:   manifestJSON,
 		CreatedAt:  now,
 		UpdatedAt:  now,
+	}
+
+	// Store bundle info if provided
+	if req.BundlePath != "" {
+		deployment.BundlePath = &req.BundlePath
+		deployment.BundleSHA256 = &req.BundleSHA256
+		deployment.BundleSizeBytes = &req.BundleSizeBytes
 	}
 
 	if err := s.repo.CreateDeployment(r.Context(), deployment); err != nil {
