@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 
 	"scenario-to-cloud/agentmanager"
 	"scenario-to-cloud/domain"
@@ -239,9 +240,9 @@ func (s *InvestigationService) pollForCompletion(
 				stepIdx++
 			}
 
-			// Check for terminal status using the proto enum values
+			// Check for terminal status using the proto enum constants
 			switch run.Status {
-			case 3: // RUN_STATUS_COMPLETE
+			case domainpb.RunStatus_RUN_STATUS_COMPLETE:
 				result := &agentmanager.ExecuteResult{
 					RunID:   runID,
 					Success: true,
@@ -256,9 +257,9 @@ func (s *InvestigationService) pollForCompletion(
 					result.DurationSeconds = int(duration.Seconds())
 				}
 				return result, nil
-			case 4: // RUN_STATUS_FAILED
+			case domainpb.RunStatus_RUN_STATUS_FAILED:
 				return nil, fmt.Errorf("agent run failed: %s", run.ErrorMsg)
-			case 5: // RUN_STATUS_CANCELLED
+			case domainpb.RunStatus_RUN_STATUS_CANCELLED:
 				return nil, fmt.Errorf("agent run was cancelled")
 			}
 		}
