@@ -13,3 +13,5 @@ export { default as TierBadge } from './TierBadge';
 export type { TierBadgeProps } from './TierBadge';
 export { ConfirmDialog } from './ConfirmDialog';
 export { PromptDialog } from './PromptDialog';
+export { ViewportPicker, VIEWPORT_PRESETS } from './ViewportPicker';
+export type { ViewportDimensions, ViewportPresetOption, ViewportPickerProps } from './ViewportPicker';

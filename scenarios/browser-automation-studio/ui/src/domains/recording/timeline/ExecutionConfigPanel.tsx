@@ -17,6 +17,7 @@ import { ChevronDown, ChevronRight, Settings2 } from 'lucide-react';
 import type { NavigationWaitUntil } from '@/types/workflow';
 import type { ArtifactProfile } from '@/domains/executions/store';
 import { ArtifactProfileSelector } from '@/domains/executions/components/ArtifactProfileSelector';
+import { ViewportPicker } from '@shared/ui';
 
 // ============================================================================
 // Types
@@ -198,39 +199,15 @@ export function ExecutionConfigPanel({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Viewport Size
             </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={320}
-                max={3840}
-                value={settings.viewportWidth}
-                onChange={(e) =>
-                  updateSetting(
-                    'viewportWidth',
-                    Math.max(320, Math.min(3840, parseInt(e.target.value) || 1920))
-                  )
-                }
-                className="w-24 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <span className="text-sm text-gray-500 dark:text-gray-400">×</span>
-              <input
-                type="number"
-                min={240}
-                max={2160}
-                value={settings.viewportHeight}
-                onChange={(e) =>
-                  updateSetting(
-                    'viewportHeight',
-                    Math.max(240, Math.min(2160, parseInt(e.target.value) || 1080))
-                  )
-                }
-                className="w-24 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <span className="text-sm text-gray-500 dark:text-gray-400">px</span>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-              Browser window dimensions for workflow execution.
-            </p>
+            <ViewportPicker
+              value={{ width: settings.viewportWidth, height: settings.viewportHeight }}
+              onChange={({ width, height }) => {
+                updateSetting('viewportWidth', width);
+                updateSetting('viewportHeight', height);
+              }}
+              showCustomToggle={false}
+              variant="light"
+            />
           </div>
 
           {/* Continue on Error */}
