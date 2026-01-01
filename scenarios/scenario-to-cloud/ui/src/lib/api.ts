@@ -201,6 +201,95 @@ export async function cleanupBundles(request: BundleCleanupRequest) {
   return res.json() as Promise<BundleCleanupResponse>;
 }
 
+export type BundleDeleteResponse = {
+  ok: boolean;
+  freed_bytes: number;
+  message: string;
+  timestamp: string;
+};
+
+export async function deleteBundle(sha256: string): Promise<BundleDeleteResponse> {
+  const url = buildApiUrl(`/bundles/${encodeURIComponent(sha256)}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to delete bundle: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<BundleDeleteResponse>;
+}
+
+export type VPSBundleListRequest = {
+  host: string;
+  port?: number;
+  user?: string;
+  key_path: string;
+  workdir: string;
+};
+
+export type VPSBundleInfo = {
+  filename: string;
+  scenario_id: string;
+  sha256: string;
+  size_bytes: number;
+  mod_time: string;
+};
+
+export type VPSBundleListResponse = {
+  ok: boolean;
+  bundles: VPSBundleInfo[];
+  total_size_bytes: number;
+  error?: string;
+  timestamp: string;
+};
+
+export async function listVPSBundles(request: VPSBundleListRequest): Promise<VPSBundleListResponse> {
+  const url = buildApiUrl("/bundles/vps/list", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list VPS bundles: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<VPSBundleListResponse>;
+}
+
+export type VPSBundleDeleteRequest = {
+  host: string;
+  port?: number;
+  user?: string;
+  key_path: string;
+  workdir: string;
+  filename: string;
+};
+
+export type VPSBundleDeleteResponse = {
+  ok: boolean;
+  freed_bytes: number;
+  message: string;
+  error?: string;
+  timestamp: string;
+};
+
+export async function deleteVPSBundle(request: VPSBundleDeleteRequest): Promise<VPSBundleDeleteResponse> {
+  const url = buildApiUrl("/bundles/vps/delete", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to delete VPS bundle: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<VPSBundleDeleteResponse>;
+}
+
 export async function listScenarios() {
   const url = buildApiUrl("/scenarios", { baseUrl: API_BASE });
   const res = await fetch(url, {

@@ -242,3 +242,309 @@ func parseBytes(s string) int64 {
 	fmt.Sscanf(s, "%d", &n)
 	return n
 }
+
+// BundleDeleteResponse is the response from deleting a single bundle.
+type BundleDeleteResponse struct {
+	OK         bool   `json:"ok"`
+	FreedBytes int64  `json:"freed_bytes"`
+	Message    string `json:"message"`
+	Timestamp  string `json:"timestamp"`
+}
+
+// VPSBundleListRequest is the request body for listing VPS bundles.
+type VPSBundleListRequest struct {
+	Host    string `json:"host"`
+	Port    int    `json:"port,omitempty"`
+	User    string `json:"user,omitempty"`
+	KeyPath string `json:"key_path"`
+	Workdir string `json:"workdir"`
+}
+
+// VPSBundleInfo represents a bundle stored on the VPS.
+type VPSBundleInfo struct {
+	Filename   string `json:"filename"`
+	ScenarioID string `json:"scenario_id"`
+	Sha256     string `json:"sha256"`
+	SizeBytes  int64  `json:"size_bytes"`
+	ModTime    string `json:"mod_time"`
+}
+
+// VPSBundleListResponse is the response from listing VPS bundles.
+type VPSBundleListResponse struct {
+	OK             bool            `json:"ok"`
+	Bundles        []VPSBundleInfo `json:"bundles"`
+	TotalSizeBytes int64           `json:"total_size_bytes"`
+	Error          string          `json:"error,omitempty"`
+	Timestamp      string          `json:"timestamp"`
+}
+
+// handleListVPSBundles lists bundles stored on the VPS.
+func (s *Server) handleListVPSBundles(w http.ResponseWriter, r *http.Request) {
+	var req VPSBundleListRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Invalid request body",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	// Validate required fields
+	if req.Host == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_host",
+			Message: "Host is required",
+		})
+		return
+	}
+	if req.KeyPath == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_key_path",
+			Message: "SSH key path is required",
+		})
+		return
+	}
+	if req.Workdir == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_workdir",
+			Message: "Working directory is required",
+		})
+		return
+	}
+
+	// Set defaults
+	if req.Port == 0 {
+		req.Port = 22
+	}
+	if req.User == "" {
+		req.User = "root"
+	}
+
+	cfg := SSHConfig{
+		Host:    req.Host,
+		Port:    req.Port,
+		User:    req.User,
+		KeyPath: req.KeyPath,
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	sshRunner := ExecSSHRunner{}
+	bundlesPath := safeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
+
+	// List bundles with size and modification time
+	// Format: size_bytes filename mod_time
+	listCmd := fmt.Sprintf(
+		`cd %s 2>/dev/null && ls -1 mini-vrooli_*.tar.gz 2>/dev/null | while read f; do stat --printf="%%s\t%%n\t%%Y\n" "$f" 2>/dev/null; done || true`,
+		shellQuoteSingle(bundlesPath),
+	)
+
+	res, err := sshRunner.Run(ctx, cfg, listCmd)
+	if err != nil {
+		writeJSON(w, http.StatusOK, VPSBundleListResponse{
+			OK:        false,
+			Bundles:   []VPSBundleInfo{},
+			Error:     fmt.Sprintf("Failed to connect or list bundles: %v", err),
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	var bundles []VPSBundleInfo
+	var totalSize int64
+
+	lines := strings.Split(strings.TrimSpace(res.Stdout), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, "\t")
+		if len(parts) != 3 {
+			continue
+		}
+
+		sizeBytes := parseBytes(parts[0])
+		filename := parts[1]
+		modTimeUnix := parseBytes(parts[2])
+
+		scenarioID, sha256Hash := parseBundleFilename(filename)
+
+		bundles = append(bundles, VPSBundleInfo{
+			Filename:   filename,
+			ScenarioID: scenarioID,
+			Sha256:     sha256Hash,
+			SizeBytes:  sizeBytes,
+			ModTime:    time.Unix(modTimeUnix, 0).UTC().Format(time.RFC3339),
+		})
+		totalSize += sizeBytes
+	}
+
+	writeJSON(w, http.StatusOK, VPSBundleListResponse{
+		OK:             true,
+		Bundles:        bundles,
+		TotalSizeBytes: totalSize,
+		Timestamp:      time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+// VPSBundleDeleteRequest is the request body for deleting a VPS bundle.
+type VPSBundleDeleteRequest struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port,omitempty"`
+	User     string `json:"user,omitempty"`
+	KeyPath  string `json:"key_path"`
+	Workdir  string `json:"workdir"`
+	Filename string `json:"filename"`
+}
+
+// VPSBundleDeleteResponse is the response from deleting a VPS bundle.
+type VPSBundleDeleteResponse struct {
+	OK         bool   `json:"ok"`
+	FreedBytes int64  `json:"freed_bytes"`
+	Message    string `json:"message"`
+	Error      string `json:"error,omitempty"`
+	Timestamp  string `json:"timestamp"`
+}
+
+// handleDeleteVPSBundle deletes a single bundle from the VPS.
+func (s *Server) handleDeleteVPSBundle(w http.ResponseWriter, r *http.Request) {
+	var req VPSBundleDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Invalid request body",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	// Validate required fields
+	if req.Host == "" || req.KeyPath == "" || req.Workdir == "" || req.Filename == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_fields",
+			Message: "host, key_path, workdir, and filename are required",
+		})
+		return
+	}
+
+	// Validate filename format to prevent path traversal
+	if !strings.HasPrefix(req.Filename, "mini-vrooli_") || !strings.HasSuffix(req.Filename, ".tar.gz") {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_filename",
+			Message: "Invalid bundle filename format",
+		})
+		return
+	}
+
+	// Set defaults
+	if req.Port == 0 {
+		req.Port = 22
+	}
+	if req.User == "" {
+		req.User = "root"
+	}
+
+	cfg := SSHConfig{
+		Host:    req.Host,
+		Port:    req.Port,
+		User:    req.User,
+		KeyPath: req.KeyPath,
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	sshRunner := ExecSSHRunner{}
+	bundlePath := safeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles", req.Filename)
+
+	// Get file size before deleting
+	sizeCmd := fmt.Sprintf("stat -c %%s %s 2>/dev/null || echo 0", shellQuoteSingle(bundlePath))
+	sizeRes, _ := sshRunner.Run(ctx, cfg, sizeCmd)
+	sizeBytes := parseBytes(strings.TrimSpace(sizeRes.Stdout))
+
+	// Delete the file
+	deleteCmd := fmt.Sprintf("rm -f %s", shellQuoteSingle(bundlePath))
+	_, err := sshRunner.Run(ctx, cfg, deleteCmd)
+	if err != nil {
+		writeJSON(w, http.StatusOK, VPSBundleDeleteResponse{
+			OK:        false,
+			Error:     fmt.Sprintf("Failed to delete bundle: %v", err),
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	var message string
+	if sizeBytes > 0 {
+		message = fmt.Sprintf("Deleted %s, freed %s", req.Filename, formatBytes(sizeBytes/1024))
+	} else {
+		message = "Bundle not found or already deleted"
+	}
+
+	writeJSON(w, http.StatusOK, VPSBundleDeleteResponse{
+		OK:         true,
+		FreedBytes: sizeBytes,
+		Message:    message,
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+// handleDeleteBundle deletes a single bundle by SHA256 hash.
+func (s *Server) handleDeleteBundle(w http.ResponseWriter, r *http.Request) {
+	sha256Hash := strings.TrimPrefix(r.URL.Path, "/api/v1/bundles/")
+	if sha256Hash == "" {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "missing_sha256",
+			Message: "SHA256 hash is required in the URL path",
+			Hint:    "Use DELETE /api/v1/bundles/{sha256}",
+		})
+		return
+	}
+
+	// Validate SHA256 format (64 hex chars)
+	if len(sha256Hash) != 64 {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_sha256",
+			Message: "Invalid SHA256 hash format",
+			Hint:    "SHA256 hash must be exactly 64 hexadecimal characters",
+		})
+		return
+	}
+
+	repoRoot, err := FindRepoRootFromCWD()
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "repo_not_found",
+			Message: "Could not find repository root",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	bundlesDir := filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "coverage", "bundles")
+	freedBytes, err := DeleteBundle(bundlesDir, sha256Hash)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "delete_failed",
+			Message: "Failed to delete bundle",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	var message string
+	if freedBytes > 0 {
+		message = fmt.Sprintf("Deleted bundle, freed %s", formatBytes(freedBytes/1024))
+	} else {
+		message = "Bundle not found or already deleted"
+	}
+
+	writeJSON(w, http.StatusOK, BundleDeleteResponse{
+		OK:         true,
+		FreedBytes: freedBytes,
+		Message:    message,
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+	})
+}
