@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	gorillawebsocket "github.com/gorilla/websocket"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/compat"
@@ -514,4 +516,67 @@ func (h *Handler) ReceiveExecutionFrame(w http.ResponseWriter, r *http.Request) 
 	})
 
 	w.WriteHeader(http.StatusOK)
+}
+
+// HandleDriverExecutionFrameStream handles WebSocket connection for binary frame streaming from playwright-driver during workflow execution.
+// GET /ws/execution/{executionId}/frames
+// This mirrors HandleDriverFrameStream (for recording) but for execution mode.
+// It receives raw binary JPEG frames from the playwright-driver and broadcasts them to UI clients
+// who are subscribed to this execution via subscribe_execution_frames.
+func (h *Handler) HandleDriverExecutionFrameStream(w http.ResponseWriter, r *http.Request) {
+	executionID := chi.URLParam(r, "executionId")
+	if executionID == "" {
+		h.log.Error("Missing executionId in driver execution frame stream request")
+		http.Error(w, "Missing executionId", http.StatusBadRequest)
+		return
+	}
+
+	// Upgrade to WebSocket
+	conn, err := h.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to upgrade driver execution frame stream connection")
+		return
+	}
+	defer conn.Close()
+
+	h.log.WithField("execution_id", executionID).Info("Driver execution frame stream connected")
+
+	// Read binary frames from driver and broadcast to browser clients
+	for {
+		messageType, data, err := conn.ReadMessage()
+		if err != nil {
+			// Check for normal closure
+			if gorillawebsocket.IsCloseError(err, gorillawebsocket.CloseNormalClosure, gorillawebsocket.CloseGoingAway) {
+				h.log.WithField("execution_id", executionID).Debug("Driver execution frame stream closed normally")
+			} else {
+				h.log.WithError(err).WithField("execution_id", executionID).Warn("Driver execution frame stream read error")
+			}
+			break
+		}
+
+		// Only process binary messages (JPEG data)
+		if messageType != gorillawebsocket.BinaryMessage {
+			continue
+		}
+
+		// Check if anyone is subscribed before processing
+		if !h.wsHub.HasExecutionFrameSubscribers(executionID) {
+			continue
+		}
+
+		// Convert binary frame to base64 for broadcast via the existing JSON-based hub
+		// Note: This is less efficient than binary WebSocket, but works with existing infrastructure
+		frameData := base64.StdEncoding.EncodeToString(data)
+
+		h.wsHub.BroadcastExecutionFrame(executionID, &websocket.ExecutionFrame{
+			ExecutionID: executionID,
+			Data:        frameData,
+			MediaType:   "image/jpeg",
+			Width:       0, // Not available in raw binary frame
+			Height:      0, // Not available in raw binary frame
+			CapturedAt:  time.Now().UTC().Format(time.RFC3339Nano),
+		})
+	}
+
+	h.log.WithField("execution_id", executionID).Info("Driver execution frame stream disconnected")
 }

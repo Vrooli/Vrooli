@@ -204,7 +204,6 @@ func main() {
 	}
 	recoverCancel()
 
-
 	// Setup router
 	r := chi.NewRouter()
 
@@ -226,8 +225,9 @@ func main() {
 		Check(health.DB(db.RawDB()), health.Critical).
 		Handler()
 	r.Get("/health", healthHandler)
-	r.Get("/ws", handler.HandleWebSocket)                                      // WebSocket endpoint for browser clients
-	r.Get("/ws/recording/{sessionId}/frames", handler.HandleDriverFrameStream) // WebSocket for playwright-driver binary frame streaming
+	r.Get("/ws", handler.HandleWebSocket)                                                 // WebSocket endpoint for browser clients
+	r.Get("/ws/recording/{sessionId}/frames", handler.HandleDriverFrameStream)            // WebSocket for playwright-driver binary frame streaming (recording mode)
+	r.Get("/ws/execution/{executionId}/frames", handler.HandleDriverExecutionFrameStream) // WebSocket for playwright-driver binary frame streaming (execution mode)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Health endpoint under /api/v1 for consistency

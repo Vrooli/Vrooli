@@ -156,13 +156,28 @@ export class WebSocketConnectionManager {
 /**
  * Build WebSocket URL from HTTP callback URL.
  *
- * Converts http://host:port/api/v1/recordings/live/{sessionId}/frame
- * to ws://host:port/ws/recording/{sessionId}/frames
+ * For recording mode:
+ *   Converts http://host:port/api/v1/recordings/live/{sessionId}/frame
+ *   to ws://host:port/ws/recording/{sessionId}/frames
+ *
+ * For execution mode:
+ *   Converts http://host:port/api/v1/executions/{executionId}/frames
+ *   to ws://host:port/ws/execution/{executionId}/frames
  */
 export function buildWebSocketUrl(callbackUrl: string, sessionId: string): string {
   try {
     const url = new URL(callbackUrl);
     const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+
+    // Detect execution mode from URL path
+    // Pattern: /api/v1/executions/{executionId}/frames
+    const executionMatch = url.pathname.match(/\/executions\/([^/]+)\/frames/);
+    if (executionMatch) {
+      const executionId = executionMatch[1];
+      return `${protocol}//${url.host}/ws/execution/${executionId}/frames`;
+    }
+
+    // Recording mode (default)
     return `${protocol}//${url.host}/ws/recording/${sessionId}/frames`;
   } catch {
     // Fallback: assume localhost API
