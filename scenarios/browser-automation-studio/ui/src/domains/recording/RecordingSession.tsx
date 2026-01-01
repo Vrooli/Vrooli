@@ -20,7 +20,7 @@
  * - Action editing (selector and payload)
  */
 
-import { useCallback, useEffect, useRef, useState, useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo, useId, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RecordingHeader } from './capture/RecordingHeader';
 import { TabBar } from './capture/TabBar';
@@ -54,6 +54,11 @@ import type { ConsoleLogEntry, NetworkEventEntry, DomSnapshotEntry } from './sid
 import { useAIConversation } from './ai-conversation';
 import { HumanInterventionOverlay } from './ai-navigation';
 import { useExecutionStore, useStartWorkflow, useExecutionEvents, type TimelineFrame } from '@/domains/executions';
+import { useExecutionExport } from '@/domains/executions/viewer/useExecutionExport';
+import { useReplayCustomization } from '@/domains/executions/viewer/useReplayCustomization';
+import { useExportStore } from '@/domains/exports';
+import ExportDialog from '@/domains/executions/viewer/ExportDialog';
+import { ExportSuccessPanel } from '@/domains/exports/ExportSuccessPanel';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
@@ -299,6 +304,35 @@ export function RecordModePage({
       : undefined
   );
 
+  // Export infrastructure for execution completion actions
+  const { createExport } = useExportStore();
+  const exportDialogTitleId = useId();
+  const exportDialogDescriptionId = useId();
+  const replayCustomization = useReplayCustomization({
+    executionId: localExecutionId ?? '',
+  });
+
+  // Create a placeholder execution for the hook when no execution is loaded
+  // The hook will be effectively disabled but hooks must be called unconditionally
+  const defaultExecution: import('@/domains/executions').Execution = useMemo(() => ({
+    id: '',
+    workflowId: '',
+    status: 'pending' as const,
+    startedAt: new Date(),
+    screenshots: [],
+    timeline: [],
+    logs: [],
+    progress: 0,
+  }), []);
+
+  const exportController = useExecutionExport({
+    execution: currentExecution ?? defaultExecution,
+    replayFrames: currentExecution?.timeline ?? [],
+    workflowName: selectedWorkflowName ?? 'Workflow',
+    replayCustomization,
+    createExport: createExport as Parameters<typeof useExecutionExport>[0]['createExport'],
+  });
+
   // Start workflow hook
   const { startWorkflow } = useStartWorkflow({
     onSuccess: (execId) => {
@@ -449,6 +483,24 @@ export function RecordModePage({
       await stopExecution(localExecutionId);
     }
   }, [localExecutionId, stopExecution]);
+
+  // Handle Re-run button click - clear execution and start fresh
+  const handleRerunExecution = useCallback(() => {
+    setLocalExecutionId(null);
+    // Small delay to ensure state clears before re-running
+    setTimeout(() => {
+      if (selectedWorkflowId) {
+        void handleRun();
+      }
+    }, 100);
+  }, [selectedWorkflowId, handleRun]);
+
+  // Handle Edit Workflow button click - navigate to workflow editor
+  const handleEditWorkflow = useCallback(() => {
+    if (selectedWorkflowId && selectedProjectId) {
+      navigate(`/projects/${selectedProjectId}/workflows/${selectedWorkflowId}`);
+    }
+  }, [selectedWorkflowId, selectedProjectId, navigate]);
 
   // Fetch workflow nodes/edges when a workflow is selected for execution mode
   useEffect(() => {
@@ -1183,6 +1235,14 @@ export function RecordModePage({
                     onWorkflowNameChange={setExecutionWorkflowName}
                     onCurrentUrlChange={setExecutionCurrentUrl}
                     renderFooter={setExecutionFooter}
+                    // Completion actions
+                    onExport={exportController.openExportDialog}
+                    onRerun={handleRerunExecution}
+                    onEditWorkflow={handleEditWorkflow}
+                    isExporting={exportController.isExporting}
+                    canExport={(currentExecution?.timeline?.length ?? 0) > 0}
+                    canRerun={!!selectedWorkflowId}
+                    canEditWorkflow={!!(selectedWorkflowId && selectedProjectId)}
                   />
                 </PreviewContainer>
               ) : mode === 'execution' && selectedWorkflowId ? (
@@ -1296,6 +1356,28 @@ export function RecordModePage({
         onClose={() => setShowPreviewSettings(false)}
         sessionId={sessionId}
       />
+
+      {/* Export Dialog */}
+      <ExportDialog
+        isOpen={exportController.isExportDialogOpen}
+        onClose={exportController.closeExportDialog}
+        onConfirm={exportController.confirmExport}
+        dialogTitleId={exportDialogTitleId}
+        dialogDescriptionId={exportDialogDescriptionId}
+        {...exportController.exportDialogProps}
+      />
+
+      {/* Export Success Panel */}
+      {exportController.showExportSuccess && exportController.lastCreatedExport && (
+        <ExportSuccessPanel
+          export_={exportController.lastCreatedExport}
+          onClose={exportController.dismissExportSuccess}
+          onViewInLibrary={() => {
+            exportController.dismissExportSuccess();
+            navigate('/exports');
+          }}
+        />
+      )}
 
       {/* Confirmation dialog for unsaved actions */}
       <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />

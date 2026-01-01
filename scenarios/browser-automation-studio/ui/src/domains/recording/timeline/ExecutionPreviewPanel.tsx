@@ -21,6 +21,7 @@ import {
   PlaybackControls,
   ScreenshotSlideshow,
   useSlideshowPlayback,
+  ExecutionCompletionActions,
   type Screenshot,
 } from '../shared';
 
@@ -35,6 +36,21 @@ interface ExecutionPreviewPanelProps {
   onCurrentUrlChange?: (url: string) => void;
   /** Render prop for footer content (playback controls) - passed to parent's footer */
   renderFooter?: (footer: ReactNode) => void;
+  // Completion action callbacks
+  /** Callback when Export button is clicked */
+  onExport?: () => void;
+  /** Callback when Re-run button is clicked */
+  onRerun?: () => void;
+  /** Callback when Edit Workflow button is clicked */
+  onEditWorkflow?: () => void;
+  /** Whether an export is currently in progress */
+  isExporting?: boolean;
+  /** Whether export is available (timeline has frames) */
+  canExport?: boolean;
+  /** Whether re-run is available (workflow exists) */
+  canRerun?: boolean;
+  /** Whether edit workflow is available (workflow + project exist) */
+  canEditWorkflow?: boolean;
 }
 
 export function ExecutionPreviewPanel({
@@ -43,6 +59,13 @@ export function ExecutionPreviewPanel({
   onWorkflowNameChange,
   onCurrentUrlChange,
   renderFooter,
+  onExport,
+  onRerun,
+  onEditWorkflow,
+  isExporting,
+  canExport,
+  canRerun,
+  canEditWorkflow,
 }: ExecutionPreviewPanelProps) {
   const currentExecution = useExecutionStore((s) => s.currentExecution);
   const loadExecution = useExecutionStore((s) => s.loadExecution);
@@ -243,6 +266,13 @@ export function ExecutionPreviewPanel({
         <ExecutionContent
           execution={currentExecution}
           onStart={onExecutionStart}
+          onExport={onExport}
+          onRerun={onRerun}
+          onEditWorkflow={onEditWorkflow}
+          isExporting={isExporting}
+          canExport={canExport}
+          canRerun={canRerun}
+          canEditWorkflow={canEditWorkflow}
         />
       ) : (
         // Fallback for edge case where we have no execution and no streaming
@@ -261,9 +291,23 @@ export function ExecutionPreviewPanel({
 function ExecutionContent({
   execution,
   onStart,
+  onExport,
+  onRerun,
+  onEditWorkflow,
+  isExporting,
+  canExport,
+  canRerun,
+  canEditWorkflow,
 }: {
   execution: Execution;
   onStart?: () => void;
+  onExport?: () => void;
+  onRerun?: () => void;
+  onEditWorkflow?: () => void;
+  isExporting?: boolean;
+  canExport?: boolean;
+  canRerun?: boolean;
+  canEditWorkflow?: boolean;
 }) {
   const { status, progress, currentStep, error, screenshots, timeline } = execution;
 
@@ -349,6 +393,16 @@ function ExecutionContent({
             />
           </div>
         )}
+
+        <ExecutionCompletionActions
+          onExport={onExport}
+          onRerun={onRerun}
+          onEditWorkflow={onEditWorkflow}
+          isExporting={isExporting}
+          canExport={canExport}
+          canRerun={canRerun}
+          canEditWorkflow={canEditWorkflow}
+        />
       </div>
     );
   }
@@ -385,15 +439,15 @@ function ExecutionContent({
           </div>
         )}
 
-        {onStart && (
-          <button
-            onClick={onStart}
-            className="mt-6 flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-flow-accent/90 transition-colors"
-          >
-            <RefreshCw size={18} />
-            Retry Execution
-          </button>
-        )}
+        <ExecutionCompletionActions
+          onExport={onExport}
+          onRerun={onRerun}
+          onEditWorkflow={onEditWorkflow}
+          isExporting={isExporting}
+          canExport={canExport}
+          canRerun={canRerun}
+          canEditWorkflow={canEditWorkflow}
+        />
       </div>
     );
   }
@@ -410,15 +464,15 @@ function ExecutionContent({
           The execution was stopped before completion
         </p>
 
-        {onStart && (
-          <button
-            onClick={onStart}
-            className="mt-6 flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-flow-accent/90 transition-colors"
-          >
-            <Play size={18} />
-            Run Again
-          </button>
-        )}
+        <ExecutionCompletionActions
+          onExport={onExport}
+          onRerun={onRerun}
+          onEditWorkflow={onEditWorkflow}
+          isExporting={isExporting}
+          canExport={canExport}
+          canRerun={canRerun}
+          canEditWorkflow={canEditWorkflow}
+        />
       </div>
     );
   }

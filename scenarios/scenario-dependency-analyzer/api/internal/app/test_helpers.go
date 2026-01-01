@@ -17,6 +17,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/health"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -336,8 +337,8 @@ func setupTestRouter() *gin.Engine {
 	h := newHandler(nil)
 	h.services.Graph = mockGraphService{}
 
-	// Add test routes
-	router.GET("/health", h.health)
+	// Add test routes - use same health handler as server.go
+	router.GET("/health", gin.WrapF(health.New().Handler()))
 	router.GET("/api/v1/health/analysis", h.analysisHealth)
 
 	api := router.Group("/api/v1")

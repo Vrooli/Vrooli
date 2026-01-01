@@ -909,6 +909,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   },
 
   updateExecutionStatus: (status: Execution['status'], error?: string) => {
+    const currentExecutionId = get().currentExecution?.id;
     set((state) => ({
       currentExecution: state.currentExecution
         ? {
@@ -922,6 +923,11 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           }
         : state.currentExecution,
     }));
+
+    // Refresh timeline when execution reaches a terminal state to get final data
+    if (currentExecutionId && (status === 'completed' || status === 'failed' || status === 'cancelled')) {
+      void get().refreshTimeline(currentExecutionId);
+    }
   },
 
   updateProgress: (progress: number, currentStep?: string) => {

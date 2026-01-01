@@ -32,3 +32,7 @@ export type {
   SlideshowPlaybackActions,
   UseSlideshowPlaybackOptions,
 } from './useSlideshowPlayback';
+
+// Execution completion actions
+export { ExecutionCompletionActions } from './ExecutionCompletionActions';
+export type { ExecutionCompletionActionsProps } from './ExecutionCompletionActions';

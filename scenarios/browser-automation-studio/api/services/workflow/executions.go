@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
+	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -478,6 +479,34 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 			return &msg
 		}(),
 	})
+
+	// Emit execution completion event via WebSocket so UI gets notified of the final status
+	if eventSink != nil {
+		eventKind := autocontracts.EventKindExecutionCompleted
+		if status == database.ExecutionStatusFailed {
+			eventKind = autocontracts.EventKindExecutionFailed
+		}
+		payload := map[string]any{
+			"status": status,
+		}
+		if errMsg != "" {
+			payload["error"] = errMsg
+		}
+		_ = eventSink.Publish(persistenceCtx, autocontracts.EventEnvelope{
+			SchemaVersion:  autocontracts.EventEnvelopeSchemaVersion,
+			PayloadVersion: autocontracts.PayloadVersion,
+			Kind:           eventKind,
+			ExecutionID:    executionID,
+			WorkflowID:     execIndex.WorkflowID,
+			Timestamp:      now,
+			Payload:        payload,
+		})
+
+		// Close the execution on the event sink to clean up resources
+		if wsSink, ok := eventSink.(*autoevents.WSHubSink); ok {
+			wsSink.CloseExecution(executionID)
+		}
+	}
 }
 
 func (s *WorkflowService) storeExecutionCancel(executionID uuid.UUID, cancel context.CancelFunc) {
