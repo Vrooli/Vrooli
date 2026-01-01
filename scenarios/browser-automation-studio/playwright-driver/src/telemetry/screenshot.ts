@@ -21,7 +21,12 @@ export interface ScreenshotCapture {
 /**
  * Capture screenshot from page
  *
- * Returns base64-encoded screenshot with metadata
+ * Returns base64-encoded screenshot with metadata.
+ *
+ * IMPORTANT: When fullPage is false, we use explicit clipping to the viewport
+ * dimensions. This prevents Playwright from modifying the viewport during
+ * capture, which would cause screen size oscillation during execution mode.
+ * See: https://github.com/anthropics/vrooli/issues/XXX
  */
 export async function captureScreenshot(
   page: Page,
@@ -33,12 +38,31 @@ export async function captureScreenshot(
 
   try {
     const startTime = Date.now();
+    const viewport = page.viewportSize();
 
-    const buffer = await page.screenshot({
+    // Build screenshot options
+    // When fullPage is false, use explicit clip to prevent viewport modification
+    // This is critical for execution mode where frame streaming must show consistent size
+    const screenshotOptions: Parameters<typeof page.screenshot>[0] = {
       type: 'png',
-      fullPage: config.telemetry.screenshot.fullPage,
       quality: undefined, // PNG doesn't support quality
-    });
+    };
+
+    if (config.telemetry.screenshot.fullPage) {
+      screenshotOptions.fullPage = true;
+    } else if (viewport) {
+      // Use explicit clipping to viewport - this does NOT modify the viewport
+      // during capture, unlike fullPage which can cause temporary viewport changes
+      screenshotOptions.clip = {
+        x: 0,
+        y: 0,
+        width: viewport.width,
+        height: viewport.height,
+      };
+    }
+    // If no viewport available and not fullPage, Playwright will use current viewport
+
+    const buffer = await page.screenshot(screenshotOptions);
 
     // Check size limit
     if (buffer.length > config.telemetry.screenshot.maxSizeBytes) {
@@ -48,23 +72,28 @@ export async function captureScreenshot(
       });
 
       // Try again with viewport-only screenshot if full page was requested
-      if (config.telemetry.screenshot.fullPage) {
+      if (config.telemetry.screenshot.fullPage && viewport) {
+        // Use explicit clip to prevent any viewport modification
         const smallerBuffer = await page.screenshot({
           type: 'png',
-          fullPage: false,
+          clip: {
+            x: 0,
+            y: 0,
+            width: viewport.width,
+            height: viewport.height,
+          },
         });
 
         if (smallerBuffer.length <= config.telemetry.screenshot.maxSizeBytes) {
           const base64 = smallerBuffer.toString('base64');
-          const viewport = page.viewportSize();
 
           metrics.screenshotSize.observe(smallerBuffer.length);
 
           return {
             base64,
             media_type: 'image/png',
-            width: viewport?.width || 0,
-            height: viewport?.height || 0,
+            width: viewport.width,
+            height: viewport.height,
           };
         }
       }
@@ -77,7 +106,6 @@ export async function captureScreenshot(
     }
 
     const base64 = buffer.toString('base64');
-    const viewport = page.viewportSize();
 
     const duration = Date.now() - startTime;
     logger.debug('Screenshot captured', {
@@ -88,11 +116,13 @@ export async function captureScreenshot(
 
     metrics.screenshotSize.observe(buffer.length);
 
+    // Use viewport captured at start, or re-fetch if needed
+    const finalViewport = viewport ?? page.viewportSize();
     return {
       base64,
       media_type: 'image/png',
-      width: viewport?.width || 0,
-      height: viewport?.height || 0,
+      width: finalViewport?.width || 0,
+      height: finalViewport?.height || 0,
     };
   } catch (error) {
     // Surface telemetry capture failures with context for debugging
@@ -108,7 +138,9 @@ export async function captureScreenshot(
 }
 
 /**
- * Capture screenshot with JPEG compression for smaller size
+ * Capture screenshot with JPEG compression for smaller size.
+ *
+ * When fullPage is false, uses explicit clipping to prevent viewport modification.
  */
 export async function captureCompressedScreenshot(
   page: Page,
@@ -117,11 +149,27 @@ export async function captureCompressedScreenshot(
   maxSizeBytes: number = MAX_SCREENSHOT_SIZE_BYTES
 ): Promise<ScreenshotCapture | undefined> {
   try {
-    const buffer = await page.screenshot({
+    const viewport = page.viewportSize();
+
+    // Build screenshot options with explicit clipping when not fullPage
+    const screenshotOptions: Parameters<typeof page.screenshot>[0] = {
       type: 'jpeg',
       quality,
-      fullPage,
-    });
+    };
+
+    if (fullPage) {
+      screenshotOptions.fullPage = true;
+    } else if (viewport) {
+      // Use explicit clip to prevent viewport modification during capture
+      screenshotOptions.clip = {
+        x: 0,
+        y: 0,
+        width: viewport.width,
+        height: viewport.height,
+      };
+    }
+
+    const buffer = await page.screenshot(screenshotOptions);
 
     if (buffer.length > maxSizeBytes) {
       logger.warn('Compressed screenshot exceeds max size', {
@@ -139,15 +187,16 @@ export async function captureCompressedScreenshot(
     }
 
     const base64 = buffer.toString('base64');
-    const viewport = page.viewportSize();
 
     metrics.screenshotSize.observe(buffer.length);
 
+    // Use viewport captured at start, or re-fetch if needed
+    const finalViewport = viewport ?? page.viewportSize();
     return {
       base64,
       media_type: 'image/jpeg',
-      width: viewport?.width || 0,
-      height: viewport?.height || 0,
+      width: finalViewport?.width || 0,
+      height: finalViewport?.height || 0,
     };
   } catch (error) {
     trackScreenshotFailure();

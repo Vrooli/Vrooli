@@ -97,7 +97,7 @@ export const CONFIG_TIER_METADATA: Record<string, { tier: ConfigTier; defaultVal
   PLAYWRIGHT_DRIVER_PERF_BUFFER_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Performance buffer size' },
   METRICS_PORT: { tier: ConfigTier.INTERNAL, defaultValue: 9090, description: 'Metrics server port' },
   CLEANUP_INTERVAL_MS: { tier: ConfigTier.INTERNAL, defaultValue: 60000, description: 'Session cleanup interval' },
-  SCREENSHOT_FULL_PAGE: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Full page screenshots' },
+  SCREENSHOT_FULL_PAGE: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Full page screenshots (can cause viewport oscillation during execution)' },
   SCREENSHOT_MAX_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 512000, description: 'Max screenshot size' },
   DOM_MAX_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 524288, description: 'Max DOM snapshot size' },
   CONSOLE_MAX_ENTRIES: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Max console entries' },
@@ -189,7 +189,7 @@ const ConfigSchema = z.object({
   telemetry: z.object({
     screenshot: z.object({
       enabled: z.boolean().default(true),
-      fullPage: z.boolean().default(true),
+      fullPage: z.boolean().default(false), // Default false to prevent viewport oscillation during execution
       quality: z.number().min(1).max(100).default(80),
       maxSizeBytes: z.number().min(1024).max(10 * 1024 * 1024).default(512000),
     }),
@@ -403,7 +403,9 @@ export function loadConfig(): Config {
     telemetry: {
       screenshot: {
         enabled: process.env.SCREENSHOT_ENABLED !== 'false',
-        fullPage: process.env.SCREENSHOT_FULL_PAGE !== 'false',
+        // Default to false to prevent viewport oscillation during execution
+        // Set SCREENSHOT_FULL_PAGE=true to enable full page screenshots
+        fullPage: process.env.SCREENSHOT_FULL_PAGE === 'true',
         quality: parseEnvInt(process.env.SCREENSHOT_QUALITY, 80),
         maxSizeBytes: parseEnvInt(process.env.SCREENSHOT_MAX_SIZE, 512000),
       },
