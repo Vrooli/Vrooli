@@ -269,6 +269,7 @@ export interface AddMessageData {
   model?: string;
   attachment_ids?: string[];
   web_search?: boolean;
+  skill_ids?: string[];
 }
 
 export async function addMessage(chatId: string, data: AddMessageData): Promise<Message> {

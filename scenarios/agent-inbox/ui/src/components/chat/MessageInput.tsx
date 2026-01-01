@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Send, Loader2, Check, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
@@ -6,16 +6,28 @@ import { AttachmentButton, type ForcedTool } from "./AttachmentButton";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { WebSearchIndicator } from "./WebSearchIndicator";
 import { ForcedToolIndicator } from "./ForcedToolIndicator";
+import { TemplateIndicator } from "./TemplateIndicator";
+import { SkillIndicator } from "./SkillIndicator";
+import { TemplateSelector } from "./TemplateSelector";
+import { SkillSelector } from "./SkillSelector";
+import { ToolSelector } from "./ToolSelector";
+import { TemplateVariableForm } from "./TemplateVariableForm";
+import { SlashCommandPopup } from "./SlashCommandPopup";
 import { useAttachments } from "../../hooks/useAttachments";
 import { useTools } from "../../hooks/useTools";
+import { useTemplatesAndSkills } from "../../hooks/useTemplatesAndSkills";
 import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapabilities";
+import { getTemplateById } from "@/data/templates";
+import { getSkillById } from "@/data/skills";
 import type { Model, Message } from "../../lib/api";
+import type { SlashCommand, Template } from "@/lib/types/templates";
 
 export interface MessagePayload {
   content: string;
   attachmentIds: string[];
   webSearchEnabled: boolean;
   forcedTool?: ForcedTool;
+  skillIds?: string[];
 }
 
 interface MessageInputProps {
@@ -69,6 +81,18 @@ export function MessageInput({
   const [forcedTool, setForcedTool] = useState<ForcedTool | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Modal state
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [showSkillSelector, setShowSkillSelector] = useState(false);
+  const [showToolSelector, setShowToolSelector] = useState(false);
+  const [showVariableForm, setShowVariableForm] = useState(true);
+
+  // Slash command state
+  const [slashPopupOpen, setSlashPopupOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState("");
+  const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
+  const [slashPopupPosition, setSlashPopupPosition] = useState({ bottom: 60, left: 0 });
+
   // Edit mode detection
   const isEditMode = !!editingMessage;
 
@@ -88,6 +112,26 @@ export function MessageInput({
     chatId: enableForceTools && chatId ? chatId : undefined,
     enabled: enableForceTools && !!chatId,
   });
+
+  // Templates and skills
+  const {
+    templates,
+    skills,
+    activeTemplate,
+    setActiveTemplate,
+    updateTemplateVariables,
+    getFilledTemplateContent,
+    clearTemplate,
+    isTemplateValid,
+    getTemplateMissingFields,
+    selectedSkillIds,
+    addSkill,
+    removeSkill,
+    toggleSkill,
+    getSelectedSkills,
+    filterCommands,
+    resetAll: resetTemplatesAndSkills,
+  } = useTemplatesAndSkills();
 
   // Only use attachments if enabled
   const effectiveAttachments = enableAttachments ? attachments : [];
@@ -116,6 +160,19 @@ export function MessageInput({
     if (att.type === "pdf" && !modelSupportsPDFs) return true;
     return false;
   });
+
+  // Filtered slash commands
+  const filteredSlashCommands = useMemo(
+    () => filterCommands(slashQuery),
+    [filterCommands, slashQuery]
+  );
+
+  // Auto-close slash popup when no results and user has typed something
+  useEffect(() => {
+    if (slashPopupOpen && slashQuery.length > 0 && filteredSlashCommands.length === 0) {
+      setSlashPopupOpen(false);
+    }
+  }, [slashPopupOpen, slashQuery, filteredSlashCommands.length]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -150,7 +207,13 @@ export function MessageInput({
 
   const handleSubmit = useCallback(() => {
     const trimmedMessage = message.trim();
-    const hasContent = trimmedMessage || effectiveAttachments.length > 0;
+
+    // Get filled template content if active, otherwise use raw message
+    const finalContent = activeTemplate
+      ? getFilledTemplateContent()
+      : trimmedMessage;
+
+    const hasContent = finalContent.trim() || effectiveAttachments.length > 0;
 
     // Block send if:
     // - No content (text or attachments)
@@ -158,7 +221,12 @@ export function MessageInput({
     // - Has upload errors (when attachments enabled)
     // - Has incompatible attachments
     // - AI is loading/generating
+    // - Template has missing required fields
     if (!hasContent || loading) {
+      return;
+    }
+
+    if (activeTemplate && !isTemplateValid()) {
       return;
     }
 
@@ -173,10 +241,11 @@ export function MessageInput({
     }
 
     const payload: MessagePayload = {
-      content: trimmedMessage,
+      content: finalContent.trim(),
       attachmentIds: enableAttachments ? getUploadedIds() : [],
       webSearchEnabled: enableWebSearch ? webSearchEnabled : false,
       forcedTool: forcedTool ?? undefined,
+      skillIds: selectedSkillIds.length > 0 ? selectedSkillIds : undefined,
     };
 
     // Call appropriate handler based on mode
@@ -196,6 +265,8 @@ export function MessageInput({
     }
     // Reset forced tool after sending
     setForcedTool(null);
+    // Reset templates and skills after sending
+    resetTemplatesAndSkills();
 
     // Reset height
     if (textareaRef.current) {
@@ -219,10 +290,45 @@ export function MessageInput({
     enableWebSearch,
     isEditMode,
     onSubmitEdit,
+    activeTemplate,
+    getFilledTemplateContent,
+    isTemplateValid,
+    selectedSkillIds,
+    resetTemplatesAndSkills,
   ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      // Handle slash command popup navigation
+      if (slashPopupOpen) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setSlashSelectedIndex((prev) =>
+            prev < filteredSlashCommands.length - 1 ? prev + 1 : 0
+          );
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setSlashSelectedIndex((prev) =>
+            prev > 0 ? prev - 1 : filteredSlashCommands.length - 1
+          );
+          return;
+        }
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (filteredSlashCommands[slashSelectedIndex]) {
+            handleSlashCommandSelect(filteredSlashCommands[slashSelectedIndex]);
+          }
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setSlashPopupOpen(false);
+          return;
+        }
+      }
+
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSubmit();
@@ -234,12 +340,81 @@ export function MessageInput({
         onCancelEdit();
       }
     },
-    [handleSubmit, isEditMode, onCancelEdit]
+    [handleSubmit, isEditMode, onCancelEdit, slashPopupOpen, filteredSlashCommands, slashSelectedIndex]
   );
 
   const handleWebSearchToggle = useCallback((enabled: boolean) => {
     setWebSearchEnabled(enabled);
   }, []);
+
+  // Handle message change with slash command detection
+  const handleMessageChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const value = e.target.value;
+      const cursorPosition = e.target.selectionStart;
+      setMessage(value);
+
+      // Check for slash command trigger
+      const textBeforeCursor = value.slice(0, cursorPosition);
+      const lastNewlineIndex = textBeforeCursor.lastIndexOf("\n");
+      const lineStart = lastNewlineIndex + 1;
+      const lineBeforeCursor = textBeforeCursor.slice(lineStart);
+
+      // Match "/" at start of line followed by optional word characters
+      const slashMatch = lineBeforeCursor.match(/^\/(\S*)$/);
+
+      if (slashMatch) {
+        const query = slashMatch[1];
+        setSlashQuery(query);
+        setSlashPopupOpen(true);
+        setSlashSelectedIndex(0);
+        // Position popup above the cursor
+        setSlashPopupPosition({ bottom: 60, left: 8 });
+      } else {
+        setSlashPopupOpen(false);
+      }
+    },
+    []
+  );
+
+  // Handle slash command selection
+  const handleSlashCommandSelect = useCallback(
+    (command: SlashCommand) => {
+      setSlashPopupOpen(false);
+
+      // Clear the slash command text from input
+      const slashStart = message.lastIndexOf("/");
+      if (slashStart !== -1) {
+        setMessage(message.slice(0, slashStart));
+      }
+
+      switch (command.type) {
+        case "template":
+          setShowTemplateSelector(true);
+          break;
+        case "skill":
+          setShowSkillSelector(true);
+          break;
+        case "search":
+          setWebSearchEnabled(true);
+          break;
+        case "direct-template":
+          const template = getTemplateById(command.id);
+          if (template) {
+            setActiveTemplate(template);
+            setShowVariableForm(true);
+          }
+          break;
+        case "direct-skill":
+          addSkill(command.id);
+          break;
+        case "tool":
+          setShowToolSelector(true);
+          break;
+      }
+    },
+    [message, setActiveTemplate, addSkill]
+  );
 
   const handleImageSelect = useCallback(
     (file: File) => {
@@ -267,9 +442,11 @@ export function MessageInput({
   const modelSupportsToolUse = supportsTools(currentModel);
 
   // Determine if send button should be disabled
-  const hasContent = message.trim() || effectiveAttachments.length > 0;
+  const finalContent = activeTemplate ? getFilledTemplateContent() : message;
+  const hasContent = finalContent.trim() || effectiveAttachments.length > 0;
   const canSend = (() => {
     if (!hasContent || loading) return false;
+    if (activeTemplate && !isTemplateValid()) return false;
     if (enableAttachments) {
       if (isUploading || hasErrors || hasIncompatibleAttachments) return false;
       if (effectiveAttachments.length > 0 && !allUploaded) return false;
@@ -281,6 +458,9 @@ export function MessageInput({
   let sendTooltip = isEditMode ? "Save edit (Enter)" : "Send message (Enter)";
   if (loading) {
     sendTooltip = "AI is responding...";
+  } else if (activeTemplate && !isTemplateValid()) {
+    const missing = getTemplateMissingFields();
+    sendTooltip = `Fill required fields: ${missing.join(", ")}`;
   } else if (enableAttachments && isUploading) {
     sendTooltip = "Uploading attachments...";
   } else if (enableAttachments && hasErrors) {
@@ -324,6 +504,17 @@ export function MessageInput({
         </div>
       )}
 
+      {/* Template variable form (collapsible, above input) */}
+      {activeTemplate && showVariableForm && (
+        <div className="mb-2 rounded-xl border border-white/10 overflow-hidden">
+          <TemplateVariableForm
+            activeTemplate={activeTemplate}
+            onUpdateVariables={updateTemplateVariables}
+            missingFields={getTemplateMissingFields()}
+          />
+        </div>
+      )}
+
       {/* Input container with buttons inside */}
       <div className="flex items-end gap-2 p-3 bg-white/5 border border-white/10 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-transparent transition-all">
         {/* Attachment Button (inside, on left) */}
@@ -341,21 +532,38 @@ export function MessageInput({
             forcedTool={forcedTool}
             onForceTool={enableForceTools && chatId && modelSupportsToolUse ? handleForceTool : undefined}
             modelSupportsTools={modelSupportsToolUse}
+            onOpenTemplateSelector={() => setShowTemplateSelector(true)}
+            onOpenSkillSelector={() => setShowSkillSelector(true)}
+            activeTemplate={activeTemplate?.template}
+            selectedSkillCount={selectedSkillIds.length}
           />
         )}
 
-        {/* Textarea */}
-        <textarea
-          ref={textareaRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={loading}
-          rows={1}
-          className="flex-1 bg-transparent text-sm text-white placeholder:text-slate-500 resize-none focus:outline-none disabled:opacity-50 min-h-[40px]"
-          data-testid="message-input"
-        />
+        {/* Textarea with relative positioning for slash popup */}
+        <div className="relative flex-1">
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={handleMessageChange}
+            onKeyDown={handleKeyDown}
+            placeholder={activeTemplate ? "Template variables above..." : placeholder}
+            disabled={loading}
+            rows={1}
+            className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 resize-none focus:outline-none disabled:opacity-50 min-h-[40px]"
+            data-testid="message-input"
+          />
+
+          {/* Slash command popup */}
+          {slashPopupOpen && (
+            <SlashCommandPopup
+              commands={filteredSlashCommands}
+              selectedIndex={slashSelectedIndex}
+              onSelect={handleSlashCommandSelect}
+              onClose={() => setSlashPopupOpen(false)}
+              position={slashPopupPosition}
+            />
+          )}
+        </div>
 
         {/* Character count */}
         {!loading && message.length > 0 && (
@@ -413,6 +621,20 @@ export function MessageInput({
               onClear={handleClearForcedTool}
             />
           )}
+          {activeTemplate && (
+            <TemplateIndicator
+              template={activeTemplate.template}
+              onClear={clearTemplate}
+              onEdit={() => setShowVariableForm(true)}
+            />
+          )}
+          {selectedSkillIds.length > 0 && (
+            <SkillIndicator
+              skills={getSelectedSkills()}
+              onRemove={removeSkill}
+              onAdd={() => setShowSkillSelector(true)}
+            />
+          )}
         </div>
         {loading && (
           <span className="text-xs text-indigo-400 flex items-center gap-1">
@@ -421,6 +643,46 @@ export function MessageInput({
           </span>
         )}
       </div>
+
+      {/* Template Selector Modal */}
+      <TemplateSelector
+        open={showTemplateSelector}
+        onClose={() => {
+          setShowTemplateSelector(false);
+          textareaRef.current?.focus();
+        }}
+        templates={templates}
+        onSelect={(template) => {
+          setActiveTemplate(template);
+          setShowVariableForm(true);
+        }}
+        activeTemplateId={activeTemplate?.template.id}
+      />
+
+      {/* Skill Selector Modal */}
+      <SkillSelector
+        open={showSkillSelector}
+        onClose={() => {
+          setShowSkillSelector(false);
+          textareaRef.current?.focus();
+        }}
+        skills={skills}
+        selectedSkillIds={selectedSkillIds}
+        onToggle={toggleSkill}
+      />
+
+      {/* Tool Selector Modal */}
+      <ToolSelector
+        open={showToolSelector}
+        onClose={() => {
+          setShowToolSelector(false);
+          textareaRef.current?.focus();
+        }}
+        toolsByScenario={toolsByScenario}
+        forcedTool={forcedTool}
+        onSelect={handleForceTool}
+        onClear={handleClearForcedTool}
+      />
     </div>
   );
 }

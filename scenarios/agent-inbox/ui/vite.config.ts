@@ -4,6 +4,11 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: './',  // Required for tunnel/proxy contexts
   plugins: [react()],
+  resolve: {
+    alias: [
+      { find: "@", replacement: "/src" },
+    ],
+  },
   test: {
     globals: true,
     environment: 'jsdom',

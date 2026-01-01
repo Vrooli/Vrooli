@@ -294,12 +294,13 @@ export function useChats(options: UseChatsOptions = {}) {
   // Send message and run completion
   const sendMessageAndComplete = useCallback(
     async (chatId: string, payload: MessagePayload, needsAutoName: boolean) => {
-      // Add user message with attachments and web search settings
+      // Add user message with attachments, web search, and skills settings
       await addMessage(chatId, {
         role: "user",
         content: payload.content.trim(),
         attachment_ids: payload.attachmentIds.length > 0 ? payload.attachmentIds : undefined,
         web_search: payload.webSearchEnabled ? true : undefined,
+        skill_ids: payload.skillIds && payload.skillIds.length > 0 ? payload.skillIds : undefined,
       });
       queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
       queryClient.invalidateQueries({ queryKey: ["chats"] });

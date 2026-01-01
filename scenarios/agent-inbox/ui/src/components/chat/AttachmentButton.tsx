@@ -6,12 +6,15 @@
  * - PDF upload
  * - Web search toggle
  * - Force tool selection (cascading menu)
+ * - Templates
+ * - Skills
  */
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from "react";
-import { Plus, Image, FileText, Globe, Check, Wrench, ChevronRight, ChevronLeft } from "lucide-react";
+import { Plus, Image, FileText, Globe, Check, Wrench, ChevronRight, ChevronLeft, Sparkles, BookOpen } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import type { EffectiveTool } from "../../lib/api";
+import type { Template } from "@/lib/types/templates";
 
 /** Forced tool selection state */
 export interface ForcedTool {
@@ -39,6 +42,14 @@ interface AttachmentButtonProps {
   onForceTool?: (scenario: string, toolName: string) => void;
   /** Whether the current model supports tool calling. Default: true */
   modelSupportsTools?: boolean;
+  /** Callback to open template selector modal */
+  onOpenTemplateSelector?: () => void;
+  /** Callback to open skill selector modal */
+  onOpenSkillSelector?: () => void;
+  /** Currently active template, if any */
+  activeTemplate?: Template | null;
+  /** Number of selected skills */
+  selectedSkillCount?: number;
 }
 
 export function AttachmentButton({
@@ -54,9 +65,15 @@ export function AttachmentButton({
   forcedTool,
   onForceTool,
   modelSupportsTools = true,
+  onOpenTemplateSelector,
+  onOpenSkillSelector,
+  activeTemplate,
+  selectedSkillCount = 0,
 }: AttachmentButtonProps) {
   const showWebSearch = !!onWebSearchToggle;
   const showForceTools = !!onForceTool && modelSupportsTools;
+  const showTemplates = !!onOpenTemplateSelector;
+  const showSkills = !!onOpenSkillSelector;
   const [isOpen, setIsOpen] = useState(false);
   const [expandedScenario, setExpandedScenario] = useState<string | null>(null);
   const [flyoutDirection, setFlyoutDirection] = useState<"right" | "left">("right");
@@ -133,6 +150,18 @@ export function AttachmentButton({
     setIsOpen(false);
     setExpandedScenario(null);
   }, [webSearchEnabled, onWebSearchToggle]);
+
+  const handleTemplateClick = useCallback(() => {
+    onOpenTemplateSelector?.();
+    setIsOpen(false);
+    setExpandedScenario(null);
+  }, [onOpenTemplateSelector]);
+
+  const handleSkillClick = useCallback(() => {
+    onOpenSkillSelector?.();
+    setIsOpen(false);
+    setExpandedScenario(null);
+  }, [onOpenSkillSelector]);
 
   const handleScenarioClick = useCallback((scenario: string) => {
     setExpandedScenario((prev) => (prev === scenario ? null : scenario));
@@ -367,6 +396,58 @@ export function AttachmentButton({
                     </div>
                   ))}
                 </div>
+              </>
+            )}
+
+            {/* Templates section */}
+            {showTemplates && (
+              <>
+                <div className="my-1 border-t border-white/10" />
+                <button
+                  onClick={handleTemplateClick}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-white/10 text-left"
+                  data-testid="attachment-template-option"
+                >
+                  <Sparkles className="h-4 w-4 text-blue-400" />
+                  <div className="flex-1">
+                    <div className="text-white">Templates</div>
+                    <div className="text-xs text-slate-500">
+                      {activeTemplate
+                        ? `Using: ${activeTemplate.name}`
+                        : "Browse message templates"}
+                    </div>
+                  </div>
+                  {activeTemplate && (
+                    <Check className="h-4 w-4 text-blue-400" />
+                  )}
+                </button>
+              </>
+            )}
+
+            {/* Skills section */}
+            {showSkills && (
+              <>
+                {!showTemplates && <div className="my-1 border-t border-white/10" />}
+                <button
+                  onClick={handleSkillClick}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md hover:bg-white/10 text-left"
+                  data-testid="attachment-skill-option"
+                >
+                  <BookOpen className="h-4 w-4 text-amber-400" />
+                  <div className="flex-1">
+                    <div className="text-white">Skills</div>
+                    <div className="text-xs text-slate-500">
+                      {selectedSkillCount > 0
+                        ? `${selectedSkillCount} skill${selectedSkillCount !== 1 ? "s" : ""} attached`
+                        : "Attach knowledge skills"}
+                    </div>
+                  </div>
+                  {selectedSkillCount > 0 && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                      {selectedSkillCount}
+                    </span>
+                  )}
+                </button>
               </>
             )}
           </div>

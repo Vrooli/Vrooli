@@ -16,6 +16,8 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
         onClose();
       }
     },
@@ -33,11 +35,12 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
 
   useEffect(() => {
     if (open) {
-      document.addEventListener("keydown", handleEscape);
+      // Use capture phase to intercept Escape before other handlers
+      document.addEventListener("keydown", handleEscape, { capture: true });
       document.body.style.overflow = "hidden";
     }
     return () => {
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("keydown", handleEscape, { capture: true });
       document.body.style.overflow = "";
     };
   }, [open, handleEscape]);
@@ -88,9 +91,17 @@ export function DialogHeader({ children, onClose }: DialogHeaderProps) {
   );
 }
 
-export function DialogBody({ children, className }: { children: ReactNode; className?: string }) {
+interface DialogBodyProps {
+  children: ReactNode;
+  className?: string;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+}
+
+export function DialogBody({ children, className, onKeyDown }: DialogBodyProps) {
   return (
-    <div className={cn("flex-1 overflow-y-auto p-4", className)}>{children}</div>
+    <div className={cn("flex-1 overflow-y-auto p-4", className)} onKeyDown={onKeyDown}>
+      {children}
+    </div>
   );
 }
 
