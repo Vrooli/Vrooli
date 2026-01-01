@@ -49,10 +49,12 @@ func TestVPSInspectPlanAndApply(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	// Commands now include PATH setup for SSH non-interactive sessions
+	pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
 	runner := fakeSSHRunner{responses: map[string]SSHResult{
-		"cd '/root/Vrooli' && vrooli scenario status 'landing-page-business-suite' --json": {ExitCode: 0, Stdout: `{"status":"healthy"}`},
-		"cd '/root/Vrooli' && vrooli resource status --json":                               {ExitCode: 0, Stdout: `{"resources":[]}`},
-		"cd '/root/Vrooli' && vrooli scenario logs 'landing-page-business-suite' --tail 123": {ExitCode: 0, Stdout: "hello\nworld"},
+		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'landing-page-business-suite' --json": {ExitCode: 0, Stdout: `{"status":"healthy"}`},
+		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":                               {ExitCode: 0, Stdout: `{"resources":[]}`},
+		pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'landing-page-business-suite' --tail 123": {ExitCode: 0, Stdout: "hello\nworld"},
 	}}
 
 	result := RunVPSInspect(ctx, manifest, opts, runner)

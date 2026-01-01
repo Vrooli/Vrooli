@@ -80,6 +80,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/health", healthHandler).Methods("GET")
 	api.HandleFunc("/scenarios", s.handleListScenarios).Methods("GET")
 	api.HandleFunc("/scenarios/{id}/ports", s.handleScenarioPorts).Methods("GET")
+	api.HandleFunc("/scenarios/{id}/dependencies", s.handleScenarioDependencies).Methods("GET")
 	api.HandleFunc("/validate/reachability", s.handleReachabilityCheck).Methods("POST")
 	api.HandleFunc("/manifest/validate", s.handleManifestValidate).Methods("POST")
 	api.HandleFunc("/bundle/build", s.handleBundleBuild).Methods("POST")

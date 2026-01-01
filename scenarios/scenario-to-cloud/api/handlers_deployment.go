@@ -687,7 +687,7 @@ func (s *Server) stopDeploymentOnVPS(ctx context.Context, manifest CloudManifest
 	defer cancel()
 
 	sshRunner := ExecSSHRunner{}
-	cmd := fmt.Sprintf("cd %s && vrooli scenario stop %s", shellQuoteSingle(workdir), shellQuoteSingle(normalized.Scenario.ID))
+	cmd := vrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", shellQuoteSingle(normalized.Scenario.ID)))
 
 	_, err := sshRunner.Run(ctx, cfg, cmd)
 	if err != nil {

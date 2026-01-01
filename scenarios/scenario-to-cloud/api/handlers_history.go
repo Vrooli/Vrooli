@@ -185,7 +185,7 @@ func fetchAggregatedLogs(ctx context.Context, manifest CloudManifest, tail int, 
 			cmd string
 		}{
 			id:  scenarioID,
-			cmd: "cd " + shellQuoteSingle(workdir) + " && vrooli scenario logs " + shellQuoteSingle(scenarioID) + " --tail " + intToStr(tail),
+			cmd: vrooliCommand(workdir, "vrooli scenario logs "+shellQuoteSingle(scenarioID)+" --tail "+intToStr(tail)),
 		})
 	}
 
@@ -207,7 +207,7 @@ func fetchAggregatedLogs(ctx context.Context, manifest CloudManifest, tail int, 
 				cmd string
 			}{
 				id:  res,
-				cmd: "cd " + shellQuoteSingle(workdir) + " && vrooli resource logs " + shellQuoteSingle(res) + " --tail " + intToStr(tail/4) + " 2>/dev/null || echo 'No logs for " + res + "'",
+				cmd: vrooliCommand(workdir, "vrooli resource logs "+shellQuoteSingle(res)+" --tail "+intToStr(tail/4)+" 2>/dev/null || echo 'No logs for "+res+"'"),
 			})
 		}
 	} else {
@@ -219,7 +219,7 @@ func fetchAggregatedLogs(ctx context.Context, manifest CloudManifest, tail int, 
 					cmd string
 				}{
 					id:  res,
-					cmd: "cd " + shellQuoteSingle(workdir) + " && vrooli resource logs " + shellQuoteSingle(res) + " --tail " + intToStr(tail) + " 2>/dev/null || echo 'No logs for " + res + "'",
+					cmd: vrooliCommand(workdir, "vrooli resource logs "+shellQuoteSingle(res)+" --tail "+intToStr(tail)+" 2>/dev/null || echo 'No logs for "+res+"'"),
 				})
 			}
 		}

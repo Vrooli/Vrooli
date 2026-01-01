@@ -201,8 +201,8 @@ func RunLiveStateInspection(ctx context.Context, manifest CloudManifest, sshRunn
 		// Get CPU usage by sampling /proc/stat twice with 1 second delay
 		// This gives accurate current CPU usage, not since-boot average
 		{id: "cpuusage", command: "cat /proc/stat | head -1; sleep 1; cat /proc/stat | head -1"},
-		{id: "scenario_status", command: fmt.Sprintf("cd %s && vrooli scenario status %s --json 2>/dev/null", shellQuoteSingle(workdir), shellQuoteSingle(targetScenario))},
-		{id: "resource_status", command: fmt.Sprintf("cd %s && vrooli resource status --json 2>/dev/null", shellQuoteSingle(workdir))},
+		{id: "scenario_status", command: vrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json 2>/dev/null", shellQuoteSingle(targetScenario)))},
+		{id: "resource_status", command: vrooliCommand(workdir, "vrooli resource status --json 2>/dev/null")},
 		{id: "caddy_config", command: "cat /etc/caddy/Caddyfile 2>/dev/null || echo ''"},
 		{id: "caddy_running", command: "pgrep -x caddy >/dev/null 2>&1 && echo 'running' || echo 'stopped'"},
 		// SSH health: check if our public key is in authorized_keys

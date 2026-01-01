@@ -264,6 +264,7 @@ setup::generic_main() {
         if system::is_command node; then
             js_yaml::install || log::warning "js-yaml CLI installation skipped"
             ajv_cli::install || log::warning "ajv CLI installation skipped"
+            nodejs::ensure_pnpm || log::warning "pnpm installation skipped"
         else
             log::warning "Skipping js-yaml/ajv CLI install because Node.js is unavailable"
         fi

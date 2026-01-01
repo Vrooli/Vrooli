@@ -57,19 +57,19 @@ func BuildVPSInspectPlan(manifest CloudManifest, opts VPSInspectOptions) (VPSIns
 			ID:          "scenario_status",
 			Title:       "Scenario status",
 			Description: "Fetch `vrooli scenario status --json` for the target scenario.",
-			Command:     localSSHCommand(cfg, fmt.Sprintf("cd %s && vrooli scenario status %s --json", shellQuoteSingle(workdir), shellQuoteSingle(targetScenario))),
+			Command:     localSSHCommand(cfg, vrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json", shellQuoteSingle(targetScenario)))),
 		},
 		{
 			ID:          "resource_status",
 			Title:       "Resource status",
 			Description: "Fetch `vrooli resource status --json` for the mini install.",
-			Command:     localSSHCommand(cfg, fmt.Sprintf("cd %s && vrooli resource status --json", shellQuoteSingle(workdir))),
+			Command:     localSSHCommand(cfg, vrooliCommand(workdir, "vrooli resource status --json")),
 		},
 		{
 			ID:          "scenario_logs",
 			Title:       "Scenario logs",
 			Description: "Fetch bounded logs output for the target scenario.",
-			Command:     localSSHCommand(cfg, fmt.Sprintf("cd %s && vrooli scenario logs %s --tail %d", shellQuoteSingle(workdir), shellQuoteSingle(targetScenario), opts.TailLines)),
+			Command:     localSSHCommand(cfg, vrooliCommand(workdir, fmt.Sprintf("vrooli scenario logs %s --tail %d", shellQuoteSingle(targetScenario), opts.TailLines))),
 		},
 	}
 
@@ -81,15 +81,15 @@ func RunVPSInspect(ctx context.Context, manifest CloudManifest, opts VPSInspectO
 	workdir := manifest.Target.VPS.Workdir
 	targetScenario := manifest.Scenario.ID
 
-	statusRes, err := sshRunner.Run(ctx, cfg, fmt.Sprintf("cd %s && vrooli scenario status %s --json", shellQuoteSingle(workdir), shellQuoteSingle(targetScenario)))
+	statusRes, err := sshRunner.Run(ctx, cfg, vrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json", shellQuoteSingle(targetScenario))))
 	if err != nil {
 		return VPSInspectResult{OK: false, Error: coalesce(statusRes.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
-	resourceRes, err := sshRunner.Run(ctx, cfg, fmt.Sprintf("cd %s && vrooli resource status --json", shellQuoteSingle(workdir)))
+	resourceRes, err := sshRunner.Run(ctx, cfg, vrooliCommand(workdir, "vrooli resource status --json"))
 	if err != nil {
 		return VPSInspectResult{OK: false, Error: coalesce(resourceRes.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
-	logsRes, err := sshRunner.Run(ctx, cfg, fmt.Sprintf("cd %s && vrooli scenario logs %s --tail %d", shellQuoteSingle(workdir), shellQuoteSingle(targetScenario), opts.TailLines))
+	logsRes, err := sshRunner.Run(ctx, cfg, vrooliCommand(workdir, fmt.Sprintf("vrooli scenario logs %s --tail %d", shellQuoteSingle(targetScenario), opts.TailLines)))
 	if err != nil {
 		return VPSInspectResult{OK: false, Error: coalesce(logsRes.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}

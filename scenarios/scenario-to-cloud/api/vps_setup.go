@@ -111,8 +111,24 @@ func RunVPSSetup(ctx context.Context, manifest CloudManifest, bundlePath string,
 	run := func(cmd string) error {
 		res, err := sshRunner.Run(ctx, cfg, cmd)
 		if err != nil {
+			// Collect output from both stderr and stdout for better error context.
+			// Many CLI tools (including vrooli) use `2>&1 | tee` which sends errors to stdout.
+			var outputParts []string
 			if res.Stderr != "" {
-				return fmt.Errorf("%w: %s", err, res.Stderr)
+				outputParts = append(outputParts, "stderr: "+res.Stderr)
+			}
+			if res.Stdout != "" {
+				// Limit stdout to last 50 lines to avoid overwhelming error messages
+				lines := strings.Split(res.Stdout, "\n")
+				if len(lines) > 50 {
+					lines = lines[len(lines)-50:]
+					outputParts = append(outputParts, "stdout (last 50 lines): "+strings.Join(lines, "\n"))
+				} else {
+					outputParts = append(outputParts, "stdout: "+res.Stdout)
+				}
+			}
+			if len(outputParts) > 0 {
+				return fmt.Errorf("%w\n%s", err, strings.Join(outputParts, "\n"))
 			}
 			return err
 		}
@@ -206,8 +222,24 @@ func RunVPSSetupWithProgress(
 	run := func(cmd string) error {
 		res, err := sshRunner.Run(ctx, cfg, cmd)
 		if err != nil {
+			// Collect output from both stderr and stdout for better error context.
+			// Many CLI tools (including vrooli) use `2>&1 | tee` which sends errors to stdout.
+			var outputParts []string
 			if res.Stderr != "" {
-				return fmt.Errorf("%w: %s", err, res.Stderr)
+				outputParts = append(outputParts, "stderr: "+res.Stderr)
+			}
+			if res.Stdout != "" {
+				// Limit stdout to last 50 lines to avoid overwhelming error messages
+				lines := strings.Split(res.Stdout, "\n")
+				if len(lines) > 50 {
+					lines = lines[len(lines)-50:]
+					outputParts = append(outputParts, "stdout (last 50 lines): "+strings.Join(lines, "\n"))
+				} else {
+					outputParts = append(outputParts, "stdout: "+res.Stdout)
+				}
+			}
+			if len(outputParts) > 0 {
+				return fmt.Errorf("%w\n%s", err, strings.Join(outputParts, "\n"))
 			}
 			return err
 		}

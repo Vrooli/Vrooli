@@ -376,13 +376,27 @@ nodejs::install_system_wide() {
 nodejs::check_and_install() {
     local platform
     platform=$(nodejs::get_platform)
-    
+
+    # If running as root directly on Linux (e.g., VPS deployment via SSH),
+    # install system-wide so Node.js is available in all sessions
+    if sudo::is_root && ! sudo::is_running_as_sudo && [[ "$platform" == "linux" ]]; then
+        log::info "Running as root directly - installing Node.js system-wide"
+        if system::is_command node; then
+            local current_version
+            current_version=$(node --version 2>/dev/null || echo "unknown")
+            log::info "Node.js is already installed system-wide: ${current_version}"
+            return 0
+        fi
+        nodejs::install_system_wide "$@"
+        return $?
+    fi
+
     # If running with sudo on Linux, check if Node.js is available to the actual user
     if sudo::is_running_as_sudo && [[ "$platform" == "linux" ]] && flow::can_run_sudo "user Node.js check"; then
         local actual_user
         actual_user=$(sudo::get_actual_user)
         log::info "Running with sudo - checking if Node.js is available to user: ${actual_user}"
-        
+
         # Check if Node.js is available to the actual user (not root)
         local node_available_to_user=false
         if sudo::exec_as_actual_user 'command -v node >/dev/null 2>&1'; then
@@ -393,7 +407,7 @@ nodejs::check_and_install() {
         else
             log::info "Node.js is NOT available to ${actual_user}"
         fi
-        
+
         # If Node.js is not available to the actual user, install it system-wide
         if [[ "$node_available_to_user" != "true" ]]; then
             log::info "Installing Node.js system-wide so all users can access it"
@@ -405,7 +419,7 @@ nodejs::check_and_install() {
             return 0
         fi
     fi
-    
+
     # Otherwise use user-specific installation
     case "$platform" in
         linux)

@@ -520,9 +520,9 @@ func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
 
 	var cmd string
 	if req.Type == "scenario" {
-		cmd = "cd " + shellQuoteSingle(workdir) + " && vrooli scenario restart " + shellQuoteSingle(req.ID)
+		cmd = vrooliCommand(workdir, "vrooli scenario restart "+shellQuoteSingle(req.ID))
 	} else {
-		cmd = "cd " + shellQuoteSingle(workdir) + " && vrooli resource restart " + shellQuoteSingle(req.ID)
+		cmd = vrooliCommand(workdir, "vrooli resource restart "+shellQuoteSingle(req.ID))
 	}
 
 	sshRunner := ExecSSHRunner{}

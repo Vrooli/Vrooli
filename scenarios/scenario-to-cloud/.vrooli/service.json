@@ -226,6 +226,13 @@
         "description": "Deployment records storage",
         "schema": "scenario_to_cloud"
       }
+    },
+    "scenarios": {
+      "scenario-dependency-analyzer": {
+        "enabled": true,
+        "required": true,
+        "description": "Provides dependency analysis for manifest generation"
+      }
     }
   }
 }

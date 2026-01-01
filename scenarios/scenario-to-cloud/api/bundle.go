@@ -402,7 +402,10 @@ func MiniVrooliBundleSpec(repoRoot string, manifest CloudManifest) (MiniBundleSp
 		"projects/**",
 		"**/projects/**",
 		"**/.DS_Store",
-		"**/dist/**",
+		// Exclude dist folders EXCEPT packages/*/dist (pre-built shared libraries needed at runtime)
+		"scenarios/**/dist/**",
+		"resources/**/dist/**",
+		"dist/**",
 		"**/.next/**",
 	}
 

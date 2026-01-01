@@ -1,7 +1,7 @@
 {
-  "scenario": "landing-manager",
+  "scenario": "landing-page-business-suite",
   "report_version": 1,
-  "generated_at": "2025-11-23T19:34:23.916138987Z",
+  "generated_at": "2026-01-01T00:12:32.528597035Z",
   "dependencies": [
     {
       "name": "browserless",
@@ -56,8 +56,8 @@
           "fitness_score": 0.2,
           "reason": "Database should be remote for mobile deployments",
           "alternatives": [
-            "saas-postgres",
-            "cloud-postgres"
+            "saas-variant",
+            "cloud-variant"
           ]
         },
         "saas": {
@@ -92,8 +92,8 @@
           "fitness_score": 0.2,
           "reason": "Database should be remote for mobile deployments",
           "alternatives": [
-            "saas-qdrant",
-            "cloud-qdrant"
+            "saas-variant",
+            "cloud-variant"
           ]
         },
         "saas": {
@@ -128,8 +128,8 @@
           "fitness_score": 0.2,
           "reason": "Database should be remote for mobile deployments",
           "alternatives": [
-            "saas-redis",
-            "cloud-redis"
+            "saas-variant",
+            "cloud-variant"
           ]
         },
         "saas": {
@@ -243,8 +243,8 @@
     }
   },
   "bundle_manifest": {
-    "scenario": "landing-manager",
-    "generated_at": "2025-11-23T19:34:23.916138987Z",
+    "scenario": "landing-page-business-suite",
+    "generated_at": "2026-01-01T00:12:32.528597035Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -257,7 +257,7 @@
         "exists": true
       },
       {
-        "path": "api/landing-manager-api",
+        "path": "api/landing-page-business-suite-api",
         "type": "api-binary",
         "exists": true
       },
@@ -272,9 +272,9 @@
         "exists": true
       },
       {
-        "path": "cli/landing-manager",
+        "path": "cli/landing-page-business-suite",
         "type": "cli-binary",
-        "exists": true
+        "exists": false
       }
     ],
     "dependencies": [
@@ -330,8 +330,8 @@
             "fitness_score": 0.2,
             "reason": "Database should be remote for mobile deployments",
             "alternatives": [
-              "saas-postgres",
-              "cloud-postgres"
+              "saas-variant",
+              "cloud-variant"
             ]
           },
           "saas": {
@@ -365,8 +365,8 @@
             "fitness_score": 0.2,
             "reason": "Database should be remote for mobile deployments",
             "alternatives": [
-              "saas-qdrant",
-              "cloud-qdrant"
+              "saas-variant",
+              "cloud-variant"
             ]
           },
           "saas": {
@@ -400,8 +400,8 @@
             "fitness_score": 0.2,
             "reason": "Database should be remote for mobile deployments",
             "alternatives": [
-              "saas-redis",
-              "cloud-redis"
+              "saas-variant",
+              "cloud-variant"
             ]
           },
           "saas": {
@@ -444,7 +444,142 @@
           }
         }
       }
-    ]
+    ],
+    "skeleton": {
+      "schema_version": "v0.1",
+      "target": "desktop",
+      "app": {
+        "name": "landing-page-business-suite",
+        "version": "1.0.0",
+        "description": "Generated landing page scenario from template 'landing-page-business-suite'"
+      },
+      "ipc": {
+        "mode": "loopback-http",
+        "host": "127.0.0.1",
+        "port": 39200,
+        "auth_token_path": "runtime/auth_token"
+      },
+      "telemetry": {
+        "file": "telemetry/deployment-telemetry.jsonl"
+      },
+      "ports": {
+        "default_range": {
+          "min": 20000,
+          "max": 24000
+        }
+      },
+      "services": [
+        {
+          "id": "landing-page-business-suite-api",
+          "type": "api-binary",
+          "description": "Bundled API process for landing-page-business-suite",
+          "binaries": {
+            "darwin-x64": {
+              "path": "api/landing-page-business-suite-api"
+            },
+            "linux-x64": {
+              "path": "api/landing-page-business-suite-api"
+            },
+            "win-x64": {
+              "path": "api/landing-page-business-suite-api.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "api",
+            "entry_point": ".",
+            "output_pattern": "bin/{{platform}}/landing-page-business-suite-api{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "API_PORT": "${landing-page-business-suite-api.api}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "data_dirs": [
+            "data/api"
+          ],
+          "log_dir": "logs/api",
+          "ports": {
+            "requested": [
+              {
+                "name": "api",
+                "range": {
+                  "min": 23100,
+                  "max": 23200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "api",
+            "interval_ms": 2000,
+            "timeout_ms": 15000,
+            "retries": 5
+          },
+          "readiness": {
+            "type": "port_open",
+            "port_name": "api",
+            "timeout_ms": 30000
+          }
+        },
+        {
+          "id": "ui",
+          "type": "ui-bundle",
+          "description": "Production UI bundle served locally",
+          "binaries": {
+            "darwin-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "linux-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "win-x64": {
+              "path": "ui/dist/index.html"
+            }
+          },
+          "env": {
+            "UI_PORT": "${ui.ui}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "log_dir": "logs/ui",
+          "ports": {
+            "requested": [
+              {
+                "name": "ui",
+                "range": {
+                  "min": 24100,
+                  "max": 24200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/",
+            "port_name": "ui",
+            "interval_ms": 2000,
+            "timeout_ms": 10000,
+            "retries": 3
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "ui",
+            "timeout_ms": 20000
+          },
+          "assets": [
+            {
+              "path": "ui/dist/index.html",
+              "sha256": "pending"
+            }
+          ],
+          "critical": true
+        }
+      ]
+    }
   },
   "metadata_gaps": {
     "total_gaps": 0,

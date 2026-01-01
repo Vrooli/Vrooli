@@ -18,6 +18,15 @@ func (NetResolver) LookupHost(ctx context.Context, host string) ([]string, error
 	return net.DefaultResolver.LookupHost(ctx, host)
 }
 
+// vrooliCommand wraps a vrooli command with PATH setup for SSH non-interactive sessions.
+// SSH non-interactive commands don't source .bashrc, so we need to set up PATH explicitly.
+// The vrooli CLI is typically installed to ~/.local/bin via the CLI installer.
+func vrooliCommand(workdir, cmd string) string {
+	// Prepend common user bin directories to PATH before running vrooli commands
+	pathSetup := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"`
+	return fmt.Sprintf("%s && cd %s && %s", pathSetup, shellQuoteSingle(workdir), cmd)
+}
+
 type SSHConfig struct {
 	Host    string
 	Port    int

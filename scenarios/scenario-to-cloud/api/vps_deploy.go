@@ -71,7 +71,7 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 			ID:          "resource_start_" + res,
 			Title:       "Start resource: " + res,
 			Description: "Start required Vrooli resources via the mini install.",
-			Command:     localSSHCommand(cfg, fmt.Sprintf("cd %s && vrooli resource start %s", shellQuoteSingle(workdir), shellQuoteSingle(res))),
+			Command:     localSSHCommand(cfg, vrooliCommand(workdir, fmt.Sprintf("vrooli resource start %s", shellQuoteSingle(res)))),
 		})
 	}
 
@@ -83,7 +83,7 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 			ID:          "scenario_start_" + scen,
 			Title:       "Start scenario: " + scen,
 			Description: "Start dependent scenarios (excluding the target).",
-			Command:     localSSHCommand(cfg, fmt.Sprintf("cd %s && vrooli scenario start %s", shellQuoteSingle(workdir), shellQuoteSingle(scen))),
+			Command:     localSSHCommand(cfg, vrooliCommand(workdir, fmt.Sprintf("vrooli scenario start %s", shellQuoteSingle(scen)))),
 		})
 	}
 
@@ -95,12 +95,7 @@ func BuildVPSDeployPlan(manifest CloudManifest) ([]VPSPlanStep, error) {
 			ID:          "scenario_start_target",
 			Title:       "Start target scenario with fixed ports",
 			Description: "Starts the target scenario with port overrides from the manifest.",
-			Command: localSSHCommand(cfg, fmt.Sprintf(
-				"cd %s && %s vrooli scenario start %s",
-				shellQuoteSingle(workdir),
-				portEnvVars,
-				shellQuoteSingle(manifest.Scenario.ID),
-			)),
+			Command:     localSSHCommand(cfg, vrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario start %s", portEnvVars, shellQuoteSingle(manifest.Scenario.ID)))),
 		},
 		VPSPlanStep{
 			ID:          "verify_local",
@@ -132,8 +127,24 @@ func RunVPSDeploy(ctx context.Context, manifest CloudManifest, sshRunner SSHRunn
 	run := func(cmd string) error {
 		res, err := sshRunner.Run(ctx, cfg, cmd)
 		if err != nil {
+			// Collect output from both stderr and stdout for better error context.
+			// Many CLI tools (including vrooli) use `2>&1 | tee` which sends errors to stdout.
+			var outputParts []string
 			if res.Stderr != "" {
-				return fmt.Errorf("%w: %s", err, res.Stderr)
+				outputParts = append(outputParts, "stderr: "+res.Stderr)
+			}
+			if res.Stdout != "" {
+				// Limit stdout to last 50 lines to avoid overwhelming error messages
+				lines := strings.Split(res.Stdout, "\n")
+				if len(lines) > 50 {
+					lines = lines[len(lines)-50:]
+					outputParts = append(outputParts, "stdout (last 50 lines): "+strings.Join(lines, "\n"))
+				} else {
+					outputParts = append(outputParts, "stdout: "+res.Stdout)
+				}
+			}
+			if len(outputParts) > 0 {
+				return fmt.Errorf("%w\n%s", err, strings.Join(outputParts, "\n"))
 			}
 			return err
 		}
@@ -157,7 +168,7 @@ func RunVPSDeploy(ctx context.Context, manifest CloudManifest, sshRunner SSHRunn
 	}
 
 	for _, res := range stableUniqueStrings(manifest.Dependencies.Resources) {
-		if err := run(fmt.Sprintf("cd %s && vrooli resource start %s", shellQuoteSingle(workdir), shellQuoteSingle(res))); err != nil {
+		if err := run(vrooliCommand(workdir, fmt.Sprintf("vrooli resource start %s", shellQuoteSingle(res)))); err != nil {
 			return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 		}
 	}
@@ -166,14 +177,14 @@ func RunVPSDeploy(ctx context.Context, manifest CloudManifest, sshRunner SSHRunn
 		if scen == manifest.Scenario.ID {
 			continue
 		}
-		if err := run(fmt.Sprintf("cd %s && vrooli scenario start %s", shellQuoteSingle(workdir), shellQuoteSingle(scen))); err != nil {
+		if err := run(vrooliCommand(workdir, fmt.Sprintf("vrooli scenario start %s", shellQuoteSingle(scen)))); err != nil {
 			return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 		}
 	}
 
 	// Build port environment variables from manifest
 	portEnvVars := buildPortEnvVars(manifest.Ports)
-	if err := run(fmt.Sprintf("cd %s && %s vrooli scenario start %s", shellQuoteSingle(workdir), portEnvVars, shellQuoteSingle(manifest.Scenario.ID))); err != nil {
+	if err := run(vrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario start %s", portEnvVars, shellQuoteSingle(manifest.Scenario.ID)))); err != nil {
 		return VPSDeployResult{OK: false, Steps: steps, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
 
@@ -238,8 +249,24 @@ func RunVPSDeployWithProgress(
 	run := func(cmd string) error {
 		res, err := sshRunner.Run(ctx, cfg, cmd)
 		if err != nil {
+			// Collect output from both stderr and stdout for better error context.
+			// Many CLI tools (including vrooli) use `2>&1 | tee` which sends errors to stdout.
+			var outputParts []string
 			if res.Stderr != "" {
-				return fmt.Errorf("%w: %s", err, res.Stderr)
+				outputParts = append(outputParts, "stderr: "+res.Stderr)
+			}
+			if res.Stdout != "" {
+				// Limit stdout to last 50 lines to avoid overwhelming error messages
+				lines := strings.Split(res.Stdout, "\n")
+				if len(lines) > 50 {
+					lines = lines[len(lines)-50:]
+					outputParts = append(outputParts, "stdout (last 50 lines): "+strings.Join(lines, "\n"))
+				} else {
+					outputParts = append(outputParts, "stdout: "+res.Stdout)
+				}
+			}
+			if len(outputParts) > 0 {
+				return fmt.Errorf("%w\n%s", err, strings.Join(outputParts, "\n"))
 			}
 			return err
 		}
@@ -275,7 +302,7 @@ func RunVPSDeployWithProgress(
 	if len(resources) > 0 {
 		emit("step_started", "resource_start", "Starting resources")
 		for _, res := range resources {
-			if err := run(fmt.Sprintf("cd %s && vrooli resource start %s", shellQuoteSingle(workdir), shellQuoteSingle(res))); err != nil {
+			if err := run(vrooliCommand(workdir, fmt.Sprintf("vrooli resource start %s", shellQuoteSingle(res)))); err != nil {
 				return failStep("resource_start", "Starting resources", err.Error())
 			}
 		}
@@ -295,7 +322,7 @@ func RunVPSDeployWithProgress(
 	if len(depScenarios) > 0 {
 		emit("step_started", "scenario_deps", "Starting dependencies")
 		for _, scen := range depScenarios {
-			if err := run(fmt.Sprintf("cd %s && vrooli scenario start %s", shellQuoteSingle(workdir), shellQuoteSingle(scen))); err != nil {
+			if err := run(vrooliCommand(workdir, fmt.Sprintf("vrooli scenario start %s", shellQuoteSingle(scen)))); err != nil {
 				return failStep("scenario_deps", "Starting dependencies", err.Error())
 			}
 		}
@@ -308,7 +335,7 @@ func RunVPSDeployWithProgress(
 	// Step: scenario_target
 	emit("step_started", "scenario_target", "Starting scenario")
 	portEnvVars := buildPortEnvVars(manifest.Ports)
-	if err := run(fmt.Sprintf("cd %s && %s vrooli scenario start %s", shellQuoteSingle(workdir), portEnvVars, shellQuoteSingle(manifest.Scenario.ID))); err != nil {
+	if err := run(vrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario start %s", portEnvVars, shellQuoteSingle(manifest.Scenario.ID)))); err != nil {
 		return failStep("scenario_target", "Starting scenario", err.Error())
 	}
 	*progress += StepWeights["scenario_target"]

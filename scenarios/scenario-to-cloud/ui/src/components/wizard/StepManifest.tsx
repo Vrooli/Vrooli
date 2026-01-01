@@ -14,6 +14,7 @@ import type { useDeployment } from "../../hooks/useDeployment";
 import {
   listScenarios,
   checkReachability,
+  getScenarioDependencies,
   type ScenarioInfo,
   type ReachabilityResult,
   type PortConfig,
@@ -165,6 +166,11 @@ export function StepManifest({ deployment }: StepManifestProps) {
   const [isCheckingHost, setIsCheckingHost] = useState(false);
   const [isCheckingDomain, setIsCheckingDomain] = useState(false);
 
+  // Dependency fetching state
+  const [isFetchingDependencies, setIsFetchingDependencies] = useState(false);
+  const [dependencySource, setDependencySource] = useState<string | null>(null);
+  const [fetchedResources, setFetchedResources] = useState<string[]>([]);
+
   // Fetch scenarios on mount
   useEffect(() => {
     let cancelled = false;
@@ -297,7 +303,7 @@ export function StepManifest({ deployment }: StepManifestProps) {
       case "scenarioId": {
         const scenarioId = value as string;
         manifest.scenario = { ...manifest.scenario, id: scenarioId };
-        manifest.dependencies = { ...manifest.dependencies, scenarios: [scenarioId] };
+        manifest.dependencies = { ...manifest.dependencies, scenarios: [scenarioId], resources: [] };
 
         // Auto-populate ALL ports from the selected scenario's service.json
         const scenario = scenarios.find((s) => s.id === scenarioId);
@@ -316,6 +322,40 @@ export function StepManifest({ deployment }: StepManifestProps) {
           // Clear ports if scenario has none defined
           manifest.ports = {};
         }
+
+        // Fetch dependencies from API asynchronously
+        // This enriches the manifest with resource dependencies after the initial update
+        setIsFetchingDependencies(true);
+        setDependencySource(null);
+        setFetchedResources([]);
+
+        getScenarioDependencies(scenarioId)
+          .then((deps) => {
+            // Use functional update to get the latest manifest state (avoid stale closure)
+            setManifestJson((prevJson) => {
+              try {
+                const updatedManifest = JSON.parse(prevJson);
+                updatedManifest.dependencies = {
+                  ...updatedManifest.dependencies,
+                  scenarios: [scenarioId, ...deps.scenarios.filter((s) => s !== scenarioId)],
+                  resources: deps.resources,
+                };
+                return JSON.stringify(updatedManifest, null, 2);
+              } catch {
+                return prevJson;
+              }
+            });
+            setDependencySource(deps.source);
+            setFetchedResources(deps.resources);
+          })
+          .catch((err) => {
+            console.warn("Failed to fetch scenario dependencies:", err);
+            // Keep the manifest as-is with empty resources
+          })
+          .finally(() => {
+            setIsFetchingDependencies(false);
+          });
+
         break;
       }
       case "domain":
@@ -324,9 +364,44 @@ export function StepManifest({ deployment }: StepManifestProps) {
       case "includePackages":
         manifest.bundle = { ...manifest.bundle, include_packages: value as boolean };
         break;
-      case "includeAutoheal":
-        manifest.bundle = { ...manifest.bundle, include_autoheal: value as boolean };
+      case "includeAutoheal": {
+        const enabled = value as boolean;
+        manifest.bundle = { ...manifest.bundle, include_autoheal: enabled };
+
+        // When autoheal is enabled, also fetch its dependencies and merge with existing
+        if (enabled) {
+          getScenarioDependencies("vrooli-autoheal")
+            .then((deps) => {
+              // Use functional update to get the latest manifest state (avoid stale closure)
+              setManifestJson((prevJson) => {
+                try {
+                  const currentManifest = JSON.parse(prevJson);
+                  const existingResources = currentManifest.dependencies?.resources ?? [];
+
+                  // Merge resources (deduplicated)
+                  const mergedResources = [...new Set([...existingResources, ...deps.resources])];
+
+                  currentManifest.dependencies = {
+                    ...currentManifest.dependencies,
+                    resources: mergedResources,
+                  };
+                  return JSON.stringify(currentManifest, null, 2);
+                } catch {
+                  return prevJson;
+                }
+              });
+
+              // Update fetched resources display if there are new ones
+              if (deps.resources.length > 0) {
+                setFetchedResources((prev) => [...new Set([...prev, ...deps.resources])]);
+              }
+            })
+            .catch((err) => {
+              console.warn("Failed to fetch vrooli-autoheal dependencies:", err);
+            });
+        }
         break;
+      }
       case "caddyEnabled":
         manifest.edge = { ...manifest.edge, caddy: { ...manifest.edge.caddy, enabled: value as boolean } };
         break;
@@ -623,15 +698,38 @@ export function StepManifest({ deployment }: StepManifestProps) {
 
               {/* Selected scenario info */}
               {selectedScenario && !showScenarioDropdown && (
-                <p className="mt-1.5 text-xs text-green-400 flex items-center gap-1">
-                  <Check className="h-3 w-3" />
-                  {selectedScenario.displayName ?? selectedScenario.id}
-                  {selectedScenario.ports && Object.keys(selectedScenario.ports).length > 0 && (
-                    <span className="text-slate-500 ml-1">
-                      · {Object.keys(selectedScenario.ports).length} port(s) defined
-                    </span>
+                <div className="mt-1.5 space-y-1">
+                  <p className="text-xs text-green-400 flex items-center gap-1">
+                    <Check className="h-3 w-3" />
+                    {selectedScenario.displayName ?? selectedScenario.id}
+                    {selectedScenario.ports && Object.keys(selectedScenario.ports).length > 0 && (
+                      <span className="text-slate-500 ml-1">
+                        · {Object.keys(selectedScenario.ports).length} port(s) defined
+                      </span>
+                    )}
+                  </p>
+                  {/* Dependencies info */}
+                  {isFetchingDependencies && (
+                    <p className="text-xs text-slate-400 flex items-center gap-1">
+                      <div className="h-3 w-3 animate-spin rounded-full border border-slate-500 border-t-transparent" />
+                      Fetching dependencies...
+                    </p>
                   )}
-                </p>
+                  {!isFetchingDependencies && fetchedResources.length > 0 && (
+                    <p className="text-xs text-blue-400 flex items-center gap-1">
+                      <Check className="h-3 w-3" />
+                      Resources: {fetchedResources.join(", ")}
+                      <span className="text-slate-500 ml-1">
+                        (from {dependencySource === "analyzer" ? "dependency analyzer" : "service.json"})
+                      </span>
+                    </p>
+                  )}
+                  {!isFetchingDependencies && fetchedResources.length === 0 && dependencySource && (
+                    <p className="text-xs text-slate-500">
+                      No resource dependencies detected
+                    </p>
+                  )}
+                </div>
               )}
               {scenarioIdError && (
                 <p className="mt-1.5 text-xs text-red-400 flex items-center gap-1">

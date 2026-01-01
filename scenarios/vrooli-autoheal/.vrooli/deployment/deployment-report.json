@@ -1,7 +1,7 @@
 {
   "scenario": "vrooli-autoheal",
   "report_version": 1,
-  "generated_at": "2025-12-18T04:03:57.218231481Z",
+  "generated_at": "2025-12-31T19:41:21.765555325Z",
   "dependencies": [
     {
       "name": "postgres",
@@ -141,7 +141,7 @@
   },
   "bundle_manifest": {
     "scenario": "vrooli-autoheal",
-    "generated_at": "2025-12-18T04:03:57.218231481Z",
+    "generated_at": "2025-12-31T19:41:21.765555325Z",
     "files": [
       {
         "path": ".vrooli/service.json",

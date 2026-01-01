@@ -111,6 +111,15 @@ export type ScenarioPortsResponse = {
   timestamp: string;
 };
 
+export type ScenarioDependenciesResponse = {
+  scenario_id: string;
+  resources: string[];
+  scenarios: string[];
+  analyzer_available: boolean;
+  source: "analyzer" | "service.json";
+  timestamp: string;
+};
+
 export type ReachabilityResult = {
   target: string;
   type: "host" | "domain";
@@ -216,6 +225,22 @@ export async function getScenarioPorts(scenarioId: string) {
     throw new Error(`Failed to get scenario ports: ${res.status} ${text}`);
   }
   return res.json() as Promise<ScenarioPortsResponse>;
+}
+
+/**
+ * Get scenario dependencies (resources and scenarios) from dependency analyzer or service.json fallback.
+ */
+export async function getScenarioDependencies(scenarioId: string) {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(scenarioId)}/dependencies`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get scenario dependencies: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ScenarioDependenciesResponse>;
 }
 
 export async function checkReachability(host?: string, domain?: string) {
