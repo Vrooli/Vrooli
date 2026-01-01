@@ -28,10 +28,14 @@ import {
   useExecuteDeployment,
   getStatusInfo,
 } from "../../hooks/useDeployments";
+import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
 import { cn } from "../../lib/utils";
 import type { Deployment } from "../../lib/api";
 import { LiveStateTab, FilesTab, DriftTab, HistoryTab, TerminalTab } from "./tabs";
 import { CodeBlock } from "../ui/code-block";
+import { InvestigateButton } from "../wizard/InvestigateButton";
+import { InvestigationProgress } from "../wizard/InvestigationProgress";
+import { InvestigationReport } from "../wizard/InvestigationReport";
 
 interface DeploymentDetailsProps {
   deploymentId: string;
@@ -48,6 +52,10 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const [showDeployResult, setShowDeployResult] = useState(false);
   const [showLogs, setShowLogs] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "live-state" | "files" | "drift" | "history" | "terminal">("overview");
+  const [showInvestigationReport, setShowInvestigationReport] = useState(false);
+
+  // Investigation state
+  const investigation = useDeploymentInvestigation(deploymentId);
 
   if (isLoading) {
     return (
@@ -182,8 +190,32 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
               {deployment.status === "failed" ? "Retry" : "Re-deploy"}
             </button>
           )}
+
+          {/* Investigate button for failed deployments */}
+          {deployment.status === "failed" && (
+            <InvestigateButton
+              deploymentId={deploymentId}
+              onInvestigationStarted={() => {}}
+            />
+          )}
         </div>
       </div>
+
+      {/* Investigation progress - show when there's an active investigation */}
+      {investigation.activeInvestigation && deployment.status === "failed" && (
+        <InvestigationProgress
+          deploymentId={deploymentId}
+          onViewReport={() => setShowInvestigationReport(true)}
+        />
+      )}
+
+      {/* Investigation report modal */}
+      {showInvestigationReport && investigation.activeInvestigation && (
+        <InvestigationReport
+          investigation={investigation.activeInvestigation}
+          onClose={() => setShowInvestigationReport(false)}
+        />
+      )}
 
       {/* Error message */}
       {deployment.error_message && (

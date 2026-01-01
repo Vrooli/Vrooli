@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
+	"scenario-to-cloud/agentmanager"
 	"scenario-to-cloud/persistence"
 )
 
@@ -30,11 +31,13 @@ type Config struct {
 
 // Server wires the HTTP router.
 type Server struct {
-	config      *Config
-	router      *mux.Router
-	db          *sql.DB
-	repo        *persistence.Repository
-	progressHub *ProgressHub
+	config          *Config
+	router          *mux.Router
+	db              *sql.DB
+	repo            *persistence.Repository
+	progressHub     *ProgressHub
+	agentSvc        *agentmanager.AgentService
+	investigationSvc *InvestigationService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -58,12 +61,34 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 
+	progressHub := NewProgressHub()
+
+	// Initialize agent-manager integration
+	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
+	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
+		ProfileName: getEnvDefault("AGENT_MANAGER_PROFILE_NAME", "scenario-to-cloud-investigator"),
+		ProfileKey:  getEnvDefault("AGENT_MANAGER_PROFILE_KEY", "scenario-to-cloud-investigator"),
+		Timeout:     30 * time.Second,
+		Enabled:     agentEnabled,
+	})
+
+	// Initialize agent profile if enabled (non-blocking, log warnings)
+	if agentEnabled {
+		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := agentSvc.Initialize(initCtx, agentmanager.DefaultProfileConfig()); err != nil {
+			log.Printf("[agent-manager] Warning: failed to initialize profile: %v", err)
+		}
+		cancel()
+	}
+
 	srv := &Server{
-		config:      cfg,
-		router:      mux.NewRouter(),
-		db:          db,
-		repo:        repo,
-		progressHub: NewProgressHub(),
+		config:          cfg,
+		router:          mux.NewRouter(),
+		db:              db,
+		repo:            repo,
+		progressHub:     progressHub,
+		agentSvc:        agentSvc,
+		investigationSvc: NewInvestigationService(repo, agentSvc, progressHub),
 	}
 
 	srv.setupRoutes()
@@ -146,6 +171,13 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/preflight/fix/ports", s.handleStopPortServices).Methods("POST")
 	api.HandleFunc("/preflight/disk/usage", s.handleDiskUsage).Methods("POST")
 	api.HandleFunc("/preflight/disk/cleanup", s.handleDiskCleanup).Methods("POST")
+
+	// Investigation endpoints (agent-manager integration)
+	api.HandleFunc("/deployments/{id}/investigate", s.handleInvestigateDeployment).Methods("POST")
+	api.HandleFunc("/deployments/{id}/investigations", s.handleListInvestigations).Methods("GET")
+	api.HandleFunc("/deployments/{id}/investigations/{invId}", s.handleGetInvestigation).Methods("GET")
+	api.HandleFunc("/deployments/{id}/investigations/{invId}/stop", s.handleStopInvestigation).Methods("POST")
+	api.HandleFunc("/agent-manager/status", s.handleCheckAgentManagerStatus).Methods("GET")
 }
 
 // Router returns the HTTP handler for use with server.Run
@@ -540,6 +572,14 @@ func requireEnv(key string) string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
 		log.Fatalf("environment variable %s is required. Run the scenario via 'vrooli scenario run <name>' so lifecycle exports it.", key)
+	}
+	return value
+}
+
+func getEnvDefault(key, defaultValue string) string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return defaultValue
 	}
 	return value
 }

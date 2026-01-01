@@ -1,8 +1,13 @@
+import { useState } from "react";
 import { Rocket, CheckCircle2, ExternalLink, PartyPopper, Server } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import { Card, CardContent } from "../ui/card";
 import { DeploymentProgress } from "./DeploymentProgress";
+import { InvestigateButton } from "./InvestigateButton";
+import { InvestigationProgress } from "./InvestigationProgress";
+import { InvestigationReport } from "./InvestigationReport";
+import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
 import type { useDeployment } from "../../hooks/useDeployment";
 
 interface StepDeployProps {
@@ -28,9 +33,18 @@ export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
   // Get domain for success message
   const domain = parsedManifest.ok ? parsedManifest.value.edge?.domain : null;
 
+  // Investigation state
+  const [showInvestigationReport, setShowInvestigationReport] = useState(false);
+  const investigation = useDeploymentInvestigation(deploymentId);
+
   // Handler for when progress completes (called by DeploymentProgress via SSE)
   const handleProgressComplete = (success: boolean, error?: string) => {
     onDeploymentComplete(success, error);
+  };
+
+  // Handler for when investigation starts
+  const handleInvestigationStarted = (investigationId: string) => {
+    // Could navigate to investigation view or show inline
   };
 
   return (
@@ -56,13 +70,35 @@ export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
         />
       )}
 
-      {/* Retry button when failed */}
-      {isFailed && (
-        <div className="flex items-center gap-3">
-          <Button onClick={deploy}>
-            <Rocket className="h-4 w-4 mr-1.5" />
-            Retry Deployment
-          </Button>
+      {/* Retry and Investigate buttons when failed */}
+      {isFailed && deploymentId && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Button onClick={deploy}>
+              <Rocket className="h-4 w-4 mr-1.5" />
+              Retry Deployment
+            </Button>
+            <InvestigateButton
+              deploymentId={deploymentId}
+              onInvestigationStarted={handleInvestigationStarted}
+            />
+          </div>
+
+          {/* Investigation progress - show for active OR recently completed investigations */}
+          {investigation.activeInvestigation && (
+            <InvestigationProgress
+              deploymentId={deploymentId}
+              onViewReport={() => setShowInvestigationReport(true)}
+            />
+          )}
+
+          {/* Investigation report modal */}
+          {showInvestigationReport && investigation.activeInvestigation && (
+            <InvestigationReport
+              investigation={investigation.activeInvestigation}
+              onClose={() => setShowInvestigationReport(false)}
+            />
+          )}
         </div>
       )}
 

@@ -91,6 +91,24 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		{"add_deployment_history", `
 			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS deployment_history JSONB DEFAULT '[]'::jsonb;
 		`},
+		{"add_investigations_table", `
+			CREATE TABLE IF NOT EXISTS deployment_investigations (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				deployment_id UUID NOT NULL REFERENCES deployments(id) ON DELETE CASCADE,
+				status TEXT NOT NULL DEFAULT 'pending'
+					CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+				findings TEXT,
+				progress INTEGER DEFAULT 0,
+				details JSONB,
+				agent_run_id TEXT,
+				error_message TEXT,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				completed_at TIMESTAMPTZ
+			);
+			CREATE INDEX IF NOT EXISTS idx_investigations_deployment_id ON deployment_investigations(deployment_id);
+			CREATE INDEX IF NOT EXISTS idx_investigations_status ON deployment_investigations(status);
+		`},
 	}
 
 	for _, m := range migrations {

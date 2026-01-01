@@ -1398,3 +1398,129 @@ export async function renewTLS(deploymentId: string): Promise<TLSRenewResponse> 
   }
   return res.json() as Promise<TLSRenewResponse>;
 }
+
+// =============================================================================
+// Investigation API (Agent-Manager Integration)
+// =============================================================================
+
+import type {
+  Investigation,
+  InvestigationSummary,
+  CreateInvestigationRequest,
+  AgentManagerStatus
+} from "../types/investigation";
+
+export type TriggerInvestigationResponse = {
+  investigation: Investigation;
+};
+
+export type ListInvestigationsResponse = {
+  investigations: InvestigationSummary[];
+};
+
+export type GetInvestigationResponse = {
+  investigation: Investigation;
+};
+
+/**
+ * Trigger a new investigation for a failed deployment.
+ * The investigation runs in the background; use getInvestigation to poll status.
+ */
+export async function triggerInvestigation(
+  deploymentId: string,
+  options?: CreateInvestigationRequest
+): Promise<TriggerInvestigationResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/investigate`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options || {}),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to trigger investigation: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<TriggerInvestigationResponse>;
+}
+
+/**
+ * List all investigations for a deployment.
+ */
+export async function listInvestigations(
+  deploymentId: string,
+  limit?: number
+): Promise<ListInvestigationsResponse> {
+  let url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/investigations`, { baseUrl: API_BASE });
+  if (limit) {
+    url += `?limit=${limit}`;
+  }
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list investigations: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ListInvestigationsResponse>;
+}
+
+/**
+ * Get a single investigation by ID.
+ */
+export async function getInvestigation(
+  deploymentId: string,
+  investigationId: string
+): Promise<GetInvestigationResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/investigations/${encodeURIComponent(investigationId)}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get investigation: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<GetInvestigationResponse>;
+}
+
+/**
+ * Stop a running investigation.
+ */
+export async function stopInvestigation(
+  deploymentId: string,
+  investigationId: string
+): Promise<{ success: boolean; message: string }> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/investigations/${encodeURIComponent(investigationId)}/stop`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to stop investigation: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+/**
+ * Check agent-manager availability.
+ */
+export async function getAgentManagerStatus(): Promise<AgentManagerStatus> {
+  const url = buildApiUrl("/agent-manager/status", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get agent-manager status: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<AgentManagerStatus>;
+}
