@@ -16,8 +16,9 @@ import type { TimelineMode } from '../types/timeline-unified';
  * - timeline: Recording/execution timeline (both modes)
  * - auto: AI navigation chat (recording mode only)
  * - artifacts: Execution artifacts including screenshots, logs, network, DOM (execution mode only)
+ * - history: Execution history for switching between runs (execution mode only)
  */
-export type TabId = 'timeline' | 'auto' | 'artifacts';
+export type TabId = 'timeline' | 'auto' | 'artifacts' | 'history';
 
 /**
  * Sub-types within the Artifacts tab.
@@ -69,6 +70,12 @@ export const TAB_CONFIGS: TabConfig[] = [
     tooltip: 'Screenshots, logs, network requests, and more',
     visibleIn: ['execution'],
   },
+  {
+    id: 'history',
+    label: 'History',
+    tooltip: 'Execution history for this workflow',
+    visibleIn: ['execution'],
+  },
 ];
 
 /**
@@ -112,6 +119,7 @@ export interface UnifiedSidebarState {
   timelineActivity: boolean;
   autoActivity: boolean;
   artifactsActivity: boolean;
+  historyActivity: boolean;
   /** Current sub-type selected within Artifacts tab */
   artifactSubType: ArtifactSubType;
 }

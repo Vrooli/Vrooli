@@ -16,18 +16,14 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
-import { useExecutionStore } from "@/domains/executions";
 import { useProjectStore, type Project } from "@/domains/projects";
 import { AIEditModal } from "@/domains/ai";
 import toast from "react-hot-toast";
 import { usePopoverPosition } from "@hooks/usePopoverPosition";
-import { usePromptDialog } from "@hooks/usePromptDialog";
 import ResponsiveDialog from "./ResponsiveDialog";
-import { PromptDialog } from "@shared/ui/PromptDialog";
 import { selectors } from "@constants/selectors";
 import { SubscriptionBadge } from "@shared/components";
 import Breadcrumbs from "./Breadcrumbs";
-import { workflowStartsWithNavigate } from "@utils/nodeUtils";
 
 type HeaderWorkflow = Pick<
   Workflow,
@@ -105,9 +101,6 @@ function Header({
     (state) => state.restoreWorkflowVersion,
   );
   const restoringVersion = useWorkflowStore((state) => state.restoringVersion);
-  const startExecution = useExecutionStore((state) => state.startExecution);
-  const nodes = useWorkflowStore((state) => state.nodes);
-  const edges = useWorkflowStore((state) => state.edges);
   const { isConnected, error } = useProjectStore();
   const [showAIEditModal, setShowAIEditModal] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -118,16 +111,6 @@ function Header({
   const [showWorkflowInfo, setShowWorkflowInfo] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showSaveErrorDetails, setShowSaveErrorDetails] = useState(false);
-  const [isExecuting, setIsExecuting] = useState(false);
-
-  // Prompt dialog for start URL when workflow doesn't begin with navigate
-  const {
-    dialogState: startUrlDialogState,
-    prompt: promptStartUrl,
-    setValue: setStartUrlValue,
-    close: closeStartUrlDialog,
-    submit: submitStartUrl,
-  } = usePromptDialog();
 
   const { floatingStyles: workflowInfoStyles } = usePopoverPosition(
     infoButtonRef,
@@ -513,96 +496,6 @@ function Header({
     </div>
   );
 
-  const handleExecute = async () => {
-    if (!currentWorkflow) {
-      toast.error("No workflow to execute");
-      return;
-    }
-    if (isExecuting) {
-      return;
-    }
-
-    try {
-      setIsExecuting(true);
-
-      // Check if workflow starts with a navigate step
-      const hasNavigateStep = workflowStartsWithNavigate(nodes, edges);
-
-      // Debug logging
-      console.log('[Header] Checking navigate step:', {
-        hasNavigateStep,
-        nodesCount: nodes.length,
-        edgesCount: edges.length,
-        firstNode: nodes[0] ? { id: nodes[0].id, type: nodes[0].type, action: (nodes[0] as any).action } : null,
-      });
-
-      let startUrl: string | undefined;
-
-      // If workflow doesn't start with navigate, prompt for start URL
-      if (!hasNavigateStep && nodes.length > 0) {
-        const url = await promptStartUrl(
-          {
-            title: "Start URL Required",
-            message: "This workflow doesn't begin with a Navigate step. Please enter the URL where the workflow should start.",
-            label: "Start URL",
-            placeholder: "example.com",
-            submitLabel: "Run Workflow",
-            cancelLabel: "Cancel",
-          },
-          {
-            validate: (value) => {
-              if (!value.trim()) {
-                return "Please enter a URL";
-              }
-              // Normalize the URL for validation
-              let urlToValidate = value.trim();
-              if (!/^https?:\/\//i.test(urlToValidate)) {
-                urlToValidate = `https://${urlToValidate}`;
-              }
-              try {
-                new URL(urlToValidate);
-                return null;
-              } catch {
-                return "Please enter a valid URL (e.g., example.com)";
-              }
-            },
-            normalize: (value) => {
-              const trimmed = value.trim();
-              // Auto-prepend https:// if no protocol
-              if (!/^https?:\/\//i.test(trimmed)) {
-                return `https://${trimmed}`;
-              }
-              return trimmed;
-            },
-          }
-        );
-
-        if (!url) {
-          // User cancelled
-          setIsExecuting(false);
-          return;
-        }
-        startUrl = url;
-      }
-
-      await startExecution(currentWorkflow.id, {
-        startUrl,
-        saveWorkflowFn: async () => {
-          if (!isDirty) {
-            return;
-          }
-          await saveWorkflow({
-            source: "execute",
-            changeDescription: "Autosave before execution",
-          });
-        },
-      });
-    } catch (error) {
-      toast.error("Failed to start execution");
-    } finally {
-      setIsExecuting(false);
-    }
-  };
 
   const handleDebug = () => {
     if (!currentWorkflow) {
@@ -695,15 +588,6 @@ function Header({
       setShowVersionHistory(false);
     }
   }, [currentWorkflow?.id]);
-
-  // Listen for execute-workflow event from keyboard shortcut
-  useEffect(() => {
-    const handleExecuteEvent = () => {
-      void handleExecute();
-    };
-    window.addEventListener('execute-workflow', handleExecuteEvent);
-    return () => window.removeEventListener('execute-workflow', handleExecuteEvent);
-  }, [currentWorkflow, isExecuting, isDirty, startExecution, saveWorkflow, nodes, edges]);
 
   return (
     <>
@@ -965,17 +849,14 @@ function Header({
             </button>
 
             <button
-              onClick={() => void handleExecute()}
-              disabled={isExecuting}
-              className="bg-flow-accent hover:bg-blue-600 disabled:bg-flow-accent/60 disabled:cursor-not-allowed text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-0 sm:gap-2 transition-colors"
+              onClick={() => window.dispatchEvent(new CustomEvent('execute-workflow'))}
+              className="bg-flow-accent hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-0 sm:gap-2 transition-colors"
               title="Execute Workflow"
               aria-label="Execute Workflow"
               data-testid={selectors.header.buttons.execute}
             >
-              {isExecuting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-              <span className="hidden text-sm font-medium sm:inline">
-                {isExecuting ? "Executing..." : "Execute"}
-              </span>
+              <Play size={16} />
+              <span className="hidden text-sm font-medium sm:inline">Execute</span>
             </button>
           </div>
         </div>
@@ -1217,13 +1098,6 @@ function Header({
         )}
       </ResponsiveDialog>
 
-      {/* Start URL prompt for workflows without navigate step */}
-      <PromptDialog
-        state={startUrlDialogState}
-        onValueChange={setStartUrlValue}
-        onClose={closeStartUrlDialog}
-        onSubmit={submitStartUrl}
-      />
     </>
   );
 }

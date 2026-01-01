@@ -55,7 +55,7 @@ function getStoredTab(key: string, defaultValue: TabId): TabId {
   try {
     const stored = localStorage.getItem(key);
     // Handle new tab values and migrate old values
-    if (stored === 'timeline' || stored === 'auto' || stored === 'artifacts') {
+    if (stored === 'timeline' || stored === 'auto' || stored === 'artifacts' || stored === 'history') {
       return stored;
     }
     // Migrate old 'screenshots' or 'logs' to 'artifacts'
@@ -144,9 +144,11 @@ export interface UseUnifiedSidebarReturn {
   timelineActivity: boolean;
   autoActivity: boolean;
   artifactsActivity: boolean;
+  historyActivity: boolean;
   setTimelineActivity: (active: boolean) => void;
   setAutoActivity: (active: boolean) => void;
   setArtifactsActivity: (active: boolean) => void;
+  setHistoryActivity: (active: boolean) => void;
 }
 
 // ============================================================================
@@ -185,9 +187,11 @@ export function useUnifiedSidebar(
   const [timelineActivity, setTimelineActivity] = useState(false);
   const [autoActivity, setAutoActivity] = useState(false);
   const [artifactsActivity, setArtifactsActivity] = useState(false);
+  const [historyActivity, setHistoryActivity] = useState(false);
   const timelineActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const autoActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const artifactsActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const historyActivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Persist open state
   const setIsOpen = useCallback((open: boolean) => {
@@ -256,12 +260,25 @@ export function useUnifiedSidebar(
     }
   }, []);
 
+  const setHistoryActivityWithClear = useCallback((active: boolean) => {
+    if (historyActivityTimerRef.current) {
+      clearTimeout(historyActivityTimerRef.current);
+    }
+    setHistoryActivity(active);
+    if (active) {
+      historyActivityTimerRef.current = setTimeout(() => {
+        setHistoryActivity(false);
+      }, 2000);
+    }
+  }, []);
+
   // Cleanup activity timers
   useEffect(() => {
     return () => {
       if (timelineActivityTimerRef.current) clearTimeout(timelineActivityTimerRef.current);
       if (autoActivityTimerRef.current) clearTimeout(autoActivityTimerRef.current);
       if (artifactsActivityTimerRef.current) clearTimeout(artifactsActivityTimerRef.current);
+      if (historyActivityTimerRef.current) clearTimeout(historyActivityTimerRef.current);
     };
   }, []);
 
@@ -335,8 +352,10 @@ export function useUnifiedSidebar(
     timelineActivity,
     autoActivity,
     artifactsActivity,
+    historyActivity,
     setTimelineActivity: setTimelineActivityWithClear,
     setAutoActivity: setAutoActivityWithClear,
     setArtifactsActivity: setArtifactsActivityWithClear,
+    setHistoryActivity: setHistoryActivityWithClear,
   };
 }

@@ -7,11 +7,8 @@ import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
 import { useProjectStore, type Project } from '@/domains/projects';
 import { useWorkflowStore } from '@stores/workflowStore';
-import { useExecutionStore } from '@/domains/executions';
 import { useDashboardStore, type RecentWorkflow } from '@stores/dashboardStore';
 import { useModals } from '@shared/modals';
-import { useMediaQuery } from '@hooks/useMediaQuery';
-import { ExecutionPaneLayout } from '@/domains/executions';
 import { logger } from '@utils/logger';
 import toast from 'react-hot-toast';
 
@@ -30,15 +27,20 @@ export default function WorkflowEditorView() {
   const { projects, getProject, setCurrentProject } = useProjectStore();
   const { loadWorkflow, currentWorkflow } = useWorkflowStore();
   const { setLastEditedWorkflow } = useDashboardStore();
-  const currentExecution = useExecutionStore((state) => state.currentExecution);
-  const viewerWorkflowId = useExecutionStore((state) => state.viewerWorkflowId);
-  const closeExecutionViewer = useExecutionStore((state) => state.closeViewer);
 
   const { showAIModal, openAIModal, closeAIModal, openDocs } = useModals();
-  const isLargeScreen = useMediaQuery('(min-width: 1024px)');
 
-  const isExecutionViewerOpen = Boolean(viewerWorkflowId);
-  const activeExecutionWorkflowId = viewerWorkflowId ?? currentExecution?.workflowId ?? workflowId ?? null;
+  // Handle execute-workflow event: navigate to Record page
+  useEffect(() => {
+    const handleExecuteWorkflow = () => {
+      if (workflowId && projectId) {
+        navigate(`/record/new?mode=execution&workflow_id=${workflowId}&project_id=${projectId}`);
+      }
+    };
+
+    window.addEventListener('execute-workflow', handleExecuteWorkflow);
+    return () => window.removeEventListener('execute-workflow', handleExecuteWorkflow);
+  }, [workflowId, projectId, navigate]);
 
   // Load project and workflow on mount
   useEffect(() => {
@@ -202,23 +204,15 @@ export default function WorkflowEditorView() {
           <Sidebar />
         </Suspense>
 
-        <ExecutionPaneLayout
-          isOpen={isExecutionViewerOpen}
-          workflowId={activeExecutionWorkflowId}
-          execution={currentExecution}
-          isLargeScreen={isLargeScreen}
-          onClose={closeExecutionViewer}
+        <Suspense
+          fallback={
+            <div className="h-full flex items-center justify-center">
+              <LoadingSpinner variant="default" size={24} message="Loading workflow builder..." />
+            </div>
+          }
         >
-          <Suspense
-            fallback={
-              <div className="h-full flex items-center justify-center">
-                <LoadingSpinner variant="default" size={24} message="Loading workflow builder..." />
-              </div>
-            }
-          >
-            <WorkflowBuilder projectId={project?.id} onStartRecording={handleStartRecording} />
-          </Suspense>
-        </ExecutionPaneLayout>
+          <WorkflowBuilder projectId={project?.id} onStartRecording={handleStartRecording} />
+        </Suspense>
       </div>
 
       {showAIModal && (

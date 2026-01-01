@@ -2,13 +2,14 @@
  * UnifiedSidebar Component
  *
  * The unified sidebar container with tabbed navigation for Timeline, Auto,
- * and Artifacts tabs. Mode-aware: different tabs are shown based on whether
- * we're in recording or execution mode.
+ * Artifacts, and History tabs. Mode-aware: different tabs are shown based on
+ * whether we're in recording or execution mode.
  *
  * Features:
  * - Timeline tab: Shows recorded/executed actions (both modes)
  * - Auto tab: AI navigation chat interface (recording mode only)
  * - Artifacts tab: Execution artifacts - screenshots, logs, network, etc. (execution mode only)
+ * - History tab: Execution history for switching runs (execution mode only)
  * - Activity indicators for each tab
  * - Resizable width with persistence
  */
@@ -17,6 +18,7 @@ import { useEffect, useCallback, useMemo } from 'react';
 import { TimelineTab, type TimelineTabProps } from './TimelineTab';
 import { AutoTab, type AutoTabProps } from './AutoTab';
 import { ArtifactsTab, type ArtifactsTabProps } from './ArtifactsTab';
+import { HistoryTab, type HistoryTabProps } from './HistoryTab';
 import { useUnifiedSidebar, type UseUnifiedSidebarOptions } from './useUnifiedSidebar';
 import { getVisibleTabs, isTabVisible, getDefaultTab, type TabId, type ArtifactSubType } from './types';
 import type { TimelineMode } from '../types/timeline-unified';
@@ -53,6 +55,12 @@ export type AutoTabPassthroughProps = Omit<AutoTabProps, 'className'>;
  */
 export type ArtifactsTabPassthroughProps = Omit<ArtifactsTabProps, 'className'>;
 
+/**
+ * Props for HistoryTab passed through UnifiedSidebar.
+ * Omits className as it's applied internally.
+ */
+export type HistoryTabPassthroughProps = Omit<HistoryTabProps, 'className'>;
+
 export interface UnifiedSidebarProps {
   /** Current mode (determines which tabs are visible) */
   mode: TimelineMode;
@@ -62,6 +70,8 @@ export interface UnifiedSidebarProps {
   autoProps: AutoTabPassthroughProps;
   /** Props to pass through to ArtifactsTab (execution mode only) */
   artifactsProps?: ArtifactsTabPassthroughProps;
+  /** Props to pass through to HistoryTab (execution mode only) */
+  historyProps?: HistoryTabPassthroughProps;
   /** Initial tab to show (used when activeTab is not controlled) */
   initialTab?: TabId;
   /** Controlled active tab (use with onTabChange for controlled behavior) */
@@ -89,6 +99,7 @@ export function UnifiedSidebar({
   timelineProps,
   autoProps,
   artifactsProps,
+  historyProps,
   initialTab,
   activeTab: controlledActiveTab,
   isOpen: controlledIsOpen,
@@ -121,9 +132,11 @@ export function UnifiedSidebar({
     timelineActivity,
     autoActivity,
     artifactsActivity,
+    historyActivity,
     setTimelineActivity,
     setAutoActivity,
     setArtifactsActivity,
+    setHistoryActivity,
   } = useUnifiedSidebar(sidebarOptions);
 
   // Use controlled artifactSubType if provided, otherwise use internal state
@@ -204,8 +217,10 @@ export function UnifiedSidebar({
       setAutoActivity(false);
     } else if (activeTab === 'artifacts') {
       setArtifactsActivity(false);
+    } else if (activeTab === 'history') {
+      setHistoryActivity(false);
     }
-  }, [activeTab, setTimelineActivity, setAutoActivity, setArtifactsActivity]);
+  }, [activeTab, setTimelineActivity, setAutoActivity, setArtifactsActivity, setHistoryActivity]);
 
   const handleTabClick = useCallback(
     (tab: TabId) => {
@@ -248,9 +263,10 @@ export function UnifiedSidebar({
       case 'timeline': return timelineActivity;
       case 'auto': return autoActivity;
       case 'artifacts': return artifactsActivity;
+      case 'history': return historyActivity;
       default: return false;
     }
-  }, [timelineActivity, autoActivity, artifactsActivity]);
+  }, [timelineActivity, autoActivity, artifactsActivity, historyActivity]);
 
   if (!isOpen) {
     return null;
@@ -291,6 +307,9 @@ export function UnifiedSidebar({
             }}
             className="h-full"
           />
+        )}
+        {activeTab === 'history' && historyProps && (
+          <HistoryTab {...historyProps} className="h-full" />
         )}
       </div>
 

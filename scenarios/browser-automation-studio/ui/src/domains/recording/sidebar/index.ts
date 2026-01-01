@@ -1,7 +1,7 @@
 /**
  * Sidebar Domain
  *
- * Unified sidebar with Timeline, Auto, and Artifacts tabs for the Record page.
+ * Unified sidebar with Timeline, Auto, Artifacts, and History tabs for the Record page.
  */
 
 // Types
@@ -30,10 +30,14 @@ export type { AutoTabProps } from './AutoTab';
 export { ArtifactsTab } from './ArtifactsTab';
 export type { ArtifactsTabProps, ConsoleLogEntry, NetworkEventEntry, DomSnapshotEntry } from './ArtifactsTab';
 
+export { HistoryTab } from './HistoryTab';
+export type { HistoryTabProps } from './HistoryTab';
+
 export { UnifiedSidebar } from './UnifiedSidebar';
 export type {
   UnifiedSidebarProps,
   TimelineTabPassthroughProps,
   AutoTabPassthroughProps,
   ArtifactsTabPassthroughProps,
+  HistoryTabPassthroughProps,
 } from './UnifiedSidebar';

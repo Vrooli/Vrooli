@@ -70,6 +70,10 @@ interface RecordModePageProps {
   mode?: TimelineMode;
   /** Execution ID for execution mode (required when mode is 'execution') */
   executionId?: string | null;
+  /** Initial workflow ID to select (for execution mode from Build page) */
+  initialWorkflowId?: string;
+  /** Initial project ID (for execution mode from Build page) */
+  initialProjectId?: string;
   /** Callback when workflow is generated */
   onWorkflowGenerated?: (workflowId: string, projectId: string) => void;
   /** Callback when a live session is created */
@@ -193,6 +197,8 @@ export function RecordModePage({
   sessionId: initialSessionId,
   mode: initialMode = 'recording',
   executionId,
+  initialWorkflowId,
+  initialProjectId,
   onWorkflowGenerated,
   onSessionReady,
   onClose,
@@ -255,10 +261,11 @@ export function RecordModePage({
   const [connectionStatus, setConnectionStatus] = useState<StreamConnectionStatus | null>(null);
 
   // Workflow selection and execution state
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(initialWorkflowId ?? null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialProjectId ?? null);
   const [selectedWorkflowName, setSelectedWorkflowName] = useState<string | null>(null);
   const [localExecutionId, setLocalExecutionId] = useState<string | null>(executionId ?? null);
+  // Show workflow picker only if no initial workflow provided and we're in execution mode
   const [showWorkflowPicker, setShowWorkflowPicker] = useState(false);
 
   // Workflow nodes/edges for timeline pre-population
@@ -1211,6 +1218,11 @@ export function RecordModePage({
             domSnapshots: extractDomSnapshots(currentExecution?.timeline ?? []),
             executionStatus: executionStatus ?? undefined,
           }}
+          historyProps={mode === 'execution' && selectedWorkflowId ? {
+            workflowId: selectedWorkflowId,
+            currentExecutionId: localExecutionId ?? undefined,
+            onSelectExecution: (execId) => setLocalExecutionId(execId),
+          } : undefined}
         />
 
         <div className="flex-1 h-full">
