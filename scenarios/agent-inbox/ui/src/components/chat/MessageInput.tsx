@@ -86,6 +86,7 @@ export function MessageInput({
   const [showSkillSelector, setShowSkillSelector] = useState(false);
   const [showToolSelector, setShowToolSelector] = useState(false);
   const [showVariableForm, setShowVariableForm] = useState(true);
+  const [shouldFocusTemplateForm, setShouldFocusTemplateForm] = useState(false);
 
   // Slash command state
   const [slashPopupOpen, setSlashPopupOpen] = useState(false);
@@ -403,6 +404,7 @@ export function MessageInput({
           if (template) {
             setActiveTemplate(template);
             setShowVariableForm(true);
+            setShouldFocusTemplateForm(true);
           }
           break;
         case "direct-skill":
@@ -511,6 +513,11 @@ export function MessageInput({
             activeTemplate={activeTemplate}
             onUpdateVariables={updateTemplateVariables}
             missingFields={getTemplateMissingFields()}
+            autoFocus={shouldFocusTemplateForm}
+            onTabOut={() => {
+              setShouldFocusTemplateForm(false);
+              textareaRef.current?.focus();
+            }}
           />
         </div>
       )}
@@ -655,6 +662,7 @@ export function MessageInput({
         onSelect={(template) => {
           setActiveTemplate(template);
           setShowVariableForm(true);
+          setShouldFocusTemplateForm(true);
         }}
         activeTemplateId={activeTemplate?.template.id}
       />

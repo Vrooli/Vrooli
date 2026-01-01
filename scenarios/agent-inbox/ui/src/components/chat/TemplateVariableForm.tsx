@@ -3,32 +3,65 @@
  *
  * Renders form fields based on template variable definitions.
  * Appears above the message input when a template is active.
+ * Supports keyboard navigation with Tab cycling to message input.
  */
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
-import type { Template, ActiveTemplate } from "@/lib/types/templates";
+import { useState, useRef, useEffect, useCallback } from "react";
+import type { ActiveTemplate } from "@/lib/types/templates";
 
 interface TemplateVariableFormProps {
   activeTemplate: ActiveTemplate;
   onUpdateVariables: (values: Record<string, string>) => void;
   missingFields: string[];
+  /** Called when user tabs past the last form field */
+  onTabOut?: () => void;
+  /** Whether to auto-focus the first field */
+  autoFocus?: boolean;
 }
 
 export function TemplateVariableForm({
   activeTemplate,
   onUpdateVariables,
   missingFields,
+  onTabOut,
+  autoFocus = false,
 }: TemplateVariableFormProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const { template, variableValues } = activeTemplate;
+  const firstFieldRef = useRef<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(null);
+  const lastFieldRef = useRef<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(null);
 
   const handleChange = (name: string, value: string) => {
     onUpdateVariables({ [name]: value });
   };
 
+  // Auto-focus the first field when form appears
+  useEffect(() => {
+    if (autoFocus && isExpanded && firstFieldRef.current) {
+      // Small delay to ensure the form is rendered
+      const timer = setTimeout(() => {
+        firstFieldRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [autoFocus, isExpanded]);
+
+  // Handle Tab on the last field to move focus to message input
+  const handleLastFieldKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Tab" && !e.shiftKey && onTabOut) {
+        e.preventDefault();
+        onTabOut();
+      }
+    },
+    [onTabOut]
+  );
+
   if (template.variables.length === 0) {
     return null;
   }
+
+  const lastIndex = template.variables.length - 1;
 
   return (
     <div
@@ -63,9 +96,11 @@ export function TemplateVariableForm({
       {/* Form fields */}
       {isExpanded && (
         <div className="px-4 pb-4 space-y-3" data-testid="template-form-fields">
-          {template.variables.map((variable) => {
+          {template.variables.map((variable, index) => {
             const value = variableValues[variable.name] || "";
             const isMissing = missingFields.includes(variable.label);
+            const isFirst = index === 0;
+            const isLast = index === lastIndex;
 
             return (
               <div key={variable.name} className="space-y-1">
@@ -81,9 +116,11 @@ export function TemplateVariableForm({
 
                 {variable.type === "select" ? (
                   <select
+                    ref={isFirst ? firstFieldRef as React.RefObject<HTMLSelectElement> : isLast ? lastFieldRef as React.RefObject<HTMLSelectElement> : undefined}
                     id={`var-${variable.name}`}
                     value={value}
                     onChange={(e) => handleChange(variable.name, e.target.value)}
+                    onKeyDown={isLast ? handleLastFieldKeyDown : undefined}
                     className={`
                       w-full px-3 py-2 bg-slate-900 border rounded-lg text-white text-sm
                       focus:outline-none focus:ring-2 focus:ring-blue-500/50
@@ -100,9 +137,11 @@ export function TemplateVariableForm({
                   </select>
                 ) : variable.type === "textarea" ? (
                   <textarea
+                    ref={isFirst ? firstFieldRef as React.RefObject<HTMLTextAreaElement> : isLast ? lastFieldRef as React.RefObject<HTMLTextAreaElement> : undefined}
                     id={`var-${variable.name}`}
                     value={value}
                     onChange={(e) => handleChange(variable.name, e.target.value)}
+                    onKeyDown={isLast ? handleLastFieldKeyDown : undefined}
                     placeholder={variable.placeholder}
                     rows={2}
                     className={`
@@ -115,10 +154,12 @@ export function TemplateVariableForm({
                   />
                 ) : (
                   <input
+                    ref={isFirst ? firstFieldRef as React.RefObject<HTMLInputElement> : isLast ? lastFieldRef as React.RefObject<HTMLInputElement> : undefined}
                     id={`var-${variable.name}`}
                     type="text"
                     value={value}
                     onChange={(e) => handleChange(variable.name, e.target.value)}
+                    onKeyDown={isLast ? handleLastFieldKeyDown : undefined}
                     placeholder={variable.placeholder}
                     className={`
                       w-full px-3 py-2 bg-slate-900 border rounded-lg text-white text-sm

@@ -228,19 +228,50 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     return commands;
   }, []);
 
-  // Filter commands by query
+  // Filter and sort commands by query relevance
   const filterCommands = useCallback(
     (query: string): SlashCommand[] => {
       const allCommands = getAllCommands();
       if (!query) return allCommands;
 
       const lowerQuery = query.toLowerCase();
-      return allCommands.filter(
-        (cmd) =>
-          cmd.name.toLowerCase().includes(lowerQuery) ||
-          cmd.description.toLowerCase().includes(lowerQuery) ||
-          cmd.id.toLowerCase().includes(lowerQuery)
-      );
+
+      // Score each command by match quality
+      const scored = allCommands
+        .map((cmd) => {
+          const name = cmd.name.toLowerCase();
+          const id = cmd.id.toLowerCase();
+          const description = cmd.description.toLowerCase();
+
+          let score = 0;
+
+          // Exact match on name or id (highest priority)
+          if (name === `/${lowerQuery}` || id === lowerQuery) {
+            score = 100;
+          }
+          // Name or id starts with query
+          else if (name.startsWith(`/${lowerQuery}`) || id.startsWith(lowerQuery)) {
+            score = 80;
+          }
+          // Name or id contains query
+          else if (name.includes(lowerQuery) || id.includes(lowerQuery)) {
+            score = 60;
+          }
+          // Description starts with query
+          else if (description.startsWith(lowerQuery)) {
+            score = 40;
+          }
+          // Description contains query
+          else if (description.includes(lowerQuery)) {
+            score = 20;
+          }
+
+          return { cmd, score };
+        })
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score);
+
+      return scored.map(({ cmd }) => cmd);
     },
     [getAllCommands]
   );
