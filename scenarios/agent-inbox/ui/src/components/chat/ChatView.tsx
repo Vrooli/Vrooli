@@ -71,6 +71,32 @@ export function ChatView({
   onCancelEdit,
   onSubmitEdit,
 }: ChatViewProps) {
+  // Compute visible messages based on the active branch
+  // This filters the full message tree to only show the active path
+  // NOTE: Must be called before any early returns to satisfy React's rules of hooks
+  const allMessages = chatData?.messages || [];
+  const activeLeafId = chatData?.chat.active_leaf_message_id ?? null;
+  const visibleMessages = useMemo(() => {
+    if (!chatData) return [];
+    console.log("[ChatView] Computing visible messages", {
+      allMessagesCount: allMessages.length,
+      activeLeafId,
+      allMessages: allMessages.map(m => ({
+        id: m.id.slice(0, 8),
+        role: m.role,
+        parent: m.parent_message_id?.slice(0, 8) ?? null,
+        siblingIndex: m.sibling_index,
+      })),
+    });
+    const result = computeVisibleMessages(allMessages, activeLeafId);
+    console.log("[ChatView] Visible messages result:", result.map(m => ({
+      id: m.id.slice(0, 8),
+      role: m.role,
+      siblingIndex: m.sibling_index,
+    })));
+    return result;
+  }, [chatData, allMessages, activeLeafId]);
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-slate-950" data-testid="chat-view-loading">
@@ -85,29 +111,6 @@ export function ChatView({
   if (!chatData) {
     return null;
   }
-
-  // Compute visible messages based on the active branch
-  // This filters the full message tree to only show the active path
-  const allMessages = chatData.messages || [];
-  const visibleMessages = useMemo(() => {
-    console.log("[ChatView] Computing visible messages", {
-      allMessagesCount: allMessages.length,
-      activeLeafId: chatData.chat.active_leaf_message_id,
-      allMessages: allMessages.map(m => ({
-        id: m.id.slice(0, 8),
-        role: m.role,
-        parent: m.parent_message_id?.slice(0, 8) ?? null,
-        siblingIndex: m.sibling_index,
-      })),
-    });
-    const result = computeVisibleMessages(allMessages, chatData.chat.active_leaf_message_id);
-    console.log("[ChatView] Visible messages result:", result.map(m => ({
-      id: m.id.slice(0, 8),
-      role: m.role,
-      siblingIndex: m.sibling_index,
-    })));
-    return result;
-  }, [allMessages, chatData.chat.active_leaf_message_id]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-slate-950" data-testid="chat-view">
