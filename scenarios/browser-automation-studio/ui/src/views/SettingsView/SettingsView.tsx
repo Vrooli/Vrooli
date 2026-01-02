@@ -300,7 +300,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [activeTab]);
 
   const handleReset = useCallback(() => {
     if (activeTab === 'display') {
@@ -498,8 +498,8 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
                 {isPreviewPlaying ? 'Pause' : 'Play'}
               </button>
             </div>
-            <div className="flex-1 min-h-0 p-4 overflow-hidden">
-              <div ref={previewBoundsRef} className="w-full h-full flex items-center justify-center">
+            <div className="flex-1 min-h-0 overflow-hidden relative">
+              <div ref={previewBoundsRef} className="absolute inset-4 flex items-center justify-center">
                 <Suspense
                   fallback={
                     <div className="w-full aspect-video flex items-center justify-center bg-gray-800 rounded-lg">
@@ -507,29 +507,28 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
                     </div>
                   }
                 >
-                  <div className="relative h-full w-full flex items-center justify-center">
-                    <ReplayPlayer
-                      frames={demoFrames}
-                      autoPlay={isPreviewPlaying}
-                      loop={replay.loop}
-                      presentationSettings={replay.presentation}
-                      chromeTheme={replay.chromeTheme}
-                      background={replay.background}
-                      cursorTheme={replay.cursorTheme}
-                      cursorInitialPosition={replay.cursorInitialPosition}
-                      cursorScale={replay.cursorScale}
-                      cursorClickAnimation={replay.cursorClickAnimation}
-                      browserScale={replay.browserScale}
-                      cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
-                      cursorDefaultPathStyle={replay.cursorPathStyle}
-                      watermark={replay.watermark}
-                      introCard={replay.introCard}
-                      outroCard={replay.outroCard}
-                      presentationDimensions={{ width: targetWidth, height: targetHeight }}
-                      presentationBounds={previewBounds ?? undefined}
-                      presentationFit="contain"
-                    />
-                  </div>
+                  <ReplayPlayer
+                    frames={demoFrames}
+                    autoPlay={isPreviewPlaying}
+                    loop={replay.loop}
+                    presentationSettings={replay.presentation}
+                    chromeTheme={replay.chromeTheme}
+                    background={replay.background}
+                    cursorTheme={replay.cursorTheme}
+                    cursorInitialPosition={replay.cursorInitialPosition}
+                    cursorScale={replay.cursorScale}
+                    cursorClickAnimation={replay.cursorClickAnimation}
+                    browserScale={replay.browserScale}
+                    cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
+                    cursorDefaultPathStyle={replay.cursorPathStyle}
+                    watermark={replay.watermark}
+                    introCard={replay.introCard}
+                    outroCard={replay.outroCard}
+                    presentationDimensions={{ width: targetWidth, height: targetHeight }}
+                    presentationBounds={previewBounds ?? { width: 400, height: 300 }}
+                    presentationFit="contain"
+                    presentationMode="export"
+                  />
                 </Suspense>
               </div>
             </div>
