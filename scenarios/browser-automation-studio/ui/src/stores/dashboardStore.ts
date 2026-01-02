@@ -143,13 +143,23 @@ const normalizeRecentWorkflow = (raw: Record<string, unknown>, projects: Map<str
   };
 };
 
+// Helper to normalize proto enum status to lowercase
+const normalizeExecutionStatus = (rawStatus: unknown): RecentExecution['status'] => {
+  const statusStr = String(rawStatus ?? 'pending').toUpperCase();
+  // Handle proto enum format (e.g., "EXECUTION_STATUS_RUNNING") and lowercase format
+  if (statusStr.includes('RUNNING')) return 'running';
+  if (statusStr.includes('COMPLETED')) return 'completed';
+  if (statusStr.includes('FAILED')) return 'failed';
+  if (statusStr.includes('CANCELLED')) return 'cancelled';
+  if (statusStr.includes('PENDING')) return 'pending';
+  return 'pending';
+};
+
 // Helper to normalize execution response
 const normalizeRecentExecution = (raw: Record<string, unknown>, workflowNames: Map<string, { name: string; projectId?: string; projectName?: string }>): RecentExecution => {
   const workflowId = String(raw.workflow_id ?? raw.workflowId ?? '');
   const workflowInfo = workflowNames.get(workflowId);
-  const statusValue = String(raw.status ?? 'pending');
-  const validStatuses = ['pending', 'running', 'completed', 'failed', 'cancelled'];
-  const status = validStatuses.includes(statusValue) ? statusValue as RecentExecution['status'] : 'pending';
+  const status = normalizeExecutionStatus(raw.status);
 
   return {
     id: String(raw.id ?? raw.executionId ?? raw.execution_id ?? ''),
@@ -256,7 +266,7 @@ export const useDashboardStore = create<DashboardState>()(
 
           const running = rawExecutions
             .filter((e: Record<string, unknown>) => {
-              const status = String(e.status ?? '');
+              const status = normalizeExecutionStatus(e.status);
               return status === 'running' || status === 'pending';
             })
             .map((e: Record<string, unknown>) => normalizeRecentExecution(e, workflowNames));

@@ -16,10 +16,8 @@ import {
   Square,
   Activity,
   ArrowRight,
-  Video,
   LayoutGrid,
   Wand2,
-  Circle,
 } from 'lucide-react';
 import { useDashboardStore, type RecentWorkflow, type FavoriteWorkflow } from '@stores/dashboardStore';
 import { useExecutionStore } from '@/domains/executions';
@@ -46,7 +44,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onRunWorkflow,
   onViewExecution,
   onOpenSettings,
-  onUseTemplate,
+  onUseTemplate: _onUseTemplate,
   onStartRecording,
   isGenerating = false,
 }) => {
@@ -223,12 +221,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   const heroSecondaryLabel = aiCapability.available ? 'Start from template' : 'Setup AI keys';
 
-  const highlightWorkflows = useMemo(() => {
-    const highlights = unifiedWorkflows.filter(w => w.isLastEdited || w.isStarred);
-    return highlights.slice(0, 6);
-  }, [unifiedWorkflows]);
-
-  // Render AI-enabled quick start inside the three-card row
+  // Render AI-enabled quick start inside the two-card row
   const renderAIQuickStart = () => (
     <div className="bg-flow-surface border border-flow-border/70 rounded-2xl p-5 space-y-4 h-full shadow-[0_12px_30px_rgba(0,0,0,0.2)]">
       <div className="flex items-start gap-3">
@@ -236,13 +229,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <Sparkles size={20} className="text-purple-700" />
         </div>
         <div className="flex-1 space-y-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-flow-text">AI Build</h2>
-            <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--flow-surface))] text-flow-text-secondary border border-[rgb(var(--flow-border))]">
-              Step 1
-            </span>
-          </div>
-          <p className="text-sm text-flow-text-secondary">Describe what you want. We’ll draft the flow.</p>
+          <h2 className="text-base font-semibold text-flow-text">AI Build</h2>
+          <p className="text-sm text-flow-text-secondary">Describe what you want. We'll draft the flow.</p>
         </div>
       </div>
 
@@ -338,12 +326,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <LayoutGrid size={20} className="text-blue-700" />
         </div>
         <div className="flex-1 space-y-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-flow-text">Visual Builder</h2>
-            <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--flow-surface))] text-flow-text-muted border border-[rgb(var(--flow-border))]">
-              Step 2
-            </span>
-          </div>
+          <h2 className="text-base font-semibold text-flow-text">Visual Builder</h2>
           <p className="text-sm text-flow-text-muted">Start from a blank canvas or tweak a template.</p>
         </div>
       </div>
@@ -559,147 +542,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {renderRunningExecutions()}
 
       {/* Quick Start Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {renderAIQuickStart()}
-            {renderManualQuickStart()}
-            <div className="bg-flow-surface border border-flow-border/70 rounded-2xl p-5 space-y-4 h-full shadow-[0_12px_30px_rgba(0,0,0,0.2)]">
-              <div className="flex items-start gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[rgb(var(--flow-surface))] border border-[rgb(var(--flow-border))]">
-              <Video size={20} className="text-emerald-700" />
-            </div>
-            <div className="flex-1 space-y-1">
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-flow-text">Template picks</h2>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--flow-surface))] text-flow-text-muted border border-[rgb(var(--flow-border))]">
-                  Step 3
-                </span>
-              </div>
-              <p className="text-sm text-flow-text-muted">Jumpstart with a curated pattern.</p>
-            </div>
-          </div>
-          {onStartRecording && (
-            <div className="p-3 rounded-xl border border-red-500/25 bg-red-500/10 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="inline-flex items-center gap-2 text-red-700">
-                  <Circle size={12} className="text-red-500 fill-red-500" />
-                  <span className="font-semibold">Record Mode</span>
-                </div>
-                <span className="text-[11px] text-red-700">Live capture</span>
-              </div>
-              <p className="text-xs text-red-700/80">
-                Capture clicks and inputs, then turn them into a workflow with one click.
-              </p>
-              <button
-                onClick={onStartRecording}
-                className="inline-flex items-center gap-2 text-sm font-medium text-white px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 transition-colors w-full justify-center"
-              >
-                <Circle size={12} className="text-white fill-white" />
-                Start recording
-              </button>
-            </div>
-          )}
-          <div className="space-y-2">
-            <button
-              onClick={() => onUseTemplate('Log into a dashboard and capture a screenshot', 'Login capture')}
-              className="flex items-center justify-between w-full p-3 bg-[rgb(var(--flow-surface))] hover:bg-flow-node-hover border border-flow-border/60 rounded-lg transition-colors text-left"
-            >
-              <div>
-                <div className="text-sm font-medium text-flow-text">Login & capture</div>
-                <div className="text-xs text-flow-text-muted">Auth + screenshot in one go.</div>
-              </div>
-              <ArrowRight size={14} className="text-emerald-200" />
-            </button>
-            <button
-              onClick={() => onUseTemplate('Record and repeat add-to-cart flow', 'Record & replay')}
-              className="flex items-center justify-between w-full p-3 bg-[rgb(var(--flow-surface))] hover:bg-flow-node-hover border border-flow-border/60 rounded-lg transition-colors text-left"
-            >
-              <div>
-                <div className="text-sm font-medium text-flow-text">Record & replay</div>
-                <div className="text-xs text-flow-text-muted">Capture clicks, repeat reliably.</div>
-              </div>
-              <ArrowRight size={14} className="text-emerald-200" />
-            </button>
-            <button
-              onClick={() => onUseTemplate('Scrape pricing data from product grid', 'Price scraper')}
-              className="flex items-center justify-between w-full p-3 bg-[rgb(var(--flow-surface))] hover:bg-flow-node-hover border border-flow-border/60 rounded-lg transition-colors text-left"
-            >
-              <div>
-                <div className="text-sm font-medium text-flow-text">Price scraper</div>
-                <div className="text-xs text-flow-text-muted">Extract structured data fast.</div>
-              </div>
-              <ArrowRight size={14} className="text-emerald-200" />
-            </button>
-          </div>
-        </div>
+        {renderManualQuickStart()}
       </div>
 
-      {/* Continue / Favorites rail */}
-      {highlightWorkflows.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-flow-text">Continue & favorites</h2>
-            <span className="text-xs text-flow-text-muted">Quick shortcuts to your go-tos</span>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-1">
-            {highlightWorkflows.map((workflow) => (
-              <div
-                key={workflow.id}
-                className="min-w-[240px] max-w-[260px] rounded-xl border border-flow-border/70 p-4 flex flex-col gap-3 bg-flow-surface shadow-[0_8px_24px_rgba(0,0,0,0.18)]"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-flow-text truncate">{workflow.name}</div>
-                    <div className="text-[11px] text-flow-text-muted truncate">{workflow.projectName}</div>
-                  </div>
-                  <button
-                    onClick={() => handleToggleFavorite(workflow)}
-                    className={`flex-shrink-0 transition-colors ${
-                      workflow.isStarred
-                        ? 'text-amber-400 hover:text-amber-300'
-                        : 'text-flow-text-muted hover:text-amber-400'
-                    }`}
-                    title={workflow.isStarred ? 'Remove from favorites' : 'Add to favorites'}
-                  >
-                    {workflow.isStarred ? <Star size={16} fill="currentColor" /> : <StarOff size={16} />}
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2 text-[11px] text-flow-text-muted">
-                  {workflow.isLastEdited && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white text-flow-text-secondary border border-flow-border/60">
-                    <Sparkles size={12} /> Last edited
-                  </span>
-                )}
-                {workflow.isStarred && !workflow.isLastEdited && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white text-flow-text-secondary border border-flow-border/60">
-                      <Star size={12} /> Favorite
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white text-flow-text-muted border border-flow-border/60">
-                    Updated {formatDistanceToNow(workflow.updatedAt, { addSuffix: true })}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onNavigateToWorkflow(workflow.projectId, workflow.id)}
-                    className="flex-1 px-3 py-2 rounded-lg bg-flow-node-hover text-flow-text text-sm hover:bg-flow-node transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => onRunWorkflow(workflow.id)}
-                    className="p-2 rounded-lg bg-flow-node text-flow-text-secondary hover:text-green-300 hover:bg-flow-node-hover transition-colors"
-                    title="Run workflow"
-                  >
-                    <Play size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Templates Gallery - Self-contained with entitlement checks and modals */}
+      <div id="templates-gallery">
+        <TemplatesGallery onOpenSettings={onOpenSettings} />
+      </div>
 
-      {/* Unified Workflows List - Last edited → Starred → Recent */}
+      {/* Your Workflows - Last edited → Starred → Recent */}
       {unifiedWorkflows.length > 0 && (
         <div className="bg-flow-surface border border-flow-border/70 rounded-xl p-5 shadow-[0_12px_30px_rgba(0,0,0,0.18)]">
           <div className="flex items-center justify-between mb-4">
@@ -769,11 +622,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </div>
         </div>
       )}
-
-      {/* Templates Gallery - Self-contained with entitlement checks and modals */}
-      <div id="templates-gallery">
-        <TemplatesGallery onOpenSettings={onOpenSettings} />
-      </div>
     </div>
   );
 };
