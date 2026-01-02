@@ -6,13 +6,35 @@ import {
   X,
   ArrowLeft,
   Keyboard,
+  Wand2,
+  UserCog,
+  Video,
+  Calendar,
+  Shield,
+  Info,
 } from "lucide-react";
 import { GettingStarted } from "./GettingStarted";
+import { WorkflowMethods } from "./WorkflowMethods";
+import { Sessions } from "./Sessions";
+import { ReplayExport } from "./ReplayExport";
+import { Scheduling } from "./Scheduling";
 import { NodeReference } from "./NodeReference";
 import { SchemaReference } from "./SchemaReference";
+import { PrivacyData } from "./PrivacyData";
+import { About } from "./About";
 import { KeyboardShortcutsContent } from "@shared/layout/KeyboardShortcutsModal";
 
-type DocsTab = "getting-started" | "node-reference" | "schema-reference" | "shortcuts";
+type DocsTab =
+  | "getting-started"
+  | "workflow-methods"
+  | "sessions"
+  | "replay-export"
+  | "scheduling"
+  | "node-reference"
+  | "schema-reference"
+  | "shortcuts"
+  | "privacy-data"
+  | "about";
 
 interface DocsHubProps {
   /** Initial tab to display */
@@ -31,9 +53,15 @@ interface DocsHubProps {
 
 const TABS: { id: DocsTab; label: string; icon: React.ElementType }[] = [
   { id: "getting-started", label: "Getting Started", icon: BookOpen },
+  { id: "workflow-methods", label: "Workflow Methods", icon: Wand2 },
+  { id: "sessions", label: "Sessions", icon: UserCog },
+  { id: "replay-export", label: "Replay & Export", icon: Video },
+  { id: "scheduling", label: "Scheduling", icon: Calendar },
   { id: "node-reference", label: "Node Reference", icon: Blocks },
   { id: "schema-reference", label: "Schema Reference", icon: FileJson },
   { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
+  { id: "privacy-data", label: "Privacy & Data", icon: Shield },
+  { id: "about", label: "About", icon: Info },
 ];
 
 export function DocsHub({
@@ -101,7 +129,7 @@ export function DocsHub({
       </header>
 
       {/* Tab Navigation */}
-      <nav className="flex border-b border-gray-800 px-6">
+      <nav className="flex overflow-x-auto border-b border-gray-800 px-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -110,7 +138,7 @@ export function DocsHub({
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${
                 isActive
                   ? "border-flow-accent text-surface"
                   : "border-transparent text-subtle hover:text-surface"
@@ -126,6 +154,10 @@ export function DocsHub({
       {/* Tab Content */}
       <div className="flex-1 min-h-0">
         {activeTab === "getting-started" && <GettingStarted />}
+        {activeTab === "workflow-methods" && <WorkflowMethods />}
+        {activeTab === "sessions" && <Sessions />}
+        {activeTab === "replay-export" && <ReplayExport />}
+        {activeTab === "scheduling" && <Scheduling />}
         {activeTab === "node-reference" && (
           <NodeReference initialNodeType={initialNodeType} />
         )}
@@ -137,6 +169,8 @@ export function DocsHub({
             <KeyboardShortcutsContent />
           </div>
         )}
+        {activeTab === "privacy-data" && <PrivacyData />}
+        {activeTab === "about" && <About />}
       </div>
     </div>
   );

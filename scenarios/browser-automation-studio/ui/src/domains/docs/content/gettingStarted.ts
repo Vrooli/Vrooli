@@ -31,24 +31,26 @@ A **workflow** is a sequence of connected nodes that define an automation. Each 
 ### 1. Create a Project
 Click **"New Project"** from the dashboard. Give it a name and optionally a description. Projects are saved to a folder on your machine.
 
-### 2. Create a Workflow
-Inside your project, click **"New Workflow"**. You have two options:
-- **AI Assistant** - Describe what you want to automate in plain English
-- **Manual Builder** - Drag and drop nodes from the palette
+### 2. Choose a Creation Method
+Inside your project, click **"New Workflow"**. You have three options, listed in recommended order:
 
-### 3. Add Nodes
-Drag nodes from the **Node Palette** on the left onto the canvas. Connect them by dragging from one node's output handle to another's input handle.
+1. **Record** (Recommended) - Click through a real browser and capture your actions automatically. The easiest way to get started.
 
-### 4. Configure Nodes
-Click on a node to open its configuration panel. Each node has different options:
-- **Navigate** - Enter a URL or select a scenario
-- **Click** - Provide a CSS selector or use the visual picker
-- **Type** - Enter text and optionally specify a selector
+2. **AI-Assisted** - Describe what you want in plain language and let AI navigate for you. Great for generating e2e tests with automatic assertions.
 
-### 5. Execute
+3. **Visual Builder** - Drag and drop nodes for full manual control. Best when you need branching logic or conditional flows.
+
+> **Tip:** See the **Workflow Methods** tab for detailed documentation on each approach.
+
+### 3. Configure & Test
+- **Recording**: Edit selectors, remove unwanted steps, and test before saving
+- **AI-Assisted**: Review AI-generated steps and refine as needed
+- **Visual Builder**: Configure each node and connect them with edges
+
+### 4. Execute
 Click the **"Execute"** button in the header. BAS will run your workflow in a real browser and stream screenshots back in real-time.
 
-### 6. Review Results
+### 5. Review Results
 After execution, view the results in the **Executions** tab. You can:
 - Replay the execution step-by-step
 - Export screenshots and reports
