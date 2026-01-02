@@ -55,8 +55,8 @@ func ValidateChatCreate(name, model, viewMode string) ValidationResult {
 }
 
 // ValidateChatUpdate validates inputs for updating a chat.
-func ValidateChatUpdate(name, model *string) ValidationResult {
-	if name == nil && model == nil {
+func ValidateChatUpdate(name, model *string, toolsEnabled *bool) ValidationResult {
+	if name == nil && model == nil && toolsEnabled == nil {
 		return Invalid("no fields to update")
 	}
 	return OK()

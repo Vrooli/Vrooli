@@ -31,6 +31,7 @@ export interface Chat {
   is_archived: boolean;
   is_starred: boolean;
   label_ids: string[];
+  tools_enabled: boolean; // Whether AI can use tools in this chat
   web_search_enabled: boolean; // Default web search setting for new messages
   active_leaf_message_id?: string; // Current branch leaf for message tree
   created_at: string;
@@ -174,7 +175,7 @@ export async function createChat(data?: { name?: string; model?: string; view_mo
   return res.json();
 }
 
-export async function updateChat(id: string, data: { name?: string; model?: string }): Promise<Chat> {
+export async function updateChat(id: string, data: { name?: string; model?: string; tools_enabled?: boolean }): Promise<Chat> {
   const url = buildApiUrl(`/chats/${id}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "PATCH",
@@ -1118,6 +1119,57 @@ export async function refreshTools(): Promise<{ success: boolean; scenarios_coun
 
   if (!res.ok) {
     throw new Error(`Failed to refresh tools: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// -----------------------------------------------------------------------------
+// Manual Tool Execution API Functions
+// -----------------------------------------------------------------------------
+
+/**
+ * Request for manual tool execution.
+ */
+export interface ManualToolExecuteRequest {
+  scenario: string;
+  tool_name: string;
+  arguments: Record<string, unknown>;
+  chat_id?: string;
+}
+
+/**
+ * Response from manual tool execution.
+ */
+export interface ManualToolExecuteResponse {
+  success: boolean;
+  result: string | number | boolean | Record<string, unknown> | unknown[] | null;
+  status: "completed" | "failed";
+  error?: string;
+  execution_time_ms: number;
+  tool_call_record?: {
+    id: string;
+    message_id: string;
+  };
+}
+
+/**
+ * Execute a tool manually without going through AI.
+ * @param request - The execution request with tool details and arguments
+ */
+export async function executeToolManually(
+  request: ManualToolExecuteRequest
+): Promise<ManualToolExecuteResponse> {
+  const url = buildApiUrl("/tools/execute", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to execute tool: ${res.status}`);
   }
 
   return res.json();

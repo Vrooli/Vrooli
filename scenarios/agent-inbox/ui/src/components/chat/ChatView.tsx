@@ -88,7 +88,7 @@ export function ChatView({
         siblingIndex: m.sibling_index,
       })),
     });
-    const result = computeVisibleMessages(allMessages, activeLeafId);
+    const result = computeVisibleMessages(allMessages, activeLeafId ?? undefined);
     console.log("[ChatView] Visible messages result:", result.map(m => ({
       id: m.id.slice(0, 8),
       role: m.role,

@@ -93,6 +93,7 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/tools/config", h.ResetToolConfig).Methods("DELETE", "OPTIONS")
 	r.HandleFunc("/api/v1/tools/config/approval", h.SetToolApproval).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/tools/refresh", h.RefreshTools).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/tools/execute", h.ExecuteToolManually).Methods("POST", "OPTIONS")
 
 	// Tool Call Approvals
 	r.HandleFunc("/api/v1/chats/{id}/pending-approvals", h.GetPendingApprovals).Methods("GET", "OPTIONS")

@@ -3,11 +3,13 @@
  *
  * A compact dropdown for configuring tools on a per-chat basis.
  * Shows the number of enabled tools and allows quick toggling.
+ * Includes a master toggle to enable/disable all tools for the chat.
  *
  * ARCHITECTURE:
  * - Lightweight wrapper around ToolConfiguration for chat context
  * - Uses popover pattern for non-modal interaction
  * - Integrates with useTools hook for state management
+ * - Supports manual tool execution via ManualToolDialog
  *
  * TESTING SEAMS:
  * - All state managed via useTools hook
@@ -19,17 +21,26 @@ import { Wrench, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import { ToolConfiguration } from "../settings/ToolConfiguration";
+import { ManualToolDialog } from "../tools/ManualToolDialog";
 import { useTools } from "../../hooks/useTools";
+import { useQueryClient } from "@tanstack/react-query";
+import type { EffectiveTool, Chat } from "../../lib/api";
+import { updateChat } from "../../lib/api";
 
 interface ChatToolsSelectorProps {
   /** Chat ID for chat-specific configuration */
   chatId: string;
+  /** Whether tools are enabled for this chat (from chat settings) */
+  toolsEnabled?: boolean;
 }
 
-export function ChatToolsSelector({ chatId }: ChatToolsSelectorProps) {
+export function ChatToolsSelector({ chatId, toolsEnabled = true }: ChatToolsSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<EffectiveTool | null>(null);
+  const [isTogglingMaster, setIsTogglingMaster] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   const {
     toolsByScenario,
@@ -44,6 +55,32 @@ export function ChatToolsSelector({ chatId }: ChatToolsSelectorProps) {
     resetTool,
     refreshToolRegistry,
   } = useTools({ chatId });
+
+  // Handle master toggle for enabling/disabling all tools
+  const handleMasterToggle = async (enabled: boolean) => {
+    setIsTogglingMaster(true);
+    try {
+      await updateChat(chatId, { tools_enabled: enabled });
+      // Invalidate chat queries to refresh the state
+      queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+    } catch (err) {
+      console.error("Failed to toggle tools:", err);
+    } finally {
+      setIsTogglingMaster(false);
+    }
+  };
+
+  // Handle running a tool manually
+  const handleRunTool = (tool: EffectiveTool) => {
+    setSelectedTool(tool);
+  };
+
+  // Handle successful tool execution
+  const handleToolSuccess = () => {
+    // Refresh chat messages to show the new tool call
+    queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+  };
 
   // Close popover when clicking outside
   useEffect(() => {
@@ -123,23 +160,67 @@ export function ChatToolsSelector({ chatId }: ChatToolsSelectorProps) {
             </Button>
           </div>
 
+          {/* Master toggle */}
+          <div className="p-3 border-b border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-white">Enable Tools</span>
+                <p className="text-xs text-slate-500">Allow AI to use tools in this chat</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={toolsEnabled}
+                  onChange={(e) => handleMasterToggle(e.target.checked)}
+                  disabled={isTogglingMaster}
+                  className="sr-only peer"
+                  data-testid="tools-master-toggle"
+                />
+                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500 peer-disabled:opacity-50" />
+              </label>
+            </div>
+          </div>
+
           {/* Content */}
           <div className="p-3">
-            <ToolConfiguration
-              toolsByScenario={toolsByScenario}
-              categories={toolSet?.categories ?? []}
-              scenarioStatuses={scenarios}
-              chatId={chatId}
-              isLoading={isLoading}
-              isRefreshing={isRefreshing}
-              isUpdating={isUpdating}
-              error={error?.message}
-              onToggleTool={toggleTool}
-              onResetTool={resetTool}
-              onRefresh={refreshToolRegistry}
-            />
+            {toolsEnabled ? (
+              <ToolConfiguration
+                toolsByScenario={toolsByScenario}
+                categories={toolSet?.categories ?? []}
+                scenarioStatuses={scenarios}
+                chatId={chatId}
+                isLoading={isLoading}
+                isRefreshing={isRefreshing}
+                isUpdating={isUpdating}
+                error={error?.message}
+                onToggleTool={toggleTool}
+                onResetTool={resetTool}
+                onRefresh={refreshToolRegistry}
+                onRunTool={handleRunTool}
+              />
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-sm text-slate-400">
+                  Tools are disabled for this chat.
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Enable tools above to configure them.
+                </p>
+              </div>
+            )}
           </div>
         </div>
+      )}
+
+      {/* Manual tool execution dialog */}
+      {selectedTool && (
+        <ManualToolDialog
+          open={!!selectedTool}
+          onClose={() => setSelectedTool(null)}
+          tool={selectedTool}
+          chatId={chatId}
+          onSuccess={handleToolSuccess}
+        />
       )}
     </div>
   );

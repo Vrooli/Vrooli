@@ -19,9 +19,10 @@ import { Button } from "../ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { ModelSelector } from "./ModelSelector";
 import { ToolConfiguration } from "./ToolConfiguration";
+import { ManualToolDialog } from "../tools/ManualToolDialog";
 import { useTools } from "../../hooks/useTools";
 import { useYoloMode } from "../../hooks/useSettings";
-import type { Model, ApprovalOverride } from "../../lib/api";
+import type { Model, ApprovalOverride, EffectiveTool } from "../../lib/api";
 
 export type Theme = "dark" | "light";
 export type ViewMode = "bubble" | "compact";
@@ -98,6 +99,7 @@ export function Settings({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [showTools, setShowTools] = useState(false);
+  const [selectedToolForRun, setSelectedToolForRun] = useState<EffectiveTool | null>(null);
 
   // YOLO mode setting
   const {
@@ -129,6 +131,10 @@ export function Settings({
   const handleSetApproval = useCallback((scenario: string, toolName: string, override: ApprovalOverride) => {
     setApproval(scenario, toolName, override);
   }, [setApproval]);
+
+  const handleRunTool = useCallback((tool: EffectiveTool) => {
+    setSelectedToolForRun(tool);
+  }, []);
 
   // Apply theme class to document
   useEffect(() => {
@@ -368,6 +374,7 @@ export function Settings({
                     onSetApproval={handleSetApproval}
                     onRefresh={refreshToolRegistry}
                     yoloMode={yoloMode}
+                    onRunTool={handleRunTool}
                   />
                 </div>
               )}
@@ -460,6 +467,15 @@ export function Settings({
             </section>
           </TabsContent>
         </Tabs>
+
+        {/* Manual tool execution dialog (standalone, no chat context) */}
+        {selectedToolForRun && (
+          <ManualToolDialog
+            open={!!selectedToolForRun}
+            onClose={() => setSelectedToolForRun(null)}
+            tool={selectedToolForRun}
+          />
+        )}
       </DialogBody>
     </Dialog>
   );

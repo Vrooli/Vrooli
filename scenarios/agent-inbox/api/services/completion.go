@@ -4,6 +4,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -563,3 +564,105 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 }
 
 // Note: isImageGenerationModel logic moved to ContextManager.IsImageGenerationModel
+
+// ManualExecutionResult contains the result of manually executing a tool.
+type ManualExecutionResult struct {
+	// Result is the tool's return value (JSON encoded).
+	Result interface{} `json:"result"`
+	// Status is "completed" or "failed".
+	Status string `json:"status"`
+	// Error contains the error message if failed.
+	Error string `json:"error,omitempty"`
+	// ExecutionTimeMs is how long execution took.
+	ExecutionTimeMs int64 `json:"execution_time_ms"`
+	// ToolCallRecord is set if chat_id was provided (tool call added to chat).
+	ToolCallRecord *domain.ToolCallRecord `json:"tool_call_record,omitempty"`
+}
+
+// ExecuteToolManually executes a tool directly without going through the AI.
+// This is used when the user fills in tool parameters manually.
+// If chatID is provided, the tool call and result are added to the chat history.
+// If chatID is empty, the tool is executed standalone without persistence.
+func (s *CompletionService) ExecuteToolManually(ctx context.Context, chatID, scenario, toolName string, arguments map[string]interface{}) (*ManualExecutionResult, error) {
+	startTime := time.Now()
+
+	// Convert arguments to JSON string for the executor
+	argsJSON, err := json.Marshal(arguments)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize arguments: %w", err)
+	}
+
+	// Generate a unique tool call ID
+	toolCallID := fmt.Sprintf("manual_%s_%d", toolName, time.Now().UnixNano())
+
+	// If chatID is provided, we need to create a synthetic message for the tool call
+	var messageID string
+	if chatID != "" {
+		// Create a synthetic assistant message indicating manual tool invocation
+		syntheticContent := fmt.Sprintf("[Manual tool execution: %s]", toolName)
+		toolCall := domain.ToolCall{
+			ID:   toolCallID,
+			Type: "function",
+			Function: struct {
+				Name      string `json:"name"`
+				Arguments string `json:"arguments"`
+			}{
+				Name:      toolName,
+				Arguments: string(argsJSON),
+			},
+		}
+		msg, err := s.repo.SaveAssistantMessageWithToolCalls(
+			ctx, chatID, "", syntheticContent, []domain.ToolCall{toolCall},
+			"", "manual_tool_call", 0, "",
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save tool call message: %w", err)
+		}
+		messageID = msg.ID
+	}
+
+	// Execute the tool
+	record, execErr := s.executor.ExecuteTool(ctx, chatID, toolCallID, toolName, string(argsJSON))
+
+	executionTime := time.Since(startTime).Milliseconds()
+
+	// Build result
+	result := &ManualExecutionResult{
+		ExecutionTimeMs: executionTime,
+	}
+
+	if execErr != nil {
+		result.Status = domain.StatusFailed
+		result.Error = execErr.Error()
+		result.Result = map[string]string{"error": execErr.Error()}
+	} else {
+		result.Status = domain.StatusCompleted
+		// Parse the JSON result back to interface{}
+		var parsedResult interface{}
+		if err := json.Unmarshal([]byte(record.Result), &parsedResult); err != nil {
+			result.Result = record.Result // Return as string if not valid JSON
+		} else {
+			result.Result = parsedResult
+		}
+	}
+
+	// If chatID was provided, save the record and response message
+	if chatID != "" && messageID != "" {
+		record.MessageID = messageID
+		if saveErr := s.repo.SaveToolCallRecord(ctx, messageID, record); saveErr != nil {
+			log.Printf("warning: failed to save manual tool call record: %v", saveErr)
+		}
+
+		// Save tool response message
+		toolMsg, toolMsgErr := s.repo.SaveToolResponseMessage(ctx, chatID, toolCallID, record.Result, messageID)
+		if toolMsgErr != nil {
+			log.Printf("warning: failed to save manual tool response message: %v", toolMsgErr)
+		} else if toolMsg != nil {
+			s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID)
+		}
+
+		result.ToolCallRecord = record
+	}
+
+	return result, nil
+}

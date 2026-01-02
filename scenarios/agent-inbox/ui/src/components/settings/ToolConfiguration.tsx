@@ -31,6 +31,7 @@ import {
   DollarSign,
   Shield,
   ShieldOff,
+  Play,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
@@ -63,6 +64,8 @@ interface ToolConfigurationProps {
   onResetTool?: (scenario: string, toolName: string) => void;
   /** Callback to refresh tool registry */
   onRefresh?: () => void;
+  /** Callback when user wants to run a tool manually */
+  onRunTool?: (tool: EffectiveTool) => void;
 }
 
 /**
@@ -108,6 +111,7 @@ export function ToolConfiguration({
   onSetApproval,
   onResetTool,
   onRefresh,
+  onRunTool,
 }: ToolConfigurationProps) {
   // Track which scenarios are expanded
   const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(
@@ -348,21 +352,37 @@ export function ToolConfiguration({
                         )}
                       </div>
 
-                      {/* Reset button (for chat-specific overrides) */}
-                      {hasOverride && onResetTool && (
-                        <Tooltip content="Reset to default">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onResetTool(scenario, tool.name)}
-                            disabled={isUpdating}
-                            className="shrink-0"
-                            data-testid={`tool-reset-${scenario}-${tool.name}`}
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                          </Button>
-                        </Tooltip>
-                      )}
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {/* Run button (manual tool execution) */}
+                        {onRunTool && (
+                          <Tooltip content="Run manually">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onRunTool(effectiveTool)}
+                              disabled={isUpdating}
+                              data-testid={`tool-run-${scenario}-${tool.name}`}
+                            >
+                              <Play className="h-4 w-4 text-indigo-400" />
+                            </Button>
+                          </Tooltip>
+                        )}
+                        {/* Reset button (for chat-specific overrides) */}
+                        {hasOverride && onResetTool && (
+                          <Tooltip content="Reset to default">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onResetTool(scenario, tool.name)}
+                              disabled={isUpdating}
+                              data-testid={`tool-reset-${scenario}-${tool.name}`}
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          </Tooltip>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

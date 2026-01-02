@@ -185,7 +185,7 @@ func (h *Handlers) AutoName(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the chat
-	chat, err := h.Repo.UpdateChat(r.Context(), chatID, &name, nil)
+	chat, err := h.Repo.UpdateChat(r.Context(), chatID, &name, nil, nil)
 	if err != nil {
 		h.JSONError(w, "Failed to update chat name", http.StatusInternalServerError)
 		return

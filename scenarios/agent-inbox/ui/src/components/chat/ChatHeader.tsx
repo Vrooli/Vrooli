@@ -116,7 +116,7 @@ export function ChatHeader({
 
               <span className="text-xs text-slate-600">•</span>
 
-              <ChatToolsSelector chatId={chat.id} />
+              <ChatToolsSelector chatId={chat.id} toolsEnabled={chat.tools_enabled} />
             </div>
 
             {/* Labels */}

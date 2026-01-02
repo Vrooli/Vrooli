@@ -17,7 +17,7 @@ import (
 // ListChats returns all chats matching the given filters.
 func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]domain.Chat, error) {
 	query := `
-		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.created_at, c.updated_at,
+		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.created_at, c.updated_at,
 			COALESCE(array_agg(cl.label_id) FILTER (WHERE cl.label_id IS NOT NULL), '{}') as label_ids
 		FROM chats c
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
@@ -41,7 +41,7 @@ func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]d
 	for rows.Next() {
 		var c domain.Chat
 		var labelIDs []byte
-		if err := rows.Scan(&c.ID, &c.Name, &c.Preview, &c.Model, &c.ViewMode, &c.IsRead, &c.IsArchived, &c.IsStarred, &c.CreatedAt, &c.UpdatedAt, &labelIDs); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Preview, &c.Model, &c.ViewMode, &c.IsRead, &c.IsArchived, &c.IsStarred, &c.ToolsEnabled, &c.CreatedAt, &c.UpdatedAt, &labelIDs); err != nil {
 			continue
 		}
 		c.LabelIDs = parsePostgresArray(string(labelIDs))
@@ -59,13 +59,13 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 	var webSearchEnabled sql.NullBool
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.web_search_enabled, c.active_leaf_message_id, c.created_at, c.updated_at,
+		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.web_search_enabled, c.active_leaf_message_id, c.created_at, c.updated_at,
 			COALESCE(array_agg(cl.label_id) FILTER (WHERE cl.label_id IS NOT NULL), '{}') as label_ids
 		FROM chats c
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
 		WHERE c.id = $1
 		GROUP BY c.id
-	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &webSearchEnabled, &activeLeafMessageID, &chat.CreatedAt, &chat.UpdatedAt, &labelIDs)
+	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &webSearchEnabled, &activeLeafMessageID, &chat.CreatedAt, &chat.UpdatedAt, &labelIDs)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -112,10 +112,10 @@ func (r *Repository) CreateChat(ctx context.Context, name, model, viewMode strin
 	err := r.db.QueryRowContext(ctx, `
 		INSERT INTO chats (name, model, view_mode)
 		VALUES ($1, $2, $3)
-		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, created_at, updated_at
+		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, tools_enabled, created_at, updated_at
 	`, name, model, viewMode).Scan(
 		&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode,
-		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.CreatedAt, &chat.UpdatedAt,
+		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &chat.CreatedAt, &chat.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chat: %w", err)
@@ -124,8 +124,8 @@ func (r *Repository) CreateChat(ctx context.Context, name, model, viewMode strin
 	return &chat, nil
 }
 
-// UpdateChat updates a chat's name and/or model.
-func (r *Repository) UpdateChat(ctx context.Context, chatID string, name, model *string) (*domain.Chat, error) {
+// UpdateChat updates a chat's name, model, and/or tools_enabled.
+func (r *Repository) UpdateChat(ctx context.Context, chatID string, name, model *string, toolsEnabled *bool) (*domain.Chat, error) {
 	updates := []string{}
 	args := []interface{}{}
 	argNum := 1
@@ -140,6 +140,11 @@ func (r *Repository) UpdateChat(ctx context.Context, chatID string, name, model 
 		args = append(args, *model)
 		argNum++
 	}
+	if toolsEnabled != nil {
+		updates = append(updates, fmt.Sprintf("tools_enabled = $%d", argNum))
+		args = append(args, *toolsEnabled)
+		argNum++
+	}
 
 	if len(updates) == 0 {
 		return nil, fmt.Errorf("no fields to update")
@@ -148,13 +153,13 @@ func (r *Repository) UpdateChat(ctx context.Context, chatID string, name, model 
 	updates = append(updates, "updated_at = NOW()")
 	args = append(args, chatID)
 
-	query := fmt.Sprintf("UPDATE chats SET %s WHERE id = $%d RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, created_at, updated_at",
+	query := fmt.Sprintf("UPDATE chats SET %s WHERE id = $%d RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, tools_enabled, created_at, updated_at",
 		strings.Join(updates, ", "), argNum)
 
 	var chat domain.Chat
 	err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode,
-		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.CreatedAt, &chat.UpdatedAt,
+		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &chat.CreatedAt, &chat.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -666,10 +671,10 @@ func (r *Repository) ForkChat(ctx context.Context, sourceChatID, upToMessageID, 
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO chats (name, model, view_mode)
 		VALUES ($1, $2, 'bubble')
-		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, created_at, updated_at
+		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, tools_enabled, created_at, updated_at
 	`, newName, model).Scan(
 		&newChat.ID, &newChat.Name, &newChat.Preview, &newChat.Model, &newChat.ViewMode,
-		&newChat.IsRead, &newChat.IsArchived, &newChat.IsStarred, &newChat.CreatedAt, &newChat.UpdatedAt,
+		&newChat.IsRead, &newChat.IsArchived, &newChat.IsStarred, &newChat.ToolsEnabled, &newChat.CreatedAt, &newChat.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create forked chat: %w", err)

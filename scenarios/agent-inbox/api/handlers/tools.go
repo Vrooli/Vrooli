@@ -245,6 +245,69 @@ func (h *Handlers) ApproveToolCall(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
+// ExecuteToolManually executes a tool directly without going through AI.
+// POST /api/v1/tools/execute
+// Body: {
+//   "scenario": "agent-manager",
+//   "tool_name": "spawn_coding_agent",
+//   "arguments": { ... tool parameters ... },
+//   "chat_id": "optional - if provided, adds result to chat history"
+// }
+func (h *Handlers) ExecuteToolManually(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Scenario  string                 `json:"scenario"`
+		ToolName  string                 `json:"tool_name"`
+		Arguments map[string]interface{} `json:"arguments"`
+		ChatID    string                 `json:"chat_id,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Scenario == "" || req.ToolName == "" {
+		h.JSONError(w, "scenario and tool_name are required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate the tool exists
+	tool, err := h.ToolRegistry.GetTool(r.Context(), req.Scenario, req.ToolName)
+	if err != nil || tool == nil {
+		h.JSONError(w, "Tool not found", http.StatusNotFound)
+		return
+	}
+
+	// Execute the tool via completion service
+	svc := services.NewCompletionService(h.Repo, h.Storage)
+	result, err := svc.ExecuteToolManually(r.Context(), req.ChatID, req.Scenario, req.ToolName, req.Arguments)
+	if err != nil {
+		h.JSONResponse(w, map[string]interface{}{
+			"success":           false,
+			"status":            "failed",
+			"error":             err.Error(),
+			"execution_time_ms": 0,
+		}, http.StatusOK)
+		return
+	}
+
+	response := map[string]interface{}{
+		"success":           true,
+		"result":            result.Result,
+		"status":            result.Status,
+		"execution_time_ms": result.ExecutionTimeMs,
+	}
+
+	if result.ToolCallRecord != nil {
+		response["tool_call_record"] = map[string]interface{}{
+			"id":         result.ToolCallRecord.ID,
+			"message_id": result.ToolCallRecord.MessageID,
+		}
+	}
+
+	h.JSONResponse(w, response, http.StatusOK)
+}
+
 // RejectToolCall rejects a pending tool call.
 // POST /api/v1/tool-calls/{id}/reject
 // Query params:
