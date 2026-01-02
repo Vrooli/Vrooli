@@ -334,6 +334,14 @@ func (s *InvestigationService) buildPrompt(deployment *domain.Deployment, autoFi
 	}
 	sb.WriteString("\n")
 
+	// Include the full deployment manifest for reference
+	sb.WriteString("## Deployment Manifest\n")
+	sb.WriteString("This is the manifest that was used for deployment. Use it to verify dependencies.\n")
+	sb.WriteString("```json\n")
+	manifestJSON, _ := json.MarshalIndent(manifest, "", "  ")
+	sb.WriteString(string(manifestJSON))
+	sb.WriteString("\n```\n\n")
+
 	sb.WriteString("## VPS Connection\n")
 	sb.WriteString("To investigate the VPS, use SSH commands:\n")
 	sb.WriteString("```bash\n")
@@ -361,9 +369,36 @@ func (s *InvestigationService) buildPrompt(deployment *domain.Deployment, autoFi
 		sb.WriteString("\n")
 	}
 
+	// Add Vrooli architecture context
+	sb.WriteString("## Vrooli Deployment Architecture\n")
+	sb.WriteString("Understanding how Vrooli deployments work will help you diagnose the root cause:\n\n")
+	sb.WriteString("### How Dependencies Work\n")
+	sb.WriteString("1. Each scenario declares its dependencies in `.vrooli/service.json` under `dependencies.resources` and `dependencies.scenarios`\n")
+	sb.WriteString("2. The `scenario-dependency-analyzer` scans the scenario and its dependencies to build the manifest\n")
+	sb.WriteString("3. The deployment pipeline (`vps_deploy.go`) executes these steps in order:\n")
+	sb.WriteString("   - Install and configure Caddy (reverse proxy)\n")
+	sb.WriteString("   - Start each resource in `manifest.dependencies.resources` via `vrooli resource start <name>`\n")
+	sb.WriteString("   - Start each dependent scenario in `manifest.dependencies.scenarios`\n")
+	sb.WriteString("   - Start the target scenario with port assignments\n")
+	sb.WriteString("   - Run health checks\n\n")
+	sb.WriteString("### Common Failure Patterns\n")
+	sb.WriteString("- **Resource missing from manifest**: The scenario's `.vrooli/service.json` may not declare the resource, or the analyzer didn't pick it up\n")
+	sb.WriteString("- **Resource in manifest but failed to start**: The `vrooli resource start` command failed on the VPS (check logs in `~/.vrooli/logs/`)\n")
+	sb.WriteString("- **Resource started but not ready**: The scenario started before the resource was fully initialized (timing/health check issue)\n")
+	sb.WriteString("- **VPS missing Vrooli installation**: The mini-Vrooli install may be incomplete or corrupted\n\n")
+
+	sb.WriteString("## Diagnostic Questions\n")
+	sb.WriteString("As you investigate, answer these questions to identify the root cause:\n\n")
+	sb.WriteString("1. **Is the failing dependency in the manifest?** Check `dependencies.resources` and `dependencies.scenarios` above\n")
+	sb.WriteString("2. **If yes, did the resource/scenario start step succeed?** Check `~/.vrooli/logs/` for resource and scenario start logs\n")
+	sb.WriteString("3. **If no, is it declared in the scenario's service.json?** Check `<workdir>/scenarios/<scenario>/.vrooli/service.json`\n")
+	sb.WriteString("4. **Is the Vrooli CLI working?** Run `vrooli --version` and `vrooli resource list`\n")
+	sb.WriteString("5. **Is this a configuration issue or transient failure?** Would a simple restart fix it, or is there a deeper problem?\n\n")
+
 	sb.WriteString("## Your Task\n")
 	sb.WriteString("1. SSH into the VPS to investigate the deployment failure\n")
 	sb.WriteString("2. Check relevant logs:\n")
+	sb.WriteString("   - Vrooli logs: `~/.vrooli/logs/` (resource and scenario logs)\n")
 	sb.WriteString("   - `journalctl -u <service>` for systemd services\n")
 	sb.WriteString("   - Docker logs: `docker logs <container>`\n")
 	sb.WriteString("   - Application logs in the workdir\n")
@@ -375,10 +410,11 @@ func (s *InvestigationService) buildPrompt(deployment *domain.Deployment, autoFi
 	sb.WriteString("   - `df -h` for disk space\n")
 	sb.WriteString("   - `free -m` for memory\n")
 	sb.WriteString("   - `top -bn1 | head -20` for CPU usage\n")
-	sb.WriteString("5. Identify the root cause of the failure\n")
+	sb.WriteString("5. Answer the diagnostic questions above\n")
+	sb.WriteString("6. Identify the root cause of the failure\n")
 
 	if autoFix {
-		sb.WriteString("6. If safe, attempt to fix the issue (restart services, clear disk, etc.)\n")
+		sb.WriteString("7. If safe, attempt to fix the issue (restart services, clear disk, etc.)\n")
 	}
 	sb.WriteString("\n")
 
@@ -391,19 +427,28 @@ func (s *InvestigationService) buildPrompt(deployment *domain.Deployment, autoFi
 	sb.WriteString("## Report Format\n")
 	sb.WriteString("Please provide a structured report with:\n\n")
 	sb.WriteString("### Root Cause\n")
-	sb.WriteString("What caused the deployment to fail\n\n")
+	sb.WriteString("What caused the deployment to fail. Be specific - distinguish between symptoms (e.g., \"postgres not running\") and actual causes (e.g., \"postgres not in manifest\" or \"postgres start command failed\").\n\n")
 	sb.WriteString("### Evidence\n")
-	sb.WriteString("Logs, error messages, and system state that support your conclusion\n\n")
+	sb.WriteString("Logs, error messages, and system state that support your conclusion. Include:\n")
+	sb.WriteString("- Answers to the diagnostic questions above\n")
+	sb.WriteString("- Relevant log snippets\n")
+	sb.WriteString("- Command outputs that confirm the issue\n\n")
 	sb.WriteString("### Impact\n")
-	sb.WriteString("What is broken or not working as a result\n\n")
-	sb.WriteString("### Resolution\n")
-	sb.WriteString("Steps to fix the issue")
+	sb.WriteString("What is broken or not working as a result.\n\n")
+	sb.WriteString("### Immediate Fix\n")
+	sb.WriteString("Commands to run RIGHT NOW on this VPS to restore service. These are hotfixes to unblock the current deployment.")
 	if autoFix {
-		sb.WriteString(" (or confirmation of what was auto-fixed)")
+		sb.WriteString(" (If you already applied fixes, list what you did.)")
 	}
 	sb.WriteString("\n\n")
+	sb.WriteString("### Permanent Fix\n")
+	sb.WriteString("What needs to change in code, configuration, or the deployment manifest so this issue does NOT occur on fresh VPS deployments. This might include:\n")
+	sb.WriteString("- Adding missing dependencies to `.vrooli/service.json`\n")
+	sb.WriteString("- Fixing the manifest generation process\n")
+	sb.WriteString("- Adding health checks or startup delays\n")
+	sb.WriteString("- Fixing the VPS setup/installation process\n\n")
 	sb.WriteString("### Prevention\n")
-	sb.WriteString("Recommendations to prevent this issue in the future\n")
+	sb.WriteString("Recommendations for monitoring, alerts, or deployment pipeline improvements that would catch this issue earlier or prevent it entirely.\n")
 
 	return sb.String(), nil
 }
