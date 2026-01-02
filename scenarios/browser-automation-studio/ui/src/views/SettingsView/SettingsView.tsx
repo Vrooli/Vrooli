@@ -511,14 +511,17 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
                     frames={demoFrames}
                     autoPlay={isPreviewPlaying}
                     loop={replay.loop}
-                    presentationSettings={replay.presentation}
-                    chromeTheme={replay.chromeTheme}
-                    background={replay.background}
-                    cursorTheme={replay.cursorTheme}
-                    cursorInitialPosition={replay.cursorInitialPosition}
-                    cursorScale={replay.cursorScale}
-                    cursorClickAnimation={replay.cursorClickAnimation}
-                    browserScale={replay.browserScale}
+                    replayStyle={{
+                      presentation: replay.presentation,
+                      chromeTheme: replay.chromeTheme,
+                      deviceFrameTheme: replay.deviceFrameTheme,
+                      background: replay.background,
+                      cursorTheme: replay.cursorTheme,
+                      cursorInitialPosition: replay.cursorInitialPosition,
+                      cursorScale: replay.cursorScale,
+                      cursorClickAnimation: replay.cursorClickAnimation,
+                      browserScale: replay.browserScale,
+                    }}
                     cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
                     cursorDefaultPathStyle={replay.cursorPathStyle}
                     watermark={replay.watermark}

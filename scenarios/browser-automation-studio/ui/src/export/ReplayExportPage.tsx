@@ -1528,14 +1528,17 @@ const ReplayExportPage = () => {
           frames={replayFrames}
           autoPlay={false}
           loop={false}
-          presentationSettings={resolvedStyle.presentation}
-          chromeTheme={resolvedStyle.chromeTheme}
-          background={resolvedStyle.background}
-          cursorTheme={resolvedStyle.cursorTheme}
-          cursorInitialPosition={resolvedStyle.cursorInitialPosition}
-          cursorScale={resolvedStyle.cursorScale}
-          cursorClickAnimation={resolvedStyle.cursorClickAnimation}
-          browserScale={resolvedStyle.browserScale}
+          replayStyle={{
+            presentation: resolvedStyle.presentation,
+            chromeTheme: resolvedStyle.chromeTheme,
+            deviceFrameTheme: resolvedStyle.deviceFrameTheme,
+            background: resolvedStyle.background,
+            cursorTheme: resolvedStyle.cursorTheme,
+            cursorInitialPosition: resolvedStyle.cursorInitialPosition,
+            cursorScale: resolvedStyle.cursorScale,
+            cursorClickAnimation: resolvedStyle.cursorClickAnimation,
+            browserScale: resolvedStyle.browserScale,
+          }}
           cursorDefaultSpeedProfile={cursorDefaultSpeedProfile}
           cursorDefaultPathStyle={cursorDefaultPathStyle}
           watermark={watermark ?? undefined}

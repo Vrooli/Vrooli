@@ -76,6 +76,7 @@ export type {
   ReplayCursorInitialPosition,
   ReplayCursorClickAnimation,
   ReplayPlayerController,
+  ReplayStyleProps,
   CursorSpeedProfile,
   CursorPathStyle,
 } from './types';
@@ -273,14 +274,17 @@ export function ReplayPlayer({
   onFrameChange,
   onFrameProgressChange,
   executionStatus,
-  presentationSettings,
-  chromeTheme = 'aurora',
-  background,
-  cursorTheme = 'white',
-  cursorInitialPosition = 'center',
-  cursorScale = 1,
-  cursorClickAnimation = 'pulse',
-  browserScale = 1,
+  replayStyle,
+  // Deprecated individual props (kept for backward compatibility)
+  presentationSettings: presentationSettingsProp,
+  chromeTheme: chromeThemeProp = 'aurora',
+  deviceFrameTheme: deviceFrameThemeProp = 'minimal',
+  background: backgroundProp,
+  cursorTheme: cursorThemeProp = 'white',
+  cursorInitialPosition: cursorInitialPositionProp = 'center',
+  cursorScale: cursorScaleProp = 1,
+  cursorClickAnimation: cursorClickAnimationProp = 'pulse',
+  browserScale: browserScaleProp = 1,
   cursorDefaultSpeedProfile,
   cursorDefaultPathStyle,
   exposeController,
@@ -293,6 +297,16 @@ export function ReplayPlayer({
   introCard,
   outroCard,
 }: ReplayPlayerProps) {
+  // Resolve style props: prefer replayStyle object, fall back to individual props
+  const presentationSettings = replayStyle?.presentation ?? presentationSettingsProp;
+  const chromeTheme = replayStyle?.chromeTheme ?? chromeThemeProp;
+  const deviceFrameTheme = replayStyle?.deviceFrameTheme ?? deviceFrameThemeProp;
+  const background = replayStyle?.background ?? backgroundProp;
+  const cursorTheme = replayStyle?.cursorTheme ?? cursorThemeProp;
+  const cursorInitialPosition = replayStyle?.cursorInitialPosition ?? cursorInitialPositionProp;
+  const cursorScale = replayStyle?.cursorScale ?? cursorScaleProp;
+  const cursorClickAnimation = replayStyle?.cursorClickAnimation ?? cursorClickAnimationProp;
+  const browserScale = replayStyle?.browserScale ?? browserScaleProp;
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const captureAreaRef = useRef<HTMLDivElement | null>(null);
@@ -342,6 +356,7 @@ export function ReplayPlayer({
     () => ({
       presentation: presentationSettings,
       chromeTheme,
+      deviceFrameTheme,
       background,
       cursorTheme,
       cursorInitialPosition,
@@ -352,6 +367,7 @@ export function ReplayPlayer({
     [
       presentationSettings,
       chromeTheme,
+      deviceFrameTheme,
       background,
       cursorTheme,
       cursorInitialPosition,

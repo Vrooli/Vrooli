@@ -12,6 +12,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { WatermarkSettings, IntroCardSettings, OutroCardSettings } from '@stores/settingsStore';
 import type {
   ReplayChromeTheme,
+  ReplayDeviceFrameTheme,
   ReplayBackgroundTheme,
   ReplayBackgroundSource,
   ReplayBackgroundImageFit,
@@ -198,6 +199,26 @@ export type ChromeDecor = {
 };
 
 // =============================================================================
+// Replay Style Props (consolidated style configuration)
+// =============================================================================
+
+/**
+ * Consolidated style configuration for ReplayPlayer.
+ * Pass this as a single prop instead of individual style props.
+ */
+export interface ReplayStyleProps {
+  presentation?: ReplayPresentationSettings;
+  chromeTheme?: ReplayChromeTheme;
+  deviceFrameTheme?: ReplayDeviceFrameTheme;
+  background?: ReplayBackgroundSource;
+  cursorTheme?: ReplayCursorTheme;
+  cursorInitialPosition?: ReplayCursorInitialPosition;
+  cursorScale?: number;
+  cursorClickAnimation?: ReplayCursorClickAnimation;
+  browserScale?: number;
+}
+
+// =============================================================================
 // Component Props & Controller
 // =============================================================================
 
@@ -236,13 +257,28 @@ export interface ReplayPlayerProps {
   onFrameChange?: (frame: ReplayFrame, index: number) => void;
   onFrameProgressChange?: (frameIndex: number, progress: number) => void;
   executionStatus?: 'pending' | 'running' | 'completed' | 'failed';
+  /**
+   * Consolidated style configuration. Prefer this over individual style props.
+   * When provided, individual style props are ignored.
+   */
+  replayStyle?: ReplayStyleProps;
+  /** @deprecated Use replayStyle.presentation instead */
   presentationSettings?: ReplayPresentationSettings;
+  /** @deprecated Use replayStyle.chromeTheme instead */
   chromeTheme?: ReplayChromeTheme;
+  /** @deprecated Use replayStyle.deviceFrameTheme instead */
+  deviceFrameTheme?: ReplayDeviceFrameTheme;
+  /** @deprecated Use replayStyle.background instead */
   background?: ReplayBackgroundSource;
+  /** @deprecated Use replayStyle.cursorTheme instead */
   cursorTheme?: ReplayCursorTheme;
+  /** @deprecated Use replayStyle.cursorInitialPosition instead */
   cursorInitialPosition?: ReplayCursorInitialPosition;
+  /** @deprecated Use replayStyle.cursorScale instead */
   cursorScale?: number;
+  /** @deprecated Use replayStyle.cursorClickAnimation instead */
   cursorClickAnimation?: ReplayCursorClickAnimation;
+  /** @deprecated Use replayStyle.browserScale instead */
   browserScale?: number;
   cursorDefaultSpeedProfile?: CursorSpeedProfile;
   cursorDefaultPathStyle?: CursorPathStyle;

@@ -104,6 +104,7 @@ export function PreviewContainer({
     () => ({
       presentation: replay.presentation,
       chromeTheme: replay.chromeTheme,
+      deviceFrameTheme: replay.deviceFrameTheme,
       background: replay.background,
       cursorTheme: replay.cursorTheme,
       cursorInitialPosition: replay.cursorInitialPosition,
@@ -119,6 +120,7 @@ export function PreviewContainer({
       replay.cursorInitialPosition,
       replay.cursorScale,
       replay.cursorTheme,
+      replay.deviceFrameTheme,
       replay.presentation,
     ],
   );
@@ -149,6 +151,7 @@ export function PreviewContainer({
     onStyleHydrated: (style) => {
       setReplaySetting('presentation', style.presentation);
       setReplaySetting('chromeTheme', style.chromeTheme);
+      setReplaySetting('deviceFrameTheme', style.deviceFrameTheme);
       setReplaySetting('background', style.background);
       setReplaySetting('cursorTheme', style.cursorTheme);
       setReplaySetting('cursorInitialPosition', style.cursorInitialPosition);
