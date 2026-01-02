@@ -58,45 +58,44 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 	lock.Lock()
 	defer lock.Unlock()
 
-	workflowsRoot := projectWorkflowsDir(project)
-	if err := os.MkdirAll(workflowsRoot, 0o755); err != nil {
-		return fmt.Errorf("failed to ensure workflows directory: %w", err)
-	}
+	workflowsRoot := ProjectWorkflowsDir(project)
 
-	// Discover file snapshots.
+	// Discover file snapshots (only if workflows directory exists).
 	snapshots := make(map[uuid.UUID]*workflowProtoSnapshot)
 	var discoveryErr error
-	err = filepath.WalkDir(workflowsRoot, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if d.IsDir() {
+	if info, statErr := os.Stat(workflowsRoot); statErr == nil && info.IsDir() {
+		err = filepath.WalkDir(workflowsRoot, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if !strings.HasSuffix(strings.ToLower(d.Name()), workflowFileExt) {
+				return nil
+			}
+			snapshot, readErr := ReadWorkflowSummaryFile(ctx, project, path)
+			if readErr != nil {
+				discoveryErr = readErr
+				return readErr
+			}
+			if snapshot.Workflow == nil || strings.TrimSpace(snapshot.Workflow.Id) == "" {
+				return nil
+			}
+			id, parseErr := uuid.Parse(snapshot.Workflow.Id)
+			if parseErr != nil {
+				return fmt.Errorf("workflow file %s has invalid id: %w", snapshot.RelativePath, parseErr)
+			}
+			snapshots[id] = snapshot
+			s.cacheWorkflowPath(id, snapshot.AbsolutePath, snapshot.RelativePath)
 			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("failed to scan workflow directory: %w", err)
 		}
-		if !strings.HasSuffix(strings.ToLower(d.Name()), workflowFileExt) {
-			return nil
+		if discoveryErr != nil {
+			return discoveryErr
 		}
-		snapshot, readErr := ReadWorkflowSummaryFile(ctx, project, path)
-		if readErr != nil {
-			discoveryErr = readErr
-			return readErr
-		}
-		if snapshot.Workflow == nil || strings.TrimSpace(snapshot.Workflow.Id) == "" {
-			return nil
-		}
-		id, parseErr := uuid.Parse(snapshot.Workflow.Id)
-		if parseErr != nil {
-			return fmt.Errorf("workflow file %s has invalid id: %w", snapshot.RelativePath, parseErr)
-		}
-		snapshots[id] = snapshot
-		s.cacheWorkflowPath(id, snapshot.AbsolutePath, snapshot.RelativePath)
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to scan workflow directory: %w", err)
-	}
-	if discoveryErr != nil {
-		return discoveryErr
 	}
 
 	dbWorkflows, err := s.listAllProjectWorkflows(ctx, project.ID)

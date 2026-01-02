@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/database"
+	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 )
 
 // ============================================================================
@@ -75,7 +76,7 @@ func TestSafeJoinProjectPath(t *testing.T) {
 	}
 }
 
-func TestWorkflowsDir(t *testing.T) {
+func TestProjectWorkflowsDir(t *testing.T) {
 	tests := []struct {
 		name    string
 		project *database.ProjectIndex
@@ -89,9 +90,9 @@ func TestWorkflowsDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := workflowsDir(tt.project)
+			got := workflowservice.ProjectWorkflowsDir(tt.project)
 			if got != tt.want {
-				t.Errorf("workflowsDir() = %q, want %q", got, tt.want)
+				t.Errorf("ProjectWorkflowsDir() = %q, want %q", got, tt.want)
 			}
 		})
 	}

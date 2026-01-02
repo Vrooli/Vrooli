@@ -8,7 +8,10 @@
  * Displays recorded actions, selection controls, and action buttons.
  */
 
+import { useState, useCallback } from 'react';
+import { Plus } from 'lucide-react';
 import { UnifiedTimeline, type PageColorClass } from '../timeline/TimelineEventCard';
+import { InsertNodeModal, type InsertedAction } from '../InsertNodeModal';
 import type { RecordedAction, SelectorValidation } from '../types/types';
 import type { TimelineItem, TimelineMode } from '../types/timeline-unified';
 import type { Page } from '../hooks/usePages';
@@ -62,6 +65,8 @@ export interface TimelineTabProps {
   onSelectNone: () => void;
   /** Callback to switch to AI navigation mode */
   onAINavigation?: () => void;
+  /** Callback to insert a step */
+  onInsertStep?: (action: InsertedAction) => void;
   /** Pages for multi-tab recording */
   pages?: Page[];
   /** Map of page ID to color class */
@@ -97,6 +102,7 @@ export function TimelineTab({
   onSelectAll,
   onSelectNone,
   onAINavigation,
+  onInsertStep,
   pages,
   pageColorMap,
   className = '',
@@ -104,6 +110,22 @@ export function TimelineTab({
   // Use unified timeline items if provided, otherwise fall back to actions count
   const itemCount = itemCountOverride ?? timelineItems?.length ?? actions.length;
   const selectionCount = selectedIndices.size;
+
+  // Insert step modal state
+  const [isInsertModalOpen, setIsInsertModalOpen] = useState(false);
+
+  const handleOpenInsertModal = useCallback(() => {
+    setIsInsertModalOpen(true);
+  }, []);
+
+  const handleCloseInsertModal = useCallback(() => {
+    setIsInsertModalOpen(false);
+  }, []);
+
+  const handleInsertStep = useCallback((action: InsertedAction) => {
+    onInsertStep?.(action);
+    setIsInsertModalOpen(false);
+  }, [onInsertStep]);
 
   return (
     <div className={`h-full flex flex-col ${className}`}>
@@ -168,6 +190,18 @@ export function TimelineTab({
               aria-label="Clear timeline"
             >
               Clear
+            </button>
+          )}
+
+          {/* Add Step button */}
+          {mode === 'recording' && onInsertStep && !isSelectionMode && (
+            <button
+              onClick={handleOpenInsertModal}
+              className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-400 px-2 py-1 transition-colors"
+              aria-label="Add step"
+            >
+              <Plus size={12} />
+              Add Step
             </button>
           )}
         </div>
@@ -301,6 +335,13 @@ export function TimelineTab({
           )}
         </div>
       )}
+
+      {/* Insert Step Modal */}
+      <InsertNodeModal
+        isOpen={isInsertModalOpen}
+        onClose={handleCloseInsertModal}
+        onInsert={handleInsertStep}
+      />
     </div>
   );
 }

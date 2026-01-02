@@ -180,7 +180,7 @@ func (h *Handler) applyProjectPreset(ctx context.Context, project *database.Proj
 	case "empty":
 		folders = nil
 	case "recommended":
-		folders = []string{"workflows/actions", "workflows/flows", "workflows/cases", "assets"}
+		folders = []string{"actions", "flows", "cases", "assets"}
 	case "custom":
 		folders = presetPaths
 	default:

@@ -161,14 +161,6 @@ export default function WorkflowEditorView() {
     }
   }, [project, selectedFolder, closeAIModal, navigate]);
 
-  const handleWorkflowGenerated = useCallback(
-    async (workflow: Record<string, unknown> & { id?: string }) => {
-      if (!workflow?.id || !project) return;
-      navigate(`/projects/${project.id}/workflows/${workflow.id}`);
-    },
-    [project, navigate]
-  );
-
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-flow-bg">
@@ -228,7 +220,6 @@ export default function WorkflowEditorView() {
             folder={selectedFolder}
             projectId={project?.id}
             onSwitchToManual={handleSwitchToManualBuilder}
-            onSuccess={handleWorkflowGenerated}
           />
         </Suspense>
       )}

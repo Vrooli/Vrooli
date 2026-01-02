@@ -3,6 +3,9 @@ import type { TimelineMode } from '../types/timeline-unified';
 import type { RecordingSessionProfile } from '../types/types';
 import type { StreamConnectionStatus } from './PlaywrightView';
 
+/** Workflow type being created (from AI modal or template) */
+type WorkflowTypeParam = 'action' | 'flow' | 'case';
+
 interface RecordingHeaderProps {
   isRecording: boolean;
   actionCount: number;
@@ -41,7 +44,16 @@ interface RecordingHeaderProps {
   onConfigureSession?: (profileId: string) => void;
   /** Callback to navigate to the Sessions settings page */
   onNavigateToSessionSettings?: () => void;
+  /** Type of workflow being created (from AI modal) */
+  workflowType?: WorkflowTypeParam;
 }
+
+// Workflow type display config
+const WORKFLOW_TYPE_CONFIG: Record<WorkflowTypeParam, { label: string; color: string }> = {
+  action: { label: 'Action', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
+  flow: { label: 'Flow', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  case: { label: 'Test Case', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+};
 
 export function RecordingHeader({
   isRecording,
@@ -67,6 +79,7 @@ export function RecordingHeader({
   connectionStatus,
   onConfigureSession,
   onNavigateToSessionSettings,
+  workflowType,
 }: RecordingHeaderProps) {
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
 
@@ -170,6 +183,16 @@ export function RecordingHeader({
               </svg>
               Execute
             </button>
+          </div>
+        )}
+
+        {/* Workflow type badge (from AI modal) */}
+        {workflowType && mode === 'recording' && (
+          <div
+            className={`px-2.5 py-1 text-xs font-medium rounded-md border ${WORKFLOW_TYPE_CONFIG[workflowType].color}`}
+            title={`Creating ${WORKFLOW_TYPE_CONFIG[workflowType].label}`}
+          >
+            {WORKFLOW_TYPE_CONFIG[workflowType].label}
           </div>
         )}
 

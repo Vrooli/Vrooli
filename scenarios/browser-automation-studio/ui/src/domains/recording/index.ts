@@ -37,6 +37,7 @@ export { FrameStatsDisplay } from './capture/FrameStatsDisplay';
 export { StreamSettings } from './capture/StreamSettings';
 export { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanners';
 export { ClearActionsModal } from './capture/RecordModeModals';
+export { InsertNodeModal, type InsertedAction } from './InsertNodeModal';
 
 // Conversion components
 export { WorkflowCreationForm } from './conversion/WorkflowCreationForm';

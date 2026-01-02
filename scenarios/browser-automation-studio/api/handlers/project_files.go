@@ -109,17 +109,6 @@ func safeJoinProjectPath(projectRoot string, relPath string) (string, error) {
 	return abs, nil
 }
 
-func workflowsDir(project *database.ProjectIndex) string {
-	if project == nil {
-		return "workflows"
-	}
-	root := strings.TrimSpace(project.FolderPath)
-	if root == "" {
-		return "workflows"
-	}
-	return filepath.Join(root, "workflows")
-}
-
 func workflowFolderPathFromRelPath(relPath string) string {
 	relPath = filepath.ToSlash(relPath)
 	relPath = strings.TrimPrefix(relPath, "workflows/")
@@ -160,9 +149,17 @@ func (h *Handler) GetProjectFileTree(w http.ResponseWriter, r *http.Request) {
 
 	entries := make([]*ProjectEntry, 0, len(workflows)+4)
 
-	folders := map[string]struct{}{
-		"workflows": {},
+	folders := map[string]struct{}{}
+
+	// Discover all top-level directories in the project folder.
+	if dirEntries, readErr := os.ReadDir(project.FolderPath); readErr == nil {
+		for _, entry := range dirEntries {
+			if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
+				folders[entry.Name()] = struct{}{}
+			}
+		}
 	}
+
 	for _, wf := range workflows {
 		if wf == nil {
 			continue
@@ -253,8 +250,6 @@ func (h *Handler) GetProjectFileTree(w http.ResponseWriter, r *http.Request) {
 		}
 		return entries[i].Path < entries[j].Path
 	})
-
-	_ = os.MkdirAll(workflowsDir(project), 0o755)
 
 	h.respondSuccess(w, http.StatusOK, ProjectFileTreeResponse{Entries: entries})
 }
@@ -413,7 +408,7 @@ func (h *Handler) WriteProjectWorkflowFile(w http.ResponseWriter, r *http.Reques
 	}
 
 	preferredRel := strings.TrimPrefix(filepath.ToSlash(relPath), "workflows/")
-	if _, statErr := os.Stat(filepath.Join(workflowsDir(project), filepath.FromSlash(preferredRel))); statErr == nil {
+	if _, statErr := os.Stat(filepath.Join(workflowservice.ProjectWorkflowsDir(project), filepath.FromSlash(preferredRel))); statErr == nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "file already exists"}))
 		return
 	}

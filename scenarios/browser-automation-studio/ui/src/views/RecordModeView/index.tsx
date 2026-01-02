@@ -31,6 +31,8 @@ export default function RecordModeView() {
     const executionId = searchParams.get('execution_id') || undefined;
     const workflowId = searchParams.get('workflow_id') || undefined;
     const projectId = searchParams.get('project_id') || undefined;
+    const workflowType = searchParams.get('workflow_type') as 'action' | 'flow' | 'case' | null;
+    const folder = searchParams.get('folder') || undefined;
 
     return {
       initialUrl: url || undefined,
@@ -42,6 +44,8 @@ export default function RecordModeView() {
       executionId,
       workflowId,
       projectId,
+      workflowType: workflowType || undefined,
+      folder,
     };
   }, [searchParams]);
 
@@ -137,6 +141,8 @@ export default function RecordModeView() {
           aiModel={templateParams.aiModel}
           aiMaxSteps={templateParams.aiMaxSteps}
           autoStartAI={templateParams.autoStartAI}
+          workflowType={templateParams.workflowType}
+          initialFolder={templateParams.folder}
         />
       </Suspense>
     </div>

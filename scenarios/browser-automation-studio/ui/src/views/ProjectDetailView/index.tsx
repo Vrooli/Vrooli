@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 
 const ProjectDetail = lazy(() => import('@/domains/projects/ProjectDetail'));
 const AIPromptModal = lazy(() => import('@/domains/ai/AIPromptModal'));
+const AssetUploadModal = lazy(() => import('@/domains/projects/AssetUploadModal'));
 
 export default function ProjectDetailView() {
   const navigate = useNavigate();
@@ -32,6 +33,9 @@ export default function ProjectDetailView() {
     showWorkflowCreationModal,
     openWorkflowCreationModal,
     closeWorkflowCreationModal,
+    showAssetUploadModal,
+    assetUploadConfig,
+    closeAssetUploadModal,
   } = useModals();
 
   // Handle ?openAI=true query parameter
@@ -186,14 +190,6 @@ export default function ProjectDetailView() {
     }
   }, [project, selectedFolder, closeAIModal, navigate]);
 
-  const handleWorkflowGenerated = useCallback(
-    async (workflow: Record<string, unknown> & { id?: string }) => {
-      if (!workflow?.id || !project) return;
-      navigate(`/projects/${project.id}/workflows/${workflow.id}`);
-    },
-    [project, navigate]
-  );
-
   // Handler for workflow type selection from WorkflowCreationDialog
   const handleWorkflowTypeSelected = useCallback(
     async (type: WorkflowCreationType, selectedProject: Project) => {
@@ -290,7 +286,6 @@ export default function ProjectDetailView() {
             folder={selectedFolder}
             projectId={project.id}
             onSwitchToManual={handleSwitchToManualBuilder}
-            onSuccess={handleWorkflowGenerated}
           />
         </Suspense>
       )}
@@ -302,6 +297,26 @@ export default function ProjectDetailView() {
         onCreateProject={handleOpenProjectModal}
         preSelectedProject={project}
       />
+
+      {showAssetUploadModal && assetUploadConfig && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <LoadingSpinner variant="branded" size={24} message="Loading..." />
+            </div>
+          }
+        >
+          <AssetUploadModal
+            isOpen={showAssetUploadModal}
+            onClose={closeAssetUploadModal}
+            folder={assetUploadConfig.folder}
+            projectId={assetUploadConfig.projectId}
+            onSuccess={() => {
+              // Refresh will happen automatically when project entries are refetched
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

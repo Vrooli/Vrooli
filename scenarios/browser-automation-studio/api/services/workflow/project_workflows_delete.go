@@ -32,7 +32,7 @@ func (s *WorkflowService) DeleteProjectWorkflows(ctx context.Context, projectID 
 		}
 
 		if index.FilePath != "" {
-			abs := filepath.Join(projectWorkflowsDir(project), filepath.FromSlash(index.FilePath))
+			abs := filepath.Join(ProjectWorkflowsDir(project), filepath.FromSlash(index.FilePath))
 			_ = os.Remove(abs)
 		}
 		_ = os.RemoveAll(workflowVersionsDir(project.FolderPath, workflowID))

@@ -302,7 +302,7 @@ func (s *WorkflowService) DeleteWorkflow(ctx context.Context, req *basapi.Delete
 	if index.ProjectID != nil {
 		project, err := s.repo.GetProject(ctx, *index.ProjectID)
 		if err == nil {
-			abs := filepath.Join(projectWorkflowsDir(project), filepath.FromSlash(index.FilePath))
+			abs := filepath.Join(ProjectWorkflowsDir(project), filepath.FromSlash(index.FilePath))
 			_ = os.Remove(abs)
 		}
 	}
@@ -331,7 +331,7 @@ func (s *WorkflowService) hydrateWorkflowSummary(ctx context.Context, wf *databa
 		return nil, err
 	}
 
-	abs := filepath.Join(projectWorkflowsDir(project), filepath.FromSlash(wf.FilePath))
+	abs := filepath.Join(ProjectWorkflowsDir(project), filepath.FromSlash(wf.FilePath))
 	snapshot, err := ReadWorkflowSummaryFile(ctx, project, abs)
 	if err != nil {
 		return nil, err

@@ -5,9 +5,10 @@ import {
   WifiOff,
   RefreshCw,
   Loader,
-  FileCode,
   Plus,
   X,
+  Workflow as WorkflowIcon,
+  Upload,
 } from "lucide-react";
 import {
   FileTreeItem,
@@ -19,6 +20,7 @@ import { useStartWorkflow } from "@/domains/executions";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { usePromptDialog } from "@hooks/usePromptDialog";
 import { ConfirmDialog, PromptDialog } from "@shared/ui";
+import { useModals } from "@shared/modals/ModalContext";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
 import {
@@ -100,6 +102,9 @@ export function ProjectFileTree({
 
   // File operations
   const fileOps = useFileTreeOperations(project.id);
+
+  // Modal context
+  const { openWorkflowCreationModal, openAssetUploadModal } = useModals();
 
   // External stores
   const loadWorkflow = useWorkflowStore((state) => state.loadWorkflow);
@@ -398,101 +403,65 @@ export function ProjectFileTree({
     [setSelectedTreeFolder],
   );
 
-  // Handler for creating items from inline menu
-  const handleInlineCreate = useCallback(
-    async (type: "folder" | "action" | "flow" | "case") => {
+  // Handler for creating folders from inline menu
+  const handleCreateFolder = useCallback(
+    async () => {
       const folderPath = inlineAddMenuFolder ?? "";
       setInlineAddMenuFolder(null);
       setInlineAddMenuAnchor(null);
 
-      if (type === "folder") {
-        const suggested = folderPath === "" ? "new-folder" : `${folderPath}/new-folder`;
-        const relPath = await requestPrompt(
-          {
-            title: "New Folder",
-            label: "Folder path (relative to project root)",
-            defaultValue: suggested,
-            submitLabel: "Create Folder",
-            cancelLabel: "Cancel",
+      const suggested = folderPath === "" ? "new-folder" : `${folderPath}/new-folder`;
+      const relPath = await requestPrompt(
+        {
+          title: "New Folder",
+          label: "Folder path (relative to project root)",
+          defaultValue: suggested,
+          submitLabel: "Create Folder",
+          cancelLabel: "Cancel",
+        },
+        {
+          validate: (value) => {
+            const normalized = fileOps.normalizeProjectRelPath(value);
+            if (!normalized.ok) return normalized.error;
+            return null;
           },
-          {
-            validate: (value) => {
-              const normalized = fileOps.normalizeProjectRelPath(value);
-              if (!normalized.ok) return normalized.error;
-              return null;
-            },
-            normalize: (value) => {
-              const normalized = fileOps.normalizeProjectRelPath(value);
-              return normalized.ok ? normalized.path : value.trim();
-            },
+          normalize: (value) => {
+            const normalized = fileOps.normalizeProjectRelPath(value);
+            return normalized.ok ? normalized.path : value.trim();
           },
-        );
-        if (!relPath) return;
-        try {
-          await fileOps.createFolder(relPath);
-          toast.success("Folder created");
-          await fetchProjectEntries(project.id);
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Failed to create folder");
-        }
-      } else {
-        const suffix = `.${type}.json`;
-        const suggested =
-          folderPath === ""
-            ? `${type}-example${suffix}`
-            : `${folderPath}/${type}-example${suffix}`;
-        const relPath = await requestPrompt(
-          {
-            title: `New ${type.charAt(0).toUpperCase() + type.slice(1)}`,
-            label: `File path (relative to project root)`,
-            defaultValue: suggested,
-            submitLabel: "Create",
-            cancelLabel: "Cancel",
-          },
-          {
-            validate: (value) => {
-              const normalized = fileOps.normalizeProjectRelPath(value);
-              if (!normalized.ok) return normalized.error;
-              const lower = normalized.path.toLowerCase();
-              const typedSuffixes = [".action.json", ".flow.json", ".case.json"];
-              const hasTypedSuffix = typedSuffixes.some((s) => lower.endsWith(s));
-              if (hasTypedSuffix && !lower.endsWith(suffix)) {
-                return `File extension must be ${suffix}`;
-              }
-              return null;
-            },
-            normalize: (value) => {
-              const normalized = fileOps.normalizeProjectRelPath(value);
-              if (!normalized.ok) return value.trim();
-              const lower = normalized.path.toLowerCase();
-              if (lower.endsWith(suffix)) return normalized.path;
-              if (
-                lower.endsWith(".json") &&
-                !lower.endsWith(".action.json") &&
-                !lower.endsWith(".flow.json") &&
-                !lower.endsWith(".case.json")
-              ) {
-                return `${normalized.path.slice(0, -".json".length)}${suffix}`;
-              }
-              return `${normalized.path}${suffix}`;
-            },
-          },
-        );
-        if (!relPath) return;
-        try {
-          const workflowId = await fileOps.createWorkflowFile(relPath, type);
-          toast.success(`New ${type} created`);
-          await fetchProjectEntries(project.id);
-          await fetchWorkflows(project.id);
-          if (workflowId) {
-            setPreviewWorkflowId(workflowId);
-          }
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : `Failed to create ${type}`);
-        }
+        },
+      );
+      if (!relPath) return;
+      try {
+        await fileOps.createFolder(relPath);
+        toast.success("Folder created");
+        await fetchProjectEntries(project.id);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to create folder");
       }
     },
-    [inlineAddMenuFolder, requestPrompt, fileOps, fetchProjectEntries, fetchWorkflows, project.id, setPreviewWorkflowId],
+    [inlineAddMenuFolder, requestPrompt, fileOps, fetchProjectEntries, project.id],
+  );
+
+  // Handler for creating workflow from inline menu - opens professional modal
+  const handleCreateWorkflow = useCallback(
+    () => {
+      setInlineAddMenuFolder(null);
+      setInlineAddMenuAnchor(null);
+      openWorkflowCreationModal();
+    },
+    [openWorkflowCreationModal],
+  );
+
+  // Handler for uploading assets from inline menu
+  const handleUploadAsset = useCallback(
+    () => {
+      const folder = inlineAddMenuFolder ?? "";
+      setInlineAddMenuFolder(null);
+      setInlineAddMenuAnchor(null);
+      openAssetUploadModal({ folder, projectId: project.id });
+    },
+    [inlineAddMenuFolder, openAssetUploadModal, project.id],
   );
 
   // Build flat list of visible paths for keyboard navigation
@@ -880,32 +849,25 @@ export function ProjectFileTree({
             </div>
             <div className="p-2">
               <button
-                onClick={() => handleInlineCreate("folder")}
+                onClick={handleCreateFolder}
                 className="w-full flex items-center gap-3 px-3 py-2 text-left text-gray-300 hover:bg-gray-700 rounded transition-colors"
               >
                 <FolderOpen size={16} className="text-yellow-500" />
                 <span className="text-sm">New Folder</span>
               </button>
               <button
-                onClick={() => handleInlineCreate("action")}
+                onClick={handleCreateWorkflow}
                 className="w-full flex items-center gap-3 px-3 py-2 text-left text-gray-300 hover:bg-gray-700 rounded transition-colors"
               >
-                <FileCode size={16} className="text-green-400" />
-                <span className="text-sm">New Action</span>
+                <WorkflowIcon size={16} className="text-blue-400" />
+                <span className="text-sm">New Workflow</span>
               </button>
               <button
-                onClick={() => handleInlineCreate("flow")}
+                onClick={handleUploadAsset}
                 className="w-full flex items-center gap-3 px-3 py-2 text-left text-gray-300 hover:bg-gray-700 rounded transition-colors"
               >
-                <FileCode size={16} className="text-blue-400" />
-                <span className="text-sm">New Flow</span>
-              </button>
-              <button
-                onClick={() => handleInlineCreate("case")}
-                className="w-full flex items-center gap-3 px-3 py-2 text-left text-gray-300 hover:bg-gray-700 rounded transition-colors"
-              >
-                <FileCode size={16} className="text-purple-400" />
-                <span className="text-sm">New Case</span>
+                <Upload size={16} className="text-green-400" />
+                <span className="text-sm">Upload Asset</span>
               </button>
             </div>
           </div>

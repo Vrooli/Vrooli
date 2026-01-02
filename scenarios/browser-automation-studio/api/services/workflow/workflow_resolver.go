@@ -113,8 +113,8 @@ func validateAndNormalizePath(workflowPath string) (string, error) {
 
 // resolveFromProjectDir resolves a workflow from the project's workflows directory.
 func (s *WorkflowService) resolveFromProjectDir(ctx context.Context, project *database.ProjectIndex, rel string, workflowPath string) (*basapi.WorkflowSummary, error) {
-	abs := filepath.Join(projectWorkflowsDir(project), rel)
-	base := projectWorkflowsDir(project)
+	abs := filepath.Join(ProjectWorkflowsDir(project), rel)
+	base := ProjectWorkflowsDir(project)
 	if relCheck, err := filepath.Rel(base, abs); err != nil || strings.HasPrefix(relCheck, "..") {
 		return nil, fmt.Errorf("invalid workflow path: %q", workflowPath)
 	}

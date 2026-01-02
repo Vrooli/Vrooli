@@ -9,11 +9,18 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 
 export type DocsTab = "getting-started" | "node-reference" | "schema-reference" | "shortcuts";
 
+interface AssetUploadModalConfig {
+  folder: string;
+  projectId: string;
+}
+
 interface ModalState {
   // Modal visibility
   showAIModal: boolean;
   showProjectModal: boolean;
   showWorkflowCreationModal: boolean;
+  showAssetUploadModal: boolean;
+  assetUploadConfig: AssetUploadModalConfig | null;
   showDocs: boolean;
   docsInitialTab: DocsTab;
 }
@@ -30,6 +37,10 @@ interface ModalActions {
   // Workflow Creation Modal
   openWorkflowCreationModal: () => void;
   closeWorkflowCreationModal: () => void;
+
+  // Asset Upload Modal
+  openAssetUploadModal: (config: AssetUploadModalConfig) => void;
+  closeAssetUploadModal: () => void;
 
   // Docs Modal
   openDocs: (tab?: DocsTab) => void;
@@ -57,6 +68,8 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
   const [showAIModal, setShowAIModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showWorkflowCreationModal, setShowWorkflowCreationModal] = useState(false);
+  const [showAssetUploadModal, setShowAssetUploadModal] = useState(false);
+  const [assetUploadConfig, setAssetUploadConfig] = useState<AssetUploadModalConfig | null>(null);
   const [showDocs, setShowDocs] = useState(false);
   const [docsInitialTab, setDocsInitialTab] = useState<DocsTab>("getting-started");
 
@@ -65,6 +78,8 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
     setShowAIModal(false);
     setShowProjectModal(false);
     setShowWorkflowCreationModal(false);
+    setShowAssetUploadModal(false);
+    setAssetUploadConfig(null);
     // Note: Docs modal intentionally stays open across navigation
     // as users may want to reference docs while navigating
   }, [currentView]);
@@ -96,6 +111,17 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
     setShowWorkflowCreationModal(false);
   }, []);
 
+  // Asset Upload Modal actions
+  const openAssetUploadModal = useCallback((config: AssetUploadModalConfig) => {
+    setAssetUploadConfig(config);
+    setShowAssetUploadModal(true);
+  }, []);
+
+  const closeAssetUploadModal = useCallback(() => {
+    setShowAssetUploadModal(false);
+    setAssetUploadConfig(null);
+  }, []);
+
   // Docs Modal actions
   const openDocs = useCallback((tab: DocsTab = "getting-started") => {
     setDocsInitialTab(tab);
@@ -111,6 +137,8 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
     setShowAIModal(false);
     setShowProjectModal(false);
     setShowWorkflowCreationModal(false);
+    setShowAssetUploadModal(false);
+    setAssetUploadConfig(null);
     setShowDocs(false);
   }, []);
 
@@ -119,6 +147,8 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
     showAIModal,
     showProjectModal,
     showWorkflowCreationModal,
+    showAssetUploadModal,
+    assetUploadConfig,
     showDocs,
     docsInitialTab,
     // Actions
@@ -128,6 +158,8 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
     closeProjectModal,
     openWorkflowCreationModal,
     closeWorkflowCreationModal,
+    openAssetUploadModal,
+    closeAssetUploadModal,
     openDocs,
     closeDocs,
     closeAllModals,
@@ -157,6 +189,6 @@ export function useModals(): ModalContextValue {
  * Useful for keyboard shortcut context detection.
  */
 export function useIsAnyModalOpen(): boolean {
-  const { showAIModal, showProjectModal, showWorkflowCreationModal, showDocs } = useModals();
-  return showAIModal || showProjectModal || showWorkflowCreationModal || showDocs;
+  const { showAIModal, showProjectModal, showWorkflowCreationModal, showAssetUploadModal, showDocs } = useModals();
+  return showAIModal || showProjectModal || showWorkflowCreationModal || showAssetUploadModal || showDocs;
 }

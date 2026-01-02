@@ -32,7 +32,7 @@ func ReadWorkflowSummaryFile(ctx context.Context, project *database.ProjectIndex
 	}
 	_ = ctx
 
-	rel, err := filepath.Rel(projectWorkflowsDir(project), absPath)
+	rel, err := filepath.Rel(ProjectWorkflowsDir(project), absPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine relative workflow path: %w", err)
 	}
@@ -165,7 +165,7 @@ func WriteWorkflowSummaryFile(project *database.ProjectIndex, wf *basapi.Workflo
 	targetAbs := abs
 	targetRel := rel
 	if strings.TrimSpace(preferredRel) != "" {
-		targetAbs = filepath.Join(projectWorkflowsDir(project), filepath.FromSlash(preferredRel))
+		targetAbs = filepath.Join(ProjectWorkflowsDir(project), filepath.FromSlash(preferredRel))
 		targetRel = preferredRel
 	}
 
@@ -200,7 +200,7 @@ func desiredWorkflowSummaryFilePath(project *database.ProjectIndex, wf *basapi.W
 	slug := sanitizeWorkflowSlug(wf.Name)
 	id, _ := uuid.Parse(wf.Id)
 	fileName := fmt.Sprintf("%s--%s%s", slug, shortID(id), workflowFileExt)
-	baseDir := projectWorkflowsDir(project)
+	baseDir := ProjectWorkflowsDir(project)
 	if subdir != "" {
 		return filepath.Join(baseDir, subdir, fileName), filepath.Join(subdir, fileName)
 	}

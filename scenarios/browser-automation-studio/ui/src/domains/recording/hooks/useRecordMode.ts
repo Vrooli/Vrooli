@@ -37,6 +37,13 @@ interface UseRecordModeOptions {
   useWebSocketUpdates?: boolean;
 }
 
+/** Minimal action data for inserting a new step */
+export interface InsertActionData {
+  actionType: RecordedAction['actionType'];
+  payload?: Record<string, unknown>;
+  selector?: string;
+}
+
 interface UseRecordModeReturn {
   isRecording: boolean;
   recordingId: string | null;
@@ -47,6 +54,7 @@ interface UseRecordModeReturn {
   stopRecording: () => Promise<void>;
   clearActions: () => void;
   deleteAction: (index: number) => void;
+  insertAction: (data: InsertActionData) => void;
   updateSelector: (index: number, newSelector: string) => void;
   updatePayload: (index: number, payload: Record<string, unknown>) => void;
   generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped) => Promise<GenerateWorkflowResponse>;
@@ -429,6 +437,7 @@ function useRecordingTransport({
 interface UseActionEditingReturn {
   clearActions: () => void;
   deleteAction: (index: number) => void;
+  insertAction: (data: InsertActionData) => void;
   updateSelector: (index: number, newSelector: string) => void;
   updatePayload: (index: number, payload: Record<string, unknown>) => void;
   lowConfidenceCount: number;
@@ -482,6 +491,26 @@ function useActionEditing(actions: RecordedAction[], setActions: ActionSetter): 
     [setActions]
   );
 
+  const insertAction = useCallback(
+    (data: InsertActionData) => {
+      setActions((prev) => {
+        const newAction: RecordedAction = {
+          id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          sessionId: '',
+          sequenceNum: prev.length,
+          timestamp: new Date().toISOString(),
+          actionType: data.actionType,
+          confidence: 1.0, // Manual actions have full confidence
+          url: '',
+          payload: data.payload as RecordedAction['payload'],
+          selector: data.selector ? { primary: data.selector, candidates: [] } : undefined,
+        };
+        return [...prev, newAction];
+      });
+    },
+    [setActions]
+  );
+
   const { lowConfidenceCount, mediumConfidenceCount } = useMemo(() => {
     const low = actions.filter((a) => a.selector && a.confidence < CONFIDENCE.MEDIUM).length;
     const medium = actions.filter(
@@ -493,6 +522,7 @@ function useActionEditing(actions: RecordedAction[], setActions: ActionSetter): 
   return {
     clearActions,
     deleteAction,
+    insertAction,
     updateSelector,
     updatePayload,
     lowConfidenceCount,
@@ -528,6 +558,7 @@ export function useRecordMode({
     stopRecording: transport.stopRecording,
     clearActions: editing.clearActions,
     deleteAction: editing.deleteAction,
+    insertAction: editing.insertAction,
     updateSelector: editing.updateSelector,
     updatePayload: editing.updatePayload,
     generateWorkflow: transport.generateWorkflow,

@@ -34,7 +34,8 @@ import type { WorkflowSettingsTyped } from '@/types/workflow';
 import { SessionManager } from '@/views/SettingsView/sections/sessions';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
-import { useRecordMode } from './hooks/useRecordMode';
+import { useRecordMode, type InsertActionData } from './hooks/useRecordMode';
+import type { InsertedAction } from './InsertNodeModal';
 import { useActionSelection } from './hooks/useActionSelection';
 import { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
 import { usePages } from './hooks/usePages';
@@ -63,6 +64,9 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 
+/** Workflow type being created (from AI modal or template) */
+export type WorkflowTypeParam = 'action' | 'flow' | 'case';
+
 interface RecordModePageProps {
   /** Browser session ID */
   sessionId: string | null;
@@ -90,6 +94,10 @@ interface RecordModePageProps {
   aiMaxSteps?: number;
   /** Whether to auto-start AI navigation with the prompt */
   autoStartAI?: boolean;
+  /** Type of workflow being created (from AI modal) */
+  workflowType?: WorkflowTypeParam;
+  /** Initial folder for saving the workflow */
+  initialFolder?: string;
 }
 
 /** Right panel view state */
@@ -207,6 +215,8 @@ export function RecordModePage({
   aiModel,
   aiMaxSteps,
   autoStartAI,
+  workflowType,
+  initialFolder: _initialFolder,
 }: RecordModePageProps) {
   const navigate = useNavigate();
 
@@ -401,6 +411,7 @@ export function RecordModePage({
     startRecording,
     clearActions,
     deleteAction,
+    insertAction,
     updateSelector,
     updatePayload,
     generateWorkflow,
@@ -1007,6 +1018,20 @@ export function RecordModePage({
     setSidebarOpen(true);
   }, [setSidebarTab, setSidebarOpen]);
 
+  // Handle inserting a new step from the InsertNodeModal
+  const handleInsertStep = useCallback(
+    (action: InsertedAction) => {
+      // Convert InsertedAction to InsertActionData format
+      const actionData: InsertActionData = {
+        actionType: action.type as InsertActionData['actionType'],
+        payload: action.params,
+        selector: action.params.selector as string | undefined,
+      };
+      insertAction(actionData);
+    },
+    [insertAction]
+  );
+
   // Test selected actions
   const handleTestSelectedActions = useCallback(
     async (actionIndices: number[]): Promise<ReplayPreviewResponse> => {
@@ -1140,6 +1165,7 @@ export function RecordModePage({
         connectionStatus={connectionStatus}
         onConfigureSession={handleConfigureSession}
         onNavigateToSessionSettings={handleNavigateToSessionSettings}
+        workflowType={workflowType}
       />
 
       {/* Tab bar - always visible for consistent layout */}
@@ -1192,6 +1218,7 @@ export function RecordModePage({
             onSelectAll: selectAll,
             onSelectNone: selectNone,
             onAINavigation: handleAINavigation,
+            onInsertStep: handleInsertStep,
             pages: openPages,
             pageColorMap,
           }}

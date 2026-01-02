@@ -13,6 +13,7 @@ export type { Project, ProjectState } from './store';
 // Main components
 export { default as ProjectDetail } from './ProjectDetail';
 export { default as ProjectModal } from './ProjectModal';
+export { default as AssetUploadModal } from './AssetUploadModal';
 export { ProjectsTab } from './ProjectsTab';
 
 // Decomposed ProjectDetail components
